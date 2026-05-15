@@ -1,0 +1,152 @@
+/* Tweak overlays — set data-attrs on <body> to swap palettes, wordmark, surface mood. */
+
+/* ─── Brand palette ────────────────────────────────────────────────── */
+/* "story" is the default already in tokens.css — no override needed.   */
+
+/* TIDE — ocean + coral, single hue family, beach-focused */
+body[data-palette="tide"] {
+  --brand-burgundy: #0E5C99;
+  --brand-burgundy-dark: #073D69;
+  --brand-orange: #FF6F61;
+  --brand-orange-light: #FF927F;
+
+  --md-primary: #0E5C99;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #C9E2F8;
+  --md-on-primary-container: #00253F;
+
+  --md-secondary: #DC4A3D;
+  --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #FFDAD2;
+  --md-on-secondary-container: #3C0900;
+
+  --md-tertiary: #008F76;
+  --md-on-tertiary: #FFFFFF;
+  --md-tertiary-container: #B8F1DE;
+  --md-on-tertiary-container: #00261E;
+}
+body[data-palette="tide"].scheme-dark,
+body[data-palette="tide"] .scheme-dark {
+  --md-primary: #7CC5FF;
+  --md-on-primary: #00253F;
+  --md-primary-container: #003E68;
+  --md-on-primary-container: #C9E2F8;
+  --md-secondary: #FFB5A8;
+  --md-on-secondary: #5F1411;
+  --md-secondary-container: #813328;
+  --md-on-secondary-container: #FFDAD2;
+}
+
+/* ATLAS — editorial slate + amber, travel-magazine */
+body[data-palette="atlas"] {
+  --brand-burgundy: #2E3A48;
+  --brand-burgundy-dark: #1A222C;
+  --brand-orange: #C9881F;
+  --brand-orange-light: #E0A847;
+
+  --md-primary: #2E3A48;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D7DEE7;
+  --md-on-primary-container: #0F1620;
+
+  --md-secondary: #B57420;
+  --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #FFE0B5;
+  --md-on-secondary-container: #2A1700;
+
+  --md-tertiary: #5E6B7A;
+  --md-on-tertiary: #FFFFFF;
+  --md-tertiary-container: #E1E7EF;
+  --md-on-tertiary-container: #0E1620;
+}
+body[data-palette="atlas"].scheme-dark,
+body[data-palette="atlas"] .scheme-dark {
+  --md-primary: #B5C2D3;
+  --md-on-primary: #1F2A36;
+  --md-primary-container: #2E3A48;
+  --md-on-primary-container: #E1E7EF;
+  --md-secondary: #FFCB75;
+  --md-on-secondary: #422700;
+  --md-secondary-container: #6B4300;
+  --md-on-secondary-container: #FFE0B5;
+}
+
+/* SUN — terracotta + gold + cream, warm Mediterranean */
+body[data-palette="sun"] {
+  --brand-burgundy: #B8431F;
+  --brand-burgundy-dark: #8B2912;
+  --brand-orange: #E8A33A;
+  --brand-orange-light: #F2C46F;
+
+  --md-primary: #B8431F;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #FFD9C8;
+  --md-on-primary-container: #3B0F00;
+
+  --md-secondary: #B8801F;
+  --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #FFE3B5;
+  --md-on-secondary-container: #2D1F00;
+
+  --md-tertiary: #5C7F2F;
+  --md-on-tertiary: #FFFFFF;
+  --md-tertiary-container: #D7EFB0;
+  --md-on-tertiary-container: #14260A;
+
+  --md-bg: #FCF3E6;
+  --md-surface: #FCF6EC;
+  --md-surface-1: #FFFFFF;
+  --md-surface-2: #F7EFE0;
+  --md-surface-3: #F0E5D2;
+}
+body[data-palette="sun"].scheme-dark,
+body[data-palette="sun"] .scheme-dark {
+  --md-primary: #FFB59A;
+  --md-on-primary: #5C1400;
+  --md-primary-container: #842F0C;
+  --md-on-primary-container: #FFD9C8;
+  --md-secondary: #FFCB75;
+  --md-on-secondary: #422700;
+  --md-secondary-container: #6B4300;
+}
+
+/* ─── Surface temperature ──────────────────────────────────────────── */
+/* "paper" is the default (cream) — no override. */
+body[data-paper="linen"] {
+  --md-bg: #F6EFE0;
+  --md-surface: #F8F2E6;
+  --md-surface-1: #FBF6EC;
+  --md-surface-2: #F1E9D6;
+  --md-surface-3: #EBE0C8;
+  --md-surface-4: #E4D7B9;
+}
+body[data-paper="steam"] {
+  --md-bg: #F7F8FA;
+  --md-surface: #FFFFFF;
+  --md-surface-1: #FFFFFF;
+  --md-surface-2: #F2F4F7;
+  --md-surface-3: #E8EBF0;
+  --md-surface-4: #DFE3EA;
+  --md-on-surface-variant: #4A5160;
+  --md-outline-variant: #D5DAE2;
+}
+
+/* ─── Wordmark voice ───────────────────────────────────────────────── */
+/* "caveat" is the default (handwritten). */
+body[data-script="serif"] .mark-script {
+  font-family: 'Playfair Display', 'Caveat', serif !important;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+body[data-script="display"] .mark-script {
+  font-family: 'DM Serif Display', 'Caveat', serif !important;
+  font-weight: 400;
+  letter-spacing: -0.3px;
+}
+body[data-script="sans"] .mark-script {
+  font-family: var(--font-sans) !important;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  text-transform: none;
+}

@@ -1,0 +1,152 @@
+/* Story-Tail Adventures — Material 3 token system
+   Brand: hybrid burgundy/orange primary, tropical accents.
+   Typography: Poppins (per BRD §11). */
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  /* Brand source colors */
+  --brand-burgundy: #7A1A1F;
+  --brand-burgundy-dark: #5C0F13;
+  --brand-orange: #E87722;
+  --brand-orange-light: #F59E4E;
+  --brand-sunset: #F5A623;
+  --brand-ocean: #1565C0;
+  --brand-navy: #0D2137;
+  --brand-cream: #FBF6EE;
+  --brand-sand: #F1E7D5;
+
+  /* Light scheme (default) */
+  --md-primary: #7A1A1F;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #FFDAD5;
+  --md-on-primary-container: #410005;
+
+  --md-secondary: #C75A14;
+  --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #FFDCC1;
+  --md-on-secondary-container: #321200;
+
+  --md-tertiary: #1565C0;
+  --md-on-tertiary: #FFFFFF;
+  --md-tertiary-container: #D5E3FF;
+  --md-on-tertiary-container: #001A41;
+
+  --md-error: #BA1A1A;
+  --md-on-error: #FFFFFF;
+  --md-error-container: #FFDAD6;
+  --md-on-error-container: #410002;
+
+  --md-success: #1B6E3F;
+  --md-success-container: #B6F2C8;
+
+  --md-warning: #B7691C;
+  --md-warning-container: #FFDDB4;
+
+  --md-bg: #FBF6EE;
+  --md-on-bg: #1C1B1A;
+
+  --md-surface: #FBF8F3;
+  --md-on-surface: #1C1B1A;
+  --md-surface-dim: #E1DCD3;
+  --md-surface-bright: #FFFEFA;
+
+  --md-surface-1: #FFFFFF;        /* containerLowest */
+  --md-surface-2: #F6F1EA;        /* containerLow    */
+  --md-surface-3: #F0EAE2;        /* container       */
+  --md-surface-4: #EAE4DB;        /* containerHigh   */
+  --md-surface-5: #E4DDD4;        /* containerHighest*/
+
+  --md-on-surface-variant: #524540;
+  --md-outline: #847370;
+  --md-outline-variant: #D7C2BD;
+  --md-scrim: rgba(0,0,0,0.4);
+
+  --md-shadow-1: 0 1px 2px rgba(28,17,15,0.08), 0 1px 3px rgba(28,17,15,0.06);
+  --md-shadow-2: 0 2px 4px rgba(28,17,15,0.10), 0 4px 10px rgba(28,17,15,0.06);
+  --md-shadow-3: 0 4px 12px rgba(28,17,15,0.12), 0 10px 28px rgba(28,17,15,0.08);
+  --md-shadow-4: 0 8px 24px rgba(28,17,15,0.16), 0 18px 48px rgba(28,17,15,0.10);
+
+  /* Shape */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-full: 999px;
+
+  /* Type scale (M3-ish, Poppins) */
+  --font-sans: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-script: "Caveat", "Poppins", cursive;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.scheme-dark {
+  /* Tropical-dark scheme — anchored on the palm/sun/wave logo:
+     ocean blue primary, sunset gold secondary, palm green tertiary,
+     deep navy surfaces. */
+  --md-primary: #5BB6FF;
+  --md-on-primary: #00264D;
+  --md-primary-container: #003E78;
+  --md-on-primary-container: #C5E0FF;
+
+  --md-secondary: #FFC83F;
+  --md-on-secondary: #4A2C00;
+  --md-secondary-container: #6F4400;
+  --md-on-secondary-container: #FFE3B5;
+
+  --md-tertiary: #6CD279;
+  --md-on-tertiary: #003915;
+  --md-tertiary-container: #105228;
+  --md-on-tertiary-container: #B6F2C8;
+
+  --md-error: #FFB4AB;
+  --md-error-container: #93000A;
+
+  --md-success: #8DDCA4;
+  --md-success-container: #00522A;
+
+  --md-warning: #FFD09C;
+  --md-warning-container: #6D4400;
+
+  --md-bg: #050D1A;
+  --md-on-bg: #E8F0FC;
+
+  --md-surface: #07111F;
+  --md-on-surface: #E8F0FC;
+  --md-surface-dim: #07111F;
+  --md-surface-bright: #2A3D55;
+
+  --md-surface-1: #0A1828;
+  --md-surface-2: #0F2034;
+  --md-surface-3: #142A41;
+  --md-surface-4: #1A314D;
+  --md-surface-5: #21395A;
+
+  --md-on-surface-variant: #C3D3E6;
+  --md-outline: #6A8AAE;
+  --md-outline-variant: #2A4566;
+  --md-scrim: rgba(0,0,0,0.65);
+
+  --md-shadow-1: 0 1px 2px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.35);
+  --md-shadow-2: 0 2px 4px rgba(0,0,0,0.6),  0 4px 12px rgba(0,0,0,0.4);
+  --md-shadow-3: 0 4px 14px rgba(0,0,0,0.7), 0 12px 32px rgba(0,0,0,0.5);
+  --md-shadow-4: 0 8px 28px rgba(0,0,0,0.75),0 22px 54px rgba(0,0,0,0.55);
+}
+
+/* Type ramp */
+.t-display-l { font: 800 57px/1.05 var(--font-sans); letter-spacing: -1.5px; }
+.t-display   { font: 800 45px/1.08 var(--font-sans); letter-spacing: -1px; }
+.t-display-s { font: 700 36px/1.1 var(--font-sans); letter-spacing: -0.6px; }
+.t-headline  { font: 700 28px/1.15 var(--font-sans); letter-spacing: -0.4px; }
+.t-title-l   { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.2px; }
+.t-title     { font: 600 18px/1.25 var(--font-sans); letter-spacing: -0.1px; }
+.t-title-s   { font: 600 15px/1.3 var(--font-sans); }
+.t-body-l    { font: 400 16px/1.5 var(--font-sans); }
+.t-body      { font: 400 14px/1.5 var(--font-sans); }
+.t-body-s    { font: 400 13px/1.45 var(--font-sans); }
+.t-label-l   { font: 500 14px/1.3 var(--font-sans); }
+.t-label     { font: 500 12px/1.3 var(--font-sans); letter-spacing: 0.4px; }
+.t-label-s   { font: 600 11px/1.3 var(--font-sans); letter-spacing: 0.6px; text-transform: uppercase; }
+.t-script    { font: 700 32px/1 var(--font-script); }
+.t-mono      { font: 400 12px/1.4 var(--font-mono); }

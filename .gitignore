@@ -1,0 +1,97 @@
+# Story-Tail Adventures — root .gitignore
+
+# === System ===
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# === Editor / IDE ===
+.idea/
+.vscode/
+*.iml
+*.code-workspace
+.fleet/
+
+# === Node / pnpm / Next.js ===
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+build/
+
+# Turbo
+.turbo/
+
+# === TypeScript ===
+*.tsbuildinfo
+.tsbuild/
+
+# === Kotlin / Gradle / Android ===
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aar
+*.ap_
+*.dex
+
+# === iOS / Xcode ===
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.moved-aside
+*.hmap
+
+# === Supabase ===
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# === Secrets / Environment ===
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.*.local
+*.pem
+*.key
+
+# === Build outputs (do NOT ignore contracts/ts/ or contracts/kotlin/ — those are committed) ===
+dist/
+coverage/
+
+# === Logs ===
+*.log
+logs/
+
+# === Pandoc / docx artifacts (the .docx files in docs/ ARE committed) ===
+~$*.docx
+.pandoc/
+
+# === macOS Finder ===
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# === Reference / scratch ===
+reference.docx

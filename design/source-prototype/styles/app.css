@@ -1,0 +1,187 @@
+/* Story-Tail Adventures — application styles
+   Reset + Material 3 components used across artboards. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: #2A2422;
+  color: var(--md-on-surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img { display: block; max-width: 100%; }
+
+/* ── Surface helpers ── */
+.surface     { background: var(--md-surface);    color: var(--md-on-surface); }
+.surface-1   { background: var(--md-surface-1);  color: var(--md-on-surface); }
+.surface-2   { background: var(--md-surface-2);  color: var(--md-on-surface); }
+.surface-3   { background: var(--md-surface-3);  color: var(--md-on-surface); }
+.surface-4   { background: var(--md-surface-4);  color: var(--md-on-surface); }
+
+/* ── Buttons (M3) ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  height: 40px; padding: 0 24px;
+  border-radius: var(--r-full);
+  border: 0; cursor: pointer;
+  font: 500 14px/1 var(--font-sans);
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  transition: filter 120ms ease, transform 120ms ease, background 120ms ease;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+.btn-filled    { background: var(--md-primary); color: var(--md-on-primary); }
+.btn-tonal     { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.btn-tertiary  { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
+.btn-outlined  { background: transparent; color: var(--md-primary); border: 1px solid var(--md-outline); }
+.btn-text      { background: transparent; color: var(--md-primary); padding: 0 12px; }
+.btn-elevated  { background: var(--md-surface-1); color: var(--md-primary); box-shadow: var(--md-shadow-1); }
+.btn-danger    { background: var(--md-error); color: var(--md-on-error); }
+.btn-orange    { background: var(--brand-orange); color: #FFFFFF; }
+.btn-sm { height: 32px; padding: 0 16px; font-size: 13px; }
+.btn-lg { height: 48px; padding: 0 28px; font-size: 15px; }
+.btn-icon {
+  width: 40px; height: 40px; padding: 0;
+  border-radius: var(--r-full);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--md-on-surface-variant);
+  border: 0; cursor: pointer;
+}
+.btn-icon:hover { background: var(--md-surface-3); }
+.fab {
+  height: 56px; padding: 0 24px;
+  border-radius: 16px;
+  background: var(--md-primary-container); color: var(--md-on-primary-container);
+  box-shadow: var(--md-shadow-3);
+  display: inline-flex; align-items: center; gap: 10px;
+  font: 600 14px/1 var(--font-sans);
+  border: 0; cursor: pointer;
+}
+
+/* ── Chip ── */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 12px;
+  border-radius: 8px;
+  background: var(--md-surface-3); color: var(--md-on-surface);
+  font: 500 12px/1 var(--font-sans);
+  border: 1px solid var(--md-outline-variant);
+}
+.chip-filter { background: var(--md-surface-2); }
+.chip-filter.is-on { background: var(--md-secondary-container); color: var(--md-on-secondary-container); border-color: transparent; }
+.chip-status { font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; font-size: 10.5px; height: 22px; padding: 0 9px; border: 0; }
+.chip-status.proposal { background: #FFE3B7; color: #6B3F00; }
+.chip-status.booked   { background: #C7E9D4; color: #0A4A26; }
+.chip-status.due      { background: #FCD3D0; color: #6E1313; }
+.chip-status.traveling{ background: #C9DDF8; color: #0A3669; }
+.chip-status.past     { background: #E2DBD2; color: #4A3F38; }
+.chip-status.lead     { background: #F4D9F6; color: #4E124E; }
+.chip-status.inquiry  { background: #E1D7F4; color: #2C1761; }
+.scheme-dark .chip-status.proposal { background: #6B4400; color: #FFE3B7; }
+.scheme-dark .chip-status.booked   { background: #0D5A2F; color: #C7E9D4; }
+.scheme-dark .chip-status.due      { background: #6E1313; color: #FCD3D0; }
+.scheme-dark .chip-status.traveling{ background: #0E4A85; color: #C9DDF8; }
+.scheme-dark .chip-status.past     { background: #1F3450; color: #C3D3E6; }
+.scheme-dark .chip-status.lead     { background: #4E124E; color: #F4D9F6; }
+.scheme-dark .chip-status.inquiry  { background: #2A1559; color: #E1D7F4; }
+
+/* ── Cards ── */
+.card {
+  background: var(--md-surface-1);
+  border-radius: var(--r-lg);
+  box-shadow: var(--md-shadow-1);
+  border: 1px solid var(--md-outline-variant);
+  overflow: hidden;
+}
+.card-flat   { box-shadow: none; border: 1px solid var(--md-outline-variant); background: var(--md-surface-2); }
+.card-tonal  { background: var(--md-surface-3); border: 0; box-shadow: none; }
+.card-elev   { box-shadow: var(--md-shadow-2); border: 0; }
+.scheme-dark .card { border-color: var(--md-outline-variant); }
+
+/* ── Inputs ── */
+.input {
+  display: block; width: 100%;
+  height: 44px; padding: 0 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--md-outline);
+  background: var(--md-surface-1); color: var(--md-on-surface);
+  font: 400 14px/1 var(--font-sans);
+}
+.input:focus { outline: 2px solid var(--md-primary); border-color: var(--md-primary); }
+.field-label { font: 500 12px/1.3 var(--font-sans); color: var(--md-on-surface-variant); margin-bottom: 6px; display: block; letter-spacing: 0.2px; }
+
+/* ── Avatars ── */
+.avatar {
+  width: 36px; height: 36px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 600 13px/1 var(--font-sans);
+  background: var(--md-tertiary-container); color: var(--md-on-tertiary-container);
+  flex-shrink: 0;
+}
+.avatar.sm { width: 24px; height: 24px; font-size: 10px; }
+.avatar.lg { width: 56px; height: 56px; font-size: 18px; }
+.avatar.xl { width: 84px; height: 84px; font-size: 26px; }
+
+/* ── Brand mark (mini SVG glyph rebuild) ── */
+.brand-mark {
+  display: inline-flex; align-items: center; gap: 10px;
+  font: 800 18px/1 var(--font-sans);
+  color: var(--brand-burgundy);
+  letter-spacing: -0.3px;
+}
+.scheme-dark .brand-mark { color: #FFC83F; }
+.brand-mark .mark-script {
+  font: 700 22px/1 var(--font-script);
+  color: var(--brand-burgundy);
+}
+.scheme-dark .brand-mark .mark-script {
+  /* Sunset orange→yellow gradient to match the tropical logotype */
+  background: linear-gradient(180deg, #FFE08A 0%, #FF9436 60%, #F26B1A 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.brand-mark .mark-tagline {
+  letter-spacing: 1.8px;
+  color: var(--brand-orange);
+}
+.scheme-dark .brand-mark .mark-tagline {
+  background: linear-gradient(180deg, #7CC5FF 0%, #1E92E5 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+/* StoryTailMark glyph switching */
+.sta-mark-light { display: inline-flex; }
+.sta-mark-dark  { display: none; }
+.scheme-dark .sta-mark-light { display: none; }
+.scheme-dark .sta-mark-dark  { display: inline-flex; }
+
+/* ── Scrollable areas inside artboards (purely visual; no real scroll) ── */
+.scroll-mask {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);
+          mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);
+}
+
+/* ── Status dots ── */
+.dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+
+/* ── Hero gradient (tropical accent for hero areas only) ── */
+.tropical-gradient {
+  background:
+    radial-gradient(120% 80% at 18% 12%, rgba(255,200,63,0.55), transparent 55%),
+    radial-gradient(120% 70% at 88% 18%, rgba(91,182,255,0.55), transparent 60%),
+    linear-gradient(160deg, #0D2137 0%, #050D1A 80%);
+}
+.tropical-soft {
+  background:
+    radial-gradient(140% 100% at 0% 0%, rgba(245,166,35,0.18), transparent 55%),
+    radial-gradient(140% 100% at 100% 100%, rgba(21,101,192,0.18), transparent 55%),
+    var(--md-surface-2);
+}
+
+/* Helpful util */
+.divider { height: 1px; background: var(--md-outline-variant); border: 0; margin: 0; }
+.kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px; border-radius: 4px; background: var(--md-surface-3); color: var(--md-on-surface-variant); border: 1px solid var(--md-outline-variant); }
