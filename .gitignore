@@ -95,3 +95,8 @@ Icon?
 
 # === Reference / scratch ===
 reference.docx
+
+# === Claude Code ===
+# Local-only overrides (permissions, env, etc.). The shared .claude/agents/,
+# .claude/skills/, and .claude/settings.json (when present) ARE tracked.
+.claude/settings.local.json
