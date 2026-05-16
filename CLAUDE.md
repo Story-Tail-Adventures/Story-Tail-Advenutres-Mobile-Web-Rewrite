@@ -22,6 +22,9 @@ When the user asks about features, screens, entities, payment workflows, design 
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments** — Stripe (SetupIntent for collection, Vault and Forward for API suppliers, audited PAN reveal for portal suppliers)
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
+- **Design source of truth** — Claude Design handoff bundle at `https://api.anthropic.com/v1/design/h/IhaI2N5FMxGoxB4kP0mtnA`. The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`). When the designer iterates, the URL refreshes — run the `sync-design-handoff` skill to pull the latest. **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
+
+**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / Tailwind) lives under `web/`. Backend code lives under `supabase/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
 
 ## Critical rules — these are non-negotiable
 
