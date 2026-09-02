@@ -88,7 +88,11 @@ Before reviewing anything, read in this order:
 - [ ] **No unstable lambdas captured in `remember` / `LaunchedEffect` without keys.** Flag `remember { someLambda }` without listing the captured values in keys.
 - [ ] **`derivedStateOf` for computed state** that depends on other state but only sometimes changes — flag direct reads of state inside loops or `remember` blocks that would cause excess recomposition.
 - [ ] **`Modifier` parameters last,** with a default of `Modifier`. Flag composables that take Modifier first or skip it.
-- [ ] **No `MaterialTheme.colorScheme.primary`** directly — use `StoryTailTheme` access. Flag direct Material color references that bypass the design system layer.
+- [ ] **Colors come from the theme, not from literals.** `MaterialTheme.colorScheme.*` is the
+      correct access path for the standard Material 3 roles — `StoryTailTheme` provides that
+      ColorScheme, and `StoryTailTheme.kt` says so explicitly. What to flag is a bypass:
+      `Color(0xFF...)` literals, or a brand hue hard-coded where `StoryTailBrand.*`,
+      `LocalStoryTailExtended.current` or `LocalStoryTailStatusColors.current` exists.
 
 ### Prototype parity (Claude Design handoff)
 - [ ] **Find the matching prototype.** Map the changed screen to its JSX in `design/source-prototype/screens/`. Prefer a mobile-specific variant (e.g., `client-mobile.jsx`) over the desktop variant when one exists. If you can't find a match, flag it — the screen may need a prototype added, or it's outside the documented mapping.
@@ -102,8 +106,15 @@ Before reviewing anything, read in this order:
 
 ### Design tokens
 - [ ] **No hard-coded `Color(0xFF...)` literals** in UI code. Colors come from `StoryTailColors` via `StoryTailTheme.colors`.
-- [ ] **No magic `.dp` / `.sp` values.** Spacing comes from `StoryTailTheme.spacing` (or whatever the project's spacing scale name is). Typography from `StoryTailTheme.typography`. Shapes from `StoryTailTheme.shapes`.
-- [ ] **Fonts bundled in `mobile/shared/src/commonMain/composeResources/font/`.** Flag any runtime font loading from a URL or font-loader API call.
+- [ ] **Typography from `MaterialTheme.typography`, shapes from `StoryTailShapes`/`PillShape`.**
+      Flag `.sp` literals that duplicate an existing type token.
+      **Spacing is the exception:** there is no spacing scale yet — `docs/Design-System.md` §6
+      covers shape only — so raw `.dp` for layout is currently expected and must not be
+      flagged. Raise the missing scale once, as a soft flag, rather than per screen.
+- [ ] **No runtime font loading** from a URL or font-loader API.
+      Note the TTFs are not in the repo yet, so `StoryTailTypography.kt` deliberately falls
+      back to `FontFamily.Default` behind a TODO. That is the known state — flag a *new*
+      runtime loader, not the existing fallback.
 
 ### Android/iOS parity
 - [ ] **If a new screen / composable lands, both Android and iOS must reach it.** Check the nav graph (or whatever navigation library is wired up) in both `androidApp` and `iosApp` paths.

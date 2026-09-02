@@ -22,6 +22,14 @@ export interface AuditSpec {
    * "after" (default) is right for ordinary mutations: if the write fails there is
    * nothing to audit.
    *
+   * Note what "after" does NOT give you: atomicity. The mutation and the audit insert
+   * are separate round trips, so if the audit write fails the mutation has already
+   * landed and only the caller learns about it. That is surfaced (the request 500s)
+   * rather than prevented. Closing it properly means moving both into one transaction —
+   * a Postgres function called over RPC, or a trigger on the target table. Worth doing
+   * before the first financial mutation ships; overkill for the current read-mostly
+   * surface.
+   *
    * "before" is required for the PAN reveal (Screen Inventory 3.6.4). The point of that
    * audit row is to record that a human asked to see a card number — if the process
    * dies mid-reveal, the request still has to be on the record. Auditing afterwards

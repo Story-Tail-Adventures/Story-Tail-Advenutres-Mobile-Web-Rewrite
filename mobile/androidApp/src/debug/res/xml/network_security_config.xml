@@ -4,7 +4,7 @@
 
   Android 9+ blocks cleartext HTTP by default, and local Supabase serves plain HTTP on
   port 54321. Rather than setting android:usesCleartextTraffic="true" on the main
-  manifest — which would ship — this permits cleartext to the two loopback hosts only:
+  manifest — which would ship — this permits cleartext to loopback hosts only:
 
     10.0.2.2  the Android emulator's alias for the host machine
     localhost for a device tunnelled with `adb reverse`

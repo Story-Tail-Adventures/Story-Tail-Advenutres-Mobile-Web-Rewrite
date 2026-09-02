@@ -62,7 +62,15 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             auth.signInWithPassword(current.email, current.password)
                 .onSuccess {
-                    _state.update { it.copy(isSubmitting = false) }
+                    // Wipe the credentials rather than just clearing isSubmitting.
+                    //
+                    // viewModel() in App.kt resolves against the Activity's
+                    // ViewModelStore, so this instance outlives the Login route. Without
+                    // this reset, signing out and returning to Login re-displays the
+                    // previous user's email and their password — on a shared device that
+                    // is a real disclosure, and the password has no reason to stay in
+                    // memory past a successful exchange.
+                    _state.value = LoginUiState()
                     _events.send(LoginEvent.NavigateToDashboard)
                 }
                 .onFailure { throwable ->

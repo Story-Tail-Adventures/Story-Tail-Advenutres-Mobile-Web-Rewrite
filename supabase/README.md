@@ -4,18 +4,25 @@ The Supabase project that hosts the application's database, auth, storage, real-
 
 ## Status
 
-**Migration written, CLI not yet run.** `migrations/20260514120000_initial.sql` creates all 34 Phase 1
-tables and 21 enums, but `supabase init` has not been run — there is no `config.toml` and the migration
-has never been applied. `functions/_shared/` is empty.
+**Running locally.** `supabase init` has been run, both migrations apply cleanly, and
+`seed.sql` provisions dev data on every reset. 34 tables, 18 enums.
 
-Two things to know before the first apply:
+```bash
+supabase start          # boot the stack
+supabase db reset       # replay migrations + seed from an empty database
+supabase status         # URLs and keys
+```
 
-- **RLS is enabled on all 34 tables with zero policies.** Everything is service-role-only until the RLS
-  migration lands. That is safe by default, but it also means CLAUDE.md rule 4 (Stripe `PaymentMethod` IDs
-  are server-only) is currently enforced by convention rather than by the database.
-- **`account` has no link to `auth.users`.** A user can authenticate and the app can then read nothing
-  about them. The `auth_bridge` migration adds the FK, the `handle_new_user` trigger, and three self-read
-  policies.
+Seeded logins, all with password `DevPassword!234`:
+`gyasi@example.com` (agent), `jordan.hayes@example.com` (client with a trip),
+`sam.rivera@example.com` (archived client).
+
+**RLS is enabled on all 34 tables and only three policies exist** — the self-read
+policies on `account`, `platform_user` and `client` that Login needs. Everything else is
+service-role-only until the full RLS pass lands. That is safe by default, but it also
+means CLAUDE.md rule 4 (Stripe `PaymentMethod` IDs are server-only) is currently enforced
+by convention rather than by the database. Use the `rls-policy` skill for the rest; it
+tests each policy under a forged JWT rather than just writing it.
 
 ## Initialize
 
@@ -39,7 +46,7 @@ After `supabase init` the layout will be:
 ```
 supabase/
 ├── config.toml              # Supabase project config
-├── migrations/              # SQL migrations applied via `supabase db push`
+├── migrations/              # SQL migrations, applied via `supabase db reset`
 ├── functions/               # Edge Functions (Deno + TypeScript)
 │   ├── _shared/             # Shared utilities across functions
 │   │   ├── audit.ts         # Audit event helper
@@ -76,10 +83,10 @@ Workflow:
 supabase migration new <descriptive_name>
 
 # Apply local migrations
-supabase db push
+supabase db reset
 
 # Apply to linked production project
-supabase db push --linked
+supabase db push  # remote only, from CI
 
 # Generate TypeScript types from the local schema (for web/)
 supabase gen types typescript --local > ../web/types/supabase.ts

@@ -4,7 +4,8 @@
  * next/font/google downloads these at BUILD time and serves them from
  * /_next/static/media/. There is no runtime request to fonts.googleapis.com,
  * which is what satisfies CLAUDE.md ("Don't load Google Fonts at runtime in
- * production"). The mobile equivalent is composeResources/font/.
+ * production"). Mobile has no equivalent yet — StoryTailTypography.kt still falls back
+ * to FontFamily.Default until the TTFs are added to composeResources/font/.
  *
  * See docs/Design-System.md §5 for the type system these three back.
  */

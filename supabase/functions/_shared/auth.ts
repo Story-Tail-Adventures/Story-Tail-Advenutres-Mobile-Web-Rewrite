@@ -16,8 +16,8 @@ export interface AuthContext {
   clientId: string | null;
   /** aal1 = password only. aal2 = a second factor was verified. */
   aal: "aal1" | "aal2";
-  /** When the most recent factor was verified, from the JWT's amr claim. */
-  lastAuthenticatedAt: Date | null;
+  /** When a SECOND factor was last verified, from the JWT's amr claim. Null if none. */
+  secondFactorVerifiedAt: Date | null;
   ip: string | null;
   userAgent: string | null;
 }
@@ -26,6 +26,15 @@ interface AmrEntry {
   method: string;
   timestamp: number;
 }
+
+/**
+ * amr methods that represent a second factor.
+ *
+ * Supabase records the first factor as "password" (or the provider name for OAuth) and
+ * the MFA challenge separately. Anything not in this set is a first factor and must not
+ * satisfy requireRecentMfa.
+ */
+const SECOND_FACTOR_METHODS = new Set(["totp", "mfa/totp", "phone", "mfa/sms", "webauthn"]);
 
 function decodeClaims(jwt: string): Record<string, unknown> {
   const payload = jwt.split(".")[1];
@@ -75,8 +84,18 @@ export async function requireUser(req: Request): Promise<AuthContext> {
 
   const claims = decodeClaims(jwt);
   const amr = Array.isArray(claims.amr) ? (claims.amr as AmrEntry[]) : [];
-  const mostRecent = amr.reduce<number | null>(
-    (acc, e) => (typeof e?.timestamp === "number" && (acc === null || e.timestamp > acc) ? e.timestamp : acc),
+
+  // Only SECOND-factor methods count toward step-up freshness. Taking the max across
+  // every amr entry would let a fresh password login satisfy a check that is supposed
+  // to mean "they just proved a second factor" — which is the entire point of the gate
+  // in front of the PAN reveal.
+  const secondFactor = amr.reduce<number | null>(
+    (acc, e) =>
+      SECOND_FACTOR_METHODS.has(e?.method) &&
+      typeof e?.timestamp === "number" &&
+      (acc === null || e.timestamp > acc)
+        ? e.timestamp
+        : acc,
     null,
   );
 
@@ -87,7 +106,7 @@ export async function requireUser(req: Request): Promise<AuthContext> {
     agentId: pu.agent_id,
     clientId: pu.client_id,
     aal: claims.aal === "aal2" ? "aal2" : "aal1",
-    lastAuthenticatedAt: mostRecent ? new Date(mostRecent * 1000) : null,
+    secondFactorVerifiedAt: secondFactor ? new Date(secondFactor * 1000) : null,
     ip: req.headers.get("x-forwarded-for"),
     userAgent: req.headers.get("user-agent"),
   };
@@ -115,10 +134,12 @@ export function requireRecentMfa(ctx: AuthContext, maxAgeSeconds = 900): void {
   if (ctx.aal !== "aal2") {
     throw forbidden("This action requires multi-factor authentication.");
   }
-  if (!ctx.lastAuthenticatedAt) {
+  if (!ctx.secondFactorVerifiedAt) {
+    // Fail closed: aal2 without a datable second-factor entry means we cannot prove
+    // freshness, and "cannot prove" is not "recent".
     throw forbidden("Could not determine when MFA was last verified.");
   }
-  const ageSeconds = (Date.now() - ctx.lastAuthenticatedAt.getTime()) / 1000;
+  const ageSeconds = (Date.now() - ctx.secondFactorVerifiedAt.getTime()) / 1000;
   if (ageSeconds > maxAgeSeconds) {
     throw forbidden(
       `MFA was verified ${Math.round(ageSeconds)}s ago; this action requires it within ${maxAgeSeconds}s.`,

@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.SupabaseClientProvider
-import com.storytail.adventures.config.SupabaseConfig
 import com.storytail.adventures.ui.screens.auth.LoginEvent
 import com.storytail.adventures.ui.screens.auth.LoginScreen
 import com.storytail.adventures.ui.screens.auth.LoginViewModel
@@ -124,6 +123,3 @@ private fun SplashScreen(modifier: Modifier = Modifier) {
         Box(modifier.fillMaxSize())
     }
 }
-
-/** True when the build has Supabase credentials — surfaced for debug UI later. */
-val isSupabaseConfigured: Boolean get() = SupabaseConfig.isConfigured

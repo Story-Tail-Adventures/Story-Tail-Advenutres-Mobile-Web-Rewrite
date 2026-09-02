@@ -143,5 +143,5 @@ kotlin.sourceSets.commonMain {
     kotlin.srcDir(generatedConfigDir)
 }
 
-tasks.matching { it.name.startsWith("compileKotlin") || it.name.startsWith("compile") }
+tasks.matching { it.name.startsWith("compile") }
     .configureEach { dependsOn(generateSupabaseConfig) }

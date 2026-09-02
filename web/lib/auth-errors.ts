@@ -22,6 +22,7 @@ export type AuthErrorKind =
   | "account_locked"
   | "network"
   | "not_configured"
+  | "weak_password"
   | "unknown";
 
 export interface MappedAuthError {
@@ -55,6 +56,11 @@ const BY_KIND: Record<AuthErrorKind, MappedAuthError> = {
     kind: "network",
     message: "We couldn't reach Story-Tail. Check your connection and try again.",
   },
+  weak_password: {
+    kind: "weak_password",
+    message: "That password is a little too easy to guess.",
+    action: { label: "See what's needed", href: "/register" },
+  },
   not_configured: {
     kind: "not_configured",
     // Client-facing wording only. The actionable detail (copy web/.env.example to
@@ -80,6 +86,8 @@ export function mapAuthError(error: AuthError): MappedAuthError {
       return BY_KIND.rate_limited;
     case "user_banned":
       return BY_KIND.account_locked;
+    case "weak_password":
+      return BY_KIND.weak_password;
     default:
       break;
   }

@@ -31,6 +31,7 @@ VALIDATION_KEYS = {
     "passwordTooShort": "PASSWORD_TOO_SHORT",
     "passwordNeedsDigit": "PASSWORD_NEEDS_DIGIT",
     "passwordNeedsUppercase": "PASSWORD_NEEDS_UPPERCASE",
+    "passwordNeedsLowercase": "PASSWORD_NEEDS_LOWERCASE",
 }
 
 # web BY_KIND key -> kotlin data object
@@ -41,6 +42,7 @@ ERROR_KINDS = {
     "account_locked": "AccountLocked",
     "network": "Network",
     "not_configured": "NotConfigured",
+    "weak_password": "WeakPassword",
     "unknown": "Unknown",
 }
 

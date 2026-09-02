@@ -61,7 +61,8 @@ Run `npm run generate` whenever `openapi.yaml` changes.
 ## Workflow
 
 1. **Hand-edit `openapi.yaml`** when the API contract changes.
-2. **Run `npm run generate`** to regenerate both TypeScript and Kotlin types.
+2. **Run `npm run generate`** to regenerate the TypeScript types. (Kotlin generation is
+   deferred — see Status above.)
 3. **Commit the generated outputs** — they live in source control so the web and mobile builds don't need to run codegen.
 4. **CI verifies the generated outputs are in sync** — if anyone edits `openapi.yaml` without regenerating, CI fails. See `.github/workflows/` once set up.
 

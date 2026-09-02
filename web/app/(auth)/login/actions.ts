@@ -6,14 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loginSchema } from "@/lib/validation/auth";
 import { mapAuthError, authErrorByKind } from "@/lib/auth-errors";
 import { env } from "@/lib/env";
-import type { LoginState } from "./state";
-
-/** Only allow same-origin relative paths, so `?next=` can't be an open redirect. */
-function safeNext(raw: FormDataEntryValue | null): string {
-  const value = typeof raw === "string" ? raw : "";
-  if (value.startsWith("/") && !value.startsWith("//")) return value;
-  return "/dashboard";
-}
+import { safeNext, type LoginState } from "./state";
 
 /**
  * Screen 2.1.1 Login — see docs/Screen-Inventory.md §2.1.1 and

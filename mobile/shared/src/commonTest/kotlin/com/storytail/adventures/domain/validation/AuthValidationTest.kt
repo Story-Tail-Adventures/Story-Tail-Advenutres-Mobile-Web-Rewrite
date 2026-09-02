@@ -58,6 +58,10 @@ class AuthValidationTest {
             "Short1" to AuthValidation.Messages.PASSWORD_TOO_SHORT,
             "alllowercase" to AuthValidation.Messages.PASSWORD_NEEDS_DIGIT,
             "alllowercase1" to AuthValidation.Messages.PASSWORD_NEEDS_UPPERCASE,
+            // Uppercase + digits but no lowercase. supabase/config.toml requires all
+            // three, so a client rule without this hands the user a weak_password
+            // rejection from GoTrue after telling them the password was fine.
+            "PASSWORD12345" to AuthValidation.Messages.PASSWORD_NEEDS_LOWERCASE,
             "GreenPastures1" to null,
             "still-waters-99X" to null,
         )

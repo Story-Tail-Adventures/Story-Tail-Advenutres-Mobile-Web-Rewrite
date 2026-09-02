@@ -42,6 +42,11 @@ sealed interface AuthError {
         override val action = Action("Message Gyasi", "/support")
     }
 
+    data object WeakPassword : AuthError {
+        override val message = "That password is a little too easy to guess."
+        override val action = Action("See what's needed", "/register")
+    }
+
     data object Network : AuthError {
         override val message = "We couldn't reach Story-Tail. Check your connection and try again."
     }
@@ -51,10 +56,12 @@ sealed interface AuthError {
     }
 
     /**
-     * Client-facing wording only. The actionable detail — add `supabase.url` and
-     * `supabase.anonKey` to mobile/local.properties — goes to the log, not the screen:
-     * this renders in the same card as a real auth failure, and a Gradle file path in
-     * front of a traveler is jargon, not help.
+     * Client-facing wording only.
+     *
+     * The actionable detail — add `supabase.url` and `supabase.anonKey` to
+     * mobile/local.properties — is printed by UnconfiguredAuthRepository rather than
+     * shown: this renders in the same card as a real auth failure, and a Gradle file
+     * path in front of a traveler is jargon, not help.
      */
     data object NotConfigured : AuthError {
         override val message = "We're not quite ready to sign you in yet — check back shortly."

@@ -22,6 +22,7 @@ object AuthValidation {
         const val PASSWORD_TOO_SHORT = "Use at least 12 characters"
         const val PASSWORD_NEEDS_DIGIT = "Add at least one number"
         const val PASSWORD_NEEDS_UPPERCASE = "Add at least one capital letter"
+        const val PASSWORD_NEEDS_LOWERCASE = "Add at least one lowercase letter"
     }
 
     private val EMAIL_REGEX = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]{2,}$""")
@@ -47,11 +48,19 @@ object AuthValidation {
         if (raw.isEmpty()) ValidationResult.Invalid(Messages.PASSWORD_REQUIRED)
         else ValidationResult.Valid
 
-    /** REGISTRATION / RESET password rule — Screen Inventory 2.1.2 and 2.1.5. */
+    /**
+     * REGISTRATION / RESET password rule — Screen Inventory 2.1.2 and 2.1.5.
+     *
+     * Must stay in step with `password_requirements` in supabase/config.toml
+     * ("lower_upper_letters_digits") and with newPasswordSchema on web. A client rule
+     * looser than the server's means the user is told the password is fine and GoTrue
+     * then rejects it as weak_password.
+     */
     fun validateNewPassword(raw: String): ValidationResult = when {
         raw.length < 12 -> ValidationResult.Invalid(Messages.PASSWORD_TOO_SHORT)
         raw.none { it.isDigit() } -> ValidationResult.Invalid(Messages.PASSWORD_NEEDS_DIGIT)
         raw.none { it.isUpperCase() } -> ValidationResult.Invalid(Messages.PASSWORD_NEEDS_UPPERCASE)
+        raw.none { it.isLowerCase() } -> ValidationResult.Invalid(Messages.PASSWORD_NEEDS_LOWERCASE)
         else -> ValidationResult.Valid
     }
 }

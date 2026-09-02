@@ -150,6 +150,14 @@ jobs:
       - name: Lint schema
         run: supabase db lint --level warning
 
+      # Executes each policy as each role rather than just reading the SQL. A policy that
+      # passes the happy path and leaks to another user looks identical to a correct one
+      # until you run it as that user.
+      - name: RLS policies enforce isolation
+        run: |
+          psql "$(supabase status -o json | jq -r .DB_URL)" \
+            -v ON_ERROR_STOP=1 -f supabase/tests/rls_auth_bridge.sql
+
       # Checks the _shared/ helpers too, not just function entry points — they are where
       # the audit and auth rules actually live.
       - name: Typecheck and lint Edge Functions
@@ -170,4 +178,7 @@ jobs:
         run: |
           npm ci
           npm run supabase:types
-          git diff --exit-code web/types/supabase.ts
+          # Both copies: the script writes web/types/ AND functions/_shared/, so diffing
+          # only the first would let a hand-edit to the Edge Function types through.
+          git diff --exit-code web/types/supabase.ts \
+                               supabase/functions/_shared/database.types.ts

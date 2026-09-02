@@ -69,6 +69,10 @@ describe("new password enforces the 12 char policy", () => {
     ["Short1", AUTH_MESSAGES.passwordTooShort],
     ["alllowercase", AUTH_MESSAGES.passwordNeedsDigit],
     ["alllowercase1", AUTH_MESSAGES.passwordNeedsUppercase],
+    // Uppercase + digits but no lowercase. supabase/config.toml requires all three, so
+    // a client rule without this hands the user a weak_password rejection from GoTrue
+    // after telling them the password was fine.
+    ["PASSWORD12345", AUTH_MESSAGES.passwordNeedsLowercase],
     ["GreenPastures1", null],
     ["still-waters-99X", null],
   ];

@@ -47,6 +47,8 @@ Before reviewing anything, read in this order:
 2. **Run the verification loop in parallel:**
    - `npm run typecheck -w web`
    - `npm run lint -w web`
+   - `npm run test -w web` — must pass; the cross-platform validation vectors and the
+     open-redirect regression tests live here
    - Report any failures verbatim before continuing.
 
 3. **Walk the checklist below against the diff.** Anchor every finding to a specific file + line.

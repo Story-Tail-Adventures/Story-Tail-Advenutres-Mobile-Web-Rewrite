@@ -65,7 +65,9 @@ export function uuidV7Timestamp(id: string): number {
  */
 export function assertRecentUuidV7(
   id: string,
-  maxAgeMs = 24 * 60 * 60 * 1000,
+  // One hour, per Data-Model §21.6 ("within the last hour"). An earlier draft used 24h,
+  // which quietly widened the documented window.
+  maxAgeMs = 60 * 60 * 1000,
   maxSkewMs = 60 * 60 * 1000,
 ): void {
   if (!isUuidV7(id)) {

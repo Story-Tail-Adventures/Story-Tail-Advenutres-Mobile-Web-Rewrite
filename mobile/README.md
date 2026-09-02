@@ -4,20 +4,29 @@ Android + iOS apps built with **Kotlin Multiplatform** and **Compose Multiplatfo
 
 ## Status
 
-**Scaffolded, not yet wired up.** The Compose Multiplatform Wizard has been run — `settings.gradle.kts`,
-`shared/`, `androidApp/` and `iosApp/` all exist and the Android app builds. What is still missing:
-the Story-Tail theme (see `../design/compose-theme/`), bundled fonts, networking dependencies, and any
-real screen. The target layout below is the goal, not the current state.
+**Building and running on Android.** The Story-Tail theme, supabase-kt, and Screen 2.1.1
+Login are all in place. What is still missing: the bundled brand fonts (the TTFs are not
+in the repo, so `StoryTailTypography.kt` falls back to `FontFamily.Default`), and every
+screen after Login.
 
-**iOS is gated on Xcode.** Only the Command Line Tools are installed on the current dev machine, so
-Kotlin/Native cannot link the `iosArm64` / `iosSimulatorArm64` targets. That means `./gradlew :shared:build`
-and `:shared:check` **fail** — use the Android-scoped tasks (`:shared:assembleAndroidMain`,
-`:shared:testAndroidHostTest`, `:androidApp:assembleDebug`) until Xcode is installed. The iOS targets stay
-declared in `shared/build.gradle.kts` so shared code cannot drift iOS-incompatible.
+```bash
+./gradlew :androidApp:assembleDebug
+./gradlew :shared:testAndroidHostTest
+./gradlew :shared:compileKotlinIosSimulatorArm64   # the iOS-compatibility gate
+```
 
-## Initialize
+Copy `local.properties.example` and fill in the Supabase values from `supabase status`.
+The emulator reaches the host at `10.0.2.2`, not `127.0.0.1`.
 
-When ready to start, use the [Compose Multiplatform Wizard](https://kmp.jetbrains.com/) to generate the initial structure:
+**iOS is gated on Xcode.** Only the Command Line Tools are installed on the current dev
+machine, so Kotlin/Native cannot link the framework — `./gradlew :shared:build` and
+`:shared:check` **fail** for that reason alone. The klib compile above still catches
+iOS-incompatible shared code, and the iOS targets stay declared in
+`shared/build.gradle.kts` so nothing drifts.
+
+## How this was scaffolded
+
+Historical, for reference — the wizard has already been run and its output reworked:
 
 1. Visit `https://kmp.jetbrains.com/`
 2. Set the project name to `mobile` (or `storytail-mobile`)
@@ -51,7 +60,7 @@ mobile/
 
 ## Next steps after init
 
-1. **Copy the design system theme files** from `../design/compose-theme/` into `shared/src/commonMain/kotlin/com/storytail/ui/theme/`:
+1. **Copy the design system theme files** from `../design/compose-theme/` into `shared/src/commonMain/kotlin/com/storytail/adventures/ui/theme/`:
    - `StoryTailColors.kt`
    - `StoryTailTypography.kt`
    - `StoryTailShape.kt`

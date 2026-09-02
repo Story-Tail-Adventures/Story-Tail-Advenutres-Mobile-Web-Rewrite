@@ -42,7 +42,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Int
 │   └── package.json           (set up via `npx create-next-app` — see web/README.md)
 │
 ├── supabase/                  ← Supabase project
-│   ├── migrations/            ← SQL migrations (managed via `supabase db push`)
+│   ├── migrations/            ← SQL migrations (applied via `supabase db reset`)
 │   ├── functions/             ← Edge Functions (Deno + TypeScript)
 │   │   └── _shared/           ← Shared utilities (audit, auth, stripe wrapper)
 │   ├── seed.sql
@@ -75,18 +75,18 @@ npm run dev -w web                  # start Next.js dev server
 npm run build -w web                # production build
 
 # Mobile (run from mobile/)
-./gradlew :shared:build                # build shared module
+./gradlew :androidApp:assembleDebug                # build shared module
 ./gradlew :androidApp:installDebug     # install Android debug
 # iOS: open mobile/iosApp/iosApp.xcodeproj in Xcode
 
 # Supabase
 supabase start                         # start local Supabase
-supabase db push                       # apply migrations
+supabase db reset                      # replay migrations + seed locally
 supabase functions deploy <name>       # deploy an Edge Function
 supabase gen types typescript --local > web/types/supabase.ts
 
 # API contract codegen
-npm run generate -w contracts       # regenerate TS + Kotlin types from openapi.yaml
+npm run generate -w contracts       # regenerate TS types from openapi.yaml (Kotlin deferred)
 ```
 
 ## Document hierarchy

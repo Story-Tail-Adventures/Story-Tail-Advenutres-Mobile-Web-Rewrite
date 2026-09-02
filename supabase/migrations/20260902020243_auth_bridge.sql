@@ -32,11 +32,25 @@ BEGIN;
 --
 -- Sharing the key makes the JWT `sub` claim resolve straight to account.id, so
 -- _shared/auth.ts does one hop to platform_user instead of two on every request.
--- ON DELETE CASCADE so removing an auth user does not strand an orphan account.
+--
+-- RESTRICT, deliberately, NOT CASCADE.
+--
+-- A cascade here would be worse than useless. It cannot reach past `account`:
+-- platform_user, session, mfa_device and auth_event all reference account(id) with no
+-- cascade of their own, so `DELETE FROM auth.users` would fail on
+-- platform_user_account_id_fkey for every account that has ever signed in. Cascading
+-- those too would then destroy records the project is required to keep — audit_event
+-- rows hang off platform_user and are retained 7-10 years, auth_event for 1 year
+-- (Data-Model §18.6), and §18.5 states audit logs are explicitly excluded from erasure.
+--
+-- Physically deleting an account is therefore not a supported operation. Erasure is the
+-- anonymization flow in §18.5: PII replaced with placeholders, financial and audit rows
+-- retained and scrubbed. RESTRICT makes that refusal explicit at the database rather
+-- than leaving a cascade that silently cannot fire.
 
 ALTER TABLE public.account
     ADD CONSTRAINT account_auth_user_fk
-    FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE CASCADE;
+    FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE RESTRICT;
 
 COMMENT ON COLUMN public.account.id IS
     'Same UUID as auth.users.id. Provisioned by handle_new_user(). See Data-Model §5.1.1.';
@@ -57,6 +71,7 @@ SET search_path = public, extensions
 AS $$
 DECLARE
     v_agent_id    uuid;
+    v_requested   text;
     v_first_name  text;
     v_last_name   text;
     v_client_id   uuid;
@@ -64,33 +79,56 @@ DECLARE
 BEGIN
     -- Which agent owns this client?
     --
-    -- client.agent_id is NOT NULL, so one must be chosen. The invite-code path
-    -- (Screen Inventory 2.1.13) passes agent_id in the signup metadata. Absent that,
+    -- client.agent_id is NOT NULL, so one must be chosen. Absent an explicit choice,
     -- fall back to the sole active agent, which is correct for P1's single-agent
-    -- business. With several active agents and no invite code we raise rather than
-    -- guess — assigning a client to the wrong book of business is worse than a failed
-    -- signup, and multi-agent is explicitly P3.
-    v_agent_id := NULLIF(NEW.raw_user_meta_data ->> 'agent_id', '')::uuid;
+    -- business. Assigning a client to the wrong book of business is worse than a failed
+    -- signup, so anything ambiguous raises instead of guessing.
+    --
+    -- SECURITY, and this is a real limitation rather than a nicety: raw_user_meta_data
+    -- is entirely caller-controlled at signup (`options.data`), and signup is open. So
+    -- `agent_id` here is a REQUEST, not proof of an invitation — a self-registering user
+    -- can currently attach themselves to any active agent. That is harmless while there
+    -- is one agent, and unacceptable at P3. Before Screen Inventory 2.1.13 ships this
+    -- must verify a signed or single-use invite token instead of trusting the id, and
+    -- the checks below (well-formed, exists, active) are a floor rather than the fix.
+    v_requested := NULLIF(NEW.raw_user_meta_data ->> 'agent_id', '');
 
-    IF v_agent_id IS NULL THEN
+    IF v_requested IS NOT NULL THEN
+        -- Signup metadata is caller-supplied: validate the shape before casting, or a
+        -- typo surfaces as a raw "invalid input syntax for type uuid".
+        IF v_requested !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN
+            RAISE EXCEPTION 'Cannot provision client %: agent_id % is not a UUID.',
+                NEW.email, v_requested;
+        END IF;
+
+        -- The invite path must satisfy the same active-status rule as the fallback;
+        -- otherwise an archived agent silently inherits new clients.
         SELECT a.id INTO v_agent_id
         FROM public.agent a
-        WHERE a.status = 'active';
+        WHERE a.id = v_requested::uuid AND a.status = 'active';
 
-        IF NOT FOUND THEN
-            RAISE EXCEPTION
-                'Cannot provision client %: no active agent exists to own them.', NEW.email
-                USING HINT = 'Seed an agent row, or pass agent_id in the signup metadata.';
+        IF v_agent_id IS NULL THEN
+            RAISE EXCEPTION 'Cannot provision client %: agent % is unknown or not active.',
+                NEW.email, v_requested;
         END IF;
-    END IF;
-
-    -- More than one active agent and no invite code: ambiguous, so stop.
-    IF NEW.raw_user_meta_data ->> 'agent_id' IS NULL
-       AND (SELECT count(*) FROM public.agent WHERE status = 'active') > 1 THEN
-        RAISE EXCEPTION
-            'Cannot provision client %: several active agents and no agent_id in signup metadata.',
-            NEW.email
-            USING HINT = 'P3 multi-agent work: route signups through the 2.1.13 invite-code flow.';
+    ELSE
+        -- STRICT: exactly one row, or it raises. Without it a second active agent would
+        -- be resolved by picking an arbitrary row.
+        BEGIN
+            SELECT a.id INTO STRICT v_agent_id
+            FROM public.agent a
+            WHERE a.status = 'active';
+        EXCEPTION
+            WHEN no_data_found THEN
+                RAISE EXCEPTION
+                    'Cannot provision client %: no active agent exists to own them.', NEW.email
+                    USING HINT = 'Seed an agent row, or pass agent_id in the signup metadata.';
+            WHEN too_many_rows THEN
+                RAISE EXCEPTION
+                    'Cannot provision client %: several active agents and no agent_id in signup metadata.',
+                    NEW.email
+                    USING HINT = 'P3 multi-agent work: route signups through the 2.1.13 invite-code flow.';
+        END;
     END IF;
 
     v_provider := COALESCE(
@@ -166,6 +204,12 @@ $$;
 COMMENT ON FUNCTION public.current_platform_user() IS
     'The calling user''s platform_user row. SECURITY DEFINER to avoid recursive policy '
     'evaluation — see the rls-policy skill.';
+
+-- A SECURITY DEFINER function is executable by PUBLIC by default. It only ever returns
+-- the caller's own row, so there is no exposure today, but granting deliberately keeps
+-- that true if the body ever changes.
+REVOKE EXECUTE ON FUNCTION public.current_platform_user() FROM public;
+GRANT EXECUTE ON FUNCTION public.current_platform_user() TO authenticated, service_role;
 
 CREATE POLICY account_self_select ON public.account
     FOR SELECT TO authenticated

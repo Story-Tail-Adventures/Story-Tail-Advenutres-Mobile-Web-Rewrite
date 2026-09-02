@@ -33,8 +33,14 @@ class UnconfiguredAuthRepository : AuthRepository {
     override val sessionStatus: Flow<SessionStatus> =
         MutableStateFlow(SessionStatus.NotAuthenticated(false))
 
-    override suspend fun signInWithPassword(email: String, password: String): Result<Unit> =
-        Result.failure(AuthErrorException(AuthError.NotConfigured))
+    override suspend fun signInWithPassword(email: String, password: String): Result<Unit> {
+        // The screen shows client-facing wording; the actionable detail belongs here.
+        println(
+            "[auth] Supabase is not configured. Add supabase.url and supabase.anonKey " +
+                "to mobile/local.properties — see mobile/local.properties.example.",
+        )
+        return Result.failure(AuthErrorException(AuthError.NotConfigured))
+    }
 
     override suspend fun signOut(): Result<Unit> = Result.success(Unit)
 }
@@ -78,7 +84,13 @@ internal fun Throwable.toAuthError(): AuthError = when (this) {
             AuthError.RateLimited
         message?.contains("user_banned", ignoreCase = true) == true ->
             AuthError.AccountLocked
-        else -> AuthError.InvalidCredentials
+        message?.contains("weak_password", ignoreCase = true) == true ->
+            AuthError.WeakPassword
+        // Deliberately Unknown, not InvalidCredentials. An unrecognised REST error is
+        // not evidence the credentials were wrong, and saying so sends the user off to
+        // reset a password that was fine — which is exactly what happened with
+        // weak_password before it was mapped above.
+        else -> AuthError.Unknown
     }
     else -> AuthError.Unknown
 }

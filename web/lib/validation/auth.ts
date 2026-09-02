@@ -4,13 +4,13 @@ import { z } from "zod";
  * Auth field validation for the web app.
  *
  * PARALLEL IMPLEMENTATION — this deliberately duplicates
- * mobile/shared/src/commonMain/kotlin/com/storytail/adventures/util/AuthValidation.kt
+ * mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/AuthValidation.kt
  * rather than importing it. CLAUDE.md makes the stack directories a hard boundary and
  * the KMP shared module does not run on web.
  *
  * The two are kept honest by a shared table of test vectors asserted on both sides:
  *   web/lib/validation/auth.test.ts
- *   mobile/shared/src/commonTest/kotlin/com/storytail/adventures/util/AuthValidationTest.kt
+ *   mobile/shared/src/commonTest/kotlin/com/storytail/adventures/domain/validation/AuthValidationTest.kt
  * If you change a rule or a message here, change it there and update both tests.
  */
 
@@ -22,6 +22,7 @@ export const AUTH_MESSAGES = {
   passwordTooShort: "Use at least 12 characters",
   passwordNeedsDigit: "Add at least one number",
   passwordNeedsUppercase: "Add at least one capital letter",
+  passwordNeedsLowercase: "Add at least one lowercase letter",
 } as const;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -46,10 +47,20 @@ export const loginSchema = z.object({
 });
 
 /** REGISTRATION / RESET password rule — 2.1.2 and 2.1.5. */
+/**
+ * REGISTRATION / RESET password rule — 2.1.2 and 2.1.5.
+ *
+ * These checks must stay in step with `password_requirements` in supabase/config.toml
+ * ("lower_upper_letters_digits") and with AuthValidation.validateNewPassword on mobile.
+ * A client-side rule looser than the server's means the user is told their password is
+ * fine and then GoTrue rejects it as weak_password — which is why the lowercase check
+ * is here even though it is the one people forget.
+ */
 export const newPasswordSchema = z
   .string()
   .min(12, AUTH_MESSAGES.passwordTooShort)
   .regex(/\d/, AUTH_MESSAGES.passwordNeedsDigit)
-  .regex(/[A-Z]/, AUTH_MESSAGES.passwordNeedsUppercase);
+  .regex(/[A-Z]/, AUTH_MESSAGES.passwordNeedsUppercase)
+  .regex(/[a-z]/, AUTH_MESSAGES.passwordNeedsLowercase);
 
 export type LoginInput = z.infer<typeof loginSchema>;
