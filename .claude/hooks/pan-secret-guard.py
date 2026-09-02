@@ -22,6 +22,30 @@ import sys
 EXEMPT_PREFIXES = (".claude/", "docs/", "design/")
 
 PAN_CANDIDATE = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
+
+# UUIDs are everywhere in this codebase and their hyphenated all-digit segments look like
+# a separator-formatted card number to a naive scan — and an all-zero run passes Luhn
+# (digit sum 0). Strip UUID-shaped text before scanning, and require some digit variety.
+UUID_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I
+)
+
+def strip_uuids(text: str) -> str:
+    """Blank out UUIDs so their digit segments cannot form a false candidate."""
+    return UUID_RE.sub(lambda m: "#" * len(m.group()), text)
+
+
+def plausible_pan(digits: str) -> bool:
+    """
+    Reject only a single repeated digit (0000000000000000, a placeholder).
+
+    Deliberately NOT stricter. An earlier version required four distinct digits and
+    silently stopped catching 4242424242424242 and 4111111111111111 — the two most
+    common test PANs in existence, both of which use only two. Stripping UUIDs is what
+    removes the false positives; this check exists only for all-zero placeholders.
+    """
+    return len(set(digits)) >= 2
+
 STRIPE_SECRET = re.compile(r"\bsk_(?:live|test)_[A-Za-z0-9]{8,}")
 CARD_FIELD = re.compile(
     r"\b(card_number|cardnumber|raw_pan|\bpan\b|card_cvv|\bcvv\b|\bcvc\b)\b",
@@ -65,9 +89,9 @@ def main() -> int:
     if not content:
         return 0
 
-    for match in PAN_CANDIDATE.finditer(content):
+    for match in PAN_CANDIDATE.finditer(strip_uuids(content)):
         digits = re.sub(r"[ -]", "", match.group())
-        if 13 <= len(digits) <= 19 and luhn_ok(digits):
+        if 13 <= len(digits) <= 19 and plausible_pan(digits) and luhn_ok(digits):
             print(
                 f"Possible cardholder PAN in {rel} (CLAUDE.md rule 1).\n"
                 f"A {len(digits)}-digit Luhn-valid number was found. Card numbers are never "

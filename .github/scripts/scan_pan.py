@@ -29,6 +29,30 @@ SKIP_PATHS = {"web/types/supabase.ts", "contracts/ts/types.ts"}
 
 CANDIDATE = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
 
+# UUIDs are everywhere in this codebase and their hyphenated all-digit segments look like
+# a separator-formatted card number to a naive scan — and an all-zero run passes Luhn
+# (digit sum 0). Strip UUID-shaped text before scanning, and require some digit variety.
+UUID_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I
+)
+
+def strip_uuids(text: str) -> str:
+    """Blank out UUIDs so their digit segments cannot form a false candidate."""
+    return UUID_RE.sub(lambda m: "#" * len(m.group()), text)
+
+
+def plausible_pan(digits: str) -> bool:
+    """
+    Reject only a single repeated digit (0000000000000000, a placeholder).
+
+    Deliberately NOT stricter. An earlier version required four distinct digits and
+    silently stopped catching 4242424242424242 and 4111111111111111 — the two most
+    common test PANs in existence, both of which use only two. Stripping UUIDs is what
+    removes the false positives; this check exists only for all-zero placeholders.
+    """
+    return len(set(digits)) >= 2
+
+
 
 def luhn_ok(digits: str) -> bool:
     total, alt = 0, False
@@ -66,9 +90,13 @@ def main() -> int:
             continue
 
         for lineno, line in enumerate(text.splitlines(), 1):
-            for match in CANDIDATE.finditer(line):
+            for match in CANDIDATE.finditer(strip_uuids(line)):
                 digits = re.sub(r"[ -]", "", match.group())
-                if 13 <= len(digits) <= 19 and luhn_ok(digits):
+                if (
+                    13 <= len(digits) <= 19
+                    and plausible_pan(digits)
+                    and luhn_ok(digits)
+                ):
                     findings.append(
                         f"{path}:{lineno}: {len(digits)}-digit Luhn-valid number"
                     )
