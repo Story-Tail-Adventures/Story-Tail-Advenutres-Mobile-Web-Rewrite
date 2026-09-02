@@ -68,7 +68,8 @@
       "Bash(git switch:*)",
       "Bash(git restore:*)",
       "Bash(supabase secrets:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(gh pr merge:*)"
     ],
     "deny": [
       "Bash(rm:*)",
@@ -80,7 +81,6 @@
       "Bash(supabase functions deploy:*)",
       "Bash(supabase projects:*)",
       "Bash(vercel:*)",
-      "Bash(gh pr merge:*)",
       "Bash(gh release:*)",
       "Bash(stripe:*)",
       "Read(./.env)",
