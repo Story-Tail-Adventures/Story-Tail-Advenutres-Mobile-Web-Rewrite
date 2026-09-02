@@ -4,7 +4,16 @@ Android + iOS apps built with **Kotlin Multiplatform** and **Compose Multiplatfo
 
 ## Status
 
-**Not yet initialized.** This directory exists as the placeholder for the mobile codebase.
+**Scaffolded, not yet wired up.** The Compose Multiplatform Wizard has been run — `settings.gradle.kts`,
+`shared/`, `androidApp/` and `iosApp/` all exist and the Android app builds. What is still missing:
+the Story-Tail theme (see `../design/compose-theme/`), bundled fonts, networking dependencies, and any
+real screen. The target layout below is the goal, not the current state.
+
+**iOS is gated on Xcode.** Only the Command Line Tools are installed on the current dev machine, so
+Kotlin/Native cannot link the `iosArm64` / `iosSimulatorArm64` targets. That means `./gradlew :shared:build`
+and `:shared:check` **fail** — use the Android-scoped tasks (`:shared:assembleAndroidMain`,
+`:shared:testAndroidHostTest`, `:androidApp:assembleDebug`) until Xcode is installed. The iOS targets stay
+declared in `shared/build.gradle.kts` so shared code cannot drift iOS-incompatible.
 
 ## Initialize
 

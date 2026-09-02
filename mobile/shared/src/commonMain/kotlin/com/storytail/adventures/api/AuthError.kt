@@ -1,0 +1,62 @@
+package com.storytail.adventures.api
+
+/**
+ * Supabase auth failures, in Story-Tail's voice.
+ *
+ * Two rules this type exists to hold:
+ *
+ *  1. Never distinguish "no such account" from "wrong password". Supabase already
+ *     collapses both into invalid_credentials; re-expanding that would hand an
+ *     unauthenticated caller an account-enumeration oracle.
+ *  2. Copy follows docs/Design-System.md §2.6 — warm, not accusatory, and it always
+ *     offers a next move. A failed sign-in is a small moment of friction for someone
+ *     who just wants to see their trip, not a security event to scold them about.
+ *
+ * The web twin is web/lib/auth-errors.ts. Keep the strings identical.
+ */
+sealed interface AuthError {
+    val message: String
+
+    /** Where to send someone who is stuck, if there is somewhere useful. */
+    val action: Action?
+        get() = null
+
+    data class Action(val label: String, val route: String)
+
+    data object InvalidCredentials : AuthError {
+        override val message = "That email and password don't match."
+        override val action = Action("Reset your password", "/forgot-password")
+    }
+
+    data object EmailNotConfirmed : AuthError {
+        override val message = "Almost there — check your email for the verification link."
+        override val action = Action("Resend it", "/verify-email")
+    }
+
+    data object RateLimited : AuthError {
+        override val message = "That's a few too many tries. Give it a minute, then try again."
+    }
+
+    data object AccountLocked : AuthError {
+        override val message = "This account is on hold."
+        override val action = Action("Message Gyasi", "/support")
+    }
+
+    data object Network : AuthError {
+        override val message = "We couldn't reach Story-Tail. Check your connection and try again."
+    }
+
+    data object Unknown : AuthError {
+        override val message = "Something went sideways on our end. Try again in a moment."
+    }
+
+    /**
+     * Client-facing wording only. The actionable detail — add `supabase.url` and
+     * `supabase.anonKey` to mobile/local.properties — goes to the log, not the screen:
+     * this renders in the same card as a real auth failure, and a Gradle file path in
+     * front of a traveler is jargon, not help.
+     */
+    data object NotConfigured : AuthError {
+        override val message = "We're not quite ready to sign you in yet — check back shortly."
+    }
+}

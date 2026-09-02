@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Compose paints everything, so the platform theme only needs to get out of the way:
+      no action bar, and transparent system bars so enableEdgeToEdge() can draw the
+      Story-Tail background behind the status and navigation bars.
+    -->
+    <style name="Theme.StoryTail" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>
