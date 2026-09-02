@@ -339,7 +339,7 @@ Here is the recommended sequence to start the Story-Tail Adventures codebase wit
 
 #### Step 1 — Create the monorepo and scaffolding
 
-Set up the monorepo with the four sub-projects per Data Model §21.1. The recommended top-level tooling is Turborepo or Nx (either works; Turborepo has a slightly simpler learning curve). Use `pnpm` for the JavaScript/TypeScript side and the Compose Multiplatform Wizard for the mobile side.
+Set up the monorepo with the four sub-projects per Data Model §21.1. The recommended top-level tooling is Turborepo or Nx (either works; Turborepo has a slightly simpler learning curve). Use `npm` workspaces for the JavaScript/TypeScript side and the Compose Multiplatform Wizard for the mobile side.
 
 ```
 storytail/
@@ -404,14 +404,14 @@ entities, or the design system.
 - Mobile and web share the API contract via OpenAPI + codegen; do not hand-write the contract twice.
 
 ## Common commands
-- Run web: `pnpm --filter web dev`
+- Run web: `npm run dev -w web`
 - Run Android: open `mobile/` in Android Studio, Run
 - Run iOS: open `mobile/iosApp/iosApp.xcodeproj` in Xcode, Run
 - Build mobile shared: `cd mobile && ./gradlew :shared:build`
 - Apply DB migrations: `supabase db push`
 - Deploy Edge Functions: `supabase functions deploy <name>`
 - Generate TS types from DB: `supabase gen types typescript --local > web/types/supabase.ts`
-- Generate API types from OpenAPI: `pnpm --filter contracts generate`
+- Generate API types from OpenAPI: `npm run generate -w contracts`
 
 ## What NOT to do
 - Don't add cardholder data fields to the data model.
@@ -460,7 +460,7 @@ Set up Claude Code to use **plan mode** for non-trivial work and **sub-agents** 
 
 Don't wait until Phase 1 is done to set up CI. Add a GitHub Actions workflow that, on every PR:
 
-- Runs `pnpm test` for the web and contracts packages
+- Runs `npm test` for the web and contracts packages
 - Runs `cd mobile && ./gradlew check` for mobile
 - Verifies Edge Functions compile via `supabase functions verify`
 - Verifies migrations apply cleanly via `supabase db push --dry-run`
@@ -504,7 +504,7 @@ A few patterns that tend to compound nicely:
 | Observability | Sentry | Free tier covers MVP |
 | ASV scans | Trustwave / SecurityMetrics / Qualys | Quarterly PCI requirement |
 | API contract | OpenAPI spec + generated TS types + generated Kotlin types | One source of truth across mobile + web + backend |
-| Build tool | Turborepo or Nx monorepo · Gradle (mobile) · pnpm (web/contracts) · Supabase CLI | Standard for each toolchain |
+| Build tool | Turborepo or Nx monorepo · Gradle (mobile) · npm workspaces (web/contracts) · Supabase CLI | Standard for each toolchain |
 | CI/CD | GitHub Actions | Standard, free for small repos |
 | Workflow | Claude Code with `CLAUDE.md` + Skills | Documented in Section 5 |
 

@@ -11,7 +11,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Int
 ├── .gitignore
 ├── .editorconfig
 ├── package.json               ← monorepo workspace root
-├── pnpm-workspace.yaml
+├── package-lock.json
 ├── turbo.json
 │
 ├── docs/                      ← project documentation (canonical source of truth)
@@ -39,7 +39,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Int
 │   ├── components/
 │   ├── lib/
 │   ├── styles/
-│   └── package.json           (set up via `pnpm create next-app` — see web/README.md)
+│   └── package.json           (set up via `npx create-next-app` — see web/README.md)
 │
 ├── supabase/                  ← Supabase project
 │   ├── migrations/            ← SQL migrations (managed via `supabase db push`)
@@ -71,8 +71,8 @@ Then read the Design System and Data Model when you need them. The bootstrap ste
 
 ```bash
 # Web
-pnpm --filter web dev                  # start Next.js dev server
-pnpm --filter web build                # production build
+npm run dev -w web                  # start Next.js dev server
+npm run build -w web                # production build
 
 # Mobile (run from mobile/)
 ./gradlew :shared:build                # build shared module
@@ -86,7 +86,7 @@ supabase functions deploy <name>       # deploy an Edge Function
 supabase gen types typescript --local > web/types/supabase.ts
 
 # API contract codegen
-pnpm --filter contracts generate       # regenerate TS + Kotlin types from openapi.yaml
+npm run generate -w contracts       # regenerate TS + Kotlin types from openapi.yaml
 ```
 
 ## Document hierarchy
