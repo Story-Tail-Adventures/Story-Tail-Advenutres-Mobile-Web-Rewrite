@@ -93,7 +93,11 @@ export const darkColors = {
   onTertiaryContainer:    "#B6F2C8",
 
   error:                  "#FFB4AB",
+
+  onError:               "#690005",
   errorContainer:         "#93000A",
+
+  onErrorContainer:      "#FFDAD6",
 
   success:                "#8DDCA4",
   successContainer:       "#00522A",

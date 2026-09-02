@@ -1,8 +1,27 @@
+/* Story-Tail Adventures — design tokens for the web app.
+ *
+ * MIRROR of design/web-tokens/tokens.css. Do not edit the values here directly —
+ * change the source, then re-copy. The three token sources (this CSS, the Kotlin
+ * theme in design/compose-theme/, and design/web-tokens/design-tokens.ts) are one
+ * source of truth and must stay in sync. See docs/Design-System.md §12.4.
+ *
+ * Two deliberate deltas from the source file:
+ *   1. The `@import url("https://fonts.googleapis.com/...")` is removed. Runtime
+ *      Google Fonts are forbidden in production (CLAUDE.md); web/app/fonts.ts
+ *      bundles Poppins, Caveat and JetBrains Mono via next/font at build time.
+ *   2. The three --font-* declarations are removed. `--font-*` is also Tailwind v4's
+ *      font-family theme namespace, so declaring them here and mapping them through
+ *      @theme would be a self-reference cycle. They live in web/app/globals.css.
+ *
+ * Dark mode is the `.scheme-dark` class, NOT prefers-color-scheme, and it is a full
+ * tropical-dark rebrand rather than an inversion: primary goes burgundy -> ocean blue,
+ * secondary -> sunset gold, surfaces -> deep navy. Check both schemes on every screen.
+ */
+
 /* Story-Tail Adventures — Material 3 token system
    Brand: hybrid burgundy/orange primary, tropical accents.
    Typography: Poppins (per BRD §11). */
 
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Caveat:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
   /* Brand source colors */
@@ -75,10 +94,6 @@
   --r-xl: 28px;
   --r-full: 999px;
 
-  /* Type scale (M3-ish, Poppins) */
-  --font-sans: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-script: "Caveat", "Poppins", cursive;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 .scheme-dark {
