@@ -26,12 +26,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Strips SQL comments and string literals first. A plain grep fires on the initial
+      # migration's own "NEVER store PAN, CVV" comment — text that states the rule
+      # rather than breaking it, and a guard that fails on that gets deleted.
       - name: No card-data columns in migrations
-        run: |
-          if grep -rniE '\b(card_number|cardnumber|raw_pan|cvv|cvc)\b' supabase/migrations/ 2>/dev/null; then
-            echo "::error::Card-data column found in a migration. CLAUDE.md rule 1: PANs live only in Stripe."
-            exit 1
-          fi
+        run: python3 .github/scripts/scan_card_columns.py
 
       - name: No Stripe secret keys in the tree
         run: |
@@ -161,8 +160,11 @@ jobs:
             echo "Nothing to check yet."
             exit 0
           fi
-          deno check "${files[@]}"
-          deno lint supabase/functions/
+          # --config explicitly: without it Deno resolves the config by walking up from
+          # the CWD, finds no deno.json at the repo root, and the bare
+          # "@supabase/supabase-js" specifier fails to resolve.
+          deno check --config supabase/functions/deno.json "${files[@]}"
+          deno lint --config supabase/functions/deno.json supabase/functions/
 
       - name: Fail if generated DB types drifted from the migrations
         run: |

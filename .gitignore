@@ -104,3 +104,6 @@ reference.docx
 # Python bytecode (the CI guard scripts in .github/scripts/)
 __pycache__/
 *.py[cod]
+
+# Deno's lock belongs beside supabase/functions/deno.json, not at the repo root.
+/deno.lock
