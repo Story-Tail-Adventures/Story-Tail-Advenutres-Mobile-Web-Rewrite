@@ -64,28 +64,72 @@ Use these consistently in code comments, commit messages, and PR descriptions:
 
 ```bash
 # Web (Next.js)
-pnpm --filter web dev
-pnpm --filter web build
-pnpm --filter web typecheck
-pnpm --filter web lint
+npm run dev -w web
+npm run build -w web
+npm run typecheck -w web
+npm run lint -w web
+
+# Web tests
+npm run test -w web
 
 # Mobile (from mobile/)
-./gradlew :shared:build
-./gradlew :shared:test
+# NOTE: :shared:build and :shared:check include the iOS targets and need Xcode.
+# Until Xcode is installed, use the Android-scoped tasks below.
+./gradlew :shared:assembleAndroidMain
+./gradlew :shared:testAndroidHostTest
+./gradlew :androidApp:assembleDebug
 ./gradlew :androidApp:installDebug
-# iOS: open mobile/iosApp/iosApp.xcodeproj in Xcode
+# iOS: open mobile/iosApp/iosApp.xcodeproj in Xcode (requires Xcode, not just CLT)
 
-# Supabase
+# Supabase (local)
 supabase start                                                  # start local Supabase
-supabase db push                                                # apply migrations
+supabase db reset                                               # apply migrations + seed from scratch
+supabase db push                                                # apply to a LINKED REMOTE — not the local loop
 supabase migration new <name>                                   # create new migration
 supabase functions new <name>                                   # scaffold an Edge Function
 supabase functions deploy <name>                                # deploy a function
 supabase gen types typescript --local > web/types/supabase.ts   # regen DB types
 
 # Contracts (codegen TS + Kotlin types from openapi.yaml)
-pnpm --filter contracts generate
+npm run generate -w contracts
 ```
+
+## Local development gotchas
+
+Things that cost real time to rediscover:
+
+- **`./gradlew :shared:build` and `:shared:check` fail without a full Xcode install.** They
+  pull in the iOS *link* step; only the Command Line Tools are present. Use the AGP KMP
+  library plugin's real task names instead: `:shared:assembleAndroidMain`,
+  `:shared:testAndroidHostTest`, `:androidApp:assembleDebug`, and
+  `:shared:compileKotlinIosSimulatorArm64` as the iOS-compatibility gate (it compiles the
+  klib without linking, so it needs no Xcode).
+- **supabase-kt is pinned to the Kotlin version, not to "latest".** Releases newer than the
+  project's Kotlin compiler ship klibs with a higher ABI version, which Kotlin/Native
+  refuses — while the JVM/Android target silently tolerates the mismatch. So a bad bump
+  breaks *only* iOS. Bump `supabase` and `kotlin` in `libs.versions.toml` together.
+- **The Android emulator reaches local Supabase at `http://10.0.2.2:54321`,** not
+  `127.0.0.1` — that is the emulator's own loopback. Set it in `mobile/local.properties`.
+- **`supabase db reset` is the local loop; `supabase db push` targets a linked remote.**
+  Don't reach for `push` locally.
+- **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`, and the
+  Tailwind colour mapping in `web/app/globals.css` must use `@theme inline`. Plain `@theme`
+  freezes the light value into `:root` and dark mode silently stops working.
+- **`~/.orbstack/bin` is not on the default non-interactive PATH.** Export it before
+  `docker` or `supabase` commands, or they fail with "command not found".
+- **Hand-seeding `auth.users` breaks GoTrue** unless `confirmation_token`,
+  `recovery_token`, `email_change_token_new` and `email_change` are set to `''`. They are
+  nullable with no default and GoTrue scans them into non-nullable Go strings, so every
+  login 500s with "converting NULL to string is unsupported".
+- **Never use `const val` for generated config.** Kotlin inlines const values into every
+  call site, so a build that ran while the value was empty keeps the empty string baked in
+  after regeneration — the app reports "not configured" with the correct value in the APK.
+- **Don't build the Supabase client during composition.** `createSupabaseClient` reads
+  persisted session state; doing it inline cost a 26s cold start and an ANR. Build it on a
+  background dispatcher behind a splash route (648ms after).
+- **The dark scheme is a full tropical rebrand, not an inversion** — primary goes burgundy
+  to ocean blue, secondary to sunset gold, surfaces to deep navy. Check both schemes on
+  every screen.
 
 ## What NOT to do
 

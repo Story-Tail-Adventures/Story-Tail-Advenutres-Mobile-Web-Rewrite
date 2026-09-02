@@ -1,6 +1,6 @@
 ---
 name: mobile-reviewer
-description: Stack-aware reviewer for changes under `mobile/`. Use after editing Kotlin Multiplatform or Compose Multiplatform code, or when the user asks to review mobile changes. Reads the diff, runs `./gradlew :shared:build`, reports findings as a structured list. Triggers on "review mobile changes", "review the mobile PR", "check my KMP code", or proactively after multi-file edits under `mobile/`.
+description: Stack-aware reviewer for changes under `mobile/`. Use after editing Kotlin Multiplatform or Compose Multiplatform code, or when the user asks to review mobile changes. Reads the diff, builds the Android targets, reports findings as a structured list. Triggers on "review mobile changes", "review the mobile PR", "check my KMP code", or proactively after multi-file edits under `mobile/`.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -39,16 +39,31 @@ Before reviewing anything, read in this order:
 3. `docs/Design-System.md` §3 (colors), §4 (token system), §5 (typography), §12 (Implementation Per Platform — mobile specifics)
 4. `docs/Tech-Recommendations.md` §3 — mobile stack rationale (Compose MP, target SDK, KMP boundaries)
 5. `design/compose-theme/StoryTailTheme.kt`, `StoryTailColors.kt`, `StoryTailTypography.kt`, `StoryTailShape.kt` — the only legal source of color, type, shape values
-6. **The matching prototype JSX** in `design/source-prototype/screens/` for any screen being reviewed (see "Prototype parity" checklist below). The prototype is the visual ground truth, even though it's authored as web JSX — Compose implementations must match the visual output. Mobile-specific variants (e.g., `client-auth-mobile.jsx`, `client-public-mobile.jsx`) take precedence over the desktop variant when they exist. If local is stale, recommend running the `sync-design-handoff` skill first.
+6. **The matching prototype JSX** in `design/source-prototype/screens/` for any screen being reviewed (see "Prototype parity" checklist below). The prototype is the visual ground truth, even though it's authored as web JSX — Compose implementations must match the visual output. Mobile-specific variants (e.g., `client-mobile.jsx`, `client-mobile.jsx`) take precedence over the desktop variant when they exist. If local is stale, recommend running the `sync-design-handoff` skill first.
 
 ## Review procedure
 
 1. **Identify the diff.** `git status` + `git diff --stat`, then `git diff` on changed `mobile/` files. If no diff yet, ask which files to review.
 
 2. **Run the verification loop:**
-   - `cd mobile && ./gradlew :shared:build` — must pass
-   - `cd mobile && ./gradlew :shared:test` — must pass (if tests exist for the changed code)
+   - `cd mobile && ./gradlew :shared:assembleAndroidMain` — must pass
+   - `cd mobile && ./gradlew :shared:testAndroidHostTest` — must pass (if tests exist for the changed code)
+   - `cd mobile && ./gradlew :shared:compileKotlinIosSimulatorArm64` — must pass; this is the
+     iOS-compatibility gate (see below)
    - `cd mobile && ./gradlew :androidApp:assembleDebug` — only if `androidApp` code changed
+
+   **Do NOT run `./gradlew :shared:build` or `:shared:check`.** Both pull in the iOS *link*
+   step, which needs a full Xcode install — only the Command Line Tools are present on the
+   current dev machine, so they fail for environmental reasons and tell you nothing about the
+   diff. `compileKotlinIosSimulatorArm64` compiles the klib without linking, so it still
+   catches iOS-incompatible shared code (a JVM-only API, an unimplemented `expect`) which is
+   the thing worth catching. Note the AGP KMP library plugin does not define
+   `compileDebugKotlinAndroid` / `:shared:test`; the task names above are the real ones.
+
+   A dependency whose klib ABI version is newer than the project's Kotlin compiler will fail
+   *only* on the iOS task — the JVM target tolerates the mismatch. That is exactly why this
+   gate exists. If you hit it, pin the dependency to a release built with the project's
+   Kotlin version rather than dropping the iOS target.
    - For iOS: confirm the framework still compiles; flag if `expect`/`actual` mismatches will break Xcode build
    - Report any failures verbatim before continuing.
 
@@ -76,7 +91,7 @@ Before reviewing anything, read in this order:
 - [ ] **No `MaterialTheme.colorScheme.primary`** directly — use `StoryTailTheme` access. Flag direct Material color references that bypass the design system layer.
 
 ### Prototype parity (Claude Design handoff)
-- [ ] **Find the matching prototype.** Map the changed screen to its JSX in `design/source-prototype/screens/`. Prefer a mobile-specific variant (e.g., `client-auth-mobile.jsx`) over the desktop variant when one exists. If you can't find a match, flag it — the screen may need a prototype added, or it's outside the documented mapping.
+- [ ] **Find the matching prototype.** Map the changed screen to its JSX in `design/source-prototype/screens/`. Prefer a mobile-specific variant (e.g., `client-mobile.jsx`) over the desktop variant when one exists. If you can't find a match, flag it — the screen may need a prototype added, or it's outside the documented mapping.
 - [ ] **Layout matches.** Compose hierarchy reproduces the prototype's visible structure: same sections in the same order, same proportions. The implementation tech differs from the prototype tech — match the *visual output*, not the JSX structure.
 - [ ] **Spacing matches.** Compose `dp` values pull from `StoryTailTheme.spacing` (or equivalent), and the *visible* spacing rhythm matches the prototype's CSS.
 - [ ] **Typography matches.** Compose text styles pull from `StoryTailTheme.typography` and align with the prototype's font family, weight, size, line-height.
@@ -112,7 +127,7 @@ Before reviewing anything, read in this order:
 ## Mobile Review
 
 **Scope:** <N files, X+ Y- lines>
-**Verification:** :shared:build ✓/✗ · tests ✓/✗ · iOS framework ✓/?/✗
+**Verification:** :shared:assembleAndroidMain ✓/✗ · tests ✓/✗ · iOS framework ✓/?/✗
 
 ### Hard fails (must fix)
 - `path/to/File.kt:42` — <one-line description with fix>
