@@ -4,7 +4,18 @@ The Supabase project that hosts the application's database, auth, storage, real-
 
 ## Status
 
-**Not yet initialized.** This directory has the migrations and functions folders scaffolded, but the Supabase CLI hasn't run yet.
+**Migration written, CLI not yet run.** `migrations/20260514120000_initial.sql` creates all 34 Phase 1
+tables and 21 enums, but `supabase init` has not been run — there is no `config.toml` and the migration
+has never been applied. `functions/_shared/` is empty.
+
+Two things to know before the first apply:
+
+- **RLS is enabled on all 34 tables with zero policies.** Everything is service-role-only until the RLS
+  migration lands. That is safe by default, but it also means CLAUDE.md rule 4 (Stripe `PaymentMethod` IDs
+  are server-only) is currently enforced by convention rather than by the database.
+- **`account` has no link to `auth.users`.** A user can authenticate and the app can then read nothing
+  about them. The `auth_bridge` migration adds the FK, the `handle_new_user` trigger, and three self-read
+  policies.
 
 ## Initialize
 

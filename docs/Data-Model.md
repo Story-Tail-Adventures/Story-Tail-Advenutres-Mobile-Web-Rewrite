@@ -164,6 +164,36 @@ The final section is **Open Questions** — areas where the model is intentional
 
 **Indexes:** unique on `(email)` where `archived_at is null`; index on `(last_login_at)` for activity reports.
 
+#### 5.1.1 Relationship to Supabase Auth
+
+`account.id` **is** `auth.users.id` — the same UUID, enforced by a foreign key with
+`ON DELETE CASCADE`. Supabase Auth (GoTrue) creates the `auth.users` row; a
+`SECURITY DEFINER` trigger, `public.handle_new_user()`, then creates the matching
+`account`, `client`, and `platform_user` rows in one transaction.
+
+Sharing the key matters for more than tidiness: it makes the JWT `sub` claim resolve
+straight to `account.id`, so `_shared/auth.ts` does one hop to reach `platform_user`
+instead of two, on every authenticated request.
+
+**GoTrue owns credential state; `account` is the product-facing projection.** The schema
+defines `account.password_hash`, `session`, `mfa_device`, and `auth_event`, all of which
+shadow something GoTrue already maintains (`auth.users.encrypted_password`,
+`auth.sessions`, `auth.mfa_factors`, `auth.audit_log_entries`). Do not double-implement:
+
+| Concern | System of record | Our table's role |
+|---|---|---|
+| Password | `auth.users.encrypted_password` | `account.password_hash` stays **null**. Never write to it. |
+| Active sessions | `auth.sessions` | `session` backs the "Active Sessions" screen (device labels, revoke UI) |
+| MFA factors | `auth.mfa_factors` | `mfa_device` backs the security-settings UI; the secret stays in GoTrue |
+| Auth history | `auth.audit_log_entries` | `auth_event` is the user-visible security log |
+
+**Which agent owns a self-registered client?** `client.agent_id` is `NOT NULL`, so the
+trigger has to choose one. It reads `agent_id` from the signup's `raw_user_meta_data`
+when present (the Screen Inventory 2.1.13 invite-code path), and otherwise falls back to
+the sole active agent. With more than one active agent and no invite code the trigger
+raises, rather than silently assigning a client to the wrong book of business — that is a
+P3 multi-agent decision, and it should surface as an error rather than a data problem.
+
 **Postgres DDL:**
 
 ```sql
@@ -1661,7 +1691,7 @@ storytail/
     └── kotlin/                        # Auto-generated Kotlin types for mobile
 ```
 
-Top-level tooling: Turborepo or Nx for the monorepo; `pnpm` for JS package management; Gradle for the mobile sub-project; `supabase` CLI for the database and Edge Functions.
+Top-level tooling: Turborepo or Nx for the monorepo; `npm` workspaces for JS package management; Gradle for the mobile sub-project; `supabase` CLI for the database and Edge Functions.
 
 ### 21.2 Server-Only vs Client-Visible Types
 
