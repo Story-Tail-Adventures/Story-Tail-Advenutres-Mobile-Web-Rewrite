@@ -10,7 +10,6 @@
       "Bash(git ls-files:*)",
       "Bash(git blame:*)",
       "Bash(git remote -v)",
-
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
@@ -19,7 +18,6 @@
       "Bash(file:*)",
       "Bash(du:*)",
       "Bash(diff:*)",
-
       "Bash(npm run typecheck:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run test:*)",
@@ -31,7 +29,6 @@
       "Bash(npx turbo run typecheck:*)",
       "Bash(npx turbo run lint:*)",
       "Bash(npx vitest run:*)",
-
       "Bash(./gradlew :shared:assembleAndroidMain:*)",
       "Bash(./gradlew :shared:testAndroidHostTest:*)",
       "Bash(./gradlew :shared:compileKotlinIosSimulatorArm64:*)",
@@ -39,7 +36,6 @@
       "Bash(./gradlew :androidApp:assembleDebug:*)",
       "Bash(./gradlew tasks:*)",
       "Bash(./gradlew --version)",
-
       "Bash(supabase status:*)",
       "Bash(supabase start)",
       "Bash(supabase stop)",
@@ -52,20 +48,16 @@
       "Bash(supabase functions new:*)",
       "Bash(supabase functions serve:*)",
       "Bash(supabase --version)",
-
       "Bash(deno check:*)",
       "Bash(deno lint:*)",
       "Bash(deno fmt --check:*)",
-
       "Bash(psql postgresql://postgres:postgres@127.0.0.1:54322/*)",
-
       "Bash(adb devices)",
       "Bash(adb install:*)",
       "Bash(adb shell am start:*)",
       "Bash(adb exec-out screencap:*)",
       "Bash(adb logcat:*)"
     ],
-
     "ask": [
       "Bash(supabase db reset:*)",
       "Bash(npm install:*)",
@@ -75,16 +67,14 @@
       "Bash(git checkout:*)",
       "Bash(git switch:*)",
       "Bash(git restore:*)",
-      "Bash(supabase secrets:*)"
+      "Bash(supabase secrets:*)",
+      "Bash(git push:*)"
     ],
-
     "deny": [
       "Bash(rm:*)",
       "Bash(rmdir:*)",
       "Bash(git reset --hard:*)",
       "Bash(git clean:*)",
-      "Bash(git push:*)",
-
       "Bash(supabase link:*)",
       "Bash(supabase db push:*)",
       "Bash(supabase functions deploy:*)",
@@ -93,7 +83,6 @@
       "Bash(gh pr merge:*)",
       "Bash(gh release:*)",
       "Bash(stripe:*)",
-
       "Read(./.env)",
       "Read(./**/.env)",
       "Read(./**/.env.local)",
@@ -103,7 +92,6 @@
       "Read(./mobile/local.properties)"
     ]
   },
-
   "hooks": {
     "PreToolUse": [
       {
