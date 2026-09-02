@@ -1,0 +1,13 @@
+# Copy the sdk.dir line from your generated local.properties, then add the two
+# Supabase values below. This file is committed; local.properties is NOT.
+#
+# Get the values from `supabase status` after `supabase start`.
+#
+# IMPORTANT: the Android emulator cannot see 127.0.0.1 — that is the emulator's own
+# loopback. Use 10.0.2.2, which is the emulator's alias for the host machine.
+# On a physical device, use your machine's LAN IP instead.
+
+sdk.dir=/Users/<you>/Library/Android/sdk
+
+supabase.url=http://10.0.2.2:54321
+supabase.anonKey=<ANON_KEY from `supabase status`>

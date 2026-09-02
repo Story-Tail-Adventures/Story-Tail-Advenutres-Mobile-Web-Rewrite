@@ -1,0 +1,104 @@
+# Story-Tail Adventures — API contract
+#
+# Source of truth for every endpoint served by the Supabase Edge Functions in
+# `supabase/functions/`. Both clients consume generated types from this file:
+#   - TypeScript  → contracts/ts/types.ts   (npm run generate -w contracts)
+#   - Kotlin      → contracts/kotlin/       (deferred; see contracts/README.md)
+#
+# Do not hand-write API response types in `web/` or `mobile/`. Generate them.
+#
+# P1 note: Screen 2.1.1 Login and the rest of the 2.1.x auth flow call Supabase
+# Auth (GoTrue) directly via the official SDKs, so they are deliberately NOT
+# described here — GoTrue is not our surface. The first paths to land will be
+# the Stripe and commission-import Edge Functions.
+
+openapi: 3.1.0
+
+info:
+  title: Story-Tail Adventures API
+  version: 0.0.1
+  description: |
+    Edge Function API for the Story-Tail Adventures CRM platform.
+
+    All money is transported as an integer number of minor units (cents) in a
+    JSON *string*, paired with an ISO-4217 `currency` code. Never as a JSON
+    number — values above 2^53 lose precision silently. See CLAUDE.md rule 5.
+
+    All identifiers are UUID v7 (time-ordered). See docs/Data-Model.md §21.6.
+  license:
+    name: UNLICENSED
+
+servers:
+  - url: http://127.0.0.1:54321/functions/v1
+    description: Local Supabase
+  - url: https://{projectRef}.supabase.co/functions/v1
+    description: Hosted Supabase
+    variables:
+      projectRef:
+        default: localhost
+
+security:
+  - supabaseJwt: []
+
+paths: {}
+
+components:
+  securitySchemes:
+    supabaseJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Supabase Auth access token. Edge Functions verify it via
+        `_shared/auth.ts` `requireUser()`, which resolves the caller to a
+        `platform_user` row and its role.
+
+  schemas:
+    Money:
+      type: object
+      description: An amount in minor units plus its currency.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: '^-?\d+$'
+          description: Integer minor units (cents), as a string to preserve precision.
+          examples: ["1284500"]
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO-4217 alphabetic code.
+          examples: ["USD"]
+
+    Problem:
+      type: object
+      description: RFC 7807 problem details. Every error response uses this shape.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          default: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid access token.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Authenticated, but the caller's role may not perform this action.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

@@ -1,7 +1,0 @@
-packages:
-  - "web"
-  - "contracts"
-
-# Note: mobile/ is intentionally NOT a pnpm workspace — it uses Gradle for its
-# own build. supabase/ is also not a pnpm workspace — it's managed by the
-# Supabase CLI.

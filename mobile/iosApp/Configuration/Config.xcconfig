@@ -1,7 +1,10 @@
 TEAM_ID=
 
-PRODUCT_NAME=Story-Tail Adventures Mobile
-PRODUCT_BUNDLE_IDENTIFIER=com.storytail.adventures.project.Story-TailAdventuresMobile$(TEAM_ID)
+PRODUCT_NAME=Story-Tail Adventures
+# Matches the Android applicationId. The wizard appended its project name here; the
+# suffix was debris, and a bundle identifier is immutable once submitted to App Store
+# Connect, so it is worth being right before the first upload.
+PRODUCT_BUNDLE_IDENTIFIER=com.storytail.adventures$(TEAM_ID)
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0

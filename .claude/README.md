@@ -1,80 +1,102 @@
-# `.claude/` — Claude Code project skills and commands
+# `.claude/` — project agents, skills, hooks, and settings
 
-Project-specific skills and slash commands that Claude Code picks up when running in this repo. The `skills/` directory is the modern format; legacy `commands/` is also supported but skills are preferred (they can be invoked autonomously by Claude in addition to as slash commands).
+Everything in here is committed. These are project artifacts, not personal preferences:
+they are how the team teaches Claude what "good" looks like in this codebase. Review them
+in PRs and prune them when they stop earning their place.
+
+The one exception is `settings.local.json`, which is gitignored for machine-specific
+overrides.
 
 ## Layout
 
 ```
 .claude/
-├── README.md                  ← this file
+├── README.md                   ← this file
+├── settings.json               ← permissions allowlist + hook wiring
+├── launch.json                 ← dev-server config for the browser preview
+├── agents/
+│   ├── web-reviewer.md         ← reviews web/       (Next.js, React, Tailwind v4)
+│   ├── mobile-reviewer.md      ← reviews mobile/    (KMP, Compose Multiplatform)
+│   ├── supabase-reviewer.md    ← reviews supabase/  (Edge Functions, migrations, RLS)
+│   └── brand-voice-reviewer.md ← reviews user-facing copy against Design-System §2
+├── hooks/
+│   ├── stack-boundary-guard.py ← blocks Kotlin in web/, React in mobile/, etc.
+│   └── pan-secret-guard.py     ← blocks card numbers and Stripe secret keys
 └── skills/
-    ├── new-screen/
-    │   └── SKILL.md
-    ├── new-entity/
-    │   └── SKILL.md
-    ├── audit-pci/
-    │   └── SKILL.md
-    └── run-vulnerability-scan/
-        └── SKILL.md
+    ├── new-screen/             ← implement a Screen Inventory screen
+    ├── new-entity/             ← add a Data Model entity end-to-end
+    ├── new-edge-function/      ← scaffold an Edge Function with audit + auth pre-wired
+    ├── db-migrate/             ← create, apply, verify a migration; regenerate types
+    ├── rls-policy/             ← author and TEST Row-Level Security policies
+    ├── audit-pci/              ← check whether a change touches PCI scope
+    ├── run-vulnerability-scan/ ← quarterly ASV scan
+    └── sync-design-handoff/    ← refresh design/source-prototype/ from the handoff URL
 ```
 
-## Suggested skills to build out
+## The three reviewers are stack-scoped on purpose
 
-These are the skills the Tech Recommendations doc (§5.3 Step 4) suggests for this project. Each needs a SKILL.md file describing its purpose, triggers, and procedure.
+`web/`, `mobile/`, and `supabase/` are hard directory boundaries (CLAUDE.md rule 7), and
+each has its own idioms and its own failure modes. A generic reviewer knows none of them.
+Each agent declines work outside its tree and points at the right sibling.
 
-### `new-screen`
+Run them on a diff *after* finishing a unit of work — not mid-edit, when files are expected
+to be broken. Don't have the same session that wrote the code review it; spawn the agent so
+it starts with a clean context.
 
-Implement a screen from the Screen Inventory. Reads the inventory, the matching prototype JSX in `../design/source-prototype/screens/`, and builds the Compose (mobile) or React (web) implementation following the design tokens.
+## Hooks
 
-Triggers: "build screen 2.2.3", "implement Trip Detail", "add the Login screen", "I want to start on the dashboard"
+Both are `PreToolUse` on `Write|Edit`, which matters: `PostToolUse` runs after the write has
+already landed, so it can only complain. Exit code 2 denies the call.
 
-### `new-entity`
+They enforce the two CLAUDE.md rules that are fully mechanical:
 
-Add an entity from the Data Model. Generates the Supabase migration, the Postgres DDL, the TypeScript type (via codegen), and the Kotlin data class (via codegen). Updates the OpenAPI spec if the entity is part of the API surface.
+- **rule 7** (stack boundaries) — the most checkable rule in the file, otherwise caught only
+  by post-hoc review.
+- **rule 1** (no PANs) — the one rule where a mistake is a compliance incident rather than a
+  bug. It Luhn-checks candidate digit runs rather than matching "16 digits", which is what
+  keeps it from firing on timestamps and IDs. `.claude/`, `docs/` and `design/` are exempt,
+  since the PCI skill and the reviewer checklists necessarily contain the very strings it
+  looks for.
 
-Triggers: "add a new entity", "I need a Booking table", "let's add the Refund entity from the data model"
+Test a hook directly by piping it the payload shape Claude Code sends:
 
-### `audit-pci`
+```bash
+echo '{"cwd":"'"$PWD"'","tool_input":{"file_path":"'"$PWD"'/web/Foo.kt","content":"x"}}' \
+  | python3 .claude/hooks/stack-boundary-guard.py; echo "exit=$?"
+```
 
-Check whether a code change touches PCI scope. Greps for card-data-adjacent code, checks logging configs for PAN-scrubbing, verifies no Stripe `PaymentMethod` IDs are returned in API responses to client roles. Runs before any merge that touches `supabase/functions/stripe-*` or `web/components/payment/*`.
+Deliberately *not* hooked: format-on-write (no formatter config is agreed yet, so it would
+churn every diff), typecheck-on-write and Gradle-on-write (mid-edit files are supposed to be
+broken, and the reviewers run these at the right granularity).
 
-Triggers: "audit PCI", "is this PCI safe?", "I just changed a payment thing"
+## Permissions
 
-### `run-vulnerability-scan`
+`settings.json` allowlists the read-only and routine commands this project runs constantly,
+so they don't prompt. Three choices worth knowing:
 
-Trigger a quarterly ASV scan and capture the report. Reminds the team to run it on the schedule (every 90 days per PCI DSS).
+- `supabase db reset` is in **ask**, not deny. It is the primary local dev loop, so denying
+  it outright would be constant friction — but it wipes and reseeds the database, so it
+  should never happen silently.
+- `supabase db push`, `link`, and `functions deploy` are hard **deny**. They touch a remote.
+- Gradle entries are per-task, never `Bash(./gradlew:*)` — a blanket allow would cover
+  `publish` and any task added later.
 
-Triggers: "run vulnerability scan", "quarterly PCI scan", "ASV scan"
-
-## How to create a skill
-
-Create a new directory under `skills/` and add a `SKILL.md` file with this frontmatter:
+## Adding a skill
 
 ```markdown
 ---
 name: skill-name
-description: One-line description of what this skill does. Used for autonomous invocation matching.
+description: One line. This is what Claude matches on for autonomous invocation, so name the
+  trigger phrases a person would actually type.
 ---
 
 # Skill Name
 
 ## Purpose
-
-Explain what this skill is for.
-
 ## When to use
-
-List triggers — user phrases that should invoke this skill.
-
 ## Procedure
-
-Step-by-step instructions for Claude to follow when this skill is invoked.
-
-## Examples
-
-Show example invocations and expected output.
+## What this skill never does
 ```
 
-## Commit this directory
-
-The `.claude/` directory should be committed to git. The skills are project artifacts — they're how the team teaches Claude what "good" looks like for this codebase. Treat them like code: review them in PRs, prune them when they're not useful.
+That last section does more work than it looks like — it's where the project's hard-won
+"don't do the obvious thing here, because X" lives.

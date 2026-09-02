@@ -2,9 +2,8 @@
   "name": "storytail-adventures",
   "version": "0.0.1",
   "private": true,
-  "description": "Story-Tail Adventures CRM platform — mobile + web + Supabase backend",
+  "description": "Story-Tail Adventures CRM platform \u2014 mobile + web + Supabase backend",
   "license": "UNLICENSED",
-  "packageManager": "pnpm@9.0.0",
   "workspaces": [
     "web",
     "contracts"
@@ -15,10 +14,11 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "generate:contracts": "pnpm --filter contracts generate",
+    "generate:contracts": "npm run generate -w contracts",
     "supabase:start": "supabase start",
-    "supabase:push": "supabase db push",
-    "supabase:types": "supabase gen types typescript --local > web/types/supabase.ts"
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:types": "mkdir -p web/types && supabase gen types typescript --local > web/types/supabase.ts && supabase gen types typescript --local > supabase/functions/_shared/database.types.ts"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

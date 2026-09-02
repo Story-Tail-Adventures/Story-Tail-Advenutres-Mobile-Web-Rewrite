@@ -45,8 +45,10 @@ Before reviewing anything, read in this order:
 1. **Identify the diff.** Run `git status` and `git diff --stat` to scope. Then `git diff` on the changed `web/` files. If no diff yet, ask the user which files to review.
 
 2. **Run the verification loop in parallel:**
-   - `pnpm --filter web typecheck` (or `cd web && npx tsc --noEmit` if scripts aren't wired up)
-   - `pnpm --filter web lint`
+   - `npm run typecheck -w web`
+   - `npm run lint -w web`
+   - `npm run test -w web` — must pass; the cross-platform validation vectors and the
+     open-redirect regression tests live here
    - Report any failures verbatim before continuing.
 
 3. **Walk the checklist below against the diff.** Anchor every finding to a specific file + line.

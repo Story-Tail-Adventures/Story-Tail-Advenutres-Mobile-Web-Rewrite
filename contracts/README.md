@@ -4,7 +4,14 @@ The API contract that the web app, mobile shared module, and Edge Functions all 
 
 ## Status
 
-**Not yet initialized.** The `ts/` and `kotlin/` output directories exist as placeholders for generated code.
+**Initialized, with an empty contract.** `package.json` and `openapi.yaml` exist and
+`npm run generate -w contracts` works, but `paths` is still empty — the 2.1.x auth screens call Supabase
+Auth (GoTrue) directly via the official SDKs, so they are not our API surface. The first real paths will
+arrive with the Stripe and commission-import Edge Functions.
+
+**The Kotlin generator is deferred.** `openapi-generator-cli` pulls a ~25 MB JAR and needs a Java toolchain
+on every CI runner, and there is nothing to generate from yet. Add `generate:kotlin` when the first
+endpoint lands. Until then `generate` runs the TypeScript side only.
 
 ## Layout
 
@@ -26,9 +33,9 @@ contracts/
 
 ```bash
 cd contracts
-pnpm init
-pnpm add -D openapi-typescript        # for TypeScript codegen
-pnpm add -D openapi-generator-cli     # for Kotlin codegen
+npm init -y
+npm install --save-dev openapi-typescript        # for TypeScript codegen
+npm install --save-dev openapi-generator-cli     # for Kotlin codegen
 ```
 
 In `package.json` add scripts:
@@ -37,18 +44,25 @@ In `package.json` add scripts:
 {
   "scripts": {
     "generate:ts": "openapi-typescript openapi.yaml -o ts/types.ts",
-    "generate:kotlin": "openapi-generator-cli generate -i openapi.yaml -g kotlin -o kotlin --additional-properties=packageName=com.storytail.contracts",
-    "generate": "pnpm generate:ts && pnpm generate:kotlin"
+    "generate": "npm run generate:ts"
   }
 }
 ```
 
-Run `pnpm generate` whenever `openapi.yaml` changes.
+When the Kotlin side is switched on, add back:
+
+```json
+"generate:kotlin": "openapi-generator-cli generate -i openapi.yaml -g kotlin -o kotlin --additional-properties=packageName=com.storytail.contracts",
+"generate": "npm run generate:ts && npm run generate:kotlin"
+```
+
+Run `npm run generate` whenever `openapi.yaml` changes.
 
 ## Workflow
 
 1. **Hand-edit `openapi.yaml`** when the API contract changes.
-2. **Run `pnpm generate`** to regenerate both TypeScript and Kotlin types.
+2. **Run `npm run generate`** to regenerate the TypeScript types. (Kotlin generation is
+   deferred — see Status above.)
 3. **Commit the generated outputs** — they live in source control so the web and mobile builds don't need to run codegen.
 4. **CI verifies the generated outputs are in sync** — if anyone edits `openapi.yaml` without regenerating, CI fails. See `.github/workflows/` once set up.
 

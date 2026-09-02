@@ -101,7 +101,9 @@
   --md-on-tertiary-container: #B6F2C8;
 
   --md-error: #FFB4AB;
+  --md-on-error: #690005;
   --md-error-container: #93000A;
+  --md-on-error-container: #FFDAD6;
 
   --md-success: #8DDCA4;
   --md-success-container: #00522A;

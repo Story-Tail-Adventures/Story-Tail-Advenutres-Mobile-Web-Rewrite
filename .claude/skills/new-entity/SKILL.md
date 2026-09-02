@@ -52,16 +52,16 @@ Use this skill when the user names an entity from `docs/Data-Model.md` (or propo
 
 6. **Update the API contract if needed.** If the entity is exposed via API (most are), add the schema definition to `contracts/openapi.yaml` under `components.schemas`. Add the endpoints that read/write it under `paths`. Regenerate types:
    ```bash
-   pnpm --filter contracts generate
+   npm run generate -w contracts
    ```
 
-7. **Wire the mobile shared module.** If the entity is exposed to mobile, the Kotlin type is auto-generated in `contracts/kotlin/`. Import it from `mobile/shared/src/commonMain/kotlin/com/storytail/domain/` if you need to extend it with mobile-specific helpers.
+7. **Wire the mobile shared module.** If the entity is exposed to mobile, the Kotlin type is auto-generated in `contracts/kotlin/`. Import it from `mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/` if you need to extend it with mobile-specific helpers.
 
 8. **Add audit-middleware hook.** If the entity is in the sensitive set (PaymentCard, CardAuthorization, Commission, Client — see `docs/Data-Model.md` §20.3), every Edge Function that mutates it must call `_shared/audit.ts` to write an `AuditEvent`. Verify this in the function before merging.
 
 9. **Update the Data Model summary if it changes.** If you discovered the Data Model itself is wrong or incomplete (the entity should have a field it doesn't, or vice versa), update `docs/Data-Model.md` first — then write the migration. The doc is the source of truth.
 
-10. **Run migrations locally.** Verify with `supabase db push` against the local Supabase instance. Inspect the resulting tables in Supabase Studio.
+10. **Run migrations locally.** Verify with `supabase db reset` against the local Supabase instance. Inspect the resulting tables in Supabase Studio.
 
 ## What this skill never does
 

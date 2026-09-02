@@ -148,3 +148,80 @@ Re-run `web-reviewer` / `mobile-reviewer` on any in-progress screens; the protot
 - Doesn't implement screens. That's the `new-screen` skill's job.
 - Doesn't regenerate mobile theme Kotlin files. That's a separate pass (potentially a future skill).
 - Doesn't push commits. The user reviews the diff in their git client and commits when ready.
+
+## Known upstream deltas — re-apply after every sync
+
+The prototype is read-only and is the canonical token source, so these local corrections
+get clobbered by a sync unless you re-apply them. Check each one after pulling.
+
+### 1. Missing dark-scheme error tokens (found 2026-09-01)
+
+`design/source-prototype/styles/tokens.css` defines `--md-error` and `--md-error-container`
+inside `.scheme-dark` but **not** `--md-on-error` or `--md-on-error-container`. Both then
+silently inherit their light values, so dark-mode error text renders `#410002` on `#93000A`
+— near-black on dark red, effectively unreadable. It only shows up on a surface that
+actually uses `errorContainer`, which is why it survived into the handoff.
+
+`StoryTailColors.kt` has the correct values, and is the authority here:
+
+```css
+.scheme-dark {
+  --md-error: #FFB4AB;
+  --md-on-error: #690005;            /* ← add */
+  --md-error-container: #93000A;
+  --md-on-error-container: #FFDAD6;  /* ← add */
+}
+```
+
+Apply to `design/web-tokens/tokens.css`, `web/styles/tokens.css`, and the `darkColors`
+object in `design/web-tokens/design-tokens.ts`.
+
+**Raise it with the designer** so the fix lands upstream and this note can be deleted.
+
+### How to check for new instances of this class of bug
+
+Any `--md-*` token defined in `:root` but not in `.scheme-dark` keeps its light value in
+dark mode. Most are intentional (shape, type). Colour roles usually are not:
+
+```bash
+python3 - <<'EOF'
+import re, pathlib
+css = pathlib.Path("design/web-tokens/tokens.css").read_text()
+def block(sel):
+    m = re.search(sel + r"\s*\{(.*?)\n\}", css, re.S)
+    return dict(re.findall(r"(--[\w-]+):\s*([^;]+);", m.group(1))) if m else {}
+light, dark = block(r":root"), block(r"\.scheme-dark")
+for k in light:
+    if k.startswith("--md-") and k not in dark:
+        print(f"{k:32} keeps light value {light[k].strip()}")
+EOF
+```
+
+### 2. Script wordmark clipped by the gradient text-clip (found 2026-09-01)
+
+`.brand-mark .mark-script` in `design/source-prototype/styles/app.css` has no horizontal
+padding. In dark mode the rule uses `background-clip: text` with
+`-webkit-text-fill-color: transparent`, and Caveat — a script face — overhangs its advance
+width by about 4px at 22-23px. `background-clip: text` paints only inside the element box,
+so the tail of the final "l" falls outside the gradient and renders transparent: the
+wordmark reads "Story-Tai".
+
+Measure it rather than eyeballing:
+
+```js
+const cs = getComputedStyle(document.querySelector('.mark-script'));
+await document.fonts.ready;
+const ctx = document.createElement('canvas').getContext('2d');
+ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+const t = ctx.measureText('Story-Tail');
+console.log('overhang px:', t.actualBoundingBoxRight - t.width);   // > 0.5 means clipped
+```
+
+Fix in `web/styles/components.css` — the gradient is vertical, so widening the paint box
+changes nothing visually:
+
+```css
+.brand-mark .mark-script { padding-right: 0.4em; }
+```
+
+Mobile is unaffected: `BrandWordmark.kt` uses a solid colour, not a gradient clip.

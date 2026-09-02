@@ -25,15 +25,40 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 
 2. **Identify the responsive pattern.** Look up the screen in Screen Inventory §4.4 (Per-Screen Variant Mapping). Note which Pattern (A through J) applies and any deviations. This tells you the mobile/tablet/web layout shape.
 
-3. **Open the reference prototype.** Find the matching JSX in `design/source-prototype/screens/` (e.g., `client-trip.jsx` for any 2.2.x screen, `agent-payment.jsx` for any 3.6.x screen). Read it. The prototype is the visual ground truth.
+3. **Open the reference prototype.** Find the matching JSX in `design/source-prototype/screens/`.
+   There are **18 files covering ~168 screens**, so the mapping is many-screens-to-one-file:
+   `client-auth.jsx` holds all of 2.1.x, `client-trip.jsx` all of 2.2.x, `agent-payment.jsx`
+   all of 3.6.x, and so on. Don't hunt for a per-screen file — open the section file and find
+   the `C211_Login`-style component inside it. `client-mobile.jsx` carries the mobile variants
+   for the screens that have one; many do not, in which case the desktop artboard supplies the
+   content and copy while §4.4's Pattern rules govern the layout. The prototype is the visual
+   ground truth.
 
 4. **Check the phase marker.** Confirm whether this screen is P1 (MVP) or later. If P2/P3, ask the user whether they want to build it now or hold for the right phase.
 
-5. **Build the mobile version (if applicable).** In `mobile/shared/src/commonMain/kotlin/com/storytail/ui/screens/`, create the Compose screen. Use tokens from `mobile/shared/.../ui/theme/StoryTail*.kt`. Match the prototype's light and dark output.
+5. **Build the mobile version (if applicable).** In
+   `mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/<area>/`, create the
+   Compose screen plus its `ViewModel` and `UiState`. Tokens come from
+   `com.storytail.adventures.ui.theme` — `MaterialTheme.colorScheme.*`, `StoryTailBrand.*`,
+   `LocalStoryTailExtended.current`, `LocalStoryTailStatusColors.current`, `StoryTailShapes`,
+   `PillShape`. Reusable pieces go in `ui/components/`. Match the prototype in light *and* dark;
+   the dark scheme is a full tropical rebrand, not an inversion.
 
-6. **Build the web version (if applicable).** In `web/app/.../`, create the Next.js page or component. Use Tailwind classes that consume CSS variables from `web/styles/tokens.css`. Match the prototype's light and dark output.
+6. **Build the web version (if applicable).** In the matching route group —
+   `web/app/(public|auth|client|agent)/` — create the page. Prefer a Server Component with a
+   `"use client"` form/interaction child. Reuse the primitives in `web/components/ui/` and the
+   ported prototype classes in `web/styles/components.css` (`.btn`, `.input`, `.card`, `.chip`,
+   `.t-headline`, …) — the prototype JSX uses these by name, so a port stays close to a literal
+   transcription. Tailwind utilities for layout; brand tokens resolve through the `@theme inline`
+   map in `web/app/globals.css`. Dark mode is the `.scheme-dark` class, so use the `dark:`
+   variant, not `prefers-color-scheme`.
 
-7. **Wire up the API call.** If the screen reads/writes data, define or extend the endpoint in `contracts/openapi.yaml`, regenerate types via `pnpm --filter contracts generate`, then write the Edge Function in `supabase/functions/` if it doesn't exist.
+7. **Wire up the API call.** A plain RLS-protected table read goes straight through the Supabase
+   client (`web/lib/supabase/server.ts`, or the repository layer in
+   `com.storytail.adventures.api`) — no Edge Function needed, but the table needs policies, so
+   check `rls-policy`. Anything with server-side logic, a secret, or a sensitive mutation gets an
+   Edge Function: use the `new-edge-function` skill, which also handles the
+   `contracts/openapi.yaml` entry and `npm run generate -w contracts`.
 
 8. **Apply the brand voice.** For copy-heavy screens (especially 2.0.2 About, 2.1.9 Welcome, dashboards, emails), check `docs/Design-System.md` §2 (Brand Voice & Worldview) and the §2.6 tone calibration checks. The rest-and-creation theme should be present in the right places, never preachy.
 
@@ -41,12 +66,14 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 
 10. **Cite the source.** In a comment at the top of the screen file:
     ```kotlin
-    // Screen 2.2.3 Trip Detail — see docs/Screen-Inventory.md §2.2.3 and design/source-prototype/screens/client-trip.jsx
+    // Screen 2.2.3 Trip Detail — see docs/Screen-Inventory.md §2.2.3 (and §4.4 for the
+    // responsive Pattern) and design/source-prototype/screens/client-trip.jsx
     ```
 
 ## What this skill never does
 
 - Skips the responsive variant mapping. Mobile gets Pattern X, tablet gets Pattern Y, web gets Pattern Z — they are not always the same layout.
 - Hardcodes brand colors. All colors come through `MaterialTheme.colorScheme.*` on mobile and CSS variables on web.
-- Loads fonts from Google Fonts CDN at runtime in production. Poppins/Caveat/JetBrains Mono must be bundled.
+- Loads fonts from the Google Fonts CDN at runtime. They are already bundled: `next/font/google`
+  in `web/app/fonts.ts` (build-time, self-hosted) and `composeResources/font/` on mobile.
 - Touches PCI scope without invoking the `audit-pci` skill afterward.
