@@ -100,3 +100,7 @@ reference.docx
 # Local-only overrides (permissions, env, etc.). The shared .claude/agents/,
 # .claude/skills/, and .claude/settings.json (when present) ARE tracked.
 .claude/settings.local.json
+
+# Python bytecode (the CI guard scripts in .github/scripts/)
+__pycache__/
+*.py[cod]
