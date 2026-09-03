@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
+import { isIdentityCollision, isOAuthProvider } from "@/lib/auth/providers";
 import { env } from "@/lib/env";
 import { safeNext } from "@/lib/safe-next";
 import { createClient } from "@/lib/supabase/server";
@@ -17,11 +18,26 @@ import { createClient } from "@/lib/supabase/server";
  * open redirect, and a failed exchange sends people to /login with nothing appended —
  * GoTrue's `error_description` is not traveler-facing copy, and echoing it would let a
  * crafted link put arbitrary text on our sign-in page.
+ *
+ * One failure is not a failure: an OAuth sign-in whose email already belongs to a
+ * password account comes back as an identity collision, and that is Screen 2.1.8's entry
+ * point rather than an error. `provider` is on the URL because `signInWithProviderAction`
+ * put it there — GoTrue's error redirect does not carry it, and 2.1.8 names the provider
+ * in the button it asks someone to trust. The colliding ADDRESS is deliberately not
+ * carried anywhere: it is personal data, and 2.1.8 asks for it.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
   const next = safeNext(searchParams.get("next"), "/dashboard");
+  const provider = searchParams.get("provider");
+
+  // The provider refused before we ever got a code — GoTrue redirects here with its own
+  // error parameters instead.
+  const returnedErrorCode = searchParams.get("error_code");
+  if (isIdentityCollision(returnedErrorCode) && isOAuthProvider(provider)) {
+    redirect(`/link-account?provider=${provider}`);
+  }
 
   let exchanged = false;
 
@@ -34,6 +50,9 @@ export async function GET(request: NextRequest) {
         code: error.code,
         status: error.status,
       });
+      if (isIdentityCollision(error.code) && isOAuthProvider(provider)) {
+        redirect(`/link-account?provider=${provider}`);
+      }
     }
     exchanged = !error;
   }

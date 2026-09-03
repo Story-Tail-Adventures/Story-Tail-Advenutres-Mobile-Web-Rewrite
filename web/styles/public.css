@@ -352,6 +352,13 @@
     flex-shrink: 0;
     cursor: pointer;
   }
+  /* `appearance: none` removes the browser's own focus ring along with the box, so it has
+     to be put back — this is the only way to tick the terms box from the keyboard on 2.1.2
+     and the 2.0.6 gate, and until now it gave no sign of being focused. Matches `.btn`. */
+  .filter-box:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+  }
   .filter-box:checked {
     background-color: var(--md-primary);
     border-color: var(--md-primary);

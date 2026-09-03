@@ -34,6 +34,18 @@ export const emailSchema = z
   .regex(EMAIL_RE, AUTH_MESSAGES.emailInvalid);
 
 /**
+ * The one-field email form: Screen 2.1.4 Forgot Password, and 2.1.3's resend and
+ * change-email forms.
+ *
+ * An object schema rather than bare `emailSchema`, and that is not cosmetic. A string
+ * schema's issues carry an EMPTY path, so `flattenIssues` — which keys errors by their
+ * first path segment — drops every one of them and the form renders no error at all while
+ * still refusing to submit. Parsing an object gives the issue a `["email"]` path and the
+ * message reaches the field.
+ */
+export const emailFormSchema = z.object({ email: emailSchema });
+
+/**
  * SIGN-IN password rule: presence only.
  *
  * Deliberately NOT the 12-character policy. That rule governs registration and reset

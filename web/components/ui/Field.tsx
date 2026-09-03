@@ -17,6 +17,12 @@ export interface FieldProps
   labelAction?: React.ReactNode;
   error?: string;
   hint?: string;
+  /**
+   * Rendered between the input and its hint/error text — the password strength track on
+   * 2.1.2 and 2.1.5. A slot rather than a second component so there stays exactly one
+   * implementation of the label/aria-invalid/aria-describedby wiring.
+   */
+  meter?: React.ReactNode;
 }
 
 export function Field({
@@ -25,6 +31,7 @@ export function Field({
   labelAction,
   error,
   hint,
+  meter,
   className,
   ...props
 }: FieldProps) {
@@ -56,6 +63,8 @@ export function Field({
         aria-describedby={describedBy}
         {...props}
       />
+
+      {meter}
 
       {hint && !error && (
         <p id={hintId} className="t-body-s mt-1.5 text-on-surface-variant">

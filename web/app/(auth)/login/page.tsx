@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { env } from "@/lib/env";
+import { safeNext } from "@/lib/safe-next";
+import { single, type SearchParams } from "@/lib/search-params";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -14,9 +16,13 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const { next } = await searchParams;
+  const params = await searchParams;
+  // Sanitised here as well as in the action. The action is what actually protects the
+  // redirect; this keeps an unchecked value from reaching the hidden input, one refactor
+  // away from being read by something that trusts it.
+  const next = safeNext(single(params.next));
 
   return (
     <AuthCard

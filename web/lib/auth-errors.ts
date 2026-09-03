@@ -14,8 +14,9 @@ import type { AuthError } from "@supabase/supabase-js";
  *
  * The Kotlin twin is com.storytail.adventures.api.AuthError — keep the strings in sync.
  * `email_taken` and `email_invalid` are sign-up kinds (Screen 2.0.6, web-only until
- * mobile builds 2.1.2 Registration); .github/scripts/check_copy_parity.py compares only
- * the kinds both platforms share, so add them there when the Kotlin twins land.
+ * mobile builds 2.1.2 Registration) and `session_expired` is a reset/MFA kind (2.1.5,
+ * 2.1.7); .github/scripts/check_copy_parity.py compares only the kinds both platforms
+ * share, so add them there when the Kotlin twins land.
  *
  * On sign-up, rule 1 has a twin: the caller must never show `email_taken` differently
  * from a successful sign-up that is waiting on email confirmation. The gate action
@@ -32,6 +33,7 @@ export type AuthErrorKind =
   | "network"
   | "not_configured"
   | "weak_password"
+  | "session_expired"
   | "unknown";
 
 export interface MappedAuthError {
@@ -77,6 +79,15 @@ const BY_KIND: Record<AuthErrorKind, MappedAuthError> = {
     // account exists.
     message: "Check your inbox for a link to finish up.",
     action: { label: "Sign in", href: "/login" },
+  },
+  session_expired: {
+    kind: "session_expired",
+    // Never produced by mapAuthError — this one is ours, raised when a screen that needs a
+    // live session (2.1.5's recovery session, 2.1.7's MFA challenge) finds none. It reads
+    // as an expiry rather than a failure because that is nearly always what it is: a link
+    // opened tomorrow, or opened in a different browser than the one that requested it.
+    message: "That link has expired — reset links are only good for an hour.",
+    action: { label: "Send a new one", href: "/forgot-password" },
   },
   email_invalid: {
     kind: "email_invalid",
