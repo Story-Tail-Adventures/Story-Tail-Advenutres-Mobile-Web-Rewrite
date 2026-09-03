@@ -40,6 +40,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.okhttp)
+            // For BackHandler, behind the PlatformBackHandler expect/actual — Android has
+            // a system back gesture to honour and iOS does not.
+            implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
