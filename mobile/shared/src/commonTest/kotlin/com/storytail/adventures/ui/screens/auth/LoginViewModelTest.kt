@@ -2,12 +2,9 @@ package com.storytail.adventures.ui.screens.auth
 
 import com.storytail.adventures.api.AuthError
 import com.storytail.adventures.api.AuthErrorException
-import com.storytail.adventures.api.AuthRepository
+import com.storytail.adventures.api.FakeAuthRepository
 import com.storytail.adventures.domain.validation.AuthValidation
-import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -19,22 +16,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-
-private class FakeAuthRepository(
-    private val result: Result<Unit> = Result.success(Unit),
-) : AuthRepository {
-    var lastEmail: String? = null
-
-    override val sessionStatus: Flow<SessionStatus> =
-        MutableStateFlow(SessionStatus.NotAuthenticated(false))
-
-    override suspend fun signInWithPassword(email: String, password: String): Result<Unit> {
-        lastEmail = email
-        return result
-    }
-
-    override suspend fun signOut(): Result<Unit> = Result.success(Unit)
-}
 
 class LoginViewModelTest {
 
@@ -70,7 +51,7 @@ class LoginViewModelTest {
     @Test
     fun keeps_the_email_but_reports_the_error_on_a_failed_sign_in() = runTest {
         val repo = FakeAuthRepository(
-            Result.failure(AuthErrorException(AuthError.InvalidCredentials)),
+            signInResult = Result.failure(AuthErrorException(AuthError.InvalidCredentials)),
         )
         val vm = LoginViewModel(repo)
         vm.onEmailChange("jordan.hayes@example.com")
