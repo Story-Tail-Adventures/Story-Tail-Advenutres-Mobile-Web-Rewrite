@@ -51,6 +51,16 @@ sealed interface AuthError {
         override val message = "We couldn't reach Story-Tail. Check your connection and try again."
     }
 
+    /**
+     * Raised by us, never mapped from a GoTrue code — when a screen that needs a live
+     * session finds none. A password-reset link opened tomorrow, or opened in a different
+     * browser than the one that asked for it, which is nearly always what this is.
+     */
+    data object SessionExpired : AuthError {
+        override val message = "That link has expired — reset links are only good for an hour."
+        override val action = Action("Send a new one", "/forgot-password")
+    }
+
     data object Unknown : AuthError {
         override val message = "Something went sideways on our end. Try again in a moment."
     }

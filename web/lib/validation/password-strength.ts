@@ -19,11 +19,28 @@ export interface PasswordRule {
   met: (value: string) => boolean;
 }
 
+/**
+ * Split out from the rules themselves so the Kotlin twin can be compared against it —
+ * .github/scripts/check_copy_parity.py reads flat string constants, not the labels of
+ * objects in an array. The predicates have no twin to drift from; the words do.
+ */
+export const PASSWORD_RULE_LABELS = {
+  length: "at least 12 characters",
+  uppercase: "a capital letter",
+  lowercase: "a lowercase letter",
+  digit: "a number",
+} as const;
+
+export const STRENGTH_MESSAGES = {
+  strong: "Strong — 12+ characters, upper and lower case, and a number.",
+  stillNeedsPrefix: "Still needs ",
+} as const;
+
 export const PASSWORD_RULES: readonly PasswordRule[] = [
-  { label: "at least 12 characters", met: (v) => v.length >= 12 },
-  { label: "a capital letter", met: (v) => /[A-Z]/.test(v) },
-  { label: "a lowercase letter", met: (v) => /[a-z]/.test(v) },
-  { label: "a number", met: (v) => /\d/.test(v) },
+  { label: PASSWORD_RULE_LABELS.length, met: (v) => v.length >= 12 },
+  { label: PASSWORD_RULE_LABELS.uppercase, met: (v) => /[A-Z]/.test(v) },
+  { label: PASSWORD_RULE_LABELS.lowercase, met: (v) => /[a-z]/.test(v) },
+  { label: PASSWORD_RULE_LABELS.digit, met: (v) => /\d/.test(v) },
 ];
 
 export interface PasswordStrength {
@@ -61,6 +78,6 @@ export function strengthMessage(value: string): string {
   if (value.length === 0) return "";
   const { meets, missing } = passwordStrength(value);
   return meets
-    ? "Strong — 12+ characters, upper and lower case, and a number."
-    : `Still needs ${joinReadably(missing)}.`;
+    ? STRENGTH_MESSAGES.strong
+    : `${STRENGTH_MESSAGES.stillNeedsPrefix}${joinReadably(missing)}.`;
 }

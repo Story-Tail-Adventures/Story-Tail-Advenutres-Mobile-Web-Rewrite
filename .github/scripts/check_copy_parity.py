@@ -18,21 +18,81 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-WEB_VALIDATION = ROOT / "web/lib/validation/auth.ts"
-KMP_VALIDATION = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/AuthValidation.kt"
+VALIDATION_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation"
 WEB_ERRORS = ROOT / "web/lib/auth-errors.ts"
 KMP_ERRORS = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/api/AuthError.kt"
 
-# web key -> kotlin key
-VALIDATION_KEYS = {
-    "emailRequired": "EMAIL_REQUIRED",
-    "emailInvalid": "EMAIL_INVALID",
-    "passwordRequired": "PASSWORD_REQUIRED",
-    "passwordTooShort": "PASSWORD_TOO_SHORT",
-    "passwordNeedsDigit": "PASSWORD_NEEDS_DIGIT",
-    "passwordNeedsUppercase": "PASSWORD_NEEDS_UPPERCASE",
-    "passwordNeedsLowercase": "PASSWORD_NEEDS_LOWERCASE",
-}
+# Each entry is one pair of parallel modules. The key map is the whole point: this script
+# only compares what it is told about, so a message added on one side and left out of the
+# map is a SILENT gap, not a failure. Add the row when you add the string.
+MESSAGE_TABLES = [
+    {
+        "label": "auth validation",
+        "web_file": ROOT / "web/lib/validation/auth.ts",
+        "web_const": "AUTH_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "AuthValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "emailRequired": "EMAIL_REQUIRED",
+            "emailInvalid": "EMAIL_INVALID",
+            "passwordRequired": "PASSWORD_REQUIRED",
+            "passwordTooShort": "PASSWORD_TOO_SHORT",
+            "passwordNeedsDigit": "PASSWORD_NEEDS_DIGIT",
+            "passwordNeedsUppercase": "PASSWORD_NEEDS_UPPERCASE",
+            "passwordNeedsLowercase": "PASSWORD_NEEDS_LOWERCASE",
+        },
+    },
+    {
+        "label": "registration",
+        "web_file": ROOT / "web/lib/validation/registration.ts",
+        "web_const": "REGISTRATION_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "RegistrationValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "nameRequired": "NAME_REQUIRED",
+            "nameTooLong": "NAME_TOO_LONG",
+            "nameInvalid": "NAME_INVALID",
+            "termsRequired": "TERMS_REQUIRED",
+            "confirmRequired": "CONFIRM_REQUIRED",
+            "confirmMismatch": "CONFIRM_MISMATCH",
+        },
+    },
+    {
+        "label": "mfa",
+        "web_file": ROOT / "web/lib/validation/mfa.ts",
+        "web_const": "MFA_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "MfaValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "codeRequired": "CODE_REQUIRED",
+            "codeShape": "CODE_SHAPE",
+        },
+    },
+    {
+        "label": "password rule labels",
+        "web_file": ROOT / "web/lib/validation/password-strength.ts",
+        "web_const": "PASSWORD_RULE_LABELS",
+        "kmp_file": VALIDATION_DIR / "PasswordStrength.kt",
+        "kmp_object": "Labels",
+        "keys": {
+            "length": "LENGTH",
+            "uppercase": "UPPERCASE",
+            "lowercase": "LOWERCASE",
+            "digit": "DIGIT",
+        },
+    },
+    {
+        "label": "password strength",
+        "web_file": ROOT / "web/lib/validation/password-strength.ts",
+        "web_const": "STRENGTH_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "PasswordStrength.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "strong": "STRONG",
+            "stillNeedsPrefix": "STILL_NEEDS_PREFIX",
+        },
+    },
+]
 
 # web BY_KIND key -> kotlin data object
 ERROR_KINDS = {
@@ -43,6 +103,7 @@ ERROR_KINDS = {
     "network": "Network",
     "not_configured": "NotConfigured",
     "weak_password": "WeakPassword",
+    "session_expired": "SessionExpired",
     "unknown": "Unknown",
 }
 
@@ -54,13 +115,19 @@ def unescape(s: str) -> str:
     return s.replace('\\"', '"').replace("\\\\", "\\")
 
 
-def web_validation() -> dict[str, str]:
-    body = re.search(r"AUTH_MESSAGES = \{(.*?)\n\} as const;", WEB_VALIDATION.read_text(), re.S)
+def web_messages(path: pathlib.Path, const_name: str) -> dict[str, str]:
+    """`export const NAME = { key: "value", ... } as const;`"""
+    body = re.search(rf"{re.escape(const_name)} = \{{(.*?)\n\}} as const;", path.read_text(), re.S)
+    if not body:
+        return {}
     return {k: unescape(v) for k, v in re.findall(rf"(\w+):\s*{STRING}", body.group(1))}
 
 
-def kmp_validation() -> dict[str, str]:
-    body = re.search(r"object Messages \{(.*?)\n    \}", KMP_VALIDATION.read_text(), re.S)
+def kmp_messages(path: pathlib.Path, object_name: str) -> dict[str, str]:
+    """`object NAME { const val KEY = "value" ... }`, at any indentation."""
+    body = re.search(rf"object {re.escape(object_name)} \{{(.*?)\n    \}}", path.read_text(), re.S)
+    if not body:
+        return {}
     return {k: unescape(v) for k, v in re.findall(rf"const val (\w+) = {STRING}", body.group(1))}
 
 
@@ -111,13 +178,30 @@ def compare(label: str, pairs: list[tuple[str, str | None, str | None]]) -> list
 
 
 def main() -> int:
-    wv, kv = web_validation(), kmp_validation()
-    we, ke = web_errors(), kmp_errors()
+    problems: list[str] = []
+    checked = 0
 
-    problems = compare(
-        "validation",
-        [(w, wv.get(w), kv.get(k)) for w, k in VALIDATION_KEYS.items()],
-    ) + compare(
+    for table in MESSAGE_TABLES:
+        web = web_messages(table["web_file"], table["web_const"])
+        kmp = kmp_messages(table["kmp_file"], table["kmp_object"])
+        if not web:
+            problems.append(
+                f"{table['label']}: could not read {table['web_const']} from "
+                f"{table['web_file'].relative_to(ROOT)} — did it get renamed?"
+            )
+        if not kmp:
+            problems.append(
+                f"{table['label']}: could not read object {table['kmp_object']} from "
+                f"{table['kmp_file'].relative_to(ROOT)} — did it get renamed?"
+            )
+        problems += compare(
+            table["label"],
+            [(w, web.get(w), kmp.get(k)) for w, k in table["keys"].items()],
+        )
+        checked += len(table["keys"])
+
+    we, ke = web_errors(), kmp_errors()
+    problems += compare(
         "auth error",
         [(kind, we.get(kind), ke.get(kind)) for kind in ERROR_KINDS],
     )
@@ -134,8 +218,8 @@ def main() -> int:
         return 1
 
     print(
-        f"Copy parity OK — {len(VALIDATION_KEYS)} validation messages and "
-        f"{len(ERROR_KINDS)} auth errors match across web and mobile."
+        f"Copy parity OK — {checked} messages across {len(MESSAGE_TABLES)} modules and "
+        f"{len(ERROR_KINDS)} auth errors match between web and mobile."
     )
     return 0
 
