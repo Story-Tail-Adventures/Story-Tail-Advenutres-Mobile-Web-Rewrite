@@ -64,4 +64,33 @@ export const env = {
   get appleAuthEnabled(): boolean {
     return process.env.NEXT_PUBLIC_AUTH_APPLE_ENABLED === "true";
   },
+
+  /**
+   * Canonical origin of the app subdomain, for metadataBase, canonical URLs, the sitemap,
+   * robots.txt and the auth callback's emailRedirectTo. Production must set it; outside
+   * production the dev server's origin is a safe default.
+   */
+  get siteUrl(): string {
+    const configured = process.env.NEXT_PUBLIC_SITE_URL;
+    if (configured) return configured.replace(/\/+$/, "");
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Missing NEXT_PUBLIC_SITE_URL. Set it to the app subdomain origin (e.g. https://app.story-tail.com).",
+      );
+    }
+    return "http://localhost:3000";
+  },
+
+  /**
+   * Where "Message Gyasi without an account" emails go (Screen Inventory 2.0.5 / 2.0.6).
+   * MVP lead capture is a prefilled email — the Lead entity is Phase 2. Outside production
+   * the seed agent's address stands in; in production an unset value returns null and the
+   * guest CTAs fall back to the sign-up gate rather than inventing an address.
+   */
+  get inquiryEmail(): string | null {
+    const configured = process.env.NEXT_PUBLIC_INQUIRY_EMAIL;
+    if (configured) return configured;
+    if (process.env.NODE_ENV === "production") return null;
+    return "gyasi@example.com";
+  },
 };

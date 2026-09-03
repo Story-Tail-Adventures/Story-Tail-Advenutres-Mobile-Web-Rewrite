@@ -121,6 +121,7 @@ These are the canonical brand colors from the existing Story-Tail Adventures bra
 | `brand.orange` | `#E87722` | Light-mode secondary; CTAs |
 | `brand.orangeLight` | `#F59E4E` | Light-mode secondary hover |
 | `brand.sunset` | `#F5A623` | Sunset Gold — dark-mode secondary; tropical logo |
+| `brand.gold` | `#FFC83F` | Gold on photography — hero overlines, script accents, scripture lines over imagery (scheme-independent); equals the dark scheme's `md.secondary` |
 | `brand.ocean` | `#1565C0` | Ocean Blue — dark-mode primary; tropical logo |
 | `brand.navy` | `#0D2137` | Deep Navy — dark-mode background |
 | `brand.cream` | `#FBF6EE` | Light-mode background |

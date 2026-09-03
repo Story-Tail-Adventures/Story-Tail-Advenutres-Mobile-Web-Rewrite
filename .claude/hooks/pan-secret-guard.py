@@ -30,9 +30,29 @@ UUID_RE = re.compile(
     r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I
 )
 
+# Unsplash photo ids ("photo-1500648767791-00dcc994a43e") carry a 13-digit timestamp
+# followed by a hyphen and a hex hash that may start with digits — a separator-formatted
+# 15-digit run that is Luhn-valid one time in ten. The public pages' placeholder photography
+# (web/lib/images.ts) is built from them, so they get the same treatment as UUIDs.
+UNSPLASH_RE = re.compile(r"\bphoto-\d{10,13}-[0-9a-f]{12}\b", re.I)
+
+
 def strip_uuids(text: str) -> str:
-    """Blank out UUIDs so their digit segments cannot form a false candidate."""
-    return UUID_RE.sub(lambda m: "#" * len(m.group()), text)
+    """Blank out UUIDs and Unsplash ids so their digit segments cannot form a false candidate."""
+    text = UUID_RE.sub(lambda m: "#" * len(m.group()), text)
+    return UNSPLASH_RE.sub(lambda m: "#" * len(m.group()), text)
+
+
+def plausible_grouping(candidate: str) -> bool:
+    """
+    A formatted card number is written in groups of at least four digits (4-4-4-4,
+    Amex 4-6-5) or as one solid run. SVG path data ("M3 18s2 2 5 2 5-2 5-2 2 2 5 2")
+    and similar numeric sequences match the candidate regex as long strings of one- and
+    two-digit groups, and one in ten of those is Luhn-valid by chance. Rejecting any
+    separator-delimited group shorter than four digits removes that class without
+    touching any real PAN format.
+    """
+    return all(len(group) >= 4 for group in re.split(r"[ -]", candidate))
 
 
 def plausible_pan(digits: str) -> bool:
@@ -91,7 +111,12 @@ def main() -> int:
 
     for match in PAN_CANDIDATE.finditer(strip_uuids(content)):
         digits = re.sub(r"[ -]", "", match.group())
-        if 13 <= len(digits) <= 19 and plausible_pan(digits) and luhn_ok(digits):
+        if (
+                13 <= len(digits) <= 19
+                and plausible_grouping(match.group())
+                and plausible_pan(digits)
+                and luhn_ok(digits)
+            ):
             print(
                 f"Possible cardholder PAN in {rel} (CLAUDE.md rule 1).\n"
                 f"A {len(digits)}-digit Luhn-valid number was found. Card numbers are never "

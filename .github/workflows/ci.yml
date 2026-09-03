@@ -72,7 +72,14 @@ jobs:
       - run: npm run test -w web
       # next/font/google fetches the typefaces at build time, so this step needs
       # network egress. That is the tradeoff for not loading them at runtime.
+      #
+      # `next build` runs as NODE_ENV=production, and env.siteUrl fails closed there so a
+      # real deploy can never ship wrong canonical URLs, sitemap entries or email-confirm
+      # redirects. CI has no .env.local, so it has to pass the origin in. Not a secret, and
+      # nothing here is deployed — the deployment sets its own value.
       - run: npm run build -w web
+        env:
+          NEXT_PUBLIC_SITE_URL: https://app.story-tail.com
 
   contracts:
     name: Contracts codegen is current

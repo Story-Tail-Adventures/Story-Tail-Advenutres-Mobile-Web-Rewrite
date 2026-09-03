@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
 import { ThemeScript } from "@/components/ThemeScript";
+import { env } from "@/lib/env";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical / Open Graph / sitemap come from NEXT_PUBLIC_SITE_URL.
+  metadataBase: new URL(env.siteUrl),
   title: {
     default: "Story-Tail Adventures",
     template: "%s · Story-Tail Adventures",
@@ -11,6 +14,12 @@ export const metadata: Metadata = {
   description:
     "Trips planned by someone who has done this a hundred times — so you can rest when you get there.",
   applicationName: "Story-Tail Adventures",
+  openGraph: {
+    siteName: "Story-Tail Adventures",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {

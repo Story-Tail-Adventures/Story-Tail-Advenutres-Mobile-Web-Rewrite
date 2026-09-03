@@ -38,7 +38,7 @@ export default function AuthLayout({
         </div>
 
         <div className="mt-auto">
-          <div className="t-label-s mb-2.5 text-[#FFC83F]">
+          <div className="t-label-s mb-2.5 text-brand-gold">
             STORY-TAIL · MEMBER PORTAL
           </div>
           <h2 className="t-display-s m-0 whitespace-pre-line leading-[1.1] text-white">

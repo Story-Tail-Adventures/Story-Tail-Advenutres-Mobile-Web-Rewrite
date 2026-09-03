@@ -7,7 +7,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advi
 The five documents in `docs/` are the canonical source of truth for this project:
 
 - `@docs/BRD.md` — business requirements, scope, phases
-- `@docs/Screen-Inventory.md` — every screen (168 of them) with mobile/tablet/web variants
+- `@docs/Screen-Inventory.md` — every screen (172 of them) with mobile/tablet/web variants
 - `@docs/Data-Model.md` — every entity, every field, with Postgres DDL and Kotlin data classes
 - `@docs/Design-System.md` — colors, typography, components, **brand voice and worldview** (§2)
 - `@docs/Tech-Recommendations.md` — stack choices and Claude Code bootstrap walkthrough
@@ -22,7 +22,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments** — Stripe (SetupIntent for collection, Vault and Forward for API suppliers, audited PAN reveal for portal suppliers)
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
-- **Design source of truth** — Claude Design handoff bundle at `https://api.anthropic.com/v1/design/h/IhaI2N5FMxGoxB4kP0mtnA`. The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`). When the designer iterates, the URL refreshes — run the `sync-design-handoff` skill to pull the latest. **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
+- **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
 **Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / Tailwind) lives under `web/`. Backend code lives under `supabase/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { safeNext } from "./state";
+import { safeNext } from "./safe-next";
 
 /**
  * Open-redirect regression tests.
