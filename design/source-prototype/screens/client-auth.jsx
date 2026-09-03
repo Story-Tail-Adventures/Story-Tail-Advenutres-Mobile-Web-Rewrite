@@ -209,9 +209,9 @@ function C219_Welcome() {
           <img src={staImg('overwater', 1600, 400)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))' }}/>
           <div style={{ position: 'absolute', inset: 0, padding: '32px 48px', color: '#FFF', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-            <span className="t-label-s" style={{ color: '#FFC83F' }}>WELCOME</span>
+            <span className="t-label-s" style={{ color: '#FFC83F' }}>WELCOME · REST WELL</span>
             <h1 className="t-display-s" style={{ margin: '4px 0 4px', color: '#FFF' }}>So glad you're here, Jordan.</h1>
-            <p className="t-body" style={{ color: 'rgba(255,255,255,0.9)', margin: 0 }}>— Gyasi</p>
+            <p className="t-body" style={{ color: 'rgba(255,255,255,0.92)', margin: 0, fontStyle: 'italic' }}>Here's to a year of trips worth telling — and rest worth taking. — Gyasi</p>
           </div>
         </div>
         <div style={{ flex: 1, padding: '24px 48px', overflow: 'auto', background: 'var(--md-bg)' }}>

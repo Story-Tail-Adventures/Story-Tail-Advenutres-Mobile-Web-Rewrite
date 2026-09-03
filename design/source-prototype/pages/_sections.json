@@ -1,0 +1,1549 @@
+[
+  {
+    "slug": "00-brand",
+    "num": "00",
+    "title": "Brand & system",
+    "subtitle": "Foundations — palette, typography, M3 tokens, status language.",
+    "files": [
+      "artboards/brand.jsx"
+    ],
+    "body": "<DCSection id=\"brand\" title=\"00 · Brand & system\" subtitle=\"Foundations — palette, typography, M3 tokens, status language.\">\n <DCArtboard id=\"brand-light\" label=\"System · Light\" width={1280} height={780}>\n <Scheme scheme=\"light\"><BrandArtboard/></Scheme>\n </DCArtboard>\n <DCArtboard id=\"brand-dark\" label=\"System · Dark\" width={1280} height={780}>\n <Scheme scheme=\"dark\"><BrandArtboard/></Scheme>\n </DCArtboard>\n </DCSection>"
+  },
+  {
+    "slug": "c20-public",
+    "num": "2.0",
+    "title": "Client · Public landing pages",
+    "subtitle": "The front door — app landing, About, Caribbean, Cruises, Honeymoons, About Gyasi, search & sign-up.",
+    "files": [
+      "screens/client-public.jsx",
+      "screens/client-public-topics.jsx",
+      "screens/client-public-mobile.jsx"
+    ],
+    "sectionId": "c20",
+    "sectionTitle": "2.0 · Public landing pages",
+    "sectionSub": "The 11 pre-auth surfaces anonymous visitors see at app.story-tail.com.",
+    "width": 1440,
+    "height": 900,
+    "screens": [
+      {
+        "id": "201",
+        "comp": "C201_PublicLanding",
+        "label": "2.0.1 App subdomain landing",
+        "h": 820
+      },
+      {
+        "id": "202",
+        "comp": "C202_About",
+        "label": "2.0.2 About / How it works",
+        "h": 1100
+      },
+      {
+        "id": "203",
+        "comp": "C203_PublicSearchLanding",
+        "label": "2.0.3 Public search landing",
+        "h": 900
+      },
+      {
+        "id": "204",
+        "comp": "C204_PublicSearchResults",
+        "label": "2.0.4 Public search results",
+        "h": 880
+      },
+      {
+        "id": "205",
+        "comp": "C205_PublicDetail",
+        "label": "2.0.5 Public property detail",
+        "h": 880
+      },
+      {
+        "id": "206",
+        "comp": "C206_SignUpGate",
+        "label": "2.0.6 Sign-up gate",
+        "w": 900,
+        "h": 820
+      },
+      {
+        "id": "207",
+        "comp": "C207_FooterPages",
+        "label": "2.0.7 Footer pages",
+        "h": 820
+      },
+      {
+        "id": "208",
+        "comp": "C208_Caribbean",
+        "label": "2.0.8 Caribbean",
+        "w": 1440,
+        "h": 1900
+      },
+      {
+        "id": "209",
+        "comp": "C209_Cruises",
+        "label": "2.0.9 Cruises",
+        "w": 1440,
+        "h": 1900
+      },
+      {
+        "id": "2010",
+        "comp": "C2010_Honeymoons",
+        "label": "2.0.10 Honeymoons",
+        "w": 1440,
+        "h": 2100
+      },
+      {
+        "id": "2011",
+        "comp": "C2011_AboutGyasi",
+        "label": "2.0.11 About Gyasi",
+        "w": 1440,
+        "h": 1700
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m201",
+        "comp": "M201_PublicLanding",
+        "label": "2.0m.1 Landing"
+      },
+      {
+        "id": "m202",
+        "comp": "M202_About",
+        "label": "2.0m.2 About / How it works"
+      },
+      {
+        "id": "m203",
+        "comp": "M203_PublicSearchLanding",
+        "label": "2.0m.3 Search landing"
+      },
+      {
+        "id": "m204",
+        "comp": "M204_PublicSearchResults",
+        "label": "2.0m.4 Search results"
+      },
+      {
+        "id": "m205",
+        "comp": "M205_PublicDetail",
+        "label": "2.0m.5 Property detail"
+      },
+      {
+        "id": "m206",
+        "comp": "M206_SignUpGate",
+        "label": "2.0m.6 Sign-up gate"
+      },
+      {
+        "id": "m207",
+        "comp": "M207_FooterPages",
+        "label": "2.0m.7 Footer pages"
+      },
+      {
+        "id": "m208",
+        "comp": "M208_Caribbean",
+        "label": "2.0m.8 Caribbean"
+      },
+      {
+        "id": "m209",
+        "comp": "M209_Cruises",
+        "label": "2.0m.9 Cruises"
+      },
+      {
+        "id": "m2010",
+        "comp": "M2010_Honeymoons",
+        "label": "2.0m.10 Honeymoons"
+      },
+      {
+        "id": "m2011",
+        "comp": "M2011_AboutGyasi",
+        "label": "2.0m.11 About Gyasi"
+      }
+    ]
+  },
+  {
+    "slug": "c21-auth",
+    "num": "2.1",
+    "title": "Client · Authentication & Onboarding",
+    "subtitle": "Sign-in through trip linking.",
+    "files": [
+      "screens/client-auth.jsx",
+      "screens/client-auth-mobile.jsx"
+    ],
+    "sectionId": "c21",
+    "sectionTitle": "2.1 · Authentication & Onboarding",
+    "sectionSub": "Sign-in through trip linking.",
+    "width": 1280,
+    "height": 780,
+    "screens": [
+      {
+        "id": "211",
+        "comp": "C211_Login",
+        "label": "2.1.1 Login"
+      },
+      {
+        "id": "212",
+        "comp": "C212_Registration",
+        "label": "2.1.2 Registration"
+      },
+      {
+        "id": "213",
+        "comp": "C213_EmailVerification",
+        "label": "2.1.3 Email verification"
+      },
+      {
+        "id": "214",
+        "comp": "C214_ForgotPassword",
+        "label": "2.1.4 Forgot password"
+      },
+      {
+        "id": "215",
+        "comp": "C215_ResetPassword",
+        "label": "2.1.5 Reset password"
+      },
+      {
+        "id": "216",
+        "comp": "C216_MFASetup",
+        "label": "2.1.6 MFA setup"
+      },
+      {
+        "id": "217",
+        "comp": "C217_MFAChallenge",
+        "label": "2.1.7 MFA challenge"
+      },
+      {
+        "id": "218",
+        "comp": "C218_LinkAccount",
+        "label": "2.1.8 Social link"
+      },
+      {
+        "id": "219",
+        "comp": "C219_Welcome",
+        "label": "2.1.9 Welcome",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2110",
+        "comp": "C2110_ProfileCompletion",
+        "label": "2.1.10 Profile completion",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "2111",
+        "comp": "C2111_PreferencesCapture",
+        "label": "2.1.11 Preferences",
+        "w": 1280,
+        "h": 880
+      },
+      {
+        "id": "2112",
+        "comp": "C2112_Companions",
+        "label": "2.1.12 Companions",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "id": "2113",
+        "comp": "C2113_ConnectAgent",
+        "label": "2.1.13 Connect agent",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "id": "2114",
+        "comp": "C2114_OnboardingComplete",
+        "label": "2.1.14 All set",
+        "w": 1280,
+        "h": 720
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m211",
+        "comp": "M211_Login",
+        "label": "2.1m.1 Login"
+      },
+      {
+        "id": "m212",
+        "comp": "M212_Registration",
+        "label": "2.1m.2 Registration"
+      },
+      {
+        "id": "m213",
+        "comp": "M213_EmailVerification",
+        "label": "2.1m.3 Email verification"
+      },
+      {
+        "id": "m214",
+        "comp": "M214_ForgotPassword",
+        "label": "2.1m.4 Forgot password"
+      },
+      {
+        "id": "m215",
+        "comp": "M215_ResetPassword",
+        "label": "2.1m.5 Reset password"
+      },
+      {
+        "id": "m216",
+        "comp": "M216_MFASetup",
+        "label": "2.1m.6 MFA setup"
+      },
+      {
+        "id": "m217",
+        "comp": "M217_MFAChallenge",
+        "label": "2.1m.7 MFA challenge"
+      },
+      {
+        "id": "m218",
+        "comp": "M218_LinkAccount",
+        "label": "2.1m.8 Social link"
+      },
+      {
+        "id": "m219",
+        "comp": "M219_Welcome",
+        "label": "2.1m.9 Welcome"
+      },
+      {
+        "id": "m2110",
+        "comp": "M2110_ProfileCompletion",
+        "label": "2.1m.10 Profile completion"
+      },
+      {
+        "id": "m2111",
+        "comp": "M2111_PreferencesCapture",
+        "label": "2.1m.11 Preferences"
+      },
+      {
+        "id": "m2112",
+        "comp": "M2112_Companions",
+        "label": "2.1m.12 Companions"
+      },
+      {
+        "id": "m2113",
+        "comp": "M2113_ConnectAgent",
+        "label": "2.1m.13 Connect agent"
+      },
+      {
+        "id": "m2114",
+        "comp": "M2114_OnboardingComplete",
+        "label": "2.1m.14 All set"
+      }
+    ]
+  },
+  {
+    "slug": "c22-dashboard",
+    "num": "2.2",
+    "title": "Client · Dashboard & Trip Experience",
+    "subtitle": "Trips, itineraries, docs, messages.",
+    "files": [
+      "screens/client-trip.jsx"
+    ],
+    "sectionId": "c22",
+    "sectionTitle": "2.2 · Dashboard & Trip Experience",
+    "sectionSub": "Trips, itineraries, docs, messages.",
+    "width": 1280,
+    "height": 900,
+    "screens": [
+      {
+        "id": "221",
+        "comp": "C221_Dashboard",
+        "label": "2.2.1 Dashboard",
+        "w": 1440,
+        "h": 1000
+      },
+      {
+        "id": "222",
+        "comp": "C222_AllTrips",
+        "label": "2.2.2 All trips",
+        "w": 1280,
+        "h": 900
+      },
+      {
+        "id": "223",
+        "comp": "C223_TripDetail",
+        "label": "2.2.3 Trip detail",
+        "w": 1440,
+        "h": 920
+      },
+      {
+        "id": "224",
+        "comp": "C224_ItineraryViewer",
+        "label": "2.2.4 Itinerary viewer",
+        "w": 1440,
+        "h": 960
+      },
+      {
+        "id": "225",
+        "comp": "C225_DayDetail",
+        "label": "2.2.5 Day detail",
+        "w": 1280,
+        "h": 860
+      },
+      {
+        "id": "226",
+        "comp": "C226_TripDocuments",
+        "label": "2.2.6 Documents",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "227",
+        "comp": "C227_TripThread",
+        "label": "2.2.7 Trip thread",
+        "w": 1280,
+        "h": 880
+      },
+      {
+        "id": "228",
+        "comp": "C228_EmptyState",
+        "label": "2.2.8 Empty components",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "id": "229",
+        "comp": "C229_StatusChange",
+        "label": "2.2.9 Status change view",
+        "w": 1280,
+        "h": 700
+      },
+      {
+        "id": "2210",
+        "comp": "C2210_Cancelled",
+        "label": "2.2.10 Cancelled",
+        "w": 1280,
+        "h": 740
+      },
+      {
+        "id": "2211",
+        "comp": "C2211_PastTrip",
+        "label": "2.2.11 Past trip memory",
+        "w": 1440,
+        "h": 820
+      }
+    ]
+  },
+  {
+    "slug": "c23-search",
+    "num": "2.3",
+    "title": "Client · Self-Guided Search",
+    "subtitle": "Inspiration, results, detail, quote.",
+    "files": [
+      "screens/client-search.jsx"
+    ],
+    "sectionId": "c23",
+    "sectionTitle": "2.3 · Self-Guided Search",
+    "sectionSub": "Inspiration, results, detail, quote.",
+    "width": 1280,
+    "height": 880,
+    "screens": [
+      {
+        "id": "231",
+        "comp": "C231_SearchLanding",
+        "label": "2.3.1 Search landing"
+      },
+      {
+        "id": "232",
+        "comp": "C232_SearchForm",
+        "label": "2.3.2 Search form",
+        "h": 900
+      },
+      {
+        "id": "233",
+        "comp": "C233_HotelsResults",
+        "label": "2.3.3 Hotels",
+        "h": 820
+      },
+      {
+        "id": "234",
+        "comp": "C234_CruisesResults",
+        "label": "2.3.4 Cruises",
+        "h": 820
+      },
+      {
+        "id": "235",
+        "comp": "C235_FlightsResults",
+        "label": "2.3.5 Flights",
+        "h": 720
+      },
+      {
+        "id": "236",
+        "comp": "C236_ToursResults",
+        "label": "2.3.6 Tours",
+        "h": 820
+      },
+      {
+        "id": "237",
+        "comp": "C237_PropertyDetail",
+        "label": "2.3.7 Property detail",
+        "w": 1440,
+        "h": 980
+      },
+      {
+        "id": "238",
+        "comp": "C238_QuoteRequest",
+        "label": "2.3.8 Quote request",
+        "h": 880
+      },
+      {
+        "id": "239",
+        "comp": "C239_QuoteConfirmation",
+        "label": "2.3.9 Confirmation",
+        "h": 680
+      },
+      {
+        "id": "2310",
+        "comp": "C2310_Saved",
+        "label": "2.3.10 Saved & favorites",
+        "h": 820
+      }
+    ]
+  },
+  {
+    "slug": "c24-payment",
+    "num": "2.4",
+    "title": "Client · Payment & Card Authorization",
+    "subtitle": "Wallet, add, authorize, audit.",
+    "files": [
+      "screens/client-payment.jsx"
+    ],
+    "sectionId": "c24",
+    "sectionTitle": "2.4 · Payment & Card Authorization",
+    "sectionSub": "Wallet, add, authorize, audit.",
+    "width": 1280,
+    "height": 860,
+    "screens": [
+      {
+        "id": "241",
+        "comp": "C241_MyCards",
+        "label": "2.4.1 My cards",
+        "h": 820
+      },
+      {
+        "id": "242",
+        "comp": "C242_AddCard",
+        "label": "2.4.2 Add card",
+        "h": 860
+      },
+      {
+        "id": "243",
+        "comp": "C243_AuthorizeForTrip",
+        "label": "2.4.3 Authorize for trip",
+        "h": 980
+      },
+      {
+        "id": "244",
+        "comp": "C244_AuthConfirmation",
+        "label": "2.4.4 Confirmation",
+        "h": 720
+      },
+      {
+        "id": "245",
+        "comp": "C245_CardUseHistory",
+        "label": "2.4.5 Use history",
+        "h": 760
+      },
+      {
+        "id": "246",
+        "comp": "C246_CardUseDetail",
+        "label": "2.4.6 Use detail",
+        "h": 720
+      },
+      {
+        "id": "247",
+        "comp": "C247_RevokeConfirm",
+        "label": "2.4.7 Revoke modal",
+        "w": 900,
+        "h": 720
+      }
+    ]
+  },
+  {
+    "slug": "c25-account",
+    "num": "2.5",
+    "title": "Client · Account & Profile",
+    "subtitle": "Hub + 10 sub-screens.",
+    "files": [
+      "screens/client-account.jsx"
+    ],
+    "sectionId": "c25",
+    "sectionTitle": "2.5 · Account & Profile",
+    "sectionSub": "Hub + 10 sub-screens.",
+    "width": 1280,
+    "height": 820,
+    "screens": [
+      {
+        "id": "251",
+        "comp": "C251_AccountOverview",
+        "label": "2.5.1 Account overview",
+        "h": 720
+      },
+      {
+        "id": "252",
+        "comp": "C252_PersonalInfo",
+        "label": "2.5.2 Personal info",
+        "h": 780
+      },
+      {
+        "id": "253",
+        "comp": "C253_PreferencesEdit",
+        "label": "2.5.3 Preferences edit",
+        "h": 840
+      },
+      {
+        "id": "254",
+        "comp": "C254_TravelDocs",
+        "label": "2.5.4 Travel documents",
+        "h": 820
+      },
+      {
+        "id": "255",
+        "comp": "C255_DocUpload",
+        "label": "2.5.5 Document upload",
+        "w": 900,
+        "h": 720
+      },
+      {
+        "id": "256",
+        "comp": "C256_Notifications",
+        "label": "2.5.6 Notifications",
+        "h": 720
+      },
+      {
+        "id": "257",
+        "comp": "C257_Security",
+        "label": "2.5.7 Security",
+        "h": 760
+      },
+      {
+        "id": "258",
+        "comp": "C258_Connected",
+        "label": "2.5.8 Connected accounts",
+        "h": 600
+      },
+      {
+        "id": "259",
+        "comp": "C259_Privacy",
+        "label": "2.5.9 Privacy & data",
+        "h": 760
+      },
+      {
+        "id": "2510",
+        "comp": "C2510_Closure",
+        "label": "2.5.10 Closure",
+        "w": 900,
+        "h": 760
+      },
+      {
+        "id": "2511",
+        "comp": "C2511_Help",
+        "label": "2.5.11 Help & support",
+        "h": 760
+      }
+    ]
+  },
+  {
+    "slug": "c26-messaging",
+    "num": "2.6",
+    "title": "Client · Messaging",
+    "subtitle": "Inbox, thread, new conversation.",
+    "files": [
+      "screens/client-messaging.jsx"
+    ],
+    "sectionId": "c26",
+    "sectionTitle": "2.6 · Messaging",
+    "sectionSub": "Inbox, thread, new conversation.",
+    "width": 1280,
+    "height": 860,
+    "screens": [
+      {
+        "id": "261",
+        "comp": "C261_Inbox",
+        "label": "2.6.1 Inbox",
+        "h": 820
+      },
+      {
+        "id": "262",
+        "comp": "C262_ConversationThread",
+        "label": "2.6.2 Thread",
+        "h": 880
+      },
+      {
+        "id": "263",
+        "comp": "C263_NewConversation",
+        "label": "2.6.3 New conversation",
+        "h": 720
+      }
+    ]
+  },
+  {
+    "slug": "c27-mobile",
+    "num": "2.7",
+    "title": "Client · Mobile-Specific",
+    "subtitle": "Native-only screens.",
+    "files": [
+      "screens/client-mobile.jsx"
+    ],
+    "sectionId": "c27",
+    "sectionTitle": "2.7 · Mobile-Specific",
+    "sectionSub": "Native-only screens.",
+    "mobile": true,
+    "screens": [
+      {
+        "id": "271",
+        "comp": "C271_OfflineItinerary",
+        "label": "2.7.1 Offline itinerary"
+      },
+      {
+        "id": "272",
+        "comp": "C272_QuickCall",
+        "label": "2.7.2 Quick call"
+      },
+      {
+        "id": "273",
+        "comp": "C273_Emergency",
+        "label": "2.7.3 Emergency contacts"
+      },
+      {
+        "id": "274",
+        "comp": "C274_PushPrompt",
+        "label": "2.7.4 Push permission"
+      },
+      {
+        "id": "275",
+        "comp": "C275_Biometric",
+        "label": "2.7.5 Biometric login"
+      },
+      {
+        "id": "276",
+        "comp": "C276_CalendarSync",
+        "label": "2.7.6 Calendar sync"
+      },
+      {
+        "id": "277",
+        "comp": "C277_AppSettings",
+        "label": "2.7.7 In-app settings"
+      },
+      {
+        "id": "278",
+        "comp": "C278_AppUpdate",
+        "label": "2.7.8 App update"
+      }
+    ]
+  },
+  {
+    "slug": "c28-group",
+    "num": "2.8",
+    "title": "Client · Group Trip Coordination",
+    "subtitle": "Phase 3+ surface.",
+    "files": [
+      "screens/client-group.jsx"
+    ],
+    "sectionId": "c28",
+    "sectionTitle": "2.8 · Group Trip Coordination",
+    "sectionSub": "Phase 3+ surface.",
+    "width": 1280,
+    "height": 840,
+    "screens": [
+      {
+        "id": "281",
+        "comp": "C281_GroupOverview",
+        "label": "2.8.1 Group overview",
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "282",
+        "comp": "C282_CoTravelerInvite",
+        "label": "2.8.2 Co-traveler invite",
+        "h": 820
+      },
+      {
+        "id": "283",
+        "comp": "C283_GroupChat",
+        "label": "2.8.3 Group chat",
+        "h": 880
+      },
+      {
+        "id": "284",
+        "comp": "C284_CoTravelerView",
+        "label": "2.8.4 Limited view",
+        "h": 820
+      }
+    ]
+  },
+  {
+    "slug": "a31-auth",
+    "num": "3.1",
+    "title": "Agent · Authentication & Activation",
+    "subtitle": "Sign-in, MFA, and the 6-step activation wizard.",
+    "files": [
+      "screens/agent-auth.jsx"
+    ],
+    "sectionId": "a31",
+    "sectionTitle": "3.1 · Agent Authentication & Activation",
+    "sectionSub": "Sign-in, MFA, and the 6-step activation wizard.",
+    "width": 1280,
+    "height": 780,
+    "screens": [
+      {
+        "id": "311",
+        "comp": "A311_Login",
+        "label": "3.1.1 Agent login"
+      },
+      {
+        "id": "312",
+        "comp": "A312_MFA",
+        "label": "3.1.2 MFA challenge"
+      },
+      {
+        "id": "313",
+        "comp": "A313_PasswordReset",
+        "label": "3.1.3 Password reset"
+      },
+      {
+        "id": "314",
+        "comp": "A314_Invitation",
+        "label": "3.1.4 Invitation"
+      },
+      {
+        "id": "315",
+        "comp": "A315_SetPassword",
+        "label": "3.1.5 Set password"
+      },
+      {
+        "id": "316",
+        "comp": "A316_MandatoryMFA",
+        "label": "3.1.6 Mandatory MFA"
+      },
+      {
+        "id": "317",
+        "comp": "A317_ProfileSetup",
+        "label": "3.1.7 Profile setup",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "318",
+        "comp": "A318_Availability",
+        "label": "3.1.8 Availability",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "319",
+        "comp": "A319_EmailSignature",
+        "label": "3.1.9 Email signature",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "3110",
+        "comp": "A3110_WelcomeTour",
+        "label": "3.1.10 Welcome tour",
+        "w": 1280,
+        "h": 820
+      }
+    ]
+  },
+  {
+    "slug": "a32-pipeline",
+    "num": "3.2",
+    "title": "Agent · Dashboard & Pipeline",
+    "subtitle": "Worklist, Kanban pipeline, calendar.",
+    "files": [
+      "screens/agent-dashboard.jsx"
+    ],
+    "sectionId": "a32",
+    "sectionTitle": "3.2 · Dashboard & Pipeline",
+    "sectionSub": "Worklist, Kanban pipeline, calendar.",
+    "width": 1440,
+    "height": 980,
+    "screens": [
+      {
+        "id": "321",
+        "comp": "A321_Worklist",
+        "label": "3.2.1 Worklist",
+        "h": 1100
+      },
+      {
+        "id": "322",
+        "comp": "A322_Pipeline",
+        "label": "3.2.2 Pipeline",
+        "h": 900
+      },
+      {
+        "id": "323",
+        "comp": "A323_Calendar",
+        "label": "3.2.3 Calendar",
+        "h": 820
+      }
+    ]
+  },
+  {
+    "slug": "a33-crm",
+    "num": "3.3",
+    "title": "Agent · Client Management (CRM)",
+    "subtitle": "Roster, detail, tabs, merge, archive.",
+    "files": [
+      "screens/agent-crm.jsx"
+    ],
+    "sectionId": "a33",
+    "sectionTitle": "3.3 · Client Management (CRM)",
+    "sectionSub": "Roster, detail, tabs, merge, archive.",
+    "width": 1440,
+    "height": 900,
+    "screens": [
+      {
+        "id": "331",
+        "comp": "A331_ClientList",
+        "label": "3.3.1 Client list",
+        "h": 820
+      },
+      {
+        "id": "332",
+        "comp": "A332_ClientDetail",
+        "label": "3.3.2 Client detail",
+        "h": 880
+      },
+      {
+        "id": "333",
+        "comp": "A333_OverviewTab",
+        "label": "3.3.3 Overview tab",
+        "h": 880
+      },
+      {
+        "id": "334",
+        "comp": "A334_TripsTab",
+        "label": "3.3.4 Trips tab",
+        "h": 880
+      },
+      {
+        "id": "335",
+        "comp": "A335_MessagesTab",
+        "label": "3.3.5 Messages tab",
+        "h": 880
+      },
+      {
+        "id": "336",
+        "comp": "A336_DocumentsTab",
+        "label": "3.3.6 Documents tab",
+        "h": 880
+      },
+      {
+        "id": "337",
+        "comp": "A337_NotesTab",
+        "label": "3.3.7 Notes tab",
+        "h": 880
+      },
+      {
+        "id": "338",
+        "comp": "A338_ActivityLog",
+        "label": "3.3.8 Activity log",
+        "h": 880
+      },
+      {
+        "id": "339",
+        "comp": "A339_CreateClient",
+        "label": "3.3.9 Create client",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "3310",
+        "comp": "A3310_EditClient",
+        "label": "3.3.10 Edit client",
+        "w": 1280,
+        "h": 720
+      },
+      {
+        "id": "3311",
+        "comp": "A3311_MergeClients",
+        "label": "3.3.11 Merge clients",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "3312",
+        "comp": "A3312_Archive",
+        "label": "3.3.12 Archive",
+        "w": 900,
+        "h": 700
+      }
+    ]
+  },
+  {
+    "slug": "a34-trip-builder",
+    "num": "3.4",
+    "title": "Agent · Trip Builder & Management",
+    "subtitle": "From list to builder to component sheets.",
+    "files": [
+      "screens/agent-trip.jsx"
+    ],
+    "sectionId": "a34",
+    "sectionTitle": "3.4 · Trip Builder & Management",
+    "sectionSub": "From list to builder to component sheets.",
+    "width": 1440,
+    "height": 900,
+    "screens": [
+      {
+        "id": "341",
+        "comp": "A341_TripList",
+        "label": "3.4.1 Trip list",
+        "h": 820
+      },
+      {
+        "id": "342",
+        "comp": "A342_TripDetail",
+        "label": "3.4.2 Trip detail · agent",
+        "h": 900
+      },
+      {
+        "id": "343",
+        "comp": "A343_NewTripType",
+        "label": "3.4.3 New trip type",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "344",
+        "comp": "A344_TripBuilder",
+        "label": "3.4.4 Trip builder workspace",
+        "h": 920
+      },
+      {
+        "id": "345",
+        "comp": "A345_AddFlight",
+        "label": "3.4.5 Add flight",
+        "w": 900,
+        "h": 820
+      },
+      {
+        "id": "346",
+        "comp": "A346_AddHotel",
+        "label": "3.4.6 Add hotel",
+        "w": 900,
+        "h": 820
+      },
+      {
+        "id": "347",
+        "comp": "A347_AddCruise",
+        "label": "3.4.7 Add cruise",
+        "w": 900,
+        "h": 820
+      },
+      {
+        "id": "348",
+        "comp": "A348_AddTour",
+        "label": "3.4.8 Add tour",
+        "w": 900,
+        "h": 820
+      },
+      {
+        "id": "349",
+        "comp": "A349_AddTransfer",
+        "label": "3.4.9 Add transfer",
+        "w": 900,
+        "h": 720
+      },
+      {
+        "id": "3410",
+        "comp": "A3410_AddDining",
+        "label": "3.4.10 Add dining",
+        "w": 900,
+        "h": 720
+      },
+      {
+        "id": "3411",
+        "comp": "A3411_AddInsurance",
+        "label": "3.4.11 Add insurance",
+        "w": 900,
+        "h": 720
+      },
+      {
+        "id": "3412",
+        "comp": "A3412_AddOther",
+        "label": "3.4.12 Add other",
+        "w": 900,
+        "h": 720
+      },
+      {
+        "id": "3413",
+        "comp": "A3413_TemplateLibrary",
+        "label": "3.4.13 Template library",
+        "h": 820
+      },
+      {
+        "id": "3414",
+        "comp": "A3414_ItineraryEditor",
+        "label": "3.4.14 Itinerary editor",
+        "h": 920
+      },
+      {
+        "id": "3415",
+        "comp": "A3415_PaymentSchedule",
+        "label": "3.4.15 Payment schedule",
+        "h": 760
+      },
+      {
+        "id": "3416",
+        "comp": "A3416_CancelTrip",
+        "label": "3.4.16 Cancel trip",
+        "w": 900,
+        "h": 760
+      }
+    ]
+  },
+  {
+    "slug": "a35-proposal",
+    "num": "3.5",
+    "title": "Agent · Proposal & Itinerary",
+    "subtitle": "Builder, preview, send, auto-generate.",
+    "files": [
+      "screens/agent-proposal.jsx"
+    ],
+    "sectionId": "a35",
+    "sectionTitle": "3.5 · Proposal & Itinerary",
+    "sectionSub": "Builder, preview, send, auto-generate.",
+    "width": 1440,
+    "height": 920,
+    "screens": [
+      {
+        "id": "351",
+        "comp": "A351_ProposalBuilder",
+        "label": "3.5.1 Proposal builder"
+      },
+      {
+        "id": "352",
+        "comp": "A352_ProposalPreview",
+        "label": "3.5.2 Proposal preview",
+        "h": 1100
+      },
+      {
+        "id": "353",
+        "comp": "A353_SendProposal",
+        "label": "3.5.3 Send proposal",
+        "w": 1000,
+        "h": 820
+      },
+      {
+        "id": "354",
+        "comp": "A354_ProposalSent",
+        "label": "3.5.4 Proposal sent",
+        "w": 1000,
+        "h": 720
+      },
+      {
+        "id": "355",
+        "comp": "A355_AutoGenerator",
+        "label": "3.5.5 Auto-generator",
+        "h": 760
+      },
+      {
+        "id": "356",
+        "comp": "A356_ItineraryPreviewAgent",
+        "label": "3.5.6 Itinerary preview",
+        "h": 860
+      },
+      {
+        "id": "357",
+        "comp": "A357_PublishUpdate",
+        "label": "3.5.7 Publish update",
+        "w": 900,
+        "h": 760
+      }
+    ]
+  },
+  {
+    "slug": "a36-payment",
+    "num": "3.6",
+    "title": "Agent · Payment & Card Management",
+    "subtitle": "Vault, reveal-and-use, audit log.",
+    "files": [
+      "screens/agent-payment.jsx"
+    ],
+    "sectionId": "a36",
+    "sectionTitle": "3.6 · Payment & Card Management",
+    "sectionSub": "Vault, reveal-and-use, audit log.",
+    "width": 1280,
+    "height": 820,
+    "screens": [
+      {
+        "id": "361",
+        "comp": "A361_CardVault",
+        "label": "3.6.1 Card vault",
+        "h": 820
+      },
+      {
+        "id": "362",
+        "comp": "A362_RequestAuth",
+        "label": "3.6.2 Request authorization",
+        "w": 1000,
+        "h": 820
+      },
+      {
+        "id": "363",
+        "comp": "A363_AuthRequestSent",
+        "label": "3.6.3 Request sent",
+        "w": 1000,
+        "h": 700
+      },
+      {
+        "id": "364",
+        "comp": "A364_RevealCard",
+        "label": "3.6.4 Reveal card (audited)",
+        "w": 1000,
+        "h": 820
+      },
+      {
+        "id": "365",
+        "comp": "A365_LogUse",
+        "label": "3.6.5 Log card use",
+        "w": 1000,
+        "h": 820
+      },
+      {
+        "id": "366",
+        "comp": "A366_CardUseLog",
+        "label": "3.6.6 Card use log",
+        "h": 760
+      },
+      {
+        "id": "367",
+        "comp": "A367_UpdateLimit",
+        "label": "3.6.7 Update limit",
+        "w": 1000,
+        "h": 720
+      }
+    ]
+  },
+  {
+    "slug": "a37-commission",
+    "num": "3.7",
+    "title": "Agent · Commission Tracking",
+    "subtitle": "Dashboard, ledger, reconciliation, forecast.",
+    "files": [
+      "screens/agent-commission.jsx"
+    ],
+    "sectionId": "a37",
+    "sectionTitle": "3.7 · Commission Tracking",
+    "sectionSub": "Dashboard, ledger, reconciliation, forecast.",
+    "width": 1440,
+    "height": 900,
+    "screens": [
+      {
+        "id": "371",
+        "comp": "A371_CommissionDashboard",
+        "label": "3.7.1 Dashboard",
+        "h": 820
+      },
+      {
+        "id": "372",
+        "comp": "A372_CommissionList",
+        "label": "3.7.2 Ledger",
+        "h": 820
+      },
+      {
+        "id": "373",
+        "comp": "A373_CommissionDetail",
+        "label": "3.7.3 Detail / edit",
+        "h": 760
+      },
+      {
+        "id": "374",
+        "comp": "A374_AddCommission",
+        "label": "3.7.4 Add entry",
+        "w": 1000,
+        "h": 720
+      },
+      {
+        "id": "375",
+        "comp": "A375_CSVImport",
+        "label": "3.7.5 CSV import",
+        "h": 820
+      },
+      {
+        "id": "376",
+        "comp": "A376_Reconciliation",
+        "label": "3.7.6 Reconciliation",
+        "h": 760
+      },
+      {
+        "id": "377",
+        "comp": "A377_Forecast",
+        "label": "3.7.7 Forecast",
+        "h": 720
+      }
+    ]
+  },
+  {
+    "slug": "a38-leads",
+    "num": "3.8",
+    "title": "Agent · Leads",
+    "subtitle": "Inbox, detail, convert, reject, analytics.",
+    "files": [
+      "screens/agent-leads-support-msg.jsx"
+    ],
+    "sectionId": "a38",
+    "sectionTitle": "3.8 · Leads",
+    "sectionSub": "Inbox, detail, convert, reject, analytics.",
+    "width": 1440,
+    "height": 860,
+    "screens": [
+      {
+        "id": "381",
+        "comp": "A381_LeadsInbox",
+        "label": "3.8.1 Leads inbox",
+        "h": 740
+      },
+      {
+        "id": "382",
+        "comp": "A382_LeadDetail",
+        "label": "3.8.2 Lead detail",
+        "h": 880
+      },
+      {
+        "id": "383",
+        "comp": "A383_ConvertLead",
+        "label": "3.8.3 Convert",
+        "w": 1000,
+        "h": 820
+      },
+      {
+        "id": "384",
+        "comp": "A384_RejectLead",
+        "label": "3.8.4 Reject",
+        "w": 900,
+        "h": 700
+      },
+      {
+        "id": "385",
+        "comp": "A385_LeadAnalytics",
+        "label": "3.8.5 Source analytics",
+        "h": 720
+      }
+    ]
+  },
+  {
+    "slug": "a39-support",
+    "num": "3.9",
+    "title": "Agent · Login Support / Account Admin",
+    "subtitle": "Help less-technical clients. All audit-logged.",
+    "files": [
+      "screens/agent-leads-support-msg.jsx"
+    ],
+    "sectionId": "a39",
+    "sectionTitle": "3.9 · Login Support / Account Admin",
+    "sectionSub": "Help less-technical clients. All audit-logged.",
+    "width": 1280,
+    "height": 820,
+    "screens": [
+      {
+        "id": "391",
+        "comp": "A391_AccountMgmt",
+        "label": "3.9.1 Account mgmt",
+        "h": 760
+      },
+      {
+        "id": "392",
+        "comp": "A392_SendReset",
+        "label": "3.9.2 Send reset",
+        "w": 900,
+        "h": 640
+      },
+      {
+        "id": "393",
+        "comp": "A393_SendMagic",
+        "label": "3.9.3 Send magic link",
+        "w": 900,
+        "h": 640
+      },
+      {
+        "id": "394",
+        "comp": "A394_VerifyEmail",
+        "label": "3.9.4 Verify email",
+        "w": 900,
+        "h": 700
+      },
+      {
+        "id": "395",
+        "comp": "A395_LockAccount",
+        "label": "3.9.5 Lock account",
+        "w": 900,
+        "h": 720
+      },
+      {
+        "id": "396",
+        "comp": "A396_LoginActivity",
+        "label": "3.9.6 Login activity",
+        "h": 720
+      },
+      {
+        "id": "397",
+        "comp": "A397_MergeFromAdmin",
+        "label": "3.9.7 Merge from admin",
+        "w": 900,
+        "h": 620
+      }
+    ]
+  },
+  {
+    "slug": "a310-messaging",
+    "num": "3.10",
+    "title": "Agent · Messaging & Templates",
+    "subtitle": "Agent inbox, templates, bulk send.",
+    "files": [
+      "screens/agent-leads-support-msg.jsx"
+    ],
+    "sectionId": "a310",
+    "sectionTitle": "3.10 · Messaging & Templates",
+    "sectionSub": "Agent inbox, templates, bulk send.",
+    "width": 1440,
+    "height": 880,
+    "screens": [
+      {
+        "id": "3101",
+        "comp": "A3101_AgentInbox",
+        "label": "3.10.1 Agent inbox",
+        "h": 860
+      },
+      {
+        "id": "3102",
+        "comp": "A3102_AgentThread",
+        "label": "3.10.2 Thread",
+        "h": 860
+      },
+      {
+        "id": "3103",
+        "comp": "A3103_TemplatePicker",
+        "label": "3.10.3 Template picker",
+        "w": 1100,
+        "h": 720
+      },
+      {
+        "id": "3104",
+        "comp": "A3104_TemplateLibrary",
+        "label": "3.10.4 Template library",
+        "h": 820
+      },
+      {
+        "id": "3105",
+        "comp": "A3105_TemplateEditor",
+        "label": "3.10.5 Template editor",
+        "h": 820
+      },
+      {
+        "id": "3106",
+        "comp": "A3106_BulkSend",
+        "label": "3.10.6 Bulk send",
+        "h": 820
+      }
+    ]
+  },
+  {
+    "slug": "a311-reports",
+    "num": "3.11",
+    "title": "Agent · Reporting",
+    "subtitle": "Hub + 6 reports + export center.",
+    "files": [
+      "screens/agent-reports-settings.jsx"
+    ],
+    "sectionId": "a311",
+    "sectionTitle": "3.11 · Reporting",
+    "sectionSub": "Hub + 6 reports + export center.",
+    "width": 1280,
+    "height": 820,
+    "screens": [
+      {
+        "id": "3111",
+        "comp": "A3111_ReportsHub",
+        "label": "3.11.1 Reports hub",
+        "h": 660
+      },
+      {
+        "id": "3112",
+        "comp": "A3112_Revenue",
+        "label": "3.11.2 Revenue by month",
+        "h": 720
+      },
+      {
+        "id": "3113",
+        "comp": "A3113_CommBySupplier",
+        "label": "3.11.3 Comm by supplier",
+        "h": 820
+      },
+      {
+        "id": "3114",
+        "comp": "A3114_TopDestinations",
+        "label": "3.11.4 Top destinations",
+        "h": 720
+      },
+      {
+        "id": "3115",
+        "comp": "A3115_LTV",
+        "label": "3.11.5 Lifetime value",
+        "h": 720
+      },
+      {
+        "id": "3116",
+        "comp": "A3116_Funnel",
+        "label": "3.11.6 Conversion funnel",
+        "h": 720
+      },
+      {
+        "id": "3117",
+        "comp": "A3117_PipelineValue",
+        "label": "3.11.7 Pipeline value",
+        "h": 720
+      },
+      {
+        "id": "3118",
+        "comp": "A3118_ExportCenter",
+        "label": "3.11.8 Export center",
+        "h": 720
+      }
+    ]
+  },
+  {
+    "slug": "a312-settings",
+    "num": "3.12",
+    "title": "Agent · Profile & Settings",
+    "subtitle": "Profile, availability, notifs, signature, branding.",
+    "files": [
+      "screens/agent-reports-settings.jsx"
+    ],
+    "sectionId": "a312",
+    "sectionTitle": "3.12 · Agent Profile & Settings",
+    "sectionSub": "Profile, availability, notifs, signature, branding.",
+    "width": 1280,
+    "height": 820,
+    "screens": [
+      {
+        "id": "3121",
+        "comp": "A3121_AgentProfile",
+        "label": "3.12.1 Profile",
+        "h": 740
+      },
+      {
+        "id": "3122",
+        "comp": "A3122_AgentCalendar",
+        "label": "3.12.2 Calendar / availability",
+        "h": 760
+      },
+      {
+        "id": "3123",
+        "comp": "A3123_AgentNotifs",
+        "label": "3.12.3 Notifications",
+        "h": 700
+      },
+      {
+        "id": "3124",
+        "comp": "A3124_AgentSignature",
+        "label": "3.12.4 Email signature",
+        "h": 760
+      },
+      {
+        "id": "3125",
+        "comp": "A3125_Branding",
+        "label": "3.12.5 Branding (future)",
+        "h": 760
+      }
+    ]
+  }
+]

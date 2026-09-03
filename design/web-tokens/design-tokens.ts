@@ -21,6 +21,7 @@ export const brand = {
   orange:       "#E87722",
   orangeLight:  "#F59E4E",
   sunset:       "#F5A623",  // Sunset Gold
+  gold:         "#FFC83F",  // Gold on photography (hero overlines, script); equals dark secondary
   ocean:        "#1565C0",
   navy:         "#0D2137",
   cream:        "#FBF6EE",

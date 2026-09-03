@@ -24,6 +24,7 @@ object StoryTailBrand {
     val Orange       = Color(0xFFE87722)
     val OrangeLight  = Color(0xFFF59E4E)
     val Sunset       = Color(0xFFF5A623)  // Sunset Gold
+    val Gold         = Color(0xFFFFC83F)  // Gold on photography (hero overlines, script); equals dark secondary
     val Ocean        = Color(0xFF1565C0)
     val Navy         = Color(0xFF0D2137)
     val Cream        = Color(0xFFFBF6EE)

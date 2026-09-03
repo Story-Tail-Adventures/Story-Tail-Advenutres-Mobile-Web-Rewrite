@@ -6,9 +6,9 @@ function C221_Dashboard() {
   return (
     <ScreenFrame role="client" tab="home" scrollable padding={24}>
       <ScreenHeader
-        overline="WELCOME BACK"
-        title="Hey Jordan — the countdown's on. ✈"
-        subtitle="One card to authorize for final balance, one new idea you might like."
+        overline="WELCOME BACK · YOUR REST IS COMING"
+        title="Hey Jordan — 90 days until you can finally breathe out. ✈"
+        subtitle="One card to authorize for final balance, one new idea from Gyasi. The hard part is almost done."
         actions={<><button className="btn btn-tonal btn-sm"><Icon name="search" size={14}/> New idea</button><button className="btn btn-filled btn-sm"><Icon name="message" size={14}/> Message Gyasi</button></>}
       />
 
@@ -585,6 +585,14 @@ function C2211_PastTrip() {
           </div>
         </div>
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="card" style={{ padding: 16, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', border: 0, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: 999, background: 'rgba(255,255,255,0.18)' }}/>
+            <div style={{ position: 'relative' }}>
+              <div className="t-label-s" style={{ opacity: 0.75 }}>A NOTE FROM GYASI</div>
+              <div className="t-script" style={{ fontSize: 28, lineHeight: 1.1, marginTop: 4 }}>You took the rest. That matters.</div>
+              <p className="t-body-s" style={{ margin: '6px 0 0', opacity: 0.85 }}>Seven nights of "very good" — reef, family, salt air. Thank you for letting us hold the details. Welcome home. 🌴</p>
+            </div>
+          </div>
           <div className="card" style={{ padding: 16, background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', border: 0 }}>
             <div className="t-title-s">Book a similar trip</div>
             <p className="t-body-s" style={{ opacity: 0.85, marginTop: 4 }}>Gyasi pulled 6 family-friendly all-inclusives for Jan 2027 with your past preferences.</p>

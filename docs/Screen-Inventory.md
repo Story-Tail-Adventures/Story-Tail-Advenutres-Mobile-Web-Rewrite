@@ -31,7 +31,7 @@ Administrator-role screens are out of scope for this document and will be invent
 
 | Area | Screens |
 |---|---|
-| Client — Public / Pre-Auth Surface | 7 |
+| Client — Public / Pre-Auth Surface | 11 |
 | Client — Authentication & Onboarding | 14 |
 | Client — Dashboard & Trip Experience | 11 |
 | Client — Self-Guided Search | 10 |
@@ -40,7 +40,7 @@ Administrator-role screens are out of scope for this document and will be invent
 | Client — Messaging | 3 |
 | Client — Mobile-Specific | 8 |
 | Client — Group Trip Coordination (Future-Ready) | 4 |
-| **Client total** | **75** |
+| **Client total** | **79** |
 | Agent — Authentication & Activation | 10 |
 | Agent — Dashboard & Pipeline | 3 |
 | Agent — Client Management (CRM) | 12 |
@@ -54,7 +54,7 @@ Administrator-role screens are out of scope for this document and will be invent
 | Agent — Reporting | 8 |
 | Agent — Agent Profile & Settings | 5 |
 | **Agent total** | **93** |
-| **Platform total** | **~168 screens** |
+| **Platform total** | **~172 screens** |
 
 These counts include states, modals, and confirmation screens that meaningfully change what the user sees. They do not count every individual tab within a single screen.
 
@@ -69,6 +69,10 @@ These counts include states, modals, and confirmation screens that meaningfully 
 The screens an unauthenticated visitor encounters before signing in or creating an account. These live at the app subdomain (app.story-tail.com) and complement — but do not replace — the marketing site at adventures.story-tail.com.
 
 **Note on scope:** The BRD explicitly puts replacing the marketing site at adventures.story-tail.com *out* of Phase 1. The public screens described here are the pre-auth entry surface for the app subdomain only. They should drive registration or visit-back to the marketing site, not duplicate it.
+
+**September 2026 design iteration.** The Claude Design project reorganised this section as "Public landing pages" and added four topic/advisor pages — 2.0.8 Caribbean, 2.0.9 Cruises, 2.0.10 Honeymoons, 2.0.11 About Gyasi. They are curated editorial pages (no travel-API dependency) that complement, not replace, adventures.story-tail.com, and carry the **P2** marker like the rest of the lead-generation surface. All eleven were built ahead of phase in September 2026 (user decision); the public search/results/detail pages run on Gyasi's curated catalog until the Phase 2 API search replaces the data source.
+
+**Public top bar navigation** (all 2.0.x screens): Explore (2.0.3) · Caribbean (2.0.8) · Cruises (2.0.9) · Honeymoons (2.0.10) · About Gyasi (2.0.11), plus "Sign in" and "Create account". The footer on every public screen links the 2.0.7 legal pages, How it works (2.0.2) and the marketing site.
 
 #### 2.0.1 App Subdomain Public Landing
 **Purpose:** Greet anonymous visitors at app.story-tail.com and direct them into the right next action.
@@ -104,6 +108,7 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Key actions:** View; attempt to favorite/quote (gate); message agent via low-friction lead form.
 **Entry points:** Public Search Results.
 **Related screens:** Sign-up Gate, Quote Request Form (post-auth).
+**Phase 1 note:** "Message Gyasi without an account" is a prefilled email link in Phase 1 (the Lead entity is P2, Data Model §11); Phase 2 replaces the link target with lead capture without changing the page.
 
 #### 2.0.6 Sign-up Gate / Quote Request Prompt
 **Purpose:** Convert browsing into account creation at the moment of high intent.
@@ -111,6 +116,7 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Key actions:** Register; sign in; submit as guest.
 **Entry points:** Public Search Results CTAs; Public Property/Cruise/Tour Detail CTAs.
 **Related screens:** Registration, Login, Welcome / First Login, Quote Request Confirmation.
+**Implementation note (web):** ships as its own route (`/join?intent=…&trip=…`) with the Pattern J centered-card look, so it deep-links and works without JavaScript; the inline form carries first name, last name, email, password and the terms checkbox required by 2.1.2. "Continue as guest" follows the 2.0.5 Phase 1 note (email link).
 
 #### 2.0.7 Footer Pages (Privacy, Terms, Cookies, Accessibility)
 **Purpose:** Legal and compliance pages reachable from any public or authenticated screen.
@@ -118,6 +124,38 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Key actions:** Read; print.
 **Entry points:** Footer of every screen; explicit consent flows.
 **Related screens:** Any screen with the global footer.
+
+#### 2.0.8 Caribbean Landing Page
+**Phase:** P2 (built ahead of phase, September 2026).
+**Purpose:** Topic landing page for the business's core region — a curated Caribbean front door that turns browsing into quote requests and account creation.
+**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar (destination · when · travelers · vibe → "Request a quote"); three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
+**Key actions:** Request a quote (→ Sign-up Gate); save a trip (→ Sign-up Gate); open a trip's Public Detail; tap an island (→ Public Search Results); message Gyasi without an account.
+**Entry points:** Public nav "Caribbean"; App Subdomain Public Landing; marketing-site links.
+**Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
+
+#### 2.0.9 Cruises Landing Page
+**Phase:** P2 (built ahead of phase, September 2026).
+**Purpose:** Topic landing page for cruising — family, adults-only and group sailings, with the lines Gyasi books.
+**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar; "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
+**Key actions:** Request a quote; save; open a sailing's Public Detail; message Gyasi.
+**Entry points:** Public nav "Cruises"; inspiration tile "Family cruises".
+**Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
+
+#### 2.0.10 Honeymoons Landing Page
+**Phase:** P2 (built ahead of phase, September 2026).
+**Purpose:** Topic landing page for honeymoons — the most personal trip Gyasi plans.
+**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar; a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
+**Key actions:** Request a quote; save; open a Public Detail; see the curated list (→ Public Search Results filtered to honeymoons); message Gyasi.
+**Entry points:** Public nav "Honeymoons"; inspiration tile "Honeymoons".
+**Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
+
+#### 2.0.11 About Gyasi
+**Phase:** P2 (built ahead of phase, September 2026).
+**Purpose:** The advisor page — who Gyasi is, why Story-Tail exists, and the proof behind it. Complements 2.0.2 (how the portal works) rather than repeating it.
+**Primary elements:** Gradient hero with portrait ("Hi, I'm Gyasi."), "Request a quote" and "Message me first" CTAs; stats strip (travelers served, rating, reply time, years); the story (bio paragraphs, signed in the script face); credentials list; testimonials; FAQ; closing CTA band. Every figure, credential, testimonial and biographical claim comes from the marketing-claims registry (`web/content/public/proof.ts`) and is flagged until verified; a strict production build refuses to ship unverified claims.
+**Key actions:** Request a quote; message Gyasi; read; expand FAQ.
+**Entry points:** Public nav "About Gyasi"; the Gyasi card on 2.0.2 and 2.0.5; footer.
+**Related screens:** About / How It Works, Sign-up Gate.
 
 ---
 
@@ -1454,7 +1492,9 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.0.4 Public Search Results** — Pattern F. Save/quote CTAs trigger Sign-up Gate (Pattern J) on all viewports.
 - **2.0.5 Public Property/Cruise/Tour Detail** — Pattern C. "Message Gyasi without an account" is a sticky bottom button on mobile, a side rail CTA on tablet/web.
 - **2.0.6 Sign-up Gate** — Pattern J. Mobile uses full-height bottom sheet; tablet/web a centered modal.
-- **2.0.7 Footer Pages** — Pattern I, simplified. Identical content across viewports; mobile uses larger type.
+- **2.0.7 Footer Pages** — Pattern I, simplified. Identical content across viewports; mobile uses larger type. Web implementation note: 2.0.2's FAQ ships as a single-column accordion on web too (matches the design prototype), and 2.0.6 ships as a route rather than a modal.
+- **2.0.8 Caribbean / 2.0.9 Cruises / 2.0.10 Honeymoons** — Pattern H. Web: inquire bar sticks under the top bar, 3-column trip grid, island tiles in one row. Tablet: 2-column grid, inquire bar wraps to two rows. Mobile: single column, island tiles as a horizontal snap strip, trips as image-left rows, inquire bar replaced by the sticky bottom CTA ("Request a quote").
+- **2.0.11 About Gyasi** — Pattern H with Pattern I reading widths. Web: two-column hero (copy + portrait), 4-up stats strip, two-column story/credentials, 3-column testimonials. Tablet: hero keeps two columns, story stacks above credentials. Mobile: stacked; portrait becomes a round badge on the hero; testimonials as a horizontal snap strip; sticky bottom CTA.
 
 #### Client — Authentication & Onboarding (2.1.x)
 - **2.1.1 Login** — Pattern A.

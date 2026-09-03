@@ -23,36 +23,39 @@ Trigger phrases:
 
 Use proactively at the start of any screen-build task (`new-screen` skill, `web-reviewer` parity check, `mobile-reviewer` parity check) **if** the local mirror hasn't been refreshed recently or the user mentions design changes. If unsure, ask once: "Want me to pull the latest handoff before we start?"
 
-## The canonical URL
+## The canonical source
 
-Read it from `CLAUDE.md` — the "Stack" section records the project's design handoff URL. If you can't find it there, ask the user before fetching from any URL.
+The Claude Design **project** recorded in `CLAUDE.md` (Stack section):
+`https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3`. The original handoff
+tarball URL (`api.anthropic.com/v1/design/h/…`) expired in September 2026 and returns 404 —
+do not fetch from it. If `CLAUDE.md` and this file disagree, ask the user before fetching.
 
 ## Procedure
 
-### 1. Fetch the handoff tarball
+### 1. Authorise once
 
-```bash
-HANDOFF_URL="<URL from CLAUDE.md>"
-WORK="/tmp/storytail-handoff-$(date +%s)"
-mkdir -p "$WORK"
-curl -sS --compressed -o "$WORK/handoff.tar.gz" -D "$WORK/headers.txt" "$HANDOFF_URL"
+The `DesignSync` tool needs design-system authorisation. In an **interactive** Claude Code
+session on this machine run `/design-login` once; headless and SDK sessions reuse it. In a
+non-interactive session where that is impossible, the fallback that worked in September 2026
+is the design editor's own API from the user's logged-in Chrome (Claude in Chrome): POST
+`https://claude.ai/design/anthropic.omelette.api.v1alpha.OmeletteService/ListFiles` and
+`…/GetFile` with `{"projectId": "<id>", "path": "<file>"}` (`GetFile` returns base64
+`content`). Read-only calls only. Beware the browser tool's 50,000-character page-text cap:
+dump one file per read, mark leading whitespace with a sentinel, and reconstruct with a
+script — the transfer collapses interior runs of spaces, so patch alignment-heavy files in
+place rather than overwriting them. `pages/*.html` come back with the design tool's
+`data-omelette-injected` `<style>`/`<script>` blocks; strip them before mirroring.
+
+### 2. List and fetch
+
+```
+DesignSync list_files  projectId=<id> path=screens   (and shared, styles, pages, tweaks, brand)
+DesignSync get_file    projectId=<id> path=screens/client-public.jsx
 ```
 
-Verify the response:
-- HTTP 200 in headers
-- `Content-Type: application/gzip`
-- `Content-Disposition: attachment; filename="...-handoff.tar.gz"`
-
-If the response is HTML or JSON, the URL is wrong or expired — stop and ask the user.
-
-### 2. Extract
-
-```bash
-tar -xzf "$WORK/handoff.tar.gz" -C "$WORK"
-REMOTE="$WORK/story-tail-adventures-rewrite/project"
-```
-
-The bundle's `README.md` at `$WORK/story-tail-adventures-rewrite/README.md` is the human-facing instructions from Claude Design. Read it once to confirm the bundle's structure hasn't changed.
+Write each fetched file into a scratch directory (`$WORK/project/...`) mirroring the remote
+paths, then diff as below. The design's `_bundle-src/` and `_archive/` folders are the
+designer's own history — do not mirror them.
 
 ### 3. Diff against local
 
@@ -69,6 +72,7 @@ Map remote → local:
 | `project/artboards/*` | `design/source-prototype/artboards/*` |
 | `project/tweaks/*` | `design/source-prototype/tweaks/*` |
 | `project/Story-Tail Designs.html` | `design/source-prototype/Story-Tail Designs.html` |
+| `project/pages/*` (section pages + `_sections.json`, injected blocks stripped) | `design/source-prototype/pages/*` |
 
 Run `diff -rq "$REMOTE" "$LOCAL"` for each pair (or one rooted diff if the trees align). Categorize the output into:
 
@@ -177,6 +181,20 @@ Apply to `design/web-tokens/tokens.css`, `web/styles/tokens.css`, and the `darkC
 object in `design/web-tokens/design-tokens.ts`.
 
 **Raise it with the designer** so the fix lands upstream and this note can be deleted.
+
+### 3. `--brand-gold` token (added 2026-09-02)
+
+The public landing pages needed the prototype's `#FFC83F` "sunset gold on photography" as a
+named token. `design/web-tokens/tokens.css`, `web/styles/tokens.css`,
+`design/web-tokens/design-tokens.ts` (`brand.gold`) and `design/compose-theme/StoryTailColors.kt`
+(`StoryTailBrand.Gold`) carry `--brand-gold: #FFC83F`; the prototype's own `styles/tokens.css`
+does not. Re-add it after any token sync, and ask the designer to adopt it upstream.
+
+### 4. `screens/client-auth.jsx` and `shared/images.js` were patched in place (2026-09-02)
+
+Both were updated from the design with targeted patches (not overwrites) because the browser
+transfer collapses interior space runs. If a future sync overwrites them wholesale from a
+faithful source, that is fine; just diff first.
 
 ### How to check for new instances of this class of bug
 
