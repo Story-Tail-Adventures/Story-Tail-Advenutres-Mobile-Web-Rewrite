@@ -185,9 +185,25 @@ shadow something GoTrue already maintains (`auth.users.encrypted_password`,
 | Concern | System of record | Our table's role |
 |---|---|---|
 | Password | `auth.users.encrypted_password` | `account.password_hash` stays **null**. Never write to it. |
+| Name at sign-up | `auth.users.raw_user_meta_data` | `handle_new_user()` reads it in claim order — see below |
 | Active sessions | `auth.sessions` | `session` backs the "Active Sessions" screen (device labels, revoke UI) |
 | MFA factors | `auth.mfa_factors` | `mfa_device` backs the security-settings UI; the secret stays in GoTrue |
 | Auth history | `auth.audit_log_entries` | `auth_event` is the user-visible security log |
+
+**Where a new Client's name comes from.** `handle_new_user()` takes it from
+`raw_user_meta_data` in order of how much the source actually knew:
+
+1. `first_name` / `last_name` — our own forms (`registerAction`, the 2.0.6 gate) send
+   exactly these two keys and nothing else
+2. `given_name` / `family_name` — the OIDC standard claims, which is what a social sign-in
+   provides; `signInWithOAuth` has no `options.data`, so it cannot send our keys
+3. `name` / `full_name`, split on the first space
+4. the placeholders `New` / `Traveler`
+
+Branch 2 exists because without it every Google and Apple sign-up created
+`client.first_name = 'New'` — not just in the greeting but in the CRM row, on the trip, and
+as the "agent's spelling" that adoption preserves. Branch 4 stays reachable regardless:
+Apple sends name claims on the first authorization only and nothing on later ones.
 
 **A CONFIRMED sign-up adopts an existing Client; sign-up itself never does.** The agent
 routinely creates a Client record — and starts planning a trip against it — before the

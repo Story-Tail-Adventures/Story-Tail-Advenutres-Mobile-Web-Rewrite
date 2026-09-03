@@ -250,6 +250,73 @@ SELECT pg_temp.assert(
     'a new account starts with onboarding incomplete, so it routes to 2.1.9');
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- handle_new_user(): the name a social sign-in actually sends
+-- ═══════════════════════════════════════════════════════════════════════════════
+--
+-- `signInWithOAuth` has no options.data, so no OAuth path can send first_name/last_name.
+-- Supabase fills raw_user_meta_data from the provider's OIDC claims instead. Before
+-- 20260903221802 every Google and Apple sign-up therefore became "New Traveler" — in the
+-- greeting, in Gyasi's CRM, and on the trip.
+
+CREATE OR REPLACE FUNCTION pg_temp.oauth_signup(id uuid, email text, meta jsonb, provider text)
+RETURNS void LANGUAGE sql AS $$
+    INSERT INTO auth.users (
+        id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+        confirmation_token, recovery_token, email_change_token_new, email_change
+    ) VALUES (
+        id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+        email, '', now(),
+        json_build_object('provider', provider, 'providers', json_build_array(provider))::jsonb,
+        meta, now(), now(), '', '', '', ''
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.name_of(p_email text)
+RETURNS text LANGUAGE sql AS $$
+    SELECT c.first_name || ' ' || c.last_name FROM public.client c WHERE c.email = p_email;
+$$;
+
+-- Google, and Apple's first authorization: the standard OIDC claims.
+SELECT pg_temp.oauth_signup('0195a2c0-1a00-7000-8000-0000000000f1', 'google@example.com',
+    '{"sub":"1","name":"Wren Abasi","given_name":"Wren","family_name":"Abasi"}'::jsonb, 'google');
+SELECT pg_temp.assert(
+    pg_temp.name_of('google@example.com') = 'Wren Abasi',
+    'a social sign-in takes its name from given_name/family_name');
+
+-- A provider that sends only a display name.
+SELECT pg_temp.oauth_signup('0195a2c0-1a00-7000-8000-0000000000f3', 'display@example.com',
+    '{"sub":"3","full_name":"Priya Raghunathan"}'::jsonb, 'google');
+SELECT pg_temp.assert(
+    pg_temp.name_of('display@example.com') = 'Priya Raghunathan',
+    'a display name is split on the first space');
+
+-- A mononym must not have the given name repeated back as a surname.
+SELECT pg_temp.oauth_signup('0195a2c0-1a00-7000-8000-0000000000f4', 'mono@example.com',
+    '{"sub":"4","name":"Prince"}'::jsonb, 'google');
+SELECT pg_temp.assert(
+    pg_temp.name_of('mono@example.com') = 'Prince Traveler',
+    'a one-word name keeps the placeholder surname rather than repeating itself');
+
+-- Apple on a REPEAT authorization sends no name claims at all, so the placeholder has to
+-- stay reachable however good the branches above it are.
+SELECT pg_temp.oauth_signup('0195a2c0-1a00-7000-8000-0000000000f2', 'apple@example.com',
+    '{"sub":"2","email":"apple@example.com"}'::jsonb, 'apple');
+SELECT pg_temp.assert(
+    pg_temp.name_of('apple@example.com') = 'New Traveler',
+    'with no name claims at all the placeholder still applies');
+SELECT pg_temp.assert(
+    (SELECT auth_provider FROM public.account WHERE email = 'apple@example.com')::text = 'apple',
+    'the provider is recorded on the account');
+
+-- Our own sign-up form is unaffected by any of it.
+SELECT pg_temp.oauth_signup('0195a2c0-1a00-7000-8000-0000000000f5', 'ourform@example.com',
+    '{"first_name":"Jordan","last_name":"Hayes"}'::jsonb, 'email');
+SELECT pg_temp.assert(
+    pg_temp.name_of('ourform@example.com') = 'Jordan Hayes',
+    'first_name/last_name still win when the form sent them');
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- Self-read policies
 -- ═══════════════════════════════════════════════════════════════════════════════
 

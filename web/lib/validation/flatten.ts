@@ -5,10 +5,15 @@
  * hand-rolled twice before it was worth naming — once in the login action, once in the
  * sign-up gate's schema — and the two had already started to diverge.
  *
- * Only issues whose first path segment is one of `fields` are kept. That is deliberate:
- * a refinement attached to the object as a whole has an empty path, and silently dropping
- * it is better than inventing a field name for it — form-level errors travel as
- * `formError`, not as a field error nobody renders.
+ * Only issues whose first path segment is one of `fields` are kept, because a message
+ * rendered next to the wrong input is worse than one not rendered at all.
+ *
+ * **What this DROPS, and what to do about it.** A refinement attached to the object as a
+ * whole — `z.object({...}).superRefine(...)` without an explicit `path` — has an empty
+ * path and is discarded here. That is the right call for a field-error map, but it is a
+ * silent one: a group rule like "an address needs a city if it has a street" would refuse
+ * the submit and render nothing, which reads as a dead button. Use [formLevelIssues] for
+ * those, or give the refinement an explicit `path` so it lands on a field.
  */
 export function flattenIssues<F extends string>(
   error: { issues: { path: PropertyKey[]; message: string }[] },
@@ -25,4 +30,30 @@ export function flattenIssues<F extends string>(
     }
   }
   return fieldErrors;
+}
+
+/**
+ * The issues [flattenIssues] drops: the ones belonging to no field.
+ *
+ * These come from object-level refinements — rules about a COMBINATION of fields, where
+ * pointing at any single input would be a lie. "Give us a city as well as a street" is
+ * about the address, not about the city box.
+ *
+ * Returned separately rather than folded into the field map so a caller has to decide
+ * where to put them. They belong above the form, next to `formError`.
+ */
+export function formLevelIssues<F extends string>(
+  error: { issues: { path: PropertyKey[]; message: string }[] },
+  fields: readonly F[],
+): string[] {
+  const messages: string[] = [];
+  for (const issue of error.issues) {
+    const key = issue.path[0];
+    const belongsToField =
+      typeof key === "string" && (fields as readonly string[]).includes(key);
+    if (!belongsToField && !messages.includes(issue.message)) {
+      messages.push(issue.message);
+    }
+  }
+  return messages;
 }
