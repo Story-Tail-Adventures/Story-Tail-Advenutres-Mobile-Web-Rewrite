@@ -96,6 +96,8 @@ The final section is **Open Questions** — areas where the model is intentional
 | Companion | Client | P1 | Recurring travel companion linked to a client |
 | TravelDocument | Client | P1 | Passport, visa, insurance certificate, etc. |
 | Address | Client | P1 | Reusable address record (linked to client) |
+| ClientNote | Client | P1 | Internal agent note on a client |
+| ClientInvite | Client | P1 | Single-use code linking a pre-created Client to a new Account |
 | Agent | Agent | P1 | Advisor profile |
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
@@ -187,6 +189,44 @@ shadow something GoTrue already maintains (`auth.users.encrypted_password`,
 | MFA factors | `auth.mfa_factors` | `mfa_device` backs the security-settings UI; the secret stays in GoTrue |
 | Auth history | `auth.audit_log_entries` | `auth_event` is the user-visible security log |
 
+**A CONFIRMED sign-up adopts an existing Client; sign-up itself never does.** The agent
+routinely creates a Client record — and starts planning a trip against it — before the
+traveler has an account (§6.1). Connecting the two is the "auto-match notice if the
+platform detects existing records by email" in Screen Inventory 2.1.13.
+
+*When* that connection is made is a security decision, and it is not at sign-up. Two
+triggers, not one:
+
+| Trigger | Fires on | Does |
+|---|---|---|
+| `handle_new_user()` | `AFTER INSERT ON auth.users` | Creates `account`, a **fresh** `client`, and `platform_user` |
+| `handle_user_email_confirmed()` | `AFTER UPDATE OF email_confirmed_at`, `NULL` → non-null | Repoints `platform_user.client_id` at the pre-created Client and disposes of the fresh one |
+
+An INSERT into `auth.users` happens the instant somebody types an address into a form.
+Nobody has demonstrated they can read mail sent there. Adopting the pre-created record at
+that moment would hand whoever knows a traveler's email address their name, phone, tags and
+trips — and because `platform_user_client` is unique, it would also *consume* the record, so
+the real traveler's later sign-up finds nothing to adopt and lands in a blank account while
+the stranger keeps theirs. That is true even with confirmations on, where the stranger never
+receives a session: the binding is already made and the rightful owner is locked out of
+their own history. The `email_confirmed_at` transition is the first moment anything about
+mailbox ownership has been shown, and only GoTrue performs it.
+
+**This depends on `enable_confirmations` being on** (`supabase/config.toml`). With
+confirmations off, GoTrue confirms the address itself milliseconds after the insert, and the
+transition stops meaning anything. `.github/scripts/check_auth_config.py` fails the build if
+that setting is ever flipped.
+
+Two further rules keep the match itself safe. It requires exact `citext` email equality,
+never a fuzzy name match, because attaching a stranger's trips to an account is far worse
+than making someone type an invite code. And it requires the Client to be unclaimed — no
+`platform_user` pointing at it — so a second sign-up on a shared address cannot take over a
+Client already bound to somebody's account. Where two or more unclaimed rows match, nothing
+is adopted: duplicates are a real state (Screen 3.9.7 exists to merge them) and guessing
+between them would show one traveler another's trips. The invite-code path against
+ClientInvite (§6.7) resolves that case, and the case where the traveler signs up with a
+different address than the agent has on file, deliberately rather than by inference.
+
 **Which agent owns a self-registered client?** `client.agent_id` is `NOT NULL`, so the
 trigger has to choose one. It reads `agent_id` from the signup's `raw_user_meta_data`
 when present (the Screen Inventory 2.1.13 invite-code path), and otherwise falls back to
@@ -263,6 +303,7 @@ enum class AuthProvider { EMAIL, GOOGLE, APPLE }
 | `avatar_url` | `text` | Yes | Public | Stored at S3/R2 |
 | `time_zone` | `text` | No | Internal | IANA time zone (e.g., `America/Chicago`) |
 | `locale` | `text` | No | Internal | BCP-47 (e.g., `en-US`) |
+| `onboarding_completed_at` | `timestamptz` | Yes | Internal | Null until the client finishes (or skips through) the 2.1.9–2.1.14 wizard |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
@@ -289,6 +330,7 @@ CREATE TABLE platform_user (
     avatar_url   text,
     time_zone    text NOT NULL DEFAULT 'America/Chicago',
     locale       text NOT NULL DEFAULT 'en-US',
+    onboarding_completed_at timestamptz,
     created_at   timestamptz NOT NULL DEFAULT now(),
     updated_at   timestamptz NOT NULL DEFAULT now(),
     CHECK (
@@ -305,6 +347,13 @@ CREATE UNIQUE INDEX platform_user_agent   ON platform_user(agent_id)  WHERE agen
 
 Table name is `platform_user` to avoid colliding with the Postgres reserved word `user`.
 
+`onboarding_completed_at` is what routes a first sign-in to Screen 2.1.9 Welcome instead
+of the dashboard. It lives here rather than on Client because it describes the *account
+holder's* progress through a wizard, not a fact about the traveler: an agent-created
+Client that nobody has signed into has no onboarding state to record. Skipping every
+optional step still sets it — the wizard being "done" is not the same as the profile being
+complete, and conflating the two would trap someone in the wizard forever.
+
 **Kotlin:**
 
 ```kotlin
@@ -319,6 +368,7 @@ data class User(
     val avatarUrl: String? = null,
     val timeZone: String,
     val locale: String,
+    val onboardingCompletedAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -412,6 +462,7 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `date_of_birth` | `date` | Yes | Sensitive PII | For passport, supplier verification |
 | `mailing_address_id` | `uuid` | Yes | Public | FK → Address |
 | `important_dates` | `jsonb` | Yes | PII | Array of `{label, date, recurring}` for birthday, anniversary, etc. |
+| `emergency_contact` | `jsonb` | Yes | PII | `{name, phone, relationship}`. Captured at Screen 2.1.10, edited at 2.5.2, surfaced on the itinerary and at 2.7.3 |
 | `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter |
 | `tags` | `text[]` | No | Internal | Free-form agent tags |
 | `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into` |
@@ -445,6 +496,7 @@ CREATE TABLE client (
     date_of_birth           date,
     mailing_address_id      uuid REFERENCES address(id),
     important_dates         jsonb DEFAULT '[]'::jsonb,
+    emergency_contact       jsonb,
     lifetime_value_cents    bigint NOT NULL DEFAULT 0,
     tags                    text[] NOT NULL DEFAULT '{}',
     status                  client_status NOT NULL DEFAULT 'active',
@@ -476,6 +528,7 @@ data class Client(
     val dateOfBirth: LocalDate? = null,
     val mailingAddressId: Uuid? = null,
     val importantDates: List<ImportantDate> = emptyList(),
+    val emergencyContact: EmergencyContact? = null,
     val lifetimeValueCents: Long = 0,
     val tags: List<String> = emptyList(),
     val status: ClientStatus = ClientStatus.ACTIVE,
@@ -492,6 +545,13 @@ data class ImportantDate(
     val label: String,          // "Birthday", "Anniversary", "Passport Expiry"
     val date: LocalDate,
     val recurring: Boolean = false
+)
+
+@Serializable
+data class EmergencyContact(
+    val name: String,
+    val phone: String,          // E.164
+    val relationship: String? = null
 )
 
 @Serializable
@@ -553,7 +613,7 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `id` | `uuid` | No | Public | — |
 | `client_id` | `uuid` | No | Public | FK → Client |
 | `companion_id` | `uuid` | Yes | Public | If document belongs to a companion |
-| `document_id` | `uuid` | No | Public | FK → Document (the file blob) |
+| `document_id` | `uuid` | Yes | Public | FK → Document (the file blob). Null when the client has given the details but not yet uploaded a scan |
 | `kind` | `travel_doc_kind` enum | No | Internal | `passport`, `visa`, `drivers_license`, `nexus`, `globalentry`, `insurance`, `vaccination`, `other` |
 | `document_number_encrypted` | `bytea` | Yes | Sensitive PII | E.g., passport number |
 | `issuing_country` | `char(2)` | Yes | PII | — |
@@ -565,6 +625,13 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Indexes:** index on `(client_id)`, index on `(expires_on)` for expiration reminders.
+
+**Why `document_id` is nullable.** Screen 2.1.10 asks for a passport number, expiry and
+issuing country during onboarding, with no file upload — the scan comes later, from the
+mobile camera flow. The structured metadata is the part that drives expiration reminders
+and supplier verification, so it has to be storable on its own. A row with a null
+`document_id` means "we know the passport details, we have no scan"; the reverse (a scan
+with no parsed details) is also valid, which is why neither side is required.
 
 ### 6.5 Address
 
@@ -599,6 +666,49 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Notes:** Internal-only — never visible to the client.
+
+### 6.7 ClientInvite
+
+**Purpose:** A single-use code that binds a pre-created Client record to whichever Account
+redeems it. Backs Screen 2.1.13 Connect with Agent / Invite Code.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `client_id` | `uuid` | No | Public | FK → Client — the record this code claims |
+| `code_hash` | `text` | No | Tokenized | Hash of the single-use code. The plaintext exists only in the invitation email |
+| `issued_by_user_id` | `uuid` | No | Public | FK → User (the agent who generated it) |
+| `expires_at` | `timestamptz` | No | Internal | — |
+| `accepted_at` | `timestamptz` | Yes | Internal | — |
+| `accepted_account_id` | `uuid` | Yes | Public | FK → Account that redeemed it |
+| `revoked_at` | `timestamptz` | Yes | Internal | Set when the agent cancels an outstanding invite |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**Indexes:** unique on `(code_hash)`; index on `(client_id)`; partial index on
+`(expires_at) where accepted_at is null and revoked_at is null` for expiry sweeps.
+
+**Relationships:** Many ClientInvites may point at one Client over time (a reissued code),
+but at most one may be unredeemed and unexpired at any moment.
+
+**Notes:**
+
+Distinct from AgentInvitation (§7.2), which provisions an *advisor* and is P3. This one
+provisions nothing — the Client and its trips already exist; redeeming the code only
+repoints `User.client_id` at that Client and discards the throwaway Client the sign-up
+created.
+
+Only the hash is stored, for the same reason a password is not stored in plaintext: a
+leaked `client_invite` table would otherwise hand an attacker a working key to a named
+traveler's itinerary, passport details and payment authorizations. The code is short
+enough to read over the phone (`STA-7HX2J9`), which makes it low-entropy, so redemption
+must be rate limited per account and per IP, and a redemption attempt — successful or not
+— writes an `audit_event`.
+
+Redemption is only ever performed by an Edge Function running as the service role. It
+rewrites `platform_user.client_id`, which changes what an account can see, so it is a
+mutation on the `client` blast radius and rule 3 applies in full.
 
 ---
 
@@ -1573,6 +1683,7 @@ Tables with direct `agent_id`:
 - `trip_template`
 
 Tables that scope via parent FK:
+- `travel_preference`, `companion`, `travel_document`, `client_invite` → `client.agent_id`
 - `trip_component` → `trip.agent_id`
 - `itinerary*` → `trip.agent_id`
 - `payment_card` → `client.agent_id`
@@ -1634,7 +1745,13 @@ Hard delete is reserved for:
 
 ### 20.3 Audit Trigger Pattern
 
-Every write to a tracked table emits an `audit_event` row. The backend handles this in Ktor middleware (a "with-audit" wrapper around domain mutations) rather than via Postgres triggers — easier to test, easier to evolve, easier to attach domain context. Postgres triggers remain available as a defense-in-depth backstop on the most sensitive tables (`payment_card`, `card_authorization`, `commission`).
+Every write to a tracked table emits an `audit_event` row. The backend handles this in a
+"with-audit" wrapper around domain mutations rather than via Postgres triggers — easier to
+test, easier to evolve, easier to attach domain context. That wrapper is
+`withAudit()` in `supabase/functions/_shared/audit.ts`; there is no separate Ktor service
+(see `docs/Tech-Recommendations.md` — the backend is Supabase Edge Functions). Postgres
+triggers remain available as a defense-in-depth backstop on the most sensitive tables
+(`payment_card`, `card_authorization`, `commission`).
 
 ### 20.4 Versioning for Optimistic Concurrency
 

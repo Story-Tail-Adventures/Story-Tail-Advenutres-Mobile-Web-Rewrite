@@ -57,6 +57,12 @@ jobs:
       - name: User-facing strings match across platforms
         run: python3 .github/scripts/check_copy_parity.py
 
+      # Some auth settings are preference; these five are load-bearing. Flipping one
+      # produces no error anywhere — just a security hole or a screen that quietly stops
+      # working — so the coupling is asserted rather than left to a code comment.
+      - name: Auth config matches what the app assumes
+        run: python3 .github/scripts/check_auth_config.py
+
   web:
     name: Web
     runs-on: ubuntu-latest
@@ -160,10 +166,16 @@ jobs:
       # Executes each policy as each role rather than just reading the SQL. A policy that
       # passes the happy path and leaks to another user looks identical to a correct one
       # until you run it as that user.
+      # Globbed rather than listed: a test file that is written but never wired into CI
+      # is worse than no test, because it reads as covered.
       - name: RLS policies enforce isolation
         run: |
-          psql "$(supabase status -o json | jq -r .DB_URL)" \
-            -v ON_ERROR_STOP=1 -f supabase/tests/rls_auth_bridge.sql
+          shopt -s nullglob
+          db_url="$(supabase status -o json | jq -r .DB_URL)"
+          for f in supabase/tests/*.sql; do
+            echo "── $f"
+            psql "$db_url" -v ON_ERROR_STOP=1 -f "$f"
+          done
 
       # Checks the _shared/ helpers too, not just function entry points — they are where
       # the audit and auth rules actually live.
