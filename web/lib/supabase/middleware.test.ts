@@ -52,3 +52,74 @@ describe("authRedirectFor — signed in", () => {
     expect(authRedirectFor("/trips/abc", true)).toBeNull();
   });
 });
+
+/**
+ * Screen 2.1.7 MFA Challenge — the half-authenticated state.
+ *
+ * "Signed in" stops being a yes/no once a second factor exists: a session can hold a valid
+ * password login and still have no business reading anyone's trips. These cases pin the
+ * gap between those two, which is where an MFA bug would actually live.
+ */
+describe("authRedirectFor — a second factor is enrolled but not yet verified", () => {
+  it.each(["/dashboard", "/trips/abc", "/account/security", "/agent/worklist"])(
+    "sends %s to the challenge, not to the page",
+    (path) => {
+      expect(authRedirectFor(path, true, "required")).toBe("/login/mfa");
+    },
+  );
+
+  it.each(["/", "/login", "/register", "/join", "/forgot-password"])(
+    "sends %s to the challenge rather than bouncing it to the dashboard",
+    (path) => {
+      // The signed-in rule would otherwise send these to /dashboard, which then bounces
+      // straight back here — a redirect loop dressed up as a routing rule.
+      expect(authRedirectFor(path, true, "required")).toBe("/login/mfa");
+    },
+  );
+
+  it.each(["/explore", "/explore/results", "/legal/terms", "/caribbean"])(
+    "leaves the public page %s alone",
+    (path) => {
+      // Someone halfway through signing in has no less right to read about Aruba than
+      // someone who never started.
+      expect(authRedirectFor(path, true, "required")).toBeNull();
+    },
+  );
+
+  it("lets the challenge screen itself render", () => {
+    expect(authRedirectFor("/login/mfa", true, "required")).toBeNull();
+  });
+});
+
+describe("authRedirectFor — the challenge screen's own preconditions", () => {
+  it("sends a signed-out visitor to sign in first", () => {
+    expect(authRedirectFor("/login/mfa", false, "none")).toBe("/login");
+  });
+
+  it.each(["none", "satisfied"] as const)(
+    "sends a session with nothing to prove (%s) on to the dashboard",
+    (assurance) => {
+      // A code entry that can never succeed is a dead end, not a security control.
+      expect(authRedirectFor("/login/mfa", true, assurance)).toBe("/dashboard");
+    },
+  );
+});
+
+describe("authRedirectFor — once the second factor is verified", () => {
+  it.each(["/dashboard", "/trips/abc", "/account/security"])("lets %s through", (path) => {
+    expect(authRedirectFor(path, true, "satisfied")).toBeNull();
+  });
+
+  it("goes back to bouncing signed-in visitors off the auth screens", () => {
+    expect(authRedirectFor("/login", true, "satisfied")).toBe("/dashboard");
+    expect(authRedirectFor("/", true, "satisfied")).toBe("/dashboard");
+  });
+});
+
+describe("authRedirectFor — an account with no second factor is unaffected", () => {
+  it("behaves exactly as it did before MFA existed", () => {
+    expect(authRedirectFor("/dashboard", true, "none")).toBeNull();
+    expect(authRedirectFor("/dashboard", false, "none")).toBe("/login");
+    expect(authRedirectFor("/login", true, "none")).toBe("/dashboard");
+  });
+});
