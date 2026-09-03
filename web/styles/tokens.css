@@ -30,6 +30,7 @@
   --brand-orange: #E87722;
   --brand-orange-light: #F59E4E;
   --brand-sunset: #F5A623;
+  --brand-gold: #FFC83F;      /* sunset gold on photography; equals the dark scheme's --md-secondary */
   --brand-ocean: #1565C0;
   --brand-navy: #0D2137;
   --brand-cream: #FBF6EE;
@@ -152,18 +153,18 @@
 }
 
 /* Type ramp */
-.t-display-l { font: 800 57px/1.05 var(--font-sans); letter-spacing: -1.5px; }
-.t-display   { font: 800 45px/1.08 var(--font-sans); letter-spacing: -1px; }
-.t-display-s { font: 700 36px/1.1 var(--font-sans); letter-spacing: -0.6px; }
-.t-headline  { font: 700 28px/1.15 var(--font-sans); letter-spacing: -0.4px; }
-.t-title-l   { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.2px; }
-.t-title     { font: 600 18px/1.25 var(--font-sans); letter-spacing: -0.1px; }
-.t-title-s   { font: 600 15px/1.3 var(--font-sans); }
-.t-body-l    { font: 400 16px/1.5 var(--font-sans); }
-.t-body      { font: 400 14px/1.5 var(--font-sans); }
-.t-body-s    { font: 400 13px/1.45 var(--font-sans); }
-.t-label-l   { font: 500 14px/1.3 var(--font-sans); }
-.t-label     { font: 500 12px/1.3 var(--font-sans); letter-spacing: 0.4px; }
-.t-label-s   { font: 600 11px/1.3 var(--font-sans); letter-spacing: 0.6px; text-transform: uppercase; }
-.t-script    { font: 700 32px/1 var(--font-script); }
-.t-mono      { font: 400 12px/1.4 var(--font-mono); }
+@utility t-display-l { font: 800 57px/1.05 var(--font-sans); letter-spacing: -1.5px; }
+@utility t-display { font: 800 45px/1.08 var(--font-sans); letter-spacing: -1px; }
+@utility t-display-s { font: 700 36px/1.1 var(--font-sans); letter-spacing: -0.6px; }
+@utility t-headline { font: 700 28px/1.15 var(--font-sans); letter-spacing: -0.4px; }
+@utility t-title-l { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.2px; }
+@utility t-title { font: 600 18px/1.25 var(--font-sans); letter-spacing: -0.1px; }
+@utility t-title-s { font: 600 15px/1.3 var(--font-sans); }
+@utility t-body-l { font: 400 16px/1.5 var(--font-sans); }
+@utility t-body { font: 400 14px/1.5 var(--font-sans); }
+@utility t-body-s { font: 400 13px/1.45 var(--font-sans); }
+@utility t-label-l { font: 500 14px/1.3 var(--font-sans); }
+@utility t-label { font: 500 12px/1.3 var(--font-sans); letter-spacing: 0.4px; }
+@utility t-label-s { font: 600 11px/1.3 var(--font-sans); letter-spacing: 0.6px; text-transform: uppercase; }
+@utility t-script { font: 700 32px/1 var(--font-script); }
+@utility t-mono { font: 400 12px/1.4 var(--font-mono); }

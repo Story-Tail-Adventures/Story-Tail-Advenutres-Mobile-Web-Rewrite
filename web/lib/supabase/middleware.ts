@@ -6,11 +6,24 @@ import { env } from "@/lib/env";
 /** Route groups that require a signed-in user. */
 const PROTECTED_PREFIXES = ["/dashboard", "/trips", "/account", "/agent"];
 
-/** Auth screens a signed-in user should be bounced away from. */
-const AUTH_ONLY_PREFIXES = ["/login", "/register", "/forgot-password"];
+/** Auth screens a signed-in user should be bounced away from (incl. the 2.0.6 gate). */
+const AUTH_ONLY_PREFIXES = ["/login", "/register", "/join", "/forgot-password"];
 
 function startsWithAny(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/**
+ * The pure routing decision behind `updateSession`, kept separate so it can be unit
+ * tested without a Supabase client: where this request should be redirected, or `null`
+ * to let it through. The caller adds `?next=` when the answer is "/login".
+ */
+export function authRedirectFor(pathname: string, signedIn: boolean): string | null {
+  if (!signedIn && startsWithAny(pathname, PROTECTED_PREFIXES)) return "/login";
+  if (signedIn && startsWithAny(pathname, AUTH_ONLY_PREFIXES)) return "/dashboard";
+  // A signed-in traveler on the public front door (exactly "/") goes straight to their trips.
+  if (signedIn && pathname === "/") return "/dashboard";
+  return null;
 }
 
 /**
@@ -63,17 +76,19 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const target = authRedirectFor(pathname, Boolean(user));
 
-  if (!user && startsWithAny(pathname, PROTECTED_PREFIXES)) {
+  if (target === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && startsWithAny(pathname, AUTH_ONLY_PREFIXES)) {
+  if (target) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = target;
     url.search = "";
     return NextResponse.redirect(url);
   }

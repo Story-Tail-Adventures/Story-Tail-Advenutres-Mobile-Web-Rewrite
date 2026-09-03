@@ -13,11 +13,20 @@ import type { AuthError } from "@supabase/supabase-js";
  *     who just wants to see their trip; it should not read like a security warning.
  *
  * The Kotlin twin is com.storytail.adventures.api.AuthError — keep the strings in sync.
+ * `email_taken` and `email_invalid` are sign-up kinds (Screen 2.0.6, web-only until
+ * mobile builds 2.1.2 Registration); .github/scripts/check_copy_parity.py compares only
+ * the kinds both platforms share, so add them there when the Kotlin twins land.
+ *
+ * On sign-up, rule 1 has a twin: the caller must never show `email_taken` differently
+ * from a successful sign-up that is waiting on email confirmation. The gate action
+ * (web/app/(public)/(plain)/join/actions.ts) returns the same state for both.
  */
 
 export type AuthErrorKind =
   | "invalid_credentials"
   | "email_not_confirmed"
+  | "email_taken"
+  | "email_invalid"
   | "rate_limited"
   | "account_locked"
   | "network"
@@ -61,6 +70,18 @@ const BY_KIND: Record<AuthErrorKind, MappedAuthError> = {
     message: "That password is a little too easy to guess.",
     action: { label: "See what's needed", href: "/register" },
   },
+  email_taken: {
+    kind: "email_taken",
+    // Deliberately reads like the success path. If a caller ever surfaces this message
+    // instead of the shared "check your inbox" state, it still must not confirm that an
+    // account exists.
+    message: "Check your inbox for a link to finish up.",
+    action: { label: "Sign in", href: "/login" },
+  },
+  email_invalid: {
+    kind: "email_invalid",
+    message: "We can't send email to that address — try a different one.",
+  },
   not_configured: {
     kind: "not_configured",
     // Client-facing wording only. The actionable detail (copy web/.env.example to
@@ -88,6 +109,18 @@ export function mapAuthError(error: AuthError): MappedAuthError {
       return BY_KIND.account_locked;
     case "weak_password":
       return BY_KIND.weak_password;
+    // Sign-up (GoTrue /signup). `user_already_exists` is what the server says with
+    // email confirmations OFF; with them ON it returns an obfuscated user and no error.
+    // `email_exists` is the admin-API spelling of the same condition.
+    case "user_already_exists":
+    case "email_exists":
+      return BY_KIND.email_taken;
+    case "email_address_invalid":
+      return BY_KIND.email_invalid;
+    // Sign-ups switched off in supabase/config.toml — same traveler-facing meaning as an
+    // auth server that is not set up yet.
+    case "signup_disabled":
+      return BY_KIND.not_configured;
     default:
       break;
   }

@@ -38,7 +38,7 @@ export function BrandWordmark({
           style={{
             font: `700 ${taglineSize}px/1 var(--font-sans)`,
             letterSpacing: "2px",
-            ...(onDark ? { color: "#FFC83F" } : {}),
+            ...(onDark ? { color: "var(--brand-gold)" } : {}),
           }}
         >
           ADVENTURES
