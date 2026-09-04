@@ -21,9 +21,21 @@ import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
 import com.storytail.adventures.ui.nav.PlatformBackHandler
 import com.storytail.adventures.ui.nav.rememberNavigator
+import com.storytail.adventures.ui.screens.auth.ForgotPasswordEvent
+import com.storytail.adventures.ui.screens.auth.ForgotPasswordScreen
+import com.storytail.adventures.ui.screens.auth.ForgotPasswordViewModel
 import com.storytail.adventures.ui.screens.auth.LoginEvent
 import com.storytail.adventures.ui.screens.auth.LoginScreen
 import com.storytail.adventures.ui.screens.auth.LoginViewModel
+import com.storytail.adventures.ui.screens.auth.RegisterEvent
+import com.storytail.adventures.ui.screens.auth.RegisterScreen
+import com.storytail.adventures.ui.screens.auth.RegisterViewModel
+import com.storytail.adventures.ui.screens.auth.ResetPasswordEvent
+import com.storytail.adventures.ui.screens.auth.ResetPasswordScreen
+import com.storytail.adventures.ui.screens.auth.ResetPasswordViewModel
+import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
+import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
+import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
 import com.storytail.adventures.ui.theme.StoryTailTheme
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -125,14 +137,114 @@ fun App() {
                 )
             }
 
-            // Screens 2.1.2-2.1.7 have their routes and their shared rules
-            // (RegistrationValidation, MfaValidation, PasswordStrength) but not yet their
-            // Compose screens. Rendering the splash rather than nothing keeps an
-            // accidental navigation from showing a blank frame.
-            AppRoute.Register,
-            is AppRoute.VerifyEmail,
-            AppRoute.ForgotPassword,
-            AppRoute.ResetPassword,
+            AppRoute.Register -> {
+                val viewModel = viewModel { RegisterViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // Sign-up with confirmations off produces a session, and
+                            // sessionStatus above drives the stack — nothing to do here.
+                            RegisterEvent.NavigateToDashboard -> Unit
+                            is RegisterEvent.NavigateToVerifyEmail ->
+                                nav.push(AppRoute.VerifyEmail(event.email))
+                            // pop rather than push: Login is the screen underneath, and
+                            // pushing it would leave two of them in the stack.
+                            RegisterEvent.NavigateToSignIn -> nav.pop()
+                        }
+                    }
+                }
+
+                RegisterScreen(
+                    state = state,
+                    onFirstNameChange = viewModel::onFirstNameChange,
+                    onLastNameChange = viewModel::onLastNameChange,
+                    onEmailChange = viewModel::onEmailChange,
+                    onPasswordChange = viewModel::onPasswordChange,
+                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                    onTermsChange = viewModel::onTermsChange,
+                    onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
+                    onSubmit = viewModel::submit,
+                    onSignIn = viewModel::onSignIn,
+                    googleEnabled = false,
+                    appleEnabled = false,
+                )
+            }
+
+            is AppRoute.VerifyEmail -> {
+                // Keyed on the address: arriving here for a different sign-up must not reuse
+                // the previous one's ViewModel, which holds the address in its constructor.
+                val viewModel = viewModel(key = "verify-${route.email}") {
+                    VerifyEmailViewModel(repo, route.email)
+                }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            VerifyEmailEvent.NavigateToRegister -> nav.pop()
+                            VerifyEmailEvent.NavigateToSignIn -> nav.resetTo(AppRoute.Login)
+                        }
+                    }
+                }
+
+                VerifyEmailScreen(
+                    state = state,
+                    onResend = viewModel::resend,
+                    onChangeEmail = viewModel::onChangeEmail,
+                    onSignOut = viewModel::onSignOut,
+                )
+            }
+
+            AppRoute.ForgotPassword -> {
+                val viewModel = viewModel { ForgotPasswordViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            ForgotPasswordEvent.NavigateToSignIn -> nav.pop()
+                        }
+                    }
+                }
+
+                ForgotPasswordScreen(
+                    state = state,
+                    onEmailChange = viewModel::onEmailChange,
+                    onSubmit = viewModel::submit,
+                    onSignIn = viewModel::onSignIn,
+                )
+            }
+
+            AppRoute.ResetPassword -> {
+                val viewModel = viewModel { ResetPasswordViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // The recovery session is a real one, so saving a password
+                            // leaves an authenticated session and sessionStatus routes it.
+                            ResetPasswordEvent.NavigateToDashboard -> Unit
+                            ResetPasswordEvent.NavigateToSignIn -> nav.resetTo(AppRoute.Login)
+                        }
+                    }
+                }
+
+                ResetPasswordScreen(
+                    state = state,
+                    onPasswordChange = viewModel::onPasswordChange,
+                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                    onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
+                    onSubmit = viewModel::submit,
+                    onSignIn = viewModel::onSignIn,
+                )
+            }
+
+            // Screens 2.1.6 and 2.1.7 have their routes and their shared rules
+            // (MfaValidation) but not yet their Compose screens. Rendering the splash rather
+            // than nothing keeps an accidental navigation from showing a blank frame.
             AppRoute.MfaSetup,
             AppRoute.MfaChallenge,
             -> {

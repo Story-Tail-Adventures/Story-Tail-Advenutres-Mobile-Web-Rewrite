@@ -35,7 +35,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -43,7 +45,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.storytail.adventures.domain.validation.PasswordStrength
 import com.storytail.adventures.ui.theme.PillShape
+import com.storytail.adventures.ui.theme.LocalStoryTailExtended
 import com.storytail.adventures.ui.theme.StoryTailBrand
 
 /** Pattern A mobile: 56dp minimum, which exceeds the 48dp accessibility floor. */
@@ -61,6 +65,7 @@ val AuthTapTarget = 56.dp
 fun AuthScaffold(
     modifier: Modifier = Modifier,
     showWordmark: Boolean = true,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.background) {
@@ -68,17 +73,88 @@ fun AuthScaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .safeContentPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+                .imePadding(),
         ) {
-            if (showWordmark) {
-                BrandWordmark(size = 32.dp)
-                Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (showWordmark) {
+                    BrandWordmark(size = 32.dp)
+                    Spacer(Modifier.height(8.dp))
+                }
+                content()
             }
+
+            if (footer != null) StickyFooter(content = footer)
+        }
+    }
+}
+
+/**
+ * `MStickyBottom` from the prototype: the CTA pinned below the scrolling form.
+ *
+ * Outside the scroll, so a long form cannot push the primary action off the bottom of a
+ * short phone — Pattern A's "primary CTA reachable above the keyboard" for the screens
+ * where the content is genuinely taller than the viewport. Screens whose content fits pass
+ * no footer and keep the CTA inline, which is what the shorter artboards draw.
+ */
+@Composable
+private fun StickyFooter(content: @Composable ColumnScope.() -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+                .padding(top = 12.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             content()
         }
+    }
+}
+
+/**
+ * The strength bar under a new password, and the line that says what is still missing.
+ *
+ * The bar is not decoration: [PasswordStrength.message] names the rules that are unmet
+ * rather than scoring the password out of five, so somebody stuck knows what to change.
+ * Empty for an empty field — nobody has failed at anything before they have typed.
+ */
+@Composable
+fun PasswordStrengthMeter(password: String, modifier: Modifier = Modifier) {
+    if (password.isEmpty()) return
+
+    val result = PasswordStrength.of(password)
+    val total = PasswordStrength.RULE_COUNT
+    val tone =
+        if (result.meets) LocalStoryTailExtended.current.success
+        else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(total) { index ->
+                Surface(
+                    color =
+                        if (index < result.score) tone
+                        else MaterialTheme.colorScheme.outlineVariant,
+                    shape = MaterialTheme.shapes.extraSmall,
+                    modifier = Modifier.weight(1f).height(4.dp),
+                ) {}
+            }
+        }
+        Text(
+            text = PasswordStrength.message(password),
+            style = MaterialTheme.typography.bodySmall,
+            color = tone,
+            // Announced as it changes. Without this a screen-reader user typing a password
+            // never hears what is still missing — they would have to navigate back to a
+            // line that is only there to tell them.
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
 }
 

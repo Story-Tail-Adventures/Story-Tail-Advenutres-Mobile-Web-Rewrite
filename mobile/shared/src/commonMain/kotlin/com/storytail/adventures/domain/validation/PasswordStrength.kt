@@ -42,6 +42,9 @@ object PasswordStrength {
         val meets: Boolean get() = missing.isEmpty()
     }
 
+    /** How many rules there are, for a meter that draws one segment each. */
+    val RULE_COUNT: Int get() = RULES.size
+
     fun of(value: String): Result {
         val missing = RULES.filterNot { (_, met) -> met(value) }.map { it.first }
         return Result(score = RULES.size - missing.size, missing = missing)

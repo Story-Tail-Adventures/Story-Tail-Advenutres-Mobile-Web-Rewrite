@@ -148,3 +148,44 @@ kotlin.sourceSets.commonMain {
 
 tasks.matching { it.name.startsWith("compile") }
     .configureEach { dependsOn(generateSupabaseConfig) }
+
+/**
+ * Delete the conflict copies a file-sync service leaves inside `build/`.
+ *
+ * This project lives in a synced folder, and the sync client periodically writes a second
+ * copy of a file it thinks has diverged — `AppKt 2.class` beside `AppKt.class`. Inside
+ * `runtime_library_classes_dir` that is two definitions of one class, and D8 fails the whole
+ * build with an opaque "Error while dexing" that names nothing. It has cost an afternoon
+ * more than once; see the gotchas list in CLAUDE.md.
+ *
+ * The real fix is excluding `build/` from the sync client, which is a machine setting rather
+ * than a repo one. This makes the build survive it in the meantime: it only ever removes
+ * files under our own build directory whose names end in " <digit>.class", which nothing in
+ * a Kotlin or Java toolchain ever produces.
+ *
+ * WHAT IT DOES NOT COVER. It runs when the bundle task runs. Copies that appeared while the
+ * task was up-to-date are still sitting there on the next build, so a first run can still
+ * fail with the dexing error and succeed on a retry. Catching those too would mean pruning
+ * before the artifact transform, which is not a hook Gradle offers — `./gradlew clean`
+ * remains the escape hatch, and the sync exclusion remains the actual answer.
+ */
+val pruneSyncConflictCopies by tasks.registering {
+    val classesDir = layout.buildDirectory.dir("intermediates/runtime_library_classes_dir")
+    doLast {
+        val root = classesDir.get().asFile
+        if (!root.exists()) return@doLast
+        val conflicts = root.walkTopDown()
+            .filter { it.isFile && it.name.matches(Regex(""".* \d+\.class$""")) }
+            .toList()
+        conflicts.forEach { it.delete() }
+        if (conflicts.isNotEmpty()) {
+            logger.lifecycle(
+                "Removed ${conflicts.size} file-sync conflict copies from build/ " +
+                    "— exclude build/ from your sync client to stop them appearing.",
+            )
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("bundleLibRuntimeToDir") }
+    .configureEach { finalizedBy(pruneSyncConflictCopies) }
