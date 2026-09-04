@@ -63,9 +63,47 @@ export const WIZARD_TOTAL = WIZARD_STEPS.length;
 /** The rail heading above the step list (design: `OnboardingShell`). */
 export const WIZARD_RAIL_HEADING = "WELCOME ABOARD";
 
+/**
+ * The label on every step's Back affordance.
+ *
+ * Chrome copy rather than screen copy: it belongs to the wizard, not to whichever step you
+ * happen to be standing on, and six copies of the word "Back" is six chances to disagree.
+ */
+export const WIZARD_BACK_LABEL = "Back";
+
+/**
+ * Where a cursor slug sits in the wizard.
+ *
+ * Every step needs this number twice — the page hands it to the shell, and the form hands
+ * it to `previousRoute` — and the two must never disagree. It is derived rather than
+ * written down in each screen, and it lives HERE rather than being exported from the
+ * screen's own form component: a `"use client"` module's exports reach a server component
+ * as client references, so a number exported from one arrives as an object and the shell
+ * indexes past the end of the list. That failure is a 500 on the step, not a type error.
+ */
+export function wizardStepIndex(slug: string): number {
+  const index = WIZARD_STEPS.findIndex((step) => step.slug === slug);
+  if (index < 0) throw new Error(`Unknown onboarding step: ${slug}`);
+  return index;
+}
+
+/**
+ * The step before this one, or null on the cover page.
+ *
+ * Pattern G (§4.3) asks for a route back to a completed step. Going back is NAVIGATION and
+ * never moves the cursor: rewinding it would mean an abandoned wizard resumed at a step the
+ * traveler had already worked past.
+ */
+export function previousRoute(stepIndex: number): string | undefined {
+  return stepIndex > 0 ? WIZARD_STEPS[stepIndex - 1].route : undefined;
+}
+
 /** Where a cursor value belongs, for the route gate. Excludes the null-slug cover page. */
 export const WIZARD_ROUTE_BY_SLUG: Record<string, string> = Object.fromEntries(
-  WIZARD_STEPS.filter((step) => step.slug !== null).map((step) => [step.slug, step.route]),
+  WIZARD_STEPS.filter((step) => step.slug !== null).map((step) => [
+    step.slug,
+    step.route,
+  ]),
 );
 
 /**

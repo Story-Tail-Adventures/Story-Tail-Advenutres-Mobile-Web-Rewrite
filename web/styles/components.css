@@ -94,6 +94,31 @@
     color: var(--md-on-secondary-container);
     border-color: transparent;
   }
+  /*
+   * A chip that is really a checkbox or a radio (Screen 2.1.11). The control itself is
+   * visually hidden inside the label, so the chip keeps the prototype's look while staying
+   * focusable, announced, and operable by keyboard — the prototype draws `<span>`s, which
+   * are none of those things.
+   *
+   * `:has()` rather than a React-computed class so an uncontrolled group styles itself.
+   */
+  .chip-filter:has(input:checked) {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+    border-color: transparent;
+  }
+  .chip-filter:has(input:focus-visible) {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+  }
+  .chip-filter:has(input:disabled) { opacity: 0.6; cursor: not-allowed; }
+  .chip-filter:has(input:enabled) { cursor: pointer; }
+  /* Wraps rather than scrolls. Screen-Inventory §4.4 calls these "scrollable chip groups",
+     but a horizontal scroller hides options on a screen whose instruction is "tag what's
+     true" — the Inventory outranks the prototype, and this outranks the Inventory's own
+     mechanism because the mechanism defeats the purpose. */
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+
   .chip-status {
     font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
     font-size: 10.5px; height: 22px; padding: 0 9px; border: 0;

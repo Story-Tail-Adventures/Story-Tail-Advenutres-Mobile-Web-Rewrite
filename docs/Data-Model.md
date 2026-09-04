@@ -598,15 +598,32 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `id` | `uuid` | No | Public | — |
 | `client_id` | `uuid` | No | Public | FK → Client (1:1 in practice) |
 | `preferred_destinations` | `text[]` | No | PII | — |
-| `travel_styles` | `text[]` | No | PII | E.g., `resort`, `cruise`, `adventure`, `family`, `romantic`, `group` |
-| `dietary_restrictions` | `text[]` | No | Sensitive PII | Allergies fall under health-adjacent PII |
-| `accessibility_needs` | `text[]` | No | Sensitive PII | Same reasoning |
+| `travel_styles` | `text[]` | No | PII | Closed vocabulary, CHECK-enforced: `resort`, `cruise`, `adventure`, `family`, `romantic`, `group` |
+| `dietary_restrictions` | `text[]` | No | Sensitive PII | Closed vocabulary, CHECK-enforced: `none`, `vegetarian`, `pescatarian`, `gluten_free`, `halal`. Allergies fall under health-adjacent PII |
+| `dietary_notes` | `text` | Yes | Sensitive PII | Free text — the allergy or condition the chips cannot say |
+| `accessibility_needs` | `text[]` | No | Sensitive PII | Closed vocabulary, CHECK-enforced: `none`, `mobility`, `quiet_room`, `service_animal`. Same reasoning |
+| `accessibility_notes` | `text` | Yes | Sensitive PII | Free text — the arrangement the chips cannot say |
 | `loyalty_programs` | `jsonb` | No | PII | Array of `{program, number, tier}` |
-| `budget_band` | `text` | Yes | PII | `budget`, `mid`, `premium`, `luxury` |
+| `budget_band` | `text` | Yes | PII | CHECK-enforced: `budget`, `mid`, `premium`, `luxury` |
 | `favorite_past_trips` | `text` | Yes | PII | Free text — what the client loved |
 | `updated_at` | `timestamptz` | No | Public | — |
 
 **Indexes:** unique on `(client_id)`.
+
+**Why the three slug arrays are closed and the notes are separate.** Added September 2026
+with Screen 2.1.11. `travel_styles`, `dietary_restrictions` and `accessibility_needs` are
+what agent-side filtering (Screen Inventory §3.9.x) will eventually group on, so a
+CHECK keeps them groupable — the alternative is every future consumer defending against
+prose that arrived through a free-text box. But five chips cannot say "severe tree nut
+allergy" or "CPAP, needs an outlet by the bed", and those sentences are the ones an advisor
+relays to a resort. So they get their own columns rather than being appended into the
+arrays, where they would be indistinguishable from a slug.
+
+**Why `none` is stored rather than an empty array.** All three arrays are `NOT NULL DEFAULT
+'{}'`, so an empty array already means "the row exists and this question was left blank".
+An agent needs to tell that apart from "confirmed: nothing to worry about" — one of those
+means call the resort and the other means do not. `none` is mutually exclusive with every
+other member of its array, enforced in the Edge Function.
 
 ### 6.3 Companion
 
@@ -628,8 +645,21 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `linked_client_id` | `uuid` | Yes | Public | If they have their own Client record |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+| `archived_at` | `timestamptz` | Yes | Public | Soft delete, per §20.1 |
 
 **Indexes:** index on `(client_id)`.
+
+**Constraint:** at most 12 unarchived companions per client, enforced by a trigger. The cap
+is a guard rail on a self-service form, not a business rule — a household larger than that
+is added by the agent.
+
+**Why `archived_at` arrived late.** §20.1 has always listed `companion` in the soft-delete
+set and the initial migration did not give it the column, so Screen 2.1.12's "Remove" had
+nothing to write and would have had to delete the row outright. Two reasons that is wrong
+beyond the doc saying so: `travel_document.companion_id` references this table with no
+`ON DELETE` clause, so a hard delete starts throwing a foreign-key violation the moment the
+passport-scan flow links a document to a companion; and a traveler tidying their household
+list has not asked for the trip records that mention those people to lose their subject.
 
 ### 6.4 TravelDocument
 

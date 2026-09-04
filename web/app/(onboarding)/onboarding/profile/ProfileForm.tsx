@@ -10,6 +10,11 @@ import {
   DEFAULT_COUNTRY,
   usesUsAddressLabels,
 } from "@/lib/countries";
+import {
+  WIZARD_BACK_LABEL,
+  previousRoute,
+  wizardStepIndex,
+} from "@/lib/onboarding/steps";
 import { PROFILE_LIMITS, isRealDate, todayIso } from "@/lib/validation/profile";
 import { saveProfileAction, skipProfileAction } from "./actions";
 import {
@@ -35,6 +40,7 @@ import {
  * which set each input is in.
  */
 
+const STEP_INDEX = wizardStepIndex("profile");
 const FORM_ID = "profile-form";
 const RELATIONSHIP_LIST_ID = "relationship-suggestions";
 
@@ -283,6 +289,8 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormValues }) {
         secondaryA11yLabel={PROFILE_TEXT.secondaryCtaA11y}
         secondaryPendingLabel={PROFILE_TEXT.secondaryPending}
         skipAction={skipProfileAction}
+        backHref={previousRoute(STEP_INDEX)}
+        backLabel={WIZARD_BACK_LABEL}
       />
     </>
   );

@@ -245,6 +245,43 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.11 Travel Preferences Capture Screen
 **Purpose:** Learn how the client likes to travel so the agent can serve them better.
 **Primary elements:** Preferred destinations (tag picker); travel styles (resort, cruise, adventure, romantic, family, group); dietary restrictions; accessibility needs; frequent flyer / loyalty program memberships; budget comfort range; favorite past trips (free text); "Save" CTA.
+
+> Built September 2026. Four things the prototype could not express, all now in
+> `docs/Data-Model.md` §6.2 and the migration `20260904124903_travel_preference_vocabulary`.
+>
+> **The budget slider is four bands.** The artboards show a dual-thumb range from $1k to
+> $10k+; `travel_preference.budget_band` is one nullable `text` whose domain is
+> {budget, mid, premium, luxury}. Two thumbs is two numbers, and storing them would mean
+> three new columns (min cents, max cents, currency — CLAUDE.md rule 5) to capture a figure
+> the client is guessing at. The four bands also match `lead.budget_band`, so a Phase 2 lead
+> converts without translation. **The dollar figures behind the four labels are display copy,
+> not data** — only the slug is stored, so they can be re-cut when Gyasi says where his trips
+> actually sit. They were read off the prototype's demo slider and nobody has ratified them.
+>
+> **"Honeymoon" the label stores `romantic` the value.** Both this section and the Data
+> Model name the value `romantic`; only the prototype says Honeymoon, and Honeymoon is the
+> better label because it is what a person calls their trip. Flagged because the mapping is
+> invisible in both artboards and a straight transcription produces a value nothing else in
+> the system recognises — one the CHECK constraint now refuses outright.
+>
+> **The three slug arrays are closed and the free text has its own columns.** The prototype
+> offers five diet chips and four accessibility chips, and neither set can say "severe tree
+> nut allergy" or "CPAP, needs an outlet by the bed" — which are the sentences an advisor
+> forwards to a resort. Rather than appending prose into arrays that agent-side filtering
+> (§3.9.x) will group on, `dietary_notes` and `accessibility_notes` were added. `none` is
+> stored explicitly and is mutually exclusive with a real answer: an empty array already
+> means "never asked", and telling a kitchen "nothing to worry about" is a different fact.
+>
+> **The single loyalty text input is a two-column repeater.** The column holds
+> `{program, number, tier}` objects; splitting `"Marriott Bonvoy 123"` on the last space
+> credits somebody's miles to a program called Marriott.
+>
+> Two smaller notes. The chip groups **wrap rather than scroll** — §4.4 used to call them
+> "scrollable chip groups" on mobile, and a horizontal scroller hides options on a screen
+> whose instruction is "tag what's true"; that line is corrected. And every step now carries
+> a **Back** affordance with completed rail steps as real links, which §4.3 requires of
+> Pattern G and neither artboard drew.
+
 **Key actions:** Tag preferences; save.
 **Entry points:** Onboarding; account settings.
 **Related screens:** Dashboard, Travel Preferences Edit.
@@ -252,7 +289,36 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.12 Travel Companions / Household Setup Screen
 **Purpose:** Identify recurring travel companions so future trips can pre-populate travelers.
 **Primary elements:** "Add traveler" form (name, relationship, date of birth, passport info if applicable); list of added companions; option to invite them to the platform (optional).
-**Key actions:** Add companion; edit companion; remove companion; invite to platform.
+
+> Built September 2026, with the invite deferred and the passport number dropped.
+>
+> **"Invite them to the platform" cannot be honoured yet, and is deferred to P3.** Sending
+> one needs four things the schema does not have or does not permit: an email address for
+> the companion (`companion` has no email or phone column at all), a `client` row for them
+> (`client_invite.client_id` is NOT NULL and FKs to `client`), an `agent_id` on that row
+> (also NOT NULL — so a client-initiated invite would silently write a new record into an
+> agent's book of business), and an issuing user (`client_invite.issued_by_user_id`, which
+> is meant to be the agent). A traveler can legitimately supply none of them. Setting
+> `is_invited_to_platform` without the workflow behind it only puts a lie in the database,
+> so the control is not built; it returns with agent-side invite issuance.
+>
+> **No passport number, for two reasons rather than one.** The first is 2.1.10's: no column
+> encryption yet. The second is specific to this screen and would survive the first being
+> fixed — the onboarding migration re-granted `authenticated` every column of `companion`
+> EXCEPT `passport_number_encrypted`, and Postgres checks column privilege on ANY reference,
+> so the client surface cannot even ask whether a number is on file. A field that can be
+> written and never read back, on a record kept for somebody else, is worse than no field.
+> Expiry and issuing country are collected and are what drive the renewal warning.
+>
+> **The card subtitle shows an expiry, never a number.** The prototype prints
+> "Passport B987654321 · 02/2031". Beyond the grant above, Data-Model §18.3 requires an
+> `audit_event` for every decryption of that column — which makes rendering one per
+> companion on every page load plainly wrong even once the crypto exists.
+>
+> **Editing a companion is a full replace, not a patch**, unlike 2.1.10's profile write: the
+> form shows every field at once, so a field left empty means the traveler cleared it.
+
+**Key actions:** Add companion; edit companion; remove companion.
 **Entry points:** Onboarding (optional); account settings; trip creation flow.
 **Related screens:** Dashboard, Personal Info Edit.
 
@@ -1520,7 +1586,7 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.1.8 Social Login / Linking** — Pattern J (modal-like).
 - **2.1.9 Welcome / First Login** — Pattern G. Mobile is full-screen carousel; tablet/web shows multiple cards at once.
 - **2.1.10 Profile Completion** — Pattern G.
-- **2.1.11 Travel Preferences Capture** — Pattern G. Tag pickers are scrollable chip groups on mobile, multi-column grids on tablet/web.
+- **2.1.11 Travel Preferences Capture** — Pattern G. Tag pickers WRAP on every width rather than scrolling horizontally on mobile (resolved September 2026): the screen's instruction is "tag what's true", and a scroller hides the options that instruction depends on people seeing. Each chip is a real `<input type="checkbox">` — a `<span>` is not focusable, not announced and not operable by keyboard.
 - **2.1.12 Travel Companions / Household** — Pattern G.
 - **2.1.13 Connect with Agent / Invite Code** — Pattern A.
 - **2.1.14 Onboarding Complete** — Pattern G (final step). Recommended-actions cards stack on mobile, 2x2 grid on tablet, horizontal row on web.

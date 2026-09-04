@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -14,6 +15,9 @@ import { Spinner } from "@/components/ui/Spinner";
  * long the form gets. `flex-row-reverse` at `md` is what puts the primary — first in the
  * DOM, so first in the tab order and first for a screen reader — on the right.
  *
+ * Back is a link, not an action: going back is navigation, and moving the wizard cursor
+ * backwards would mean an abandoned wizard resumed at the step somebody had already left.
+ *
  * TWO ACTIONS, TWO FORMS, and the reason is honesty about pending state. `useFormStatus`
  * reports on the nearest ancestor form, so one form holding both buttons would show
  * "Saving your details…" under a button that is skipping the step. So the skip gets its own
@@ -27,6 +31,12 @@ export interface OnboardingActionsProps {
   formId: string;
   /** From `useActionState`, so the label is right for THIS action and not the other one. */
   saving: boolean;
+  /**
+   * Held back for a reason that is not a save in flight — 2.1.12 uses it while a traveler's
+   * form is open, because leaving the step then would throw away what is in it. Separate
+   * from `saving` so the button stays readable rather than claiming to be saving.
+   */
+  disabled?: boolean;
   primaryLabel: string;
   pendingLabel: string;
   secondaryLabel: string;
@@ -38,17 +48,28 @@ export interface OnboardingActionsProps {
    * redirects. Omitted on a step with nothing to skip.
    */
   skipAction?: (formData: FormData) => void | Promise<void>;
+  /**
+   * Where "Back" goes, or nothing on the first step.
+   *
+   * Pattern G (§4.3) asks for Back and Next persistent at the bottom on mobile. Neither
+   * artboard drew it.
+   */
+  backHref?: string;
+  backLabel: string;
 }
 
 export function OnboardingActions({
   formId,
   saving,
+  disabled = false,
   primaryLabel,
   pendingLabel,
   secondaryLabel,
   secondaryA11yLabel,
   secondaryPendingLabel,
   skipAction,
+  backHref,
+  backLabel,
 }: OnboardingActionsProps) {
   return (
     <div
@@ -66,7 +87,7 @@ export function OnboardingActions({
         form={formId}
         variant="filled"
         size="lg"
-        disabled={saving}
+        disabled={saving || disabled}
         fullWidth
         className="md:w-auto"
       >
@@ -83,18 +104,42 @@ export function OnboardingActions({
         )}
       </Button>
 
-      {skipAction && (
-        // `contents` so the form itself lays nothing out and the button is a direct flex
-        // child of the bar, exactly as it would be without the wrapper.
-        <form action={skipAction} className="contents">
-          <SkipButton
-            label={secondaryLabel}
-            pendingLabel={secondaryPendingLabel}
-            a11yLabel={secondaryA11yLabel}
-            disabled={saving}
-          />
-        </form>
-      )}
+      <div className="flex items-center justify-between gap-2.5">
+        {backHref ? (
+          // Inert while a save is in flight, matching the other two controls. A `<Link>`
+          // has no `disabled`, so leaving as it stands would make Back the one way to
+          // navigate away mid-submit — the surprising exception rather than the rule.
+          <Link
+            href={backHref}
+            className={
+              saving || disabled
+                ? "btn btn-text pointer-events-none opacity-60"
+                : "btn btn-text"
+            }
+            aria-disabled={saving || disabled || undefined}
+            tabIndex={saving || disabled ? -1 : undefined}
+          >
+            <Icon name="arrow_left" size={14} />
+            {backLabel}
+          </Link>
+        ) : (
+          // Holds the row's left edge so the skip stays on the right of it either way.
+          <span />
+        )}
+
+        {skipAction && (
+          // `contents` so the form lays nothing out and the button is a direct child of
+          // this row, exactly as it would be without the wrapper.
+          <form action={skipAction} className="contents">
+            <SkipButton
+              label={secondaryLabel}
+              pendingLabel={secondaryPendingLabel}
+              a11yLabel={secondaryA11yLabel}
+              disabled={saving || disabled}
+            />
+          </form>
+        )}
+      </div>
     </div>
   );
 }
@@ -116,8 +161,6 @@ function SkipButton({
       type="submit"
       variant="text"
       disabled={pending || disabled}
-      fullWidth
-      className="md:w-auto"
       aria-label={a11yLabel}
     >
       {pending ? (

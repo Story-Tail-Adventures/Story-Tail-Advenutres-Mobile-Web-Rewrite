@@ -9,6 +9,7 @@ import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { wizardStepIndex } from "@/lib/onboarding/steps";
 import { ProfileForm } from "./ProfileForm";
 import { PROFILE_TEXT, type ProfileFormValues } from "./state";
 
@@ -18,12 +19,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** 0-based index into `WIZARD_STEPS`; 2.1.9 Welcome is 0. */
-const STEP_INDEX = 1;
+const STEP_INDEX = wizardStepIndex("profile");
 
 export default async function ProfilePage() {
   return (
-    <OnboardingShell stepIndex={STEP_INDEX} title={PROFILE_TEXT.title} sub={PROFILE_TEXT.sub}>
+    <OnboardingShell
+      stepIndex={STEP_INDEX}
+      title={PROFILE_TEXT.title}
+      sub={PROFILE_TEXT.sub}
+    >
       <ProfileForm defaults={await currentProfile()} />
     </OnboardingShell>
   );
@@ -121,7 +125,10 @@ async function currentProfile(): Promise<ProfileFormValues> {
  * The same shape `onboardingStatus` uses for the same reason.
  */
 function warn(table: string, error: { code?: string }): void {
-  console.warn("[onboarding] profile prefill read failed", { table, code: error.code });
+  console.warn("[onboarding] profile prefill read failed", {
+    table,
+    code: error.code,
+  });
 }
 
 /**
@@ -130,13 +137,23 @@ function warn(table: string, error: { code?: string }): void {
  * `{name, phone, relationship}` and the Edge Function builds exactly that, but a column
  * with no constraint is a column that will eventually hold something else.
  */
-function readEmergencyContact(
-  value: unknown,
-): { name: string; phone: string; relationship: string } {
+function readEmergencyContact(value: unknown): {
+  name: string;
+  phone: string;
+  relationship: string;
+} {
   const empty = { name: "", phone: "", relationship: "" };
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return empty;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return empty;
 
+  // Sound because of the guard above: this narrows `Json` to the object shape `str` then
+  // checks key by key.
   const contact = value as Record<string, unknown>;
-  const str = (key: string) => (typeof contact[key] === "string" ? contact[key] : "");
-  return { name: str("name"), phone: str("phone"), relationship: str("relationship") };
+  const str = (key: string) =>
+    typeof contact[key] === "string" ? contact[key] : "";
+  return {
+    name: str("name"),
+    phone: str("phone"),
+    relationship: str("relationship"),
+  };
 }

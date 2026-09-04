@@ -888,6 +888,7 @@ export type Database = {
       }
       companion: {
         Row: {
+          archived_at: string | null
           client_id: string
           created_at: string
           date_of_birth: string | null
@@ -904,6 +905,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           client_id: string
           created_at?: string
           date_of_birth?: string | null
@@ -920,6 +922,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           client_id?: string
           created_at?: string
           date_of_birth?: string | null
@@ -1809,8 +1812,10 @@ export type Database = {
       travel_preference: {
         Row: {
           accessibility_needs: string[]
+          accessibility_notes: string | null
           budget_band: string | null
           client_id: string
+          dietary_notes: string | null
           dietary_restrictions: string[]
           favorite_past_trips: string | null
           id: string
@@ -1821,8 +1826,10 @@ export type Database = {
         }
         Insert: {
           accessibility_needs?: string[]
+          accessibility_notes?: string | null
           budget_band?: string | null
           client_id: string
+          dietary_notes?: string | null
           dietary_restrictions?: string[]
           favorite_past_trips?: string | null
           id: string
@@ -1833,8 +1840,10 @@ export type Database = {
         }
         Update: {
           accessibility_needs?: string[]
+          accessibility_notes?: string | null
           budget_band?: string | null
           client_id?: string
+          dietary_notes?: string | null
           dietary_restrictions?: string[]
           favorite_past_trips?: string | null
           id?: string

@@ -1,7 +1,13 @@
+import Link from "next/link";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
-import { WIZARD_RAIL_HEADING, WIZARD_STEPS, WIZARD_TOTAL, stepOverline } from "@/lib/onboarding/steps";
+import {
+  WIZARD_RAIL_HEADING,
+  WIZARD_STEPS,
+  WIZARD_TOTAL,
+  stepOverline,
+} from "@/lib/onboarding/steps";
 
 /**
  * The chrome every onboarding step wears — Screen Inventory §2.1.9–§2.1.14, Pattern G.
@@ -25,7 +31,12 @@ export interface OnboardingShellProps {
   children: React.ReactNode;
 }
 
-export function OnboardingShell({ stepIndex, title, sub, children }: OnboardingShellProps) {
+export function OnboardingShell({
+  stepIndex,
+  title,
+  sub,
+  children,
+}: OnboardingShellProps) {
   return (
     <div className="flex min-h-dvh flex-1 flex-col md:grid md:grid-cols-[280px_1fr]">
       <StepRail stepIndex={stepIndex} />
@@ -61,22 +72,29 @@ function StepRail({ stepIndex }: { stepIndex: number }) {
       <div className="mb-7">
         <BrandWordmark size={28} />
       </div>
-      <p className="t-label mb-3.5 text-on-surface-variant">{WIZARD_RAIL_HEADING}</p>
+      <p className="t-label mb-3.5 text-on-surface-variant">
+        {WIZARD_RAIL_HEADING}
+      </p>
 
       <ol className="m-0 list-none p-0">
         {WIZARD_STEPS.map((step, index) => {
           const done = index < stepIndex;
           const current = index === stepIndex;
-          return (
-            <li key={step.route} className="flex items-center gap-2.5 py-2">
+          const marker = (
+            <>
               <span
+                aria-hidden="true"
                 className={cn(
                   "t-label-s inline-flex size-5.5 shrink-0 items-center justify-center",
                   "rounded-full tracking-normal text-white",
                   done ? "bg-success" : current ? "bg-primary" : "bg-surface-3",
                 )}
               >
-                {done ? <Icon name="check" size={12} strokeWidth={2.5} /> : index + 1}
+                {done ? (
+                  <Icon name="check" size={12} strokeWidth={2.5} />
+                ) : (
+                  index + 1
+                )}
               </span>
               <span
                 className={cn(
@@ -85,13 +103,35 @@ function StepRail({ stepIndex }: { stepIndex: number }) {
                     ? "font-semibold text-on-surface"
                     : "font-medium text-on-surface-variant",
                 )}
-                // The rail is decoration for a screen reader — the heading and the overline
-                // already say which step this is, and reading six labels before every form
-                // is noise. Marked current for the sighted-cursor case all the same.
-                aria-current={current ? "step" : undefined}
               >
                 {step.railLabel}
               </span>
+            </>
+          );
+
+          return (
+            <li key={step.route}>
+              {done ? (
+                // Pattern G (§4.3): "user can jump back to completed steps". The prototype
+                // draws these as inert divs, which leaves somebody who mistyped their phone
+                // number on the previous step with no way back to it.
+                <Link
+                  href={step.route}
+                  className="flex items-center gap-2.5 rounded-sm py-2 hover:underline"
+                >
+                  {marker}
+                  <span className="sr-only">
+                    — completed, go back to this step
+                  </span>
+                </Link>
+              ) : (
+                <div
+                  className="flex items-center gap-2.5 py-2"
+                  aria-current={current ? "step" : undefined}
+                >
+                  {marker}
+                </div>
+              )}
             </li>
           );
         })}
