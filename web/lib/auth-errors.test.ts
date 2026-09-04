@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { AuthApiError, AuthError } from "@supabase/supabase-js";
-import { authErrorByKind, mapAuthError } from "./auth-errors";
+import {
+  authErrorByKind,
+  authErrorFromParam,
+  mapAuthError,
+} from "./auth-errors";
 
 /**
  * GoTrue error codes → Story-Tail's error taxonomy.
@@ -75,5 +79,43 @@ describe("mapAuthError — status fallbacks", () => {
 
   it("falls back to unknown for anything unrecognised", () => {
     expect(mapAuthError(new AuthApiError("x", 500, "unexpected_failure")).kind).toBe("unknown");
+  });
+});
+
+describe("authErrorFromParam — the `?error=` on the sign-in screen", () => {
+  it("maps a kind the OAuth start actually redirects with", () => {
+    // startOAuthAction redirects to `/login?error=unknown`. Before this existed the kind
+    // was written into the URL and thrown away, so a failed "Continue with Google" showed
+    // a bare form.
+    expect(authErrorFromParam("unknown")).toBe(authErrorByKind.unknown);
+  });
+
+  it("maps every kind in the table, so no redirect can produce a silent page", () => {
+    for (const kind of Object.keys(authErrorByKind)) {
+      expect(authErrorFromParam(kind)).toBeDefined();
+    }
+  });
+
+  it("returns nothing for a kind that is not in the table", () => {
+    // The value arrives through the address bar, so it is attacker-controlled. It is used
+    // as a KEY and never rendered: an unrecognised one has to produce no alert at all.
+    expect(authErrorFromParam("not_a_kind")).toBeUndefined();
+    expect(authErrorFromParam("<script>alert(1)</script>")).toBeUndefined();
+    expect(authErrorFromParam("Your account is suspended, call 555-0100")).toBeUndefined();
+  });
+
+  it("does not reach through the prototype chain", () => {
+    // `BY_KIND[value]` without a guard answers `toString`, `constructor` and `__proto__`
+    // with something truthy that is not a MappedAuthError, and FormError would then read
+    // `.message` off a function.
+    expect(authErrorFromParam("toString")).toBeUndefined();
+    expect(authErrorFromParam("constructor")).toBeUndefined();
+    expect(authErrorFromParam("__proto__")).toBeUndefined();
+    expect(authErrorFromParam("hasOwnProperty")).toBeUndefined();
+  });
+
+  it("treats an absent or empty value as no error", () => {
+    expect(authErrorFromParam(undefined)).toBeUndefined();
+    expect(authErrorFromParam("")).toBeUndefined();
   });
 });

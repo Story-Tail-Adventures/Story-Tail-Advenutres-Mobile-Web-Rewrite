@@ -148,3 +148,20 @@ export function mapAuthError(error: AuthError): MappedAuthError {
 }
 
 export const authErrorByKind = BY_KIND;
+
+/**
+ * Map an untrusted `?error=` value to a mapped error, or undefined.
+ *
+ * `startOAuthAction` redirects to `/login?error=<kind>` when the provider handshake never
+ * starts, so this value reaches us through the address bar and is attacker-controlled. It
+ * is used as a KEY into a closed table and never rendered: an unrecognised kind produces
+ * undefined and no alert, so there is no way to put chosen text on the sign-in screen.
+ */
+export function authErrorFromParam(
+  value: string | undefined,
+): MappedAuthError | undefined {
+  if (!value) return undefined;
+  return Object.hasOwn(BY_KIND, value)
+    ? BY_KIND[value as AuthErrorKind]
+    : undefined;
+}

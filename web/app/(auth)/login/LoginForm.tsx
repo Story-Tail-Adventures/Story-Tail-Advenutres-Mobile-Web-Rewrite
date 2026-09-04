@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import type { MappedAuthError } from "@/lib/auth-errors";
 import { FormError } from "@/components/auth/FormError";
 import { SocialButtons } from "@/components/auth/SocialButtons";
 import { SubmitButton } from "@/components/auth/SubmitButton";
@@ -14,14 +15,20 @@ export function LoginForm({
   next,
   googleEnabled,
   appleEnabled,
+  initialError,
 }: {
   next?: string;
   googleEnabled: boolean;
   appleEnabled: boolean;
+  /** From `?error=`, so a failed OAuth start says something. */
+  initialError?: MappedAuthError;
 }) {
+  // Seeded, not held separately: `useActionState` replaces the whole state on the first
+  // submit, so the URL error shows on arrival and a real submit error supersedes it.
+  // A second piece of state would leave both on screen at once.
   const [state, formAction, isPending] = useActionState(
     signInAction,
-    initialLoginState,
+    initialError ? { ...initialLoginState, formError: initialError } : initialLoginState,
   );
 
   const socialTitle = "Social sign-in isn't switched on yet — use your email below.";
