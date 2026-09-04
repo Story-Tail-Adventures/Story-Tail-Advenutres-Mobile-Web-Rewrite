@@ -1520,6 +1520,7 @@ export type Database = {
           id: string
           locale: string
           onboarding_completed_at: string | null
+          onboarding_step: string | null
           role: Database["public"]["Enums"]["user_role"]
           time_zone: string
           updated_at: string
@@ -1534,6 +1535,7 @@ export type Database = {
           id: string
           locale?: string
           onboarding_completed_at?: string | null
+          onboarding_step?: string | null
           role: Database["public"]["Enums"]["user_role"]
           time_zone?: string
           updated_at?: string
@@ -1548,6 +1550,7 @@ export type Database = {
           id?: string
           locale?: string
           onboarding_completed_at?: string | null
+          onboarding_step?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           time_zone?: string
           updated_at?: string
@@ -2106,6 +2109,7 @@ export type Database = {
           id: string
           locale: string
           onboarding_completed_at: string | null
+          onboarding_step: string | null
           role: Database["public"]["Enums"]["user_role"]
           time_zone: string
           updated_at: string

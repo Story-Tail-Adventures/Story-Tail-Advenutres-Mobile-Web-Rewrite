@@ -319,6 +319,7 @@ enum class AuthProvider { EMAIL, GOOGLE, APPLE }
 | `avatar_url` | `text` | Yes | Public | Stored at S3/R2 |
 | `time_zone` | `text` | No | Internal | IANA time zone (e.g., `America/Chicago`) |
 | `locale` | `text` | No | Internal | BCP-47 (e.g., `en-US`) |
+| `onboarding_step` | `text` | Yes | Internal | Which 2.1.x step the wizard is waiting on, e.g. `profile`. Null before it starts and after it finishes |
 | `onboarding_completed_at` | `timestamptz` | Yes | Internal | Null until the client finishes (or skips through) the 2.1.9–2.1.14 wizard |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
@@ -346,6 +347,7 @@ CREATE TABLE platform_user (
     avatar_url   text,
     time_zone    text NOT NULL DEFAULT 'America/Chicago',
     locale       text NOT NULL DEFAULT 'en-US',
+    onboarding_step         text,
     onboarding_completed_at timestamptz,
     created_at   timestamptz NOT NULL DEFAULT now(),
     updated_at   timestamptz NOT NULL DEFAULT now(),
@@ -362,6 +364,16 @@ CREATE UNIQUE INDEX platform_user_agent   ON platform_user(agent_id)  WHERE agen
 ```
 
 Table name is `platform_user` to avoid colliding with the Postgres reserved word `user`.
+
+`onboarding_step` is where the wizard resumes. Pattern G (Screen-Inventory §4.3) promises
+"the ability to save progress and resume later", and `onboarding_completed_at` alone cannot
+keep that promise — it says whether the wizard is done, not where it got to, so an
+abandoned wizard restarts from the welcome screen. It holds the slug of the step waiting to
+be filled in, is advanced as each step is saved, and is cleared when the wizard completes.
+
+It is stored rather than derived from the data because the two disagree in exactly the case
+that matters: somebody who deliberately skipped a step has no row to infer from, and a
+derived cursor would send them back to a screen they already declined.
 
 `onboarding_completed_at` is what routes a first sign-in to Screen 2.1.9 Welcome instead
 of the dashboard. It lives here rather than on Client because it describes the *account
@@ -384,6 +396,7 @@ data class User(
     val avatarUrl: String? = null,
     val timeZone: String,
     val locale: String,
+    val onboardingStep: String? = null,
     val onboardingCompletedAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant

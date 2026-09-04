@@ -254,7 +254,9 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 
 #### 2.1.14 Onboarding Complete / "You're All Set" Screen
 **Purpose:** Confirm onboarding is done and celebrate the moment, with a clear next-action map.
-**Primary elements:** Branded success illustration; checklist of what was set up (profile, preferences, companions, agent connection); recommended next actions ("View your upcoming trip", "Explore the search", "Message Gyasi"); option to fine-tune notification preferences before going to dashboard.
+**Primary elements:** Branded success illustration; checklist of what was set up (profile, preferences, companions, agent connection); recommended next actions ("View your upcoming trip", "Explore the search", "Message Gyasi").
+
+> Deferred, September 2026: "option to fine-tune notification preferences before going to dashboard". `notification_preference` has RLS enabled with no policy, no row is created for a user by any path, and Screen 2.5.6 that would manage it is unbuilt — so the control had nowhere to link. It returns to this screen when 2.5.6 ships, which also needs to give the table a row-creation path (its `user_id` is the primary key, so a screen with no row has nothing to read).
 **Key actions:** Continue to dashboard; tweak notifications; jump to a featured action.
 **Entry points:** Completion of Connect with Agent (or skipping it).
 **Related screens:** Dashboard, Notification Preferences, Search Landing, Trip Detail.
@@ -1720,7 +1722,9 @@ Every screen in this inventory must consider four states beyond the "happy path"
 
 **Empty state.** A friendly, branded illustration with a one-line explanation of why the screen is empty and a clear CTA to populate it ("You haven't authorized any cards yet — add one when an agent requests it" / "No trips yet — explore the search to find your next adventure").
 
-**Error state.** Plain-language description of what went wrong; never expose stack traces; retry CTA where applicable; "Message Gyasi" CTA as a fallback escalation path. Use the Tropical Orange brand color (#E85D2A) for inline error highlights, never red (Storybook Red #8B2020 is reserved for branding accents and confirmations).
+**Error state.** Plain-language description of what went wrong; never expose stack traces; retry CTA where applicable; "Message Gyasi" CTA as a fallback escalation path. Inline error color is `md.error` — see Design-System §4.1, which is authoritative for it.
+
+> Colour note, resolved September 2026. This section used to say "Tropical Orange (#E85D2A) for inline error highlights, never red (Storybook Red #8B2020)". Both hexes predate the current palette — the orange token is #E87722 and there is no #8B2020 — so the sentence was describing a palette the system no longer has. Screens 2.1.1–2.1.8 shipped with `md.error`, orange is the brand accent used for overlines and emphasis, and using one colour for both would remove the distinction. The Design System owns error colour; this section no longer contradicts it.
 
 **Permissions / unauthorized state.** When a client tries to access an agent screen, or vice versa, present a clear "You don't have access to this view" with the appropriate redirect.
 
