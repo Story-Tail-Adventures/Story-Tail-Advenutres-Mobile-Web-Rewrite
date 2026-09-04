@@ -23,6 +23,17 @@ export interface FieldProps
    * implementation of the label/aria-invalid/aria-describedby wiring.
    */
   meter?: React.ReactNode;
+  /**
+   * The id of a message OUTSIDE this field that also describes it — the group-level errors
+   * on 2.1.10, which belong to a `<fieldset>` rather than to any one input.
+   *
+   * It has to arrive as a prop. `aria-describedby` on a fieldset is NOT inherited by the
+   * controls inside it: assistive technology builds a control's description from its own
+   * attribute, and only the `<legend>` feeds into the controls' accessible NAME. So a
+   * group error attached only to the fieldset is never read out to somebody who tabs
+   * straight into the group.
+   */
+  describedBy?: string;
 }
 
 export function Field({
@@ -32,14 +43,16 @@ export function Field({
   error,
   hint,
   meter,
+  describedBy: groupDescribedBy,
   className,
   ...props
 }: FieldProps) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy =
-    [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") ||
-    undefined;
+    [error ? errorId : null, hint ? hintId : null, groupDescribedBy ?? null]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <div>

@@ -152,6 +152,60 @@ export function optionalDate(
   return value;
 }
 
+/**
+ * A phone number as E.164, or null.
+ *
+ * PARALLEL IMPLEMENTATION of `normalizePhone` in web/lib/validation/profile.ts. Deno cannot
+ * import from `web/` — CLAUDE.md makes the stack directories a hard boundary — and this
+ * endpoint is reachable without the form, so the rule cannot live only there. Data-Model
+ * §6.1 specifies E.164 and no column enforces it; without this, `+1 (305) 555-0184` and
+ * `3055550184` are two different values for one traveler's phone.
+ *
+ * The guess-at-+1 rule is the same P1 decision the form documents: a number that already
+ * carries a `+` is taken as given, a bare North American ten digits is assumed to be
+ * American because the practice is, and anything else is refused rather than mangled.
+ * If either side changes, change both.
+ */
+export function optionalPhone(
+  body: Record<string, unknown>,
+  key: string,
+  /** What to call the field in an error. Nested objects reuse the key `phone`. */
+  label: string = key,
+): string | null | undefined {
+  const value = optionalText(body, key);
+  if (value === undefined || value === null) return value;
+
+  const cleaned = value.replace(/[\s().-]/g, "");
+  if (!/^\+?\d+$/.test(cleaned)) {
+    throw badRequest(`${label} does not look like a phone number.`);
+  }
+
+  if (cleaned.startsWith("+")) {
+    const digits = cleaned.slice(1);
+    // E.164 caps the whole number at 15 digits; the shortest real one is seven.
+    if (digits.length < 7 || digits.length > 15) {
+      throw badRequest(`${label} does not look like a phone number.`);
+    }
+    return `+${digits}`;
+  }
+
+  // The +1 guess is CHECKED, not assumed: a NANP area code and exchange code both begin
+  // 2-9, so "1234567890" is ten digits that cannot ring anywhere and would be stored as a
+  // well-formed `+11234567890` nobody could tell from a real number.
+  const national =
+    cleaned.length === 11 && cleaned.startsWith("1") ? cleaned.slice(1) : cleaned;
+  if (national.length !== 10) {
+    throw badRequest(`${label} needs a country code unless it is a US number.`);
+  }
+  if (!NANP.test(national)) {
+    throw badRequest(`${label} does not look like a phone number.`);
+  }
+  return `+1${national}`;
+}
+
+/** Area code and exchange code, both of which begin 2-9 in the North American plan. */
+const NANP = /^[2-9]\d{2}[2-9]\d{6}$/;
+
 /** A two-letter ISO 3166-1 country code, uppercased, or null. */
 export function optionalCountry(
   body: Record<string, unknown>,

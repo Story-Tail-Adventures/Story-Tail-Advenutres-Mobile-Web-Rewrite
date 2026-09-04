@@ -32,6 +32,7 @@ import {
   onboardingDb,
   optionalCountry,
   optionalDate,
+  optionalPhone,
   optionalText,
   readJson,
   requireClientId,
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
     const body = await readJson(req);
     const db = onboardingDb();
 
-    const phone = optionalText(body, "phone");
+    const phone = optionalPhone(body, "phone");
     const dateOfBirth = optionalDate(body, "dateOfBirth");
     const emergency = parseEmergencyContact(body);
     const address = parseAddress(body);
@@ -130,7 +131,7 @@ function parseEmergencyContact(
 
   const contact = value as Record<string, unknown>;
   const name = optionalText(contact, "name") ?? null;
-  const phone = optionalText(contact, "phone") ?? null;
+  const phone = optionalPhone(contact, "phone", "The emergency contact's phone") ?? null;
   const relationship = optionalText(contact, "relationship") ?? null;
 
   if (name === null && phone === null && relationship === null) return null;

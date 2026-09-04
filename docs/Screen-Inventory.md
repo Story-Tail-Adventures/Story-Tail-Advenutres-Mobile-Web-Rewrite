@@ -227,6 +227,17 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.10 Profile Completion Screen
 **Purpose:** Capture core profile data needed for trip planning.
 **Primary elements:** Phone number; mailing address; date of birth; emergency contact (name, phone, relationship); passport info (number, expiry, country of issue — optional but encouraged); "Save & continue" CTA; "Skip for now" link.
+
+> Built September 2026, with two departures from the prototype worth recording.
+>
+> **The passport NUMBER is deferred; expiry and country of issue ship.** `travel_document.document_number_encrypted` is Sensitive PII that Data-Model §18.2 requires be encrypted under a backend-held DEK wrapped by a KMS key, with §18.3 auditing on every decryption. None of that is built — there is no crypto helper in `supabase/functions/_shared/` and no key management — and collecting a passport number in order to store it unprotected is worse than not collecting it. The expiry is what drives the renewal reminder, so it is the part travelers actually feel. The Edge Function refuses a `passport.number` key loudly rather than ignoring it. The field returns with the encryption pass.
+>
+> **The mailing address is six structured fields, not one line.** There is no free-text address column anywhere in the schema: `client.mailing_address_id` is a FK to `address`, whose `line1`, `city` and `country` are NOT NULL and whose country is `char(2)`. The prototype's single input would have to be parsed, and an address parser fails the first time somebody types an apartment number. Street, apt, city, region, postal code and country are collected and validated as a group — all three NOT NULL parts together, or none of them.
+>
+> **Today this screen is reachable only from the wizard.** The `(onboarding)` route group redirects anybody whose onboarding is finished to the dashboard, so the "account settings" entry point above belongs to **2.5.2 Personal Info Edit** — which is Pattern A where this is Pattern G, and is the right shape for editing. 2.5.2 should reuse `web/lib/validation/profile.ts` and the same Edge Function rather than growing a second set of rules.
+>
+> **Phone numbers are stored E.164** (Data-Model §6.1), normalised in both the form and the Edge Function. A number carrying a `+` is taken as given; a bare ten digits is assumed North American, and the field hint says so rather than assuming silently. A full libphonenumber dependency would need the third-party review CLAUDE.md requires.
+
 **Key actions:** Save profile data; skip step.
 **Entry points:** First-time onboarding; account settings.
 **Related screens:** Travel Preferences, Dashboard, Personal Info Edit.
@@ -257,7 +268,7 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Primary elements:** Branded success illustration; checklist of what was set up (profile, preferences, companions, agent connection); recommended next actions ("View your upcoming trip", "Explore the search", "Message Gyasi").
 
 > Deferred, September 2026: "option to fine-tune notification preferences before going to dashboard". `notification_preference` has RLS enabled with no policy, no row is created for a user by any path, and Screen 2.5.6 that would manage it is unbuilt — so the control had nowhere to link. It returns to this screen when 2.5.6 ships, which also needs to give the table a row-creation path (its `user_id` is the primary key, so a screen with no row has nothing to read).
-**Key actions:** Continue to dashboard; tweak notifications; jump to a featured action.
+**Key actions:** Continue to dashboard; jump to a featured action.
 **Entry points:** Completion of Connect with Agent (or skipping it).
 **Related screens:** Dashboard, Notification Preferences, Search Landing, Trip Detail.
 

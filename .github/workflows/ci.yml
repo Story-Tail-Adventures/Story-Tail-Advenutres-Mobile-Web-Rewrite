@@ -193,6 +193,21 @@ jobs:
           deno check --config supabase/functions/deno.json "${files[@]}"
           deno lint --config supabase/functions/deno.json supabase/functions/
 
+      # The _shared/ rules that are PARALLEL IMPLEMENTATIONS of a web/ rule — today the
+      # E.164 phone normalisation in _shared/onboarding.ts, whose twin is
+      # web/lib/validation/profile.ts. Deno cannot import from web/, so the only thing
+      # keeping the two honest is the same vectors asserted on both sides.
+      # --allow-env: _shared/cors.ts reads the allowed origin at module load.
+      - name: Test Edge Function helpers
+        run: |
+          shopt -s nullglob globstar
+          tests=(supabase/functions/**/*_test.ts)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "No Deno tests yet."
+            exit 0
+          fi
+          deno test --allow-env --config supabase/functions/deno.json supabase/functions/
+
       - name: Fail if generated DB types drifted from the migrations
         run: |
           npm ci

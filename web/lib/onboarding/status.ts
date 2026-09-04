@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { WIZARD_ROUTE_BY_SLUG, WIZARD_STEPS } from "./steps";
 
 /**
  * Where the signed-in traveler is in the onboarding wizard.
@@ -18,16 +19,16 @@ export interface OnboardingStatus {
   step: string | null;
 }
 
-/** The route each state belongs on. */
-export const ONBOARDING_ROUTE: Record<string, string> = {
-  profile: "/onboarding/profile",
-  preferences: "/onboarding/preferences",
-  companions: "/onboarding/companions",
-  connect: "/onboarding/connect",
-  complete: "/onboarding/complete",
-};
+/**
+ * The route each cursor value belongs on.
+ *
+ * Derived from [WIZARD_STEPS] rather than written out again: the rail, the progress bars
+ * and this gate all have to agree about the wizard's shape, and a second list is how they
+ * stop agreeing.
+ */
+export const ONBOARDING_ROUTE = WIZARD_ROUTE_BY_SLUG;
 
-export const WELCOME_ROUTE = "/welcome";
+export const WELCOME_ROUTE = WIZARD_STEPS[0].route;
 
 export async function onboardingStatus(): Promise<OnboardingStatus | null> {
   // Before `supabase start` has ever run there is nothing to ask. Returning null makes the

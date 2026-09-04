@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { emailSchema, newPasswordSchema } from "./auth";
+import { NO_CONTROL_CHARS } from "./text";
 
 /**
  * The rules shared by every screen that creates an account.
@@ -27,9 +28,6 @@ export const REGISTRATION_MESSAGES = {
 } as const;
 
 export const NAME_MAX = 80;
-
-/** Rejects C0/C1 control characters (newlines, NUL, escape) anywhere in a name. */
-const NO_CONTROL_CHARS = /^[^\p{Cc}]*$/u;
 
 export const nameSchema = z
   .string()

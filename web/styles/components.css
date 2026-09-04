@@ -140,6 +140,15 @@
   .input[aria-invalid="true"]:focus { outline-color: var(--md-error); }
   .input:disabled { opacity: 0.6; cursor: not-allowed; }
 
+  /* Not in the prototype, which has no <select> anywhere. Shares the .input box so the
+     two line up when they sit side by side; the native arrow is removed and replaced by a
+     token-coloured chevron the component overlays, because a background-image chevron
+     cannot follow currentColor into the dark scheme. */
+  select.input {
+    appearance: none;
+    padding-right: 34px;
+  }
+
   .field-label {
     font: 500 12px/1.3 var(--font-sans);
     color: var(--md-on-surface-variant);
