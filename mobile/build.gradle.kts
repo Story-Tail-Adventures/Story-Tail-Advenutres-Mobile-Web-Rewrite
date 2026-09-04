@@ -71,6 +71,10 @@ subprojects {
     // explicit source set is unaffected.
     val consumesBuildDir = listOf(
         "parse", "merge", "package", "dexBuilder", "bundleLibRuntimeToDir", "link", "process",
+        // `test` walks its own classes directory to discover cases, and writes the XML a
+        // human reads afterwards. A conflict copy there does not fail the run — it silently
+        // reports every suite twice, which is worse.
+        "test",
     )
     tasks.matching { task ->
         task.name != "pruneSyncConflictCopies" &&
