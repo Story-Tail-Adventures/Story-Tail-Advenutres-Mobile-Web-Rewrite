@@ -142,6 +142,17 @@
       color-mix(in srgb, var(--brand-burgundy) 55%, transparent) 60%,
       color-mix(in srgb, var(--brand-navy) 90%, transparent) 100%);
   }
+  /* Screen 2.1.9's hero band. C219 writes it as
+     `linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))` — which is exactly
+     --brand-burgundy at 40% into --brand-navy at 80%, so it goes through the tokens like
+     every other scrim rather than as two hex literals.
+     Not `.scrim-topic`: that one flips to a 115deg side-wash at md, which reads wrong on a
+     200px band, and its stops are a different mix. */
+  .scrim-welcome {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--brand-burgundy) 40%, transparent),
+      color-mix(in srgb, var(--brand-navy) 80%, transparent));
+  }
   .scrim-navy {
     background: linear-gradient(180deg,
       color-mix(in srgb, var(--brand-navy) 55%, transparent),

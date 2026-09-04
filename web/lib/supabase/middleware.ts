@@ -4,7 +4,17 @@ import type { Database } from "@/types/supabase";
 import { env } from "@/lib/env";
 
 /** Route groups that require a signed-in user. */
-const PROTECTED_PREFIXES = ["/dashboard", "/trips", "/account", "/agent", "/mfa"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/trips",
+  "/account",
+  "/agent",
+  "/mfa",
+  // The onboarding wizard, Screens 2.1.9-2.1.14. It reads and writes a traveler's own
+  // record, so it needs a session as much as the dashboard does.
+  "/welcome",
+  "/onboarding",
+];
 
 /**
  * Auth screens a signed-in user should be bounced away from (incl. the 2.0.6 gate).
