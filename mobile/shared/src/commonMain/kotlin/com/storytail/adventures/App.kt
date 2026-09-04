@@ -16,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.Assurance
 import com.storytail.adventures.api.AuthRepository
+import com.storytail.adventures.api.OnboardingRepository
+import com.storytail.adventures.api.OnboardingStatus
+import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
 import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
@@ -43,6 +46,8 @@ import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
 import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
+import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
+import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
 import com.storytail.adventures.ui.theme.StoryTailTheme
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
@@ -53,9 +58,16 @@ fun App() {
         // Built off the main thread — see SupabaseClientProvider.authRepository(). Null
         // until it is ready, which is what the Resolving route renders.
         var authRepository by remember { mutableStateOf<AuthRepository?>(null) }
+        var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
+            onboardingRepository = SupabaseClientProvider.onboardingRepository()
         }
+
+        // Today, as the date-only columns see it. Computed once per composition rather than
+        // per keystroke: the only thing it decides is whether a date of birth is in the past,
+        // and asking the clock on every character typed is work for no answer that changes.
+        val today = remember { todayIsoUtc() }
 
         val repo = authRepository
         if (repo == null) {
@@ -80,15 +92,19 @@ fun App() {
          * proves the round trip survived an app kill. Initializing has its own route so a
          * returning user does not see Login flash before the session resolves.
          */
-        LaunchedEffect(sessionStatus) {
+        LaunchedEffect(sessionStatus, onboardingRepository) {
             when (sessionStatus) {
                 is SessionStatus.Authenticated ->
                     // A password login is not the whole of signing in once a second factor
                     // exists. Same three-way gate the web proxy applies in
-                    // web/lib/supabase/middleware.ts.
+                    // web/lib/supabase/middleware.ts, and then the same onboarding gate the
+                    // (client) layout applies after it.
                     nav.resetTo(
-                        if (repo.assurance() == Assurance.REQUIRED) AppRoute.MfaChallenge
-                        else AppRoute.Dashboard,
+                        when {
+                            repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
+                            else -> onboardingRepository?.let { destinationFor(it.status()) }
+                                ?: AppRoute.Dashboard
+                        },
                     )
 
                 SessionStatus.Initializing -> nav.resetTo(AppRoute.Resolving)
@@ -133,6 +149,23 @@ fun App() {
                     // supabase/config.toml carries the [auth.external.*] blocks.
                     googleEnabled = false,
                     appleEnabled = false,
+                )
+            }
+
+            is AppRoute.Onboarding -> {
+                val onboarding = onboardingRepository
+                if (onboarding == null) {
+                    SplashScreen()
+                    return@StoryTailTheme
+                }
+                OnboardingRoute(
+                    step = route.step,
+                    onboarding = onboarding,
+                    today = today,
+                    onAdvance = { nav.resetTo(AppRoute.Onboarding(it)) },
+                    // Finishing stamps `onboarding_completed_at`, which is what stops the
+                    // gate routing every future sign-in back into the wizard.
+                    onFinished = { nav.resetTo(AppRoute.Dashboard) },
                 )
             }
 
@@ -297,6 +330,25 @@ fun App() {
             }
         }
     }
+}
+
+/**
+ * Where an authenticated traveler belongs.
+ *
+ * PURE, so the rule is assertable without a Supabase client — the same reason
+ * `onboardingRedirectFor` was split out of the web gate. Null status means the read failed
+ * or Supabase is unconfigured, and it FAILS OPEN: a bookkeeping query going wrong must not
+ * lock somebody out of their own dashboard.
+ *
+ * An agent has no wizard, and a finished one is not sent back into it — the step slug is
+ * cleared on completion, but the gate does not depend on that having happened.
+ */
+fun destinationFor(status: OnboardingStatus?): AppRoute = when {
+    status == null -> AppRoute.Dashboard
+    !status.isClient -> AppRoute.Dashboard
+    status.completed -> AppRoute.Dashboard
+    // Started but unfinished: resume where they stopped. Never started: the cover page.
+    else -> AppRoute.Onboarding(WizardStep.ofSlug(status.step) ?: WizardStep.WELCOME)
 }
 
 /** Plain branded ground while the session resolves. Milliseconds in the common case. */

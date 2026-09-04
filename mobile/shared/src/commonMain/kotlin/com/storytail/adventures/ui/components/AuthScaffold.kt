@@ -337,6 +337,50 @@ fun FormErrorCard(message: String, actionLabel: String? = null) {
     }
 }
 
+/**
+ * The same card in a warning tone: something worth saying, that is not an error.
+ *
+ * Distinct from [FormErrorCard] because an expired passport did not stop the save — telling
+ * somebody in the colour reserved for failure would say it did.
+ */
+@Composable
+fun FormWarningCard(message: String) {
+    val extended = LocalStoryTailExtended.current
+    Surface(
+        color = extended.warningContainer,
+        contentColor = extended.warning,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text(text = message, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/**
+ * The same card in a success tone: something good that has already happened.
+ *
+ * 2.1m.13's "already linked" banner is the only caller today. It is a different colour from
+ * [AuthNoteCard] because "your trip is waiting" and "nothing linked yet" are opposite
+ * answers, and rendering both in the neutral surface makes them look like the same
+ * announcement.
+ */
+@Composable
+fun AuthSuccessCard(body: String) {
+    val extended = LocalStoryTailExtended.current
+    Surface(
+        color = extended.successContainer,
+        contentColor = extended.success,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Text(text = body, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 /** A quiet card for reassurance and explanation — the prototype's surface-2 blocks. */
 @Composable
 fun AuthNoteCard(title: String? = null, body: String) {

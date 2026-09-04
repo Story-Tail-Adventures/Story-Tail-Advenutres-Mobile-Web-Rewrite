@@ -22,6 +22,9 @@ VALIDATION_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adven
 WEB_ERRORS = ROOT / "web/lib/auth-errors.ts"
 KMP_ERRORS = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/api/AuthError.kt"
 SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth"
+WIZARD_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding"
+DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding"
+WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
@@ -170,6 +173,254 @@ MESSAGE_TABLES = [
             "signOut": "SIGN_OUT",
         },
     },
+    # ── Onboarding wizard, §2.1.9–2.1.14 ──────────────────────────────────────
+    #
+    # The validation rules first. Every message here is one somebody reads under a field
+    # they just filled in, and the two surfaces post to the SAME Edge Function — so a rule
+    # that differs is a screen accepting what the other rejects, not just a wording drift.
+    {
+        "label": "2.1.10 profile validation",
+        "web_file": ROOT / "web/lib/validation/profile.ts",
+        "web_const": "PROFILE_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "ProfileValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "phoneInvalid": "PHONE_INVALID",
+            "phoneNeedsCountryCode": "PHONE_NEEDS_COUNTRY_CODE",
+            "dobInvalid": "DOB_INVALID",
+            "dobTooEarly": "DOB_TOO_EARLY",
+            "dateInvalid": "DATE_INVALID",
+            "countryInvalid": "COUNTRY_INVALID",
+            "postalInvalid": "POSTAL_INVALID",
+            "tooLong": "TOO_LONG",
+            "invalidChars": "INVALID_CHARS",
+            "addressIncomplete": "ADDRESS_INCOMPLETE",
+            "emergencyIncomplete": "EMERGENCY_INCOMPLETE",
+            "passportIncomplete": "PASSPORT_INCOMPLETE",
+        },
+    },
+    {
+        "label": "2.1.11 preferences validation",
+        "web_file": ROOT / "web/lib/validation/preferences.ts",
+        "web_const": "PREFERENCES_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "PreferencesValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "destinationsTooMany": "DESTINATIONS_TOO_MANY",
+            "destinationTooLong": "DESTINATION_TOO_LONG",
+            "invalidChars": "INVALID_CHARS",
+            "unknownOption": "UNKNOWN_OPTION",
+            "dietaryNoneAlone": "DIETARY_NONE_ALONE",
+            "dietaryNoneWithNote": "DIETARY_NONE_WITH_NOTE",
+            "accessibilityNoneAlone": "ACCESSIBILITY_NONE_ALONE",
+            "accessibilityNoneWithNote": "ACCESSIBILITY_NONE_WITH_NOTE",
+            "notesTooLong": "NOTES_TOO_LONG",
+            "favoritesTooLong": "FAVOURITES_TOO_LONG",
+            "loyaltyNeedsProgram": "LOYALTY_NEEDS_PROGRAM",
+            "loyaltyNumberShape": "LOYALTY_NUMBER_SHAPE",
+            "loyaltyProgramTooLong": "LOYALTY_PROGRAM_TOO_LONG",
+            "loyaltyTooMany": "LOYALTY_TOO_MANY",
+            "budgetUnknown": "BUDGET_UNKNOWN",
+        },
+    },
+    {
+        "label": "2.1.12 companion validation",
+        "web_file": ROOT / "web/lib/validation/companion.ts",
+        "web_const": "COMPANION_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "CompanionValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "firstNameRequired": "FIRST_NAME_REQUIRED",
+            "lastNameRequired": "LAST_NAME_REQUIRED",
+            "nameTooLong": "NAME_TOO_LONG",
+            "invalidChars": "INVALID_CHARS",
+            "relationshipTooLong": "RELATIONSHIP_TOO_LONG",
+            "dobInvalid": "DOB_INVALID",
+            "dateInvalid": "DATE_INVALID",
+            "countryInvalid": "COUNTRY_INVALID",
+            "passportNeedsExpiry": "PASSPORT_NEEDS_EXPIRY",
+        },
+    },
+    # Then the screens. Same rule as the auth screens above: only the strings that must be
+    # IDENTICAL. Meta titles, aria labels and the desktop-only rail have no mobile twin and
+    # are left out rather than faked.
+    {
+        "label": "2.1.9 welcome screen",
+        "web_file": ROOT / "web/app/(onboarding)/welcome/state.ts",
+        "web_const": "WELCOME_TEXT",
+        "kmp_file": WIZARD_DIR / "WelcomeScreen.kt",
+        "kmp_object": "WelcomeCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "sub": "SUB",
+            "sectionHeading": "SECTION",
+            "primaryCta": "PRIMARY",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.10 profile screen",
+        "web_file": WEB_WIZARD / "profile/state.ts",
+        "web_const": "PROFILE_TEXT",
+        "kmp_file": WIZARD_DIR / "ProfileScreen.kt",
+        "kmp_object": "ProfileCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "optionalNote": "OPTIONAL",
+            "labelPhone": "PHONE",
+            "hintPhone": "PHONE_HINT",
+            "labelDob": "DOB",
+            "hintDob": "DOB_HINT",
+            "groupAddress": "ADDRESS",
+            "labelAddressLine1": "LINE1",
+            "labelAddressLine2": "LINE2",
+            "labelAddressCity": "CITY",
+            "labelAddressRegion": "REGION",
+            "labelAddressRegionUs": "REGION_US",
+            "labelAddressPostal": "POSTAL",
+            "labelAddressPostalUs": "POSTAL_US",
+            "labelAddressCountry": "COUNTRY",
+            "groupEmergency": "EMERGENCY",
+            "hintEmergency": "EMERGENCY_HINT",
+            "labelEmergencyName": "EMERGENCY_NAME",
+            "labelEmergencyPhone": "EMERGENCY_PHONE",
+            "labelEmergencyRelationship": "EMERGENCY_RELATIONSHIP",
+            "groupPassport": "PASSPORT",
+            "groupPassportOptional": "PASSPORT_OPTIONAL",
+            "hintPassport": "PASSPORT_HINT",
+            "passportExpiredWarning": "PASSPORT_EXPIRED",
+            "labelPassportExpiry": "EXPIRES",
+            "labelPassportCountry": "ISSUING",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.11 preferences screen",
+        "web_file": WEB_WIZARD / "preferences/state.ts",
+        "web_const": "PREFERENCES_TEXT",
+        "kmp_file": WIZARD_DIR / "PreferencesScreen.kt",
+        "kmp_object": "PreferencesCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "sectionDestinations": "DESTINATIONS",
+            "hintDestinations": "DESTINATIONS_HINT",
+            "labelDestinationOther": "DESTINATION_OTHER",
+            "sectionStyle": "STYLE",
+            "hintStyle": "STYLE_HINT",
+            "sectionDiet": "DIET",
+            "labelDietNotes": "DIET_NOTES",
+            "sectionAccess": "ACCESS",
+            "labelAccessNotes": "ACCESS_NOTES",
+            "sectionLoyalty": "LOYALTY",
+            "hintLoyalty": "LOYALTY_HINT",
+            "labelLoyaltyProgram": "LOYALTY_PROGRAM",
+            "labelLoyaltyNumber": "LOYALTY_NUMBER",
+            "loyaltyAdd": "LOYALTY_ADD",
+            "loyaltyRemove": "LOYALTY_REMOVE",
+            "sectionBudget": "BUDGET",
+            "hintBudget": "BUDGET_HINT",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.12 companions screen",
+        "web_file": WEB_WIZARD / "companions/state.ts",
+        "web_const": "COMPANIONS_TEXT",
+        "kmp_file": WIZARD_DIR / "CompanionsScreen.kt",
+        "kmp_object": "CompanionsCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "addCta": "ADD",
+            "editAction": "EDIT",
+            "removeAction": "REMOVE",
+            "passportNone": "NO_PASSPORT",
+            "formAddTitle": "FORM_ADD",
+            "formSub": "FORM_SUB",
+            "formSave": "SAVE",
+            "formSaving": "SAVING",
+            "formCancel": "CANCEL",
+            "labelFirstName": "FIRST_NAME",
+            "labelLastName": "LAST_NAME",
+            "labelRelationship": "RELATIONSHIP",
+            "labelDateOfBirth": "DOB",
+            "labelPassportExpiry": "EXPIRES",
+            "labelPassportCountry": "ISSUING",
+            "unfinishedForm": "UNFINISHED",
+            "errorMax": "MAX",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.13 connect screen",
+        "web_file": WEB_WIZARD / "connect/state.ts",
+        "web_const": "CONNECT_TEXT",
+        "kmp_file": WIZARD_DIR / "ConnectScreen.kt",
+        "kmp_object": "ConnectCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "fieldLabel": "FIELD",
+            "fieldHelp": "HELP",
+            "primaryCta": "PRIMARY",
+            "primaryCtaEmpty": "PRIMARY_EMPTY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.13 connect banner",
+        "web_file": WEB_WIZARD / "connect/state.ts",
+        "web_const": "CONNECT_TEXT",
+        "kmp_file": DOMAIN_DIR / "ConnectBanner.kt",
+        "kmp_object": "ConnectBannerCopy",
+        "keys": {"noMatch": "NO_MATCH"},
+    },
+    {
+        "label": "2.1.14 complete screen",
+        "web_file": WEB_WIZARD / "complete/state.ts",
+        "web_const": "COMPLETE_TEXT",
+        "kmp_file": WIZARD_DIR / "CompleteScreen.kt",
+        "kmp_object": "CompleteCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "checklistHeading": "CHECKLIST",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+        },
+    },
+    {
+        "label": "2.1.14 completion summary",
+        "web_file": WEB_WIZARD / "complete/state.ts",
+        "web_const": "COMPLETE_TEXT",
+        "kmp_file": DOMAIN_DIR / "Completion.kt",
+        "kmp_object": "CompletionCopy",
+        "keys": {
+            "subNoTrip": "SUB_NO_TRIP",
+            "subNothing": "SUB_NOTHING",
+            "profileDone": "PROFILE_DONE",
+            "profileSkipped": "PROFILE_SKIPPED",
+            "preferencesDone": "PREFERENCES_DONE",
+            "preferencesSkipped": "PREFERENCES_SKIPPED",
+            "companionsDone": "COMPANIONS_DONE",
+            "companionsSkipped": "COMPANIONS_SKIPPED",
+            "tripDone": "TRIP_DONE",
+            "tripNone": "TRIP_NONE",
+            "shortProfile": "SHORT_PROFILE",
+            "shortPreferences": "SHORT_PREFERENCES",
+            "shortCompanions": "SHORT_COMPANIONS",
+        },
+    },
 ]
 
 # web BY_KIND key -> kotlin data object
@@ -186,11 +437,32 @@ ERROR_KINDS = {
 }
 
 # A string literal on a single line — never spanning newlines.
-STRING = r'"((?:[^"\\\n]|\\.)*)"'
+#
+# BOTH QUOTE STYLES, because TypeScript has both and Prettier picks whichever needs fewer
+# escapes: `'"No restrictions" doesn\'t go…'` is single-quoted precisely BECAUSE the copy
+# contains double quotes. Matching only double-quoted literals made every such string
+# invisible — the key parsed as absent and the script reported it "missing on web" while it
+# sat right there, which is the same silent-gap failure mode as the wrapped-string bug.
+STRING = r'"((?:[^"\\\n]|\\.)*)"' + r"|'((?:[^'\\\n]|\\.)*)'"
+
+# Kotlin has one string syntax, so the Kotlin side reads double quotes only.
+KMP_STRING = r'"((?:[^"\\\n]|\\.)*)"'
+
+
+def literals(text: str) -> list[str]:
+    """Every string literal in `text`, in order, unescaped and with quotes stripped."""
+    return [
+        unescape(double or single)
+        for double, single in re.findall(STRING, text)
+    ]
 
 
 def unescape(s: str) -> str:
-    return s.replace('\\"', '"').replace("\\\\", "\\")
+    return (
+        s.replace('\\"', '"')
+        .replace("\\'", "'")
+        .replace("\\\\", "\\")
+    )
 
 
 def web_messages(path: pathlib.Path, const_name: str) -> dict[str, str]:
@@ -219,11 +491,11 @@ def web_messages(path: pathlib.Path, const_name: str) -> dict[str, str]:
         stripped = value.strip()
         # A function or a list is not a string, and joining the literals inside one would
         # produce something that looks comparable and is not.
-        if not stripped.startswith('"'):
+        if not stripped.startswith('"') and not stripped.startswith("'"):
             continue
-        parts = re.findall(STRING, value)
+        parts = literals(value)
         if parts:
-            out[name] = "".join(unescape(part) for part in parts)
+            out[name] = "".join(parts)
     return out
 
 
@@ -244,12 +516,15 @@ def kmp_messages(path: pathlib.Path, object_name: str) -> dict[str, str]:
 
     out: dict[str, str] = {}
     # Everything up to the next `const val` or the end of the object is one value.
+    # The value ends at the next declaration OR comment. `fun` belongs in that list: a
+    # `const val` sitting last before the object's functions otherwise swallowed every
+    # function body after it, and reported the concatenation as drift.
     for name, value in re.findall(
-        r"const val (\w+) =\s*(.*?)(?=\n\s*(?:const val|/\*\*|//)|\Z)",
+        r"const val (\w+) =\s*(.*?)(?=\n\s*(?:const val|fun |private fun |/\*\*|//)|\Z)",
         body.group(1),
         re.S,
     ):
-        parts = re.findall(STRING, value)
+        parts = re.findall(KMP_STRING, value)
         if parts:
             out[name] = "".join(unescape(part) for part in parts)
     return out
@@ -268,7 +543,7 @@ def web_errors() -> dict[str, str]:
         # block ends right after the comma with no newline.
         msg = re.search(r"message:\s*(.*?),\s*(?:\n|$)", entry.group(1), re.S)
         if msg:
-            out[kind] = "".join(unescape(p) for p in re.findall(STRING, msg.group(1)))
+            out[kind] = "".join(literals(msg.group(1)))
     return out
 
 
@@ -283,7 +558,7 @@ def kmp_errors() -> dict[str, str]:
             continue
         msg = re.search(r"override val message\s*=\s*(.*?)(?:\n\s*override|\n\s*\}|$)", entry.group(1), re.S)
         if msg:
-            out[kind] = "".join(unescape(p) for p in re.findall(STRING, msg.group(1)))
+            out[kind] = "".join(unescape(p) for p in re.findall(KMP_STRING, msg.group(1)))
     return out
 
 

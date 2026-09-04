@@ -1,5 +1,7 @@
 package com.storytail.adventures.ui.nav
 
+import com.storytail.adventures.domain.onboarding.WizardStep
+
 /**
  * Every destination the app can be on.
  *
@@ -51,6 +53,18 @@ sealed interface AppRoute {
      * BECAUSE the session is incomplete rather than despite it.
      */
     data object MfaChallenge : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screens 2.1.9-2.1.14, the client onboarding wizard.
+     *
+     * One route carrying the step rather than six routes, because the wizard IS one screen
+     * with six faces: the chrome is shared, the exits are the same shape, and the order
+     * lives in [com.storytail.adventures.domain.onboarding.WizardStep] where the cursor and
+     * the progress bars can both read it.
+     */
+    data class Onboarding(val step: WizardStep) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
