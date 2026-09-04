@@ -60,9 +60,13 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT first_name FROM public.client) = 'Jordan',
     'client sees their own client row');
+-- Was "client sees no trips yet (no policy — full RLS pass pending)", which asserted the
+-- absence of a policy rather than a rule. 20260904140753 added `trip_self_select` because
+-- Screen 2.1.13 needs it; the scoping assertions now live in rls_onboarding.sql, and what
+-- belongs here is that the bridge hands the client the right rows.
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.trip) = 0,
-    'client sees no trips yet (no policy — full RLS pass pending)');
+    (SELECT count(*) FROM public.trip) >= 1,
+    'client sees their own trips through the auth bridge');
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.payment_card) = 0,
     'client sees no payment_card rows (rule 4)');

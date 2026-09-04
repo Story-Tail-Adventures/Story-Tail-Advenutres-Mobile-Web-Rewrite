@@ -500,7 +500,17 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
-| `version` | `integer` | No | Internal | Optimistic concurrency |
+| `version` | `integer` | No | Client-visible | Optimistic concurrency |
+
+> **Reclassified September 2026, when `trip_self_select` shipped.** These fields were all
+> marked Internal, which §18's legend defines as "not customer-facing, Agent-scoped access" —
+> and then Screen 2.1.13 needed to show a traveler their own trip, 2.2.1 needs the status and
+> what they have paid, and a cancellation the client cannot see the reason for is not a
+> cancellation anybody can act on. The classification was describing an agent-only product
+> that this is not. Exactly two fields stay Internal and are excluded from the column grant to
+> `authenticated`: `notes`, which is where the agent writes what he thinks, and
+> `total_commission_cents`, which is what the agency earns and is not the client's number
+> (BRD §10.5). RLS decides which rows; the grant is what decides these two columns.
 
 **Relationships:**
 - Belongs to one Agent (primary owner). Phase 3 may add a `co_agent_id` for shared ownership.
@@ -870,26 +880,26 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `agent_id` | `uuid` | No | Public | FK → Agent (denormalized from client for query speed) |
 | `title` | `text` | No | PII | "Johnson Family Caribbean Escape" |
 | `trip_type` | `trip_type` enum | No | Public | `cruise`, `all_inclusive`, `multi_destination`, `group`, `custom` |
-| `status` | `trip_status` enum | No | Internal | `inquiry`, `proposal`, `booked`, `in_progress`, `completed`, `cancelled` |
-| `status_changed_at` | `timestamptz` | No | Internal | — |
+| `status` | `trip_status` enum | No | Client-visible | `inquiry`, `proposal`, `booked`, `in_progress`, `completed`, `cancelled` |
+| `status_changed_at` | `timestamptz` | No | Client-visible | — |
 | `start_date` | `date` | Yes | PII | — |
 | `end_date` | `date` | Yes | PII | — |
 | `destinations` | `text[]` | No | Public | E.g., `['Bahamas', 'St. Maarten']` |
 | `traveler_count` | `integer` | No | Public | — |
 | `traveler_breakdown` | `jsonb` | Yes | PII | `{adults, children, infants}` |
-| `total_value_cents` | `bigint` | No | Internal | Sum of components |
-| `total_paid_cents` | `bigint` | No | Internal | Track of supplier payments via stored cards |
-| `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions |
+| `total_value_cents` | `bigint` | No | Client-visible | Sum of components — what the trip costs them |
+| `total_paid_cents` | `bigint` | No | Client-visible | Track of supplier payments via stored cards |
+| `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
 | `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one |
 | `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
-| `cancellation_reason` | `text` | Yes | Internal | Free text on cancel |
-| `refund_status` | `text` | Yes | Internal | When cancelled |
-| `notes` | `text` | Yes | Internal | Agent notes |
+| `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
+| `refund_status` | `text` | Yes | Client-visible | When cancelled |
+| `notes` | `text` | Yes | Internal | Agent notes. **Never granted to the client role** |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
-| `version` | `integer` | No | Internal | Optimistic concurrency |
+| `version` | `integer` | No | Client-visible | Optimistic concurrency |
 
 **Relationships:**
 - Belongs to Client; denormalizes Agent for query efficiency.

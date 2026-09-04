@@ -448,6 +448,31 @@ SELECT pg_temp.assert(
 
 RESET ROLE;
 
+-- ── trip: their own, and not the agent's half of it ────────────────────────────
+--
+-- Added with 20260904140753 for Screen 2.1.13's "trips we already have for you" panel.
+-- `trip` had RLS on and no policy at all, so this used to return nothing and look like a
+-- traveler had no trips rather than like a missing policy.
+SELECT pg_temp.become(:jordan);
+
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.trip) >= 1,
+    'client sees their own trip');
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.trip t
+       JOIN public.platform_user pu ON pu.account_id = :jordan
+      WHERE t.client_id <> pu.client_id) = 0,
+    'client sees no trip belonging to anybody else');
+
+-- The policy decides rows; the grant decides columns. Without the second, `notes` — where
+-- the agent writes what he thinks — comes back with the rest of the row.
+SELECT pg_temp.expect_denied(
+    'SELECT notes FROM public.trip',
+    'client is refused trip.notes, the agent''s own notes');
+SELECT pg_temp.expect_denied(
+    'SELECT total_commission_cents FROM public.trip',
+    'client is refused trip.total_commission_cents, which is not their number');
+
 -- ── Anonymous ──────────────────────────────────────────────────────────────────
 SET LOCAL ROLE anon;
 
@@ -457,6 +482,9 @@ SELECT pg_temp.assert(
     (SELECT count(*) FROM public.address) = 0, 'anon sees no addresses');
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.client_invite) = 0, 'anon sees no invites');
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.trip',
+    'anon is refused trip outright, before RLS is consulted');
 
 -- companion and travel_document are stronger than empty for anon: taking table-level
 -- SELECT away to make the ciphertext columns unreadable was only re-granted to

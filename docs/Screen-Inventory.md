@@ -325,6 +325,40 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.13 Connect with Agent / Invite Code Screen
 **Purpose:** Link the new account to trips the agent has already created in the system before the client registered. This is the bridge between "the agent set up a trip for me" and "I'm now in the portal".
 **Primary elements:** Brief explanation ("If Gyasi has already started planning a trip for you, enter the code from your invitation email to link it to your account"); invite code input; "I don't have a code" link (skips to dashboard); auto-match notice if the platform detects existing records by email; option to message the agent for help.
+
+> Built September 2026.
+>
+> **The screen reports the automatic match; it does not promise it.** The prototype's
+> subtitle says "skip — we'll find them automatically by email", and by the time this
+> screen renders that has already either happened or not: `handle_user_email_confirmed()`
+> adopts a matching unclaimed client at email confirmation. This screen exists precisely for
+> the cases where it could not — a different address, or two candidates and the trigger
+> deliberately claiming neither. Telling somebody the automatic match is coming, on the
+> screen that exists because it did not, is the one thing the copy must not do.
+>
+> **Redemption moves account ownership**, so it also moves everything the traveler entered
+> on steps 2 through 4 — profile fields where the target has none, address, preferences,
+> companions and travel documents — onto the target client, then disposes of the throwaway
+> the sign-up created. Never overwriting what Gyasi already has: the agent has had the
+> record for weeks and may know better than a sign-up form. The agent's spelling of the name
+> wins, matching the precedent the confirmation trigger already sets.
+>
+> **Refusals are specific, and that is a considered departure from how sign-in behaves.**
+> There, "no such account" and "wrong password" must be indistinguishable, because an email
+> address is guessable from outside knowledge. A code is six characters of a 36-symbol
+> alphabet and attempts are capped at ten per quarter-hour, so enumeration is not the live
+> risk — a traveler whose invitation has sat in an inbox for five weeks is. They are told the
+> code expired rather than left retyping it. Every attempt writes an `audit_event` carrying
+> the outcome and never the code or its hash; refusals are recorded but do not feed the
+> rate-limit counter, or each retry would extend its own lockout.
+>
+> **`trip` had row-level security enabled and no policy at all**, which for a client meant
+> every SELECT returned zero rows — silently, because RLS filters rather than errors. The
+> "trips already in your name" panel would have rendered empty for everybody. Fixed by
+> `trip_self_select`, paired with a column grant that keeps `notes` (the agent's own) and
+> `total_commission_cents` (not the client's number) out of reach. 2.2.1 and 2.2.2 needed the
+> same policy.
+
 **Key actions:** Enter code; skip; message agent.
 **Entry points:** Post-registration onboarding; manual access from account settings.
 **Related screens:** Onboarding Complete, Dashboard, Messages.
@@ -334,6 +368,23 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Primary elements:** Branded success illustration; checklist of what was set up (profile, preferences, companions, agent connection); recommended next actions ("View your upcoming trip", "Explore the search", "Message Gyasi").
 
 > Deferred, September 2026: "option to fine-tune notification preferences before going to dashboard". `notification_preference` has RLS enabled with no policy, no row is created for a user by any path, and Screen 2.5.6 that would manage it is unbuilt — so the control had nowhere to link. It returns to this screen when 2.5.6 ships, which also needs to give the table a row-creation path (its `user_id` is the primary key, so a screen with no row has nothing to read).
+
+> Built September 2026.
+>
+> **What the screen says is assembled from what is actually on file.** The prototype's
+> subtitle is a fixed sentence — "Your profile, preferences, household, and existing trip
+> with Sandals are all linked up" — which is true of the artboard and of nobody else. Every
+> step of this wizard is skippable, so the traveler most likely to reach this screen having
+> skipped things is exactly the one that sentence would mislead. The checklist names what
+> was skipped rather than omitting it, in words and not only in an icon: a list showing only
+> successes reads as a complete list, and somebody who skipped preferences would never learn
+> the option is still open.
+>
+> **The third recommended action appears only when there is somewhere for it to go.** In-app
+> messaging is Screen 2.6 and is unbuilt, so "Message Gyasi" is a mail client or it is
+> absent — a card that looks like a way to reach him and is not one is worse than a row of
+> two.
+
 **Key actions:** Continue to dashboard; jump to a featured action.
 **Entry points:** Completion of Connect with Agent (or skipping it).
 **Related screens:** Dashboard, Notification Preferences, Search Landing, Trip Detail.
