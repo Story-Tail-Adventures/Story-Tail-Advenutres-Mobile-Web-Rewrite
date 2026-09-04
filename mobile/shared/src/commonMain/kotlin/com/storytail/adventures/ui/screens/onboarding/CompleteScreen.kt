@@ -17,11 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.storytail.adventures.domain.onboarding.CompletionSummary
 import com.storytail.adventures.domain.onboarding.completionChecklist
 import com.storytail.adventures.domain.onboarding.completionSubtitle
 import com.storytail.adventures.ui.components.AuthPrimaryButton
+import com.storytail.adventures.ui.components.CheckMark
 import com.storytail.adventures.ui.components.AuthScaffold
 import com.storytail.adventures.ui.components.FormErrorCard
 import com.storytail.adventures.ui.theme.LocalStoryTailExtended
@@ -77,7 +79,12 @@ fun CompleteScreen(
             contentColor = extended.success,
             shape = CircleShape,
             modifier = Modifier.size(72.dp),
-        ) { Box(Modifier) }
+        ) {
+            // Decorative: "YOU'RE ALL SET" is right underneath it.
+            Box(Modifier.clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+                CheckMark(size = 36.dp, color = extended.success)
+            }
+        }
 
         Text(
             text = CompleteCopy.OVERLINE,
@@ -124,7 +131,17 @@ fun CompleteScreen(
                         color = if (line.done) extended.success else extended.surface3,
                         shape = CircleShape,
                         modifier = Modifier.size(18.dp),
-                    ) { Box(Modifier) }
+                    ) {
+                        if (line.done) {
+                            Box(Modifier, contentAlignment = Alignment.Center) {
+                                CheckMark(
+                                    size = 12.dp,
+                                    color = MaterialTheme.colorScheme.surface,
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                        }
+                    }
                     // The done state is in the colour, which is decoration — so it is also
                     // in the text. The skipped labels say "skipped" in words.
                     Text(

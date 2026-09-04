@@ -157,6 +157,23 @@ val LightStoryTailColorScheme: ColorScheme = lightColorScheme(
     outline              = Color(0xFF847370),
     outlineVariant       = Color(0xFFD7C2BD),
     scrim                = Color(0x66000000),
+    // THE CONTAINER FAMILY IS NOT OPTIONAL. Every role left out of `lightColorScheme`
+    // keeps Material's own baseline value, and that baseline is purple — so a single
+    // `surfaceContainerLow` in a composable painted the sticky footer lilac on a cream
+    // page. The same three values the extended scheme carries as surface1/2/3, which is
+    // what design/source-prototype/styles/tokens.css calls --md-surface-1/2/3 and labels
+    // with these exact Material names.
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow    = Color(0xFFF6F1EA),
+    surfaceContainer       = Color(0xFFF0EAE2),
+    surfaceContainerHigh   = Color(0xFFEAE4DB),
+    surfaceContainerHighest = Color(0xFFE3DCD2),
+    surfaceBright        = Color(0xFFFBF8F3),
+    surfaceDim           = Color(0xFFE0D9CF),
+    surfaceTint          = StoryTailBrand.Burgundy,
+    inverseSurface       = Color(0xFF322F2C),
+    inverseOnSurface     = Color(0xFFF6EFE7),
+    inversePrimary       = Color(0xFFFFB3AC),
 )
 
 val DarkStoryTailColorScheme: ColorScheme = darkColorScheme(
@@ -185,4 +202,17 @@ val DarkStoryTailColorScheme: ColorScheme = darkColorScheme(
     outline              = Color(0xFF6A8AAE),
     outlineVariant       = Color(0xFF2A4566),
     scrim                = Color(0xA6000000),
+    // Same reason as the light scheme, and the dark one would fail louder: an unset
+    // container role here is a LIGHT purple, on navy.
+    surfaceContainerLowest = Color(0xFF050D1A),
+    surfaceContainerLow    = Color(0xFF0A1828),
+    surfaceContainer       = Color(0xFF0F2034),
+    surfaceContainerHigh   = Color(0xFF142A41),
+    surfaceContainerHighest = Color(0xFF1A314D),
+    surfaceBright        = Color(0xFF1A314D),
+    surfaceDim           = Color(0xFF050D1A),
+    surfaceTint          = Color(0xFF5BB6FF),
+    inverseSurface       = Color(0xFFE8F0FC),
+    inverseOnSurface     = Color(0xFF07111F),
+    inversePrimary       = Color(0xFF00639B),
 )
