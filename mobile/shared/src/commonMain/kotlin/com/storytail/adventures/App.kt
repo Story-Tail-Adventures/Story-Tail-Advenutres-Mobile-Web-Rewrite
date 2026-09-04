@@ -27,6 +27,12 @@ import com.storytail.adventures.ui.screens.auth.ForgotPasswordViewModel
 import com.storytail.adventures.ui.screens.auth.LoginEvent
 import com.storytail.adventures.ui.screens.auth.LoginScreen
 import com.storytail.adventures.ui.screens.auth.LoginViewModel
+import com.storytail.adventures.ui.screens.auth.MfaChallengeEvent
+import com.storytail.adventures.ui.screens.auth.MfaChallengeScreen
+import com.storytail.adventures.ui.screens.auth.MfaChallengeViewModel
+import com.storytail.adventures.ui.screens.auth.MfaSetupEvent
+import com.storytail.adventures.ui.screens.auth.MfaSetupScreen
+import com.storytail.adventures.ui.screens.auth.MfaSetupViewModel
 import com.storytail.adventures.ui.screens.auth.RegisterEvent
 import com.storytail.adventures.ui.screens.auth.RegisterScreen
 import com.storytail.adventures.ui.screens.auth.RegisterViewModel
@@ -242,14 +248,52 @@ fun App() {
                 )
             }
 
-            // Screens 2.1.6 and 2.1.7 have their routes and their shared rules
-            // (MfaValidation) but not yet their Compose screens. Rendering the splash rather
-            // than nothing keeps an accidental navigation from showing a blank frame.
-            AppRoute.MfaSetup,
-            AppRoute.MfaChallenge,
-            -> {
-                LaunchedEffect(route) { nav.pop() }
-                SplashScreen()
+            AppRoute.MfaSetup -> {
+                val viewModel = viewModel { MfaSetupViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // Verifying raises the session to aal2; sessionStatus routes it.
+                            MfaSetupEvent.Done -> nav.pop()
+                            MfaSetupEvent.Cancelled -> nav.pop()
+                        }
+                    }
+                }
+
+                MfaSetupScreen(
+                    state = state,
+                    onCodeChange = viewModel::onCodeChange,
+                    onSecretCopied = viewModel::onSecretCopied,
+                    onRetry = viewModel::enroll,
+                    onSubmit = viewModel::verify,
+                    onCancel = viewModel::onCancel,
+                )
+            }
+
+            AppRoute.MfaChallenge -> {
+                val viewModel = viewModel { MfaChallengeViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // Both outcomes change the session, and the LaunchedEffect on
+                            // sessionStatus above is what moves the stack — verifying raises
+                            // assurance to SATISFIED, signing out drops it entirely.
+                            MfaChallengeEvent.Verified -> Unit
+                            MfaChallengeEvent.SignedOut -> Unit
+                        }
+                    }
+                }
+
+                MfaChallengeScreen(
+                    state = state,
+                    onCodeChange = viewModel::onCodeChange,
+                    onSubmit = viewModel::verify,
+                    onSignOut = viewModel::onSignOut,
+                )
             }
         }
     }

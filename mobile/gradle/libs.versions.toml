@@ -69,6 +69,8 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 supabase-bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "supabase" }
 supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt" }
 supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt" }
+# Edge Functions, for the §2.1.9-2.1.14 onboarding writes. Version comes from the BOM.
+supabase-functions = { module = "io.github.jan-tennert.supabase:functions-kt" }
 
 # ── Test ──
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }

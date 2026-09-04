@@ -12,6 +12,7 @@ import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.exceptions.HttpRequestException
 import io.github.jan.supabase.exceptions.RestException
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -324,6 +325,7 @@ internal fun Throwable.toAuthError(): AuthError = when (this) {
  */
 object SupabaseClientProvider {
     private var cached: AuthRepository? = null
+    private var cachedOnboarding: OnboardingRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -339,21 +341,40 @@ object SupabaseClientProvider {
      */
     suspend fun authRepository(): AuthRepository = withContext(Dispatchers.Default) {
         cached ?: run {
-            val repo = if (!SupabaseConfig.isConfigured) {
-                UnconfiguredAuthRepository()
-            } else {
-                SupabaseAuthRepository(
-                    createSupabaseClient(
-                        supabaseUrl = SupabaseConfig.URL,
-                        supabaseKey = SupabaseConfig.ANON_KEY,
-                    ) {
-                        install(Auth)
-                        install(Postgrest)
-                    }
-                )
-            }
-            cached = repo
-            repo
+            build()
+            cached!!
         }
+    }
+
+    /**
+     * The onboarding writes, on the SAME client as [authRepository].
+     *
+     * One client, because it owns the session and the token-refresh loop — a second would
+     * mean two of each, and the Edge Functions authenticate with the token this one holds.
+     */
+    suspend fun onboardingRepository(): OnboardingRepository =
+        withContext(Dispatchers.Default) {
+            cachedOnboarding ?: run {
+                build()
+                cachedOnboarding!!
+            }
+        }
+
+    private fun build() {
+        if (!SupabaseConfig.isConfigured) {
+            cached = UnconfiguredAuthRepository()
+            cachedOnboarding = UnconfiguredOnboardingRepository()
+            return
+        }
+        val client = createSupabaseClient(
+            supabaseUrl = SupabaseConfig.URL,
+            supabaseKey = SupabaseConfig.ANON_KEY,
+        ) {
+            install(Auth)
+            install(Postgrest)
+            install(Functions)
+        }
+        cached = SupabaseAuthRepository(client)
+        cachedOnboarding = SupabaseOnboardingRepository(client)
     }
 }
