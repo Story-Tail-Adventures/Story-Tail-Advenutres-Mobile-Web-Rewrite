@@ -85,8 +85,10 @@ supabase migration new <descriptive_name>
 # Apply local migrations
 supabase db reset
 
-# Apply to linked production project
-supabase db push  # remote only, from CI
+# Production is NOT applied from here and NOT from GitHub Actions. Supabase's GitHub
+# integration applies new migrations itself on merge to the `production` branch
+# (Project Settings > Integrations > GitHub, "Deploy to production"). Same for the Edge
+# Functions declared in config.toml. Nothing in .github/workflows/ runs `db push`.
 
 # Generate TypeScript types from the local schema (for web/)
 supabase gen types typescript --local > ../web/types/supabase.ts
@@ -107,6 +109,32 @@ supabase functions serve <name>
 
 # Deploy to production
 supabase functions deploy <name>
+```
+
+## Production auth settings — set by hand, guarded by nothing
+
+`config.toml` configures the **local** stack. Nothing runs `supabase config push`, and the
+GitHub integration's production deploy covers migrations, Edge Functions and storage buckets
+only — auth config is explicitly not included. So `.github/scripts/check_auth_config.py`
+guards a file the hosted project never reads.
+
+That is deliberate (pushing `config.toml` as it stands would set production's Site URL to
+`http://localhost:3000`), but it means these must be set in the dashboard and re-checked by
+hand. **Three of the five default WRONG on a new hosted project:**
+
+| Setting | Hosted default | Must be | Breaks if wrong |
+|---|---|---|---|
+| Minimum password length | 6 | **12** | `web/lib/validation/auth.ts` and `AuthValidation.kt` both promise 12; the server would accept what the UI rejects |
+| Required characters | none | **lower + upper + digits** | The 2.1.2 strength meter becomes a liar |
+| Manual linking | off | **on** | Screen 2.1.8's `linkIdentity()` is refused outright |
+| Confirm email | on | **on** | With it off, `handle_user_email_confirmed()` adopts a pre-created client record for anyone who knows the address |
+| Secure email change | on | **on** | 2.1.3 promises both addresses are mailed |
+
+Also set, once, or every deployed function answers browsers with a localhost CORS header
+(`functions/_shared/cors.ts` caches it at module load):
+
+```bash
+supabase secrets set ALLOWED_ORIGIN=<the production origin> --project-ref <prod-ref>
 ```
 
 ## Critical PCI rules for this directory

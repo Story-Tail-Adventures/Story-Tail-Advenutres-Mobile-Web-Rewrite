@@ -411,6 +411,34 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Declared explicitly, one block per function, because Supabase's GitHub integration deploys
+# the Edge Functions "declared in config.toml" — an undeclared directory may simply never
+# ship, and a function that silently never deployed is indistinguishable from a working one
+# until the first 404. Adding a directory under functions/ without adding a block here is a
+# deploy that quietly does nothing, so ci.yml asserts the pairing.
+#
+# verify_jwt stays on: the platform check is defence in depth in FRONT of requireUser() in
+# _shared/auth.ts, not a replacement for it. It has one cost — the gateway rejects a CORS
+# preflight before _shared/cors.ts handlePreflight() ever runs. That is invisible today
+# because neither caller is a browser: web/lib/onboarding/api.ts fetches server-to-server
+# from a Next.js server action, and mobile's OnboardingRepository.kt invokes all five from a
+# native client, which issues no preflight at all. The day a browser calls one directly this
+# is the setting to flip. The in-function check already carries the weight.
+[functions.onboarding-step]
+verify_jwt = true
+
+[functions.onboarding-profile]
+verify_jwt = true
+
+[functions.onboarding-preferences]
+verify_jwt = true
+
+[functions.onboarding-companions]
+verify_jwt = true
+
+[functions.onboarding-connect]
+verify_jwt = true
+
 [analytics]
 # Off: nothing consumes it yet and it costs ~500MB of RAM on a laptop.
 enabled = false

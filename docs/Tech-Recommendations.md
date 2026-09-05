@@ -465,12 +465,24 @@ Don't wait until Phase 1 is done to set up CI. Add a GitHub Actions workflow tha
 - Verifies Edge Functions compile via `supabase functions verify`
 - Verifies migrations apply cleanly via `supabase db push --dry-run`
 
-On merges to main:
+On merges to `production` (the release branch — there is no `main`), ownership is split in
+two, so that no Supabase credential ever has to enter GitHub:
 
-- Web auto-deploys to Vercel (their GitHub integration)
-- Edge Functions deploy via `supabase functions deploy --project-ref <prod>`
-- Migrations apply via `supabase db push --linked`
+- **Supabase's GitHub integration** applies new migrations and deploys the Edge Functions
+  declared in `config.toml`, server-side over its own OAuth connection. Nothing in
+  `.github/workflows/` runs `supabase db push` or `functions deploy`.
+- **`.github/workflows/deploy.yml`** builds and deploys the web app to Vercel via the Vercel
+  CLI (not Vercel's GitHub integration, which is deliberately left disconnected), then cuts a
+  GitHub Release naming the migrations that shipped alongside it. It gates on CI via
+  `workflow_run`, so a red build cannot deploy on the automatic path. A manual
+  `workflow_dispatch` bypasses that gate by design — the escape hatch for a red job in a stack
+  the frontend does not touch — and compensates by refusing any ref but `production`.
 - Mobile artifacts (AAB for Android, IPA for iOS) build for staging via Fastlane or EAS
+
+Because the two halves run on separate machines with separate logs, the GitHub Release is the
+only record of what shipped together. Note the consequence of the split: `config.toml`'s auth
+settings configure the *local* stack only, so the hosted project's auth config is set in the
+dashboard and `.github/scripts/check_auth_config.py` does not cover it.
 
 ### 5.4 Working Style with Claude Code
 

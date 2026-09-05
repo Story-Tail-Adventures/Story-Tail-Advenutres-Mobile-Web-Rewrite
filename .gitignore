@@ -75,6 +75,14 @@ supabase/.env
 *.pem
 *.key
 
+# === Vercel ===
+# `vercel link` / `vercel pull` write org and project ids to .vercel/project.json, and
+# `vercel pull` drops .env.production.local — every production value in plaintext — beside
+# it. The CLI auto-ignores whichever directory it links (that is web/.gitignore today), but
+# the deploy runs the CLI from the REPO ROOT, so a local run leaves .vercel/ here instead.
+# Vercel's own README in that folder: "you should not share the '.vercel' folder with anyone."
+.vercel/
+
 # === Build outputs (do NOT ignore contracts/ts/ or contracts/kotlin/ — those are committed) ===
 dist/
 coverage/

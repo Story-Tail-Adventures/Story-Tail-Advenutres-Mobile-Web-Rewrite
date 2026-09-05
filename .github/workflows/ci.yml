@@ -8,8 +8,11 @@ name: CI
 
 on:
   pull_request:
+  # `production` is here because deploy.yml gates on this workflow's conclusion for that
+  # branch. Drop it and the deploy silently stops firing rather than failing. `main` is gone:
+  # it never existed on the remote, so it could never have fired either.
   push:
-    branches: [dev, main]
+    branches: [dev, production]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -214,6 +217,25 @@ jobs:
             exit 0
           fi
           deno test --allow-env --config supabase/functions/deno.json supabase/functions/
+
+      # Deploying the functions is Supabase's job, driven by config.toml — and the docs say it
+      # deploys the ones "declared in config.toml". A function directory with no
+      # [functions.<slug>] block may therefore never reach production, and nothing else would
+      # notice: GitHub is green because it never touched Supabase, Supabase is green because
+      # it deployed what it was told to, and the absence shows up as a 404 in a traveler's
+      # browser. The next function added is the one this catches.
+      - name: Every Edge Function is declared for deployment
+        run: |
+          shopt -s nullglob
+          for d in supabase/functions/*/; do
+            slug="$(basename "$d")"
+            # _shared/ and friends are libraries, not deployable functions.
+            case "$slug" in _*) continue;; esac
+            grep -q "^\[functions\.${slug}\]" supabase/config.toml || {
+              echo "::error::supabase/functions/${slug}/ has no [functions.${slug}] block in supabase/config.toml."
+              exit 1
+            }
+          done
 
       - name: Fail if generated DB types drifted from the migrations
         run: |
