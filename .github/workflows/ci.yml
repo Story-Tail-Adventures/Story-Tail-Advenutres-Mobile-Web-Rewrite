@@ -42,6 +42,13 @@ jobs:
 
       # The write hooks in .claude/hooks/ only protect Claude's writes. This is the
       # same check for a human's commit.
+      # Before the scan, not after: the scanner carves out UUIDs, Unsplash ids and
+      # migration timestamps, and each carve-out is a hole the guard must be proved not to
+      # have widened. The self-test asserts both directions — 4242… still caught, a
+      # Luhn-valid migration stamp still quiet.
+      - name: PAN scanner does what it claims
+        run: python3 .github/scripts/scan_pan.py --self-test
+
       - name: No Luhn-valid card numbers in source
         run: python3 .github/scripts/scan_pan.py
 
