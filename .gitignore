@@ -115,3 +115,5 @@ __pycache__/
 
 # Deno's lock belongs beside supabase/functions/deno.json, not at the repo root.
 /deno.lock
+.vercel
+.env*
