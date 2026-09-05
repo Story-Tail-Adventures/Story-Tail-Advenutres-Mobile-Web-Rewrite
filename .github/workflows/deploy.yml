@@ -74,7 +74,7 @@ env:
   SITE_ORIGIN: "https://storytailadventures.vercel.app"
 
   # How the CLI finds the project with no .vercel/ in the repo: it falls back to these two
-  # env vars, and `vercel pull` then WRITES .vercel/project.json onto the runner from them.
+  # env vars, and `vercel pull` then WRITES web/.vercel/project.json on the runner from them.
   # Nothing under .vercel/ is committed — Vercel's own README in that folder says not to
   # share it, and `vercel pull` drops .env.production.local (every production value in
   # plaintext) into the same directory.
@@ -160,32 +160,39 @@ jobs:
       # already `web`, so --cwd would resolve it a second time and look for web/web. And web/
       # has no lockfile of its own: the only package-lock.json is at the repo root, so an
       # install rooted at web/ has nothing deterministic to install from.
-      - name: Pull the production environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      # The CLI is invoked from the REPO ROOT, never `--cwd ./web`, because `vercel build`
-      # joins its cwd with the project's own rootDirectory — so --cwd ./web on top of a Root
-      # Directory of `web` resolves to web/web. Running at the root is also what Vercel's Git
-      # integration does: it never cd's into a subdirectory, it applies rootDirectory itself.
+      # --cwd ./web on every Vercel call, so WHERE the Next app lives is stated in this file
+      # rather than in a dashboard setting nobody reviews. The CLI walks up from web/, finds
+      # the npm workspace root via the root package.json's `workspaces` array, and installs
+      # from the root package-lock.json — the only lockfile in the repo. web/ has none, so
+      # that walk-up is what keeps the deployed tree pinned to what CI tested.
       #
-      # That makes rootDirectory == "web" a hard dependency of this workflow rather than a
-      # dashboard preference. Unset, the build would try to build the repo root — which has no
-      # Next app — and fail somewhere confusing, several minutes later. Assert it here, where
-      # the message names the setting and the page to change it on.
+      # Everything the CLI writes therefore lands in web/.vercel/, not ./.vercel/ — the two
+      # steps below read it there.
+      - name: Pull the production environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web
+
+      # The one dashboard setting that can still break this. `vercel build` joins its cwd with
+      # the project's rootDirectory, so a Root Directory of anything but empty-or-`web` sends
+      # it looking for web/<that>. Empty is the intended state here (the --cwd above already
+      # says where the app is) and `web` is tolerated — the CLI notices web/web does not exist
+      # and does not double-apply. Anything else is a misconfiguration, and failing here beats
+      # failing in a build log several minutes later.
       #
       # `jq .settings`, not `cat` — project.json also carries the org and project ids.
-      - name: Vercel Root Directory is web
+      - name: Vercel Root Directory does not fight --cwd
         run: |
           set -euo pipefail
-          jq '.settings' .vercel/project.json
-          root="$(jq -r '.settings.rootDirectory // "null"' .vercel/project.json)"
-          if [ "$root" != "web" ]; then
-            echo "::error::Vercel Root Directory is '$root', expected 'web'."
-            echo "::error::Set it at Project Settings -> General -> Root Directory, then re-run."
-            echo "::error::This workflow runs the CLI from the repo root and relies on that setting"
-            echo "::error::to locate the Next app — web/ has no lockfile of its own."
-            exit 1
-          fi
+          jq '.settings' web/.vercel/project.json
+          root="$(jq -r '.settings.rootDirectory // ""' web/.vercel/project.json)"
+          case "$root" in
+            ""|web) echo "Root Directory '$root' is compatible with --cwd ./web." ;;
+            *)
+              echo "::error::Vercel Root Directory is '$root'. This workflow passes --cwd ./web,"
+              echo "::error::so the build would resolve to web/$root. Clear Root Directory at"
+              echo "::error::Project Settings -> Build and Deployment, then re-run."
+              exit 1
+              ;;
+          esac
 
       # The trap this step exists for: NO prerendered route reads NEXT_PUBLIC_SUPABASE_URL or
       # NEXT_PUBLIC_SUPABASE_ANON_KEY, so a build missing them is GREEN. Then web/lib/env.ts
@@ -202,7 +209,7 @@ jobs:
       - name: Required production variables are present
         run: |
           set -euo pipefail
-          file=.vercel/.env.production.local
+          file=web/.vercel/.env.production.local
           missing=()
           for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_SITE_URL; do
             # Not `=.+`: `vercel pull` writes every value double-quoted, so a variable defined
@@ -226,14 +233,23 @@ jobs:
           fi
 
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web
+          # Proves the monorepo walk-up actually produced Build Output API artifacts,
+          # rather than a build that resolved somewhere unexpected and exited 0.
+          test -f web/.vercel/output/config.json || {
+            echo "::error::vercel build produced no web/.vercel/output — check the Root"
+            echo "::error::Directory setting reported above."
+            exit 1
+          }
 
       - name: Deploy
         id: deploy
         if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})"
+          url="$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web)"
           echo "Deployed $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
