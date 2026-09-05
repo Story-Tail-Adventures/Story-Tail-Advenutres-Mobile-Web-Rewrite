@@ -77,7 +77,12 @@ so they don't prompt. Three choices worth knowing:
 - `supabase db reset` is in **ask**, not deny. It is the primary local dev loop, so denying
   it outright would be constant friction — but it wipes and reseeds the database, so it
   should never happen silently.
-- `supabase db push`, `link`, and `functions deploy` are hard **deny**. They touch a remote.
+- `supabase db push`, `link`, and `functions deploy` are hard **deny**, and so are
+  `vercel` and `gh release`. Not merely because they touch a remote — because CI owns the
+  remote path now. Supabase's GitHub integration applies migrations and deploys functions on
+  merge to `production`; `.github/workflows/deploy.yml` deploys the frontend and cuts the
+  release. A human or agent running any of these from a laptop is racing that, against a
+  database whose migrations are forward-only.
 - Gradle entries are per-task, never `Bash(./gradlew:*)` — a blanket allow would cover
   `publish` and any task added later.
 

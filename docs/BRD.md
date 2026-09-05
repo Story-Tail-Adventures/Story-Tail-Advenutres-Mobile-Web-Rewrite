@@ -459,7 +459,7 @@ For the mobile clients, Edge Functions expose a REST API. Mobile consumes that A
 - `supabase/` — Supabase project with migrations (`supabase/migrations/`) and Edge Functions (`supabase/functions/`)
 - `contracts/` — Shared API contract: OpenAPI spec plus generated TypeScript types and (optionally) Kotlin types for the mobile module
 
-CI/CD via GitHub Actions. Web deploys to Vercel. Mobile apps go through Apple App Store and Google Play. Supabase Edge Functions deploy via `supabase functions deploy`. The Supabase database migrates via `supabase db push`. No separate backend host (no Fly.io, no Cloud Run, no AWS App Runner).
+CI/CD via GitHub Actions, with production deploys split by owner: GitHub Actions builds and deploys the web app to Vercel, while Supabase's own GitHub integration applies migrations and deploys Edge Functions on merge to the `production` branch. The split keeps the production database password out of GitHub entirely. Mobile apps go through Apple App Store and Google Play. No separate backend host (no Fly.io, no Cloud Run, no AWS App Runner).
 
 **Why KMP for this specific business.** The advisor business has fundamentally one set of rules — what a trip is, what statuses it can be in, how commission is calculated, when a card can be used — and three places those rules need to be enforced (web, iOS, Android). Without code sharing, those three implementations drift, bugs creep in, and feature parity becomes a perpetual cost. KMP turns "three apps" into "one app with three faces" and is exactly the right shape for the long-term maintenance pattern of this product.
 

@@ -1956,7 +1956,7 @@ UUID v7 is generated client-side where possible (avoids round-trip when creating
 
 ### 22.1 Migrations
 
-Schema migrations live in `supabase/migrations/` and follow Supabase CLI conventions (`<timestamp>_<name>.sql`, e.g., `20260514120000_initial.sql`). Migrations are applied via `supabase db push` in development and via CI on merge to main in production. Migrations are forward-only in production; a down migration is allowed only in development branches.
+Schema migrations live in `supabase/migrations/` and follow Supabase CLI conventions (`<timestamp>_<name>.sql`, e.g., `20260514120000_initial.sql`). Migrations are applied via `supabase db push` in development, and in production by Supabase's GitHub integration on merge to the `production` branch — not by GitHub Actions, which owns only the frontend deploy. Migrations are forward-only in production; a down migration is allowed only in development branches.
 
 The Supabase CLI also generates TypeScript types from the database schema (`supabase gen types typescript`) — those generated types feed into the Next.js web app and the Edge Functions for type-safe database access.
 
