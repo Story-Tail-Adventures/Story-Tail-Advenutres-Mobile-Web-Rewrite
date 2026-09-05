@@ -492,25 +492,33 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `mailing_address_id` | `uuid` | Yes | Public | FK → Address |
 | `important_dates` | `jsonb` | Yes | PII | Array of `{label, date, recurring}` for birthday, anniversary, etc. |
 | `emergency_contact` | `jsonb` | Yes | PII | `{name, phone, relationship}`. Captured at Screen 2.1.10, edited at 2.5.2, surfaced on the itinerary and at 2.7.3 |
-| `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter |
-| `tags` | `text[]` | No | Internal | Free-form agent tags |
-| `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into` |
-| `merged_into_client_id` | `uuid` | Yes | Internal | When status = merged_into |
-| `notes` | `text` | Yes | Internal | Free-form agent notes (also see client_note table for structured history) |
+| `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter. **Not granted to the client role** |
+| `tags` | `text[]` | No | Internal | Free-form agent tags. **Not granted to the client role** |
+| `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into`. Agent-side lifecycle. **Not granted to the client role** |
+| `merged_into_client_id` | `uuid` | Yes | Internal | When status = merged_into. **Not granted to the client role** |
+| `notes` | `text` | Yes | Internal | Free-form agent notes (also see client_note table for structured history). **Not granted to the client role** |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 | `version` | `integer` | No | Client-visible | Optimistic concurrency |
 
-> **Reclassified September 2026, when `trip_self_select` shipped.** These fields were all
-> marked Internal, which §18's legend defines as "not customer-facing, Agent-scoped access" —
-> and then Screen 2.1.13 needed to show a traveler their own trip, 2.2.1 needs the status and
-> what they have paid, and a cancellation the client cannot see the reason for is not a
-> cancellation anybody can act on. The classification was describing an agent-only product
-> that this is not. Exactly two fields stay Internal and are excluded from the column grant to
-> `authenticated`: `notes`, which is where the agent writes what he thinks, and
-> `total_commission_cents`, which is what the agency earns and is not the client's number
-> (BRD §10.5). RLS decides which rows; the grant is what decides these two columns.
+> **The client is the data subject, and reads their own row — September 2026.** Sensitivity
+> here describes how a field must be HANDLED, not who may see it: `date_of_birth` is Sensitive
+> PII and the traveler still reads it back, because it is their own birthday and Screen 2.1.10
+> prefills the form with it. What a client must not see is what the AGENT wrote about them and
+> the CRM's own bookkeeping. Five fields are therefore excluded from the column grant to
+> `authenticated` — `notes`, `tags`, `lifetime_value_cents`, `status` and
+> `merged_into_client_id`. The other fifteen are granted.
+>
+> `client_self_select` alone did not achieve this. **RLS decides which ROWS; only a GRANT
+> decides which COLUMNS**, and Supabase grants `SELECT` on the whole table to `authenticated`
+> by default — so from the day that policy shipped, every traveler could read the agent's
+> private notes on them. The `client_column_grant` migration revokes the table privilege and
+> re-grants the fifteen. Note the trap: `REVOKE SELECT (col)` is a no-op against a table-level
+> grant, so the table grant has to go first.
+>
+> A consequence worth knowing: `SELECT *` on `client` now fails outright for a client session
+> rather than returning fewer columns. Every read must name its columns.
 
 **Relationships:**
 - Belongs to one Agent (primary owner). Phase 3 may add a `co_agent_id` for shared ownership.
@@ -900,6 +908,18 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 | `version` | `integer` | No | Client-visible | Optimistic concurrency |
+
+> **Reclassified September 2026, when `trip_self_select` shipped.** `status`,
+> `status_changed_at`, `total_value_cents`, `total_paid_cents`, `cancellation_reason`,
+> `refund_status` and `version` were all marked Internal, which §18's legend defines as "not
+> customer-facing, Agent-scoped access" — and then Screen 2.1.13 needed to show a traveler
+> their own trip, 2.2.1 needs the status and what they have paid, and a cancellation the
+> client cannot see the reason for is not a cancellation anybody can act on. The
+> classification was describing an agent-only product that this is not. Exactly two fields
+> stay Internal and are excluded from the column grant to `authenticated`: `notes`, which is
+> where the agent writes what he thinks, and `total_commission_cents`, which is what the
+> agency earns and is not the client's number (BRD §10.5). RLS decides which rows; the grant
+> is what decides these two columns.
 
 **Relationships:**
 - Belongs to Client; denormalizes Agent for query efficiency.
