@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loginSchema } from "@/lib/validation/auth";
 import { mapAuthError, authErrorByKind } from "@/lib/auth-errors";
 import { env } from "@/lib/env";
+import { flattenIssues } from "@/lib/validation/flatten";
 import { safeNext, type LoginState } from "./state";
 
 /**
@@ -23,6 +24,8 @@ import { safeNext, type LoginState } from "./state";
  * password, not the resulting token. Guard the token the way you would any bearer
  * credential: it is XSS-reachable by design.
  */
+const LOGIN_FIELDS = ["email", "password"] as const;
+
 export async function signInAction(
   _prev: LoginState,
   formData: FormData,
@@ -36,8 +39,7 @@ export async function signInAction(
   });
 
   if (!parsed.success) {
-    const { fieldErrors } = z_flatten(parsed.error);
-    return { fieldErrors, email };
+    return { fieldErrors: flattenIssues(parsed.error, LOGIN_FIELDS), email };
   }
 
   // Before `supabase start` has ever run there is no URL or anon key, and reaching for
@@ -66,17 +68,4 @@ export async function signInAction(
   // shell renders instead of the logged-out one.
   revalidatePath("/", "layout");
   redirect(next);
-}
-
-/** zod v4 renamed `.flatten()`; keep the shape this action returns stable. */
-function z_flatten(error: {
-  issues: { path: PropertyKey[]; message: string }[];
-}): { fieldErrors: { email?: string[]; password?: string[] } } {
-  const fieldErrors: { email?: string[]; password?: string[] } = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (key === "email") (fieldErrors.email ??= []).push(issue.message);
-    if (key === "password") (fieldErrors.password ??= []).push(issue.message);
-  }
-  return { fieldErrors };
 }

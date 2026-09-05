@@ -42,6 +42,13 @@ jobs:
 
       # The write hooks in .claude/hooks/ only protect Claude's writes. This is the
       # same check for a human's commit.
+      # Before the scan, not after: the scanner carves out UUIDs, Unsplash ids and
+      # migration timestamps, and each carve-out is a hole the guard must be proved not to
+      # have widened. The self-test asserts both directions — 4242… still caught, a
+      # Luhn-valid migration stamp still quiet.
+      - name: PAN scanner does what it claims
+        run: python3 .github/scripts/scan_pan.py --self-test
+
       - name: No Luhn-valid card numbers in source
         run: python3 .github/scripts/scan_pan.py
 
@@ -56,6 +63,12 @@ jobs:
       # person never sees different copy on their phone and in the browser.
       - name: User-facing strings match across platforms
         run: python3 .github/scripts/check_copy_parity.py
+
+      # Some auth settings are preference; these five are load-bearing. Flipping one
+      # produces no error anywhere — just a security hole or a screen that quietly stops
+      # working — so the coupling is asserted rather than left to a code comment.
+      - name: Auth config matches what the app assumes
+        run: python3 .github/scripts/check_auth_config.py
 
   web:
     name: Web
@@ -160,10 +173,16 @@ jobs:
       # Executes each policy as each role rather than just reading the SQL. A policy that
       # passes the happy path and leaks to another user looks identical to a correct one
       # until you run it as that user.
+      # Globbed rather than listed: a test file that is written but never wired into CI
+      # is worse than no test, because it reads as covered.
       - name: RLS policies enforce isolation
         run: |
-          psql "$(supabase status -o json | jq -r .DB_URL)" \
-            -v ON_ERROR_STOP=1 -f supabase/tests/rls_auth_bridge.sql
+          shopt -s nullglob
+          db_url="$(supabase status -o json | jq -r .DB_URL)"
+          for f in supabase/tests/*.sql; do
+            echo "── $f"
+            psql "$db_url" -v ON_ERROR_STOP=1 -f "$f"
+          done
 
       # Checks the _shared/ helpers too, not just function entry points — they are where
       # the audit and auth rules actually live.
@@ -180,6 +199,21 @@ jobs:
           # "@supabase/supabase-js" specifier fails to resolve.
           deno check --config supabase/functions/deno.json "${files[@]}"
           deno lint --config supabase/functions/deno.json supabase/functions/
+
+      # The _shared/ rules that are PARALLEL IMPLEMENTATIONS of a web/ rule — today the
+      # E.164 phone normalisation in _shared/onboarding.ts, whose twin is
+      # web/lib/validation/profile.ts. Deno cannot import from web/, so the only thing
+      # keeping the two honest is the same vectors asserted on both sides.
+      # --allow-env: _shared/cors.ts reads the allowed origin at module load.
+      - name: Test Edge Function helpers
+        run: |
+          shopt -s nullglob globstar
+          tests=(supabase/functions/**/*_test.ts)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "No Deno tests yet."
+            exit 0
+          fi
+          deno test --allow-env --config supabase/functions/deno.json supabase/functions/
 
       - name: Fail if generated DB types drifted from the migrations
         run: |

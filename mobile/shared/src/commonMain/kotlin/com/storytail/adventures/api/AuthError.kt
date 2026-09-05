@@ -42,6 +42,23 @@ sealed interface AuthError {
         override val action = Action("Message Gyasi", "/support")
     }
 
+    /**
+     * A rejected authenticator code — Screens 2.1.6 and 2.1.7.
+     *
+     * The ordinary case, not an error condition: codes expire every thirty seconds and
+     * people type the one that just rolled over. It reads as a nudge.
+     */
+    data object MfaCodeRejected : AuthError {
+        override val message =
+            "That code didn't match. Codes roll over every 30 seconds — try the current one."
+    }
+
+    /** Screen 2.1.2 — see SignUpOutcome for why this must never be shown differently. */
+    data object EmailTaken : AuthError {
+        override val message = "Check your inbox for a link to finish up."
+        override val action = Action("Sign in", "/login")
+    }
+
     data object WeakPassword : AuthError {
         override val message = "That password is a little too easy to guess."
         override val action = Action("See what's needed", "/register")
@@ -49,6 +66,16 @@ sealed interface AuthError {
 
     data object Network : AuthError {
         override val message = "We couldn't reach Story-Tail. Check your connection and try again."
+    }
+
+    /**
+     * Raised by us, never mapped from a GoTrue code — when a screen that needs a live
+     * session finds none. A password-reset link opened tomorrow, or opened in a different
+     * browser than the one that asked for it, which is nearly always what this is.
+     */
+    data object SessionExpired : AuthError {
+        override val message = "That link has expired — reset links are only good for an hour."
+        override val action = Action("Send a new one", "/forgot-password")
     }
 
     data object Unknown : AuthError {

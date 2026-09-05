@@ -18,21 +18,410 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-WEB_VALIDATION = ROOT / "web/lib/validation/auth.ts"
-KMP_VALIDATION = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/AuthValidation.kt"
+VALIDATION_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation"
 WEB_ERRORS = ROOT / "web/lib/auth-errors.ts"
 KMP_ERRORS = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/api/AuthError.kt"
+SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth"
+WIZARD_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding"
+DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding"
+WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
 
-# web key -> kotlin key
-VALIDATION_KEYS = {
-    "emailRequired": "EMAIL_REQUIRED",
-    "emailInvalid": "EMAIL_INVALID",
-    "passwordRequired": "PASSWORD_REQUIRED",
-    "passwordTooShort": "PASSWORD_TOO_SHORT",
-    "passwordNeedsDigit": "PASSWORD_NEEDS_DIGIT",
-    "passwordNeedsUppercase": "PASSWORD_NEEDS_UPPERCASE",
-    "passwordNeedsLowercase": "PASSWORD_NEEDS_LOWERCASE",
-}
+# Each entry is one pair of parallel modules. The key map is the whole point: this script
+# only compares what it is told about, so a message added on one side and left out of the
+# map is a SILENT gap, not a failure. Add the row when you add the string.
+MESSAGE_TABLES = [
+    {
+        "label": "auth validation",
+        "web_file": ROOT / "web/lib/validation/auth.ts",
+        "web_const": "AUTH_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "AuthValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "emailRequired": "EMAIL_REQUIRED",
+            "emailInvalid": "EMAIL_INVALID",
+            "passwordRequired": "PASSWORD_REQUIRED",
+            "passwordTooShort": "PASSWORD_TOO_SHORT",
+            "passwordNeedsDigit": "PASSWORD_NEEDS_DIGIT",
+            "passwordNeedsUppercase": "PASSWORD_NEEDS_UPPERCASE",
+            "passwordNeedsLowercase": "PASSWORD_NEEDS_LOWERCASE",
+        },
+    },
+    {
+        "label": "registration",
+        "web_file": ROOT / "web/lib/validation/registration.ts",
+        "web_const": "REGISTRATION_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "RegistrationValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "nameRequired": "NAME_REQUIRED",
+            "nameTooLong": "NAME_TOO_LONG",
+            "nameInvalid": "NAME_INVALID",
+            "termsRequired": "TERMS_REQUIRED",
+            "confirmRequired": "CONFIRM_REQUIRED",
+            "confirmMismatch": "CONFIRM_MISMATCH",
+        },
+    },
+    {
+        "label": "mfa",
+        "web_file": ROOT / "web/lib/validation/mfa.ts",
+        "web_const": "MFA_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "MfaValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "codeRequired": "CODE_REQUIRED",
+            "codeShape": "CODE_SHAPE",
+        },
+    },
+    {
+        "label": "password rule labels",
+        "web_file": ROOT / "web/lib/validation/password-strength.ts",
+        "web_const": "PASSWORD_RULE_LABELS",
+        "kmp_file": VALIDATION_DIR / "PasswordStrength.kt",
+        "kmp_object": "Labels",
+        "keys": {
+            "length": "LENGTH",
+            "uppercase": "UPPERCASE",
+            "lowercase": "LOWERCASE",
+            "digit": "DIGIT",
+        },
+    },
+    {
+        "label": "password strength",
+        "web_file": ROOT / "web/lib/validation/password-strength.ts",
+        "web_const": "STRENGTH_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "PasswordStrength.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "strong": "STRONG",
+            "stillNeedsPrefix": "STILL_NEEDS_PREFIX",
+        },
+    },
+    # ── Screen copy ────────────────────────────────────────────────────────────
+    #
+    # Only the strings that must be IDENTICAL on both surfaces. The mobile artboards
+    # deliberately write shorter subtitles for a narrower column — 2.1.2's sub is "60
+    # seconds. No planning fees, ever." on a phone against "Takes about 60 seconds…" in a
+    # browser — and pinning those would be enforcing a similarity nobody asked for. What is
+    # pinned is what a person would notice differing: titles, field labels, CTAs, and the
+    # explanatory blocks that were written once and copied.
+    {
+        "label": "2.1.2 registration screen",
+        "web_file": ROOT / "web/app/(auth)/register/state.ts",
+        "web_const": "REGISTER_TEXT",
+        "kmp_file": SCREENS_DIR / "RegisterScreen.kt",
+        "kmp_object": "RegisterCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "title": "TITLE",
+            "google": "GOOGLE",
+            "apple": "APPLE",
+            "socialDisabledTitle": "SOCIAL_DISABLED",
+            "divider": "DIVIDER",
+            "firstName": "FIRST_NAME",
+            "lastName": "LAST_NAME",
+            "email": "EMAIL",
+            "password": "PASSWORD",
+            "confirm": "CONFIRM",
+            "submit": "SUBMIT",
+            "pending": "PENDING",
+            "haveAccount": "HAVE_ACCOUNT",
+            "signIn": "SIGN_IN",
+        },
+    },
+    {
+        "label": "2.1.4 forgot password screen",
+        "web_file": ROOT / "web/app/(auth)/forgot-password/state.ts",
+        "web_const": "FORGOT_TEXT",
+        "kmp_file": SCREENS_DIR / "ForgotPasswordScreen.kt",
+        "kmp_object": "ForgotPasswordCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "title": "TITLE",
+            "sub": "SUB",
+            "email": "EMAIL",
+            "submit": "SUBMIT",
+            "pending": "PENDING",
+        },
+    },
+    {
+        "label": "2.1.5 reset password screen",
+        "web_file": ROOT / "web/app/(auth)/reset-password/state.ts",
+        "web_const": "RESET_TEXT",
+        "kmp_file": SCREENS_DIR / "ResetPasswordScreen.kt",
+        "kmp_object": "ResetPasswordCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "title": "TITLE",
+            "sub": "SUB",
+            "password": "PASSWORD",
+            "confirm": "CONFIRM",
+            "submit": "SUBMIT",
+            "pending": "PENDING",
+        },
+    },
+    {
+        "label": "2.1.3 email verification screen",
+        "web_file": ROOT / "web/app/(auth)/verify-email/state.ts",
+        "web_const": "VERIFY_TEXT",
+        "kmp_file": SCREENS_DIR / "VerifyEmailScreen.kt",
+        "kmp_object": "VerifyEmailCopy",
+        "keys": {
+            "title": "TITLE",
+            "whyTitle": "WHY_TITLE",
+            "whyBody": "WHY_BODY",
+            "resend": "RESEND",
+            "signOut": "SIGN_OUT",
+        },
+    },
+    # ── Onboarding wizard, §2.1.9–2.1.14 ──────────────────────────────────────
+    #
+    # The validation rules first. Every message here is one somebody reads under a field
+    # they just filled in, and the two surfaces post to the SAME Edge Function — so a rule
+    # that differs is a screen accepting what the other rejects, not just a wording drift.
+    {
+        "label": "2.1.10 profile validation",
+        "web_file": ROOT / "web/lib/validation/profile.ts",
+        "web_const": "PROFILE_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "ProfileValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "phoneInvalid": "PHONE_INVALID",
+            "phoneNeedsCountryCode": "PHONE_NEEDS_COUNTRY_CODE",
+            "dobInvalid": "DOB_INVALID",
+            "dobTooEarly": "DOB_TOO_EARLY",
+            "dateInvalid": "DATE_INVALID",
+            "countryInvalid": "COUNTRY_INVALID",
+            "postalInvalid": "POSTAL_INVALID",
+            "tooLong": "TOO_LONG",
+            "invalidChars": "INVALID_CHARS",
+            "addressIncomplete": "ADDRESS_INCOMPLETE",
+            "emergencyIncomplete": "EMERGENCY_INCOMPLETE",
+            "passportIncomplete": "PASSPORT_INCOMPLETE",
+        },
+    },
+    {
+        "label": "2.1.11 preferences validation",
+        "web_file": ROOT / "web/lib/validation/preferences.ts",
+        "web_const": "PREFERENCES_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "PreferencesValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "destinationsTooMany": "DESTINATIONS_TOO_MANY",
+            "destinationTooLong": "DESTINATION_TOO_LONG",
+            "invalidChars": "INVALID_CHARS",
+            "unknownOption": "UNKNOWN_OPTION",
+            "dietaryNoneAlone": "DIETARY_NONE_ALONE",
+            "dietaryNoneWithNote": "DIETARY_NONE_WITH_NOTE",
+            "accessibilityNoneAlone": "ACCESSIBILITY_NONE_ALONE",
+            "accessibilityNoneWithNote": "ACCESSIBILITY_NONE_WITH_NOTE",
+            "notesTooLong": "NOTES_TOO_LONG",
+            "favoritesTooLong": "FAVOURITES_TOO_LONG",
+            "loyaltyNeedsProgram": "LOYALTY_NEEDS_PROGRAM",
+            "loyaltyNumberShape": "LOYALTY_NUMBER_SHAPE",
+            "loyaltyProgramTooLong": "LOYALTY_PROGRAM_TOO_LONG",
+            "loyaltyTooMany": "LOYALTY_TOO_MANY",
+            "budgetUnknown": "BUDGET_UNKNOWN",
+        },
+    },
+    {
+        "label": "2.1.12 companion validation",
+        "web_file": ROOT / "web/lib/validation/companion.ts",
+        "web_const": "COMPANION_MESSAGES",
+        "kmp_file": VALIDATION_DIR / "CompanionValidation.kt",
+        "kmp_object": "Messages",
+        "keys": {
+            "firstNameRequired": "FIRST_NAME_REQUIRED",
+            "lastNameRequired": "LAST_NAME_REQUIRED",
+            "nameTooLong": "NAME_TOO_LONG",
+            "invalidChars": "INVALID_CHARS",
+            "relationshipTooLong": "RELATIONSHIP_TOO_LONG",
+            "dobInvalid": "DOB_INVALID",
+            "dateInvalid": "DATE_INVALID",
+            "countryInvalid": "COUNTRY_INVALID",
+            "passportNeedsExpiry": "PASSPORT_NEEDS_EXPIRY",
+        },
+    },
+    # Then the screens. Same rule as the auth screens above: only the strings that must be
+    # IDENTICAL. Meta titles, aria labels and the desktop-only rail have no mobile twin and
+    # are left out rather than faked.
+    {
+        "label": "2.1.9 welcome screen",
+        "web_file": ROOT / "web/app/(onboarding)/welcome/state.ts",
+        "web_const": "WELCOME_TEXT",
+        "kmp_file": WIZARD_DIR / "WelcomeScreen.kt",
+        "kmp_object": "WelcomeCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "sub": "SUB",
+            "sectionHeading": "SECTION",
+            "primaryCta": "PRIMARY",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.10 profile screen",
+        "web_file": WEB_WIZARD / "profile/state.ts",
+        "web_const": "PROFILE_TEXT",
+        "kmp_file": WIZARD_DIR / "ProfileScreen.kt",
+        "kmp_object": "ProfileCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "optionalNote": "OPTIONAL",
+            "labelPhone": "PHONE",
+            "hintPhone": "PHONE_HINT",
+            "labelDob": "DOB",
+            "hintDob": "DOB_HINT",
+            "groupAddress": "ADDRESS",
+            "labelAddressLine1": "LINE1",
+            "labelAddressLine2": "LINE2",
+            "labelAddressCity": "CITY",
+            "labelAddressRegion": "REGION",
+            "labelAddressRegionUs": "REGION_US",
+            "labelAddressPostal": "POSTAL",
+            "labelAddressPostalUs": "POSTAL_US",
+            "labelAddressCountry": "COUNTRY",
+            "groupEmergency": "EMERGENCY",
+            "hintEmergency": "EMERGENCY_HINT",
+            "labelEmergencyName": "EMERGENCY_NAME",
+            "labelEmergencyPhone": "EMERGENCY_PHONE",
+            "labelEmergencyRelationship": "EMERGENCY_RELATIONSHIP",
+            "groupPassport": "PASSPORT",
+            "groupPassportOptional": "PASSPORT_OPTIONAL",
+            "hintPassport": "PASSPORT_HINT",
+            "passportExpiredWarning": "PASSPORT_EXPIRED",
+            "labelPassportExpiry": "EXPIRES",
+            "labelPassportCountry": "ISSUING",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.11 preferences screen",
+        "web_file": WEB_WIZARD / "preferences/state.ts",
+        "web_const": "PREFERENCES_TEXT",
+        "kmp_file": WIZARD_DIR / "PreferencesScreen.kt",
+        "kmp_object": "PreferencesCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "sectionDestinations": "DESTINATIONS",
+            "hintDestinations": "DESTINATIONS_HINT",
+            "labelDestinationOther": "DESTINATION_OTHER",
+            "sectionStyle": "STYLE",
+            "hintStyle": "STYLE_HINT",
+            "sectionDiet": "DIET",
+            "labelDietNotes": "DIET_NOTES",
+            "sectionAccess": "ACCESS",
+            "labelAccessNotes": "ACCESS_NOTES",
+            "sectionLoyalty": "LOYALTY",
+            "hintLoyalty": "LOYALTY_HINT",
+            "labelLoyaltyProgram": "LOYALTY_PROGRAM",
+            "labelLoyaltyNumber": "LOYALTY_NUMBER",
+            "loyaltyAdd": "LOYALTY_ADD",
+            "loyaltyRemove": "LOYALTY_REMOVE",
+            "sectionBudget": "BUDGET",
+            "hintBudget": "BUDGET_HINT",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.12 companions screen",
+        "web_file": WEB_WIZARD / "companions/state.ts",
+        "web_const": "COMPANIONS_TEXT",
+        "kmp_file": WIZARD_DIR / "CompanionsScreen.kt",
+        "kmp_object": "CompanionsCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "addCta": "ADD",
+            "editAction": "EDIT",
+            "removeAction": "REMOVE",
+            "passportNone": "NO_PASSPORT",
+            "formAddTitle": "FORM_ADD",
+            "formSub": "FORM_SUB",
+            "formSave": "SAVE",
+            "formSaving": "SAVING",
+            "formCancel": "CANCEL",
+            "labelFirstName": "FIRST_NAME",
+            "labelLastName": "LAST_NAME",
+            "labelRelationship": "RELATIONSHIP",
+            "labelDateOfBirth": "DOB",
+            "labelPassportExpiry": "EXPIRES",
+            "labelPassportCountry": "ISSUING",
+            "unfinishedForm": "UNFINISHED",
+            "errorMax": "MAX",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.13 connect screen",
+        "web_file": WEB_WIZARD / "connect/state.ts",
+        "web_const": "CONNECT_TEXT",
+        "kmp_file": WIZARD_DIR / "ConnectScreen.kt",
+        "kmp_object": "ConnectCopy",
+        "keys": {
+            "title": "TITLE",
+            "sub": "SUB",
+            "fieldLabel": "FIELD",
+            "fieldHelp": "HELP",
+            "primaryCta": "PRIMARY",
+            "primaryCtaEmpty": "PRIMARY_EMPTY",
+            "pending": "PENDING",
+            "secondaryCta": "SKIP",
+        },
+    },
+    {
+        "label": "2.1.13 connect banner",
+        "web_file": WEB_WIZARD / "connect/state.ts",
+        "web_const": "CONNECT_TEXT",
+        "kmp_file": DOMAIN_DIR / "ConnectBanner.kt",
+        "kmp_object": "ConnectBannerCopy",
+        "keys": {"noMatch": "NO_MATCH"},
+    },
+    {
+        "label": "2.1.14 complete screen",
+        "web_file": WEB_WIZARD / "complete/state.ts",
+        "web_const": "COMPLETE_TEXT",
+        "kmp_file": WIZARD_DIR / "CompleteScreen.kt",
+        "kmp_object": "CompleteCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "checklistHeading": "CHECKLIST",
+            "primaryCta": "PRIMARY",
+            "pending": "PENDING",
+        },
+    },
+    {
+        "label": "2.1.14 completion summary",
+        "web_file": WEB_WIZARD / "complete/state.ts",
+        "web_const": "COMPLETE_TEXT",
+        "kmp_file": DOMAIN_DIR / "Completion.kt",
+        "kmp_object": "CompletionCopy",
+        "keys": {
+            "subNoTrip": "SUB_NO_TRIP",
+            "subNothing": "SUB_NOTHING",
+            "profileDone": "PROFILE_DONE",
+            "profileSkipped": "PROFILE_SKIPPED",
+            "preferencesDone": "PREFERENCES_DONE",
+            "preferencesSkipped": "PREFERENCES_SKIPPED",
+            "companionsDone": "COMPANIONS_DONE",
+            "companionsSkipped": "COMPANIONS_SKIPPED",
+            "tripDone": "TRIP_DONE",
+            "tripNone": "TRIP_NONE",
+            "shortProfile": "SHORT_PROFILE",
+            "shortPreferences": "SHORT_PREFERENCES",
+            "shortCompanions": "SHORT_COMPANIONS",
+        },
+    },
+]
 
 # web BY_KIND key -> kotlin data object
 ERROR_KINDS = {
@@ -43,25 +432,102 @@ ERROR_KINDS = {
     "network": "Network",
     "not_configured": "NotConfigured",
     "weak_password": "WeakPassword",
+    "session_expired": "SessionExpired",
     "unknown": "Unknown",
 }
 
 # A string literal on a single line — never spanning newlines.
-STRING = r'"((?:[^"\\\n]|\\.)*)"'
+#
+# BOTH QUOTE STYLES, because TypeScript has both and Prettier picks whichever needs fewer
+# escapes: `'"No restrictions" doesn\'t go…'` is single-quoted precisely BECAUSE the copy
+# contains double quotes. Matching only double-quoted literals made every such string
+# invisible — the key parsed as absent and the script reported it "missing on web" while it
+# sat right there, which is the same silent-gap failure mode as the wrapped-string bug.
+STRING = r'"((?:[^"\\\n]|\\.)*)"' + r"|'((?:[^'\\\n]|\\.)*)'"
+
+# Kotlin has one string syntax, so the Kotlin side reads double quotes only.
+KMP_STRING = r'"((?:[^"\\\n]|\\.)*)"'
+
+
+def literals(text: str) -> list[str]:
+    """Every string literal in `text`, in order, unescaped and with quotes stripped."""
+    return [
+        unescape(double or single)
+        for double, single in re.findall(STRING, text)
+    ]
 
 
 def unescape(s: str) -> str:
-    return s.replace('\\"', '"').replace("\\\\", "\\")
+    return (
+        s.replace('\\"', '"')
+        .replace("\\'", "'")
+        .replace("\\\\", "\\")
+    )
 
 
-def web_validation() -> dict[str, str]:
-    body = re.search(r"AUTH_MESSAGES = \{(.*?)\n\} as const;", WEB_VALIDATION.read_text(), re.S)
-    return {k: unescape(v) for k, v in re.findall(rf"(\w+):\s*{STRING}", body.group(1))}
+def web_messages(path: pathlib.Path, const_name: str) -> dict[str, str]:
+    """
+    `export const NAME = { key: "value", ... } as const;`
+
+    A value may be a `"..." +\n    "..."` concatenation, which is how anything longer than
+    a line is written. Matching only the first literal — which this did until the screen
+    tables were added — silently compares half a sentence against a whole one and reports
+    drift that is not there, or worse, agreement that is not either.
+
+    Keys whose value is not a plain string (a function, an array — 2.1.10's
+    `title: (name) => …`) are skipped rather than mangled. They are not comparable across
+    platforms anyway.
+    """
+    body = re.search(
+        rf"{re.escape(const_name)} = \{{(.*?)\n\}} as const;", path.read_text(), re.S
+    )
+    if not body:
+        return {}
+
+    out: dict[str, str] = {}
+    for name, value in re.findall(
+        r"^  (\w+):\s*(.*?)(?=\n  \w+:|\n  /|\Z)", body.group(1), re.S | re.M
+    ):
+        stripped = value.strip()
+        # A function or a list is not a string, and joining the literals inside one would
+        # produce something that looks comparable and is not.
+        if not stripped.startswith('"') and not stripped.startswith("'"):
+            continue
+        parts = literals(value)
+        if parts:
+            out[name] = "".join(parts)
+    return out
 
 
-def kmp_validation() -> dict[str, str]:
-    body = re.search(r"object Messages \{(.*?)\n    \}", KMP_VALIDATION.read_text(), re.S)
-    return {k: unescape(v) for k, v in re.findall(rf"const val (\w+) = {STRING}", body.group(1))}
+def kmp_messages(path: pathlib.Path, object_name: str) -> dict[str, str]:
+    """
+    `object NAME { const val KEY = "value" ... }`, at any indentation.
+
+    The value may be a `"..." +\n    "..."` concatenation, which is how any copy longer
+    than a line gets written. Joining the literals rather than matching one of them is the
+    same thing `kmp_errors` does, and the reason is the same: without it a wrapped string
+    reads as absent, and the script reports a missing key for copy that is right there.
+    """
+    body = re.search(
+        rf"object {re.escape(object_name)} \{{(.*?)\n\s*\}}", path.read_text(), re.S
+    )
+    if not body:
+        return {}
+
+    out: dict[str, str] = {}
+    # Everything up to the next `const val` or the end of the object is one value.
+    # The value ends at the next declaration OR comment. `fun` belongs in that list: a
+    # `const val` sitting last before the object's functions otherwise swallowed every
+    # function body after it, and reported the concatenation as drift.
+    for name, value in re.findall(
+        r"const val (\w+) =\s*(.*?)(?=\n\s*(?:const val|fun |private fun |/\*\*|//)|\Z)",
+        body.group(1),
+        re.S,
+    ):
+        parts = re.findall(KMP_STRING, value)
+        if parts:
+            out[name] = "".join(unescape(part) for part in parts)
+    return out
 
 
 def web_errors() -> dict[str, str]:
@@ -77,7 +543,7 @@ def web_errors() -> dict[str, str]:
         # block ends right after the comma with no newline.
         msg = re.search(r"message:\s*(.*?),\s*(?:\n|$)", entry.group(1), re.S)
         if msg:
-            out[kind] = "".join(unescape(p) for p in re.findall(STRING, msg.group(1)))
+            out[kind] = "".join(literals(msg.group(1)))
     return out
 
 
@@ -92,7 +558,7 @@ def kmp_errors() -> dict[str, str]:
             continue
         msg = re.search(r"override val message\s*=\s*(.*?)(?:\n\s*override|\n\s*\}|$)", entry.group(1), re.S)
         if msg:
-            out[kind] = "".join(unescape(p) for p in re.findall(STRING, msg.group(1)))
+            out[kind] = "".join(unescape(p) for p in re.findall(KMP_STRING, msg.group(1)))
     return out
 
 
@@ -111,13 +577,30 @@ def compare(label: str, pairs: list[tuple[str, str | None, str | None]]) -> list
 
 
 def main() -> int:
-    wv, kv = web_validation(), kmp_validation()
-    we, ke = web_errors(), kmp_errors()
+    problems: list[str] = []
+    checked = 0
 
-    problems = compare(
-        "validation",
-        [(w, wv.get(w), kv.get(k)) for w, k in VALIDATION_KEYS.items()],
-    ) + compare(
+    for table in MESSAGE_TABLES:
+        web = web_messages(table["web_file"], table["web_const"])
+        kmp = kmp_messages(table["kmp_file"], table["kmp_object"])
+        if not web:
+            problems.append(
+                f"{table['label']}: could not read {table['web_const']} from "
+                f"{table['web_file'].relative_to(ROOT)} — did it get renamed?"
+            )
+        if not kmp:
+            problems.append(
+                f"{table['label']}: could not read object {table['kmp_object']} from "
+                f"{table['kmp_file'].relative_to(ROOT)} — did it get renamed?"
+            )
+        problems += compare(
+            table["label"],
+            [(w, web.get(w), kmp.get(k)) for w, k in table["keys"].items()],
+        )
+        checked += len(table["keys"])
+
+    we, ke = web_errors(), kmp_errors()
+    problems += compare(
         "auth error",
         [(kind, we.get(kind), ke.get(kind)) for kind in ERROR_KINDS],
     )
@@ -134,8 +617,8 @@ def main() -> int:
         return 1
 
     print(
-        f"Copy parity OK — {len(VALIDATION_KEYS)} validation messages and "
-        f"{len(ERROR_KINDS)} auth errors match across web and mobile."
+        f"Copy parity OK — {checked} messages across {len(MESSAGE_TABLES)} modules and "
+        f"{len(ERROR_KINDS)} auth errors match between web and mobile."
     )
     return 0
 

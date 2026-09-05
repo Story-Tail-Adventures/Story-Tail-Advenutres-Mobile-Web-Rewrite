@@ -9,6 +9,7 @@ import { staImg } from "@/lib/images";
 import { inquiryHref } from "@/lib/public/inquiry";
 import { isJoinIntent, loginHref } from "@/lib/public/links";
 import { safeNext } from "@/lib/safe-next";
+import { single, type SearchParams } from "@/lib/search-params";
 import { JoinForm } from "./JoinForm";
 import { JOIN_TEXT, joinCopy } from "./state";
 
@@ -28,13 +29,6 @@ export const metadata: Metadata = {
     images: [{ url: staImg("turks", 1200, 630), width: 1200, height: 630 }],
   },
 };
-
-type SearchParams = Record<string, string | string[] | undefined>;
-
-/** Next hands repeated keys over as arrays; the gate only ever wants a single string. */
-function single(value: string | string[] | undefined): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
 
 /**
  * Everything in the URL is untrusted. `intent` is an allowlist, `trip` is looked up in

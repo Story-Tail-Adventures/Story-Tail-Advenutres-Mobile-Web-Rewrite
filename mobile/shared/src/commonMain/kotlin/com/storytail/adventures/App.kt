@@ -14,30 +14,43 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.storytail.adventures.api.Assurance
 import com.storytail.adventures.api.AuthRepository
+import com.storytail.adventures.api.OnboardingRepository
+import com.storytail.adventures.api.OnboardingStatus
+import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
+import com.storytail.adventures.ui.nav.AppRoute
+import com.storytail.adventures.ui.nav.Navigator
+import com.storytail.adventures.ui.nav.PlatformBackHandler
+import com.storytail.adventures.ui.nav.rememberNavigator
+import com.storytail.adventures.ui.screens.auth.ForgotPasswordEvent
+import com.storytail.adventures.ui.screens.auth.ForgotPasswordScreen
+import com.storytail.adventures.ui.screens.auth.ForgotPasswordViewModel
 import com.storytail.adventures.ui.screens.auth.LoginEvent
 import com.storytail.adventures.ui.screens.auth.LoginScreen
 import com.storytail.adventures.ui.screens.auth.LoginViewModel
+import com.storytail.adventures.ui.screens.auth.MfaChallengeEvent
+import com.storytail.adventures.ui.screens.auth.MfaChallengeScreen
+import com.storytail.adventures.ui.screens.auth.MfaChallengeViewModel
+import com.storytail.adventures.ui.screens.auth.MfaSetupEvent
+import com.storytail.adventures.ui.screens.auth.MfaSetupScreen
+import com.storytail.adventures.ui.screens.auth.MfaSetupViewModel
+import com.storytail.adventures.ui.screens.auth.RegisterEvent
+import com.storytail.adventures.ui.screens.auth.RegisterScreen
+import com.storytail.adventures.ui.screens.auth.RegisterViewModel
+import com.storytail.adventures.ui.screens.auth.ResetPasswordEvent
+import com.storytail.adventures.ui.screens.auth.ResetPasswordScreen
+import com.storytail.adventures.ui.screens.auth.ResetPasswordViewModel
+import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
+import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
+import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
+import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
+import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
 import com.storytail.adventures.ui.theme.StoryTailTheme
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
-
-/**
- * Destinations.
- *
- * A sealed interface rather than navigation-compose: there are two screens, no deep
- * links yet, and the Compose Multiplatform navigation artifact is still alpha. Swap it
- * in at the third destination, when Screen Inventory §2.1.1's "deep link to an
- * authenticated screen" entry point actually needs handling.
- */
-sealed interface AppRoute {
-    /** Session restore hasn't finished. Distinct from Login so we don't flash it. */
-    data object Resolving : AppRoute
-    data object Login : AppRoute
-    data object Dashboard : AppRoute
-}
 
 @Composable
 fun App() {
@@ -45,9 +58,16 @@ fun App() {
         // Built off the main thread — see SupabaseClientProvider.authRepository(). Null
         // until it is ready, which is what the Resolving route renders.
         var authRepository by remember { mutableStateOf<AuthRepository?>(null) }
+        var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
+            onboardingRepository = SupabaseClientProvider.onboardingRepository()
         }
+
+        // Today, as the date-only columns see it. Computed once per composition rather than
+        // per keystroke: the only thing it decides is whether a date of birth is in the past,
+        // and asking the clock on every character typed is work for no answer that changes.
+        val today = remember { todayIsoUtc() }
 
         val repo = authRepository
         if (repo == null) {
@@ -55,24 +75,49 @@ fun App() {
             return@StoryTailTheme
         }
 
+        val nav = rememberNavigator()
         val sessionStatus by repo.sessionStatus.collectAsState(
             initial = SessionStatus.Initializing,
         )
 
-        var route by remember { mutableStateOf<AppRoute>(AppRoute.Resolving) }
+        /**
+         * The session decides the stack, not the other way round.
+         *
+         * Signing in resets rather than pushes, so the sign-in form is not one back gesture
+         * behind the dashboard; signing out resets for the same reason in reverse. Signing
+         * out only resets when the screen on top actually needed a session — see
+         * [Navigator.onSignedOut].
+         *
+         * Restoring a persisted session lands straight on the dashboard, which is what
+         * proves the round trip survived an app kill. Initializing has its own route so a
+         * returning user does not see Login flash before the session resolves.
+         */
+        LaunchedEffect(sessionStatus, onboardingRepository) {
+            when (sessionStatus) {
+                is SessionStatus.Authenticated ->
+                    // A password login is not the whole of signing in once a second factor
+                    // exists. Same three-way gate the web proxy applies in
+                    // web/lib/supabase/middleware.ts, and then the same onboarding gate the
+                    // (client) layout applies after it.
+                    nav.resetTo(
+                        when {
+                            repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
+                            else -> onboardingRepository?.let { destinationFor(it.status()) }
+                                ?: AppRoute.Dashboard
+                        },
+                    )
 
-        // Restoring a persisted session lands straight on the dashboard — that is what
-        // proves the round trip survived an app kill. Initializing gets its own route so
-        // a returning user doesn't see Login flash before the session resolves.
-        LaunchedEffect(sessionStatus) {
-            route = when (sessionStatus) {
-                is SessionStatus.Authenticated -> AppRoute.Dashboard
-                SessionStatus.Initializing -> AppRoute.Resolving
-                else -> AppRoute.Login
+                SessionStatus.Initializing -> nav.resetTo(AppRoute.Resolving)
+
+                else -> nav.onSignedOut()
             }
         }
 
-        when (route) {
+        // Android's system back. Disabled at the root of the stack so it falls through to
+        // leaving the app rather than being swallowed.
+        PlatformBackHandler(enabled = nav.canGoBack) { nav.pop() }
+
+        when (val route = nav.current) {
             AppRoute.Resolving -> SplashScreen()
 
             AppRoute.Login -> {
@@ -82,11 +127,12 @@ fun App() {
                 LaunchedEffect(viewModel) {
                     viewModel.events.collect { event ->
                         when (event) {
-                            LoginEvent.NavigateToDashboard -> route = AppRoute.Dashboard
-                            // 2.1.2 and 2.1.4 are not built yet. The controls are live so
-                            // the screen matches the prototype, but they go nowhere.
-                            LoginEvent.NavigateToRegister -> Unit
-                            LoginEvent.NavigateToForgotPassword -> Unit
+                            // Authentication drives the stack through sessionStatus above,
+                            // so this needs no navigation of its own.
+                            LoginEvent.NavigateToDashboard -> Unit
+                            LoginEvent.NavigateToRegister -> nav.push(AppRoute.Register)
+                            LoginEvent.NavigateToForgotPassword ->
+                                nav.push(AppRoute.ForgotPassword)
                         }
                     }
                 }
@@ -106,14 +152,203 @@ fun App() {
                 )
             }
 
+            is AppRoute.Onboarding -> {
+                val onboarding = onboardingRepository
+                if (onboarding == null) {
+                    SplashScreen()
+                    return@StoryTailTheme
+                }
+                OnboardingRoute(
+                    step = route.step,
+                    onboarding = onboarding,
+                    today = today,
+                    onAdvance = { nav.resetTo(AppRoute.Onboarding(it)) },
+                    // Finishing stamps `onboarding_completed_at`, which is what stops the
+                    // gate routing every future sign-in back into the wizard.
+                    onFinished = { nav.resetTo(AppRoute.Dashboard) },
+                )
+            }
+
             AppRoute.Dashboard -> {
                 val scope = rememberCoroutineScope()
                 DashboardScreen(
                     onSignOut = { scope.launch { repo.signOut() } },
                 )
             }
+
+            AppRoute.Register -> {
+                val viewModel = viewModel { RegisterViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // Sign-up with confirmations off produces a session, and
+                            // sessionStatus above drives the stack — nothing to do here.
+                            RegisterEvent.NavigateToDashboard -> Unit
+                            is RegisterEvent.NavigateToVerifyEmail ->
+                                nav.push(AppRoute.VerifyEmail(event.email))
+                            // pop rather than push: Login is the screen underneath, and
+                            // pushing it would leave two of them in the stack.
+                            RegisterEvent.NavigateToSignIn -> nav.pop()
+                        }
+                    }
+                }
+
+                RegisterScreen(
+                    state = state,
+                    onFirstNameChange = viewModel::onFirstNameChange,
+                    onLastNameChange = viewModel::onLastNameChange,
+                    onEmailChange = viewModel::onEmailChange,
+                    onPasswordChange = viewModel::onPasswordChange,
+                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                    onTermsChange = viewModel::onTermsChange,
+                    onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
+                    onSubmit = viewModel::submit,
+                    onSignIn = viewModel::onSignIn,
+                    googleEnabled = false,
+                    appleEnabled = false,
+                )
+            }
+
+            is AppRoute.VerifyEmail -> {
+                // Keyed on the address: arriving here for a different sign-up must not reuse
+                // the previous one's ViewModel, which holds the address in its constructor.
+                val viewModel = viewModel(key = "verify-${route.email}") {
+                    VerifyEmailViewModel(repo, route.email)
+                }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            VerifyEmailEvent.NavigateToRegister -> nav.pop()
+                            VerifyEmailEvent.NavigateToSignIn -> nav.resetTo(AppRoute.Login)
+                        }
+                    }
+                }
+
+                VerifyEmailScreen(
+                    state = state,
+                    onResend = viewModel::resend,
+                    onChangeEmail = viewModel::onChangeEmail,
+                    onSignOut = viewModel::onSignOut,
+                )
+            }
+
+            AppRoute.ForgotPassword -> {
+                val viewModel = viewModel { ForgotPasswordViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            ForgotPasswordEvent.NavigateToSignIn -> nav.pop()
+                        }
+                    }
+                }
+
+                ForgotPasswordScreen(
+                    state = state,
+                    onEmailChange = viewModel::onEmailChange,
+                    onSubmit = viewModel::submit,
+                    onSignIn = viewModel::onSignIn,
+                )
+            }
+
+            AppRoute.ResetPassword -> {
+                val viewModel = viewModel { ResetPasswordViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // The recovery session is a real one, so saving a password
+                            // leaves an authenticated session and sessionStatus routes it.
+                            ResetPasswordEvent.NavigateToDashboard -> Unit
+                            ResetPasswordEvent.NavigateToSignIn -> nav.resetTo(AppRoute.Login)
+                        }
+                    }
+                }
+
+                ResetPasswordScreen(
+                    state = state,
+                    onPasswordChange = viewModel::onPasswordChange,
+                    onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+                    onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
+                    onSubmit = viewModel::submit,
+                    onSignIn = viewModel::onSignIn,
+                )
+            }
+
+            AppRoute.MfaSetup -> {
+                val viewModel = viewModel { MfaSetupViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // Verifying raises the session to aal2; sessionStatus routes it.
+                            MfaSetupEvent.Done -> nav.pop()
+                            MfaSetupEvent.Cancelled -> nav.pop()
+                        }
+                    }
+                }
+
+                MfaSetupScreen(
+                    state = state,
+                    onCodeChange = viewModel::onCodeChange,
+                    onSecretCopied = viewModel::onSecretCopied,
+                    onRetry = viewModel::enroll,
+                    onSubmit = viewModel::verify,
+                    onCancel = viewModel::onCancel,
+                )
+            }
+
+            AppRoute.MfaChallenge -> {
+                val viewModel = viewModel { MfaChallengeViewModel(repo) }
+                val state by viewModel.state.collectAsState()
+
+                LaunchedEffect(viewModel) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            // Both outcomes change the session, and the LaunchedEffect on
+                            // sessionStatus above is what moves the stack — verifying raises
+                            // assurance to SATISFIED, signing out drops it entirely.
+                            MfaChallengeEvent.Verified -> Unit
+                            MfaChallengeEvent.SignedOut -> Unit
+                        }
+                    }
+                }
+
+                MfaChallengeScreen(
+                    state = state,
+                    onCodeChange = viewModel::onCodeChange,
+                    onSubmit = viewModel::verify,
+                    onSignOut = viewModel::onSignOut,
+                )
+            }
         }
     }
+}
+
+/**
+ * Where an authenticated traveler belongs.
+ *
+ * PURE, so the rule is assertable without a Supabase client — the same reason
+ * `onboardingRedirectFor` was split out of the web gate. Null status means the read failed
+ * or Supabase is unconfigured, and it FAILS OPEN: a bookkeeping query going wrong must not
+ * lock somebody out of their own dashboard.
+ *
+ * An agent has no wizard, and a finished one is not sent back into it — the step slug is
+ * cleared on completion, but the gate does not depend on that having happened.
+ */
+fun destinationFor(status: OnboardingStatus?): AppRoute = when {
+    status == null -> AppRoute.Dashboard
+    !status.isClient -> AppRoute.Dashboard
+    status.completed -> AppRoute.Dashboard
+    // Started but unfinished: resume where they stopped. Never started: the cover page.
+    else -> AppRoute.Onboarding(WizardStep.ofSlug(status.step) ?: WizardStep.WELCOME)
 }
 
 /** Plain branded ground while the session resolves. Milliseconds in the common case. */

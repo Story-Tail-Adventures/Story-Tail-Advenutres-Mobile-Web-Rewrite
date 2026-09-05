@@ -232,4 +232,66 @@ SELECT
 FROM public.platform_user pu
 WHERE pu.account_id = '0195a2c0-1a00-7000-8000-000000000010';
 
+-- ============================================================
+-- A client Gyasi created before they ever signed up
+--
+-- The state Screen 2.1.13 exists for: the agent has a record and a trip in flight, the
+-- traveler has no account yet. It makes both halves of that screen testable locally.
+--
+--   * Sign up as maya.carter@example.com — handle_new_user() claims this row by email and
+--     the Aruba trip is there on first sign-in, no code needed.
+--   * Sign up as anything else and redeem STA-7HX2J9 — the invite-code path, for when the
+--     traveler uses a different address than the one the agent has on file.
+--
+-- Deliberately NO auth.users row: an unclaimed client is one with no platform_user
+-- pointing at it, and creating a login here would defeat the whole fixture.
+-- ============================================================
+
+INSERT INTO public.client (
+    id, agent_id, first_name, last_name, preferred_name, email, phone, tags
+) VALUES (
+    '0195a2c0-1a00-7000-8000-000000000013',
+    '0195a2c0-1a00-7000-8000-000000000001',
+    'Maya', 'Carter', 'Maya',
+    'maya.carter@example.com',
+    '+1-555-0188',
+    ARRAY['referral', 'first-trip']
+);
+
+INSERT INTO public.trip (
+    id, client_id, agent_id, title, trip_type, status,
+    start_date, end_date, destinations, traveler_count,
+    total_value_cents, total_paid_cents, total_commission_cents, currency, notes
+) VALUES (
+    '0195a2c0-1a00-7000-8000-000000000041',
+    '0195a2c0-1a00-7000-8000-000000000013',
+    '0195a2c0-1a00-7000-8000-000000000001',
+    'Aruba, Somewhere Quiet',
+    'all_inclusive',
+    'proposal',
+    current_date + 118,
+    current_date + 125,
+    ARRAY['Palm Beach, Aruba'],
+    2,
+    964000,    -- $9,640.00
+    0,
+    115680,    -- $1,156.80 commission
+    'USD',
+    'Wants a week with nothing on the calendar after Wednesday.'
+);
+
+-- Invite code STA-7HX2J9. Only the hash is stored — see Data-Model §6.7 and the
+-- client_invite_code_hash() comment for why, and for why "sta 7hx2j9" hashes the same.
+INSERT INTO public.client_invite (
+    id, client_id, code_hash, issued_by_user_id, expires_at
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000060',
+    '0195a2c0-1a00-7000-8000-000000000013',
+    public.client_invite_code_hash('STA-7HX2J9'),
+    pu.id,
+    now() + interval '30 days'
+FROM public.platform_user pu
+WHERE pu.account_id = '0195a2c0-1a00-7000-8000-000000000010';
+
 COMMIT;

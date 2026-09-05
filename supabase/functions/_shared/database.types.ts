@@ -546,6 +546,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           email: string | null
+          emergency_contact: Json | null
           first_name: string
           id: string
           important_dates: Json
@@ -567,6 +568,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
+          emergency_contact?: Json | null
           first_name: string
           id: string
           important_dates?: Json
@@ -588,6 +590,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           email?: string | null
+          emergency_contact?: Json | null
           first_name?: string
           id?: string
           important_dates?: Json
@@ -623,6 +626,64 @@ export type Database = {
             columns: ["merged_into_client_id"]
             isOneToOne: false
             referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_invite: {
+        Row: {
+          accepted_account_id: string | null
+          accepted_at: string | null
+          client_id: string
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          issued_by_user_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          accepted_account_id?: string | null
+          accepted_at?: string | null
+          client_id: string
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id: string
+          issued_by_user_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          accepted_account_id?: string | null
+          accepted_at?: string | null
+          client_id?: string
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issued_by_user_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_invite_accepted_account_id_fkey"
+            columns: ["accepted_account_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_invite_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_invite_issued_by_user_id_fkey"
+            columns: ["issued_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
             referencedColumns: ["id"]
           },
         ]
@@ -827,6 +888,7 @@ export type Database = {
       }
       companion: {
         Row: {
+          archived_at: string | null
           client_id: string
           created_at: string
           date_of_birth: string | null
@@ -843,6 +905,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           client_id: string
           created_at?: string
           date_of_birth?: string | null
@@ -859,6 +922,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           client_id?: string
           created_at?: string
           date_of_birth?: string | null
@@ -1458,6 +1522,8 @@ export type Database = {
           display_name: string
           id: string
           locale: string
+          onboarding_completed_at: string | null
+          onboarding_step: string | null
           role: Database["public"]["Enums"]["user_role"]
           time_zone: string
           updated_at: string
@@ -1471,6 +1537,8 @@ export type Database = {
           display_name: string
           id: string
           locale?: string
+          onboarding_completed_at?: string | null
+          onboarding_step?: string | null
           role: Database["public"]["Enums"]["user_role"]
           time_zone?: string
           updated_at?: string
@@ -1484,6 +1552,8 @@ export type Database = {
           display_name?: string
           id?: string
           locale?: string
+          onboarding_completed_at?: string | null
+          onboarding_step?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           time_zone?: string
           updated_at?: string
@@ -1675,7 +1745,7 @@ export type Database = {
           client_id: string
           companion_id: string | null
           created_at: string
-          document_id: string
+          document_id: string | null
           document_number_encrypted: string | null
           expires_on: string | null
           id: string
@@ -1690,7 +1760,7 @@ export type Database = {
           client_id: string
           companion_id?: string | null
           created_at?: string
-          document_id: string
+          document_id?: string | null
           document_number_encrypted?: string | null
           expires_on?: string | null
           id: string
@@ -1705,7 +1775,7 @@ export type Database = {
           client_id?: string
           companion_id?: string | null
           created_at?: string
-          document_id?: string
+          document_id?: string | null
           document_number_encrypted?: string | null
           expires_on?: string | null
           id?: string
@@ -1742,8 +1812,10 @@ export type Database = {
       travel_preference: {
         Row: {
           accessibility_needs: string[]
+          accessibility_notes: string | null
           budget_band: string | null
           client_id: string
+          dietary_notes: string | null
           dietary_restrictions: string[]
           favorite_past_trips: string | null
           id: string
@@ -1754,8 +1826,10 @@ export type Database = {
         }
         Insert: {
           accessibility_needs?: string[]
+          accessibility_notes?: string | null
           budget_band?: string | null
           client_id: string
+          dietary_notes?: string | null
           dietary_restrictions?: string[]
           favorite_past_trips?: string | null
           id: string
@@ -1766,8 +1840,10 @@ export type Database = {
         }
         Update: {
           accessibility_needs?: string[]
+          accessibility_notes?: string | null
           budget_band?: string | null
           client_id?: string
+          dietary_notes?: string | null
           dietary_restrictions?: string[]
           favorite_past_trips?: string | null
           id?: string
@@ -2028,6 +2104,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      current_client_mailing_address_id: { Args: never; Returns: string }
       current_platform_user: {
         Args: never
         Returns: {
@@ -2039,6 +2117,8 @@ export type Database = {
           display_name: string
           id: string
           locale: string
+          onboarding_completed_at: string | null
+          onboarding_step: string | null
           role: Database["public"]["Enums"]["user_role"]
           time_zone: string
           updated_at: string

@@ -2,43 +2,33 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/Button";
+import type { MappedAuthError } from "@/lib/auth-errors";
+import { FormError } from "@/components/auth/FormError";
+import { SocialButtons } from "@/components/auth/SocialButtons";
+import { SubmitButton } from "@/components/auth/SubmitButton";
 import { Field } from "@/components/ui/Field";
-import { Alert } from "@/components/ui/Alert";
-import { Spinner } from "@/components/ui/Spinner";
 import { DividerWithLabel } from "@/components/ui/Divider";
 import { signInAction } from "./actions";
 import { initialLoginState } from "./state";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="filled" size="lg" fullWidth disabled={pending}>
-      {pending ? (
-        <>
-          <Spinner className="size-5" />
-          Signing you in…
-        </>
-      ) : (
-        "Continue to my trips"
-      )}
-    </Button>
-  );
-}
 
 export function LoginForm({
   next,
   googleEnabled,
   appleEnabled,
+  initialError,
 }: {
   next?: string;
   googleEnabled: boolean;
   appleEnabled: boolean;
+  /** From `?error=`, so a failed OAuth start says something. */
+  initialError?: MappedAuthError;
 }) {
+  // Seeded, not held separately: `useActionState` replaces the whole state on the first
+  // submit, so the URL error shows on arrival and a real submit error supersedes it.
+  // A second piece of state would leave both on screen at once.
   const [state, formAction, isPending] = useActionState(
     signInAction,
-    initialLoginState,
+    initialError ? { ...initialLoginState, formError: initialError } : initialLoginState,
   );
 
   const socialTitle = "Social sign-in isn't switched on yet — use your email below.";
@@ -47,42 +37,21 @@ export function LoginForm({
     <form action={formAction} className="flex flex-col gap-3.5">
       <input type="hidden" name="next" value={next ?? ""} />
 
-      {state.formError && (
-        <Alert tone="error">
-          {state.formError.message}
-          {state.formError.action && (
-            <>
-              {" "}
-              <Link
-                href={state.formError.action.href}
-                className="font-semibold underline underline-offset-2"
-              >
-                {state.formError.action.label}
-              </Link>
-              .
-            </>
-          )}
-        </Alert>
-      )}
+      <FormError error={state.formError} />
 
-      <Button
-        variant="outlined"
-        size="lg"
-        fullWidth
-        disabled={!googleEnabled}
-        title={googleEnabled ? undefined : socialTitle}
-      >
-        Continue with Google
-      </Button>
-      <Button
-        variant="outlined"
-        size="lg"
-        fullWidth
-        disabled={!appleEnabled}
-        title={appleEnabled ? undefined : socialTitle}
-      >
-        Continue with Apple
-      </Button>
+      {/* These submit this same form to signInWithProviderAction — see SocialButtons.
+          Inside a disabled fieldset because they are submit buttons on a form that may
+          already be submitting: left live, a click during sign-up starts a second,
+          concurrent submission of the same form. `contents` keeps the flex gap. */}
+      <fieldset disabled={isPending} className="contents">
+        <SocialButtons
+          googleEnabled={googleEnabled}
+          appleEnabled={appleEnabled}
+          googleLabel="Continue with Google"
+          appleLabel="Continue with Apple"
+          disabledTitle={socialTitle}
+        />
+      </fieldset>
 
       <DividerWithLabel label="OR" />
 
@@ -115,7 +84,7 @@ export function LoginForm({
         />
       </fieldset>
 
-      <SubmitButton />
+      <SubmitButton label="Continue to my trips" pendingLabel="Signing you in…" />
     </form>
   );
 }

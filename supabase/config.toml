@@ -182,8 +182,14 @@ refresh_token_reuse_interval = 10
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
-# Allow/disallow testing manual linking of accounts
-enable_manual_linking = false
+# Allow/disallow testing manual linking of accounts.
+#
+# Required by Screen 2.1.8 Social Login / Account Linking: `supabase.auth.linkIdentity()`
+# is refused outright when this is off. Supabase auto-links a social identity to an
+# existing account only when that account's email is already confirmed — 2.1.8 is the
+# unconfirmed case, where a matching address proves nothing, so the screen makes the person
+# sign in with their password FIRST and links second.
+enable_manual_linking = true
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
 # Screen Inventory 2.1.2 / 2.1.5: 12+ characters. Keep this in step with
 # AuthValidation.validateNewPassword (mobile) and newPasswordSchema (web).
@@ -231,7 +237,16 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+#
+# ON, and deliberately so — this is not just parity with the hosted default. The Screen
+# 2.1.13 auto-match adopts a client record the agent pre-created, along with their name,
+# phone and trips, and public.handle_user_email_confirmed() will only do that on the
+# NULL -> NOT NULL transition of email_confirmed_at. Turn confirmations off and that
+# transition never happens: locally the adoption silently stops working, and in any
+# environment reachable by a stranger it would be adoption on the strength of knowing an
+# email address. Screen 2.1.3 Email Verification is exercisable locally because of this;
+# the mail lands in Mailpit at http://127.0.0.1:54324.
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.

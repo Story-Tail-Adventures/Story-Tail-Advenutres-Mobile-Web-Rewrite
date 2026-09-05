@@ -227,6 +227,17 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.10 Profile Completion Screen
 **Purpose:** Capture core profile data needed for trip planning.
 **Primary elements:** Phone number; mailing address; date of birth; emergency contact (name, phone, relationship); passport info (number, expiry, country of issue — optional but encouraged); "Save & continue" CTA; "Skip for now" link.
+
+> Built September 2026, with two departures from the prototype worth recording.
+>
+> **The passport NUMBER is deferred; expiry and country of issue ship.** `travel_document.document_number_encrypted` is Sensitive PII that Data-Model §18.2 requires be encrypted under a backend-held DEK wrapped by a KMS key, with §18.3 auditing on every decryption. None of that is built — there is no crypto helper in `supabase/functions/_shared/` and no key management — and collecting a passport number in order to store it unprotected is worse than not collecting it. The expiry is what drives the renewal reminder, so it is the part travelers actually feel. The Edge Function refuses a `passport.number` key loudly rather than ignoring it. The field returns with the encryption pass.
+>
+> **The mailing address is six structured fields, not one line.** There is no free-text address column anywhere in the schema: `client.mailing_address_id` is a FK to `address`, whose `line1`, `city` and `country` are NOT NULL and whose country is `char(2)`. The prototype's single input would have to be parsed, and an address parser fails the first time somebody types an apartment number. Street, apt, city, region, postal code and country are collected and validated as a group — all three NOT NULL parts together, or none of them.
+>
+> **Today this screen is reachable only from the wizard.** The `(onboarding)` route group redirects anybody whose onboarding is finished to the dashboard, so the "account settings" entry point above belongs to **2.5.2 Personal Info Edit** — which is Pattern A where this is Pattern G, and is the right shape for editing. 2.5.2 should reuse `web/lib/validation/profile.ts` and the same Edge Function rather than growing a second set of rules.
+>
+> **Phone numbers are stored E.164** (Data-Model §6.1), normalised in both the form and the Edge Function. A number carrying a `+` is taken as given; a bare ten digits is assumed North American, and the field hint says so rather than assuming silently. A full libphonenumber dependency would need the third-party review CLAUDE.md requires.
+
 **Key actions:** Save profile data; skip step.
 **Entry points:** First-time onboarding; account settings.
 **Related screens:** Travel Preferences, Dashboard, Personal Info Edit.
@@ -234,6 +245,43 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.11 Travel Preferences Capture Screen
 **Purpose:** Learn how the client likes to travel so the agent can serve them better.
 **Primary elements:** Preferred destinations (tag picker); travel styles (resort, cruise, adventure, romantic, family, group); dietary restrictions; accessibility needs; frequent flyer / loyalty program memberships; budget comfort range; favorite past trips (free text); "Save" CTA.
+
+> Built September 2026. Four things the prototype could not express, all now in
+> `docs/Data-Model.md` §6.2 and the migration `20260904124903_travel_preference_vocabulary`.
+>
+> **The budget slider is four bands.** The artboards show a dual-thumb range from $1k to
+> $10k+; `travel_preference.budget_band` is one nullable `text` whose domain is
+> {budget, mid, premium, luxury}. Two thumbs is two numbers, and storing them would mean
+> three new columns (min cents, max cents, currency — CLAUDE.md rule 5) to capture a figure
+> the client is guessing at. The four bands also match `lead.budget_band`, so a Phase 2 lead
+> converts without translation. **The dollar figures behind the four labels are display copy,
+> not data** — only the slug is stored, so they can be re-cut when Gyasi says where his trips
+> actually sit. They were read off the prototype's demo slider and nobody has ratified them.
+>
+> **"Honeymoon" the label stores `romantic` the value.** Both this section and the Data
+> Model name the value `romantic`; only the prototype says Honeymoon, and Honeymoon is the
+> better label because it is what a person calls their trip. Flagged because the mapping is
+> invisible in both artboards and a straight transcription produces a value nothing else in
+> the system recognises — one the CHECK constraint now refuses outright.
+>
+> **The three slug arrays are closed and the free text has its own columns.** The prototype
+> offers five diet chips and four accessibility chips, and neither set can say "severe tree
+> nut allergy" or "CPAP, needs an outlet by the bed" — which are the sentences an advisor
+> forwards to a resort. Rather than appending prose into arrays that agent-side filtering
+> (§3.9.x) will group on, `dietary_notes` and `accessibility_notes` were added. `none` is
+> stored explicitly and is mutually exclusive with a real answer: an empty array already
+> means "never asked", and telling a kitchen "nothing to worry about" is a different fact.
+>
+> **The single loyalty text input is a two-column repeater.** The column holds
+> `{program, number, tier}` objects; splitting `"Marriott Bonvoy 123"` on the last space
+> credits somebody's miles to a program called Marriott.
+>
+> Two smaller notes. The chip groups **wrap rather than scroll** — §4.4 used to call them
+> "scrollable chip groups" on mobile, and a horizontal scroller hides options on a screen
+> whose instruction is "tag what's true"; that line is corrected. And every step now carries
+> a **Back** affordance with completed rail steps as real links, which §4.3 requires of
+> Pattern G and neither artboard drew.
+
 **Key actions:** Tag preferences; save.
 **Entry points:** Onboarding; account settings.
 **Related screens:** Dashboard, Travel Preferences Edit.
@@ -241,21 +289,103 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 #### 2.1.12 Travel Companions / Household Setup Screen
 **Purpose:** Identify recurring travel companions so future trips can pre-populate travelers.
 **Primary elements:** "Add traveler" form (name, relationship, date of birth, passport info if applicable); list of added companions; option to invite them to the platform (optional).
-**Key actions:** Add companion; edit companion; remove companion; invite to platform.
+
+> Built September 2026, with the invite deferred and the passport number dropped.
+>
+> **"Invite them to the platform" cannot be honoured yet, and is deferred to P3.** Sending
+> one needs four things the schema does not have or does not permit: an email address for
+> the companion (`companion` has no email or phone column at all), a `client` row for them
+> (`client_invite.client_id` is NOT NULL and FKs to `client`), an `agent_id` on that row
+> (also NOT NULL — so a client-initiated invite would silently write a new record into an
+> agent's book of business), and an issuing user (`client_invite.issued_by_user_id`, which
+> is meant to be the agent). A traveler can legitimately supply none of them. Setting
+> `is_invited_to_platform` without the workflow behind it only puts a lie in the database,
+> so the control is not built; it returns with agent-side invite issuance.
+>
+> **No passport number, for two reasons rather than one.** The first is 2.1.10's: no column
+> encryption yet. The second is specific to this screen and would survive the first being
+> fixed — the onboarding migration re-granted `authenticated` every column of `companion`
+> EXCEPT `passport_number_encrypted`, and Postgres checks column privilege on ANY reference,
+> so the client surface cannot even ask whether a number is on file. A field that can be
+> written and never read back, on a record kept for somebody else, is worse than no field.
+> Expiry and issuing country are collected and are what drive the renewal warning.
+>
+> **The card subtitle shows an expiry, never a number.** The prototype prints
+> "Passport B987654321 · 02/2031". Beyond the grant above, Data-Model §18.3 requires an
+> `audit_event` for every decryption of that column — which makes rendering one per
+> companion on every page load plainly wrong even once the crypto exists.
+>
+> **Editing a companion is a full replace, not a patch**, unlike 2.1.10's profile write: the
+> form shows every field at once, so a field left empty means the traveler cleared it.
+
+**Key actions:** Add companion; edit companion; remove companion.
 **Entry points:** Onboarding (optional); account settings; trip creation flow.
 **Related screens:** Dashboard, Personal Info Edit.
 
 #### 2.1.13 Connect with Agent / Invite Code Screen
 **Purpose:** Link the new account to trips the agent has already created in the system before the client registered. This is the bridge between "the agent set up a trip for me" and "I'm now in the portal".
 **Primary elements:** Brief explanation ("If Gyasi has already started planning a trip for you, enter the code from your invitation email to link it to your account"); invite code input; "I don't have a code" link (skips to dashboard); auto-match notice if the platform detects existing records by email; option to message the agent for help.
+
+> Built September 2026.
+>
+> **The screen reports the automatic match; it does not promise it.** The prototype's
+> subtitle says "skip — we'll find them automatically by email", and by the time this
+> screen renders that has already either happened or not: `handle_user_email_confirmed()`
+> adopts a matching unclaimed client at email confirmation. This screen exists precisely for
+> the cases where it could not — a different address, or two candidates and the trigger
+> deliberately claiming neither. Telling somebody the automatic match is coming, on the
+> screen that exists because it did not, is the one thing the copy must not do.
+>
+> **Redemption moves account ownership**, so it also moves everything the traveler entered
+> on steps 2 through 4 — profile fields where the target has none, address, preferences,
+> companions and travel documents — onto the target client, then disposes of the throwaway
+> the sign-up created. Never overwriting what Gyasi already has: the agent has had the
+> record for weeks and may know better than a sign-up form. The agent's spelling of the name
+> wins, matching the precedent the confirmation trigger already sets.
+>
+> **Refusals are specific, and that is a considered departure from how sign-in behaves.**
+> There, "no such account" and "wrong password" must be indistinguishable, because an email
+> address is guessable from outside knowledge. A code is six characters of a 36-symbol
+> alphabet and attempts are capped at ten per quarter-hour, so enumeration is not the live
+> risk — a traveler whose invitation has sat in an inbox for five weeks is. They are told the
+> code expired rather than left retyping it. Every attempt writes an `audit_event` carrying
+> the outcome and never the code or its hash; refusals are recorded but do not feed the
+> rate-limit counter, or each retry would extend its own lockout.
+>
+> **`trip` had row-level security enabled and no policy at all**, which for a client meant
+> every SELECT returned zero rows — silently, because RLS filters rather than errors. The
+> "trips already in your name" panel would have rendered empty for everybody. Fixed by
+> `trip_self_select`, paired with a column grant that keeps `notes` (the agent's own) and
+> `total_commission_cents` (not the client's number) out of reach. 2.2.1 and 2.2.2 needed the
+> same policy.
+
 **Key actions:** Enter code; skip; message agent.
 **Entry points:** Post-registration onboarding; manual access from account settings.
 **Related screens:** Onboarding Complete, Dashboard, Messages.
 
 #### 2.1.14 Onboarding Complete / "You're All Set" Screen
 **Purpose:** Confirm onboarding is done and celebrate the moment, with a clear next-action map.
-**Primary elements:** Branded success illustration; checklist of what was set up (profile, preferences, companions, agent connection); recommended next actions ("View your upcoming trip", "Explore the search", "Message Gyasi"); option to fine-tune notification preferences before going to dashboard.
-**Key actions:** Continue to dashboard; tweak notifications; jump to a featured action.
+**Primary elements:** Branded success illustration; checklist of what was set up (profile, preferences, companions, agent connection); recommended next actions ("View your upcoming trip", "Explore the search", "Message Gyasi").
+
+> Deferred, September 2026: "option to fine-tune notification preferences before going to dashboard". `notification_preference` has RLS enabled with no policy, no row is created for a user by any path, and Screen 2.5.6 that would manage it is unbuilt — so the control had nowhere to link. It returns to this screen when 2.5.6 ships, which also needs to give the table a row-creation path (its `user_id` is the primary key, so a screen with no row has nothing to read).
+
+> Built September 2026.
+>
+> **What the screen says is assembled from what is actually on file.** The prototype's
+> subtitle is a fixed sentence — "Your profile, preferences, household, and existing trip
+> with Sandals are all linked up" — which is true of the artboard and of nobody else. Every
+> step of this wizard is skippable, so the traveler most likely to reach this screen having
+> skipped things is exactly the one that sentence would mislead. The checklist names what
+> was skipped rather than omitting it, in words and not only in an icon: a list showing only
+> successes reads as a complete list, and somebody who skipped preferences would never learn
+> the option is still open.
+>
+> **The third recommended action appears only when there is somewhere for it to go.** In-app
+> messaging is Screen 2.6 and is unbuilt, so "Message Gyasi" is a mail client or it is
+> absent — a card that looks like a way to reach him and is not one is worse than a row of
+> two.
+
+**Key actions:** Continue to dashboard; jump to a featured action.
 **Entry points:** Completion of Connect with Agent (or skipping it).
 **Related screens:** Dashboard, Notification Preferences, Search Landing, Trip Detail.
 
@@ -1507,7 +1637,7 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.1.8 Social Login / Linking** — Pattern J (modal-like).
 - **2.1.9 Welcome / First Login** — Pattern G. Mobile is full-screen carousel; tablet/web shows multiple cards at once.
 - **2.1.10 Profile Completion** — Pattern G.
-- **2.1.11 Travel Preferences Capture** — Pattern G. Tag pickers are scrollable chip groups on mobile, multi-column grids on tablet/web.
+- **2.1.11 Travel Preferences Capture** — Pattern G. Tag pickers WRAP on every width rather than scrolling horizontally on mobile (resolved September 2026): the screen's instruction is "tag what's true", and a scroller hides the options that instruction depends on people seeing. Each chip is a real `<input type="checkbox">` — a `<span>` is not focusable, not announced and not operable by keyboard.
 - **2.1.12 Travel Companions / Household** — Pattern G.
 - **2.1.13 Connect with Agent / Invite Code** — Pattern A.
 - **2.1.14 Onboarding Complete** — Pattern G (final step). Recommended-actions cards stack on mobile, 2x2 grid on tablet, horizontal row on web.
@@ -1720,7 +1850,9 @@ Every screen in this inventory must consider four states beyond the "happy path"
 
 **Empty state.** A friendly, branded illustration with a one-line explanation of why the screen is empty and a clear CTA to populate it ("You haven't authorized any cards yet — add one when an agent requests it" / "No trips yet — explore the search to find your next adventure").
 
-**Error state.** Plain-language description of what went wrong; never expose stack traces; retry CTA where applicable; "Message Gyasi" CTA as a fallback escalation path. Use the Tropical Orange brand color (#E85D2A) for inline error highlights, never red (Storybook Red #8B2020 is reserved for branding accents and confirmations).
+**Error state.** Plain-language description of what went wrong; never expose stack traces; retry CTA where applicable; "Message Gyasi" CTA as a fallback escalation path. Inline error color is `md.error` — see Design-System §4.1, which is authoritative for it.
+
+> Colour note, resolved September 2026. This section used to say "Tropical Orange (#E85D2A) for inline error highlights, never red (Storybook Red #8B2020)". Both hexes predate the current palette — the orange token is #E87722 and there is no #8B2020 — so the sentence was describing a palette the system no longer has. Screens 2.1.1–2.1.8 shipped with `md.error`, orange is the brand accent used for overlines and emphasis, and using one colour for both would remove the distinction. The Design System owns error colour; this section no longer contradicts it.
 
 **Permissions / unauthorized state.** When a client tries to access an agent screen, or vice versa, present a clear "You don't have access to this view" with the appropriate redirect.
 

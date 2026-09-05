@@ -40,6 +40,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.okhttp)
+            // For BackHandler, behind the PlatformBackHandler expect/actual — Android has
+            // a system back gesture to honour and iOS does not.
+            implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -59,6 +62,7 @@ kotlin {
             implementation(project.dependencies.platform(libs.supabase.bom))
             implementation(libs.supabase.auth)
             implementation(libs.supabase.postgrest)
+            implementation(libs.supabase.functions)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -145,3 +149,4 @@ kotlin.sourceSets.commonMain {
 
 tasks.matching { it.name.startsWith("compile") }
     .configureEach { dependsOn(generateSupabaseConfig) }
+

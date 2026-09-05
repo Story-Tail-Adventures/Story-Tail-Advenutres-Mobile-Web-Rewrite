@@ -96,6 +96,8 @@ The final section is **Open Questions** — areas where the model is intentional
 | Companion | Client | P1 | Recurring travel companion linked to a client |
 | TravelDocument | Client | P1 | Passport, visa, insurance certificate, etc. |
 | Address | Client | P1 | Reusable address record (linked to client) |
+| ClientNote | Client | P1 | Internal agent note on a client |
+| ClientInvite | Client | P1 | Single-use code linking a pre-created Client to a new Account |
 | Agent | Agent | P1 | Advisor profile |
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
@@ -183,9 +185,63 @@ shadow something GoTrue already maintains (`auth.users.encrypted_password`,
 | Concern | System of record | Our table's role |
 |---|---|---|
 | Password | `auth.users.encrypted_password` | `account.password_hash` stays **null**. Never write to it. |
+| Name at sign-up | `auth.users.raw_user_meta_data` | `handle_new_user()` reads it in claim order — see below |
 | Active sessions | `auth.sessions` | `session` backs the "Active Sessions" screen (device labels, revoke UI) |
 | MFA factors | `auth.mfa_factors` | `mfa_device` backs the security-settings UI; the secret stays in GoTrue |
 | Auth history | `auth.audit_log_entries` | `auth_event` is the user-visible security log |
+
+**Where a new Client's name comes from.** `handle_new_user()` takes it from
+`raw_user_meta_data` in order of how much the source actually knew:
+
+1. `first_name` / `last_name` — our own forms (`registerAction`, the 2.0.6 gate) send
+   exactly these two keys and nothing else
+2. `given_name` / `family_name` — the OIDC standard claims, which is what a social sign-in
+   provides; `signInWithOAuth` has no `options.data`, so it cannot send our keys
+3. `name` / `full_name`, split on the first space
+4. the placeholders `New` / `Traveler`
+
+Branch 2 exists because without it every Google and Apple sign-up created
+`client.first_name = 'New'` — not just in the greeting but in the CRM row, on the trip, and
+as the "agent's spelling" that adoption preserves. Branch 4 stays reachable regardless:
+Apple sends name claims on the first authorization only and nothing on later ones.
+
+**A CONFIRMED sign-up adopts an existing Client; sign-up itself never does.** The agent
+routinely creates a Client record — and starts planning a trip against it — before the
+traveler has an account (§6.1). Connecting the two is the "auto-match notice if the
+platform detects existing records by email" in Screen Inventory 2.1.13.
+
+*When* that connection is made is a security decision, and it is not at sign-up. Two
+triggers, not one:
+
+| Trigger | Fires on | Does |
+|---|---|---|
+| `handle_new_user()` | `AFTER INSERT ON auth.users` | Creates `account`, a **fresh** `client`, and `platform_user` |
+| `handle_user_email_confirmed()` | `AFTER UPDATE OF email_confirmed_at`, `NULL` → non-null | Repoints `platform_user.client_id` at the pre-created Client and disposes of the fresh one |
+
+An INSERT into `auth.users` happens the instant somebody types an address into a form.
+Nobody has demonstrated they can read mail sent there. Adopting the pre-created record at
+that moment would hand whoever knows a traveler's email address their name, phone, tags and
+trips — and because `platform_user_client` is unique, it would also *consume* the record, so
+the real traveler's later sign-up finds nothing to adopt and lands in a blank account while
+the stranger keeps theirs. That is true even with confirmations on, where the stranger never
+receives a session: the binding is already made and the rightful owner is locked out of
+their own history. The `email_confirmed_at` transition is the first moment anything about
+mailbox ownership has been shown, and only GoTrue performs it.
+
+**This depends on `enable_confirmations` being on** (`supabase/config.toml`). With
+confirmations off, GoTrue confirms the address itself milliseconds after the insert, and the
+transition stops meaning anything. `.github/scripts/check_auth_config.py` fails the build if
+that setting is ever flipped.
+
+Two further rules keep the match itself safe. It requires exact `citext` email equality,
+never a fuzzy name match, because attaching a stranger's trips to an account is far worse
+than making someone type an invite code. And it requires the Client to be unclaimed — no
+`platform_user` pointing at it — so a second sign-up on a shared address cannot take over a
+Client already bound to somebody's account. Where two or more unclaimed rows match, nothing
+is adopted: duplicates are a real state (Screen 3.9.7 exists to merge them) and guessing
+between them would show one traveler another's trips. The invite-code path against
+ClientInvite (§6.7) resolves that case, and the case where the traveler signs up with a
+different address than the agent has on file, deliberately rather than by inference.
 
 **Which agent owns a self-registered client?** `client.agent_id` is `NOT NULL`, so the
 trigger has to choose one. It reads `agent_id` from the signup's `raw_user_meta_data`
@@ -263,6 +319,8 @@ enum class AuthProvider { EMAIL, GOOGLE, APPLE }
 | `avatar_url` | `text` | Yes | Public | Stored at S3/R2 |
 | `time_zone` | `text` | No | Internal | IANA time zone (e.g., `America/Chicago`) |
 | `locale` | `text` | No | Internal | BCP-47 (e.g., `en-US`) |
+| `onboarding_step` | `text` | Yes | Internal | Which 2.1.x step the wizard is waiting on, e.g. `profile`. Null before it starts and after it finishes |
+| `onboarding_completed_at` | `timestamptz` | Yes | Internal | Null until the client finishes (or skips through) the 2.1.9–2.1.14 wizard |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
@@ -289,6 +347,8 @@ CREATE TABLE platform_user (
     avatar_url   text,
     time_zone    text NOT NULL DEFAULT 'America/Chicago',
     locale       text NOT NULL DEFAULT 'en-US',
+    onboarding_step         text,
+    onboarding_completed_at timestamptz,
     created_at   timestamptz NOT NULL DEFAULT now(),
     updated_at   timestamptz NOT NULL DEFAULT now(),
     CHECK (
@@ -305,6 +365,23 @@ CREATE UNIQUE INDEX platform_user_agent   ON platform_user(agent_id)  WHERE agen
 
 Table name is `platform_user` to avoid colliding with the Postgres reserved word `user`.
 
+`onboarding_step` is where the wizard resumes. Pattern G (Screen-Inventory §4.3) promises
+"the ability to save progress and resume later", and `onboarding_completed_at` alone cannot
+keep that promise — it says whether the wizard is done, not where it got to, so an
+abandoned wizard restarts from the welcome screen. It holds the slug of the step waiting to
+be filled in, is advanced as each step is saved, and is cleared when the wizard completes.
+
+It is stored rather than derived from the data because the two disagree in exactly the case
+that matters: somebody who deliberately skipped a step has no row to infer from, and a
+derived cursor would send them back to a screen they already declined.
+
+`onboarding_completed_at` is what routes a first sign-in to Screen 2.1.9 Welcome instead
+of the dashboard. It lives here rather than on Client because it describes the *account
+holder's* progress through a wizard, not a fact about the traveler: an agent-created
+Client that nobody has signed into has no onboarding state to record. Skipping every
+optional step still sets it — the wizard being "done" is not the same as the profile being
+complete, and conflating the two would trap someone in the wizard forever.
+
 **Kotlin:**
 
 ```kotlin
@@ -319,6 +396,8 @@ data class User(
     val avatarUrl: String? = null,
     val timeZone: String,
     val locale: String,
+    val onboardingStep: String? = null,
+    val onboardingCompletedAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant
 )
@@ -412,15 +491,34 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `date_of_birth` | `date` | Yes | Sensitive PII | For passport, supplier verification |
 | `mailing_address_id` | `uuid` | Yes | Public | FK → Address |
 | `important_dates` | `jsonb` | Yes | PII | Array of `{label, date, recurring}` for birthday, anniversary, etc. |
-| `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter |
-| `tags` | `text[]` | No | Internal | Free-form agent tags |
-| `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into` |
-| `merged_into_client_id` | `uuid` | Yes | Internal | When status = merged_into |
-| `notes` | `text` | Yes | Internal | Free-form agent notes (also see client_note table for structured history) |
+| `emergency_contact` | `jsonb` | Yes | PII | `{name, phone, relationship}`. Captured at Screen 2.1.10, edited at 2.5.2, surfaced on the itinerary and at 2.7.3 |
+| `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter. **Not granted to the client role** |
+| `tags` | `text[]` | No | Internal | Free-form agent tags. **Not granted to the client role** |
+| `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into`. Agent-side lifecycle. **Not granted to the client role** |
+| `merged_into_client_id` | `uuid` | Yes | Internal | When status = merged_into. **Not granted to the client role** |
+| `notes` | `text` | Yes | Internal | Free-form agent notes (also see client_note table for structured history). **Not granted to the client role** |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
-| `version` | `integer` | No | Internal | Optimistic concurrency |
+| `version` | `integer` | No | Client-visible | Optimistic concurrency |
+
+> **The client is the data subject, and reads their own row — September 2026.** Sensitivity
+> here describes how a field must be HANDLED, not who may see it: `date_of_birth` is Sensitive
+> PII and the traveler still reads it back, because it is their own birthday and Screen 2.1.10
+> prefills the form with it. What a client must not see is what the AGENT wrote about them and
+> the CRM's own bookkeeping. Five fields are therefore excluded from the column grant to
+> `authenticated` — `notes`, `tags`, `lifetime_value_cents`, `status` and
+> `merged_into_client_id`. The other fifteen are granted.
+>
+> `client_self_select` alone did not achieve this. **RLS decides which ROWS; only a GRANT
+> decides which COLUMNS**, and Supabase grants `SELECT` on the whole table to `authenticated`
+> by default — so from the day that policy shipped, every traveler could read the agent's
+> private notes on them. The `client_column_grant` migration revokes the table privilege and
+> re-grants the fifteen. Note the trap: `REVOKE SELECT (col)` is a no-op against a table-level
+> grant, so the table grant has to go first.
+>
+> A consequence worth knowing: `SELECT *` on `client` now fails outright for a client session
+> rather than returning fewer columns. Every read must name its columns.
 
 **Relationships:**
 - Belongs to one Agent (primary owner). Phase 3 may add a `co_agent_id` for shared ownership.
@@ -445,6 +543,7 @@ CREATE TABLE client (
     date_of_birth           date,
     mailing_address_id      uuid REFERENCES address(id),
     important_dates         jsonb DEFAULT '[]'::jsonb,
+    emergency_contact       jsonb,
     lifetime_value_cents    bigint NOT NULL DEFAULT 0,
     tags                    text[] NOT NULL DEFAULT '{}',
     status                  client_status NOT NULL DEFAULT 'active',
@@ -476,6 +575,7 @@ data class Client(
     val dateOfBirth: LocalDate? = null,
     val mailingAddressId: Uuid? = null,
     val importantDates: List<ImportantDate> = emptyList(),
+    val emergencyContact: EmergencyContact? = null,
     val lifetimeValueCents: Long = 0,
     val tags: List<String> = emptyList(),
     val status: ClientStatus = ClientStatus.ACTIVE,
@@ -495,6 +595,13 @@ data class ImportantDate(
 )
 
 @Serializable
+data class EmergencyContact(
+    val name: String,
+    val phone: String,          // E.164
+    val relationship: String? = null
+)
+
+@Serializable
 enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 ```
 
@@ -509,15 +616,32 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `id` | `uuid` | No | Public | — |
 | `client_id` | `uuid` | No | Public | FK → Client (1:1 in practice) |
 | `preferred_destinations` | `text[]` | No | PII | — |
-| `travel_styles` | `text[]` | No | PII | E.g., `resort`, `cruise`, `adventure`, `family`, `romantic`, `group` |
-| `dietary_restrictions` | `text[]` | No | Sensitive PII | Allergies fall under health-adjacent PII |
-| `accessibility_needs` | `text[]` | No | Sensitive PII | Same reasoning |
+| `travel_styles` | `text[]` | No | PII | Closed vocabulary, CHECK-enforced: `resort`, `cruise`, `adventure`, `family`, `romantic`, `group` |
+| `dietary_restrictions` | `text[]` | No | Sensitive PII | Closed vocabulary, CHECK-enforced: `none`, `vegetarian`, `pescatarian`, `gluten_free`, `halal`. Allergies fall under health-adjacent PII |
+| `dietary_notes` | `text` | Yes | Sensitive PII | Free text — the allergy or condition the chips cannot say |
+| `accessibility_needs` | `text[]` | No | Sensitive PII | Closed vocabulary, CHECK-enforced: `none`, `mobility`, `quiet_room`, `service_animal`. Same reasoning |
+| `accessibility_notes` | `text` | Yes | Sensitive PII | Free text — the arrangement the chips cannot say |
 | `loyalty_programs` | `jsonb` | No | PII | Array of `{program, number, tier}` |
-| `budget_band` | `text` | Yes | PII | `budget`, `mid`, `premium`, `luxury` |
+| `budget_band` | `text` | Yes | PII | CHECK-enforced: `budget`, `mid`, `premium`, `luxury` |
 | `favorite_past_trips` | `text` | Yes | PII | Free text — what the client loved |
 | `updated_at` | `timestamptz` | No | Public | — |
 
 **Indexes:** unique on `(client_id)`.
+
+**Why the three slug arrays are closed and the notes are separate.** Added September 2026
+with Screen 2.1.11. `travel_styles`, `dietary_restrictions` and `accessibility_needs` are
+what agent-side filtering (Screen Inventory §3.9.x) will eventually group on, so a
+CHECK keeps them groupable — the alternative is every future consumer defending against
+prose that arrived through a free-text box. But five chips cannot say "severe tree nut
+allergy" or "CPAP, needs an outlet by the bed", and those sentences are the ones an advisor
+relays to a resort. So they get their own columns rather than being appended into the
+arrays, where they would be indistinguishable from a slug.
+
+**Why `none` is stored rather than an empty array.** All three arrays are `NOT NULL DEFAULT
+'{}'`, so an empty array already means "the row exists and this question was left blank".
+An agent needs to tell that apart from "confirmed: nothing to worry about" — one of those
+means call the resort and the other means do not. `none` is mutually exclusive with every
+other member of its array, enforced in the Edge Function.
 
 ### 6.3 Companion
 
@@ -539,8 +663,21 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `linked_client_id` | `uuid` | Yes | Public | If they have their own Client record |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+| `archived_at` | `timestamptz` | Yes | Public | Soft delete, per §20.1 |
 
 **Indexes:** index on `(client_id)`.
+
+**Constraint:** at most 12 unarchived companions per client, enforced by a trigger. The cap
+is a guard rail on a self-service form, not a business rule — a household larger than that
+is added by the agent.
+
+**Why `archived_at` arrived late.** §20.1 has always listed `companion` in the soft-delete
+set and the initial migration did not give it the column, so Screen 2.1.12's "Remove" had
+nothing to write and would have had to delete the row outright. Two reasons that is wrong
+beyond the doc saying so: `travel_document.companion_id` references this table with no
+`ON DELETE` clause, so a hard delete starts throwing a foreign-key violation the moment the
+passport-scan flow links a document to a companion; and a traveler tidying their household
+list has not asked for the trip records that mention those people to lose their subject.
 
 ### 6.4 TravelDocument
 
@@ -553,7 +690,7 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `id` | `uuid` | No | Public | — |
 | `client_id` | `uuid` | No | Public | FK → Client |
 | `companion_id` | `uuid` | Yes | Public | If document belongs to a companion |
-| `document_id` | `uuid` | No | Public | FK → Document (the file blob) |
+| `document_id` | `uuid` | Yes | Public | FK → Document (the file blob). Null when the client has given the details but not yet uploaded a scan |
 | `kind` | `travel_doc_kind` enum | No | Internal | `passport`, `visa`, `drivers_license`, `nexus`, `globalentry`, `insurance`, `vaccination`, `other` |
 | `document_number_encrypted` | `bytea` | Yes | Sensitive PII | E.g., passport number |
 | `issuing_country` | `char(2)` | Yes | PII | — |
@@ -565,6 +702,13 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Indexes:** index on `(client_id)`, index on `(expires_on)` for expiration reminders.
+
+**Why `document_id` is nullable.** Screen 2.1.10 asks for a passport number, expiry and
+issuing country during onboarding, with no file upload — the scan comes later, from the
+mobile camera flow. The structured metadata is the part that drives expiration reminders
+and supplier verification, so it has to be storable on its own. A row with a null
+`document_id` means "we know the passport details, we have no scan"; the reverse (a scan
+with no parsed details) is also valid, which is why neither side is required.
 
 ### 6.5 Address
 
@@ -599,6 +743,49 @@ enum class ClientStatus { ACTIVE, ARCHIVED, MERGED_INTO }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Notes:** Internal-only — never visible to the client.
+
+### 6.7 ClientInvite
+
+**Purpose:** A single-use code that binds a pre-created Client record to whichever Account
+redeems it. Backs Screen 2.1.13 Connect with Agent / Invite Code.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `client_id` | `uuid` | No | Public | FK → Client — the record this code claims |
+| `code_hash` | `text` | No | Tokenized | Hash of the single-use code. The plaintext exists only in the invitation email |
+| `issued_by_user_id` | `uuid` | No | Public | FK → User (the agent who generated it) |
+| `expires_at` | `timestamptz` | No | Internal | — |
+| `accepted_at` | `timestamptz` | Yes | Internal | — |
+| `accepted_account_id` | `uuid` | Yes | Public | FK → Account that redeemed it |
+| `revoked_at` | `timestamptz` | Yes | Internal | Set when the agent cancels an outstanding invite |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**Indexes:** unique on `(code_hash)`; index on `(client_id)`; partial index on
+`(expires_at) where accepted_at is null and revoked_at is null` for expiry sweeps.
+
+**Relationships:** Many ClientInvites may point at one Client over time (a reissued code),
+but at most one may be unredeemed and unexpired at any moment.
+
+**Notes:**
+
+Distinct from AgentInvitation (§7.2), which provisions an *advisor* and is P3. This one
+provisions nothing — the Client and its trips already exist; redeeming the code only
+repoints `User.client_id` at that Client and discards the throwaway Client the sign-up
+created.
+
+Only the hash is stored, for the same reason a password is not stored in plaintext: a
+leaked `client_invite` table would otherwise hand an attacker a working key to a named
+traveler's itinerary, passport details and payment authorizations. The code is short
+enough to read over the phone (`STA-7HX2J9`), which makes it low-entropy, so redemption
+must be rate limited per account and per IP, and a redemption attempt — successful or not
+— writes an `audit_event`.
+
+Redemption is only ever performed by an Edge Function running as the service role. It
+rewrites `platform_user.client_id`, which changes what an account can see, so it is a
+mutation on the `client` blast radius and rule 3 applies in full.
 
 ---
 
@@ -701,26 +888,38 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `agent_id` | `uuid` | No | Public | FK → Agent (denormalized from client for query speed) |
 | `title` | `text` | No | PII | "Johnson Family Caribbean Escape" |
 | `trip_type` | `trip_type` enum | No | Public | `cruise`, `all_inclusive`, `multi_destination`, `group`, `custom` |
-| `status` | `trip_status` enum | No | Internal | `inquiry`, `proposal`, `booked`, `in_progress`, `completed`, `cancelled` |
-| `status_changed_at` | `timestamptz` | No | Internal | — |
+| `status` | `trip_status` enum | No | Client-visible | `inquiry`, `proposal`, `booked`, `in_progress`, `completed`, `cancelled` |
+| `status_changed_at` | `timestamptz` | No | Client-visible | — |
 | `start_date` | `date` | Yes | PII | — |
 | `end_date` | `date` | Yes | PII | — |
 | `destinations` | `text[]` | No | Public | E.g., `['Bahamas', 'St. Maarten']` |
 | `traveler_count` | `integer` | No | Public | — |
 | `traveler_breakdown` | `jsonb` | Yes | PII | `{adults, children, infants}` |
-| `total_value_cents` | `bigint` | No | Internal | Sum of components |
-| `total_paid_cents` | `bigint` | No | Internal | Track of supplier payments via stored cards |
-| `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions |
+| `total_value_cents` | `bigint` | No | Client-visible | Sum of components — what the trip costs them |
+| `total_paid_cents` | `bigint` | No | Client-visible | Track of supplier payments via stored cards |
+| `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
 | `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one |
 | `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
-| `cancellation_reason` | `text` | Yes | Internal | Free text on cancel |
-| `refund_status` | `text` | Yes | Internal | When cancelled |
-| `notes` | `text` | Yes | Internal | Agent notes |
+| `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
+| `refund_status` | `text` | Yes | Client-visible | When cancelled |
+| `notes` | `text` | Yes | Internal | Agent notes. **Never granted to the client role** |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
-| `version` | `integer` | No | Internal | Optimistic concurrency |
+| `version` | `integer` | No | Client-visible | Optimistic concurrency |
+
+> **Reclassified September 2026, when `trip_self_select` shipped.** `status`,
+> `status_changed_at`, `total_value_cents`, `total_paid_cents`, `cancellation_reason`,
+> `refund_status` and `version` were all marked Internal, which §18's legend defines as "not
+> customer-facing, Agent-scoped access" — and then Screen 2.1.13 needed to show a traveler
+> their own trip, 2.2.1 needs the status and what they have paid, and a cancellation the
+> client cannot see the reason for is not a cancellation anybody can act on. The
+> classification was describing an agent-only product that this is not. Exactly two fields
+> stay Internal and are excluded from the column grant to `authenticated`: `notes`, which is
+> where the agent writes what he thinks, and `total_commission_cents`, which is what the
+> agency earns and is not the client's number (BRD §10.5). RLS decides which rows; the grant
+> is what decides these two columns.
 
 **Relationships:**
 - Belongs to Client; denormalizes Agent for query efficiency.
@@ -1573,6 +1772,7 @@ Tables with direct `agent_id`:
 - `trip_template`
 
 Tables that scope via parent FK:
+- `travel_preference`, `companion`, `travel_document`, `client_invite` → `client.agent_id`
 - `trip_component` → `trip.agent_id`
 - `itinerary*` → `trip.agent_id`
 - `payment_card` → `client.agent_id`
@@ -1634,7 +1834,13 @@ Hard delete is reserved for:
 
 ### 20.3 Audit Trigger Pattern
 
-Every write to a tracked table emits an `audit_event` row. The backend handles this in Ktor middleware (a "with-audit" wrapper around domain mutations) rather than via Postgres triggers — easier to test, easier to evolve, easier to attach domain context. Postgres triggers remain available as a defense-in-depth backstop on the most sensitive tables (`payment_card`, `card_authorization`, `commission`).
+Every write to a tracked table emits an `audit_event` row. The backend handles this in a
+"with-audit" wrapper around domain mutations rather than via Postgres triggers — easier to
+test, easier to evolve, easier to attach domain context. That wrapper is
+`withAudit()` in `supabase/functions/_shared/audit.ts`; there is no separate Ktor service
+(see `docs/Tech-Recommendations.md` — the backend is Supabase Edge Functions). Postgres
+triggers remain available as a defense-in-depth backstop on the most sensitive tables
+(`payment_card`, `card_authorization`, `commission`).
 
 ### 20.4 Versioning for Optimistic Concurrency
 

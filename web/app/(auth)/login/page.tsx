@@ -3,7 +3,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthCard } from "@/components/auth/AuthCard";
+import { authErrorFromParam } from "@/lib/auth-errors";
 import { env } from "@/lib/env";
+import { safeNext } from "@/lib/safe-next";
+import { single, type SearchParams } from "@/lib/search-params";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -14,9 +17,17 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const { next } = await searchParams;
+  const params = await searchParams;
+  // Sanitised here as well as in the action. The action is what actually protects the
+  // redirect; this keeps an unchecked value from reaching the hidden input, one refactor
+  // away from being read by something that trusts it.
+  const next = safeNext(single(params.next));
+  // `startOAuthAction` redirects here with `?error=` when the provider handshake never
+  // starts. Without this the kind was written into the URL and thrown away, so a failed
+  // "Continue with Google" returned a bare sign-in form and no explanation.
+  const initialError = authErrorFromParam(single(params.error));
 
   return (
     <AuthCard
@@ -47,6 +58,7 @@ export default async function LoginPage({
     >
       <LoginForm
         next={next}
+        initialError={initialError}
         googleEnabled={env.googleAuthEnabled}
         appleEnabled={env.appleAuthEnabled}
       />
