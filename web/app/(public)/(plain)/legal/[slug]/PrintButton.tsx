@@ -11,7 +11,7 @@ import { LEGAL_PAGE } from "./content";
  */
 export function PrintButton() {
   return (
-    <Button variant="text" size="sm" className="no-print" onClick={() => window.print()}>
+    <Button variant="text" size="sm" className="no-print tap-44" onClick={() => window.print()}>
       {LEGAL_PAGE.print}
     </Button>
   );

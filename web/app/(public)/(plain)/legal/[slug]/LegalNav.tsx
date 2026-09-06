@@ -53,8 +53,8 @@ export function LegalNav({ active }: LegalNavProps) {
       </div>
 
       {/* Below md: chip strip (M207). `.h-scroll` bleeds into the 18px gutter the wrapper sets. */}
-      <div className="px-4.5 pt-3.5 md:hidden">
-        <ul className="h-scroll">
+      <div className="px-4.5 pt-1.5 md:hidden">
+        <ul className="h-scroll pt-2">
           {LEGAL_SLUGS.map((slug) => {
             const isActive = slug === active;
             return (
