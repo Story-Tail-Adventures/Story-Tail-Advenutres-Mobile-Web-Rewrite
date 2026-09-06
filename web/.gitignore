@@ -38,6 +38,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Allow Git to track only the project configuration file
+!.vercel/project.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

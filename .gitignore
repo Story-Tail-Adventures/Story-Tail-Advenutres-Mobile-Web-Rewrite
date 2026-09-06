@@ -83,6 +83,9 @@ supabase/.env
 # Vercel's own README in that folder: "you should not share the '.vercel' folder with anyone."
 .vercel/
 
+# Allow Git to track only the project configuration file
+!.vercel/project.json
+
 # === Build outputs (do NOT ignore contracts/ts/ or contracts/kotlin/ — those are committed) ===
 dist/
 coverage/
