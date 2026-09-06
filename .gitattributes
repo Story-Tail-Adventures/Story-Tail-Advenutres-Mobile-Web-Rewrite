@@ -1,2 +1,17 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Binary assets, marked explicitly rather than left to auto-detection. `text=auto` decides
+# by sniffing for NUL bytes, which is right for these today — but a font that ever gets
+# line-ending normalization is silently corrupted, and the symptom (glyphs fail to load on
+# one platform) points nowhere near git. Cheap insurance on files that are never diffed.
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.eps  binary
+*.ai   binary
