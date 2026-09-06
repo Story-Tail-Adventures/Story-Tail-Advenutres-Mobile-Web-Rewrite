@@ -9,11 +9,19 @@ interface SearchBarProps {
   className?: string;
 }
 
+/** The stacked (mobile) form's id, so the sticky bar can submit it from outside. */
+export const STACKED_SEARCH_FORM_ID = "explore-search-stacked";
+
 /**
  * The real search form on 2.0.3 (design: the C203 pill and the M203 stacked card). A GET form
  * via next/form, so it works without JavaScript and prefetches /explore/results. Field names
  * match `parseSearchParams` (dest / when / travelers); everything on the results page is
  * derived from the URL that this produces.
+ *
+ * M203's card has no button of its own — the sticky bottom bar *is* the Search. So the
+ * stacked variant keeps a submit in the DOM (it is the form's default button, which is what
+ * makes Enter submit a three-input form, with or without JavaScript) but hides it, and the
+ * bar submits this form by id.
  */
 export function SearchBar({ variant, className }: SearchBarProps) {
   const pill = variant === "pill";
@@ -22,6 +30,7 @@ export function SearchBar({ variant, className }: SearchBarProps) {
   return (
     <Form
       action="/explore/results"
+      id={pill ? undefined : STACKED_SEARCH_FORM_ID}
       role="search"
       aria-label={EXPLORE.search.formLabel}
       className={cn(
@@ -85,7 +94,7 @@ export function SearchBar({ variant, className }: SearchBarProps) {
 
       <button
         type="submit"
-        className={cn("btn btn-filled", pill ? "m-1 h-11 shrink-0" : "mt-2 min-h-11 w-full")}
+        className={cn("btn btn-filled", pill ? "m-1 h-11 shrink-0" : "hidden")}
       >
         <Icon name="search" size={16} />
         {EXPLORE.search.submit}

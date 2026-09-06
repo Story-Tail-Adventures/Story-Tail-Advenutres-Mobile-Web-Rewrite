@@ -5,6 +5,7 @@ import { trustLine } from "@/content/public/proof";
 import { TRIPS } from "@/content/public/trips";
 import { filterTrips, resultsHref } from "@/lib/public/search";
 import { tileSearchQuery, tripCountLabel } from "./content";
+import { STACKED_SEARCH_FORM_ID } from "./SearchBar";
 import ExplorePage, { metadata } from "./page";
 
 vi.mock("next/image", () => ({
@@ -52,7 +53,36 @@ describe("2.0.3 public search landing", () => {
 
   it("routes the sticky bar and the banner through the link builders", () => {
     render(<ExplorePage />);
-    expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute("href", "/explore/results");
+    for (const link of screen.getAllByRole("link", { name: "Sign in" })) {
+      expect(link).toHaveAttribute("href", "/login?next=%2Fexplore");
+    }
+    expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/join");
+  });
+
+  // M203's card carries no button of its own — the sticky bar IS the Search. It has to
+  // submit the stacked form, or a visitor who types a destination and taps the big blue
+  // button lands on unfiltered results with what they typed silently dropped.
+  it("makes the sticky Search submit the stacked form rather than link away", () => {
+    const { container } = render(<ExplorePage />);
+
+    // Nothing labelled "Search" navigates any more — the bar submits.
+    expect(screen.queryByRole("link", { name: "Search" })).toBeNull();
+
+    const bar = container.querySelector(`.sticky-cta button[form="${STACKED_SEARCH_FORM_ID}"]`);
+    expect(bar).not.toBeNull();
+    expect(bar).toHaveAttribute("type", "submit");
+    expect(bar).toHaveTextContent("Search");
+
+    const form = container.querySelector(`#${STACKED_SEARCH_FORM_ID}`);
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    expect(form).toHaveAttribute("action", "/explore/results");
+    // A hidden in-card submit stays the form's default button, so Enter still submits a
+    // three-input form, with or without JavaScript.
+    expect(form?.querySelector('button[type="submit"].hidden')).not.toBeNull();
+  });
+
+  it("keeps the banner link builders intact", () => {
+    render(<ExplorePage />);
     for (const link of screen.getAllByRole("link", { name: "Sign in" })) {
       expect(link).toHaveAttribute("href", "/login?next=%2Fexplore");
     }
