@@ -46,6 +46,7 @@ import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
 import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
+import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
 import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
 import com.storytail.adventures.ui.theme.StoryTailTheme
@@ -109,7 +110,10 @@ fun App() {
 
                 SessionStatus.Initializing -> nav.resetTo(AppRoute.Resolving)
 
-                else -> nav.onSignedOut()
+                // The front door is 2.0.1 now, not Login. Before §2.0 existed, opening the
+                // app without a session put a password form in front of somebody who had
+                // just installed it and had nothing to sign in with.
+                else -> nav.onSignedOut(AppRoute.PublicLanding)
             }
         }
 
@@ -119,6 +123,27 @@ fun App() {
 
         when (val route = nav.current) {
             AppRoute.Resolving -> SplashScreen()
+
+            // Screen Inventory §2.0. One host for all nine screens — see PublicRoute.
+            AppRoute.PublicLanding,
+            AppRoute.PublicHowItWorks,
+            AppRoute.PublicExplore,
+            AppRoute.PublicAbout,
+            is AppRoute.PublicResults,
+            is AppRoute.PublicTripDetail,
+            is AppRoute.PublicJoin,
+            is AppRoute.PublicTopic,
+            is AppRoute.PublicLegal,
+            -> PublicRoute(
+                route = route,
+                onNavigate = nav::push,
+                // Falls back to the landing page rather than exiting: the gate and the
+                // legal pages are reachable from the menu, so "back" from one of them with
+                // an empty stack must still leave somewhere to be.
+                onBack = { if (!nav.pop()) nav.resetTo(AppRoute.PublicLanding) },
+                onSignIn = { nav.push(AppRoute.Login) },
+                onCreateAccount = { nav.push(AppRoute.Register) },
+            )
 
             AppRoute.Login -> {
                 val viewModel = viewModel { LoginViewModel(repo) }
