@@ -170,6 +170,38 @@ jobs:
       #
       # Everything the CLI writes therefore lands in web/.vercel/, not ./.vercel/ — the two
       # steps below read it there.
+      # Ask the API who the token is, before the CLI does anything with it.
+      #
+      # Vercel reports a bad credential indirectly — "Could not retrieve Project Settings",
+      # "Not able to load user ... User not found (404)" — and each phrasing points at the
+      # project or the scope rather than at the token. Seven runs were spent reading those
+      # as project problems. /v2/user answers in one call, and a GitHub secret cannot be read
+      # back out, so this step is the only way to see what is actually stored.
+      #
+      # Prints the account, never the token. The two credentials that get confused here:
+      # an ACCOUNT ACCESS TOKEN (vercel.com/account/tokens) can act as you and is what this
+      # needs; a Protection Bypass secret (the project's Deployment Protection page) is
+      # project-scoped, has no user behind it, and 404s exactly like this.
+      - name: The Vercel token belongs to a real account
+        run: |
+          set -uo pipefail
+          code="$(curl -sS -o "$RUNNER_TEMP/who.json" -w '%{http_code}' \
+                    -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+                    https://api.vercel.com/v2/user || echo 000)"
+          if [ "$code" != "200" ]; then
+            echo "::error::VERCEL_TOKEN cannot load a Vercel user (HTTP $code)."
+            echo "::error::API response: $(head -c 300 "$RUNNER_TEMP/who.json" 2>/dev/null)"
+            echo "::error::Expected an account access token from https://vercel.com/account/tokens"
+            echo "::error::(Account Settings -> Tokens), NOT the Protection Bypass secret from the"
+            echo "::error::project's Deployment Protection page."
+            exit 1
+          fi
+          echo "Token acts as: $(jq -r '.user.username // .user.email // "?"' "$RUNNER_TEMP/who.json")"
+          echo "Scopes visible to this token:"
+          curl -sS -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+               https://api.vercel.com/v2/teams \
+            | jq -r '.teams[]?.slug // empty' | sed 's/^/  - /'
+
       # Writes web/.vercel/project.json from the slugs, which is what `pull` then reads.
       # Failing here rather than in `pull` distinguishes "cannot find the project" from
       # "cannot read its environment" — two problems with very different fixes that the
