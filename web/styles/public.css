@@ -23,6 +23,28 @@
   --public-topbar-h: 56px;
   --gutter: 18px;
 
+  /* Mobile sticky CTA bar. Height is derived from the parts rather than hard-coded so the
+     shell's reserve (see `.pub-surface:has(.sticky-cta)`) cannot drift from the bar: two
+     paddings + a 44px `min-h-11` control + the 1px top border, plus the safe-area inset on
+     notched devices. The tall variant adds a second row and the row gap. */
+  --sticky-cta-pad: 10px;
+  --sticky-cta-gap: 8px;
+  --sticky-cta-control-h: 44px;
+  /* `env(…, 12px)` is an unsupported-property fallback, not a minimum — every engine that
+     knows env() returns 0px on a device with no inset, which lost the artboard's 22px. Floor
+     it with max() instead, and keep the 0px fallback inside env() so the declaration stays
+     valid where env() is unknown. (The inset itself stays 0 until `viewportFit: "cover"` is
+     added to the root Viewport export — a deliberate, separate decision.) */
+  --sticky-cta-pad-bottom: calc(
+    var(--sticky-cta-pad) + max(12px, env(safe-area-inset-bottom, 0px))
+  );
+  --sticky-cta-h: calc(
+    var(--sticky-cta-pad) + var(--sticky-cta-control-h) + var(--sticky-cta-pad-bottom) + 1px
+  );
+  --sticky-cta-h-tall: calc(
+    var(--sticky-cta-h) + var(--sticky-cta-control-h) + var(--sticky-cta-gap)
+  );
+
   /* On-photo colour. Not redefined for .scheme-dark on purpose. */
   --hero-fg: #ffffff;
   --hero-fg-muted: rgba(255, 255, 255, 0.92);
@@ -104,14 +126,31 @@
     z-index: 40;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 12px));
+    gap: var(--sticky-cta-gap);
+    padding: var(--sticky-cta-pad) 14px var(--sticky-cta-pad-bottom);
     background: var(--md-surface-1);
     border-top: 1px solid var(--md-outline-variant);
   }
-  .sticky-cta-spacer { height: 76px; }
+
+  /* Two-row variant (2.0.5): the artboard's price/heart/quote row, plus the guest
+     "message without an account" path §4.4 requires on mobile. Four controls will not
+     fit one 360px row, so it wraps to a second. */
+  .sticky-cta-tall { flex-wrap: wrap; }
+  .sticky-cta-tall > .sticky-cta-row2 { flex: 1 0 100%; }
+
+  /* The bar is `position: fixed`, so the page has to reserve its height — and the reserve
+     must land BELOW the footer. PublicFooter renders after {children} in
+     (public)/layout.tsx, so a spacer inside the page tree (where StickyCta itself lives)
+     reserves space *above* the footer and leaves the footer itself under the bar: at
+     375x812 on /caribbean only 16px of an 82px footer stayed visible and all six legal
+     links were unreachable. Padding the shell is the one place that is after every page
+     section and after the footer. */
+  @media (max-width: 767px) {
+    .pub-surface:has(.sticky-cta) { padding-bottom: var(--sticky-cta-h); }
+    .pub-surface:has(.sticky-cta-tall) { padding-bottom: var(--sticky-cta-h-tall); }
+  }
   @media (min-width: 768px) {
-    .sticky-cta, .sticky-cta-spacer { display: none; }
+    .sticky-cta { display: none; }
   }
 
   /* ── Heroes ── */
@@ -418,7 +457,7 @@
 
   /* ── Print (legal pages) ── */
   @media print {
-    .pub-topbar, .pub-topbar-overlay, .pub-footer, .sticky-cta, .sticky-cta-spacer,
+    .pub-topbar, .pub-topbar-overlay, .pub-footer, .sticky-cta,
     .legal-nav, .no-print, .placeholder-banner { display: none !important; }
     html, .scheme-dark {
       color-scheme: light;
