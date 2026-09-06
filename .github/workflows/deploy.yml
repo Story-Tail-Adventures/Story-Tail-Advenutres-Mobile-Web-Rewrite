@@ -270,7 +270,15 @@ jobs:
           done
           if [ ${#missing[@]} -ne 0 ]; then
             echo "::error::Missing or empty in Vercel's Production environment: ${missing[*]}."
-            echo "::error::Add them under Project Settings -> Environment Variables, then re-run."
+            echo "::error::Add them under Settings -> Environments -> Production, then re-run."
+            # Names only, never values. "Missing" has several causes that look identical from
+            # the dashboard — a typo in the name, the variable scoped to Preview but not
+            # Production, or Vercel's "Sensitive" type, which is write-only and deliberately
+            # NOT returned by `vercel pull`. Printing what actually arrived tells them apart
+            # in one glance instead of one run each.
+            echo "Names present in the pulled Production environment:"
+            grep -oE '^[A-Za-z_][A-Za-z0-9_]*' "$file" 2>/dev/null | sort | sed 's/^/  /' \
+              || echo "  (none — the file is empty or absent)"
             exit 1
           fi
           # Read this one's VALUE back, not just its presence. A wrong NEXT_PUBLIC_SITE_URL is
