@@ -1616,7 +1616,7 @@ Used for confirmations (revoke card, cancel trip, merge clients), reveals (card 
 Each screen's pattern assignment and any meaningful deviations from the pattern. Where a deviation is not noted, the screen follows the named pattern's defaults exactly.
 
 #### Client — Public / Pre-Auth (2.0.x)
-- **2.0.1 App Subdomain Public Landing** — Pattern H. Mobile sticky CTA is "Sign in"; tablet adds "Take a tour" as secondary; web shows full hero with rotating destination imagery.
+- **2.0.1 App Subdomain Public Landing** — Pattern H, with one deliberate deviation: **no mobile sticky bottom bar.** The September 2026 mobile artboard (`M201_PublicLanding`, the one Pattern H artboard that passes no `footer` to `MFrame`) anchors "Create an account" / "Sign in" / "Take a quick tour" full-width at the foot of the hero, above the fold and above the scripture strip. The page only scrolls ~210px on a 812px viewport, so a fixed bar would spend 77px permanently duplicating a button that never scrolls out of view. Tablet adds "Take a tour" as secondary; web shows full hero with rotating destination imagery. *(Recorded 2026-09-06 — this bullet previously read "Mobile sticky CTA is 'Sign in'", which the build has never matched. Every other Pattern H screen in §2.0 does render the bar.)*
 - **2.0.2 About / How It Works** — Pattern I. FAQ section uses accordion on mobile/tablet, two-column on web.
 - **2.0.3 Public Search Landing** — Pattern F (entry variant). Mobile shows the "sign in to save" banner as a sticky bottom strip; tablet/web shows it as a top banner with dismiss.
 - **2.0.4 Public Search Results** — Pattern F. Save/quote CTAs trigger Sign-up Gate (Pattern J) on all viewports.
