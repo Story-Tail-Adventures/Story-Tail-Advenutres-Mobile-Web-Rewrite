@@ -50,7 +50,9 @@ describe("2.0.5 public trip detail", () => {
     // Price card (md+) and the mobile sticky bar both quote the same figure.
     expect(screen.getAllByText(formatMoney(trip.from, { whole: true })).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("STARTING AT")).toBeInTheDocument();
-    expect(screen.getByText(trip.priceNote)).toBeInTheDocument();
+    // PriceCard (md+) and the mobile block below it: the note qualifies a price the sticky
+    // bar shows on phones too, so it must not be desktop-only.
+    expect(screen.getAllByText(trip.priceNote)).toHaveLength(2);
 
     const quotes = screen.getAllByRole("link", { name: "Request a quote" });
     expect(quotes).toHaveLength(2); // PriceCard + StickyCta
@@ -60,9 +62,10 @@ describe("2.0.5 public trip detail", () => {
     expect(screen.getByRole("link", { name: `Save ${trip.name} for later` })).toHaveAttribute("href", save);
     expect(screen.getByRole("link", { name: "Save this trip" })).toHaveAttribute("href", save);
 
-    expect(screen.getByRole("link", { name: "Message Gyasi without an account →" }).getAttribute("href")).toMatch(
-      /^mailto:/,
-    );
+    // §4.4: the guest path is a sticky bottom button on mobile AND the side-rail CTA.
+    const guest = screen.getAllByRole("link", { name: "Message Gyasi without an account →" });
+    expect(guest).toHaveLength(2); // PriceCard rail + StickyCta second row
+    for (const link of guest) expect(link.getAttribute("href")).toMatch(/^mailto:/);
     expect(screen.getByRole("link", { name: "Message →" }).getAttribute("href")).toMatch(/^mailto:/);
     // The advisor line comes from the claims registry (rail + mobile card).
     expect(screen.getAllByText(advisorTitle(SLUG))).toHaveLength(2);
