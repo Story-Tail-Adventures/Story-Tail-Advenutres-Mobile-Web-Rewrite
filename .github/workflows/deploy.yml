@@ -73,20 +73,22 @@ env:
   # answers 404 DEPLOYMENT_NOT_FOUND, which is expected, not a misconfiguration.
   SITE_ORIGIN: "https://storytailadventures.vercel.app"
 
-  # How the CLI finds the project with no .vercel/ in the repo: it falls back to these two
-  # env vars, and `vercel pull` then WRITES web/.vercel/project.json on the runner from them.
-  # Nothing under .vercel/ is committed — Vercel's own README in that folder says not to
-  # share it, and `vercel pull` drops .env.production.local (every production value in
-  # plaintext) into the same directory.
+  # Identify the project by SLUG, not by the opaque VERCEL_ORG_ID / VERCEL_PROJECT_ID pair.
   #
-  # Stored as secrets rather than variables. They are identifiers, not credentials — neither
-  # grants access to anything on its own — so repository *variables* would be the tidier home
-  # and would keep them legible in the log. They are secrets because that is where they were
-  # created, and the difference is cosmetic: the only cost is that GitHub masks them as ***
-  # wherever the Vercel CLI echoes a project id back. Move them to the Variables tab and flip
-  # these two lines to `vars.` if that masking ever gets in the way of debugging.
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  # Five consecutive runs died on "Could not retrieve Project Settings" with a demonstrably
+  # valid token — the signature of an org id that does not own the project. The deeper
+  # problem is that those ids cannot be read back out of GitHub once stored, so a wrong one
+  # is indistinguishable from a right one and every attempt costs a full run to test.
+  #
+  # These two slugs are both visible in the project's own URL —
+  # vercel.com/gyasistorys-projects/storytailadventures — so a wrong value is obvious on
+  # sight, in a diff, without a deploy. They are not secrets and are deliberately literals.
+  #
+  # Note: VERCEL_ORG_ID / VERCEL_PROJECT_ID must NOT be set in this environment. The CLI
+  # prefers them over an on-disk link, so leaving them set would silently override the
+  # `vercel link` below and reintroduce exactly the failure this replaces.
+  VERCEL_SCOPE: "gyasistorys-projects"
+  VERCEL_PROJECT: "storytailadventures"
 
 jobs:
   vercel:
@@ -168,8 +170,24 @@ jobs:
       #
       # Everything the CLI writes therefore lands in web/.vercel/, not ./.vercel/ — the two
       # steps below read it there.
+      # Writes web/.vercel/project.json from the slugs, which is what `pull` then reads.
+      # Failing here rather than in `pull` distinguishes "cannot find the project" from
+      # "cannot read its environment" — two problems with very different fixes that the
+      # single combined step reported identically.
+      - name: Link the Vercel project
+        run: |
+          vercel link --yes \
+            --scope "$VERCEL_SCOPE" \
+            --project "$VERCEL_PROJECT" \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --cwd ./web
+
       - name: Pull the production environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web
+        run: |
+          vercel pull --yes --environment=production \
+            --scope "$VERCEL_SCOPE" \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --cwd ./web
 
       # The one dashboard setting that can still break this. `vercel build` joins its cwd with
       # the project's rootDirectory, so a Root Directory of anything but empty-or-`web` sends
@@ -235,7 +253,7 @@ jobs:
       - name: Build
         run: |
           set -euo pipefail
-          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web
+          vercel build --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web
           # Proves the monorepo walk-up actually produced Build Output API artifacts,
           # rather than a build that resolved somewhere unexpected and exited 0.
           test -f web/.vercel/output/config.json || {
@@ -249,7 +267,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web)"
+          url="$(vercel deploy --prebuilt --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web)"
           echo "Deployed $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
