@@ -173,19 +173,16 @@ export interface components {
         RequestTripDocumentUploadResponse: {
             /** Format: uuid */
             documentId: string;
-            /**
-             * Format: uri
-             * @description Signed PUT target. The storage key itself is never returned.
-             */
-            uploadUrl: string;
+            /** @description Signed PUT target, as a path to join to the caller's own Supabase base URL — not an absolute URL. Storage signs against the origin the function sees from inside its container (`http://kong:8000` locally), which resolves nowhere in a browser or on a phone. The caller already holds the right origin, so it does the joining. The storage key itself is still never returned; the path carries the signature, not a readable key. */
+            uploadPath: string;
             /** Format: date-time */
             expiresAt: string;
         };
         TripDocumentUrlResponse: {
             /** Format: uuid */
             documentId: string;
-            /** Format: uri */
-            url: string;
+            /** @description Signed read target, as a path to join to the caller's own Supabase base URL. See RequestTripDocumentUploadResponse.uploadPath for why this is not absolute. */
+            path: string;
             /** Format: date-time */
             expiresAt: string;
             filename: string;

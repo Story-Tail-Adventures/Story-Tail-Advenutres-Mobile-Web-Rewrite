@@ -94,9 +94,9 @@ data class RequestTripDocumentUploadRequest(
 data class RequestTripDocumentUploadResponse(
     @SerialName("documentId")
     val documentId: String,
-    // Signed PUT target. The storage key itself is never returned.
-    @SerialName("uploadUrl")
-    val uploadUrl: String,
+    // Signed PUT target, as a path to join to the caller's own Supabase base URL — not an absolute URL. Storage signs against the origin the function sees from inside its container (`http://kong:8000` locally), which resolves nowhere in a browser or on a phone. The caller already holds the right origin, so it does the joining. The storage key itself is still never returned; the path carries the signature, not a readable key.
+    @SerialName("uploadPath")
+    val uploadPath: String,
     @SerialName("expiresAt")
     val expiresAt: String,
 )
@@ -105,8 +105,9 @@ data class RequestTripDocumentUploadResponse(
 data class TripDocumentUrlResponse(
     @SerialName("documentId")
     val documentId: String,
-    @SerialName("url")
-    val url: String,
+    // Signed read target, as a path to join to the caller's own Supabase base URL. See RequestTripDocumentUploadResponse.uploadPath for why this is not absolute.
+    @SerialName("path")
+    val path: String,
     @SerialName("expiresAt")
     val expiresAt: String,
     @SerialName("filename")

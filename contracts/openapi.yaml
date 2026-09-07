@@ -295,29 +295,36 @@ components:
 
     RequestTripDocumentUploadResponse:
       type: object
-      required: [documentId, uploadUrl, expiresAt]
+      required: [documentId, uploadPath, expiresAt]
       properties:
         documentId:
           type: string
           format: uuid
-        uploadUrl:
+        uploadPath:
           type: string
-          format: uri
-          description: Signed PUT target. The storage key itself is never returned.
+          description: >-
+            Signed PUT target, as a path to join to the caller's own Supabase base URL —
+            not an absolute URL. Storage signs against the origin the function sees from
+            inside its container (`http://kong:8000` locally), which resolves nowhere in a
+            browser or on a phone. The caller already holds the right origin, so it does
+            the joining. The storage key itself is still never returned; the path carries
+            the signature, not a readable key.
         expiresAt:
           type: string
           format: date-time
 
     TripDocumentUrlResponse:
       type: object
-      required: [documentId, url, expiresAt, filename, mimeType]
+      required: [documentId, path, expiresAt, filename, mimeType]
       properties:
         documentId:
           type: string
           format: uuid
-        url:
+        path:
           type: string
-          format: uri
+          description: >-
+            Signed read target, as a path to join to the caller's own Supabase base URL.
+            See RequestTripDocumentUploadResponse.uploadPath for why this is not absolute.
         expiresAt:
           type: string
           format: date-time

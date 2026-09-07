@@ -17,8 +17,9 @@
     "generate:contracts": "npm run generate -w contracts",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "supabase:reset": "supabase db reset",
-    "supabase:types": "mkdir -p web/types && supabase gen types typescript --local > web/types/supabase.ts && supabase gen types typescript --local > supabase/functions/_shared/database.types.ts"
+    "supabase:reset": "supabase db reset && ./supabase/scripts/seed-storage-objects.sh",
+    "supabase:types": "mkdir -p web/types && supabase gen types typescript --local > web/types/supabase.ts && supabase gen types typescript --local > supabase/functions/_shared/database.types.ts",
+    "supabase:seed-storage": "./supabase/scripts/seed-storage-objects.sh"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

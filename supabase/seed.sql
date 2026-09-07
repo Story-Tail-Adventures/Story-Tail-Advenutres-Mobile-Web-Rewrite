@@ -537,6 +537,11 @@ FROM (VALUES
 
 -- ── Documents ───────────────────────────────────────────────────────────────
 
+-- `storage_key` is `trips/<trip id>/<document id>.<ext>` — the exact shape the
+-- trip-document function derives server-side, never from a client-supplied filename. The
+-- fixtures use it so nobody reading the seed infers a shorter convention and writes a
+-- signer that parses the key. The receipt below is the deliberate exception: agency records
+-- are filed outside the `trips/` prefix and no client route ever reaches them.
 INSERT INTO public.document (
     id, owner_user_id, client_id, trip_id, kind, filename, mime_type, size_bytes,
     storage_bucket, storage_key, checksum_sha256, is_sensitive
@@ -550,22 +555,22 @@ CROSS JOIN (VALUES
     ('0195a2c0-1a00-7000-8000-0000000000c0'::uuid, '0195a2c0-1a00-7000-8000-000000000010'::uuid,
      '0195a2c0-1a00-7000-8000-000000000040'::uuid, 'supplier_confirmation',
      'negril-confirmation.pdf', 'application/pdf', 327680::bigint,
-     'trips/0040/negril-confirmation.pdf', false),
+     'trips/0195a2c0-1a00-7000-8000-000000000040/0195a2c0-1a00-7000-8000-0000000000c0.pdf', false),
     ('0195a2c0-1a00-7000-8000-0000000000c1'::uuid, '0195a2c0-1a00-7000-8000-000000000010'::uuid,
      '0195a2c0-1a00-7000-8000-000000000040'::uuid, 'insurance_cert',
      'allianz-policy-987124.pdf', 'application/pdf', 634880::bigint,
-     'trips/0040/allianz-policy-987124.pdf', false),
+     'trips/0195a2c0-1a00-7000-8000-000000000040/0195a2c0-1a00-7000-8000-0000000000c1.pdf', false),
     -- is_sensitive on a passport, and the client must STILL be able to see it: the flag
     -- governs access logging, not visibility. This row is why document_self_select does not
     -- filter on it.
     ('0195a2c0-1a00-7000-8000-0000000000c2'::uuid, '0195a2c0-1a00-7000-8000-000000000011'::uuid,
      '0195a2c0-1a00-7000-8000-000000000040'::uuid, 'passport',
      'passport-jordan.jpg', 'image/jpeg', 1153434::bigint,
-     'trips/0040/passport-jordan.jpg', true),
+     'trips/0195a2c0-1a00-7000-8000-000000000040/0195a2c0-1a00-7000-8000-0000000000c2.jpg', true),
     ('0195a2c0-1a00-7000-8000-0000000000c3'::uuid, '0195a2c0-1a00-7000-8000-000000000011'::uuid,
      '0195a2c0-1a00-7000-8000-000000000044'::uuid, 'photo',
      'bight-reef.jpg', 'image/jpeg', 2411724::bigint,
-     'trips/0044/bight-reef.jpg', false),
+     'trips/0195a2c0-1a00-7000-8000-000000000044/0195a2c0-1a00-7000-8000-0000000000c3.jpg', false),
     -- POISON 3: a supplier-charge receipt, on Jordan's OWN trip. This is the row that makes
     -- the document kind allowlist necessary — card_use_event.trip_id is NOT NULL, so
     -- receipts are trip-scoped by construction and an ownership-only policy hands the
