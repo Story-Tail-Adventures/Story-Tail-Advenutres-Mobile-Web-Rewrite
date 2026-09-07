@@ -35,6 +35,18 @@ RULES = [
 ]
 
 
+def _git_root(start: str) -> str | None:
+    """Walk up for a .git directory. Used when CLAUDE_PROJECT_DIR is not set."""
+    current = os.path.abspath(start)
+    while True:
+        if os.path.exists(os.path.join(current, ".git")):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -45,9 +57,19 @@ def main() -> int:
     if not path:
         return 0
 
-    cwd = payload.get("cwd") or os.getcwd()
+    # Relative to the REPO ROOT, not the session's cwd. Getting this wrong inverts the
+    # guard: a session rooted at mobile/ writing a correct mobile/shared/....kt path sees it
+    # relativized to shared/....kt, which fails the `mobile/` prefix test and is denied —
+    # so the rule blocks exactly the writes it exists to permit. That cost a batch of
+    # subagents their Write tool, and each one worked around it with a shell heredoc.
+    root = (
+        os.environ.get("CLAUDE_PROJECT_DIR")
+        or _git_root(payload.get("cwd") or os.getcwd())
+        or payload.get("cwd")
+        or os.getcwd()
+    )
     try:
-        rel = os.path.relpath(path, cwd)
+        rel = os.path.relpath(os.path.abspath(path), os.path.abspath(root))
     except ValueError:
         return 0
     if rel.startswith(".."):

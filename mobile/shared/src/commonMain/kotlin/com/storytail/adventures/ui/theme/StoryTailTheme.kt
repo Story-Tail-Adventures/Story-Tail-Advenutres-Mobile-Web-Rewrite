@@ -4,13 +4,14 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 
 /**
  * Top-level Story-Tail Adventures theme.
  *
  * Wrap every screen in this composable. It provides:
  *   - The Material 3 ColorScheme (light or dark) wired to brand tokens.
- *   - StoryTailTypography (Poppins-based) as Material's Typography.
+ *   - StoryTailTypography (bundled Poppins) as Material's Typography.
  *   - StoryTailShapes (6, 10, 14, 20, 28, 999dp) as Material's Shapes.
  *   - StoryTailStatusColors via CompositionLocal — for chip statuses.
  *   - StoryTailExtendedColors via CompositionLocal — for surface tiers,
@@ -35,14 +36,21 @@ fun StoryTailTheme(
     val statusColors = if (useDarkTheme) DarkStoryTailStatusColors else LightStoryTailStatusColors
     val extendedColors = if (useDarkTheme) DarkStoryTailExtended else LightStoryTailExtended
 
+    // The bundled faces resolve through the composition, so they are built here and handed
+    // down rather than living in a top-level val. Remembered on the families: rebuilding a
+    // whole Typography on every recomposition would allocate 15 TextStyles for nothing.
+    val families = rememberStoryTailFontFamilies()
+    val typography = remember(families) { storyTailTypography(families) }
+    val brandTypography = remember(families) { storyTailBrandTypography(families) }
+
     CompositionLocalProvider(
         LocalStoryTailStatusColors    provides statusColors,
         LocalStoryTailExtended        provides extendedColors,
-        LocalStoryTailBrandTypography provides DefaultStoryTailBrandTypography,
+        LocalStoryTailBrandTypography provides brandTypography,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography  = StoryTailTypography,
+            typography  = typography,
             shapes      = StoryTailShapes,
             content     = content,
         )

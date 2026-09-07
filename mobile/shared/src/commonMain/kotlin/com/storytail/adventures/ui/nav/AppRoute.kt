@@ -25,6 +25,54 @@ sealed interface AppRoute {
     /** Session restore has not finished. Distinct from Login so it does not flash. */
     data object Resolving : AppRoute
 
+    // ── Screen Inventory §2.0, the public (pre-auth) surface ─────────────────────
+    //
+    // None of these require a session, and that is the point: before this section the app
+    // opened on a login wall, which gave somebody who had just installed it nothing to look
+    // at and nothing to decide. 2.0.1 is now the front door, and Login is one tap from it.
+
+    /** Screen 2.0.1, the app's front door for anyone not signed in. */
+    data object PublicLanding : AppRoute
+
+    /** Screen 2.0.2. */
+    data object PublicHowItWorks : AppRoute
+
+    /** Screen 2.0.3. */
+    data object PublicExplore : AppRoute
+
+    /** Screen 2.0.4. [dest] is the destination text the visitor searched, if any. */
+    data class PublicResults(val dest: String? = null) : AppRoute
+
+    /** Screen 2.0.5, by catalog slug. */
+    data class PublicTripDetail(val slug: String) : AppRoute
+
+    /**
+     * Screen 2.0.6, the sign-up gate.
+     *
+     * A screen rather than a jump straight to [Register], because the gate's job is to say
+     * WHY an account is suddenly needed — "create an account to send Gyasi your trip
+     * details" reads very differently from a registration form appearing unannounced.
+     * [intent] and [tripSlug] are what let it say that, and they carry through to Register.
+     */
+    data class PublicJoin(val intent: String, val tripSlug: String? = null) : AppRoute
+
+    /**
+     * Screens 2.0.8-2.0.10, the topic landing pages.
+     *
+     * One route carrying the topic for the same reason [Onboarding] carries its step: the
+     * three pages are one screen with three faces — same hero, same inquire band, same
+     * curated grid — and the differences live in the content, not the layout.
+     */
+    data class PublicTopic(val topic: com.storytail.adventures.content.public.Topic) : AppRoute
+
+    /** Screen 2.0.11. */
+    data object PublicAbout : AppRoute
+
+    /** Screen 2.0.7, the legal pages. Reachable signed in or out. */
+    data class PublicLegal(
+        val slug: com.storytail.adventures.content.public.LegalSlug,
+    ) : AppRoute
+
     data object Login : AppRoute
 
     /** Screen 2.1.2. */
