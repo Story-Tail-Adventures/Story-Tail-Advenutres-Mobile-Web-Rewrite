@@ -41,6 +41,21 @@ export const ICON_PATHS = {
   phone: "M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z",
   mail: "M3 7l9 6 9-6M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z",
   home: "M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V11Z",
+
+  // Added for §2.2, copied verbatim from the prototype like the rest.
+  bell: "M12 3a6 6 0 0 0-6 6v3.5L4 16h16l-2-3.5V9a6 6 0 0 0-6-6Zm0 18a2.5 2.5 0 0 1-2.45-2h4.9A2.5 2.5 0 0 1 12 21Z",
+  passport: "M5 3h14v18H5zM9 8h6M9 12h6M9 16h3M5 3v18",
+  grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  upload: "M12 21V9m-5 5 5-5 5 5M5 3h14",
+  share: "M16 6l-4-4-4 4m4-4v14M5 12v8h14v-8",
+  send: "M3 11 22 3l-8 19-3-8-8-3Z",
+  attach: "m21 12-9 9a5 5 0 0 1-7-7l9-9a3 3 0 0 1 4 4l-9 9a1 1 0 0 1-1-1l8-8",
+  more_vert: "M12 5h.01M12 12h.01M12 19h.01",
+  chevron_up: "m6 15 6-6 6 6",
+  trip: "M3 13l3-6h12l3 6m-18 0v6h18v-6M3 13h18M7 17h.01M17 17h.01",
+  building: "M4 22V4h10v18M14 22V10h6v12M8 8h2M8 12h2M8 16h2M17 14h.01M17 18h.01",
+  sun: "M12 4v2m0 12v2M4 12H2m20 0h-2M5.6 5.6 4 4m16 16-1.6-1.6M5.6 18.4 4 20m16-16-1.6 1.6M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
+  receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6m-6 4h6m-6 4h3",
 } as const satisfies Record<string, string>;
 
 export type IconName = keyof typeof ICON_PATHS;

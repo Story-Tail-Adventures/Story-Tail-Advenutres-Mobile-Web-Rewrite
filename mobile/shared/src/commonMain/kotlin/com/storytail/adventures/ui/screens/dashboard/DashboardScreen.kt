@@ -2,35 +2,54 @@ package com.storytail.adventures.ui.screens.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.storytail.adventures.ui.components.BrandWordmark
+import com.storytail.adventures.ui.components.client.ClientScaffold
 
 /**
- * Placeholder for Screen 2.2.1 Client Dashboard / Home.
+ * Screen 2.2.1 Client Dashboard / Home — see docs/Screen-Inventory.md §2.2.1 and §4.4
+ * (Pattern D; the mobile hero countdown is full-width and the tablet/web weather widget
+ * beside it is a larger-viewport affordance) and
+ * design/source-prototype/screens/client-trip-mobile.jsx (M221_Dashboard). P1.
  *
- * Exists so 2.1.1 has somewhere to land. The upcoming-trip hero, agent card and
- * quick actions arrive with the real screen.
+ * SHELL ONLY at this commit. The scaffold, the four-tab bar and the callback surface are
+ * real and wired; the body is still the placeholder copy, and the hero countdown, the
+ * action-needed card, the advisor card and the trip cards land with the screen itself.
+ *
+ * It is committed in this state deliberately rather than left uncompiled: the bottom bar's
+ * tab semantics, the sibling-not-overlay rule and the back-stack behaviour are all things
+ * that need a real screen to be exercised in, and they are what this stage is for.
  */
 @Composable
-fun DashboardScreen(onSignOut: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.background) {
+fun DashboardScreen(
+    onSelectTab: (String) -> Unit,
+    onOpenTrip: (tripId: String) -> Unit,
+    onSeeAllTrips: () -> Unit,
+    onMessageAgent: (tripId: String) -> Unit,
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ClientScaffold(
+        modifier = modifier,
+        activeTab = "trips",
+        onSelectTab = onSelectTab,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+    ) {
         Column(
-            modifier = Modifier.fillMaxSize().safeContentPadding().padding(24.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             BrandWordmark(size = 32.dp)
             Text("You're signed in.", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Your dashboard is still coming together — your trips will live right here soon.",
+                "Your dashboard is still coming together \u2014 your trips will live right here soon.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

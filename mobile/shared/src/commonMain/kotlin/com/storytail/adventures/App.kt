@@ -45,7 +45,7 @@ import com.storytail.adventures.ui.screens.auth.ResetPasswordViewModel
 import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
 import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
-import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
+import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
 import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
@@ -194,9 +194,26 @@ fun App() {
                 )
             }
 
-            AppRoute.Dashboard -> {
+            // Every §2.2 route goes to one host. Listing them here rather than using an
+            // `else` is deliberate: the `when` stays exhaustive, so adding a route to
+            // AppRoute without deciding where it renders is a compile error rather than a
+            // screen that silently falls through to the dashboard.
+            AppRoute.Dashboard,
+            AppRoute.AllTrips,
+            is AppRoute.TripDetail,
+            is AppRoute.Itinerary,
+            is AppRoute.ItineraryDay,
+            is AppRoute.TripDocuments,
+            is AppRoute.TripThread,
+            is AppRoute.PastTrip,
+            is AppRoute.CancelledTrip,
+            -> {
                 val scope = rememberCoroutineScope()
-                DashboardScreen(
+                // The §2.2 section host, matching how PublicRoute and OnboardingRoute are
+                // handed a route rather than App.kt branching per screen.
+                TripRoute(
+                    route = route,
+                    nav = nav,
                     onSignOut = { scope.launch { repo.signOut() } },
                 )
             }

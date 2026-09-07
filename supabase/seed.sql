@@ -132,6 +132,23 @@ SET mfa_required = true
 WHERE id = '0195a2c0-1a00-7000-8000-000000000010';
 
 -- ============================================================
+-- Jordan has finished onboarding
+--
+-- Without this every §2.2 session starts at /welcome: the (client) layout's onboarding gate
+-- correctly bounces an un-onboarded traveler out of the portal, so the dashboard is
+-- unreachable until the wizard is done. Jordan is the §2.2 fixture — five trips, an
+-- itinerary, a thread — so Jordan is onboarded.
+--
+-- Sam is deliberately left un-onboarded, which keeps a fixture for §2.1.9-2.1.14: the
+-- wizard needs somebody to walk it.
+-- ============================================================
+
+UPDATE public.platform_user
+SET onboarding_completed_at = now() - interval '30 days',
+    onboarding_step = NULL
+WHERE account_id = '0195a2c0-1a00-7000-8000-000000000011';
+
+-- ============================================================
 -- Client detail
 -- ============================================================
 

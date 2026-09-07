@@ -65,6 +65,28 @@ class Navigator(initial: AppRoute) {
         if (current.requiresSession || current == AppRoute.Resolving) resetTo(destination)
     }
 
+    /**
+     * Select a bottom-bar tab.
+     *
+     * §2.2 added a four-tab bar and none of the verbs above meant "go to a tab". The two
+     * rules this encodes are the platform conventions on both iOS and Android:
+     *
+     *  * Selecting a DIFFERENT tab resets the stack to that tab's root. A bottom bar is a
+     *    set of roots, not a history — [push] would make Back walk backwards through tabs
+     *    instead of leaving the app, and a user who tapped four tabs would need four Backs
+     *    to get out.
+     *  * Tapping the ALREADY-ACTIVE tab pops that tab back to its root. This is the "scroll
+     *    to top / go home" gesture people expect, and it is why this cannot simply be
+     *    [resetTo]: the no-op case has to do something useful.
+     *
+     * Not preserving a per-tab stack is a deliberate simplification. Only one of the four
+     * tabs is built (§2.2), and a per-tab stack means four stacks to restore on process
+     * death for a benefit nobody can currently reach. Revisit when the second tab ships.
+     */
+    fun selectTab(root: AppRoute) {
+        resetTo(root)
+    }
+
     /** For tests and for the back-handler's enabled flag. */
     fun snapshot(): List<AppRoute> = stack.toList()
 }

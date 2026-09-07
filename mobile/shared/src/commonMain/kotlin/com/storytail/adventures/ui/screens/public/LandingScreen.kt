@@ -48,6 +48,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.storytail.adventures.ui.components.StoryTailGlyph
+import com.storytail.adventures.ui.components.StoryTailMark
 import com.storytail.adventures.content.public.PublicCatalog
 import com.storytail.adventures.ui.components.public.HeroHeight
 import com.storytail.adventures.ui.components.public.PlaceholderBanner
@@ -279,17 +281,17 @@ private fun WhatYouCanDoHere(onBrowseTrips: () -> Unit) {
     ) {
         SectionLabel("WHAT YOU CAN DO HERE", Modifier.semantics { heading() })
         FeatureCard(
-            mark = FeatureMark.PLANE,
+            mark = StoryTailMark.PLANE,
             title = "View your trips",
             body = "Itinerary, day-by-day, always in your pocket.",
         )
         FeatureCard(
-            mark = FeatureMark.CARD,
+            mark = StoryTailMark.CARD,
             title = "Authorize cards",
             body = "Stripe-secured. We pay suppliers — never charge fees.",
         )
         FeatureCard(
-            mark = FeatureMark.MESSAGE,
+            mark = StoryTailMark.MESSAGE,
             title = "Message Gyasi",
             body = messageGyasiBody,
         )
@@ -310,7 +312,7 @@ private val messageGyasiBody: String =
         ?: "Threaded by trip."
 
 @Composable
-private fun FeatureCard(mark: FeatureMark, title: String, body: String) {
+private fun FeatureCard(mark: StoryTailMark, title: String, body: String) {
     PublicCard {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -324,7 +326,7 @@ private fun FeatureCard(mark: FeatureMark, title: String, body: String) {
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    FeatureGlyph(
+                    StoryTailGlyph(
                         mark = mark,
                         size = 16.dp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -347,75 +349,3 @@ private fun FeatureCard(mark: FeatureMark, title: String, body: String) {
     }
 }
 
-/** The three marks the cards need — the artboard's `plane`, `card` and `message` icons. */
-private enum class FeatureMark { PLANE, CARD, MESSAGE }
-
-/**
- * Drawn rather than imported, for the same reason CheckMark is:
- * `androidx.compose.material.icons` is not on this module's classpath, and three glyphs do
- * not justify an artifact that ships every Material icon. Each is the prototype's icon cut
- * down to what still reads at 16dp, in a 0..1 viewport so it scales with [size].
- */
-@Composable
-private fun FeatureGlyph(mark: FeatureMark, size: Dp, color: Color) {
-    Canvas(Modifier.size(size)) {
-        val w = this.size.width
-        val h = this.size.height
-        val outline = Stroke(
-            width = w * 0.11f,
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round,
-        )
-
-        when (mark) {
-            // A paper plane: nose top-right, one wing, the crease, the tail.
-            FeatureMark.PLANE -> drawPath(
-                path = Path().apply {
-                    moveTo(w * 0.94f, h * 0.08f)
-                    lineTo(w * 0.06f, h * 0.46f)
-                    lineTo(w * 0.42f, h * 0.58f)
-                    lineTo(w * 0.56f, h * 0.94f)
-                    close()
-                },
-                color = color,
-            )
-
-            FeatureMark.CARD -> {
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(w * 0.06f, h * 0.18f),
-                    size = Size(w * 0.88f, h * 0.64f),
-                    cornerRadius = CornerRadius(w * 0.14f),
-                    style = outline,
-                )
-                // The magnetic stripe, which is what separates a card from a rectangle.
-                drawLine(
-                    color = color,
-                    start = Offset(w * 0.06f, h * 0.40f),
-                    end = Offset(w * 0.94f, h * 0.40f),
-                    strokeWidth = w * 0.11f,
-                )
-            }
-
-            FeatureMark.MESSAGE -> {
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(w * 0.08f, h * 0.12f),
-                    size = Size(w * 0.84f, h * 0.58f),
-                    cornerRadius = CornerRadius(w * 0.18f),
-                    style = outline,
-                )
-                // The tail, which is what separates a bubble from a box.
-                drawPath(
-                    path = Path().apply {
-                        moveTo(w * 0.30f, h * 0.66f)
-                        lineTo(w * 0.30f, h * 0.94f)
-                        lineTo(w * 0.54f, h * 0.66f)
-                        close()
-                    },
-                    color = color,
-                )
-            }
-        }
-    }
-}

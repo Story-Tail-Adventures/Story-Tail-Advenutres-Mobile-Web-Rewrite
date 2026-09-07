@@ -1,0 +1,202 @@
+/* Story-Tail Adventures — authenticated client surface layer.
+ *
+ * Screens 2.2.1–2.2.11 (docs/Screen-Inventory.md §2.2; prototypes in
+ * design/source-prototype/screens/client-trip.jsx and client-trip-mobile.jsx). Imported
+ * from web/app/globals.css after public.css.
+ *
+ * This is a SECTION stylesheet, not a set of primitives, and that distinction is why it
+ * exists as its own file: components.css holds things any screen may use (.btn, .card,
+ * .chip-status), while the app chrome below belongs to one surface. public.css set that
+ * precedent for §2.0 and this is its counterpart. Nothing here should be reached for from
+ * a public page, and `.client-surface` scopes it so it cannot be.
+ *
+ * The chrome dimensions come from the prototype's ScreenFrame, not from Design-System §9:
+ * §9.2 says an 88px rail and the prototype draws 72px. Gyasi settled that on 2026-09-06 in
+ * the prototype's favour, and §9.2 is being amended to match.
+ */
+
+@layer components {
+  /* ── The surface ───────────────────────────────────────────────────────── */
+
+  .client-surface {
+    min-height: 100dvh;
+    background: var(--md-bg);
+    color: var(--md-on-surface);
+  }
+
+  /* Reserve for the bottom bar, on the element that wraps BOTH the content and anything
+   * after it. §2.0 shipped a bug where StickyCta emitted its own spacer as the last child
+   * of <main> while PublicFooter rendered after {children} — so the reserve landed above
+   * the footer and the fixed bar covered it. Putting the reserve on the surface is the only
+   * place that is after everything. */
+  .client-surface:has(.client-bottom-nav) .client-main {
+    padding-bottom: calc(64px + max(env(safe-area-inset-bottom), 8px));
+  }
+
+  /* ── Top bar (64px, Design-System §9.1) ───────────────────────────────── */
+
+  .client-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 64px;
+    padding: 0 16px;
+    background: color-mix(in srgb, var(--md-surface) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--md-outline-variant);
+  }
+
+  /* ── Nav rail (72px, prototype ScreenNavRail) ─────────────────────────── */
+
+  .client-rail {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    flex-shrink: 0;
+    width: 72px;
+    height: 100dvh;
+    padding: 14px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: var(--md-surface);
+    border-right: 1px solid var(--md-outline-variant);
+  }
+
+  .client-rail-item {
+    width: 60px;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--md-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .client-rail-item > .pill {
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .client-rail-item[aria-current="page"] { color: var(--md-on-surface); }
+  .client-rail-item[aria-current="page"] > .pill {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  }
+
+  .client-rail-label {
+    font: 600 9.5px/1.2 var(--font-sans);
+    text-align: center;
+  }
+
+  /* ── Bottom bar (mobile, four tabs per the prototype's StaMobileTabs) ─── */
+
+  .client-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding: 8px 6px max(env(safe-area-inset-bottom), 8px);
+    background: var(--md-surface-1);
+    border-top: 1px solid var(--md-outline-variant);
+  }
+
+  .client-tab {
+    min-width: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    color: var(--md-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .client-tab > .pill {
+    width: 56px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .client-tab[aria-current="page"] { color: var(--md-on-surface); }
+  .client-tab[aria-current="page"] > .pill {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  }
+
+  .client-tab-label { font: 600 10px/1.2 var(--font-sans); }
+
+  /* A destination with no route yet. It stays visible — the rail is the design of record,
+   * and a rail that grows an item per release moves every other item under the cursor —
+   * but it must not look pressable. */
+  .client-nav-item-disabled {
+    opacity: 0.38;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* ── Skeletons ────────────────────────────────────────────────────────── */
+
+  /* §5 asks for "skeleton placeholders that match the screen's layout" and explicitly
+   * rules out spinner-on-blank. */
+  .client-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--md-surface-2) 25%,
+      var(--md-surface-3) 37%,
+      var(--md-surface-2) 63%
+    );
+    background-size: 400% 100%;
+    animation: client-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--r-sm);
+  }
+
+  @keyframes client-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+  }
+
+  /* ── Focus and motion ─────────────────────────────────────────────────── */
+
+  /* The only general focus ring in the project was `.pub-surface`-scoped, and
+   * components.css covers `.btn` alone — so an authenticated screen had no visible focus
+   * on a link, a summary or a bare [tabindex]. WCAG 2.1 AA (BRD §11) needs one. */
+  .client-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .client-skeleton { animation: none; }
+    .client-surface *,
+    .client-surface *::before,
+    .client-surface *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Coarse pointers get the 44pt minimum §4.2 requires. */
+  @media (pointer: coarse) {
+    .client-rail-item,
+    .client-tab { min-height: 44px; }
+  }
+}
