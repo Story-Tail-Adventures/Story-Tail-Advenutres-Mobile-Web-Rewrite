@@ -228,6 +228,7 @@ Trip and lead statuses get their own chip color pairs (background + text) tuned 
 | `past` | `#E2DBD2` | `#4A3F38` | `#1F3450` | `#C3D3E6` |
 | `lead` | `#F4D9F6` | `#4E124E` | `#4E124E` | `#F4D9F6` |
 | `inquiry` | `#E1D7F4` | `#2C1761` | `#2A1559` | `#E1D7F4` |
+| `cancelled` | `#D7DFE6` | `#3D352E` | `#2A3340` | `#C9D2DC` |
 
 ---
 

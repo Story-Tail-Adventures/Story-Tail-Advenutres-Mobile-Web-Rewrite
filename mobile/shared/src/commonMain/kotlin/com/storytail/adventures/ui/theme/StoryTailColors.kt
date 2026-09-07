@@ -51,6 +51,12 @@ data class StoryTailStatusColors(
     val leadFg:     Color,
     val inquiryBg:  Color,
     val inquiryFg:  Color,
+    // `cancelled` is the eighth, added with §2.2. Design-System §4.3 shipped seven and
+    // C2210_Cancelled hardcoded this pair inline because there was no token. Mapping it
+    // onto `past` would make the two indistinguishable in a list whose filter tabs
+    // separate them.
+    val cancelledBg: Color,
+    val cancelledFg: Color,
 )
 
 val LightStoryTailStatusColors = StoryTailStatusColors(
@@ -61,6 +67,7 @@ val LightStoryTailStatusColors = StoryTailStatusColors(
     pastBg      = Color(0xFFE2DBD2), pastFg      = Color(0xFF4A3F38),
     leadBg      = Color(0xFFF4D9F6), leadFg      = Color(0xFF4E124E),
     inquiryBg   = Color(0xFFE1D7F4), inquiryFg   = Color(0xFF2C1761),
+    cancelledBg = Color(0xFFD7DFE6), cancelledFg = Color(0xFF3D352E),
 )
 
 val DarkStoryTailStatusColors = StoryTailStatusColors(
@@ -71,6 +78,7 @@ val DarkStoryTailStatusColors = StoryTailStatusColors(
     pastBg      = Color(0xFF1F3450), pastFg      = Color(0xFFC3D3E6),
     leadBg      = Color(0xFF4E124E), leadFg      = Color(0xFFF4D9F6),
     inquiryBg   = Color(0xFF2A1559), inquiryFg   = Color(0xFFE1D7F4),
+    cancelledBg = Color(0xFF2A3340), cancelledFg = Color(0xFFC9D2DC),
 )
 
 val LocalStoryTailStatusColors = compositionLocalOf { LightStoryTailStatusColors }

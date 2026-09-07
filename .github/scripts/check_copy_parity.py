@@ -25,11 +25,31 @@ SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventur
 WIZARD_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding"
 DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding"
 WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
+TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
+    {
+        # Two of these seven labels are DERIVED — the trip_status enum has no
+        # "Final payment due" and no "Traveling now" — so this is the table most able to
+        # drift without anything failing to compile on either side.
+        "label": "trip status",
+        "web_file": ROOT / "web/lib/trips/status.ts",
+        "web_const": "TRIP_STATUS_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripStatus.kt",
+        "kmp_object": "TripStatusMessages",
+        "keys": {
+            "inquiry": "INQUIRY",
+            "proposalReady": "PROPOSAL_READY",
+            "booked": "BOOKED",
+            "finalPaymentDue": "FINAL_PAYMENT_DUE",
+            "travelingNow": "TRAVELING_NOW",
+            "pastTrip": "PAST_TRIP",
+            "cancelled": "CANCELLED",
+        },
+    },
     {
         "label": "auth validation",
         "web_file": ROOT / "web/lib/validation/auth.ts",
