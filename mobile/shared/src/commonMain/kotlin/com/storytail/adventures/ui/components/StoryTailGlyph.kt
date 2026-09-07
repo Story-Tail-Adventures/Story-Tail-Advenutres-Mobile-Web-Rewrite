@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
  * Each is the prototype's icon (design/source-prototype/shared/icons.jsx) cut down to what
  * still reads at 16–20dp, expressed in a 0..1 viewport so it scales with [size].
  */
-enum class StoryTailMark { PLANE, CARD, MESSAGE, HOME, SEARCH, USER, PASSPORT, ARROW_LEFT }
+enum class StoryTailMark { PLANE, CARD, MESSAGE, HOME, SEARCH, USER, PASSPORT, ARROW_LEFT, SUN, SHIP }
 
 @Composable
 fun StoryTailGlyph(
@@ -155,6 +155,62 @@ fun StoryTailGlyph(
                         cap = StrokeCap.Round,
                     )
                 }
+            }
+
+            // A disc with rays — the prototype's `sun`.
+            StoryTailMark.SUN -> {
+                drawCircle(
+                    color = color,
+                    radius = w * 0.22f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = outline,
+                )
+                val rays = listOf(
+                    0.50f to 0.04f, 0.50f to 0.96f, 0.04f to 0.50f, 0.96f to 0.50f,
+                    0.17f to 0.17f, 0.83f to 0.83f, 0.17f to 0.83f, 0.83f to 0.17f,
+                )
+                for ((rx, ry) in rays) {
+                    val dx = rx - 0.50f
+                    val dy = ry - 0.50f
+                    drawLine(
+                        color = color,
+                        start = Offset(w * (0.50f + dx * 0.62f), h * (0.50f + dy * 0.62f)),
+                        end = Offset(w * rx, h * ry),
+                        strokeWidth = w * 0.10f,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
+
+            // A hull and a mast — the prototype's `ship`, cut down.
+            StoryTailMark.SHIP -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.10f, h * 0.62f)
+                        lineTo(w * 0.90f, h * 0.62f)
+                        lineTo(w * 0.74f, h * 0.90f)
+                        lineTo(w * 0.26f, h * 0.90f)
+                        close()
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.50f, h * 0.10f),
+                    end = Offset(w * 0.50f, h * 0.60f),
+                    strokeWidth = w * 0.10f,
+                    cap = StrokeCap.Round,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.54f, h * 0.14f)
+                        lineTo(w * 0.82f, h * 0.44f)
+                        lineTo(w * 0.54f, h * 0.44f)
+                        close()
+                    },
+                    color = color,
+                )
             }
 
             StoryTailMark.ARROW_LEFT -> {

@@ -41,9 +41,68 @@ interface TripRepository {
     /** Screen 2.2.3, or null when the trip is not the caller's — RLS makes those the same. */
     suspend fun tripDetail(tripId: String, today: LocalDate): TripDetailSnapshot?
 
+    /** Screens 2.2.4/2.2.5. Null when there is no READABLE itinerary — a draft is invisible. */
+    suspend fun itinerary(tripId: String, today: LocalDate): ItineraryView?
+
     /** The name to greet somebody by, or null. */
     suspend fun greetableFirstName(): String?
 }
+
+/**
+ * `itinerary_day.weather_forecast`, which is agent-authored and cached with a TTL — not a
+ * live API. BRD §9 names no weather integration, and this column is why none is needed at
+ * MVP. Every field is optional because the agent fills in what he knows.
+ */
+@Serializable
+data class DayWeather(
+    @SerialName("high_f") val highF: Int? = null,
+    @SerialName("low_f") val lowF: Int? = null,
+    val summary: String? = null,
+    @SerialName("wind_mph") val windMph: Int? = null,
+    @SerialName("wind_dir") val windDir: String? = null,
+    @SerialName("uv_index") val uvIndex: Int? = null,
+) {
+    val isEmpty: Boolean
+        get() = highF == null && lowF == null && summary == null &&
+            windMph == null && windDir == null && uvIndex == null
+}
+
+data class ItineraryActivity(
+    val id: String,
+    val block: String,
+    val startTime: String?,
+    val endTime: String?,
+    val title: String,
+    val body: String?,
+    val location: String?,
+    val address: String?,
+    val phone: String?,
+    val confirmationNumber: String?,
+    /** Design-System §2.4's voice-forward moment inside a day. */
+    val gyasisTip: String?,
+)
+
+data class ItineraryDay(
+    val id: String,
+    val dayNumber: Int,
+    val date: LocalDate?,
+    val label: String?,
+    val summary: String?,
+    val weather: DayWeather?,
+    val activities: List<ItineraryActivity>,
+)
+
+data class ItineraryView(
+    val trip: TripSummary,
+    val introNote: String?,
+    val closingNote: String?,
+    val days: List<ItineraryDay>,
+    /** Which component kinds the trip HAS, so 2.2.8 can only claim what is actually absent. */
+    val componentKinds: List<String>,
+    val insuranceReference: String?,
+    val emergencyName: String?,
+    val emergencyPhone: String?,
+)
 
 /** The filter tabs 2.2.2 offers. ALL is not a status — it is the absence of one. */
 enum class TripFilter { ALL, UPCOMING, PLANNING, PAST, CANCELLED }
@@ -131,6 +190,7 @@ class UnconfiguredTripRepository : TripRepository {
     override suspend fun dashboard(today: LocalDate): DashboardSnapshot? = null
     override suspend fun trips(filter: TripFilter, today: LocalDate): TripsList? = null
     override suspend fun tripDetail(tripId: String, today: LocalDate): TripDetailSnapshot? = null
+    override suspend fun itinerary(tripId: String, today: LocalDate): ItineraryView? = null
     override suspend fun greetableFirstName(): String? = null
 }
 
@@ -417,6 +477,117 @@ class SupabaseTripRepository(
         )
     }
 
+    override suspend fun itinerary(tripId: String, today: LocalDate): ItineraryView? {
+        val trip = read {
+            client.postgrest.from("trip")
+                .select(
+                    Columns.list(
+                        "id", "title", "trip_type", "status", "start_date", "end_date",
+                        "destinations", "traveler_count", "total_value_cents",
+                        "total_paid_cents", "currency",
+                    ),
+                ) {
+                    filter { eq("id", tripId) }
+                    limit(1)
+                }
+                .decodeList<TripRow>()
+                .firstOrNull()
+        } ?: return null
+
+        // An unpublished itinerary is invisible to this session entirely, so "not published"
+        // and "no itinerary" arrive identically here. The screen decides what to say.
+        val itinerary = read {
+            client.postgrest.from("itinerary")
+                .select(Columns.list("id", "intro_note", "closing_note", "published_at")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<ItineraryDetailRow>()
+                .firstOrNull()
+        } ?: return null
+
+        val dayRows = read {
+            client.postgrest.from("itinerary_day")
+                .select(
+                    Columns.list("id", "day_number", "date", "label", "summary", "weather_forecast"),
+                ) {
+                    filter { eq("itinerary_id", itinerary.id) }
+                    order("day_number", Order.ASCENDING)
+                }
+                .decodeList<DayRow>()
+        }.orEmpty()
+
+        val activityRows = if (dayRows.isEmpty()) {
+            emptyList()
+        } else {
+            read {
+                client.postgrest.from("itinerary_activity")
+                    .select(
+                        Columns.list(
+                            "id", "itinerary_day_id", "block", "start_time", "end_time", "title",
+                            "body", "location", "address", "phone", "confirmation_number",
+                            "gyasis_tip", "order_index",
+                        ),
+                    ) {
+                        filter { isIn("itinerary_day_id", dayRows.map { it.id }) }
+                        order("order_index", Order.ASCENDING)
+                    }
+                    .decodeList<ActivityRow>()
+            }.orEmpty()
+        }
+
+        val components = read {
+            client.postgrest.from("trip_component")
+                .select(Columns.list("kind", "confirmation_number")) {
+                    filter { eq("trip_id", tripId) }
+                }
+                .decodeList<ComponentKindRow>()
+        }.orEmpty()
+
+        val emergency = read {
+            client.postgrest.from("client")
+                .select(Columns.list("emergency_contact"))
+                .decodeSingleOrNull<EmergencyRow>()
+        }?.emergency_contact
+
+        val byDay = activityRows.groupBy { it.itinerary_day_id }
+
+        return ItineraryView(
+            trip = trip.toSummary(today),
+            introNote = itinerary.intro_note,
+            closingNote = itinerary.closing_note,
+            days = dayRows.map { d ->
+                ItineraryDay(
+                    id = d.id,
+                    dayNumber = d.day_number,
+                    date = d.date?.let(::parseDate),
+                    label = d.label,
+                    summary = d.summary,
+                    weather = d.weather_forecast?.takeIf { !it.isEmpty },
+                    activities = byDay[d.id].orEmpty().map { a ->
+                        ItineraryActivity(
+                            id = a.id,
+                            block = a.block,
+                            startTime = a.start_time,
+                            endTime = a.end_time,
+                            title = a.title,
+                            body = a.body,
+                            location = a.location,
+                            address = a.address,
+                            phone = a.phone,
+                            confirmationNumber = a.confirmation_number,
+                            gyasisTip = a.gyasis_tip,
+                        )
+                    },
+                )
+            },
+            componentKinds = components.map { it.kind },
+            insuranceReference = components.firstOrNull { it.kind == "insurance" }?.confirmation_number,
+            emergencyName = emergency?.name,
+            emergencyPhone = emergency?.phone,
+        )
+    }
+
     override suspend fun greetableFirstName(): String? = read {
         client.postgrest.from("client")
             .select(Columns.list("first_name", "preferred_name"))
@@ -530,6 +701,49 @@ private data class MilestoneDetailRow(
 
 @Serializable
 private data class IdOnlyRow(val id: String)
+
+@Serializable
+private data class DayRow(
+    val id: String,
+    val day_number: Int,
+    val date: String? = null,
+    val label: String? = null,
+    val summary: String? = null,
+    val weather_forecast: DayWeather? = null,
+)
+
+@Serializable
+private data class ActivityRow(
+    val id: String,
+    val itinerary_day_id: String,
+    val block: String,
+    val start_time: String? = null,
+    val end_time: String? = null,
+    val title: String,
+    val body: String? = null,
+    val location: String? = null,
+    val address: String? = null,
+    val phone: String? = null,
+    val confirmation_number: String? = null,
+    val gyasis_tip: String? = null,
+    val order_index: Int,
+)
+
+@Serializable
+private data class ComponentKindRow(
+    val kind: String,
+    val confirmation_number: String? = null,
+)
+
+@Serializable
+private data class EmergencyContact(
+    val name: String? = null,
+    val phone: String? = null,
+    val relationship: String? = null,
+)
+
+@Serializable
+private data class EmergencyRow(val emergency_contact: EmergencyContact? = null)
 
 @Serializable
 private data class ConversationCountRow(

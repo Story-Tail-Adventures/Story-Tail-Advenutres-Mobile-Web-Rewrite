@@ -77,7 +77,39 @@ fun TripRoute(
             )
         }
 
-        // 2.2.4 through 2.2.11 land in the stages after this one.
+        is AppRoute.Itinerary -> {
+            val viewModel = viewModel(key = "itin-${route.tripId}") {
+                ItineraryViewModel(trips, route.tripId, today)
+            }
+            val state by viewModel.state.collectAsState()
+            val selectedDay by viewModel.selectedDay.collectAsState()
+            ItineraryScreen(
+                state = state,
+                selectedDay = selectedDay,
+                onSelectDay = viewModel::selectDay,
+                onOpenDay = { day -> nav.push(AppRoute.ItineraryDay(route.tripId, day)) },
+                onBack = { nav.pop() },
+                onAskGyasi = { nav.push(AppRoute.TripThread(route.tripId)) },
+                onRetry = viewModel::load,
+            )
+        }
+
+        is AppRoute.ItineraryDay -> {
+            // Shares the itinerary view model with 2.2.4 by key, so opening a day off the
+            // viewer does not re-fetch the whole itinerary it already has.
+            val viewModel = viewModel(key = "itin-${route.tripId}") {
+                ItineraryViewModel(trips, route.tripId, today, initialDay = route.dayNumber)
+            }
+            val state by viewModel.state.collectAsState()
+            DayDetailScreen(
+                state = state,
+                dayNumber = route.dayNumber,
+                onBack = { nav.pop() },
+                onOpenDay = { day -> nav.replace(AppRoute.ItineraryDay(route.tripId, day)) },
+            )
+        }
+
+        // 2.2.6 through 2.2.11 land in the stages after this one.
         else -> {
             val viewModel = viewModel { DashboardViewModel(trips, today) }
             val state by viewModel.state.collectAsState()

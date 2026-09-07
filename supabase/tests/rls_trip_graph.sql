@@ -95,8 +95,8 @@ SELECT pg_temp.assert(
 
 -- ── trip_component ──────────────────────────────────────────────────────────
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.trip_component') = 4,
-    'trip_component — sees the four components of their own trip');
+    pg_temp.count_of('SELECT count(*) FROM public.trip_component') = 5,
+    'trip_component — sees the five components of their own trip');
 
 SELECT pg_temp.expect_denied(
     'SELECT cost_cents FROM public.trip_component LIMIT 1',
@@ -113,8 +113,15 @@ SELECT pg_temp.expect_denied(
     'trip_component.payload — withheld (carries rate_cents_per_night)');
 
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM (SELECT kind FROM public.trip_component) q') = 4,
+    pg_temp.count_of('SELECT count(*) FROM (SELECT kind FROM public.trip_component) q') = 5,
     'trip_component.kind — granted, against its Internal marker (icons and empty states)');
+
+-- The insurance component is what §2.2.4's Important info panel reads its policy number
+-- from, so its presence is part of the fixture rather than incidental.
+SELECT pg_temp.assert(
+    pg_temp.count_of(
+      'SELECT count(*) FROM public.trip_component WHERE kind = ''insurance''') = 1,
+    'trip_component — the insurance component is readable (Important info reads it)');
 
 -- ── itinerary: THE DRAFT GATE ───────────────────────────────────────────────
 SELECT pg_temp.assert(

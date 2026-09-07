@@ -2,6 +2,7 @@ package com.storytail.adventures.ui.screens.trip
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.storytail.adventures.api.ItineraryView
 import com.storytail.adventures.api.TripDetailSnapshot
 import com.storytail.adventures.api.TripFilter
 import com.storytail.adventures.api.TripRepository
@@ -82,6 +83,45 @@ class TripDetailViewModel(
             // A null here means either "no such trip" or "not yours" — RLS makes those the
             // same answer, deliberately, and the screen says so without guessing which.
             _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+        }
+    }
+}
+
+
+class ItineraryViewModel(
+    private val trips: TripRepository,
+    private val tripId: String,
+    private val today: LocalDate,
+    /** 2.2.5 opens straight onto a day; 2.2.4 opens onto the first. */
+    initialDay: Int? = null,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<Loadable<ItineraryView>>(Loadable.Loading)
+    val state: StateFlow<Loadable<ItineraryView>> = _state.asStateFlow()
+
+    private val _selectedDay = MutableStateFlow(initialDay ?: 1)
+    val selectedDay: StateFlow<Int> = _selectedDay.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun selectDay(dayNumber: Int) {
+        _selectedDay.value = dayNumber
+    }
+
+    fun load() {
+        _state.value = Loadable.Loading
+        viewModelScope.launch {
+            val result = trips.itinerary(tripId, today)
+            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+            // Snap the selection to a day that exists. An itinerary the agent renumbered, or
+            // a deep link to a day that was removed, would otherwise show an empty screen
+            // with a valid-looking day chip.
+            val days = result?.days.orEmpty()
+            if (days.none { it.dayNumber == _selectedDay.value }) {
+                days.firstOrNull()?.let { _selectedDay.value = it.dayNumber }
+            }
         }
     }
 }

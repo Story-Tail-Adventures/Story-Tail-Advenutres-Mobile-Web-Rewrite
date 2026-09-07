@@ -412,3 +412,198 @@ export async function loadTripDetail(
     milestones,
   };
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Screens 2.2.4 Itinerary Viewer, 2.2.5 Day Detail, 2.2.8 Empty component states
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * `itinerary_day.weather_forecast`, which is agent-authored and cached with a TTL — not a
+ * live API. BRD §9 names no weather integration, and this column is the reason none is
+ * needed at MVP. Every field is optional because the agent fills in what he knows.
+ */
+export type DayWeather = {
+  highF?: number;
+  lowF?: number;
+  summary?: string;
+  windMph?: number;
+  windDir?: string;
+  uvIndex?: number;
+};
+
+export type ItineraryActivity = {
+  id: string;
+  block: "morning" | "afternoon" | "evening" | "all_day";
+  startTime: string | null;
+  endTime: string | null;
+  title: string;
+  body: string | null;
+  location: string | null;
+  address: string | null;
+  phone: string | null;
+  confirmationNumber: string | null;
+  /** Design-System §2.4's voice-forward moment inside a day. */
+  gyasisTip: string | null;
+};
+
+export type ItineraryDay = {
+  id: string;
+  dayNumber: number;
+  date: string;
+  label: string | null;
+  summary: string | null;
+  weather: DayWeather | null;
+  activities: ItineraryActivity[];
+};
+
+export type ItineraryView = {
+  tripId: string;
+  tripTitle: string;
+  tripChip: string;
+  tripStatusLabel: string;
+  startDate: string | null;
+  endDate: string | null;
+  travelerCount: number;
+  destinations: string[];
+  tripType: string;
+  introNote: string | null;
+  closingNote: string | null;
+  days: ItineraryDay[];
+  /**
+   * 2.2.8's data. Which component kinds the trip HAS, so the viewer can say what is still
+   * missing — "your flights aren't booked yet" is only true if there is no flight component.
+   */
+  componentKinds: string[];
+  /** The "important info" panel: what the trip itself can answer. */
+  insuranceReference: string | null;
+  emergencyContact: { name?: string; phone?: string; relationship?: string } | null;
+  visaRequired: boolean | null;
+};
+
+function parseWeather(value: unknown): DayWeather | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const num = (k: string) => (typeof v[k] === "number" ? (v[k] as number) : undefined);
+  const str = (k: string) => (typeof v[k] === "string" ? (v[k] as string) : undefined);
+  const out: DayWeather = {
+    highF: num("high_f"),
+    lowF: num("low_f"),
+    summary: str("summary"),
+    windMph: num("wind_mph"),
+    windDir: str("wind_dir"),
+    uvIndex: num("uv_index"),
+  };
+  return Object.values(out).some((x) => x !== undefined) ? out : null;
+}
+
+/**
+ * The whole itinerary in four queries.
+ *
+ * All days and all activities at once rather than a day at a time: a seven-day itinerary is
+ * a few dozen rows, the day navigator needs every day's label anyway, and 2.2.5 is then a
+ * pure selection rather than another round trip. It also means the PDF export — when it
+ * lands — reads from the same shape.
+ *
+ * Null when there is no readable itinerary, which includes the case where one exists but is
+ * unpublished: the policy makes a draft invisible, so "not published" and "no itinerary"
+ * arrive identically here and the caller decides what to say.
+ */
+export async function loadItinerary(tripId: string, today = todayIsoUtc()): Promise<ItineraryView | null> {
+  const supabase = await createClient();
+
+  const { data: trip } = await supabase
+    .from("trip")
+    .select("id, title, trip_type, status, start_date, end_date, destinations, traveler_count, total_value_cents, total_paid_cents, currency")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (!trip) return null;
+
+  const { data: itinerary } = await supabase
+    .from("itinerary")
+    .select("id, intro_note, closing_note, published_at")
+    .eq("trip_id", tripId)
+    .maybeSingle();
+
+  if (!itinerary) return null;
+
+  const { data: dayRows } = await supabase
+    .from("itinerary_day")
+    .select("id, day_number, date, label, summary, weather_forecast")
+    .eq("itinerary_id", itinerary.id)
+    .order("day_number", { ascending: true });
+
+  const days = dayRows ?? [];
+  const dayIds = days.map((d) => d.id);
+
+  const { data: activityRows } = dayIds.length
+    ? await supabase
+        .from("itinerary_activity")
+        .select("id, itinerary_day_id, block, start_time, end_time, title, body, location, address, phone, confirmation_number, gyasis_tip, order_index")
+        .in("itinerary_day_id", dayIds)
+        .order("order_index", { ascending: true })
+    : { data: [] };
+
+  const { data: components } = await supabase
+    .from("trip_component")
+    .select("kind, confirmation_number")
+    .eq("trip_id", tripId);
+
+  const { data: client } = await supabase
+    .from("client")
+    .select("emergency_contact")
+    .maybeSingle();
+
+  const byDay = new Map<string, ItineraryActivity[]>();
+  for (const a of activityRows ?? []) {
+    const list = byDay.get(a.itinerary_day_id) ?? [];
+    list.push({
+      id: a.id,
+      block: a.block as ItineraryActivity["block"],
+      startTime: a.start_time ?? null,
+      endTime: a.end_time ?? null,
+      title: a.title,
+      body: a.body ?? null,
+      location: a.location ?? null,
+      address: a.address ?? null,
+      phone: a.phone ?? null,
+      confirmationNumber: a.confirmation_number ?? null,
+      gyasisTip: a.gyasis_tip ?? null,
+    });
+    byDay.set(a.itinerary_day_id, list);
+  }
+
+  const kinds = (components ?? []).map((c) => c.kind as string);
+  const insurance = (components ?? []).find((c) => c.kind === "insurance");
+  const emergency = client?.emergency_contact as ItineraryView["emergencyContact"];
+  const presentation = tripStatusPresentation({ status: trip.status as TripStatus, today });
+
+  return {
+    tripId: trip.id,
+    tripTitle: trip.title,
+    tripChip: presentation.chip,
+    tripStatusLabel: presentation.label,
+    startDate: trip.start_date ?? null,
+    endDate: trip.end_date ?? null,
+    travelerCount: trip.traveler_count ?? 1,
+    destinations: trip.destinations ?? [],
+    tripType: trip.trip_type,
+    introNote: itinerary.intro_note ?? null,
+    closingNote: itinerary.closing_note ?? null,
+    days: days.map((d) => ({
+      id: d.id,
+      dayNumber: d.day_number,
+      date: d.date,
+      label: d.label ?? null,
+      summary: d.summary ?? null,
+      weather: parseWeather(d.weather_forecast),
+      activities: byDay.get(d.id) ?? [],
+    })),
+    componentKinds: kinds,
+    insuranceReference: insurance?.confirmation_number ?? null,
+    emergencyContact: emergency ?? null,
+    // Nothing in the schema records a visa requirement, so this stays null rather than
+    // asserting "not required" — a wrong answer here is somebody turned away at a gate.
+    visaRequired: null,
+  };
+}

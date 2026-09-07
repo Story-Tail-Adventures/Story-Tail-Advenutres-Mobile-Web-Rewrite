@@ -406,6 +406,24 @@ INSERT INTO public.trip_component (
      'Negril Marina', 'IR-88214', 32000, 10.00, 3200,
      '{"duration_hours":6,"meeting_point":"Negril Marina, pier 2","includes":["snorkel gear","lunch"]}'::jsonb, 3);
 
+-- An insurance component and an emergency contact, so §2.2.4's Important info panel has
+-- something to show. Without these it correctly reads "Nothing filed for this trip yet",
+-- which is a true empty state but leaves the populated one untested.
+INSERT INTO public.trip_component (
+    id, trip_id, kind, display_name, start_date, end_date,
+    confirmation_number, cost_cents, commission_pct, commission_cents, payload, order_index
+) VALUES (
+    '0195a2c0-1a00-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000040',
+    'insurance', 'Allianz OneTrip Prime',
+    current_date + 67, current_date + 74,
+    '98-7124', 24000, 0.00, 0,
+    '{"provider":"Allianz","policy_number":"98-7124","coverage":"medical, cancellation, baggage"}'::jsonb, 4
+);
+
+UPDATE public.client
+SET emergency_contact = '{"name":"Dana Hayes","phone":"+1-555-0143","relationship":"sister"}'::jsonb
+WHERE email = 'jordan.hayes@example.com';
+
 -- ── The published itinerary (trip 0040) ─────────────────────────────────────
 
 INSERT INTO public.itinerary (id, trip_id, cover_image_url, intro_note, closing_note, published_at, last_published_at)
