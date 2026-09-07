@@ -243,3 +243,51 @@ changes nothing visually:
 ```
 
 Mobile is unaffected: `BrandWordmark.kt` uses a solid colour, not a gradient clip.
+
+### 5. Section 2.2 artboard deltas (2026-09-06)
+
+Section 2.2's mobile artboards were authored **locally first and pushed upstream**, which
+reverses this skill's usual direction. `screens/client-trip-mobile.jsx`,
+`pages/c22-dashboard.html` and the `c22-dashboard` entry in `pages/_sections.json` all
+originated here and were written to the design project on 2026-09-06. A sync will not report
+them as new; they are already upstream.
+
+Two things about that page are deliberate and must survive a re-sync:
+
+- **It keeps the `#view-seg` Web/Mobile toggle.** Upstream's generated `c22-dashboard.html`
+  omitted it, because at generation time §2.2 had no mobile screens. It has eleven now, and
+  without the toggle none of them can be reached.
+- **`mobileScreens` is a real array, not `null`.**
+
+Seven decisions are encoded in `client-trip-mobile.jsx` and **not** in the desktop
+`client-trip.jsx`, so the two files disagree on purpose. The header comment of the mobile file
+carries the same list; keep them in step.
+
+1. The bottom bar has **four** tabs (Trips · Discover · Messages · Account), per the
+   prototype's own `StaMobileTabs` — not Screen-Inventory §6.3's five, and no Help FAB.
+   Gyasi chose the prototype over the doc on 2026-09-06; §6.1, §6.3 and Design-System
+   §9.2–§9.3 are being amended to match, not the artboards.
+2. Gyasi's portrait is an **initials avatar** (`MAdvisorAvatar`, "GS"). `staImg('avatarA')`
+   has no entry in `web/lib/images.ts` and no licensed photograph of him exists.
+3. **Gyasi is he/him.** `C228_EmptyState` in the desktop file still reads "once **she** hears
+   back from concierge" — that is an upstream bug, not a variant. **Still unfixed in
+   `client-trip.jsx`**; scheduled for the §2.2 doc-and-voice pass.
+4. No **"Saved searches"** dashboard tab — `SavedSearch` is a Phase 2 entity.
+5. No **"OFFLINE-READY / Synced 2h ago"** card — offline UI is Phase 3 (BRD §13.3), even
+   though the SqlDelight cache lands in Phase 1.
+6. **"Share with co-traveler" collapses into "Download PDF."** The secure link is deferred to
+   §2.8, where Screen-Inventory §7's open question about account-less co-traveler access
+   belongs.
+7. **"Book a similar trip" repoints at the trip thread** — §2.3 self-guided search is Phase 2,
+   so the desktop CTA has no destination at MVP.
+
+Kept deliberately, against the instinct to strip anything unbacked: the payment timeline and
+the testimonial card, because `payment_milestone` and `testimonial` are modelled in the same
+PR; the weather card, because `itinerary_day.weather_forecast` already exists and is
+agent-authored; "Mark as done", which ships as per-device local state with no column; and
+"Authorize a card", because §2.4 is Phase 1 and lands next.
+
+Also still true of the desktop file and worth fixing when it is next touched: the cancelled
+chip is hardcoded `#D7DFE6`/`#3D352E` inline (`client-trip.jsx:524`) because `.chip-status`
+has no `cancelled` variant, and the documents subtitle claims "Auto-encrypted, share via
+secure link" — jargon, an unverified security claim, and a de-scoped feature in nine words.

@@ -332,7 +332,8 @@
     "title": "Client · Dashboard & Trip Experience",
     "subtitle": "Trips, itineraries, docs, messages.",
     "files": [
-      "screens/client-trip.jsx"
+      "screens/client-trip.jsx",
+      "screens/client-trip-mobile.jsx"
     ],
     "sectionId": "c22",
     "sectionTitle": "2.2 · Dashboard & Trip Experience",
@@ -416,6 +417,63 @@
         "label": "2.2.11 Past trip memory",
         "w": 1440,
         "h": 820
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m221",
+        "comp": "M221_Dashboard",
+        "label": "2.2m.1 Dashboard"
+      },
+      {
+        "id": "m222",
+        "comp": "M222_AllTrips",
+        "label": "2.2m.2 All trips"
+      },
+      {
+        "id": "m223",
+        "comp": "M223_TripDetail",
+        "label": "2.2m.3 Trip detail"
+      },
+      {
+        "id": "m224",
+        "comp": "M224_ItineraryViewer",
+        "label": "2.2m.4 Itinerary viewer"
+      },
+      {
+        "id": "m225",
+        "comp": "M225_DayDetail",
+        "label": "2.2m.5 Day detail"
+      },
+      {
+        "id": "m226",
+        "comp": "M226_TripDocuments",
+        "label": "2.2m.6 Documents"
+      },
+      {
+        "id": "m227",
+        "comp": "M227_TripThread",
+        "label": "2.2m.7 Trip thread"
+      },
+      {
+        "id": "m228",
+        "comp": "M228_EmptyState",
+        "label": "2.2m.8 Empty components"
+      },
+      {
+        "id": "m229",
+        "comp": "M229_StatusChange",
+        "label": "2.2m.9 Status change sheet"
+      },
+      {
+        "id": "m2210",
+        "comp": "M2210_Cancelled",
+        "label": "2.2m.10 Cancelled"
+      },
+      {
+        "id": "m2211",
+        "comp": "M2211_PastTrip",
+        "label": "2.2m.11 Past trip memory"
       }
     ]
   },
