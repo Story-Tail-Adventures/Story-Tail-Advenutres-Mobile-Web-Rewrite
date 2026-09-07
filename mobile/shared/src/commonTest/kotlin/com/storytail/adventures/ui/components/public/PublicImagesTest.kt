@@ -1,8 +1,11 @@
 package com.storytail.adventures.ui.components.public
 
 import com.storytail.adventures.content.public.PublicCatalog
+import com.storytail.adventures.content.public.PublicContent
+import com.storytail.adventures.content.public.Topic
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -11,77 +14,89 @@ import kotlin.test.assertTrue
  * the screen that uses it quietly draws a gradient instead of a photo. Nothing fails, so
  * nobody looks.
  *
- * These assert the join between the two, and — more importantly — pin the list of registry
- * entries whose photograph does not match its own description. That list is not a
- * nice-to-have: nine of fifteen ids resolve to the wrong subject today, `jamaica` to the Taj
- * Mahal, and the same ids are what web renders.
+ * These assert the join between the two. They cannot check that a photograph shows what it
+ * claims — only a person looking at it can, and doing exactly that is what turned up the Taj
+ * Mahal filed under `jamaica`.
  */
 class PublicImagesTest {
 
-    /** Nothing is bundled that is not also a real key in the generated registry. */
+    /**
+     * Every key in the registry has a photograph. No exceptions list any more: as of the
+     * 2026-09-06 id fixes all sixteen photographs are bundled, so a null here means a new key
+     * arrived from web without one — go and look at it, then bundle it.
+     */
+    @Test
+    fun everyRegistryKeyHasABundledPhotograph() {
+        val missing = PublicCatalog.IMAGES
+            .map { it.key }
+            .filter { drawableForImageKey(it) == null }
+
+        assertEquals(
+            emptyList(), missing,
+            "Registry key(s) $missing have no bundled photograph. Open the id in " +
+                "web/lib/images.ts, check it shows what the alt text says, then add the file " +
+                "to composeResources/drawable/ and map it in PublicImages.kt.",
+        )
+    }
+
+    /** And nothing is mapped that the registry does not define. */
     @Test
     fun everyBundledPhotographIsARegistryKey() {
         val registryKeys = PublicCatalog.IMAGES.map { it.key }.toSet()
+        assertTrue(registryKeys.isNotEmpty(), "The generated registry is empty")
+
         val bundled = registryKeys.filter { drawableForImageKey(it) != null }
-
-        assertTrue(bundled.isNotEmpty(), "No photographs are bundled at all")
-        assertTrue(
-            registryKeys.containsAll(bundled),
-            "Bundled a photograph for a key the registry does not define: " +
-                "${bundled - registryKeys}",
+        assertEquals(
+            registryKeys.size, bundled.size,
+            "Bundled ${bundled.size} of ${registryKeys.size} registry keys",
         )
     }
 
     /**
-     * The registry splits cleanly in two: a key either has a verified photograph or is on
-     * the unverified list. Nothing may be in neither — that is how a new key added on web
-     * would otherwise slip through and silently render a gradient.
+     * The registry points two pairs of keys at one id, so they must resolve to one file —
+     * and `stlucia`/`bvi`, which USED to share one, must no longer. A Piton and a catamaran
+     * are not the same photograph, and the shared id was part of why the old set was wrong.
      */
     @Test
-    fun everyRegistryKeyIsEitherBundledOrKnownUnverified() {
-        val unaccounted = PublicCatalog.IMAGES
-            .map { it.key }
-            .filter { drawableForImageKey(it) == null && it !in UNVERIFIED_IMAGE_KEYS }
-
-        assertEquals(
-            emptyList(), unaccounted,
-            "Registry key(s) $unaccounted have no bundled photograph and are not listed in " +
-                "UNVERIFIED_IMAGE_KEYS. Look at the photo, then either bundle it or add it " +
-                "to the list with what it actually shows.",
-        )
-    }
-
-    /** And nothing may be on both sides — a key listed as unverified must not be bundled. */
-    @Test
-    fun noUnverifiedKeyIsBundled() {
-        val contradictory = UNVERIFIED_IMAGE_KEYS.filter { drawableForImageKey(it) != null }
-        assertEquals(
-            emptyList(), contradictory,
-            "$contradictory are bundled but still listed as unverified. If the photograph " +
-                "was fixed upstream, take the key off the list.",
-        )
-    }
-
-    /**
-     * Pins the size of the problem. If this fails because the count went DOWN, someone fixed
-     * an id upstream — update the number and delete the entry. If it went UP, a regenerated
-     * catalog brought a new broken key and it is worth looking at before it ships.
-     */
-    @Test
-    fun elevenRegistryKeysStillNeedACorrectPhotograph() {
-        assertEquals(
-            11, UNVERIFIED_IMAGE_KEYS.size,
-            "UNVERIFIED_IMAGE_KEYS changed size: ${UNVERIFIED_IMAGE_KEYS.sorted()}",
-        )
-    }
-
-    /** The keys the registry deliberately doubles up resolve to one file, not two. */
-    @Test
-    fun sharedRegistryIdsResolveToOnePhotograph() {
+    fun keysSharingAnIdShareAFileAndOthersDoNot() {
         assertEquals(drawableForImageKey("turks"), drawableForImageKey("palmTree"))
         assertEquals(drawableForImageKey("cruiseShip"), drawableForImageKey("cruiseAerial"))
-        // stlucia and bvi share an id too, and share being wrong — both unbundled.
-        assertEquals(null, drawableForImageKey("stlucia"))
-        assertEquals(null, drawableForImageKey("bvi"))
+
+        assertTrue(
+            drawableForImageKey("stlucia") != drawableForImageKey("bvi"),
+            "stlucia and bvi are back to sharing one photograph",
+        )
+    }
+
+    /**
+     * Every trip on a topic grid can draw itself. Narrower than the checks above on purpose:
+     * it is the path a visitor actually walks, so it names the topic when it breaks.
+     */
+    @Test
+    fun everyTopicGridTripCanDrawItself() {
+        Topic.entries.forEach { topic ->
+            val trips = PublicContent.tripsFor(topic)
+            assertTrue(trips.isNotEmpty(), "No trips placed on $topic")
+            trips.forEach { trip ->
+                assertNotNull(
+                    drawableForImageKey(trip.imageKey),
+                    "${trip.slug} on $topic has no bundled photograph (${trip.imageKey})",
+                )
+                trip.heroImageKey?.let {
+                    assertNotNull(drawableForImageKey(it), "${trip.slug} hero photo $it missing")
+                }
+            }
+        }
+    }
+
+    /** The island strip and the inspiration grid draw from the registry too. */
+    @Test
+    fun everyIslandAndInspirationTileCanDrawItself() {
+        PublicCatalog.ISLANDS.forEach {
+            assertNotNull(drawableForImageKey(it.imageKey), "Island ${it.slug}: ${it.imageKey}")
+        }
+        PublicCatalog.INSPIRATION_TILES.forEach {
+            assertNotNull(drawableForImageKey(it.imageKey), "Tile ${it.slug}: ${it.imageKey}")
+        }
     }
 }
