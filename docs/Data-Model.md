@@ -1044,6 +1044,19 @@ data class Trip(
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
+> **Reclassified September 2026, when `trip_read_policies` shipped.** `kind` and
+> `order_index` were marked Internal and are now granted to `authenticated`. A client-facing
+> itinerary has to know whether a row is a flight or a hotel to pick an icon and the right
+> empty state, and it has to render components in the order the agent arranged them —
+> neither discloses anything the itinerary does not already say out loud. Same reasoning as
+> the §8.2 note above: the classification was describing an agent-only product.
+>
+> `payload` stays Internal and is **excluded from the column grant**, which is the decision
+> worth recording: the hotel shape below carries `rate_cents_per_night`, so granting the
+> blob would hand back the per-night cost immediately after `cost_cents` was withheld for
+> revealing margin. A screen that needs one key from it (seat number, room type) gets a
+> server-side key allowlist, not a grant.
+
 **Payload shapes:**
 
 ```json
@@ -1124,6 +1137,20 @@ data class Trip(
 | `order_index` | `integer` | No | Internal | — |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+
+> **Reclassified September 2026, when `trip_read_policies` shipped.**
+> `itinerary_activity.order_index` is granted to `authenticated` — a day whose activities
+> render in arbitrary order is not an itinerary.
+>
+> **`itinerary.published_at` is a load-bearing access boundary, not just a timestamp.** The
+> client read policy gates on `published_at IS NOT NULL`, and `itinerary_day` and
+> `itinerary_activity` repeat that test rather than merely joining to the parent. The reason
+> is the purpose statement above: the itinerary is stored separately *because the agent edits
+> it*, so rows exist and are being rewritten for days before anyone means them to be read.
+> Without the gate a traveler sees a half-written `intro_note` in Gyasi's voice and
+> placeholder confirmation numbers — a copy-exposure defect as much as an access one.
+>
+> `itinerary.version` stays Internal and is excluded from the grant.
 
 ### 8.5 Proposal
 
@@ -1507,6 +1534,13 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Indexes:** index on `(agent_id, last_message_at desc)`; index on `(client_id, last_message_at desc)`; index on `(trip_id)`.
 
+> **Reclassified September 2026, when `trip_read_policies` shipped.**
+> `client_unread_count` is granted to `authenticated`. It is the *client's own* unread count
+> and Screen 2.2.3 renders it ("Messages · 2 unread"); marking it Internal alongside
+> `agent_unread_count` reads like an artefact of the two being added as a pair.
+> `agent_unread_count` stays Internal and excluded — how far behind the agent is on their
+> inbox is not something a client should be able to poll.
+
 ### 12.2 Message
 
 **Phase:** P1
@@ -1524,6 +1558,17 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Indexes:** index on `(conversation_id, created_at)`.
+
+> **`is_internal_note` is enforced as a ROW filter, September 2026.** The client read
+> policy tests `is_internal_note = false` in its `USING` clause, and the column is *also*
+> excluded from the grant. Both are needed, and the order of reasoning matters: withholding
+> the column does **not** hide the rows — a grant decides which columns come back, never
+> which rows. Column-only protection would have delivered the agent's private notes to the
+> client as ordinary messages, with the one field that identified them stripped off.
+>
+> `read_by_other_at` is excluded too: read receipts are named in Screen-Inventory §2.2.7 but
+> nothing has decided their semantics, and shipping one silently makes a promise about the
+> agent's attention that nobody agreed to.
 
 ### 12.3 MessageAttachment
 
@@ -1592,6 +1637,30 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Indexes:** index on `(client_id)`; index on `(trip_id)`; index on `(checksum_sha256)` for dedup.
+
+---
+
+> **The client read policy uses a `kind` ALLOWLIST, September 2026.** This is the generic
+> file table for the whole model — the purpose line above says so — and two of its tenants
+> are agency-internal: `card_use_event.receipt_document_id` points here and
+> `card_use_event.trip_id` is `NOT NULL`, so supplier-charge receipts are trip-scoped *by
+> construction*, and `commission_import.document_id` points here too. A policy of "my
+> client_id, or any of my trips" therefore hands the traveler the agency's economics through
+> the side door, immediately after `cost_cents`, `total_commission_cents` and
+> `proposal.snapshot` were all withheld to prevent exactly that.
+>
+> Client-readable kinds are `passport`, `visa`, `insurance_cert`, `supplier_confirmation`,
+> `photo` and `pdf_itinerary`. It is an allowlist rather than a denylist so that a
+> `document_kind` added later must be considered before it becomes client-readable.
+>
+> **`is_sensitive` is deliberately NOT part of the predicate.** It governs how a read is
+> logged, not whether it is allowed; filtering on it would hide the client's own passport
+> scan, which is the most obviously-theirs file in the table.
+>
+> `kind`, `mime_type` and `size_bytes` are granted despite their Internal markers — Screen
+> 2.2.6 groups by kind, picks its PDF/IMG badge from mime_type and prints the size, and all
+> three describe the client's own file. `storage_bucket`, `storage_key`, `checksum_sha256`
+> and `is_sensitive` remain server-only.
 
 ---
 
@@ -1851,6 +1920,9 @@ Tables that scope via parent FK:
 - `payment_card` → `client.agent_id`
 - `card_authorization`, `card_use_event` → `trip.agent_id`
 - `document` → `client.agent_id` or `trip.agent_id`
+- `payment_milestone` → `trip.agent_id`
+- `testimonial` → `agent_id` directly (denormalized, for the approval queue)
+- `message_attachment` → `message` → `conversation.agent_id`
 
 ### 19.2 Sharing (Future)
 

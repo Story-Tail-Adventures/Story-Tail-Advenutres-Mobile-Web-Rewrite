@@ -386,4 +386,45 @@ SELECT pg_temp.assert(
        AND ('authenticated' = ANY(roles) OR 'anon' = ANY(roles))) = 0,
     'storage.objects — no authenticated or anon policy, by design');
 
+\echo ''
+\echo '── write privileges ─────────────────────────────────────────────────────'
+\echo '   RLS default-denies INSERT/UPDATE/DELETE with no policy, but TRUNCATE is NOT'
+\echo '   subject to row level security — it is a plain table privilege. auto_expose_new'
+\echo '   _tables had granted the whole write set on every table the initial migration'
+\echo '   made, so 35 of 38 tables let anon TRUNCATE them until revoke_write_grants.'
+
+-- NOTE: this deliberately joins pg_class/pg_namespace and passes `c.oid` rather than
+-- filtering pg_tables and building 'public.'||tablename. The planner may evaluate a
+-- SELECT-list or FILTER function before the WHERE predicate, so the string form asks
+-- has_table_privilege about `public.instances` — a row that is really auth.instances — and
+-- dies with "relation does not exist". The oid form does no name resolution at all.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r'
+       AND (has_table_privilege('authenticated', c.oid, 'TRUNCATE')
+         OR has_table_privilege('anon', c.oid, 'TRUNCATE'))) = 0,
+    'no table in public grants TRUNCATE to anon or authenticated');
+
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relkind = 'r'
+       AND (has_table_privilege('authenticated', c.oid, 'INSERT')
+         OR has_table_privilege('authenticated', c.oid, 'UPDATE')
+         OR has_table_privilege('authenticated', c.oid, 'DELETE'))) = 0,
+    'no table in public grants INSERT, UPDATE or DELETE to authenticated');
+
+-- And the other half of that migration: revoking the write verbs must not have taken the
+-- column-level SELECT grants with it. These counts are the grant lists, table by table.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM information_schema.column_privileges
+     WHERE table_schema = 'public' AND table_name = 'trip'
+       AND grantee = 'authenticated' AND privilege_type = 'SELECT') = 22,
+    'trip still has its 22 column-level SELECT grants (notes and commission excluded)');
+
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM information_schema.column_privileges
+     WHERE table_schema = 'public' AND table_name = 'document'
+       AND grantee = 'authenticated' AND privilege_type = 'SELECT') = 10,
+    'document still has its 10 column-level SELECT grants');
+
 ROLLBACK;

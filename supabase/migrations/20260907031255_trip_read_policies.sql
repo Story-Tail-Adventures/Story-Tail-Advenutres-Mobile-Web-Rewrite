@@ -52,7 +52,7 @@ REVOKE SELECT ON public.trip_component FROM authenticated, anon;
 -- `kind` IS granted, against its Internal marker in Data-Model §8.3. A client-facing
 -- itinerary has to know whether a row is a flight or a hotel to pick an icon and an empty
 -- state, and "this trip has a flight on it" discloses nothing the itinerary does not already
--- say out loud. Same reclassification reasoning as trip.cancellation_reason in §21.
+-- say out loud. Same reclassification reasoning as trip.cancellation_reason in §8.2.
 GRANT SELECT (
     id, trip_id, kind, display_name, start_date, end_date, start_time, end_time,
     location, confirmation_number, currency, order_index, created_at, updated_at, archived_at
