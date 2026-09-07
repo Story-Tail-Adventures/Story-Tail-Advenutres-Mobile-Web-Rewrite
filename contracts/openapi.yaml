@@ -3,14 +3,22 @@
 # Source of truth for every endpoint served by the Supabase Edge Functions in
 # `supabase/functions/`. Both clients consume generated types from this file:
 #   - TypeScript  → contracts/ts/types.ts   (npm run generate -w contracts)
-#   - Kotlin      → contracts/kotlin/       (deferred; see contracts/README.md)
+#   - Kotlin      → contracts/kotlin/       (npm run generate -w contracts)
 #
 # Do not hand-write API response types in `web/` or `mobile/`. Generate them.
 #
 # P1 note: Screen 2.1.1 Login and the rest of the 2.1.x auth flow call Supabase
 # Auth (GoTrue) directly via the official SDKs, so they are deliberately NOT
-# described here — GoTrue is not our surface. The first paths to land will be
-# the Stripe and commission-import Edge Functions.
+# described here — GoTrue is not our surface.
+#
+# Reads are not described here either. The §2.2 screens read the trip graph
+# through PostgREST under RLS, and the column grants in
+# 20260907031255_trip_read_policies.sql ARE the read contract; restating them as
+# endpoints would create a second source of truth for the same question.
+#
+# KNOWN GAP: the five shipped `onboarding-*` functions predate this file and are
+# still absent from it. They are described by hand in web/lib/onboarding/api.ts
+# instead. Backfilling them is tracked work, not a decision.
 
 openapi: 3.1.0
 
@@ -40,7 +48,153 @@ servers:
 security:
   - supabaseJwt: []
 
-paths: {}
+paths:
+  # ───────────────────────────────────────────────────────────────────────────
+  # §2.2 Dashboard & Trip Experience
+  #
+  # Reads are NOT here, deliberately. Every §2.2 screen reads the trip graph through
+  # PostgREST under the RLS policies in 20260907031255_trip_read_policies.sql, naming its
+  # columns — the grants are the contract for reads, and duplicating them as endpoints
+  # would give two sources of truth for the same question. Only writes and the one
+  # capability a client cannot be granted (naming a storage object) are functions.
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /trip-message:
+    post:
+      operationId: sendTripMessage
+      summary: Post a message into a trip thread.
+      description: |
+        Screen 2.2.7. `message` has SELECT-only RLS and no write policy, so a PostgREST
+        insert would match zero rows and return 204 — looking like it worked and changing
+        nothing. The function resolves the conversation from the trip, refuses if the
+        caller does not own it, writes the message and any attachment rows in one
+        transaction, and writes an `audit_event` (CLAUDE.md rule 3).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendTripMessageRequest'
+      responses:
+        '201':
+          description: The message was posted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendTripMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /trip-document:
+    post:
+      operationId: requestTripDocumentUpload
+      summary: Register a document and get a short-lived upload URL for it.
+      description: |
+        Screens 2.2.6 and 2.2.11. Two things have to happen together: a `document` row has
+        to exist, and an object has to land in the private `trip-documents` bucket. The
+        client can do neither directly — it has no write policy on `document` and is never
+        granted `storage_key` — so the function creates the row, signs an upload URL for a
+        key the client never chooses, and audits it.
+
+        `kind` is constrained to the kinds a client may contribute. A client cannot create
+        a `receipt` or a `csv_import`: those are agency records, and the read policy
+        excludes them for the same reason.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestTripDocumentUploadRequest'
+      responses:
+        '201':
+          description: The document row exists and the upload URL is signed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestTripDocumentUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /trip-document-url:
+    get:
+      operationId: getTripDocumentUrl
+      summary: Sign a short-lived read URL for a document the caller owns.
+      description: |
+        The single door to the `trip-documents` bucket, and the reason the bucket has no
+        `authenticated` policies at all: `document.storage_bucket` and `storage_key` are
+        outside the client column grant, so a client can never name an object and could
+        never reach a storage policy even if one existed.
+
+        This is not a web-only convenience. A Compose Multiplatform app has no server, so
+        without this endpoint Screens 2.2.6 and 2.2.11 cannot open a file on Android or iOS
+        at all.
+
+        Ownership is re-checked against the same predicate `document_self_select` uses,
+        including the `kind` allowlist, and every signature is written to `audit_event`.
+      parameters:
+        - name: documentId
+          in: query
+          required: true
+          description: A `document.id` the caller can already read.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A signed URL, valid for a few minutes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripDocumentUrlResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /testimonial:
+    post:
+      operationId: saveTestimonial
+      summary: Save or submit a reflection on a trip.
+      description: |
+        Screen 2.2.11. `testimonial` has no client write policy because a direct insert
+        would carry no `audit_event`, and because the draft-to-submitted transition needs
+        validating somewhere the client cannot reach.
+
+        A client may only ever reach `draft` and `submitted`. Approval and publication are
+        agent actions and land with §3.x — the CHECK constraints on the table enforce that
+        nothing is published without an approval, so a bug here fails loudly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveTestimonialRequest'
+      responses:
+        '200':
+          description: The reflection was saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveTestimonialResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 
 components:
   securitySchemes:
@@ -71,6 +225,153 @@ components:
           description: ISO-4217 alphabetic code.
           examples: ["USD"]
 
+
+    SendTripMessageRequest:
+      type: object
+      required: [messageId, tripId, body]
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: |
+            Client-generated UUID v7. The server validates that the embedded timestamp is
+            recent (Data-Model §21.6) — `assertRecentUuidV7` in `_shared/uuid.ts`. Supplying
+            the id client-side is what makes a retry idempotent.
+        tripId:
+          type: string
+          format: uuid
+        body:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        attachmentDocumentIds:
+          type: array
+          description: Documents already registered via POST /trip-document.
+          items:
+            type: string
+            format: uuid
+          maxItems: 10
+
+    SendTripMessageResponse:
+      type: object
+      required: [messageId, conversationId, createdAt]
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    RequestTripDocumentUploadRequest:
+      type: object
+      required: [documentId, tripId, filename, mimeType, sizeBytes, kind]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+          description: Client-generated UUID v7, validated as recent.
+        tripId:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 255
+        mimeType:
+          type: string
+          description: Must be one of the bucket's allowed types.
+        sizeBytes:
+          type: string
+          pattern: '^\d+$'
+          description: Integer byte count as a string, for the same precision reason as Money.
+        kind:
+          type: string
+          description: The document kinds a client may contribute.
+          enum: [passport, visa, insurance_cert, photo]
+
+    RequestTripDocumentUploadResponse:
+      type: object
+      required: [documentId, uploadUrl, expiresAt]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+          description: Signed PUT target. The storage key itself is never returned.
+        expiresAt:
+          type: string
+          format: date-time
+
+    TripDocumentUrlResponse:
+      type: object
+      required: [documentId, url, expiresAt, filename, mimeType]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        filename:
+          type: string
+        mimeType:
+          type: string
+
+    SaveTestimonialRequest:
+      type: object
+      required: [testimonialId, body]
+      properties:
+        testimonialId:
+          type: string
+          format: uuid
+          description: Client-generated UUID v7, validated as recent.
+        tripId:
+          type: string
+          format: uuid
+          description: Omitted for a reflection not tied to one trip.
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        attribution:
+          type: string
+          maxLength: 120
+          description: How the client wants to be credited.
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Optional. The prompt is a question, not a star widget.
+        submit:
+          type: boolean
+          default: false
+          description: |
+            False saves a draft; true moves it to `submitted`. A client can reach no other
+            state — approval is an agent action.
+
+    SaveTestimonialResponse:
+      type: object
+      required: [testimonialId, status]
+      properties:
+        testimonialId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, submitted]
+        submittedAt:
+          type: string
+          format: date-time
+
     Problem:
       type: object
       description: RFC 7807 problem details. Every error response uses this shape.
@@ -90,6 +391,18 @@ components:
           type: string
 
   responses:
+    BadRequest:
+      description: The request body or query failed validation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: No such record, or none the caller may see. The two are deliberately indistinguishable.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
     Unauthorized:
       description: Missing or invalid access token.
       content:

@@ -143,8 +143,19 @@ val generateSupabaseConfig by tasks.registering {
     }
 }
 
+// Generated API payload types from contracts/openapi.yaml, emitted by
+// contracts/scripts/generate-kotlin.mjs. The output is COMMITTED, so a mobile build never
+// needs Node — but `npm run generate -w contracts` has to be re-run when the contract
+// changes, and the "Contracts codegen is current" CI job diffs it to make sure it was.
+//
+// It lives outside mobile/ on purpose: the contract is shared with web/, and
+// .claude/hooks/stack-boundary-guard.py sanctions contracts/kotlin/ as the one place
+// Kotlin may exist outside this tree.
+val contractsKotlinDir = rootProject.file("../contracts/kotlin")
+
 kotlin.sourceSets.commonMain {
     kotlin.srcDir(generatedConfigDir)
+    kotlin.srcDir(contractsKotlinDir)
 }
 
 tasks.matching { it.name.startsWith("compile") }

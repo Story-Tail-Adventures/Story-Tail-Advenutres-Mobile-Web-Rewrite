@@ -3,7 +3,116 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/trip-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a message into a trip thread.
+         * @description Screen 2.2.7. `message` has SELECT-only RLS and no write policy, so a PostgREST
+         *     insert would match zero rows and return 204 — looking like it worked and changing
+         *     nothing. The function resolves the conversation from the trip, refuses if the
+         *     caller does not own it, writes the message and any attachment rows in one
+         *     transaction, and writes an `audit_event` (CLAUDE.md rule 3).
+         */
+        post: operations["sendTripMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trip-document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a document and get a short-lived upload URL for it.
+         * @description Screens 2.2.6 and 2.2.11. Two things have to happen together: a `document` row has
+         *     to exist, and an object has to land in the private `trip-documents` bucket. The
+         *     client can do neither directly — it has no write policy on `document` and is never
+         *     granted `storage_key` — so the function creates the row, signs an upload URL for a
+         *     key the client never chooses, and audits it.
+         *
+         *     `kind` is constrained to the kinds a client may contribute. A client cannot create
+         *     a `receipt` or a `csv_import`: those are agency records, and the read policy
+         *     excludes them for the same reason.
+         */
+        post: operations["requestTripDocumentUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trip-document-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sign a short-lived read URL for a document the caller owns.
+         * @description The single door to the `trip-documents` bucket, and the reason the bucket has no
+         *     `authenticated` policies at all: `document.storage_bucket` and `storage_key` are
+         *     outside the client column grant, so a client can never name an object and could
+         *     never reach a storage policy even if one existed.
+         *
+         *     This is not a web-only convenience. A Compose Multiplatform app has no server, so
+         *     without this endpoint Screens 2.2.6 and 2.2.11 cannot open a file on Android or iOS
+         *     at all.
+         *
+         *     Ownership is re-checked against the same predicate `document_self_select` uses,
+         *     including the `kind` allowlist, and every signature is written to `audit_event`.
+         */
+        get: operations["getTripDocumentUrl"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/testimonial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save or submit a reflection on a trip.
+         * @description Screen 2.2.11. `testimonial` has no client write policy because a direct insert
+         *     would carry no `audit_event`, and because the draft-to-submitted transition needs
+         *     validating somewhere the client cannot reach.
+         *
+         *     A client may only ever reach `draft` and `submitted`. Approval and publication are
+         *     agent actions and land with §3.x — the CHECK constraints on the table enforce that
+         *     nothing is published without an approval, so a bug here fails loudly.
+         */
+        post: operations["saveTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
@@ -20,6 +129,99 @@ export interface components {
              */
             currency: string;
         };
+        SendTripMessageRequest: {
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7. The server validates that the embedded timestamp is
+             *     recent (Data-Model §21.6) — `assertRecentUuidV7` in `_shared/uuid.ts`. Supplying
+             *     the id client-side is what makes a retry idempotent.
+             */
+            messageId: string;
+            /** Format: uuid */
+            tripId: string;
+            body: string;
+            /** @description Documents already registered via POST /trip-document. */
+            attachmentDocumentIds?: string[];
+        };
+        SendTripMessageResponse: {
+            /** Format: uuid */
+            messageId: string;
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        RequestTripDocumentUploadRequest: {
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7, validated as recent.
+             */
+            documentId: string;
+            /** Format: uuid */
+            tripId: string;
+            filename: string;
+            /** @description Must be one of the bucket's allowed types. */
+            mimeType: string;
+            /** @description Integer byte count as a string, for the same precision reason as Money. */
+            sizeBytes: string;
+            /**
+             * @description The document kinds a client may contribute.
+             * @enum {string}
+             */
+            kind: "passport" | "visa" | "insurance_cert" | "photo";
+        };
+        RequestTripDocumentUploadResponse: {
+            /** Format: uuid */
+            documentId: string;
+            /**
+             * Format: uri
+             * @description Signed PUT target. The storage key itself is never returned.
+             */
+            uploadUrl: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        TripDocumentUrlResponse: {
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uri */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+            filename: string;
+            mimeType: string;
+        };
+        SaveTestimonialRequest: {
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7, validated as recent.
+             */
+            testimonialId: string;
+            /**
+             * Format: uuid
+             * @description Omitted for a reflection not tied to one trip.
+             */
+            tripId?: string;
+            body: string;
+            /** @description How the client wants to be credited. */
+            attribution?: string;
+            /** @description Optional. The prompt is a question, not a star widget. */
+            rating?: number;
+            /**
+             * @description False saves a draft; true moves it to `submitted`. A client can reach no other
+             *     state — approval is an agent action.
+             * @default false
+             */
+            submit: boolean;
+        };
+        SaveTestimonialResponse: {
+            /** Format: uuid */
+            testimonialId: string;
+            /** @enum {string} */
+            status: "draft" | "submitted";
+            /** Format: date-time */
+            submittedAt?: string;
+        };
         /** @description RFC 7807 problem details. Every error response uses this shape. */
         Problem: {
             /**
@@ -34,6 +236,24 @@ export interface components {
         };
     };
     responses: {
+        /** @description The request body or query failed validation. */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description No such record, or none the caller may see. The two are deliberately indistinguishable. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Missing or invalid access token. */
         Unauthorized: {
             headers: {
@@ -59,4 +279,113 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    sendTripMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendTripMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description The message was posted. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendTripMessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    requestTripDocumentUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestTripDocumentUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description The document row exists and the upload URL is signed. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestTripDocumentUploadResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTripDocumentUrl: {
+        parameters: {
+            query: {
+                /** @description A `document.id` the caller can already read. */
+                documentId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A signed URL, valid for a few minutes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripDocumentUrlResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    saveTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveTestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description The reflection was saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveTestimonialResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+}
