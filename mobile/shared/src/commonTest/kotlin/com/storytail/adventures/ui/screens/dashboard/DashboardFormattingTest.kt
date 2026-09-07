@@ -1,5 +1,7 @@
 package com.storytail.adventures.ui.screens.dashboard
 
+import com.storytail.adventures.ui.components.client.formatMoney
+import com.storytail.adventures.ui.components.client.formatTripDates
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -55,14 +57,14 @@ class DashboardFormattingTest {
     fun `dates collapse the month when a trip does not cross one`() {
         assertEquals(
             "Nov 13 – 20, 2026",
-            formatDates(LocalDate(2026, 11, 13), LocalDate(2026, 11, 20)),
+            formatTripDates(LocalDate(2026, 11, 13), LocalDate(2026, 11, 20)),
         )
         assertEquals(
             "Dec 28 – Jan 4, 2027",
-            formatDates(LocalDate(2026, 12, 28), LocalDate(2027, 1, 4)),
+            formatTripDates(LocalDate(2026, 12, 28), LocalDate(2027, 1, 4)),
         )
-        assertEquals("Nov 13, 2026", formatDates(LocalDate(2026, 11, 13), null))
-        assertEquals("Dates to come", formatDates(null, null))
+        assertEquals("Nov 13, 2026", formatTripDates(LocalDate(2026, 11, 13), null))
+        assertEquals("Dates to come", formatTripDates(null, null))
     }
 
     @Test

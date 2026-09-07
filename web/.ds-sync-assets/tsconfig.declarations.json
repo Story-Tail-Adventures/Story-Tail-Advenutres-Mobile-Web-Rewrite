@@ -1,0 +1,88 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "noEmitOnError": false,
+    "rootDir": "..",
+    "outDir": "./types",
+    "baseUrl": ".",
+    "paths": {
+      "next/link": [
+        "./shims/next-link.tsx"
+      ],
+      "next/image": [
+        "./shims/next-image.tsx"
+      ],
+      "next/navigation": [
+        "./shims/next-navigation.ts"
+      ],
+      "@/lib/auth/actions": [
+        "./shims/auth-actions.ts"
+      ],
+      "@/*": [
+        "../*"
+      ]
+    }
+  },
+  "files": [
+    "../components/ThemeScript.tsx",
+    "../components/auth/AuthCard.tsx",
+    "../components/auth/FormError.tsx",
+    "../components/auth/PasswordStrength.tsx",
+    "../components/auth/SocialButtons.tsx",
+    "../components/auth/SubmitButton.tsx",
+    "../components/brand/BrandWordmark.tsx",
+    "../components/brand/StoryTailMark.tsx",
+    "../components/onboarding/OnboardingActions.tsx",
+    "../components/onboarding/OnboardingShell.tsx",
+    "../components/public/AdvisorCard.tsx",
+    "../components/public/AmenityPill.tsx",
+    "../components/public/Avatar.tsx",
+    "../components/public/ClosingCta.tsx",
+    "../components/public/Container.tsx",
+    "../components/public/CredentialCard.tsx",
+    "../components/public/DismissibleBanner.tsx",
+    "../components/public/FaqList.tsx",
+    "../components/public/FeatureCard.tsx",
+    "../components/public/HeroBleed.tsx",
+    "../components/public/InquiryBar.tsx",
+    "../components/public/MediaCard.tsx",
+    "../components/public/NumberedRow.tsx",
+    "../components/public/Photo.tsx",
+    "../components/public/PhotoTile.tsx",
+    "../components/public/PlaceholderBanner.tsx",
+    "../components/public/PriceRange.tsx",
+    "../components/public/PublicFooter.tsx",
+    "../components/public/PublicNav.tsx",
+    "../components/public/PublicTopBar.tsx",
+    "../components/public/ScriptureLine.tsx",
+    "../components/public/SectionLabel.tsx",
+    "../components/public/SigninBanner.tsx",
+    "../components/public/SkipLink.tsx",
+    "../components/public/StatStrip.tsx",
+    "../components/public/StickyCta.tsx",
+    "../components/public/TestimonialCard.tsx",
+    "../components/public/TripTile.tsx",
+    "../components/ui/Alert.tsx",
+    "../components/ui/Button.tsx",
+    "../components/ui/Card.tsx",
+    "../components/ui/Chip.tsx",
+    "../components/ui/Divider.tsx",
+    "../components/ui/Field.tsx",
+    "../components/ui/Icon.tsx",
+    "../components/ui/Select.tsx",
+    "../components/ui/Spinner.tsx",
+    "../components/ui/Textarea.tsx"
+  ]
+}

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
 import { formatTripMoney } from "@/lib/trips/money";
+import { formatDay, formatTripDates } from "@/lib/trips/format";
 import { loadDashboard, type DashboardTrip } from "@/lib/trips/queries";
 import { createClient } from "@/lib/supabase/server";
 import { DASHBOARD, isLeisure } from "./content";
@@ -149,7 +150,7 @@ function HeroCountdown({
         <span className={`chip-status ${trip.chip} self-start`}>{trip.statusLabel}</span>
         <h2 className="t-title-l mt-2.5 text-white">{trip.title}</h2>
         <p className="t-body-s text-white/90">
-          {[formatDates(trip), where, `${trip.travelerCount} travelers`]
+          {[formatTripDates(trip.startDate, trip.endDate), where, `${trip.travelerCount} travelers`]
             .filter(Boolean)
             .join(" · ")}
         </p>
@@ -323,35 +324,9 @@ function TripCard({ trip }: { trip: DashboardTrip }) {
       <div className="p-3">
         <div className="t-title-s">{trip.title}</div>
         <div className="t-body-s text-on-surface-variant">
-          {[formatDates(trip), `${trip.travelerCount} travelers`].filter(Boolean).join(" · ")}
+          {[formatTripDates(trip.startDate, trip.endDate), `${trip.travelerCount} travelers`].filter(Boolean).join(" · ")}
         </div>
       </div>
     </Link>
   );
-}
-
-/** "Aug 12 – 19, 2026", or a single date, or nothing at all for an undated inquiry. */
-function formatDates(trip: DashboardTrip): string {
-  if (!trip.startDate) return "Dates to come";
-  const start = new Date(`${trip.startDate}T00:00:00Z`);
-  if (!trip.endDate) return fmt(start, true);
-  const end = new Date(`${trip.endDate}T00:00:00Z`);
-  const sameMonth =
-    start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth();
-  return sameMonth
-    ? `${fmt(start, false)} – ${end.getUTCDate()}, ${end.getUTCFullYear()}`
-    : `${fmt(start, false)} – ${fmt(end, true)}`;
-}
-
-function formatDay(iso: string): string {
-  return fmt(new Date(`${iso}T00:00:00Z`), false);
-}
-
-function fmt(d: Date, withYear: boolean): string {
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(withYear ? { year: "numeric" } : {}),
-    timeZone: "UTC",
-  });
 }

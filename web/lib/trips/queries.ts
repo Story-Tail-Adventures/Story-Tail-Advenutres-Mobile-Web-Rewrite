@@ -199,3 +199,216 @@ export async function loadDashboard(today = todayIsoUtc()): Promise<DashboardDat
     latestMessage,
   };
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Screen 2.2.2 All Trips List
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** The filter tabs 2.2.2 offers. `all` is not a status — it is the absence of one. */
+export const TRIP_FILTERS = ["all", "upcoming", "planning", "past", "cancelled"] as const;
+export type TripFilter = (typeof TRIP_FILTERS)[number];
+
+export function isTripFilter(value: string | undefined): value is TripFilter {
+  return typeof value === "string" && (TRIP_FILTERS as readonly string[]).includes(value);
+}
+
+/**
+ * Which statuses each tab shows.
+ *
+ * `upcoming` is booked-or-travelling rather than "start_date in the future", because a trip
+ * that started yesterday is not upcoming and a booked trip with no dates yet still is.
+ */
+const FILTER_STATUSES: Record<Exclude<TripFilter, "all">, readonly TripStatus[]> = {
+  upcoming: ["booked", "in_progress"],
+  planning: ["inquiry", "proposal"],
+  past: ["completed"],
+  cancelled: ["cancelled"],
+};
+
+export type TripsList = {
+  trips: DashboardTrip[];
+  /** Counts for every tab, from the same rows — so a tab never lies about what it holds. */
+  counts: Record<TripFilter, number>;
+};
+
+/**
+ * Every trip on the account, with the counts for all five tabs.
+ *
+ * ONE query and the filtering in memory, deliberately. BRD §4.3 sizes the platform at 20–40
+ * active trips, so the whole set is a page of rows — and the tab counts have to be computed
+ * from the same snapshot the list came from, or a count and its list disagree the moment
+ * anything changes between two round trips.
+ */
+export async function loadTrips(
+  filter: TripFilter = "all",
+  today = todayIsoUtc(),
+): Promise<TripsList | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("trip")
+    .select("id, title, trip_type, status, start_date, end_date, destinations, traveler_count, total_value_cents, total_paid_cents, currency")
+    .order("start_date", { ascending: false, nullsFirst: false });
+
+  if (error) return null;
+  const rows = data ?? [];
+
+  const counts = {
+    all: rows.length,
+    upcoming: rows.filter((r) => FILTER_STATUSES.upcoming.includes(r.status as TripStatus)).length,
+    planning: rows.filter((r) => FILTER_STATUSES.planning.includes(r.status as TripStatus)).length,
+    past: rows.filter((r) => FILTER_STATUSES.past.includes(r.status as TripStatus)).length,
+    cancelled: rows.filter((r) => FILTER_STATUSES.cancelled.includes(r.status as TripStatus)).length,
+  } satisfies Record<TripFilter, number>;
+
+  const visible =
+    filter === "all" ? rows : rows.filter((r) => FILTER_STATUSES[filter].includes(r.status as TripStatus));
+
+  // The earliest unpaid milestone PER TRIP, because without it this list labels the same
+  // trip differently from the dashboard: `tripStatusPresentation` needs a due date to turn
+  // "Booked" into "Final payment due", and a list that omits it says Booked while the hero
+  // two clicks away says Final payment due. Caught by looking at the two screens together.
+  //
+  // One extra query for the whole page rather than one per row — `in` over a handful of ids,
+  // ordered so the first hit per trip is the soonest.
+  const bookedIds = visible
+    .filter((r) => r.status === "booked" || r.status === "in_progress")
+    .map((r) => r.id);
+
+  const dueByTrip = new Map<string, string>();
+  if (bookedIds.length > 0) {
+    const { data: milestones } = await supabase
+      .from("payment_milestone")
+      .select("trip_id, due_date, order_index, status")
+      .in("trip_id", bookedIds)
+      .neq("status", "paid")
+      .neq("status", "waived")
+      .order("order_index", { ascending: true });
+
+    for (const m of milestones ?? []) {
+      if (m.due_date && !dueByTrip.has(m.trip_id)) dueByTrip.set(m.trip_id, m.due_date);
+    }
+  }
+
+  return {
+    trips: visible.map((r) => toDashboardTrip(r, today, dueByTrip.get(r.id) ?? null)),
+    counts,
+  };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Screen 2.2.3 Trip Detail / Overview
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type PaymentMilestoneView = {
+  id: string;
+  kind: string;
+  label: string;
+  amountCents: number;
+  paidCents: number;
+  currency: string;
+  dueDate: string | null;
+  status: string;
+};
+
+export type TripDetail = {
+  trip: DashboardTrip;
+  /** Client-visible cancellation fields — moved out of Internal in Data-Model §21 for this. */
+  cancellationReason: string | null;
+  refundStatus: string | null;
+  /**
+   * `itinerary.intro_note`, NOT `trip.notes`. The latter is where the agent writes what he
+   * thinks and is outside the client column grant; this is the client-facing note
+   * Design-System §2.4 calls the voice-forward surface.
+   */
+  introNote: string | null;
+  closingNote: string | null;
+  itineraryReady: boolean;
+  dayCount: number;
+  componentCount: number;
+  documentCount: number;
+  unreadCount: number;
+  conversationId: string | null;
+  milestones: PaymentMilestoneView[];
+};
+
+/** Null when the trip is not the caller's, which RLS makes indistinguishable from absent. */
+export async function loadTripDetail(
+  tripId: string,
+  today = todayIsoUtc(),
+): Promise<TripDetail | null> {
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("trip")
+    .select("id, title, trip_type, status, start_date, end_date, destinations, traveler_count, total_value_cents, total_paid_cents, currency, cancellation_reason, refund_status")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (!row) return null;
+
+  const [{ data: itinerary }, { data: milestoneRows }, { count: componentCount }, { count: documentCount }, { data: conversations }] =
+    await Promise.all([
+      supabase
+        .from("itinerary")
+        .select("id, intro_note, closing_note, published_at")
+        .eq("trip_id", tripId)
+        .maybeSingle(),
+      supabase
+        .from("payment_milestone")
+        .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status, order_index")
+        .eq("trip_id", tripId)
+        .order("order_index", { ascending: true }),
+      supabase
+        .from("trip_component")
+        .select("id", { count: "exact", head: true })
+        .eq("trip_id", tripId),
+      supabase
+        .from("document")
+        .select("id", { count: "exact", head: true })
+        .eq("trip_id", tripId),
+      supabase
+        .from("conversation")
+        .select("id, client_unread_count")
+        .eq("trip_id", tripId)
+        .limit(1),
+    ]);
+
+  // Days are counted only when the itinerary is readable at all — an unpublished one is
+  // invisible to this session, so a count from it would always be zero and imply "no days".
+  let dayCount = 0;
+  if (itinerary?.published_at) {
+    const { count } = await supabase
+      .from("itinerary_day")
+      .select("id", { count: "exact", head: true })
+      .eq("itinerary_id", itinerary.id);
+    dayCount = count ?? 0;
+  }
+
+  const milestones = (milestoneRows ?? []).map((m) => ({
+    id: m.id,
+    kind: m.kind,
+    label: m.label,
+    amountCents: Number(m.amount_cents),
+    paidCents: Number(m.paid_cents),
+    currency: m.currency,
+    dueDate: m.due_date ?? null,
+    status: m.status,
+  }));
+
+  const nextUnpaid = milestones.find((m) => m.status !== "paid" && m.status !== "waived");
+
+  return {
+    trip: toDashboardTrip(row, today, nextUnpaid?.dueDate ?? null),
+    cancellationReason: row.cancellation_reason ?? null,
+    refundStatus: row.refund_status ?? null,
+    introNote: itinerary?.intro_note ?? null,
+    closingNote: itinerary?.closing_note ?? null,
+    itineraryReady: Boolean(itinerary?.published_at),
+    dayCount,
+    componentCount: componentCount ?? 0,
+    documentCount: documentCount ?? 0,
+    unreadCount: conversations?.[0]?.client_unread_count ?? 0,
+    conversationId: conversations?.[0]?.id ?? null,
+    milestones,
+  };
+}

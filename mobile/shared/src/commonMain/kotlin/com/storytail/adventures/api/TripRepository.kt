@@ -35,9 +35,54 @@ interface TripRepository {
     /** Everything Screen 2.2.1 renders, or null when the read failed. */
     suspend fun dashboard(today: LocalDate): DashboardSnapshot?
 
+    /** Screen 2.2.2's list plus the five tab counts, or null when the read failed. */
+    suspend fun trips(filter: TripFilter, today: LocalDate): TripsList?
+
+    /** Screen 2.2.3, or null when the trip is not the caller's — RLS makes those the same. */
+    suspend fun tripDetail(tripId: String, today: LocalDate): TripDetailSnapshot?
+
     /** The name to greet somebody by, or null. */
     suspend fun greetableFirstName(): String?
 }
+
+/** The filter tabs 2.2.2 offers. ALL is not a status — it is the absence of one. */
+enum class TripFilter { ALL, UPCOMING, PLANNING, PAST, CANCELLED }
+
+data class TripsList(
+    val trips: List<TripSummary>,
+    /** Counts for every tab, from the same snapshot, so a tab never lies about its contents. */
+    val counts: Map<TripFilter, Int>,
+)
+
+data class PaymentMilestoneView(
+    val id: String,
+    val kind: String,
+    val label: String,
+    val amountCents: Long,
+    val paidCents: Long,
+    val currency: String,
+    val dueDate: LocalDate?,
+    val status: String,
+)
+
+data class TripDetailSnapshot(
+    val trip: TripSummary,
+    /** Client-visible since the Data-Model §21 reclassification, which exists for 2.2.10. */
+    val cancellationReason: String?,
+    val refundStatus: String?,
+    /**
+     * `itinerary.intro_note`, NOT `trip.notes` — the latter is the agent's own thinking and
+     * is outside the client column grant. Design-System §2.4 names this the voice-forward
+     * surface of the trip.
+     */
+    val introNote: String?,
+    val itineraryReady: Boolean,
+    val dayCount: Int,
+    val componentCount: Int,
+    val documentCount: Int,
+    val unreadCount: Int,
+    val milestones: List<PaymentMilestoneView>,
+)
 
 /** One trip, with its derived presentation already resolved. */
 data class TripSummary(
@@ -84,8 +129,20 @@ data class DashboardSnapshot(
 /** Before local.properties carries a URL and a key there is nothing to read. */
 class UnconfiguredTripRepository : TripRepository {
     override suspend fun dashboard(today: LocalDate): DashboardSnapshot? = null
+    override suspend fun trips(filter: TripFilter, today: LocalDate): TripsList? = null
+    override suspend fun tripDetail(tripId: String, today: LocalDate): TripDetailSnapshot? = null
     override suspend fun greetableFirstName(): String? = null
 }
+
+/** Which statuses each tab shows. Mirrors FILTER_STATUSES in web/lib/trips/queries.ts. */
+private val FILTER_STATUSES: Map<TripFilter, Set<TripStatus>> = mapOf(
+    // UPCOMING is booked-or-travelling rather than "starts in the future": a trip that began
+    // yesterday is not upcoming, and a booked trip with no dates yet still is.
+    TripFilter.UPCOMING to setOf(TripStatus.BOOKED, TripStatus.IN_PROGRESS),
+    TripFilter.PLANNING to setOf(TripStatus.INQUIRY, TripStatus.PROPOSAL),
+    TripFilter.PAST to setOf(TripStatus.COMPLETED),
+    TripFilter.CANCELLED to setOf(TripStatus.CANCELLED),
+)
 
 class SupabaseTripRepository(
     private val client: SupabaseClient,
@@ -192,6 +249,174 @@ class SupabaseTripRepository(
         )
     }
 
+    override suspend fun trips(filter: TripFilter, today: LocalDate): TripsList? {
+        val rows = read {
+            client.postgrest.from("trip")
+                .select(
+                    Columns.list(
+                        "id", "title", "trip_type", "status", "start_date", "end_date",
+                        "destinations", "traveler_count", "total_value_cents",
+                        "total_paid_cents", "currency",
+                    ),
+                ) {
+                    order("start_date", Order.DESCENDING, nullsFirst = false)
+                }
+                .decodeList<TripRow>()
+        } ?: return null
+
+        fun countOf(f: TripFilter) =
+            rows.count { TripStatus.fromWire(it.status) in (FILTER_STATUSES[f] ?: emptySet()) }
+
+        val counts = mapOf(
+            TripFilter.ALL to rows.size,
+            TripFilter.UPCOMING to countOf(TripFilter.UPCOMING),
+            TripFilter.PLANNING to countOf(TripFilter.PLANNING),
+            TripFilter.PAST to countOf(TripFilter.PAST),
+            TripFilter.CANCELLED to countOf(TripFilter.CANCELLED),
+        )
+
+        val visible = if (filter == TripFilter.ALL) {
+            rows
+        } else {
+            rows.filter { TripStatus.fromWire(it.status) in (FILTER_STATUSES[filter] ?: emptySet()) }
+        }
+
+        // The earliest unpaid milestone PER TRIP. Without it this list labels the same trip
+        // differently from the dashboard — tripStatusPresentation needs a due date to turn
+        // "Booked" into "Final payment due", so a list that omits it says Booked while the
+        // hero two taps away says Final payment due. One query for the page, not one per row.
+        val bookedIds = visible
+            .filter { it.status == "booked" || it.status == "in_progress" }
+            .map { it.id }
+
+        val dueByTrip = mutableMapOf<String, LocalDate>()
+        if (bookedIds.isNotEmpty()) {
+            val milestones = read {
+                client.postgrest.from("payment_milestone")
+                    .select(Columns.list("trip_id", "due_date", "order_index", "status")) {
+                        filter {
+                            isIn("trip_id", bookedIds)
+                            neq("status", "paid")
+                            neq("status", "waived")
+                        }
+                        order("order_index", Order.ASCENDING)
+                    }
+                    .decodeList<MilestoneTripRow>()
+            }
+            for (m in milestones.orEmpty()) {
+                val due = m.due_date?.let(::parseDate) ?: continue
+                if (m.trip_id !in dueByTrip) dueByTrip[m.trip_id] = due
+            }
+        }
+
+        return TripsList(
+            trips = visible.map { it.toSummary(today, dueByTrip[it.id]) },
+            counts = counts,
+        )
+    }
+
+    override suspend fun tripDetail(tripId: String, today: LocalDate): TripDetailSnapshot? {
+        val row = read {
+            client.postgrest.from("trip")
+                .select(
+                    Columns.list(
+                        "id", "title", "trip_type", "status", "start_date", "end_date",
+                        "destinations", "traveler_count", "total_value_cents",
+                        "total_paid_cents", "currency", "cancellation_reason", "refund_status",
+                    ),
+                ) {
+                    filter { eq("id", tripId) }
+                    limit(1)
+                }
+                .decodeList<TripDetailRow>()
+                .firstOrNull()
+        } ?: return null
+
+        val itinerary = read {
+            client.postgrest.from("itinerary")
+                .select(Columns.list("id", "intro_note", "closing_note", "published_at")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<ItineraryDetailRow>()
+                .firstOrNull()
+        }
+
+        val milestones = read {
+            client.postgrest.from("payment_milestone")
+                .select(
+                    Columns.list(
+                        "id", "kind", "label", "amount_cents", "paid_cents", "currency",
+                        "due_date", "status", "order_index",
+                    ),
+                ) {
+                    filter { eq("trip_id", tripId) }
+                    order("order_index", Order.ASCENDING)
+                }
+                .decodeList<MilestoneDetailRow>()
+        }.orEmpty().map {
+            PaymentMilestoneView(
+                id = it.id,
+                kind = it.kind,
+                label = it.label,
+                amountCents = it.amount_cents,
+                paidCents = it.paid_cents,
+                currency = it.currency,
+                dueDate = it.due_date?.let(::parseDate),
+                status = it.status,
+            )
+        }
+
+        val components = read {
+            client.postgrest.from("trip_component")
+                .select(Columns.list("id")) { filter { eq("trip_id", tripId) } }
+                .decodeList<IdOnlyRow>()
+        }.orEmpty()
+
+        val documents = read {
+            client.postgrest.from("document")
+                .select(Columns.list("id")) { filter { eq("trip_id", tripId) } }
+                .decodeList<IdOnlyRow>()
+        }.orEmpty()
+
+        val conversation = read {
+            client.postgrest.from("conversation")
+                .select(Columns.list("id", "client_unread_count")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<ConversationCountRow>()
+                .firstOrNull()
+        }
+
+        // Days are counted only when the itinerary is readable at all. An unpublished one is
+        // invisible to this session, so a count from it is always zero and would imply
+        // "no days" rather than "not published yet".
+        var dayCount = 0
+        if (itinerary?.published_at != null) {
+            dayCount = read {
+                client.postgrest.from("itinerary_day")
+                    .select(Columns.list("id")) { filter { eq("itinerary_id", itinerary.id) } }
+                    .decodeList<IdOnlyRow>()
+            }.orEmpty().size
+        }
+
+        val nextUnpaid = milestones.firstOrNull { it.status != "paid" && it.status != "waived" }
+
+        return TripDetailSnapshot(
+            trip = row.toSummary(today, nextUnpaid?.dueDate),
+            cancellationReason = row.cancellation_reason,
+            refundStatus = row.refund_status,
+            introNote = itinerary?.intro_note,
+            itineraryReady = itinerary?.published_at != null,
+            dayCount = dayCount,
+            componentCount = components.size,
+            documentCount = documents.size,
+            unreadCount = conversation?.client_unread_count ?: 0,
+            milestones = milestones,
+        )
+    }
+
     override suspend fun greetableFirstName(): String? = read {
         client.postgrest.from("client")
             .select(Columns.list("first_name", "preferred_name"))
@@ -253,6 +478,14 @@ private data class TripRow(
     val currency: String? = null,
 )
 
+private fun TripDetailRow.toSummary(today: LocalDate, nextUnpaidDue: LocalDate? = null): TripSummary =
+    TripRow(
+        id = id, title = title, trip_type = trip_type, status = status,
+        start_date = start_date, end_date = end_date, destinations = destinations,
+        traveler_count = traveler_count, total_value_cents = total_value_cents,
+        total_paid_cents = total_paid_cents, currency = currency,
+    ).toSummary(today, nextUnpaidDue)
+
 @Serializable
 private data class MilestoneRow(
     val label: String,
@@ -265,6 +498,61 @@ private data class MilestoneRow(
 
 @Serializable
 private data class ItineraryRow(val id: String, val published_at: String? = null)
+
+@Serializable
+private data class ItineraryDetailRow(
+    val id: String,
+    val intro_note: String? = null,
+    val closing_note: String? = null,
+    val published_at: String? = null,
+)
+
+@Serializable
+private data class MilestoneTripRow(
+    val trip_id: String,
+    val due_date: String? = null,
+    val order_index: Int,
+    val status: String,
+)
+
+@Serializable
+private data class MilestoneDetailRow(
+    val id: String,
+    val kind: String,
+    val label: String,
+    val amount_cents: Long,
+    val paid_cents: Long,
+    val currency: String,
+    val due_date: String? = null,
+    val status: String,
+    val order_index: Int,
+)
+
+@Serializable
+private data class IdOnlyRow(val id: String)
+
+@Serializable
+private data class ConversationCountRow(
+    val id: String,
+    val client_unread_count: Int? = null,
+)
+
+@Serializable
+private data class TripDetailRow(
+    val id: String,
+    val title: String,
+    val trip_type: String,
+    val status: String,
+    val start_date: String? = null,
+    val end_date: String? = null,
+    val destinations: List<String>? = null,
+    val traveler_count: Int? = null,
+    val total_value_cents: Long? = null,
+    val total_paid_cents: Long? = null,
+    val currency: String? = null,
+    val cancellation_reason: String? = null,
+    val refund_status: String? = null,
+)
 
 @Serializable
 private data class ConversationRow(

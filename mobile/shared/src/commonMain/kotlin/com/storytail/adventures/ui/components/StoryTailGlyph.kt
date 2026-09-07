@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
  * Each is the prototype's icon (design/source-prototype/shared/icons.jsx) cut down to what
  * still reads at 16–20dp, expressed in a 0..1 viewport so it scales with [size].
  */
-enum class StoryTailMark { PLANE, CARD, MESSAGE, HOME, SEARCH, USER }
+enum class StoryTailMark { PLANE, CARD, MESSAGE, HOME, SEARCH, USER, PASSPORT, ARROW_LEFT }
 
 @Composable
 fun StoryTailGlyph(
@@ -134,6 +134,45 @@ fun StoryTailGlyph(
                     end = Offset(w * 0.92f, h * 0.92f),
                     strokeWidth = w * 0.11f,
                     cap = StrokeCap.Round,
+                )
+            }
+
+            // A booklet with lines on it — the prototype's `passport`.
+            StoryTailMark.PASSPORT -> {
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(w * 0.18f, h * 0.06f),
+                    size = Size(w * 0.64f, h * 0.88f),
+                    cornerRadius = CornerRadius(w * 0.08f),
+                    style = outline,
+                )
+                for (y in listOf(0.34f, 0.50f, 0.66f)) {
+                    drawLine(
+                        color = color,
+                        start = Offset(w * 0.32f, h * y),
+                        end = Offset(w * (if (y == 0.66f) 0.56f else 0.68f), h * y),
+                        strokeWidth = w * 0.09f,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
+
+            StoryTailMark.ARROW_LEFT -> {
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.88f, h * 0.50f),
+                    end = Offset(w * 0.16f, h * 0.50f),
+                    strokeWidth = w * 0.11f,
+                    cap = StrokeCap.Round,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.44f, h * 0.20f)
+                        lineTo(w * 0.14f, h * 0.50f)
+                        lineTo(w * 0.44f, h * 0.80f)
+                    },
+                    color = color,
+                    style = outline,
                 )
             }
 

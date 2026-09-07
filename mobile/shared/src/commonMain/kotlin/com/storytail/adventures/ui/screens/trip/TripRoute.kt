@@ -45,11 +45,39 @@ fun TripRoute(
         }
     }
 
-    // 2.2.2 through 2.2.11 land in the stages after this one. They are declared in
-    // AppRoute already so the tab semantics and the back stack could be built and tested
-    // against the real route set rather than a placeholder one — every route below
-    // currently resolves to the dashboard.
     when (route) {
+        is AppRoute.AllTrips -> {
+            val viewModel = viewModel { AllTripsViewModel(trips, today) }
+            val state by viewModel.state.collectAsState()
+            val filter by viewModel.filter.collectAsState()
+            AllTripsScreen(
+                state = state,
+                filter = filter,
+                onSelectFilter = viewModel::selectFilter,
+                onOpenTrip = { tripId -> nav.push(AppRoute.TripDetail(tripId)) },
+                onSelectTab = onSelectTab,
+                onRetry = viewModel::load,
+            )
+        }
+
+        is AppRoute.TripDetail -> {
+            // Keyed on the trip id, so opening a second trip builds a second view model
+            // rather than showing the first one's data under the new title.
+            val viewModel = viewModel(key = "trip-${route.tripId}") {
+                TripDetailViewModel(trips, route.tripId, today)
+            }
+            val state by viewModel.state.collectAsState()
+            TripDetailScreen(
+                state = state,
+                onBack = { nav.pop() },
+                onOpenItinerary = { tripId -> nav.push(AppRoute.Itinerary(tripId)) },
+                onOpenDocuments = { tripId -> nav.push(AppRoute.TripDocuments(tripId)) },
+                onOpenThread = { tripId -> nav.push(AppRoute.TripThread(tripId)) },
+                onRetry = viewModel::load,
+            )
+        }
+
+        // 2.2.4 through 2.2.11 land in the stages after this one.
         else -> {
             val viewModel = viewModel { DashboardViewModel(trips, today) }
             val state by viewModel.state.collectAsState()

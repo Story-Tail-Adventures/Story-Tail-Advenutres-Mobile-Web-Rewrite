@@ -38,7 +38,16 @@ import com.storytail.adventures.domain.trip.TripStatus
 import com.storytail.adventures.domain.trip.imageKeyForTrip
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
+import com.storytail.adventures.ui.components.client.ClientEmptyState
+import com.storytail.adventures.ui.components.client.ClientErrorState
 import com.storytail.adventures.ui.components.client.ClientScaffold
+import com.storytail.adventures.ui.components.client.SectionHeading
+import com.storytail.adventures.ui.components.client.SkeletonBlock
+import com.storytail.adventures.ui.components.client.StatusChipPill
+import com.storytail.adventures.ui.components.client.TripCard
+import com.storytail.adventures.ui.components.client.formatDay
+import com.storytail.adventures.ui.components.client.formatMoney
+import com.storytail.adventures.ui.components.client.formatTripDates
 import com.storytail.adventures.ui.components.public.PublicPhoto
 import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
 import com.storytail.adventures.ui.theme.LocalStoryTailStatusColors
@@ -81,11 +90,22 @@ fun DashboardScreen(
         when (val snapshot = state.snapshot) {
             is Loadable.Loading -> DashboardSkeleton()
 
-            is Loadable.Failed -> ErrorBlock(onRetry = onRetry)
+            is Loadable.Failed -> ClientErrorState(
+                title = DashboardMessages.ERROR_TITLE,
+                body = DashboardMessages.ERROR_BODY,
+                retryLabel = DashboardMessages.RETRY,
+                onRetry = onRetry,
+            )
 
-            is Loadable.Unauthorized -> ErrorBlock(onRetry = onRetry)
+            // An agent reaching a client route. §5 asks for a real permissions state rather
+            // than the empty state RLS would otherwise produce.
+            is Loadable.Unauthorized -> ClientEmptyState(
+                title = "You don’t have access to this view",
+                body = "This is the traveler’s side of Story-Tail.",
+                mark = StoryTailMark.USER,
+            )
 
-            is Loadable.Empty -> EmptyBlock(snapshot.title, snapshot.body)
+            is Loadable.Empty -> ClientEmptyState(snapshot.title, snapshot.body)
 
             is Loadable.Ready -> DashboardBody(
                 data = snapshot.value,
@@ -166,7 +186,7 @@ private fun DashboardBody(
             onMessage = { onMessageAgent(upcoming.id) },
         )
     } else {
-        EmptyBlock(DashboardMessages.NO_TRIP_TITLE, DashboardMessages.NO_TRIP_BODY)
+        ClientEmptyState(DashboardMessages.NO_TRIP_TITLE, DashboardMessages.NO_TRIP_BODY)
     }
 
     TripSection(
@@ -232,7 +252,7 @@ private fun HeroCountdown(
             )
             Text(
                 listOfNotNull(
-                    formatDates(trip.startDate, trip.endDate),
+                    formatTripDates(trip.startDate, trip.endDate),
                     trip.destinations.firstOrNull(),
                     "${trip.travelerCount} travelers",
                 ).joinToString(" · "),
@@ -286,28 +306,6 @@ private fun HeroCountdown(
             }
         }
     }
-}
-
-@Composable
-private fun StatusChipPill(chip: StatusChip, label: String) {
-    val colors = LocalStoryTailStatusColors.current
-    val (bg, fg) = when (chip) {
-        StatusChip.PROPOSAL -> colors.proposalBg to colors.proposalFg
-        StatusChip.BOOKED -> colors.bookedBg to colors.bookedFg
-        StatusChip.DUE -> colors.dueBg to colors.dueFg
-        StatusChip.TRAVELING -> colors.travelingBg to colors.travelingFg
-        StatusChip.PAST -> colors.pastBg to colors.pastFg
-        StatusChip.INQUIRY -> colors.inquiryBg to colors.inquiryFg
-        StatusChip.CANCELLED -> colors.cancelledBg to colors.cancelledFg
-    }
-    Text(
-        text = label.uppercase(),
-        style = LocalStoryTailBrandTypography.current.labelXS,
-        color = fg,
-        modifier = Modifier
-            .background(bg, PillShape)
-            .padding(horizontal = 9.dp, vertical = 4.dp),
-    )
 }
 
 @Composable
@@ -427,18 +425,11 @@ private fun TripSection(
 ) {
     val scheme = MaterialTheme.colorScheme
     Spacer(Modifier.height(24.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            heading,
-            style = MaterialTheme.typography.titleSmall,
-            color = scheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (trips.isNotEmpty()) {
-            TextButton(onClick = onSeeAll) { Text(DashboardMessages.SEE_ALL_TRIPS) }
-        }
-    }
-    HorizontalDivider(color = scheme.outlineVariant)
+    SectionHeading(
+        heading = heading,
+        actionLabel = if (trips.isNotEmpty()) DashboardMessages.SEE_ALL_TRIPS else null,
+        onAction = if (trips.isNotEmpty()) onSeeAll else null,
+    )
     Spacer(Modifier.height(12.dp))
 
     if (trips.isEmpty()) {
@@ -447,38 +438,6 @@ private fun TripSection(
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             for (trip in trips) TripCard(trip, onClick = { onOpenTrip(trip.id) })
-        }
-    }
-}
-
-@Composable
-private fun TripCard(trip: TripSummary, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(StoryTailRadius.lg))
-            .background(scheme.surfaceContainerLowest)
-            .clickable(onClick = onClick),
-    ) {
-        Box(Modifier.fillMaxWidth().height(132.dp)) {
-            PublicPhoto(
-                imageKey = imageKeyForTrip(trip.id, trip.tripType, trip.destinations),
-                modifier = Modifier.fillMaxWidth().height(132.dp),
-                contentDescription = null,
-            )
-            Box(Modifier.padding(10.dp)) { StatusChipPill(trip.chip, trip.statusLabel) }
-        }
-        Column(Modifier.padding(12.dp)) {
-            Text(trip.title, style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)
-            Text(
-                listOfNotNull(
-                    formatDates(trip.startDate, trip.endDate),
-                    "${trip.travelerCount} travelers",
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -493,90 +452,4 @@ private fun DashboardSkeleton() {
         SkeletonBlock(Modifier.fillMaxWidth().height(268.dp))
         SkeletonBlock(Modifier.fillMaxWidth().height(96.dp))
     }
-}
-
-@Composable
-private fun SkeletonBlock(modifier: Modifier) {
-    Box(
-        modifier.background(
-            MaterialTheme.colorScheme.surfaceContainerHigh,
-            RoundedCornerShape(StoryTailRadius.sm),
-        ),
-    )
-}
-
-@Composable
-private fun ErrorBlock(onRetry: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth().padding(vertical = 24.dp)) {
-        Text(
-            DashboardMessages.ERROR_TITLE,
-            style = MaterialTheme.typography.titleLarge,
-            color = scheme.error,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            DashboardMessages.ERROR_BODY,
-            style = MaterialTheme.typography.bodyMedium,
-            color = scheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(14.dp))
-        Button(onClick = onRetry) { Text(DashboardMessages.RETRY) }
-    }
-}
-
-@Composable
-private fun EmptyBlock(title: String, body: String) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(scheme.surfaceContainer, RoundedCornerShape(StoryTailRadius.lg))
-            .padding(22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        StoryTailGlyph(StoryTailMark.PLANE, 26.dp, scheme.onSurfaceVariant)
-        Spacer(Modifier.height(10.dp))
-        Text(title, style = MaterialTheme.typography.titleLarge, color = scheme.onSurface)
-        Spacer(Modifier.height(6.dp))
-        Text(
-            body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = scheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-private val MONTHS = listOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-)
-
-/** "Nov 13 – 20, 2026", or a single date, or "Dates to come" for an undated inquiry. */
-internal fun formatDates(start: LocalDate?, end: LocalDate?): String {
-    if (start == null) return "Dates to come"
-    val s = "${MONTHS[start.month.number - 1]} ${start.day}"
-    if (end == null) return "$s, ${start.year}"
-    return if (start.year == end.year && start.month == end.month) {
-        "$s – ${end.day}, ${end.year}"
-    } else {
-        "$s – ${MONTHS[end.month.number - 1]} ${end.day}, ${end.year}"
-    }
-}
-
-internal fun formatDay(date: LocalDate): String = "${MONTHS[date.month.number - 1]} ${date.day}"
-
-/**
- * Money, formatted without `java.text` — this is commonMain and has to work on iOS too.
- *
- * Whole dollars when the cents are zero, which every seeded amount is; two places otherwise.
- * Integer arithmetic throughout (CLAUDE.md rule 5): the cents never become a Double, so
- * nothing rounds.
- */
-internal fun formatMoney(amountCents: Long, currency: String): String {
-    val symbol = if (currency == "USD") "$" else "$currency "
-    val whole = amountCents / 100
-    val cents = (amountCents % 100).toInt()
-    val grouped = whole.toString().reversed().chunked(3).joinToString(",").reversed()
-    return if (cents == 0) "$symbol$grouped" else "$symbol$grouped.${cents.toString().padStart(2, '0')}"
 }
