@@ -132,7 +132,10 @@ export default async function TripDetailPage({ params }: { params: Params }) {
           <div className="hidden md:block">
             <AdvisorCard variant="planned" title={title} />
           </div>
-          <div className="mt-1 md:hidden">
+          <div className="mt-1 flex flex-col gap-3.5 md:hidden">
+            {/* PriceCard is `hidden md:block`, so below md its price note would be lost —
+                while the sticky bar still shows the price it qualifies. */}
+            <p className="t-body-s text-on-surface-variant">{trip.priceNote}</p>
             <AdvisorCard
               variant="planned"
               title={title}
@@ -143,7 +146,15 @@ export default async function TripDetailPage({ params }: { params: Params }) {
         </aside>
       </Container>
 
-      <StickyCta primary={{ label: DETAIL.price.requestQuote, href: quote }} price={{ from: trip.from, saveHref: save }} />
+      {/* §4.4: "'Message Gyasi without an account' is a sticky bottom button on mobile, a
+          side rail CTA on tablet/web." The artboard's price/heart/quote row stays row one
+          (four controls will not fit 360px), and the guest path wraps to a full-width
+          second row rather than being reachable only as a mid-page "Message →" link. */}
+      <StickyCta
+        primary={{ label: DETAIL.price.requestQuote, href: quote }}
+        price={{ from: trip.from, saveHref: save }}
+        guest={{ label: DETAIL.price.messageGuest, href: message }}
+      />
     </>
   );
 }

@@ -15,7 +15,7 @@ import { staImg, type ImageKey } from "@/lib/images";
 import { loginHref } from "@/lib/public/links";
 import { filterTrips, resultsHref } from "@/lib/public/search";
 import { EXPLORE, tileSearchQuery, tripCountLabel } from "./content";
-import { SearchBar } from "./SearchBar";
+import { SearchBar, STACKED_SEARCH_FORM_ID } from "./SearchBar";
 
 const HERO_IMAGE: ImageKey = "bahamas";
 const PATH = "/explore";
@@ -88,7 +88,11 @@ export default function ExplorePage() {
       </Container>
 
       <StickyCta
-        primary={{ label: EXPLORE.sticky.primary, href: "/explore/results", icon: "search" }}
+        primary={{
+          label: EXPLORE.sticky.primary,
+          submitFor: STACKED_SEARCH_FORM_ID,
+          icon: "search",
+        }}
         secondary={{ label: EXPLORE.sticky.secondary, href: loginHref(PATH) }}
       />
     </>

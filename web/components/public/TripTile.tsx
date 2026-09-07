@@ -97,7 +97,9 @@ export function TripTile({ trip, topic, layout = "responsive", next, className }
         </h3>
         <p className="t-label-l text-on-surface-variant">{tagline}</p>
         <div className="mt-auto flex items-center gap-1.5 pt-2">
-          <Link href={quote} className="btn btn-filled btn-sm">
+          {/* `tap-44`, not `min-h-11`: MTripTile draws a 32px btn-sm, so grow only the hit
+              area (the utility is gated to `pointer: coarse`). */}
+          <Link href={quote} className="btn btn-filled btn-sm tap-44">
             Request quote
           </Link>
           <Link

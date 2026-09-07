@@ -90,7 +90,9 @@ export function PublicNav({ links, overlay = false }: PublicNavProps) {
         type="button"
         className={cn(
           "btn-icon tap-44 ml-auto size-9 md:hidden",
-          overlay && "text-white",
+          // MTopBar gives the overlay trigger a translucent chip so it stays legible on a
+          // bright hero photo; `.btn-glass` already carries exactly that treatment.
+          overlay && "btn-glass text-white",
         )}
         aria-haspopup="dialog"
         aria-expanded={open}

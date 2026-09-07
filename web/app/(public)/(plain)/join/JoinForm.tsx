@@ -214,7 +214,11 @@ export function JoinForm({
         <SubmitButton label={submitLabel(intent)} />
       </div>
 
-      <div className="t-label-l mt-3 flex items-center justify-between gap-3">
+      {/* Two long labels side by side overflow their 328px content box at 360px. `t-fine`
+          is the public surface's 11.5px step (the artboard's size); `md:t-label-l` restores
+          14px from tablet up. Order matters — t-fine is @layer components, t-label-l is a
+          tokens @utility, so the md: override wins on layer order. */}
+      <div className="t-fine md:t-label-l mt-3 flex items-center justify-between gap-3">
         <Link href={signInHref} className="tap-44 text-primary">
           {JOIN_TEXT.signIn}
         </Link>
