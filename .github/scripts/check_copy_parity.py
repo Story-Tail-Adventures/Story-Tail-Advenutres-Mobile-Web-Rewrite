@@ -32,6 +32,38 @@ TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adve
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
     {
+        # Screen 2.2.1's copy. Only the plain-string keys are listed: the web side's
+        # greeting variants are functions (the "0 days"/"1 day" special cases need one) and
+        # web_messages skips anything that is not a string literal, so those are covered by
+        # the paired unit tests instead.
+        "label": "dashboard 2.2.1",
+        "web_file": ROOT / "web/app/(client)/dashboard/content.ts",
+        "web_const": "DASHBOARD",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/dashboard/DashboardUiState.kt",
+        "kmp_object": "DashboardMessages",
+        "keys": {
+            "overlineRest": "OVERLINE_REST",
+            "overlineNeutral": "OVERLINE_NEUTRAL",
+            "subtitleTraveling": "SUBTITLE_TRAVELING",
+            "subtitleNoTrip": "SUBTITLE_NO_TRIP",
+            "viewItinerary": "VIEW_ITINERARY",
+            "itineraryNotReady": "ITINERARY_NOT_READY",
+            "actionNeededLabel": "ACTION_NEEDED_LABEL",
+            "authorizeCard": "AUTHORIZE_CARD",
+            "authorizeCardComingSoon": "AUTHORIZE_CARD_COMING_SOON",
+            "advisorName": "ADVISOR_NAME",
+            "advisorRole": "ADVISOR_ROLE",
+            "advisorReplyTime": "ADVISOR_REPLY_TIME",
+            "messageAgent": "MESSAGE_AGENT",
+            "emptyPlanningTitle": "EMPTY_PLANNING_TITLE",
+            "emptyPlanningBody": "EMPTY_PLANNING_BODY",
+            "emptyPastTitle": "EMPTY_PAST_TITLE",
+            "emptyPastBody": "EMPTY_PAST_BODY",
+            "startSomethingNew": "START_SOMETHING_NEW",
+            "seeAllTrips": "SEE_ALL_TRIPS",
+        },
+    },
+    {
         # Two of these seven labels are DERIVED — the trip_status enum has no
         # "Final payment due" and no "Traveling now" — so this is the table most able to
         # drift without anything failing to compile on either side.

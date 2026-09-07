@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -63,7 +65,20 @@ fun ClientScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                // The STATUS BAR inset, and only that one. Caught on an emulator: without it
+                // the dashboard's overline rendered across the clock, because a §2.2 screen
+                // may pass no [topBar] at all and then content starts at y=0. The §2.0
+                // screens never showed it — every one of them has a top bar of its own.
+                //
+                // The navigation-bar inset is deliberately NOT applied here. It belongs
+                // inside [ClientBottomNav] instead, so the bar's own background extends into
+                // the gesture area rather than leaving a strip of page showing beneath it.
+                // Applying it in both places would double-count and float the bar.
+                .windowInsetsPadding(WindowInsets.statusBars),
+        ) {
             topBar()
             Column(
                 modifier = Modifier

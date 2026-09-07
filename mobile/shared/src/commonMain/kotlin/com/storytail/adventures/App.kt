@@ -17,6 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.Assurance
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
+import com.storytail.adventures.api.TripRepository
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
@@ -52,6 +53,7 @@ import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
 import com.storytail.adventures.ui.theme.StoryTailTheme
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 
 @Composable
 fun App() {
@@ -60,9 +62,11 @@ fun App() {
         // until it is ready, which is what the Resolving route renders.
         var authRepository by remember { mutableStateOf<AuthRepository?>(null) }
         var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
+        var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
+            tripRepository = SupabaseClientProvider.tripRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -211,11 +215,24 @@ fun App() {
                 val scope = rememberCoroutineScope()
                 // The §2.2 section host, matching how PublicRoute and OnboardingRoute are
                 // handed a route rather than App.kt branching per screen.
-                TripRoute(
-                    route = route,
-                    nav = nav,
-                    onSignOut = { scope.launch { repo.signOut() } },
-                )
+                val trips = tripRepository
+                if (trips == null) {
+                    // The same splash the auth repository gets, for the same reason: the
+                    // client is built off the main thread and there is nothing to read
+                    // until it exists.
+                    SplashScreen()
+                } else {
+                    TripRoute(
+                        route = route,
+                        nav = nav,
+                        trips = trips,
+                        // The §2.2 derivations are date arithmetic, so the date is passed
+                        // in rather than read from the clock inside them — see
+                        // domain/trip/TripStatus.kt.
+                        today = LocalDate.parse(today),
+                        onSignOut = { scope.launch { repo.signOut() } },
+                    )
+                }
             }
 
             AppRoute.Register -> {

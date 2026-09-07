@@ -326,6 +326,7 @@ internal fun Throwable.toAuthError(): AuthError = when (this) {
 object SupabaseClientProvider {
     private var cached: AuthRepository? = null
     private var cachedOnboarding: OnboardingRepository? = null
+    private var cachedTrip: TripRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -360,10 +361,24 @@ object SupabaseClientProvider {
             }
         }
 
+    /**
+     * The §2.2 trip reads, on the SAME client again — same reasoning as
+     * [onboardingRepository]. This one only reads, through the caller's own session and the
+     * policies in 20260907031255_trip_read_policies.sql.
+     */
+    suspend fun tripRepository(): TripRepository =
+        withContext(Dispatchers.Default) {
+            cachedTrip ?: run {
+                build()
+                cachedTrip!!
+            }
+        }
+
     private fun build() {
         if (!SupabaseConfig.isConfigured) {
             cached = UnconfiguredAuthRepository()
             cachedOnboarding = UnconfiguredOnboardingRepository()
+            cachedTrip = UnconfiguredTripRepository()
             return
         }
         val client = createSupabaseClient(
@@ -376,5 +391,6 @@ object SupabaseClientProvider {
         }
         cached = SupabaseAuthRepository(client)
         cachedOnboarding = SupabaseOnboardingRepository(client)
+        cachedTrip = SupabaseTripRepository(client)
     }
 }
