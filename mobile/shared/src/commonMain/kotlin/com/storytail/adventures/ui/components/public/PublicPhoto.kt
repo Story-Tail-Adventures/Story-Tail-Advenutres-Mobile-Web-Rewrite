@@ -1,5 +1,6 @@
 package com.storytail.adventures.ui.components.public
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -8,33 +9,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.storytail.adventures.ui.theme.StoryTailBrand
+import org.jetbrains.compose.resources.painterResource
 
 /**
- * Where a §2.0 photograph goes.
+ * A §2.0 photograph.
  *
- * THE APP SHIPS NO PHOTOGRAPHY YET, AND THAT IS DELIBERATE. Every image the design calls
- * for is an unlicensed Unsplash placeholder — web/lib/images.ts marks all of them
- * `licensed: false`, and the web build has a strict production gate that refuses to ship
- * while that is true. Referencing an unlicensed photo from a web page somebody can take
- * down in a minute is one risk; baking it into a binary that goes through App Store review
- * and sits on people's phones is a different one. So this renders the brand gradient the
- * design already scrims those photos with, and nothing is bundled.
+ * The photographs are the design's own — the same Unsplash images the web pages render,
+ * from the registry in web/lib/images.ts — downloaded at 800px and bundled in
+ * composeResources/drawable/. Bundled rather than streamed for the same reasons as the
+ * typefaces: no image-loading dependency to add and get a security review for, no network
+ * needed to draw a hero, and no first-paint gap on a phone with one bar of signal at a
+ * resort.
  *
- * It is one composable on purpose: when owned photography lands, this is the only file that
- * changes. Two ways to finish it, both a decision for Gyasi rather than a default:
+ * THEY ARE STILL PLACEHOLDERS. web/lib/images.ts marks every one `licensed: false`, and
+ * that flag is carried into the Kotlin catalog untouched. The Unsplash License does permit
+ * commercial use, but it grants no model or property release, so a photo with an
+ * identifiable person or building in it is not automatically clear. PlaceholderBanner says
+ * so on every screen, and nothing here flips that flag — replacing these with Gyasi's own
+ * photography is dropping files in this directory and setting `licensed: true` at the
+ * source.
  *
- *  - Bundle the owned images under `composeResources/drawable/` and paint them here. No new
- *    dependency, works offline, grows the binary.
- *  - Add a KMP image loader (Coil 3 supports Compose Multiplatform) and stream them. Smaller
- *    binary, needs network on first paint, and CLAUDE.md requires a security review before a
- *    new third-party SDK lands.
- *
- * [imageKey] is carried through from the generated catalog so the call sites are already
- * correct — they name the photo they want, and only this file does not yet know how to draw
- * it.
+ * A key with no bundled file falls back to the brand gradient rather than a blank, which is
+ * also what sits under every photograph while it decodes.
  */
 @Composable
 fun PublicPhoto(
@@ -45,8 +45,9 @@ fun PublicPhoto(
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     // Deterministic per key, so the same trip is the same colour everywhere it appears and
-    // a grid of tiles does not read as one flat block.
+    // a grid of tiles does not read as one flat block while the photographs decode.
     val tint = placeholderTintFor(imageKey)
+    val photo = drawableForImageKey(imageKey)
 
     Box(
         modifier
@@ -65,8 +66,19 @@ fun PublicPhoto(
                     Modifier
                 },
             ),
-        content = content,
-    )
+    ) {
+        if (photo != null) {
+            Image(
+                painter = painterResource(photo),
+                // Described on the Box above when it carries meaning, so the Image itself
+                // is always decorative — announcing the same alt twice is noise.
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+        content()
+    }
 }
 
 /** Fills the parent — the common case for a hero or a tile background. */
