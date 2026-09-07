@@ -1,29 +1,357 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+
+import { EmptyState } from "@/components/client/states";
+import { Photo } from "@/components/public/Photo";
 import { Card } from "@/components/ui/Card";
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { Icon } from "@/components/ui/Icon";
+import { imageKeyForTrip } from "@/lib/trips/imagery";
+import { formatTripMoney } from "@/lib/trips/money";
+import { loadDashboard, type DashboardTrip } from "@/lib/trips/queries";
+import { createClient } from "@/lib/supabase/server";
+import { DASHBOARD, isLeisure } from "./content";
 
 export const metadata: Metadata = { title: "Your trips" };
 
 /**
- * Placeholder for Screen 2.2.1 Client Dashboard / Home.
+ * Screen 2.2.1 Client Dashboard / Home — see docs/Screen-Inventory.md §2.2.1 and §4.4
+ * (Pattern D: mobile stacks and the hero countdown goes full-width; the tablet/web weather
+ * widget beside it is explicitly a larger-viewport affordance) and
+ * design/source-prototype/screens/client-trip.jsx (C221_Dashboard) +
+ * client-trip-mobile.jsx (M221_Dashboard). P1.
  *
- * Exists so 2.1.1 Login has somewhere to land and the redirect path is real. The
- * upcoming-trip hero, agent card and quick actions come with the real screen.
+ * This is the screen that proves the rest of §2.2 works: it reads five tables through the
+ * policies added in 20260907031255, derives its status labels through the one shared module
+ * both stacks use, and renders inside the shell from Stage 4. If any of those three were
+ * wrong, this page is where it would show.
+ *
+ * DEPARTURES FROM THE ARTBOARD, each recorded rather than silently applied:
+ *   * No "Saved searches" tab. `SavedSearch` is a Phase 2 entity, so the tab had nothing
+ *     to count. The artboard's third tab is gone rather than rendered empty.
+ *   * "New idea" / "Explore trips" repoint at the trip thread. §2.3 is Phase 2 and the CTA
+ *     had no destination; asking Gyasi is how a trip actually starts at MVP.
+ *   * "Authorize a card" renders DISABLED. §2.4 is Phase 1 and lands next, so unlike the
+ *     search CTA there is a real destination coming — the button keeps its place in the
+ *     layout and says why it is not pressable yet.
+ *   * The countdown shows days only, not days/hours/minutes. The artboard's HR and MIN
+ *     tiles need a ticking client component, and a server-rendered "14 HR" is wrong the
+ *     moment it is sent. Days is the unit that survives a cache.
  */
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: client } = await supabase
+    .from("client")
+    .select("first_name, preferred_name")
+    .maybeSingle();
+
+  const name = client?.preferred_name?.trim() || client?.first_name?.trim() || "there";
+  const data = await loadDashboard();
+
+  if (!data) {
+    return (
+      <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+        <EmptyState
+          icon="warning"
+          title="We couldn’t load your trips"
+          body="Something went wrong on our side, not yours. Try again in a moment."
+        />
+      </div>
+    );
+  }
+
+  const { upcoming, inPlanning, past, nextPayment, itineraryReady, latestMessage } = data;
+  const traveling = upcoming?.status === "in_progress";
+  const leisure = upcoming ? isLeisure(upcoming.tripType) : false;
+  const days = upcoming?.daysUntil ?? null;
+
+  const greeting = !upcoming
+    ? DASHBOARD.greetingNoTrip(name)
+    : traveling
+      ? DASHBOARD.greetingTraveling(name)
+      : days === null
+        ? DASHBOARD.greetingNoTrip(name)
+        : leisure
+          ? DASHBOARD.greetingRest(name, days)
+          : DASHBOARD.greetingNeutral(name, days);
+
   return (
-    <div className="mx-auto w-full max-w-3xl p-8">
-      <BrandWordmark size={32} />
-      <h1 className="t-headline mt-6">You&rsquo;re signed in.</h1>
-      <p className="t-body mt-2 text-on-surface-variant">
-        Your dashboard is still coming together — your trips will live right here soon.
-      </p>
-      <Card className="mt-6 p-5">
-        <div className="t-title-s">What&rsquo;s next</div>
-        <p className="t-body-s mt-1 text-on-surface-variant">
-          Your next trip, a quick line to your agent, and a few shortcuts.
+    <div className="mx-auto w-full max-w-5xl p-4 pb-10 md:p-6">
+      <header>
+        <p className="t-label-s text-secondary">
+          {leisure && !traveling ? DASHBOARD.overlineRest : DASHBOARD.overlineNeutral}
         </p>
-      </Card>
+        <h1 className="t-headline mt-1.5">{greeting}</h1>
+        {traveling && (
+          <p className="t-body-s mt-1 text-on-surface-variant">{DASHBOARD.subtitleTraveling}</p>
+        )}
+        {!upcoming && (
+          <p className="t-body mt-2 max-w-prose text-on-surface-variant">
+            {DASHBOARD.subtitleNoTrip}
+          </p>
+        )}
+      </header>
+
+      {upcoming ? (
+        <div className="mt-4 grid gap-3 web:grid-cols-[2.1fr_1fr]">
+          <HeroCountdown trip={upcoming} days={days} itineraryReady={itineraryReady} />
+          <div className="flex flex-col gap-2.5">
+            {nextPayment && <ActionNeeded payment={nextPayment} />}
+            <AdvisorCard preview={latestMessage?.body} tripId={upcoming.id} />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <EmptyState
+            icon="palm"
+            title="No trip booked yet"
+            body="When there is one, it lives right here with a countdown on it."
+            action={{ label: DASHBOARD.startSomethingNew, href: "/dashboard" }}
+          />
+        </div>
+      )}
+
+      <TripSections inPlanning={inPlanning} past={past} />
     </div>
   );
+}
+
+/**
+ * The hallmark card, per Design-System §9.4: "the single highest-value moment on the client
+ * side". Full-width below `web:` per §4.4.
+ */
+function HeroCountdown({
+  trip,
+  days,
+  itineraryReady,
+}: {
+  trip: DashboardTrip;
+  days: number | null;
+  itineraryReady: boolean;
+}) {
+  const where = trip.destinations[0] ?? "";
+  return (
+    <div className="relative min-h-[260px] overflow-hidden rounded-xl shadow-3">
+      <Photo
+        image={imageKeyForTrip(trip)}
+        alt=""
+        fill
+        sizes="(min-width: 1200px) 640px, 100vw"
+        className="object-cover"
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(150deg, color-mix(in srgb, var(--brand-burgundy) 82%, transparent), color-mix(in srgb, var(--brand-navy) 70%, transparent))",
+        }}
+      />
+      <div className="relative flex min-h-[260px] flex-col p-5 text-white">
+        <span className={`chip-status ${trip.chip} self-start`}>{trip.statusLabel}</span>
+        <h2 className="t-title-l mt-2.5 text-white">{trip.title}</h2>
+        <p className="t-body-s text-white/90">
+          {[formatDates(trip), where, `${trip.travelerCount} travelers`]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+
+        <div className="mt-auto flex items-end gap-2 pt-4">
+          {days !== null && (
+            <div className="rounded-lg border border-white/20 bg-white/15 px-4 py-2 text-center backdrop-blur-sm">
+              <div className="font-sans text-[22px] font-extrabold leading-none">{days}</div>
+              <div className="mt-1 text-[9px] font-semibold leading-none tracking-[1.2px] text-white/85">
+                {DASHBOARD.countdownUnits.days}
+              </div>
+            </div>
+          )}
+          {itineraryReady ? (
+            <Link href={`/trips/${trip.id}/itinerary`} className="btn btn-orange btn-sm ml-auto">
+              {DASHBOARD.viewItinerary} <Icon name="arrow_right" size={12} />
+            </Link>
+          ) : (
+            <span className="ml-auto text-[12px] font-medium text-white/80">
+              {DASHBOARD.itineraryNotReady}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActionNeeded({
+  payment,
+}: {
+  payment: NonNullable<Awaited<ReturnType<typeof loadDashboard>>>["nextPayment"];
+}) {
+  if (!payment) return null;
+  const due = payment.daysUntilDue;
+  return (
+    <Card className="border-0 bg-error-container p-3.5 text-on-error-container">
+      <div className="flex items-center gap-2">
+        <Icon name="card" size={15} />
+        <span className="t-label-s">
+          {DASHBOARD.actionNeededLabel}
+          {due !== null && due >= 0 ? ` · ${due} DAYS` : ""}
+        </span>
+      </div>
+      <div className="t-title-s mt-1.5">{payment.label}</div>
+      <div className="t-body-s mt-1 opacity-85">
+        {formatTripMoney(payment.amountCents, payment.currency)}
+        {payment.dueDate ? ` due ${formatDay(payment.dueDate)}` : ""}
+      </div>
+      {/* §2.4 lands next. Disabled and saying why, rather than pointed at a route that
+          does not exist — see the departures note on the page component. */}
+      <button
+        type="button"
+        className="btn btn-filled mt-2.5 w-full"
+        disabled
+        aria-disabled="true"
+        title={DASHBOARD.authorizeCardComingSoon}
+        style={{ background: "var(--md-on-error-container)", color: "var(--md-error-container)" }}
+      >
+        {DASHBOARD.authorizeCard}
+      </button>
+    </Card>
+  );
+}
+
+function AdvisorCard({ preview, tripId }: { preview?: string; tripId: string }) {
+  return (
+    <Card className="p-3.5">
+      <div className="flex items-center gap-2.5">
+        <span className="avatar sm" aria-hidden="true">
+          GS
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="t-title-s text-[13px]">
+            {DASHBOARD.advisorName} · {DASHBOARD.advisorRole}
+          </div>
+          <div className="t-body-s text-on-surface-variant">{DASHBOARD.advisorReplyTime}</div>
+        </div>
+      </div>
+      {preview && (
+        <p className="t-body-s mt-2 text-on-surface-variant">“{preview}”</p>
+      )}
+      <Link href={`/trips/${tripId}/messages`} className="btn btn-tonal btn-sm mt-2.5 w-full">
+        <Icon name="message" size={14} /> {DASHBOARD.messageAgent}
+      </Link>
+    </Card>
+  );
+}
+
+/**
+ * Two tabs, not the artboard's three. The third was "Saved searches · 3" and SavedSearch is
+ * a Phase 2 entity, so it had nothing to count.
+ *
+ * Rendered as headed sections rather than interactive tabs: a tab strip needs client state,
+ * and with two short lists there is nothing to hide — §4.4 Pattern D asks for stacked
+ * sections with a "See all" per section on mobile, which is what this is.
+ */
+function TripSections({ inPlanning, past }: { inPlanning: DashboardTrip[]; past: DashboardTrip[] }) {
+  return (
+    <>
+      <TripSection
+        heading={DASHBOARD.tabInPlanning(inPlanning.length)}
+        trips={inPlanning}
+        emptyTitle={DASHBOARD.emptyPlanningTitle}
+        emptyBody={DASHBOARD.emptyPlanningBody}
+      />
+      <TripSection
+        heading={DASHBOARD.tabPast(past.length)}
+        trips={past}
+        emptyTitle={DASHBOARD.emptyPastTitle}
+        emptyBody={DASHBOARD.emptyPastBody}
+      />
+    </>
+  );
+}
+
+function TripSection({
+  heading,
+  trips,
+  emptyTitle,
+  emptyBody,
+}: {
+  heading: string;
+  trips: DashboardTrip[];
+  emptyTitle: string;
+  emptyBody: string;
+}) {
+  return (
+    <section className="mt-7">
+      <div className="flex items-baseline gap-3 border-b border-outline-variant pb-2">
+        <h2 className="t-title-s flex-1">{heading}</h2>
+        {trips.length > 0 && (
+          <Link href="/trips" className="btn btn-text btn-sm">
+            {DASHBOARD.seeAllTrips}
+          </Link>
+        )}
+      </div>
+      {trips.length === 0 ? (
+        <p className="t-body-s mt-3 text-on-surface-variant">
+          <span className="t-title-s block text-on-surface">{emptyTitle}</span>
+          {emptyBody}
+        </p>
+      ) : (
+        <ul className="mt-3 grid gap-3 md:grid-cols-2 web:grid-cols-3">
+          {trips.map((trip) => (
+            <li key={trip.id}>
+              <TripCard trip={trip} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function TripCard({ trip }: { trip: DashboardTrip }) {
+  return (
+    <Link href={`/trips/${trip.id}`} className="card block overflow-hidden p-0">
+      <div className="relative h-[120px]">
+        <Photo
+          image={imageKeyForTrip(trip)}
+          alt=""
+          fill
+          sizes="(min-width: 1200px) 300px, (min-width: 768px) 50vw, 100vw"
+          className="object-cover"
+        />
+        <span className={`chip-status ${trip.chip} absolute left-2.5 top-2.5`}>
+          {trip.statusLabel}
+        </span>
+      </div>
+      <div className="p-3">
+        <div className="t-title-s">{trip.title}</div>
+        <div className="t-body-s text-on-surface-variant">
+          {[formatDates(trip), `${trip.travelerCount} travelers`].filter(Boolean).join(" · ")}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/** "Aug 12 – 19, 2026", or a single date, or nothing at all for an undated inquiry. */
+function formatDates(trip: DashboardTrip): string {
+  if (!trip.startDate) return "Dates to come";
+  const start = new Date(`${trip.startDate}T00:00:00Z`);
+  if (!trip.endDate) return fmt(start, true);
+  const end = new Date(`${trip.endDate}T00:00:00Z`);
+  const sameMonth =
+    start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth();
+  return sameMonth
+    ? `${fmt(start, false)} – ${end.getUTCDate()}, ${end.getUTCFullYear()}`
+    : `${fmt(start, false)} – ${fmt(end, true)}`;
+}
+
+function formatDay(iso: string): string {
+  return fmt(new Date(`${iso}T00:00:00Z`), false);
+}
+
+function fmt(d: Date, withYear: boolean): string {
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(withYear ? { year: "numeric" } : {}),
+    timeZone: "UTC",
+  });
 }
