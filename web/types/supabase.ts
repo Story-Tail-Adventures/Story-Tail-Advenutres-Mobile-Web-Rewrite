@@ -1327,6 +1327,42 @@ export type Database = {
           },
         ]
       }
+      message_attachment: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id: string
+          message_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachment_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "document"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachment_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_template: {
         Row: {
           agent_id: string
@@ -1508,6 +1544,62 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_milestone: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          due_date: string | null
+          id: string
+          kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          label: string
+          order_index: number
+          paid_at: string | null
+          paid_cents: number
+          status: Database["public"]["Enums"]["payment_milestone_status"]
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          id: string
+          kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          label: string
+          order_index?: number
+          paid_at?: string | null
+          paid_cents?: number
+          status?: Database["public"]["Enums"]["payment_milestone_status"]
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["payment_milestone_kind"]
+          label?: string
+          order_index?: number
+          paid_at?: string | null
+          paid_cents?: number
+          status?: Database["public"]["Enums"]["payment_milestone_status"]
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_milestone_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
             referencedColumns: ["id"]
           },
         ]
@@ -1738,6 +1830,86 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      testimonial: {
+        Row: {
+          agent_id: string
+          approved_at: string | null
+          approved_by_user_id: string | null
+          attribution: string | null
+          body: string
+          client_id: string
+          created_at: string
+          id: string
+          published_at: string | null
+          rating: number | null
+          status: Database["public"]["Enums"]["testimonial_status"]
+          submitted_at: string | null
+          trip_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          approved_at?: string | null
+          approved_by_user_id?: string | null
+          attribution?: string | null
+          body: string
+          client_id: string
+          created_at?: string
+          id: string
+          published_at?: string | null
+          rating?: number | null
+          status?: Database["public"]["Enums"]["testimonial_status"]
+          submitted_at?: string | null
+          trip_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          approved_at?: string | null
+          approved_by_user_id?: string | null
+          attribution?: string | null
+          body?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          published_at?: string | null
+          rating?: number | null
+          status?: Database["public"]["Enums"]["testimonial_status"]
+          submitted_at?: string | null
+          trip_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testimonial_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testimonial_approved_by_user_id_fkey"
+            columns: ["approved_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testimonial_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testimonial_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       travel_document: {
         Row: {
@@ -2179,6 +2351,8 @@ export type Database = {
         | "pdf_itinerary"
         | "other"
       mfa_kind: "totp" | "sms" | "backup_codes"
+      payment_milestone_kind: "deposit" | "interim" | "final"
+      payment_milestone_status: "scheduled" | "paid" | "waived" | "overdue"
       supplier_kind:
         | "airline"
         | "hotel_brand"
@@ -2189,6 +2363,12 @@ export type Database = {
         | "transfer"
         | "other"
       supplier_payment_kind: "api" | "portal" | "unknown"
+      testimonial_status:
+        | "draft"
+        | "submitted"
+        | "approved"
+        | "published"
+        | "declined"
       travel_doc_kind:
         | "passport"
         | "visa"
@@ -2391,6 +2571,8 @@ export const Constants = {
         "other",
       ],
       mfa_kind: ["totp", "sms", "backup_codes"],
+      payment_milestone_kind: ["deposit", "interim", "final"],
+      payment_milestone_status: ["scheduled", "paid", "waived", "overdue"],
       supplier_kind: [
         "airline",
         "hotel_brand",
@@ -2402,6 +2584,13 @@ export const Constants = {
         "other",
       ],
       supplier_payment_kind: ["api", "portal", "unknown"],
+      testimonial_status: [
+        "draft",
+        "submitted",
+        "approved",
+        "published",
+        "declined",
+      ],
       travel_doc_kind: [
         "passport",
         "visa",

@@ -109,10 +109,12 @@ The final section is **Open Questions** — areas where the model is intentional
 | ItineraryActivity | Trip | P1 | One activity block within a day |
 | Proposal | Trip | P1 | Snapshot of a trip presented to the client |
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
+| Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
 | PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
 | CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
 | AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
 | CardUseEvent | Payment | P1 | Append-only log of every supplier-payment use |
+| PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final) |
 | Commission | Commission | P1 | Expected/received commission per trip per supplier |
 | CommissionImport | Commission | P1 | Batch record for an Inteletravel CSV import |
 | Lead | Lead | P2 | Quote request originating from public search |
@@ -1166,6 +1168,39 @@ data class Trip(
 
 ---
 
+### 8.7 Testimonial
+
+**Purpose:** A client's written reflection on a completed trip, captured on Screen 2.2.11 (Past Trip / Memory View). It is the client's own words, so it is theirs until they say otherwise — the status column exists so that nothing reaches a public surface by default.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `client_id` | `uuid` | No | Public | FK → Client |
+| `trip_id` | `uuid` | Yes | Public | FK → Trip. Null for a general reflection not tied to one trip |
+| `agent_id` | `uuid` | No | Public | FK → Agent (denormalized, for the approval queue) |
+| `body` | `text` | No | PII | The client's own words |
+| `attribution` | `text` | Yes | PII | How the client wants to be credited ("Jordan H.", "the Hayes family") |
+| `rating` | `smallint` | Yes | Public | 1–5, optional. The prompt is a question, not a star widget |
+| `status` | `testimonial_status` enum | No | Public | Default `draft` |
+| `submitted_at` | `timestamptz` | Yes | Public | When the client sent it to the agent |
+| `approved_at` | `timestamptz` | Yes | Public | **Nothing may be published without this** |
+| `approved_by_user_id` | `uuid` | Yes | Internal | FK → User (which agent approved) |
+| `published_at` | `timestamptz` | Yes | Public | When it went live on a public surface |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**The approval gate is the point.** `draft` → `submitted` → `approved` → `published`, with `declined` as a terminal branch. A row may only be read by an anonymous/public surface when `status = 'published'`, and `published_at` may only be set on a row that already has `approved_at`. This is the same discipline `PUBLIC_CLAIMS_MODE=strict` enforces on the hand-authored testimonials in `web/content/public/proof.ts`: a client's words are a marketing claim, and marketing claims do not ship unreviewed.
+
+**Client write access** is limited to their own rows in `draft` or `submitted`. Once approved, the row is the agency's to publish and the client's to withdraw — withdrawal moves it to `declined` rather than deleting it, so the audit trail survives.
+
+**Voice note:** the prompt is *"What did you carry home from this trip?"* (Design-System §2.4), not "rate your experience". The field is a reflection first and a testimonial second, which is also why `rating` is nullable.
+
+**Indexes:** unique on `(client_id, trip_id)` where `trip_id IS NOT NULL`; index on `(agent_id, status, created_at desc)` for the approval queue; index on `(status, published_at desc)` where `status = 'published'` for the public surface.
+
+---
+
 ## 9. Payment Domain
 
 This domain is governed by PCI DSS SAQ A constraints (see Section 18). No card primary account number (PAN) is ever stored. All "card" entities here reference a Stripe-issued token; the only locally-stored card data is metadata Stripe explicitly returns (brand, last 4, expiration).
@@ -1318,6 +1353,41 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 **Append-only:** no UPDATE, no DELETE.
 
 **Indexes:** index on `(card_authorization_id, created_at desc)`; index on `(payment_card_id, created_at desc)`; index on `(trip_id, created_at desc)`.
+
+---
+
+### 9.5 PaymentMilestone
+
+**Purpose:** The supplier payment schedule for a trip — deposit, any interim payments, and the final balance — so the client can see what is due and when. This is what Screen 2.2.3 renders as its payment timeline, and it is what finally gives `trip.total_paid_cents` a producer.
+
+**Phase:** P1
+
+**This is not an invoice, and it is not in PCI scope.** Two things it deliberately is not:
+
+- **Not a bill from Story-Tail Adventures.** BRD §10.5 prohibits client-facing billing — the agency is not the merchant of record and charges the client nothing. These rows describe what the *supplier* expects and when, so the client is not surprised by a balance date. There is no "pay now" action, no amount owing *to us*, and no merchant fields.
+- **Not cardholder data.** No PAN, no token, no Stripe reference, no FK to PaymentCard. It lives in this domain because a reader looking for "payments" looks here, but it is outside SAQ A scope entirely. The client's only card-adjacent action remains the authorization flow in §9.2.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `trip_id` | `uuid` | No | Public | FK → Trip |
+| `kind` | `payment_milestone_kind` enum | No | Public | `deposit`, `interim`, `final` |
+| `label` | `text` | No | Public | Client-facing ("Deposit", "Second payment") |
+| `amount_cents` | `bigint` | No | Public | Client-visible by design — it is what the supplier expects |
+| `currency` | `char(3)` | No | Public | — |
+| `due_date` | `date` | Yes | Public | Null while the supplier has not set one |
+| `paid_at` | `timestamptz` | Yes | Public | — |
+| `paid_cents` | `bigint` | No | Public | Default 0. Partial payments happen |
+| `status` | `payment_milestone_status` enum | No | Public | Default `scheduled` |
+| `order_index` | `integer` | No | Public | Display order; ties are broken by `due_date` |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Why `status` is stored rather than derived.** `overdue` could be computed from `due_date < today`, but the agent needs to be able to suppress it — a supplier who has verbally extended a deadline should not produce a red row on the client's dashboard. `waived` exists for the same reason: suppliers do forgive milestones, and a waived one is not the same as a paid one.
+
+**`amount_cents` is Public, unlike `trip_component.cost_cents`.** The distinction is real: `cost_cents` is what the agency paid, which reveals margin; this is what the client's trip costs them on a given date, which they are entitled to know and which the itinerary already implies.
+
+**Indexes:** index on `(trip_id, order_index)`; index on `(status, due_date)` for the agent-side overdue sweep.
 
 ---
 
@@ -1675,6 +1745,9 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `lead_status` | `new`, `contacted`, `qualified`, `converted`, `lost` | Lead |
 | `lead_source_kind` | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` | LeadSource |
 | `document_kind` | `passport`, `visa`, `insurance_cert`, `supplier_confirmation`, `receipt`, `photo`, `csv_import`, `pdf_proposal`, `pdf_itinerary`, `other` | Document |
+| `payment_milestone_kind` | `deposit`, `interim`, `final` | PaymentMilestone |
+| `payment_milestone_status` | `scheduled`, `paid`, `waived`, `overdue` | PaymentMilestone |
+| `testimonial_status` | `draft`, `submitted`, `approved`, `published`, `declined` | Testimonial |
 
 ---
 
