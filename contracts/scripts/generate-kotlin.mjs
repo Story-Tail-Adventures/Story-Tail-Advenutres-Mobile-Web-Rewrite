@@ -42,8 +42,46 @@ const refName = (ref) => ref.replace('#/components/schemas/', '');
 /** SCREAMING_SNAKE for an enum constant, from a wire value like "insurance_cert". */
 const constName = (v) => v.replace(/[^A-Za-z0-9]+/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
 
+/**
+ * Flatten OpenAPI 3.1's nullable forms into `{schema, nullable}`.
+ *
+ * 3.1 dropped `nullable: true` in favour of a type UNION, so a nullable string is
+ * `type: [string, "null"]` and a nullable enum carries a literal `null` among its values.
+ * Both broke this generator when the onboarding schemas were backfilled: the union fell
+ * through to `JsonElement`, silently erasing the type, and `constName(null)` threw outright.
+ *
+ * Nullability belongs on the Kotlin TYPE, not in the enum's members — a Kotlin enum with a
+ * NULL constant would let `NULL` be assigned where the wire format means absent.
+ */
+function denull(schema) {
+  let nullable = false;
+  let out = schema;
+
+  if (Array.isArray(out.type)) {
+    const kinds = out.type.filter((t) => t !== 'null' && t !== null);
+    nullable = kinds.length !== out.type.length;
+    // A union of two real types has no single Kotlin equivalent, so it stays JsonElement —
+    // but that is now a decision rather than an accident, and there are none in the spec.
+    out = { ...out, type: kinds.length === 1 ? kinds[0] : undefined };
+  }
+
+  if (Array.isArray(out.enum) && out.enum.some((v) => v === null)) {
+    nullable = true;
+    out = { ...out, enum: out.enum.filter((v) => v !== null) };
+  }
+
+  return { schema: out, nullable };
+}
+
+/** True for a schema that should become a Kotlin data class. */
+function isObjectSchema(schema) {
+  const { schema: s } = denull(schema);
+  return s.type === 'object' && !!s.properties;
+}
+
 /** The Kotlin type for a property schema, plus any nested enum it needs declared. */
-function kotlinType(name, propName, schema, enums) {
+function kotlinType(name, propName, rawSchema, enums) {
+  const { schema } = denull(rawSchema);
   if (schema.$ref) return refName(schema.$ref);
 
   if (schema.enum) {
@@ -100,14 +138,17 @@ const enums = new Map();
 const bodies = [];
 
 for (const [name, schema] of Object.entries(schemas)) {
-  if (schema.type !== 'object' || !schema.properties) continue;
+  if (!isObjectSchema(schema)) continue;
 
   const required = new Set(schema.required ?? []);
   const props = [];
 
-  for (const [propName, propSchema] of Object.entries(schema.properties)) {
+  for (const [propName, propSchema] of Object.entries(denull(schema).schema.properties)) {
     const type = kotlinType(name, propName, propSchema, enums);
-    const optional = !required.has(propName);
+    // Optional when the spec does not require it, OR when its own type admits null. The
+    // onboarding requests rely on the second: absent means "leave it alone" and explicit
+    // null means "clear it", so none of them carries a `required` list at all.
+    const optional = !required.has(propName) || denull(propSchema).nullable;
     const kotlinName = RESERVED.has(propName) ? `\`${propName}\`` : propName;
 
     const doc = propSchema.description

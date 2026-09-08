@@ -16,9 +16,14 @@
 # 20260907031255_trip_read_policies.sql ARE the read contract; restating them as
 # endpoints would create a second source of truth for the same question.
 #
-# KNOWN GAP: the five shipped `onboarding-*` functions predate this file and are
-# still absent from it. They are described by hand in web/lib/onboarding/api.ts
-# instead. Backfilling them is tracked work, not a decision.
+# The five `onboarding-*` functions predated this file and were backfilled in
+# September 2026. They are described below §2.2's writes.
+#
+# One convention worth knowing before reading them: EVERY field on every
+# onboarding request is optional, and ABSENT is not the same as NULL. Absent
+# means "leave this alone"; explicit null means "clear it". That tri-state is
+# what makes "Skip for now" work — it posts `{}` — and it is why none of the
+# request schemas below carry a `required` list.
 
 openapi: 3.1.0
 
@@ -195,6 +200,185 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # §2.1 Onboarding (2.1.9 – 2.1.14)
+  #
+  # Backfilled September 2026; the functions shipped earlier. Every one of them
+  # POSTs, resolves the traveler from the JWT, and REFUSES an agent — an agent's
+  # `platform_user.client_id` is NULL and there is no wizard for them, so letting
+  # one move a cursor that does not exist would quietly corrupt their row.
+  #
+  # NONE of them accepts a `client_id`. Accepting one would be an IDOR with a
+  # friendly name: the caller would choose whose profile to write.
+  #
+  # `advance: true` moves the wizard cursor after the write succeeds. It is
+  # separate from the write so that "Save" and "Save & continue" are the same
+  # endpoint with one flag, and so a failed write never advances the cursor.
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /onboarding-step:
+    post:
+      operationId: setOnboardingStep
+      summary: Move the wizard cursor, or mark onboarding complete.
+      description: |
+        Screens 2.1.9 – 2.1.14. Writes `platform_user.onboarding_step`, or
+        `onboarding_completed_at` when `complete` is true.
+
+        Send EITHER a known `step` OR `complete: true`. Anything else is a 400 —
+        an unrecognised step would silently strand somebody mid-wizard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingStepRequest'
+      responses:
+        '200':
+          description: The cursor moved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStepResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /onboarding-profile:
+    post:
+      operationId: saveOnboardingProfile
+      summary: Save the traveler's own details. Screen 2.1.10.
+      description: |
+        Writes `client` (phone, date of birth, emergency contact), `address` and
+        the traveler's own `travel_document` row. Audited as `client.updated`.
+
+        THE PASSPORT NUMBER IS NOT ACCEPTED. `travel_document.document_number_encrypted`
+        is Sensitive PII that Data-Model §18.2 requires be encrypted under a
+        backend-held DEK, and none of that is built — collecting a number in
+        order to store it unprotected is worse than not collecting it. Sending
+        `passport.number` is a 400 rather than being ignored, so a caller learns
+        it was not stored instead of discovering later that it never was.
+
+        The mailing address is six structured fields, not one line: there is no
+        free-text address column anywhere in the schema, and `line1`, `city` and
+        `country` are NOT NULL together or absent together.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingProfileRequest'
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingOkResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /onboarding-preferences:
+    post:
+      operationId: saveOnboardingPreferences
+      summary: Save travel preferences. Screen 2.1.11.
+      description: |
+        Writes one `travel_preference` row per client. Every list is validated
+        against the vocabulary in Data-Model §6.2; a value outside it is a 400.
+
+        `dietary` and `accessibility` treat `none` as EXCLUSIVE — "none" plus
+        something else is a contradiction and is refused rather than silently
+        resolved.
+
+        The budget is one of four bands, not a number. Two slider thumbs would
+        be two numbers plus a currency (CLAUDE.md rule 5) to capture a figure
+        the traveler is guessing at, and the bands match `lead.budget_band` so a
+        Phase 2 lead converts without translation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingPreferencesRequest'
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingIdResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /onboarding-companions:
+    post:
+      operationId: saveOnboardingCompanion
+      summary: Add, edit or remove a travel companion. Screen 2.1.12.
+      description: |
+        One companion per call, chosen by `action`. `none` writes nothing and
+        exists so "Save & continue" with an already-complete list can advance
+        the cursor without inventing a row.
+
+        `remove` is a soft delete. A companion who has travelled is referenced
+        by trip history, and a hard delete would take that with them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingCompanionRequest'
+      responses:
+        '200':
+          description: Saved. `id` is null when `action` was `none`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingIdResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /onboarding-connect:
+    post:
+      operationId: redeemConnectCode
+      summary: Redeem an agent's invite code, or decline to. Screen 2.1.13.
+      description: |
+        Links the traveler to the agent who invited them. Audited on both the
+        success and the refusal paths — a burst of guesses has to be countable,
+        which is why a failed attempt is recorded BEFORE the refusal is returned.
+
+        Omitting `code` (or sending null) is a first-class exit: "I don't have a
+        code" writes nothing but the cursor and returns `redeemed: false`.
+
+        Every refusal returns 403 with a `detail` naming the reason — expired,
+        already used, revoked, already connected, claimed by another traveler,
+        or rate limited. The reason is deliberately specific: a traveler holding
+        a code that expired needs to know that, not "invalid code".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingConnectRequest'
+      responses:
+        '200':
+          description: Redeemed, or declined without error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingConnectResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: |
+            The code was refused, or the caller is not a traveler. `detail`
+            names which.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 
 components:
   securitySchemes:
@@ -378,6 +562,260 @@ components:
         submittedAt:
           type: string
           format: date-time
+
+    # ── §2.1 Onboarding ────────────────────────────────────────────────────
+    #
+    # No `required` list on any of these, and that is the contract rather than an
+    # omission: absent means "leave it alone", explicit null means "clear it". A
+    # `required` array would break "Skip for now", which posts `{}`.
+
+    OnboardingStepRequest:
+      type: object
+      properties:
+        step:
+          type: string
+          enum: [profile, preferences, companions, connect, complete]
+          description: >-
+            The step to move the cursor to. Reaching `complete` is not the same
+            as finishing — that is what `complete: true` is for.
+        complete:
+          type: boolean
+          description: >-
+            Marks onboarding finished by setting `onboarding_completed_at`.
+            Mutually exclusive with `step` in practice: this is checked first.
+
+    OnboardingStepResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        step:
+          type: string
+          enum: [profile, preferences, companions, connect, complete]
+          description: Echoed back when the request moved the cursor.
+        completed:
+          type: boolean
+          description: True when the request finished onboarding.
+
+    OnboardingOkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+
+    OnboardingIdResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        id:
+          type: [string, "null"]
+          description: >-
+            The row written. Null when the call wrote nothing — a companions
+            request with `action: none`.
+
+    OnboardingEmergencyContact:
+      type: [object, "null"]
+      description: >-
+        All or nothing. A name with no number looks like a safety net and is not
+        one, so a half-filled contact is a 400 rather than a partial row. Null
+        clears it. Stored as jsonb on `client.emergency_contact`; see
+        Data-Model §6.1.
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+          description: Normalised to E.164, as everywhere else in the schema.
+        relationship:
+          type: [string, "null"]
+
+    OnboardingAddress:
+      type: [object, "null"]
+      description: >-
+        Six structured fields, not one line — `client.mailing_address_id` is a FK
+        to `address` and there is no free-text address column anywhere. `line1`,
+        `city` and `country` are required TOGETHER or the whole object must be
+        absent or null; two of the three is a 400.
+      properties:
+        line1:
+          type: string
+        line2:
+          type: [string, "null"]
+        city:
+          type: string
+        region:
+          type: [string, "null"]
+        postalCode:
+          type: [string, "null"]
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          description: ISO-3166-1 alpha-2, matching `address.country`'s char(2).
+
+    OnboardingPassport:
+      type: [object, "null"]
+      description: >-
+        Expiry and issuing country only. See the endpoint description: sending
+        `number` is a 400, not an ignored field.
+      properties:
+        expiresOn:
+          type: [string, "null"]
+          format: date
+          description: What drives the renewal reminder, and the reason this object exists.
+        issuingCountry:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 2
+
+    OnboardingProfileRequest:
+      type: object
+      properties:
+        phone:
+          type: [string, "null"]
+        dateOfBirth:
+          type: [string, "null"]
+          format: date
+        emergencyContact:
+          $ref: '#/components/schemas/OnboardingEmergencyContact'
+        address:
+          $ref: '#/components/schemas/OnboardingAddress'
+        passport:
+          $ref: '#/components/schemas/OnboardingPassport'
+        advance:
+          type: boolean
+          default: false
+
+    OnboardingLoyaltyProgram:
+      type: object
+      required: [program]
+      description: >-
+        A wholly empty entry is skipped — it is the repeater's last blank line,
+        not a mistake. A number without a program is a 400.
+      properties:
+        program:
+          type: string
+          maxLength: 60
+        number:
+          type: [string, "null"]
+          pattern: '^[A-Za-z0-9-]{1,40}$'
+          description: >-
+            Alphanumeric and hyphens. Anything else is a paste accident, and this
+            is a number somebody will read back to an airline.
+
+    OnboardingPreferencesRequest:
+      type: object
+      description: >-
+        Every list is validated against the vocabulary in Data-Model §6.2. Null
+        clears a list; absent leaves it.
+      properties:
+        destinations:
+          type: [array, "null"]
+          maxItems: 12
+          items:
+            type: string
+            maxLength: 60
+          description: Free text — the wish list is the traveler's, not a menu.
+        travelStyles:
+          type: [array, "null"]
+          items:
+            type: string
+            enum: [resort, cruise, adventure, family, romantic, group]
+        dietary:
+          type: [array, "null"]
+          items:
+            type: string
+            enum: [none, vegetarian, pescatarian, gluten_free, halal]
+          description: '`none` is exclusive — with anything else it is a 400.'
+        dietaryNotes:
+          type: [string, "null"]
+          maxLength: 500
+        accessibility:
+          type: [array, "null"]
+          items:
+            type: string
+            enum: [none, mobility, quiet_room, service_animal]
+          description: '`none` is exclusive, as with dietary.'
+        accessibilityNotes:
+          type: [string, "null"]
+          maxLength: 500
+        favoritePastTrips:
+          type: [string, "null"]
+          maxLength: 1000
+        budgetBand:
+          type: [string, "null"]
+          enum: [budget, mid, premium, luxury, null]
+          description: >-
+            Four bands, not a figure. See the endpoint description for why the
+            prototype's dual-thumb slider did not survive.
+        loyalty:
+          type: [array, "null"]
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/OnboardingLoyaltyProgram'
+        advance:
+          type: boolean
+          default: false
+
+    OnboardingCompanionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [add, edit, remove, none]
+          default: add
+          description: >-
+            `none` writes nothing and exists so "Save & continue" on an already
+            complete list can advance the cursor without inventing a row.
+        id:
+          type: string
+          format: uuid
+          description: Required for `edit` and `remove`.
+        firstName:
+          type: string
+          maxLength: 80
+          description: Required together with lastName for `add` and `edit`.
+        lastName:
+          type: string
+          maxLength: 80
+        relationship:
+          type: [string, "null"]
+          maxLength: 60
+        dateOfBirth:
+          type: [string, "null"]
+          format: date
+        passportExpiry:
+          type: [string, "null"]
+          format: date
+        advance:
+          type: boolean
+          default: false
+
+    OnboardingConnectRequest:
+      type: object
+      properties:
+        code:
+          type: [string, "null"]
+          description: >-
+            The agent's invite code. Omitted or null is "I don't have a code" —
+            a first-class exit, not an error.
+        advance:
+          type: boolean
+          default: false
+
+    OnboardingConnectResponse:
+      type: object
+      required: [ok, redeemed]
+      properties:
+        ok:
+          type: boolean
+        redeemed:
+          type: boolean
+          description: False when the traveler declined to enter a code.
 
     Problem:
       type: object

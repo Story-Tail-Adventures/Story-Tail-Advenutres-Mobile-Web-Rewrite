@@ -291,3 +291,44 @@ Also still true of the desktop file and worth fixing when it is next touched: th
 chip is hardcoded `#D7DFE6`/`#3D352E` inline (`client-trip.jsx:524`) because `.chip-status`
 has no `cancelled` variant, and the documents subtitle claims "Auto-encrypted, share via
 secure link" — jargon, an unverified security claim, and a de-scoped feature in nine words.
+
+### 6. `screens/client-trip.jsx` copy corrections (2026-09-07)
+
+Two strings edited **in place** in the desktop file during the §2.2 stage-10 pass. Both are
+in `C228_EmptyState`, and both will come back on the next sync unless re-applied.
+
+```
+line 455  Gyasi is comparing American and JetBlue for the best Saturday departure window.
+          We'll add flights here once confirmed.
+       →  Gyasi is still working on the flights. They will appear here once they are
+          confirmed.
+
+line 461  Gyasi will book Bayside Friday once she hears back from concierge.
+       →  Gyasi will book Bayside Friday once he hears back from concierge.
+```
+
+**The pronoun is the one to raise upstream.** Gyasi Story is he/him — `supabase/seed.sql` is
+the authority and `web/content/public/proof.ts` carries the same correction for the "mom of
+three" line the prototype had. Getting a real person's pronouns wrong in the design source is
+the kind of thing that leaks into shipped copy every time somebody works from the artboard.
+
+**The carrier narration asserts something no column holds.** Nothing in the schema records
+which airlines an advisor is comparing, so an empty state cannot say it. Screen-Inventory's
+own worked example for these states says what is true and stops. The built 2.2.8 uses the
+replacement above on both stacks.
+
+Still outstanding in the same file, unedited, and worth doing when it is next touched:
+
+- **`client-trip.jsx:524` hardcodes the cancelled chip** as `#D7DFE6`/`#3D352E` inline
+  because `.chip-status` had no `cancelled` variant. The token now exists (added in the
+  shared-spine commit), so the inline style can go.
+- **The reply-time strings.** The desktop and mobile artboards carry five different
+  promises between them — `client-trip.jsx:206`, `client-messaging.jsx:9`/`:59`/`:155`,
+  `client-search.jsx:281`, `client-auth.jsx:412`, `client-public-mobile.jsx:114`/`:752`,
+  `client-public-topics.jsx:375`/`:390`, `agent-reports-settings.jsx:269` — ranging from
+  "reply in < 2h" to "within 48 hours". §2.2 settled the authenticated surface on "Usually
+  replies the same day" and `client-trip-mobile.jsx` already says it. The public figures
+  live in `web/content/public/proof.ts` as **unverified** claims, fenced by
+  `PUBLIC_CLAIMS_MODE=strict` (which fails `next build`), so nothing false can ship — but
+  the artboards should be brought to one number once Gyasi measures it. See the note on
+  `avgReplyTime` in that file.

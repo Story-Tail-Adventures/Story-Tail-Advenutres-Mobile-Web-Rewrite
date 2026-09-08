@@ -351,11 +351,17 @@ The brand mark switches glyph based on theme: book/fox logo in light, palm/sun l
 
 ### 9.2 Navigation Rail (`StaNavRail`)
 
-88px wide vertical rail with stacked icon+label items. The active item gets a pill-shaped 56×32 highlight using `md.secondaryContainer`. Used on web for agent and authenticated client screens.
+**72px** wide vertical rail with stacked icon+label items. The active item gets a pill-shaped **46×26** highlight using `md.secondaryContainer`. Used on web for agent and authenticated client screens.
+
+> Amended September 2026. This said 88px with a 56×32 pill; the prototype's own `ScreenNavRail` draws 72px with a 46×26 pill, and Gyasi settled it in the prototype's favour on 2026-09-06. Built at those numbers in `web/styles/client.css` (`.client-rail`, `.client-rail-item > .pill`). **Web only** — a phone gets §9.3's bottom bar instead, so there is no rail in the Compose shell and nothing to keep in step. The 9.5px label sets the floor: six destinations have to read at a glance, and 72px is the narrowest column that fits "Documents" without truncating.
 
 ### 9.3 Bottom Tab Bar (Mobile)
 
-5 tabs: Home, Trips, Search, Messages, Profile (client) or Worklist, Clients, Messages, More (agent). Native iOS/Android conventions.
+**4** tabs: Trips, Discover, Messages, Account (client) or Worklist, Clients, Messages, More (agent). Native iOS/Android conventions. The active tab gets a pill-shaped **56×28** highlight in `md.secondaryContainer` — wider and shorter than §9.2's rail pill, because a tab label sits beside a thumb rather than in a 72px column.
+
+> Amended September 2026. The client set was five — Home, Trips, Search, Messages, Profile — with a floating Help button. Home folded into Trips (the dashboard *is* that tab's root), Search became **Discover** because it is a curated catalog until the Phase 2 API lands and "Search" promises a query box that does not exist, Profile became **Account** to match the rail, and the Help FAB is gone. Screen-Inventory §6.3 carries the full reasoning. Note the agent set was already four, so both roles now agree on the count.
+>
+> A destination with no screen yet stays **visible and dimmed** rather than being filtered out. A bar that grows a tab per release moves every other tab under the user's thumb, and muscle memory is most of why a bottom bar is worth having.
 
 ### 9.4 Hero Countdown Card (Client Dashboard)
 

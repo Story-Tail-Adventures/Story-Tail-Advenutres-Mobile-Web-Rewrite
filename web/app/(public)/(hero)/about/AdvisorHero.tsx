@@ -25,7 +25,7 @@ export function AdvisorHero({ overline, title, script, lead, primary, secondary 
   return (
     <section className="hero-advisor on-photo relative overflow-hidden">
       <div className="advisor-hero-grid min-h-95">
-        <div className="flex flex-col justify-center px-4.5 pt-20 pb-55 text-white md:px-8 md:py-13 web:px-14">
+        <div className="flex flex-col justify-center px-4.5 pt-20 pb-55 text-white md:max-web:px-8 md:py-13 web:px-14">
           <p className="t-label-s mb-2.5 text-brand-gold">{overline}</p>
           <h1 className="t-hero-l text-white">
             {title} <span className="t-hero-script-xl text-brand-gold">{script}</span>

@@ -15,7 +15,7 @@ export interface Stat {
 export function StatStrip({ stats }: { stats: readonly Stat[] }) {
   return (
     <div className="border-b border-outline-variant bg-surface-1">
-      <Container size="wide" className="px-0 md:px-8 web:px-12">
+      <Container size="wide" className="px-0 md:max-web:px-8 web:px-12">
         <dl className="grid grid-cols-4 md:gap-6 md:py-6">
           {stats.map((stat, index) => (
             <div

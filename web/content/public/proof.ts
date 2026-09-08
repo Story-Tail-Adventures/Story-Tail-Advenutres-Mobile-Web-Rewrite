@@ -53,6 +53,19 @@ export const CLAIMS: Record<ClaimId, Claim> = {
   travelersServed: { display: "240+", detail: "Travelers served", verified: false },
   ratingValue: { display: "4.9", detail: "Average rating", verified: false },
   reviewCount: { display: "138", detail: "Reviews", verified: false },
+  /**
+   * VERIFYING THIS ONE MEANS RECONCILING IT WITH §2.2, not just flipping the flag.
+   *
+   * Three reply-time promises existed across the app. §2.2 settled on "Usually replies the
+   * same day" — see `web/lib/trips/thread.ts` — and §2.1's completion screen already said
+   * it, so the authenticated surface is consistent. These two registry entries are the
+   * public surface's, still carrying the artboards' figures verbatim by user decision.
+   *
+   * Whoever measures the real number should either bring §2.2's string here or bring this
+   * figure there, in the same change. Setting `verified: true` on "< 2h" while the trip
+   * screens promise "the same day" would ship a public claim the product contradicts the
+   * moment somebody logs in — and it is the public one that is legally a marketing claim.
+   */
   avgReplyTime: { display: "< 2h", detail: "Avg reply time", verified: false },
   yearsSpecialist: { display: "5 yrs", detail: "Caribbean specialist", verified: false },
   credInteletravel: {
@@ -85,6 +98,7 @@ export const CLAIMS: Record<ClaimId, Claim> = {
     display: "I sail with each line at least once a year, so the recommendation isn't a brochure — it's lived.",
     verified: false,
   },
+  /** Same reconciliation as `avgReplyTime` above, and note these two already disagree. */
   replyWithin48h: { display: "within 48 hours", verified: false },
   islandsPlannedAll: {
     display: "Twelve islands. One advisor who's planned every one of them.",

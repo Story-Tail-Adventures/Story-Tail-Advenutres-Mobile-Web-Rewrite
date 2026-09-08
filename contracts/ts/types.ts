@@ -112,6 +112,147 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/onboarding-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move the wizard cursor, or mark onboarding complete.
+         * @description Screens 2.1.9 – 2.1.14. Writes `platform_user.onboarding_step`, or
+         *     `onboarding_completed_at` when `complete` is true.
+         *
+         *     Send EITHER a known `step` OR `complete: true`. Anything else is a 400 —
+         *     an unrecognised step would silently strand somebody mid-wizard.
+         */
+        post: operations["setOnboardingStep"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save the traveler's own details. Screen 2.1.10.
+         * @description Writes `client` (phone, date of birth, emergency contact), `address` and
+         *     the traveler's own `travel_document` row. Audited as `client.updated`.
+         *
+         *     THE PASSPORT NUMBER IS NOT ACCEPTED. `travel_document.document_number_encrypted`
+         *     is Sensitive PII that Data-Model §18.2 requires be encrypted under a
+         *     backend-held DEK, and none of that is built — collecting a number in
+         *     order to store it unprotected is worse than not collecting it. Sending
+         *     `passport.number` is a 400 rather than being ignored, so a caller learns
+         *     it was not stored instead of discovering later that it never was.
+         *
+         *     The mailing address is six structured fields, not one line: there is no
+         *     free-text address column anywhere in the schema, and `line1`, `city` and
+         *     `country` are NOT NULL together or absent together.
+         */
+        post: operations["saveOnboardingProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save travel preferences. Screen 2.1.11.
+         * @description Writes one `travel_preference` row per client. Every list is validated
+         *     against the vocabulary in Data-Model §6.2; a value outside it is a 400.
+         *
+         *     `dietary` and `accessibility` treat `none` as EXCLUSIVE — "none" plus
+         *     something else is a contradiction and is refused rather than silently
+         *     resolved.
+         *
+         *     The budget is one of four bands, not a number. Two slider thumbs would
+         *     be two numbers plus a currency (CLAUDE.md rule 5) to capture a figure
+         *     the traveler is guessing at, and the bands match `lead.budget_band` so a
+         *     Phase 2 lead converts without translation.
+         */
+        post: operations["saveOnboardingPreferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding-companions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add, edit or remove a travel companion. Screen 2.1.12.
+         * @description One companion per call, chosen by `action`. `none` writes nothing and
+         *     exists so "Save & continue" with an already-complete list can advance
+         *     the cursor without inventing a row.
+         *
+         *     `remove` is a soft delete. A companion who has travelled is referenced
+         *     by trip history, and a hard delete would take that with them.
+         */
+        post: operations["saveOnboardingCompanion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/onboarding-connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem an agent's invite code, or decline to. Screen 2.1.13.
+         * @description Links the traveler to the agent who invited them. Audited on both the
+         *     success and the refusal paths — a burst of guesses has to be countable,
+         *     which is why a failed attempt is recorded BEFORE the refusal is returned.
+         *
+         *     Omitting `code` (or sending null) is a first-class exit: "I don't have a
+         *     code" writes nothing but the cursor and returns `redeemed: false`.
+         *
+         *     Every refusal returns 403 with a `detail` naming the reason — expired,
+         *     already used, revoked, already connected, claimed by another traveler,
+         *     or rate limited. The reason is deliberately specific: a traveler holding
+         *     a code that expired needs to know that, not "invalid code".
+         */
+        post: operations["redeemConnectCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -218,6 +359,130 @@ export interface components {
             status: "draft" | "submitted";
             /** Format: date-time */
             submittedAt?: string;
+        };
+        OnboardingStepRequest: {
+            /**
+             * @description The step to move the cursor to. Reaching `complete` is not the same as finishing — that is what `complete: true` is for.
+             * @enum {string}
+             */
+            step?: "profile" | "preferences" | "companions" | "connect" | "complete";
+            /** @description Marks onboarding finished by setting `onboarding_completed_at`. Mutually exclusive with `step` in practice: this is checked first. */
+            complete?: boolean;
+        };
+        OnboardingStepResponse: {
+            ok: boolean;
+            /**
+             * @description Echoed back when the request moved the cursor.
+             * @enum {string}
+             */
+            step?: "profile" | "preferences" | "companions" | "connect" | "complete";
+            /** @description True when the request finished onboarding. */
+            completed?: boolean;
+        };
+        OnboardingOkResponse: {
+            ok: boolean;
+        };
+        OnboardingIdResponse: {
+            ok: boolean;
+            /** @description The row written. Null when the call wrote nothing — a companions request with `action: none`. */
+            id?: string | null;
+        };
+        /** @description All or nothing. A name with no number looks like a safety net and is not one, so a half-filled contact is a 400 rather than a partial row. Null clears it. Stored as jsonb on `client.emergency_contact`; see Data-Model §6.1. */
+        OnboardingEmergencyContact: {
+            name?: string;
+            /** @description Normalised to E.164, as everywhere else in the schema. */
+            phone?: string;
+            relationship?: string | null;
+        } | null;
+        /** @description Six structured fields, not one line — `client.mailing_address_id` is a FK to `address` and there is no free-text address column anywhere. `line1`, `city` and `country` are required TOGETHER or the whole object must be absent or null; two of the three is a 400. */
+        OnboardingAddress: {
+            line1?: string;
+            line2?: string | null;
+            city?: string;
+            region?: string | null;
+            postalCode?: string | null;
+            /** @description ISO-3166-1 alpha-2, matching `address.country`'s char(2). */
+            country?: string;
+        } | null;
+        /** @description Expiry and issuing country only. See the endpoint description: sending `number` is a 400, not an ignored field. */
+        OnboardingPassport: {
+            /**
+             * Format: date
+             * @description What drives the renewal reminder, and the reason this object exists.
+             */
+            expiresOn?: string | null;
+            issuingCountry?: string | null;
+        } | null;
+        OnboardingProfileRequest: {
+            phone?: string | null;
+            /** Format: date */
+            dateOfBirth?: string | null;
+            emergencyContact?: components["schemas"]["OnboardingEmergencyContact"];
+            address?: components["schemas"]["OnboardingAddress"];
+            passport?: components["schemas"]["OnboardingPassport"];
+            /** @default false */
+            advance: boolean;
+        };
+        /** @description A wholly empty entry is skipped — it is the repeater's last blank line, not a mistake. A number without a program is a 400. */
+        OnboardingLoyaltyProgram: {
+            program: string;
+            /** @description Alphanumeric and hyphens. Anything else is a paste accident, and this is a number somebody will read back to an airline. */
+            number?: string | null;
+        };
+        /** @description Every list is validated against the vocabulary in Data-Model §6.2. Null clears a list; absent leaves it. */
+        OnboardingPreferencesRequest: {
+            /** @description Free text — the wish list is the traveler's, not a menu. */
+            destinations?: string[] | null;
+            travelStyles?: ("resort" | "cruise" | "adventure" | "family" | "romantic" | "group")[] | null;
+            /** @description `none` is exclusive — with anything else it is a 400. */
+            dietary?: ("none" | "vegetarian" | "pescatarian" | "gluten_free" | "halal")[] | null;
+            dietaryNotes?: string | null;
+            /** @description `none` is exclusive, as with dietary. */
+            accessibility?: ("none" | "mobility" | "quiet_room" | "service_animal")[] | null;
+            accessibilityNotes?: string | null;
+            favoritePastTrips?: string | null;
+            /**
+             * @description Four bands, not a figure. See the endpoint description for why the prototype's dual-thumb slider did not survive.
+             * @enum {string|null}
+             */
+            budgetBand?: "budget" | "mid" | "premium" | "luxury" | null;
+            loyalty?: components["schemas"]["OnboardingLoyaltyProgram"][] | null;
+            /** @default false */
+            advance: boolean;
+        };
+        OnboardingCompanionRequest: {
+            /**
+             * @description `none` writes nothing and exists so "Save & continue" on an already complete list can advance the cursor without inventing a row.
+             * @default add
+             * @enum {string}
+             */
+            action: "add" | "edit" | "remove" | "none";
+            /**
+             * Format: uuid
+             * @description Required for `edit` and `remove`.
+             */
+            id?: string;
+            /** @description Required together with lastName for `add` and `edit`. */
+            firstName?: string;
+            lastName?: string;
+            relationship?: string | null;
+            /** Format: date */
+            dateOfBirth?: string | null;
+            /** Format: date */
+            passportExpiry?: string | null;
+            /** @default false */
+            advance: boolean;
+        };
+        OnboardingConnectRequest: {
+            /** @description The agent's invite code. Omitted or null is "I don't have a code" — a first-class exit, not an error. */
+            code?: string | null;
+            /** @default false */
+            advance: boolean;
+        };
+        OnboardingConnectResponse: {
+            ok: boolean;
+            /** @description False when the traveler declined to enter a code. */
+            redeemed: boolean;
         };
         /** @description RFC 7807 problem details. Every error response uses this shape. */
         Problem: {
@@ -383,6 +648,152 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    setOnboardingStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingStepRequest"];
+            };
+        };
+        responses: {
+            /** @description The cursor moved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStepResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    saveOnboardingProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingOkResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    saveOnboardingPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingPreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingIdResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    saveOnboardingCompanion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingCompanionRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved. `id` is null when `action` was `none`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingIdResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    redeemConnectCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingConnectRequest"];
+            };
+        };
+        responses: {
+            /** @description Redeemed, or declined without error. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingConnectResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /**
+             * @description The code was refused, or the caller is not a traveler. `detail`
+             *     names which.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
 }

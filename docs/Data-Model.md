@@ -1579,6 +1579,12 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `id` | `uuid` | No | Public | — |
 | `message_id` | `uuid` | No | Public | FK → Message |
 | `document_id` | `uuid` | No | Public | FK → Document |
+| `created_at` | `timestamptz` | No | Public | Default `now()` |
+
+**No `updated_at`, deliberately.** An attachment is a join row: it is created when a message
+is sent and deleted if the message is, and there is no field on it a later write could change.
+Every other table in this document carries both timestamps, so the absence is worth stating
+rather than looking like an omission.
 
 ### 12.4 MessageTemplate
 

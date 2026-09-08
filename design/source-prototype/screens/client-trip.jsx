@@ -452,13 +452,13 @@ function C228_EmptyState() {
           <Icon name="plane" size={28}/>
         </span>
         <div className="t-title-l">Your flights aren't booked yet</div>
-        <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', maxWidth: 460, margin: '6px auto 16px' }}>Gyasi is comparing American and JetBlue for the best Saturday departure window. We'll add flights here once confirmed.</p>
+        <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', maxWidth: 460, margin: '6px auto 16px' }}>Gyasi is still working on the flights. They will appear here once they are confirmed.</p>
         <button className="btn btn-tonal"><Icon name="message" size={14}/> Ask Gyasi where things stand</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
         {[
-          { i: 'utensils', t: 'No dining reserved yet', s: 'Gyasi will book Bayside Friday once she hears back from concierge.' },
+          { i: 'utensils', t: 'No dining reserved yet', s: 'Gyasi will book Bayside Friday once he hears back from concierge.' },
           { i: 'sparkle', t: 'Day 4 — Open day', s: 'Nothing planned. Tell us if you\'d like a tour or some pool time and we\'ll add it.' },
         ].map((c) => (
           <div key={c.t} className="card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start', border: '1.5px dashed var(--md-outline-variant)' }}>
