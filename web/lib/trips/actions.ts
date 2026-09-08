@@ -125,3 +125,61 @@ function uuidV7(): string {
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+
+export type ReflectionState =
+  | { status: "idle" }
+  | { status: "saved" | "submitted" }
+  | { status: "error"; message: string; draft: string };
+
+/**
+ * Save or submit a reflection, for screen 2.2.11.
+ *
+ * The id is minted here on a first write and re-sent on later ones, but the FUNCTION decides
+ * which row it lands on: it looks the reflection up by `(client_id, trip_id)`, because
+ * `testimonial_client_trip` is unique on that pair and a second reflection on one trip is an
+ * edit. So a traveler coming back on another device edits their reflection rather than
+ * hitting a duplicate-key error — see supabase/functions/testimonial/index.ts.
+ */
+export async function saveReflection(
+  tripId: string,
+  _previous: ReflectionState,
+  formData: FormData,
+): Promise<ReflectionState> {
+  const raw = formData.get("body");
+  const body = typeof raw === "string" ? raw.trim() : "";
+  if (body.length === 0) return { status: "idle" };
+
+  const submit = formData.get("intent") === "submit";
+  const existingId = formData.get("testimonialId");
+
+  const result = await callTripFunction("testimonial", {
+    method: "POST",
+    body: {
+      testimonialId: typeof existingId === "string" && existingId ? existingId : uuidV7(),
+      tripId,
+      body,
+      submit,
+    },
+  });
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.kind === "rejected" && result.detail ? result.detail : MEMORIES_SAVE_FAILED,
+      draft: body,
+    };
+  }
+
+  refresh();
+  return { status: submit ? "submitted" : "saved" };
+}
+
+/**
+ * Duplicated from `MEMORIES.reflectionFailed` rather than imported.
+ *
+ * A "use server" module's imports all land in the server bundle, and this file is imported
+ * by client components for its action references — pulling a per-screen content module in
+ * here to reach one string would drag that screen's whole copy table along with it.
+ */
+const MEMORIES_SAVE_FAILED =
+  "That did not save. Your words are still here, so try again in a moment.";

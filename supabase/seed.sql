@@ -488,6 +488,35 @@ INSERT INTO public.itinerary_day (id, itinerary_id, day_number, date, label, sum
 VALUES ('0195a2c0-1a00-7000-8000-000000000086', '0195a2c0-1a00-7000-8000-000000000085',
         1, current_date + 150, 'DRAFT arrival', 'placeholder');
 
+-- The PAST trip's itinerary, published and closed out. Screen 2.2.11.
+--
+-- Its `closing_note` is the whole reason this row exists. 2.2.11's leading element is "a
+-- note from Gyasi", which `loadPastTrip` prefers `closing_note` for — an intro note reads
+-- oddly in the past tense — and without a published itinerary on a COMPLETED trip that card
+-- never rendered and the "itinerary, as it was" link went to an empty state. A fixture that
+-- leaves a screen's primary element unexercised is how it ships looking half-built.
+INSERT INTO public.itinerary (id, trip_id, intro_note, closing_note, published_at, last_published_at)
+VALUES (
+    '0195a2c0-1a00-7000-8000-000000000090',
+    '0195a2c0-1a00-7000-8000-000000000044',
+    'Four of you, seven nights, and one job: be somewhere the kids can run and you can stop.',
+    -- Design-System §2.4 names gratitude as this screen's register, and the closing note is
+    -- where Gyasi actually writes it.
+    'Seven nights of reef, family and salt air. Thank you for letting me hold the details. Welcome home.',
+    now() - interval '18 months',
+    now() - interval '18 months'
+);
+
+INSERT INTO public.itinerary_day (id, itinerary_id, day_number, date, label, summary) VALUES
+    ('0195a2c0-1a00-7000-8000-000000000091', '0195a2c0-1a00-7000-8000-000000000090', 1,
+     -- `::date`, because `current_date - interval` is a TIMESTAMP and `timestamp + integer`
+     -- is not an operator — the day-2 row below needs the cast to add a day at all.
+     (current_date - interval '18 months')::date, 'Arrival · Providenciales',
+     'Landed late morning. The kids were in the water before the bags were up.'),
+    ('0195a2c0-1a00-7000-8000-000000000092', '0195a2c0-1a00-7000-8000-000000000090', 2,
+     (current_date - interval '18 months')::date + 1, 'Bight Reef',
+     'Snorkelling straight off the beach, then the Sesame Street breakfast.');
+
 -- ── Payment milestones (trip 0040) ──────────────────────────────────────────
 -- Sums to total_value_cents 1284500; paid sums to total_paid_cents 500000.
 

@@ -6,7 +6,9 @@ import com.storytail.adventures.api.ItineraryView
 import com.storytail.adventures.api.TripDetailSnapshot
 import com.storytail.adventures.api.TripFilter
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.PastTripSnapshot
 import com.storytail.adventures.api.SendMessageOutcome
+import com.storytail.adventures.api.StatusChangeSnapshot
 import com.storytail.adventures.api.SignedDocument
 import com.storytail.adventures.api.TripDocumentsSnapshot
 import com.storytail.adventures.api.TripThreadSnapshot
@@ -255,6 +257,108 @@ class ThreadViewModel(
                     _sendError.value = outcome.detail ?: ThreadMessages.SEND_FAILED
             }
             _sending.value = false
+        }
+    }
+}
+
+/**
+ * Screen 2.2.11.
+ *
+ * THE DRAFT LIVES HERE for the same reason the thread's does: a rotation must not throw away
+ * what somebody wrote about their own holiday. The reflection is loaded with the trip, so a
+ * traveler returning to an unfinished draft finds it in the box.
+ */
+class PastTripViewModel(
+    private val trips: TripRepository,
+    private val tripId: String,
+    private val today: LocalDate,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<Loadable<PastTripSnapshot>>(Loadable.Loading)
+    val state: StateFlow<Loadable<PastTripSnapshot>> = _state.asStateFlow()
+
+    private val _draft = MutableStateFlow("")
+    val draft: StateFlow<String> = _draft.asStateFlow()
+
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
+    /** Null until something happens; then either a failure or a confirmation to show. */
+    private val _notice = MutableStateFlow<ReflectionNotice?>(null)
+    val notice: StateFlow<ReflectionNotice?> = _notice.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        _state.value = Loadable.Loading
+        viewModelScope.launch {
+            val result = trips.pastTrip(tripId, today)
+            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+            // Seed the box from an existing DRAFT only. A submitted reflection is read-only,
+            // and prefilling the editor with it would invite an edit the server refuses.
+            val reflection = result?.reflection
+            if (reflection != null && reflection.editable) _draft.value = reflection.body
+        }
+    }
+
+    fun changeDraft(next: String) {
+        _draft.value = next
+        if (_notice.value != null) _notice.value = null
+    }
+
+    fun save(submit: Boolean) {
+        val body = _draft.value.trim()
+        if (body.isEmpty() || _saving.value) return
+
+        _saving.value = true
+        _notice.value = null
+        viewModelScope.launch {
+            val existingId = (_state.value as? Loadable.Ready)?.value?.reflection?.id
+            when (val outcome = trips.saveReflection(tripId, body, existingId, submit)) {
+                SendMessageOutcome.Sent -> {
+                    _notice.value = if (submit) ReflectionNotice.Submitted else ReflectionNotice.Saved
+                    // Reload so the screen learns the new status from the server rather than
+                    // assuming it — the function is what decides whether this row is now
+                    // frozen, and the read-only card is driven off that.
+                    val refreshed = trips.pastTrip(tripId, today)
+                    if (refreshed != null) _state.value = Loadable.Ready(refreshed)
+                }
+
+                is SendMessageOutcome.Failed ->
+                    _notice.value = ReflectionNotice.Failed(outcome.detail)
+            }
+            _saving.value = false
+        }
+    }
+}
+
+sealed interface ReflectionNotice {
+    data object Saved : ReflectionNotice
+    data object Submitted : ReflectionNotice
+    data class Failed(val detail: String?) : ReflectionNotice
+}
+
+/** Screen 2.2.9. A read-only landing, so there is nothing here but the load. */
+class StatusChangeViewModel(
+    private val trips: TripRepository,
+    private val tripId: String,
+    private val today: LocalDate,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<Loadable<StatusChangeSnapshot>>(Loadable.Loading)
+    val state: StateFlow<Loadable<StatusChangeSnapshot>> = _state.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        _state.value = Loadable.Loading
+        viewModelScope.launch {
+            val result = trips.statusChange(tripId, today)
+            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
         }
     }
 }

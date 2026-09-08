@@ -124,9 +124,18 @@ SELECT pg_temp.assert(
     'trip_component — the insurance component is readable (Important info reads it)');
 
 -- ── itinerary: THE DRAFT GATE ───────────────────────────────────────────────
+-- THE INVARIANT, not a fixture count. This asserted `count(*) = 1` and broke the moment the
+-- seed grew a published itinerary for the past trip (2.2.11 needs one — its closing note is
+-- that screen's leading element). The policy being tested is "every itinerary a client can
+-- see is published", which is true for one row or fifty, so that is what it now says.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.itinerary') = 1,
-    'itinerary — sees exactly one, the published itinerary');
+    pg_temp.count_of(
+      'SELECT count(*) FROM public.itinerary WHERE published_at IS NULL') = 0,
+    'itinerary — every itinerary the client can see is published (published_at gate)');
+
+SELECT pg_temp.assert(
+    pg_temp.count_of('SELECT count(*) FROM public.itinerary') >= 1,
+    'itinerary — at least one IS visible, so the gate is not just refusing everything');
 
 SELECT pg_temp.assert(
     pg_temp.count_of('SELECT count(*) FROM public.itinerary WHERE id = ''0195a2c0-1a00-7000-8000-000000000085''') = 0,
@@ -141,8 +150,11 @@ SELECT pg_temp.expect_denied(
     'SELECT version FROM public.itinerary LIMIT 1',
     'itinerary.version — withheld (concurrency bookkeeping)');
 
+-- Six: four on the booked trip, two on the past one. The draft's single day is the point —
+-- it must not be among them, which the next assertion states directly rather than leaving
+-- to arithmetic on this total.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.itinerary_day') = 4,
+    pg_temp.count_of('SELECT count(*) FROM public.itinerary_day') = 6,
     'itinerary_day — sees the four days of the published itinerary only');
 
 SELECT pg_temp.assert(

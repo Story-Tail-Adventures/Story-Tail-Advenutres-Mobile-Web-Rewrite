@@ -210,7 +210,7 @@ fun App() {
             is AppRoute.TripDocuments,
             is AppRoute.TripThread,
             is AppRoute.PastTrip,
-            is AppRoute.CancelledTrip,
+            is AppRoute.TripUpdate,
             -> {
                 val scope = rememberCoroutineScope()
                 // The §2.2 section host, matching how PublicRoute and OnboardingRoute are

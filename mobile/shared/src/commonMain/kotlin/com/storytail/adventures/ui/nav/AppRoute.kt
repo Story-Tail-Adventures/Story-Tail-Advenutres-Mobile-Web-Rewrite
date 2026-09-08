@@ -175,13 +175,29 @@ sealed interface AppRoute {
      * every other screen had an exact path. A past trip is a different screen — a gallery
      * and a note, not tiles and a payment timeline — so it gets its own route, and
      * [TripDetail] redirects to it rather than growing a second body.
+     *
+     * 2.2.10 WENT THE OTHER WAY, and there was a `CancelledTrip` route here for a while
+     * before it was removed unused. A cancelled trip genuinely IS the overview with a
+     * different summary card: same hero, same identity, a cancellation summary where the
+     * tiles were. §4.4 calls it a "Pattern C variant" and that is how both stacks build it.
+     * The plan's consistency argument — that every screen should be pinned to a path — is
+     * still satisfied, because `/trips/[id]` for a cancelled trip IS that path and a
+     * notification can link straight to it.
      */
     data class PastTrip(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
-    /** Screen 2.2.10. Same reasoning as [PastTrip]. */
-    data class CancelledTrip(val tripId: String) : AppRoute {
+    /**
+     * Screen 2.2.9, the notification landing.
+     *
+     * A ROUTE and not a sheet, which is where this departs from both artboards — they draw
+     * it over a dimmed dashboard. §2.2.9's entry points are "push or email notification", so
+     * the case that has to work is arriving COLD, from a tap, with the app not running, and a
+     * sheet has nothing to arrive at. The sheet presentation belongs to §2.6's notification
+     * centre.
+     */
+    data class TripUpdate(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }

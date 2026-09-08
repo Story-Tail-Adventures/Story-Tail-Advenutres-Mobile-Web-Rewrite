@@ -12,11 +12,13 @@ import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.ktor.client.request.url
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpMethod
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -77,7 +79,58 @@ interface TripRepository {
 
     /** Send a message on a trip thread, for 2.2.7's compose bar. */
     suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome
+
+    /** Screen 2.2.11. Null when the trip is not the caller's. */
+    suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot?
+
+    /** Screen 2.2.9, the notification landing. */
+    suspend fun statusChange(tripId: String, today: LocalDate): StatusChangeSnapshot?
+
+    /** Save or submit a reflection, for 2.2.11. */
+    suspend fun saveReflection(
+        tripId: String,
+        body: String,
+        existingId: String?,
+        submit: Boolean,
+    ): SendMessageOutcome
 }
+
+data class ClientReflection(
+    val id: String,
+    val body: String,
+    val rating: Int?,
+    val status: String,
+) {
+    /** False once it leaves `draft` — the Edge Function refuses edits after that. */
+    val editable: Boolean get() = status == "draft"
+}
+
+data class PastTripSnapshot(
+    val trip: TripSummary,
+    /** `itinerary.closing_note` if readable, else `intro_note`. See the web twin for why. */
+    val noteFromGyasi: String?,
+    val photos: List<TripDocumentView>,
+    val documentCount: Int,
+    val itineraryReady: Boolean,
+    val nights: Int?,
+    val reflection: ClientReflection?,
+)
+
+data class SentProposal(
+    val id: String,
+    val coverTitle: String?,
+    val versionNumber: Int,
+    val sentAt: String?,
+)
+
+data class StatusChangeSnapshot(
+    val trip: TripSummary,
+    /** `trip.status_changed_at`. Null is a real state — a trip whose status never moved. */
+    val changedAt: String?,
+    val proposal: SentProposal?,
+    val itineraryReady: Boolean,
+    val nextPayment: PaymentMilestoneView?,
+)
 
 data class TripDocumentView(
     val id: String,
@@ -287,6 +340,14 @@ class UnconfiguredTripRepository : TripRepository {
     override suspend fun signDocumentUrl(documentId: String): SignedDocument = SignedDocument.Failed
     override suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome =
         SendMessageOutcome.Failed(null)
+    override suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot? = null
+    override suspend fun statusChange(tripId: String, today: LocalDate): StatusChangeSnapshot? = null
+    override suspend fun saveReflection(
+        tripId: String,
+        body: String,
+        existingId: String?,
+        submit: Boolean,
+    ): SendMessageOutcome = SendMessageOutcome.Failed(null)
 }
 
 /** Which statuses each tab shows. Mirrors FILTER_STATUSES in web/lib/trips/queries.ts. */
@@ -887,6 +948,204 @@ class SupabaseTripRepository(
         return SendMessageOutcome.Failed(detail)
     }
 
+    override suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot? {
+        val row = read {
+            client.postgrest.from("trip")
+                .select(
+                    Columns.list(
+                        "id", "title", "trip_type", "status", "start_date", "end_date",
+                        "destinations", "traveler_count", "total_value_cents",
+                        "total_paid_cents", "currency",
+                    ),
+                ) {
+                    filter { eq("id", tripId) }
+                    limit(1)
+                }
+                .decodeList<TripRow>()
+                .firstOrNull()
+        } ?: return null
+
+        val itinerary = read {
+            client.postgrest.from("itinerary")
+                .select(Columns.list("id", "intro_note", "closing_note", "published_at")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<ItineraryDetailRow>()
+                .firstOrNull()
+        }
+
+        val documents = read {
+            client.postgrest.from("document")
+                .select(
+                    Columns.list(
+                        "id", "owner_user_id", "kind", "filename",
+                        "mime_type", "size_bytes", "created_at",
+                    ),
+                ) {
+                    filter { eq("trip_id", tripId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<DocumentRow>()
+        }.orEmpty()
+
+        val reflection = read {
+            client.postgrest.from("testimonial")
+                .select(Columns.list("id", "body", "rating", "status")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<TestimonialRow>()
+                .firstOrNull()
+        }
+
+        val myUserId = currentPlatformUserId()
+        val views = documents.map { it.toView(myUserId) }
+
+        return PastTripSnapshot(
+            trip = row.toSummary(today),
+            // `closing_note` first: an intro note reads oddly in the past tense, and the
+            // closing note is where Gyasi writes the gratitude Design-System §2.4 names as
+            // this screen's register. Same derivation as the web twin.
+            noteFromGyasi = itinerary?.closing_note ?: itinerary?.intro_note,
+            photos = views.filter { it.kind == "photo" },
+            documentCount = views.size,
+            itineraryReady = itinerary?.published_at != null,
+            // Nights, computed here rather than borrowed from `nightsBetween` in
+            // ui/components/client/TripParts.kt — that is a UI helper, and the api layer
+            // pulling from the ui one is the wrong direction.
+            nights = run {
+                val from = row.start_date?.let(::parseDate)
+                val to = row.end_date?.let(::parseDate)
+                if (from != null && to != null) from.daysUntil(to) else null
+            },
+            reflection = reflection?.let {
+                ClientReflection(it.id, it.body, it.rating, it.status)
+            },
+        )
+    }
+
+    override suspend fun statusChange(tripId: String, today: LocalDate): StatusChangeSnapshot? {
+        val row = read {
+            client.postgrest.from("trip")
+                .select(
+                    Columns.list(
+                        "id", "title", "trip_type", "status", "status_changed_at", "start_date",
+                        "end_date", "destinations", "traveler_count", "total_value_cents",
+                        "total_paid_cents", "currency",
+                    ),
+                ) {
+                    filter { eq("id", tripId) }
+                    limit(1)
+                }
+                .decodeList<StatusChangeRow>()
+                .firstOrNull()
+        } ?: return null
+
+        // `sent_at` NOT NULL, because an unsent proposal is a draft Gyasi is still writing —
+        // the seed keeps one deliberately and the read policy lets it through, so the filter
+        // has to be here. Newest version first.
+        val proposal = read {
+            client.postgrest.from("proposal")
+                .select(Columns.list("id", "cover_title", "version_number", "sent_at")) {
+                    filter {
+                        eq("trip_id", tripId)
+                        filterNot("sent_at", FilterOperator.IS, "null")
+                    }
+                    order("version_number", Order.DESCENDING)
+                    limit(1)
+                }
+                .decodeList<ProposalRow>()
+                .firstOrNull()
+        }
+
+        val itinerary = read {
+            client.postgrest.from("itinerary")
+                .select(Columns.list("id", "published_at")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<ItineraryRow>()
+                .firstOrNull()
+        }
+
+        val milestone = read {
+            client.postgrest.from("payment_milestone")
+                .select(
+                    Columns.list(
+                        "id", "kind", "label", "amount_cents", "paid_cents",
+                        "currency", "due_date", "status", "order_index",
+                    ),
+                ) {
+                    filter {
+                        eq("trip_id", tripId)
+                        neq("status", "paid")
+                    }
+                    order("due_date", Order.ASCENDING)
+                    limit(1)
+                }
+                .decodeList<MilestoneDetailRow>()
+                .firstOrNull()
+        }
+
+        return StatusChangeSnapshot(
+            trip = row.toTripRow().toSummary(today),
+            changedAt = row.status_changed_at,
+            proposal = proposal?.let {
+                SentProposal(it.id, it.cover_title, it.version_number, it.sent_at)
+            },
+            itineraryReady = itinerary?.published_at != null,
+            nextPayment = milestone?.let {
+                PaymentMilestoneView(
+                    id = it.id,
+                    kind = it.kind,
+                    label = it.label,
+                    amountCents = it.amount_cents,
+                    paidCents = it.paid_cents,
+                    currency = it.currency,
+                    dueDate = it.due_date?.let(::parseDate),
+                    status = it.status,
+                )
+            },
+        )
+    }
+
+    override suspend fun saveReflection(
+        tripId: String,
+        body: String,
+        existingId: String?,
+        submit: Boolean,
+    ): SendMessageOutcome {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return SendMessageOutcome.Failed(null)
+
+        val payload = buildJsonObject {
+            // Re-sent when there is one, so the function edits rather than creating. It
+            // looks the row up by (client_id, trip_id) regardless — see the header note in
+            // supabase/functions/testimonial/index.ts — so a device that has forgotten the
+            // id still lands on the right reflection.
+            put("testimonialId", JsonPrimitive(existingId ?: uuidV7()))
+            put("tripId", JsonPrimitive(tripId))
+            put("body", JsonPrimitive(trimmed))
+            put("submit", JsonPrimitive(submit))
+        }
+
+        val response = try {
+            client.functions.invoke("testimonial", payload)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (throwable: Throwable) {
+            // NEVER log the body — it is somebody's reflection on their own holiday.
+            return SendMessageOutcome.Failed(null)
+        }
+
+        if (response.status.value in 200..299) return SendMessageOutcome.Sent
+
+        val text = runCatching { response.bodyAsText() }.getOrDefault("")
+        val detail = if (response.status.value in 400..499) problemDetail(text) else null
+        return SendMessageOutcome.Failed(detail)
+    }
+
     /** The `detail` from an RFC 7807 body, if it carried one. */
     private fun problemDetail(text: String): String? = runCatching {
         json.decodeFromString<ProblemBody>(text).detail
@@ -1171,3 +1430,56 @@ private data class ProblemBody(val detail: String? = null)
 
 @Serializable
 private data class SenderRow(val sender_role: String)
+
+@Serializable
+private data class TestimonialRow(
+    val id: String,
+    val body: String,
+    val rating: Int? = null,
+    val status: String,
+)
+
+@Serializable
+private data class ProposalRow(
+    val id: String,
+    val cover_title: String? = null,
+    val version_number: Int,
+    val sent_at: String? = null,
+)
+
+/**
+ * `trip` plus `status_changed_at`, which no other §2.2 read needs.
+ *
+ * A separate row class rather than adding a nullable field to [TripRow]: every other query
+ * in this file names its columns exactly, and a TripRow carrying a column most of those
+ * queries do not select would decode to null and read as "the status never changed".
+ */
+@Serializable
+private data class StatusChangeRow(
+    val id: String,
+    val title: String,
+    val trip_type: String,
+    val status: String,
+    val status_changed_at: String? = null,
+    val start_date: String? = null,
+    val end_date: String? = null,
+    val destinations: List<String>? = null,
+    val traveler_count: Int? = null,
+    val total_value_cents: Long? = null,
+    val total_paid_cents: Long? = null,
+    val currency: String? = null,
+)
+
+private fun StatusChangeRow.toTripRow(): TripRow = TripRow(
+    id = id,
+    title = title,
+    trip_type = trip_type,
+    status = status,
+    start_date = start_date,
+    end_date = end_date,
+    destinations = destinations,
+    traveler_count = traveler_count,
+    total_value_cents = total_value_cents,
+    total_paid_cents = total_paid_cents,
+    currency = currency,
+)

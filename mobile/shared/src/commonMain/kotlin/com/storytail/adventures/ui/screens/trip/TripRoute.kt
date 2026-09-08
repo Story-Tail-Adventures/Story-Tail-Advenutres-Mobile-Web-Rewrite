@@ -1,10 +1,13 @@
 package com.storytail.adventures.ui.screens.trip
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.domain.trip.Loadable
+import com.storytail.adventures.domain.trip.TripStatus
 import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
 import com.storytail.adventures.domain.trip.localToday
@@ -71,6 +74,22 @@ fun TripRoute(
                 TripDetailViewModel(trips, route.tripId, today)
             }
             val state by viewModel.state.collectAsState()
+
+            // A COMPLETED trip belongs on 2.2.11, not here. The web twin does this as a
+            // server-side redirect in `/trips/[tripId]/page.tsx`; native has to wait for the
+            // read, so it is a LaunchedEffect on the loaded status instead.
+            //
+            // Caught by eye on the emulator: without it the same tap gave a memory view on
+            // web and the ordinary overview on a phone — tiles and a payment timeline for a
+            // trip that finished two years ago, which is the screen 2.2.11 exists to replace.
+            //
+            // `replace`, so BACK from the memory view returns to the trips list rather than
+            // to a detail screen the traveler never chose to look at.
+            val completed = (state as? Loadable.Ready)?.value?.trip?.status == TripStatus.COMPLETED
+            LaunchedEffect(completed) {
+                if (completed) nav.replace(AppRoute.PastTrip(route.tripId))
+            }
+
             TripDetailScreen(
                 state = state,
                 onBack = { nav.pop() },
@@ -163,7 +182,50 @@ fun TripRoute(
             )
         }
 
-        // 2.2.9 through 2.2.11 land in the next stage.
+        is AppRoute.PastTrip -> {
+            val viewModel = viewModel(key = "past-${route.tripId}") {
+                PastTripViewModel(trips, route.tripId, today)
+            }
+            val state by viewModel.state.collectAsState()
+            val draft by viewModel.draft.collectAsState()
+            val saving by viewModel.saving.collectAsState()
+            val notice by viewModel.notice.collectAsState()
+            MemoriesScreen(
+                state = state,
+                draft = draft,
+                saving = saving,
+                notice = notice,
+                onDraftChange = viewModel::changeDraft,
+                onSave = viewModel::save,
+                onBack = { nav.pop() },
+                onOpenDocuments = { nav.push(AppRoute.TripDocuments(route.tripId)) },
+                onOpenItinerary = { nav.push(AppRoute.Itinerary(route.tripId)) },
+                onMessageGyasi = { nav.push(AppRoute.TripThread(route.tripId)) },
+                onRetry = viewModel::load,
+            )
+        }
+
+        is AppRoute.TripUpdate -> {
+            val viewModel = viewModel(key = "update-${route.tripId}") {
+                StatusChangeViewModel(trips, route.tripId, today)
+            }
+            val state by viewModel.state.collectAsState()
+            StatusChangeScreen(
+                state = state,
+                onBack = { nav.pop() },
+                // `replace`, not `push`: this screen is a notification landing, so the trip
+                // it points at should be where BACK goes rather than a second thing on the
+                // stack behind the update the traveler has already read.
+                onOpenTrip = { nav.replace(AppRoute.TripDetail(route.tripId)) },
+                onOpenItinerary = { nav.replace(AppRoute.Itinerary(route.tripId)) },
+                onOpenMemories = { nav.replace(AppRoute.PastTrip(route.tripId)) },
+                onRetry = viewModel::load,
+            )
+        }
+
+        // Every §2.2 route is listed above. This branch is the non-§2.2 routes App.kt does
+        // not send here — it renders the dashboard rather than throwing, because a bar that
+        // crashes the app on an unexpected route is worse than one that lands home.
         else -> {
             val viewModel = viewModel { DashboardViewModel(trips, today) }
             val state by viewModel.state.collectAsState()

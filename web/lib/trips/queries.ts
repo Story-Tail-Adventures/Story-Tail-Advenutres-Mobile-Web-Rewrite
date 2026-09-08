@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { daysUntilDeparture, tripStatusPresentation, type TripStatus } from "./status";
+import { daysBetween, daysUntilDeparture, tripStatusPresentation, type TripStatus } from "./status";
 import { FALLBACK_TIME_ZONE } from "./thread";
 
 /**
@@ -842,5 +842,211 @@ export async function loadTripThread(tripId: string): Promise<TripThreadView | n
       createdAt: m.created_at,
       attachments: attachmentsByMessage.get(m.id) ?? [],
     })),
+  };
+}
+
+export type PastTripView = {
+  trip: DashboardTrip;
+  /** `itinerary.closing_note` if the itinerary is readable, else `intro_note`. */
+  noteFromGyasi: string | null;
+  photos: TripDocument[];
+  /** Every readable document, for the archived-itinerary and paperwork links. */
+  documentCount: number;
+  conversationId: string | null;
+  /** False when there is no READABLE itinerary — a draft is invisible, so this is the same. */
+  itineraryReady: boolean;
+  nights: number | null;
+  /** The client's own reflection on this trip, if they have started one. */
+  reflection: {
+    id: string;
+    body: string;
+    rating: number | null;
+    status: string;
+    /** False once it leaves `draft` — the Edge Function refuses edits after that. */
+    editable: boolean;
+  } | null;
+};
+
+/**
+ * Screen 2.2.11.
+ *
+ * The NOTE prefers `closing_note` over `intro_note`, which is the one derivation on this
+ * screen worth explaining: the intro note sets a trip up and reads oddly in the past tense
+ * ("here is what I have planned"), while the closing note is written to be read afterwards.
+ * Design-System §2.4 names this screen's voice as gratitude, and the closing note is where
+ * Gyasi actually writes it. `intro_note` is the fallback because a trip with only an intro
+ * note is better than a silent card.
+ *
+ * `testimonial` is read through its own policy — the client sees only their own rows — and
+ * is the one place a §2.2 screen reads a table it cannot write.
+ */
+export async function loadPastTrip(
+  tripId: string,
+  today = todayIsoUtc(),
+): Promise<PastTripView | null> {
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("trip")
+    .select("id, title, trip_type, status, start_date, end_date, destinations, traveler_count, total_value_cents, total_paid_cents, currency, cancellation_reason, refund_status")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (!row) return null;
+
+  const [
+    { data: itinerary },
+    { data: documents },
+    { data: conversations },
+    { data: testimonials },
+    myUserId,
+  ] = await Promise.all([
+    supabase
+      .from("itinerary")
+      .select("id, intro_note, closing_note, published_at")
+      .eq("trip_id", tripId)
+      .maybeSingle(),
+    supabase
+      .from("document")
+      .select("id, owner_user_id, kind, filename, mime_type, size_bytes, created_at")
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: false }),
+    supabase.from("conversation").select("id").eq("trip_id", tripId).limit(1),
+    supabase
+      .from("testimonial")
+      .select("id, body, rating, status")
+      .eq("trip_id", tripId)
+      .limit(1),
+    currentPlatformUserId(),
+  ]);
+
+  const all = (documents ?? []).map((d) => ({
+    id: d.id,
+    kind: d.kind,
+    filename: d.filename,
+    mimeType: d.mime_type,
+    sizeBytes: Number(d.size_bytes ?? 0),
+    createdAt: d.created_at,
+    mine: myUserId !== null && d.owner_user_id === myUserId,
+  }));
+
+  const reflection = testimonials?.[0] ?? null;
+
+  return {
+    trip: toDashboardTrip(row, today),
+    noteFromGyasi: itinerary?.closing_note ?? itinerary?.intro_note ?? null,
+    photos: all.filter((d) => d.kind === "photo"),
+    documentCount: all.length,
+    conversationId: conversations?.[0]?.id ?? null,
+    itineraryReady: Boolean(itinerary?.published_at),
+    // Nights, not days: a Jan 6–13 trip is seven nights, which is how a traveler counts it
+    // and what the artboard's snapshot prints.
+    nights: row.start_date && row.end_date ? daysBetween(row.start_date, row.end_date) : null,
+    reflection: reflection
+      ? {
+          id: reflection.id,
+          body: reflection.body,
+          rating: reflection.rating,
+          status: reflection.status,
+          editable: reflection.status === "draft",
+        }
+      : null,
+  };
+}
+
+export type StatusChangeView = {
+  trip: DashboardTrip;
+  /** `trip.status_changed_at`, which is what makes this screen a NOTIFICATION landing. */
+  changedAt: string | null;
+  /** The latest SENT proposal, for a status that moved to `proposal`. */
+  proposal: {
+    id: string;
+    coverTitle: string | null;
+    versionNumber: number;
+    sentAt: string | null;
+  } | null;
+  itineraryReady: boolean;
+  nextPayment: PaymentMilestoneView | null;
+};
+
+/**
+ * Screen 2.2.9.
+ *
+ * WHAT THIS SCREEN CAN HONESTLY SAY. The artboard's "What changed" card lists three specific
+ * facts — the resort, the price, "two room types to choose between". Nothing in the schema
+ * records a DIFF: there is no status-change history table, only `trip.status` and
+ * `trip.status_changed_at`. So the narrative is derived from the status it landed on, and the
+ * supporting detail comes from real rows — the sent proposal, the published itinerary, the
+ * next unpaid milestone. Anything the data cannot support is not said.
+ *
+ * `status_changed_at` being null is a real state (a trip whose status never moved), and the
+ * screen reads as a plain summary then rather than as a notification landing.
+ */
+export async function loadStatusChange(
+  tripId: string,
+  today = todayIsoUtc(),
+): Promise<StatusChangeView | null> {
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("trip")
+    .select("id, title, trip_type, status, status_changed_at, start_date, end_date, destinations, traveler_count, total_value_cents, total_paid_cents, currency, cancellation_reason, refund_status")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (!row) return null;
+
+  const [{ data: proposals }, { data: itinerary }, { data: milestones }] = await Promise.all([
+    // `sent_at IS NOT NULL` because an unsent proposal is a draft Gyasi is still writing —
+    // the seed keeps one deliberately, and `proposal_self_select` lets it through, so the
+    // filter has to be here. Newest version first.
+    supabase
+      .from("proposal")
+      .select("id, cover_title, version_number, sent_at")
+      .eq("trip_id", tripId)
+      .not("sent_at", "is", null)
+      .order("version_number", { ascending: false })
+      .limit(1),
+    supabase
+      .from("itinerary")
+      .select("id, published_at")
+      .eq("trip_id", tripId)
+      .maybeSingle(),
+    supabase
+      .from("payment_milestone")
+      .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status")
+      .eq("trip_id", tripId)
+      .neq("status", "paid")
+      .order("due_date", { ascending: true })
+      .limit(1),
+  ]);
+
+  const proposal = proposals?.[0] ?? null;
+  const milestone = milestones?.[0] ?? null;
+
+  return {
+    trip: toDashboardTrip(row, today),
+    changedAt: row.status_changed_at ?? null,
+    proposal: proposal
+      ? {
+          id: proposal.id,
+          coverTitle: proposal.cover_title ?? null,
+          versionNumber: proposal.version_number,
+          sentAt: proposal.sent_at ?? null,
+        }
+      : null,
+    itineraryReady: Boolean(itinerary?.published_at),
+    nextPayment: milestone
+      ? {
+          id: milestone.id,
+          kind: milestone.kind,
+          label: milestone.label,
+          amountCents: Number(milestone.amount_cents ?? 0),
+          paidCents: Number(milestone.paid_cents ?? 0),
+          currency: milestone.currency,
+          dueDate: milestone.due_date ?? null,
+          status: milestone.status,
+        }
+      : null,
   };
 }

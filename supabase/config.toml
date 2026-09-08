@@ -453,6 +453,11 @@ verify_jwt = true
 [functions.trip-document-url]
 verify_jwt = true
 
+[functions.testimonial]
+# JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
+# the client from the token rather than trusting a body field.
+verify_jwt = true
+
 [analytics]
 # Off: nothing consumes it yet and it costs ~500MB of RAM on a laptop.
 enabled = false

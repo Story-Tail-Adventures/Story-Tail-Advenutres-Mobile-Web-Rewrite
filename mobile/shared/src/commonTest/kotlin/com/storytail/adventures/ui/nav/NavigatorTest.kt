@@ -182,7 +182,7 @@ class NavigatorTest {
             AppRoute.TripDocuments("t1"),
             AppRoute.TripThread("t1"),
             AppRoute.PastTrip("t1"),
-            AppRoute.CancelledTrip("t1"),
+            AppRoute.TripUpdate("t1"),
         )
         for (route in routes) {
             assertTrue(route.requiresSession, "$route should require a session")
