@@ -92,7 +92,7 @@ export default function AboutGyasiPage() {
         {/* Testimonials — snap strip below `md`, 2-up at tablet, 3-up on web. */}
         <section aria-labelledby="testimonials" className="mb-8 md:mb-11">
           <SectionLabel id="testimonials" overline={ABOUT.testimonials.overline} title={ABOUT.testimonials.title} />
-          <ul className="h-scroll md:mx-0 md:grid md:grid-cols-2 md:gap-3.5 md:overflow-visible md:px-0 md:pb-0 web:grid-cols-3">
+          <ul className="h-scroll md:mx-0 md:grid md:max-web:grid-cols-2 md:gap-3.5 md:overflow-visible md:px-0 md:pb-0 web:grid-cols-3">
             {TESTIMONIALS.map((testimonial) => (
               <li key={testimonial.who} className="flex w-72 md:w-auto">
                 <TestimonialCard testimonial={testimonial} className="flex-1" />

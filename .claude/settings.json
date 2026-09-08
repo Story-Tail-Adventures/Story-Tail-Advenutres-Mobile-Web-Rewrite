@@ -56,19 +56,19 @@
       "Bash(adb install:*)",
       "Bash(adb shell am start:*)",
       "Bash(adb exec-out screencap:*)",
-      "Bash(adb logcat:*)"
+      "Bash(adb logcat:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "ask": [
       "Bash(supabase db reset:*)",
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
       "Bash(brew install:*)",
-      "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Bash(git switch:*)",
       "Bash(git restore:*)",
       "Bash(supabase secrets:*)",
-      "Bash(git push:*)",
       "Bash(gh pr merge:*)"
     ],
     "deny": [

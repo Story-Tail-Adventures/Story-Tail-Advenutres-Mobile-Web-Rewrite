@@ -439,6 +439,25 @@ verify_jwt = true
 [functions.onboarding-connect]
 verify_jwt = true
 
+# ── §2.2 write surface ────────────────────────────────────────────────────────
+# All three verify the JWT: every one of them resolves the caller to a client and
+# checks trip ownership by hand, because they run on the service role where RLS is
+# checking nothing for them.
+
+[functions.trip-message]
+verify_jwt = true
+
+[functions.trip-document]
+verify_jwt = true
+
+[functions.trip-document-url]
+verify_jwt = true
+
+[functions.testimonial]
+# JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
+# the client from the token rather than trusting a body field.
+verify_jwt = true
+
 [analytics]
 # Off: nothing consumes it yet and it costs ~500MB of RAM on a laptop.
 enabled = false

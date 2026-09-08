@@ -1,0 +1,252 @@
+/* Story-Tail Adventures — authenticated client surface layer.
+ *
+ * Screens 2.2.1–2.2.11 (docs/Screen-Inventory.md §2.2; prototypes in
+ * design/source-prototype/screens/client-trip.jsx and client-trip-mobile.jsx). Imported
+ * from web/app/globals.css after public.css.
+ *
+ * This is a SECTION stylesheet, not a set of primitives, and that distinction is why it
+ * exists as its own file: components.css holds things any screen may use (.btn, .card,
+ * .chip-status), while the app chrome below belongs to one surface. public.css set that
+ * precedent for §2.0 and this is its counterpart. Nothing here should be reached for from
+ * a public page, and `.client-surface` scopes it so it cannot be.
+ *
+ * The chrome dimensions come from the prototype's ScreenFrame, not from Design-System §9:
+ * §9.2 says an 88px rail and the prototype draws 72px. Gyasi settled that on 2026-09-06 in
+ * the prototype's favour, and §9.2 is being amended to match.
+ */
+
+@layer components {
+  /* ── The surface ───────────────────────────────────────────────────────── */
+
+  .client-surface {
+    min-height: 100dvh;
+    background: var(--md-bg);
+    color: var(--md-on-surface);
+  }
+
+  /* ── Reserve for the bottom bar ─────────────────────────────────────────
+   *
+   * BOUNDED BY A MEDIA QUERY, not by `:has()` alone, and the difference was a bug.
+   * `.client-bottom-nav` carries `md:hidden`, which is `display: none` — the element stays
+   * in the DOM at every width, so `:has(.client-bottom-nav)` matched on a 1400px desktop
+   * and reserved 72px under a bar that is not rendered. `not all and (min-width: 48rem)` is
+   * the exact complement of Tailwind's `md:`, so the reserve now exists on precisely the
+   * widths the bar does. The `:has()` is kept inside it because a screen that passes
+   * `activeTab = null` has no bar in the tree at all.
+   *
+   * The reserve sits on the element that wraps BOTH the content and anything after it. §2.0
+   * shipped a bug where StickyCta emitted its own spacer as the last child of <main> while
+   * PublicFooter rendered after {children} — so the reserve landed above the footer and the
+   * fixed bar covered it. */
+  @media not all and (min-width: 48rem) {
+    .client-surface:has(.client-bottom-nav) .client-main {
+      padding-bottom: calc(64px + max(env(safe-area-inset-bottom), 8px));
+    }
+  }
+
+  /* ── A screen that fills the viewport instead of scrolling the document ──
+   *
+   * Screen 2.2.7 is the one §2.2 surface that is not a document you scroll: the thread
+   * scrolls inside itself and the compose bar stays pinned under it. §4.4 calls that
+   * "mobile is full-screen", and the artboards make the compose bar a SIBLING of the scroll
+   * rather than an overlay so a long thread cannot hide its own last message.
+   *
+   * That needs a DEFINITE height somewhere, and the shell deliberately has none — the
+   * column is `min-h-dvh` because every other client screen scrolls the document, and the
+   * itinerary's day-chip strip is `sticky top-16` against exactly that document scroll.
+   * Switching the shell to `h-dvh` with an internal scroller would fix this screen and
+   * break that one. So this is an opt-in a page puts on its own root.
+   *
+   * IT SUBTRACTS THE TOP BAR AND NOTHING ELSE. There were two more rules here — one
+   * cancelling the reserve above for a `.client-fill` screen, one subtracting the bar's
+   * height from this one — and BOTH were dead: they select `.client-fill` as a DESCENDANT
+   * of `.client-surface`, and React's streaming parks the suspended subtree in a
+   * body-level holder, so the ancestor relationship those selectors need does not hold in
+   * the rendered DOM. The screen worked anyway, because the reserve above did the job the
+   * dead subtraction was written to do — two mistakes cancelling, which is not a thing to
+   * leave in a stylesheet.
+   *
+   * So it subtracts both bars ITSELF, through a plain media query with no ancestor
+   * dependency — which is the whole point. Measured: with only the top bar subtracted, the
+   * compose bar's text field sat behind the bottom nav at 375px, because `.client-main`'s
+   * reserve cannot reach a subtree that is not inside it.
+   *
+   * The one assumption left is that a bottom bar exists below 48rem, and it holds for every
+   * `(client)` screen: the layout renders `<ClientBottomNav />` unconditionally. */
+  .client-fill {
+    height: calc(100dvh - 64px);
+  }
+
+  @media not all and (min-width: 48rem) {
+    .client-fill {
+      height: calc(100dvh - 64px - 64px - max(env(safe-area-inset-bottom), 8px));
+    }
+  }
+
+  /* ── Top bar (64px, Design-System §9.1) ───────────────────────────────── */
+
+  .client-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 64px;
+    padding: 0 16px;
+    background: color-mix(in srgb, var(--md-surface) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--md-outline-variant);
+  }
+
+  /* ── Nav rail (72px, prototype ScreenNavRail) ─────────────────────────── */
+
+  .client-rail {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    flex-shrink: 0;
+    width: 72px;
+    height: 100dvh;
+    padding: 14px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: var(--md-surface);
+    border-right: 1px solid var(--md-outline-variant);
+  }
+
+  .client-rail-item {
+    width: 60px;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--md-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .client-rail-item > .pill {
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .client-rail-item[aria-current="page"] { color: var(--md-on-surface); }
+  .client-rail-item[aria-current="page"] > .pill {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  }
+
+  .client-rail-label {
+    font: 600 9.5px/1.2 var(--font-sans);
+    text-align: center;
+  }
+
+  /* ── Bottom bar (mobile, four tabs per the prototype's StaMobileTabs) ─── */
+
+  .client-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding: 8px 6px max(env(safe-area-inset-bottom), 8px);
+    background: var(--md-surface-1);
+    border-top: 1px solid var(--md-outline-variant);
+  }
+
+  .client-tab {
+    min-width: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    color: var(--md-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .client-tab > .pill {
+    width: 56px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .client-tab[aria-current="page"] { color: var(--md-on-surface); }
+  .client-tab[aria-current="page"] > .pill {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  }
+
+  .client-tab-label { font: 600 10px/1.2 var(--font-sans); }
+
+  /* A destination with no route yet. It stays visible — the rail is the design of record,
+   * and a rail that grows an item per release moves every other item under the cursor —
+   * but it must not look pressable. */
+  .client-nav-item-disabled {
+    opacity: 0.38;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  /* ── Skeletons ────────────────────────────────────────────────────────── */
+
+  /* §5 asks for "skeleton placeholders that match the screen's layout" and explicitly
+   * rules out spinner-on-blank. */
+  .client-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--md-surface-2) 25%,
+      var(--md-surface-3) 37%,
+      var(--md-surface-2) 63%
+    );
+    background-size: 400% 100%;
+    animation: client-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--r-sm);
+  }
+
+  @keyframes client-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+  }
+
+  /* ── Focus and motion ─────────────────────────────────────────────────── */
+
+  /* The only general focus ring in the project was `.pub-surface`-scoped, and
+   * components.css covers `.btn` alone — so an authenticated screen had no visible focus
+   * on a link, a summary or a bare [tabindex]. WCAG 2.1 AA (BRD §11) needs one. */
+  .client-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .client-skeleton { animation: none; }
+    .client-surface *,
+    .client-surface *::before,
+    .client-surface *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Coarse pointers get the 44pt minimum §4.2 requires. */
+  @media (pointer: coarse) {
+    .client-rail-item,
+    .client-tab { min-height: 44px; }
+  }
+}

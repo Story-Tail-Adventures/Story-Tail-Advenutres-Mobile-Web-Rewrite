@@ -243,3 +243,92 @@ changes nothing visually:
 ```
 
 Mobile is unaffected: `BrandWordmark.kt` uses a solid colour, not a gradient clip.
+
+### 5. Section 2.2 artboard deltas (2026-09-06)
+
+Section 2.2's mobile artboards were authored **locally first and pushed upstream**, which
+reverses this skill's usual direction. `screens/client-trip-mobile.jsx`,
+`pages/c22-dashboard.html` and the `c22-dashboard` entry in `pages/_sections.json` all
+originated here and were written to the design project on 2026-09-06. A sync will not report
+them as new; they are already upstream.
+
+Two things about that page are deliberate and must survive a re-sync:
+
+- **It keeps the `#view-seg` Web/Mobile toggle.** Upstream's generated `c22-dashboard.html`
+  omitted it, because at generation time §2.2 had no mobile screens. It has eleven now, and
+  without the toggle none of them can be reached.
+- **`mobileScreens` is a real array, not `null`.**
+
+Seven decisions are encoded in `client-trip-mobile.jsx` and **not** in the desktop
+`client-trip.jsx`, so the two files disagree on purpose. The header comment of the mobile file
+carries the same list; keep them in step.
+
+1. The bottom bar has **four** tabs (Trips · Discover · Messages · Account), per the
+   prototype's own `StaMobileTabs` — not Screen-Inventory §6.3's five, and no Help FAB.
+   Gyasi chose the prototype over the doc on 2026-09-06; §6.1, §6.3 and Design-System
+   §9.2–§9.3 are being amended to match, not the artboards.
+2. Gyasi's portrait is an **initials avatar** (`MAdvisorAvatar`, "GS"). `staImg('avatarA')`
+   has no entry in `web/lib/images.ts` and no licensed photograph of him exists.
+3. **Gyasi is he/him.** `C228_EmptyState` in the desktop file still reads "once **she** hears
+   back from concierge" — that is an upstream bug, not a variant. **Still unfixed in
+   `client-trip.jsx`**; scheduled for the §2.2 doc-and-voice pass.
+4. No **"Saved searches"** dashboard tab — `SavedSearch` is a Phase 2 entity.
+5. No **"OFFLINE-READY / Synced 2h ago"** card — offline UI is Phase 3 (BRD §13.3), even
+   though the SqlDelight cache lands in Phase 1.
+6. **"Share with co-traveler" collapses into "Download PDF."** The secure link is deferred to
+   §2.8, where Screen-Inventory §7's open question about account-less co-traveler access
+   belongs.
+7. **"Book a similar trip" repoints at the trip thread** — §2.3 self-guided search is Phase 2,
+   so the desktop CTA has no destination at MVP.
+
+Kept deliberately, against the instinct to strip anything unbacked: the payment timeline and
+the testimonial card, because `payment_milestone` and `testimonial` are modelled in the same
+PR; the weather card, because `itinerary_day.weather_forecast` already exists and is
+agent-authored; "Mark as done", which ships as per-device local state with no column; and
+"Authorize a card", because §2.4 is Phase 1 and lands next.
+
+Also still true of the desktop file and worth fixing when it is next touched: the cancelled
+chip is hardcoded `#D7DFE6`/`#3D352E` inline (`client-trip.jsx:524`) because `.chip-status`
+has no `cancelled` variant, and the documents subtitle claims "Auto-encrypted, share via
+secure link" — jargon, an unverified security claim, and a de-scoped feature in nine words.
+
+### 6. `screens/client-trip.jsx` copy corrections (2026-09-07)
+
+Two strings edited **in place** in the desktop file during the §2.2 stage-10 pass. Both are
+in `C228_EmptyState`, and both will come back on the next sync unless re-applied.
+
+```
+line 455  Gyasi is comparing American and JetBlue for the best Saturday departure window.
+          We'll add flights here once confirmed.
+       →  Gyasi is still working on the flights. They will appear here once they are
+          confirmed.
+
+line 461  Gyasi will book Bayside Friday once she hears back from concierge.
+       →  Gyasi will book Bayside Friday once he hears back from concierge.
+```
+
+**The pronoun is the one to raise upstream.** Gyasi Story is he/him — `supabase/seed.sql` is
+the authority and `web/content/public/proof.ts` carries the same correction for the "mom of
+three" line the prototype had. Getting a real person's pronouns wrong in the design source is
+the kind of thing that leaks into shipped copy every time somebody works from the artboard.
+
+**The carrier narration asserts something no column holds.** Nothing in the schema records
+which airlines an advisor is comparing, so an empty state cannot say it. Screen-Inventory's
+own worked example for these states says what is true and stops. The built 2.2.8 uses the
+replacement above on both stacks.
+
+Still outstanding in the same file, unedited, and worth doing when it is next touched:
+
+- **`client-trip.jsx:524` hardcodes the cancelled chip** as `#D7DFE6`/`#3D352E` inline
+  because `.chip-status` had no `cancelled` variant. The token now exists (added in the
+  shared-spine commit), so the inline style can go.
+- **The reply-time strings.** The desktop and mobile artboards carry five different
+  promises between them — `client-trip.jsx:206`, `client-messaging.jsx:9`/`:59`/`:155`,
+  `client-search.jsx:281`, `client-auth.jsx:412`, `client-public-mobile.jsx:114`/`:752`,
+  `client-public-topics.jsx:375`/`:390`, `agent-reports-settings.jsx:269` — ranging from
+  "reply in < 2h" to "within 48 hours". §2.2 settled the authenticated surface on "Usually
+  replies the same day" and `client-trip-mobile.jsx` already says it. The public figures
+  live in `web/content/public/proof.ts` as **unverified** claims, fenced by
+  `PUBLIC_CLAIMS_MODE=strict` (which fails `next build`), so nothing false can ship — but
+  the artboards should be brought to one number once Gyasi measures it. See the note on
+  `avgReplyTime` in that file.

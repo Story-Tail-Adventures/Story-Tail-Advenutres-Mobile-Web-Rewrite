@@ -25,11 +25,308 @@ SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventur
 WIZARD_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding"
 DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding"
 WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
+TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
+TRIP_SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
+    {
+        # Screen 2.2.1's copy. Only the plain-string keys are listed: the web side's
+        # greeting variants are functions (the "0 days"/"1 day" special cases need one) and
+        # web_messages skips anything that is not a string literal, so those are covered by
+        # the paired unit tests instead.
+        "label": "dashboard 2.2.1",
+        "web_file": ROOT / "web/app/(client)/dashboard/content.ts",
+        "web_const": "DASHBOARD",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/dashboard/DashboardUiState.kt",
+        "kmp_object": "DashboardMessages",
+        "keys": {
+            "overlineRest": "OVERLINE_REST",
+            "overlineNeutral": "OVERLINE_NEUTRAL",
+            "subtitleTraveling": "SUBTITLE_TRAVELING",
+            "subtitleNoTrip": "SUBTITLE_NO_TRIP",
+            "viewItinerary": "VIEW_ITINERARY",
+            "itineraryNotReady": "ITINERARY_NOT_READY",
+            "actionNeededLabel": "ACTION_NEEDED_LABEL",
+            "authorizeCard": "AUTHORIZE_CARD",
+            "authorizeCardComingSoon": "AUTHORIZE_CARD_COMING_SOON",
+            "advisorName": "ADVISOR_NAME",
+            "advisorRole": "ADVISOR_ROLE",
+            "advisorReplyTime": "ADVISOR_REPLY_TIME",
+            "messageAgent": "MESSAGE_AGENT",
+            "emptyPlanningTitle": "EMPTY_PLANNING_TITLE",
+            "emptyPlanningBody": "EMPTY_PLANNING_BODY",
+            "emptyPastTitle": "EMPTY_PAST_TITLE",
+            "emptyPastBody": "EMPTY_PAST_BODY",
+            "startSomethingNew": "START_SOMETHING_NEW",
+            "seeAllTrips": "SEE_ALL_TRIPS",
+        },
+    },
+    {
+        # Two of these seven labels are DERIVED — the trip_status enum has no
+        # "Final payment due" and no "Traveling now" — so this is the table most able to
+        # drift without anything failing to compile on either side.
+        "label": "trip status",
+        "web_file": ROOT / "web/lib/trips/status.ts",
+        "web_const": "TRIP_STATUS_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripStatus.kt",
+        "kmp_object": "TripStatusMessages",
+        "keys": {
+            "inquiry": "INQUIRY",
+            "proposalReady": "PROPOSAL_READY",
+            "booked": "BOOKED",
+            "finalPaymentDue": "FINAL_PAYMENT_DUE",
+            "travelingNow": "TRAVELING_NOW",
+            "pastTrip": "PAST_TRIP",
+            "cancelled": "CANCELLED",
+        },
+    },
+    {
+        # The six group headings §2.2.6 renders. Six names for ten `document_kind` values,
+        # with passports and visas sharing one drawer — a mapping this table is the only
+        # record of, on either stack.
+        "label": "trip documents",
+        "web_file": ROOT / "web/lib/trips/documents.ts",
+        "web_const": "DOCUMENT_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripDocuments.kt",
+        "kmp_object": "DocumentMessages",
+        "keys": {
+            "groupConfirmations": "GROUP_CONFIRMATIONS",
+            "groupIdentity": "GROUP_IDENTITY",
+            "groupInsurance": "GROUP_INSURANCE",
+            "groupItinerary": "GROUP_ITINERARY",
+            "groupPhotos": "GROUP_PHOTOS",
+            "groupOther": "GROUP_OTHER",
+            "addedByYou": "ADDED_BY_YOU",
+            "addedByAgent": "ADDED_BY_AGENT",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "uploadCta": "UPLOAD_CTA",
+            "openFailed": "OPEN_FAILED",
+        },
+    },
+    {
+        # The four suggested-reply chips are the interesting half: §2.2.7 lists tapping them
+        # as a key action and nothing in the schema produces them, so they are pure copy —
+        # and web and native must never offer a traveler two different sets of words to say.
+        "label": "trip thread",
+        "web_file": ROOT / "web/lib/trips/thread.ts",
+        "web_const": "THREAD_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripThread.kt",
+        "kmp_object": "ThreadMessages",
+        "keys": {
+            "composePlaceholder": "COMPOSE_PLACEHOLDER",
+            "sendLabel": "SEND_LABEL",
+            "attachLabel": "ATTACH_LABEL",
+            "openTrip": "OPEN_TRIP",
+            "today": "TODAY",
+            "yesterday": "YESTERDAY",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "sendFailed": "SEND_FAILED",
+            "quickSoundsGood": "QUICK_SOUNDS_GOOD",
+            "quickAddPartner": "QUICK_ADD_PARTNER",
+            "quickSendPassport": "QUICK_SEND_PASSPORT",
+            "quickScheduleCall": "QUICK_SCHEDULE_CALL",
+            "replyWindow": "REPLY_WINDOW",
+        },
+    },
+    {
+        # 2.2.11 exists for a feeling — Design-System §2.4 names gratitude as its register —
+        # and copy carrying a feeling drifting between stacks is worse than a layout
+        # drifting, because nothing else would catch it.
+        "label": "trip memories",
+        "web_file": ROOT / "web/lib/trips/memories.ts",
+        "web_const": "MEMORIES_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripMemories.kt",
+        "kmp_object": "MemoriesMessages",
+        "keys": {
+            "noteOverline": "NOTE_OVERLINE",
+            "noteScript": "NOTE_SCRIPT",
+            "photosEmptyTitle": "PHOTOS_EMPTY_TITLE",
+            "photosEmptyBody": "PHOTOS_EMPTY_BODY",
+            "addPhotos": "ADD_PHOTOS",
+            "addPhotosDeferred": "ADD_PHOTOS_DEFERRED",
+            "snapshotHeading": "SNAPSHOT_HEADING",
+            "reflectionHeading": "REFLECTION_HEADING",
+            "reflectionBody": "REFLECTION_BODY",
+            "reflectionCta": "REFLECTION_CTA",
+            "reflectionEditCta": "REFLECTION_EDIT_CTA",
+            "reflectionPlaceholder": "REFLECTION_PLACEHOLDER",
+            "reflectionSave": "REFLECTION_SAVE",
+            "reflectionSubmit": "REFLECTION_SUBMIT",
+            "reflectionSaved": "REFLECTION_SAVED",
+            "reflectionSubmittedHeading": "REFLECTION_SUBMITTED_HEADING",
+            "reflectionSubmittedBody": "REFLECTION_SUBMITTED_BODY",
+            "reflectionFailed": "REFLECTION_FAILED",
+            "againHeading": "AGAIN_HEADING",
+            "againBody": "AGAIN_BODY",
+            "againCta": "AGAIN_CTA",
+            "documentsCta": "DOCUMENTS_CTA",
+            "itineraryCta": "ITINERARY_CTA",
+        },
+    },
+    {
+        # 2.2.9 is reached from a push notification — the one place our words arrive without
+        # being asked for. Two travelers must not be told different things about one event.
+        "label": "trip status change",
+        "web_file": ROOT / "web/lib/trips/statusChange.ts",
+        "web_const": "STATUS_CHANGE_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripStatusChange.kt",
+        "kmp_object": "StatusChangeMessages",
+        "keys": {
+            "whatChanged": "WHAT_CHANGED",
+            "whatsNext": "WHATS_NEXT",
+            "overlineUpdated": "OVERLINE_UPDATED",
+            "overlineInquiry": "OVERLINE_INQUIRY",
+            "overlineTravelling": "OVERLINE_TRAVELLING",
+            "overlineHome": "OVERLINE_HOME",
+            "headingInquiry": "HEADING_INQUIRY",
+            "headingProposal": "HEADING_PROPOSAL",
+            "headingBooked": "HEADING_BOOKED",
+            "headingTravelling": "HEADING_TRAVELLING",
+            "headingCompleted": "HEADING_COMPLETED",
+            "headingCancelled": "HEADING_CANCELLED",
+            "itineraryLine": "ITINERARY_LINE",
+            "viewProposal": "VIEW_PROPOSAL",
+            "viewItinerary": "VIEW_ITINERARY",
+            "viewTrip": "VIEW_TRIP",
+            "viewSummary": "VIEW_SUMMARY",
+            "viewMemories": "VIEW_MEMORIES",
+            "authorizeCard": "AUTHORIZE_CARD",
+            "authorizeDeferred": "AUTHORIZE_DEFERRED",
+            "changedUnknown": "CHANGED_UNKNOWN",
+        },
+    },
+    {
+        # The rail and bar labels Screen-Inventory §6.1/§6.3 were just amended to match.
+        # Six destinations, two surfaces, and the same destination carries a different label
+        # per surface — exactly the shape that drifts silently.
+        "label": "client nav",
+        "web_file": ROOT / "web/lib/client/nav.ts",
+        "web_const": "CLIENT_NAV_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "ClientDestinations.kt",
+        "kmp_object": "ClientNavMessages",
+        "keys": {
+            "notYetLabel": "NOT_YET_LABEL",
+            "notYetAria": "NOT_YET_ARIA",
+        },
+    },
+    {
+        # The five filter-tab labels and the four empty/error states. A tab that reads
+        # "In planning" on web and "Planning" on a phone is the cheapest possible bug to
+        # ship and the hardest to notice.
+        "label": "all trips",
+        "web_file": ROOT / "web/app/(client)/trips/content.ts",
+        "web_const": "TRIPS",
+        "kmp_file": TRIP_SCREENS_DIR / "AllTripsScreen.kt",
+        "kmp_object": "AllTripsMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "tabAll": "TAB_ALL",
+            "tabUpcoming": "TAB_UPCOMING",
+            "tabPlanning": "TAB_PLANNING",
+            "tabPast": "TAB_PAST",
+            "tabCancelled": "TAB_CANCELLED",
+            "emptyAllTitle": "EMPTY_ALL_TITLE",
+            "emptyAllBody": "EMPTY_ALL_BODY",
+            "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",
+            "emptyFilteredBody": "EMPTY_FILTERED_BODY",
+            "errorTitle": "ERROR_TITLE",
+            "errorBody": "ERROR_BODY",
+        },
+    },
+    {
+        # The biggest per-screen table in §2.2, and it covers 2.2.10 as well — the
+        # cancellation summary labels live here. Thirty-four strings that matched by hand
+        # and by nothing else until now.
+        "label": "trip detail",
+        "web_file": ROOT / "web/app/(client)/trips/[tripId]/content.ts",
+        "web_const": "TRIP_DETAIL",
+        "kmp_file": TRIP_SCREENS_DIR / "TripDetailScreen.kt",
+        "kmp_object": "TripDetailMessages",
+        "keys": {
+            "back": "BACK",
+            "tileItinerary": "TILE_ITINERARY",
+            "tileItineraryPending": "TILE_ITINERARY_PENDING",
+            "tilePayments": "TILE_PAYMENTS",
+            "tileDocuments": "TILE_DOCUMENTS",
+            "tileMessages": "TILE_MESSAGES",
+            "glance": "GLANCE",
+            "glanceTripType": "GLANCE_TRIP_TYPE",
+            "glanceNights": "GLANCE_NIGHTS",
+            "glanceDestination": "GLANCE_DESTINATION",
+            "glanceTravelers": "GLANCE_TRAVELERS",
+            "glanceTotal": "GLANCE_TOTAL",
+            "glanceComponents": "GLANCE_COMPONENTS",
+            "noteHeading": "NOTE_HEADING",
+            "notePending": "NOTE_PENDING",
+            "advisorLabel": "ADVISOR_LABEL",
+            "advisorName": "ADVISOR_NAME",
+            "advisorReplyTime": "ADVISOR_REPLY_TIME",
+            "message": "MESSAGE",
+            "paymentTimeline": "PAYMENT_TIMELINE",
+            "paymentTimelineNote": "PAYMENT_TIMELINE_NOTE",
+            "paid": "PAID",
+            "due": "DUE",
+            "waived": "WAIVED",
+            "overdue": "OVERDUE",
+            "noSchedule": "NO_SCHEDULE",
+            "cancelledHeading": "CANCELLED_HEADING",
+            "cancelledReason": "CANCELLED_REASON",
+            "cancelledRefund": "CANCELLED_REFUND",
+            "cancelledNoReason": "CANCELLED_NO_REASON",
+            "cancelledAgainHeading": "CANCELLED_AGAIN_HEADING",
+            "cancelledAgainBody": "CANCELLED_AGAIN_BODY",
+            "notFoundTitle": "NOT_FOUND_TITLE",
+            "notFoundBody": "NOT_FOUND_BODY",
+        },
+    },
+    {
+        # 2.2.4, 2.2.5 and 2.2.8's inline empty states. The §2.2.8 copy is the part
+        # worth pinning: those strings are what a traveler reads about a piece of their
+        # trip that is not booked yet.
+        "label": "itinerary",
+        "web_file": ROOT / "web/app/(client)/trips/[tripId]/itinerary/content.ts",
+        "web_const": "ITINERARY",
+        "kmp_file": TRIP_SCREENS_DIR / "ItineraryScreen.kt",
+        "kmp_object": "ItineraryMessages",
+        "keys": {
+            "heading": "HEADING",
+            "back": "BACK",
+            "downloadPdf": "DOWNLOAD_PDF",
+            "shareNote": "SHARE_NOTE",
+            "notPublishedTitle": "NOT_PUBLISHED_TITLE",
+            "notPublishedBody": "NOT_PUBLISHED_BODY",
+            "blockMorning": "BLOCK_MORNING",
+            "blockAfternoon": "BLOCK_AFTERNOON",
+            "blockEvening": "BLOCK_EVENING",
+            "blockAllDay": "BLOCK_ALL_DAY",
+            "confirmation": "CONFIRMATION",
+            "tip": "TIP",
+            "openInMaps": "OPEN_IN_MAPS",
+            "call": "CALL",
+            "markDone": "MARK_DONE",
+            "markedDone": "MARKED_DONE",
+            "importantInfo": "IMPORTANT_INFO",
+            "insurance": "INSURANCE",
+            "emergency": "EMERGENCY",
+            "visaUnknown": "VISA_UNKNOWN",
+            "noImportantInfo": "NO_IMPORTANT_INFO",
+            "weather": "WEATHER",
+            "emptyFlightsTitle": "EMPTY_FLIGHTS_TITLE",
+            "emptyFlightsBody": "EMPTY_FLIGHTS_BODY",
+            "emptyDiningTitle": "EMPTY_DINING_TITLE",
+            "emptyDiningBody": "EMPTY_DINING_BODY",
+            "emptyDayBody": "EMPTY_DAY_BODY",
+            "askGyasi": "ASK_GYASI",
+            "emptyItineraryTitle": "EMPTY_ITINERARY_TITLE",
+            "emptyItineraryBody": "EMPTY_ITINERARY_BODY",
+        },
+    },
     {
         "label": "auth validation",
         "web_file": ROOT / "web/lib/validation/auth.ts",

@@ -409,19 +409,25 @@ SELECT pg_temp.expect_denied(
               (SELECT id FROM public.current_platform_user()), now() + interval '1 day')$$,
     'client cannot mint themselves an invite');
 
-SELECT pg_temp.expect_no_rows(
+-- These three asserted expect_no_rows until 20260907113546_revoke_write_grants.sql, because
+-- `authenticated` still HELD the UPDATE grant and RLS merely filtered every row: the
+-- statement ran and changed nothing. The grant is gone now, so the same statements are
+-- refused outright with 42501 — a strictly stronger guarantee, and the one worth asserting.
+-- (That migration exists because TRUNCATE is not subject to RLS at all; UPDATE tightening
+-- was the side effect.)
+SELECT pg_temp.expect_denied(
     $$UPDATE public.travel_preference SET budget_band = 'luxury'$$,
-    'client cannot UPDATE their travel_preference');
-SELECT pg_temp.expect_no_rows(
+    'client cannot UPDATE their travel_preference — refused, not silently filtered');
+SELECT pg_temp.expect_denied(
     $$UPDATE public.client SET phone = '+1-555-9999'$$,
     'client cannot UPDATE their own client row — rule 3 sends it through audit');
-SELECT pg_temp.expect_no_rows(
+SELECT pg_temp.expect_denied(
     $$UPDATE public.platform_user SET role = 'agent'$$,
     'client cannot escalate their own role');
-SELECT pg_temp.expect_no_rows(
+SELECT pg_temp.expect_denied(
     $$UPDATE public.platform_user SET onboarding_completed_at = now()$$,
     'client cannot mark their own onboarding complete');
-SELECT pg_temp.expect_no_rows(
+SELECT pg_temp.expect_denied(
     $$DELETE FROM public.companion$$,
     'client cannot DELETE a companion');
 

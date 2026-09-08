@@ -109,10 +109,12 @@ The final section is **Open Questions** — areas where the model is intentional
 | ItineraryActivity | Trip | P1 | One activity block within a day |
 | Proposal | Trip | P1 | Snapshot of a trip presented to the client |
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
+| Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
 | PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
 | CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
 | AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
 | CardUseEvent | Payment | P1 | Append-only log of every supplier-payment use |
+| PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final) |
 | Commission | Commission | P1 | Expected/received commission per trip per supplier |
 | CommissionImport | Commission | P1 | Batch record for an Inteletravel CSV import |
 | Lead | Lead | P2 | Quote request originating from public search |
@@ -1042,6 +1044,19 @@ data class Trip(
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
+> **Reclassified September 2026, when `trip_read_policies` shipped.** `kind` and
+> `order_index` were marked Internal and are now granted to `authenticated`. A client-facing
+> itinerary has to know whether a row is a flight or a hotel to pick an icon and the right
+> empty state, and it has to render components in the order the agent arranged them —
+> neither discloses anything the itinerary does not already say out loud. Same reasoning as
+> the §8.2 note above: the classification was describing an agent-only product.
+>
+> `payload` stays Internal and is **excluded from the column grant**, which is the decision
+> worth recording: the hotel shape below carries `rate_cents_per_night`, so granting the
+> blob would hand back the per-night cost immediately after `cost_cents` was withheld for
+> revealing margin. A screen that needs one key from it (seat number, room type) gets a
+> server-side key allowlist, not a grant.
+
 **Payload shapes:**
 
 ```json
@@ -1123,6 +1138,20 @@ data class Trip(
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
+> **Reclassified September 2026, when `trip_read_policies` shipped.**
+> `itinerary_activity.order_index` is granted to `authenticated` — a day whose activities
+> render in arbitrary order is not an itinerary.
+>
+> **`itinerary.published_at` is a load-bearing access boundary, not just a timestamp.** The
+> client read policy gates on `published_at IS NOT NULL`, and `itinerary_day` and
+> `itinerary_activity` repeat that test rather than merely joining to the parent. The reason
+> is the purpose statement above: the itinerary is stored separately *because the agent edits
+> it*, so rows exist and are being rewritten for days before anyone means them to be read.
+> Without the gate a traveler sees a half-written `intro_note` in Gyasi's voice and
+> placeholder confirmation numbers — a copy-exposure defect as much as an access one.
+>
+> `itinerary.version` stays Internal and is excluded from the grant.
+
 ### 8.5 Proposal
 
 **Purpose:** A versioned, client-presentable snapshot of a trip. When the agent sends a proposal, the platform captures a snapshot (components, prices, framing copy) so the client and agent share a single referent — even if the agent later edits the underlying trip.
@@ -1163,6 +1192,39 @@ data class Trip(
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
+
+---
+
+### 8.7 Testimonial
+
+**Purpose:** A client's written reflection on a completed trip, captured on Screen 2.2.11 (Past Trip / Memory View). It is the client's own words, so it is theirs until they say otherwise — the status column exists so that nothing reaches a public surface by default.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `client_id` | `uuid` | No | Public | FK → Client |
+| `trip_id` | `uuid` | Yes | Public | FK → Trip. Null for a general reflection not tied to one trip |
+| `agent_id` | `uuid` | No | Public | FK → Agent (denormalized, for the approval queue) |
+| `body` | `text` | No | PII | The client's own words |
+| `attribution` | `text` | Yes | PII | How the client wants to be credited ("Jordan H.", "the Hayes family") |
+| `rating` | `smallint` | Yes | Public | 1–5, optional. The prompt is a question, not a star widget |
+| `status` | `testimonial_status` enum | No | Public | Default `draft` |
+| `submitted_at` | `timestamptz` | Yes | Public | When the client sent it to the agent |
+| `approved_at` | `timestamptz` | Yes | Public | **Nothing may be published without this** |
+| `approved_by_user_id` | `uuid` | Yes | Internal | FK → User (which agent approved) |
+| `published_at` | `timestamptz` | Yes | Public | When it went live on a public surface |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**The approval gate is the point.** `draft` → `submitted` → `approved` → `published`, with `declined` as a terminal branch. A row may only be read by an anonymous/public surface when `status = 'published'`, and `published_at` may only be set on a row that already has `approved_at`. This is the same discipline `PUBLIC_CLAIMS_MODE=strict` enforces on the hand-authored testimonials in `web/content/public/proof.ts`: a client's words are a marketing claim, and marketing claims do not ship unreviewed.
+
+**Client write access** is limited to their own rows in `draft` or `submitted`. Once approved, the row is the agency's to publish and the client's to withdraw — withdrawal moves it to `declined` rather than deleting it, so the audit trail survives.
+
+**Voice note:** the prompt is *"What did you carry home from this trip?"* (Design-System §2.4), not "rate your experience". The field is a reflection first and a testimonial second, which is also why `rating` is nullable.
+
+**Indexes:** unique on `(client_id, trip_id)` where `trip_id IS NOT NULL`; index on `(agent_id, status, created_at desc)` for the approval queue; index on `(status, published_at desc)` where `status = 'published'` for the public surface.
 
 ---
 
@@ -1321,6 +1383,41 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 ---
 
+### 9.5 PaymentMilestone
+
+**Purpose:** The supplier payment schedule for a trip — deposit, any interim payments, and the final balance — so the client can see what is due and when. This is what Screen 2.2.3 renders as its payment timeline, and it is what finally gives `trip.total_paid_cents` a producer.
+
+**Phase:** P1
+
+**This is not an invoice, and it is not in PCI scope.** Two things it deliberately is not:
+
+- **Not a bill from Story-Tail Adventures.** BRD §10.5 prohibits client-facing billing — the agency is not the merchant of record and charges the client nothing. These rows describe what the *supplier* expects and when, so the client is not surprised by a balance date. There is no "pay now" action, no amount owing *to us*, and no merchant fields.
+- **Not cardholder data.** No PAN, no token, no Stripe reference, no FK to PaymentCard. It lives in this domain because a reader looking for "payments" looks here, but it is outside SAQ A scope entirely. The client's only card-adjacent action remains the authorization flow in §9.2.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `trip_id` | `uuid` | No | Public | FK → Trip |
+| `kind` | `payment_milestone_kind` enum | No | Public | `deposit`, `interim`, `final` |
+| `label` | `text` | No | Public | Client-facing ("Deposit", "Second payment") |
+| `amount_cents` | `bigint` | No | Public | Client-visible by design — it is what the supplier expects |
+| `currency` | `char(3)` | No | Public | — |
+| `due_date` | `date` | Yes | Public | Null while the supplier has not set one |
+| `paid_at` | `timestamptz` | Yes | Public | — |
+| `paid_cents` | `bigint` | No | Public | Default 0. Partial payments happen |
+| `status` | `payment_milestone_status` enum | No | Public | Default `scheduled` |
+| `order_index` | `integer` | No | Public | Display order; ties are broken by `due_date` |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Why `status` is stored rather than derived.** `overdue` could be computed from `due_date < today`, but the agent needs to be able to suppress it — a supplier who has verbally extended a deadline should not produce a red row on the client's dashboard. `waived` exists for the same reason: suppliers do forgive milestones, and a waived one is not the same as a paid one.
+
+**`amount_cents` is Public, unlike `trip_component.cost_cents`.** The distinction is real: `cost_cents` is what the agency paid, which reveals margin; this is what the client's trip costs them on a given date, which they are entitled to know and which the itinerary already implies.
+
+**Indexes:** index on `(trip_id, order_index)`; index on `(status, due_date)` for the agent-side overdue sweep.
+
+---
+
 ## 10. Commission Domain
 
 ### 10.1 Commission
@@ -1437,6 +1534,13 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Indexes:** index on `(agent_id, last_message_at desc)`; index on `(client_id, last_message_at desc)`; index on `(trip_id)`.
 
+> **Reclassified September 2026, when `trip_read_policies` shipped.**
+> `client_unread_count` is granted to `authenticated`. It is the *client's own* unread count
+> and Screen 2.2.3 renders it ("Messages · 2 unread"); marking it Internal alongside
+> `agent_unread_count` reads like an artefact of the two being added as a pair.
+> `agent_unread_count` stays Internal and excluded — how far behind the agent is on their
+> inbox is not something a client should be able to poll.
+
 ### 12.2 Message
 
 **Phase:** P1
@@ -1455,6 +1559,17 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Indexes:** index on `(conversation_id, created_at)`.
 
+> **`is_internal_note` is enforced as a ROW filter, September 2026.** The client read
+> policy tests `is_internal_note = false` in its `USING` clause, and the column is *also*
+> excluded from the grant. Both are needed, and the order of reasoning matters: withholding
+> the column does **not** hide the rows — a grant decides which columns come back, never
+> which rows. Column-only protection would have delivered the agent's private notes to the
+> client as ordinary messages, with the one field that identified them stripped off.
+>
+> `read_by_other_at` is excluded too: read receipts are named in Screen-Inventory §2.2.7 but
+> nothing has decided their semantics, and shipping one silently makes a promise about the
+> agent's attention that nobody agreed to.
+
 ### 12.3 MessageAttachment
 
 **Phase:** P1
@@ -1464,6 +1579,12 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `id` | `uuid` | No | Public | — |
 | `message_id` | `uuid` | No | Public | FK → Message |
 | `document_id` | `uuid` | No | Public | FK → Document |
+| `created_at` | `timestamptz` | No | Public | Default `now()` |
+
+**No `updated_at`, deliberately.** An attachment is a join row: it is created when a message
+is sent and deleted if the message is, and there is no field on it a later write could change.
+Every other table in this document carries both timestamps, so the absence is worth stating
+rather than looking like an omission.
 
 ### 12.4 MessageTemplate
 
@@ -1522,6 +1643,30 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
 **Indexes:** index on `(client_id)`; index on `(trip_id)`; index on `(checksum_sha256)` for dedup.
+
+---
+
+> **The client read policy uses a `kind` ALLOWLIST, September 2026.** This is the generic
+> file table for the whole model — the purpose line above says so — and two of its tenants
+> are agency-internal: `card_use_event.receipt_document_id` points here and
+> `card_use_event.trip_id` is `NOT NULL`, so supplier-charge receipts are trip-scoped *by
+> construction*, and `commission_import.document_id` points here too. A policy of "my
+> client_id, or any of my trips" therefore hands the traveler the agency's economics through
+> the side door, immediately after `cost_cents`, `total_commission_cents` and
+> `proposal.snapshot` were all withheld to prevent exactly that.
+>
+> Client-readable kinds are `passport`, `visa`, `insurance_cert`, `supplier_confirmation`,
+> `photo` and `pdf_itinerary`. It is an allowlist rather than a denylist so that a
+> `document_kind` added later must be considered before it becomes client-readable.
+>
+> **`is_sensitive` is deliberately NOT part of the predicate.** It governs how a read is
+> logged, not whether it is allowed; filtering on it would hide the client's own passport
+> scan, which is the most obviously-theirs file in the table.
+>
+> `kind`, `mime_type` and `size_bytes` are granted despite their Internal markers — Screen
+> 2.2.6 groups by kind, picks its PDF/IMG badge from mime_type and prints the size, and all
+> three describe the client's own file. `storage_bucket`, `storage_key`, `checksum_sha256`
+> and `is_sensitive` remain server-only.
 
 ---
 
@@ -1675,6 +1820,9 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `lead_status` | `new`, `contacted`, `qualified`, `converted`, `lost` | Lead |
 | `lead_source_kind` | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` | LeadSource |
 | `document_kind` | `passport`, `visa`, `insurance_cert`, `supplier_confirmation`, `receipt`, `photo`, `csv_import`, `pdf_proposal`, `pdf_itinerary`, `other` | Document |
+| `payment_milestone_kind` | `deposit`, `interim`, `final` | PaymentMilestone |
+| `payment_milestone_status` | `scheduled`, `paid`, `waived`, `overdue` | PaymentMilestone |
+| `testimonial_status` | `draft`, `submitted`, `approved`, `published`, `declined` | Testimonial |
 
 ---
 
@@ -1778,6 +1926,9 @@ Tables that scope via parent FK:
 - `payment_card` → `client.agent_id`
 - `card_authorization`, `card_use_event` → `trip.agent_id`
 - `document` → `client.agent_id` or `trip.agent_id`
+- `payment_milestone` → `trip.agent_id`
+- `testimonial` → `agent_id` directly (denormalized, for the approval queue)
+- `message_attachment` → `message` → `conversation.agent_id`
 
 ### 19.2 Sharing (Future)
 

@@ -4,14 +4,28 @@ The API contract that the web app, mobile shared module, and Edge Functions all 
 
 ## Status
 
-**Initialized, with an empty contract.** `package.json` and `openapi.yaml` exist and
-`npm run generate -w contracts` works, but `paths` is still empty — the 2.1.x auth screens call Supabase
-Auth (GoTrue) directly via the official SDKs, so they are not our API surface. The first real paths will
-arrive with the Stripe and commission-import Edge Functions.
+**Four paths, both generators live.** The §2.2 write endpoints are described here and both sides
+are generated: `npm run generate -w contracts` runs the TypeScript and Kotlin generators in turn, and
+the "Contracts codegen is current" CI job regenerates and diffs both.
 
-**The Kotlin generator is deferred.** `openapi-generator-cli` pulls a ~25 MB JAR and needs a Java toolchain
-on every CI runner, and there is nothing to generate from yet. Add `generate:kotlin` when the first
-endpoint lands. Until then `generate` runs the TypeScript side only.
+**Reads are deliberately absent.** The §2.2 screens read the trip graph through PostgREST under the
+RLS policies in `20260907031255_trip_read_policies.sql`, naming their columns. Those column grants
+*are* the read contract — describing them again as endpoints would give two sources of truth for the
+same question. Only writes, and the one capability a client cannot be granted (naming a storage
+object), are functions.
+
+**The Kotlin generator does not use `openapi-generator-cli`.** That objection still stands: it pulls a
+~25 MB JAR and needs a Java toolchain on every CI runner. `scripts/generate-kotlin.mjs` emits Kotlin
+source literals from the parsed spec instead — the same approach `web/scripts/export-public-content.mts`
+uses for `GeneratedPublicContent.kt`. It is reviewable in a diff, checked by the Kotlin compiler rather
+than at runtime, and adds one small dependency (`js-yaml`) instead of a toolchain.
+
+Its scope is narrow on purpose: request/response data classes and the enums they reference, and
+nothing else. No HTTP client and no operation wrappers — the mobile side already has a repository
+layer with its own error handling, and what it lacked was payloads that cannot drift from the contract.
+
+**Known gap.** The five shipped `onboarding-*` functions predate this file and are still not described
+in it; `web/lib/onboarding/api.ts` hand-rolls their calls. Backfilling them is tracked work.
 
 ## Layout
 
@@ -20,22 +34,25 @@ contracts/
 ├── README.md                  ← this file
 ├── package.json
 ├── openapi.yaml               # ← the source of truth — hand-edited
+├── scripts/
+│   └── generate-kotlin.mjs    # openapi.yaml → Kotlin data classes
 ├── ts/                        # ← generated TypeScript (do not edit)
-│   ├── types.ts
-│   └── client.ts
+│   └── types.ts
 └── kotlin/                    # ← generated Kotlin (do not edit)
     └── com/storytail/contracts/
-        ├── Types.kt
-        └── Client.kt
+        └── Types.kt
 ```
+
+`contracts/kotlin/` is on the mobile shared module's `commonMain` source path — see the
+`contractsKotlinDir` srcDir in `mobile/shared/build.gradle.kts`. The output is committed, so a mobile
+build never needs Node installed. It is also the one place Kotlin may live outside `mobile/`, which
+`.claude/hooks/stack-boundary-guard.py` sanctions explicitly.
 
 ## Initialize
 
 ```bash
-cd contracts
-npm init -y
-npm install --save-dev openapi-typescript        # for TypeScript codegen
-npm install --save-dev openapi-generator-cli     # for Kotlin codegen
+npm install                       # js-yaml + openapi-typescript, from the root workspace
+npm run generate -w contracts     # regenerates ts/ and kotlin/
 ```
 
 In `package.json` add scripts:

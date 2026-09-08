@@ -24,7 +24,7 @@ export function PublicTopBar({ variant = "solid" }: { variant?: TopBarVariant })
       className={cn(
         // Tablet (768–1199) is ~20px tighter than the 1440 artboard so brand + five links +
         // two buttons fit without horizontal overflow; web restores the prototype spacing.
-        "pub-topbar z-40 flex items-center gap-2.5 px-3.5 md:px-4 web:gap-3.5 web:px-5",
+        "pub-topbar z-40 flex items-center gap-2.5 px-3.5 md:max-web:px-4 web:gap-3.5 web:px-5",
         overlay ? "pub-topbar-overlay on-photo md:top-0" : "sticky top-0",
       )}
     >

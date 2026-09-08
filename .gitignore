@@ -117,3 +117,15 @@ __pycache__/
 /deno.lock
 .vercel
 .env*
+
+# Claude Design sync working artifacts, all regenerable from the repo's own dist/ by
+# re-running the design-sync skill: staged converter scripts, the bundle it uploads, and
+# the assets/previews it captures on the way. `.design-sync/config.json` and NOTES.md are
+# deliberately NOT ignored — they carry the project id and the per-repo corrections that
+# make the next sync fast, and the skill expects them committed.
+/.ds-sync/
+/ds-bundle/
+/web/.ds-sync-assets/
+/.design-sync/.cache/
+/.design-sync/previews/
+/.design-sync/fonts/

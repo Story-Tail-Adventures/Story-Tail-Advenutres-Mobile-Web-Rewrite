@@ -393,6 +393,20 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 
 ### 2.2 Dashboard & Trip Experience
 
+> **All eleven screens built September 2026**, on web and on Android/iOS, against live Supabase data. This is the first section that reads real trip data, the first with an authenticated app shell, and the first where writes go through audited Edge Functions. Six decisions apply across the whole section; the per-screen notes below record only what a specific screen did differently.
+>
+> **The reads are column-grant-scoped, not just row-scoped.** RLS decides which *rows*; GRANTs decide which *columns*. Eight tables got a policy and an explicit column list, and eleven columns are deliberately withheld from `authenticated`: `trip.notes` and `trip.total_commission_cents`, `trip_component.cost_cents` and its commission and API fields, `document.storage_bucket`/`storage_key`/`checksum_sha256`, `conversation.agent_unread_count`, `message.is_internal_note` and `read_by_other_at`, `proposal.viewed_at`, `itinerary.version`. Selecting one of those raises 42501 rather than returning fewer columns — an accidental `select *` fails loudly instead of shipping the agency's economics to the traveler. `supabase/tests/rls_trip_graph.sql` asserts every one of them, as the client, as the co-traveler, as the agent and as anon.
+>
+> **Client writes go through Edge Functions, never PostgREST.** There is no write policy on any table in this section, so a browser `.insert()` would match nothing and return 204 — it would look like it worked. Four functions carry the writes: `trip-message`, `trip-document`, `trip-document-url` and `testimonial`. Each resolves the caller from the JWT, checks ownership explicitly (it runs on the service role, so RLS is checking nothing for it), and writes an `audit_event` per CLAUDE.md rule 3. "No such row" and "not yours" return the same 404 throughout, so ids cannot be enumerated.
+>
+> **Storage has exactly one door.** `document.storage_key` is outside the column grant and Storage is addressed *by key*, so a client who cannot read the key cannot form a request — which makes every `authenticated` policy on `storage.objects` unreachable. The bucket therefore has none, and `trip-document-url` is the only way in. That is not a web convenience: Compose Multiplatform has no server, so without it 2.2.6 and 2.2.11 could not open a file on a phone at all. Signing is on demand rather than per page load, because every signature writes an access record and a five-minute URL for a file nobody opened is a false entry on that trail.
+>
+> **Two new entities.** `payment_milestone` (Data-Model §9.5) and `testimonial` (§8.7), both documented before the migrations. The milestone is **a supplier payment schedule the client is kept informed about, not an invoice** — BRD §10.5 prohibits client-facing billing, so there is no merchant-of-record field, no "pay now", and no Stripe reference; the only client action near money stays §2.4's card *authorization*. `message_attachment` (§12.3) was also created, being the one P1 entity that had no migration.
+>
+> **Every derived label lives in one table per stack, compared by CI.** Two of the seven trip-status labels are *derived* — the enum has no "Final payment due" and no "Traveling now" — so the mapping exists in `web/lib/trips/status.ts` and `domain/trip/TripStatus.kt` and nowhere else. Six such tables now cover status, documents, threads, memories, status changes and destinations; `.github/scripts/check_copy_parity.py` compares 293 messages across 26 modules on every CI run. Copy that a traveler reads must not differ between the browser and the phone, and nothing else would catch it.
+>
+> **§5's four states are shell infrastructure, not per-screen work.** Four states × eleven screens × two stacks is 88 hand-written states and exactly how they drift. Web uses route-level `loading`/`error` boundaries plus one primitive set in `web/components/client/states.tsx`; native uses a single `Loadable<T>` sealed interface. `Unauthorized` is not decoration — an agent's `platform_user.client_id` is NULL, so every policy predicate here evaluates NULL for them and returns zero rows, which without that state renders as the friendly "no trips yet" empty state. That reads as data loss.
+
 #### 2.2.1 Client Dashboard / Home
 **Purpose:** The client's landing page after login — surfaces what matters most right now.
 **Primary elements:** Personalized greeting; upcoming-trip hero card (countdown, key dates, weather, "View Itinerary" CTA); trips-in-planning section; recent activity (proposal received, payment authorization requested, etc.); message preview; "Explore trips" CTA leading to self-guided search; brand-aligned visual treatment with hero image.
@@ -406,6 +420,13 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Key actions:** Filter; sort; open trip detail.
 **Entry points:** Dashboard "See all trips"; nav menu "My Trips".
 **Related screens:** Trip Detail.
+
+
+> Built September 2026. **The traveler count is on the card and the recent-activity feed is not.**
+>
+> §2.2.1 above names "recent activity (proposal received, payment authorization requested, etc.)" and a "message preview" among the dashboard's primary elements. The message preview is built. The activity feed is **not**, and nothing backs it: there is no activity or event table a client may read — `audit_event` is the agency's record and has no client policy, by design — so a feed would have to be assembled from heuristics over four other tables and would be wrong the first time two things happened in one minute. §2.6's notification centre is the right home for it.
+>
+> **The advisor card quotes Gyasi only.** `conversation.last_message_preview` is the last thing *anybody* said, so the card carries the sender and drops the quote when the traveler spoke last, keeping the reply-window line instead. Rendering it unconditionally attributed a traveler's own question to their advisor, in quote marks, under his name.
 
 #### 2.2.3 Trip Detail / Overview
 **Purpose:** Single-pane view of one trip, with quick access to itinerary, payments, documents, and messages.
@@ -435,12 +456,30 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Entry points:** Trip Detail.
 **Related screens:** Document Upload, Trip Detail.
 
+
+> Built September 2026, with three departures.
+>
+> **Uploading is not built; the CTA renders disabled with a reason.** `trip-document` signs the PUT, but the file picker (an `expect`/`actual` per platform), the progress state and the confirm step that replaces the placeholder `checksum_sha256` are the separate **Document Upload** screen this section already lists among its related screens. The checksum is stored as zeroes until that step exists — a checksum of the filename would look like a verified digest of content nobody has seen.
+>
+> **Per-document share is gone rather than disabled.** The share question was settled as PDF-only with the secure link deferred to §2.8, so there is no share of a single document to offer, and a dimmed control implies one is coming.
+>
+> **"Boarding passes" is not a group.** This section names six groups; there are ten `document_kind` values and the mapping is not one-to-one. Passports and visas share one drawer, because a traveler thinks of them as one. Boarding passes arrive as `supplier_confirmation` and are filed there — its own heading would always be empty. Four kinds never reach a client at all: `receipt`, `csv_import`, `pdf_proposal` and `other` are outside the read allowlist, and the `receipt` case is the reason that allowlist exists rather than a plain ownership test. `card_use_event.trip_id` is NOT NULL, so supplier-charge receipts are trip-scoped by construction, and an ownership-only policy would have handed the traveler exactly the agency economics withheld everywhere else in this section.
+
 #### 2.2.7 Trip Messages / Conversation Thread (Per Trip)
 **Purpose:** Trip-scoped conversation with the agent.
 **Primary elements:** Thread header (trip name, agent); message bubbles (client + agent); attachment thumbnails; compose bar; typing indicator; read receipts.
 **Key actions:** Send message; attach file/photo; tap suggested-reply chips.
 **Entry points:** Trip Detail; Messages Inbox.
 **Related screens:** Trip Detail, Messages Inbox.
+
+
+> Built September 2026. **Two of the named primary elements are absent, both for want of something to build them on.**
+>
+> **The typing indicator needs Realtime presence.** There is no presence channel in this codebase and no column that could stand in. Faking it — showing a dot on a timer — would be inventing the other person's behaviour.
+>
+> **Read receipts would need `message.read_by_other_at`**, which is withheld from the client column grant on purpose: it tells a traveler exactly when Gyasi opened their message, and an advisor who reads at 11pm should not have that on the record for every client he has. `conversation.client_unread_count` *is* granted, and gives the traveler the half of the signal that is theirs — what they have not read.
+>
+> This screen and **2.6.2** are one component at two mounts, which is why nothing here reads from the trip beyond its title.
 
 #### 2.2.8 Empty Trip Component States
 **Purpose:** When parts of an itinerary are not yet populated.
@@ -456,6 +495,15 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Entry points:** Push or email notification.
 **Related screens:** Trip Detail, Itinerary Viewer, Card Authorization.
 
+
+> Built September 2026, as a **route rather than a sheet**, and saying rather less than the artboards do.
+>
+> **A route, not a sheet.** Both artboards draw this over a dimmed dashboard, which is right when a status changes while somebody is already in the app. But this section's own entry points are "push or email notification" — so the case that has to work is arriving *cold*, from a tap, on a device where the app was not running, and a sheet has nothing to arrive at. Web serves it at `/trips/[tripId]/update`; native pushes `AppRoute.TripUpdate`. The sheet presentation belongs to §2.6's notification centre.
+>
+> **Nothing in the schema records a status *diff*.** There is `trip.status` and `trip.status_changed_at`, and no history table. So the headline and the description are derived from the status the trip landed *on*, and every supporting fact is a real row rendered only when it exists — a *sent* proposal, a published itinerary, the next unpaid milestone. The artboard's "two room types to choose between" is said by nothing, because no column counts room options. Narrating a change we cannot see would put words in Gyasi's mouth on the one screen a traveler reaches without asking for it.
+>
+> **The timestamp is absolute, not relative.** The artboard says "STATUS UPDATED · 2 MIN AGO", which is true when the notification fires and a confident lie by the time somebody opens the email next morning.
+
 #### 2.2.10 Trip Cancellation View
 **Purpose:** When a trip has been cancelled, the client sees a cancellation summary with relevant next steps.
 **Primary elements:** Cancellation banner; cancellation reason (if shared); refund/credit status; agent contact CTA; archived itinerary access.
@@ -463,12 +511,36 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Entry points:** Trip Detail for cancelled trips; notification.
 **Related screens:** Conversation Thread.
 
+
+> Built September 2026 as an **in-place variant of 2.2.3**, not as its own route — §4.4 calls it a "Pattern C variant" and that is what it is: the same hero and the same identity, with a cancellation summary where the tiles were, and the photograph desaturated. `/trips/[tripId]` for a cancelled trip *is* this screen, so a notification can still link straight to it.
+>
+> **It renders two client-visible columns and derives nothing.** Data-Model §21 reclassified `cancellation_reason` and `refund_status` as client-visible precisely so this screen could exist, and those two plus the status-change date are all it shows.
+>
+> The artboard also breaks out a cancellation *fee*, a refund *amount* and a future-trip *credit* with an expiry as separate labelled rows. **There are no columns for those.** `refund_status` is unconstrained `text`, so whatever the agent writes there is what a traveler reads — the seed's row is "Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027", and the screen prints it verbatim. So the *numbers* do reach the screen; what does not exist is any structure behind them.
+>
+> That is a real weakness and worth naming rather than leaving to be discovered: money in a free-text status field cannot be formatted, cannot be localised, cannot be reconciled against `trip.total_paid_cents`, and cannot be reported on. It is also the one place in §2.2 where a figure a traveler sees is not `bigint` cents — CLAUDE.md rule 5 governs money *columns*, and this is prose that happens to contain money, which is exactly how that rule gets eroded. Structuring it means new columns and a Data-Model change, so it is deliberately **not** done here; the alternative considered and rejected was parsing the prose to reformat it, which would be worse than printing it.
+>
+> **The "Ready to plan again?" card was rewritten, not repointed.** The desktop artboard pushes — "Gyasi has 3 options for fall", a claim nothing backs — at somebody whose trip has just collapsed. §2.6's third tone check asks whether copy leaves room for rest.
+
 #### 2.2.11 Past Trip Detail / Memory View
 **Purpose:** A nostalgic, scaled-back trip detail for past trips that emphasizes memory and re-booking.
 **Primary elements:** Trip recap card; uploaded photos; testimonial submission CTA; "Book a similar trip" CTA; archived itinerary access.
 **Key actions:** Upload photos; submit testimonial; start a new search seeded with the past trip details.
 **Entry points:** All Trips List → Past tab; dashboard "Past trips" section.
 **Related screens:** Search Landing, Conversation Thread.
+
+
+> Built September 2026, with its own route and three departures.
+>
+> **A route of its own**, unlike 2.2.10 above, and the asymmetry is deliberate. A cancelled trip is the overview with a different card; a past trip is a gallery and a note where the other has tiles and a payment timeline, which is what "nostalgic, scaled-back" in the purpose line describes. `/trips/[tripId]` redirects a completed trip here, and this screen redirects back if the trip is not actually past — a bookmarked URL should not show a memory view of a trip somebody is about to take.
+>
+> **The note from Gyasi leads, above the photos, on web as well as mobile.** The desktop artboard puts it in the right rail; the mobile one moves it first. Web follows the mobile artboard here because this screen exists for the feeling, and the emotional beat should not be the last thing a traveler scrolls past. It reads `itinerary.closing_note` in preference to `intro_note` — an intro note reads oddly in the past tense.
+>
+> **The photographs are not rendered from storage.** Each tile is the filename over the trip's own hero image and taps through to 2.2.6. Rendering the real objects would mean signing a URL per photograph on every page load — a five-minute URL and an access record each, for images nobody may look at. 2.2.6 is where a photograph gets opened, and it signs on demand.
+>
+> **"Book a similar trip" repoints at the thread.** §2.3 is Phase 2, so there is no search to seed with the past trip's details. "Gyasi still has your notes from this one" is both true and closer to what a traveler wants.
+>
+> **The testimonial is a reflection first.** The prompt is *"What did you carry home from this trip?"* — Design-System §2.4's framing — not a star widget, which is also why `rating` is nullable. A client can reach `draft` and `submitted` and no further state; approval and publication are agent actions arriving with §3.x, and the table's CHECK constraints refuse a `published_at` without an `approved_at` so a bug there fails loudly rather than quietly publishing somebody's words. Submitting is one-way: once it leaves `draft` the body is frozen, because Gyasi may already have read it.
 
 ---
 
@@ -1643,8 +1715,8 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.1.14 Onboarding Complete** — Pattern G (final step). Recommended-actions cards stack on mobile, 2x2 grid on tablet, horizontal row on web.
 
 #### Client — Dashboard & Trip Experience (2.2.x)
-- **2.2.1 Client Dashboard / Home** — Pattern D. Mobile hero countdown is full-width; tablet/web shows it alongside a "today's weather" widget.
-- **2.2.2 All Trips List** — Pattern B.
+- **2.2.1 Client Dashboard / Home** — Pattern D. Mobile hero countdown is full-width; tablet/web shows it alongside a "today's weather" widget. **The weather widget was NOT built** (September 2026): `itinerary_day.weather_forecast` is agent-authored and cached per ITINERARY DAY, so there is no reading for "today" on a dashboard whose trip may be months away, and no weather integration exists to supply one (BRD §9 names none). The hero is full-width at every size instead; the forecast appears where it has data, on 2.2.4 and 2.2.5.
+- **2.2.2 All Trips List** — Pattern B, with one recorded deviation: **a card list at every width, not a data table on web.** Pattern B's web column ("true data table with sortable headers, right-click menu, bulk-select") is written for the agent surface, where a hundred rows need scanning; §4.3 sizes a traveler's account at a handful of trips, and each one is a photograph they recognise before they read the title — the artboard draws image-led cards at 1280px for that reason. Search and sort are absent rather than inert for the same reason: a search field over four rows is furniture. **Built September 2026 as described here.**
 - **2.2.3 Trip Detail / Overview** — Pattern C.
 - **2.2.4 Itinerary Viewer** — Pattern I.
 - **2.2.5 Itinerary Day Detail** — Pattern I. Maps are full-screen on mobile, inline on tablet/web.
@@ -1869,13 +1941,29 @@ In addition to those four, three more states apply selectively:
 ## 6. Navigation & Information Architecture (Overview)
 
 ### 6.1 Client Web Navigation
-Top nav: Logo, Trips, Search, Messages, Profile menu (with Account submenu).
+
+**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 64px top bar above the content alongside notifications and the account avatar.
+
+This contradicts what this section said originally — "Top nav: Logo, Trips, Search, Messages, Profile menu (with Account submenu)" — and the contradiction was settled in the prototype's favour by Gyasi on 2026-09-06. Three reasons it is the better answer, recorded so nobody re-litigates it:
+
+- **The rail is where the design went.** The Claude Design project draws a rail for the authenticated client surface, and a top nav only for the public one. Building the doc's version would have meant a screen that matches no artboard.
+- **Six destinations do not fit a top nav beside a logo** at tablet width without collapsing into a menu, and a menu is where destinations go to be forgotten.
+- **It matches the agent surface (§6.4)**, so one shell serves both roles as §3.x lands.
+
+Note the destinations are NOT the same set as §6.3's bottom bar, and this is deliberate rather than an inconsistency — see the note there. "Search" is renamed **Discover** on both surfaces: it is a curated catalog at Phase 1, and "Search" promises a query box that does not exist until the Phase 2 API integration.
 
 ### 6.2 Client Tablet Navigation
-Top nav identical to web in landscape; collapses to a hybrid (top bar + drawer) in portrait. Bottom tab bar appears when in portrait at the lower end of tablet sizes (close to phablet).
+The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape / drawer-in-portrait split: the rail is 72px and costs the same in either orientation, and a drawer would have been a third navigation implementation to keep in step with the other two. The bottom tab bar appears below 768px, which is the §4.1 mobile breakpoint.
 
 ### 6.3 Client Mobile Navigation
-Bottom tab bar: Home, Trips, Search, Messages, Profile. Floating "Help" button persists across screens.
+
+**Amended September 2026, built as amended.** A **four-tab** bottom bar: Trips, Discover, Messages, Account. Originally five (Home, Trips, Search, Messages, Profile) with a floating "Help" button; both changed, per the same 2026-09-06 decision.
+
+- **Home and Trips collapsed into one tab.** The dashboard (2.2.1) *is* the Trips tab root, and the trip list (2.2.2) is one tap inside it. Two tabs for one idea is how a four-tab bar becomes a five-tab bar becomes a menu.
+- **Four rather than six.** Wallet (§2.4) and Documents (§2.5.4) stay on the rail and are reached from the trip screens on mobile. A phone bar wants thumb-reachable targets, and §4.2's 44pt minimum across six tabs leaves nothing for a label.
+- **No Help FAB.** The prototype's own bottom bar has none, and a floating button that follows the traveler across every screen is the opposite of §2's "leaves room for rest". Help lives in Account.
+
+`web/lib/client/nav.ts` and `domain/trip/ClientDestinations.kt` are the two implementations of this, held in step by `.github/scripts/check_copy_parity.py`. Both model a **union of six destinations with per-surface inclusion flags** rather than one list with a projection, precisely because §6.1's set and this one differ.
 
 ### 6.4 Agent Web Navigation
 Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commissions, Reports, Templates, Settings. Top utility bar: search, quick-add, notifications, profile menu.

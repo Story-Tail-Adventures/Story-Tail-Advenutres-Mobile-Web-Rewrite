@@ -116,7 +116,88 @@ sealed interface AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
+    // ── Screen Inventory §2.2, the authenticated trip surface ───────────────────
+    //
+    // These are the four tabs' roots plus the trip stack. TAB SEMANTICS, decided here
+    // because Navigator has push/replace/resetTo/pop and nothing that means "go to a tab":
+    //
+    //   * Selecting a tab REPLACES the stack root — `resetTo`, not `push`. A bottom bar is
+    //     a set of roots, not a history, and pushing would make Back walk backwards through
+    //     tabs instead of leaving the app.
+    //   * Tapping the ALREADY-ACTIVE tab pops that tab back to its root, which is the
+    //     platform convention on both iOS and Android.
+    //   * System Back from a tab root exits, because there is nowhere above a root. Back
+    //     from a pushed screen inside a tab pops to that tab's root.
+
+    /** Screen 2.2.1, and the root of the Trips tab. */
     data object Dashboard : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.2.2. */
+    data object AllTrips : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.2.3. */
+    data class TripDetail(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.2.4. */
+    data class Itinerary(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.2.5. [dayNumber] rather than a day id, because that is what the URL-shaped
+     * twin uses and what a "Day 3" deep link would carry.
+     */
+    data class ItineraryDay(val tripId: String, val dayNumber: Int) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.2.6. */
+    data class TripDocuments(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.2.7. */
+    data class TripThread(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.2.11. A route of its own rather than a branch inside [TripDetail].
+     *
+     * The workflow that planned this section left 2.2.10 and 2.2.11 as "the detail route
+     * when the trip is cancelled/past", and that was the one under-specified thing in it:
+     * every other screen had an exact path. A past trip is a different screen — a gallery
+     * and a note, not tiles and a payment timeline — so it gets its own route, and
+     * [TripDetail] redirects to it rather than growing a second body.
+     *
+     * 2.2.10 WENT THE OTHER WAY, and there was a `CancelledTrip` route here for a while
+     * before it was removed unused. A cancelled trip genuinely IS the overview with a
+     * different summary card: same hero, same identity, a cancellation summary where the
+     * tiles were. §4.4 calls it a "Pattern C variant" and that is how both stacks build it.
+     * The plan's consistency argument — that every screen should be pinned to a path — is
+     * still satisfied, because `/trips/[id]` for a cancelled trip IS that path and a
+     * notification can link straight to it.
+     */
+    data class PastTrip(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.2.9, the notification landing.
+     *
+     * A ROUTE and not a sheet, which is where this departs from both artboards — they draw
+     * it over a dimmed dashboard. §2.2.9's entry points are "push or email notification", so
+     * the case that has to work is arriving COLD, from a tap, with the app not running, and a
+     * sheet has nothing to arrive at. The sheet presentation belongs to §2.6's notification
+     * centre.
+     */
+    data class TripUpdate(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }

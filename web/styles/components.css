@@ -130,6 +130,12 @@
   .chip-status.past      { background: #E2DBD2; color: #4A3F38; }
   .chip-status.lead      { background: #F4D9F6; color: #4E124E; }
   .chip-status.inquiry   { background: #E1D7F4; color: #2C1761; }
+  /* `cancelled` was missing from the seven in Design-System §4.3, so C2210_Cancelled
+     hardcoded these two values inline. Mapping cancelled onto `past` was the other
+     option and it is wrong: the All Trips filter tabs separate Past from Cancelled, so
+     the two must not be indistinguishable in the list they filter. Cool grey against
+     past's warm grey. */
+  .chip-status.cancelled { background: #D7DFE6; color: #3D352E; }
   .scheme-dark .chip-status.proposal  { background: #6B4400; color: #FFE3B7; }
   .scheme-dark .chip-status.booked    { background: #0D5A2F; color: #C7E9D4; }
   .scheme-dark .chip-status.due       { background: #6E1313; color: #FCD3D0; }
@@ -137,6 +143,7 @@
   .scheme-dark .chip-status.past      { background: #1F3450; color: #C3D3E6; }
   .scheme-dark .chip-status.lead      { background: #4E124E; color: #F4D9F6; }
   .scheme-dark .chip-status.inquiry   { background: #2A1559; color: #E1D7F4; }
+  .scheme-dark .chip-status.cancelled { background: #2A3340; color: #C9D2DC; }
 
   /* ── Cards ── */
   .card {
