@@ -62,10 +62,10 @@ export async function requireOwnedTrip(
   db: Db,
   clientId: string,
   tripId: string,
-): Promise<{ id: string; agentId: string }> {
+): Promise<{ id: string; agentId: string; title: string }> {
   const { data, error } = await db
     .from("trip")
-    .select("id, client_id, agent_id, archived_at")
+    .select("id, client_id, agent_id, title, archived_at")
     .eq("id", tripId)
     .maybeSingle();
 
@@ -73,7 +73,7 @@ export async function requireOwnedTrip(
   if (!data || data.client_id !== clientId || data.archived_at !== null) {
     throw notFound("No such trip.");
   }
-  return { id: data.id, agentId: data.agent_id };
+  return { id: data.id, agentId: data.agent_id, title: data.title };
 }
 
 /**

@@ -607,3 +607,186 @@ export async function loadItinerary(tripId: string, today = todayIsoUtc()): Prom
     visaRequired: null,
   };
 }
+
+/**
+ * The caller's own `platform_user.id`.
+ *
+ * NOT `auth.getUser().id`, and the distinction cost a wrong label on screen before it was
+ * caught: `platform_user.account_id` is the auth.users id, while `platform_user.id` is a
+ * separate key — and `document.owner_user_id` / `message.sender_user_id` point at the
+ * latter. Comparing against the auth id makes every row read "added by Gyasi", including a
+ * traveler's own passport, because the comparison is false for everybody.
+ *
+ * No `.eq()` filter: RLS scopes `platform_user` to the caller's own row, which is the same
+ * assumption `web/lib/onboarding/status.ts` runs on.
+ */
+async function currentPlatformUserId(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("platform_user").select("id").maybeSingle();
+  return data?.id ?? null;
+}
+
+export type TripDocument = {
+  id: string;
+  kind: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+  /** True when `owner_user_id` is the caller's own platform user — the §2.2.6 uploaded-by. */
+  mine: boolean;
+};
+
+export type TripDocumentsView = {
+  tripId: string;
+  tripTitle: string;
+  documents: TripDocument[];
+};
+
+/**
+ * Screen 2.2.6.
+ *
+ * `size_bytes` comes back as a STRING. It is `bigint` in Postgres, and PostgREST serialises
+ * bigint as a JSON string so a value past 2^53 survives the trip — the same reason Money is
+ * a string in the OpenAPI contract. Coercing here rather than at the render site keeps the
+ * one `Number()` in the codebase next to the comment explaining it. A 50MiB ceiling means
+ * the coercion is always exact in practice; the string is about the wire format, not the
+ * file sizes we actually see.
+ *
+ * `storage_key` is deliberately NOT selected. It is outside the column grant, so naming it
+ * would raise 42501 — and the whole point of `trip-document-url` is that the client never
+ * holds a key. Opening a file goes through the signer.
+ */
+export async function loadTripDocuments(tripId: string): Promise<TripDocumentsView | null> {
+  const supabase = await createClient();
+
+  const [{ data: trip }, { data: rows }, myUserId] = await Promise.all([
+    supabase.from("trip").select("id, title").eq("id", tripId).maybeSingle(),
+    supabase
+      .from("document")
+      .select("id, owner_user_id, kind, filename, mime_type, size_bytes, created_at")
+      .eq("trip_id", tripId)
+      .order("created_at", { ascending: false }),
+    currentPlatformUserId(),
+  ]);
+
+  // Null, not empty: RLS makes "not yours" and "does not exist" the same answer, and the
+  // route turns that into a not-found rather than an empty library for somebody else's trip.
+  if (!trip) return null;
+
+  return {
+    tripId: trip.id,
+    tripTitle: trip.title,
+    documents: (rows ?? []).map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      filename: d.filename,
+      mimeType: d.mime_type,
+      sizeBytes: Number(d.size_bytes ?? 0),
+      createdAt: d.created_at,
+      mine: myUserId !== null && d.owner_user_id === myUserId,
+    })),
+  };
+}
+
+export type ThreadMessage = {
+  id: string;
+  sender: "agent" | "client";
+  body: string;
+  createdAt: string;
+  /** Documents attached to this message, already filtered to what the client may read. */
+  attachments: TripDocument[];
+};
+
+export type TripThreadView = {
+  tripId: string;
+  tripTitle: string;
+  conversationId: string | null;
+  unreadCount: number;
+  messages: ThreadMessage[];
+};
+
+/**
+ * Screen 2.2.7.
+ *
+ * `is_internal_note` is not filtered here, and that is not an omission: it is outside the
+ * client column grant, so naming it would raise 42501. The filtering happens in
+ * `message_self_select`, which carries `is_internal_note = false` as a ROW predicate — the
+ * internal notes are invisible rather than redacted. The seed keeps a deliberate internal
+ * note on Jordan's thread and `rls_trip_graph.sql` asserts it never comes back.
+ *
+ * A trip with no conversation yet is a real state, not an error: the row is created by
+ * `trip-message` on the first send. It renders as the empty thread.
+ */
+export async function loadTripThread(tripId: string): Promise<TripThreadView | null> {
+  const supabase = await createClient();
+
+  const [{ data: trip }, { data: conversations }] = await Promise.all([
+    supabase.from("trip").select("id, title").eq("id", tripId).maybeSingle(),
+    supabase
+      .from("conversation")
+      .select("id, client_unread_count")
+      .eq("trip_id", tripId)
+      .limit(1),
+  ]);
+
+  if (!trip) return null;
+
+  const conversation = conversations?.[0] ?? null;
+  if (!conversation) {
+    return { tripId: trip.id, tripTitle: trip.title, conversationId: null, unreadCount: 0, messages: [] };
+  }
+
+  const [{ data: rows }, myUserId] = await Promise.all([
+    supabase
+      .from("message")
+      .select("id, sender_role, body, created_at")
+      .eq("conversation_id", conversation.id)
+      .order("created_at", { ascending: true }),
+    currentPlatformUserId(),
+  ]);
+
+  const messages = rows ?? [];
+
+  // Attachments in one query for the whole thread rather than one per message. The join goes
+  // message_attachment → document, and `document`'s own policy still applies to the embedded
+  // side: an attachment pointing at a `receipt` comes back with a null document and is
+  // dropped below, which is the behaviour we want and the reason this is not an inner join.
+  const attachmentsByMessage = new Map<string, TripDocument[]>();
+  if (messages.length > 0) {
+    const { data: attachmentRows } = await supabase
+      .from("message_attachment")
+      .select("message_id, document:document_id (id, owner_user_id, kind, filename, mime_type, size_bytes, created_at)")
+      .in("message_id", messages.map((m) => m.id));
+
+    for (const row of attachmentRows ?? []) {
+      const d = row.document;
+      if (!d) continue;
+      const list = attachmentsByMessage.get(row.message_id) ?? [];
+      list.push({
+        id: d.id,
+        kind: d.kind,
+        filename: d.filename,
+        mimeType: d.mime_type,
+        sizeBytes: Number(d.size_bytes ?? 0),
+        createdAt: d.created_at,
+        mine: myUserId !== null && d.owner_user_id === myUserId,
+      });
+      attachmentsByMessage.set(row.message_id, list);
+    }
+  }
+
+  return {
+    tripId: trip.id,
+    tripTitle: trip.title,
+    conversationId: conversation.id,
+    unreadCount: conversation.client_unread_count ?? 0,
+    messages: messages.map((m) => ({
+      id: m.id,
+      sender: m.sender_role as "agent" | "client",
+      body: m.body,
+      createdAt: m.created_at,
+      attachments: attachmentsByMessage.get(m.id) ?? [],
+    })),
+  };
+}

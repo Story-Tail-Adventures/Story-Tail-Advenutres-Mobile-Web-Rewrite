@@ -33,6 +33,39 @@
     padding-bottom: calc(64px + max(env(safe-area-inset-bottom), 8px));
   }
 
+  /* ── A screen that fills the viewport instead of scrolling the document ── */
+
+  /* Screen 2.2.7 is the one §2.2 surface that is not a document you scroll: the thread
+   * scrolls inside itself and the compose bar stays pinned under it. §4.4 calls that
+   * "mobile is full-screen", and the artboards make the compose bar a SIBLING of the scroll
+   * rather than an overlay so a long thread cannot hide its own last message.
+   *
+   * That needs a DEFINITE height somewhere, and the shell deliberately has none — the
+   * column is `min-h-dvh` because every other client screen scrolls the document, and the
+   * itinerary's day-chip strip is `sticky top-16` against exactly that document scroll.
+   * Switching the shell to `h-dvh` with an internal scroller would fix this screen and
+   * break that one.
+   *
+   * So this is an opt-in a page puts on its own root, and it computes the height the shell
+   * would otherwise have left it: the viewport, less the 64px top bar it sits below, less
+   * the bottom bar when there is one.
+   *
+   * The `padding-bottom` reserve above has to come off as well, or the reserve and the
+   * height subtraction both apply and the screen overflows by the height of the bar. This
+   * rule is after that one and has the same specificity, so source order settles it —
+   * which is fragile enough to be worth saying out loud: do not reorder these two. */
+  .client-surface:has(.client-fill) .client-main {
+    padding-bottom: 0;
+  }
+
+  .client-fill {
+    height: calc(100dvh - 64px);
+  }
+
+  .client-surface:has(.client-bottom-nav) .client-fill {
+    height: calc(100dvh - 64px - 64px - max(env(safe-area-inset-bottom), 8px));
+  }
+
   /* ── Top bar (64px, Design-System §9.1) ───────────────────────────────── */
 
   .client-topbar {

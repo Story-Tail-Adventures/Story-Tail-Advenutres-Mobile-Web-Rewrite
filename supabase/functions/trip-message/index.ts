@@ -84,7 +84,11 @@ Deno.serve(async (req) => {
         client_id: clientId,
         agent_id: trip.agentId,
         trip_id: tripId,
-        subject: null,
+        // The trip title, matching the seeded threads. `subject` is nullable and null would
+        // work fine for THIS screen, which titles itself from the trip it already loaded —
+        // but §2.6's inbox lists conversations without one, and a null subject there is a
+        // row with no name. Setting it at creation is the only moment the title is free.
+        subject: trip.title,
         last_message_at: new Date().toISOString(),
         last_message_preview: preview(body),
         client_unread_count: 0,
