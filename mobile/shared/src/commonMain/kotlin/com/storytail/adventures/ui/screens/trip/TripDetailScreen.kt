@@ -161,7 +161,7 @@ private fun Body(
 
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (cancelled) {
-            CancellationSummary(detail)
+            CancellationSummary(detail, onOpenItinerary = { onOpenItinerary(trip.id) })
         } else {
             QuickTiles(
                 detail = detail,
@@ -343,7 +343,10 @@ private fun Glance(detail: TripDetailSnapshot) {
 }
 
 @Composable
-private fun CancellationSummary(detail: TripDetailSnapshot) {
+private fun CancellationSummary(
+    detail: TripDetailSnapshot,
+    onOpenItinerary: () -> Unit,
+) {
     val scheme = MaterialTheme.colorScheme
     TonalCard(scheme.surfaceContainerLowest) {
         Text(
@@ -366,6 +369,21 @@ private fun CancellationSummary(detail: TripDetailSnapshot) {
                 }
             },
         )
+
+        // Screen-Inventory §2.2.10 names "view archived itinerary" as a KEY ACTION, and web
+        // offers it from this same card. Native had no way to reach it at all — the
+        // cancelled branch replaces QuickTiles, which is where the itinerary link normally
+        // lives, so removing the tiles silently removed the only route to it.
+        //
+        // Gated on `itineraryReady` for the same reason as 2.2.11's: an unpublished
+        // itinerary is invisible to this session, so the button would land on "not published
+        // yet" for a trip that is not happening.
+        if (detail.itineraryReady) {
+            Spacer(Modifier.height(14.dp))
+            OutlinedButton(onClick = onOpenItinerary, modifier = Modifier.fillMaxWidth()) {
+                Text(TripDetailMessages.ARCHIVED_ITINERARY)
+            }
+        }
     }
 }
 
@@ -515,6 +533,7 @@ object TripDetailMessages {
     const val CANCELLED_REASON = "Reason"
     const val CANCELLED_REFUND = "Refund"
     const val CANCELLED_NO_REASON = "Not recorded"
+    const val ARCHIVED_ITINERARY = "View the archived itinerary"
     const val CANCELLED_AGAIN_HEADING = "When you’re ready"
     const val CANCELLED_AGAIN_BODY =
         "There’s no hurry. Tell Gyasi when the timing feels right and he’ll pick it up from here."

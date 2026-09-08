@@ -190,6 +190,39 @@ class NavigatorTest {
     }
 
     @Test
+    fun `replace does not leave two identical adjacent entries`() {
+        // The §2.2 case: reach the thread from a trip detail, then use "Open trip", which
+        // replaces with the TripDetail the user came from. Before the dedupe this left
+        // [Dashboard, TripDetail, TripDetail] and the first back gesture appeared to do
+        // nothing.
+        val nav = Navigator(AppRoute.Dashboard)
+        nav.push(AppRoute.TripDetail("t1"))
+        nav.push(AppRoute.TripThread("t1"))
+        nav.replace(AppRoute.TripDetail("t1"))
+
+        assertEquals(AppRoute.TripDetail("t1"), nav.current)
+        nav.pop()
+        assertEquals(
+            AppRoute.Dashboard,
+            nav.current,
+            "one back gesture should leave the trip detail, not land on a duplicate of it",
+        )
+    }
+
+    @Test
+    fun `replace still substitutes when the entry beneath is different`() {
+        // The dedupe must not turn every replace into a pop — that would break the
+        // password-reset case replace exists for.
+        val nav = Navigator(AppRoute.Dashboard)
+        nav.push(AppRoute.TripDetail("t1"))
+        nav.replace(AppRoute.Itinerary("t1"))
+
+        assertEquals(AppRoute.Itinerary("t1"), nav.current)
+        nav.pop()
+        assertEquals(AppRoute.Dashboard, nav.current)
+    }
+
+    @Test
     fun `losing the session on a trip screen resets to the public landing`() {
         val nav = Navigator(AppRoute.Dashboard)
         nav.push(AppRoute.Itinerary("t1"))

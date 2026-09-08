@@ -1080,6 +1080,11 @@ class SupabaseTripRepository(
                     filter {
                         eq("trip_id", tripId)
                         neq("status", "paid")
+                        // `waived` too, matching dashboard() and trips() above. Without it
+                        // 2.2.9 can announce a WAIVED milestone as the next payment — a
+                        // figure the traveler does not owe, on the screen they reach from a
+                        // notification. The other three call sites all exclude both.
+                        neq("status", "waived")
                     }
                     order("due_date", Order.ASCENDING)
                     limit(1)

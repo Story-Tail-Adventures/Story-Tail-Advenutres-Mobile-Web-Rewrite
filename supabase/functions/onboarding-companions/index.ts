@@ -50,7 +50,7 @@ import { handlePreflight, corsHeaders } from "../_shared/cors.ts";
 import { requireUser, type AuthContext } from "../_shared/auth.ts";
 import { withAudit } from "../_shared/audit.ts";
 import { badRequest, notFound, problem } from "../_shared/problem.ts";
-import { uuidV7 } from "../_shared/uuid.ts";
+import { isUuid, uuidV7 } from "../_shared/uuid.ts";
 import {
   advanceOnboarding,
   nextStep,
@@ -109,16 +109,14 @@ Deno.serve(async (req) => {
 /**
  * A uuid, or a 400.
  *
- * The shape is checked here rather than left to Postgres: `.eq("id", "banana")` raises
- * "invalid input syntax for type uuid", which `problem()` correctly refuses to leak and so
- * reaches the caller as a bare 500. A malformed id is a bad request, and should say so.
+ * The predicate itself moved to `_shared/uuid.ts` when the §2.2 functions turned out to
+ * have been written without it — see `isUuid` there for the reasoning this comment used to
+ * carry alone.
  */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 function requireId(body: Record<string, unknown>): string {
   const id = optionalText(body, "id");
   if (!id) throw badRequest("This action needs the companion's id.");
-  if (!UUID.test(id)) throw badRequest("That is not a companion id.");
+  if (!isUuid(id)) throw badRequest("That is not a companion id.");
   return id;
 }
 

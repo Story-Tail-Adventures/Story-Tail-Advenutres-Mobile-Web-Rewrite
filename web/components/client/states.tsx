@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/icon-paths";
 import { cn } from "@/lib/cn";
+import { signOutAction } from "@/lib/auth/actions";
 
 /**
  * The four cross-cutting states Screen Inventory §5 requires of EVERY screen, as one set
@@ -70,11 +71,20 @@ export function EmptyState({
       </span>
       <h2 className="t-title-l">{title}</h2>
       <p className="t-body mt-2 text-on-surface-variant">{body}</p>
-      {action && (
-        <Link href={action.href} className="btn btn-tonal mt-4">
-          {action.label}
-        </Link>
-      )}
+      {/* A plain anchor for anything that is not an app route. Next's Link does fall
+          through to one for a `mailto:` or an absolute URL, but relying on that means the
+          escalation CTA works by accident — and this state's whole job is to offer a way
+          out, so it should not depend on a fallback. */}
+      {action &&
+        (action.href.startsWith("/") ? (
+          <Link href={action.href} className="btn btn-tonal mt-4">
+            {action.label}
+          </Link>
+        ) : (
+          <a href={action.href} className="btn btn-tonal mt-4">
+            {action.label}
+          </a>
+        ))}
     </Card>
   );
 }
@@ -129,12 +139,17 @@ export function ErrorState({
 /**
  * §5's permissions state. Reached when a caller is authenticated but this is not their
  * view — in practice an agent landing on a client route.
+ *
+ * THE ESCAPE SIGNS OUT, and it has to. This used to be a plain `<Link href="/login">`,
+ * which was an inescapable loop: the proxy bounces a signed-in caller off every
+ * AUTH_ONLY_PREFIX back to `/dashboard` (`web/lib/supabase/middleware.ts`), and
+ * `/dashboard` renders this state again. An agent who landed here had no way out and no
+ * sign-out control anywhere in the client shell — §2.5.1 Account owns that, and it is not
+ * built. Signing out first is what makes `/login` reachable at all.
  */
 export function UnauthorizedState({
-  redirectHref = "/login",
-  redirectLabel = "Sign in as a traveler",
+  redirectLabel = "Sign out and sign in as a traveler",
 }: {
-  redirectHref?: string;
   redirectLabel?: string;
 }) {
   return (
@@ -150,9 +165,13 @@ export function UnauthorizedState({
         This is the traveler’s side of Story-Tail. Your account is set up as an advisor, so
         your work lives somewhere else.
       </p>
-      <Link href={redirectHref} className="btn btn-tonal mt-4">
-        {redirectLabel}
-      </Link>
+      {/* A form, not a link: the action clears the session server-side and then redirects,
+          which is the only sequence the proxy will let through. */}
+      <form action={signOutAction}>
+        <button type="submit" className="btn btn-tonal mt-4">
+          {redirectLabel}
+        </button>
+      </form>
     </Card>
   );
 }

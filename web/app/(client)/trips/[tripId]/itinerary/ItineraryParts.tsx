@@ -68,7 +68,12 @@ export function ActivityCard({
               <span className="kbd">{activity.confirmationNumber}</span>
             </div>
           )}
-          {showDetail && time && !activity.startTime && (
+          {/* The full range, which the 52px column to the left cannot show — it prints
+              the START only. Gated on `endTime` rather than on `time`, because
+              `formatTime` returns null without a start: the old condition was
+              `time && !activity.startTime`, which those two facts make UNREACHABLE, so
+              an activity's end time never rendered anywhere on 2.2.5. */}
+          {showDetail && activity.endTime && time && (
             <span className="kbd mt-2 inline-block">{time}</span>
           )}
         </div>

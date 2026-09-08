@@ -81,3 +81,27 @@ export function assertRecentUuidV7(
     throw new Error(`UUID v7 timestamp is more than ${maxSkewMs}ms in the future`);
   }
 }
+
+/**
+ * A uuid, or a 400.
+ *
+ * FOR IDS THE CLIENT ECHOES BACK, where `assertRecentUuidV7` is the wrong tool: a trip id
+ * or a document id was minted by the server weeks ago, so a recency check would refuse it.
+ * What still has to be checked is the SHAPE.
+ *
+ * The shape is checked here rather than left to Postgres, and this was already the
+ * convention before §2.2: `.eq("id", "banana")` raises "invalid input syntax for type
+ * uuid", which `problem()` correctly refuses to leak and so reaches the caller as a bare
+ * 500. A malformed id is a bad request and should say so — and a client error logged as a
+ * server error is a monitoring signal nobody can act on. `onboarding-companions` carried a
+ * local copy of this; the four §2.2 functions were written without it and regressed.
+ *
+ * Deliberately NOT version-specific. Every id in this schema is v7, but a v4 arriving here
+ * is a caller bug worth a clear 404-or-not-found from the ownership check rather than a
+ * shape complaint — the point is only to keep non-uuids away from Postgres.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID.test(value);
+}

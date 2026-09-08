@@ -234,7 +234,7 @@ function Glance({ detail }: { detail: TripDetail }) {
     [TRIP_DETAIL.glanceTravelers, `${trip.travelerCount} travelers`],
     [
       TRIP_DETAIL.glanceTotal,
-      formatTripMoney(trip.totalValueCents, trip.currency, { whole: true }) + " all-in",
+      formatTripMoney(trip.totalValueCents, trip.currency) + " all-in",
     ],
     [TRIP_DETAIL.glanceComponents, `${detail.componentCount} booked`],
   ];
@@ -356,8 +356,8 @@ function PaymentTimeline({ milestones }: { milestones: PaymentMilestoneView[] })
                 {waived
                   ? TRIP_DETAIL.waived
                   : paid
-                    ? `${TRIP_DETAIL.paid} ${formatTripMoney(m.paidCents, m.currency, { whole: true })}`
-                    : `${formatTripMoney(m.amountCents, m.currency, { whole: true })} ${
+                    ? `${TRIP_DETAIL.paid} ${formatTripMoney(m.paidCents, m.currency)}`
+                    : `${formatTripMoney(m.amountCents, m.currency)} ${
                         overdue ? TRIP_DETAIL.overdue : TRIP_DETAIL.due
                       }${m.dueDate ? ` ${formatDay(m.dueDate)}` : ""}`}
               </span>
@@ -373,7 +373,7 @@ function PaymentTimeline({ milestones }: { milestones: PaymentMilestoneView[] })
 function nextDueLabel(milestones: PaymentMilestoneView[]): string {
   const next = milestones.find((m) => m.status !== "paid" && m.status !== "waived");
   if (!next) return milestones.length > 0 ? "All paid" : "Nothing scheduled";
-  return `${formatTripMoney(next.amountCents, next.currency, { whole: true })} ${TRIP_DETAIL.due}${
+  return `${formatTripMoney(next.amountCents, next.currency)} ${TRIP_DETAIL.due}${
     next.dueDate ? ` ${formatDay(next.dueDate)}` : ""
   }`;
 }

@@ -20,6 +20,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -364,6 +368,15 @@ private fun ReflectionCard(
     val reflection = snapshot.reflection
     val frozen = reflection != null && !reflection.editable
 
+    // The comment above says this opens closed; it did not — there was no state at all, so
+    // the editor was always expanded and native contradicted both the web twin and its own
+    // docblock. Opens expanded only when there is a draft in progress, which is the one
+    // case where somebody came back specifically to finish it. `rememberSaveable` so a
+    // rotation mid-sentence does not collapse it.
+    var open by rememberSaveable(reflection?.id) {
+        mutableStateOf(reflection?.editable == true && reflection.body.isNotBlank())
+    }
+
     if (frozen || notice is ReflectionNotice.Submitted) {
         Column(
             Modifier
@@ -432,6 +445,17 @@ private fun ReflectionCard(
             }
 
             else -> Unit
+        }
+
+        if (!open) {
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (draft.isNotBlank()) MemoriesMessages.REFLECTION_EDIT_CTA
+                    else MemoriesMessages.REFLECTION_CTA,
+                )
+            }
+            return@Column
         }
 
         Spacer(Modifier.height(10.dp))

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/client/states";
+import { RetryState } from "@/components/client/RetryState";
 import { Photo } from "@/components/public/Photo";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
@@ -45,16 +46,25 @@ export default async function DashboardPage() {
     .select("first_name, preferred_name")
     .maybeSingle();
 
-  const name = client?.preferred_name?.trim() || client?.first_name?.trim() || "there";
+  // `"New"` is filtered because that is what `handle_new_user()` writes into
+  // `client.first_name` when it provisions a row from an email with no name attached —
+  // greeting somebody "Hey New" is worse than not using a name at all. The native twin
+  // does this in `NameRow.greetable()`; web did not, so the same account was greeted
+  // differently on the two stacks.
+  const rawName = client?.preferred_name?.trim() || client?.first_name?.trim();
+  const name = rawName && rawName !== "New" ? rawName : "there";
   const data = await loadDashboard();
 
   if (!data) {
     return (
       <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-        <EmptyState
-          icon="warning"
+        {/* §5's ERROR state, not the empty one. A failed read used to render EmptyState
+            here, which has neither the retry CTA nor the "Message Gyasi" escalation §5
+            requires — and told a traveler with trips that they had none. The reads fail
+            closed (null, not a throw), so this cannot be left to a route-level boundary. */}
+        <RetryState
           title="We couldn’t load your trips"
-          body="Something went wrong on our side, not yours. Try again in a moment."
+          body="Something went wrong on our side, not yours. Trying again usually sorts it."
         />
       </div>
     );
@@ -112,7 +122,15 @@ export default async function DashboardPage() {
             icon="palm"
             title="No trip booked yet"
             body="When there is one, it lives right here with a countdown on it."
-            action={{ label: DASHBOARD.startSomethingNew, href: "/dashboard" }}
+            // A mailto, because with no trip there is no trip-scoped thread to open and
+            // §2.6's inbox is not built. This used to point at "/dashboard" — the page it
+            // renders on — so the only route to Gyasi in this state went nowhere. Same
+            // escalation ErrorState uses, and for the same reason: a form that goes
+            // nowhere would be worse.
+            action={{
+              label: DASHBOARD.startSomethingNew,
+              href: "mailto:hello@story-tail.com?subject=Somewhere%20new",
+            }}
           />
         </div>
       )}

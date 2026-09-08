@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/client/states";
+import { RetryState } from "@/components/client/RetryState";
 import { Photo } from "@/components/public/Photo";
 import { Icon } from "@/components/ui/Icon";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
@@ -42,7 +43,8 @@ export default async function TripsPage({
   if (!data) {
     return (
       <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-        <EmptyState icon="warning" title={TRIPS.errorTitle} body={TRIPS.errorBody} />
+        {/* §5's ERROR state, not the empty one — see the note on the dashboard's. */}
+        <RetryState title={TRIPS.errorTitle} body={TRIPS.errorBody} />
       </div>
     );
   }
@@ -134,7 +136,7 @@ function TripRow({ trip }: { trip: DashboardTrip }) {
       <div className="flex items-center justify-between gap-3 border-t border-outline-variant p-4 md:min-w-[160px] md:flex-col md:items-end md:justify-start md:border-l md:border-t-0">
         <div>
           <div className="t-label text-on-surface-variant">{TRIPS.tripValue}</div>
-          <div className="t-title-l">{formatTripMoney(trip.totalValueCents, trip.currency, { whole: true })}</div>
+          <div className="t-title-l">{formatTripMoney(trip.totalValueCents, trip.currency)}</div>
         </div>
         <span className="btn btn-tonal btn-sm md:mt-auto">
           {TRIPS.open} <Icon name="chevron_right" size={13} />

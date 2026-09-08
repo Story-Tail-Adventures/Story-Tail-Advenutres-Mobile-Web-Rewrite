@@ -7,7 +7,8 @@
  * write to a trip they cannot read, or the reverse.
  */
 import { serviceClient, type Db } from "./db.ts";
-import { forbidden, notFound } from "./problem.ts";
+import { badRequest, forbidden, notFound } from "./problem.ts";
+import { isUuid } from "./uuid.ts";
 import type { AuthContext } from "./auth.ts";
 
 /**
@@ -63,6 +64,10 @@ export async function requireOwnedTrip(
   clientId: string,
   tripId: string,
 ): Promise<{ id: string; agentId: string; title: string }> {
+  // Shape first, so a malformed id is a 400 rather than reaching Postgres and coming back
+  // as an opaque 500. See isUuid for why this is not assertRecentUuidV7's job.
+  if (!isUuid(tripId)) throw badRequest("That is not a trip id.");
+
   const { data, error } = await db
     .from("trip")
     .select("id, client_id, agent_id, title, archived_at")

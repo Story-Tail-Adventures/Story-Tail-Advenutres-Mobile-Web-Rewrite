@@ -138,10 +138,15 @@ export async function loadDashboard(today = todayIsoUtc()): Promise<DashboardDat
     (t) => t.status === "booked" || t.status === "in_progress",
   );
   const traveling = active.find((t) => t.status === "in_progress");
-  const upcomingRow =
-    traveling ??
-    active.find((t) => !t.start_date || daysUntilDeparture(t.start_date, today) !== null) ??
-    null;
+  // The soonest active trip, whether or not its start date has passed. The guard that used
+  // to sit here — `daysUntilDeparture(...) !== null`, which is null for a past date — skipped
+  // a `booked` trip that had already begun and showed a LATER one instead. The native twin
+  // never had it, so the same account saw a different hero per stack; and skipping is the
+  // wrong half of the disagreement anyway, because a trip that has started is the traveler's
+  // current reality and `booked` lingering past the start date is agency bookkeeping lag, not
+  // a reason to hide it. The countdown degrades on its own: `daysUntil` is null and the hero
+  // prints no day count.
+  const upcomingRow = traveling ?? active[0] ?? null;
 
   let nextPayment: DashboardData["nextPayment"] = null;
   let itineraryReady = false;
@@ -1017,6 +1022,11 @@ export async function loadStatusChange(
       .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status")
       .eq("trip_id", tripId)
       .neq("status", "paid")
+      // `waived` too. Without it 2.2.9 can announce a WAIVED milestone as the next
+      // payment — a figure the traveler does not owe, on the screen they reach from a
+      // notification. Every other milestone query in this file excludes both; this one
+      // did not, and neither did its Kotlin twin.
+      .neq("status", "waived")
       .order("due_date", { ascending: true })
       .limit(1),
   ]);

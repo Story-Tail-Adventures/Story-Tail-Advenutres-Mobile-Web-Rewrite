@@ -38,6 +38,9 @@ import com.storytail.adventures.ui.components.client.formatMoney
 import com.storytail.adventures.ui.components.client.formatTripDates
 import com.storytail.adventures.ui.theme.PillShape
 import com.storytail.adventures.ui.theme.StoryTailRadius
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.LocalDate
 
 /**
@@ -166,8 +169,12 @@ private fun Body(
             // somebody opens the email next morning. A date cannot go stale.
             "${narrative.overline} · ${
                 snapshot.changedAt
-                    ?.take(10)
-                    ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    // The DEVICE's calendar date, not the UTC one. `take(10)` on the
+                    // timestamptz string reads the UTC date, which is a day ahead of a
+                    // traveler west of Greenwich all evening — the same bug the thread's
+                    // separators had, missed here because this string is assembled rather
+                    // than going through TripThread.kt's helpers.
+                    ?.let { localDateOf(it) }
                     ?.let { formatTripDates(it, null) }
                     ?: StatusChangeMessages.CHANGED_UNKNOWN
             }".uppercase(),
@@ -288,3 +295,15 @@ private fun primaryAction(
 
     else -> StatusChangeMessages.VIEW_TRIP to PrimaryTarget.TRIP
 }
+
+/**
+ * A timestamptz string as the date it falls on in the DEVICE's zone.
+ *
+ * The counterpart of `localToday()` in TripThread.kt, and here for the same reason: an
+ * instant rendered against a UTC calendar date is wrong for most of the world for part of
+ * every day.
+ */
+private fun localDateOf(iso: String): LocalDate? =
+    runCatching {
+        Instant.parse(iso).toLocalDateTime(TimeZone.currentSystemDefault()).date
+    }.getOrNull()

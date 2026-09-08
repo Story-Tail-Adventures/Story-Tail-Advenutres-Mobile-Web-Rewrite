@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -151,15 +152,19 @@ fun DayDetailScreen(
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 for (activity in day.activities) {
-                                    Column {
-                                        ActivityCard(
-                                            activity = activity,
-                                            showDetail = true,
-                                            onCall = links::dial,
-                                            onMap = links::openMap,
-                                        )
-                                        Spacer(Modifier.height(6.dp))
-                                        MarkDoneButton()
+                                    // Keyed so per-item state belongs to the activity
+                                    // rather than to the position it happens to occupy.
+                                    key(activity.id) {
+                                        Column {
+                                            ActivityCard(
+                                                activity = activity,
+                                                showDetail = true,
+                                                onCall = links::dial,
+                                                onMap = links::openMap,
+                                            )
+                                            Spacer(Modifier.height(6.dp))
+                                            MarkDoneButton(activity.id)
+                                        }
                                     }
                                 }
                             }
@@ -200,10 +205,18 @@ fun DayDetailScreen(
 /**
  * Per-activity check-in, held in `rememberSaveable` so it survives a rotation and a process
  * death but not a fresh launch. See the screen's note for why it goes no further.
+ *
+ * KEYED ON THE ACTIVITY ID, and it has to be. `TripRoute` moves between days with
+ * `nav.replace`, which overwrites the top stack entry rather than pushing a new one, so the
+ * `ItineraryDay` branch — and everything under it — recomposes IN PLACE instead of being
+ * disposed. A bare `rememberSaveable` is positional, so the third activity of day 2
+ * inherited whatever the third activity of day 1 was left at: tick two things on Monday,
+ * swipe to Tuesday, and two unrelated activities are ticked. Passing the id as an INPUT
+ * resets the state whenever the activity behind the slot changes.
  */
 @Composable
-private fun MarkDoneButton() {
-    var done by rememberSaveable { mutableStateOf(false) }
+private fun MarkDoneButton(activityId: String) {
+    var done by rememberSaveable(activityId) { mutableStateOf(false) }
     if (done) {
         Button(onClick = { done = false }) { Text(ItineraryMessages.MARKED_DONE) }
     } else {

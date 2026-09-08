@@ -34,7 +34,7 @@ import { requireUser } from "../_shared/auth.ts";
 import { writeAuditEvent } from "../_shared/audit.ts";
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { badRequest, forbidden, notFound, problem } from "../_shared/problem.ts";
-import { assertRecentUuidV7 } from "../_shared/uuid.ts";
+import { assertRecentUuidV7, isUuid } from "../_shared/uuid.ts";
 import { readJson, requireClientId, requireOwnedTrip, tripDb } from "../_shared/trip.ts";
 
 const MAX_BODY = 4000;
@@ -53,6 +53,10 @@ Deno.serve(async (req) => {
 
     const suppliedId = str(payload.testimonialId);
     if (!suppliedId) throw badRequest("Pass testimonialId.");
+    // Shape only, here. The RECENCY check comes later and only for a row being created —
+    // see the note there — but the lookup below queries by this id, so a non-uuid has to be
+    // refused before it reaches Postgres.
+    if (!isUuid(suppliedId)) throw badRequest("That is not a reflection id.");
 
     const body = str(payload.body)?.trim();
     if (!body) throw badRequest("A reflection needs something in it.");

@@ -328,11 +328,24 @@ fun formatTripDates(start: LocalDate?, end: LocalDate?): String {
 /** "Sep 21", for a due date beside an amount. */
 fun formatDay(date: LocalDate): String = "${MONTHS[date.month.number - 1]} ${date.day}"
 
-/** "Friday 14 August", for a day-detail heading. */
+/**
+ * "Friday 14 August", for a day-detail heading.
+ *
+ * `LONG_MONTHS`, not [MONTHS] — that list is the short one, shared with the compact date
+ * formatters, so this produced "Friday 14 Aug" while the web twin produced "Friday, August
+ * 14" and both doc comments claimed a third thing. A day heading is the largest piece of
+ * text on 2.2.5, which makes it the worst place for the stacks to disagree.
+ */
 fun formatLongDay(date: LocalDate): String {
     val weekday = date.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
-    return "$weekday ${date.day} ${MONTHS[date.month.number - 1]}"
+    return "$weekday ${date.day} ${LONG_MONTHS[date.month.number - 1]}"
 }
+
+/** Spelled-out month names. [MONTHS] stays short for the compact formatters. */
+private val LONG_MONTHS = listOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
 
 /**
  * Money without `java.text` — this is commonMain and has to work on iOS.

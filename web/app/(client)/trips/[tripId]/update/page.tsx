@@ -54,7 +54,6 @@ export default async function TripUpdatePage({
     const money = formatTripMoney(
       update.nextPayment.amountCents,
       update.nextPayment.currency,
-      { whole: true },
     );
     facts.push(
       STATUS_CHANGE.paymentLine(

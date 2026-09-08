@@ -57,7 +57,7 @@ export default async function MemoriesPage({
   const { trip } = past;
   // Whole dollars, as the trip-detail glance does: cents on a memory of a trip that ended
   // two years ago is precision nobody asked for.
-  const money = formatTripMoney(trip.totalValueCents, trip.currency, { whole: true });
+  const money = formatTripMoney(trip.totalValueCents, trip.currency);
 
   const snapshot = [
     past.nights !== null ? MEMORIES.snapshotNights(past.nights) : null,
@@ -125,13 +125,17 @@ export default async function MemoriesPage({
               body={MEMORIES.photosEmptyBody}
             />
           ) : (
-            // §4.4: one column on mobile, and a two-up grid from tablet where there is room
-            // for it without cropping a photograph to a letterbox.
-            <ul className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+            // §4.4: "Photo grid is 1-col on mobile, 3-col on tablet, 4-col on web."
+            // This was 1/2/2, and the comment claimed §4.4 sanctioned the two-up — it does
+            // not, and attributing my own choice to the doc is worse than the wrong column
+            // count. `web:` rather than `lg:` because §4.1's web breakpoint is 1200.
+            <ul className="grid grid-cols-1 gap-2.5 md:grid-cols-3 web:grid-cols-4">
               {past.photos.map((photo) => (
                 <li
                   key={photo.id}
-                  className="relative h-[200px] overflow-hidden rounded-2xl bg-surface-2"
+                  // Shorter as the columns narrow, so a tile stays roughly square rather
+                  // than becoming a letterbox at a quarter of the width.
+                  className="relative h-[200px] overflow-hidden rounded-2xl bg-surface-2 md:h-[150px] web:h-[130px]"
                 >
                   {/* The stored object is NOT rendered here. Showing it would mean signing a
                       URL per photograph on every page load — a five-minute URL and an
@@ -143,7 +147,7 @@ export default async function MemoriesPage({
                     image={imageKeyForTrip(trip)}
                     alt=""
                     fill
-                    sizes="(min-width: 768px) 50vw, 100vw"
+                    sizes="(min-width: 1200px) 25vw, (min-width: 768px) 33vw, 100vw"
                     className="object-cover opacity-45"
                   />
                   <div className="absolute inset-0 flex items-end p-3">

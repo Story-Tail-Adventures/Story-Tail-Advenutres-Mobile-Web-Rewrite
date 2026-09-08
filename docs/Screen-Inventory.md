@@ -1715,8 +1715,8 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.1.14 Onboarding Complete** — Pattern G (final step). Recommended-actions cards stack on mobile, 2x2 grid on tablet, horizontal row on web.
 
 #### Client — Dashboard & Trip Experience (2.2.x)
-- **2.2.1 Client Dashboard / Home** — Pattern D. Mobile hero countdown is full-width; tablet/web shows it alongside a "today's weather" widget.
-- **2.2.2 All Trips List** — Pattern B.
+- **2.2.1 Client Dashboard / Home** — Pattern D. Mobile hero countdown is full-width; tablet/web shows it alongside a "today's weather" widget. **The weather widget was NOT built** (September 2026): `itinerary_day.weather_forecast` is agent-authored and cached per ITINERARY DAY, so there is no reading for "today" on a dashboard whose trip may be months away, and no weather integration exists to supply one (BRD §9 names none). The hero is full-width at every size instead; the forecast appears where it has data, on 2.2.4 and 2.2.5.
+- **2.2.2 All Trips List** — Pattern B, with one recorded deviation: **a card list at every width, not a data table on web.** Pattern B's web column ("true data table with sortable headers, right-click menu, bulk-select") is written for the agent surface, where a hundred rows need scanning; §4.3 sizes a traveler's account at a handful of trips, and each one is a photograph they recognise before they read the title — the artboard draws image-led cards at 1280px for that reason. Search and sort are absent rather than inert for the same reason: a search field over four rows is furniture. **Built September 2026 as described here.**
 - **2.2.3 Trip Detail / Overview** — Pattern C.
 - **2.2.4 Itinerary Viewer** — Pattern I.
 - **2.2.5 Itinerary Day Detail** — Pattern I. Maps are full-screen on mobile, inline on tablet/web.

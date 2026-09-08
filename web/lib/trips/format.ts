@@ -35,12 +35,17 @@ export function formatDay(iso: string): string {
   return fmt(at(iso), false);
 }
 
-/** "Friday 14 August", for a day-detail heading. */
+/**
+ * "Friday 14 August", for a day-detail heading.
+ *
+ * Assembled rather than left to `toLocaleDateString`, which returns "Friday, August 14" for
+ * en-US — a different string from the Kotlin twin's and from what both doc comments claimed.
+ * A day heading is the largest piece of text on 2.2.5, so it is the worst place for the two
+ * stacks to differ. UTC, because `itinerary_day.date` is a date-only column with no zone.
+ */
 export function formatLongDay(iso: string): string {
-  return at(iso).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  });
+  const d = at(iso);
+  const weekday = d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+  const month = d.toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
+  return `${weekday} ${d.getUTCDate()} ${month}`;
 }

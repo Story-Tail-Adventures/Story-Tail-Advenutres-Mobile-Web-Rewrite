@@ -33,6 +33,21 @@ class Navigator(initial: AppRoute) {
      * back to the reset form would offer a form whose recovery session is spent.
      */
     fun replace(route: AppRoute) {
+        // DEDUPE AGAINST THE ENTRY BENEATH. Without this, replacing with the route the user
+        // came FROM leaves two identical adjacent entries and the first back gesture appears
+        // to do nothing.
+        //
+        // It is the common case, not a corner: §2.2 reaches the thread from a trip detail
+        // and then offers "Open trip", which replaces with that same TripDetail — chosen
+        // over `push` precisely to avoid a duplicate, and creating a different one. Same for
+        // 2.2.9's CTAs, which replace with a trip the notification may have been opened from.
+        //
+        // Dropping the top instead is what the caller means: going back to something already
+        // on the stack is a return, not a new destination.
+        if (stack.size >= 2 && stack[stack.lastIndex - 1] == route) {
+            stack.removeAt(stack.lastIndex)
+            return
+        }
         stack[stack.lastIndex] = route
     }
 

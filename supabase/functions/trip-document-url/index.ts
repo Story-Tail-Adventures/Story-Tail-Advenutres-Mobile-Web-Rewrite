@@ -29,6 +29,7 @@ import { requireUser } from "../_shared/auth.ts";
 import { writeAuditEvent } from "../_shared/audit.ts";
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { badRequest, notFound, problem } from "../_shared/problem.ts";
+import { isUuid } from "../_shared/uuid.ts";
 import { requireClientId, toStoragePath, tripDb, TRIP_DOCUMENTS_BUCKET } from "../_shared/trip.ts";
 
 /**
@@ -64,6 +65,10 @@ Deno.serve(async (req) => {
 
     const documentId = new URL(req.url).searchParams.get("documentId");
     if (!documentId) throw badRequest("Pass documentId.");
+    // A query-string id is the least trustworthy input in this section — it arrives from a
+    // URL somebody may have edited. Shape-checked before it reaches Postgres, or a
+    // malformed one returns an opaque 500 instead of a 400.
+    if (!isUuid(documentId)) throw badRequest("That is not a document id.");
 
     const db = tripDb();
 
