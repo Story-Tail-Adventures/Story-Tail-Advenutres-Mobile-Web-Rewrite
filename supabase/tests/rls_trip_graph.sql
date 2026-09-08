@@ -322,13 +322,31 @@ SELECT pg_temp.assert(
     pg_temp.count_of('SELECT count(*) FROM public.document') = 0,
     'document — nothing across the tenant boundary');
 
+-- These two assert the BOUNDARY rather than a total, unlike the tables above, and the
+-- distinction is not pedantry. Every table above is trip-scoped, and Sam has no trips, so
+-- zero is the only correct answer for them. `testimonial.trip_id` is NULLABLE — a reflection
+-- need not be about a trip — and a milestone follows any trip Sam might one day have. So
+-- Sam legitimately owning rows in these two must not read as a leak.
+--
+-- It already did once: an end-to-end test of the testimonial function left Sam a draft of
+-- their own, and `count(*) = 0` failed as though a policy had broken. The function had
+-- behaved perfectly. An assertion that cannot tell "Sam has their own" from "Sam can see
+-- Jordan's" is an assertion that cries wolf, and a suite that cries wolf gets ignored.
+-- Derived, not a list of ids. Naming Jordan's five trips here would silently stop covering
+-- a sixth, and the invariant does not need them: every milestone this session can see must
+-- belong to a trip this session can also see. As Sam that is the empty set, so any visible
+-- milestone at all is a leak — and the same assertion keeps working when Sam has trips.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') = 0,
-    'payment_milestone — nothing across the tenant boundary');
+    pg_temp.count_of(
+      'SELECT count(*) FROM public.payment_milestone pm
+         WHERE pm.trip_id NOT IN (SELECT t.id FROM public.trip t)') = 0,
+    'payment_milestone — none belonging to an unreachable trip crosses the boundary');
 
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.testimonial') = 0,
-    'testimonial — nothing across the tenant boundary');
+    pg_temp.count_of(
+      'SELECT count(*) FROM public.testimonial t
+         WHERE t.client_id <> (SELECT client_id FROM public.current_platform_user())') = 0,
+    'testimonial — nothing belonging to another client crosses the tenant boundary');
 
 SELECT pg_temp.assert(
     pg_temp.count_of('SELECT count(*) FROM public.proposal') = 0,
