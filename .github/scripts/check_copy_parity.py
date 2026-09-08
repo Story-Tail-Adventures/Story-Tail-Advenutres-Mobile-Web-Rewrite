@@ -26,6 +26,7 @@ WIZARD_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventure
 DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding"
 WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
 TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
+TRIP_SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
@@ -197,6 +198,133 @@ MESSAGE_TABLES = [
             "authorizeCard": "AUTHORIZE_CARD",
             "authorizeDeferred": "AUTHORIZE_DEFERRED",
             "changedUnknown": "CHANGED_UNKNOWN",
+        },
+    },
+    {
+        # The rail and bar labels Screen-Inventory §6.1/§6.3 were just amended to match.
+        # Six destinations, two surfaces, and the same destination carries a different label
+        # per surface — exactly the shape that drifts silently.
+        "label": "client nav",
+        "web_file": ROOT / "web/lib/client/nav.ts",
+        "web_const": "CLIENT_NAV_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "ClientDestinations.kt",
+        "kmp_object": "ClientNavMessages",
+        "keys": {
+            "notYetLabel": "NOT_YET_LABEL",
+            "notYetAria": "NOT_YET_ARIA",
+        },
+    },
+    {
+        # The five filter-tab labels and the four empty/error states. A tab that reads
+        # "In planning" on web and "Planning" on a phone is the cheapest possible bug to
+        # ship and the hardest to notice.
+        "label": "all trips",
+        "web_file": ROOT / "web/app/(client)/trips/content.ts",
+        "web_const": "TRIPS",
+        "kmp_file": TRIP_SCREENS_DIR / "AllTripsScreen.kt",
+        "kmp_object": "AllTripsMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "tabAll": "TAB_ALL",
+            "tabUpcoming": "TAB_UPCOMING",
+            "tabPlanning": "TAB_PLANNING",
+            "tabPast": "TAB_PAST",
+            "tabCancelled": "TAB_CANCELLED",
+            "emptyAllTitle": "EMPTY_ALL_TITLE",
+            "emptyAllBody": "EMPTY_ALL_BODY",
+            "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",
+            "emptyFilteredBody": "EMPTY_FILTERED_BODY",
+            "errorTitle": "ERROR_TITLE",
+            "errorBody": "ERROR_BODY",
+        },
+    },
+    {
+        # The biggest per-screen table in §2.2, and it covers 2.2.10 as well — the
+        # cancellation summary labels live here. Thirty-four strings that matched by hand
+        # and by nothing else until now.
+        "label": "trip detail",
+        "web_file": ROOT / "web/app/(client)/trips/[tripId]/content.ts",
+        "web_const": "TRIP_DETAIL",
+        "kmp_file": TRIP_SCREENS_DIR / "TripDetailScreen.kt",
+        "kmp_object": "TripDetailMessages",
+        "keys": {
+            "back": "BACK",
+            "tileItinerary": "TILE_ITINERARY",
+            "tileItineraryPending": "TILE_ITINERARY_PENDING",
+            "tilePayments": "TILE_PAYMENTS",
+            "tileDocuments": "TILE_DOCUMENTS",
+            "tileMessages": "TILE_MESSAGES",
+            "glance": "GLANCE",
+            "glanceTripType": "GLANCE_TRIP_TYPE",
+            "glanceNights": "GLANCE_NIGHTS",
+            "glanceDestination": "GLANCE_DESTINATION",
+            "glanceTravelers": "GLANCE_TRAVELERS",
+            "glanceTotal": "GLANCE_TOTAL",
+            "glanceComponents": "GLANCE_COMPONENTS",
+            "noteHeading": "NOTE_HEADING",
+            "notePending": "NOTE_PENDING",
+            "advisorLabel": "ADVISOR_LABEL",
+            "advisorName": "ADVISOR_NAME",
+            "advisorReplyTime": "ADVISOR_REPLY_TIME",
+            "message": "MESSAGE",
+            "paymentTimeline": "PAYMENT_TIMELINE",
+            "paymentTimelineNote": "PAYMENT_TIMELINE_NOTE",
+            "paid": "PAID",
+            "due": "DUE",
+            "waived": "WAIVED",
+            "overdue": "OVERDUE",
+            "noSchedule": "NO_SCHEDULE",
+            "cancelledHeading": "CANCELLED_HEADING",
+            "cancelledReason": "CANCELLED_REASON",
+            "cancelledRefund": "CANCELLED_REFUND",
+            "cancelledNoReason": "CANCELLED_NO_REASON",
+            "cancelledAgainHeading": "CANCELLED_AGAIN_HEADING",
+            "cancelledAgainBody": "CANCELLED_AGAIN_BODY",
+            "notFoundTitle": "NOT_FOUND_TITLE",
+            "notFoundBody": "NOT_FOUND_BODY",
+        },
+    },
+    {
+        # 2.2.4, 2.2.5 and 2.2.8's inline empty states. The §2.2.8 copy is the part
+        # worth pinning: those strings are what a traveler reads about a piece of their
+        # trip that is not booked yet.
+        "label": "itinerary",
+        "web_file": ROOT / "web/app/(client)/trips/[tripId]/itinerary/content.ts",
+        "web_const": "ITINERARY",
+        "kmp_file": TRIP_SCREENS_DIR / "ItineraryScreen.kt",
+        "kmp_object": "ItineraryMessages",
+        "keys": {
+            "heading": "HEADING",
+            "back": "BACK",
+            "downloadPdf": "DOWNLOAD_PDF",
+            "shareNote": "SHARE_NOTE",
+            "notPublishedTitle": "NOT_PUBLISHED_TITLE",
+            "notPublishedBody": "NOT_PUBLISHED_BODY",
+            "blockMorning": "BLOCK_MORNING",
+            "blockAfternoon": "BLOCK_AFTERNOON",
+            "blockEvening": "BLOCK_EVENING",
+            "blockAllDay": "BLOCK_ALL_DAY",
+            "confirmation": "CONFIRMATION",
+            "tip": "TIP",
+            "openInMaps": "OPEN_IN_MAPS",
+            "call": "CALL",
+            "markDone": "MARK_DONE",
+            "markedDone": "MARKED_DONE",
+            "importantInfo": "IMPORTANT_INFO",
+            "insurance": "INSURANCE",
+            "emergency": "EMERGENCY",
+            "visaUnknown": "VISA_UNKNOWN",
+            "noImportantInfo": "NO_IMPORTANT_INFO",
+            "weather": "WEATHER",
+            "emptyFlightsTitle": "EMPTY_FLIGHTS_TITLE",
+            "emptyFlightsBody": "EMPTY_FLIGHTS_BODY",
+            "emptyDiningTitle": "EMPTY_DINING_TITLE",
+            "emptyDiningBody": "EMPTY_DINING_BODY",
+            "emptyDayBody": "EMPTY_DAY_BODY",
+            "askGyasi": "ASK_GYASI",
+            "emptyItineraryTitle": "EMPTY_ITINERARY_TITLE",
+            "emptyItineraryBody": "EMPTY_ITINERARY_BODY",
         },
     },
     {
