@@ -24,18 +24,29 @@
     color: var(--md-on-surface);
   }
 
-  /* Reserve for the bottom bar, on the element that wraps BOTH the content and anything
-   * after it. §2.0 shipped a bug where StickyCta emitted its own spacer as the last child
-   * of <main> while PublicFooter rendered after {children} — so the reserve landed above
-   * the footer and the fixed bar covered it. Putting the reserve on the surface is the only
-   * place that is after everything. */
-  .client-surface:has(.client-bottom-nav) .client-main {
-    padding-bottom: calc(64px + max(env(safe-area-inset-bottom), 8px));
+  /* ── Reserve for the bottom bar ─────────────────────────────────────────
+   *
+   * BOUNDED BY A MEDIA QUERY, not by `:has()` alone, and the difference was a bug.
+   * `.client-bottom-nav` carries `md:hidden`, which is `display: none` — the element stays
+   * in the DOM at every width, so `:has(.client-bottom-nav)` matched on a 1400px desktop
+   * and reserved 72px under a bar that is not rendered. `not all and (min-width: 48rem)` is
+   * the exact complement of Tailwind's `md:`, so the reserve now exists on precisely the
+   * widths the bar does. The `:has()` is kept inside it because a screen that passes
+   * `activeTab = null` has no bar in the tree at all.
+   *
+   * The reserve sits on the element that wraps BOTH the content and anything after it. §2.0
+   * shipped a bug where StickyCta emitted its own spacer as the last child of <main> while
+   * PublicFooter rendered after {children} — so the reserve landed above the footer and the
+   * fixed bar covered it. */
+  @media not all and (min-width: 48rem) {
+    .client-surface:has(.client-bottom-nav) .client-main {
+      padding-bottom: calc(64px + max(env(safe-area-inset-bottom), 8px));
+    }
   }
 
-  /* ── A screen that fills the viewport instead of scrolling the document ── */
-
-  /* Screen 2.2.7 is the one §2.2 surface that is not a document you scroll: the thread
+  /* ── A screen that fills the viewport instead of scrolling the document ──
+   *
+   * Screen 2.2.7 is the one §2.2 surface that is not a document you scroll: the thread
    * scrolls inside itself and the compose bar stays pinned under it. §4.4 calls that
    * "mobile is full-screen", and the artboards make the compose bar a SIBLING of the scroll
    * rather than an overlay so a long thread cannot hide its own last message.
@@ -44,26 +55,32 @@
    * column is `min-h-dvh` because every other client screen scrolls the document, and the
    * itinerary's day-chip strip is `sticky top-16` against exactly that document scroll.
    * Switching the shell to `h-dvh` with an internal scroller would fix this screen and
-   * break that one.
+   * break that one. So this is an opt-in a page puts on its own root.
    *
-   * So this is an opt-in a page puts on its own root, and it computes the height the shell
-   * would otherwise have left it: the viewport, less the 64px top bar it sits below, less
-   * the bottom bar when there is one.
+   * IT SUBTRACTS THE TOP BAR AND NOTHING ELSE. There were two more rules here — one
+   * cancelling the reserve above for a `.client-fill` screen, one subtracting the bar's
+   * height from this one — and BOTH were dead: they select `.client-fill` as a DESCENDANT
+   * of `.client-surface`, and React's streaming parks the suspended subtree in a
+   * body-level holder, so the ancestor relationship those selectors need does not hold in
+   * the rendered DOM. The screen worked anyway, because the reserve above did the job the
+   * dead subtraction was written to do — two mistakes cancelling, which is not a thing to
+   * leave in a stylesheet.
    *
-   * The `padding-bottom` reserve above has to come off as well, or the reserve and the
-   * height subtraction both apply and the screen overflows by the height of the bar. This
-   * rule is after that one and has the same specificity, so source order settles it —
-   * which is fragile enough to be worth saying out loud: do not reorder these two. */
-  .client-surface:has(.client-fill) .client-main {
-    padding-bottom: 0;
-  }
-
+   * So it subtracts both bars ITSELF, through a plain media query with no ancestor
+   * dependency — which is the whole point. Measured: with only the top bar subtracted, the
+   * compose bar's text field sat behind the bottom nav at 375px, because `.client-main`'s
+   * reserve cannot reach a subtree that is not inside it.
+   *
+   * The one assumption left is that a bottom bar exists below 48rem, and it holds for every
+   * `(client)` screen: the layout renders `<ClientBottomNav />` unconditionally. */
   .client-fill {
     height: calc(100dvh - 64px);
   }
 
-  .client-surface:has(.client-bottom-nav) .client-fill {
-    height: calc(100dvh - 64px - 64px - max(env(safe-area-inset-bottom), 8px));
+  @media not all and (min-width: 48rem) {
+    .client-fill {
+      height: calc(100dvh - 64px - 64px - max(env(safe-area-inset-bottom), 8px));
+    }
   }
 
   /* ── Top bar (64px, Design-System §9.1) ───────────────────────────────── */

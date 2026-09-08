@@ -1086,7 +1086,8 @@ class SupabaseTripRepository(
                         // notification. The other three call sites all exclude both.
                         neq("status", "waived")
                     }
-                    order("due_date", Order.ASCENDING)
+                    // `order_index`, like the sibling queries — see the web twin's note.
+                    order("order_index", Order.ASCENDING)
                     limit(1)
                 }
                 .decodeList<MilestoneDetailRow>()

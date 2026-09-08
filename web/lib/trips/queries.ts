@@ -1027,7 +1027,11 @@ export async function loadStatusChange(
       // notification. Every other milestone query in this file excludes both; this one
       // did not, and neither did its Kotlin twin.
       .neq("status", "waived")
-      .order("due_date", { ascending: true })
+      // `order_index`, like every other milestone query here. Sorting by `due_date` picked a
+      // different "next payment" than the timeline on 2.2.3 whenever the agent's ordering
+      // and the dates disagree — and a null due_date sorts last in Postgres, so an undated
+      // unpaid milestone was skipped in favour of a dated one further out.
+      .order("order_index", { ascending: true })
       .limit(1),
   ]);
 

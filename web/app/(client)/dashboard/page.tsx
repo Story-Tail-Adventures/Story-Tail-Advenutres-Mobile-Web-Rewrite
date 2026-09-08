@@ -348,7 +348,16 @@ function TripCard({ trip }: { trip: DashboardTrip }) {
       <div className="p-3">
         <div className="t-title-s">{trip.title}</div>
         <div className="t-body-s text-on-surface-variant">
-          {[formatTripDates(trip.startDate, trip.endDate), `${trip.travelerCount} travelers`].filter(Boolean).join(" · ")}
+          {/* The destination is the middle field, matching native's TripCard. Web omitted it,
+              so the same card read differently on the two stacks — and the photograph above
+              is chosen from a generic registry, so the place name is doing real work here. */}
+          {[
+            formatTripDates(trip.startDate, trip.endDate),
+            trip.destinations[0],
+            `${trip.travelerCount} travelers`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </div>
       </div>
     </Link>
