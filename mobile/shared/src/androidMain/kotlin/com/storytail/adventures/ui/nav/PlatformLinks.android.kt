@@ -30,6 +30,12 @@ private class AndroidPlatformLinks(private val context: Context) : PlatformLinks
         start(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phone)}")))
     }
 
+    override fun openUrl(url: String) {
+        // `Uri.parse`, NOT Uri.encode: the signed URL is already encoded and re-encoding it
+        // would break the signature in its query string. See the interface note.
+        start(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+
     private fun start(intent: Intent) {
         try {
             context.startActivity(intent)

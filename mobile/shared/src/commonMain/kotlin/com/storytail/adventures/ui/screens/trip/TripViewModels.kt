@@ -6,8 +6,14 @@ import com.storytail.adventures.api.ItineraryView
 import com.storytail.adventures.api.TripDetailSnapshot
 import com.storytail.adventures.api.TripFilter
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.SendMessageOutcome
+import com.storytail.adventures.api.SignedDocument
+import com.storytail.adventures.api.TripDocumentsSnapshot
+import com.storytail.adventures.api.TripThreadSnapshot
 import com.storytail.adventures.api.TripsList
+import com.storytail.adventures.domain.trip.DocumentMessages
 import com.storytail.adventures.domain.trip.Loadable
+import com.storytail.adventures.domain.trip.ThreadMessages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -122,6 +128,133 @@ class ItineraryViewModel(
             if (days.none { it.dayNumber == _selectedDay.value }) {
                 days.firstOrNull()?.let { _selectedDay.value = it.dayNumber }
             }
+        }
+    }
+}
+
+/**
+ * Screen 2.2.6.
+ *
+ * Holds THREE pieces of state beyond the list, and each is here rather than in the screen
+ * because a rotation must not lose them: which document is mid-signature, the last open
+ * failure, and nothing else. The signed URL itself is deliberately NOT held — it expires in
+ * five minutes, so keeping it would mean handing a traveler a dead link on their second tap.
+ */
+class DocumentsViewModel(
+    private val trips: TripRepository,
+    private val tripId: String,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<Loadable<TripDocumentsSnapshot>>(Loadable.Loading)
+    val state: StateFlow<Loadable<TripDocumentsSnapshot>> = _state.asStateFlow()
+
+    /** The id being signed, so one row shows a spinner rather than the whole list. */
+    private val _signing = MutableStateFlow<String?>(null)
+    val signing: StateFlow<String?> = _signing.asStateFlow()
+
+    private val _openError = MutableStateFlow<String?>(null)
+    val openError: StateFlow<String?> = _openError.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        _state.value = Loadable.Loading
+        viewModelScope.launch {
+            val result = trips.tripDocuments(tripId)
+            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+        }
+    }
+
+    /**
+     * Sign on demand and hand the URL to [onSigned], which opens it in the platform browser.
+     *
+     * ON NOT PRE-SIGNING THE WHOLE LIST: the TTL is five minutes and every signature writes
+     * an `audit_event`. Signing five documents to render the screen would put five access
+     * records on the trail for a traveler who opened none of them, and four of the URLs
+     * would be dead before anybody tapped. Signing on demand keeps the trail honest about
+     * what was actually opened, which is its whole purpose (Data-Model §18.3).
+     */
+    fun open(documentId: String, onSigned: (String) -> Unit) {
+        if (_signing.value != null) return
+        _signing.value = documentId
+        _openError.value = null
+        viewModelScope.launch {
+            when (val signed = trips.signDocumentUrl(documentId)) {
+                is SignedDocument.Ok -> onSigned(signed.url)
+                SignedDocument.Failed -> _openError.value = DocumentMessages.OPEN_FAILED
+            }
+            _signing.value = null
+        }
+    }
+}
+
+/**
+ * Screen 2.2.7.
+ *
+ * THE DRAFT LIVES HERE, not in the composable, and that is the point of putting it in a view
+ * model at all: a rotation or a trip to the camera roll must not throw away a paragraph
+ * somebody typed. On a failed send it is kept for the same reason — losing the message is a
+ * small betrayal that stops people using a thread.
+ */
+class ThreadViewModel(
+    private val trips: TripRepository,
+    private val tripId: String,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<Loadable<TripThreadSnapshot>>(Loadable.Loading)
+    val state: StateFlow<Loadable<TripThreadSnapshot>> = _state.asStateFlow()
+
+    private val _draft = MutableStateFlow("")
+    val draft: StateFlow<String> = _draft.asStateFlow()
+
+    private val _sending = MutableStateFlow(false)
+    val sending: StateFlow<Boolean> = _sending.asStateFlow()
+
+    private val _sendError = MutableStateFlow<String?>(null)
+    val sendError: StateFlow<String?> = _sendError.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        _state.value = Loadable.Loading
+        viewModelScope.launch {
+            val result = trips.tripThread(tripId)
+            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+        }
+    }
+
+    fun changeDraft(next: String) {
+        _draft.value = next
+        // Clear a stale failure the moment they start fixing it, rather than leaving a red
+        // line under a message they have already rewritten.
+        if (_sendError.value != null) _sendError.value = null
+    }
+
+    fun send() {
+        val body = _draft.value.trim()
+        if (body.isEmpty() || _sending.value) return
+
+        _sending.value = true
+        _sendError.value = null
+        viewModelScope.launch {
+            when (val outcome = trips.sendMessage(tripId, body)) {
+                SendMessageOutcome.Sent -> {
+                    _draft.value = ""
+                    // Reload rather than appending locally: the thread is the server's
+                    // record, and a locally-appended bubble would show a message that might
+                    // not have the id, timestamp or ordering the server gave it.
+                    val refreshed = trips.tripThread(tripId)
+                    if (refreshed != null) _state.value = Loadable.Ready(refreshed)
+                }
+
+                is SendMessageOutcome.Failed ->
+                    _sendError.value = outcome.detail ?: ThreadMessages.SEND_FAILED
+            }
+            _sending.value = false
         }
     }
 }

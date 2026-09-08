@@ -3,7 +3,8 @@ package com.storytail.adventures.ui.nav
 import androidx.compose.runtime.Composable
 
 /**
- * The two hand-offs Screen 2.2.5 needs: open an address in a map, and dial a phone number.
+ * The platform hand-offs §2.2 needs: open an address in a map, dial a phone number, and
+ * open a signed document URL in the system browser.
  *
  * `commonMain` had neither, and §2.2.5's key actions are exactly "tap address to open in
  * maps; tap phone to call" — with §4.4 adding that maps are full-screen on mobile, which is
@@ -27,4 +28,19 @@ interface PlatformLinks {
 
     /** Open the dialler with a number filled in — never placing the call itself. */
     fun dial(phone: String)
+
+    /**
+     * Open an already-signed https URL in the system browser, for screen 2.2.6.
+     *
+     * THE URL IS PASSED THROUGH VERBATIM. It carries a signature in its query string, and
+     * percent-encoding it a second time corrupts that token — the request then arrives at
+     * Storage with a signature that does not verify and 400s, which reads on screen as "the
+     * file is broken" rather than "we mangled the link". [openMap] and [dial] encode their
+     * inputs precisely because those are free text; this one is not.
+     *
+     * The system browser rather than an in-app view: the URL is good for five minutes, and
+     * an embedded web view would need its own PDF and image handling to show what the
+     * platform already shows properly.
+     */
+    fun openUrl(url: String)
 }

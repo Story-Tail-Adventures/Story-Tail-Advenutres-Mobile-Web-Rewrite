@@ -97,7 +97,13 @@ export default async function DashboardPage() {
           <HeroCountdown trip={upcoming} days={days} itineraryReady={itineraryReady} />
           <div className="flex flex-col gap-2.5">
             {nextPayment && <ActionNeeded payment={nextPayment} />}
-            <AdvisorCard preview={latestMessage?.body} tripId={upcoming.id} />
+            {/* Only the advisor's own words are quoted here. When the traveler spoke last
+                the card drops the quote and keeps the reply-window line, which is exactly
+                what somebody waiting for an answer wants to see. */}
+            <AdvisorCard
+              preview={latestMessage?.fromAgent ? latestMessage.body : undefined}
+              tripId={upcoming.id}
+            />
           </div>
         </div>
       ) : (

@@ -182,7 +182,10 @@ private fun DashboardBody(
         }
         Spacer(Modifier.height(10.dp))
         AdvisorCard(
-            preview = data.latestMessage?.body,
+            // Only the advisor's own words are quoted here. When the traveler spoke last the
+            // card drops the quote and keeps the reply-window line, which is exactly what
+            // somebody waiting for an answer wants to see.
+            preview = data.latestMessage?.takeIf { it.fromAgent }?.body,
             onMessage = { onMessageAgent(upcoming.id) },
         )
     } else {

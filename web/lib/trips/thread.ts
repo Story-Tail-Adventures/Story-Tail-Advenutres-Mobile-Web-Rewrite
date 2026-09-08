@@ -66,40 +66,102 @@ const MONTHS = [
 ] as const;
 
 /**
- * "11:14a" / "2:14p", the artboards' own format.
+ * THE TRAVELER'S ZONE IS AN EXPLICIT ARGUMENT, and that is the whole point of this section
+ * of the file.
  *
- * Local time, from a timestamptz — a message sent at 11:14 in Jamaica should read 11:14 to
- * the traveler who sent it, and `created_at` carries the offset needed to get there.
+ * The obvious implementation uses `new Date(iso).getHours()`, which formats in the AMBIENT
+ * zone. On these screens that ambient zone is the SERVER'S — the thread is a server
+ * component — so in production on a UTC host every traveler would read their conversation in
+ * UTC. A message sent at 6pm in Jamaica would say 11:00p, and the day separator above it
+ * would be wrong for anyone whose evening crosses midnight UTC. That is most of the
+ * Caribbean, most of the day.
+ *
+ * `platform_user.time_zone` exists for exactly this and is inside the client column grant.
+ * Formatting server-side against it is deterministic, needs no client JavaScript, and cannot
+ * produce a hydration mismatch — which a browser-zone fix would, since the day GROUPING and
+ * not just the labels depends on the answer.
+ *
+ * The native twin reads the device zone instead (see localToday in TripThread.kt). That is
+ * the same intent by a more direct route: a phone knows where it is.
  */
-export function formatMessageTime(iso: string): string {
+export const FALLBACK_TIME_ZONE = "UTC";
+
+/** `yyyy-mm-dd` in `timeZone`. "en-CA" is the locale whose short date IS ISO order. */
+function dayKeyIn(iso: string, timeZone: string): string | null {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const h = d.getHours();
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${hour12}:${minutes}${h < 12 ? "a" : "p"}`;
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch {
+    // An unknown zone string from the database should not blank the thread.
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: FALLBACK_TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  }
 }
 
-/** Local `yyyy-mm-dd`, so a 9pm message groups under the day the sender experienced. */
-function localDayKey(d: Date): string {
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${month}-${day}`;
-}
-
-/** "Today" / "Yesterday" / "Mar 14". */
-export function formatDaySeparator(iso: string, now: Date = new Date()): string {
+/** "11:14a" / "2:14p", the artboards' own format, in the traveler's zone. */
+export function formatMessageTime(iso: string, timeZone: string = FALLBACK_TIME_ZONE): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
 
-  const key = localDayKey(d);
-  if (key === localDayKey(now)) return THREAD_MESSAGES.today;
+  const parts = timeParts(d, timeZone);
+  const hour = parts.hour ?? "";
+  const minute = parts.minute ?? "";
+  if (!hour || !minute) return "";
 
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (key === localDayKey(yesterday)) return THREAD_MESSAGES.yesterday;
+  // `dayPeriod` is "AM"/"PM"; the design wants a bare "a"/"p".
+  const suffix = (parts.dayPeriod ?? "AM").toLowerCase().startsWith("p") ? "p" : "a";
+  return `${hour}:${minute}${suffix}`;
+}
 
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+/**
+ * Hour/minute/dayPeriod in `timeZone`, falling back to UTC if the zone string is unusable.
+ *
+ * The fallback is not defensive padding: `platform_user.time_zone` is free text that
+ * onboarding wrote, and one bad row should cost a wrong hour, not a thrown render that takes
+ * the whole thread down with it.
+ */
+function timeParts(d: Date, timeZone: string): Record<string, string> {
+  const options: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit", hour12: true };
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US", { ...options, timeZone }).formatToParts(d);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-US", {
+      ...options,
+      timeZone: FALLBACK_TIME_ZONE,
+    }).formatToParts(d);
+  }
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+/** "Today" / "Yesterday" / "Mar 14", all judged in the traveler's zone. */
+export function formatDaySeparator(
+  iso: string,
+  timeZone: string = FALLBACK_TIME_ZONE,
+  now: Date = new Date(),
+): string {
+  const key = dayKeyIn(iso, timeZone);
+  if (!key) return "";
+
+  if (key === dayKeyIn(now.toISOString(), timeZone)) return THREAD_MESSAGES.today;
+
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  if (key === dayKeyIn(yesterday.toISOString(), timeZone)) return THREAD_MESSAGES.yesterday;
+
+  // Off the key rather than off a Date, so the month and day are the zone's and not the
+  // server's — the bug this whole block exists to prevent, one line from the end.
+  const [, month, day] = key.split("-");
+  return `${MONTHS[Number(month) - 1]} ${Number(day)}`;
 }
 
 export type ThreadableMessage = {
@@ -107,7 +169,7 @@ export type ThreadableMessage = {
 };
 
 export type ThreadDay<T extends ThreadableMessage> = {
-  /** Local `yyyy-mm-dd`. Stable across renders, which is what makes it a usable React key. */
+  /** `yyyy-mm-dd` in the traveler's zone. Stable across renders, so a usable React key. */
   key: string;
   label: string;
   messages: T[];
@@ -118,19 +180,27 @@ export type ThreadDay<T extends ThreadableMessage> = {
  *
  * Assumes the input is already oldest-first, which is how the query orders it — a thread
  * reads top to bottom like a conversation, unlike the document list, which is newest-first.
+ * A run of the same day that is NOT adjacent opens a new bucket rather than merging into the
+ * earlier one, because merging would reorder somebody's messages.
  */
 export function groupMessagesByDay<T extends ThreadableMessage>(
   messages: readonly T[],
+  timeZone: string = FALLBACK_TIME_ZONE,
   now: Date = new Date(),
 ): ThreadDay<T>[] {
   const days: ThreadDay<T>[] = [];
   for (const message of messages) {
-    const d = new Date(message.createdAt);
-    if (Number.isNaN(d.getTime())) continue;
-    const key = localDayKey(d);
+    const key = dayKeyIn(message.createdAt, timeZone);
+    if (!key) continue;
     const last = days[days.length - 1];
     if (last && last.key === key) last.messages.push(message);
-    else days.push({ key, label: formatDaySeparator(message.createdAt, now), messages: [message] });
+    else {
+      days.push({
+        key,
+        label: formatDaySeparator(message.createdAt, timeZone, now),
+        messages: [message],
+      });
+    }
   }
   return days;
 }

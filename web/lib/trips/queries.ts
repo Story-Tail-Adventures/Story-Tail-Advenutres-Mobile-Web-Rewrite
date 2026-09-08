@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { daysUntilDeparture, tripStatusPresentation, type TripStatus } from "./status";
+import { FALLBACK_TIME_ZONE } from "./thread";
 
 /**
  * Server-side reads for the §2.2 screens.
@@ -58,13 +59,22 @@ export type DashboardData = {
   } | null;
   /** Whether the upcoming trip's itinerary is published and therefore readable. */
   itineraryReady: boolean;
-  /** The last thing Gyasi said, for the advisor card. */
+  /**
+   * The last message on the newest thread, for the advisor card.
+   *
+   * NOT "the last thing Gyasi said", which is what this used to claim and what the card
+   * used to render: `conversation.last_message_preview` is the last thing ANYBODY said, so
+   * a traveler's own question came back quoted underneath "Gyasi · Your advisor" as though
+   * he had said it. Caught by eye on the emulator after sending a test message.
+   * [fromAgent] is what lets the card tell the two apart.
+   */
   latestMessage: {
     body: string;
     createdAt: string;
     tripId: string | null;
     conversationId: string;
     unread: number;
+    fromAgent: boolean;
   } | null;
 };
 
@@ -175,6 +185,21 @@ export async function loadDashboard(today = todayIsoUtc()): Promise<DashboardDat
     .limit(1);
 
   const conversation = conversations?.[0];
+
+  // Who spoke last. `conversation` denormalises the preview but not the sender, so this is
+  // one more round trip — worth it, because without it the card misattributes the
+  // traveler's own words to their advisor.
+  let lastSender: string | null = null;
+  if (conversation?.last_message_preview) {
+    const { data: newest } = await supabase
+      .from("message")
+      .select("sender_role")
+      .eq("conversation_id", conversation.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    lastSender = newest?.[0]?.sender_role ?? null;
+  }
+
   const latestMessage = conversation?.last_message_preview
     ? {
         body: conversation.last_message_preview,
@@ -182,6 +207,7 @@ export async function loadDashboard(today = todayIsoUtc()): Promise<DashboardDat
         tripId: conversation.trip_id ?? null,
         conversationId: conversation.id,
         unread: conversation.client_unread_count ?? 0,
+        fromAgent: lastSender === "agent",
       }
     : null;
 
@@ -626,6 +652,22 @@ async function currentPlatformUserId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
+/**
+ * The caller's own `platform_user.id` and configured IANA time zone, in one read.
+ *
+ * The zone is what stops the thread rendering in the SERVER's zone — see the long note at
+ * the top of web/lib/trips/thread.ts. Read together with the id because both come off the
+ * same single row and the thread needs both.
+ */
+async function currentPlatformUser(): Promise<{ id: string | null; timeZone: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("platform_user")
+    .select("id, time_zone")
+    .maybeSingle();
+  return { id: data?.id ?? null, timeZone: data?.time_zone ?? FALLBACK_TIME_ZONE };
+}
+
 export type TripDocument = {
   id: string;
   kind: string;
@@ -646,12 +688,12 @@ export type TripDocumentsView = {
 /**
  * Screen 2.2.6.
  *
- * `size_bytes` comes back as a STRING. It is `bigint` in Postgres, and PostgREST serialises
- * bigint as a JSON string so a value past 2^53 survives the trip — the same reason Money is
- * a string in the OpenAPI contract. Coercing here rather than at the render site keeps the
- * one `Number()` in the codebase next to the comment explaining it. A 50MiB ceiling means
- * the coercion is always exact in practice; the string is about the wire format, not the
- * file sizes we actually see.
+ * `size_bytes` comes back as a JSON NUMBER despite being `bigint` — PostgREST serialises
+ * int8 as a plain number, not as a string, which is the opposite of what the OpenAPI
+ * contract does with money. The `Number()` below is therefore a no-op in practice and is
+ * kept only so a PostgREST config that started stringifying would not turn a size into
+ * `NaN` silently. Verified against the running stack; the Kotlin twin decodes it as `Long`
+ * for the same reason, after decoding it as a String swallowed every thread attachment.
  *
  * `storage_key` is deliberately NOT selected. It is outside the column grant, so naming it
  * would raise 42501 — and the whole point of `trip-document-url` is that the client never
@@ -703,6 +745,8 @@ export type TripThreadView = {
   tripTitle: string;
   conversationId: string | null;
   unreadCount: number;
+  /** The traveler's own IANA zone, for grouping and formatting the timestamps. */
+  timeZone: string;
   messages: ThreadMessage[];
 };
 
@@ -734,17 +778,26 @@ export async function loadTripThread(tripId: string): Promise<TripThreadView | n
 
   const conversation = conversations?.[0] ?? null;
   if (!conversation) {
-    return { tripId: trip.id, tripTitle: trip.title, conversationId: null, unreadCount: 0, messages: [] };
+    const { timeZone } = await currentPlatformUser();
+    return {
+      tripId: trip.id,
+      tripTitle: trip.title,
+      conversationId: null,
+      unreadCount: 0,
+      timeZone,
+      messages: [],
+    };
   }
 
-  const [{ data: rows }, myUserId] = await Promise.all([
+  const [{ data: rows }, me] = await Promise.all([
     supabase
       .from("message")
       .select("id, sender_role, body, created_at")
       .eq("conversation_id", conversation.id)
       .order("created_at", { ascending: true }),
-    currentPlatformUserId(),
+    currentPlatformUser(),
   ]);
+  const myUserId = me.id;
 
   const messages = rows ?? [];
 
@@ -781,6 +834,7 @@ export async function loadTripThread(tripId: string): Promise<TripThreadView | n
     tripTitle: trip.title,
     conversationId: conversation.id,
     unreadCount: conversation.client_unread_count ?? 0,
+    timeZone: me.timeZone,
     messages: messages.map((m) => ({
       id: m.id,
       sender: m.sender_role as "agent" | "client",

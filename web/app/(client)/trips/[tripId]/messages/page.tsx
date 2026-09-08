@@ -47,7 +47,7 @@ export default async function MessagesPage({
 
   if (!thread) notFound();
 
-  const days = groupMessagesByDay(thread.messages);
+  const days = groupMessagesByDay(thread.messages, thread.timeZone);
 
   return (
     // `.client-fill` is the shell opt-in that gives this screen a definite height — see
@@ -184,7 +184,7 @@ export default async function MessagesPage({
                               mine ? "text-right" : "text-left"
                             }`}
                           >
-                            {formatMessageTime(message.createdAt)}
+                            {formatMessageTime(message.createdAt, thread.timeZone)}
                           </p>
                         </div>
                       </div>

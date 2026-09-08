@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.TripRepository
 import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
+import com.storytail.adventures.domain.trip.localToday
+import com.storytail.adventures.ui.nav.rememberPlatformLinks
 import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
 import com.storytail.adventures.ui.screens.dashboard.DashboardViewModel
 import kotlinx.datetime.LocalDate
@@ -38,6 +40,8 @@ fun TripRoute(
     today: LocalDate,
     onSignOut: () -> Unit,
 ) {
+    val links = rememberPlatformLinks()
+
     val onSelectTab: (String) -> Unit = { id ->
         when (id) {
             "trips" -> nav.selectTab(AppRoute.Dashboard)
@@ -109,7 +113,57 @@ fun TripRoute(
             )
         }
 
-        // 2.2.6 through 2.2.11 land in the stages after this one.
+        is AppRoute.TripDocuments -> {
+            val viewModel = viewModel(key = "docs-${route.tripId}") {
+                DocumentsViewModel(trips, route.tripId)
+            }
+            val state by viewModel.state.collectAsState()
+            val signing by viewModel.signing.collectAsState()
+            val openError by viewModel.openError.collectAsState()
+            DocumentsScreen(
+                state = state,
+                signing = signing,
+                openError = openError,
+                onBack = { nav.pop() },
+                // The signature is minted on tap and handed straight to the platform
+                // browser. `links` is captured from the composition here because
+                // `rememberPlatformLinks` needs an Android Context and a main-thread iOS
+                // call — see PlatformLinks.kt.
+                onOpen = { document -> viewModel.open(document.id, links::openUrl) },
+                onRetry = viewModel::load,
+            )
+        }
+
+        is AppRoute.TripThread -> {
+            val viewModel = viewModel(key = "thread-${route.tripId}") {
+                ThreadViewModel(trips, route.tripId)
+            }
+            val state by viewModel.state.collectAsState()
+            val draft by viewModel.draft.collectAsState()
+            val sending by viewModel.sending.collectAsState()
+            val sendError by viewModel.sendError.collectAsState()
+            ThreadScreen(
+                state = state,
+                draft = draft,
+                sending = sending,
+                sendError = sendError,
+                // `localToday()`, NOT the section's `today`, which App.kt derives in UTC.
+                // The thread's date separators are grouped against timestamps rendered in
+                // the device zone, and mixing the two puts every separator a day out after
+                // 8pm Eastern. See localToday's own note.
+                today = localToday(),
+                onDraftChange = viewModel::changeDraft,
+                onSend = viewModel::send,
+                onBack = { nav.pop() },
+                // `replace`, not `push`: the thread is usually reached FROM the trip detail,
+                // so pushing it would put a second copy of that screen on the stack and the
+                // back button would walk through the thread again to get out.
+                onOpenTrip = { nav.replace(AppRoute.TripDetail(route.tripId)) },
+                onRetry = viewModel::load,
+            )
+        }
+
+        // 2.2.9 through 2.2.11 land in the next stage.
         else -> {
             val viewModel = viewModel { DashboardViewModel(trips, today) }
             val state by viewModel.state.collectAsState()

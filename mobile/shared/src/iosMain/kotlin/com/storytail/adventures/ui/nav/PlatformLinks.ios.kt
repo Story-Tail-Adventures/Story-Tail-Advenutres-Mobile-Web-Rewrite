@@ -22,6 +22,12 @@ private class IosPlatformLinks : PlatformLinks {
         open("tel:${phone.encodeForUrl()}")
     }
 
+    override fun openUrl(url: String) {
+        // Straight to `open`, skipping `encodeForUrl`: the signed URL is already encoded and
+        // running it through again would corrupt the signature. See the interface note.
+        open(url)
+    }
+
     private fun open(url: String) {
         val nsUrl = NSURL.URLWithString(url) ?: return
         UIApplication.sharedApplication.openURL(nsUrl)

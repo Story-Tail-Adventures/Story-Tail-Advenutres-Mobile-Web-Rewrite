@@ -83,6 +83,56 @@ MESSAGE_TABLES = [
         },
     },
     {
+        # The six group headings §2.2.6 renders. Six names for ten `document_kind` values,
+        # with passports and visas sharing one drawer — a mapping this table is the only
+        # record of, on either stack.
+        "label": "trip documents",
+        "web_file": ROOT / "web/lib/trips/documents.ts",
+        "web_const": "DOCUMENT_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripDocuments.kt",
+        "kmp_object": "DocumentMessages",
+        "keys": {
+            "groupConfirmations": "GROUP_CONFIRMATIONS",
+            "groupIdentity": "GROUP_IDENTITY",
+            "groupInsurance": "GROUP_INSURANCE",
+            "groupItinerary": "GROUP_ITINERARY",
+            "groupPhotos": "GROUP_PHOTOS",
+            "groupOther": "GROUP_OTHER",
+            "addedByYou": "ADDED_BY_YOU",
+            "addedByAgent": "ADDED_BY_AGENT",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "uploadCta": "UPLOAD_CTA",
+            "openFailed": "OPEN_FAILED",
+        },
+    },
+    {
+        # The four suggested-reply chips are the interesting half: §2.2.7 lists tapping them
+        # as a key action and nothing in the schema produces them, so they are pure copy —
+        # and web and native must never offer a traveler two different sets of words to say.
+        "label": "trip thread",
+        "web_file": ROOT / "web/lib/trips/thread.ts",
+        "web_const": "THREAD_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripThread.kt",
+        "kmp_object": "ThreadMessages",
+        "keys": {
+            "composePlaceholder": "COMPOSE_PLACEHOLDER",
+            "sendLabel": "SEND_LABEL",
+            "attachLabel": "ATTACH_LABEL",
+            "openTrip": "OPEN_TRIP",
+            "today": "TODAY",
+            "yesterday": "YESTERDAY",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "sendFailed": "SEND_FAILED",
+            "quickSoundsGood": "QUICK_SOUNDS_GOOD",
+            "quickAddPartner": "QUICK_ADD_PARTNER",
+            "quickSendPassport": "QUICK_SEND_PASSPORT",
+            "quickScheduleCall": "QUICK_SCHEDULE_CALL",
+            "replyWindow": "REPLY_WINDOW",
+        },
+    },
+    {
         "label": "auth validation",
         "web_file": ROOT / "web/lib/validation/auth.ts",
         "web_const": "AUTH_MESSAGES",

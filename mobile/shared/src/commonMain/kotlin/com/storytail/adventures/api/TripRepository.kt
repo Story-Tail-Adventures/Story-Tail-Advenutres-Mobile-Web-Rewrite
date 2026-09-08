@@ -4,14 +4,25 @@ import com.storytail.adventures.domain.trip.TripStatus
 import com.storytail.adventures.domain.trip.daysUntilDeparture
 import com.storytail.adventures.domain.trip.tripStatusPresentation
 import com.storytail.adventures.domain.trip.StatusChip
+import com.storytail.adventures.config.SupabaseConfig
+import com.storytail.adventures.domain.trip.MessageSender
+import com.storytail.adventures.domain.uuidV7
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.ktor.client.request.url
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpMethod
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * The §2.2 reads.
@@ -46,6 +57,76 @@ interface TripRepository {
 
     /** The name to greet somebody by, or null. */
     suspend fun greetableFirstName(): String?
+
+    /** Screen 2.2.6, or null when the trip is not the caller's — RLS makes those the same. */
+    suspend fun tripDocuments(tripId: String): TripDocumentsSnapshot?
+
+    /** Screen 2.2.7. A trip with no conversation yet is an EMPTY thread, not a failure. */
+    suspend fun tripThread(tripId: String): TripThreadSnapshot?
+
+    /**
+     * Sign a short-lived read URL for one document, for 2.2.6's open action.
+     *
+     * This is the ONLY way either stack opens a stored file. `document.storage_key` is
+     * outside the client column grant and Storage is addressed by key, so the bucket has no
+     * authenticated policies at all and this Edge Function is the single door — see
+     * supabase/functions/trip-document-url/index.ts. On native that is not a convenience:
+     * Compose Multiplatform has no server, so without it 2.2.6 cannot open a file at all.
+     */
+    suspend fun signDocumentUrl(documentId: String): SignedDocument
+
+    /** Send a message on a trip thread, for 2.2.7's compose bar. */
+    suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome
+}
+
+data class TripDocumentView(
+    val id: String,
+    val kind: String,
+    val filename: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val createdAt: String,
+    /** True when `owner_user_id` is the caller's own platform user — the §2.2.6 uploaded-by. */
+    val mine: Boolean,
+)
+
+data class TripDocumentsSnapshot(
+    val tripId: String,
+    val tripTitle: String,
+    val documents: List<TripDocumentView>,
+)
+
+data class ThreadMessageView(
+    val id: String,
+    val sender: MessageSender,
+    val body: String,
+    val createdAt: String,
+    val attachments: List<TripDocumentView>,
+)
+
+data class TripThreadSnapshot(
+    val tripId: String,
+    val tripTitle: String,
+    val conversationId: String?,
+    val unreadCount: Int,
+    val messages: List<ThreadMessageView>,
+)
+
+sealed interface SignedDocument {
+    /** An ABSOLUTE url, already joined to this build's Supabase origin. */
+    data class Ok(val url: String, val filename: String, val mimeType: String) : SignedDocument
+    data object Failed : SignedDocument
+}
+
+sealed interface SendMessageOutcome {
+    data object Sent : SendMessageOutcome
+
+    /**
+     * `detail` is only ever populated from a 4xx problem+json body — messages we wrote. A
+     * 5xx detail carries whatever Postgres said, which belongs in the function log and not
+     * in front of a traveler.
+     */
+    data class Failed(val detail: String?) : SendMessageOutcome
 }
 
 /**
@@ -169,11 +250,20 @@ data class NextPayment(
     val daysUntilDue: Int?,
 )
 
+/**
+ * The last message on the newest thread, for the dashboard's advisor card.
+ *
+ * NOT "the last thing Gyasi said": `conversation.last_message_preview` is the last thing
+ * ANYBODY said, so without [fromAgent] a traveler's own question comes back quoted
+ * underneath "Gyasi · Your advisor" as though he had said it. Caught by eye on the emulator
+ * after sending a test message; the web twin had the identical defect.
+ */
 data class AdvisorMessage(
     val body: String,
     val tripId: String?,
     val conversationId: String,
     val unread: Int,
+    val fromAgent: Boolean,
 )
 
 data class DashboardSnapshot(
@@ -192,6 +282,11 @@ class UnconfiguredTripRepository : TripRepository {
     override suspend fun tripDetail(tripId: String, today: LocalDate): TripDetailSnapshot? = null
     override suspend fun itinerary(tripId: String, today: LocalDate): ItineraryView? = null
     override suspend fun greetableFirstName(): String? = null
+    override suspend fun tripDocuments(tripId: String): TripDocumentsSnapshot? = null
+    override suspend fun tripThread(tripId: String): TripThreadSnapshot? = null
+    override suspend fun signDocumentUrl(documentId: String): SignedDocument = SignedDocument.Failed
+    override suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome =
+        SendMessageOutcome.Failed(null)
 }
 
 /** Which statuses each tab shows. Mirrors FILTER_STATUSES in web/lib/trips/queries.ts. */
@@ -207,6 +302,8 @@ private val FILTER_STATUSES: Map<TripFilter, Set<TripStatus>> = mapOf(
 class SupabaseTripRepository(
     private val client: SupabaseClient,
 ) : TripRepository {
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun dashboard(today: LocalDate): DashboardSnapshot? {
         val trips = read {
@@ -287,6 +384,23 @@ class SupabaseTripRepository(
                 .decodeList<ConversationRow>()
         }?.firstOrNull()
 
+        // Who spoke last. `conversation` denormalises the preview but not the sender, so
+        // this is one more round trip — worth it, because without it the card
+        // misattributes the traveler's own words to their advisor.
+        val lastSender = conversation?.last_message_preview?.let {
+            read {
+                client.postgrest.from("message")
+                    .select(Columns.list("sender_role")) {
+                        filter { eq("conversation_id", conversation.id) }
+                        order("created_at", Order.DESCENDING)
+                        limit(1)
+                    }
+                    .decodeList<SenderRow>()
+                    .firstOrNull()
+                    ?.sender_role
+            }
+        }
+
         return DashboardSnapshot(
             upcoming = upcomingRow?.toSummary(today, nextUnpaidDue),
             inPlanning = trips
@@ -304,6 +418,7 @@ class SupabaseTripRepository(
                     tripId = conversation.trip_id,
                     conversationId = conversation.id,
                     unread = conversation.client_unread_count ?: 0,
+                    fromAgent = lastSender == "agent",
                 )
             },
         )
@@ -594,6 +709,208 @@ class SupabaseTripRepository(
             .decodeSingleOrNull<NameRow>()
     }?.greetable()
 
+    override suspend fun tripDocuments(tripId: String): TripDocumentsSnapshot? {
+        val trip = read {
+            client.postgrest.from("trip")
+                .select(Columns.list("id", "title")) {
+                    filter { eq("id", tripId) }
+                    limit(1)
+                }
+                .decodeList<TitleRow>()
+                .firstOrNull()
+        } ?: return null
+
+        // `storage_key` is deliberately NOT selected. It is outside the column grant, so
+        // naming it raises 42501 — and the whole point of trip-document-url is that the
+        // client never holds a key.
+        val rows = read {
+            client.postgrest.from("document")
+                .select(
+                    Columns.list(
+                        "id", "owner_user_id", "kind", "filename",
+                        "mime_type", "size_bytes", "created_at",
+                    ),
+                ) {
+                    filter { eq("trip_id", tripId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<DocumentRow>()
+        } ?: return null
+
+        val myUserId = currentPlatformUserId()
+
+        return TripDocumentsSnapshot(
+            tripId = trip.id,
+            tripTitle = trip.title,
+            documents = rows.map { it.toView(myUserId) },
+        )
+    }
+
+    override suspend fun tripThread(tripId: String): TripThreadSnapshot? {
+        val trip = read {
+            client.postgrest.from("trip")
+                .select(Columns.list("id", "title")) {
+                    filter { eq("id", tripId) }
+                    limit(1)
+                }
+                .decodeList<TitleRow>()
+                .firstOrNull()
+        } ?: return null
+
+        val conversation = read {
+            client.postgrest.from("conversation")
+                .select(Columns.list("id", "client_unread_count")) {
+                    filter { eq("trip_id", tripId) }
+                    limit(1)
+                }
+                .decodeList<ConversationCountRow>()
+                .firstOrNull()
+        }
+
+        // No conversation is a real state, not an error: the row is created by trip-message
+        // on the first send. It renders as the empty thread.
+        if (conversation == null) {
+            return TripThreadSnapshot(trip.id, trip.title, null, 0, emptyList())
+        }
+
+        // `is_internal_note` is not filtered here, and that is not an omission: it is outside
+        // the client column grant, so naming it would raise 42501. The filtering lives in
+        // `message_self_select`, which carries `is_internal_note = false` as a ROW predicate —
+        // the internal notes are invisible rather than redacted.
+        val messageRows = read {
+            client.postgrest.from("message")
+                .select(Columns.list("id", "sender_role", "body", "created_at")) {
+                    filter { eq("conversation_id", conversation.id) }
+                    order("created_at", Order.ASCENDING)
+                }
+                .decodeList<MessageRow>()
+        } ?: return null
+
+        val myUserId = currentPlatformUserId()
+
+        // One query for the whole thread rather than one per message. The embed goes
+        // message_attachment → document, and `document`'s own policy still applies to the
+        // embedded side: an attachment pointing at a `receipt` comes back with a null
+        // document and is dropped, which is why this is not an inner join.
+        val attachments = if (messageRows.isEmpty()) {
+            emptyMap()
+        } else {
+            read {
+                client.postgrest.from("message_attachment")
+                    .select(
+                        Columns.raw(
+                            "message_id, document:document_id(id, owner_user_id, kind, " +
+                                "filename, mime_type, size_bytes, created_at)",
+                        ),
+                    ) {
+                        filter { isIn("message_id", messageRows.map { it.id }) }
+                    }
+                    .decodeList<AttachmentRow>()
+            }.orEmpty()
+                .mapNotNull { row -> row.document?.let { row.message_id to it.toView(myUserId) } }
+                .groupBy({ it.first }, { it.second })
+        }
+
+        return TripThreadSnapshot(
+            tripId = trip.id,
+            tripTitle = trip.title,
+            conversationId = conversation.id,
+            unreadCount = conversation.client_unread_count ?: 0,
+            messages = messageRows.map { row ->
+                ThreadMessageView(
+                    id = row.id,
+                    sender = if (row.sender_role == "client") MessageSender.CLIENT else MessageSender.AGENT,
+                    body = row.body,
+                    createdAt = row.created_at,
+                    attachments = attachments[row.id].orEmpty(),
+                )
+            },
+        )
+    }
+
+    override suspend fun signDocumentUrl(documentId: String): SignedDocument {
+        val response = try {
+            client.functions.invoke("trip-document-url") {
+                method = HttpMethod.Get
+                url { parameters.append("documentId", documentId) }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (throwable: Throwable) {
+            // Never log the throwable: a storage error carries the key, which is the one
+            // thing this whole path exists to withhold.
+            return SignedDocument.Failed
+        }
+
+        if (response.status.value !in 200..299) return SignedDocument.Failed
+
+        val body = runCatching {
+            json.decodeFromString<SignedUrlResponse>(response.bodyAsText())
+        }.getOrNull() ?: return SignedDocument.Failed
+
+        // The function returns a PATH, not an absolute URL — Storage signs against the origin
+        // it sees from inside its own container (`http://kong:8000` locally), which resolves
+        // nowhere on a phone. See toStoragePath in supabase/functions/_shared/trip.ts. This
+        // build already knows the right origin, so it does the joining.
+        return SignedDocument.Ok(
+            url = SupabaseConfig.URL.trimEnd('/') + body.path,
+            filename = body.filename,
+            mimeType = body.mimeType,
+        )
+    }
+
+    override suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return SendMessageOutcome.Failed(null)
+
+        val payload = buildJsonObject {
+            // Minted here, per Data-Model §21.6 — `message.id` has no default and the
+            // function validates the embedded timestamp is recent.
+            put("messageId", JsonPrimitive(uuidV7()))
+            put("tripId", JsonPrimitive(tripId))
+            put("body", JsonPrimitive(trimmed))
+        }
+
+        val response = try {
+            client.functions.invoke("trip-message", payload)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (throwable: Throwable) {
+            // NEVER log the body — it is somebody's message.
+            return SendMessageOutcome.Failed(null)
+        }
+
+        if (response.status.value in 200..299) return SendMessageOutcome.Sent
+
+        val text = runCatching { response.bodyAsText() }.getOrDefault("")
+        val detail = if (response.status.value in 400..499) problemDetail(text) else null
+        return SendMessageOutcome.Failed(detail)
+    }
+
+    /** The `detail` from an RFC 7807 body, if it carried one. */
+    private fun problemDetail(text: String): String? = runCatching {
+        json.decodeFromString<ProblemBody>(text).detail
+    }.getOrNull()
+
+    /**
+     * The caller's own `platform_user.id`.
+     *
+     * NOT the auth user id, which is `platform_user.account_id` and a DIFFERENT value.
+     * `document.owner_user_id` points at `platform_user.id`, so comparing against the auth
+     * id makes the comparison false for everybody and labels a traveler's own passport
+     * "added by Gyasi" — which is exactly how the web twin shipped before it was caught.
+     *
+     * No filter: RLS scopes `platform_user` to the caller's own row, the same assumption
+     * `OnboardingRepository.status()` runs on.
+     */
+    private suspend fun currentPlatformUserId(): String? = read {
+        client.postgrest.from("platform_user")
+            .select(Columns.list("id"))
+            .decodeList<IdOnlyRow>()
+            .firstOrNull()
+            ?.id
+    }
+
     /**
      * Unlike the onboarding repository's `read`, callers here treat null as FAILURE rather
      * than as "nothing to show" — see the interface note.
@@ -793,3 +1110,64 @@ private data class NameRow(
         (preferred_name?.takeIf { it.isNotBlank() } ?: first_name?.takeIf { it.isNotBlank() })
             ?.takeIf { it != "New" }
 }
+
+@Serializable
+private data class TitleRow(val id: String, val title: String)
+
+@Serializable
+private data class DocumentRow(
+    val id: String,
+    val owner_user_id: String? = null,
+    val kind: String,
+    val filename: String,
+    val mime_type: String,
+    /**
+     * A JSON NUMBER, not a string.
+     *
+     * Worth stating because `size_bytes` is `bigint` and the OpenAPI contract carries money
+     * as a string for exactly the precision reason you would expect to apply here too. It
+     * does not: PostgREST serialises int8 as a plain JSON number, so this decodes as Long —
+     * measured against the running stack, after decoding it as String silently swallowed
+     * every attachment on the thread. A `Long` is exact to 2^53 through JSON and the bucket
+     * caps uploads at 50 MiB, so the precision ceiling is nowhere near.
+     */
+    val size_bytes: Long? = null,
+    val created_at: String,
+)
+
+private fun DocumentRow.toView(myUserId: String?): TripDocumentView = TripDocumentView(
+    id = id,
+    kind = kind,
+    filename = filename,
+    mimeType = mime_type,
+    sizeBytes = size_bytes ?: 0L,
+    createdAt = created_at,
+    mine = myUserId != null && owner_user_id == myUserId,
+)
+
+@Serializable
+private data class MessageRow(
+    val id: String,
+    val sender_role: String,
+    val body: String,
+    val created_at: String,
+)
+
+@Serializable
+private data class AttachmentRow(
+    val message_id: String,
+    val document: DocumentRow? = null,
+)
+
+@Serializable
+private data class SignedUrlResponse(
+    val path: String,
+    val filename: String,
+    @SerialName("mimeType") val mimeType: String,
+)
+
+@Serializable
+private data class ProblemBody(val detail: String? = null)
+
+@Serializable
+private data class SenderRow(val sender_role: String)
