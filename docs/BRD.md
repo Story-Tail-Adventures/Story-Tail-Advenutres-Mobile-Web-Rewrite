@@ -121,7 +121,26 @@ This is the most security-sensitive feature in the application. The client can a
 
 ### 6.5 Self-Guided Trip Search
 
-Prospective and existing clients can search for trips by destination, dates, traveler count, trip type (resort, cruise, family, romantic, adventure, etc.), and budget range. Results are sourced from integrated travel APIs (see Section 9) and presented in Story-Tail Adventures' branding. The client can save searches, favorite results, and submit a "Quote Request" that creates a lead in the agent workspace with all the context attached. Importantly: clients cannot book directly through the platform — every search converts to an inquiry the advisor responds to, preserving the human-led advisory model.
+Prospective and existing clients can search for trips by destination, dates, traveler count, trip type (resort, cruise, family, romantic, adventure, etc.), and budget range. Results are sourced from integrated travel APIs (see Section 9) and presented in Story-Tail Adventures' branding. The client can save searches, favorite results, and submit a "Quote Request" that creates a **trip in `inquiry` status** in the agent workspace with all the context attached. Importantly: clients cannot book directly through the platform — every search converts to an inquiry the advisor responds to, preserving the human-led advisory model.
+
+> **DECIDED 2026-09-09 — a quote request creates a Trip, not a Lead.** This paragraph said
+> "creates a lead in the agent workspace", and Section 12's entity sketch, Screen Inventory
+> 2.3.8 and its §3.8.x Leads workspace all followed from that. Gyasi's call is that a quote
+> request lands directly in the trip pipeline: `trip.status` already defaults to `inquiry`,
+> so the "awaiting a quote" state needs no new entity, and there is one queue to work rather
+> than two.
+>
+> **The cost, stated plainly: a quote request now requires an account.** `trip.client_id` is
+> `NOT NULL`, and `client.first_name` / `client.last_name` are `NOT NULL` too, so there is no
+> way to attach a trip to somebody who has given only an email. The sign-up gate (Screen
+> Inventory 2.0.6) therefore becomes a real gate rather than a nudge.
+>
+> **What absorbs a visitor who will not sign up:** the "Message Gyasi" email that already
+> ships (`web/lib/public/inquiry.ts`). It is not a queue and it does not carry search
+> context, but it is a real reply channel and it keeps the public surface from dead-ending.
+> If that proves lossy — inquiries arriving as unstructured email that nobody triages — the
+> Lead domain in Data-Model §11 is the designed answer and is still specified; it is deferred,
+> not deleted.
 
 ### 6.6 Messaging & Notifications
 
@@ -361,7 +380,7 @@ The core entities and relationships:
 
 **Commission** — expected, invoiced, and received commission per Trip: gross booking value, commission rate, supplier, payment terms, status, reconciliation reference to Inteletravel report.
 
-**Lead** — qualified inquiry from self-guided search: destination, dates, budget, traveler count, source search criteria, status (New / Contacted / Qualified / Converted to Trip / Lost).
+**Lead** — *deferred, see §6.5 (2026-09-09).* Was: a qualified inquiry from self-guided search, converted to a Trip by the agent. A quote request now creates a Trip in `inquiry` status directly. The entity stays specified in Data-Model §11 because it is the designed answer if the account requirement proves too costly at the top of the funnel.
 
 **Message** — inbound/outbound communication, threaded by Trip or by Client; channel (in-app, email, eventually SMS).
 
@@ -459,7 +478,7 @@ For the mobile clients, Edge Functions expose a REST API. Mobile consumes that A
 - `supabase/` — Supabase project with migrations (`supabase/migrations/`) and Edge Functions (`supabase/functions/`)
 - `contracts/` — Shared API contract: OpenAPI spec plus generated TypeScript types and (optionally) Kotlin types for the mobile module
 
-CI/CD via GitHub Actions. Web deploys to Vercel. Mobile apps go through Apple App Store and Google Play. Supabase Edge Functions deploy via `supabase functions deploy`. The Supabase database migrates via `supabase db push`. No separate backend host (no Fly.io, no Cloud Run, no AWS App Runner).
+CI/CD via GitHub Actions, with production deploys split by owner: GitHub Actions builds and deploys the web app to Vercel, while Supabase's own GitHub integration applies migrations and deploys Edge Functions on merge to the `production` branch. The split keeps the production database password out of GitHub entirely. Mobile apps go through Apple App Store and Google Play. No separate backend host (no Fly.io, no Cloud Run, no AWS App Runner).
 
 **Why KMP for this specific business.** The advisor business has fundamentally one set of rules — what a trip is, what statuses it can be in, how commission is calculated, when a card can be used — and three places those rules need to be enforced (web, iOS, Android). Without code sharing, those three implementations drift, bugs creep in, and feature parity becomes a perpetual cost. KMP turns "three apps" into "one app with three faces" and is exactly the right shape for the long-term maintenance pattern of this product.
 

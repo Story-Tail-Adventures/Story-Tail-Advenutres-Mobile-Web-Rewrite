@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+
+<meta charset="utf-8"/>
+<title>Story-Tail Adventures · Designs</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;min-height:100%}
+body{background:radial-gradient(circle at 18% 12%,#3a1f1c 0%,#1A100E 60%);color:#FBF6EE;font-family:'Poppins',system-ui,-apple-system,sans-serif;min-height:100vh;padding:56px 48px 80px}
+.wrap{max-width:1280px;margin:0 auto}
+.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.hero-text{max-width:720px}
+.overline{font:700 11px/1 'Poppins';letter-spacing:2.4px;color:#E87722;text-transform:uppercase}
+.hero h1{font:800 48px/1.05 'Poppins';letter-spacing:-1.2px;margin:8px 0 8px}
+.hero h1 .script{font:700 64px/0.9 'Caveat';color:#FFC83F;letter-spacing:0}
+.hero p{font:400 16px/1.55 'Poppins';color:rgba(251,246,238,.78);max-width:640px;margin:0}
+.verse-row{display:flex;gap:20px;align-items:baseline;margin-top:22px;padding-top:18px;border-top:1px solid rgba(251,246,238,.14);flex-wrap:wrap}
+.verse-row .v{font:600 22px/1.2 'Caveat';color:#FFC83F}
+.verse-row .ref{font:700 10.5px/1 'Poppins';letter-spacing:1.8px;color:rgba(251,246,238,.55);text-transform:uppercase;margin-left:-8px}
+.mark{display:inline-flex;align-items:center;gap:14px;padding:14px 18px;border-radius:18px;background:rgba(251,246,238,.06);border:1px solid rgba(251,246,238,.12);flex-shrink:0}
+.mark .script{font:700 30px/1 'Caveat';color:#FFC83F;white-space:nowrap}
+.mark .ad{font:700 10px/1 'Poppins';letter-spacing:2.2px;color:#E87722}
+.mark-disc{width:50px;height:50px;border-radius:14px;object-fit:contain;flex-shrink:0}
+.group-label{margin-top:56px;margin-bottom:18px;display:flex;align-items:center;gap:16px}
+.group-label .tag{font:700 11px/1 'Poppins';letter-spacing:2.4px;color:#FFC83F;text-transform:uppercase}
+.group-label .name{font:700 24px/1 'Poppins';color:#FBF6EE;letter-spacing:-0.3px}
+.group-label .count{font:500 13px/1 'Poppins';color:rgba(251,246,238,.55);margin-left:auto}
+.group-label .rule{flex:1;height:1px;background:rgba(251,246,238,.12)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.grid.brand{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.card{position:relative;display:flex;flex-direction:column;gap:6px;padding:22px 22px 20px;border-radius:18px;background:linear-gradient(180deg,rgba(251,246,238,.07),rgba(251,246,238,.03));border:1px solid rgba(251,246,238,.10);text-decoration:none;color:inherit;transition:transform .18s ease,border-color .18s ease,background .18s ease;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#E87722,#FFC83F);opacity:.5;transition:opacity .2s ease}
+.card:hover{transform:translateY(-3px);border-color:rgba(232,119,34,.45);background:linear-gradient(180deg,rgba(232,119,34,.10),rgba(232,119,34,.03))}
+.card:hover::before{opacity:1}
+.card .num{font:800 32px/1 'Poppins';color:#FFC83F;letter-spacing:-0.5px}
+.card .title{font:700 17px/1.25 'Poppins';color:#FBF6EE;margin-top:4px}
+.card .subtitle{font:400 13px/1.45 'Poppins';color:rgba(251,246,238,.62);margin-top:4px;flex:1}
+.card .open{font:600 12px/1 'Poppins';letter-spacing:.4px;color:#E87722;margin-top:14px}
+.feature{display:grid;grid-template-columns:1.15fr 1fr;gap:0;border-radius:22px;overflow:hidden;border:1px solid rgba(232,119,34,.4);background:linear-gradient(135deg,rgba(232,119,34,.16),rgba(122,26,31,.28));text-decoration:none;color:inherit;transition:transform .18s ease,border-color .18s ease}
+.feature:hover{transform:translateY(-3px);border-color:rgba(255,200,63,.7)}
+.feature-l{padding:28px 30px}
+.feature-l .num{font:800 44px/1 'Poppins';color:#FFC83F;letter-spacing:-1px}
+.feature-l h2{font:700 26px/1.2 'Poppins';margin:8px 0 6px;letter-spacing:-0.4px}
+.feature-l p{font:400 14px/1.55 'Poppins';color:rgba(251,246,238,.75);margin:0;max-width:420px}
+.feature-l .open{font:700 13px/1 'Poppins';color:#FFC83F;margin-top:18px;display:inline-block}
+.feature-r{padding:28px 30px;border-left:1px solid rgba(251,246,238,.12);background:rgba(20,12,10,.28)}
+.feature-r .cap{font:700 10.5px/1 'Poppins';letter-spacing:1.8px;color:#E87722;text-transform:uppercase;margin-bottom:12px}
+.plist{display:flex;flex-wrap:wrap;gap:6px}
+.plist span{font:600 12px/1 'Poppins';padding:7px 11px;border-radius:999px;background:rgba(251,246,238,.09);border:1px solid rgba(251,246,238,.14);color:rgba(251,246,238,.9)}
+footer{margin-top:80px;padding-top:28px;border-top:1px solid rgba(251,246,238,.10);font:500 12px/1.5 'Poppins';color:rgba(251,246,238,.5)}
+footer a{color:rgba(251,246,238,.7);text-decoration:none}
+footer a:hover{color:#FFC83F}
+@media (max-width:860px){.feature{grid-template-columns:1fr}.feature-r{border-left:0;border-top:1px solid rgba(251,246,238,.12)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-text">
+      <div class="overline">Story-Tail Adventures · Design hub</div>
+      <h1>Designs, split by <span class="script">section</span>.</h1>
+      <p>173 screens across 22 sections — client portal + agent CRM, plus web &amp; mobile where it applies. Light/dark and web/mobile toggles live in each section&rsquo;s header bar, and every section opens on its own page so the canvas stays quick.</p>
+      <div class="verse-row">
+        <span class="v">"On the seventh day God rested."</span>
+        <span class="ref">Gen 2:2</span>
+        <span class="v">"It was very good."</span>
+        <span class="ref">Gen 1:31</span>
+      </div>
+    </div>
+    <div class="mark">
+      <img class="mark-disc" src="brand/logo-tropical-dark.png" alt="Story-Tail Adventures"/>
+      <div>
+        <div class="script">Story-Tail</div>
+        <div class="ad">ADVENTURES</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="group-label"><span class="tag">Start here</span><span class="name">The landing pages</span><span class="rule"></span><span class="count">11 screens · web + mobile</span></div>
+  <a class="feature" href="c20-public.html">
+    <div class="feature-l">
+      <div class="num">2.0</div>
+      <h2>Public landing pages</h2>
+      <p>Everything an anonymous visitor sees at app.story-tail.com — the front door, the three topic pages, and About Gyasi. Toggle web/mobile and light/dark in the header.</p>
+      <span class="open">Open the landing pages →</span>
+    </div>
+    <div class="feature-r">
+      <div class="cap">11 pages in this section</div>
+      <div class="plist"><span>App landing</span><span>About / How it works</span><span>Caribbean</span><span>Cruises</span><span>Honeymoons</span><span>About Gyasi</span><span>Search</span><span>Results</span><span>Property detail</span><span>Sign-up gate</span><span>Legal</span></div>
+    </div>
+  </a>
+
+  <div class="group-label"><span class="tag">00</span><span class="name">Foundations</span><span class="rule"></span><span class="count">1 page</span></div>
+  <div class="grid brand"><a class="card" href="00-brand.html">
+        <div class="num">00</div>
+        <div class="title">Brand & system</div>
+        <div class="subtitle">Foundations — palette, typography, M3 tokens, status language.</div>
+        <div class="open">Open →</div>
+      </a></div>
+
+  <div class="group-label"><span class="tag">2.x</span><span class="name">Client portal</span><span class="rule"></span><span class="count">8 sections</span></div>
+  <div class="grid"><a class="card" href="c21-auth.html">
+        <div class="num">2.1</div>
+        <div class="title">Authentication & Onboarding</div>
+        <div class="subtitle">Sign-in through trip linking.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c22-dashboard.html">
+        <div class="num">2.2</div>
+        <div class="title">Dashboard & Trip Experience</div>
+        <div class="subtitle">Trips, itineraries, docs, messages.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c23-search.html">
+        <div class="num">2.3</div>
+        <div class="title">Self-Guided Search</div>
+        <div class="subtitle">Inspiration, results, detail, quote.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c24-payment.html">
+        <div class="num">2.4</div>
+        <div class="title">Payment & Card Authorization</div>
+        <div class="subtitle">Wallet, add, authorize, audit.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c25-account.html">
+        <div class="num">2.5</div>
+        <div class="title">Account & Profile</div>
+        <div class="subtitle">Hub + 10 sub-screens.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c26-messaging.html">
+        <div class="num">2.6</div>
+        <div class="title">Messaging</div>
+        <div class="subtitle">Inbox, thread, new conversation.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c27-mobile.html">
+        <div class="num">2.7</div>
+        <div class="title">Mobile-Specific</div>
+        <div class="subtitle">Native-only screens.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="c28-group.html">
+        <div class="num">2.8</div>
+        <div class="title">Group Trip Coordination</div>
+        <div class="subtitle">Phase 3+ surface.</div>
+        <div class="open">Open →</div>
+      </a></div>
+
+  <div class="group-label"><span class="tag">3.x</span><span class="name">Agent CRM</span><span class="rule"></span><span class="count">12 sections</span></div>
+  <div class="grid"><a class="card" href="a31-auth.html">
+        <div class="num">3.1</div>
+        <div class="title">Authentication & Activation</div>
+        <div class="subtitle">Sign-in, MFA, and the 6-step activation wizard.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a32-pipeline.html">
+        <div class="num">3.2</div>
+        <div class="title">Dashboard & Pipeline</div>
+        <div class="subtitle">Worklist, Kanban pipeline, calendar.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a33-crm.html">
+        <div class="num">3.3</div>
+        <div class="title">Client Management (CRM)</div>
+        <div class="subtitle">Roster, detail, tabs, merge, archive.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a34-trip-builder.html">
+        <div class="num">3.4</div>
+        <div class="title">Trip Builder & Management</div>
+        <div class="subtitle">From list to builder to component sheets.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a35-proposal.html">
+        <div class="num">3.5</div>
+        <div class="title">Proposal & Itinerary</div>
+        <div class="subtitle">Builder, preview, send, auto-generate.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a36-payment.html">
+        <div class="num">3.6</div>
+        <div class="title">Payment & Card Management</div>
+        <div class="subtitle">Vault, reveal-and-use, audit log.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a37-commission.html">
+        <div class="num">3.7</div>
+        <div class="title">Commission Tracking</div>
+        <div class="subtitle">Dashboard, ledger, reconciliation, forecast.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a38-leads.html">
+        <div class="num">3.8</div>
+        <div class="title">Leads</div>
+        <div class="subtitle">Inbox, detail, convert, reject, analytics.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a39-support.html">
+        <div class="num">3.9</div>
+        <div class="title">Login Support / Account Admin</div>
+        <div class="subtitle">Help less-technical clients. All audit-logged.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a310-messaging.html">
+        <div class="num">3.10</div>
+        <div class="title">Messaging & Templates</div>
+        <div class="subtitle">Agent inbox, templates, bulk send.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a311-reports.html">
+        <div class="num">3.11</div>
+        <div class="title">Reporting</div>
+        <div class="subtitle">Hub + 6 reports + export center.</div>
+        <div class="open">Open →</div>
+      </a><a class="card" href="a312-settings.html">
+        <div class="num">3.12</div>
+        <div class="title">Profile & Settings</div>
+        <div class="subtitle">Profile, availability, notifs, signature, branding.</div>
+        <div class="open">Open →</div>
+      </a></div>
+
+  <footer>Story-Tail Adventures · Hosted by Inteletravel · Light/dark and web/mobile toggles live in each section&rsquo;s header bar</footer>
+</div>
+</body>
+</html>

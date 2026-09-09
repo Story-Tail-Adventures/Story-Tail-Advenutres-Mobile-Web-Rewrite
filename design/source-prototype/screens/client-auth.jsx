@@ -32,7 +32,7 @@ function C211_Login() {
         <span className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>OR</span>
         <hr className="divider" style={{ flex: 1 }}/>
       </div>
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <label className="field-label">Password</label>
@@ -63,7 +63,7 @@ function C212_Registration() {
         <div><label className="field-label">First name</label><input className="input" defaultValue="Jordan"/></div>
         <div><label className="field-label">Last name</label><input className="input" defaultValue="Hayes"/></div>
       </div>
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
       <div>
         <label className="field-label">Password</label>
         <input className="input" type="password" defaultValue="••••••••••••"/>
@@ -86,7 +86,7 @@ function C212_Registration() {
 // 2.1.3 — Email Verification
 function C213_EmailVerification() {
   return (
-    <AuthCard overline="ONE MORE STEP" title="Check your email" sub="We sent a verification link to jordan.hayes@gmail.com." footer={<>Need to update? <a href="#" style={{ color: 'var(--md-primary)' }}>Change email</a> · <a href="#" style={{ color: 'var(--md-primary)' }}>Resend</a></>}>
+    <AuthCard overline="ONE MORE STEP" title="Check your email" sub="We sent a verification link to jordan.hayes@example.com." footer={<>Need to update? <a href="#" style={{ color: 'var(--md-primary)' }}>Change email</a> · <a href="#" style={{ color: 'var(--md-primary)' }}>Resend</a></>}>
       <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0' }}>
         <div style={{ width: 84, height: 84, borderRadius: 999, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="mail" size={36}/>
@@ -106,7 +106,7 @@ function C213_EmailVerification() {
 function C214_ForgotPassword() {
   return (
     <AuthCard overline="PASSWORD HELP" title="Forgot your password?" sub="Tell us your email and we'll send a reset link." footer={<><a href="#" style={{ color: 'var(--md-primary)' }}>← Back to sign in</a></>}>
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
       <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Send reset link</button>
       <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>You'll receive an email within a minute. Check your spam folder if you don't see it. Links expire after 30 minutes.</div>
     </AuthCard>
@@ -190,7 +190,7 @@ function C218_LinkAccount() {
         <img src={staImg('avatarC', 80, 80)} alt="" style={{ width: 40, height: 40, borderRadius: 999 }}/>
         <div style={{ flex: 1 }}>
           <div className="t-title-s">Jordan Hayes</div>
-          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>jordan.hayes@gmail.com · created Mar 2024</div>
+          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>jordan.hayes@example.com · created Mar 2024</div>
         </div>
       </div>
       <div><label className="field-label">Password for the existing account</label><input className="input" type="password" defaultValue="••••••••••••"/></div>
@@ -209,9 +209,9 @@ function C219_Welcome() {
           <img src={staImg('overwater', 1600, 400)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))' }}/>
           <div style={{ position: 'absolute', inset: 0, padding: '32px 48px', color: '#FFF', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-            <span className="t-label-s" style={{ color: '#FFC83F' }}>WELCOME</span>
+            <span className="t-label-s" style={{ color: '#FFC83F' }}>WELCOME · REST WELL</span>
             <h1 className="t-display-s" style={{ margin: '4px 0 4px', color: '#FFF' }}>So glad you're here, Jordan.</h1>
-            <p className="t-body" style={{ color: 'rgba(255,255,255,0.9)', margin: 0 }}>— Gyasi</p>
+            <p className="t-body" style={{ color: 'rgba(255,255,255,0.92)', margin: 0, fontStyle: 'italic' }}>Here's to a year of trips worth telling — and rest worth taking. — Gyasi</p>
           </div>
         </div>
         <div style={{ flex: 1, padding: '24px 48px', overflow: 'auto', background: 'var(--md-bg)' }}>
@@ -381,7 +381,7 @@ function C2113_ConnectAgent() {
     <OnboardingShell step={4} total={6} title="Has Gyasi already started planning a trip for you?" sub="If you have an invitation code from her, paste it here to link existing trips to your account. Otherwise, skip — we'll find them automatically by email.">
       <div className="card" style={{ padding: 16, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'flex', gap: 12, alignItems: 'center', border: 0 }}>
         <Icon name="sparkle" size={20}/>
-        <div className="t-body">We found <b>1 trip</b> already linked to <b>jordan.hayes@gmail.com</b>: <b>Sandals Royal Bahamian · Aug 12, 2026</b>. We'll connect it automatically.</div>
+        <div className="t-body">We found <b>1 trip</b> already linked to <b>jordan.hayes@example.com</b>: <b>Sandals Royal Bahamian · Aug 12, 2026</b>. We'll connect it automatically.</div>
       </div>
       <div><label className="field-label">Or paste an invite code (optional)</label><input className="input" placeholder="e.g. STA-7HX2J9" style={{ fontFamily: 'var(--font-mono)' }}/></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, background: 'var(--md-surface-2)' }}>

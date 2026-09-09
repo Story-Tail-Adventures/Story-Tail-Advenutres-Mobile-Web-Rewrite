@@ -1,0 +1,553 @@
+/* Story-Tail Adventures — public (pre-auth) surface layer.
+ *
+ * Screens 2.0.1–2.0.11 (docs/Screen-Inventory.md §2.0; prototypes in
+ * design/source-prototype/screens/client-public*.jsx). Imported from web/app/globals.css
+ * after components.css.
+ *
+ * Two kinds of thing live here, and nowhere else:
+ *
+ *  1. Scheme-INDEPENDENT colour for text and controls that sit on photography or on a
+ *     fixed brand gradient. Those never switch with .scheme-dark — white stays white on a
+ *     beach photo in both schemes — so they are declared once on :root and deliberately
+ *     NOT redefined under .scheme-dark. Everything built from --brand-* is scheme-
+ *     independent by construction (the brand tokens are :root-only); everything built
+ *     from --md-* switches. That one rule decides every case below.
+ *
+ *  2. Prototype measurements that Tailwind cannot express without arbitrary values:
+ *     px-track grids, the responsive hero type ramp, scrims, the 96px top bar.
+ *
+ * Breakpoints follow Screen Inventory §4.1: mobile < 768, tablet 768–1199, web ≥ 1200.
+ */
+
+:root {
+  /* 80px of brand lockup + 8px above and below. See components/brand/BrandMark.tsx for
+     why 80 is the floor. Everything that offsets against the bar reads this variable. */
+  --public-topbar-h: 96px;
+  --gutter: 18px;
+
+  /* Mobile sticky CTA bar. Height is derived from the parts rather than hard-coded so the
+     shell's reserve (see `.pub-surface:has(.sticky-cta)`) cannot drift from the bar: two
+     paddings + a 44px `min-h-11` control + the 1px top border, plus the safe-area inset on
+     notched devices. The tall variant adds a second row and the row gap. */
+  --sticky-cta-pad: 10px;
+  --sticky-cta-gap: 8px;
+  --sticky-cta-control-h: 44px;
+  /* `env(…, 12px)` is an unsupported-property fallback, not a minimum — every engine that
+     knows env() returns 0px on a device with no inset, which lost the artboard's 22px. Floor
+     it with max() instead, and keep the 0px fallback inside env() so the declaration stays
+     valid where env() is unknown. (The inset itself stays 0 until `viewportFit: "cover"` is
+     added to the root Viewport export — a deliberate, separate decision.) */
+  --sticky-cta-pad-bottom: calc(
+    var(--sticky-cta-pad) + max(12px, env(safe-area-inset-bottom, 0px))
+  );
+  --sticky-cta-h: calc(
+    var(--sticky-cta-pad) + var(--sticky-cta-control-h) + var(--sticky-cta-pad-bottom) + 1px
+  );
+  --sticky-cta-h-tall: calc(
+    var(--sticky-cta-h) + var(--sticky-cta-control-h) + var(--sticky-cta-gap)
+  );
+
+  /* On-photo colour. Not redefined for .scheme-dark on purpose. */
+  --hero-fg: #ffffff;
+  --hero-fg-muted: rgba(255, 255, 255, 0.92);
+  --hero-fg-soft: rgba(255, 255, 255, 0.88);
+  --hero-fg-faint: rgba(255, 255, 255, 0.78);
+  --hero-glass-bg: rgba(255, 255, 255, 0.18);
+  --hero-glass-bg-hover: rgba(255, 255, 255, 0.26);
+  --hero-glass-border: rgba(255, 255, 255, 0.3);
+  --hero-chip-bg: rgba(255, 255, 255, 0.16);
+  --hero-chip-border: rgba(255, 255, 255, 0.2);
+  --hero-rule: rgba(255, 255, 255, 0.18);
+  --hero-pill-bg: rgba(255, 255, 255, 0.92);
+  --tag-dark-bg: color-mix(in srgb, var(--brand-navy) 85%, transparent);
+  --photo-shade: rgba(0, 0, 0, 0.7);
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 32px; }
+}
+@media (min-width: 1200px) {
+  :root { --gutter: 48px; }
+}
+
+@layer components {
+  /* ── Containers (Tailwind owns `.container`, hence the prefix) ── */
+  .pub-container {
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+  .pub-container-wide   { max-width: calc(1280px + 2 * var(--gutter)); }
+  .pub-container-prose  { max-width: calc(980px + 2 * var(--gutter)); }
+  .pub-container-narrow { max-width: calc(720px + 2 * var(--gutter)); }
+
+  /* ── Top bar ── */
+  .pub-topbar {
+    height: var(--public-topbar-h);
+    background: var(--md-surface-1);
+    border-bottom: 1px solid var(--md-outline-variant);
+  }
+  .pub-topbar-overlay {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    z-index: 30;
+    background: transparent;
+    border-bottom: 0;
+  }
+  @media (min-width: 768px) {
+    .pub-topbar-overlay {
+      position: sticky;
+      background: var(--md-surface-1);
+      border-bottom: 1px solid var(--md-outline-variant);
+    }
+  }
+  .nav-link {
+    font: 500 12.5px/1 var(--font-sans);
+    color: var(--md-on-surface-variant);
+    padding: 10px 5px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  @media (min-width: 1200px) {
+    .nav-link { padding: 10px 8px; }
+  }
+  .nav-link:hover { color: var(--md-on-surface); }
+  .nav-link[aria-current="page"] { color: var(--md-on-surface); font-weight: 600; }
+
+  /* ── Signed-in / signed-out chrome gate ──
+   *
+   * The public pages are prerendered, so PublicAuthCluster and SignedOutOnly ship BOTH
+   * states and these rules pick one before first paint, keyed off the attribute
+   * AuthChromeScript set on <html>. They apply ONLY while `data-auth="unknown"`; once the
+   * store has resolved, React renders a single state and CSS stops having an opinion.
+   *
+   * The layout lives in THESE classes rather than in Tailwind `flex`/`hidden` utilities on
+   * the same element, on purpose: utilities land in a later cascade layer and would beat a
+   * `display: none` written here, so the gate would silently do nothing. Wrappers with no
+   * display utility of their own have nothing to lose to.
+   */
+  .pub-auth-out { display: flex; align-items: center; gap: 4px; }
+  @media (min-width: 1200px) {
+    .pub-auth-out { gap: 6px; }
+  }
+  .pub-auth-in { display: inline-flex; align-items: center; }
+
+  [data-auth="unknown"] .pub-auth-in { display: none; }
+  html[data-sta-auth] [data-auth="unknown"] .pub-auth-out { display: none; }
+  html[data-sta-auth] [data-auth="unknown"] .pub-auth-in { display: inline-flex; }
+  html[data-sta-auth] .pub-signedout-only[data-auth="unknown"] { display: none; }
+
+  /* The mobile sticky bar's secondary control (StickyCtaSecondary). Self-scoped rather than
+   * scoped by an ancestor, because .sticky-cta is rendered by a server component that cannot
+   * know the status. `inline-flex` restores .btn's own display; the class+attribute selector
+   * outranks .btn, and the class strings these carry hold no display utility. */
+  .pub-cta-in[data-auth="unknown"] { display: none; }
+  html[data-sta-auth] .pub-cta-out[data-auth="unknown"] { display: none; }
+  html[data-sta-auth] .pub-cta-in[data-auth="unknown"] { display: inline-flex; }
+
+  /* ── Sticky bars ── */
+  .sticky-under-topbar {
+    position: sticky;
+    top: var(--public-topbar-h);
+    z-index: 30;
+  }
+  .sticky-cta {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--sticky-cta-gap);
+    padding: var(--sticky-cta-pad) 14px var(--sticky-cta-pad-bottom);
+    background: var(--md-surface-1);
+    border-top: 1px solid var(--md-outline-variant);
+  }
+
+  /* Two-row variant (2.0.5): the artboard's price/heart/quote row, plus the guest
+     "message without an account" path §4.4 requires on mobile. Four controls will not
+     fit one 360px row, so it wraps to a second. */
+  .sticky-cta-tall { flex-wrap: wrap; }
+  .sticky-cta-tall > .sticky-cta-row2 { flex: 1 0 100%; }
+
+  /* The bar is `position: fixed`, so the page has to reserve its height — and the reserve
+     must land BELOW the footer. PublicFooter renders after {children} in
+     (public)/layout.tsx, so a spacer inside the page tree (where StickyCta itself lives)
+     reserves space *above* the footer and leaves the footer itself under the bar: at
+     375x812 on /caribbean only 16px of an 82px footer stayed visible and all six legal
+     links were unreachable. Padding the shell is the one place that is after every page
+     section and after the footer. */
+  @media (max-width: 767px) {
+    .pub-surface:has(.sticky-cta) { padding-bottom: var(--sticky-cta-h); }
+    .pub-surface:has(.sticky-cta-tall) { padding-bottom: var(--sticky-cta-h-tall); }
+  }
+  @media (min-width: 768px) {
+    .sticky-cta { display: none; }
+  }
+
+  /* ── Heroes ── */
+  .hero-fill { min-height: 540px; }
+  @media (min-width: 768px) { .hero-fill { min-height: 60dvh; } }
+  @media (min-width: 1200px) { .hero-fill { min-height: calc(100dvh - var(--public-topbar-h)); } }
+  .hero-tall    { height: 360px; }
+  .hero-normal  { height: 280px; }
+  .hero-compact { height: 220px; }
+  @media (min-width: 768px) {
+    .hero-tall    { height: 420px; }
+    .hero-normal  { height: 360px; }
+    .hero-compact { height: 280px; }
+  }
+
+  /* Scrims. Mobile gradients (portrait, text at the bottom) by default; the desktop
+     artboards' diagonal gradients from the tablet breakpoint up. All from brand tokens,
+     so they are identical in both schemes. */
+  .scrim-landing {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--brand-navy) 55%, transparent) 0%,
+      color-mix(in srgb, var(--brand-burgundy) 70%, transparent) 60%,
+      color-mix(in srgb, var(--brand-navy) 85%, transparent) 100%);
+  }
+  .scrim-topic {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--brand-navy) 45%, transparent) 0%,
+      color-mix(in srgb, var(--brand-burgundy) 55%, transparent) 60%,
+      color-mix(in srgb, var(--brand-navy) 90%, transparent) 100%);
+  }
+  /* Screen 2.1.9's hero band. C219 writes it as
+     `linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))` — which is exactly
+     --brand-burgundy at 40% into --brand-navy at 80%, so it goes through the tokens like
+     every other scrim rather than as two hex literals.
+     Not `.scrim-topic`: that one flips to a 115deg side-wash at md, which reads wrong on a
+     200px band, and its stops are a different mix. */
+  .scrim-welcome {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--brand-burgundy) 40%, transparent),
+      color-mix(in srgb, var(--brand-navy) 80%, transparent));
+  }
+  .scrim-navy {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--brand-navy) 55%, transparent),
+      color-mix(in srgb, var(--brand-navy) 85%, transparent));
+  }
+  .scrim-bottom        { background: linear-gradient(180deg, transparent 45%, var(--photo-shade)); }
+  .scrim-bottom-island { background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.75)); }
+  .scrim-bottom-detail { background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.6)); }
+  .scrim-cta {
+    background: linear-gradient(120deg,
+      color-mix(in srgb, var(--brand-burgundy) 85%, transparent),
+      color-mix(in srgb, var(--brand-navy) 55%, transparent));
+  }
+  @media (min-width: 768px) {
+    .scrim-landing {
+      background: linear-gradient(115deg,
+        color-mix(in srgb, var(--brand-burgundy) 72%, transparent) 0%,
+        color-mix(in srgb, var(--brand-burgundy) 20%, transparent) 55%,
+        transparent 100%);
+    }
+    .scrim-topic {
+      background: linear-gradient(115deg,
+        color-mix(in srgb, var(--brand-navy) 70%, transparent) 0%,
+        color-mix(in srgb, var(--brand-burgundy) 45%, transparent) 55%,
+        rgba(0, 0, 0, 0.15) 100%);
+    }
+    .scrim-navy {
+      background: linear-gradient(120deg,
+        color-mix(in srgb, var(--brand-navy) 60%, transparent),
+        color-mix(in srgb, var(--brand-navy) 20%, transparent));
+    }
+    .scrim-bottom        { background: linear-gradient(180deg, transparent 50%, var(--photo-shade)); }
+    .scrim-bottom-island { background: linear-gradient(180deg, transparent 40%, var(--photo-shade)); }
+    .scrim-bottom-detail { background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.5)); }
+  }
+
+  /* Fixed brand gradients (scheme-independent by construction). */
+  .hero-advisor {
+    background: linear-gradient(160deg, var(--brand-burgundy-dark) 0%, var(--brand-burgundy) 50%, var(--brand-orange) 130%);
+  }
+  @media (min-width: 768px) {
+    .hero-advisor {
+      background: linear-gradient(120deg, var(--brand-burgundy-dark) 0%, var(--brand-burgundy) 60%, var(--brand-orange) 130%);
+    }
+  }
+
+  /* Surface panels (these DO switch with the scheme — built from --md-*). */
+  .panel-heart {
+    background: linear-gradient(135deg, var(--md-surface-2) 0%, var(--md-primary-container) 160%);
+  }
+  @media (min-width: 768px) {
+    .panel-heart { background: linear-gradient(135deg, var(--md-surface-2) 0%, var(--md-primary-container) 140%); }
+  }
+  .glow-orange {
+    background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--brand-orange) 18%, transparent), transparent 70%);
+  }
+  .gate-backdrop {
+    background:
+      radial-gradient(circle at 50% 25%, color-mix(in srgb, var(--md-primary) 18%, transparent), transparent 60%),
+      var(--md-bg);
+  }
+  .christian-card {
+    background: linear-gradient(135deg, var(--md-primary-container) 0%, var(--md-secondary-container) 110%);
+  }
+
+  /* ── On-photo controls ── */
+  .btn-glass {
+    background: var(--hero-glass-bg);
+    color: var(--hero-fg);
+    border: 1px solid var(--hero-glass-border);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .btn-glass:hover:not(:disabled) { background: var(--hero-glass-bg-hover); filter: none; }
+  .chip-glass {
+    background: var(--hero-chip-bg);
+    color: var(--hero-fg);
+    border-color: var(--hero-chip-border);
+  }
+  .chip-glass:hover { background: var(--hero-glass-bg-hover); }
+  .btn-invert { background: var(--md-on-primary-container); color: var(--md-primary-container); }
+  .pill-light { background: var(--hero-pill-bg); color: var(--brand-burgundy); }
+
+  /* Script accents on surfaces: burgundy in light; the dark tropical scheme swaps to
+     sunset gold (burgundy on navy measures ~1.5:1). */
+  .text-script-accent { color: var(--brand-burgundy); }
+  .scheme-dark .text-script-accent { color: var(--md-secondary); }
+
+  /* ── Responsive hero type ramp (mobile → tablet → web) ── */
+  .t-hero-l  { font: 800 32px/1.05 var(--font-sans); letter-spacing: -0.6px; }
+  .t-hero    { font: 800 26px/1.08 var(--font-sans); letter-spacing: -0.4px; }
+  .t-hero-s  { font: 800 26px/1.1 var(--font-sans); letter-spacing: -0.4px; }
+  .t-page-title { font: 800 28px/1.1 var(--font-sans); letter-spacing: -0.5px; }
+  .t-headline-r { font: 800 24px/1.18 var(--font-sans); letter-spacing: -0.3px; }
+  .t-section { font: 700 18px/1.2 var(--font-sans); letter-spacing: -0.2px; }
+  @media (min-width: 768px) {
+    .t-hero-l  { font-size: 40px; letter-spacing: -0.8px; }
+    .t-hero    { font-size: 36px; line-height: 1.06; letter-spacing: -0.6px; }
+    .t-hero-s  { font-size: 32px; font-weight: 700; }
+    .t-page-title { font-size: 32px; font-weight: 700; }
+    .t-headline-r { font-size: 26px; font-weight: 700; line-height: 1.15; }
+    .t-section { font-size: 24px; line-height: 1.15; }
+  }
+  @media (min-width: 1200px) {
+    .t-hero-l  { font-size: 45px; letter-spacing: -1px; }
+    .t-hero    { font-size: 45px; line-height: 1.04; letter-spacing: -1px; }
+    .t-hero-s  { font-size: 36px; letter-spacing: -0.6px; }
+    .t-page-title { font-size: 36px; letter-spacing: -0.6px; }
+    .t-headline-r { font-size: 28px; letter-spacing: -0.4px; }
+    .t-section { font-size: 28px; letter-spacing: -0.4px; }
+  }
+  /* Hero sub-copy: 13px on mobile artboards, 16px (t-body-l) on desktop. */
+  .t-hero-sub { font: 400 13px/1.45 var(--font-sans); }
+  @media (min-width: 768px) { .t-hero-sub { font-size: 16px; line-height: 1.5; } }
+
+  .t-hero-script    { font: 700 1.35em/1 var(--font-script); letter-spacing: 0; }
+  .t-hero-script-xl { font: 700 1.375em/1 var(--font-script); letter-spacing: 0; }
+  @media (min-width: 768px)  { .t-hero-script-xl { font-size: 1.5em; } }
+  @media (min-width: 1200px) { .t-hero-script-xl { font-size: 1.6em; } }
+
+  .t-script-quote       { font: 700 18px/1.1 var(--font-script); }
+  .t-script-quote-photo { font: italic 500 17px/1.4 var(--font-script); }
+  .t-script-sign        { font: 700 26px/1 var(--font-script); }
+  .t-quote-glyph        { font: 700 24px/0.5 var(--font-script); letter-spacing: -2px; }
+  @media (min-width: 768px) {
+    .t-script-quote       { font-size: 22px; line-height: 1; }
+    .t-script-quote-photo { font-size: 18px; }
+    .t-script-sign        { font-size: 30px; }
+    .t-quote-glyph        { font-size: 32px; line-height: 0.7; }
+  }
+
+  /* Small labels the ramp does not cover. */
+  .t-badge   { font: 700 9.5px/1 var(--font-sans); letter-spacing: 0.5px; text-transform: uppercase; }
+  .t-badge-s { font: 700 8.5px/1 var(--font-sans); letter-spacing: 0.4px; text-transform: uppercase; }
+  .t-tag-navy {
+    display: inline-block;
+    font: 600 9.5px/1 var(--font-sans);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--tag-dark-bg);
+    color: var(--hero-fg);
+  }
+  .t-price    { font: 700 17px/1 var(--font-sans); }
+  .t-price-lg { font: 700 20px/1 var(--font-sans); }
+  .t-price-range {
+    display: inline-flex;
+    gap: 1px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--tag-dark-bg);
+    color: var(--hero-fg);
+    font: 700 10px/1 var(--font-mono);
+    letter-spacing: 0.5px;
+  }
+  .t-price-range-sm { padding: 2px 7px; border-radius: 5px; font-size: 9px; }
+  .t-tile   { font: 700 12.5px/1.2 var(--font-sans); }
+  .t-tile-s { font: 700 11px/1.15 var(--font-sans); }
+  @media (min-width: 768px) {
+    .t-tile   { font-size: 15px; }
+    .t-tile-s { font-size: 13px; line-height: 1.2; }
+  }
+  .t-fine   { font: 500 11.5px/1 var(--font-sans); }
+  .t-micro  { font: 500 10.5px/1.3 var(--font-sans); }
+  .t-filter { font: 500 12.5px/1.3 var(--font-sans); }
+  .t-row-title { font: 600 13.5px/1.3 var(--font-sans); }
+
+  /* ── px-track grids from the artboards ── */
+  .result-row { display: grid; grid-template-columns: 180px 1fr auto; }
+  .detail-layout { display: grid; gap: 18px; }
+  @media (min-width: 1024px) { .detail-layout { grid-template-columns: 1fr 340px; } }
+  .legal-layout { display: grid; }
+  @media (min-width: 768px) { .legal-layout { grid-template-columns: 260px 1fr; min-height: calc(100dvh - var(--public-topbar-h)); } }
+  .advisor-hero-grid { display: grid; }
+  @media (min-width: 768px) { .advisor-hero-grid { grid-template-columns: 1.3fr 1fr; min-height: 420px; } }
+  /* M202 draws the bio as an image-left row on mobile, not a stack. 60px avatar track:
+     72px would leave ~242px for the paragraph plus the stats list at 360px. */
+  .advisor-bio-grid { display: grid; gap: 14px; grid-template-columns: 60px 1fr; align-items: center; }
+  @media (min-width: 768px) { .advisor-bio-grid { grid-template-columns: 120px 1fr; gap: 22px; align-items: center; } }
+  .advisor-note-grid { display: grid; gap: 12px; grid-template-columns: 44px 1fr; }
+  @media (min-width: 768px) { .advisor-note-grid { grid-template-columns: 56px 1fr; gap: 18px; } }
+  .bio-grid { display: grid; gap: 28px; }
+  @media (min-width: 1200px) { .bio-grid { grid-template-columns: 1.4fr 1fr; } }
+  .christian-card-grid { display: grid; gap: 28px; align-items: center; }
+  @media (min-width: 768px) { .christian-card-grid { grid-template-columns: 1fr 280px; } }
+
+  /* ── Horizontal snap strip (islands, chips, testimonials on mobile) ── */
+  .h-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 10px;
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+    scrollbar-width: none;
+  }
+  .h-scroll::-webkit-scrollbar { display: none; }
+  .h-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
+
+  /* ── Forms ── */
+  .filter-box {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid var(--md-outline);
+    background: var(--md-surface-1) center / 10px no-repeat;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  /* `appearance: none` removes the browser's own focus ring along with the box, so it has
+     to be put back — this is the only way to tick the terms box from the keyboard on 2.1.2
+     and the 2.0.6 gate, and until now it gave no sign of being focused. Matches `.btn`. */
+  .filter-box:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+  }
+  .filter-box:checked {
+    background-color: var(--md-primary);
+    border-color: var(--md-primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 6'/%3E%3C/svg%3E");
+  }
+
+  /* ── FAQ (<details>) ── */
+  .faq summary { list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq-chevron { transition: rotate 200ms ease; }
+  .faq[open] > summary .faq-chevron { rotate: 180deg; }
+
+  /* ── Legal prose ── */
+  .legal-prose { font: 400 16px/1.7 var(--font-sans); color: var(--md-on-surface); }
+  .legal-prose h2 { font: 600 19px/1.3 var(--font-sans); margin-top: 14px; }
+  .legal-prose p { margin: 4px 0 12px; color: var(--md-on-surface-variant); }
+  .legal-prose ul { margin: 4px 0 12px; padding-left: 20px; color: var(--md-on-surface-variant); list-style: disc; }
+  @media (min-width: 768px) {
+    .legal-prose { font-size: 14px; }
+    .legal-prose h2 { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.2px; margin-top: 18px; }
+    .legal-prose p, .legal-prose ul { color: var(--md-on-surface); margin: 6px 0 12px; }
+  }
+
+  .portrait-crop { object-fit: cover; object-position: center 30%; }
+
+  /* ── Focus, motion, touch ── */
+  .pub-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+  }
+  .on-photo :where(a, button):focus-visible {
+    outline-color: var(--hero-fg);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-navy) 60%, transparent);
+  }
+  @media (pointer: coarse) {
+    .tap-44 { position: relative; }
+    .tap-44::after { content: ""; position: absolute; inset: -8px; }
+  }
+
+  /*
+   * One link covering its whole card.
+   *
+   * Used where a card has exactly ONE destination — a hotel result, which has no detail page
+   * to compete with its quote CTA. The anchor stays on the heading so a screen reader
+   * announces the hotel's name rather than "Request quote" twenty times over, and the
+   * pseudo-element does the reaching. Anything in the card that must stay clickable needs
+   * `position: relative` to sit above it; nothing does today, which is why the pill beside
+   * it is a span.
+   *
+   * The focus ring goes on the ::after, not the anchor: outlining the text alone would draw
+   * a two-word box on a 180px-tall row and look like a mistake.
+   */
+  .link-stretch::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+  .pub-surface .link-stretch:focus-visible { outline: none; }
+  .pub-surface .link-stretch:focus-visible::after {
+    outline: 2px solid var(--md-primary);
+    outline-offset: -2px;
+    border-radius: var(--r-lg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pub-surface *, .pub-surface *::before, .pub-surface *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ── Print (legal pages) ── */
+  @media print {
+    .pub-topbar, .pub-topbar-overlay, .pub-footer, .sticky-cta,
+    .legal-nav, .no-print, .placeholder-banner { display: none !important; }
+    /* The brand mark does not print at all, in either scheme.
+
+       The token remap below turns the dark scheme light for paper, but a class-based image
+       swap does not follow tokens, so a dark-mode reader would otherwise put the tropical
+       lockup on white — which Design-System §11 forbids. Forcing the light half instead
+       does not work either: `tone="dark"` renders a SINGLE image (`.sta-art-fixed`), so on
+       the auth pages there is no light artwork in the DOM to reveal; and the light half of
+       a swapped pair is `loading="lazy"` and, in the dark scheme, has never been fetched —
+       an engine that prints from a static clone would rasterise an empty box rather than
+       wait for it.
+
+       Hiding costs nothing here: every surface that still carries a mark at print time is
+       app chrome, and the public bars above are already hidden. */
+    .sta-art { display: none !important; }
+    html, .scheme-dark {
+      color-scheme: light;
+      --md-bg: #ffffff;
+      --md-surface: #ffffff;
+      --md-surface-1: #ffffff;
+      --md-surface-2: #ffffff;
+      --md-on-surface: #000000;
+      --md-on-surface-variant: #333333;
+      --md-outline-variant: #cccccc;
+    }
+    .legal-layout { display: block; min-height: 0; }
+    .legal-prose { max-width: none; font-size: 12pt; color: #000; }
+    .legal-prose p, .legal-prose ul { color: #000; }
+    .legal-prose a[href^="http"]::after { content: " (" attr(href) ")"; }
+    h1, h2, h3 { break-after: avoid; }
+  }
+}

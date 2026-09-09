@@ -20,7 +20,7 @@ function C251_AccountOverview() {
         <div style={{ flex: 1 }}>
           <h1 className="t-headline" style={{ margin: 0 }}>Jordan Hayes</h1>
           <div style={{ font: '500 12.5px/1.3 var(--font-sans)', color: 'var(--md-on-primary-container)', display: 'flex', gap: 14, marginTop: 4 }}>
-            <span>jordan.hayes@gmail.com</span><span>·</span><span>Member since Mar 2024</span><span>·</span><span>Miami, FL</span>
+            <span>jordan.hayes@example.com</span><span>·</span><span>Member since Mar 2024</span><span>·</span><span>Miami, FL</span>
           </div>
         </div>
         <div className="card" style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.5)', border: 0, fontFamily: 'var(--font-mono)', fontSize: 12 }}>Member ID · STA-5839</div>
@@ -47,7 +47,7 @@ function C252_PersonalInfo() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label className="field-label">First name</label><input className="input" defaultValue="Jordan"/></div>
           <div><label className="field-label">Last name</label><input className="input" defaultValue="Hayes"/></div>
-          <div><label className="field-label">Email <span style={{ color: 'var(--md-warning)', fontWeight: 600 }}>· change requires verification</span></label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+          <div><label className="field-label">Email <span style={{ color: 'var(--md-warning)', fontWeight: 600 }}>· change requires verification</span></label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
           <div><label className="field-label">Phone</label><input className="input" defaultValue="+1 (305) 555-0184"/></div>
           <div style={{ gridColumn: 'span 2' }}><label className="field-label">Mailing address</label><input className="input" defaultValue="1240 Brickell Bay Dr, Miami, FL 33131"/></div>
           <div><label className="field-label">Date of birth</label><input className="input" defaultValue="04 / 22 / 1992"/></div>
@@ -277,7 +277,7 @@ function C258_Connected() {
       <ScreenHeader title="Connected accounts" subtitle="Social logins linked to your Story-Tail account." small/>
       <div className="card" style={{ padding: 0, maxWidth: 720 }}>
         {[
-          { n: 'Google', email: 'jordan.hayes@gmail.com', on: true },
+          { n: 'Google', email: 'jordan.hayes@example.com', on: true },
           { n: 'Apple', email: 'Not connected', on: false },
           { n: 'Facebook', email: 'Not connected · available', on: false },
         ].map((c, i) => (

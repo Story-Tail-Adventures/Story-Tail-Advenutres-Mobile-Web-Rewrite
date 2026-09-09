@@ -76,7 +76,7 @@ function A382_LeadDetail() {
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card" style={{ padding: 14 }}>
             <div className="t-title-s">Contact</div>
-            <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>tasha.w@gmail.com<br/>+1 (404) 555-0192</div>
+            <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>tasha.w@example.com<br/>+1 (404) 555-0192</div>
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}><button className="btn btn-tonal btn-sm" style={{ flex: 1 }}><Icon name="message" size={12}/> Message</button><button className="btn btn-outlined btn-sm" style={{ flex: 1 }}><Icon name="phone" size={12}/> Call</button></div>
           </div>
           <div className="card" style={{ padding: 14, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)' }}>
@@ -106,7 +106,7 @@ function A383_ConvertLead() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
             <div><label className="field-label">First name</label><input className="input" defaultValue="Tasha"/></div>
             <div><label className="field-label">Last name</label><input className="input" defaultValue="Whitfield"/></div>
-            <div style={{ gridColumn: 'span 2' }}><label className="field-label">Email</label><input className="input" defaultValue="tasha.w@gmail.com"/></div>
+            <div style={{ gridColumn: 'span 2' }}><label className="field-label">Email</label><input className="input" defaultValue="tasha.w@example.com"/></div>
             <div style={{ gridColumn: 'span 2' }}><label className="field-label">Trip name</label><input className="input" defaultValue="Whitfield honeymoon · Aruba · Oct 2026"/></div>
             <div><label className="field-label">Trip type</label><input className="input" defaultValue="All-inclusive · honeymoon"/></div>
             <div><label className="field-label">Starting stage</label><input className="input" defaultValue="Inquiry"/></div>
@@ -253,7 +253,7 @@ function ConfirmModal({ title, body, primary, danger, extra }) {
 }
 
 // 3.9.2 Send password reset
-function A392_SendReset() { return <ConfirmModal title="Send password reset to Jordan?" body="An email goes to jordan.hayes@gmail.com with a 30-minute link. You won't see the password." primary="Send reset link"/>; }
+function A392_SendReset() { return <ConfirmModal title="Send password reset to Jordan?" body="An email goes to jordan.hayes@example.com with a 30-minute link. You won't see the password." primary="Send reset link"/>; }
 // 3.9.3 Send magic link
 function A393_SendMagic() { return <ConfirmModal title="Send a magic-link sign-in?" body="One-time link valid for 15 minutes. Sent to verified email only." primary="Send magic link"/>; }
 // 3.9.4 Verify email manually
@@ -303,7 +303,7 @@ function A396_LoginActivity() {
 }
 // 3.9.7 Merge duplicate accounts (reuse CRM)
 function A397_MergeFromAdmin() {
-  return <ConfirmModal title="Merge sam@hayes.email into jordan.hayes@gmail.com?" body="The source account becomes inactive; trips & cards roll up to the target. Best done on desktop." primary="Open merge tool →"/>;
+  return <ConfirmModal title="Merge sam@example.com into jordan.hayes@example.com?" body="The source account becomes inactive; trips & cards roll up to the target. Best done on desktop." primary="Open merge tool →"/>;
 }
 
 // ─── 3.10 MESSAGING & TEMPLATES ──────────────────────────────────────────

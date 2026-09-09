@@ -1,0 +1,367 @@
+# Story-Tail Adventures — CI
+#
+# Everything here runs against a throwaway local stack, so the PR workflow needs ZERO
+# secrets. That is deliberate; keep it that way. Secrets enter only with the deploy
+# workflow, and STRIPE_SECRET_KEY never enters GitHub at all — it lives in Supabase's
+# secret store (see supabase/README.md).
+name: CI
+
+on:
+  pull_request:
+  # `production` is here because deploy.yml gates on this workflow's conclusion for that
+  # branch. Drop it and the deploy silently stops firing rather than failing. `main` is gone:
+  # it never existed on the remote, so it could never have fired either.
+  push:
+    branches: [dev, production]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # Which parts of the tree this change touches.
+  #
+  # Gates both mobile jobs, and the arithmetic is why. `mobile-ios-compile` runs on macOS,
+  # which bills at 10x on a private repo: a six-minute job costs sixty minutes of a
+  # 2,000-minute monthly allowance. `mobile-android` bills at 1x but is a Gradle assemble
+  # plus unit tests, so it is not cheap either. Between them they were most of the budget,
+  # spent on pull requests that could not have affected a mobile build. This job costs a few
+  # seconds on Linux.
+  #
+  # Both depend on exactly the same inputs — `mobile/` is their working directory and
+  # `contracts/kotlin/` is a source set in `:shared` — so one filter is correct for both.
+  #
+  # IT FAILS OPEN, DELIBERATELY. If the base commit is missing — a force-push, a brand-new
+  # branch, a shallow fetch — it reports `true` and the expensive job runs. A gate that
+  # wrongly skips a compile hides a broken build; one that wrongly runs it costs minutes.
+  # Those are not the same mistake.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The diff needs the base commit, which a shallow clone does not have.
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BASE:-}" ] \
+            || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "Base commit unavailable — running the mobile jobs rather than guessing."
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Three-dot: what THIS change added, not everything the base has moved on by.
+          #
+          # contracts/kotlin/ is in the list because mobile/shared/build.gradle.kts compiles
+          # it as a source directory (line ~154) — a regenerated contract breaks BOTH mobile
+          # builds without a single file under mobile/ changing. ci.yml is in the list so a
+          # change to this gate revalidates the thing it gates.
+          if git diff --name-only "${BASE}...${HEAD_SHA}" \
+            | grep -qE '^(mobile/|contracts/kotlin/|\.github/workflows/ci\.yml$)'; then
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing under mobile/ or contracts/kotlin/ — skipping the iOS compile."
+            echo "mobile=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Cheap and deterministic, so it runs first and fails fast.
+  pci-guard:
+    name: PCI guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Strips SQL comments and string literals first. A plain grep fires on the initial
+      # migration's own "NEVER store PAN, CVV" comment — text that states the rule
+      # rather than breaking it, and a guard that fails on that gets deleted.
+      - name: No card-data columns in migrations
+        run: python3 .github/scripts/scan_card_columns.py
+
+      - name: No Stripe secret keys in the tree
+        run: |
+          if grep -rnE 'sk_(live|test)_[A-Za-z0-9]{8,}' \
+               --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null; then
+            echo "::error::Stripe secret key literal committed. Use \`supabase secrets set\`."
+            exit 1
+          fi
+
+      # The write hooks in .claude/hooks/ only protect Claude's writes. This is the
+      # same check for a human's commit.
+      # Before the scan, not after: the scanner carves out UUIDs, Unsplash ids and
+      # migration timestamps, and each carve-out is a hole the guard must be proved not to
+      # have widened. The self-test asserts both directions — 4242… still caught, a
+      # Luhn-valid migration stamp still quiet.
+      - name: PAN scanner does what it claims
+        run: python3 .github/scripts/scan_pan.py --self-test
+
+      - name: No Luhn-valid card numbers in source
+        run: python3 .github/scripts/scan_pan.py
+
+  copy-parity:
+    name: Web/mobile copy parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # web/ and mobile/ hold deliberately parallel implementations of the same
+      # validation rules and error taxonomy (the KMP module does not run on web).
+      # The unit tests on each side cover behaviour; this covers wording, so the same
+      # person never sees different copy on their phone and in the browser.
+      - name: User-facing strings match across platforms
+        run: python3 .github/scripts/check_copy_parity.py
+
+      # Some auth settings are preference; these five are load-bearing. Flipping one
+      # produces no error anywhere — just a security hole or a screen that quietly stops
+      # working — so the coupling is asserted rather than left to a code comment.
+      - name: Auth config matches what the app assumes
+        run: python3 .github/scripts/check_auth_config.py
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck -w web
+      - run: npm run lint -w web
+      - run: npm run test -w web
+      # next/font/google fetches the typefaces at build time, so this step needs
+      # network egress. That is the tradeoff for not loading them at runtime.
+      #
+      # `next build` runs as NODE_ENV=production, and env.siteUrl fails closed there so a
+      # real deploy can never ship wrong canonical URLs, sitemap entries or email-confirm
+      # redirects. CI has no .env.local, so it has to pass the origin in. Not a secret, and
+      # nothing here is deployed — the deployment sets its own value.
+      - run: npm run build -w web
+        env:
+          NEXT_PUBLIC_SITE_URL: https://app.story-tail.com
+
+      # The build above proves the app COMPILES without Supabase config. This proves the
+      # marketing pages are still files on a CDN: one cookies() in the (public) server tree
+      # makes them per-request, and the build says nothing about it.
+      - run: python3 .github/scripts/check_public_prerender.py
+
+  contracts:
+    name: Contracts codegen is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run generate -w contracts
+      - name: Fail if generated types drifted from openapi.yaml
+        run: git diff --exit-code contracts/ts/ contracts/kotlin/
+
+  public-content:
+    name: Public content codegen is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # web/content/public/*.ts is the single source of truth for Screen Inventory §2.0's
+      # curated catalog and copy; the Kotlin the app reads is generated from it. Without
+      # this job a change to a price, a trip name or a legal paragraph would ship to the
+      # browser and not to the phone — the drift check_copy_parity.py exists to catch,
+      # for the content it does not cover.
+      - run: npm run generate:public-content -w web
+      - name: Fail if the generated Kotlin drifted from web/content/public
+        run: git diff --exit-code mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt
+
+  mobile-android:
+    name: Mobile (Android)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          # 21, not 17: mobile/gradle/gradle-daemon-jvm.properties pins toolchain 21.
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Assemble + unit tests
+        working-directory: mobile
+        # These are the AGP KMP library plugin's task names. `:shared:build` and
+        # `:shared:check` pull in the iOS link step and cannot run here.
+        run: ./gradlew :androidApp:assembleDebug :shared:testAndroidHostTest --no-daemon
+
+  # ── PARKED: Mobile (iOS klib) ────────────────────────────────────────────────────
+  #
+  # Commented out rather than deleted, on 2026-09-09, because iOS is not being built for
+  # the foreseeable future — the target is kept alive in the source tree so the option
+  # exists, not because anyone is shipping it. Uncomment the block below to restore the
+  # gate exactly as it ran; nothing else has to change, and no required status check
+  # depends on it (this plan has no branch protection).
+  #
+  # WHY: macOS runners bill at 10x on private repos, which made this one job most of the
+  # Actions spend and exhausted the free minutes. The job's own comment predicted this and
+  # suggested `push`-only; parking it outright goes further, and is the right trade while
+  # nothing consumes the iOS artifact.
+  #
+  # WHAT IS GIVEN UP, and it is not nothing: this was the ONLY automated check for
+  # iOS-incompatible shared code and — more sharply — for dependency klibs whose ABI
+  # version is newer than the project's Kotlin compiler. Kotlin/Native refuses such a klib
+  # while the JVM/Android target silently tolerates it, so `mobile-android` CANNOT catch
+  # it: a bad supabase-kt or Kotlin bump now breaks iOS with CI fully green. It had already
+  # caught one real dependency pin. See CLAUDE.md, "supabase-kt is pinned to the Kotlin
+  # version, not to latest".
+  #
+  # SO, WHEN TOUCHING mobile/gradle/libs.versions.toml — especially `supabase` or
+  # `kotlin` — run the gate locally before merging; it needs no Xcode and takes seconds:
+  #
+  #     cd mobile && ./gradlew :shared:compileKotlinIosSimulatorArm64
+  #
+  # The mobile-reviewer subagent (.claude/agents/mobile-reviewer.md) still runs it, and
+  # mobile/README.md still documents it as the iOS-compatibility gate. Restore this job
+  # before anyone actually builds for iOS.
+  #
+  # WHEN RESTORING, KEEP THE GATE. This block was parked from a dev that had no `changes`
+  # job; uncommenting it as-written would put a 10x-billed macOS job back on EVERY pull
+  # request, which is the spend this branch's paths filter was added to stop. The two
+  # `needs:`/`if:` lines below are that filter — they are part of the restore, not optional.
+  #
+  # mobile-ios-compile:
+  #   name: Mobile (iOS klib)
+  #   needs: changes
+  #   if: needs.changes.outputs.mobile == 'true'
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - uses: actions/setup-java@v5
+  #       with:
+  #         distribution: temurin
+  #         java-version: "21"
+  #     - uses: gradle/actions/setup-gradle@v5
+  #     # Compiles the klib without linking a framework. This is the gate that catches
+  #     # iOS-incompatible shared code AND dependency klibs whose ABI version is newer
+  #     # than the project's Kotlin compiler — a mismatch the JVM target silently
+  #     # tolerates. It has already caught one real dependency pin.
+  #     - name: Compile shared for iOS
+  #       working-directory: mobile
+  #       run: ./gradlew :shared:compileKotlinIosSimulatorArm64 --no-daemon
+
+  supabase:
+    name: Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          # Pinned, not `latest`. `latest` asks the GitHub releases API on every run, which
+          # rate-limited and failed this job in 7s with nothing to do with Supabase or the
+          # hosted project — and it silently changes the tool that validates our migrations
+          # between one green run and the next. 2.116.0 is the version these migrations have
+          # actually been replayed against locally. Bump deliberately.
+          version: 2.116.0
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # Full replay from an empty database. Catches ordering bugs that an incremental
+      # apply hides, and proves seed.sql still matches the schema.
+      - name: Start database and replay all migrations
+        run: supabase db start
+
+      - name: Lint schema
+        run: supabase db lint --level warning
+
+      # Executes each policy as each role rather than just reading the SQL. A policy that
+      # passes the happy path and leaks to another user looks identical to a correct one
+      # until you run it as that user.
+      # Globbed rather than listed: a test file that is written but never wired into CI
+      # is worse than no test, because it reads as covered.
+      - name: RLS policies enforce isolation
+        run: |
+          shopt -s nullglob
+          db_url="$(supabase status -o json | jq -r .DB_URL)"
+          for f in supabase/tests/*.sql; do
+            echo "── $f"
+            psql "$db_url" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      # Checks the _shared/ helpers too, not just function entry points — they are where
+      # the audit and auth rules actually live.
+      - name: Typecheck and lint Edge Functions
+        run: |
+          shopt -s nullglob
+          files=(supabase/functions/*/index.ts supabase/functions/_shared/*.ts)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Nothing to check yet."
+            exit 0
+          fi
+          # --config explicitly: without it Deno resolves the config by walking up from
+          # the CWD, finds no deno.json at the repo root, and the bare
+          # "@supabase/supabase-js" specifier fails to resolve.
+          deno check --config supabase/functions/deno.json "${files[@]}"
+          deno lint --config supabase/functions/deno.json supabase/functions/
+
+      # The _shared/ rules that are PARALLEL IMPLEMENTATIONS of a web/ rule — today the
+      # E.164 phone normalisation in _shared/onboarding.ts, whose twin is
+      # web/lib/validation/profile.ts. Deno cannot import from web/, so the only thing
+      # keeping the two honest is the same vectors asserted on both sides.
+      # --allow-env: _shared/cors.ts reads the allowed origin at module load.
+      - name: Test Edge Function helpers
+        run: |
+          shopt -s nullglob globstar
+          tests=(supabase/functions/**/*_test.ts)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "No Deno tests yet."
+            exit 0
+          fi
+          deno test --allow-env --config supabase/functions/deno.json supabase/functions/
+
+      # Deploying the functions is Supabase's job, driven by config.toml — and the docs say it
+      # deploys the ones "declared in config.toml". A function directory with no
+      # [functions.<slug>] block may therefore never reach production, and nothing else would
+      # notice: GitHub is green because it never touched Supabase, Supabase is green because
+      # it deployed what it was told to, and the absence shows up as a 404 in a traveler's
+      # browser. The next function added is the one this catches.
+      - name: Every Edge Function is declared for deployment
+        run: |
+          shopt -s nullglob
+          for d in supabase/functions/*/; do
+            slug="$(basename "$d")"
+            # _shared/ and friends are libraries, not deployable functions.
+            case "$slug" in _*) continue;; esac
+            grep -q "^\[functions\.${slug}\]" supabase/config.toml || {
+              echo "::error::supabase/functions/${slug}/ has no [functions.${slug}] block in supabase/config.toml."
+              exit 1
+            }
+          done
+
+      - name: Fail if generated DB types drifted from the migrations
+        run: |
+          npm ci
+          npm run supabase:types
+          # Both copies: the script writes web/types/ AND functions/_shared/, so diffing
+          # only the first would let a hand-edit to the Edge Function types through.
+          git diff --exit-code web/types/supabase.ts \
+                               supabase/functions/_shared/database.types.ts

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+
+<meta charset="utf-8"/>
+<title>Story-Tail · 2.0 Client · Public / Pre-Auth</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="../styles/tokens.css"/>
+<link rel="stylesheet" href="../styles/app.css"/>
+<link rel="stylesheet" href="../styles/tweaks.css"/>
+<style>
+html,body,#root{height:100%}body{background:#2A2422;margin:0}
+.section-nav{position:fixed;top:12px;left:12px;right:12px;z-index:9999;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 12px;border-radius:14px;background:rgba(20,14,12,.82);backdrop-filter:blur(14px);color:#FBF6EE;font:500 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.section-nav .crumb{display:flex;align-items:baseline;gap:8px;min-width:0}
+.section-nav .crumb .num{font-weight:800;color:#FFC83F;letter-spacing:.5px}
+.section-nav .crumb .title{font-weight:600;color:#FBF6EE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.section-nav .crumb .sub{color:rgba(251,246,238,.6);font-weight:400;margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.nav-div{width:1px;height:22px;background:rgba(251,246,238,.16);margin:0 2px}
+.seg{display:flex;padding:2px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+.seg button{appearance:none;border:0;background:transparent;color:rgba(251,246,238,.62);font:600 11.5px/1 -apple-system,BlinkMacSystemFont,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer;transition:background .15s ease,color .15s ease}
+.seg button:hover{color:#FBF6EE}
+.seg button.is-on{background:#E87722;color:#fff}
+#view-seg button.is-on{background:#1E92E5}
+.navlink{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:999px;color:#FBF6EE;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-weight:600;font-size:12.5px;transition:background .15s ease}
+.navlink:hover{background:rgba(255,255,255,.18)}
+.navlink.primary{background:#E87722;border-color:#E87722;color:#fff}
+.navlink.primary:hover{background:#F58F33}
+.navlink.disabled{opacity:.3;pointer-events:none}
+#root{padding-top:58px}
+</style>
+</head>
+<body>
+<nav class="section-nav">
+  <div class="crumb">
+    <span class="num">2.0</span>
+    <span class="title">Client · Public landing pages</span>
+    <span class="sub">· The front door — landing, About, Caribbean, Cruises, Honeymoons, About Gyasi.</span>
+  </div>
+  <div class="nav-right">
+    <div class="seg" id="theme-seg" role="group" aria-label="Theme">
+      <button data-theme="light" class="is-on">Light</button>
+      <button data-theme="dark">Dark</button>
+    </div>
+    <div class="seg" id="view-seg" role="group" aria-label="Viewport">
+      <button data-view="web" class="is-on">Web</button>
+      <button data-view="mobile">Mobile</button>
+    </div>
+    <span class="nav-div"></span>
+    <a class="navlink" href="00-brand.html" title="00 · Brand & system">← 00</a>
+    <a class="navlink primary" href="index.html">All sections</a>
+    <a class="navlink" href="c21-auth.html" title="2.1 · Client · Authentication & Onboarding">2.1 →</a>
+  </div>
+</nav>
+<div id="root"></div>
+
+<script>
+// Header toggles own the canvas theme + viewport. Both persist per-browser and
+// broadcast the same events the canvas (and the Tweaks panel) listen for.
+(function(){
+  var KT='st-theme', KV='st-view';
+  window.__stTheme = localStorage.getItem(KT) || 'light';
+  window.__stView = localStorage.getItem(KV) || 'web';
+  function paint(seg, attr, val){
+    if(!seg) return;
+    seg.querySelectorAll('button').forEach(function(b){
+      b.classList.toggle('is-on', b.getAttribute(attr) === val);
+    });
+  }
+  function boot(){
+    var ts=document.getElementById('theme-seg'), vs=document.getElementById('view-seg');
+    paint(ts,'data-theme',window.__stTheme); paint(vs,'data-view',window.__stView);
+    if(ts) ts.addEventListener('click',function(e){
+      var b=e.target.closest('button[data-theme]'); if(!b) return;
+      window.__stTheme=b.getAttribute('data-theme');
+      localStorage.setItem(KT,window.__stTheme);
+      paint(ts,'data-theme',window.__stTheme);
+      window.dispatchEvent(new CustomEvent('st-theme-change',{detail:window.__stTheme}));
+    });
+    if(vs) vs.addEventListener('click',function(e){
+      var b=e.target.closest('button[data-view]'); if(!b) return;
+      window.__stView=b.getAttribute('data-view');
+      localStorage.setItem(KV,window.__stView);
+      paint(vs,'data-view',window.__stView);
+      window.dispatchEvent(new CustomEvent('st-view-change',{detail:window.__stView}));
+    });
+    window.addEventListener('st-theme-change',function(e){window.__stTheme=e.detail;localStorage.setItem(KT,e.detail);paint(ts,'data-theme',e.detail);});
+    window.addEventListener('st-view-change',function(e){window.__stView=e.detail;localStorage.setItem(KV,e.detail);paint(vs,'data-view',e.detail);});
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot):boot();
+})();
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="../shared/images.js"></script>
+<script type="text/babel" src="../design-canvas.jsx"></script>
+<script type="text/babel" src="../ios-frame.jsx"></script>
+<script type="text/babel" src="../shared/icons.jsx"></script>
+<script type="text/babel" src="../shared/components.jsx"></script>
+<script type="text/babel" src="../shared/screen-frame.jsx"></script>
+
+<script type="text/babel" src="../screens/client-public.jsx"></script>
+<script type="text/babel" src="../screens/client-public-topics.jsx"></script>
+<script type="text/babel" src="../screens/client-public-mobile.jsx"></script>
+
+<script type="text/babel" src="../tweaks-panel.jsx"></script>
+<script type="text/babel" src="../tweaks/tweaks.jsx"></script>
+
+<script type="text/babel">
+  function useTheme() {
+    const [theme, setTheme] = React.useState(window.__stTheme || 'light');
+    React.useEffect(() => {
+      const h = (e) => setTheme(e.detail);
+      window.addEventListener('st-theme-change', h);
+      return () => window.removeEventListener('st-theme-change', h);
+    }, []);
+    return theme;
+  }
+  function useView() {
+    const [view, setView] = React.useState(window.__stView || 'web');
+    React.useEffect(() => {
+      const h = (e) => setView(e.detail);
+      window.addEventListener('st-view-change', h);
+      return () => window.removeEventListener('st-view-change', h);
+    }, []);
+    return view;
+  }
+  function Scheme({ scheme, children, bg }) {
+    const themed = useTheme();
+    const mode = scheme || themed;
+    return (
+      <div className={mode === 'dark' ? 'scheme-dark' : ''}
+           style={{ width: '100%', height: '100%', background: bg || 'var(--md-bg)', color: 'var(--md-on-surface)', overflow: 'hidden' }}>
+        {children}
+      </div>
+    );
+  }
+  function Stub({ label }) {
+    return <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: 'var(--md-surface-2)', color: 'var(--md-on-surface-variant)', font: '600 16px/1 var(--font-sans)' }}>{label}</div>;
+  }
+  function Section({ id, title, subtitle, screens, mobileScreens, width = 1280, height = 820, mobile = false }) {
+    const theme = useTheme();
+    const view = useView();
+    const useMobile = mobile || (view === 'mobile' && mobileScreens && mobileScreens.length);
+    const active = useMobile ? (mobileScreens || screens) : screens;
+    return (
+      <DCSection id={id} title={title} subtitle={subtitle}>
+        {active.map((s) => {
+          const Comp = window[s.comp];
+          const w = s.w || width;
+          const h = s.h || height;
+          if (useMobile || s.mobile) {
+            return (
+              <DCArtboard key={s.id} id={s.id} label={s.label} width={420} height={900}>
+                {Comp ? <Comp dark={theme === 'dark'}/> : <Stub label={s.label}/>}
+              </DCArtboard>
+            );
+          }
+          return (
+            <DCArtboard key={s.id} id={s.id} label={s.label} width={w} height={h}>
+              {Comp ? <Scheme><Comp/></Scheme> : <Stub label={s.label}/>}
+            </DCArtboard>
+          );
+        })}
+      </DCSection>
+    );
+  }
+  function App() {
+    return (
+      <DesignCanvas title="Story-Tail · 2.0 · Client · Public landing pages" subtitle="The 11 pre-auth surfaces anonymous visitors see at app.story-tail.com." background="#221C1A">
+        <Section id="c20" title="2.0 · Public landing pages" subtitle="The 11 pre-auth surfaces anonymous visitors see at app.story-tail.com." width={1440} height={900} screens={[{"id":"201","comp":"C201_PublicLanding","label":"2.0.1 App subdomain landing","h":820},{"id":"202","comp":"C202_About","label":"2.0.2 About / How it works","h":1100},{"id":"203","comp":"C203_PublicSearchLanding","label":"2.0.3 Public search landing","h":900},{"id":"204","comp":"C204_PublicSearchResults","label":"2.0.4 Public search results","h":880},{"id":"205","comp":"C205_PublicDetail","label":"2.0.5 Public property detail","h":880},{"id":"206","comp":"C206_SignUpGate","label":"2.0.6 Sign-up gate","w":900,"h":820},{"id":"207","comp":"C207_FooterPages","label":"2.0.7 Footer pages","h":820},{"id":"208","comp":"C208_Caribbean","label":"2.0.8 Caribbean","w":1440,"h":1900},{"id":"209","comp":"C209_Cruises","label":"2.0.9 Cruises","w":1440,"h":1900},{"id":"2010","comp":"C2010_Honeymoons","label":"2.0.10 Honeymoons","w":1440,"h":2100},{"id":"2011","comp":"C2011_AboutGyasi","label":"2.0.11 About Gyasi","w":1440,"h":1700}]} mobileScreens={[{"id":"m201","comp":"M201_PublicLanding","label":"2.0m.1 Landing"},{"id":"m202","comp":"M202_About","label":"2.0m.2 About / How it works"},{"id":"m203","comp":"M203_PublicSearchLanding","label":"2.0m.3 Search landing"},{"id":"m204","comp":"M204_PublicSearchResults","label":"2.0m.4 Search results"},{"id":"m205","comp":"M205_PublicDetail","label":"2.0m.5 Property detail"},{"id":"m206","comp":"M206_SignUpGate","label":"2.0m.6 Sign-up gate"},{"id":"m207","comp":"M207_FooterPages","label":"2.0m.7 Footer pages"},{"id":"m208","comp":"M208_Caribbean","label":"2.0m.8 Caribbean"},{"id":"m209","comp":"M209_Cruises","label":"2.0m.9 Cruises"},{"id":"m2010","comp":"M2010_Honeymoons","label":"2.0m.10 Honeymoons"},{"id":"m2011","comp":"M2011_AboutGyasi","label":"2.0m.11 About Gyasi"}]}/>
+      </DesignCanvas>
+    );
+  }
+  function Root() { return <><App/><StoryTailTweaks/></>; }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
+</script>
+</body>
+</html>

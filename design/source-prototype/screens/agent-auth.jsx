@@ -257,7 +257,7 @@ function A319_EmailSignature() {
         <div className="card" style={{ padding: 18 }}>
           <div className="t-label" style={{ color: 'var(--md-on-surface-variant)', marginBottom: 8 }}>LIVE PREVIEW</div>
           <div style={{ padding: 16, border: '1px solid var(--md-outline-variant)', borderRadius: 12, background: 'var(--md-surface-1)' }}>
-            <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>From: Aria Patel &lt;aria@story-tail.com&gt;<br/>To: Maya Carter &lt;maya@carterfam.io&gt;</div>
+            <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>From: Aria Patel &lt;aria@story-tail.com&gt;<br/>To: Maya Carter &lt;maya@example.com&gt;</div>
             <hr className="divider" style={{ margin: '10px 0' }}/>
             <div className="t-body" style={{ marginBottom: 14 }}>Hey Maya! Your Sandals proposal is attached…</div>
             <div style={{ borderTop: '1px solid var(--md-outline-variant)', paddingTop: 10, font: '400 13px/1.55 var(--font-sans)', color: 'var(--md-on-surface)' }}>

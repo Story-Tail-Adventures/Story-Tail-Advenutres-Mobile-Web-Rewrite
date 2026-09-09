@@ -11,6 +11,7 @@
   --brand-orange: #E87722;
   --brand-orange-light: #F59E4E;
   --brand-sunset: #F5A623;
+  --brand-gold: #FFC83F;      /* sunset gold on photography; equals the dark scheme's --md-secondary */
   --brand-ocean: #1565C0;
   --brand-navy: #0D2137;
   --brand-cream: #FBF6EE;
@@ -101,7 +102,9 @@
   --md-on-tertiary-container: #B6F2C8;
 
   --md-error: #FFB4AB;
+  --md-on-error: #690005;
   --md-error-container: #93000A;
+  --md-on-error-container: #FFDAD6;
 
   --md-success: #8DDCA4;
   --md-success-container: #00522A;

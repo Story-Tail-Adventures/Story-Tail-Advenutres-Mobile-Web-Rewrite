@@ -11,16 +11,23 @@ function C201_PublicLanding() {
         <div style={{ position: 'relative', flex: 1, overflow: 'hidden', borderRadius: 0 }}>
           <img src={staImg('turks', 1600, 900)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(122,26,31,0.72) 0%, rgba(122,26,31,0.2) 55%, transparent)' }}/>
-          <div style={{ position: 'absolute', inset: 0, padding: '40px 48px', display: 'flex', flexDirection: 'column', justifyContent: 'center', color: '#FFF', maxWidth: 620 }}>
-            <span className="t-label-s" style={{ color: '#FFC83F', marginBottom: 10 }}>WELCOME TO YOUR STORY-TAIL PORTAL</span>
-            <h1 className="t-display" style={{ margin: 0, color: '#FFF', lineHeight: 1.05 }}>View trips, authorize payments, explore your next <span className="t-script" style={{ color: '#FFC83F', fontSize: 60 }}>adventure</span>.</h1>
-            <p className="t-body-l" style={{ marginTop: 12, color: 'rgba(255,255,255,0.9)' }}>Your branded portal — separate from the marketing site, designed for everything after we start planning together.</p>
+          <div style={{ position: 'absolute', inset: 0, padding: '40px 48px', display: 'flex', flexDirection: 'column', justifyContent: 'center', color: '#FFF', maxWidth: 660 }}>
+            <span className="t-label-s" style={{ color: '#FFC83F', marginBottom: 10 }}>REST IS A GIFT · CREATION IS A GIFT</span>
+            <h1 className="t-display" style={{ margin: 0, color: '#FFF', lineHeight: 1.05 }}>Plan a rest worthy of the <span className="t-script" style={{ color: '#FFC83F', fontSize: 60 }}>world He made.</span></h1>
+            <p className="t-body-l" style={{ marginTop: 14, color: 'rgba(255,255,255,0.92)' }}>Your portal for everything Story-Tail — trips in motion, cards authorized for suppliers, and a place to dream up what's next. We believe vacation is rest, and rest is sacred.</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
               <button className="btn btn-orange btn-lg">Sign in</button>
               <button className="btn btn-lg" style={{ background: 'rgba(255,255,255,0.18)', color: '#FFF', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.3)' }}>Create an account</button>
               <button className="btn btn-text btn-lg" style={{ color: '#FFF' }}>Take a quick tour →</button>
             </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+            <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'baseline', gap: 18, color: 'rgba(255,255,255,0.78)' }}>
+              <span style={{ font: 'italic 500 13px/1.4 var(--font-script)', fontSize: 18, color: '#FFC83F' }}>"On the seventh day God rested."</span>
+              <span className="t-label-s" style={{ letterSpacing: 1.2, opacity: 0.7 }}>GEN 2 : 2</span>
+              <span style={{ opacity: 0.3 }}>·</span>
+              <span style={{ font: 'italic 500 13px/1.4 var(--font-script)', fontSize: 18, color: '#FFC83F' }}>"It was very good."</span>
+              <span className="t-label-s" style={{ letterSpacing: 1.2, opacity: 0.7 }}>GEN 1 : 31</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <a className="chip" style={{ background: 'rgba(255,255,255,0.16)', color: '#FFF', border: '1px solid rgba(255,255,255,0.2)' }}>Browse trip ideas →</a>
               <a className="chip" style={{ background: 'rgba(255,255,255,0.16)', color: '#FFF', border: '1px solid rgba(255,255,255,0.2)' }}><Icon name="external" size={12}/> adventures.story-tail.com</a>
             </div>
@@ -45,14 +52,14 @@ function C202_About() {
     <ScreenFrame chrome="topbar" role="public" search={false} scrollable padding={0}>
       <div style={{ padding: '32px 48px 48px', maxWidth: 980, margin: '0 auto' }}>
         <span className="t-label-s" style={{ color: 'var(--brand-orange)' }}>HOW STORY-TAIL WORKS</span>
-        <h1 className="t-display-s" style={{ margin: '4px 0 6px' }}>You ask. We plan together. You travel.</h1>
-        <p className="t-body-l" style={{ margin: 0, color: 'var(--md-on-surface-variant)', maxWidth: 720 }}>Under 90 seconds of reading — promise. No planning fees, ever — Story-Tail earns commission from suppliers, not from you.</p>
+        <h1 className="t-display-s" style={{ margin: '4px 0 6px' }}>You ask. We plan together. You go and rest.</h1>
+        <p className="t-body-l" style={{ margin: 0, color: 'var(--md-on-surface-variant)', maxWidth: 720 }}>Under 90 seconds of reading — promise. No planning fees, ever — Story-Tail earns commission from suppliers, not from you. We exist so you can take the rest you were made for.</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 24 }}>
           {[
             { i: 'message', t: 'Ask', d: 'Tell me what you\'re craving — beach week, family cruise, honeymoon — by message or a quick call.' },
             { i: 'sparkle', t: 'Plan together', d: 'I come back with a curated proposal: real options, real prices, my honest takes — never a generic search dump.' },
-            { i: 'plane', t: 'Travel', d: 'I book through suppliers, you authorize a card for them to charge, and I watch the trip while you live it.' },
+            { i: 'plane', t: 'Go rest', d: 'I book through suppliers, you authorize a card for them to charge, and I keep watch on the details while you receive the rest you came for.' },
           ].map((s, i) => (
             <div key={s.t} className="card" style={{ padding: 18 }}>
               <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -63,6 +70,65 @@ function C202_About() {
               <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{s.d}</div>
             </div>
           ))}
+        </div>
+
+        {/* Our heart — why we do this */}
+        <div style={{ marginTop: 28, padding: '24px 24px 26px', borderRadius: 22, background: 'linear-gradient(135deg, var(--md-surface-2) 0%, var(--md-primary-container) 140%)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 240, height: 240, borderRadius: 999, background: 'radial-gradient(circle at 30% 30%, rgba(232,119,34,0.18), transparent 70%)' }}/>
+          <div style={{ position: 'relative' }}>
+            <span className="t-label-s" style={{ color: 'var(--brand-orange)' }}>OUR HEART · WHY WE DO THIS</span>
+            <h2 className="t-headline" style={{ margin: '4px 0 6px', maxWidth: 760 }}>Vacation is <i>rest</i>. Rest is sacred. The world is <i>good</i>, and meant to be enjoyed.</h2>
+            <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', margin: '0 0 18px', maxWidth: 720 }}>Two beliefs sit behind every trip we plan. They're the reason Gyasi answers a 9pm message about sunscreen brands and the reason we cap your card at the invoice — not a penny more.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14 }}>
+              {/* Pillar 1 — Rest is a command */}
+              <div className="card" style={{ padding: 20, background: 'var(--md-surface-1)', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <span style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="heart" size={20}/>
+                  </span>
+                  <div>
+                    <div className="t-label-s" style={{ color: 'var(--brand-orange)' }}>PILLAR 01</div>
+                    <div className="t-title-l">Rest is a command, not a luxury.</div>
+                  </div>
+                </div>
+                <p className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>
+                  On the seventh day God rested and called it holy — not because He was tired, but because He was making rest a gift to us. When we plan your week away, we plan a Sabbath worth taking. No screens that demand you. No charges that surprise you. Real rest.
+                </p>
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--md-outline-variant)', display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span className="t-script" style={{ color: 'var(--brand-burgundy)', fontSize: 22, lineHeight: 1 }}>"Come to me, all who are weary, and I will give you rest."</span>
+                  <span className="t-label-s" style={{ color: 'var(--md-on-surface-variant)', letterSpacing: 1.2, whiteSpace: 'nowrap' }}>MATT 11:28</span>
+                </div>
+              </div>
+
+              {/* Pillar 2 — Creation is a gift */}
+              <div className="card" style={{ padding: 20, background: 'var(--md-surface-1)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <span style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="palm" size={20}/>
+                  </span>
+                  <div>
+                    <div className="t-label-s" style={{ color: 'var(--brand-orange)' }}>PILLAR 02</div>
+                    <div className="t-title-l">Creation is a gift, meant to be enjoyed.</div>
+                  </div>
+                </div>
+                <p className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>
+                  God made the reef, the trade wind, the warm rain on a tin roof — and called it very good. We don't sell escape from your life; we help you receive a world that's already waiting for you. The Caribbean is one beautiful answer to that invitation.
+                </p>
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--md-outline-variant)', display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span className="t-script" style={{ color: 'var(--brand-burgundy)', fontSize: 22, lineHeight: 1 }}>"God saw all that he had made, and it was very good."</span>
+                  <span className="t-label-s" style={{ color: 'var(--md-on-surface-variant)', letterSpacing: 1.2, whiteSpace: 'nowrap' }}>GEN 1:31</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 14, background: 'var(--md-surface-1)', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <Icon name="info" size={16} color="var(--md-on-surface-variant)"/>
+              <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>
+                <b style={{ color: 'var(--md-on-surface)' }}>Whatever your faith — you're welcome here.</b> This is just where our hands come from. Every traveler gets the same care, the same honesty, the same Caribbean.
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Gyasi card */}
@@ -367,7 +433,7 @@ function C206_SignUpGate() {
             <hr className="divider" style={{ flex: 1 }}/>
           </div>
           <input className="input" defaultValue="Jordan Hayes" style={{ marginBottom: 8 }} placeholder="Your name"/>
-          <input className="input" defaultValue="jordan.hayes@gmail.com" style={{ marginBottom: 8 }} placeholder="Email"/>
+          <input className="input" defaultValue="jordan.hayes@example.com" style={{ marginBottom: 8 }} placeholder="Email"/>
           <input className="input" type="password" defaultValue="••••••••••••" placeholder="Password"/>
 
           <button className="btn btn-filled btn-lg" style={{ width: '100%', marginTop: 14 }}>Create account &amp; send quote</button>

@@ -2,6 +2,20 @@
 
 A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Inteletravel). Mobile (Android + iOS) via Kotlin Multiplatform + Compose. Web via Next.js + React + TypeScript. Backend via Supabase Edge Functions. Database, auth, storage, and real-time via Supabase. Card tokenization via Stripe.
 
+## About this repository
+
+Public to read, not licensed to reuse — see [LICENSE](LICENSE). It runs a real travel
+advisory business, so the brand assets are excluded and there is no support commitment.
+
+Issues and pull requests are not monitored; this is not soliciting contributions. If you
+have found something genuinely alarming — a way to reach another traveler's data, say —
+please open an issue saying only that you have, and do not include details.
+
+Nothing secret lives here by design. The PR workflow (`.github/workflows/ci.yml`) needs
+zero secrets, deploys are gated on the `production` branch rather than on pull requests,
+and no prerendered route reads a Supabase key. Row-Level Security is the actual boundary,
+and `supabase/tests/` executes every policy as each role.
+
 ## Repo layout
 
 ```
@@ -11,7 +25,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Int
 ├── .gitignore
 ├── .editorconfig
 ├── package.json               ← monorepo workspace root
-├── pnpm-workspace.yaml
+├── package-lock.json
 ├── turbo.json
 │
 ├── docs/                      ← project documentation (canonical source of truth)
@@ -39,10 +53,10 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Int
 │   ├── components/
 │   ├── lib/
 │   ├── styles/
-│   └── package.json           (set up via `pnpm create next-app` — see web/README.md)
+│   └── package.json           (set up via `npx create-next-app` — see web/README.md)
 │
 ├── supabase/                  ← Supabase project
-│   ├── migrations/            ← SQL migrations (managed via `supabase db push`)
+│   ├── migrations/            ← SQL migrations (applied via `supabase db reset`)
 │   ├── functions/             ← Edge Functions (Deno + TypeScript)
 │   │   └── _shared/           ← Shared utilities (audit, auth, stripe wrapper)
 │   ├── seed.sql
@@ -53,8 +67,12 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Int
 │   ├── ts/                    ← Generated TypeScript types (for web + Edge Functions)
 │   └── kotlin/                ← Generated Kotlin types (for mobile shared module)
 │
-└── .claude/                   ← Claude Code project skills and commands
-    └── skills/                ← Project-specific skills (new-screen, new-entity, audit-pci, ...)
+├── .claude/                   ← Claude Code project skills and commands
+│   └── skills/                ← Project-specific skills (new-screen, new-entity, audit-pci, ...)
+│
+└── .github/
+    ├── workflows/             ← ci.yml (every PR + push to dev/production), deploy.yml
+    └── scripts/               ← PCI / copy-parity / auth-config guards invoked by ci.yml
 ```
 
 ## Getting started
@@ -71,23 +89,61 @@ Then read the Design System and Data Model when you need them. The bootstrap ste
 
 ```bash
 # Web
-pnpm --filter web dev                  # start Next.js dev server
-pnpm --filter web build                # production build
+npm run dev -w web                  # start Next.js dev server
+npm run build -w web                # production build
 
 # Mobile (run from mobile/)
-./gradlew :shared:build                # build shared module
+./gradlew :androidApp:assembleDebug                # build shared module
 ./gradlew :androidApp:installDebug     # install Android debug
 # iOS: open mobile/iosApp/iosApp.xcodeproj in Xcode
 
 # Supabase
 supabase start                         # start local Supabase
-supabase db push                       # apply migrations
+supabase db reset                      # replay migrations + seed locally
 supabase functions deploy <name>       # deploy an Edge Function
 supabase gen types typescript --local > web/types/supabase.ts
 
 # API contract codegen
-pnpm --filter contracts generate       # regenerate TS + Kotlin types from openapi.yaml
+npm run generate -w contracts       # regenerate TS types from openapi.yaml (Kotlin deferred)
 ```
+
+## Deployment
+
+`production` is the release branch. `dev` is the default branch and where work lands; a merge
+`dev → production` is a production deploy.
+
+A deploy has **two halves, owned by two systems**, and neither knows about the other:
+
+| Half | Owner | What it does |
+|---|---|---|
+| Database | Supabase's GitHub integration | Applies new migrations and deploys the Edge Functions declared in `supabase/config.toml`, server-side on push to `production` |
+| Frontend | `.github/workflows/deploy.yml` | Builds and deploys `web/` to Vercel with the Vercel CLI, then cuts a GitHub Release |
+
+The split is deliberate: Supabase's half runs over its own OAuth connection, so **the
+production database password never enters GitHub**. The only deploy *credential* is
+`VERCEL_TOKEN`; the other two GitHub secrets are Vercel identifiers, not access.
+
+The deploy gates on CI via `workflow_run` — a red build cannot deploy on the automatic path.
+A manual `workflow_dispatch` deliberately bypasses that gate (it is the escape hatch for a red
+job in a stack the frontend does not touch), so it refuses any ref but `production`. Because
+the two halves log separately, the **GitHub Release is the only record of what shipped
+together**; it names the migrations that went out alongside each frontend deploy.
+
+What lives where:
+
+- **GitHub → Secrets:** `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Only the token
+  is a credential — the two ids are identifiers that live in Secrets because that is where
+  they were created. Moving them to the Variables tab means also flipping the two `secrets.`
+  references in `.github/workflows/deploy.yml` to `vars.`; the only cost of leaving them is
+  that GitHub masks the project id as `***` wherever the Vercel CLI echoes it back.
+- **Vercel Production env:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `NEXT_PUBLIC_SITE_URL`. `PUBLIC_CLAIMS_MODE` is deliberately unset until the public content
+  registry is verified — see `web/content/public/proof.ts`.
+- **Supabase:** the `ALLOWED_ORIGIN` function secret, and the auth settings that
+  `config.toml` does *not* push — see `supabase/README.md`.
+
+To rehearse without deploying: Actions → Deploy → Run workflow with `dry_run` checked. It
+pulls the real production environment and builds, then stops.
 
 ## Document hierarchy
 

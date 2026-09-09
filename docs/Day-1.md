@@ -23,18 +23,18 @@ Three prerequisites. Each takes 10 minutes or less.
 
 2. **Create a Stripe account in Story-Tail's name.** Sign up at stripe.com. Stripe will ask for business documentation — this is fine because we're using Stripe for tokenization only, not as a merchant processor. Get the publishable key and the secret key (test mode is fine for development).
 
-3. **Install local tooling.** You'll need: Node 20+, pnpm 9+, the Supabase CLI (`brew install supabase/tap/supabase` on Mac), Docker Desktop (for local Supabase), Android Studio with the Kotlin Multiplatform plugin, Xcode (Mac), and either VS Code or IntelliJ. Optional but recommended: GitHub Desktop for the early commits.
+3. **Install local tooling.** You'll need: Node 22 LTS (or 24), npm 10+, the Supabase CLI (`brew install supabase/tap/supabase` on Mac), Docker Desktop (for local Supabase), Android Studio with the Kotlin Multiplatform plugin, Xcode (Mac), and either VS Code or IntelliJ. Optional but recommended: GitHub Desktop for the early commits.
 
 ## Your first prompt to Claude Code
 
 Open Claude Code in this directory and type something like this:
 
-> Read `@README.md` and `@CLAUDE.md` to orient yourself. Then walk through Step 1 of `docs/Tech-Recommendations.md` Section 5.3 with me — initialize the monorepo, install dependencies, and confirm the workspace is set up correctly. Don't initialize the individual sub-projects yet; that's later sessions. Stop after `pnpm install` succeeds and the workspace is bootable.
+> Read `@README.md` and `@CLAUDE.md` to orient yourself. Then walk through Step 1 of `docs/Tech-Recommendations.md` Section 5.3 with me — initialize the monorepo, install dependencies, and confirm the workspace is set up correctly. Don't initialize the individual sub-projects yet; that's later sessions. Stop after `npm install` succeeds and the workspace is bootable.
 
 Claude Code should:
 1. Read CLAUDE.md and absorb the project conventions
 2. Run `git init` and create the initial commit
-3. Run `pnpm install` (which installs Turbo as the only root dependency)
+3. Run `npm install` (which installs Turbo as the only root dependency)
 4. Verify the structure
 5. Stop and confirm with you before moving to Step 2
 
@@ -52,7 +52,7 @@ This proves the database schema works and that the type-generation pipeline is s
 
 ### Session 3 — Initialize the Next.js web app
 
-> Initialize the Next.js web app per `web/README.md`. Use TypeScript, Tailwind CSS, the App Router, and pnpm. After `pnpm create next-app` finishes, copy `design/web-tokens/tokens.css` into `web/styles/tokens.css` and wire it into the root layout. Set up Tailwind to consume the design tokens from `design/web-tokens/design-tokens.ts`. Add the Supabase client setup in `web/lib/supabase.ts`. Stop after the dev server runs successfully (`pnpm --filter web dev`) and the landing page shows the brand colors.
+> Initialize the Next.js web app per `web/README.md`. Use TypeScript, Tailwind CSS, the App Router, and npm. After `npx create-next-app` finishes, copy `design/web-tokens/tokens.css` into `web/styles/tokens.css` and wire it into the root layout. Set up Tailwind to consume the design tokens from `design/web-tokens/design-tokens.ts`. Add the Supabase client setup in `web/lib/supabase.ts`. Stop after the dev server runs successfully (`npm run dev -w web`) and the landing page shows the brand colors.
 
 This proves the design system flows through to web.
 
@@ -93,7 +93,7 @@ Pause and ask the user for direction whenever:
 A few practical notes from the planning phase:
 
 - **The `.claude/` directory is committed.** Skills are project artifacts, not personal preferences. If you find yourself improving the skills, commit those improvements.
-- **The OpenAPI contract is the API source of truth.** Don't hand-write TypeScript types for API responses; generate them via `pnpm --filter contracts generate`.
+- **The OpenAPI contract is the API source of truth.** Don't hand-write TypeScript types for API responses; generate them via `npm run generate -w contracts`.
 - **Supabase RLS policies are intentionally minimal in the first migration.** A follow-up migration adds them. Until then, anonymous and authenticated client roles can't read most tables — only Edge Functions running as the service role can. This is fine for early development.
 - **The reference prototype in `design/source-prototype/` is read-only.** Don't edit it. If a screen's visual treatment needs to change, update the Compose or React implementation directly; the prototype is the visual ground truth at v1.0.
 - **Memory carries between Claude Code sessions if you let it.** The `.claude/skills/` files and `CLAUDE.md` are the project's brain. Add to them as you learn.

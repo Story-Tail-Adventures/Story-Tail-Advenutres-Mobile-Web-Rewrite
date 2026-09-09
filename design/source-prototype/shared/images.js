@@ -15,7 +15,7 @@ const STA_IMAGES = {
   resortNight: 'photo-1571896349842-33c89424de2d',    // hotel night
   // Cruises
   cruiseShip: 'photo-1548574505-5e239809ee19',        // big cruise ship
-  cruiseAerial: 'photo-1599582909646-2b9c9a0e98da',   // cruise aerial
+  cruiseAerial: 'photo-1548574505-5e239809ee19',     // cruise — falls back to ship photo
   // Honeymoon / couples
   honeymoon: 'photo-1517824806704-9040b037703b',      // couple beach
   candlelit: 'photo-1519999482648-25049ddd37b1',      // candlelit dinner

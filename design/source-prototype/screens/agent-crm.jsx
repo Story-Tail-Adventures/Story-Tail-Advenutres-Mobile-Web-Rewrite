@@ -43,7 +43,7 @@ function CRMShell({ children, tab = 'overview' }) {
                 <span className="chip-status proposal">Trip in motion</span>
               </div>
               <div style={{ font: '500 12.5px/1.3 var(--font-sans)', display: 'flex', gap: 14, marginTop: 4, color: 'var(--md-on-primary-container)' }}>
-                <span>jordan.hayes@gmail.com</span><span>+1 (305) 555-0184</span><span>Miami, FL</span><span>Since Mar 2024</span>
+                <span>jordan.hayes@example.com</span><span>+1 (305) 555-0184</span><span>Miami, FL</span><span>Since Mar 2024</span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -88,12 +88,12 @@ function A331_ClientList() {
           </thead>
           <tbody>
             {[
-              { n: 'Jordan & Sam Hayes', e: 'jordan.hayes@gmail.com', last: 'Symphony · Mar 25', next: 'Sandals · Aug 26', val: 18640, tags: ['VIP','Honeymoon'], a: 'avatarC' },
-              { n: 'Maya & Daniel Carter', e: 'maya@carterfam.io', last: 'Turks · Apr 25', next: 'Sandals · Jul 26', val: 14820, tags: ['VIP'], a: 'avatarA' },
-              { n: 'Westbrook family', e: 'wfam@hotmail.com', last: 'Atlantis · Apr 26', next: 'Symphony · Dec 26', val: 9120, tags: ['Family'], a: 'avatarB' },
-              { n: 'Aisha Patel', e: 'aisha.patel@gmail.com', last: '—', next: 'Princess · May 26', val: 3200, tags: ['New'], a: 'avatarE' },
-              { n: 'Reggie & Marc', e: 'reggie@m.com', last: 'Sandals · Aug 25', next: 'Now · St Lucia', val: 5800, tags: ['Traveling'], a: 'avatarF' },
-              { n: 'Linda Gomez', e: 'gomez.lj@yahoo.com', last: '—', next: '—', val: 0, tags: ['Lead'], a: 'avatarA' },
+              { n: 'Jordan & Sam Hayes', e: 'jordan.hayes@example.com', last: 'Symphony · Mar 25', next: 'Sandals · Aug 26', val: 18640, tags: ['VIP','Honeymoon'], a: 'avatarC' },
+              { n: 'Maya & Daniel Carter', e: 'maya@example.com', last: 'Turks · Apr 25', next: 'Sandals · Jul 26', val: 14820, tags: ['VIP'], a: 'avatarA' },
+              { n: 'Westbrook family', e: 'wfam@example.com', last: 'Atlantis · Apr 26', next: 'Symphony · Dec 26', val: 9120, tags: ['Family'], a: 'avatarB' },
+              { n: 'Aisha Patel', e: 'aisha.patel@example.com', last: '—', next: 'Princess · May 26', val: 3200, tags: ['New'], a: 'avatarE' },
+              { n: 'Reggie & Marc', e: 'reggie@example.com', last: 'Sandals · Aug 25', next: 'Now · St Lucia', val: 5800, tags: ['Traveling'], a: 'avatarF' },
+              { n: 'Linda Gomez', e: 'gomez.lj@example.com', last: '—', next: '—', val: 0, tags: ['Lead'], a: 'avatarA' },
             ].map((r, i) => (
               <tr key={i} style={{ borderTop: '1px solid var(--md-outline-variant)' }}>
                 <td style={{ padding: '10px 14px' }}><input type="checkbox"/></td>
@@ -128,7 +128,7 @@ function A332_ClientDetail() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 10, columnGap: 18, marginTop: 8 }}>
               {[
                 { l: 'Phone', v: '+1 (305) 555-0184' },
-                { l: 'Email', v: 'jordan.hayes@gmail.com' },
+                { l: 'Email', v: 'jordan.hayes@example.com' },
                 { l: 'Address', v: '1240 Brickell Bay Dr, Miami' },
                 { l: 'Birthdays', v: 'Jordan · Apr 22 · Sam · Nov 3' },
                 { l: 'Anniversary', v: 'Sep 14 (surprise flag)' },
@@ -344,7 +344,7 @@ function A3310_EditClient() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label className="field-label">First name</label><input className="input" defaultValue="Jordan"/></div>
           <div><label className="field-label">Last name</label><input className="input" defaultValue="Hayes"/></div>
-          <div style={{ gridColumn: 'span 2' }}><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+          <div style={{ gridColumn: 'span 2' }}><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
           <div><label className="field-label">Phone</label><input className="input" defaultValue="+1 (305) 555-0184"/></div>
           <div><label className="field-label">DOB</label><input className="input" defaultValue="04 / 22 / 1992"/></div>
           <div style={{ gridColumn: 'span 2' }}><label className="field-label">Address</label><input className="input" defaultValue="1240 Brickell Bay Dr, Miami, FL 33131"/></div>
@@ -361,9 +361,9 @@ function A3311_MergeClients() {
     <ScreenFrame role="agent" tab="clients" padding={28} scrollable>
       <ScreenHeader title="Merge duplicate clients" subtitle="Pick which value wins per field. Audit-logged. Best done on desktop." small/>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 10, maxWidth: 1080 }}>
-        <div className="card" style={{ padding: 14 }}><div className="t-label">SOURCE</div><div className="t-title-s" style={{ marginTop: 4 }}>Sam Hayes · sam@hayes.email</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>1 trip · joined Apr 2024</div></div>
+        <div className="card" style={{ padding: 14 }}><div className="t-label">SOURCE</div><div className="t-title-s" style={{ marginTop: 4 }}>Sam Hayes · sam@example.com</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>1 trip · joined Apr 2024</div></div>
         <div style={{ alignSelf: 'center', textAlign: 'center', color: 'var(--md-on-surface-variant)' }}>→</div>
-        <div className="card" style={{ padding: 14 }}><div className="t-label">TARGET</div><div className="t-title-s" style={{ marginTop: 4 }}>Jordan & Sam Hayes · jordan.hayes@gmail.com</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>3 trips · joined Mar 2024</div></div>
+        <div className="card" style={{ padding: 14 }}><div className="t-label">TARGET</div><div className="t-title-s" style={{ marginTop: 4 }}>Jordan & Sam Hayes · jordan.hayes@example.com</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>3 trips · joined Mar 2024</div></div>
       </div>
       <div className="card" style={{ padding: 0, marginTop: 14, maxWidth: 1080 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -374,7 +374,7 @@ function A3311_MergeClients() {
           </thead>
           <tbody>
             {[
-              { f: 'Email', s: 'sam@hayes.email', t: 'jordan.hayes@gmail.com', w: 't' },
+              { f: 'Email', s: 'sam@example.com', t: 'jordan.hayes@example.com', w: 't' },
               { f: 'Phone', s: '305-555-0186', t: '305-555-0184', w: 'b' },
               { f: 'Address', s: '(blank)', t: '1240 Brickell Bay Dr…', w: 't' },
               { f: 'DOB', s: '11/03/1990', t: '04/22/1992', w: 'b' },

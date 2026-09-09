@@ -7,7 +7,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advi
 The five documents in `docs/` are the canonical source of truth for this project:
 
 - `@docs/BRD.md` — business requirements, scope, phases
-- `@docs/Screen-Inventory.md` — every screen (168 of them) with mobile/tablet/web variants
+- `@docs/Screen-Inventory.md` — every screen (172 of them) with mobile/tablet/web variants
 - `@docs/Data-Model.md` — every entity, every field, with Postgres DDL and Kotlin data classes
 - `@docs/Design-System.md` — colors, typography, components, **brand voice and worldview** (§2)
 - `@docs/Tech-Recommendations.md` — stack choices and Claude Code bootstrap walkthrough
@@ -22,7 +22,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments** — Stripe (SetupIntent for collection, Vault and Forward for API suppliers, audited PAN reveal for portal suppliers)
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
-- **Design source of truth** — Claude Design handoff bundle at `https://api.anthropic.com/v1/design/h/IhaI2N5FMxGoxB4kP0mtnA`. The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`). When the designer iterates, the URL refreshes — run the `sync-design-handoff` skill to pull the latest. **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
+- **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
 **Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / Tailwind) lives under `web/`. Backend code lives under `supabase/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
 
@@ -56,7 +56,7 @@ Quick tone checks for any copy:
 Use these consistently in code comments, commit messages, and PR descriptions:
 
 - **P1** — MVP (Travefy replacement). Authentication, client management, trip builder with manual entry, itinerary viewer, payment authorization, agent worklist, commission tracking, templated emails.
-- **P2** — Self-guided search and lead generation. Travel API integrations (Amadeus, Hotelbeds, Viator, Widgety). Lead workflow. Phase 2 also brings the public marketing-adjacent search surface live.
+- **P2** — Self-guided search and inquiry capture. Travel API integrations (Amadeus, Hotelbeds, Viator, Widgety, SerpApi Google Hotels). Phase 2 also brings the public marketing-adjacent search surface live. **A quote request creates a Trip in `inquiry` status, not a Lead** (BRD §6.5, decided 2026-09-09) — the `lead` domain is specified in Data-Model §11 but deferred and unbuilt, and the agent works one queue rather than two.
 - **P3** — Multi-agent, group trip coordination, mobile offline UI, API-driven booking workflows.
 - **P4+** — Future features (AI-assisted planning, loyalty, etc.).
 
@@ -64,28 +64,113 @@ Use these consistently in code comments, commit messages, and PR descriptions:
 
 ```bash
 # Web (Next.js)
-pnpm --filter web dev
-pnpm --filter web build
-pnpm --filter web typecheck
-pnpm --filter web lint
+npm run dev -w web
+npm run build -w web
+npm run typecheck -w web
+npm run lint -w web
+
+# Web tests
+npm run test -w web
 
 # Mobile (from mobile/)
-./gradlew :shared:build
-./gradlew :shared:test
+# NOTE: :shared:build and :shared:check include the iOS targets and need Xcode.
+# Until Xcode is installed, use the Android-scoped tasks below.
+./gradlew :shared:assembleAndroidMain
+./gradlew :shared:testAndroidHostTest
+./gradlew :androidApp:assembleDebug
 ./gradlew :androidApp:installDebug
-# iOS: open mobile/iosApp/iosApp.xcodeproj in Xcode
+# iOS: open mobile/iosApp/iosApp.xcodeproj in Xcode (requires Xcode, not just CLT)
 
-# Supabase
+# Supabase (local)
 supabase start                                                  # start local Supabase
-supabase db push                                                # apply migrations
+supabase db reset                                               # apply migrations + seed from scratch
+supabase db push                                                # apply to a LINKED REMOTE — not the local loop
 supabase migration new <name>                                   # create new migration
 supabase functions new <name>                                   # scaffold an Edge Function
 supabase functions deploy <name>                                # deploy a function
 supabase gen types typescript --local > web/types/supabase.ts   # regen DB types
 
 # Contracts (codegen TS + Kotlin types from openapi.yaml)
-pnpm --filter contracts generate
+npm run generate -w contracts
 ```
+
+## Local development gotchas
+
+Things that cost real time to rediscover:
+
+- **`./gradlew :shared:build` and `:shared:check` fail without a full Xcode install.** They
+  pull in the iOS *link* step; only the Command Line Tools are present. Use the AGP KMP
+  library plugin's real task names instead: `:shared:assembleAndroidMain`,
+  `:shared:testAndroidHostTest`, `:androidApp:assembleDebug`, and
+  `:shared:compileKotlinIosSimulatorArm64` as the iOS-compatibility gate (it compiles the
+  klib without linking, so it needs no Xcode).
+- **supabase-kt is pinned to the Kotlin version, not to "latest".** Releases newer than the
+  project's Kotlin compiler ship klibs with a higher ABI version, which Kotlin/Native
+  refuses — while the JVM/Android target silently tolerates the mismatch. So a bad bump
+  breaks *only* iOS. Bump `supabase` and `kotlin` in `libs.versions.toml` together.
+- **The Android emulator reaches local Supabase at `http://10.0.2.2:54321`,** not
+  `127.0.0.1` — that is the emulator's own loopback. Set it in `mobile/local.properties`.
+- **`supabase db reset` is the local loop; `supabase db push` targets a linked remote.**
+  Don't reach for `push` locally.
+- **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`, and the
+  Tailwind colour mapping in `web/app/globals.css` must use `@theme inline`. Plain `@theme`
+  freezes the light value into `:root` and dark mode silently stops working.
+- **`~/.orbstack/bin` is not on the default non-interactive PATH.** Export it before
+  `docker` or `supabase` commands, or they fail with "command not found".
+- **Hand-seeding `auth.users` breaks GoTrue** unless `confirmation_token`,
+  `recovery_token`, `email_change_token_new` and `email_change` are set to `''`. They are
+  nullable with no default and GoTrue scans them into non-nullable Go strings, so every
+  login 500s with "converting NULL to string is unsupported".
+- **Never use `const val` for generated config.** Kotlin inlines const values into every
+  call site, so a build that ran while the value was empty keeps the empty string baked in
+  after regeneration — the app reports "not configured" with the correct value in the APK.
+- **Don't build the Supabase client during composition.** `createSupabaseClient` reads
+  persisted session state; doing it inline cost a 26s cold start and an ANR. Build it on a
+  background dispatcher behind a splash route (648ms after).
+- **The dark scheme is a full tropical rebrand, not an inversion** — primary goes burgundy
+  to ocean blue, secondary to sunset gold, surfaces to deep navy. Check both schemes on
+  every screen.
+
+## Working alongside another session — use a worktree
+
+More than one Claude session runs against this repo. Two sessions in the same working tree
+share one INDEX, and that is a real hazard rather than a theoretical one:
+
+**`git commit` commits the whole index, not the paths you just staged.** So a correctly
+scoped `git add -A supabase/` followed by a bare `git commit` will also commit whatever the
+other session happens to have staged, silently, with no sign of it in any diff you were
+reading. This happened on 2026-09-08: three cruise-sync commits swallowed a concurrent
+brand/icon rework — five file deletions, a logo rename, and 58 lines of two docs — and broke
+the Web and both Mobile CI jobs, because six files import a component that went with it.
+
+Three rules, in order of how much they save you:
+
+1. **Take a worktree.** `EnterWorktree`, or by hand:
+   ```bash
+   git worktree add .claude/worktrees/<name> -b <branch> <base>
+   ```
+   Each worktree has its own index and HEAD over the same object store, so the hazard is
+   gone rather than managed. `.claude/worktrees/` is gitignored. The Supabase CLI, `deno`,
+   and the local Docker stack all work from a worktree unchanged; only `npm -w` scripts need
+   an `npm install` there, and `npm run supabase:types` does not (it shells out to the
+   Supabase CLI).
+
+   A branch can only be checked out in one worktree, so if the branch you want is held by
+   the shared tree, create a differently-named local branch off it and push with an explicit
+   refspec: `git push origin HEAD:<remote-branch>`.
+
+2. **Commit by path, always:** `git commit -F <msgfile> -- <paths>`. Commits only the named
+   paths whatever else is staged. Note `-F` goes BEFORE the `--`; after it, git reads it as
+   a pathspec and the commit fails.
+
+3. **Never bare `git stash` / `git stash pop`.** The stash stack is shared across every
+   worktree and the main checkout, so a pop can take another session's work. Prefer a
+   throwaway WIP commit. If you must stash: `git stash push -u -m "<unique-tag>"`, capture
+   the SHA from `git stash list --format='%H %gs'`, restore with `git stash apply <sha>`,
+   then drop that entry by re-finding it by tag.
+
+**Before any commit, read `git status` and confirm every path in it is yours.** If something
+unfamiliar is staged, another session put it there — leave it alone and commit by path.
 
 ## What NOT to do
 

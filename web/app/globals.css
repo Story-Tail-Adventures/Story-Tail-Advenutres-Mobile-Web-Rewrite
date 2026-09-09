@@ -1,26 +1,151 @@
+/* Story-Tail Adventures — Tailwind entry point and design-token bridge.
+ *
+ * Import order matters: @import must come first per the CSS spec, and Tailwind v4's
+ * PostCSS plugin inlines them in this order.
+ */
 @import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/components.css";
+@import "../styles/public.css";
+@import "../styles/client.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Dark mode
+ *
+ * tokens.css switches on a `.scheme-dark` CLASS — there is no prefers-color-scheme
+ * block and no [data-theme] attribute in the design source. Tailwind's stock `dark:`
+ * variant keys off prefers-color-scheme, so it would not line up. Redefine it.
+ *
+ * `:where()` keeps the variant at zero specificity, so `dark:bg-surface` still loses
+ * to a later plain utility rather than winning by accident.
+ * ───────────────────────────────────────────────────────────────────────────── */
+@custom-variant dark (&:where(.scheme-dark, .scheme-dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Fonts — NOT `inline`, deliberately.
+ *
+ * `--font-*` is Tailwind's own font-family theme namespace, and it is also what
+ * tokens.css's type ramp (.t-headline, .btn, .input …) reads. Writing
+ * `@theme inline { --font-sans: var(--font-sans) }` would be a self-reference cycle.
+ *
+ * Declaring them in a plain @theme emits them once to :root, so a single definition
+ * serves both the `font-sans` utility and every raw `var(--font-sans)` in the
+ * component layer. This is why tokens.css has its --font-* declarations stripped.
+ * ───────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --font-sans: var(--font-poppins), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-script: var(--font-caveat), var(--font-poppins), cursive;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* Screen Inventory §4.1 breakpoints: mobile < 768 (unprefixed), tablet 768–1199 (md:),
+     web ≥ 1200 (web:). `lg` (1024) stays for the (auth) split pane. */
+  --breakpoint-web: 1200px;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Colors, radii, shadows — `inline` is MANDATORY here.
+ *
+ * Plain @theme resolves `var(--md-primary)` once at :root and freezes the LIGHT
+ * value into the utility, so `.bg-primary` would stay burgundy inside .scheme-dark.
+ * @theme inline substitutes the expression into the utility itself
+ * (`.bg-primary { background-color: var(--md-primary) }`), so it re-resolves under
+ * .scheme-dark. This one keyword is the difference between dark mode working and
+ * silently not working.
+ * ───────────────────────────────────────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Purge Tailwind's default palette. A brand token or nothing — `bg-blue-500`
+     should be a build-time error, not a slow visual drift. docs/Design-System.md §12.4. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Material 3 roles */
+  --color-primary: var(--md-primary);
+  --color-on-primary: var(--md-on-primary);
+  --color-primary-container: var(--md-primary-container);
+  --color-on-primary-container: var(--md-on-primary-container);
+
+  --color-secondary: var(--md-secondary);
+  --color-on-secondary: var(--md-on-secondary);
+  --color-secondary-container: var(--md-secondary-container);
+  --color-on-secondary-container: var(--md-on-secondary-container);
+
+  --color-tertiary: var(--md-tertiary);
+  --color-on-tertiary: var(--md-on-tertiary);
+  --color-tertiary-container: var(--md-tertiary-container);
+  --color-on-tertiary-container: var(--md-on-tertiary-container);
+
+  --color-error: var(--md-error);
+  --color-on-error: var(--md-on-error);
+  --color-error-container: var(--md-error-container);
+  --color-on-error-container: var(--md-on-error-container);
+
+  --color-success: var(--md-success);
+  --color-success-container: var(--md-success-container);
+  --color-warning: var(--md-warning);
+  --color-warning-container: var(--md-warning-container);
+
+  --color-bg: var(--md-bg);
+  --color-on-bg: var(--md-on-bg);
+
+  --color-surface: var(--md-surface);
+  --color-on-surface: var(--md-on-surface);
+  --color-surface-dim: var(--md-surface-dim);
+  --color-surface-bright: var(--md-surface-bright);
+  --color-surface-1: var(--md-surface-1);
+  --color-surface-2: var(--md-surface-2);
+  --color-surface-3: var(--md-surface-3);
+  --color-surface-4: var(--md-surface-4);
+  --color-surface-5: var(--md-surface-5);
+  --color-on-surface-variant: var(--md-on-surface-variant);
+
+  --color-outline: var(--md-outline);
+  --color-outline-variant: var(--md-outline-variant);
+  --color-scrim: var(--md-scrim);
+
+  /* Brand source colors — for the few places that need the literal brand hue
+     rather than a semantic role (the WELCOME BACK overline, the wordmark). */
+  --color-brand-burgundy: var(--brand-burgundy);
+  --color-brand-burgundy-dark: var(--brand-burgundy-dark);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-light: var(--brand-orange-light);
+  --color-brand-sunset: var(--brand-sunset);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-ocean: var(--brand-ocean);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-sand: var(--brand-sand);
+
+  /* Shape scale — docs/Design-System.md §6 */
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-full: var(--r-full);
+
+  /* Elevation — docs/Design-System.md §7 */
+  --shadow-1: var(--md-shadow-1);
+  --shadow-2: var(--md-shadow-2);
+  --shadow-3: var(--md-shadow-3);
+  --shadow-4: var(--md-shadow-4);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    background: var(--md-bg);
+    /* Both schemes are authored, so let the UA style form controls and scrollbars
+       to match whichever is active. */
+    color-scheme: light dark;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background: var(--md-bg);
+    color: var(--md-on-bg);
+    font-family: var(--font-sans);
+  }
 }

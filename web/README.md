@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# `web/` — Next.js app
 
-## Getting Started
+The browser face of Story-Tail Adventures. Next.js App Router + React + TypeScript +
+Tailwind, talking to Supabase directly for reads and to Edge Functions for privileged writes.
 
-First, run the development server:
+Run it from the repo root, not from here — `web` is an npm workspace and the only lockfile is
+the root `package-lock.json`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev -w web         # dev server on http://localhost:3000
+npm run typecheck -w web
+npm run lint -w web
+npm run test -w web
+npm run build -w web       # production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.example` to `.env.local` and fill it in; `supabase status` prints the local values
+after `supabase start`. `lib/env.ts` is the only place these are read, and it **fails closed
+in production** — a missing `NEXT_PUBLIC_SITE_URL` throws at build time rather than shipping
+wrong canonical URLs and email redirects.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Two of them are a trap worth knowing about: no prerendered route reads
+`NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`, so a build missing them
+**succeeds** — and then every request 500s in the proxy. `deploy.yml` asserts their presence
+before building for exactly this reason.
 
-## Learn More
+Keep it that way. The signed-in chrome on the public pages is the one feature that would have
+been natural to build by reading `NEXT_PUBLIC_SUPABASE_URL` in the browser (to derive the
+name of Supabase's auth cookie). It deliberately does not — the proxy publishes a flag cookie
+of our own instead, and `lib/auth/chrome-flag.ts` records why. A CI build with no Supabase
+env still produces byte-identical public HTML to production's.
 
-To learn more about Next.js, take a look at the following resources:
+`SUPABASE_SERVICE_ROLE_KEY` must never appear anywhere under `web/`. It bypasses RLS and
+belongs only to Edge Functions, which receive it automatically.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Public content gate
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`content/public/proof.ts` tracks which marketing claims, testimonials, photos, prices and
+legal pages are verified. While any are placeholders, `<PlaceholderBanner/>` renders on every
+public page. Setting `PUBLIC_CLAIMS_MODE=strict` turns that into a build failure — it is the
+gate for the day the site goes to a real domain, and it is deliberately unset until then.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Not from here, and not from the Vercel dashboard. `.github/workflows/deploy.yml` builds and
+deploys this app on merge to `production`, gated on CI. See **Deployment** in the root
+`README.md` for the full picture, including which half of a deploy Supabase owns.

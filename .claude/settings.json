@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git blame:*)",
+      "Bash(git remote -v)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(du:*)",
+      "Bash(diff:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run generate:*)",
+      "Bash(npm run supabase:types)",
+      "Bash(npx tsc --noEmit:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx turbo run typecheck:*)",
+      "Bash(npx turbo run lint:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(./gradlew :shared:assembleAndroidMain:*)",
+      "Bash(./gradlew :shared:testAndroidHostTest:*)",
+      "Bash(./gradlew :shared:compileKotlinIosSimulatorArm64:*)",
+      "Bash(./gradlew :shared:compileKotlinIosArm64:*)",
+      "Bash(./gradlew :androidApp:assembleDebug:*)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(./gradlew --version)",
+      "Bash(supabase status:*)",
+      "Bash(supabase start)",
+      "Bash(supabase stop)",
+      "Bash(supabase init)",
+      "Bash(supabase migration list:*)",
+      "Bash(supabase migration new:*)",
+      "Bash(supabase db lint:*)",
+      "Bash(supabase db diff:*)",
+      "Bash(supabase gen types:*)",
+      "Bash(supabase functions new:*)",
+      "Bash(supabase functions serve:*)",
+      "Bash(supabase --version)",
+      "Bash(deno check:*)",
+      "Bash(deno lint:*)",
+      "Bash(deno fmt --check:*)",
+      "Bash(psql postgresql://postgres:postgres@127.0.0.1:54322/*)",
+      "Bash(adb devices)",
+      "Bash(adb install:*)",
+      "Bash(adb shell am start:*)",
+      "Bash(adb exec-out screencap:*)",
+      "Bash(adb logcat:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "ask": [
+      "Bash(supabase db reset:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(brew install:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git restore:*)",
+      "Bash(supabase secrets:*)",
+      "Bash(gh pr merge:*)"
+    ],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(rmdir:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(supabase link:*)",
+      "Bash(supabase db push:*)",
+      "Bash(supabase functions deploy:*)",
+      "Bash(supabase projects:*)",
+      "Bash(vercel:*)",
+      "Bash(gh release:*)",
+      "Bash(stripe:*)",
+      "Read(./.env)",
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.*.local)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./mobile/local.properties)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/stack-boundary-guard.py\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/pan-secret-guard.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -75,6 +75,14 @@ supabase/.env
 *.pem
 *.key
 
+# === Vercel ===
+# `vercel link` / `vercel pull` write org and project ids to .vercel/project.json, and
+# `vercel pull` drops .env.production.local — every production value in plaintext — beside
+# it. The CLI auto-ignores whichever directory it links (that is web/.gitignore today), but
+# the deploy runs the CLI from the REPO ROOT, so a local run leaves .vercel/ here instead.
+# Vercel's own README in that folder: "you should not share the '.vercel' folder with anyone."
+.vercel/
+
 # === Build outputs (do NOT ignore contracts/ts/ or contracts/kotlin/ — those are committed) ===
 dist/
 coverage/
@@ -100,3 +108,33 @@ reference.docx
 # Local-only overrides (permissions, env, etc.). The shared .claude/agents/,
 # .claude/skills/, and .claude/settings.json (when present) ARE tracked.
 .claude/settings.local.json
+
+# Worktrees. Two Claude sessions sharing one working tree also share one INDEX, and a bare
+# `git commit` commits the whole index — so one session's staged work rides along in the
+# other's commit, silently. That happened: three cruise-sync commits swallowed a concurrent
+# brand rework and broke CI on three jobs. A worktree per session gives each its own index
+# and HEAD over the same object store, which removes the hazard rather than managing it.
+# Ignored because a worktree directory inside the repo is otherwise untracked content —
+# i.e. exactly the sort of thing that gets swept into a commit.
+.claude/worktrees/
+
+# Python bytecode (the CI guard scripts in .github/scripts/)
+__pycache__/
+*.py[cod]
+
+# Deno's lock belongs beside supabase/functions/deno.json, not at the repo root.
+/deno.lock
+.vercel
+.env*
+
+# Claude Design sync working artifacts, all regenerable from the repo's own dist/ by
+# re-running the design-sync skill: staged converter scripts, the bundle it uploads, and
+# the assets/previews it captures on the way. `.design-sync/config.json` and NOTES.md are
+# deliberately NOT ignored — they carry the project id and the per-repo corrections that
+# make the next sync fast, and the skill expects them committed.
+/.ds-sync/
+/ds-bundle/
+/web/.ds-sync-assets/
+/.design-sync/.cache/
+/.design-sync/previews/
+/.design-sync/fonts/
