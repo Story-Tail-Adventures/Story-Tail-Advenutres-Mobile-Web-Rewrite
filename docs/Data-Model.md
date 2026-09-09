@@ -127,6 +127,15 @@ The final section is **Open Questions** — areas where the model is intentional
 | Document | Document | P1 | Generic file/asset (uploaded or generated) |
 | SavedSearch | Search | P2 | Persisted search criteria for a client |
 | Favorite | Search | P2 | Bookmarked search result |
+| CruiseLine | Cruise Catalog | P2 | A cruise line, as synced provider content plus an editorial layer |
+| CruiseShip | Cruise Catalog | P2 | A ship in a line's fleet, with its coverage window |
+| CruisePort | Cruise Catalog | P2 | An embarkation port or port of call |
+| CruiseSailing | Cruise Catalog | P2 | One dated departure — what a quote request points at |
+| CruisePortCall | Cruise Catalog | P2 | One itinerary stop on a sailing, in order |
+| CruiseSailingCabinPrice | Cruise Catalog | P2 | Per-cabin per-person fare for a sailing |
+| CruiseSyncScope | Cruise Catalog | P2 | What the cruise sync may fetch — configuration, not code |
+| CruiseSyncRun | Cruise Catalog | P2 | One invocation of the cruise sync and what it spent |
+| CruiseApiRequest | Cruise Catalog | P2 | Append-only ledger of every provider HTTP call (quota) |
 | AuditEvent | System | P1 | Append-only log of significant actions |
 | Integration | System | P2 | Configuration record for an external API (Amadeus, Hotelbeds, etc.) |
 | FeatureFlag | System | P1 | Optional — toggles for partial rollouts |
@@ -1823,6 +1832,9 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `payment_milestone_kind` | `deposit`, `interim`, `final` | PaymentMilestone |
 | `payment_milestone_status` | `scheduled`, `paid`, `waived`, `overdue` | PaymentMilestone |
 | `testimonial_status` | `draft`, `submitted`, `approved`, `published`, `declined` | Testimonial |
+| `cruise_sync_endpoint` | `cruise_lines`, `filter_options`, `coverage`, `ships`, `ports`, `cruises`, `cruise_detail` | CruiseSyncScope, CruiseApiRequest |
+| `cruise_sync_status` | `running`, `ok`, `partial`, `skipped`, `failed` | CruiseSyncRun, CruiseSyncScope |
+| `cruise_sync_trigger` | `cron`, `manual` | CruiseSyncRun |
 
 ---
 
@@ -1971,6 +1983,10 @@ Use `archived_at` (not `deleted_at`) on:
 - `companion`
 - `travel_document`
 - `feature_flag`
+- `cruise_line` (P2)
+- `cruise_ship` (P2)
+- `cruise_port` (P2)
+- `cruise_sailing` (P2)
 
 Queries default to filtering `archived_at IS NULL`. Restoration is straightforward (clear the timestamp).
 
@@ -2159,6 +2175,401 @@ Decisions that should be settled with the implementation team before initial mig
 **Soft-delete cascade behavior.** If a Client is archived, should their Trips be auto-archived too? The current model says no — trips remain queryable for reports — but the agent UI should clearly indicate "client archived" on those trips. Confirm with the agent UX.
 
 **Multi-currency on Trip.** The model has one `currency` per Trip. In practice a single trip can have suppliers quoting in different currencies (a Caribbean resort in USD plus a European insurer in EUR). The Trip's currency is the "presented to client" currency; individual TripComponents may have their own currency in the payload. Confirm this is the right modeling.
+
+---
+
+## 24. Cruise Catalog Domain (Phase 2)
+
+Provider-sourced cruise content, populated by a scheduled sync rather than by a human or a
+request-time proxy. The architecture, and these entity names, come from
+`Free-Travel-APIs.md` §10.1 ("Sync, don't proxy") and §4.7; §1.0 fixes the scope: *cruise
+line, ship, itinerary (ports and sailing dates), price optional, no cabin availability, no
+booking.*
+
+**Numbered 24 rather than inserted near the Search domain on purpose.** Sections 15, 19, 20
+and 21 are referenced by number from `CLAUDE.md`, from Edge Function comments, and from the
+`supabase-reviewer` and `audit-pci` skills. Renumbering to put this in domain order would
+invalidate every one of those references to buy nothing.
+
+### 24.0 Four rules this domain exists to obey
+
+1. **The raw payload is stored beside the normalised row.** A mapping bug becomes a
+   re-derivation instead of a re-fetch against a quota (§10.1).
+2. **Provider ids are external references, never primary keys.** Every table has its own
+   UUID v7 `id` plus a `(provider, provider_key)` pair — the same shape
+   `favorite.entity_key` ("API-source-specific stable ID") and
+   `trip_component.api_source` / `api_reference` already use.
+3. **Curated content wins over synced content, as a layer rather than an edit.** Nothing the
+   sync writes may clobber an editorial decision. `cruise_line.slug`, `display_order` and
+   `is_booked` are ours; the provider never sets them.
+4. **Provider vocabularies are `text`, not enums.** Company slugs, locales, cabin codes,
+   destinations and port names all belong to the provider and grow without notice. Per §22.4
+   these are the "frequently-evolving lookups" case — and the failure mode of an enum here is
+   a sync that dies on a cabin tier a cruise line invented last week. Only the three
+   vocabularies this platform owns (`cruise_sync_endpoint`, `cruise_sync_status`,
+   `cruise_sync_trigger`) are real enums.
+
+### 24.1 CruiseLine
+
+**Purpose:** A cruise line as both editorial and synced content. This is the table behind the
+"lines we book" chip row on Screen 2.0.9, and the answer to "which lines, and what date range
+do we have for each" — the departure window in `earliest_departure` / `latest_departure` is
+the "dates" half of the catalog.
+
+**Phase:** P2
+
+**Why this is not `supplier`.** `supplier.kind` already has a `cruise_line` value, but
+`supplier` is Internal commission-and-payment plumbing (`default_commission_pct`,
+`payment_portal_url`, `payment_api_endpoint`) with a lookup-table access posture. This table
+is public-facing catalog content on a refresh cadence. They are different things with
+different sensitivity, so this is a separate table with an optional FK to it, not a
+projection over it.
+
+**Why `slug` is ours and `provider_key` is theirs.** `web/content/public/cruise-lines.ts`
+already ships eight URL-stable slugs. The provider's `company` values agree on four
+(`royal-caribbean`, `princess`, `carnival`, `holland-america`) and disagree on three
+(`celebrity-cruises`, `disney-cruise-line`, `ncl` against `celebrity`, `disney`,
+`norwegian`). It also has three lines Story-Tail does not book (`costa`, `msc`, `aida`) and
+is missing one it does: **Virgin Voyages has no provider coverage at all.** A synced row can
+therefore never be the whole story, which is rule 3 in concrete form.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7, ours |
+| `slug` | `text` | No | Public | **Ours.** URL-stable, unique. Matches `CRUISE_LINES` where they overlap |
+| `name` | `text` | No | Public | Display name |
+| `supplier_id` | `uuid` | Yes | Internal | FK → Supplier, when a commission relationship exists |
+| `display_order` | `integer` | No | Public | Editorial ordering; the provider never sets it |
+| `is_booked` | `boolean` | No | Public | True for a line Story-Tail actually books. Editorial |
+| `ship_count` | `integer` | Yes | Public | Provider-reported |
+| `sailing_count` | `integer` | Yes | Public | Provider-reported |
+| `destination_count` | `integer` | Yes | Public | Provider-reported |
+| `earliest_departure` | `date` | Yes | Public | Start of the provider's coverage window |
+| `latest_departure` | `date` | Yes | Public | End of the provider's coverage window |
+| `destinations` | `text[]` | No | Public | Default `{}` |
+| `locales` | `text[]` | No | Public | Markets the provider covers for this line |
+| `provider` | `text` | Yes | Internal | `track_cruises`. Null on a purely curated row |
+| `provider_key` | `text` | Yes | Internal | The provider's `company` slug |
+| `provider_payload` | `jsonb` | Yes | Internal | Raw response, per rule 1 |
+| `provider_updated_at` | `timestamptz` | Yes | Internal | Provider's own freshness stamp |
+| `synced_at` | `timestamptz` | Yes | Internal | When we last wrote from the feed |
+| `first_seen_at` | `timestamptz` | Yes | Internal | — |
+| `last_seen_at` | `timestamptz` | Yes | Internal | Drives archival when a row leaves the feed |
+| `archived_at` | `timestamptz` | Yes | Public | Soft delete (§20.1) |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Indexes:** unique on `slug`; unique on `(provider, provider_key)` where `provider` is not
+null; index on `(is_booked, display_order)` for the chip row.
+
+### 24.2 CruiseShip
+
+**Purpose:** A ship in a line's fleet, with its own coverage window. Filter input for Screen
+2.3.4's rail (line, ship, ports, length, departure port).
+
+**Phase:** P2
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `cruise_line_id` | `uuid` | No | Public | FK → CruiseLine |
+| `name` | `text` | No | Public | "Costa Toscana" |
+| `slug` | `text` | Yes | Public | Ours, for a future ship route |
+| `sailing_count` | `integer` | Yes | Public | Provider-reported |
+| `earliest_departure` | `date` | Yes | Public | — |
+| `latest_departure` | `date` | Yes | Public | — |
+| provenance columns | — | — | Internal | As §24.1 |
+| `archived_at` / `created_at` / `updated_at` | — | — | Public | — |
+
+**Indexes:** unique on `(cruise_line_id, name)`; unique on `(provider, provider_key)` where
+`provider` is not null.
+
+### 24.3 CruisePort
+
+**Purpose:** A port the provider knows about, as an embarkation or call. Filter input for
+2.3.4, and the eventual pin source for Pattern F's synchronised map (§4.4 of the Screen
+Inventory).
+
+**Phase:** P2
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `name` | `text` | No | Public | Unique. Provider format is "Barcelona, Spain" |
+| `sailing_count` | `integer` | Yes | Public | Provider-reported, across all lines |
+| `latitude` | `numeric(9,6)` | Yes | Public | **Provider supplies none.** Manual or geocoded |
+| `longitude` | `numeric(9,6)` | Yes | Public | Same |
+| provenance columns | — | — | Internal | As §24.1 |
+| `archived_at` / `created_at` / `updated_at` | — | — | Public | — |
+
+Coordinates are nullable and unpopulated on purpose: the map is not built, and inventing
+coordinates the provider did not supply would be worse than leaving the pin absent.
+
+### 24.4 CruiseSailing
+
+**Purpose:** One dated departure — the row a client eventually points at when they ask for a
+quote.
+
+**Phase:** P2
+
+**The natural key is a triple, not the provider's id.** The provider's spec is explicit that
+cruise ids are unique only *per line* — Princess and Holland America both use the `Y731`
+voyage-code format — and the same id recurs *per locale* with different pricing and currency.
+So uniqueness is `(provider, provider_key, provider_locale)`. Getting this wrong silently
+merges two different sailings.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7, ours. This is what a Trip would reference |
+| `cruise_line_id` | `uuid` | No | Public | FK → CruiseLine |
+| `ship_id` | `uuid` | Yes | Public | FK → CruiseShip. Provider's `ship_name` can be null |
+| `provider` | `text` | No | Internal | Part of the natural key, so not nullable here |
+| `provider_key` | `text` | No | Internal | The provider's `cruise_id` |
+| `provider_locale` | `text` | No | Internal | Market; determines `currency` |
+| `title` | `text` | Yes | Public | Provider's voyage title |
+| `departure_date` | `date` | No | Public | — |
+| `duration_nights` | `integer` | Yes | Public | Provider's `duration` |
+| `lead_price_cents` | `bigint` | Yes | **Internal** | Lowest per-person fare seen. See below |
+| `currency` | `char(3)` | Yes | Internal | ISO 4217, from the locale |
+| `lead_price_eur_cents` | `bigint` | Yes | Internal | The provider's cross-market comparable |
+| `destinations` | `text[]` | No | Public | Default `{}` |
+| `itinerary_url` | `text` | Yes | Public | Deep link to the line's own page |
+| `provider_payload` | `jsonb` | Yes | Internal | Raw response |
+| `provider_updated_at` | `timestamptz` | Yes | Internal | Feeds incremental sync |
+| `synced_at` / `first_seen_at` / `last_seen_at` | `timestamptz` | Yes | Internal | — |
+| `archived_at` | `timestamptz` | Yes | Public | Soft delete |
+| `created_at` / `updated_at` | `timestamptz` | No | Public | — |
+
+**Why the price is Internal.** `Free-Travel-APIs.md` §10.2 says to give the *public content
+types* no price field, and §1.0 makes price optional for cruises; BRD §10.5 forbids charging
+a client anything. None of that argues against storing the number — Gyasi quotes from it, and
+it is the only figure the provider's own `min_price_eur` / `max_price_eur` filters operate
+on. So it is stored, classified Internal, and granted to no client role. If it ever reaches a
+public surface it must carry the hedging apparatus `web/content/public/types.ts` already
+defines (`pricePlaceholder`, `priceSource`, `priceNote`, `priceAsOf`), because
+`Free-Travel-APIs.md:318` is explicit that a displayed price goes stale and re-opens
+compliance §9.2.
+
+**Indexes:** unique on `(provider, provider_key, provider_locale)`; `(departure_date)`;
+`(cruise_line_id, departure_date)`; `(provider, provider_updated_at DESC)` for the
+`sort=updated_at:desc` incremental pass.
+
+### 24.5 CruisePortCall
+
+**Purpose:** One itinerary stop on a sailing, in order. The `port_call` entity named in
+`Free-Travel-APIs.md` §10.1.
+
+**Phase:** P2
+
+**`sequence` exists because `day` is not reliable.** The provider documents that `day` is
+null whenever the source feed omitted it — *every* Holland America sailing, per its own spec
+note — and instructs buyers to treat null as "unknown day" rather than 0 or 1. Ordering an
+itinerary by a column that is null for a whole cruise line produces a scrambled itinerary, so
+ordering is by `sequence`, which we assign densely from the array position the provider
+returned. `day` is preserved as provider data, and is display-only.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `sailing_id` | `uuid` | No | Public | FK → CruiseSailing, `ON DELETE CASCADE` |
+| `port_id` | `uuid` | Yes | Public | FK → CruisePort, when the name resolves |
+| `port_name` | `text` | No | Public | Denormalised; the provider sends free text |
+| `sequence` | `integer` | No | Public | **Ours.** 1-based array position. Ordering key |
+| `day` | `integer` | Yes | Public | Provider's 1-indexed day. Null for all HAL sailings |
+| `arrival_at` | `timestamptz` | Yes | Public | Not populated for all lines |
+| `departure_at` | `timestamptz` | Yes | Public | Not populated for all lines |
+| `created_at` / `updated_at` | `timestamptz` | No | Public | — |
+
+Port calls carry no `archived_at`: they are wholly owned by their sailing and replaced as a
+set on each sync, which is why the FK cascades.
+
+**Indexes:** unique on `(sailing_id, sequence)`; index on `(port_id)`.
+
+### 24.6 CruiseSailingCabinPrice
+
+**Purpose:** Per-cabin, per-person pricing for one sailing.
+
+**Phase:** P2
+
+Only `GET /cruises/{id}` returns `cabin_prices_per_person`; the list endpoint omits it to keep
+responses lean. So these rows exist only for sailings someone has spent a detail request on —
+which on the free tier means the handful a client has asked to be quoted. Absence of rows is
+normal and is not an error. The provider also notes Costa's cabin source has been unavailable
+since 2026-04-21, so Costa sailings legitimately have none.
+
+`cabin_code` is `text`, not an enum, per §24.0 rule 4: the documented set (`INTERIOR`,
+`OCEANVIEW`, `BALCONY`, `MINISUITE`, `SUITE`) is open-ended by the provider's own admission
+("plus line-specific tiers like `CONCIERGE`, `AQUA`, `VISTA_SUITE`, `NEPTUNE_SUITE`,
+`HAVEN`"), and a new tier must not fail a sync.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `sailing_id` | `uuid` | No | Public | FK → CruiseSailing, `ON DELETE CASCADE` |
+| `cabin_code` | `text` | No | Public | Normalised by the provider, open vocabulary |
+| `price_cents` | `bigint` | No | **Internal** | Per person, sailing's local currency |
+| `currency` | `char(3)` | No | Internal | — |
+| `created_at` / `updated_at` | `timestamptz` | No | Public | — |
+
+**Indexes:** unique on `(sailing_id, cabin_code)`.
+
+### 24.7 CruiseSyncScope
+
+**Purpose:** What the sync is allowed to fetch, as configuration rather than code. One row is
+one unit of work.
+
+**Phase:** P2
+
+This table is the reason the free tier is a parameter rather than a constraint baked into the
+handler. The provider's BASIC tier allows **100 requests/month at 10 rows/request** — 1,000
+rows/month — against a sailing inventory of order 100,000 rows, so mirroring the inventory is
+arithmetically out of reach (roughly eight years) and no batching strategy changes that. What
+*is* affordable is the reference catalog: `/cruise-lines`, `/filter-options` and `/coverage`
+are unpaginated, so three requests refresh every line, ship, port, destination, locale and
+departure window. The reference scopes therefore ship enabled and the sailing scopes ship
+present-but-disabled; a tier upgrade is an `UPDATE ... SET enabled = true` and a wider
+`max_rows_per_request`, not a rewrite.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `label` | `text` | No | Internal | Human name, for the run log |
+| `endpoint` | `cruise_sync_endpoint` enum | No | Internal | Which call this scope makes |
+| `enabled` | `boolean` | No | Internal | **Default false.** Nothing runs unless asked |
+| `priority` | `integer` | No | Internal | Lower runs first. Reference before sailings |
+| `company` | `text` | Yes | Internal | Provider slug; null means all |
+| `locale` | `text` | Yes | Internal | Null means the provider default |
+| `destination` | `text` | Yes | Internal | Provider destination filter |
+| `departure_within_days` | `integer` | Yes | Internal | Rolling window from today. See below |
+| `max_rows_per_request` | `integer` | No | Internal | Default 10 — the BASIC row cap |
+| `max_requests_per_run` | `integer` | No | Internal | Default 1 |
+| `cursor` | `text` | Yes | Internal | Persisted `next_cursor`, for resume |
+| `cursor_set_at` | `timestamptz` | Yes | Internal | — |
+| `high_water_updated_at` | `timestamptz` | Yes | Internal | Newest `updated_at` already ingested |
+| `last_run_at` | `timestamptz` | Yes | Internal | — |
+| `last_status` | `cruise_sync_status` enum | Yes | Internal | — |
+| `last_error` | `text` | Yes | Internal | — |
+| `created_at` / `updated_at` | `timestamptz` | No | Public | — |
+
+**The window is rolling, not absolute.** `departure_within_days` rather than a
+`departure_after` / `departure_before` pair, because a scheduled job configured with absolute
+dates keeps running successfully and silently syncing nothing the moment the window falls
+into the past. A rolling window cannot expire.
+
+**`cursor` and `high_water_updated_at` are what make a budget of three requests a day
+workable.** The provider's pagination is cursor-only (`starting_after` ← `next_cursor`; there
+is no page or offset parameter), so a catalog pass that takes weeks of daily budget has to
+resume where it stopped or it re-pays for pages it already has. `high_water_updated_at`
+supports the incremental pass: the provider offers no "updated since" filter, but it does
+offer `sort=updated_at:desc`, so a refresh reads newest-first and stops at the high-water
+mark. As a side effect no single invocation comes near the 150-second Edge Function ceiling
+that `Tech-Recommendations.md` §7 flags.
+
+### 24.8 CruiseSyncRun
+
+**Purpose:** One row per invocation of the sync — what it did, what it spent, how it ended.
+
+**Phase:** P2
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `trigger` | `cruise_sync_trigger` enum | No | Internal | `cron` or `manual` |
+| `status` | `cruise_sync_status` enum | No | Internal | Default `running` |
+| `started_at` | `timestamptz` | No | Internal | — |
+| `finished_at` | `timestamptz` | Yes | Internal | Null while running, or after a hard crash |
+| `scopes_run` | `integer` | No | Internal | Default 0 |
+| `requests_spent` | `integer` | No | Internal | Default 0 |
+| `rows_upserted` | `integer` | No | Internal | Default 0 |
+| `rows_archived` | `integer` | No | Internal | Default 0 |
+| `quota_limit` | `integer` | Yes | Internal | As last reported by the relay |
+| `quota_remaining` | `integer` | Yes | Internal | — |
+| `quota_reset_seconds` | `integer` | Yes | Internal | — |
+| `error_code` | `text` | Yes | Internal | — |
+| `error_detail` | `text` | Yes | Internal | Never contains the API key |
+| `created_at` / `updated_at` | `timestamptz` | No | Public | — |
+
+This is the operational record. It is deliberately *not* the audit trail: see §24.10.
+
+### 24.9 CruiseApiRequest
+
+**Purpose:** One row per HTTP call to the provider. The quota ledger.
+
+**Phase:** P2
+
+**Separate from CruiseSyncRun because not every request belongs to a run.** A quote-time
+detail refetch spends quota outside any sync, so `run_id` is nullable and the month-to-date
+count has to come from this table, not from summing runs.
+
+**Append-only**, so it carries `created_at` and no `updated_at` — the same posture as
+`card_use_event` and `audit_event`.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | UUID v7 |
+| `run_id` | `uuid` | Yes | Internal | FK → CruiseSyncRun. Null for out-of-band calls |
+| `provider` | `text` | No | Internal | Default `track_cruises` |
+| `endpoint` | `cruise_sync_endpoint` enum | No | Internal | — |
+| `path` | `text` | No | Internal | Request path only |
+| `query` | `jsonb` | No | Internal | Default `{}`. **Sanitised — never the key** |
+| `status_code` | `integer` | Yes | Internal | Null if the request never completed |
+| `rows_returned` | `integer` | Yes | Internal | Detects a silent tier row-cap clamp |
+| `duration_ms` | `integer` | Yes | Internal | — |
+| `provider_request_id` | `text` | Yes | Internal | The provider's ULID, for support tickets |
+| `quota_limit` | `integer` | Yes | Internal | `x-ratelimit-requests-limit` |
+| `quota_remaining` | `integer` | Yes | Internal | `x-ratelimit-requests-remaining` |
+| `quota_reset_seconds` | `integer` | Yes | Internal | `x-ratelimit-requests-reset` |
+| `error_code` | `text` | Yes | Internal | — |
+| `error_detail` | `text` | Yes | Internal | Never contains the API key |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**Every request is logged before it is judged**, including failures and 429s, because a
+rejected request has usually still been counted by the relay. A ledger that only recorded
+successes would drift optimistic in exactly the situation where accuracy matters.
+
+**The relay reports the truth, and it wins.** RapidAPI returns
+`x-ratelimit-requests-limit` / `-remaining` / `-reset` on every response. When the header
+says fewer requests remain than this ledger implies — quota spent from a second environment,
+a manual `curl`, a colleague's test — the header is authoritative, the drift is recorded, and
+the run stops. The local count is a pre-flight guard, not the source of truth.
+
+**Indexes:** index on `(created_at DESC)` (the month-to-date ledger read); index on
+`(run_id)`.
+
+### 24.10 Access and audit posture for this domain
+
+**RLS: enabled, and no policies.** Every table here follows the pattern all fifteen existing
+migrations use — `ENABLE ROW LEVEL SECURITY` plus an explicit
+`REVOKE ALL ... FROM anon, authenticated`, which is load-bearing rather than decorative
+because `config.toml` sets `auto_expose_new_tables = true`. Writes are service-role only,
+through the sync function.
+
+**The public read path is deliberately not decided here.** The catalog exists to be read
+anonymously eventually, and this schema would be the first table in the codebase to need
+that: there are currently zero `TO anon` policies, and `20260907113546_revoke_write_grants.sql`
+enforces the opposite. The two candidates are an `anon` SELECT policy gated on a published
+flag — the `testimonial` / `itinerary.published_at` pattern, where the gate doubles as the
+compliance review `Free-Travel-APIs.md` §10.1 wants before a synced page goes live — or a
+service-role read from a Next.js server component, which is how `web/lib/onboarding/api.ts`
+already talks to the backend. That choice belongs with the search work, not with the sync, and
+until it is made nothing can read these tables unauthenticated.
+
+**Audit: one row per run, not one per sailing.** CLAUDE.md rule 3 names the sensitive tables
+it governs — `payment_card`, `card_authorization`, `commission`, `client` — and none of these
+are among them; `onboarding-step` already sets the precedent of deliberately writing no audit
+row, with a comment saying why. A per-row trail here would also be actively harmful: it would
+write thousands of `audit_event` rows per run through the non-atomic path
+`_shared/audit.ts` documents at length. So the sync writes a single `cruise.synced` event per
+run with counts in its metadata, and `cruise_sync_run` carries the detail.
+
+**The actor is a machine.** §15.1 makes `audit_event.actor_user_id` nullable explicitly "for
+system events", and `actor_role` alongside it. A sync job has no `platform_user` row, so both
+are null — which is why `_shared/audit.ts` needs a system-actor entry point rather than
+`writeAuditEvent(ctx, ...)`, whose `AuthContext` presumes a human.
+
+**Nothing in this domain is in PCI scope.** No PAN, no Stripe token, no card FK. The prices
+here are supplier fares for display and quoting, not amounts anyone is charged — BRD §10.5
+forbids charging a client at all. The `audit-pci` skill should read this section and move on.
 
 ---
 
