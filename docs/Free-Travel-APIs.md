@@ -261,7 +261,7 @@ Once rates come off the table (§1.0), "location, images, ratings" starts to loo
 
 ### 4.1 There is no free cruise API — but §1.0 asks for the cheap half
 
-Not a gap in this research — a fact about the market. `BRD.md` §9.3 already says cruise APIs are "notoriously fragmented," and the free-tier picture confirms it: **no cruise data provider offers a free production tier, a free quota, or open data.** Every option below is a commercial contract with, at best, a free evaluation period.
+Not a gap in this research — a fact about the market. `BRD.md` §9.3 already says cruise APIs are "notoriously fragmented," and the free-tier picture very nearly confirms it. **Of the established cruise-content vendors, none offers a free production tier, a free quota, or open data** — each is a commercial contract with, at best, a free evaluation period. The one exception is a newer entrant, track.cruises (§4.8), whose free tier is real but quota-bound to 1,000 rows a month and covers ten lines rather than sixty.
 
 The structural reason: cruise inventory is controlled by a small number of lines who distribute through agency relationships, not through developer portals. There is no cruise equivalent of Amadeus Self-Service.
 
@@ -316,6 +316,105 @@ Given that no free cruise API exists but §1.0 only needs content, the realistic
 6. **Defer Traveltek / Odysseus / Revelex** until cruise volume justifies a booking-engine licence. Under §1.0 that may be never — they sell availability, which the product does not use.
 
 **On price being optional.** If a sailing's lead-in fare is available from the feed, showing it as clearly-labelled indicative pricing is a merchandising win. But it re-opens §1.3.4 and §9.2, and it puts a number on the page that goes stale. **Recommendation: launch without it.** Revisit once compliance has ruled on §9.2 and there is a refresh cadence that keeps a displayed fare honest.
+
+### 4.8 track.cruises — Cruise Pricing API — **Tier B, a real free tier**
+
+Added after v1.1. **This is the entry that falsifies §4.1's flat claim** that no cruise data
+provider offers a free production tier — one does, and it is the provider this codebase is
+building against first.
+
+- **What it gives you:** Nine cruise lines under one normalised schema — `royal-caribbean`,
+  `celebrity-cruises`, `disney-cruise-line`, `princess`, `carnival`, `ncl`,
+  `holland-america`, `msc`, `costa` — with sailings, ordered port-by-port itineraries, ship
+  and port catalogues, destinations, per-market pricing, and a year of daily price history on
+  paid tiers. Content and pricing, no availability, no booking.
+  *(Their `CompanyEnum` also lists `aida`, but a live `/cruise-lines` returns nine and omits
+  it. Their `LocaleEnum` lists eight locales; live responses include a ninth, `pt_BR`, priced
+  in BRL — and `/coverage` reports **thirteen** markets in all, adding `en_IE`, `es_ES`,
+  `fr_FR` and `ja_JP`. Treat both published enums as approximate; the schema does.)*
+- **How free:** **BASIC is $0 with no card**, and it is real production data — the spec is
+  explicit that the free tier "returns the same real-time data as paid tiers." The limits are
+  what bite: **100 requests/month and 10 rows/request.** `GET /cruises/{id}/price-history`
+  returns 403 on BASIC; everything else is reachable.
+- **Signup:** Through **RapidAPI** — there is no direct subscription, all tiers relay through
+  `cruise-pricing-api1.p.rapidapi.com`. Auth is `X-RapidAPI-Key` + `X-RapidAPI-Host`. The
+  OpenAPI 3.1 spec is public and unauthenticated at `https://www.track.cruises/openapi.json`.
+- **Paid ladder:** PRO $49/mo (10k requests, 100 rows, price history, webhooks), ULTRA $299
+  (100k, 500 rows, 99.5% SLA), MEGA $1,499 (1M, 1000 rows, raw database dumps).
+- **Terms — and this is the clause that matters for §10.1:** §4.4 permits caching ("You may
+  cache results per your subscription plan") and explicitly permits derivative use to "power
+  end-user products (travel agency tools, comparison sites, internal analytics)". What it
+  forbids is bulk redistribution of raw responses and building a competing cruise-data API.
+  **So storing normalised rows in Postgres is licensed; proxying raw provider responses to a
+  client is not.** That is a point in favour of the sync architecture, and it partially
+  answers open question §9.10 for this provider.
+- **Coverage against the eight lines Story-Tail books** (`web/content/public/cruise-lines.ts`):
+  four slugs match exactly (`royal-caribbean`, `princess`, `carnival`, `holland-america`),
+  three need mapping (`celebrity-cruises`→`celebrity`, `disney-cruise-line`→`disney`,
+  `ncl`→`norwegian`), and **Virgin Voyages is not covered at all.** Three lines are covered
+  that Story-Tail does not book (`costa`, `msc` — European markets). So the feed can never be
+  the whole catalogue, which is §10.1's "curated content wins" rule arriving as a fact rather
+  than a preference.
+- **There is an undocumented per-minute throttle on BASIC, and retrying it is expensive.**
+  It arrives as the relay's bare `{"message": "You have exceeded the rate limit per
+  minute..."}` with no `Retry-After` and no `retry_after_seconds`, and the window it wants is
+  around a minute. A backoff measured in hundreds of milliseconds therefore fails again
+  immediately — three metered requests to learn nothing, measured as a scope budgeted for 4
+  spending 6. A 429 carrying no guidance is treated as terminal for that run; the scope's
+  cursor persists, so the next run continues from the same page for free.
+- **`GET /cruises/{id}` ignores `locale`.** It takes no such parameter and discards one sent
+  anyway (tested): it answers `de_DE`/EUR regardless of the market the sailing was synced
+  in. So cabin-level pricing is only ever available in euros, whatever the storefront's
+  currency, and writing the response back wholesale would rewrite `provider_locale` — part
+  of the sailing's natural key — and duplicate the row on the next sync.
+- **The relay caches, and caching does not refund.** Two identical requests seconds apart
+  return byte-identical bodies — same `request_id` — while still decrementing the quota. So
+  re-running a sync to get fresher data buys nothing and costs real budget; freshness comes
+  from `sort=updated_at:desc` and a high-water mark, not from asking again.
+- **Data quality, observed.** Port names are provider-localised with nothing linking them —
+  "Rhodes, Greece", "Rodi, Grecia" and "Rodes, Grécia" are one quay under three names — and
+  the catalogue mixes real ports with at-sea positions like "38.6 N 19.8 E - Ionian Sea" and
+  some stray quoting. There is no provider port id to reconcile any of it by, which is why
+  every shipped sailing scope is `en_US` only and why the coordinates in §4.7 point 5 remain
+  the right long-term fix.
+
+**What the free tier can and cannot do — the arithmetic, because it decides the design.**
+100 requests × 10 rows is **1,000 rows/month**. The live catalogue reports **245,020 sailings
+across the nine lines** (Royal Caribbean 50,051; MSC 62,017; Costa 50,904; Norwegian 26,569;
+Celebrity 18,018; Holland America 13,585; Princess 12,029; Carnival 7,231; Disney 4,616).
+**Mirroring that on BASIC would take about 20 years.** It is not a batching problem, and no
+scheduling cleverness touches it.
+
+The reference catalogue, however, is nearly free, and by a wider margin than expected:
+`/cruise-lines`, `/filter-options` and `/coverage` take no `limit` parameter, so **three
+requests refresh every line, port, destination, locale and departure-date window** — 12
+requests/month at a weekly cadence out of 100.
+
+**Ships are the one exception, and it is worth being precise about.** An unscoped
+`/filter-options` returns ship names with no company attached, and `cruise_ship.cruise_line_id`
+is `NOT NULL` — there is nothing to attach them to, and guessing a line from a ship's name is
+how a "Discovery" ends up on the wrong one. So ships arrive by one of two routes instead: as
+stub rows minted whenever a synced sailing names a ship no row exists for (measured: one
+`/cruises` request produced 10 sailings and 7 Norwegian ships), or from `/ships` and
+per-company `/filter-options` scopes once a paid tier makes their pagination affordable.
+
+Measured, not estimated: one `/filter-options` call returned **4,566 ports**. Paging the same
+catalogue out of `/ports` at 10 rows a request would cost **457 requests — four and a half
+months of quota for data one request already gave.** That single fact is why the shipped
+configuration enables the three unpaginated scopes and leaves `/ships` and `/ports` disabled.
+Between them the three answer the whole of §1.0's cruise requirement except the sailings.
+
+- **Verdict:** **Build the sync against BASIC now.** It costs nothing, needs no email thread,
+  and validates the entire §10.1 content path — schema, mapping, scheduling, quota accounting
+  — against real data today, which is exactly what §4.7 point 1 wanted the Widgety test key
+  for. It does **not** replace §4.2: Widgety's 60+ lines and ~1,000 ships, its imagery and
+  deck plans, and its coverage of Virgin Voyages are all things this provider does not have,
+  and imagery in particular is what makes §2.0.9 look like anything. Read this as the cheap
+  way to build and prove the pipeline while the Widgety conversation runs — and as evidence
+  in that conversation, since §4.7 point 2's swappable schema is now load-bearing rather than
+  aspirational. If cruise search earns its keep, PRO at $49/mo lifts the mirror to 1M
+  rows/month — the full 245,020-row mirror in about six hours — and the same sync widens by
+  configuration rather than by code.
 
 ---
 
@@ -514,6 +613,7 @@ When these get wired up, they follow the architecture that is already decided �
 | Hotelbeds APItude | `developer.hotelbeds.com` | No | ☐ | ☐ | ☐ | **Content API only.** Primary hotel content source |
 | Tripadvisor Content | `tripadvisor.com/developers` | **Yes** | ☐ | ☐ | ☐ | **Ratings source.** Set daily budget cap; confirm billing owner |
 | Amadeus Self-Service | `developers.amadeus.com` | No | ☐ | ☐ | ☐ | **Hotel List + Ratings only** — skip Offers. Also flight inspiration |
+| track.cruises | `rapidapi.com` → Cruise Pricing API | No | ☐ | ☐ | ☐ | **Cruise catalogue.** BASIC is $0, self-serve, immediate. 100 req/mo (§4.8) |
 | Widgety | Contact for test key | No | ☐ | ☐ | ☐ | **Cruise content.** Email request — longest lead time |
 | Viator Partner API | Viator affiliate signup | No | ☐ | ☐ | ☐ | Basic Access is immediate. **Content only — no commission links** |
 | LiteAPI / Nuitée | `liteapi.travel` | No | ☐ | ☐ | ☐ | Static content only. Breadth fallback — defer |

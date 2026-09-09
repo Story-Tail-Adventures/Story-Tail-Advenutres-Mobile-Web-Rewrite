@@ -109,6 +109,15 @@ reference.docx
 # .claude/skills/, and .claude/settings.json (when present) ARE tracked.
 .claude/settings.local.json
 
+# Worktrees. Two Claude sessions sharing one working tree also share one INDEX, and a bare
+# `git commit` commits the whole index — so one session's staged work rides along in the
+# other's commit, silently. That happened: three cruise-sync commits swallowed a concurrent
+# brand rework and broke CI on three jobs. A worktree per session gives each its own index
+# and HEAD over the same object store, which removes the hazard rather than managing it.
+# Ignored because a worktree directory inside the repo is otherwise untracked content —
+# i.e. exactly the sort of thing that gets swept into a commit.
+.claude/worktrees/
+
 # Python bytecode (the CI guard scripts in .github/scripts/)
 __pycache__/
 *.py[cod]

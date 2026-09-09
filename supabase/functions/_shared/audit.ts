@@ -6,7 +6,7 @@
  * the only sanctioned way to do that, so the shape stays consistent and nobody has to
  * remember the column names.
  */
-import { serviceClient } from "./db.ts";
+import { type Db, serviceClient } from "./db.ts";
 import { uuidV7 } from "./uuid.ts";
 import type { AuthContext } from "./auth.ts";
 
@@ -69,6 +69,47 @@ export async function writeAuditEvent(
   if (error) {
     throw new Error(
       `Audit write failed for ${spec.eventType} on ${spec.targetEntity}/${spec.targetId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Write an audit_event for a SYSTEM actor — no human, no platform_user row.
+ *
+ * `writeAuditEvent` above takes an AuthContext, which presumes somebody logged in. A
+ * scheduled job has nobody: docs/Data-Model.md §15.1 makes `actor_user_id` nullable
+ * expressly "for system events", and `actor_role` alongside it, so both are null here.
+ * `ip_address` and `user_agent` are null for the same reason — inventing "127.0.0.1" or a
+ * fake agent string would put a fact in the trail that nobody can act on.
+ *
+ * Callers pass their own client because a system job already holds one, and because that
+ * makes the write joinable to whatever else the job is doing.
+ *
+ * This is for job-level events — one row per run, with counts in `metadata`. It is NOT a
+ * way to bulk-audit rows: see the note on atomicity above, which applies with more force
+ * when the loop writing them is thousands long.
+ */
+export async function writeSystemAuditEvent(
+  db: Db,
+  spec: AuditSpec,
+): Promise<void> {
+  const { error } = await db
+    .from("audit_event")
+    .insert({
+      id: uuidV7(),
+      actor_user_id: null,
+      actor_role: null,
+      event_type: spec.eventType,
+      target_entity: spec.targetEntity,
+      target_id: spec.targetId,
+      metadata: (spec.metadata ?? {}) as never,
+      ip_address: null,
+      user_agent: null,
+    });
+
+  if (error) {
+    throw new Error(
+      `System audit write failed for ${spec.eventType} on ${spec.targetEntity}/${spec.targetId}: ${error.message}`,
     );
   }
 }
