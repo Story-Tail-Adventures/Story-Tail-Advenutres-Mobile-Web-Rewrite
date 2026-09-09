@@ -387,6 +387,7 @@ CREATE TABLE public.cruise_sync_scope (
     destination           text,
     departure_within_days integer,
     sort                  text NOT NULL DEFAULT 'departure_date:asc',
+    min_interval_days     integer NOT NULL DEFAULT 0,
     max_rows_per_request  integer NOT NULL DEFAULT 10,
     max_requests_per_run  integer NOT NULL DEFAULT 1,
     cursor                text,
@@ -400,6 +401,7 @@ CREATE TABLE public.cruise_sync_scope (
     CHECK (priority >= 0),
     CHECK (max_rows_per_request BETWEEN 1 AND 1000),
     CHECK (max_requests_per_run BETWEEN 1 AND 500),
+    CHECK (min_interval_days BETWEEN 0 AND 365),
     CHECK (departure_within_days IS NULL OR departure_within_days > 0),
     -- The provider's allowed sort values. Only these two matter to us; the rest of their
     -- enum (bare `departure_date`, bare `updated_at`) are the same orders spelled shorter.
@@ -425,6 +427,19 @@ COMMENT ON TABLE public.cruise_sync_scope IS
 COMMENT ON COLUMN public.cruise_sync_scope.enabled IS
     'Defaults to FALSE. Nothing runs unless it was deliberately switched on — the right '
     'default when every run spends a metered, non-renewing monthly budget.';
+
+COMMENT ON COLUMN public.cruise_sync_scope.min_interval_days IS
+    'SKIP THIS SCOPE IF IT RAN WITHIN THIS MANY DAYS. 0 means every run.\n'
+    '\n'
+    'The point is that not everything here changes at the same speed, but there is one '
+    'cron schedule. Cruise lines, ports and destinations move on the order of months — the '
+    'reference scopes were re-fetching the same 4,565 ports every week — while sailings are '
+    'repriced daily. On a 100-request month, spending 3 requests a week on a port catalogue '
+    'that has not changed is 12 requests that could have been 120 sailings.\n'
+    '\n'
+    'So reference scopes run every 28 days and sailing scopes run every time. That converts '
+    'roughly 9 wasted requests a month into sailing coverage, which is the only thing on the '
+    'free tier that is actually scarce.';
 
 COMMENT ON COLUMN public.cruise_sync_scope.departure_within_days IS
     'A ROLLING window from today, deliberately not a departure_after/departure_before pair. '
@@ -646,59 +661,83 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO public.cruise_sync_scope
-    (id, label, endpoint, enabled, priority, company, locale,
-     departure_within_days, max_rows_per_request, max_requests_per_run)
+    (id, label, endpoint, enabled, priority, company, locale, destination,
+     departure_within_days, max_rows_per_request, max_requests_per_run, min_interval_days)
      -- `sort` is omitted: every scope here wants the default, departure_date:asc.
 VALUES
     -- Reference catalogue. Unpaginated, one request each, and between them they answer the
     -- whole of Free-Travel-APIs §1.0 for cruises except the sailings themselves.
+    --
+    -- MONTHLY, not weekly. A cruise line's name, its fleet, and the world's ports do not
+    -- change week to week; sailings do. See min_interval_days.
     ('01a08376-dc00-7000-8000-000000000001', 'reference:cruise-lines',
-     'cruise_lines',    true,  10, NULL, NULL,  NULL,  10,  1),
+     'cruise_lines',    true,  10, NULL, NULL, NULL, NULL, 10, 1, 28),
     ('01a08376-dc00-7000-8000-000000000002', 'reference:filter-options',
-     'filter_options',  true,  20, NULL, NULL,  NULL,  10,  1),
+     'filter_options',  true,  20, NULL, NULL, NULL, NULL, 10, 1, 28),
     ('01a08376-dc00-7000-8000-000000000003', 'reference:coverage',
-     'coverage',        true,  30, NULL, NULL,  NULL,  10,  1),
+     'coverage',        true,  30, NULL, NULL, NULL, NULL, 10, 1, 28),
 
     -- Paginated catalogues. Disabled: /filter-options already yields these vocabularies for
     -- one request, so paying 10 rows at a time for them is only rational on a paid tier.
     ('01a08376-dc00-7000-8000-000000000010', 'catalog:ships',
-     'ships',           false, 40, NULL, NULL,  NULL,  10,  2),
+     'ships',           false, 40, NULL, NULL, NULL, NULL, 10, 2, 28),
     ('01a08376-dc00-7000-8000-000000000011', 'catalog:ports',
-     'ports',           false, 50, NULL, NULL,  NULL,  10,  2),
+     'ports',           false, 50, NULL, NULL, NULL, NULL, 10, 2, 28),
 
-    -- Sailings, en_US, rolling 18-month window (548 days), one scope per line Story-Tail
-    -- books and track.cruises covers. Virgin Voyages is absent on purpose: the provider has
-    -- no coverage for it, so it can only ever be a curated cruise_line row.
+    -- ── Sailings ────────────────────────────────────────────────────────────
     --
-    -- 18 months is Gyasi's call and it is the right one on a metered budget. It does not
-    -- change the per-request row cap, so a single page still costs the same — but it shrinks
-    -- the result set, so a COMPLETE pass walks materially fewer pages. Departures beyond 18
-    -- months are also the ones most likely to be repriced before anyone books them, so the
-    -- pages saved are the least valuable ones.
-    -- ENABLED, alone, at two requests a run. Royal Caribbean because it is the largest
-    -- line the provider covers (50,051 sailings), it leads the prototype order in
-    -- web/content/public/cruise-lines.ts, and screen 2.0.9's own top pick is one of its
-    -- ships. Two requests is 20 sailings a run: added to the three reference calls that is
-    -- 5 a week, ~20 a month of 100, leaving ~80 for quote-time detail fetches.
+    -- DESTINATION-FILTERED, because the free tier cannot hold the catalogue and a thin
+    -- slice of everywhere is worth less than a complete slice of somewhere. 245,020
+    -- sailings against 1,000 rows a month is a ~20-year mirror, so the only useful question
+    -- is WHICH thousand. These are the destinations the storefront actually sells: the
+    -- prototype's own sailings are 41 mentions of Caribbean, 8 Bahamas, 7 Bermuda, and
+    -- web/app/(public)/(hero)/caribbean exists as its own topic page.
     --
-    -- It walks `departure_date:asc` with the cursor resuming week to week, so the window
-    -- fills from the nearest departure outward instead of chasing whatever was repriced
-    -- last night. Switch it to updated_at:desc once there is a catalogue worth keeping
-    -- fresh — see the `sort` column comment.
-    ('01a08376-dc00-7000-8000-000000000020', 'sailings:royal-caribbean',
-     'cruises',         true,  100, 'royal-caribbean',   'en_US', 548, 10, 2),
-    ('01a08376-dc00-7000-8000-000000000021', 'sailings:celebrity',
-     'cruises',         false, 110, 'celebrity-cruises', 'en_US', 548, 10, 2),
-    ('01a08376-dc00-7000-8000-000000000022', 'sailings:disney',
-     'cruises',         false, 120, 'disney-cruise-line','en_US', 548, 10, 2),
-    ('01a08376-dc00-7000-8000-000000000023', 'sailings:princess',
-     'cruises',         false, 130, 'princess',          'en_US', 548, 10, 2),
-    ('01a08376-dc00-7000-8000-000000000024', 'sailings:carnival',
-     'cruises',         false, 140, 'carnival',          'en_US', 548, 10, 2),
-    ('01a08376-dc00-7000-8000-000000000025', 'sailings:norwegian',
-     'cruises',         false, 150, 'ncl',               'en_US', 548, 10, 2),
-    ('01a08376-dc00-7000-8000-000000000026', 'sailings:holland-america',
-     'cruises',         false, 160, 'holland-america',   'en_US', 548, 10, 2);
+    -- The filter is comma-separated with OR semantics and matches the provider's strings
+    -- LITERALLY, which is why each concept is spelled every way they spell it. Their
+    -- vocabulary carries the same place several times ("Caribbean", "Caribbean Cruises",
+    -- "The Bahamas") and in several languages ("Caraïbes", "Bermudes") — the non-English
+    -- labels are omitted because every scope here is locale en_US and would never match
+    -- them.
+    --
+    -- Note "Southern Caribbean" is absent: the storefront mentions it, the provider's
+    -- vocabulary does not have it. Eastern and Western do.
+    ('01a08376-dc00-7000-8000-000000000020', 'sailings:royal-caribbean:caribbean',
+     'cruises',         true,  100, 'royal-caribbean',   'en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 4, 0),
+    ('01a08376-dc00-7000-8000-000000000021', 'sailings:celebrity:caribbean',
+     'cruises',         false, 110, 'celebrity-cruises', 'en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 2, 0),
+    ('01a08376-dc00-7000-8000-000000000022', 'sailings:disney:caribbean',
+     'cruises',         false, 120, 'disney-cruise-line','en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 2, 0),
+    ('01a08376-dc00-7000-8000-000000000023', 'sailings:princess:caribbean',
+     'cruises',         false, 130, 'princess',          'en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 2, 0),
+    ('01a08376-dc00-7000-8000-000000000024', 'sailings:carnival:caribbean',
+     'cruises',         false, 140, 'carnival',          'en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 2, 0),
+    ('01a08376-dc00-7000-8000-000000000025', 'sailings:norwegian:caribbean',
+     'cruises',         false, 150, 'ncl',               'en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 2, 0),
+    ('01a08376-dc00-7000-8000-000000000026', 'sailings:holland-america:caribbean',
+     'cruises',         false, 160, 'holland-america',   'en_US',
+     'Caribbean,Caribbean Cruises,Eastern Caribbean,Western Caribbean,Bahamas,The Bahamas,Bahamas Cruises,Bermuda,Bermuda Cruises',
+     548, 10, 2, 0),
+
+    -- Alaska and the Mediterranean, ready to enable once the Caribbean is covered. Alaska
+    -- is a summer-season staple for a US advisory and the Mediterranean is what the
+    -- prototype's Celebrity Edge and Legend of the Seas entries sell.
+    ('01a08376-dc00-7000-8000-000000000030', 'sailings:royal-caribbean:alaska-med',
+     'cruises',         false, 200, 'royal-caribbean',   'en_US',
+     'Alaska,Alaska Cruises,Mediterranean,Mediterranean Cruises',
+     548, 10, 2, 0);
 
 -- Virgin Voyages. Story-Tail books it, screen 2.0.9 lists it, and track.cruises has no
 -- coverage for it at all — so it exists here as a curated row with a null provenance pair,

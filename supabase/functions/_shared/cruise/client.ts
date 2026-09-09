@@ -438,17 +438,32 @@ function toError(
   // Shape 1: their backend, RFC 9457. Shape 2: the relay, `{"message": "..."}` with no
   // code and no request_id — only ever seen through cruise-pricing-api1.p.rapidapi.com.
   const code = problem.code ?? relayCode(status);
-  const fallback = rawText.slice(0, 300) || `HTTP ${status}`;
-  const detail = problem.detail ?? problem.message ?? problem.title ?? fallback;
-
   const retryAfterHeader = intHeader(response.headers, "retry-after");
   const retryAfter = problem.retry_after_seconds ?? retryAfterHeader ?? null;
+
+  const fallback = rawText.slice(0, 300) || `HTTP ${status}`;
+  const detail = problem.detail ?? problem.message ?? problem.title ?? fallback;
 
   // 401 — the key is wrong or unsubscribed. 403 — a tier gate (price-history on BASIC);
   // their spec sets `required_tier` on these. 400/404 — our bug or a real absence.
   // Every one of those is permanent: a retry cannot change the answer and each attempt is
   // metered.
-  const permanent = status === 400 || status === 401 || status === 403 || status === 404;
+  //
+  // A 429 WITH NO Retry-After IS ALSO PERMANENT FOR THIS RUN, which is the non-obvious one.
+  // Their backend sends `retry_after_seconds` and those waits are short and worth honouring.
+  // The RapidAPI relay's own per-minute throttle sends neither header nor field — just
+  // `{"message": "You have exceeded the rate limit per minute..."}` — and the window it
+  // wants is ~60s, against a backoff measured in hundreds of milliseconds. So retrying it
+  // fails again, immediately, twice: three metered requests to learn nothing. Measured
+  // exactly that, spending 6 requests on a scope budgeted for 4.
+  //
+  // Giving up costs nothing instead, because the work is resumable by design: the scope's
+  // cursor persists, so the next scheduled run continues from the same page. On a weekly
+  // cadence, "come back later" is free and a retry storm is not.
+  const throttledWithoutGuidance = status === 429 && retryAfter === null;
+
+  const permanent = status === 400 || status === 401 || status === 403 ||
+    status === 404 || throttledWithoutGuidance;
 
   return new TrackCruisesError(
     status,

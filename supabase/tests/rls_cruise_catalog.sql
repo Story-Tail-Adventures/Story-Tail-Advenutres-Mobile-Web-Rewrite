@@ -153,13 +153,43 @@ SELECT pg_temp.assert(
 -- THE ASSERTION THAT MATTERS: a cost ceiling, not a row count.
 --
 -- The free tier is 100 requests a month and an overspent month cannot be bought back, so
--- what needs guarding is the weekly bill, not how many rows happen to carry `enabled`.
--- 8 requests a run is ~35 a month, which still leaves a comfortable majority of the quota
--- for quote-time detail fetches. Crossing it should be a deliberate edit to this number,
--- with the arithmetic redone — not something a config change does quietly.
+-- what needs guarding is the monthly bill. Cadence is part of that now, so the sum is
+-- weighted: a scope on a 28-day interval bills roughly once a month, one at 0 bills every
+-- weekly run.
+--
+--   reference   3 x 1 request, monthly       =  3
+--   sailings    1 x 4 requests, weekly x4.3  = 17
+--                                             ---
+--                                              20 of 100, leaving ~80 for quote fetches
+--
+-- 40 is the ceiling: comfortably above today's 20, comfortably below the 90 the sync's own
+-- CRUISE_SYNC_MONTHLY_CEILING allows, so crossing it means redoing this arithmetic rather
+-- than nudging a number.
 SELECT pg_temp.assert(
-    (SELECT sum(max_requests_per_run) FROM public.cruise_sync_scope WHERE enabled) <= 8,
-    'a run costs at most 8 requests, so a weekly cadence stays under ~35 of 100 a month'
+    (SELECT sum(
+        max_requests_per_run
+        * CASE WHEN min_interval_days >= 28 THEN 1
+               WHEN min_interval_days >= 7  THEN 4.3
+               ELSE 4.3 END
+     ) FROM public.cruise_sync_scope WHERE enabled) <= 40,
+    'the enabled scopes bill at most ~40 requests a month once cadence is counted'
+);
+
+-- A slow-changing scope on every-run cadence is how the budget quietly drains: it is 4
+-- requests a month against 17 for the same data.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.cruise_sync_scope
+                 WHERE enabled AND endpoint IN ('cruise_lines', 'filter_options', 'coverage')
+                   AND min_interval_days < 28),
+    'reference scopes run monthly, not on every weekly tick'
+);
+
+-- Destination-filtered, because a thin slice of everywhere is worth less than a complete
+-- slice of somewhere when the ceiling is 1,000 rows a month against 245,020 sailings.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.cruise_sync_scope
+                 WHERE enabled AND endpoint = 'cruises' AND destination IS NULL),
+    'every enabled sailing scope narrows to destinations the storefront sells'
 );
 
 -- Coverage before freshness. An empty catalogue walked with updated_at:desc chases churn

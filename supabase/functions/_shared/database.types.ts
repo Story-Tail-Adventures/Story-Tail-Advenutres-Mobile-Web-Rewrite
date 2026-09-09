@@ -1556,6 +1556,7 @@ export type Database = {
           locale: string | null
           max_requests_per_run: number
           max_rows_per_request: number
+          min_interval_days: number
           priority: number
           sort: string
           updated_at: string
@@ -1578,6 +1579,7 @@ export type Database = {
           locale?: string | null
           max_requests_per_run?: number
           max_rows_per_request?: number
+          min_interval_days?: number
           priority?: number
           sort?: string
           updated_at?: string
@@ -1600,6 +1602,7 @@ export type Database = {
           locale?: string | null
           max_requests_per_run?: number
           max_rows_per_request?: number
+          min_interval_days?: number
           priority?: number
           sort?: string
           updated_at?: string

@@ -355,6 +355,18 @@ building against first.
   that Story-Tail does not book (`costa`, `msc` — European markets). So the feed can never be
   the whole catalogue, which is §10.1's "curated content wins" rule arriving as a fact rather
   than a preference.
+- **There is an undocumented per-minute throttle on BASIC, and retrying it is expensive.**
+  It arrives as the relay's bare `{"message": "You have exceeded the rate limit per
+  minute..."}` with no `Retry-After` and no `retry_after_seconds`, and the window it wants is
+  around a minute. A backoff measured in hundreds of milliseconds therefore fails again
+  immediately — three metered requests to learn nothing, measured as a scope budgeted for 4
+  spending 6. A 429 carrying no guidance is treated as terminal for that run; the scope's
+  cursor persists, so the next run continues from the same page for free.
+- **`GET /cruises/{id}` ignores `locale`.** It takes no such parameter and discards one sent
+  anyway (tested): it answers `de_DE`/EUR regardless of the market the sailing was synced
+  in. So cabin-level pricing is only ever available in euros, whatever the storefront's
+  currency, and writing the response back wholesale would rewrite `provider_locale` — part
+  of the sailing's natural key — and duplicate the row on the next sync.
 - **The relay caches, and caching does not refund.** Two identical requests seconds apart
   return byte-identical bodies — same `request_id` — while still decrementing the quota. So
   re-running a sync to get fresher data buys nothing and costs real budget; freshness comes

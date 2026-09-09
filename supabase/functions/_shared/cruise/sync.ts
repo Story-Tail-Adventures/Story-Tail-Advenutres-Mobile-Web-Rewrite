@@ -61,6 +61,8 @@ type ScopeRow = {
   destination: string | null;
   departure_within_days: number | null;
   sort: string;
+  min_interval_days: number;
+  last_run_at: string | null;
   max_rows_per_request: number;
   max_requests_per_run: number;
   cursor: string | null;
@@ -133,8 +135,8 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     .from("cruise_sync_scope")
     .select(
       "id, label, endpoint, priority, company, locale, destination, " +
-        "departure_within_days, sort, max_rows_per_request, max_requests_per_run, " +
-        "cursor, high_water_updated_at",
+        "departure_within_days, sort, min_interval_days, last_run_at, " +
+        "max_rows_per_request, max_requests_per_run, cursor, high_water_updated_at",
     )
     .eq("enabled", true);
   if (options.onlyLabel) query = query.eq("label", options.onlyLabel);
@@ -155,6 +157,16 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     if (budget.allowance <= 0) {
       notes.push(`stopped before ${scope.label}: ${exhaustionReason(budget)}`);
       break;
+    }
+
+    // Cadence, checked before the budget is touched. A scope that ran inside its interval
+    // costs nothing and is not a failure — it is the reference catalogue declining to
+    // re-fetch 4,565 unchanged ports so the sailing scopes can have those requests.
+    if (!dueToRun(scope, now)) {
+      notes.push(
+        `skipped ${scope.label}: ran within ${scope.min_interval_days}d`,
+      );
+      continue;
     }
 
     try {
@@ -445,6 +457,24 @@ export async function refetchSailing(options: {
         `takes no locale parameter and ignores one.`,
     }),
   };
+}
+
+/**
+ * Has this scope's interval elapsed?
+ *
+ * `min_interval_days` 0 means every run, which is what sailing scopes want. Anything higher
+ * is a scope that changes more slowly than the cron fires — see the column comment for why
+ * that distinction is worth 9 requests a month on the free tier.
+ *
+ * A scope that has never run is always due, so a fresh deployment fills the reference
+ * catalogue on its first tick rather than waiting out an interval it was never inside.
+ */
+function dueToRun(scope: ScopeRow, now: Date): boolean {
+  if (scope.min_interval_days <= 0) return true;
+  if (!scope.last_run_at) return true;
+  const elapsedMs = now.getTime() - Date.parse(scope.last_run_at);
+  if (!Number.isFinite(elapsedMs)) return true;
+  return elapsedMs >= scope.min_interval_days * 86_400_000;
 }
 
 interface ScopeContext {

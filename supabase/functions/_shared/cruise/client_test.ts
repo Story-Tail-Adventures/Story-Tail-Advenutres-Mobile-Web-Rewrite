@@ -296,3 +296,48 @@ Deno.test("filter-options accepts a wrapped or unwrapped body", async () => {
   const b = await bare.client.filterOptions();
   assertEquals(b.data.ports, ["Nassau"]);
 });
+
+Deno.test("an unguided 429 is NOT retried — the relay's throttle wants a minute", () => {
+  // The relay's per-minute throttle sends no Retry-After and no retry_after_seconds, just a
+  // bare message. The window it wants is ~60s against a backoff measured in hundreds of
+  // milliseconds, so retrying fails again immediately: three metered requests to learn
+  // nothing. Measured in the wild — a scope budgeted for 4 requests spent 6.
+  //
+  // Giving up is free because the work is resumable: the scope's cursor persists and the
+  // next run continues from the same page.
+  const stub = stubFetch([{ status: 429, body: RELAY_429 }]);
+  const records: RequestRecord[] = [];
+  const client = createTrackCruisesClient({
+    apiKey: KEY,
+    fetchImpl: stub.impl,
+    onRequest: (r) => void records.push(r),
+    sleep: () => Promise.resolve(),
+  });
+
+  return assertRejects(() => client.cruiseLines(), TrackCruisesError).then((error) => {
+    assertEquals(error.code, "rate_limit_exceeded");
+    assertEquals(error.permanent, true);
+    // One attempt, one ledger row, two requests saved.
+    assertEquals(stub.calls.length, 1);
+    assertEquals(records.length, 1);
+  });
+});
+
+Deno.test("a 429 that says when to come back IS retried", () => {
+  // Their own backend sends retry_after_seconds, and those waits are short and worth
+  // honouring — that is the case the retry path exists for.
+  const stub = stubFetch([
+    { status: 429, body: PROBLEM_429, headers: quotaHeaders(5) },
+    { body: CRUISE_LINES_PAGE, headers: quotaHeaders(4) },
+  ]);
+  const client = createTrackCruisesClient({
+    apiKey: KEY,
+    fetchImpl: stub.impl,
+    sleep: () => Promise.resolve(),
+  });
+
+  return client.cruiseLines().then((page) => {
+    assertEquals(page.data.length, 3);
+    assertEquals(stub.calls.length, 2);
+  });
+});
