@@ -9,7 +9,9 @@ export type HotelStateKind =
   | "need-dates"
   | "empty"
   | "unavailable"
-  | "exhausted";
+  | "exhausted"
+  | "cruise-empty"
+  | "cruise-unavailable";
 
 const COPY = {
   "need-destination": RESULTS.hotels.needDestination,
@@ -17,6 +19,8 @@ const COPY = {
   empty: RESULTS.hotels.empty,
   unavailable: RESULTS.hotels.unavailable,
   exhausted: RESULTS.hotels.exhausted,
+  "cruise-empty": RESULTS.cruises.empty,
+  "cruise-unavailable": RESULTS.cruises.unavailable,
 } as const;
 
 /**
@@ -54,3 +58,6 @@ export function HotelState({ kind, q }: { kind: HotelStateKind; q: SearchQuery }
     </div>
   );
 }
+
+/** The cruise modes reuse the same shell — same rule, same CTAs, different copy. */
+export const CruiseState = HotelState;

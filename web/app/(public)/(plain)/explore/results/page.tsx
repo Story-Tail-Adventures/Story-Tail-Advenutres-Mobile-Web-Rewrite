@@ -23,6 +23,7 @@ import {
   type RawSearchParams,
 } from "@/lib/public/search";
 import { RESULTS } from "./content";
+import { CruiseResults } from "./CruiseResults";
 import { HotelResults } from "./HotelResults";
 import { HotelRowsSkeleton } from "./ResultsSkeleton";
 import { ModeSwitch } from "./ModeSwitch";
@@ -101,9 +102,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
           {/* M204 sets the count as a t-label line; C204 as t-title-l (fidelity spec §6.5). */}
           <div className="mb-2.5 flex items-center justify-between gap-3 md:mb-3">
             <h1 id="results-heading" className="t-label md:t-title-l text-on-surface-variant md:text-on-surface">
-              {mode === "hotels"
-                ? RESULTS.mode.hotels + " · " + describeQuery(q)
-                : RESULTS.heading(results.length, describeQuery(q))}
+              {mode === "picks"
+                ? RESULTS.heading(results.length, describeQuery(q))
+                : `${mode === "hotels" ? RESULTS.mode.hotels : RESULTS.mode.cruises} · ${describeQuery(q)}`}
             </h1>
             <SortMenu q={q} />
           </div>
@@ -113,6 +114,10 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
                holding the previous list while the next one loads. */
             <Suspense key={current} fallback={<HotelRowsSkeleton />}>
               <HotelResults q={q} current={current} />
+            </Suspense>
+          ) : mode === "cruises" ? (
+            <Suspense key={current} fallback={<HotelRowsSkeleton />}>
+              <CruiseResults q={q} />
             </Suspense>
           ) : results.length > 0 ? (
             <>

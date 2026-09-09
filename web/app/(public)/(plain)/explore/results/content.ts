@@ -68,6 +68,7 @@ export const RESULTS = {
     label: "Results",
     picks: "Gyasi's picks",
     hotels: "Hotels",
+    cruises: "Cruises",
   },
 
   /**
@@ -118,5 +119,25 @@ export const RESULTS = {
     },
     editSearch: "Change your search",
     seePicks: "See Gyasi’s picks",
+  },
+
+  /** Cruises mode. Voice per Design-System §2.6 — and never a fare, per §4.7. */
+  cruises: {
+    nights: (n: number) => `${n} ${n === 1 ? "night" : "nights"}`,
+    sailsOn: "Sails",
+    itinerary: "Ports of call",
+    morePorts: (n: number) => `+${n} more`,
+    quote: "Request quote*",
+    /** Sits under the results. There is deliberately no price anywhere on this card. */
+    priceNote:
+      "Fares move with the cabin and the week, so Gyasi prices these himself — ask and he’ll come back with what it actually costs.",
+    empty: {
+      title: "No sailings on the books for that yet.",
+      body: "The calendar fills in a few months out. Tell Gyasi roughly when you’re thinking and he’ll watch for it — he sails these lines himself.",
+    },
+    unavailable: {
+      title: "The sailing list didn’t come back.",
+      body: "Nothing you did. Gyasi’s picks are still here, and so is he.",
+    },
   },
 } as const;

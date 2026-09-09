@@ -22,6 +22,7 @@ import {
   CRUISES_CLOSING,
   CRUISES_HERO,
   CRUISES_HERO_IMAGE,
+  CRUISES_INQUIRY_CTA,
   CRUISES_INQUIRY_FIELDS,
   CRUISES_LINES_SECTION,
   CRUISES_META,
@@ -30,7 +31,6 @@ import {
   CRUISES_TRIPS,
   CRUISES_TYPES,
   CRUISES_TYPES_SECTION,
-  REQUEST_QUOTE,
   cruisesSeeAllLabel,
   cruisesTripsOverline,
 } from "./content";
@@ -61,6 +61,10 @@ export default function CruisesPage() {
   const total = countByTopic(TRIPS, TOPIC);
   const quoteHref = joinHref({ intent: "quote", next: CRUISES_PATH });
   const allSailingsHref = resultsHref({ topic: TOPIC });
+  // The live catalog, not the curated nine. `dest` matches the sailing titles and their
+  // destination arrays, which is how cruise-search narrows; no dates, because a sailing is
+  // chosen by its own departure rather than by a check-in the visitor picked.
+  const liveSailingsHref = resultsHref({ mode: "cruises", dest: "Caribbean" });
   const messageHref = inquiryHref({ source: "topic", topic: TOPIC });
 
   return (
@@ -80,7 +84,7 @@ export default function CruisesPage() {
       <InquiryBar
         sticky
         fields={CRUISES_INQUIRY_FIELDS}
-        action={{ label: REQUEST_QUOTE, href: quoteHref, icon: "message" }}
+        action={{ label: CRUISES_INQUIRY_CTA, href: liveSailingsHref, icon: "search" }}
       />
 
       <Container size="wide" className="pt-4.5 pb-6 md:pt-8 md:pb-14">

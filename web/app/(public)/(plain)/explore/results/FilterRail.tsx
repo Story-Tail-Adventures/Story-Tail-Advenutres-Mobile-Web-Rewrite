@@ -125,7 +125,19 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
             incoherent, and a per-person trip budget is a different axis from a nightly room
             rate. So each mode renders its own groups and ECHOES the other's as hidden
             inputs — never both, which would double-submit — so a mode switch is lossless. */}
-        {mode === "hotels" ? (
+        {mode === "cruises" ? (
+          /* Cruises have no filter vocabulary on the public surface yet — the catalog is
+             departure-ordered and carries no fare to band. Everything is echoed so a mode
+             switch back to picks or hotels restores what was set. */
+          <>
+            {q.types.map((t) => <input key={t} type="hidden" name="type" value={t} />)}
+            {q.vibes.map((v) => <input key={v} type="hidden" name="vibe" value={v} />)}
+            {q.budgets.map((b) => <input key={b} type="hidden" name="budget" value={b} />)}
+            {q.stars.map((s) => <input key={s} type="hidden" name="star" value={s} />)}
+            {q.amenities.map((a) => <input key={a} type="hidden" name="amenity" value={a} />)}
+            {q.rates.map((r) => <input key={r} type="hidden" name="rate" value={r} />)}
+          </>
+        ) : mode === "hotels" ? (
           <>
             <FilterGroup legend={RESULTS.hotels.starRating} name="star" options={stars} />
             <FilterGroup legend={RESULTS.hotels.amenities} name="amenity" options={amenities} />

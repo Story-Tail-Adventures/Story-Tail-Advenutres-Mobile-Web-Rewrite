@@ -483,6 +483,14 @@ verify_jwt = true
 [functions.quote-request]
 verify_jwt = true
 
+# Reads the synced cruise catalog for the public Cruises mode. Same caller posture as
+# hotel-search — our own server, anon key plus the server-only X-STA-Search-Token — and it
+# exists so the cruise tables can keep zero anon grants, which rls_cruise_catalog.sql
+# asserts. It spends no provider budget: the catalog is already in Postgres.
+
+[functions.cruise-search]
+verify_jwt = true
+
 [functions.testimonial]
 # JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
 # the client from the token rather than trusting a body field.

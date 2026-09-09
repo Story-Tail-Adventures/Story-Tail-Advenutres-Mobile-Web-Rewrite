@@ -15,8 +15,9 @@ import { RESULTS } from "./content";
 /** Labelled sort `<select>` inside the filter form (FilterRail / FilterSheet). */
 export function SortControl({ id, value, mode }: { id: string; value: SortKey; mode: ResultsMode }) {
   // The provider has no "price high to low", so hotels mode does not offer one rather than
-  // faking it over a single page of results.
+  // faking it over a single page of results. Cruises offer none at all — see SortMenu.
   const keys = sortKeysFor(mode);
+  if (keys.length === 0) return null;
   return (
     <div className="mt-1 mb-3.5">
       <label htmlFor={id} className="t-title-s mb-1.5 block text-on-surface">
@@ -45,6 +46,9 @@ export function SortMenu({ q }: { q: SearchQuery }) {
   // A sort the mode cannot honour still shows as "Best fit" and keeps its URL value, so
   // switching back to the curated catalog restores it.
   const shown = keys.includes(q.sort) ? q.sort : "best-fit";
+  // Cruises come back in departure order and carry no public fare, so every key would be a
+  // no-op. Rendering nothing is more honest than a menu that does not move anything.
+  if (keys.length === 0) return null;
   return (
     <details key={q.sort} className="faq relative shrink-0">
       <summary className="chip chip-filter tap-44 h-8 cursor-pointer px-3 text-on-surface">

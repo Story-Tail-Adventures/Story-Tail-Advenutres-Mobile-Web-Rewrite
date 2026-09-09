@@ -17,6 +17,7 @@ export function ModeSwitch({ q }: { q: SearchQuery }) {
   const options = [
     { mode: "picks" as const, label: RESULTS.mode.picks },
     { mode: "hotels" as const, label: RESULTS.mode.hotels },
+    { mode: "cruises" as const, label: RESULTS.mode.cruises },
   ];
 
   return (
@@ -28,6 +29,7 @@ export function ModeSwitch({ q }: { q: SearchQuery }) {
             key={option.mode}
             href={resultsHref({ ...q, mode: option.mode })}
             aria-current={on ? "page" : undefined}
+            // Only hotels are metered; a cruise read is our own catalog, so it may prefetch.
             prefetch={option.mode === "hotels" ? false : undefined}
             className={cn(
               "t-label-l tap-44 flex h-8 items-center rounded-full px-3.5 text-on-surface-variant",

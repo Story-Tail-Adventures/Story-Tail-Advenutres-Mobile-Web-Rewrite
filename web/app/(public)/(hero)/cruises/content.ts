@@ -49,6 +49,17 @@ export const CRUISES_HERO = {
   sub: HERO_SUB,
 };
 
+/**
+ * The inquire bar's CTA.
+ *
+ * Deliberately NOT "Request a quote", which is what it used to be — that went to the sign-up
+ * gate and returned here, so a bar summarising a search led nowhere near a result. It now
+ * opens the live sailing list, which is a genuinely different destination from the
+ * "See all N sailings" link below it: that one is Gyasi's nine hand-picked sailings, this is
+ * what the lines are actually running. The labels have to say which is which.
+ */
+export const CRUISES_INQUIRY_CTA = "See what's sailing";
+
 export const CRUISES_INQUIRY_FIELDS: readonly InquiryField[] = [
   { label: "Destination", value: "Caribbean cruise", icon: "map" },
   { label: "When", value: "Flexible · 7 nights", icon: "calendar" },

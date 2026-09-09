@@ -41,7 +41,7 @@ export type SortKey = (typeof SORT_KEYS)[number];
  * "best-fit" — so a search carrying dates lands on hotels without a param, and an explicit
  * click on "Gyasi's picks" writes `mode=picks` and survives every later filter click.
  */
-export const MODES = ["picks", "hotels"] as const;
+export const MODES = ["picks", "hotels", "cruises"] as const;
 export type ResultsMode = (typeof MODES)[number];
 
 /**
@@ -97,6 +97,10 @@ export function serpSortBy(sort: SortKey): string {
 }
 
 export function sortKeysFor(mode: ResultsMode): readonly SortKey[] {
+  // Cruises come back in departure order from our own catalog and there is no fare on the
+  // public surface to sort by (Free-Travel-APIs §4.7), so the menu would offer three keys
+  // that all do nothing. It is hidden instead.
+  if (mode === "cruises") return [];
   return mode === "hotels" ? HOTEL_SORT_KEYS : SORT_KEYS;
 }
 
@@ -161,6 +165,9 @@ export interface SearchQuery {
  * the URL and the derivation lives in one place both the page and the links can call.
  */
 export function effectiveMode(q: SearchQuery): ResultsMode {
+  // `cruises` is never derived — a sailing is chosen by where and roughly when, not by the
+  // exact check-in/check-out a hotel needs, so there is no signal in the query that means
+  // "they wanted cruises". It is only ever an explicit choice.
   return q.mode ?? (q.checkIn && q.checkOut ? "hotels" : "picks");
 }
 

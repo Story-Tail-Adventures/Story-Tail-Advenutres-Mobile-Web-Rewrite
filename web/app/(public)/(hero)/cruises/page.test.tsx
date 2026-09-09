@@ -74,14 +74,24 @@ describe("2.0.9 Cruises page", () => {
 
   it("sends every quote CTA to the gate with this page as next, and message CTAs to the inquiry email", () => {
     render(<CruisesPage />);
-    // Inquiry bar, closing band, sticky bar.
+    // Closing band and sticky bar. The inquiry bar used to be a third and is not any more —
+    // see below.
     const quoteLinks = screen.getAllByRole("link", { name: "Request a quote" });
-    expect(quoteLinks).toHaveLength(3);
+    expect(quoteLinks).toHaveLength(2);
     for (const link of quoteLinks) {
       expect(link).toHaveAttribute("href", joinHref({ intent: "quote", next: PATH }));
     }
     expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^mailto:/);
+
+    // The page now offers TWO different lists and the labels have to keep them apart:
+    // "All sailings" is Gyasi's curated nine, and the inquiry bar opens the live synced
+    // catalog. The bar previously sent people to the sign-up gate and back here, which meant
+    // a bar summarising a search led nowhere near a result.
     expect(screen.getByRole("link", { name: "All sailings" })).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
+    expect(screen.getByRole("link", { name: "See what's sailing" })).toHaveAttribute(
+      "href",
+      resultsHref({ mode: "cruises", dest: "Caribbean" }),
+    );
   });
 
   it("has canonical and Open Graph metadata with the hero image", () => {
