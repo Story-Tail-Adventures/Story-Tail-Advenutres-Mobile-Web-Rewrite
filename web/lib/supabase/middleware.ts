@@ -113,7 +113,9 @@ export function authRedirectFor(
  * Two rules that are easy to get wrong and expensive to debug:
  *   1. Always return `supabaseResponse` (or copy its cookies onto whatever you do
  *      return). Dropping it desynchronises the browser's cookies from the refreshed
- *      session and logs the user out at random.
+ *      session and logs the user out at random. The redirects below do the copying, via
+ *      `redirectKeepingCookies` — they cannot return `supabaseResponse` itself, because it
+ *      is a `next()` and they need a 307. This rule was violated here for a long time.
  *   2. Use getUser(), never getSession(), for the auth check — getSession() reads the
  *      cookie without revalidating the JWT against the auth server, so a tampered or
  *      expired token would pass.
@@ -174,17 +176,45 @@ export async function updateSession(request: NextRequest) {
     url.pathname = target;
     url.search = "";
     url.searchParams.set("next", pathname);
-    return applyAuthFlag(NextResponse.redirect(url), flag);
+    return applyAuthFlag(redirectKeepingCookies(url, supabaseResponse), flag);
   }
 
   if (target) {
     const url = request.nextUrl.clone();
     url.pathname = target;
     url.search = "";
-    return applyAuthFlag(NextResponse.redirect(url), flag);
+    return applyAuthFlag(redirectKeepingCookies(url, supabaseResponse), flag);
   }
 
   return applyAuthFlag(supabaseResponse, flag);
+}
+
+/**
+ * A redirect that carries whatever cookies Supabase just wrote.
+ *
+ * This is rule 1 at the top of this file, and it is not academic. `getUser()` refreshes an
+ * expired access token, and the refreshed cookies land on `supabaseResponse` via the `setAll`
+ * callback. Returning a bare `NextResponse.redirect` throws them away — and every
+ * refresh-and-redirect combination is a real request: an expired token bounced /dashboard →
+ * /login, a signed-in visitor bounced /join → /dashboard, a half-assured session sent to
+ * /login/mfa. The browser then keeps the OLD token, and with refresh-token rotation the
+ * refresh it never saw has already invalidated it. That is the "logs the user out at random"
+ * failure, and it looks like a server bug rather than a cookie bug.
+ *
+ * Only the cookies move across, not the headers: `NextResponse.next()` carries its own
+ * middleware signalling that means nothing on a redirect. `ResponseCookies.getAll()` returns
+ * full cookie objects and `set()` takes one, so attributes (Path, HttpOnly, SameSite,
+ * Max-Age) survive the copy rather than being flattened to name=value.
+ *
+ * Nothing here writes the public-chrome flag — `applyAuthFlag` owns that and runs after — so
+ * the flag cannot be double-written.
+ */
+function redirectKeepingCookies(url: URL, from: NextResponse): NextResponse {
+  const response = NextResponse.redirect(url);
+  for (const cookie of from.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
 }
 
 /**
