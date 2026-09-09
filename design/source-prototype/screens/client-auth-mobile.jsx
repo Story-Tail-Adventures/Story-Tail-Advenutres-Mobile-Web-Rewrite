@@ -125,7 +125,7 @@ function M211_Login({ dark = false }) {
         <span className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>OR</span>
         <hr className="divider" style={{ flex: 1 }}/>
       </div>
-      <div style={{ marginBottom: 10 }}><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+      <div style={{ marginBottom: 10 }}><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <label className="field-label">Password</label>
@@ -168,7 +168,7 @@ function M212_Registration({ dark = false }) {
         <div><label className="field-label">First name</label><input className="input" defaultValue="Jordan"/></div>
         <div><label className="field-label">Last name</label><input className="input" defaultValue="Hayes"/></div>
       </div>
-      <div style={{ marginBottom: 10 }}><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+      <div style={{ marginBottom: 10 }}><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
       <div style={{ marginBottom: 10 }}>
         <label className="field-label">Password</label>
         <input className="input" type="password" defaultValue="••••••••••••"/>
@@ -206,7 +206,7 @@ function M213_EmailVerification({ dark = false }) {
         </div>
         <div className="t-label-s" style={{ color: 'var(--brand-orange)' }}>ONE MORE STEP</div>
         <h1 style={{ font: '800 24px/1.18 var(--font-sans)', margin: '4px 0 4px' }}>Check your email</h1>
-        <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>We sent a verification link to <b>jordan.hayes@gmail.com</b>.</p>
+        <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>We sent a verification link to <b>jordan.hayes@example.com</b>.</p>
       </div>
       <div className="card" style={{ padding: 14, background: 'var(--md-surface-2)', marginTop: 18 }}>
         <div className="t-title-s">Why verify?</div>
@@ -239,7 +239,7 @@ function M214_ForgotPassword({ dark = false }) {
         title="Forgot your password?"
         sub="Tell us your email and we'll send a reset link."
       />
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@gmail.com"/></div>
+      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
       <div className="card" style={{ padding: 14, background: 'var(--md-surface-2)', marginTop: 16 }}>
         <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>You'll receive an email within a minute. Check your spam folder if you don't see it. Links expire after 30 minutes.</div>
       </div>
@@ -379,7 +379,7 @@ function M218_LinkAccount({ dark = false }) {
         <img src={staImg('avatarC', 80, 80)} alt="" style={{ width: 44, height: 44, borderRadius: 999 }}/>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="t-title-s">Jordan Hayes</div>
-          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>jordan.hayes@gmail.com · Mar 2024</div>
+          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>jordan.hayes@example.com · Mar 2024</div>
         </div>
       </div>
       <div><label className="field-label">Password for the existing account</label><input className="input" type="password" defaultValue="••••••••••••"/></div>
@@ -551,7 +551,7 @@ function M2113_ConnectAgent({ dark = false }) {
     >
       <div className="card" style={{ padding: 14, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'flex', gap: 10, alignItems: 'flex-start', border: 0, marginBottom: 12 }}>
         <Icon name="sparkle" size={18}/>
-        <div className="t-body-s">We found <b>1 trip</b> already linked to <b>jordan.hayes@gmail.com</b>: <b>Sandals Royal Bahamian · Aug 12, 2026</b>. We'll connect it automatically.</div>
+        <div className="t-body-s">We found <b>1 trip</b> already linked to <b>jordan.hayes@example.com</b>: <b>Sandals Royal Bahamian · Aug 12, 2026</b>. We'll connect it automatically.</div>
       </div>
       <div style={{ marginBottom: 12 }}>
         <label className="field-label">Or paste an invite code (optional)</label>

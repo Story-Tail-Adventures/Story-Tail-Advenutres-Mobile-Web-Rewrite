@@ -1,0 +1,30 @@
+Copyright (c) 2026 Gyasi Story. All rights reserved.
+
+This repository is public so that its history, engineering decisions and CI are open to
+read. That is the whole of the grant: it is published, not licensed.
+
+No permission is given to use, copy, modify, merge, publish, distribute, sublicense or
+sell this software or any substantial portion of it. Reading the code, linking to it and
+quoting from it for commentary, review or teaching are all fine. If you want to do
+something beyond that, ask.
+
+Story-Tail Adventures is an operating travel advisory business hosted by Inteletravel, and
+the brand assets in design/ — the name, the lockups, the icons and the artwork they are
+generated from — are excluded from any permission above. They are not sample content.
+
+THIRD-PARTY MATERIAL
+
+  * The bundled typefaces (Poppins, Caveat, JetBrains Mono) are licensed under the SIL Open
+    Font License, not by this notice. Their licenses ship alongside them in
+    mobile/shared/src/commonMain/composeResources/files/licenses/.
+  * Dependencies keep their own licenses; see the lockfiles and each package.
+  * Public-page photography is Unsplash placeholder imagery referenced by URL rather than
+    committed, and is subject to the Unsplash License.
+
+THE USUAL DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES
+OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

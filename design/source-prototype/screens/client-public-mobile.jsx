@@ -446,7 +446,7 @@ function M206_SignUpGate({ dark = false }) {
             <hr className="divider" style={{ flex: 1 }}/>
           </div>
           <input className="input" defaultValue="Jordan Hayes" style={{ marginBottom: 8 }} placeholder="Your name"/>
-          <input className="input" defaultValue="jordan.hayes@gmail.com" style={{ marginBottom: 8 }} placeholder="Email"/>
+          <input className="input" defaultValue="jordan.hayes@example.com" style={{ marginBottom: 8 }} placeholder="Email"/>
           <input className="input" type="password" defaultValue="••••••••••••" placeholder="Password"/>
 
           <button className="btn btn-filled btn-lg" style={{ width: '100%', marginTop: 14 }}>Create account &amp; send quote</button>

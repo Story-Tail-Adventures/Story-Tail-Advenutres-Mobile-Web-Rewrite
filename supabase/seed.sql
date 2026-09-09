@@ -8,8 +8,10 @@
 --     arrives in 18), and deterministic IDs make the FK wiring readable and the diffs
 --     meaningful. Layout: 48-bit millisecond timestamp, version nibble 7, variant 8-b.
 --   * Money is bigint cents with an explicit char(3) currency. Never numeric, never float.
---   * Email addresses use example.com — RFC 2606 reserved. The prototype's
---     "jordan.hayes@gmail.com" is a real deliverable address and must never land here.
+--   * Email addresses use example.com — RFC 2606 reserved, so nothing here can reach a real
+--     mailbox. The design prototype used to carry personas at gmail/yahoo/hotmail, which are
+--     registrable domains and therefore somebody else's inbox; those were moved to
+--     example.com before this repo went public. Keep it that way in both places.
 --   * NOTHING resembling cardholder data. No payment_card rows at all; when UI work needs
 --     one, use brand='visa', last4='4242', stripe_payment_method_id='pm_card_visa_DEV_FAKE'
 --     and nothing else. CLAUDE.md rule 1.
