@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { OnboardingActions } from "@/components/onboarding/OnboardingActions";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { DateField } from "@/components/ui/DateField";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { SelectField } from "@/components/ui/Select";
@@ -429,19 +430,17 @@ function CompanionForm({
           defaultValue={values?.relationship ?? ""}
           error={first("relationship")}
         />
-        <Field
+        <DateField
           id="companionDateOfBirth"
           name="dateOfBirth"
-          type="date"
           label={COMPANIONS_TEXT.labelDateOfBirth}
           max={todayIso()}
           defaultValue={values?.dateOfBirth ?? ""}
           error={first("dateOfBirth")}
         />
-        <Field
+        <DateField
           id="companionPassportExpiry"
           name="passportExpiry"
-          type="date"
           label={COMPANIONS_TEXT.labelPassportExpiry}
           defaultValue={values?.passportExpiry ?? ""}
           error={first("passportExpiry")}

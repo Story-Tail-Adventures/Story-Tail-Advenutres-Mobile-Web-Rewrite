@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { OnboardingActions } from "@/components/onboarding/OnboardingActions";
 import { Alert } from "@/components/ui/Alert";
+import { DateField } from "@/components/ui/DateField";
 import { Field } from "@/components/ui/Field";
 import { SelectField } from "@/components/ui/Select";
 import {
@@ -100,10 +101,9 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormValues }) {
               error={first("phone")}
               defaultValue={shown.phone}
             />
-            <Field
+            <DateField
               id="dateOfBirth"
               name="dateOfBirth"
-              type="date"
               autoComplete="bday"
               label={PROFILE_TEXT.labelDob}
               hint={PROFILE_TEXT.hintDob}
@@ -255,15 +255,14 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormValues }) {
                 </Alert>
               )}
               <div className="grid gap-3 md:grid-cols-2">
-                <Field
+                <DateField
                   id="passportExpiry"
                   name="passportExpiry"
                   describedBy={first("passport") ? "passport-error" : undefined}
-                  type="date"
                   label={PROFILE_TEXT.labelPassportExpiry}
                   error={first("passportExpiry")}
                   value={passportExpiry}
-                  onChange={(event) => setPassportExpiry(event.target.value)}
+                  onChange={setPassportExpiry}
                 />
                 <SelectField
                   id="passportCountry"
