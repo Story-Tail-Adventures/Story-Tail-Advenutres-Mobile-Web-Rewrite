@@ -28,9 +28,30 @@ Concretely, per destination type:
 
 | | What the API must supply | What it must *not* supply |
 | --- | --- | --- |
-| **Hotels & resorts** | **Location.** Plus images, description, and rating. | No availability. No rates. No booking. Dates are captured on the quote request, not sent to any API. |
+| **Hotels & resorts** | **Location.** Plus images, description, rating — and, since 2026-09-09, live availability for the visitor's dates plus one indicative nightly rate. | No booking. No net or wholesale rates. No booking-site names, logos or links. |
 | **Cruises** | **Cruise line, ship, itinerary** (ports and sailing dates). Price **optional**. | No cabin availability. No booking. |
 | **Tours & activities** | Description, images, location. | No availability. No booking. |
+
+> **AMENDED 2026-09-09 — hotels only, on Gyasi's decision.** The row above originally read
+> "No availability. No rates. No booking. Dates are captured on the quote request, **not sent
+> to any API**." The public Explore search now sends the visitor's dates to SerpApi's Google
+> Hotels engine and renders one indicative nightly rate per property. Three things make that
+> a narrower change than it looks, and one thing it does not change:
+>
+> * **The rate is a GROSS retail price, not a net one.** §1.3.4 prohibits accepting net or
+>   wholesale rates, and that is a wholesaler problem — Hotelbeds and LiteAPI sell inventory
+>   at a discount that embeds the host's commission. A figure any member of the public can
+>   read on google.com/travel is not that, and cannot be "accepted".
+> * **No other business is named.** The provider returns one price per booking site with its
+>   logo and a link. None of it survives the mapper — see §10.2 — because §1.3.5 is the live
+>   constraint here, not §1.3.4.
+> * **Consequence #2 below still holds for CONTENT.** A hotel's photographs and description
+>   are static and are still the sync case. What is not static is "what is open in Aruba,
+>   12–19 August", which is a function of the dates and has nothing to mirror. See §10.1.
+> * **§9.2 is now live rather than hypothetical.** It was downgraded to "low, deferred by
+>   §1.0"; it is now the open compliance question on a shipped surface, and the wording under
+>   every rate is pinned as an unverified claim in `web/content/public/proof.ts` so a strict
+>   production build refuses to ship until a human approves it.
 
 **This is a much smaller ask than the industry sells against, and it is the reason the free tiers are not merely adequate but abundant.** Availability and pricing are the expensive, contract-gated, contentious parts of every travel API — they are the reason Hotelbeds wants a certification, the reason cruise data costs money, and the reason §1.3.4's net-rate prohibition was a problem. **Story-Tail needs none of it.**
 
@@ -233,17 +254,63 @@ What this does and does not block:
 | Data | Blocked? | Notes |
 | --- | --- | --- |
 | Property content — descriptions, images, amenities, geocodes | **No** | Hotelbeds Content API and LiteAPI static content are fine. This is most of what §2.0.5 needs. |
-| Rates displayed publicly as indicative pricing | **Unresolved** | Depends on whether display without transaction counts as "accepting" a net rate. It probably does not, but the downside is termination — get it in writing. |
+| Rates displayed publicly as indicative pricing | **Unresolved — and now SHIPPED, see below** | Depends on whether display without transaction counts as "accepting" a net rate. It probably does not, but the downside is termination — get it in writing. |
 | Rates used to quote or book | **Yes** | This is the prohibited act. |
 | Agent-only / FAM / advisor pricing shown publicly | **Yes** | §16 explicitly bars posting agent-only deals to the general public. |
 
 **The path chosen is option 1 below**, which is also §1.0:
 
-1. **Ship content without rates.** ✅ **Adopted.** The public search surface shows properties, photos, amenities, and a "request a quote" action; the advisor prices it through InteleSearch. Needs no ruling from anyone, matches the advisory model in `BRD.md` §5, and — as §1.0 notes — makes every free tier in this document abundant rather than tight.
+1. **Ship content without rates.** ⚠️ **Superseded 2026-09-09 for hotels only** — see §1.0's
+   amendment. The public hotel surface now carries one indicative nightly rate from Google
+   Hotels. The argument is that these are GROSS retail prices any member of the public can
+   read, so §1.3.4's net-rate prohibition is not engaged; the live constraint is §1.3.5, and
+   it is enforced structurally by giving the published type no source, logo or link field.
+   **Cruises still follow this option** — §4.7's "launch without it" stands, and the public
+   sailing type has no fare field at all.
+
+   *Originally:* The public search surface shows properties, photos, amenities, and a "request a quote" action; the advisor prices it through InteleSearch. Needs no ruling from anyone, matches the advisory model in `BRD.md` §5, and — as §1.0 notes — makes every free tier in this document abundant rather than tight.
 2. *Get a written ruling on displaying indicative wholesale pricing.* Now optional. Ask only if a future release wants "from $X" pricing on the search surface. Tracked as §9.2, downgraded to low.
 3. *Source gross rates instead.* Now moot for hotels, since no rate endpoint is called. Tracked as §9.3, downgraded to low.
 
-**The guardrail that remains:** if a future change adds any rate to any surface, this section becomes blocking again. Enforce it structurally rather than by memory — see §10's `RateVisibility` note.
+**The guardrail that remains, and it has now fired once:** a future change adding a rate to
+any surface makes this section blocking again. That happened on 2026-09-09 for hotels, which
+is why §9.2 moved from "low, deferred by §1.0" to a live question on a shipped surface, and
+why the wording under every rate is pinned as an unverified claim in
+`web/content/public/proof.ts` so a strict production build refuses to ship until a human has
+approved it. Enforce it structurally rather than by memory — for hotels that means the
+published type has no `source`, `logo` or `link` field, and for cruises no fare field at all.
+
+### 3.10 SerpApi — Google Hotels — **Tier B, and the one now in production**
+
+Added 2026-09-09. Not in v1.0 or v1.1 of this document, and it does not displace §2's
+recommended stack — Hotelbeds Content and Tripadvisor are still the right sources for the
+*content* layer if and when they are provisioned. This is the **availability** layer §1.0
+originally excluded, and it is the only provider evaluated here that answers "what is open
+on these dates" without a wholesale contract or a net rate.
+
+| | |
+| --- | --- |
+| Endpoint | `GET https://serpapi.com/search?engine=google_hotels` |
+| Free tier | **250 searches/month, 50/hour.** Cached, errored and failed searches do not count |
+| Next tier | Starter, $25/mo — 1,000/month at 200/hour |
+| Their cache | Identical parameter sets are served free for 1h. `no_cache=true` bypasses it; we never send it, and there is no code path that can |
+| Quota truth | `GET /account.json` is free, is not counted, and returns `total_searches_left` and `account_rate_limit_per_hour` |
+| Key transport | **A QUERY PARAMETER**, which collides with this codebase's "never in a URL" rule — see §10.2 and the client's header comment |
+
+**Two things to know before relying on it commercially.**
+
+1. **The Legal Shield excludes the Free, Starter and Developer plans.** SerpApi assumes the
+   liability of scraping and parsing search results only from the Production tier ($150/mo)
+   upward. Below that, the scraping posture is the customer's. §4.6 of this document tells
+   us not to build on scraped cruise data for supplier-relationship reasons; the same
+   question deserves an explicit answer here rather than an assumption, and it is listed as
+   §9.11.
+2. **It is Google's data, not a supplier's.** The rates are what a consumer sees, which is
+   exactly why §1.3.4 is not engaged — and also why they are indicative rather than
+   quotable. The advisor still prices the trip.
+
+**Why not Google Places directly** — §3.9's field-driven SKU escalation is unchanged, and
+Places has no availability at all. The two are not substitutes.
 
 ### 3.9 General-purpose Places APIs — evaluated, not recommended
 
@@ -529,7 +596,61 @@ Four of v1.0's eight questions are now closed. Recorded here so they are not re-
 | 9.7 | **What does a Widgety content licence cost** at single-advisor scale, and does the test key allow a public demo? | Cruise content in production (§4.2) | Gyasi → Widgety | **High — the cruise plan's only real cost** |
 | 9.8 | **Update `BRD.md`:** strike the scraped-cruise-data option in §9.3, and record the manual's constraints in §9 and §10.5. Per `CLAUDE.md`, docs get updated before code diverges. | Doc consistency | Gyasi | Medium |
 | 9.9 | **Attribution, display, caching and billing housekeeping** — Tripadvisor display rules and billing-account owner, GeoNames/Open-Meteo/Wikidata attribution, per-provider rate-caching terms. Likely a shared "data sources" footer page (`Screen-Inventory.md` §2.0.7). | Public launch; proxy tuning | Engineering + Gyasi | Medium |
+| 9.11 | **Is SerpApi's scraping posture acceptable for this business below the Production plan?** The Legal Shield indemnity excludes Free/Starter/Developer (§3.10). §4.6 declined scraped cruise data on supplier-relationship grounds; this is the same question with a vendor between us and it. | Nothing today — the feature ships behind a kill switch | Gyasi | **High — it is a business-risk call, not an engineering one** |
 | 9.10 | **Do provider terms permit *storing* content** in Postgres on the refresh cadence §10.1 assumes? Storage is a different, generally more permissive question than rate caching — but confirm per provider. | Sync architecture (§10.1) | Engineering | Medium |
+| 9.12 | **If an API limit actually starts binding, is a first-party scraper the answer?** Asked 2026-09-09 about Cruises.com specifically. Not a live question yet — see §9.12 below for the trigger conditions and the cheaper moves that come first. | Nothing today | Gyasi + Engineering | Low — revisit only on the trigger |
+
+### 9.12 On building our own scraper (asked 2026-09-09, answered "not yet")
+
+Recorded because the question will come back, and because the arithmetic that answers it
+today will have changed by then.
+
+**The trigger.** Revisit this only when one of these is *observed*, not anticipated:
+
+- The cruise sync is at its scope ceiling and still short of content — i.e. every scope in
+  `cruise_sync_scope` is enabled and the month's 100 RapidAPI requests are genuinely spent.
+  Today it uses roughly **22 of 100** with six sailing scopes still switched off, so the
+  limit is not binding; it is unexercised.
+- Hotel search is hitting `monthly_ceiling` with real visitors rather than with our own
+  testing, on a plan that has already been widened. Free is 250/month and Starter is $25/mo
+  for 1,000 — the first response to demand is $25, not an engineering project.
+- A provider we depend on withdraws or prices out the content itself.
+
+**The cheaper moves, in the order they should be tried.** Each is an `UPDATE` or a config
+change, not a build:
+
+1. `UPDATE cruise_sync_scope SET enabled = true` — widen the sync. This is the designed
+   widening path and it is deliberately not a code change.
+2. Raise `hotel_search_config.cache_ttl_seconds`. Six hours is conservative for a nightly
+   rate; twelve halves the spend for the same traffic.
+3. Pay the $25. A month of engineering costs more than three years of Starter.
+4. Sync the *static* half. A hotel's photographs, amenities and star rating do not change
+   with the dates — §10.1's argument still holds for everything except the dated lookup, and
+   syncing content would cut live searches to the ones that genuinely need a date.
+5. Licence the content properly — Widgety for cruise (§9.7 is the open cost question).
+
+**The arguments against, which have not changed since §4.6.** They are worth restating
+because "we already use SerpApi, which is itself a scraper" is a real point and it does not
+actually get us there:
+
+- §4.6 declined scraped cruise data on **supplier-relationship** grounds, and that reasoning
+  is about who Story-Tail depends on for commission, not about who is technically capable of
+  fetching a page. Scraping Cruises.com means scraping a **competing seller of the same
+  cruises**, whose terms prohibit it and whose relationships overlap ours.
+- SerpApi is not a precedent for doing it ourselves; it is a precedent for **buying the risk
+  from someone who carries it**. Even that is qualified — their Legal Shield excludes our
+  plan tier (§9.11), which is an open question rather than a settled one.
+- §1.3.1 requires InteleTravel to approve this site before launch. A public page built on a
+  competitor's scraped inventory is a harder conversation than a page built on a licensed
+  feed, and that conversation gates the launch date.
+- A scraper is not a one-time cost. It is a permanent maintenance obligation against a
+  target that changes without notice, and it fails silently — the failure mode is a stale
+  page, not an error.
+
+**Where it would be defensible.** Public, factual, non-commercial reference data with no
+supplier relationship attached — port and terminal details, ship specifications, published
+itineraries as fact rather than as an offer. That is a different question from mirroring a
+competitor's inventory, and it should be asked separately rather than folded into this one.
 
 ---
 
@@ -563,6 +684,18 @@ Scheduled Edge Function (nightly / weekly)
 
 That last row deserves emphasis: **§1.3.1 requires compliance approval of the site before launch.** A page whose content is synced and stored is a page whose content can actually be reviewed. A page that renders whatever a third party returns at request time is much harder to approve, and arguably changes after approval every time the provider updates a description.
 
+> **ONE DOCUMENTED EXCEPTION, added 2026-09-09: live hotel search.** Everything above is
+> right about content, and content is what it was written about. It is not right about a
+> dated availability lookup, because there is no static answer to mirror — the reply to
+> "Aruba, 12–19 August, two adults" is a function of the dates. That is the case this
+> section's own last practical note already carves out ("a request-time proxy is still right
+> for the interactive bits"). The proxy is `supabase/functions/hotel-search`, and the quota
+> math the table above warns about is handled explicitly rather than wished away: a six-hour
+> response cache checked before anything is spent, a per-IP and global rate limiter, an
+> append-only ledger, and ceilings below the plan limits — all in migration
+> `20260909120000_hotel_search.sql`. The compliance row is answered by storing the
+> NORMALISED payload rather than the raw one, so what a reviewer sees is what we keep.
+
 **Practical notes:**
 
 - **Store the provider's payload, then normalise.** Keep the raw response alongside the mapped row so a mapping bug is a re-derivation rather than a re-fetch against a quota.
@@ -579,7 +712,17 @@ When these get wired up, they follow the architecture that is already decided �
 - **Keys are server-side only.** No provider key, token, or affiliate ID reaches the web or mobile client — same rule as Stripe. Store them as Supabase Edge Function secrets, never in `web/` or `mobile/`.
 - **Display-only enforcement belongs in the proxy, not in the caller.** The proxy should refuse to forward to any provider path matching book / prebook / order / payment. §1.2 and §1.3.2 are business rules with contractual teeth, so they get enforced where a future screen cannot bypass them.
 - **Every booking CTA hands off to the personalized InteleTravel website.** Per §1.3.2, the terminal action on any public search or detail screen is a quote request (`Screen-Inventory.md` §2.0.6) or a link to `<advisor>.inteletravel.com` — never an on-platform checkout. Put the handoff URL in configuration, not inline, so the Advisor PIN attribution has exactly one source of truth.
-- **Never render agent-only, net, FAM, or advisor pricing on a public route.** §1.3.4. Under §1.0 no price is fetched at all, so the cleanest enforcement is structural: **give the public content types no price field.** If a future release adds one, a typed `RateVisibility` discriminator or a lint rule should gate it — the failure mode is a contract breach, not a layout bug.
+- **Never render agent-only, net, FAM, or advisor pricing on a public route.** §1.3.4. The
+  original enforcement was "give the public content types no price field", which held while
+  §1.0 fetched no price at all. **Since 2026-09-09 hotels do carry one, so the structural
+  rule moved rather than lapsed: the public hotel type has no `source`, `logo`, `link` or
+  `prices[]` field at all.** A booking-site name is what actually breaches the agreement
+  here (§1.3.5), and a type with nowhere to put one cannot render one. Enforced in three
+  places — an allow-list mapper that copies by name in
+  `supabase/functions/_shared/hotels/map.ts`, a zod schema that strips in
+  `web/lib/public/hotels.ts`, and tests that assert on the SERIALISED output rather than
+  field by field, because a field check passes while the value rides inside a passthrough
+  object. Sponsored placements are dropped for the same reason.
 - **The public surface is regulated marketing material.** Per §1.3.1 it needs InteleTravel compliance approval before launch, and re-approval is the safe assumption for material copy changes. Treat the §2.0 route group as change-controlled: it is the one part of the codebase where shipping is gated on an external human review (§9.1).
 - **Attribution as an InteleTravel affiliate is mandatory where the relationship is stated or implied.** The manual's required form is "An Independent Travel (Agency, Advisor or Affiliate) of InteleTravel." Also: no InteleTravel name in the domain, handles, or email addresses, no InteleTravel logo beside another logo, and **never publish ARC or CLIA numbers** — worth adding to the existing secret-scanning guards alongside the PAN scanners.
 - **Cache aggressively, within terms.** Per §10.1 static content lives in Postgres on a scheduled refresh rather than a TTL cache. There are no live rates to cache, because none are fetched (§1.0). Read each provider's storage terms before choosing a refresh cadence (§9.9).

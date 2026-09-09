@@ -464,6 +464,33 @@ verify_jwt = true
 [functions.cruise-sync]
 verify_jwt = true
 
+# ── §2.0 hotel search ─────────────────────────────────────────────────────────
+# The first function with an anonymous visitor behind it. verify_jwt stays TRUE for the
+# reason the header above gives, and it costs nothing here: the caller is the Next.js
+# server presenting the anon key, not a browser, so no preflight is eaten. The anon key is
+# public — it ships in the browser bundle — so the actual credential is the server-only
+# X-STA-Search-Token the function checks itself. See functions/hotel-search/index.ts.
+
+[functions.hotel-search]
+verify_jwt = true
+
+# ── Quote requests ────────────────────────────────────────────────────────────
+# JWT verified, and the function additionally requires the `client` role: per BRD §6.5
+# (2026-09-09) a quote request creates a Trip, trip.client_id is NOT NULL, and the trip it
+# writes belongs to whoever the token resolves to. There is deliberately no anonymous path —
+# see the function header.
+
+[functions.quote-request]
+verify_jwt = true
+
+# Reads the synced cruise catalog for the public Cruises mode. Same caller posture as
+# hotel-search — our own server, anon key plus the server-only X-STA-Search-Token — and it
+# exists so the cruise tables can keep zero anon grants, which rls_cruise_catalog.sql
+# asserts. It spends no provider budget: the catalog is already in Postgres.
+
+[functions.cruise-search]
+verify_jwt = true
+
 [functions.testimonial]
 # JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
 # the client from the token rather than trusting a body field.

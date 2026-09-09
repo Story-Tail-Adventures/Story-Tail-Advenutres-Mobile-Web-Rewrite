@@ -102,21 +102,48 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Entry points:** Public Search Landing.
 **Related screens:** Public Property/Cruise/Tour Detail, Sign-up Gate, Property/Cruise/Tour Detail (authenticated).
 
+**Hotels mode, added 2026-09-09 (P2).** 2.0.4 now renders two catalogs behind a mode switch:
+**Gyasi's picks**, the curated catalog described above and still the default, and **Hotels**,
+a live SerpApi Google Hotels search for the dates on the search bar. A search carrying dates
+lands on Hotels; the mode is otherwise derived, so it stays out of the URL until it is chosen
+explicitly. The Hotels rail borrows §2.3.3's vocabulary — **price, star rating, amenities** —
+rather than the curated rail's trip type / vibe / budget, because those are catalog concepts
+with no provider equivalent; each mode echoes the other's filters as hidden inputs so
+switching is lossless. Sort drops "price high to low" in Hotels mode, which the provider
+cannot do. Hotel cards carry an indicative nightly rate and **never** a booking site's name,
+logo or link (Free-Travel-APIs §1.3.5), and the name is not a link because there is no public
+hotel detail page — the terminal action is a quote request. Five empty states, including
+§5's stale-data affordance when the response is served from cache and a budget-exhausted
+state that falls back to the curated catalog rather than erroring.
+
 #### 2.0.5 Public Property / Cruise / Tour Detail
 **Purpose:** Full detail page for a search result, anonymously viewable.
-**Primary elements:** Same content as authenticated Detail screen (gallery, description, amenities, itinerary); "Favorite" and "Request a Quote" CTAs that prompt registration; "Message Gyasi without an account" link (creates a lead with just an email).
+**Primary elements:** Same content as authenticated Detail screen (gallery, description, amenities, itinerary); "Favorite" and "Request a Quote" CTAs that prompt registration; "Message Gyasi without an account" link (opens a prefilled email — see the phase note).
 **Key actions:** View; attempt to favorite/quote (gate); message agent via low-friction lead form.
 **Entry points:** Public Search Results.
 **Related screens:** Sign-up Gate, Quote Request Form (post-auth).
-**Phase 1 note:** "Message Gyasi without an account" is a prefilled email link in Phase 1 (the Lead entity is P2, Data Model §11); Phase 2 replaces the link target with lead capture without changing the page.
+**Phase note (amended 2026-09-09):** "Message Gyasi without an account" is a prefilled email
+link, and now stays one. It previously read "Phase 2 replaces the link target with lead
+capture" — but per BRD §6.5 a quote request creates a Trip, which requires an account, so
+there is no lead to capture. The email is the whole of the no-account path: it is the only
+thing on this screen a visitor can do without signing up, which makes it load-bearing rather
+than a placeholder.
 
 #### 2.0.6 Sign-up Gate / Quote Request Prompt
 **Purpose:** Convert browsing into account creation at the moment of high intent.
-**Primary elements:** Contextual headline ("Almost there — create an account to send Gyasi your trip details"); short value prop (3 bullets); inline registration form (name, email, password) with social-login options; "Already have an account? Sign in" link; "Continue as guest with just email" fallback (creates a lightweight lead, no account).
+**Primary elements:** Contextual headline ("Almost there — create an account to send Gyasi your trip details"); short value prop (3 bullets); inline registration form (name, email, password) with social-login options; "Already have an account? Sign in" link; "Continue as guest with just email" fallback (opens a prefilled email to Gyasi — see the implementation note).
 **Key actions:** Register; sign in; submit as guest.
 **Entry points:** Public Search Results CTAs; Public Property/Cruise/Tour Detail CTAs.
 **Related screens:** Registration, Login, Welcome / First Login, Quote Request Confirmation.
-**Implementation note (web):** ships as its own route (`/join?intent=…&trip=…`) with the Pattern J centered-card look, so it deep-links and works without JavaScript; the inline form carries first name, last name, email, password and the terms checkbox required by 2.1.2. "Continue as guest" follows the 2.0.5 Phase 1 note (email link).
+**Implementation note (web):** ships as its own route (`/join?intent=…&trip=…`) with the Pattern J centered-card look, so it deep-links and works without JavaScript; the inline form carries first name, last name, email, password and the terms checkbox required by 2.1.2. "Continue as guest" follows the 2.0.5 phase note (email link).
+
+**This screen is now a gate, not a nudge (2026-09-09).** Its purpose line says "convert
+browsing into account creation at the moment of high intent", and per BRD §6.5 that is now
+literal: a quote request writes a Trip, `trip.client_id` and `client.first_name`/`last_name`
+are all `NOT NULL`, so there is no way to record an intent without a registered person. The
+guest fallback is an email to Gyasi and carries no search context with it. Worth measuring:
+if a visible share of visitors take the email rather than the form, the Lead domain
+(Data-Model §11) is the designed fix and is deferred rather than deleted.
 
 #### 2.0.7 Footer Pages (Privacy, Terms, Cookies, Accessibility)
 **Purpose:** Legal and compliance pages reachable from any public or authenticated screen.
@@ -598,7 +625,10 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Related screens:** Quote Request, Conversation Thread, Favorites.
 
 #### 2.3.8 Quote Request Form
-**Purpose:** Convert a search/favorite into a lead for the agent.
+**Purpose:** Convert a search/favorite into a trip in `inquiry` status for the agent.
+**Phase note (2026-09-09):** this screen created a *lead* until BRD §6.5 was amended. It now
+writes a Trip directly, which means it is reachable only by a signed-in client — the sign-up
+gate (2.0.6) sits in front of it rather than beside it.
 **Primary elements:** Trip name (auto-suggested); destinations summary; dates; travelers; preferences notes; preferred contact method; budget confirmation; items to include from favorites; "Submit" CTA.
 **Key actions:** Review pre-filled context; add notes; submit.
 **Entry points:** Property Detail CTA; Favorites; Search Results "Request quote".
@@ -1347,6 +1377,15 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 ### 3.8 Leads
 
 **Phase:** All screens in Section 3.8 are **Phase 2** per BRD Section 13.2. They depend on the Lead and LeadSource entities (P2 in the Data Model) and on the self-guided search flow that generates leads. They do not exist at MVP — leads at MVP are tracked as informal trip-inquiry messages rather than structured Lead records.
+
+> **§3.8 IS DEFERRED AS OF 2026-09-09, NOT DELETED.** Per BRD §6.5 a quote request now
+> creates a Trip in `inquiry` status rather than a Lead, so nothing arrives in this workspace
+> — the agent works one queue (3.3 Trips) instead of two, and 3.8.3's "Convert Lead to Trip"
+> step no longer exists as a stage. The five screens below stay specified because the Lead
+> domain (Data-Model §11) is still the designed answer if requiring an account at the top of
+> the funnel proves too lossy; if it is revived, this is what it looks like. Until then,
+> **treat §3.8 as unbuilt and unplanned**, and read `inquiry`-status trips in 3.3 as the
+> queue it describes.
 
 #### 3.8.1 Leads Inbox
 **Purpose:** All new quote-request leads from self-guided search.

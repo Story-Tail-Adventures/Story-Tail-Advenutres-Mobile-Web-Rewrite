@@ -34,6 +34,9 @@ const EXPECTED_UNVERIFIED = [
   "replyWithin48h",
   "islandsPlannedAll",
   "tripDetails",
+  // Live hotel rates. Unverified on purpose: a strict production build must refuse to ship
+  // a public price claim until a human has approved the wording (Free-Travel-APIs §9.2).
+  "hotelRateBasis",
 ];
 
 describe("claims registry", () => {

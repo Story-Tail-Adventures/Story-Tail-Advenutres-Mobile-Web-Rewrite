@@ -947,7 +947,7 @@ internal object PublicCatalog {
                 heading = "1. What we collect",
                 paragraphs = listOf(
                     "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. Payment cards are collected through Stripe and stored as tokens; we keep the card brand, last four digits and expiration so you can recognize a card, never the full number.",
-                    "We do not sell your information, and we do not share it with marketing third parties.",
+                    "We do not sell your information, and we do not share it with marketing third parties. Section 3 lists everyone we do send anything to, and why.",
                 ),
                 bullets = emptyList(),
             ),
@@ -963,6 +963,9 @@ internal object PublicCatalog {
                 heading = "3. Who we share it with",
                 paragraphs = listOf(
                     "Trip details and traveler names go to the suppliers who deliver your trip (airlines, resorts, cruise lines, tour operators) and to Inteletravel, the host agency that issues bookings. Payment processing is handled by Stripe. Our hosting and database providers process data on our behalf under contract.",
+                    "When you search for hotels, the destination and dates you enter are sent to SerpApi, which returns results from Google Hotels. We do not send your name, your email, or anything else about you — only the search itself.",
+                    "Hotel photographs on the results page are loaded directly from Google's image servers. That means Google receives your IP address and browser details when a photo loads, as it would for any image on the web. We ask your browser not to tell Google which page you were on.",
+                    "We keep a record of each hotel search so we can stay inside the search allowance we pay for. The destination and dates are cleared from that record after 30 days; the cached results themselves expire within hours.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1141,6 +1144,7 @@ internal object PublicCatalog {
         Claim(id = "replyWithin48h", display = "within 48 hours", detail = null, verified = false),
         Claim(id = "islandsPlannedAll", display = "Twelve islands. One advisor who's planned every one of them.", detail = null, verified = false),
         Claim(id = "tripDetails", display = "Trip descriptions, highlights and sample itineraries", detail = "Drafted from the design prototype and public supplier information; confirm with suppliers.", verified = false),
+        Claim(id = "hotelRateBasis", display = "Nightly rates are public rates for the dates you picked, before taxes and fees — a starting point, not a quote.", detail = "Sourced live from Google Hotels. Confirm the wording with InteleTravel compliance (Free-Travel-APIs §9.2).", verified = false),
     )
 
     val TESTIMONIALS: List<Testimonial> = listOf(

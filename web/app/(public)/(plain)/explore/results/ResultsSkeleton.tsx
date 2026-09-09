@@ -51,3 +51,23 @@ export function ResultsSkeleton() {
     </div>
   );
 }
+
+/**
+ * Rows only, for the Suspense boundary inside the results page.
+ *
+ * Taller than a trip row (`h-36` against `web:h-30`) because a hotel row carries an
+ * amenity line the trip row does not — a fallback that is the wrong height makes the page
+ * jump when it resolves, which is the one thing a skeleton exists to prevent.
+ */
+export function HotelRowsSkeleton() {
+  return (
+    <div aria-busy="true" className="animate-pulse motion-reduce:animate-none">
+      <p className="sr-only">{RESULTS.loading}</p>
+      <div className="flex flex-col gap-2.5 md:max-web:grid md:max-web:grid-cols-2 md:max-web:gap-3.5">
+        {ROWS.map((i) => (
+          <div key={i} className="card h-60 bg-surface-3 web:h-36" />
+        ))}
+      </div>
+    </div>
+  );
+}

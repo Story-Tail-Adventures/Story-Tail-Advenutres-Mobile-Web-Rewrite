@@ -54,7 +54,18 @@ describe("2.0.4 public search results", () => {
       expect(path).toBe("/join");
       expect(params.get("intent")).toBe("quote");
       expect(TRIP_SLUGS).toContain(params.get("trip"));
-      expect(params.get("next")).toBe(current);
+
+      // `next` is the QUOTE FORM, not the page they were on. That is what lets one CTA serve
+      // both visitors: the proxy forwards a signed-in client straight to it, and an
+      // anonymous one arrives there after registering. Pointing `next` back at the results
+      // page would land a new account back where it started, with the request unsent.
+      const next = parts(params.get("next") ?? "");
+      expect(next.path).toBe("/trips/new");
+      expect(TRIP_SLUGS).toContain(next.params.get("trip"));
+      // `kind` is a component_kind, not a UI category — the catalog's four types map onto
+      // three of them. Sending the literal "trip" is what the function rejected.
+      expect(["hotel", "cruise", "excursion", "custom"]).toContain(next.params.get("kind"));
+      expect(next.params.get("source")).toBe("curated");
     }
     for (const link of screen.getAllByRole("link", { name: /^Save/ })) {
       const { path, params } = parts(link.getAttribute("href") ?? "");
@@ -115,7 +126,10 @@ describe("2.0.4 public search results", () => {
 
   it("is not indexed and points canonical at /explore", () => {
     expect(metadata.title).toBe("Trip ideas");
-    expect(metadata.robots).toEqual({ index: false, follow: true });
+    // `follow` is false because Hotels mode spends a metered provider request per distinct
+    // URL, and every chip, sort and mode link on this page is a plain anchor. Flipping this
+    // back to true lets a crawler walk that space at 250 searches a month.
+    expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(metadata.alternates?.canonical).toBe("/explore");
   });
 });

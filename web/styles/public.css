@@ -482,6 +482,32 @@
     .tap-44 { position: relative; }
     .tap-44::after { content: ""; position: absolute; inset: -8px; }
   }
+
+  /*
+   * One link covering its whole card.
+   *
+   * Used where a card has exactly ONE destination — a hotel result, which has no detail page
+   * to compete with its quote CTA. The anchor stays on the heading so a screen reader
+   * announces the hotel's name rather than "Request quote" twenty times over, and the
+   * pseudo-element does the reaching. Anything in the card that must stay clickable needs
+   * `position: relative` to sit above it; nothing does today, which is why the pill beside
+   * it is a span.
+   *
+   * The focus ring goes on the ::after, not the anchor: outlining the text alone would draw
+   * a two-word box on a 180px-tall row and look like a mistake.
+   */
+  .link-stretch::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+  .pub-surface .link-stretch:focus-visible { outline: none; }
+  .pub-surface .link-stretch:focus-visible::after {
+    outline: 2px solid var(--md-primary);
+    outline-offset: -2px;
+    border-radius: var(--r-lg);
+  }
   @media (prefers-reduced-motion: reduce) {
     .pub-surface *, .pub-surface *::before, .pub-surface *::after {
       transition-duration: 0.01ms !important;

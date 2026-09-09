@@ -29,17 +29,28 @@ describe("2.0.3 public search landing", () => {
       expect(form.tagName).toBe("FORM");
       expect(form).toHaveAttribute("action", "/explore/results");
       expect(form.querySelector('input[name="dest"]')).not.toBeNull();
-      expect(form.querySelector('input[name="when"]')).not.toBeNull();
+      // The dates cell carries the stay as `in` / `out`. Whether they are the native date
+      // inputs or the picker's hidden ones, the form submits the same two params — which is
+      // the point of the progressive-enhancement split.
+      expect(form.querySelector('[name="in"]')).not.toBeNull();
+      expect(form.querySelector('[name="out"]')).not.toBeNull();
+      expect(form.querySelector('input[name="when"]')).toBeNull();
       const travelers = form.querySelector<HTMLInputElement>('input[name="travelers"]');
       expect(travelers?.type).toBe("number");
       expect(travelers?.min).toBe("1");
       expect(travelers?.max).toBe("20");
       expect(form.querySelector('button[type="submit"]')).toHaveTextContent("Search");
+      // EXACTLY one submit per form. A bare <button> inside a <form> defaults to
+      // type="submit", so a picker button missing type="button" would turn every day cell,
+      // month arrow and Clear into a search submission.
+      expect(form.querySelectorAll('button[type="submit"]')).toHaveLength(1);
     }
-    // Every cell has a visible, associated label.
-    for (const label of ["Destination", "Dates", "Travelers"]) {
+    // Every cell has a visible, associated label. "Dates" names the picker's trigger on the
+    // pill and the check-in input on the stacked card, so it resolves twice either way.
+    for (const label of ["Destination", "Travelers"]) {
       expect(screen.getAllByLabelText(label)).toHaveLength(2);
     }
+    expect(screen.getAllByText("Dates", { selector: "label" })).toHaveLength(2);
   });
 
   it("links every inspiration tile to a results search with a derived trip count", () => {

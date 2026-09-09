@@ -14,6 +14,30 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class HotelSearchResponseDegraded {
+    @SerialName("budget_exhausted")
+    BUDGET_EXHAUSTED,
+    @SerialName("provider_unavailable")
+    PROVIDER_UNAVAILABLE,
+}
+
+@Serializable
+enum class HotelSearchResponseSource {
+    @SerialName("live")
+    LIVE,
+    @SerialName("cache")
+    CACHE,
+    @SerialName("stale")
+    STALE,
+}
+
+@Serializable
+enum class HotelRateBasis {
+    @SerialName("night")
+    NIGHT,
+}
+
+@Serializable
 enum class OnboardingCompanionRequestAction {
     @SerialName("add")
     ADD,
@@ -428,4 +452,142 @@ data class Problem(
     val detail: String? = null,
     @SerialName("instance")
     val instance: String? = null,
+)
+
+@Serializable
+data class HotelSearchRequest(
+    // Free text, as typed. Normalised server-side before it becomes a cache key.
+    @SerialName("destination")
+    val destination: String,
+    @SerialName("checkIn")
+    val checkIn: String,
+    // Must be after checkIn, and at most 30 nights later.
+    @SerialName("checkOut")
+    val checkOut: String,
+    @SerialName("adults")
+    val adults: Int? = null,
+    @SerialName("childrenAges")
+    val childrenAges: List<Int>? = null,
+    // Google star classification, 2-5. Not the guest rating.
+    @SerialName("hotelClass")
+    val hotelClass: List<String>? = null,
+    // Google amenity ids. Unknown values are dropped, never forwarded.
+    @SerialName("amenities")
+    val amenities: List<String>? = null,
+    @SerialName("minPrice")
+    val minPrice: Int? = null,
+    @SerialName("maxPrice")
+    val maxPrice: Int? = null,
+    // SerpApi sort id — "3" lowest price, "8" highest rating, "13" most reviewed. Empty means the provider's own relevance.
+    @SerialName("sortBy")
+    val sortBy: String? = null,
+)
+
+/** ONE indicative nightly rate, deliberately not a list. The provider returns one entry */
+/** per booking site, each carrying a source, a logo and a link; a list here — even with */
+/** those fields omitted — would invite someone to add the source back "for attribution". */
+/** A single scalar cannot. */
+@Serializable
+data class HotelRate(
+    // Integer minor units as a string (CLAUDE.md rule 5).
+    @SerialName("amountCents")
+    val amountCents: String,
+    @SerialName("currency")
+    val currency: String,
+    // The only basis published. A total-for-the-stay reads like a quote.
+    @SerialName("basis")
+    val basis: HotelRateBasis,
+    @SerialName("beforeTaxesFees")
+    val beforeTaxesFees: Boolean,
+)
+
+@Serializable
+data class HotelImage(
+    // Host allow-listed at the mapper and again in web/.
+    @SerialName("url")
+    val url: String,
+)
+
+@Serializable
+data class HotelLocation(
+    @SerialName("latitude")
+    val latitude: Double,
+    @SerialName("longitude")
+    val longitude: Double,
+)
+
+@Serializable
+data class HotelResult(
+    @SerialName("id")
+    val id: String,
+    // Opaque provider id, carried so the later inquiry step can name the hotel. Not a URL.
+    @SerialName("propertyToken")
+    val propertyToken: String? = null,
+    @SerialName("name")
+    val name: String,
+    @SerialName("description")
+    val description: String? = null,
+    @SerialName("propertyType")
+    val propertyType: String? = null,
+    @SerialName("hotelClass")
+    val hotelClass: Int? = null,
+    @SerialName("overallRating")
+    val overallRating: Double? = null,
+    @SerialName("reviewCount")
+    val reviewCount: Int? = null,
+    @SerialName("location")
+    val location: HotelLocation? = null,
+    @SerialName("checkInTime")
+    val checkInTime: String? = null,
+    @SerialName("checkOutTime")
+    val checkOutTime: String? = null,
+    @SerialName("amenities")
+    val amenities: List<String>,
+    @SerialName("images")
+    val images: List<HotelImage>,
+    @SerialName("ecoCertified")
+    val ecoCertified: Boolean,
+    @SerialName("rate")
+    val rate: HotelRate? = null,
+)
+
+@Serializable
+data class HotelSearchEcho(
+    @SerialName("destination")
+    val destination: String,
+    @SerialName("checkIn")
+    val checkIn: String,
+    @SerialName("checkOut")
+    val checkOut: String,
+    @SerialName("adults")
+    val adults: Int,
+    @SerialName("nights")
+    val nights: Int,
+)
+
+@Serializable
+data class HotelSearchResponse(
+    // Payload shape version. Part of the cache key, so a change means a cold cache.
+    @SerialName("version")
+    val version: Int,
+    @SerialName("currency")
+    val currency: String,
+    @SerialName("totalAvailable")
+    val totalAvailable: Int? = null,
+    @SerialName("results")
+    val results: List<HotelResult>,
+    // Always false. Each extra page is another billable search.
+    @SerialName("hasMore")
+    val hasMore: Boolean,
+    @SerialName("source")
+    val source: HotelSearchResponseSource,
+    @SerialName("degraded")
+    val degraded: HotelSearchResponseDegraded? = null,
+    @SerialName("asOf")
+    val asOf: String,
+    // Set only when source is "stale". The page must show how old the prices are.
+    @SerialName("staleAsOf")
+    val staleAsOf: String? = null,
+    @SerialName("query")
+    val query: HotelSearchEcho,
 )

@@ -22,6 +22,61 @@ env:
   NODE_VERSION: "22"
 
 jobs:
+  # Which parts of the tree this change touches.
+  #
+  # Gates both mobile jobs, and the arithmetic is why. `mobile-ios-compile` runs on macOS,
+  # which bills at 10x on a private repo: a six-minute job costs sixty minutes of a
+  # 2,000-minute monthly allowance. `mobile-android` bills at 1x but is a Gradle assemble
+  # plus unit tests, so it is not cheap either. Between them they were most of the budget,
+  # spent on pull requests that could not have affected a mobile build. This job costs a few
+  # seconds on Linux.
+  #
+  # Both depend on exactly the same inputs — `mobile/` is their working directory and
+  # `contracts/kotlin/` is a source set in `:shared` — so one filter is correct for both.
+  #
+  # IT FAILS OPEN, DELIBERATELY. If the base commit is missing — a force-push, a brand-new
+  # branch, a shallow fetch — it reports `true` and the expensive job runs. A gate that
+  # wrongly skips a compile hides a broken build; one that wrongly runs it costs minutes.
+  # Those are not the same mistake.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The diff needs the base commit, which a shallow clone does not have.
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BASE:-}" ] \
+            || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "Base commit unavailable — running the mobile jobs rather than guessing."
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Three-dot: what THIS change added, not everything the base has moved on by.
+          #
+          # contracts/kotlin/ is in the list because mobile/shared/build.gradle.kts compiles
+          # it as a source directory (line ~154) — a regenerated contract breaks BOTH mobile
+          # builds without a single file under mobile/ changing. ci.yml is in the list so a
+          # change to this gate revalidates the thing it gates.
+          if git diff --name-only "${BASE}...${HEAD_SHA}" \
+            | grep -qE '^(mobile/|contracts/kotlin/|\.github/workflows/ci\.yml$)'; then
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing under mobile/ or contracts/kotlin/ — skipping the iOS compile."
+            echo "mobile=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Cheap and deterministic, so it runs first and fails fast.
   pci-guard:
     name: PCI guard
@@ -137,6 +192,8 @@ jobs:
 
   mobile-android:
     name: Mobile (Android)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -182,8 +239,15 @@ jobs:
   # mobile/README.md still documents it as the iOS-compatibility gate. Restore this job
   # before anyone actually builds for iOS.
   #
+  # WHEN RESTORING, KEEP THE GATE. This block was parked from a dev that had no `changes`
+  # job; uncommenting it as-written would put a 10x-billed macOS job back on EVERY pull
+  # request, which is the spend this branch's paths filter was added to stop. The two
+  # `needs:`/`if:` lines below are that filter — they are part of the restore, not optional.
+  #
   # mobile-ios-compile:
   #   name: Mobile (iOS klib)
+  #   needs: changes
+  #   if: needs.changes.outputs.mobile == 'true'
   #   runs-on: macos-latest
   #   steps:
   #     - uses: actions/checkout@v5

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Photo } from "@/components/public/Photo";
 import { Icon } from "@/components/ui/Icon";
 import type { Trip } from "@/content/public/types";
-import { joinHref, tripHref } from "@/lib/public/links";
+import { joinHref, quoteKindFor, requestQuoteHref, tripHref } from "@/lib/public/links";
 import { formatMoney } from "@/lib/public/money";
 import { RESULTS } from "./content";
 
@@ -21,7 +21,12 @@ interface ResultCardProps {
  */
 export function ResultCard({ trip, rating, next }: ResultCardProps) {
   const detail = tripHref(trip.slug);
-  const quote = joinHref({ intent: "quote", trip: trip.slug, next });
+  const quote = requestQuoteHref({
+    ...quoteKindFor(trip.type),
+    slug: trip.slug,
+    name: trip.name,
+    source: "curated",
+  });
   const save = joinHref({ intent: "save", trip: trip.slug, next });
   const price = formatMoney(trip.from, { whole: true });
 

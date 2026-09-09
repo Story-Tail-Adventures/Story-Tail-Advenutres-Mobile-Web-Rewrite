@@ -4,6 +4,50 @@
  */
 
 export interface paths {
+    "/hotel-search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Live hotel search for the public Explore surface.
+         * @description Screen 2.0.4 in Hotels mode, and 2.3.3 later. Calls SerpApi's Google Hotels engine
+         *     for the dates given and returns normalised hotel content plus ONE indicative
+         *     nightly rate per property.
+         *
+         *     NOT CALLED FROM A BROWSER. The caller is the Next.js server
+         *     (`web/lib/public/hotels.ts`), presenting the project anon key plus the server-only
+         *     `X-STA-Search-Token`. `verify_jwt` stays true and there is no anon RLS policy
+         *     anywhere: this function is the boundary, not a table. The anon key is public — it
+         *     ships in the browser bundle — so it authenticates nobody, which is what the header
+         *     is for.
+         *
+         *     THE RESPONSE CARRIES NO BOOKING-SITE IDENTITY. The provider's
+         *     `properties[].prices[]` — site names, their logos, their links — is dropped at the
+         *     mapper and has no field to land in here. Free-Travel-APIs §1.3.5 forbids promoting
+         *     another business on this site; §10.2 asks for that to be structural rather than
+         *     remembered. See `HotelRate`, which is one scalar rather than a list, for why.
+         *
+         *     DEGRADATION IS A 200. When the monthly budget is spent the response carries
+         *     `degraded: "budget_exhausted"` with empty `results`, and the page falls back to the
+         *     curated catalog. Late in a month on the free tier that is the expected outcome, not
+         *     a failure. `source: "stale"` means the budget is spent but a recent expired cache
+         *     entry was served — `staleAsOf` says how old, and the page must say so.
+         *
+         *     POST rather than GET so the filter arrays cannot be serialised two ways by two
+         *     callers, which is the cache-key hazard the whole design is built around.
+         */
+        post: operations["searchHotels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trip-message": {
         parameters: {
             query?: never;
@@ -496,6 +540,101 @@ export interface components {
             detail?: string;
             instance?: string;
         };
+        HotelSearchRequest: {
+            /** @description Free text, as typed. Normalised server-side before it becomes a cache key. */
+            destination: string;
+            /** Format: date */
+            checkIn: string;
+            /**
+             * Format: date
+             * @description Must be after checkIn, and at most 30 nights later.
+             */
+            checkOut: string;
+            /** @default 2 */
+            adults: number;
+            childrenAges?: number[];
+            /** @description Google star classification, 2-5. Not the guest rating. */
+            hotelClass?: string[];
+            /** @description Google amenity ids. Unknown values are dropped, never forwarded. */
+            amenities?: string[];
+            minPrice?: number | null;
+            maxPrice?: number | null;
+            /** @description SerpApi sort id — "3" lowest price, "8" highest rating, "13" most reviewed. Empty means the provider's own relevance. */
+            sortBy?: string;
+        };
+        /**
+         * @description ONE indicative nightly rate, deliberately not a list. The provider returns one entry
+         *     per booking site, each carrying a source, a logo and a link; a list here — even with
+         *     those fields omitted — would invite someone to add the source back "for attribution".
+         *     A single scalar cannot.
+         */
+        HotelRate: {
+            /** @description Integer minor units as a string (CLAUDE.md rule 5). */
+            amountCents: string;
+            currency: string;
+            /**
+             * @description The only basis published. A total-for-the-stay reads like a quote.
+             * @enum {string}
+             */
+            basis: "night";
+            beforeTaxesFees: boolean;
+        };
+        HotelImage: {
+            /** @description Host allow-listed at the mapper and again in web/. */
+            url: string;
+        };
+        HotelLocation: {
+            latitude: number;
+            longitude: number;
+        };
+        HotelResult: {
+            id: string;
+            /** @description Opaque provider id, carried so the later inquiry step can name the hotel. Not a URL. */
+            propertyToken?: string | null;
+            name: string;
+            description?: string | null;
+            propertyType?: string | null;
+            hotelClass?: number | null;
+            overallRating?: number | null;
+            reviewCount?: number | null;
+            location?: components["schemas"]["HotelLocation"];
+            checkInTime?: string | null;
+            checkOutTime?: string | null;
+            amenities: string[];
+            images: components["schemas"]["HotelImage"][];
+            ecoCertified: boolean;
+            rate?: components["schemas"]["HotelRate"];
+        };
+        HotelSearchEcho: {
+            destination: string;
+            /** Format: date */
+            checkIn: string;
+            /** Format: date */
+            checkOut: string;
+            adults: number;
+            nights: number;
+        };
+        HotelSearchResponse: {
+            /** @description Payload shape version. Part of the cache key, so a change means a cold cache. */
+            version: number;
+            currency: string;
+            totalAvailable?: number | null;
+            results: components["schemas"]["HotelResult"][];
+            /** @description Always false. Each extra page is another billable search. */
+            hasMore: boolean;
+            /** @enum {string} */
+            source: "live" | "cache" | "stale";
+            /** @enum {string|null} */
+            degraded?: "budget_exhausted" | "provider_unavailable" | null;
+            /** Format: date-time */
+            asOf: string;
+            /**
+             * Format: date-time
+             * @description Set only when source is "stale". The page must show how old the prices are.
+             */
+            staleAsOf?: string | null;
+            query: components["schemas"]["HotelSearchEcho"];
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -542,6 +681,36 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    searchHotels: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Shared secret proving the caller is our own server. */
+                "X-STA-Search-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HotelSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Results — live, cached, stale, or degraded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotelSearchResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     sendTripMessage: {
         parameters: {
             query?: never;

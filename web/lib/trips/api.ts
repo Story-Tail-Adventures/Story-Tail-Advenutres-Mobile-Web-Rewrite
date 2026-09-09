@@ -16,7 +16,12 @@ import { createClient } from "@/lib/supabase/server";
  * path to an origin is server-side, next to the env that holds the origin.
  */
 
-export type TripFunction = "trip-message" | "trip-document" | "trip-document-url" | "testimonial";
+export type TripFunction =
+  | "trip-message"
+  | "trip-document"
+  | "trip-document-url"
+  | "testimonial"
+  | "quote-request";
 
 export type TripCallResult =
   | { ok: true; data: Record<string, unknown> }

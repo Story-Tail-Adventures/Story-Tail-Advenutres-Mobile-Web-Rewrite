@@ -45,6 +45,7 @@ export const CLAIM_IDS = [
   "replyWithin48h",
   "islandsPlannedAll",
   "tripDetails",
+  "hotelRateBasis",
 ] as const;
 
 export type ClaimId = (typeof CLAIM_IDS)[number];
@@ -107,6 +108,28 @@ export const CLAIMS: Record<ClaimId, Claim> = {
   tripDetails: {
     display: "Trip descriptions, highlights and sample itineraries",
     detail: "Drafted from the design prototype and public supplier information; confirm with suppliers.",
+    verified: false,
+  },
+  /**
+   * THE SENTENCE UNDER EVERY LIVE HOTEL RATE, AND IT IS HERE ON PURPOSE.
+   *
+   * The rate itself is not a Story-Tail claim — it is Google's public figure for the dates
+   * the visitor picked, so `pricePlaceholder` (which only scans TRIPS) does not apply. But
+   * a number on a public page IS regulated marketing material under §1.3.1, and
+   * Free-Travel-APIs §3.8 records "rates displayed publicly as indicative pricing" as
+   * unresolved, tracked as §9.2, with the note that the downside is termination.
+   *
+   * The argument for showing it is good — Google Hotels prices are GROSS retail rates that
+   * any member of the public can see, not the net/wholesale rates §1.3.4 prohibits — but it
+   * is an argument, not a ruling. So it goes in the registry: leaving this unverified means
+   * PUBLIC_CLAIMS_MODE=strict refuses to build production until a human has read and
+   * approved this exact wording. That is the existing machinery doing the work, in three
+   * lines, rather than a comment nobody enforces.
+   */
+  hotelRateBasis: {
+    display:
+      "Nightly rates are public rates for the dates you picked, before taxes and fees — a starting point, not a quote.",
+    detail: "Sourced live from Google Hotels. Confirm the wording with InteleTravel compliance (Free-Travel-APIs §9.2).",
     verified: false,
   },
 };

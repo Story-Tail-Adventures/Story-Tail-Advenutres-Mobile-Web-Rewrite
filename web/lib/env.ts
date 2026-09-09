@@ -83,7 +83,8 @@ export const env = {
 
   /**
    * Where "Message Gyasi without an account" emails go (Screen Inventory 2.0.5 / 2.0.6).
-   * MVP lead capture is a prefilled email — the Lead entity is Phase 2. Outside production
+   * The no-account path is a prefilled email, and stays one: per BRD §6.5 a quote request
+   * creates a Trip and so needs an account, and the Lead entity is deferred. Outside production
    * the seed agent's address stands in; in production an unset value returns null and the
    * guest CTAs fall back to the sign-up gate rather than inventing an address.
    */
@@ -92,5 +93,30 @@ export const env = {
     if (configured) return configured;
     if (process.env.NODE_ENV === "production") return null;
     return "gyasi@example.com";
+  },
+
+  /**
+   * The shared secret proving a hotel-search call came from our own server.
+   *
+   * NOT `NEXT_PUBLIC_` — deliberately, and it is the reason this getter exists at all. The
+   * anon key satisfies the Edge Function's gateway but authenticates nobody, because it is
+   * inlined into the browser bundle; this value never is. Reading it in a client component
+   * yields undefined, which is the failure mode we want.
+   *
+   * Null rather than throwing when unset: the hotels mode then reports itself unavailable
+   * and the page falls back to the curated catalog, which is a better outcome on a public
+   * marketing route than a 500.
+   */
+  get hotelSearchToken(): string | null {
+    return process.env.STA_HOTEL_SEARCH_TOKEN ?? null;
+  },
+
+  /**
+   * The kill switch. Live hotel search spends a metered third-party budget on a public
+   * page, so it needs to be one env var from off without a deploy or a code change.
+   */
+  get hotelSearchEnabled(): boolean {
+    if (process.env.HOTEL_SEARCH_ENABLED === "false") return false;
+    return Boolean(process.env.STA_HOTEL_SEARCH_TOKEN);
   },
 };

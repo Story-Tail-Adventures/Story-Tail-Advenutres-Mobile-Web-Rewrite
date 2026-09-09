@@ -1706,6 +1706,189 @@ export type Database = {
         }
         Relationships: []
       }
+      hotel_api_request: {
+        Row: {
+          cache_key: string | null
+          created_at: string
+          duration_ms: number | null
+          endpoint: Database["public"]["Enums"]["hotel_search_endpoint"]
+          error_code: string | null
+          error_detail: string | null
+          id: string
+          path: string
+          provider: string
+          provider_search_id: string | null
+          query: Json
+          quota_hour_limit: number | null
+          quota_limit: number | null
+          quota_month_usage: number | null
+          quota_observed_at: string | null
+          quota_remaining: number | null
+          quota_this_hour: number | null
+          rows_returned: number | null
+          status_code: number | null
+        }
+        Insert: {
+          cache_key?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          endpoint: Database["public"]["Enums"]["hotel_search_endpoint"]
+          error_code?: string | null
+          error_detail?: string | null
+          id: string
+          path: string
+          provider?: string
+          provider_search_id?: string | null
+          query?: Json
+          quota_hour_limit?: number | null
+          quota_limit?: number | null
+          quota_month_usage?: number | null
+          quota_observed_at?: string | null
+          quota_remaining?: number | null
+          quota_this_hour?: number | null
+          rows_returned?: number | null
+          status_code?: number | null
+        }
+        Update: {
+          cache_key?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: Database["public"]["Enums"]["hotel_search_endpoint"]
+          error_code?: string | null
+          error_detail?: string | null
+          id?: string
+          path?: string
+          provider?: string
+          provider_search_id?: string | null
+          query?: Json
+          quota_hour_limit?: number | null
+          quota_limit?: number | null
+          quota_month_usage?: number | null
+          quota_observed_at?: string | null
+          quota_remaining?: number | null
+          quota_this_hour?: number | null
+          rows_returned?: number | null
+          status_code?: number | null
+        }
+        Relationships: []
+      }
+      hotel_search_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          currency: string
+          expires_at: string
+          fetched_at: string
+          highest_rate_cents: number | null
+          id: string
+          lowest_rate_cents: number | null
+          payload: Json
+          payload_version: number
+          provider: string
+          query_fingerprint: Json
+          result_count: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          currency: string
+          expires_at: string
+          fetched_at?: string
+          highest_rate_cents?: number | null
+          id: string
+          lowest_rate_cents?: number | null
+          payload: Json
+          payload_version: number
+          provider?: string
+          query_fingerprint: Json
+          result_count: number
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          currency?: string
+          expires_at?: string
+          fetched_at?: string
+          highest_rate_cents?: number | null
+          id?: string
+          lowest_rate_cents?: number | null
+          payload?: Json
+          payload_version?: number
+          provider?: string
+          query_fingerprint?: Json
+          result_count?: number
+        }
+        Relationships: []
+      }
+      hotel_search_config: {
+        Row: {
+          cache_grace_hours: number
+          cache_ttl_seconds: number
+          detail_retention_days: number
+          enabled: boolean
+          global_per_hour: number
+          hourly_ceiling: number
+          id: boolean
+          monthly_ceiling: number
+          rate_per_day: number
+          rate_per_hour: number
+          rate_per_minute: number
+          updated_at: string
+        }
+        Insert: {
+          cache_grace_hours?: number
+          cache_ttl_seconds?: number
+          detail_retention_days?: number
+          enabled?: boolean
+          global_per_hour?: number
+          hourly_ceiling?: number
+          id?: boolean
+          monthly_ceiling?: number
+          rate_per_day?: number
+          rate_per_hour?: number
+          rate_per_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          cache_grace_hours?: number
+          cache_ttl_seconds?: number
+          detail_retention_days?: number
+          enabled?: boolean
+          global_per_hour?: number
+          hourly_ceiling?: number
+          id?: boolean
+          monthly_ceiling?: number
+          rate_per_day?: number
+          rate_per_hour?: number
+          rate_per_minute?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hotel_search_rate_bucket: {
+        Row: {
+          bucket_key: string
+          created_at: string
+          hits: number
+          window_kind: Database["public"]["Enums"]["hotel_rate_window"]
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          created_at?: string
+          hits?: number
+          window_kind: Database["public"]["Enums"]["hotel_rate_window"]
+          window_start: string
+        }
+        Update: {
+          bucket_key?: string
+          created_at?: string
+          hits?: number
+          window_kind?: Database["public"]["Enums"]["hotel_rate_window"]
+          window_start?: string
+        }
+        Relationships: []
+      }
       itinerary: {
         Row: {
           closing_note: string | null
@@ -2890,6 +3073,26 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      hotel_search_gc: {
+        Args: never
+        Returns: {
+          buckets_deleted: number
+          cache_deleted: number
+          details_cleared: number
+        }[]
+      }
+      hotel_search_take_token: {
+        Args: {
+          p_bucket_key: string
+          p_limit: number
+          p_window_kind: Database["public"]["Enums"]["hotel_rate_window"]
+          p_window_start: string
+        }
+        Returns: {
+          allowed: boolean
+          hits: number
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
@@ -2948,6 +3151,16 @@ export type Database = {
         | "pdf_proposal"
         | "pdf_itinerary"
         | "other"
+      hotel_rate_window: "minute" | "hour" | "day"
+      hotel_search_endpoint: "search" | "account"
+      hotel_search_outcome:
+        | "served_live"
+        | "served_cache"
+        | "served_stale"
+        | "rate_limited"
+        | "budget_exhausted"
+        | "provider_unavailable"
+        | "rejected"
       mfa_kind: "totp" | "sms" | "backup_codes"
       payment_milestone_kind: "deposit" | "interim" | "final"
       payment_milestone_status: "scheduled" | "paid" | "waived" | "overdue"
@@ -3178,6 +3391,17 @@ export const Constants = {
         "pdf_proposal",
         "pdf_itinerary",
         "other",
+      ],
+      hotel_rate_window: ["minute", "hour", "day"],
+      hotel_search_endpoint: ["search", "account"],
+      hotel_search_outcome: [
+        "served_live",
+        "served_cache",
+        "served_stale",
+        "rate_limited",
+        "budget_exhausted",
+        "provider_unavailable",
+        "rejected",
       ],
       mfa_kind: ["totp", "sms", "backup_codes"],
       payment_milestone_kind: ["deposit", "interim", "final"],

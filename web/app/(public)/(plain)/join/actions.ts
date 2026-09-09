@@ -31,8 +31,10 @@ import type { JoinState } from "./state";
  *  - `revalidatePath("/dashboard")`, not the whole layout: purging the root would evict
  *    every static public page from the cache on each sign-up.
  *
- * `intent` and `trip` arrive as hidden inputs for the Phase 2 lead/quote hand-off; today
- * they are carried only by `next` (the page the gate returns to).
+ * `intent` and `trip` arrive as hidden inputs for the quote hand-off; today they are carried
+ * only by `next` (the page the gate returns to). Per BRD §6.5 (2026-09-09) a quote request
+ * creates a Trip, so this gate is where an anonymous visitor becomes someone a Trip can
+ * belong to — see supabase/functions/quote-request.
  */
 export async function signUpAction(_prev: JoinState, formData: FormData): Promise<JoinState> {
   // Echoed back on any failure so a fumbled submit does not clear the form. The
