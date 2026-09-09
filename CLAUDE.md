@@ -131,6 +131,47 @@ Things that cost real time to rediscover:
   to ocean blue, secondary to sunset gold, surfaces to deep navy. Check both schemes on
   every screen.
 
+## Working alongside another session — use a worktree
+
+More than one Claude session runs against this repo. Two sessions in the same working tree
+share one INDEX, and that is a real hazard rather than a theoretical one:
+
+**`git commit` commits the whole index, not the paths you just staged.** So a correctly
+scoped `git add -A supabase/` followed by a bare `git commit` will also commit whatever the
+other session happens to have staged, silently, with no sign of it in any diff you were
+reading. This happened on 2026-09-08: three cruise-sync commits swallowed a concurrent
+brand/icon rework — five file deletions, a logo rename, and 58 lines of two docs — and broke
+the Web and both Mobile CI jobs, because six files import a component that went with it.
+
+Three rules, in order of how much they save you:
+
+1. **Take a worktree.** `EnterWorktree`, or by hand:
+   ```bash
+   git worktree add .claude/worktrees/<name> -b <branch> <base>
+   ```
+   Each worktree has its own index and HEAD over the same object store, so the hazard is
+   gone rather than managed. `.claude/worktrees/` is gitignored. The Supabase CLI, `deno`,
+   and the local Docker stack all work from a worktree unchanged; only `npm -w` scripts need
+   an `npm install` there, and `npm run supabase:types` does not (it shells out to the
+   Supabase CLI).
+
+   A branch can only be checked out in one worktree, so if the branch you want is held by
+   the shared tree, create a differently-named local branch off it and push with an explicit
+   refspec: `git push origin HEAD:<remote-branch>`.
+
+2. **Commit by path, always:** `git commit -F <msgfile> -- <paths>`. Commits only the named
+   paths whatever else is staged. Note `-F` goes BEFORE the `--`; after it, git reads it as
+   a pathspec and the commit fails.
+
+3. **Never bare `git stash` / `git stash pop`.** The stash stack is shared across every
+   worktree and the main checkout, so a pop can take another session's work. Prefer a
+   throwaway WIP commit. If you must stash: `git stash push -u -m "<unique-tag>"`, capture
+   the SHA from `git stash list --format='%H %gs'`, restore with `git stash apply <sha>`,
+   then drop that entry by re-finding it by tag.
+
+**Before any commit, read `git status` and confirm every path in it is yours.** If something
+unfamiliar is staged, another session put it there — leave it alone and commit by path.
+
 ## What NOT to do
 
 - Don't add fields to the Data Model without first updating `docs/Data-Model.md` and regenerating the docx.
