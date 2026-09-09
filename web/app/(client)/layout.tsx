@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ClientBottomNav, ClientNavRail } from "@/components/client/ClientNav";
 import { ClientTopBar } from "@/components/client/ClientTopBar";
 import { UnauthorizedState } from "@/components/client/states";
+import { INITIALS_FALLBACK, initialsFor } from "@/lib/auth/initials";
 import { env } from "@/lib/env";
 import { onboardingRedirectFor, onboardingStatus } from "@/lib/onboarding/status";
 import { createClient } from "@/lib/supabase/server";
@@ -92,7 +93,7 @@ export default async function ClientLayout({
     <div className="client-surface flex">
       <ClientNavRail />
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <ClientTopBar initials={initials || "ST"} />
+        <ClientTopBar initials={initials || INITIALS_FALLBACK} />
         <main id="main" className="client-main min-w-0 flex-1">
           {wrongRole ? <UnauthorizedState /> : children}
         </main>
@@ -100,17 +101,4 @@ export default async function ClientLayout({
       <ClientBottomNav />
     </div>
   );
-}
-
-/**
- * Two letters, or one, or none.
- *
- * The caller passes a fallback rather than this returning one, because a client whose
- * profile carries no name yet is a real state — the onboarding gate only requires the
- * wizard to be *finished*, and a skipped name step leaves both columns null.
- */
-function initialsFor(first?: string | null, last?: string | null): string {
-  const a = first?.trim()?.[0] ?? "";
-  const b = last?.trim()?.[0] ?? "";
-  return `${a}${b}`.toUpperCase();
 }

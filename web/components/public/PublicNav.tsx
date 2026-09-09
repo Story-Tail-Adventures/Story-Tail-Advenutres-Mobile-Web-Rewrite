@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { cn } from "@/lib/cn";
+import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 
 export interface NavLink {
   href: string;
@@ -30,6 +31,7 @@ function isActive(pathname: string, href: string): boolean {
  */
 export function PublicNav({ links, overlay = false }: PublicNavProps) {
   const pathname = usePathname();
+  const { status: authStatus } = useAuthChrome();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -152,13 +154,26 @@ export function PublicNav({ links, overlay = false }: PublicNavProps) {
             </ul>
           </nav>
 
+          {/* The drawer is the ONLY home for these below `lg` — PublicTopBar's cluster is
+              `hidden lg:flex` — so it has to answer to the session too, or every tablet and
+              phone visitor keeps being asked to sign in while signed in.
+              No CSS gate is needed here, unlike the top bar: opening the drawer needs
+              showModal(), so nobody can see it before the store has resolved. */}
           <div className="mt-auto flex flex-col gap-2 pt-6">
-            <Link href="/join" className="btn btn-filled btn-lg w-full">
-              Create an account
-            </Link>
-            <Link href="/login" className="btn btn-outlined btn-lg w-full">
-              Sign in
-            </Link>
+            {authStatus === "in" ? (
+              <Link href="/dashboard" className="btn btn-filled btn-lg w-full" onClick={closeMenu}>
+                Your trips
+              </Link>
+            ) : (
+              <>
+                <Link href="/join" className="btn btn-filled btn-lg w-full">
+                  Create an account
+                </Link>
+                <Link href="/login" className="btn btn-outlined btn-lg w-full">
+                  Sign in
+                </Link>
+              </>
+            )}
           </div>
 
           <ul className="t-fine mt-5 flex flex-wrap gap-x-4 gap-y-2 text-on-surface-variant">

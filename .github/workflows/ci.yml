@@ -152,6 +152,11 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: https://app.story-tail.com
 
+      # The build above proves the app COMPILES without Supabase config. This proves the
+      # marketing pages are still files on a CDN: one cookies() in the (public) server tree
+      # makes them per-request, and the build says nothing about it.
+      - run: python3 .github/scripts/check_public_prerender.py
+
   contracts:
     name: Contracts codegen is current
     runs-on: ubuntu-latest
@@ -204,31 +209,60 @@ jobs:
         # `:shared:check` pull in the iOS link step and cannot run here.
         run: ./gradlew :androidApp:assembleDebug :shared:testAndroidHostTest --no-daemon
 
-  mobile-ios-compile:
-    name: Mobile (iOS klib)
-    needs: changes
-    if: needs.changes.outputs.mobile == 'true'
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@v5
-      # Compiles the klib without linking a framework. This is the gate that catches
-      # iOS-incompatible shared code AND dependency klibs whose ABI version is newer
-      # than the project's Kotlin compiler — a mismatch the JVM target silently
-      # tolerates. It has already caught one real dependency pin.
-      #
-      # macOS runners bill at 10x on private repos, and this used to run on every pull
-      # request — which exhausted a 2,000-minute monthly allowance on its own. It is now
-      # gated on the `changes` job above, which is a narrower fix than the "push only"
-      # this comment used to suggest: a pull request that DOES touch mobile still gets the
-      # gate, which is the point of having it.
-      - name: Compile shared for iOS
-        working-directory: mobile
-        run: ./gradlew :shared:compileKotlinIosSimulatorArm64 --no-daemon
+  # ── PARKED: Mobile (iOS klib) ────────────────────────────────────────────────────
+  #
+  # Commented out rather than deleted, on 2026-09-09, because iOS is not being built for
+  # the foreseeable future — the target is kept alive in the source tree so the option
+  # exists, not because anyone is shipping it. Uncomment the block below to restore the
+  # gate exactly as it ran; nothing else has to change, and no required status check
+  # depends on it (this plan has no branch protection).
+  #
+  # WHY: macOS runners bill at 10x on private repos, which made this one job most of the
+  # Actions spend and exhausted the free minutes. The job's own comment predicted this and
+  # suggested `push`-only; parking it outright goes further, and is the right trade while
+  # nothing consumes the iOS artifact.
+  #
+  # WHAT IS GIVEN UP, and it is not nothing: this was the ONLY automated check for
+  # iOS-incompatible shared code and — more sharply — for dependency klibs whose ABI
+  # version is newer than the project's Kotlin compiler. Kotlin/Native refuses such a klib
+  # while the JVM/Android target silently tolerates it, so `mobile-android` CANNOT catch
+  # it: a bad supabase-kt or Kotlin bump now breaks iOS with CI fully green. It had already
+  # caught one real dependency pin. See CLAUDE.md, "supabase-kt is pinned to the Kotlin
+  # version, not to latest".
+  #
+  # SO, WHEN TOUCHING mobile/gradle/libs.versions.toml — especially `supabase` or
+  # `kotlin` — run the gate locally before merging; it needs no Xcode and takes seconds:
+  #
+  #     cd mobile && ./gradlew :shared:compileKotlinIosSimulatorArm64
+  #
+  # The mobile-reviewer subagent (.claude/agents/mobile-reviewer.md) still runs it, and
+  # mobile/README.md still documents it as the iOS-compatibility gate. Restore this job
+  # before anyone actually builds for iOS.
+  #
+  # WHEN RESTORING, KEEP THE GATE. This block was parked from a dev that had no `changes`
+  # job; uncommenting it as-written would put a 10x-billed macOS job back on EVERY pull
+  # request, which is the spend this branch's paths filter was added to stop. The two
+  # `needs:`/`if:` lines below are that filter — they are part of the restore, not optional.
+  #
+  # mobile-ios-compile:
+  #   name: Mobile (iOS klib)
+  #   needs: changes
+  #   if: needs.changes.outputs.mobile == 'true'
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - uses: actions/setup-java@v5
+  #       with:
+  #         distribution: temurin
+  #         java-version: "21"
+  #     - uses: gradle/actions/setup-gradle@v5
+  #     # Compiles the klib without linking a framework. This is the gate that catches
+  #     # iOS-incompatible shared code AND dependency klibs whose ABI version is newer
+  #     # than the project's Kotlin compiler — a mismatch the JVM target silently
+  #     # tolerates. It has already caught one real dependency pin.
+  #     - name: Compile shared for iOS
+  #       working-directory: mobile
+  #       run: ./gradlew :shared:compileKotlinIosSimulatorArm64 --no-daemon
 
   supabase:
     name: Supabase

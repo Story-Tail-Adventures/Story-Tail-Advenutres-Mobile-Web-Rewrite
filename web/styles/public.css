@@ -115,6 +115,37 @@
   .nav-link:hover { color: var(--md-on-surface); }
   .nav-link[aria-current="page"] { color: var(--md-on-surface); font-weight: 600; }
 
+  /* ── Signed-in / signed-out chrome gate ──
+   *
+   * The public pages are prerendered, so PublicAuthCluster and SignedOutOnly ship BOTH
+   * states and these rules pick one before first paint, keyed off the attribute
+   * AuthChromeScript set on <html>. They apply ONLY while `data-auth="unknown"`; once the
+   * store has resolved, React renders a single state and CSS stops having an opinion.
+   *
+   * The layout lives in THESE classes rather than in Tailwind `flex`/`hidden` utilities on
+   * the same element, on purpose: utilities land in a later cascade layer and would beat a
+   * `display: none` written here, so the gate would silently do nothing. Wrappers with no
+   * display utility of their own have nothing to lose to.
+   */
+  .pub-auth-out { display: flex; align-items: center; gap: 4px; }
+  @media (min-width: 1200px) {
+    .pub-auth-out { gap: 6px; }
+  }
+  .pub-auth-in { display: inline-flex; align-items: center; }
+
+  [data-auth="unknown"] .pub-auth-in { display: none; }
+  html[data-sta-auth] [data-auth="unknown"] .pub-auth-out { display: none; }
+  html[data-sta-auth] [data-auth="unknown"] .pub-auth-in { display: inline-flex; }
+  html[data-sta-auth] .pub-signedout-only[data-auth="unknown"] { display: none; }
+
+  /* The mobile sticky bar's secondary control (StickyCtaSecondary). Self-scoped rather than
+   * scoped by an ancestor, because .sticky-cta is rendered by a server component that cannot
+   * know the status. `inline-flex` restores .btn's own display; the class+attribute selector
+   * outranks .btn, and the class strings these carry hold no display utility. */
+  .pub-cta-in[data-auth="unknown"] { display: none; }
+  html[data-sta-auth] .pub-cta-out[data-auth="unknown"] { display: none; }
+  html[data-sta-auth] .pub-cta-in[data-auth="unknown"] { display: inline-flex; }
+
   /* ── Sticky bars ── */
   .sticky-under-topbar {
     position: sticky;

@@ -71,6 +71,9 @@ export const EXPLORE = {
   sticky: {
     primary: "Search",
     secondary: "Sign in",
+    // Shown instead of "Sign in" once they are: the bar is §4.4's mobile stand-in for the
+    // sign-in banner, so signed in it points where the top bar's avatar does.
+    secondarySignedIn: "Your trips",
   },
 } as const;
 

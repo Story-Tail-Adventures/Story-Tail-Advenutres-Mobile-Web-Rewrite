@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
+import { AuthChromeScript } from "@/components/AuthChromeScript";
 import { ThemeScript } from "@/components/ThemeScript";
 import { env } from "@/lib/env";
 import "./globals.css";
@@ -38,12 +39,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      // ThemeScript mutates className before hydration — see components/ThemeScript.tsx
+      // ThemeScript mutates className and AuthChromeScript sets an attribute, both before
+      // hydration — see components/ThemeScript.tsx and components/AuthChromeScript.tsx
       suppressHydrationWarning
       className={`${fontVariables} h-full`}
     >
       <head>
         <ThemeScript />
+        <AuthChromeScript />
       </head>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>

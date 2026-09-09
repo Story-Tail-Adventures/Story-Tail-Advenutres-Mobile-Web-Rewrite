@@ -11,8 +11,13 @@ import "@testing-library/jest-dom/vitest";
  *
  * The behaviour modelled is the part the component depends on: toggling visibility and
  * firing a `toggle` event carrying `newState`.
+ *
+ * GUARDED ON `HTMLElement` EXISTING, because setupFiles run for EVERY test file including
+ * the ones marked `@vitest-environment node` — which have no DOM, so touching
+ * HTMLElement.prototype there is a ReferenceError that fails the whole file before a single
+ * test runs. Nothing in a node-environment test wants a popover anyway.
  */
-if (typeof HTMLElement.prototype.showPopover !== "function") {
+if (typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.showPopover !== "function") {
   const fire = (el: HTMLElement, newState: "open" | "closed") => {
     const event = new Event("toggle") as Event & { newState?: string; oldState?: string };
     event.newState = newState;

@@ -1,30 +1,20 @@
 import Link from "next/link";
-import { Icon, type IconName } from "@/components/ui/Icon";
+import { Icon } from "@/components/ui/Icon";
 import type { Money } from "@/content/public/types";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/public/money";
-
-interface CtaBase {
-  label: string;
-  icon?: IconName;
-}
-
-/**
- * Either navigates (`href` — a route, a `mailto:` or an external URL) or submits a form
- * elsewhere in the document by id (`submitFor`). 2.0.3 needs the second form: the artboard's
- * one Search control is the sticky bar, but the fields live in a card further up the page,
- * so the bar has to be the form's submit rather than a link that drops what was typed.
- *
- * `?: undefined` rather than `?: never` on the opposite member — that is what lets
- * `cta.submitFor !== undefined` narrow the union.
- */
-type CtaLink =
-  | (CtaBase & { href: string; submitFor?: undefined })
-  | (CtaBase & { submitFor: string; href?: undefined });
+import { CtaControl, type CtaLink } from "./CtaControl";
+import { StickyCtaSecondary } from "./StickyCtaSecondary";
 
 interface StickyCtaProps {
   primary: CtaLink;
   secondary?: CtaLink;
+  /**
+   * What `secondary` becomes for somebody already signed in. §4.4 makes this bar the mobile
+   * equivalent of the /explore sign-in banner, so a page whose secondary is "Sign in" has to
+   * say what replaces it — otherwise the fault this fixes survives on phones.
+   */
+  secondarySignedIn?: CtaLink;
   /** 2.0.5: "FROM $3,290 /pp" + heart + Request a quote. */
   price?: { from: Money; saveHref: string };
   /**
@@ -33,37 +23,6 @@ interface StickyCtaProps {
    * one 360px row.
    */
   guest?: CtaLink;
-}
-
-/** next/link for same-origin paths; a plain anchor for mailto: and external hrefs. */
-function CtaControl({
-  cta,
-  className,
-  children,
-}: {
-  cta: CtaLink;
-  className: string;
-  children: React.ReactNode;
-}) {
-  if (cta.submitFor !== undefined) {
-    return (
-      <button type="submit" form={cta.submitFor} className={className}>
-        {children}
-      </button>
-    );
-  }
-  if (cta.href.startsWith("/")) {
-    return (
-      <Link href={cta.href} className={className}>
-        {children}
-      </Link>
-    );
-  }
-  return (
-    <a href={cta.href} className={className}>
-      {children}
-    </a>
-  );
 }
 
 /**
@@ -75,7 +34,7 @@ function CtaControl({
  * the footer under the bar. The reserve lives on `.pub-surface` in public.css instead, so
  * it lands after the footer.
  */
-export function StickyCta({ primary, secondary, price, guest }: StickyCtaProps) {
+export function StickyCta({ primary, secondary, secondarySignedIn, price, guest }: StickyCtaProps) {
   return (
     <div className={cn("sticky-cta", guest && "sticky-cta-tall")}>
       {price ? (
@@ -100,11 +59,18 @@ export function StickyCta({ primary, secondary, price, guest }: StickyCtaProps) 
         </>
       ) : (
         <>
-          {secondary && (
-            <CtaControl cta={secondary} className="btn btn-text min-h-11 shrink-0">
-              {secondary.label}
-            </CtaControl>
-          )}
+          {secondary &&
+            (secondarySignedIn ? (
+              <StickyCtaSecondary
+                signedOut={secondary}
+                signedIn={secondarySignedIn}
+                className="btn btn-text min-h-11 shrink-0"
+              />
+            ) : (
+              <CtaControl cta={secondary} className="btn btn-text min-h-11 shrink-0">
+                {secondary.label}
+              </CtaControl>
+            ))}
           <CtaControl cta={primary} className="btn btn-filled min-h-11 flex-1">
             <Icon name={primary.icon ?? "message"} size={14} /> {primary.label}
           </CtaControl>

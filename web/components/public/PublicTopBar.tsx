@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PUBLIC_NAV_LINKS } from "@/content/public/contact";
 import { cn } from "@/lib/cn";
+import { PublicAuthCluster } from "./PublicAuthCluster";
 import { PublicNav } from "./PublicNav";
 
 export type TopBarVariant = "solid" | "overlay";
@@ -13,9 +14,11 @@ export type TopBarVariant = "solid" | "overlay";
  * `overlay` — below `md` the bar floats transparent over the page's hero photo with white
  * text (landing, topic pages, explore, detail); from `md` it is the same solid sticky bar.
  *
- * The right cluster is static ("Sign in" / "Create account") because the public layout
- * never reads cookies — that is what keeps every public page prerenderable. Signed-in
- * visitors who click through are bounced by the proxy.
+ * The right cluster is a client island (PublicAuthCluster) rather than static markup,
+ * because a signed-in visitor is perfectly entitled to be here — the proxy only bounces them
+ * off `/` and the auth routes, not off /explore or the topic pages — and being asked to sign
+ * in again reads as the site not knowing them. The signed-out pair is still what the
+ * PRERENDERED html contains, which is what keeps every public page static and crawlable.
  */
 export function PublicTopBar({ variant = "solid" }: { variant?: TopBarVariant }) {
   const overlay = variant === "overlay";
@@ -49,14 +52,7 @@ export function PublicTopBar({ variant = "solid" }: { variant?: TopBarVariant })
 
       <PublicNav links={PUBLIC_NAV_LINKS} overlay={overlay} />
 
-      <div className="ml-auto hidden items-center gap-1 lg:flex web:gap-1.5">
-        <Link href="/login" className="btn btn-text btn-sm px-3 web:px-4">
-          Sign in
-        </Link>
-        <Link href="/join" className="btn btn-filled btn-sm px-3.5 web:px-4">
-          Create account
-        </Link>
-      </div>
+      <PublicAuthCluster />
     </header>
   );
 }

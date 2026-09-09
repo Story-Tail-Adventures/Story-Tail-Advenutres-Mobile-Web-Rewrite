@@ -98,5 +98,7 @@ export const HOW_IT_WORKS = {
     primary: "Request a quote",
     // Brief correction: the mobile artboard's secondary "Skip" → "Sign in".
     secondary: "Sign in",
+    // …and "Your trips" for somebody already signed in. See EXPLORE.sticky.
+    secondarySignedIn: "Your trips",
   },
 } as const;

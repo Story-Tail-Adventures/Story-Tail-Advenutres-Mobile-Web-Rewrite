@@ -3,6 +3,11 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
 import { env } from "@/lib/env";
 import { safeNext } from "@/lib/safe-next";
+import {
+  AUTH_FLAG_COOKIE,
+  AUTH_FLAG_VALUE,
+  authFlagAction,
+} from "@/lib/auth/chrome-flag";
 
 /** Route groups that require a signed-in user. */
 const PROTECTED_PREFIXES = [
@@ -139,7 +144,9 @@ function resolveSignedInNext(next?: string | null): string {
  * Two rules that are easy to get wrong and expensive to debug:
  *   1. Always return `supabaseResponse` (or copy its cookies onto whatever you do
  *      return). Dropping it desynchronises the browser's cookies from the refreshed
- *      session and logs the user out at random.
+ *      session and logs the user out at random. The redirects below do the copying, via
+ *      `redirectKeepingCookies` — they cannot return `supabaseResponse` itself, because it
+ *      is a `next()` and they need a 307. This rule was violated here for a long time.
  *   2. Use getUser(), never getSession(), for the auth check — getSession() reads the
  *      cookie without revalidating the JWT against the auth server, so a tampered or
  *      expired token would pass.
@@ -151,7 +158,12 @@ export async function updateSession(request: NextRequest) {
   // below throw, so a deploy with missing config fails closed instead of serving the
   // authenticated app to everyone.
   if (env.authChecksDisabledForLocalDev) {
-    return NextResponse.next({ request });
+    // Nobody can be signed in without Supabase, so clear any flag left over from a run that
+    // had it configured. A no-op when there is none, which is the normal case.
+    return applyAuthFlag(
+      NextResponse.next({ request }),
+      authFlagAction(request.cookies.get(AUTH_FLAG_COOKIE)?.value, false),
+    );
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -182,19 +194,25 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const signedIn = Boolean(user);
   const target = authRedirectFor(
     pathname,
-    Boolean(user),
+    signedIn,
     await assuranceOf(supabase, user),
     request.nextUrl.searchParams.get("next"),
   );
+
+  // Publish the one bit the static public pages need (lib/auth/chrome-flag.ts). Done here
+  // because getUser() above has already paid for the answer, and skipped entirely when it
+  // would not change — otherwise every public page response carries a redundant Set-Cookie.
+  const flag = authFlagAction(request.cookies.get(AUTH_FLAG_COOKIE)?.value, signedIn);
 
   if (target === "/login" || target === MFA_CHALLENGE) {
     const url = request.nextUrl.clone();
     url.pathname = target;
     url.search = "";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return applyAuthFlag(redirectKeepingCookies(url, supabaseResponse), flag);
   }
 
   if (target) {
@@ -203,10 +221,74 @@ export async function updateSession(request: NextRequest) {
     // branch exists to preserve. Parsed against the request's origin so a path and a path
     // with a query are handled the same way; `safeNext` has already proved it is relative.
     const url = new URL(target, request.nextUrl.origin);
-    return NextResponse.redirect(url);
+    // …and it still has to go out through `redirectKeepingCookies` + `applyAuthFlag`. A bare
+    // NextResponse.redirect here drops the session Supabase may have just refreshed, which is
+    // the bug fixed on dev in "stop the proxy dropping a refreshed session on every redirect",
+    // and it would leave the public chrome showing stale auth state.
+    return applyAuthFlag(redirectKeepingCookies(url, supabaseResponse), flag);
   }
 
-  return supabaseResponse;
+  return applyAuthFlag(supabaseResponse, flag);
+}
+
+/**
+ * A redirect that carries whatever cookies Supabase just wrote.
+ *
+ * This is rule 1 at the top of this file, and it is not academic. `getUser()` refreshes an
+ * expired access token, and the refreshed cookies land on `supabaseResponse` via the `setAll`
+ * callback. Returning a bare `NextResponse.redirect` throws them away — and every
+ * refresh-and-redirect combination is a real request: an expired token bounced /dashboard →
+ * /login, a signed-in visitor bounced /join → /dashboard, a half-assured session sent to
+ * /login/mfa. The browser then keeps the OLD token, and with refresh-token rotation the
+ * refresh it never saw has already invalidated it. That is the "logs the user out at random"
+ * failure, and it looks like a server bug rather than a cookie bug.
+ *
+ * Only the cookies move across, not the headers: `NextResponse.next()` carries its own
+ * middleware signalling that means nothing on a redirect. `ResponseCookies.getAll()` returns
+ * full cookie objects and `set()` takes one, so attributes (Path, HttpOnly, SameSite,
+ * Max-Age) survive the copy rather than being flattened to name=value.
+ *
+ * Nothing here writes the public-chrome flag — `applyAuthFlag` owns that and runs after — so
+ * the flag cannot be double-written.
+ */
+function redirectKeepingCookies(url: URL, from: NextResponse): NextResponse {
+  const response = NextResponse.redirect(url);
+  for (const cookie of from.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
+}
+
+/**
+ * Writes the decision from `authFlagAction` onto the response.
+ *
+ * Applied to the redirects too, not just the pass-through: signing out ends in a redirect to
+ * /login, and that is the response that has to clear the flag or the public chrome would keep
+ * showing an avatar until the visitor's next full page load.
+ */
+function applyAuthFlag(
+  response: NextResponse,
+  action: ReturnType<typeof authFlagAction>,
+): NextResponse {
+  if (action === "set") {
+    response.cookies.set(AUTH_FLAG_COOKIE, AUTH_FLAG_VALUE, {
+      path: "/",
+      sameSite: "lax",
+      // Deliberately NOT httpOnly: the pre-paint script reads it. It carries no identity.
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      // Long, because it is never renewed: `authFlagAction` returns null while the value is
+      // already correct, which is what keeps Set-Cookie off the steady-state response. A
+      // short life would therefore expire under a tab left open without navigating, and the
+      // chrome would flip to signed-out on its next focus. A stale flag is harmless in the
+      // other direction — the proxy clears it on the next request, and /api/account/chrome
+      // is the authority for the frame after that.
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  } else if (action === "clear") {
+    response.cookies.delete({ name: AUTH_FLAG_COOKIE, path: "/" });
+  }
+  return response;
 }
 
 /**
