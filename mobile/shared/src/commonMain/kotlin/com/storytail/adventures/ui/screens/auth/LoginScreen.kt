@@ -51,7 +51,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.storytail.adventures.ui.components.BrandWordmark
+import com.storytail.adventures.ui.components.BrandMark
 import com.storytail.adventures.ui.theme.PillShape
 import com.storytail.adventures.ui.theme.StoryTailBrand
 
@@ -85,7 +85,7 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            BrandWordmark(size = 32.dp)
+            BrandMark(size = 80.dp)
 
             Spacer(Modifier.height(8.dp))
 

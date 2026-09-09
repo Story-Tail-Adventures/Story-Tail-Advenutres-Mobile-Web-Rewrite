@@ -127,7 +127,7 @@ These are the canonical brand colors from the existing Story-Tail Adventures bra
 | `brand.cream` | `#FBF6EE` | Light-mode background |
 | `brand.sand` | `#F1E7D5` | Warm neutral, secondary surfaces |
 
-The two logo variants (`logo-fox.png` and `logo-tropical-dark.png` in `design/source-prototype/brand/`) cleanly partition: book/fox on light backgrounds, palm/sun on dark backgrounds. Never use the book/fox logo on dark or the tropical logo on light — they were designed to oppose each other.
+The two logo variants (`logo-adventures-light.png` and `logo-tropical-dark.png` in `design/source-prototype/brand/`) cleanly partition: book/fox on light backgrounds, palm/sun on dark backgrounds. Never use the book/fox logo on dark or the tropical logo on light — they were designed to oppose each other. See §11 for the file inventory and a warning about a near-identical decoy.
 
 ---
 
@@ -345,9 +345,11 @@ These are not Material primitives but Story-Tail-specific layouts that appear ac
 
 ### 9.1 Top App Bar (`StaTopBar`)
 
-64px tall, 24px horizontal padding. Contains: brand mark (logo + script wordmark + "ADVENTURES" tagline), search pill (40px tall, pill-shaped, role-aware placeholder), and a right-side action cluster (help, messages with red dot, notifications with badge, avatar + name + role).
+**104px** tall, 24px horizontal padding. Contains: the brand mark, a search pill (40px tall, pill-shaped, role-aware placeholder), and a right-side action cluster (help, messages with red dot, notifications with badge, avatar + name + role).
 
-The brand mark switches glyph based on theme: book/fox logo in light, palm/sun logo in dark. CSS-driven; the JSX always renders both SVGs and CSS hides the wrong one.
+The brand mark swaps the whole lockup on theme, not just a glyph: the book/fox lockup in light, the palm/sun lockup in dark. CSS-driven — the JSX renders both `<img>` and CSS hides the wrong one, because the scheme is not knowable at SSR.
+
+> Amended September 2026, built as amended. This said 64px, sized for a 26px glyph beside live Caveat/Poppins text. The bar now carries the real artwork at its 80px legibility floor (§11), so 64px cannot hold it: 80px of lockup + 12px above and below. The public top bar moved 56px → 96px for the same reason (`--public-topbar-h` in `web/styles/public.css`). Built in `web/styles/client.css` (`.client-topbar`).
 
 ### 9.2 Navigation Rail (`StaNavRail`)
 
@@ -395,14 +397,52 @@ These are for designer/stakeholder exploration only. They are not user-facing in
 
 ## 11. Logo Usage
 
-Two SVG/PNG glyphs ship in the system:
+### 11.1 The masters
 
-- `brand/logo-fox.png` — the book-and-fox mark. Use on **light backgrounds only**.
-- `brand/logo-tropical-dark.png` — the palm-tree-and-sunset mark. Use on **dark backgrounds only**.
+Three masters live in `design/source-prototype/brand/`. All are transparent PNGs around 5000px.
 
-The "Story-Tail" wordmark is rendered as live text using Caveat for the script and Poppins-extrabold for the "ADVENTURES" tagline (1.6–1.8 letter-spacing). The script gets a gradient fill: orange→yellow in dark mode (sunset), solid burgundy in light mode. The tagline gets a blue gradient in dark mode, solid orange in light mode.
+| File | What it is | Where it is used |
+|---|---|---|
+| `logo-adventures-light.png` | the horizontal book-and-fox lockup | the light scheme |
+| `logo-tropical-dark.png` | the stacked palm-and-sunset lockup | the dark scheme |
+| `logo-adventures-glyph.png` | the book and fox tail, no wordmark | favicon and app icons |
 
-Logo + wordmark together form the `brand-mark` component (`.brand-mark`). Never use the glyph without the wordmark in onboarded screens; the standalone glyph is allowed in mobile app icons, favicons, and email avatars.
+> **⚠️ Do not re-add the Story-Tail Consulting artwork.** A second company's logo — "Story Tail **CONSULTING** — Websites and More For Less", a book with two people at a desk on the cover — used to ship here as `logo-fox.png` / `logo-3.jpg`, mirrored in `design/brand-assets/` as `FF-03.png` / `FF-01-03.jpg`. All four were **removed in September 2026**. It matters because the Consulting lockup is geometrically identical to the Adventures one — same bounding-box fractions, same 2.36 aspect — so no automated check catches a swap, and *this section used to name `logo-fox.png` as the official light mark*. The Creative Cloud source folder still holds it; if you are copying artwork in from there, open the file and read the words.
+
+`logo-adventures-light.png` was exported from `Story-Tail-Adventrues-Transparent.psd`. There is no usable vector master: `FF.ai` / `FF-01.eps` need Illustrator, and the build box has no tracer, so everything shipped is raster.
+
+`design/brand-assets/` is the vendor drop under its original opaque `FF-*` names, minus the two Consulting files. What is left is all Adventures and verified by hash: `FF-01-01.jpg` is `logo-light.jpg`, `FF-01-02.jpg` is `logo-2.jpg`, and `FF.ai` / `FF-01.eps` are the vector masters (neither contains the string "consulting"). Take working artwork from `design/source-prototype/brand/` regardless — this folder is the archive.
+
+### 11.2 The two lockups
+
+They are **different compositions, not two colourways of one drawing**, so the mark changes shape with the scheme. Both are cropped above the "MAKING TRAVEL AN ADVENTURE" band that the masters carry: it is 5% of the light lockup's height and 2.3% of the dark one's, so it would need a 140px mark to clear 7px, and a mark that gains a line of copy when you switch themes is worse than one that never had it. The aspects below are post-crop.
+
+| | aspect W:H | "ADVENTURES" cap | script x-height |
+|---|---|---|---|
+| light | **2.52 : 1** — a wide banner | 8.8% of height | 25.6% of height |
+| dark | **0.986 : 1** — a compact badge | ~26% of height | ~10.5% of height |
+
+**80px is the floor.** It is the smallest height at which both stay legible — the light lockup's "ADVENTURES" line lands at 7px there, and it is only 8.8% of the height, so it degrades fastest. Every container that holds the mark is sized off this, which is why the top bars are 104px and 96px rather than 64px and 56px (§9.1).
+
+Both lockups render at the **same height**; each one's width follows from its own aspect. Do not scale the dark one up to match the light one's visual mass — it reads as a badge and that is correct.
+
+The wordmark is part of the artwork. It is **no longer set as live text** — the Caveat + Poppins reconstruction that stood here while the assets were unexported is gone, along with `.brand-mark` / `.mark-script` / `.mark-tagline`. Caveat is still used everywhere else (`t-script`, `t-hero-script`, `t-script-sign`).
+
+### 11.3 Implementation
+
+`web/components/brand/BrandMark.tsx` and `mobile/…/ui/components/BrandMark.kt`. Both read WebP derivatives generated by `web/scripts/build-brand-assets.mts` (`npm run generate:brand -w web`) so the two platforms cannot drift. On web the swap is CSS on `.scheme-dark` (`.sta-art-*` in `web/styles/components.css`) — both `<img>` are rendered and one is hidden, because the scheme is not knowable at SSR. `tone="dark"` pins the tropical lockup for surfaces that are dark whatever the scheme, such as the auth split panel.
+
+Never use the book/fox lockup on dark or the tropical lockup on light — they were designed to oppose each other. This includes print: `web/styles/public.css` forces the light lockup inside `@media print`, since a dark-scheme reader would otherwise put the tropical lockup on white paper.
+
+### 11.4 Icons
+
+The standalone glyph — never the lockup — is what goes in app icons, favicons and email avatars. All are generated from `logo-adventures-glyph.png` by the same script.
+
+| Surface | Files |
+|---|---|
+| Web | `web/app/icon.png` (512, transparent), `web/app/apple-icon.png` (180, opaque on cream — iOS composites alpha onto black), `web/app/favicon.ico` (16/32/48) |
+| Android | `mipmap-*/ic_launcher{,_round,_foreground,_monochrome}.png` + `mipmap-anydpi-v26/ic_launcher*.xml`. The glyph sits in the 66dp safe zone of the 108dp canvas. `<monochrome>` (themed icons, API 33+) is derived from **luminance, not alpha** — a flat alpha silhouette of a book wrapped in a fox tail collapses into one unreadable slab, whereas keeping the globe, plane and route as holes lets the shape read in a single colour. |
+| iOS | `AppIcon.appiconset/app-icon-1024{,-dark,-tinted}.png`. The base icon carries **no alpha** (App Store rule) on a cream ground; the dark and tinted variants are transparent, because iOS supplies its own ground. |
 
 ---
 

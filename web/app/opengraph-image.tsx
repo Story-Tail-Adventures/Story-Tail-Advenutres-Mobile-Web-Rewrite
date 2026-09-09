@@ -41,7 +41,8 @@ export default function OpenGraphImage() {
           fontFamily: "sans-serif",
         }}
       >
-        {/* Wordmark: "Story-Tail" + letterspaced ADVENTURES, as in BrandWordmark. */}
+        {/* Wordmark: "Story-Tail" + letterspaced ADVENTURES. Set as live text rather than the
+            real lockup because Satori has no raster pipeline here — see the note above. */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
           <div style={{ fontSize: 46, fontWeight: 800, letterSpacing: -1 }}>Story-Tail</div>
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6, color: BRAND.gold }}>

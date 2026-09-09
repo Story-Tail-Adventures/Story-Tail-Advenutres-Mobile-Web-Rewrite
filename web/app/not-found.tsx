@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { NotFoundBody } from "./(public)/NotFoundBody";
 
 /**
@@ -15,7 +15,7 @@ export default function RootNotFound() {
       className="pub-surface flex min-h-dvh flex-1 flex-col items-center justify-center bg-bg px-4.5 py-16 text-center text-on-bg"
     >
       <Link href="/" aria-label="Story-Tail Adventures home" className="mb-8">
-        <BrandWordmark size={32} />
+        <BrandMark size={120} alt="" />
       </Link>
       <div className="w-full max-w-160">
         <NotFoundBody />

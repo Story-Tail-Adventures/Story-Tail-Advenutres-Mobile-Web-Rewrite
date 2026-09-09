@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { Icon } from "@/components/ui/Icon";
 
 /**
- * The authenticated top bar (Design-System §9.1: 64px, brand mark, search pill, actions).
+ * The authenticated top bar (Design-System §9.1: 104px, brand mark, search pill, actions).
  *
  * Two departures from §9.1, both deliberate and both about not promising things:
  *
@@ -23,7 +23,7 @@ export function ClientTopBar({ initials }: { initials: string }) {
   return (
     <header className="client-topbar">
       <Link href="/dashboard" aria-label="Story-Tail Adventures — your trips">
-        <BrandWordmark size={26} />
+        <BrandMark size={80} alt="" />
       </Link>
 
       <div className="flex-1" />

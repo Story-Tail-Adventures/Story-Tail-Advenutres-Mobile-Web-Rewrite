@@ -83,7 +83,7 @@ fun AuthScaffold(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 if (showWordmark) {
-                    BrandWordmark(size = 32.dp)
+                    BrandMark(size = 80.dp)
                     Spacer(Modifier.height(8.dp))
                 }
                 content()

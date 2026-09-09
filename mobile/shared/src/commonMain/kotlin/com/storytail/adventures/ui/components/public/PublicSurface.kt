@@ -38,7 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.storytail.adventures.content.public.PublicContent
-import com.storytail.adventures.ui.components.BrandWordmark
+import com.storytail.adventures.ui.components.BrandMark
+import com.storytail.adventures.ui.components.BrandTone
 import com.storytail.adventures.ui.theme.LocalStoryTailExtended
 import com.storytail.adventures.ui.theme.PillShape
 import com.storytail.adventures.ui.theme.StoryTailBrand
@@ -115,7 +116,7 @@ fun PublicTopBar(
             } else {
                 Spacer(Modifier.width(6.dp))
             }
-            BrandWordmark(size = 24.dp, onDark = onPhoto)
+            BrandMark(size = 80.dp, tone = if (onPhoto) BrandTone.Dark else BrandTone.Auto)
             Spacer(Modifier.weight(1f))
             IconButton(
                 onClick = onMenu,

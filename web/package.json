@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate:public-content": "vite-node --config vitest.config.ts scripts/export-public-content.mts"
+    "generate:public-content": "vite-node --config vitest.config.ts scripts/export-public-content.mts",
+    "generate:brand": "vite-node --config vitest.config.ts scripts/build-brand-assets.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -32,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.4",
     "jsdom": "^26.1.0",
+    "sharp": "^0.34.4",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"

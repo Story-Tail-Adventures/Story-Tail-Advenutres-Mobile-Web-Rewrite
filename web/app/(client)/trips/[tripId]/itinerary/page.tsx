@@ -82,7 +82,7 @@ export default async function ItineraryPage({
 
       {itinerary.days.length > 1 && (
         <nav
-          className="sticky top-16 z-20 border-b border-outline-variant bg-bg/95 backdrop-blur"
+          className="sticky top-[var(--client-topbar-h)] z-20 border-b border-outline-variant bg-bg/95 backdrop-blur"
           aria-label="Days"
         >
           <div className="mx-auto flex w-full max-w-3xl gap-1.5 overflow-x-auto px-4 py-2.5 md:px-6">
@@ -120,7 +120,7 @@ export default async function ItineraryPage({
         ) : (
           <div className="mt-6 flex flex-col gap-8">
             {itinerary.days.map((day) => (
-              <section key={day.id} id={`day-${day.dayNumber}`} className="scroll-mt-32">
+              <section key={day.id} id={`day-${day.dayNumber}`} className="scroll-mt-[calc(var(--client-topbar-h)+56px)]">
                 <div className="flex items-baseline gap-3">
                   <span className="t-script text-[32px] text-brand-burgundy">
                     {ITINERARY.dayLabel(day.dayNumber)}
