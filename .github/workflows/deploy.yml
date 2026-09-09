@@ -302,12 +302,48 @@ jobs:
             exit 1
           }
 
+      # THE BUILD OUTPUT IS ANCHORED AT THE REPO ROOT, NOT AT web/. Measured, not assumed —
+      # every .func's .vc-config.json says so:
+      #
+      #   "handler": "web/___next_launcher.cjs"
+      #   "filePathMap": { "node_modules/client-only/index.js": "...", ... }
+      #
+      # The launcher is addressed as web/…; the dependencies as node_modules/… . Both are
+      # relative to the REPO ROOT, because `vercel build` walks up from web/ to the npm
+      # workspace root (web/ has no lockfile) and installs there — 370 packages at the root,
+      # 3 under web/.
+      #
+      # `vercel deploy --prebuilt --cwd ./web` resolves that map against web/ instead, so it
+      # wants web/node_modules/… and would want web/web/___next_launcher.cjs. On 2026-09-09
+      # it failed on the first of those:
+      #
+      #   File does not exist: "node_modules/@swc/helpers/cjs/_interop_require_default.cjs"
+      #
+      # — a real file, present at ./node_modules, absent under ./web. Installing dependencies
+      # into web/ would not fix this: it treats the first symptom and leaves the handler path
+      # pointing at web/web. The output is root-anchored; the deploy has to be too.
+      #
+      # So move the CLI's directory up to meet the output rather than the reverse. `vercel
+      # build` keeps --cwd ./web (it is what produces this layout, correctly), and .vercel/
+      # moves to the root carrying both project.json and output/ — deploy needs both.
       - name: Deploy
         id: deploy
         if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
-          url="$(vercel deploy --prebuilt --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web)"
+          # `mv a b` puts a INSIDE b when b is an existing directory, so a stray root
+          # .vercel/ would silently become .vercel/.vercel and the deploy would upload
+          # nothing recognisable. Nothing creates one today — link and pull both run with
+          # --cwd ./web — so if one exists, an assumption here has changed. Say so.
+          if [ -e .vercel ]; then
+            echo "::error::A .vercel already exists at the repo root; refusing to move"
+            echo "::error::web/.vercel onto it. Something now writes it — check the link"
+            echo "::error::and pull steps above."
+            exit 1
+          fi
+          mv web/.vercel .vercel
+          test -f .vercel/output/config.json && test -f .vercel/project.json
+          url="$(vercel deploy --prebuilt --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }})"
           echo "Deployed $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
