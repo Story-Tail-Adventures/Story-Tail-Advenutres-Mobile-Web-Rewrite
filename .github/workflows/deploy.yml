@@ -302,6 +302,53 @@ jobs:
             exit 1
           }
 
+      # DIAGNOSTIC — remove with this branch. Answers the one question the failed deploy of
+      # 2026-09-09 left open: does the build output reference files ABOVE web/?
+      #
+      # `vercel deploy --prebuilt --cwd ./web` died on
+      #   File does not exist: "node_modules/@swc/helpers/cjs/_interop_require_default.cjs"
+      # The theory is that `vercel build` installs at the npm workspace ROOT (web/ has no
+      # lockfile) and traces dependencies to paths relative to that root, while the deploy
+      # roots its upload at web/ and cannot reach above it. This step reads the trace files
+      # instead of assuming. It runs under dry_run, so it never deploys.
+      - name: DIAG — where do the build's traced paths point?
+        run: |
+          set -uo pipefail
+          echo "── node_modules after vercel build ─────────────────────────"
+          echo "root  : $(ls -1 node_modules 2>/dev/null | wc -l) entries"
+          echo "web/  : $(ls -1 web/node_modules 2>/dev/null | wc -l) entries"
+          for d in node_modules/@swc/helpers web/node_modules/@swc/helpers; do
+            [ -e "$d" ] && echo "PRESENT $d" || echo "ABSENT  $d"
+          done
+
+          echo
+          echo "── the exact file the deploy could not find ────────────────"
+          find . -path ./node_modules -prune -o -name '_interop_require_default.cjs' -print 2>/dev/null | head
+          ls -l node_modules/@swc/helpers/cjs/_interop_require_default.cjs 2>&1 | head -1
+
+          echo
+          echo "── build output layout ─────────────────────────────────────"
+          find web/.vercel/output -maxdepth 2 2>/dev/null | head -30
+
+          echo
+          echo "── do any traces escape web/ (paths with ../) ? ────────────"
+          # .nft.json is the Node file-trace manifest each .func carries.
+          traces="$(find web/.vercel/output -name '*.nft.json' 2>/dev/null)"
+          if [ -z "$traces" ]; then
+            echo "no .nft.json found — the .func dirs may embed files directly"
+          else
+            echo "$traces" | head -3 | while read -r f; do
+              echo "--- $f"
+              jq -r '.files[]?' "$f" 2>/dev/null | grep -c '\.\./' \
+                | sed 's/^/    paths containing ..\/: /'
+              jq -r '.files[]?' "$f" 2>/dev/null | grep '\.\./' | head -5 | sed 's/^/      /'
+            done
+          fi
+
+          echo
+          echo "── anything referencing @swc/helpers in the output ─────────"
+          grep -rl '@swc/helpers' web/.vercel/output 2>/dev/null | head -5
+
       - name: Deploy
         id: deploy
         if: ${{ !inputs.dry_run }}
