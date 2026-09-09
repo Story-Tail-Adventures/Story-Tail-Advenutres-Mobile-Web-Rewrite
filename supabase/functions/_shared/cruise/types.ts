@@ -38,11 +38,12 @@ export type Company = typeof COMPANIES[number];
 /**
  * Their `locale` values. Determines pricing currency and source market.
  *
- * THE PUBLISHED ENUM IS INCOMPLETE. Their LocaleEnum lists eight; a live GET /cruises
- * returns `pt_BR` (priced in BRL) too. That is exactly the failure mode Data-Model §24.0
- * rule 4 anticipates, and it is why cruise_sailing.provider_locale is `text` rather than a
- * Postgres enum — had it been an enum, the first Brazilian sailing would have failed the
- * whole page's upsert instead of just landing.
+ * THE PUBLISHED ENUM IS BADLY INCOMPLETE — by five of thirteen. Their LocaleEnum lists
+ * eight; a live GET /coverage reports THIRTEEN markets, adding `en_IE`, `es_ES`, `fr_FR`,
+ * `ja_JP` and `pt_BR` (the last priced in BRL). That is exactly the failure mode Data-Model
+ * §24.0 rule 4 anticipates, and it is why cruise_sailing.provider_locale is `text` rather
+ * than a Postgres enum — had it been an enum, the first Japanese or Brazilian sailing would
+ * have failed the whole page's upsert instead of simply landing.
  *
  * So this list is documentation and a convenience type, NOT a validator. Nothing in the
  * mapper checks membership, and nothing should start.
@@ -56,7 +57,12 @@ export const LOCALES = [
   "en_US",
   "it_IT",
   "nl_NL",
-  // Not in their published enum. Observed live.
+  // The five below are absent from their published LocaleEnum. Observed live via
+  // GET /coverage, which reports 13 markets against the spec's 8.
+  "en_IE",
+  "es_ES",
+  "fr_FR",
+  "ja_JP",
   "pt_BR",
 ] as const;
 

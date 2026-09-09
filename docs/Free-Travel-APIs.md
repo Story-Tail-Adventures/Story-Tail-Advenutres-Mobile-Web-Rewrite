@@ -330,7 +330,8 @@ building against first.
   paid tiers. Content and pricing, no availability, no booking.
   *(Their `CompanyEnum` also lists `aida`, but a live `/cruise-lines` returns nine and omits
   it. Their `LocaleEnum` lists eight locales; live responses include a ninth, `pt_BR`, priced
-  in BRL. Treat both published enums as approximate — the schema does.)*
+  in BRL — and `/coverage` reports **thirteen** markets in all, adding `en_IE`, `es_ES`,
+  `fr_FR` and `ja_JP`. Treat both published enums as approximate; the schema does.)*
 - **How free:** **BASIC is $0 with no card**, and it is real production data — the spec is
   explicit that the free tier "returns the same real-time data as paid tiers." The limits are
   what bite: **100 requests/month and 10 rows/request.** `GET /cruises/{id}/price-history`
@@ -354,6 +355,10 @@ building against first.
   that Story-Tail does not book (`costa`, `msc` — European markets). So the feed can never be
   the whole catalogue, which is §10.1's "curated content wins" rule arriving as a fact rather
   than a preference.
+- **The relay caches, and caching does not refund.** Two identical requests seconds apart
+  return byte-identical bodies — same `request_id` — while still decrementing the quota. So
+  re-running a sync to get fresher data buys nothing and costs real budget; freshness comes
+  from `sort=updated_at:desc` and a high-water mark, not from asking again.
 - **Data quality, observed.** Port names are provider-localised with nothing linking them —
   "Rhodes, Greece", "Rodi, Grecia" and "Rodes, Grécia" are one quay under three names — and
   the catalogue mixes real ports with at-sea positions like "38.6 N 19.8 E - Ionian Sea" and

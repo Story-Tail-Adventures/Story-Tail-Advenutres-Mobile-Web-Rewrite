@@ -18,6 +18,14 @@
  *     backend but NOT of the relay in front of it. It 401s without a key like everything
  *     else, and it counts against the quota like everything else. There is no free probe.
  *
+ * THE RELAY CACHES, AND CACHING DOES NOT REFUND. Two identical requests seconds apart come
+ * back byte-identical — same `request_id` ULID and all — while STILL decrementing the quota.
+ * Observed: a repeat run took 0.71s against 1.31s and burned its three requests anyway. So a
+ * duplicate `provider_request_id` in the ledger is the relay serving a cached body, not this
+ * module reusing an id, and re-running to "get fresher data" buys nothing but spends real
+ * budget. It is also why the incremental levers live in cruise_sync_scope rather than in a
+ * retry.
+ *
  * THE RELAY ALSO TELLS THE TRUTH ABOUT THE BUDGET, on every single response:
  * x-ratelimit-requests-limit / -remaining / -reset. That is more trustworthy than any count
  * we keep, because quota gets spent from other places — a second environment, a manual curl.
