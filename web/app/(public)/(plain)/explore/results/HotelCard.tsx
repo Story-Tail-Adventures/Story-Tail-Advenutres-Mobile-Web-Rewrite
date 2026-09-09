@@ -28,11 +28,14 @@ export function HotelCard({
   next: _next,
   stay,
   travelers,
+  destination,
 }: {
   hotel: PublicHotel;
   next: string;
   stay?: { checkIn: string; checkOut: string };
   travelers?: number;
+  /** What the visitor searched for. The provider gives no clean city string per property. */
+  destination?: string;
 }) {
   // Until now this was `joinHref({ intent: "quote", next })`, which carried the RESULTS page
   // and nothing about the hotel — the request arrived unable to say what it was for. A hotel
@@ -42,7 +45,11 @@ export function HotelCard({
     tripType: "custom",
     source: "serpapi_google_hotels",
     name: hotel.name,
-    place: hotel.propertyType ?? undefined,
+    // The SEARCH destination, not the property type — which is what this was, so a trip came
+    // out titled "La Quinta Inn & Suites · hotel". The provider returns no clean city string
+    // per property (only coordinates), and "the place they searched" is the honest answer:
+    // it is what the traveler asked for and what Gyasi needs to see on the inquiry.
+    place: destination,
     checkIn: stay?.checkIn,
     checkOut: stay?.checkOut,
     travelers,
@@ -93,7 +100,7 @@ export function HotelCard({
   return (
     <>
       {/* Row layout — web (≥1200). */}
-      <article className="result-row card hidden p-0 web:grid">
+      <article className="result-row card group relative hidden p-0 web:grid">
         <div className="relative min-h-30 bg-surface-3">
           {hotel.photos[0] && (
             <Image
@@ -110,7 +117,19 @@ export function HotelCard({
         </div>
         <div className="min-w-0 px-4 py-3.5">
           {overline && <span className="t-tag-navy">{overline}</span>}
-          <h2 className="t-title-l mt-1.5 mb-0.5 text-on-surface">{hotel.name}</h2>
+          {/* THE WHOLE CARD IS THE LINK, via a stretched pseudo-element on this one anchor.
+              A curated trip has a detail page AND a quote button, so its card carries two
+              destinations; a hotel has exactly one, and making a 180px-tall row clickable
+              only in its bottom-right corner was a worse target for no reason.
+
+              The heading is what carries it, so a screen reader announces the hotel's name
+              as the link rather than a generic "Request quote" repeated twenty times. The
+              pill below is then decoration — see the span. */}
+          <h2 className="t-title-l mt-1.5 mb-0.5 text-on-surface">
+            <Link href={quote} className="link-stretch rounded-sm group-hover:underline">
+              {hotel.name}
+            </Link>
+          </h2>
           <p className="t-body-s text-on-surface-variant">{sub}</p>
           {amenities.length > 0 && (
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
@@ -124,14 +143,16 @@ export function HotelCard({
         </div>
         <div className="flex min-w-42.5 flex-col items-end border-l border-outline-variant px-4 py-3.5 text-right">
           {price}
-          <Link href={quote} className="btn btn-filled btn-sm mt-auto">
+          {/* Not a link: the card already is one, and a second anchor to the same place
+              would be a duplicate tab stop reading "Request quote" twenty times over. */}
+          <span aria-hidden="true" className="btn btn-filled btn-sm mt-auto">
             {RESULTS.card.quote}
-          </Link>
+          </span>
         </div>
       </article>
 
       {/* Stacked layout — mobile and tablet. */}
-      <article className="card web:hidden">
+      <article className="card group relative web:hidden">
         <div className="relative aspect-video bg-surface-3">
           {hotel.photos[0] && (
             <Image
@@ -146,13 +167,17 @@ export function HotelCard({
           {overline && <span className="t-tag-navy absolute top-2 left-2">{overline}</span>}
         </div>
         <div className="p-3">
-          <h2 className="t-title-s text-on-surface">{hotel.name}</h2>
+          <h2 className="t-title-s text-on-surface">
+            <Link href={quote} className="link-stretch rounded-sm group-hover:underline">
+              {hotel.name}
+            </Link>
+          </h2>
           <p className="t-body-s text-on-surface-variant">{sub}</p>
           <div className={cn("mt-2 flex items-center justify-between gap-2")}>
             <div>{price}</div>
-            <Link href={quote} className="btn btn-filled btn-sm">
+            <span aria-hidden="true" className="btn btn-filled btn-sm">
               {RESULTS.card.quote}
-            </Link>
+            </span>
           </div>
         </div>
       </article>

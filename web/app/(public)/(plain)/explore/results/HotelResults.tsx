@@ -56,6 +56,7 @@ export async function HotelResults({ q, current }: { q: SearchQuery; current: st
               next={current}
               stay={stay}
               travelers={travelers}
+              destination={q.dest}
             />
           </li>
         ))}
