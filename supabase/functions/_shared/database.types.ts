@@ -1022,6 +1022,584 @@ export type Database = {
           },
         ]
       }
+      cruise_api_request: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          endpoint: Database["public"]["Enums"]["cruise_sync_endpoint"]
+          error_code: string | null
+          error_detail: string | null
+          id: string
+          path: string
+          provider: string
+          provider_request_id: string | null
+          query: Json
+          quota_limit: number | null
+          quota_remaining: number | null
+          quota_reset_seconds: number | null
+          rows_returned: number | null
+          run_id: string | null
+          status_code: number | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint: Database["public"]["Enums"]["cruise_sync_endpoint"]
+          error_code?: string | null
+          error_detail?: string | null
+          id: string
+          path: string
+          provider?: string
+          provider_request_id?: string | null
+          query?: Json
+          quota_limit?: number | null
+          quota_remaining?: number | null
+          quota_reset_seconds?: number | null
+          rows_returned?: number | null
+          run_id?: string | null
+          status_code?: number | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: Database["public"]["Enums"]["cruise_sync_endpoint"]
+          error_code?: string | null
+          error_detail?: string | null
+          id?: string
+          path?: string
+          provider?: string
+          provider_request_id?: string | null
+          query?: Json
+          quota_limit?: number | null
+          quota_remaining?: number | null
+          quota_reset_seconds?: number | null
+          rows_returned?: number | null
+          run_id?: string | null
+          status_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cruise_api_request_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_sync_run"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cruise_line: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          destination_count: number | null
+          destinations: string[]
+          display_order: number
+          earliest_departure: string | null
+          first_seen_at: string
+          id: string
+          is_booked: boolean
+          last_seen_at: string | null
+          latest_departure: string | null
+          locales: string[]
+          name: string
+          provider: string | null
+          provider_key: string | null
+          provider_payload: Json | null
+          provider_updated_at: string | null
+          sailing_count: number | null
+          ship_count: number | null
+          slug: string
+          supplier_id: string | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          destination_count?: number | null
+          destinations?: string[]
+          display_order?: number
+          earliest_departure?: string | null
+          first_seen_at?: string
+          id: string
+          is_booked?: boolean
+          last_seen_at?: string | null
+          latest_departure?: string | null
+          locales?: string[]
+          name: string
+          provider?: string | null
+          provider_key?: string | null
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          sailing_count?: number | null
+          ship_count?: number | null
+          slug: string
+          supplier_id?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          destination_count?: number | null
+          destinations?: string[]
+          display_order?: number
+          earliest_departure?: string | null
+          first_seen_at?: string
+          id?: string
+          is_booked?: boolean
+          last_seen_at?: string | null
+          latest_departure?: string | null
+          locales?: string[]
+          name?: string
+          provider?: string | null
+          provider_key?: string | null
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          sailing_count?: number | null
+          ship_count?: number | null
+          slug?: string
+          supplier_id?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cruise_line_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cruise_port: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          provider: string | null
+          provider_key: string | null
+          provider_payload: Json | null
+          provider_updated_at: string | null
+          sailing_count: number | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id: string
+          last_seen_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          provider?: string | null
+          provider_key?: string | null
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          sailing_count?: number | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          provider?: string | null
+          provider_key?: string | null
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          sailing_count?: number | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cruise_port_call: {
+        Row: {
+          arrival_at: string | null
+          created_at: string
+          day: number | null
+          departure_at: string | null
+          id: string
+          port_id: string | null
+          port_name: string
+          sailing_id: string
+          sequence: number
+          updated_at: string
+        }
+        Insert: {
+          arrival_at?: string | null
+          created_at?: string
+          day?: number | null
+          departure_at?: string | null
+          id: string
+          port_id?: string | null
+          port_name: string
+          sailing_id: string
+          sequence: number
+          updated_at?: string
+        }
+        Update: {
+          arrival_at?: string | null
+          created_at?: string
+          day?: number | null
+          departure_at?: string | null
+          id?: string
+          port_id?: string | null
+          port_name?: string
+          sailing_id?: string
+          sequence?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cruise_port_call_port_id_fkey"
+            columns: ["port_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_port"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cruise_port_call_sailing_id_fkey"
+            columns: ["sailing_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_sailing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cruise_sailing: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          cruise_line_id: string
+          currency: string | null
+          departure_date: string
+          destinations: string[]
+          duration_nights: number | null
+          first_seen_at: string
+          id: string
+          itinerary_url: string | null
+          last_seen_at: string | null
+          lead_price_cents: number | null
+          lead_price_eur_cents: number | null
+          provider: string
+          provider_key: string
+          provider_locale: string
+          provider_payload: Json | null
+          provider_updated_at: string | null
+          ship_id: string | null
+          synced_at: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          cruise_line_id: string
+          currency?: string | null
+          departure_date: string
+          destinations?: string[]
+          duration_nights?: number | null
+          first_seen_at?: string
+          id: string
+          itinerary_url?: string | null
+          last_seen_at?: string | null
+          lead_price_cents?: number | null
+          lead_price_eur_cents?: number | null
+          provider: string
+          provider_key: string
+          provider_locale: string
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          ship_id?: string | null
+          synced_at?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          cruise_line_id?: string
+          currency?: string | null
+          departure_date?: string
+          destinations?: string[]
+          duration_nights?: number | null
+          first_seen_at?: string
+          id?: string
+          itinerary_url?: string | null
+          last_seen_at?: string | null
+          lead_price_cents?: number | null
+          lead_price_eur_cents?: number | null
+          provider?: string
+          provider_key?: string
+          provider_locale?: string
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          ship_id?: string | null
+          synced_at?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cruise_sailing_cruise_line_id_fkey"
+            columns: ["cruise_line_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_line"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cruise_sailing_ship_id_fkey"
+            columns: ["ship_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_ship"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cruise_sailing_cabin_price: {
+        Row: {
+          cabin_code: string
+          created_at: string
+          currency: string
+          id: string
+          price_cents: number
+          sailing_id: string
+          updated_at: string
+        }
+        Insert: {
+          cabin_code: string
+          created_at?: string
+          currency: string
+          id: string
+          price_cents: number
+          sailing_id: string
+          updated_at?: string
+        }
+        Update: {
+          cabin_code?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          price_cents?: number
+          sailing_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cruise_sailing_cabin_price_sailing_id_fkey"
+            columns: ["sailing_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_sailing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cruise_ship: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          cruise_line_id: string
+          earliest_departure: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string | null
+          latest_departure: string | null
+          name: string
+          provider: string | null
+          provider_key: string | null
+          provider_payload: Json | null
+          provider_updated_at: string | null
+          sailing_count: number | null
+          slug: string | null
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          cruise_line_id: string
+          earliest_departure?: string | null
+          first_seen_at?: string
+          id: string
+          last_seen_at?: string | null
+          latest_departure?: string | null
+          name: string
+          provider?: string | null
+          provider_key?: string | null
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          sailing_count?: number | null
+          slug?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          cruise_line_id?: string
+          earliest_departure?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string | null
+          latest_departure?: string | null
+          name?: string
+          provider?: string | null
+          provider_key?: string | null
+          provider_payload?: Json | null
+          provider_updated_at?: string | null
+          sailing_count?: number | null
+          slug?: string | null
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cruise_ship_cruise_line_id_fkey"
+            columns: ["cruise_line_id"]
+            isOneToOne: false
+            referencedRelation: "cruise_line"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cruise_sync_run: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          error_detail: string | null
+          finished_at: string | null
+          id: string
+          quota_limit: number | null
+          quota_remaining: number | null
+          quota_reset_seconds: number | null
+          requests_spent: number
+          rows_archived: number
+          rows_upserted: number
+          scopes_run: number
+          started_at: string
+          status: Database["public"]["Enums"]["cruise_sync_status"]
+          trigger: Database["public"]["Enums"]["cruise_sync_trigger"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          error_detail?: string | null
+          finished_at?: string | null
+          id: string
+          quota_limit?: number | null
+          quota_remaining?: number | null
+          quota_reset_seconds?: number | null
+          requests_spent?: number
+          rows_archived?: number
+          rows_upserted?: number
+          scopes_run?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["cruise_sync_status"]
+          trigger: Database["public"]["Enums"]["cruise_sync_trigger"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          error_detail?: string | null
+          finished_at?: string | null
+          id?: string
+          quota_limit?: number | null
+          quota_remaining?: number | null
+          quota_reset_seconds?: number | null
+          requests_spent?: number
+          rows_archived?: number
+          rows_upserted?: number
+          scopes_run?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["cruise_sync_status"]
+          trigger?: Database["public"]["Enums"]["cruise_sync_trigger"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cruise_sync_scope: {
+        Row: {
+          company: string | null
+          created_at: string
+          cursor: string | null
+          cursor_set_at: string | null
+          departure_within_days: number | null
+          destination: string | null
+          enabled: boolean
+          endpoint: Database["public"]["Enums"]["cruise_sync_endpoint"]
+          high_water_updated_at: string | null
+          id: string
+          label: string
+          last_error: string | null
+          last_run_at: string | null
+          last_status: Database["public"]["Enums"]["cruise_sync_status"] | null
+          locale: string | null
+          max_requests_per_run: number
+          max_rows_per_request: number
+          priority: number
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          cursor?: string | null
+          cursor_set_at?: string | null
+          departure_within_days?: number | null
+          destination?: string | null
+          enabled?: boolean
+          endpoint: Database["public"]["Enums"]["cruise_sync_endpoint"]
+          high_water_updated_at?: string | null
+          id: string
+          label: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_status?: Database["public"]["Enums"]["cruise_sync_status"] | null
+          locale?: string | null
+          max_requests_per_run?: number
+          max_rows_per_request?: number
+          priority?: number
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          cursor?: string | null
+          cursor_set_at?: string | null
+          departure_within_days?: number | null
+          destination?: string | null
+          enabled?: boolean
+          endpoint?: Database["public"]["Enums"]["cruise_sync_endpoint"]
+          high_water_updated_at?: string | null
+          id?: string
+          label?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_status?: Database["public"]["Enums"]["cruise_sync_status"] | null
+          locale?: string | null
+          max_requests_per_run?: number
+          max_rows_per_request?: number
+          priority?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       document: {
         Row: {
           archived_at: string | null
@@ -2277,6 +2855,7 @@ export type Database = {
     }
     Functions: {
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      cruise_sync_tick: { Args: never; Returns: number }
       current_client_mailing_address_id: { Args: never; Returns: string }
       current_platform_user: {
         Args: never
@@ -2339,6 +2918,16 @@ export type Database = {
         | "excursion"
         | "insurance"
         | "custom"
+      cruise_sync_endpoint:
+        | "cruise_lines"
+        | "filter_options"
+        | "coverage"
+        | "ships"
+        | "ports"
+        | "cruises"
+        | "cruise_detail"
+      cruise_sync_status: "running" | "ok" | "partial" | "skipped" | "failed"
+      cruise_sync_trigger: "cron" | "manual"
       document_kind:
         | "passport"
         | "visa"
@@ -2558,6 +3147,17 @@ export const Constants = {
         "insurance",
         "custom",
       ],
+      cruise_sync_endpoint: [
+        "cruise_lines",
+        "filter_options",
+        "coverage",
+        "ships",
+        "ports",
+        "cruises",
+        "cruise_detail",
+      ],
+      cruise_sync_status: ["running", "ok", "partial", "skipped", "failed"],
+      cruise_sync_trigger: ["cron", "manual"],
       document_kind: [
         "passport",
         "visa",

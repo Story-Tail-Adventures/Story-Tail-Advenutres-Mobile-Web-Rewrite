@@ -453,6 +453,17 @@ verify_jwt = true
 [functions.trip-document-url]
 verify_jwt = true
 
+# ── §2.0 cruise catalog ───────────────────────────────────────────────────────
+# The one function here with no human caller: pg_cron invokes it through
+# public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand
+# with the same. verify_jwt stays on for the reason the header above gives, and the function
+# additionally requires the token's `role` claim to be service_role — requireUser() is no
+# use to it, since a sync job has no platform_user row, and a valid client token must not be
+# able to spend a 100-request monthly budget.
+
+[functions.cruise-sync]
+verify_jwt = true
+
 [functions.testimonial]
 # JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
 # the client from the token rather than trusting a body field.
