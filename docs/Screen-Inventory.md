@@ -1942,7 +1942,7 @@ In addition to those four, three more states apply selectively:
 
 ### 6.1 Client Web Navigation
 
-**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 104px top bar above the content alongside notifications and the account avatar — 104px because the bar carries the real brand lockup, whose legibility floor is 80px (Design-System §11.2).
+**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 64px top bar above the content alongside notifications and the account avatar.
 
 This contradicts what this section said originally — "Top nav: Logo, Trips, Search, Messages, Profile menu (with Account submenu)" — and the contradiction was settled in the prototype's favour by Gyasi on 2026-09-06. Three reasons it is the better answer, recorded so nobody re-litigates it:
 
