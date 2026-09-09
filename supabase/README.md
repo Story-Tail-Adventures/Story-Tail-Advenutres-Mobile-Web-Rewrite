@@ -174,6 +174,59 @@ select vault.create_secret(
 select vault.create_secret('<service-role key>', 'cruise_sync_service_role_key');
 ```
 
+**Order matters, and the first step is not the secrets.** `cruise_sync_tick()`, `pg_cron`,
+`pg_net` and `cruise_sync_scope` all arrive with migrations `20260909001124`/`…25`, which
+Supabase's GitHub integration applies when **`production` moves** — not when `dev` does. So
+until the release reaches `production`, the two statements above have nothing to call and
+there is no cron job to arm. In order:
+
+1. `dev` → `production`, and let the integration apply the migrations.
+2. `supabase secrets set TRACK_CRUISES_API_KEY=…` (the function 500s without it, by design —
+   it distinguishes "nobody configured this" from "the month is spent").
+3. The two `vault.create_secret` calls above.
+4. Verify, below. Do not wait a week to find out.
+
+**Locally the URL is different, and this is the wrinkle worth knowing.** `pg_net` runs
+*inside* the database container, where `127.0.0.1` is the database itself — not the API
+gateway. The functions gateway is reachable on the Docker network as `kong:8000`:
+
+```sql
+-- LOCAL ONLY. Verified working; hosted projects use the https URL above.
+select vault.create_secret(
+  'http://kong:8000/functions/v1/cruise-sync', 'cruise_sync_function_url');
+select vault.create_secret('<local service-role key from `supabase status`>',
+  'cruise_sync_service_role_key');
+```
+
+**Verifying the chain without waiting for Monday, and without spending quota.** Fire the
+tick by hand exactly as `pg_cron` will. Disable every scope first and the run costs zero
+provider requests while still exercising the whole path — tick → `pg_net` → gateway →
+function → `cruise_sync_run`:
+
+```sql
+update cruise_sync_scope set enabled = false;          -- 0 provider requests
+select public.cruise_sync_tick();                      -- returns a pg_net request id
+-- ...then, a few seconds later:
+select status_code, content from net._http_response order by id desc limit 1;
+select trigger, status, scopes_run, requests_spent from cruise_sync_run
+ order by started_at desc limit 1;
+```
+
+Expect `200`, and a `cruise_sync_run` row whose `trigger` is `cron` — that last detail is
+what proves the tick's request body arrived rather than the handler defaulting. A `NULL`
+from the tick means Vault is missing a secret; nothing was sent and nothing was spent.
+Re-enable the scopes afterwards.
+
+**Do not leave the Vault secrets in a local stack.** With them present, this laptop's cron
+spends 4–5 real requests every Monday it happens to be awake, out of 100 for the month.
+That is precisely what the no-op-without-secrets behaviour exists to prevent, so removing
+them restores it:
+
+```sql
+delete from vault.secrets
+ where name in ('cruise_sync_function_url', 'cruise_sync_service_role_key');
+```
+
 **Optional.** `CRUISE_SYNC_MONTHLY_CEILING` (default 90) caps requests per calendar month,
 holding back ~10 of the free tier's 100 for quote-time detail fetches. Raise it with the plan
 — PRO is 10,000 — and nothing else in the code needs to change.
