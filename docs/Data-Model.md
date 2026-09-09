@@ -2422,11 +2422,12 @@ one unit of work.
 
 This table is the reason the free tier is a parameter rather than a constraint baked into the
 handler. The provider's BASIC tier allows **100 requests/month at 10 rows/request** — 1,000
-rows/month — against a sailing inventory of order 100,000 rows, so mirroring the inventory is
-arithmetically out of reach (roughly eight years) and no batching strategy changes that. What
+rows/month — against a live inventory of **245,020 sailings**, so mirroring it is
+arithmetically out of reach (about 20 years) and no batching strategy changes that. What
 *is* affordable is the reference catalog: `/cruise-lines`, `/filter-options` and `/coverage`
 are unpaginated, so three requests refresh every line, ship, port, destination, locale and
-departure window. The reference scopes therefore ship enabled and the sailing scopes ship
+departure window. Measured, not estimated: one `/filter-options` call returns 4,566 ports —
+the same set `/ports` would charge 457 requests for, four months of quota. The reference scopes therefore ship enabled and the sailing scopes ship
 present-but-disabled; a tier upgrade is an `UPDATE ... SET enabled = true` and a wider
 `max_rows_per_request`, not a rewrite.
 

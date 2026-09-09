@@ -323,11 +323,14 @@ Added after v1.1. **This is the entry that falsifies §4.1's flat claim** that n
 provider offers a free production tier — one does, and it is the provider this codebase is
 building against first.
 
-- **What it gives you:** Ten cruise lines under one normalised schema — `princess`, `ncl`,
-  `celebrity-cruises`, `royal-caribbean`, `costa`, `carnival`, `holland-america`, `msc`,
-  `disney-cruise-line`, `aida` — with sailings, ordered port-by-port itineraries, ship and
-  port catalogues, destinations, per-market pricing across eight locales, and a year of daily
-  price history on paid tiers. Content and pricing, no availability, no booking.
+- **What it gives you:** Nine cruise lines under one normalised schema — `royal-caribbean`,
+  `celebrity-cruises`, `disney-cruise-line`, `princess`, `carnival`, `ncl`,
+  `holland-america`, `msc`, `costa` — with sailings, ordered port-by-port itineraries, ship
+  and port catalogues, destinations, per-market pricing, and a year of daily price history on
+  paid tiers. Content and pricing, no availability, no booking.
+  *(Their `CompanyEnum` also lists `aida`, but a live `/cruise-lines` returns nine and omits
+  it. Their `LocaleEnum` lists eight locales; live responses include a ninth, `pt_BR`, priced
+  in BRL. Treat both published enums as approximate — the schema does.)*
 - **How free:** **BASIC is $0 with no card**, and it is real production data — the spec is
   explicit that the free tier "returns the same real-time data as paid tiers." The limits are
   what bite: **100 requests/month and 10 rows/request.** `GET /cruises/{id}/price-history`
@@ -348,20 +351,33 @@ building against first.
   four slugs match exactly (`royal-caribbean`, `princess`, `carnival`, `holland-america`),
   three need mapping (`celebrity-cruises`→`celebrity`, `disney-cruise-line`→`disney`,
   `ncl`→`norwegian`), and **Virgin Voyages is not covered at all.** Three lines are covered
-  that Story-Tail does not book (`costa`, `msc`, `aida` — European markets). So the feed can
-  never be the whole catalogue, which is §10.1's "curated content wins" rule arriving as a
-  fact rather than a preference.
+  that Story-Tail does not book (`costa`, `msc` — European markets). So the feed can never be
+  the whole catalogue, which is §10.1's "curated content wins" rule arriving as a fact rather
+  than a preference.
+- **Data quality, observed.** Port names are provider-localised with nothing linking them —
+  "Rhodes, Greece", "Rodi, Grecia" and "Rodes, Grécia" are one quay under three names — and
+  the catalogue mixes real ports with at-sea positions like "38.6 N 19.8 E - Ionian Sea" and
+  some stray quoting. There is no provider port id to reconcile any of it by, which is why
+  every shipped sailing scope is `en_US` only and why the coordinates in §4.7 point 5 remain
+  the right long-term fix.
 
 **What the free tier can and cannot do — the arithmetic, because it decides the design.**
-100 requests × 10 rows is **1,000 rows/month**. Sailing inventory is order 100,000 rows (the
-provider's own example puts a single ship, Costa Toscana, at 7,215 sailings, and Barcelona at
-5,401). **Mirroring the sailing inventory on BASIC would take about eight years.** It is not a
-batching problem.
+100 requests × 10 rows is **1,000 rows/month**. The live catalogue reports **245,020 sailings
+across the nine lines** (Royal Caribbean 50,051; MSC 62,017; Costa 50,904; Norwegian 26,569;
+Celebrity 18,018; Holland America 13,585; Princess 12,029; Carnival 7,231; Disney 4,616).
+**Mirroring that on BASIC would take about 20 years.** It is not a batching problem, and no
+scheduling cleverness touches it.
 
-The reference catalogue, however, is nearly free: `/cruise-lines`, `/filter-options` and
-`/coverage` take no `limit` parameter, so **three requests refresh every line, ship, port,
-destination, locale and departure-date window** — 12 requests/month at a weekly cadence out of
-100. That is the whole of §1.0's cruise requirement except the sailings themselves.
+The reference catalogue, however, is nearly free, and by a wider margin than expected:
+`/cruise-lines`, `/filter-options` and `/coverage` take no `limit` parameter, so **three
+requests refresh every line, ship, port, destination, locale and departure-date window** — 12
+requests/month at a weekly cadence out of 100.
+
+Measured, not estimated: one `/filter-options` call returned **4,566 ports**. Paging the same
+catalogue out of `/ports` at 10 rows a request would cost **457 requests — four and a half
+months of quota for data one request already gave.** That single fact is why the shipped
+configuration enables the three unpaginated scopes and leaves `/ships` and `/ports` disabled.
+Between them the three answer the whole of §1.0's cruise requirement except the sailings.
 
 - **Verdict:** **Build the sync against BASIC now.** It costs nothing, needs no email thread,
   and validates the entire §10.1 content path — schema, mapping, scheduling, quota accounting
@@ -372,7 +388,8 @@ destination, locale and departure-date window** — 12 requests/month at a weekl
   way to build and prove the pipeline while the Widgety conversation runs — and as evidence
   in that conversation, since §4.7 point 2's swappable schema is now load-bearing rather than
   aspirational. If cruise search earns its keep, PRO at $49/mo lifts the mirror to 1M
-  rows/month and the same sync widens by configuration.
+  rows/month — the full 245,020-row mirror in about six hours — and the same sync widens by
+  configuration rather than by code.
 
 ---
 

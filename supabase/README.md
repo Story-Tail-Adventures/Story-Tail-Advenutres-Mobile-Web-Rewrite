@@ -137,6 +137,52 @@ Also set, once, or every deployed function answers browsers with a localhost COR
 supabase secrets set ALLOWED_ORIGIN=<the production origin> --project-ref <prod-ref>
 ```
 
+## Cruise sync secrets (P2)
+
+The cruise catalog sync (`functions/cruise-sync`, migrations `20260909001124` and
+`20260909001125`) needs one secret to work and two more for the schedule to fire. All three
+are set out of band, the same way `ALLOWED_ORIGIN` and the Stripe key are — none of them
+belongs in git.
+
+**The API key.** track.cruises relays through RapidAPI; the free BASIC plan is 100
+requests/month, and there is no direct subscription (see `../docs/Free-Travel-APIs.md` §4.8).
+
+```bash
+supabase secrets set TRACK_CRUISES_API_KEY=<the RapidAPI key> --project-ref <prod-ref>
+```
+
+Locally the same value goes in `supabase/.env.local` (gitignored by `.gitignore` here), and
+is loaded explicitly:
+
+```bash
+supabase functions serve cruise-sync --env-file supabase/.env.local
+```
+
+Note the variable name: the raw RapidAPI header is `X-RapidAPI-Key`, which is **not** a valid
+environment-variable name — no shell can export it and most dotenv parsers drop it. The
+client adds the header itself.
+
+**The schedule.** `public.cruise_sync_tick()` reads its two values from Vault, and returns
+NULL with a notice when either is missing — so a fresh local stack schedules a job that
+deliberately does nothing rather than spending a metered budget in the background. To arm it
+on a real project:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/cruise-sync',
+  'cruise_sync_function_url');
+select vault.create_secret('<service-role key>', 'cruise_sync_service_role_key');
+```
+
+**Optional.** `CRUISE_SYNC_MONTHLY_CEILING` (default 90) caps requests per calendar month,
+holding back ~10 of the free tier's 100 for quote-time detail fetches. Raise it with the plan
+— PRO is 10,000 — and nothing else in the code needs to change.
+
+Sanity checks, all readable from SQL: `cruise_api_request` is the request ledger (one row per
+HTTP attempt, month-to-date is the budget), `cruise_sync_run` is one row per invocation, and
+`cruise_sync_scope` is what the sync is allowed to fetch. Widening the sync is an `UPDATE` on
+that last table, not a deploy.
+
 ## Critical PCI rules for this directory
 
 1. **Never store PANs in migrations or Edge Function code.** Only Stripe tokens (`PaymentMethod` IDs) and Stripe-returned metadata (brand, last 4, expiration). See `../docs/Data-Model.md` §18.
