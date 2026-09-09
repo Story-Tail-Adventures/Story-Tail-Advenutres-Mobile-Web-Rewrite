@@ -176,8 +176,16 @@ export function createSerpApiClient(options: ClientOptions) {
       const quota = endpoint === "account" && body ? readQuota(body) : null;
       const rows = Array.isArray(body?.properties) ? body.properties.length : null;
 
-      // RECORD BEFORE JUDGING. A rejected request has usually still been counted upstream,
-      // and a ledger that only sees successes under-reports exactly when it matters.
+      const failed = !response.ok || !body || Boolean(body.error);
+      // The error is built BEFORE the ledger write, not after, so the row carries the
+      // provider's own message (already redacted at construction). Recording a bare status
+      // code and leaving the reason in a log means the one place an operator looks when the
+      // budget is draining cannot tell "bad key" from "no results for that week".
+      const error = failed ? toError(response.status, body, options.apiKey) : null;
+
+      // RECORD BEFORE JUDGING — i.e. before deciding whether to retry or throw. A rejected
+      // request has usually still been counted upstream, and a ledger that only sees
+      // successes under-reports exactly when it matters.
       await options.onRequest?.({
         endpoint,
         path,
@@ -187,13 +195,12 @@ export function createSerpApiClient(options: ClientOptions) {
         durationMs,
         providerSearchId: body?.search_metadata?.id ?? null,
         quota,
-        errorCode: null,
-        errorDetail: null,
+        errorCode: error?.code ?? null,
+        errorDetail: error?.detail ?? null,
       });
 
-      if (response.ok && body && !body.error) return body as T;
+      if (!error) return body as T;
 
-      const error = toError(response.status, body, options.apiKey);
       lastError = error;
       if (error.permanent || attempt >= maxRetries) throw error;
       await sleep(Math.min(500 * 2 ** attempt, 8_000));

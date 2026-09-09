@@ -150,3 +150,13 @@ Deno.test("account.json is recorded under its own endpoint, so it never counts a
   assertEquals(records[0].quota?.limit, 250);
   assertEquals(records[0].quota?.hourLimit, 50);
 });
+
+Deno.test("a provider error's reason reaches the ledger, not just its status", async () => {
+  // Without this, an operator watching the budget drain sees "401" and cannot tell a bad
+  // key from a quota wall without going to the function logs.
+  const { client, records } = harness([{ status: 401, body: ERROR_BODY }]);
+  await assertRejects(() => client.search(PARAMS), SerpApiError);
+  assertEquals(records[0].statusCode, 401);
+  assertEquals(records[0].errorCode, "provider_401");
+  assertStringIncludes(records[0].errorDetail ?? "", "Invalid API key");
+});
