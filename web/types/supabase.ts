@@ -1824,6 +1824,7 @@ export type Database = {
         Row: {
           cache_grace_hours: number
           cache_ttl_seconds: number
+          detail_retention_days: number
           enabled: boolean
           global_per_hour: number
           hourly_ceiling: number
@@ -1837,6 +1838,7 @@ export type Database = {
         Insert: {
           cache_grace_hours?: number
           cache_ttl_seconds?: number
+          detail_retention_days?: number
           enabled?: boolean
           global_per_hour?: number
           hourly_ceiling?: number
@@ -1850,6 +1852,7 @@ export type Database = {
         Update: {
           cache_grace_hours?: number
           cache_ttl_seconds?: number
+          detail_retention_days?: number
           enabled?: boolean
           global_per_hour?: number
           hourly_ceiling?: number
@@ -3069,6 +3072,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      hotel_search_gc: {
+        Args: never
+        Returns: {
+          buckets_deleted: number
+          cache_deleted: number
+          details_cleared: number
+        }[]
       }
       hotel_search_take_token: {
         Args: {
