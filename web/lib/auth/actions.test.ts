@@ -127,9 +127,30 @@ describe("signOutAction", () => {
     expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
 
-  it("drops the cached signed-in layout before leaving", async () => {
+  it("drops the cached signed-in shells before leaving", async () => {
     await expect(signOutAction()).rejects.toThrow(RedirectSignal);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
+
+    // Both shells that render somebody's signed-in state: the client portal and the
+    // onboarding wizard. `/trips` and `/onboarding` as layouts, so their nested routes go
+    // with them.
+    for (const path of ["/dashboard", "/trips", "/welcome", "/onboarding", "/mfa", "/login/mfa"]) {
+      expect(mocks.revalidatePath).toHaveBeenCalledWith(path, "layout");
+    }
+  });
+
+  // The whole point of narrowing it: `("/", "layout")` is the ROOT layout, so it also threw
+  // away all 33 statically prerendered marketing pages — the "public pages are files on a
+  // CDN" property the signed-in chrome work is built around. No authenticated route is
+  // server-cached, so that eviction bought nothing.
+  it("leaves the prerendered public pages alone", async () => {
+    await expect(signOutAction()).rejects.toThrow(RedirectSignal);
+
+    expect(mocks.revalidatePath).not.toHaveBeenCalledWith("/", "layout");
+    for (const [path] of mocks.revalidatePath.mock.calls) {
+      expect(path).not.toBe("/");
+      // Nothing public: no marketing page, topic page, trip detail or legal page.
+      expect(path).not.toMatch(/^\/(explore|caribbean|cruises|honeymoons|about|how-it-works|legal)/);
+    }
   });
 
   it("still lands them on sign-in when Supabase refuses the sign-out", async () => {
