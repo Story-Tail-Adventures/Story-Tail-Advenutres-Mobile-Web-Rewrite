@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { AUTH_FLAG_COOKIE } from "@/lib/auth/chrome-flag";
+import { resetAuthChromeForTests } from "@/lib/auth/use-auth-chrome";
 import { INSPIRATION_TILES } from "@/content/public/inspiration";
 import { trustLine } from "@/content/public/proof";
 import { TRIPS } from "@/content/public/trips";
@@ -93,5 +95,47 @@ describe("2.0.3 public search landing", () => {
     expect(metadata.alternates?.canonical).toBe("/explore");
     expect(metadata.openGraph?.url).toBe("/explore");
     expect(metadata.robots).toBeUndefined();
+  });
+});
+
+/**
+ * Somebody already signed in must not be asked to sign in again. The banner is the loudest
+ * of these prompts, and the one this page owns.
+ */
+describe("2.0.3 signed in", () => {
+  afterEach(() => {
+    document.cookie = `${AUTH_FLAG_COOKIE}=; max-age=0; path=/`;
+    resetAuthChromeForTests();
+    vi.unstubAllGlobals();
+  });
+
+  it("drops the sign-in banner", async () => {
+    document.cookie = `${AUTH_FLAG_COOKIE}=1; path=/`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ signedIn: true, initials: "JH" }) })),
+    );
+
+    render(<ExplorePage />);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/to save searches, favorite trips, and request a real proposal/),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("points the sticky bar at their trips instead of the sign-in screen", async () => {
+    document.cookie = `${AUTH_FLAG_COOKIE}=1; path=/`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ signedIn: true, initials: "JH" }) })),
+    );
+
+    render(<ExplorePage />);
+
+    const trips = await screen.findByRole("link", { name: "Your trips" });
+    expect(trips).toHaveAttribute("href", "/dashboard");
+    expect(screen.queryByRole("link", { name: "Sign in" })).not.toBeInTheDocument();
   });
 });

@@ -59,7 +59,7 @@ describe("robots", () => {
 
   it("allows everything except the auth-gated trees", () => {
     expect(result.rules).toEqual({ userAgent: "*", allow: "/", disallow: [...ROBOTS_DISALLOW] });
-    expect(ROBOTS_DISALLOW).toEqual(["/dashboard", "/trips", "/account", "/agent", "/auth/"]);
+    expect(ROBOTS_DISALLOW).toEqual(["/dashboard", "/trips", "/account", "/agent", "/auth/", "/api/"]);
   });
 
   it("does not block the noindex pages — crawlers must fetch them to see the noindex", () => {

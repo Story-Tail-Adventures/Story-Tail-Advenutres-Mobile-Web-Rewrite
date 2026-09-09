@@ -26,6 +26,12 @@ Two of them are a trap worth knowing about: no prerendered route reads
 **succeeds** — and then every request 500s in the proxy. `deploy.yml` asserts their presence
 before building for exactly this reason.
 
+Keep it that way. The signed-in chrome on the public pages is the one feature that would have
+been natural to build by reading `NEXT_PUBLIC_SUPABASE_URL` in the browser (to derive the
+name of Supabase's auth cookie). It deliberately does not — the proxy publishes a flag cookie
+of our own instead, and `lib/auth/chrome-flag.ts` records why. A CI build with no Supabase
+env still produces byte-identical public HTML to production's.
+
 `SUPABASE_SERVICE_ROLE_KEY` must never appear anywhere under `web/`. It bypasses RLS and
 belongs only to Edge Functions, which receive it automatically.
 

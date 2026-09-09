@@ -2,6 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
 import { env } from "@/lib/env";
+import {
+  AUTH_FLAG_COOKIE,
+  AUTH_FLAG_VALUE,
+  authFlagAction,
+} from "@/lib/auth/chrome-flag";
 
 /** Route groups that require a signed-in user. */
 const PROTECTED_PREFIXES = [
@@ -120,7 +125,12 @@ export async function updateSession(request: NextRequest) {
   // below throw, so a deploy with missing config fails closed instead of serving the
   // authenticated app to everyone.
   if (env.authChecksDisabledForLocalDev) {
-    return NextResponse.next({ request });
+    // Nobody can be signed in without Supabase, so clear any flag left over from a run that
+    // had it configured. A no-op when there is none, which is the normal case.
+    return applyAuthFlag(
+      NextResponse.next({ request }),
+      authFlagAction(request.cookies.get(AUTH_FLAG_COOKIE)?.value, false),
+    );
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -151,24 +161,56 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const target = authRedirectFor(pathname, Boolean(user), await assuranceOf(supabase, user));
+  const signedIn = Boolean(user);
+  const target = authRedirectFor(pathname, signedIn, await assuranceOf(supabase, user));
+
+  // Publish the one bit the static public pages need (lib/auth/chrome-flag.ts). Done here
+  // because getUser() above has already paid for the answer, and skipped entirely when it
+  // would not change — otherwise every public page response carries a redundant Set-Cookie.
+  const flag = authFlagAction(request.cookies.get(AUTH_FLAG_COOKIE)?.value, signedIn);
 
   if (target === "/login" || target === MFA_CHALLENGE) {
     const url = request.nextUrl.clone();
     url.pathname = target;
     url.search = "";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return applyAuthFlag(NextResponse.redirect(url), flag);
   }
 
   if (target) {
     const url = request.nextUrl.clone();
     url.pathname = target;
     url.search = "";
-    return NextResponse.redirect(url);
+    return applyAuthFlag(NextResponse.redirect(url), flag);
   }
 
-  return supabaseResponse;
+  return applyAuthFlag(supabaseResponse, flag);
+}
+
+/**
+ * Writes the decision from `authFlagAction` onto the response.
+ *
+ * Applied to the redirects too, not just the pass-through: signing out ends in a redirect to
+ * /login, and that is the response that has to clear the flag or the public chrome would keep
+ * showing an avatar until the visitor's next full page load.
+ */
+function applyAuthFlag(
+  response: NextResponse,
+  action: ReturnType<typeof authFlagAction>,
+): NextResponse {
+  if (action === "set") {
+    response.cookies.set(AUTH_FLAG_COOKIE, AUTH_FLAG_VALUE, {
+      path: "/",
+      sameSite: "lax",
+      // Deliberately NOT httpOnly: the pre-paint script reads it. It carries no identity.
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24,
+    });
+  } else if (action === "clear") {
+    response.cookies.delete({ name: AUTH_FLAG_COOKIE, path: "/" });
+  }
+  return response;
 }
 
 /**

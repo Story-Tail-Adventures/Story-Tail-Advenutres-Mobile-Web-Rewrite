@@ -37,7 +37,7 @@ export const STATIC_PUBLIC_PATHS = [
  * plus the auth callback). The noindex pages are deliberately NOT here: a crawler has to be able
  * to fetch /join and /explore/results to see their `noindex`.
  */
-export const ROBOTS_DISALLOW = ["/dashboard", "/trips", "/account", "/agent", "/auth/"] as const;
+export const ROBOTS_DISALLOW = ["/dashboard", "/trips", "/account", "/agent", "/auth/", "/api/"] as const;
 
 /** `base` is an origin with no trailing slash (env.siteUrl); `path` starts with "/". */
 export function absoluteUrl(base: string, path: string): string {
