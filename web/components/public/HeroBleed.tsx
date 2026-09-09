@@ -74,7 +74,11 @@ export function HeroBleed({
 
       <div
         className={cn(
-          "pub-container relative flex flex-1 flex-col justify-end pt-20 pb-5 text-white md:pt-10 md:pb-10",
+          // `pub-container-wide` is load-bearing: without a width modifier the hero copy sits
+          // at the viewport gutter while SigninBanner and every Container below it centre in
+          // 1280px, so they disagree at any width past 1376px. The 1440 artboards align all
+          // three (C203 puts hero, banner and body all at a 48px gutter).
+          "pub-container pub-container-wide relative flex flex-1 flex-col justify-end pt-20 pb-5 text-white md:pt-10 md:pb-10",
           align === "center" ? "md:justify-center" : "md:justify-end",
         )}
       >

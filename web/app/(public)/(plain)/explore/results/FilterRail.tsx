@@ -83,7 +83,16 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
     <aside aria-label={RESULTS.filters.label} className={cn("min-w-0", className)}>
       <Form action="/explore/results" className="flex flex-col">
         {q.dest && <input type="hidden" name="dest" value={q.dest} />}
-        {q.when && <input type="hidden" name="when" value={q.when} />}
+        {/* The stay rides through as in/out; `when` is only the pre-picker free-text fallback,
+            and carrying both would let a stale label outlive the range it described. */}
+        {q.checkIn && q.checkOut ? (
+          <>
+            <input type="hidden" name="in" value={q.checkIn} />
+            <input type="hidden" name="out" value={q.checkOut} />
+          </>
+        ) : (
+          q.when && <input type="hidden" name="when" value={q.when} />
+        )}
         {q.travelers && <input type="hidden" name="travelers" value={String(q.travelers)} />}
         {q.topic && <input type="hidden" name="topic" value={q.topic} />}
 

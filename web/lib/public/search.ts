@@ -5,6 +5,7 @@ import type {
   TripType,
   Vibe,
 } from "@/content/public/types";
+import { addDays, formatRange, isValidIsoDate, nightsBetween, todayIso } from "./dates";
 import { bandFromCents } from "./money";
 
 /**
@@ -65,11 +66,37 @@ export interface SearchQuery {
   vibes: Vibe[];
   budgets: BudgetBand[];
   sort: SortKey;
-  /** Free-text dates as typed ("Aug 12 – 19"); display only. */
+  /**
+   * Check-in / check-out as `YYYY-MM-DD`. Always both or neither — a half-range cannot be
+   * sent to a hotel API and reads as "flexible dates" everywhere it is displayed.
+   */
+  checkIn?: string;
+  checkOut?: string;
+  /**
+   * The pre-dates free-text value (`?when=Aug 12 – 19`). Kept so links shared before the
+   * picker shipped still render their dates in the header pill. DISPLAY ONLY — it is never
+   * parsed and never reaches a provider. New links write `in`/`out` instead.
+   */
   when?: string;
   /** 1–20. */
   travelers?: number;
 }
+
+/**
+ * Bounds on a stay, so a hostile or fat-fingered URL cannot become an expensive upstream
+ * query. A hotel search is metered per request (see supabase/functions/_shared/hotels), and
+ * `check_out_date` a decade out returns nothing while still costing one.
+ */
+export const MAX_STAY_NIGHTS = 30;
+export const MAX_BOOKING_DAYS_AHEAD = 550; // ~18 months, the usual limit on published rates
+
+/**
+ * The zone "today" means on a public page, where there is no signed-in visitor to read a
+ * `platform_user.time_zone` from. Story-Tail operates from Orlando, so the business day is
+ * the honest default — and it is one fixed zone rather than the server's, which on Vercel is
+ * UTC and would make a late-evening search in the US reject a stay starting today.
+ */
+export const SEARCH_TIME_ZONE = "America/New_York";
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -98,7 +125,16 @@ function cleanText(value: string | string[] | undefined): string | undefined {
   return cleaned.length ? cleaned : undefined;
 }
 
-export function parseSearchParams(sp: RawSearchParams | URLSearchParams | undefined): SearchQuery {
+export function parseSearchParams(
+  sp: RawSearchParams | URLSearchParams | undefined,
+  /**
+   * The visitor's today, as `YYYY-MM-DD`. Defaults to the SERVER's day, which is a fallback
+   * and not a correct answer — a page rendered at 23:00 in Orlando is already tomorrow in
+   * UTC, and a range starting "today" would be silently dropped as past. Callers that know
+   * the reader's zone should pass it.
+   */
+  today: string = todayIso(SEARCH_TIME_ZONE),
+): SearchQuery {
   const get = (key: string): string | string[] | undefined => {
     if (!sp) return undefined;
     if (sp instanceof URLSearchParams) {
@@ -113,6 +149,8 @@ export function parseSearchParams(sp: RawSearchParams | URLSearchParams | undefi
   const travelersRaw = cleanText(get("travelers"));
   const travelersNum = travelersRaw ? Number.parseInt(travelersRaw, 10) : NaN;
 
+  const stay = parseStay(cleanText(get("in")), cleanText(get("out")), today);
+
   return {
     dest: cleanText(get("dest")),
     topic: topicRaw && (TOPICS as readonly string[]).includes(topicRaw) ? (topicRaw as Topic) : undefined,
@@ -120,9 +158,42 @@ export function parseSearchParams(sp: RawSearchParams | URLSearchParams | undefi
     vibes: pickAllowed(asList(get("vibe")), VIBES),
     budgets: pickAllowed(asList(get("budget")), BUDGET_BANDS),
     sort: sortRaw && (SORT_KEYS as readonly string[]).includes(sortRaw) ? (sortRaw as SortKey) : "best-fit",
+    checkIn: stay?.checkIn,
+    checkOut: stay?.checkOut,
     when: cleanText(get("when")),
     travelers: Number.isFinite(travelersNum) ? Math.min(20, Math.max(1, travelersNum)) : undefined,
   };
+}
+
+/**
+ * Validate a check-in/check-out pair, or return null.
+ *
+ * Total, like everything else here: hostile input is dropped, never thrown on. Both dates go
+ * or neither stays — a lone check-in would render as a range with a missing half and cannot
+ * be sent upstream. The rules, in the order they are cheapest to check:
+ *
+ *   * both present, and both real calendar dates (so `2026-02-30` is rejected, which a shape
+ *     regex alone would wave through)
+ *   * check-out strictly after check-in — a zero-night stay is not a stay
+ *   * not in the past, against the CALLER'S day rather than the server's
+ *   * at most MAX_STAY_NIGHTS long and MAX_BOOKING_DAYS_AHEAD out
+ */
+export function parseStay(
+  rawIn: string | undefined,
+  rawOut: string | undefined,
+  today: string,
+): { checkIn: string; checkOut: string } | null {
+  if (!isValidIsoDate(rawIn) || !isValidIsoDate(rawOut)) return null;
+
+  const nights = nightsBetween(rawIn, rawOut);
+  if (nights === null || nights < 1 || nights > MAX_STAY_NIGHTS) return null;
+
+  if (rawIn < today) return null;
+
+  const horizon = addDays(today, MAX_BOOKING_DAYS_AHEAD);
+  if (horizon && rawIn > horizon) return null;
+
+  return { checkIn: rawIn, checkOut: rawOut };
 }
 
 /** Canonical query string (stable key order) for links and tests. */
@@ -133,7 +204,14 @@ export function resultsHref(query: Partial<SearchQuery>): string {
   for (const t of query.types ?? []) params.append("type", t);
   for (const v of query.vibes ?? []) params.append("vibe", v);
   for (const b of query.budgets ?? []) params.append("budget", b);
-  if (query.when) params.set("when", query.when);
+  if (query.checkIn && query.checkOut) {
+    params.set("in", query.checkIn);
+    params.set("out", query.checkOut);
+  } else if (query.when) {
+    // Only carried when there is no real range to carry instead, so a link that has been
+    // through the picker never keeps the stale free-text label alongside it.
+    params.set("when", query.when);
+  }
   if (query.travelers) params.set("travelers", String(query.travelers));
   if (query.sort && query.sort !== "best-fit") params.set("sort", query.sort);
   const qs = params.toString();
@@ -227,6 +305,21 @@ export function describeQuery(q: SearchQuery): string {
   if (q.types.length === 1) return TRIP_TYPE_LABELS[q.types[0]];
   if (q.vibes.length === 1) return VIBE_LABELS[q.vibes[0]];
   return "Everywhere Gyasi plans";
+}
+
+/**
+ * How the Dates cell reads: the picked range, else the pre-picker free text, else nothing.
+ * The caller supplies the fallback ("Flexible dates") so this stays free of copy.
+ */
+export function stayLabel(q: SearchQuery, timeZone: string = SEARCH_TIME_ZONE): string | undefined {
+  if (q.checkIn && q.checkOut) return formatRange(q.checkIn, q.checkOut, timeZone);
+  return q.when;
+}
+
+/** Nights in the picked stay, when there is one. Drives "3 nights" in the results heading. */
+export function stayNights(q: SearchQuery): number | undefined {
+  if (!q.checkIn || !q.checkOut) return undefined;
+  return nightsBetween(q.checkIn, q.checkOut) ?? undefined;
 }
 
 /** True when the visitor has narrowed the search at all. */

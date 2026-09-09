@@ -1,6 +1,6 @@
 import type { InquiryField } from "@/components/public/InquiryBar";
 import type { TripType, Vibe } from "@/content/public/types";
-import { resultsHref, TRIP_TYPE_LABELS, VIBE_LABELS, type SearchQuery } from "@/lib/public/search";
+import { resultsHref, stayLabel, TRIP_TYPE_LABELS, VIBE_LABELS, type SearchQuery } from "@/lib/public/search";
 import { RESULTS } from "./content";
 
 /**
@@ -54,7 +54,7 @@ export function inquiryFields(q: SearchQuery): InquiryField[] {
   const single = q.types.length === 1 ? q.types[0] : undefined;
   return [
     { label: RESULTS.pill.destination, value: q.dest ?? RESULTS.pill.anywhere, icon: "map" },
-    { label: RESULTS.pill.dates, value: q.when ?? RESULTS.pill.flexibleDates, icon: "calendar" },
+    { label: RESULTS.pill.dates, value: stayLabel(q) ?? RESULTS.pill.flexibleDates, icon: "calendar" },
     {
       label: RESULTS.pill.travelers,
       value: q.travelers ? RESULTS.pill.travelersCount(q.travelers) : RESULTS.pill.anyGroup,

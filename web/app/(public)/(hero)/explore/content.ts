@@ -5,18 +5,21 @@ import type { InspirationTile } from "@/content/public/types";
 import type { SearchQuery } from "@/lib/public/search";
 
 export interface SearchField {
-  /** Must match the keys `parseSearchParams` reads. */
-  name: "dest" | "when" | "travelers";
+  /**
+   * `dates` is not an input name — it is the slot the DateRangePicker occupies, and the
+   * picker writes `in` and `out`. The other two are the query keys `parseSearchParams` reads.
+   */
+  name: "dest" | "dates" | "travelers";
   label: string;
   placeholder: string;
   icon: IconName;
-  type: "text" | "number";
+  type: "text" | "number" | "dates";
 }
 
 /** The three cells of the search pill, in prototype order. */
 export const SEARCH_FIELDS: readonly SearchField[] = [
   { name: "dest", label: "Destination", placeholder: "Caribbean", icon: "map", type: "text" },
-  { name: "when", label: "Dates", placeholder: "Aug 12 – 19", icon: "calendar", type: "text" },
+  { name: "dates", label: "Dates", placeholder: "Aug 12 – 19", icon: "calendar", type: "dates" },
   { name: "travelers", label: "Travelers", placeholder: "2 adults", icon: "user", type: "number" },
 ];
 
@@ -33,6 +36,25 @@ export const EXPLORE = {
   search: {
     formLabel: "Search trips",
     submit: "Search",
+  },
+  /**
+   * Date picker copy. Voice check (Design-System §2.6): plain, unhurried, no urgency —
+   * "When would you like to arrive?" rather than "Select your check-in date now".
+   */
+  dates: {
+    open: "Choose your dates",
+    close: "Close the calendar",
+    prevMonth: "Previous month",
+    nextMonth: "Next month",
+    clear: "Clear",
+    done: "Done",
+    pickCheckIn: "When would you like to arrive?",
+    pickCheckOut: "And when would you head home?",
+    keyboardHint: "Arrow keys move by day. Enter chooses a date. Escape closes the calendar.",
+    checkInLabel: "Check-in",
+    checkOutLabel: "Check-out",
+    night: "night",
+    nights: "nights",
   },
   inspiration: {
     title: "Inspiration · curated",
