@@ -1477,9 +1477,25 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 ## 11. Lead Domain
 
+> **DEFERRED 2026-09-09 — specified, not built, and not currently planned.** BRD §6.5 was
+> amended: a quote request creates a **Trip in `inquiry` status** directly, so nothing writes
+> a `lead` row and no migration creates the table. `trip.status` already defaults to
+> `inquiry`, which is why no new entity was needed for the "awaiting a quote" state.
+>
+> **What that costs, recorded here because this is where the shape lives:** `trip.client_id`
+> is `NOT NULL` and `client.first_name` / `client.last_name` are `NOT NULL`, so a Trip cannot
+> be attached to somebody who has given only an email. `lead` was the one entity in this
+> model built for that case — nullable `client_id`, its own `email citext NOT NULL`, and
+> `referenced_search_payload jsonb` for a search snapshot that has no catalog row to point at
+> (which is exactly the shape a hotel result needs, since hotels are deliberately not stored).
+>
+> The domain stays specified because it is the designed answer if the account requirement
+> proves lossy at the top of the funnel. Reviving it is this section plus a migration; nothing
+> else in the model depends on it.
+
 ### 11.1 Lead
 
-**Phase:** P2
+**Phase:** P2 — **deferred, see the note above**
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|

@@ -56,7 +56,7 @@ Quick tone checks for any copy:
 Use these consistently in code comments, commit messages, and PR descriptions:
 
 - **P1** — MVP (Travefy replacement). Authentication, client management, trip builder with manual entry, itinerary viewer, payment authorization, agent worklist, commission tracking, templated emails.
-- **P2** — Self-guided search and lead generation. Travel API integrations (Amadeus, Hotelbeds, Viator, Widgety). Lead workflow. Phase 2 also brings the public marketing-adjacent search surface live.
+- **P2** — Self-guided search and inquiry capture. Travel API integrations (Amadeus, Hotelbeds, Viator, Widgety, SerpApi Google Hotels). Phase 2 also brings the public marketing-adjacent search surface live. **A quote request creates a Trip in `inquiry` status, not a Lead** (BRD §6.5, decided 2026-09-09) — the `lead` domain is specified in Data-Model §11 but deferred and unbuilt, and the agent works one queue rather than two.
 - **P3** — Multi-agent, group trip coordination, mobile offline UI, API-driven booking workflows.
 - **P4+** — Future features (AI-assisted planning, loyalty, etc.).
 

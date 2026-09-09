@@ -6,10 +6,15 @@ import { joinHref } from "./links";
  * Guest inquiry — "Message Gyasi without an account" / "Continue as guest"
  * (Screen Inventory 2.0.5, 2.0.6; Design-System §2 voice).
  *
- * Phase 1 decision: a prefilled email. The Lead entity (Data-Model §11) is Phase 2, so
- * there is nothing to POST to yet; the Screen Inventory itself says MVP leads are informal
- * inquiries. When lead capture lands, `inquiryHref` grows a route and every call site
- * keeps working.
+ * A prefilled email, and — as of 2026-09-09 — permanently so rather than a placeholder.
+ * BRD §6.5 was amended: a quote request creates a Trip in `inquiry` status, which requires
+ * an account, because `trip.client_id` and `client.first_name`/`last_name` are all NOT NULL.
+ * The Lead entity that could have absorbed an anonymous visitor is deferred (Data-Model §11).
+ *
+ * So this IS the no-account path, not a stand-in for one. It carries no search context and
+ * lands in a mailbox rather than a queue, which is the accepted cost of that decision; if it
+ * proves lossy, reviving `lead` is the designed fix and `inquiryHref` grows a route without
+ * any call site changing.
  *
  * Security notes: every part is `encodeURIComponent`-ed and CR/LF are stripped before
  * encoding (mail clients decode into headers), the subject is capped, and the body only

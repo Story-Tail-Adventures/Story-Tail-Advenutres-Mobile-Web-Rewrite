@@ -83,7 +83,8 @@ export const env = {
 
   /**
    * Where "Message Gyasi without an account" emails go (Screen Inventory 2.0.5 / 2.0.6).
-   * MVP lead capture is a prefilled email — the Lead entity is Phase 2. Outside production
+   * The no-account path is a prefilled email, and stays one: per BRD §6.5 a quote request
+   * creates a Trip and so needs an account, and the Lead entity is deferred. Outside production
    * the seed agent's address stands in; in production an unset value returns null and the
    * guest CTAs fall back to the sign-up gate rather than inventing an address.
    */

@@ -474,6 +474,15 @@ verify_jwt = true
 [functions.hotel-search]
 verify_jwt = true
 
+# ── Quote requests ────────────────────────────────────────────────────────────
+# JWT verified, and the function additionally requires the `client` role: per BRD §6.5
+# (2026-09-09) a quote request creates a Trip, trip.client_id is NOT NULL, and the trip it
+# writes belongs to whoever the token resolves to. There is deliberately no anonymous path —
+# see the function header.
+
+[functions.quote-request]
+verify_jwt = true
+
 [functions.testimonial]
 # JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
 # the client from the token rather than trusting a body field.
