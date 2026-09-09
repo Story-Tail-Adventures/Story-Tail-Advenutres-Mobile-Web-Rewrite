@@ -94,6 +94,7 @@ export default function ExplorePage() {
           icon: "search",
         }}
         secondary={{ label: EXPLORE.sticky.secondary, href: loginHref(PATH) }}
+        secondarySignedIn={{ label: EXPLORE.sticky.secondarySignedIn, href: "/dashboard" }}
       />
     </>
   );

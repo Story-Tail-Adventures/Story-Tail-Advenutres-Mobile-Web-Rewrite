@@ -6,6 +6,7 @@ import { authErrorByKind } from "@/lib/auth-errors";
 import { env } from "@/lib/env";
 import { isOAuthProvider, type OAuthProvider } from "@/lib/auth/providers";
 import { safeNext } from "@/lib/safe-next";
+import { SIGNED_IN_SHELLS } from "@/lib/auth/signed-in-shells";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -102,7 +103,9 @@ export async function signOutAction(): Promise<void> {
   }
 
   // Drop the per-request auth state the layout tree cached, or the signed-in shell keeps
-  // rendering for one more navigation.
-  revalidatePath("/", "layout");
+  // rendering for one more navigation. See SIGNED_IN_SHELLS for why it is not `("/", "layout")`.
+  for (const path of SIGNED_IN_SHELLS) {
+    revalidatePath(path, "layout");
+  }
   redirect("/login");
 }

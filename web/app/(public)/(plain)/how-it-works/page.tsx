@@ -156,6 +156,7 @@ export default function HowItWorksPage() {
       <StickyCta
         primary={{ label: HOW_IT_WORKS.sticky.primary, href: quoteHref }}
         secondary={{ label: HOW_IT_WORKS.sticky.secondary, href: loginHref() }}
+        secondarySignedIn={{ label: HOW_IT_WORKS.sticky.secondarySignedIn, href: "/dashboard" }}
       />
     </>
   );

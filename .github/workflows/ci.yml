@@ -97,6 +97,11 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: https://app.story-tail.com
 
+      # The build above proves the app COMPILES without Supabase config. This proves the
+      # marketing pages are still files on a CDN: one cookies() in the (public) server tree
+      # makes them per-request, and the build says nothing about it.
+      - run: python3 .github/scripts/check_public_prerender.py
+
   contracts:
     name: Contracts codegen is current
     runs-on: ubuntu-latest
