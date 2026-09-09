@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Icon } from "@/components/ui/Icon";
+import { useDatePopover, usePopoverSupported } from "@/components/ui/useDatePopover";
 import { cn } from "@/lib/cn";
 import {
   addMonths,
@@ -12,7 +13,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/public/calendar";
 import { addDays, formatDayLong, formatRange, nightsBetween, todayIso } from "@/lib/public/dates";
-import { MAX_STAY_NIGHTS } from "@/lib/public/search";
+import { MAX_BOOKING_DAYS_AHEAD, MAX_STAY_NIGHTS } from "@/lib/public/search";
 
 export interface DateRangePickerProps {
   /** Unique per instance — the pill and the stacked card are both in the DOM (see SearchBar). */
@@ -34,18 +35,6 @@ export interface DateRangePickerProps {
   variant: "pill" | "compact" | "stacked";
   copy: DateRangePickerCopy;
 }
-
-/**
- * Client capability as an external store, so React reads it through useSyncExternalStore
- * with an explicit server snapshot rather than flipping state in an effect. Same reasoning
- * as DismissibleBanner: the server snapshot is the honest "we cannot know yet" value, and
- * the enhanced calendar is strictly an upgrade over the native inputs it replaces.
- *
- * It never changes after load, so `subscribe` has nothing to listen to.
- */
-const noopSubscribe = () => () => {};
-const clientSnapshot = () => typeof HTMLElement.prototype.showPopover === "function";
-const serverSnapshot = () => false;
 
 export interface DateRangePickerCopy {
   open: string;
@@ -106,7 +95,7 @@ export function DateRangePicker({
   variant,
   copy,
 }: DateRangePickerProps) {
-  const popoverSupported = React.useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
+  const popoverSupported = usePopoverSupported();
   // `stacked` is the mobile card, where two months (~600px) do not fit and the OS picker is
   // better anyway — it keeps the native inputs, which are also the no-JS baseline.
   const mounted = popoverSupported && variant !== "stacked";
@@ -117,7 +106,6 @@ export function DateRangePicker({
    * not disable real days or offer past ones, so once mounted we take the browser's day.
    */
   const today = popoverSupported ? todayIso(Intl.DateTimeFormat().resolvedOptions().timeZone) : serverToday;
-  const [open, setOpen] = React.useState(false);
   const [checkIn, setCheckIn] = React.useState(defaultCheckIn);
   const [checkOut, setCheckOut] = React.useState(defaultCheckOut);
   /** Set once check-in is picked and check-out is not — drives the hover/next-click phase. */
@@ -125,54 +113,10 @@ export function DateRangePicker({
   const [focusDay, setFocusDay] = React.useState(defaultCheckIn ?? today);
   const [cursor, setCursor] = React.useState(() => monthKey(defaultCheckIn ?? today));
 
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const popoverRef = React.useRef<HTMLDivElement>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
-
-  // Anchor under the trigger, clamped into the viewport. At 768px the gutters leave 704px and
-  // the panel is ~600px, so a cell starting mid-row would otherwise overflow to the right.
-  const position = React.useCallback(() => {
-    const trigger = triggerRef.current;
-    const panel = popoverRef.current;
-    if (!trigger || !panel) return;
-    const rect = trigger.getBoundingClientRect();
-    const width = panel.offsetWidth;
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    panel.style.left = `${left}px`;
-    // Flip above the trigger when there is not room below it.
-    const below = window.innerHeight - rect.bottom;
-    const height = panel.offsetHeight;
-    panel.style.top = below < height + 16 && rect.top > height + 16
-      ? `${rect.top - height - 8}px`
-      : `${rect.bottom + 8}px`;
-  }, []);
-
-  // The popover API owns dismissal — Escape and outside-click are built in, and it restores
-  // focus to the invoker itself. All we do is mirror its state so `aria-expanded` is honest,
-  // and position it, since anchor positioning is not portable yet.
-  React.useEffect(() => {
-    const panel = popoverRef.current;
-    if (!panel) return;
-    const onToggle = (event: Event) => {
-      const next = (event as ToggleEvent).newState === "open";
-      setOpen(next);
-      if (next) position();
-    };
-    panel.addEventListener("toggle", onToggle);
-    return () => panel.removeEventListener("toggle", onToggle);
-  }, [mounted, position]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const onScroll = () => popoverRef.current?.hidePopover();
-    window.addEventListener("resize", position);
-    // Capture, because the scroller is an ancestor rather than the window on some layouts.
-    window.addEventListener("scroll", onScroll, { capture: true });
-    return () => {
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", onScroll, { capture: true });
-    };
-  }, [open, position]);
+  // Anchoring, viewport clamping, flipping, `aria-expanded` and focus-return all live in the
+  // hook, shared with DateField — see its header for why the top layer is not optional here.
+  const { open, triggerRef, panelRef, close: closePanel } = useDatePopover(mounted);
 
   // Move DOM focus to the day the roving tabindex points at, but only while the grid already
   // owns focus — otherwise opening the popover would steal it from the trigger.
@@ -183,7 +127,12 @@ export function DateRangePicker({
     grid.querySelector<HTMLElement>(`[data-iso="${focusDay}"]`)?.focus();
   }, [focusDay, open, cursor]);
 
-  const maxDate = React.useMemo(() => addDays(today, 550) ?? undefined, [today]);
+  // Same constant `parseStay` validates against. It was a hardcoded 550 here against a 500
+  // there, so the calendar offered 50 days the form would then silently drop.
+  const maxDate = React.useMemo(
+    () => addDays(today, MAX_BOOKING_DAYS_AHEAD) ?? undefined,
+    [today],
+  );
 
   function selectDay(iso: string) {
     if (iso < today || (maxDate && iso > maxDate)) return;
@@ -208,16 +157,6 @@ export function DateRangePicker({
     setCheckOut(iso);
     setPendingStart(undefined);
     closePanel();
-  }
-
-  /**
-   * The popover API returns focus to the invoker on light-dismiss and Escape, but not on a
-   * programmatic `hidePopover()` — that would leave focus on a now-hidden node, which for a
-   * keyboard user means focus falls back to <body> and their place in the form is lost.
-   */
-  function closePanel() {
-    popoverRef.current?.hidePopover();
-    triggerRef.current?.focus();
   }
 
   function onGridKeyDown(event: React.KeyboardEvent) {
@@ -258,7 +197,11 @@ export function DateRangePicker({
     // cell, so these carry sr-only labels naming the individual controls — which is the
     // honest model anyway: the group is "Dates", the controls are check-in and check-out.
     return (
-      <div className="flex min-w-0 flex-1 items-center gap-1">
+      // Keyed so React UNMOUNTS this branch on enhancement instead of reconciling it into
+      // the one below. Both branches are <div><input>, so without a key React reuses the DOM
+      // node and an uncontrolled `defaultValue` input becomes a controlled `value` one —
+      // which it warns about in the console on every load of /explore.
+      <div key="native" className="flex min-w-0 flex-1 items-center gap-1">
         <label htmlFor={inputId} className="sr-only">
           {copy.checkInLabel}
         </label>
@@ -292,7 +235,7 @@ export function DateRangePicker({
 
   // Reached only when `mounted`, which implies variant === "pill".
   return (
-    <div className="relative min-w-0">
+    <div key="enhanced" className="relative min-w-0">
       {/* Always present, empty when no range is picked — the same contract as the Destination
           input, which also submits empty. `parseStay` drops an empty or half pair, so an
           undated search is expressed by empty values rather than by absent params. */}
@@ -336,7 +279,7 @@ export function DateRangePicker({
       {/* Always in the DOM, shown by the popover API. Conditionally RENDERING it would
           unmount the grid on every close and lose the roving-focus position. */}
       <div
-        ref={popoverRef}
+        ref={panelRef}
         id={panelId}
         popover="auto"
         role="dialog"

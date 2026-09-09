@@ -126,7 +126,10 @@ describe("2.0.4 public search results", () => {
 
   it("is not indexed and points canonical at /explore", () => {
     expect(metadata.title).toBe("Trip ideas");
-    expect(metadata.robots).toEqual({ index: false, follow: true });
+    // `follow` is false because Hotels mode spends a metered provider request per distinct
+    // URL, and every chip, sort and mode link on this page is a plain anchor. Flipping this
+    // back to true lets a crawler walk that space at 250 searches a month.
+    expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(metadata.alternates?.canonical).toBe("/explore");
   });
 });

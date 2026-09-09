@@ -4,6 +4,7 @@ import {
   activeFilterCount,
   chipHref,
   chipIsOn,
+  chipsFor,
   inquiryFields,
   inquirySummary,
   MOBILE_CHIPS,
@@ -74,6 +75,57 @@ describe("activeFilterCount", () => {
     expect(activeFilterCount(parseSearchParams({ type: ["cruise", "hotel"], vibe: "family", budget: "2k-4k" }))).toBe(4);
     // Free-text and topic are not "filters" the chip counts.
     expect(activeFilterCount(parseSearchParams({ dest: "Nassau", topic: "cruises" }))).toBe(0);
+  });
+});
+
+describe("chipsFor", () => {
+  /**
+   * The strip used to be MOBILE_CHIPS unconditionally, so Hotels mode showed
+   * "All-inclusive / Cruise / Hotel / Adults-only / Family" over a list of Google hotels —
+   * curated filters a hotel search never reads. It is `web:hidden`, so nothing at desktop
+   * width could see it.
+   */
+  it("gives each mode only the axes that mode actually filters by", () => {
+    const curated = chipsFor("picks").map((c) => c.param.kind);
+    expect(new Set(curated)).toEqual(new Set(["type", "vibe"]));
+
+    const hotels = chipsFor("hotels").map((c) => c.param.kind);
+    expect(new Set(hotels)).toEqual(new Set(["star", "amenity", "rate"]));
+    expect(hotels).not.toContain("type");
+    expect(hotels).not.toContain("vibe");
+
+    // The public cruise catalog has no filter vocabulary yet — same reason FilterRail
+    // renders only hidden echoes for it.
+    expect(chipsFor("cruises")).toEqual([]);
+  });
+
+  it("toggles a hotel chip into the URL and back out without disturbing the search", () => {
+    const q = parseSearchParams({ dest: "Aruba", in: "2026-09-20", out: "2026-09-27", mode: "hotels" });
+    const spa = chipsFor("hotels").find((c) => c.label === "Spa")!;
+    expect(chipIsOn(q, spa)).toBe(false);
+
+    const on = toggleChip(q, spa);
+    expect(on.amenities).toContain("10");
+    expect(chipIsOn(on, spa)).toBe(true);
+    // The search itself survives the toggle — that is what makes it a filter and not a reset.
+    expect(on.dest).toBe("Aruba");
+    expect(on.checkIn).toBe("2026-09-20");
+    expect(on.checkOut).toBe("2026-09-27");
+
+    const href = chipHref(q, spa);
+    expect(href).toContain("amenity=10");
+    expect(href).toContain("dest=Aruba");
+    expect(toggleChip(on, spa).amenities).not.toContain("10");
+  });
+
+  it("counts only the active mode's filters", () => {
+    const q = parseSearchParams({
+      mode: "hotels", in: "2026-09-20", out: "2026-09-27",
+      type: "cruise", vibe: "adults-only", star: "5", amenity: "6",
+    });
+    // Two hotel axes on, two curated ones echoed through — the count is 2, not 4.
+    expect(activeFilterCount(q)).toBe(2);
+    expect(activeFilterCount(parseSearchParams({ type: "cruise", vibe: "adults-only" }))).toBe(2);
   });
 });
 

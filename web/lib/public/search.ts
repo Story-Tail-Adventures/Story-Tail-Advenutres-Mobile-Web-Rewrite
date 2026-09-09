@@ -63,7 +63,8 @@ export const HOTEL_AMENITIES = [
   { id: "52", label: "All-inclusive" },
   { id: "12", label: "Family-friendly" },
 ] as const;
-export const AMENITY_IDS = HOTEL_AMENITIES.map((a) => a.id);
+export type AmenityId = (typeof HOTEL_AMENITIES)[number]["id"];
+export const AMENITY_IDS: readonly AmenityId[] = HOTEL_AMENITIES.map((a) => a.id);
 
 /**
  * Nightly rate bands, in cents.
@@ -177,7 +178,14 @@ export function effectiveMode(q: SearchQuery): ResultsMode {
  * `check_out_date` a decade out returns nothing while still costing one.
  */
 export const MAX_STAY_NIGHTS = 30;
-export const MAX_BOOKING_DAYS_AHEAD = 550; // ~18 months, the usual limit on published rates
+/**
+ * ~16 months. MUST NOT EXCEED `MAX_DAYS_AHEAD` in supabase/functions/hotel-search/index.ts,
+ * which is the same number: this was 550 against the function's 500, so a stay in that
+ * 50-day gap passed validation here, was rejected there, and the visitor got "that search
+ * didn't come back" for a date the UI had accepted. The stricter of two bounds has to be the
+ * one the visitor is told about, and the provider-facing one is the real limit.
+ */
+export const MAX_BOOKING_DAYS_AHEAD = 500;
 
 /**
  * The zone "today" means on a public page, where there is no signed-in visitor to read a

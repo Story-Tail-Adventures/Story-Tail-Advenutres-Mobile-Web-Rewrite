@@ -30,11 +30,15 @@ import {
 } from "./cache.ts";
 import {
   createSerpApiClient,
+  readQuota,
   type RequestRecord,
   SerpApiError,
 } from "./client.ts";
 import { mapSearchResponse, PAYLOAD_VERSION, rateSpread } from "./map.ts";
 import type { HotelSearchPayload, HotelSearchResponse } from "./types.ts";
+
+/** Fraction of the monthly ceiling past which the free account read is worth a round trip. */
+const ACCOUNT_POLL_AT = 0.85;
 
 export interface SearchDeps {
   db: Db;
@@ -145,18 +149,69 @@ export async function runSearch(
 
   // 2. Budget. `allowance` folds our monthly and hourly ceilings together with whatever the
   //    provider last told us, taking the strictest.
-  const budget = await readBudget(deps.db, deps.config, now);
-  if (!deps.config.enabled || budget.allowance <= 0) {
-    return degraded(base, cached, budget, deps.config, now, "budget_exhausted");
+  // OFF MEANS OFF. This used to fall in with the budget branch below, which serves an
+  // expired cache row for up to `cache_grace_hours` — so flipping `enabled = false` kept
+  // showing rates for three days. supabase/README.md documents that switch as the way to
+  // take the feature down, and a compliance instruction to stop showing prices has to be
+  // obeyed now rather than after a grace window. A spent budget is a different situation:
+  // there, stale-with-a-timestamp genuinely beats an empty page.
+  if (!deps.config.enabled) {
+    return {
+      ...base,
+      totalAvailable: null,
+      results: [],
+      source: "live",
+      degraded: "budget_exhausted",
+      asOf: now.toISOString(),
+      staleAsOf: null,
+    };
   }
 
-  // 3. The provider.
   const client = createSerpApiClient({
     apiKey: deps.apiKey,
     fetchImpl: deps.fetchImpl,
     onRequest: makeRecorder(deps.db, key),
     sleep: deps.sleep,
   });
+
+  let budget = await readBudget(deps.db, deps.config, now);
+
+  /**
+   * ASK THE PROVIDER WHEN IT MATTERS.
+   *
+   * budget.ts says "our count is a pre-flight guard, the provider is the truth" — and until
+   * now nothing ever asked the provider, so `quota_remaining` was always NULL, `drift` never
+   * fired, and the ceiling was pure ledger arithmetic. That arithmetic OVER-counts, because
+   * SerpApi serves an identical repeat inside an hour for free and we cannot see it, so we
+   * were stopping early rather than late — the safe direction, but wrong.
+   *
+   * `account.json` is free and is not counted against the quota, so the only cost of asking
+   * is a round trip. That is worth paying near the ceiling, where being wrong is expensive,
+   * and not worth paying on every search. A failure here is not fatal: the ledger guard is
+   * what it always was.
+   */
+  if (budget.ledgerMonth >= Math.floor(budget.monthlyCeiling * ACCOUNT_POLL_AT)) {
+    try {
+      budget = applyQuota(budget, readQuota(await client.account()));
+      if (budget.drift !== null && budget.drift > 0) {
+        // Positive drift means quota was spent that our ledger never saw. On a credential
+        // that travels in a query string that is worth surfacing, not just tolerating.
+        console.warn("[hotel-search] quota drift", {
+          drift: budget.drift,
+          ledgerMonth: budget.ledgerMonth,
+          providerRemaining: budget.quotaRemaining,
+        });
+      }
+    } catch (err) {
+      console.warn("[hotel-search] account poll failed; falling back to the ledger", {
+        code: err instanceof SerpApiError ? err.code : "unknown",
+      });
+    }
+  }
+
+  if (budget.allowance <= 0) {
+    return degraded(base, cached, budget, deps.config, now, "budget_exhausted");
+  }
 
   try {
     const raw = await client.search(providerParams(canonical));

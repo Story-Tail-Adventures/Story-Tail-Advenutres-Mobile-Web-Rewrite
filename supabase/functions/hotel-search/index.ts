@@ -35,6 +35,7 @@ import { bucketKey, clientIp, retryAfterSeconds, takeTokens } from "../_shared/h
 import { runSearch } from "../_shared/hotels/search.ts";
 
 const MAX_NIGHTS = 30;
+/** Kept in step with MAX_BOOKING_DAYS_AHEAD in web/lib/public/search.ts. */
 const MAX_DAYS_AHEAD = 500;
 
 Deno.serve(async (req: Request) => {

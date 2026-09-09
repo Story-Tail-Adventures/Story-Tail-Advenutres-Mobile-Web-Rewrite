@@ -235,6 +235,11 @@ CREATE TABLE public.hotel_search_config (
     rate_per_hour       integer     NOT NULL DEFAULT 30,
     rate_per_day        integer     NOT NULL DEFAULT 60,
     global_per_hour     integer     NOT NULL DEFAULT 40,
+    -- How long a ledger row keeps the visitor's search terms. The ROW is kept forever — it
+    -- is what the monthly count is derived from — but `query` holds a destination, a date
+    -- range and a party size, which is a description of one person's travel plans and is
+    -- needed for about as long as a support question takes to arrive.
+    detail_retention_days integer   NOT NULL DEFAULT 30,
     updated_at          timestamptz NOT NULL DEFAULT now(),
 
     -- One row, forever. The boolean primary key defaulting to true is the standard trick.
@@ -242,7 +247,7 @@ CREATE TABLE public.hotel_search_config (
     CONSTRAINT hotel_search_config_positive CHECK (
         monthly_ceiling > 0 AND hourly_ceiling > 0 AND cache_ttl_seconds > 0
         AND cache_grace_hours >= 0 AND rate_per_minute > 0 AND rate_per_hour > 0
-        AND rate_per_day > 0 AND global_per_hour > 0
+        AND rate_per_day > 0 AND global_per_hour > 0 AND detail_retention_days > 0
     )
 );
 
@@ -254,8 +259,71 @@ CREATE TABLE public.hotel_search_config (
 INSERT INTO public.hotel_search_config (id) VALUES (true);
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Access posture: RLS on, zero policies, no grants to a client role. Load-bearing rather
--- than decorative, because config.toml sets auto_expose_new_tables = true.
+-- Retention.
+--
+-- Three of these four tables accumulate without bound, and two of them accumulate rows
+-- ABOUT VISITORS: `hotel_search_cache.query_fingerprint` and `hotel_api_request.query` each
+-- hold a destination, a date range and a party size. That is not payment data and it is not
+-- tied to a name, but it is a record of what someone was planning, and "we kept it forever
+-- because nothing deleted it" is not a retention policy. The privacy page now says how long
+-- it is kept; this is the thing that makes that sentence true.
+--
+-- The ledger ROW survives — it is what the monthly budget is counted from, so deleting it
+-- would hand back searches we already spent. Only the query detail is dropped, which is the
+-- part that describes a person rather than a cost.
+--
+-- Idempotent and safe to run at any cadence. Nothing schedules it yet: see supabase/README
+-- for the pg_cron line, which is deliberately not created here because the local stack has
+-- no scheduler and a migration that assumes one fails `supabase db reset`.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.hotel_search_gc()
+RETURNS TABLE (cache_deleted integer, buckets_deleted integer, details_cleared integer)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    cfg public.hotel_search_config%ROWTYPE;
+BEGIN
+    SELECT * INTO cfg FROM public.hotel_search_config WHERE id;
+
+    -- Past its TTL *and* past the grace window the degraded path serves stale from, so this
+    -- never deletes a row something is still allowed to read.
+    WITH gone AS (
+        DELETE FROM public.hotel_search_cache
+         WHERE expires_at < now() - make_interval(hours => cfg.cache_grace_hours)
+        RETURNING 1
+    ) SELECT count(*)::integer INTO cache_deleted FROM gone;
+
+    -- A day covers the longest window the limiter has.
+    WITH gone AS (
+        DELETE FROM public.hotel_search_rate_bucket
+         WHERE window_start < now() - interval '2 days'
+        RETURNING 1
+    ) SELECT count(*)::integer INTO buckets_deleted FROM gone;
+
+    WITH cleared AS (
+        UPDATE public.hotel_api_request
+           SET query = '{}'::jsonb
+         WHERE created_at < now() - make_interval(days => cfg.detail_retention_days)
+           AND query <> '{}'::jsonb
+        RETURNING 1
+    ) SELECT count(*)::integer INTO details_cleared FROM cleared;
+
+    RETURN NEXT;
+END $$;
+
+REVOKE ALL ON FUNCTION public.hotel_search_gc() FROM public, anon, authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Access posture: RLS on, zero policies, no grants to a client role.
+--
+-- Load-bearing rather than decorative. `auto_expose_new_tables` is commented out in
+-- config.toml, and the comment beside it records that an unset value falls back to TRUE —
+-- so a new table is exposed through PostgREST unless something says otherwise. This is that
+-- something. Do not read the commented-out line as "off".
 -- ─────────────────────────────────────────────────────────────────────────────
 
 DO $$

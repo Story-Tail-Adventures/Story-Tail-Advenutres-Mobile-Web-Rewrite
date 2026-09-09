@@ -303,3 +303,25 @@ SELECT count(*) FILTER (WHERE endpoint = 'search') AS spent_this_month,
 -- Cache hit rate is the number that decides whether the free tier survives.
 SELECT count(*) AS cached_searches FROM public.hotel_search_cache WHERE expires_at > now();
 ```
+
+### Retention
+
+`hotel_search_gc()` drops expired cache rows, old limiter buckets, and the destination and
+dates from ledger rows older than `detail_retention_days` (30). The ledger row itself stays —
+it is what the monthly count is derived from — so this never hands back searches already
+spent.
+
+Nothing schedules it. The local stack has no scheduler, so a migration creating a cron job
+fails `supabase db reset`; on a deployed project, enable `pg_cron` and add:
+
+```sql
+SELECT cron.schedule('hotel-search-gc', '17 4 * * *', $$SELECT public.hotel_search_gc()$$);
+```
+
+**The privacy page states the 30 days as fact.** Leaving this unscheduled makes
+`web/content/public/legal/privacy.ts` say something untrue about our own handling, which is a
+different class of problem from a full table. Run it by hand if cron is not available:
+
+```sql
+SELECT * FROM public.hotel_search_gc();
+```

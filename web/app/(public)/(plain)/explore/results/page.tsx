@@ -31,7 +31,7 @@ import { SearchUpdateBar } from "./SearchUpdateBar";
 import { EmptyResults } from "./EmptyResults";
 import { FilterRail } from "./FilterRail";
 import { FILTER_SHEET_ANCHOR, FilterSheet } from "./FilterSheet";
-import { activeFilterCount, chipHref, chipIsOn, MOBILE_CHIPS } from "./filters";
+import { activeFilterCount, chipHref, chipIsOn, chipsFor } from "./filters";
 import { ResultCard } from "./ResultCard";
 import { SortMenu } from "./SortControl";
 
@@ -41,7 +41,14 @@ export const metadata: Metadata = {
   title: RESULTS.meta.title,
   description: RESULTS.meta.description,
   // Filtered result pages are not indexed; /explore is the canonical entry.
-  robots: { index: false, follow: true },
+  //
+  // `follow` became false when Hotels mode landed. Every mode-switch, chip and sort link on
+  // this page is a plain anchor whose href changes the cache key, and Hotels mode spends a
+  // metered provider request per distinct key — so `follow: true` was an invitation to a
+  // crawler to walk the combinatorial space of this page at 250 searches a month.
+  // `prefetch={false}` stops Next prefetching on hover; it does nothing about a crawler.
+  // Nothing here is reachable only from this page, so following it buys nothing either.
+  robots: { index: false, follow: false },
   alternates: { canonical: SEARCH_ENTRY },
   openGraph: {
     title: RESULTS.meta.title,
@@ -70,7 +77,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
             <ModeSwitch q={q} />
           </div>
           <nav aria-label={RESULTS.chips.label} className="h-scroll items-center pt-2.5 pb-3 web:hidden">
-            {MOBILE_CHIPS.map((chip) => {
+            {chipsFor(mode).map((chip) => {
               const on = chipIsOn(q, chip);
               return (
                 <Link

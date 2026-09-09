@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { z } from "zod";
 import type { Currency } from "@/content/public/types";
 import { env } from "@/lib/env";
@@ -199,6 +200,28 @@ export function parseSearchResponse(raw: unknown): HotelSearchResult {
 }
 
 /**
+ * The visitor's address, for the rate limiter and nothing else.
+ *
+ * Read here rather than passed down because this is the only place it is used, and reading
+ * it in the page would put a request-scoped API into a component that has no other reason to
+ * be dynamic. `/explore/results` already reads searchParams, so it is dynamic regardless.
+ *
+ * Returns an empty object rather than a header when there is nothing to forward, so the
+ * function's own "no header means the tighter shared bucket" rule still applies to anything
+ * that genuinely arrives without one.
+ */
+async function visitorForwardedFor(): Promise<Record<string, string>> {
+  try {
+    const incoming = await headers();
+    const forwarded = incoming.get("x-forwarded-for") ?? incoming.get("x-real-ip");
+    return forwarded ? { "x-forwarded-for": forwarded } : {};
+  } catch {
+    // Outside a request scope (a build-time render, a test) there is no visitor to limit.
+    return {};
+  }
+}
+
+/**
  * Call the hotel-search Edge Function.
  *
  * Never throws: a provider hiccup on a public marketing page must be a quiet fallback to
@@ -232,6 +255,14 @@ export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchRe
         Authorization: `Bearer ${env.supabaseAnonKey}`,
         "X-STA-Search-Token": token,
         "Content-Type": "application/json",
+        // WITHOUT THIS THE LIMITER IS GLOBAL, NOT PER-VISITOR — and that is how it shipped.
+        // Every request arrived from this server with no forwarded address, so the function
+        // put them all in its shared "unknown" bucket and the whole site shared one 6/min
+        // allowance. The second person to search in a minute could exhaust it for everyone.
+        // The function hashes this with a pepper before it is used; the raw address never
+        // reaches the database (see _shared/hotels/ratelimit.ts and the CHECK on
+        // hotel_search_rate_bucket.bucket_key).
+        ...(await visitorForwardedFor()),
       },
       body: JSON.stringify(args),
       signal: AbortSignal.timeout(6_000),
