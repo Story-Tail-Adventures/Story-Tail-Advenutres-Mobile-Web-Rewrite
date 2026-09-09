@@ -1,0 +1,76 @@
+# Submits mobile/'s resolved dependency graph to GitHub.
+#
+# WHY THIS EXISTS. Dependabot has two halves. VERSION updates parse the build files
+# themselves, so .github/dependabot.yml's `gradle` entry already covers mobile. SECURITY
+# alerts do not — they read GitHub's dependency graph, and GitHub does not resolve Gradle
+# builds on its own. Before this, the graph held 678 npm packages and 6 actions and ZERO
+# Maven ones, so mobile's 33 declared libraries had no advisory coverage at all while web
+# had full coverage. Nothing said so anywhere; the Dependabot settings just looked "on".
+#
+# ── WHY IT IS ITS OWN FILE, NOT A JOB IN ci.yml ──────────────────────────────────
+#
+# Two reasons, and the second is the load-bearing one.
+#
+#   1. ci.yml is uniformly read-only today. This needs `contents: write` to submit, and
+#      keeping that in its own file keeps the exception visible instead of buried among
+#      seven jobs that do not need it.
+#   2. deploy.yml fires on ci.yml concluding SUCCESS. A job added to ci.yml becomes part of
+#      that conclusion, so a dependency-graph hiccup — a network blip, a Gradle resolution
+#      failure — would silently stop production deploys. A dependency-graph refresh must
+#      never be able to hold a release hostage.
+#
+# It is also not a required status check, so it cannot block a PR either.
+#
+# ── WHY A FORK CAN NEVER REACH THE WRITE TOKEN ───────────────────────────────────
+#
+# `push` on `dev` only. Pushing to dev needs write access, which no fork has, and this
+# workflow deliberately does NOT trigger on `pull_request` — that is the one trigger a
+# stranger can cause. workflow_dispatch likewise requires write access, and is here so the
+# graph can be seeded once without waiting for the next mobile change.
+name: Dependency graph
+
+on:
+  push:
+    branches: [dev]
+    # Only when the declared dependencies could actually have moved. androidApp/ and shared/
+    # take their versions from the catalogue, so in practice this is libs.versions.toml.
+    paths:
+      - "mobile/**"
+      - ".github/workflows/dependency-graph.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gradle:
+    name: Submit mobile dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # The whole reason this file is separate. Scoped to the job, so nothing else inherits it.
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+        # Nothing here needs authenticated git, and the next step runs the project's own
+        # Gradle build — third-party code. Same reasoning as deploy.yml's checkout.
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          # 21, matching mobile/gradle/gradle-daemon-jvm.properties and ci.yml.
+          java-version: "21"
+
+      # Resolves the build and submits the result. Left on the action's own resolution task
+      # rather than a hand-picked one: it is generated to walk every project and
+      # configuration, which is what a complete graph needs, and a narrower task would
+      # quietly under-report. Resolution downloads metadata; it does not link, so the iOS
+      # targets do not drag in Xcode the way :shared:build would.
+      - uses: gradle/actions/dependency-submission@v5
+        with:
+          build-root-directory: mobile
