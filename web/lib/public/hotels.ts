@@ -208,6 +208,19 @@ export function parseSearchResponse(raw: unknown): HotelSearchResult {
 export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchResult> {
   const token = env.hotelSearchToken;
   if (!env.hotelSearchEnabled || !token || !env.supabaseConfigured) {
+    // SAYS WHY, and it used to say nothing at all. A visitor sees "the hotel feed is quiet
+    // right now" either way — they should not be shown our configuration — but returning
+    // that silently meant a developer with no key saw a message about a provider outage and
+    // no signal anywhere that the feature had simply never been switched on. The distinction
+    // is invisible in the UI by design, so it has to be loud in the log.
+    console.warn(
+      "[hotels] search skipped — not configured",
+      {
+        hotelSearchEnabled: env.hotelSearchEnabled,
+        callerToken: token ? "set" : "MISSING (STA_HOTEL_SEARCH_TOKEN)",
+        supabase: env.supabaseConfigured ? "configured" : "MISSING (NEXT_PUBLIC_SUPABASE_*)",
+      },
+    );
     return { status: "unavailable" };
   }
 
@@ -229,8 +242,14 @@ export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchRe
 
     if (!response.ok) {
       // A 429 from the limiter is not an error the visitor should see — it degrades to the
-      // same quiet fallback as an exhausted budget.
-      console.warn("[hotels] search rejected", { status: response.status });
+      // same quiet fallback as an exhausted budget. 403 is the function refusing us: either
+      // the caller token does not match the Supabase secret, or SERPAPI_API_KEY is unset.
+      console.warn("[hotels] search rejected", {
+        status: response.status,
+        hint: response.status === 403
+          ? "the function refused the call — check HOTEL_SEARCH_CALLER_TOKEN matches STA_HOTEL_SEARCH_TOKEN, and that SERPAPI_API_KEY is set"
+          : undefined,
+      });
       return { status: "unavailable" };
     }
 

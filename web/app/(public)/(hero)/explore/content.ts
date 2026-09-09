@@ -19,7 +19,12 @@ export interface SearchField {
 /** The three cells of the search pill, in prototype order. */
 export const SEARCH_FIELDS: readonly SearchField[] = [
   { name: "dest", label: "Destination", placeholder: "Caribbean", icon: "map", type: "text" },
-  { name: "dates", label: "Dates", placeholder: "Aug 12 – 19", icon: "calendar", type: "dates" },
+  // NOT "Aug 12 – 19", which is what the C203 artboard shows — but the artboard is drawing
+  // the FILLED state, and the empty one was never in it. The other two cells are text inputs
+  // where a plausible value reads as a placeholder, because you can type over it. This cell
+  // is a BUTTON: its label is its value, so a specific date range reads as a chosen one, and
+  // people searched believing they had picked dates when they had not.
+  { name: "dates", label: "Dates", placeholder: "Add dates", icon: "calendar", type: "dates" },
   { name: "travelers", label: "Travelers", placeholder: "2 adults", icon: "user", type: "number" },
 ];
 
