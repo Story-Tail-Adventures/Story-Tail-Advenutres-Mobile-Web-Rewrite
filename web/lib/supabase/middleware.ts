@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
 import { env } from "@/lib/env";
+import { safeNext } from "@/lib/safe-next";
 
 /** Route groups that require a signed-in user. */
 const PROTECTED_PREFIXES = [
@@ -66,6 +67,17 @@ export function authRedirectFor(
   pathname: string,
   signedIn: boolean,
   assurance: Assurance = "none",
+  /**
+   * The request's own `?next=`, when it has one.
+   *
+   * Only consulted for a signed-in visitor on an auth-only page. Before this existed those
+   * were sent to /dashboard unconditionally, which silently dropped whatever they had been
+   * trying to do: a signed-in client clicking "Request a quote" links to
+   * `/join?intent=quote&next=…` (Screen 2.0.6 gates the CTA, not the visitor), so they were
+   * bounced to their dashboard and the request was lost. There was no way for them to ask
+   * for a quote at all.
+   */
+  next?: string | null,
 ): string | null {
   // The challenge screen is judged on its own terms, before the /login prefix rule below
   // can mistake it for a page a signed-in visitor should be bounced off.
@@ -95,10 +107,29 @@ export function authRedirectFor(
     return null;
   }
 
-  if (signedIn && startsWithAny(pathname, AUTH_ONLY_PREFIXES)) return "/dashboard";
+  if (signedIn && startsWithAny(pathname, AUTH_ONLY_PREFIXES)) {
+    return resolveSignedInNext(next);
+  }
   // A signed-in traveler on the public front door (exactly "/") goes straight to their trips.
   if (signedIn && pathname === "/") return "/dashboard";
   return null;
+}
+
+/**
+ * Where a signed-in visitor on an auth-only page actually wants to be.
+ *
+ * `safeNext` does the open-redirect work — same-origin relative paths only, and it keeps
+ * the query, which is the whole point here: the destination carries the quote context.
+ *
+ * The second guard is this function's own: a `next` pointing back at an auth-only page, or
+ * at "/", would bounce straight back through this branch and loop. Those fall through to
+ * the dashboard, which is where they were going before.
+ */
+function resolveSignedInNext(next?: string | null): string {
+  const resolved = safeNext(next, "/dashboard");
+  const [pathname] = resolved.split("?");
+  if (pathname === "/" || startsWithAny(pathname, AUTH_ONLY_PREFIXES)) return "/dashboard";
+  return resolved;
 }
 
 /**
@@ -151,7 +182,12 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const target = authRedirectFor(pathname, Boolean(user), await assuranceOf(supabase, user));
+  const target = authRedirectFor(
+    pathname,
+    Boolean(user),
+    await assuranceOf(supabase, user),
+    request.nextUrl.searchParams.get("next"),
+  );
 
   if (target === "/login" || target === MFA_CHALLENGE) {
     const url = request.nextUrl.clone();
@@ -162,9 +198,11 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (target) {
-    const url = request.nextUrl.clone();
-    url.pathname = target;
-    url.search = "";
+    // The target may carry its own query — `resolveSignedInNext` returns the visitor's
+    // destination intact, and blanking the search here would drop exactly the context this
+    // branch exists to preserve. Parsed against the request's origin so a path and a path
+    // with a query are handled the same way; `safeNext` has already proved it is relative.
+    const url = new URL(target, request.nextUrl.origin);
     return NextResponse.redirect(url);
   }
 

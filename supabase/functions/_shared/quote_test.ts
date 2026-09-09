@@ -19,10 +19,24 @@ const base = () => ({
   travelers: 2,
 });
 
-Deno.test("a hotel becomes a custom trip, not an all-inclusive one", () => {
-  // The enum has no 'hotel'. Claiming all_inclusive would assert a board basis we do not know.
+Deno.test("trip type defaults from the kind, and the caller may refine it", () => {
+  // A live hotel result tells us nothing about board basis, so 'custom' is the honest
+  // default. The curated catalog DOES know a Sandals week is all-inclusive, so it may say so.
   assertEquals(parseBody(base()).tripType, "custom");
   assertEquals(parseBody({ ...base(), kind: "cruise" }).tripType, "cruise");
+  assertEquals(parseBody({ ...base(), tripType: "all_inclusive" }).tripType, "all_inclusive");
+  // Not a real trip_type — falls back rather than reaching the enum and erroring at insert.
+  assertEquals(parseBody({ ...base(), tripType: "spaceship" }).tripType, "custom");
+});
+
+Deno.test("every component kind a public search can produce is accepted", () => {
+  for (const kind of ["hotel", "cruise", "excursion", "custom"]) {
+    assertEquals(parseBody({ ...base(), kind }).kind, kind);
+  }
+  // A curated catalog trip sends its component kind, not the word "trip" — the bug a browser
+  // caught: the page rendered, the send failed, and the traveler saw only "that didn't send".
+  assertThrows(() => parseBody({ ...base(), kind: "trip" }));
+  assertThrows(() => parseBody({ ...base(), kind: "flight" }));
 });
 
 Deno.test("the title carries the destination, and both are capped", () => {
@@ -103,12 +117,14 @@ Deno.test("traveler count is clamped rather than trusted", () => {
   assertEquals(parseBody({ ...base(), travelers: "lots" }).travelers, 2);
 });
 
-Deno.test("provenance is set from the kind, never from the caller", () => {
-  // Otherwise a caller could label their own request as coming from a supplier feed.
-  assertEquals(parseBody(base()).apiSource, "serpapi_google_hotels");
-  assertEquals(parseBody({ ...base(), kind: "cruise" }).apiSource, "track_cruises");
+Deno.test("provenance is allow-listed, so it cannot be invented", () => {
+  assertEquals(parseBody(base()).apiSource, "curated");
   assertEquals(
-    parseBody({ ...base(), apiSource: "manual" } as Record<string, unknown>).apiSource,
+    parseBody({ ...base(), source: "serpapi_google_hotels" }).apiSource,
     "serpapi_google_hotels",
   );
+  // Anything off the list falls back to 'curated' rather than letting a caller claim a
+  // request came from a supplier feed.
+  assertEquals(parseBody({ ...base(), source: "hotelbeds" }).apiSource, "curated");
+  assertEquals(parseBody({ ...base(), source: 42 }).apiSource, "curated");
 });

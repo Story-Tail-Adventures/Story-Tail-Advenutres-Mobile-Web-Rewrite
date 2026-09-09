@@ -7,8 +7,33 @@
 import { badRequest } from "./problem.ts";
 import { assertRecentUuidV7 } from "./uuid.ts";
 
-/** What the visitor was looking at when they asked. */
-export type QuoteKind = "hotel" | "cruise";
+/**
+ * What the visitor was looking at, as a `component_kind`.
+ *
+ * Narrower than the enum on purpose: only the four a public search surface can produce.
+ * `flight`, `transfer` and `insurance` are things an advisor adds while building the trip,
+ * not things a traveler asks about from a search result.
+ */
+export const QUOTE_KINDS = ["hotel", "cruise", "excursion", "custom"] as const;
+export type QuoteKind = (typeof QUOTE_KINDS)[number];
+
+/**
+ * The `trip_type` the inquiry becomes. Sent by the caller because the curated catalog knows
+ * things the component kind does not — a Sandals week and a boutique hotel are both `hotel`
+ * components, but only one of them is an `all_inclusive` trip.
+ */
+export const QUOTE_TRIP_TYPES = ["cruise", "all_inclusive", "multi_destination", "group", "custom"] as const;
+export type QuoteTripType = (typeof QUOTE_TRIP_TYPES)[number];
+
+/**
+ * Where the thing being asked about came from — `trip_component.api_source`.
+ *
+ * An ALLOW-LIST rather than free text, because this is provenance: a caller must not be able
+ * to label its own request as having come from a supplier feed. `curated` is Gyasi's own
+ * catalog, which is where anything that is not a live provider result comes from.
+ */
+export const QUOTE_SOURCES = ["curated", "serpapi_google_hotels", "track_cruises"] as const;
+export type QuoteSource = (typeof QUOTE_SOURCES)[number];
 
 export const MAX_NOTE = 2_000;
 export const MAX_TITLE = 120;
@@ -16,7 +41,7 @@ export const MAX_TITLE = 120;
 export interface QuoteInput {
   tripId: string;
   kind: QuoteKind;
-  tripType: "cruise" | "custom";
+  tripType: QuoteTripType;
   title: string;
   displayName: string;
   destinations: string[];
@@ -26,7 +51,7 @@ export interface QuoteInput {
   travelers: number;
   note: string | null;
   snapshot: Record<string, unknown>;
-  apiSource: string;
+  apiSource: QuoteSource;
   apiReference: string | null;
 }
 
@@ -41,8 +66,20 @@ export function parseBody(payload: Record<string, unknown>): QuoteInput {
     throw badRequest(`tripId must be a recent UUID v7: ${(err as Error).message}`);
   }
 
-  const kind = payload.kind === "cruise" ? "cruise" : payload.kind === "hotel" ? "hotel" : null;
-  if (!kind) throw badRequest("kind must be 'hotel' or 'cruise'.");
+  const kind = typeof payload.kind === "string" && (QUOTE_KINDS as readonly string[]).includes(payload.kind)
+    ? payload.kind as QuoteKind
+    : null;
+  if (!kind) throw badRequest(`kind must be one of: ${QUOTE_KINDS.join(", ")}.`);
+
+  // Defaulted from the kind rather than required, so a caller that does not know (a future
+  // mobile client, say) still produces a coherent trip instead of a rejected request.
+  const tripType =
+    typeof payload.tripType === "string" &&
+      (QUOTE_TRIP_TYPES as readonly string[]).includes(payload.tripType)
+      ? payload.tripType as QuoteTripType
+      : kind === "cruise"
+      ? "cruise"
+      : "custom";
 
   const displayName = text(payload.name, MAX_TITLE);
   if (!displayName) throw badRequest("Send the name of what you are asking about.");
@@ -73,9 +110,7 @@ export function parseBody(payload: Record<string, unknown>): QuoteInput {
   return {
     tripId,
     kind,
-    // The enum has no 'hotel' member — 'custom' is the honest mapping for a stay, since a
-    // hotel is only all-inclusive when the property is, and we do not know that reliably.
-    tripType: kind === "cruise" ? "cruise" : "custom",
+    tripType,
     title: location ? `${displayName} · ${location}`.slice(0, MAX_TITLE) : displayName,
     displayName,
     destinations: location ? [location] : [],
@@ -85,7 +120,10 @@ export function parseBody(payload: Record<string, unknown>): QuoteInput {
     travelers,
     note,
     snapshot: sanitiseSnapshot(snapshot),
-    apiSource: kind === "hotel" ? "serpapi_google_hotels" : "track_cruises",
+    apiSource: typeof payload.source === "string" &&
+        (QUOTE_SOURCES as readonly string[]).includes(payload.source)
+      ? payload.source as QuoteSource
+      : "curated",
     apiReference: text(payload.apiReference, 220),
   };
 }

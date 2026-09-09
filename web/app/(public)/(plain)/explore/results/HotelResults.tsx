@@ -19,6 +19,10 @@ import { HotelState } from "./HotelStates";
 export async function HotelResults({ q, current }: { q: SearchQuery; current: string }) {
   if (!q.dest) return <HotelState kind="need-destination" q={q} />;
   if (!q.checkIn || !q.checkOut) return <HotelState kind="need-dates" q={q} />;
+  // Captured after the guard: the narrowing does not survive into the map callback below,
+  // where `q` is still the wider type.
+  const stay = { checkIn: q.checkIn, checkOut: q.checkOut };
+  const travelers = q.travelers ?? 2;
 
   const band = RATE_BANDS.filter((b) => q.rates.includes(b.id));
   const result = await searchHotels({
@@ -47,7 +51,12 @@ export async function HotelResults({ q, current }: { q: SearchQuery; current: st
       <ul className="flex flex-col gap-2.5 md:max-web:grid md:max-web:grid-cols-2 md:max-web:gap-3.5">
         {result.hotels.map((hotel) => (
           <li key={hotel.id}>
-            <HotelCard hotel={hotel} next={current} />
+            <HotelCard
+              hotel={hotel}
+              next={current}
+              stay={stay}
+              travelers={travelers}
+            />
           </li>
         ))}
       </ul>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import type { PublicHotel } from "@/lib/public/hotels";
 import { cn } from "@/lib/cn";
-import { joinHref } from "@/lib/public/links";
+import { requestQuoteHref } from "@/lib/public/links";
 import { formatMoney } from "@/lib/public/money";
 import { RESULTS } from "./content";
 
@@ -23,8 +23,35 @@ import { RESULTS } from "./content";
  * `PublicHotel` has no field for a booking site, so nothing here can render one even by
  * accident — see web/lib/public/hotels.ts.
  */
-export function HotelCard({ hotel, next }: { hotel: PublicHotel; next: string }) {
-  const quote = joinHref({ intent: "quote", next });
+export function HotelCard({
+  hotel,
+  next: _next,
+  stay,
+  travelers,
+}: {
+  hotel: PublicHotel;
+  next: string;
+  stay?: { checkIn: string; checkOut: string };
+  travelers?: number;
+}) {
+  // Until now this was `joinHref({ intent: "quote", next })`, which carried the RESULTS page
+  // and nothing about the hotel — the request arrived unable to say what it was for. A hotel
+  // has no catalog slug to reference, so the identifying fields travel in the link.
+  const quote = requestQuoteHref({
+    kind: "hotel",
+    tripType: "custom",
+    source: "serpapi_google_hotels",
+    name: hotel.name,
+    place: hotel.propertyType ?? undefined,
+    checkIn: stay?.checkIn,
+    checkOut: stay?.checkOut,
+    travelers,
+    ref: hotel.propertyToken ?? undefined,
+    rateCents: hotel.nightlyCents ?? undefined,
+    hotelClass: hotel.hotelClass ?? undefined,
+    rating: hotel.rating ?? undefined,
+    propertyType: hotel.propertyType ?? undefined,
+  });
   const rate = hotel.nightlyCents !== null
     ? formatMoney({ amountCents: hotel.nightlyCents, currency: hotel.currency }, { whole: true })
     : null;
