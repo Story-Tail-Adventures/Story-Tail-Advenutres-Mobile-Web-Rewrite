@@ -44,7 +44,7 @@ jobs:
     outputs:
       mobile: ${{ steps.filter.outputs.mobile }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # The diff needs the base commit, which a shallow clone does not have.
           fetch-depth: 0
@@ -82,7 +82,7 @@ jobs:
     name: PCI guard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Strips SQL comments and string literals first. A plain grep fires on the initial
       # migration's own "NEVER store PAN, CVV" comment — text that states the rule
@@ -114,7 +114,7 @@ jobs:
     name: Web/mobile copy parity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # web/ and mobile/ hold deliberately parallel implementations of the same
       # validation rules and error taxonomy (the KMP module does not run on web).
       # The unit tests on each side cover behaviour; this covers wording, so the same
@@ -132,8 +132,8 @@ jobs:
     name: Web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -161,8 +161,8 @@ jobs:
     name: Contracts codegen is current
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -175,8 +175,8 @@ jobs:
     name: Public content codegen is current
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -196,13 +196,13 @@ jobs:
     if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           # 21, not 17: mobile/gradle/gradle-daemon-jvm.properties pins toolchain 21.
           java-version: "21"
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
       - name: Assemble + unit tests
         working-directory: mobile
         # These are the AGP KMP library plugin's task names. `:shared:build` and
@@ -250,12 +250,12 @@ jobs:
   #   if: needs.changes.outputs.mobile == 'true'
   #   runs-on: macos-latest
   #   steps:
-  #     - uses: actions/checkout@v5
+  #     - uses: actions/checkout@v7
   #     - uses: actions/setup-java@v5
   #       with:
   #         distribution: temurin
   #         java-version: "21"
-  #     - uses: gradle/actions/setup-gradle@v5
+  #     - uses: gradle/actions/setup-gradle@v6
   #     # Compiles the klib without linking a framework. This is the gate that catches
   #     # iOS-incompatible shared code AND dependency klibs whose ABI version is newer
   #     # than the project's Kotlin compiler — a mismatch the JVM target silently
@@ -268,8 +268,8 @@ jobs:
     name: Supabase
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
         with:
           # Pinned, not `latest`. `latest` asks the GitHub releases API on every run, which
           # rate-limited and failed this job in 7s with nothing to do with Supabase or the
@@ -280,7 +280,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
