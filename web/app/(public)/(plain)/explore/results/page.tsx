@@ -8,7 +8,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { InquiryBar } from "@/components/public/InquiryBar";
 import { StickyCta } from "@/components/public/StickyCta";
 import { tripRating } from "@/content/public/proof";
 import { TRIPS } from "@/content/public/trips";
@@ -27,10 +26,11 @@ import { RESULTS } from "./content";
 import { HotelResults } from "./HotelResults";
 import { HotelRowsSkeleton } from "./ResultsSkeleton";
 import { ModeSwitch } from "./ModeSwitch";
+import { SearchUpdateBar } from "./SearchUpdateBar";
 import { EmptyResults } from "./EmptyResults";
 import { FilterRail } from "./FilterRail";
 import { FILTER_SHEET_ANCHOR, FilterSheet } from "./FilterSheet";
-import { activeFilterCount, chipHref, chipIsOn, inquiryFields, inquirySummary, MOBILE_CHIPS } from "./filters";
+import { activeFilterCount, chipHref, chipIsOn, MOBILE_CHIPS } from "./filters";
 import { ResultCard } from "./ResultCard";
 import { SortMenu } from "./SortControl";
 
@@ -62,14 +62,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
       {/* Header band: compact inquiry pill (md+) / summary pill + quick-filter chips (below web). */}
       <div className="border-b border-outline-variant bg-surface-1 pt-2 md:py-3.5">
         <div className="pub-container web:px-8">
-          <InquiryBar
-            density="compact"
-            mobile="summary"
-            fields={inquiryFields(q)}
-            action={{ label: RESULTS.header.update, href: SEARCH_ENTRY }}
-            summary={inquirySummary(q)}
-            editHref={SEARCH_ENTRY}
-          />
+          {/* A real form, not a read-only pill with a link to a blank one — see the
+              component. Editing happens here because this route is already dynamic. */}
+          <SearchUpdateBar q={q} />
           <div className="pt-2.5">
             <ModeSwitch q={q} />
           </div>

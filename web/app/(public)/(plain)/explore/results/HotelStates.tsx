@@ -2,6 +2,7 @@ import Link from "next/link";
 import { inquiryHref } from "@/lib/public/inquiry";
 import { resultsHref, type SearchQuery } from "@/lib/public/search";
 import { RESULTS } from "./content";
+import { SEARCH_ANCHOR } from "./SearchUpdateBar";
 
 export type HotelStateKind =
   | "need-destination"
@@ -37,9 +38,11 @@ export function HotelState({ kind, q }: { kind: HotelStateKind; q: SearchQuery }
       <p className="t-body mx-auto mt-1.5 max-w-125 text-on-surface-variant">{copy.body}</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         {(kind === "need-destination" || kind === "need-dates") && (
-          <Link href="/explore" className="btn btn-tonal">
+          // An anchor to the form at the top of this page, NOT a link to /explore — which
+          // was blank, so "change your search" meant "retype your search".
+          <a href={`#${SEARCH_ANCHOR}`} className="btn btn-tonal">
             {RESULTS.hotels.editSearch}
-          </Link>
+          </a>
         )}
         <Link href={resultsHref({ ...q, mode: "picks" })} className="btn btn-tonal">
           {RESULTS.hotels.seePicks}

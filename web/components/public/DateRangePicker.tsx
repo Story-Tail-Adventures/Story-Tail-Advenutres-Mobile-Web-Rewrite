@@ -26,8 +26,12 @@ export interface DateRangePickerProps {
   today: string;
   defaultCheckIn?: string;
   defaultCheckOut?: string;
-  /** `pill` sits in a hero cell; `stacked` is a row in the mobile card. */
-  variant: "pill" | "stacked";
+  /**
+   * `pill` sits in a hero cell (label above, value below); `compact` is the same control in
+   * a single-line row, for the results header; `stacked` is the mobile card row and is the
+   * one variant that stays on native date inputs.
+   */
+  variant: "pill" | "compact" | "stacked";
   copy: DateRangePickerCopy;
 }
 
@@ -103,7 +107,9 @@ export function DateRangePicker({
   copy,
 }: DateRangePickerProps) {
   const popoverSupported = React.useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
-  const mounted = popoverSupported && variant === "pill";
+  // `stacked` is the mobile card, where two months (~600px) do not fit and the OS picker is
+  // better anyway — it keeps the native inputs, which are also the no-JS baseline.
+  const mounted = popoverSupported && variant !== "stacked";
   /**
    * `serverToday` is baked in at BUILD time — /explore is statically prerendered, so the
    * value in the HTML is the day the deploy happened and is stale by the next morning. It is
@@ -306,10 +312,23 @@ export function DateRangePicker({
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={rangeText ? `${label}: ${rangeText}` : `${label}: ${copy.pickCheckIn}`}
-        className="mt-0.5 flex w-full min-w-0 items-center gap-1.5 rounded-sm bg-transparent text-left"
+        className={cn(
+          "flex w-full min-w-0 items-center gap-1.5 rounded-sm bg-transparent text-left",
+          variant === "pill" && "mt-0.5",
+        )}
       >
-        <Icon name="calendar" size={13} className="shrink-0 text-brand-orange" />
-        <span className={cn("t-title-s truncate", rangeText ? "text-on-surface" : "text-on-surface-variant")}>
+        <Icon
+          name="calendar"
+          size={variant === "compact" ? 12 : 13}
+          className="shrink-0 text-brand-orange"
+        />
+        <span
+          className={cn(
+            "truncate",
+            variant === "compact" ? "t-label-l" : "t-title-s",
+            rangeText ? "text-on-surface" : "text-on-surface-variant",
+          )}
+        >
           {rangeText || placeholder}
         </span>
       </button>

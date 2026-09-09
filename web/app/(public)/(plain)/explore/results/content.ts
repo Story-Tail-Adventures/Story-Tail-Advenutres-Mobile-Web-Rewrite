@@ -9,6 +9,8 @@ export const RESULTS = {
   },
   header: {
     update: "Update",
+    updateLabel: "Update your search",
+    edit: "Edit",
   },
   /** Header pill cells (C204: Caribbean / Aug 12 – 19 / 2 adults / Any). */
   pill: {
