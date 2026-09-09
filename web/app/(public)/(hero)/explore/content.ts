@@ -83,5 +83,9 @@ export function tileSearchQuery(tile: InspirationTile): SearchQuery {
     vibes: tile.query.vibe ? [tile.query.vibe] : [],
     budgets: [],
     sort: "best-fit",
+    // An inspiration tile is a curated-catalog search: no dates, so no hotels mode.
+    stars: [],
+    amenities: [],
+    rates: [],
   };
 }

@@ -5,7 +5,11 @@ import { cn } from "@/lib/cn";
 import { BUDGET_BAND_LABELS } from "@/lib/public/money";
 import {
   BUDGET_BANDS,
+  effectiveMode,
   hasActiveFilters,
+  HOTEL_AMENITIES,
+  RATE_BANDS,
+  STAR_CLASSES,
   TRIP_TYPE_LABELS,
   TRIP_TYPES,
   VIBE_LABELS,
@@ -38,7 +42,7 @@ function FilterGroup<T extends string>({
   options,
 }: {
   legend: string;
-  name: "type" | "vibe" | "budget";
+  name: "type" | "vibe" | "budget" | "star" | "amenity" | "rate";
   options: readonly Option<T>[];
 }) {
   return (
@@ -79,6 +83,24 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
     checked: q.budgets.includes(b),
   }));
 
+  const mode = effectiveMode(q);
+
+  const stars: Option<string>[] = STAR_CLASSES.map((s) => ({
+    value: s,
+    label: RESULTS.hotels.starClassLabel(Number(s)),
+    checked: q.stars.includes(s),
+  }));
+  const amenities: Option<string>[] = HOTEL_AMENITIES.map((a) => ({
+    value: a.id,
+    label: a.label,
+    checked: q.amenities.includes(a.id),
+  }));
+  const rates: Option<string>[] = RATE_BANDS.map((b) => ({
+    value: b.id,
+    label: b.label,
+    checked: q.rates.includes(b.id),
+  }));
+
   return (
     <aside aria-label={RESULTS.filters.label} className={cn("min-w-0", className)}>
       <Form action="/explore/results" className="flex flex-col">
@@ -95,13 +117,34 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
         )}
         {q.travelers && <input type="hidden" name="travelers" value={String(q.travelers)} />}
         {q.topic && <input type="hidden" name="topic" value={q.topic} />}
+        {q.mode && <input type="hidden" name="mode" value={q.mode} />}
 
         {overline && <p className="t-label mb-2 text-on-surface-variant">{RESULTS.filters.overline}</p>}
 
-        <FilterGroup legend={RESULTS.filters.tripType} name="type" options={types} />
-        <FilterGroup legend={RESULTS.filters.vibe} name="vibe" options={vibes} />
-        <FilterGroup legend={RESULTS.filters.budget} name="budget" options={budgets} />
-        <SortControl id={`${idPrefix}-sort`} value={q.sort} />
+        {/* The two vocabularies do not overlap: a "Cruise" checkbox in a hotel list is
+            incoherent, and a per-person trip budget is a different axis from a nightly room
+            rate. So each mode renders its own groups and ECHOES the other's as hidden
+            inputs — never both, which would double-submit — so a mode switch is lossless. */}
+        {mode === "hotels" ? (
+          <>
+            <FilterGroup legend={RESULTS.hotels.starRating} name="star" options={stars} />
+            <FilterGroup legend={RESULTS.hotels.amenities} name="amenity" options={amenities} />
+            <FilterGroup legend={RESULTS.hotels.nightlyRate} name="rate" options={rates} />
+            {q.types.map((t) => <input key={t} type="hidden" name="type" value={t} />)}
+            {q.vibes.map((v) => <input key={v} type="hidden" name="vibe" value={v} />)}
+            {q.budgets.map((b) => <input key={b} type="hidden" name="budget" value={b} />)}
+          </>
+        ) : (
+          <>
+            <FilterGroup legend={RESULTS.filters.tripType} name="type" options={types} />
+            <FilterGroup legend={RESULTS.filters.vibe} name="vibe" options={vibes} />
+            <FilterGroup legend={RESULTS.filters.budget} name="budget" options={budgets} />
+            {q.stars.map((s) => <input key={s} type="hidden" name="star" value={s} />)}
+            {q.amenities.map((a) => <input key={a} type="hidden" name="amenity" value={a} />)}
+            {q.rates.map((r) => <input key={r} type="hidden" name="rate" value={r} />)}
+          </>
+        )}
+        <SortControl id={`${idPrefix}-sort`} value={q.sort} mode={mode} />
 
         <div className="flex flex-wrap items-center gap-2">
           <button type="submit" className="btn btn-tonal btn-sm min-h-11 web:min-h-8">

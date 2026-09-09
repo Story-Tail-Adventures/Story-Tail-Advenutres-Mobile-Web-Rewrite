@@ -64,6 +64,67 @@ paths:
   # capability a client cannot be granted (naming a storage object) are functions.
   # ───────────────────────────────────────────────────────────────────────────
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # §2.0 Public hotel search
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /hotel-search:
+    post:
+      operationId: searchHotels
+      summary: Live hotel search for the public Explore surface.
+      description: |
+        Screen 2.0.4 in Hotels mode, and 2.3.3 later. Calls SerpApi's Google Hotels engine
+        for the dates given and returns normalised hotel content plus ONE indicative
+        nightly rate per property.
+
+        NOT CALLED FROM A BROWSER. The caller is the Next.js server
+        (`web/lib/public/hotels.ts`), presenting the project anon key plus the server-only
+        `X-STA-Search-Token`. `verify_jwt` stays true and there is no anon RLS policy
+        anywhere: this function is the boundary, not a table. The anon key is public — it
+        ships in the browser bundle — so it authenticates nobody, which is what the header
+        is for.
+
+        THE RESPONSE CARRIES NO BOOKING-SITE IDENTITY. The provider's
+        `properties[].prices[]` — site names, their logos, their links — is dropped at the
+        mapper and has no field to land in here. Free-Travel-APIs §1.3.5 forbids promoting
+        another business on this site; §10.2 asks for that to be structural rather than
+        remembered. See `HotelRate`, which is one scalar rather than a list, for why.
+
+        DEGRADATION IS A 200. When the monthly budget is spent the response carries
+        `degraded: "budget_exhausted"` with empty `results`, and the page falls back to the
+        curated catalog. Late in a month on the free tier that is the expected outcome, not
+        a failure. `source: "stale"` means the budget is spent but a recent expired cache
+        entry was served — `staleAsOf` says how old, and the page must say so.
+
+        POST rather than GET so the filter arrays cannot be serialised two ways by two
+        callers, which is the cache-key hazard the whole design is built around.
+      parameters:
+        - name: X-STA-Search-Token
+          in: header
+          required: true
+          description: Shared secret proving the caller is our own server.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelSearchRequest'
+      responses:
+        '200':
+          description: Results — live, cached, stale, or degraded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /trip-message:
     post:
       operationId: sendTripMessage
@@ -834,6 +895,195 @@ components:
           type: string
         instance:
           type: string
+
+    HotelSearchRequest:
+      type: object
+      required: [destination, checkIn, checkOut]
+      properties:
+        destination:
+          type: string
+          maxLength: 60
+          description: Free text, as typed. Normalised server-side before it becomes a cache key.
+        checkIn:
+          type: string
+          format: date
+        checkOut:
+          type: string
+          format: date
+          description: Must be after checkIn, and at most 30 nights later.
+        adults:
+          type: integer
+          minimum: 1
+          maximum: 8
+          default: 2
+        childrenAges:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 17
+          maxItems: 6
+        hotelClass:
+          type: array
+          description: Google star classification, 2-5. Not the guest rating.
+          items:
+            type: string
+        amenities:
+          type: array
+          description: Google amenity ids. Unknown values are dropped, never forwarded.
+          items:
+            type: string
+        minPrice:
+          type: integer
+          nullable: true
+        maxPrice:
+          type: integer
+          nullable: true
+        sortBy:
+          type: string
+          description: SerpApi sort id — "3" lowest price, "8" highest rating, "13" most reviewed. Empty means the provider's own relevance.
+
+    HotelRate:
+      type: object
+      description: |
+        ONE indicative nightly rate, deliberately not a list. The provider returns one entry
+        per booking site, each carrying a source, a logo and a link; a list here — even with
+        those fields omitted — would invite someone to add the source back "for attribution".
+        A single scalar cannot.
+      required: [amountCents, currency, basis, beforeTaxesFees]
+      properties:
+        amountCents:
+          type: string
+          description: Integer minor units as a string (CLAUDE.md rule 5).
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        basis:
+          type: string
+          enum: [night]
+          description: The only basis published. A total-for-the-stay reads like a quote.
+        beforeTaxesFees:
+          type: boolean
+
+    HotelImage:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          description: Host allow-listed at the mapper and again in web/.
+
+    HotelLocation:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    HotelResult:
+      type: object
+      required: [id, name, amenities, images, ecoCertified]
+      properties:
+        id:
+          type: string
+        propertyToken:
+          type: string
+          nullable: true
+          description: Opaque provider id, carried so the later inquiry step can name the hotel. Not a URL.
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        propertyType:
+          type: string
+          nullable: true
+        hotelClass:
+          type: integer
+          nullable: true
+        overallRating:
+          type: number
+          nullable: true
+        reviewCount:
+          type: integer
+          nullable: true
+        location:
+          $ref: '#/components/schemas/HotelLocation'
+        checkInTime:
+          type: string
+          nullable: true
+        checkOutTime:
+          type: string
+          nullable: true
+        amenities:
+          type: array
+          items:
+            type: string
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/HotelImage'
+        ecoCertified:
+          type: boolean
+        rate:
+          $ref: '#/components/schemas/HotelRate'
+
+    HotelSearchEcho:
+      type: object
+      required: [destination, checkIn, checkOut, adults, nights]
+      properties:
+        destination:
+          type: string
+        checkIn:
+          type: string
+          format: date
+        checkOut:
+          type: string
+          format: date
+        adults:
+          type: integer
+        nights:
+          type: integer
+
+    HotelSearchResponse:
+      type: object
+      required: [version, currency, results, hasMore, source, asOf, query]
+      properties:
+        version:
+          type: integer
+          description: Payload shape version. Part of the cache key, so a change means a cold cache.
+        currency:
+          type: string
+        totalAvailable:
+          type: integer
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/HotelResult'
+        hasMore:
+          type: boolean
+          description: Always false. Each extra page is another billable search.
+        source:
+          type: string
+          enum: [live, cache, stale]
+        degraded:
+          type: string
+          nullable: true
+          enum: [budget_exhausted, provider_unavailable]
+        asOf:
+          type: string
+          format: date-time
+        staleAsOf:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set only when source is "stale". The page must show how old the prices are.
+        query:
+          $ref: '#/components/schemas/HotelSearchEcho'
 
   responses:
     BadRequest:

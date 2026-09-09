@@ -33,6 +33,73 @@ export const TOPICS: readonly Topic[] = ["caribbean", "cruises", "honeymoons"];
 export const SORT_KEYS = ["best-fit", "price-asc", "price-desc", "rating"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 
+/**
+ * Which catalog the results page is showing.
+ *
+ * `picks` is Gyasi's curated catalog and stays the default. `hotels` is the live provider
+ * search. Left undefined in the URL when it is derivable, exactly as `sort` omits
+ * "best-fit" — so a search carrying dates lands on hotels without a param, and an explicit
+ * click on "Gyasi's picks" writes `mode=picks` and survives every later filter click.
+ */
+export const MODES = ["picks", "hotels"] as const;
+export type ResultsMode = (typeof MODES)[number];
+
+/**
+ * Star class, as Google classifies a property. Distinct from the guest rating, which is the
+ * 4.8 on the card — the rail filters on the classification.
+ */
+export const STAR_CLASSES = ["3", "4", "5"] as const;
+export type StarClass = (typeof STAR_CLASSES)[number];
+
+/**
+ * Amenity ids are Google's, not ours (Data-Model §24.0 rule 4: a provider's vocabulary is
+ * text, and it grows without notice). The five below are the ones Screen Inventory 2.3.3's
+ * rail asks for and the prototype draws.
+ */
+export const HOTEL_AMENITIES = [
+  { id: "11", label: "Beach access" },
+  { id: "6", label: "Pool" },
+  { id: "10", label: "Spa" },
+  { id: "52", label: "All-inclusive" },
+  { id: "12", label: "Family-friendly" },
+] as const;
+export const AMENITY_IDS = HOTEL_AMENITIES.map((a) => a.id);
+
+/**
+ * Nightly rate bands, in cents.
+ *
+ * A SEPARATE axis from `budget`, which is a per-person TRIP total. Reusing that param would
+ * make one key mean two different things depending on the mode, and a mode switch would
+ * silently reinterpret the visitor's filter.
+ */
+export const RATE_BANDS = [
+  { id: "under-150", label: "Under $150 / night", min: null, max: 150 },
+  { id: "150-300", label: "$150 – $300", min: 150, max: 300 },
+  { id: "300-plus", label: "$300+", min: 300, max: null },
+] as const;
+export type RateBand = (typeof RATE_BANDS)[number]["id"];
+export const RATE_BAND_IDS = RATE_BANDS.map((b) => b.id);
+
+/**
+ * Sort keys offered in hotels mode, and their SerpApi ids.
+ *
+ * The provider has no "best fit" and no price-descending. Best fit maps to omitting
+ * `sort_by` entirely, which is Google's own relevance — the honest equivalent. A URL
+ * carrying `price-desc` from picks mode degrades to relevance rather than silently sorting
+ * by something else, and keeps its value so switching back restores it.
+ */
+export const HOTEL_SORT_KEYS: readonly SortKey[] = ["best-fit", "price-asc", "rating"];
+
+export function serpSortBy(sort: SortKey): string {
+  if (sort === "price-asc") return "3";
+  if (sort === "rating") return "8";
+  return "";
+}
+
+export function sortKeysFor(mode: ResultsMode): readonly SortKey[] {
+  return mode === "hotels" ? HOTEL_SORT_KEYS : SORT_KEYS;
+}
+
 export const SORT_LABELS: Record<SortKey, string> = {
   "best-fit": "Best fit",
   "price-asc": "Price · low to high",
@@ -80,6 +147,21 @@ export interface SearchQuery {
   when?: string;
   /** 1–20. */
   travelers?: number;
+  /** Undefined when derivable — see `effectiveMode`. */
+  mode?: ResultsMode;
+  stars: StarClass[];
+  amenities: string[];
+  rates: RateBand[];
+}
+
+/**
+ * Which catalog to render. Dates imply hotels; an explicit mode always wins.
+ *
+ * Kept separate from `parseSearchParams` so the parsed query stays a faithful reading of
+ * the URL and the derivation lives in one place both the page and the links can call.
+ */
+export function effectiveMode(q: SearchQuery): ResultsMode {
+  return q.mode ?? (q.checkIn && q.checkOut ? "hotels" : "picks");
 }
 
 /**
@@ -147,6 +229,7 @@ export function parseSearchParams(
   const topicRaw = cleanText(get("topic"));
   const sortRaw = cleanText(get("sort"));
   const travelersRaw = cleanText(get("travelers"));
+  const modeRaw = cleanText(get("mode"));
   const travelersNum = travelersRaw ? Number.parseInt(travelersRaw, 10) : NaN;
 
   const stay = parseStay(cleanText(get("in")), cleanText(get("out")), today);
@@ -162,6 +245,10 @@ export function parseSearchParams(
     checkOut: stay?.checkOut,
     when: cleanText(get("when")),
     travelers: Number.isFinite(travelersNum) ? Math.min(20, Math.max(1, travelersNum)) : undefined,
+    mode: modeRaw && (MODES as readonly string[]).includes(modeRaw) ? (modeRaw as ResultsMode) : undefined,
+    stars: pickAllowed(asList(get("star")), STAR_CLASSES),
+    amenities: pickAllowed(asList(get("amenity")), AMENITY_IDS),
+    rates: pickAllowed(asList(get("rate")), RATE_BAND_IDS),
   };
 }
 
@@ -213,6 +300,12 @@ export function resultsHref(query: Partial<SearchQuery>): string {
     params.set("when", query.when);
   }
   if (query.travelers) params.set("travelers", String(query.travelers));
+  for (const s of query.stars ?? []) params.append("star", s);
+  for (const a of query.amenities ?? []) params.append("amenity", a);
+  for (const r of query.rates ?? []) params.append("rate", r);
+  // Only when explicit: a dated search derives `hotels` without polluting the URL, the same
+  // way "best-fit" is omitted below.
+  if (query.mode) params.set("mode", query.mode);
   if (query.sort && query.sort !== "best-fit") params.set("sort", query.sort);
   const qs = params.toString();
   return qs ? `/explore/results?${qs}` : "/explore/results";

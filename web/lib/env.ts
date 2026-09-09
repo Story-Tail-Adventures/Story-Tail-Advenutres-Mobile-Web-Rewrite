@@ -93,4 +93,29 @@ export const env = {
     if (process.env.NODE_ENV === "production") return null;
     return "gyasi@example.com";
   },
+
+  /**
+   * The shared secret proving a hotel-search call came from our own server.
+   *
+   * NOT `NEXT_PUBLIC_` — deliberately, and it is the reason this getter exists at all. The
+   * anon key satisfies the Edge Function's gateway but authenticates nobody, because it is
+   * inlined into the browser bundle; this value never is. Reading it in a client component
+   * yields undefined, which is the failure mode we want.
+   *
+   * Null rather than throwing when unset: the hotels mode then reports itself unavailable
+   * and the page falls back to the curated catalog, which is a better outcome on a public
+   * marketing route than a 500.
+   */
+  get hotelSearchToken(): string | null {
+    return process.env.STA_HOTEL_SEARCH_TOKEN ?? null;
+  },
+
+  /**
+   * The kill switch. Live hotel search spends a metered third-party budget on a public
+   * page, so it needs to be one env var from off without a deploy or a code change.
+   */
+  get hotelSearchEnabled(): boolean {
+    if (process.env.HOTEL_SEARCH_ENABLED === "false") return false;
+    return Boolean(process.env.STA_HOTEL_SEARCH_TOKEN);
+  },
 };

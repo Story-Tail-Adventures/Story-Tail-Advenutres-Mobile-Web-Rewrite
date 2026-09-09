@@ -1,0 +1,53 @@
+import Link from "next/link";
+import { inquiryHref } from "@/lib/public/inquiry";
+import { resultsHref, type SearchQuery } from "@/lib/public/search";
+import { RESULTS } from "./content";
+
+export type HotelStateKind =
+  | "need-destination"
+  | "need-dates"
+  | "empty"
+  | "unavailable"
+  | "exhausted";
+
+const COPY = {
+  "need-destination": RESULTS.hotels.needDestination,
+  "need-dates": RESULTS.hotels.needDates,
+  empty: RESULTS.hotels.empty,
+  unavailable: RESULTS.hotels.unavailable,
+  exhausted: RESULTS.hotels.exhausted,
+} as const;
+
+/**
+ * The five ways hotels mode can have nothing to show.
+ *
+ * Never a dead end — the same rule EmptyResults follows. Every one of these offers the
+ * curated catalog and a way to reach Gyasi, because a visitor who came looking for a week
+ * away should not leave holding an error.
+ *
+ * There is deliberately NO "try again" button on the unavailable state: a link to the same
+ * URL will not refetch inside the cache window, and a retry that does nothing is worse than
+ * an honest offer of the alternative.
+ */
+export function HotelState({ kind, q }: { kind: HotelStateKind; q: SearchQuery }) {
+  const copy = COPY[kind];
+  return (
+    <div className="card p-8 text-center">
+      <h2 className="t-title-l text-on-surface">{copy.title}</h2>
+      <p className="t-body mx-auto mt-1.5 max-w-125 text-on-surface-variant">{copy.body}</p>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        {(kind === "need-destination" || kind === "need-dates") && (
+          <Link href="/explore" className="btn btn-tonal">
+            {RESULTS.hotels.editSearch}
+          </Link>
+        )}
+        <Link href={resultsHref({ ...q, mode: "picks" })} className="btn btn-tonal">
+          {RESULTS.hotels.seePicks}
+        </Link>
+        <a href={inquiryHref({ source: "results" })} className="btn btn-text">
+          {RESULTS.empty.message}
+        </a>
+      </div>
+    </div>
+  );
+}

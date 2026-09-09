@@ -102,6 +102,20 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 **Entry points:** Public Search Landing.
 **Related screens:** Public Property/Cruise/Tour Detail, Sign-up Gate, Property/Cruise/Tour Detail (authenticated).
 
+**Hotels mode, added 2026-09-09 (P2).** 2.0.4 now renders two catalogs behind a mode switch:
+**Gyasi's picks**, the curated catalog described above and still the default, and **Hotels**,
+a live SerpApi Google Hotels search for the dates on the search bar. A search carrying dates
+lands on Hotels; the mode is otherwise derived, so it stays out of the URL until it is chosen
+explicitly. The Hotels rail borrows §2.3.3's vocabulary — **price, star rating, amenities** —
+rather than the curated rail's trip type / vibe / budget, because those are catalog concepts
+with no provider equivalent; each mode echoes the other's filters as hidden inputs so
+switching is lossless. Sort drops "price high to low" in Hotels mode, which the provider
+cannot do. Hotel cards carry an indicative nightly rate and **never** a booking site's name,
+logo or link (Free-Travel-APIs §1.3.5), and the name is not a link because there is no public
+hotel detail page — the terminal action is a quote request. Five empty states, including
+§5's stale-data affordance when the response is served from cache and a budget-exhausted
+state that falls back to the curated catalog rather than erroring.
+
 #### 2.0.5 Public Property / Cruise / Tour Detail
 **Purpose:** Full detail page for a search result, anonymously viewable.
 **Primary elements:** Same content as authenticated Detail screen (gallery, description, amenities, itinerary); "Favorite" and "Request a Quote" CTAs that prompt registration; "Message Gyasi without an account" link (creates a lead with just an email).

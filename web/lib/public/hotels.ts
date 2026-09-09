@@ -1,0 +1,243 @@
+import { z } from "zod";
+import type { Currency } from "@/content/public/types";
+import { env } from "@/lib/env";
+
+/**
+ * The public hotel type, and the one place the app talks to the hotel-search function.
+ *
+ * SERVER-SIDE BY CONSTRUCTION, not by convention. This module reads
+ * `STA_HOTEL_SEARCH_TOKEN`, and the absence of a `NEXT_PUBLIC_` prefix is what protects it:
+ * Next inlines only `NEXT_PUBLIC_*` into the browser bundle, so importing this into a
+ * client component yields `undefined` and a quiet "unavailable", never a leaked secret.
+ * (The `server-only` package would turn that into a build error instead, which is nicer —
+ * but it is not installed here and is not worth a dependency for a guard the env naming
+ * already provides.)
+ *
+ * THE TYPE HAS NOWHERE TO PUT A BOOKING SITE. There is no `source`, no `link`, no `logo`,
+ * no `prices[]`, no `bookingUrl` — so no JSX can render one, whatever the Edge Function
+ * sends. That is Free-Travel-APIs §10.2's technique ("the cleanest enforcement is
+ * structural"), pointed at the field that actually matters here: §1.3.5 says this site may
+ * promote the advisor's travel business and nothing else.
+ *
+ * The zod schema below is the second line, and it strips rather than throws. `.strict()`
+ * would take the page down the day the provider adds a field; stripping silently discards
+ * it, which is the behaviour a public marketing page wants.
+ */
+
+/**
+ * Hosts whose images we will point a visitor's browser at.
+ *
+ * Repeated from the Edge Function's mapper ON PURPOSE. `web/next.config.ts` registers a
+ * CUSTOM image loader, and a custom loader means `remotePatterns` is never consulted — any
+ * URL that reaches `<Image src>` is fetched by the visitor's browser from whatever origin
+ * we named. So the guarantee has to hold even if the function changes, and the cheapest way
+ * to make it hold is to check it again here.
+ */
+const IMAGE_HOSTS = new Set([
+  "lh3.googleusercontent.com",
+  "lh4.googleusercontent.com",
+  "lh5.googleusercontent.com",
+  "lh6.googleusercontent.com",
+  "encrypted-tbn0.gstatic.com",
+  "encrypted-tbn1.gstatic.com",
+  "encrypted-tbn2.gstatic.com",
+  "encrypted-tbn3.gstatic.com",
+  "streetviewpixels-pa.googleapis.com",
+]);
+
+function isAllowedImage(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && IMAGE_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+const rateSchema = z.object({
+  // Integer cents as a string on the wire — CLAUDE.md rule 5. Parsed to a number here,
+  // once, at the edge.
+  amountCents: z.string().regex(/^\d+$/),
+  currency: z.literal("USD"),
+  basis: z.literal("night"),
+  beforeTaxesFees: z.boolean(),
+});
+
+const hotelSchema = z.object({
+  id: z.string().min(1).max(220),
+  propertyToken: z.string().max(220).nullable(),
+  name: z.string().min(1).max(200),
+  description: z.string().max(700).nullable(),
+  propertyType: z.string().max(80).nullable(),
+  hotelClass: z.number().int().min(1).max(5).nullable(),
+  overallRating: z.number().min(0).max(5).nullable(),
+  reviewCount: z.number().int().min(0).nullable(),
+  location: z.object({ latitude: z.number(), longitude: z.number() }).nullable(),
+  checkInTime: z.string().max(20).nullable(),
+  checkOutTime: z.string().max(20).nullable(),
+  amenities: z.array(z.string().max(80)).max(12),
+  images: z.array(z.object({ url: z.string().url() })).max(6),
+  ecoCertified: z.boolean(),
+  rate: rateSchema.nullable(),
+});
+
+const responseSchema = z.object({
+  version: z.number().int(),
+  currency: z.literal("USD"),
+  totalAvailable: z.number().int().nullable(),
+  results: z.array(hotelSchema),
+  hasMore: z.literal(false),
+  source: z.enum(["live", "cache", "stale"]),
+  degraded: z.enum(["budget_exhausted", "provider_unavailable"]).nullable(),
+  asOf: z.string(),
+  staleAsOf: z.string().nullable(),
+  query: z.object({
+    destination: z.string(),
+    checkIn: z.string(),
+    checkOut: z.string(),
+    adults: z.number().int(),
+    nights: z.number().int(),
+  }),
+});
+
+export interface PublicHotel {
+  id: string;
+  propertyToken: string | null;
+  name: string;
+  description: string | null;
+  propertyType: string | null;
+  hotelClass: number | null;
+  rating: number | null;
+  reviewCount: number | null;
+  amenities: string[];
+  photos: string[];
+  ecoCertified: boolean;
+  /** Integer cents, or null when the provider gave no parseable figure. */
+  nightlyCents: number | null;
+  currency: Currency;
+}
+
+/**
+ * Four outcomes, as a discriminated union so the page's branch is exhaustive and a new
+ * state becomes a type error rather than a blank section.
+ */
+export type HotelSearchResult =
+  | { status: "ok"; hotels: PublicHotel[]; asOf: string; stale: string | null; total: number | null }
+  | { status: "empty" }
+  | { status: "budget_exhausted" }
+  | { status: "unavailable" };
+
+export interface HotelSearchArgs {
+  destination: string;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  hotelClass: string[];
+  amenities: string[];
+  minPrice: number | null;
+  maxPrice: number | null;
+  sortBy: string;
+}
+
+/** The allow-listed keys of a parsed hotel — asserted by a test, so widening is visible. */
+export const HOTEL_KEYS = [
+  "amenities",
+  "currency",
+  "description",
+  "ecoCertified",
+  "hotelClass",
+  "id",
+  "name",
+  "nightlyCents",
+  "photos",
+  "propertyToken",
+  "propertyType",
+  "rating",
+  "reviewCount",
+] as const;
+
+export function toPublicHotel(parsed: z.infer<typeof hotelSchema>, currency: Currency): PublicHotel {
+  return {
+    id: parsed.id,
+    propertyToken: parsed.propertyToken,
+    name: parsed.name,
+    description: parsed.description,
+    propertyType: parsed.propertyType,
+    hotelClass: parsed.hotelClass,
+    rating: parsed.overallRating,
+    reviewCount: parsed.reviewCount,
+    amenities: parsed.amenities,
+    // Checked again here — see IMAGE_HOSTS.
+    photos: parsed.images.map((i) => i.url).filter(isAllowedImage),
+    ecoCertified: parsed.ecoCertified,
+    nightlyCents: parsed.rate ? Number(parsed.rate.amountCents) : null,
+    currency: parsed.rate?.currency ?? currency,
+  };
+}
+
+/** Parse a raw function response into the public shape. Exported for tests. */
+export function parseSearchResponse(raw: unknown): HotelSearchResult {
+  const parsed = responseSchema.safeParse(raw);
+  if (!parsed.success) return { status: "unavailable" };
+
+  const body = parsed.data;
+  if (body.degraded === "budget_exhausted" && body.results.length === 0) {
+    return { status: "budget_exhausted" };
+  }
+  if (body.degraded === "provider_unavailable" && body.results.length === 0) {
+    return { status: "unavailable" };
+  }
+  if (body.results.length === 0) return { status: "empty" };
+
+  return {
+    status: "ok",
+    hotels: body.results.map((r) => toPublicHotel(r, body.currency)),
+    asOf: body.asOf,
+    stale: body.staleAsOf,
+    total: body.totalAvailable,
+  };
+}
+
+/**
+ * Call the hotel-search Edge Function.
+ *
+ * Never throws: a provider hiccup on a public marketing page must be a quiet fallback to
+ * the curated catalog, not an error boundary. The timeout is deliberately short — a visitor
+ * waiting eight seconds for a hotel list has already left.
+ */
+export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchResult> {
+  const token = env.hotelSearchToken;
+  if (!env.hotelSearchEnabled || !token || !env.supabaseConfigured) {
+    return { status: "unavailable" };
+  }
+
+  try {
+    const response = await fetch(`${env.supabaseUrl}/functions/v1/hotel-search`, {
+      method: "POST",
+      headers: {
+        apikey: env.supabaseAnonKey,
+        Authorization: `Bearer ${env.supabaseAnonKey}`,
+        "X-STA-Search-Token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+      signal: AbortSignal.timeout(6_000),
+      // The function has its own six-hour cache; this is a short shared cache in front of
+      // it so a burst on one search does not become a burst of function invocations.
+      next: { revalidate: 300, tags: ["hotel-search"] },
+    });
+
+    if (!response.ok) {
+      // A 429 from the limiter is not an error the visitor should see — it degrades to the
+      // same quiet fallback as an exhausted budget.
+      console.warn("[hotels] search rejected", { status: response.status });
+      return { status: "unavailable" };
+    }
+
+    return parseSearchResponse(await response.json());
+  } catch (cause) {
+    // Never log the body or the args: a destination plus dates is a visitor's travel plan.
+    console.warn("[hotels] search failed", { cause: String(cause) });
+    return { status: "unavailable" };
+  }
+}

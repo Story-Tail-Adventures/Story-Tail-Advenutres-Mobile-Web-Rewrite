@@ -246,3 +246,60 @@ that last table, not a deploy.
 ## First migration
 
 The initial migration should be generated from `../docs/Data-Model.md`. Claude can transcribe the inline DDL into `migrations/20260514120000_initial.sql`. See `../docs/Tech-Recommendations.md` §5.3 Step 5.
+
+## Hotel search secrets (P2)
+
+`hotel-search` needs three values, and it fails closed without the first two — a missing
+credential returns 403 rather than silently searching nothing.
+
+```bash
+supabase secrets set SERPAPI_API_KEY=<the SerpApi key>            --project-ref <prod-ref>
+supabase secrets set HOTEL_SEARCH_CALLER_TOKEN=<a long random string> --project-ref <prod-ref>
+supabase secrets set HOTEL_SEARCH_IP_PEPPER=<a long random string>    --project-ref <prod-ref>
+```
+
+**`HOTEL_SEARCH_CALLER_TOKEN` is half of a pair.** The same value goes into Vercel as
+`STA_HOTEL_SEARCH_TOKEN` — deliberately *without* a `NEXT_PUBLIC_` prefix, because that
+prefix is what would inline it into the browser bundle. It exists because the Supabase anon
+key authenticates nobody: it is already public. Rotate both together or the hotels mode
+goes quiet (and falls back to the curated catalog, which is the intended failure).
+
+**`HOTEL_SEARCH_IP_PEPPER`** salts the rate limiter's visitor-IP hashes. Rotating it resets
+every live counter, which is harmless. Losing it is also harmless — nothing is recovered
+from those hashes by design, and a CHECK constraint refuses a bucket key that is not one.
+
+Locally, put all three in `supabase/.env.local` (gitignored) and pass it explicitly:
+
+```bash
+supabase functions serve hotel-search --env-file supabase/.env.local
+```
+
+### The budget is a table, not a constant
+
+Ceilings, the cache TTL and the rate limits live in `hotel_search_config`, one row. The
+defaults are the free tier's, held below the plan limits (200 of 250 a month, 40 of 50 an
+hour) so the inquiry step that follows this one — which needs a property-details fetch of
+its own — does not find the tank empty. Widening after a plan upgrade is an `UPDATE`:
+
+```sql
+UPDATE public.hotel_search_config
+   SET monthly_ceiling = 800, hourly_ceiling = 160
+ WHERE id;
+```
+
+Turning it off entirely is `SET enabled = false`, or unsetting `STA_HOTEL_SEARCH_TOKEN` in
+Vercel. Either way the page falls back to Gyasi's curated catalog.
+
+### Watching the spend
+
+```sql
+-- This month, and what the provider last told us. Ours over-counts (their cache is free
+-- and we cannot see it), which is the safe direction.
+SELECT count(*) FILTER (WHERE endpoint = 'search') AS spent_this_month,
+       max(quota_remaining)                        AS provider_says_left
+  FROM public.hotel_api_request
+ WHERE created_at >= date_trunc('month', now());
+
+-- Cache hit rate is the number that decides whether the free tier survives.
+SELECT count(*) AS cached_searches FROM public.hotel_search_cache WHERE expires_at > now();
+```

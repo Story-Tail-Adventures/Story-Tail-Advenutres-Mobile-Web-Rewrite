@@ -7,6 +7,7 @@
 // back to this route. Phase 2 swaps `TRIPS` for the travel-API search without touching the page.
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { InquiryBar } from "@/components/public/InquiryBar";
 import { StickyCta } from "@/components/public/StickyCta";
 import { tripRating } from "@/content/public/proof";
@@ -14,8 +15,18 @@ import { TRIPS } from "@/content/public/trips";
 import { cn } from "@/lib/cn";
 import { staImg } from "@/lib/images";
 import { joinHref } from "@/lib/public/links";
-import { describeQuery, parseSearchParams, resultsHref, searchTrips, type RawSearchParams } from "@/lib/public/search";
+import {
+  describeQuery,
+  effectiveMode,
+  parseSearchParams,
+  resultsHref,
+  searchTrips,
+  type RawSearchParams,
+} from "@/lib/public/search";
 import { RESULTS } from "./content";
+import { HotelResults } from "./HotelResults";
+import { HotelRowsSkeleton } from "./ResultsSkeleton";
+import { ModeSwitch } from "./ModeSwitch";
 import { EmptyResults } from "./EmptyResults";
 import { FilterRail } from "./FilterRail";
 import { FILTER_SHEET_ANCHOR, FilterSheet } from "./FilterSheet";
@@ -41,6 +52,7 @@ export const metadata: Metadata = {
 
 export default async function ResultsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const q = parseSearchParams(await searchParams);
+  const mode = effectiveMode(q);
   const results = searchTrips(TRIPS, q, tripRating);
   const current = resultsHref(q);
   const activeCount = activeFilterCount(q);
@@ -58,6 +70,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
             summary={inquirySummary(q)}
             editHref={SEARCH_ENTRY}
           />
+          <div className="pt-2.5">
+            <ModeSwitch q={q} />
+          </div>
           <nav aria-label={RESULTS.chips.label} className="h-scroll items-center pt-2.5 pb-3 web:hidden">
             {MOBILE_CHIPS.map((chip) => {
               const on = chipIsOn(q, chip);
@@ -91,12 +106,20 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
           {/* M204 sets the count as a t-label line; C204 as t-title-l (fidelity spec §6.5). */}
           <div className="mb-2.5 flex items-center justify-between gap-3 md:mb-3">
             <h1 id="results-heading" className="t-label md:t-title-l text-on-surface-variant md:text-on-surface">
-              {RESULTS.heading(results.length, describeQuery(q))}
+              {mode === "hotels"
+                ? RESULTS.mode.hotels + " · " + describeQuery(q)
+                : RESULTS.heading(results.length, describeQuery(q))}
             </h1>
             <SortMenu q={q} />
           </div>
 
-          {results.length > 0 ? (
+          {mode === "hotels" ? (
+            /* `key` on the search so a changed query shows the skeleton again rather than
+               holding the previous list while the next one loads. */
+            <Suspense key={current} fallback={<HotelRowsSkeleton />}>
+              <HotelResults q={q} current={current} />
+            </Suspense>
+          ) : results.length > 0 ? (
             <>
               {/* Stacked cards: one column below md, a 2-up grid on tablet, rows at web. The tablet
                   rules are scoped with `md:max-web:` because Tailwind emits the px-based `web:`
