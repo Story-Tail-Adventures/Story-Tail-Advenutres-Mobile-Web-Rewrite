@@ -147,12 +147,19 @@ export interface ListParams {
   locale?: string;
 }
 
+/**
+ * The sort orders their spec allows. Two of the four matter to us — see syncCruises() for
+ * which job each one does — and the bare `departure_date` / `updated_at` forms are omitted
+ * because they are these same orders spelled shorter.
+ */
+export type CruiseSortOrder =
+  | "departure_date:asc"
+  | "departure_date:desc"
+  | "updated_at:asc"
+  | "updated_at:desc";
+
 export interface CruiseListParams extends ListParams {
-  sort?:
-    | "departure_date:asc"
-    | "departure_date:desc"
-    | "updated_at:asc"
-    | "updated_at:desc";
+  sort?: CruiseSortOrder;
   departureAfter?: string;
   departureBefore?: string;
   destination?: string;

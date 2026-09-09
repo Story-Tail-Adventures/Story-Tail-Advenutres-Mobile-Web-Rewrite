@@ -33,7 +33,11 @@ import {
   makeRecorder,
   readBudget,
 } from "./budget.ts";
-import { createTrackCruisesClient, TrackCruisesError } from "./client.ts";
+import {
+  createTrackCruisesClient,
+  type CruiseSortOrder,
+  TrackCruisesError,
+} from "./client.ts";
 import {
   companyToSlug,
   mapCruiseLine,
@@ -55,6 +59,7 @@ type ScopeRow = {
   locale: string | null;
   destination: string | null;
   departure_within_days: number | null;
+  sort: string;
   max_rows_per_request: number;
   max_requests_per_run: number;
   cursor: string | null;
@@ -127,8 +132,8 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     .from("cruise_sync_scope")
     .select(
       "id, label, endpoint, priority, company, locale, destination, " +
-        "departure_within_days, max_rows_per_request, max_requests_per_run, cursor, " +
-        "high_water_updated_at",
+        "departure_within_days, sort, max_rows_per_request, max_requests_per_run, " +
+        "cursor, high_water_updated_at",
     )
     .eq("enabled", true);
   if (options.onlyLabel) query = query.eq("label", options.onlyLabel);
@@ -538,12 +543,26 @@ async function syncPorts(ctx: ScopeContext): Promise<ScopeResult> {
 }
 
 /**
- * Sailings, newest-scrape-first.
+ * Sailings, in whichever order the scope asked for.
  *
- * `sort=updated_at:desc` plus the scope's high-water mark is the only incremental lever the
- * provider offers — there is no "updated since" filter. So a refresh reads the most recently
- * re-scraped sailings and stops as soon as it recognises one it already has, which is what
- * makes a repeat run cost one request instead of a full re-page.
+ * TWO STRATEGIES, AND THE SCOPE PICKS. The provider offers no "updated since" filter, so all
+ * we have is its sort plus a bookmark, and the two combinations do different jobs:
+ *
+ *   departure_date:asc + `cursor`            COVERAGE. Walks the window from the nearest
+ *                                            departure outward, resuming where the last run
+ *                                            stopped. A few requests a week accumulate a
+ *                                            catalogue. Right for an empty one.
+ *   updated_at:desc + `high_water_updated_at` FRESHNESS. Reads the most-recently-rescraped
+ *                                            sailings and stops at the first one it already
+ *                                            has, so a repeat run costs one request rather
+ *                                            than a full re-page. Right for a populated one,
+ *                                            and WRONG for an empty one — it chases churn
+ *                                            and never walks deeper, so nothing accumulates.
+ *
+ * Hardcoding updated_at:desc here was a real defect for the shipped configuration: the first
+ * enabled sailing scope would have fetched one page of recently-repriced sailings, set its
+ * high-water mark, and then stopped early forever. The early-stop below is therefore gated
+ * on the scope actually being in freshness mode.
  *
  * NO ARCHIVAL SWEEP HERE, ever. A sailing scope is a filtered slice (one company, one
  * locale, a rolling window), so "not seen in this pass" does not mean "gone from the feed"
@@ -561,6 +580,8 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
   const missingCompanies = new Set<string>();
   const stamp = now.toISOString();
 
+  const freshnessMode = scope.sort.startsWith("updated_at");
+
   const departureBefore = scope.departure_within_days !== null
     ? isoDate(new Date(now.getTime() + scope.departure_within_days * 86_400_000))
     : undefined;
@@ -572,7 +593,7 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
       company: scope.company ?? undefined,
       locale: scope.locale ?? undefined,
       destination: scope.destination ?? undefined,
-      sort: "updated_at:desc",
+      sort: scope.sort as CruiseSortOrder,
       // Today forward: a rolling window, so a scheduled scope cannot quietly expire.
       departureAfter: isoDate(now),
       departureBefore,
@@ -586,8 +607,11 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
       const mapped = mapSailing(cruise);
       if (!mapped) continue;
 
+      // Only meaningful when the rows are ordered by freshness. Under
+      // departure_date:asc an older updated_at says nothing about what follows, so
+      // stopping here would abandon the page — and the walk — for no reason.
       if (
-        scope.high_water_updated_at && mapped.provider_updated_at &&
+        freshnessMode && scope.high_water_updated_at && mapped.provider_updated_at &&
         mapped.provider_updated_at <= scope.high_water_updated_at
       ) {
         // Sorted desc, so everything after this is older still.

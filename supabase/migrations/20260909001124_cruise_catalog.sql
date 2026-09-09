@@ -368,6 +368,7 @@ CREATE TABLE public.cruise_sync_scope (
     locale                text,
     destination           text,
     departure_within_days integer,
+    sort                  text NOT NULL DEFAULT 'departure_date:asc',
     max_rows_per_request  integer NOT NULL DEFAULT 10,
     max_requests_per_run  integer NOT NULL DEFAULT 1,
     cursor                text,
@@ -382,6 +383,10 @@ CREATE TABLE public.cruise_sync_scope (
     CHECK (max_rows_per_request BETWEEN 1 AND 1000),
     CHECK (max_requests_per_run BETWEEN 1 AND 500),
     CHECK (departure_within_days IS NULL OR departure_within_days > 0),
+    -- The provider's allowed sort values. Only these two matter to us; the rest of their
+    -- enum (bare `departure_date`, bare `updated_at`) are the same orders spelled shorter.
+    CHECK (sort IN ('departure_date:asc', 'departure_date:desc',
+                    'updated_at:asc', 'updated_at:desc')),
     -- A cursor without a timestamp cannot be aged out, and a stale cursor is how a resume
     -- loop starts paging through a result set the filters no longer describe.
     CHECK ((cursor IS NULL) = (cursor_set_at IS NULL))
@@ -408,6 +413,31 @@ COMMENT ON COLUMN public.cruise_sync_scope.departure_within_days IS
     'A scheduled job configured with absolute dates keeps reporting success while silently '
     'syncing nothing, from the moment the window falls into the past. A rolling window '
     'cannot expire.';
+
+COMMENT ON COLUMN public.cruise_sync_scope.sort IS
+    'WHICH WAY THIS SCOPE WALKS THE CATALOG, and the two options do different jobs.
+'
+    '
+'
+    '`departure_date:asc` (the default) is COVERAGE: paired with `cursor` it walks the '
+    'window from the nearest departure outward, resuming where the last run stopped, so a '
+    'few requests a week accumulate a catalogue over time. That is what an empty catalogue '
+    'on a small budget needs.
+'
+    '
+'
+    '`updated_at:desc` is FRESHNESS: paired with `high_water_updated_at` it reads the '
+    'most-recently-rescraped sailings and stops as soon as it recognises one, so a repeat '
+    'run costs one request instead of a full re-page. That is what a POPULATED catalogue '
+    'needs, and it is wrong for an empty one — it fetches whatever churned and never walks '
+    'deeper, so the catalogue never grows.
+'
+    '
+'
+    'The provider offers no "updated since" filter, so these two orderings plus the two '
+    'bookmark columns are the whole of the incremental toolkit. Switching a scope from '
+    'coverage to freshness once it has completed a pass is an UPDATE, and the sync reads '
+    'this column rather than deciding for itself.';
 
 COMMENT ON COLUMN public.cruise_sync_scope.cursor IS
     'Persisted next_cursor. The provider''s pagination is cursor-only — starting_after with '
@@ -600,6 +630,7 @@ END $$;
 INSERT INTO public.cruise_sync_scope
     (id, label, endpoint, enabled, priority, company, locale,
      departure_within_days, max_rows_per_request, max_requests_per_run)
+     -- `sort` is omitted: every scope here wants the default, departure_date:asc.
 VALUES
     -- Reference catalogue. Unpaginated, one request each, and between them they answer the
     -- whole of Free-Travel-APIs §1.0 for cruises except the sailings themselves.
@@ -626,8 +657,18 @@ VALUES
     -- the result set, so a COMPLETE pass walks materially fewer pages. Departures beyond 18
     -- months are also the ones most likely to be repriced before anyone books them, so the
     -- pages saved are the least valuable ones.
+    -- ENABLED, alone, at two requests a run. Royal Caribbean because it is the largest
+    -- line the provider covers (50,051 sailings), it leads the prototype order in
+    -- web/content/public/cruise-lines.ts, and screen 2.0.9's own top pick is one of its
+    -- ships. Two requests is 20 sailings a run: added to the three reference calls that is
+    -- 5 a week, ~20 a month of 100, leaving ~80 for quote-time detail fetches.
+    --
+    -- It walks `departure_date:asc` with the cursor resuming week to week, so the window
+    -- fills from the nearest departure outward instead of chasing whatever was repriced
+    -- last night. Switch it to updated_at:desc once there is a catalogue worth keeping
+    -- fresh — see the `sort` column comment.
     ('01a08376-dc00-7000-8000-000000000020', 'sailings:royal-caribbean',
-     'cruises',         false, 100, 'royal-caribbean',   'en_US', 548, 10, 2),
+     'cruises',         true,  100, 'royal-caribbean',   'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000021', 'sailings:celebrity',
      'cruises',         false, 110, 'celebrity-cruises', 'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000022', 'sailings:disney',

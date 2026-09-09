@@ -1554,6 +1554,7 @@ export type Database = {
           max_requests_per_run: number
           max_rows_per_request: number
           priority: number
+          sort: string
           updated_at: string
         }
         Insert: {
@@ -1575,6 +1576,7 @@ export type Database = {
           max_requests_per_run?: number
           max_rows_per_request?: number
           priority?: number
+          sort?: string
           updated_at?: string
         }
         Update: {
@@ -1596,6 +1598,7 @@ export type Database = {
           max_requests_per_run?: number
           max_rows_per_request?: number
           priority?: number
+          sort?: string
           updated_at?: string
         }
         Relationships: []
