@@ -262,13 +262,17 @@ Deno.test("toCabinPrices normalises an open-ended cabin vocabulary", () => {
   // Five documented codes "plus line-specific tiers like CONCIERGE, AQUA, VISTA_SUITE,
   // NEPTUNE_SUITE, HAVEN" — so shape is enforced, membership is not. The CHECK on
   // cabin_code is ^[A-Z0-9_]+$, which every output here has to satisfy.
-  const rows = toCabinPrices({
-    INTERIOR: 1199,
-    OCEANVIEW: 1399.99,
-    "vista suite": 3499,
-    "neptune-suite": 5099,
-    HAVEN: 7200,
-  }, "USD");
+  const rows = toCabinPrices(
+    {
+      INTERIOR: 1199,
+      OCEANVIEW: 1399.99,
+      "vista suite": 3499,
+      "neptune-suite": 5099,
+      HAVEN: 7200,
+    },
+    "USD",
+    "en_US",
+  );
 
   const byCode = Object.fromEntries(rows.map((r) => [r.cabin_code, r.price_cents]));
   assertEquals(byCode["INTERIOR"], 119900);
@@ -285,9 +289,12 @@ Deno.test("toCabinPrices normalises an open-ended cabin vocabulary", () => {
 Deno.test("toCabinPrices yields nothing without a currency, and that is normal", () => {
   // Costa's cabin source has been unavailable since 2026-04-21 per their spec, and the
   // list endpoint never sends this field at all. Absence is not an error.
-  assertEquals(toCabinPrices({ INTERIOR: 1199 }, null), []);
-  assertEquals(toCabinPrices(null, "USD"), []);
-  assertEquals(toCabinPrices(undefined, "USD"), []);
+  assertEquals(toCabinPrices({ INTERIOR: 1199 }, null, "en_US"), []);
+  assertEquals(toCabinPrices(null, "USD", "en_US"), []);
+  assertEquals(toCabinPrices(undefined, "USD", "en_US"), []);
+  // No locale means we cannot say which market the figures belong to, so they are dropped
+  // rather than stored ambiguously.
+  assertEquals(toCabinPrices({ INTERIOR: 1199 }, "USD", null), []);
 });
 
 Deno.test("slugify handles the accented port and ship names the feed contains", () => {
@@ -405,4 +412,26 @@ Deno.test("both writers of cruise_ship agree on the provenance key", () => {
   // recreated, and must be reconcilable against the provider.
   assertEquals(shipProviderKey("ncl", "  Norwegian Spirit  "), "ncl:Norwegian Spirit");
   assertEquals(/^[0-9a-f-]{36}:/.test(fromShipsEndpoint.provider_key), false);
+});
+
+Deno.test("cabin prices carry the market they came from", () => {
+  // GET /cruises/{id} answers de_DE/EUR whatever you ask for — it takes no locale parameter
+  // and ignores one (tested against the live API). So a US sailing's breakdown arrives in
+  // euros, and it has to say so: quoting a euro figure as a dollar one is the failure this
+  // column prevents. The tier structure and the ratios are still market-independent, which
+  // is why the rows are kept rather than discarded.
+  const rows = toCabinPrices(
+    { INTERIOR: 1198.3, OCEANVIEW: 1398, BALCONY: 1698, DELUXE: 2498 },
+    "EUR",
+    "de_DE",
+  );
+  assertEquals(rows.length, 4);
+  for (const row of rows) {
+    assertEquals(row.currency, "EUR");
+    assertEquals(row.provider_locale, "de_DE");
+  }
+  // Ratios survive the currency mismatch, and they are the useful part.
+  const byCode = Object.fromEntries(rows.map((r) => [r.cabin_code, r.price_cents]));
+  assertEquals(byCode["BALCONY"] > byCode["INTERIOR"], true);
+  assertEquals(byCode["DELUXE"] > byCode["BALCONY"], true);
 });

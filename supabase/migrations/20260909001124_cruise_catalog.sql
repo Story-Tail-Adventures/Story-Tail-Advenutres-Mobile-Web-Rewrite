@@ -325,13 +325,14 @@ COMMENT ON COLUMN public.cruise_port_call.day IS
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE public.cruise_sailing_cabin_price (
-    id          uuid PRIMARY KEY,
-    sailing_id  uuid NOT NULL REFERENCES public.cruise_sailing(id) ON DELETE CASCADE,
-    cabin_code  text NOT NULL,
-    price_cents bigint NOT NULL,
-    currency    char(3) NOT NULL,
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now(),
+    id              uuid PRIMARY KEY,
+    sailing_id      uuid NOT NULL REFERENCES public.cruise_sailing(id) ON DELETE CASCADE,
+    cabin_code      text NOT NULL,
+    price_cents     bigint NOT NULL,
+    currency        char(3) NOT NULL,
+    provider_locale text NOT NULL,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
     CHECK (price_cents >= 0),
     CHECK (cabin_code = upper(cabin_code) AND cabin_code ~ '^[A-Z0-9_]+$')
 );
@@ -346,6 +347,23 @@ COMMENT ON TABLE public.cruise_sailing_cabin_price IS
     'means the handful a client has asked to be quoted, so ABSENCE OF ROWS IS NORMAL and is '
     'not a sync failure. The provider also notes Costa''s cabin source has been unavailable '
     'since 2026-04-21, so Costa sailings legitimately have none.';
+
+COMMENT ON COLUMN public.cruise_sailing_cabin_price.provider_locale IS
+    'WHICH MARKET THIS BREAKDOWN IS FOR, and it is frequently NOT the sailing''s own.\n'
+    '\n'
+    'GET /cruises/{id} takes no `locale` parameter and IGNORES one if you send it anyway '
+    '(tested). It answers de_DE/EUR regardless, so a US sailing''s cabin breakdown arrives '
+    'in euros. Storing that against a USD sailing without saying so would invite someone to '
+    'quote a euro figure as a dollar one.\n'
+    '\n'
+    'It is still worth keeping. The cabin STRUCTURE (which tiers a ship sells) and the '
+    'RATIOS between them are market-independent and are exactly what an advisor wants when '
+    'explaining the difference between an interior and a balcony. The absolute number comes '
+    'from InteleTravel at quote time either way — BRD §10.5 means this platform never '
+    'charges anyone, so no figure here is ever transacted.\n'
+    '\n'
+    'So: read this column before showing a price, and never mix a row whose locale differs '
+    'from cruise_sailing.provider_locale into a same-currency total.';
 
 COMMENT ON COLUMN public.cruise_sailing_cabin_price.cabin_code IS
     'text, not an enum, per Data-Model §22.4. The documented set (INTERIOR, OCEANVIEW, '

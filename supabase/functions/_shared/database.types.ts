@@ -1378,6 +1378,7 @@ export type Database = {
           currency: string
           id: string
           price_cents: number
+          provider_locale: string
           sailing_id: string
           updated_at: string
         }
@@ -1387,6 +1388,7 @@ export type Database = {
           currency: string
           id: string
           price_cents: number
+          provider_locale: string
           sailing_id: string
           updated_at?: string
         }
@@ -1396,6 +1398,7 @@ export type Database = {
           currency?: string
           id?: string
           price_cents?: number
+          provider_locale?: string
           sailing_id?: string
           updated_at?: string
         }

@@ -26,6 +26,7 @@
 import type { Db } from "../db.ts";
 import type { Json } from "../database.types.ts";
 import { uuidV7 } from "../uuid.ts";
+import { notFound } from "../problem.ts";
 import {
   applyQuota,
   type Budget,
@@ -230,6 +231,220 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     notes,
     rowsArchived,
   );
+}
+
+/**
+ * Refetch one sailing from GET /cruises/{id} and store what only that endpoint returns.
+ *
+ * WHY THIS IS NOT A SCOPE. Every other request here is scheduled and speculative. This one
+ * is demand-driven: it exists because a client pointed at a specific sailing and asked to be
+ * quoted, and the ~10 requests the monthly ceiling holds back are held back for exactly this.
+ * Putting it on a schedule would spend the reserve on sailings nobody asked about.
+ *
+ * WHAT ONLY THE DETAIL ENDPOINT GIVES YOU is `cabin_prices_per_person` — interior, oceanview,
+ * balcony, suite and whatever line-specific tiers apply. The list endpoint omits it "to keep
+ * responses lean", so cruise_sailing_cabin_price stays empty until somebody spends a request
+ * here. That is why an empty table is not a sync failure.
+ *
+ * `run_id` is deliberately NULL on the ledger row. cruise_api_request is separate from
+ * cruise_sync_run precisely so a quote-time fetch can spend quota outside any run, and
+ * month-to-date has to count it — see §24.9.
+ *
+ * REFUSES RATHER THAN OVERSPENDS. If the budget is gone it returns `skipped` with a reason
+ * and spends nothing, leaving the caller to fall back on the mirrored row. A stale cabin
+ * breakdown beats a failed quote request.
+ */
+export interface RefetchResult {
+  sailingId: string;
+  cruiseId: string | null;
+  company: string | null;
+  cabinPricesWritten: number;
+  portCallsWritten: number;
+  leadPriceCents: number | null;
+  currency: string | null;
+  budget: Budget;
+  /** Set when no request was spent, with the reason. */
+  skipped?: string;
+}
+
+export async function refetchSailing(options: {
+  db: Db;
+  apiKey: string;
+  sailingId: string;
+  fetchImpl?: typeof fetch;
+  now?: Date;
+}): Promise<RefetchResult> {
+  const { db, sailingId } = options;
+  const now = options.now ?? new Date();
+
+  const { data: sailing, error } = await db
+    .from("cruise_sailing")
+    .select("id, provider, provider_key, provider_locale, cruise_line_id")
+    .eq("id", sailingId)
+    .maybeSingle();
+  if (error) throw new Error(`cruise_sailing lookup failed: ${error.message}`);
+  if (!sailing) throw notFound("No such sailing.");
+
+  // The provider's own company slug, which is what /cruises/{id} needs to disambiguate an
+  // id — Princess and Holland America share the Y731 voyage-code format. Ours is the line's
+  // `slug`; theirs is its `provider_key`.
+  const { data: line, error: lineError } = await db
+    .from("cruise_line")
+    .select("provider_key")
+    .eq("id", sailing.cruise_line_id)
+    .maybeSingle();
+  if (lineError) throw new Error(`cruise_line lookup failed: ${lineError.message}`);
+
+  const company = line?.provider_key ?? null;
+  const budget = await readBudget(db);
+
+  if (!company) {
+    return {
+      sailingId,
+      cruiseId: sailing.provider_key,
+      company: null,
+      cabinPricesWritten: 0,
+      portCallsWritten: 0,
+      leadPriceCents: null,
+      currency: null,
+      budget,
+      // A curated line has no provider company, so there is nothing to refetch against.
+      // Not an error: Virgin Voyages sailings, if ever entered by hand, land here.
+      skipped: "the sailing's line has no provider coverage",
+    };
+  }
+
+  if (budget.allowance <= 0) {
+    return {
+      sailingId,
+      cruiseId: sailing.provider_key,
+      company,
+      cabinPricesWritten: 0,
+      portCallsWritten: 0,
+      leadPriceCents: null,
+      currency: null,
+      budget,
+      skipped: exhaustionReason(budget),
+    };
+  }
+
+  const client = createTrackCruisesClient({
+    apiKey: options.apiKey,
+    fetchImpl: options.fetchImpl,
+    // run_id null: this request belongs to no sync run. See the docstring.
+    onRequest: makeRecorder(db, null),
+  });
+
+  const { data: cruise, quota } = await client.cruise(sailing.provider_key, company);
+  const afterQuota = applyQuota(budget, quota);
+
+  const mapped = mapSailing(cruise);
+  if (!mapped) {
+    throw new Error(
+      `provider returned an unusable sailing for ${company}/${sailing.provider_key}`,
+    );
+  }
+
+  const stamp = now.toISOString();
+  const shipId = mapped.ship_name
+    ? await resolveShipId(db, sailing.cruise_line_id, company, mapped.ship_name, now)
+    : null;
+
+  // ── THE LOCALE TRAP ────────────────────────────────────────────────────────
+  //
+  // GET /cruises/{id} takes NO `locale` parameter — only `id` and `company`. So it answers
+  // in whatever market the provider defaults to, which is not necessarily the one this row
+  // was synced in. Observed: refetching an en_US/USD Royal Caribbean sailing returned
+  // de_DE/EUR.
+  //
+  // Writing that back would do two bad things. It would replace a US fare with a European
+  // one on a row the US site renders, and — worse — it would rewrite `provider_locale`,
+  // which is part of the natural key `(provider, provider_key, provider_locale)`. The next
+  // sailing sync would then see no row for the en_US version and insert a SECOND one, so
+  // one sailing would silently become two.
+  //
+  // Therefore: `provider_locale` is never written here, and the market-dependent fields are
+  // taken only when the response is actually for the same market. Everything else — the
+  // title, the itinerary, the duration — is market-independent and safe to refresh.
+  const sameMarket = mapped.provider_locale === sailing.provider_locale;
+
+  // Spread rather than a mutable Record so the generated column types still apply — an
+  // untyped patch object is how a typo becomes a silent no-op on a PostgREST update.
+  const pricing = sameMarket
+    ? {
+      lead_price_cents: mapped.lead_price_cents,
+      currency: mapped.currency,
+      lead_price_eur_cents: mapped.lead_price_eur_cents,
+    }
+    : {};
+
+  // Keyed on the id we already hold, and `id` is not in the payload — the row exists by
+  // definition here, and rewriting its key would break its port calls. `provider_locale` is
+  // absent for the reason above.
+  const { error: updateError } = await db
+    .from("cruise_sailing")
+    .update({
+      ship_id: shipId,
+      title: mapped.title,
+      departure_date: mapped.departure_date,
+      duration_nights: mapped.duration_nights,
+      destinations: mapped.destinations,
+      itinerary_url: mapped.itinerary_url,
+      provider_updated_at: mapped.provider_updated_at,
+      provider_payload: cruise as unknown as Json,
+      synced_at: stamp,
+      last_seen_at: stamp,
+      updated_at: stamp,
+      ...pricing,
+    })
+    .eq("id", sailingId);
+  if (updateError) {
+    throw new Error(`cruise_sailing refresh failed: ${updateError.message}`);
+  }
+
+  // The detail endpoint carries the full ordered itinerary, and ports are market-independent
+  // apart from their names. Refreshing costs nothing now the request is spent.
+  await replacePortCalls(db, sailingId, cruise.ports_list, now);
+
+  // Cabin prices ARE stored even when the market differs — labelled with the locale they
+  // came back in, which is what provider_locale on that table is for.
+  //
+  // Discarding them would throw away the only cabin data this provider gives at all: the
+  // detail endpoint always answers de_DE/EUR (tested — it ignores a locale parameter), so
+  // "same market only" would mean an empty table forever for a US advisory. The tier
+  // structure and the ratios between tiers are market-independent and are exactly what an
+  // advisor explains to a client; the absolute figure comes from InteleTravel at quote time
+  // regardless, since BRD §10.5 means nothing here is ever charged.
+  const cabinRows = toCabinPrices(
+    cruise.cabin_prices_per_person,
+    mapped.currency,
+    mapped.provider_locale,
+  );
+  await replaceCabinPrices(
+    db,
+    sailingId,
+    cruise,
+    mapped.currency,
+    mapped.provider_locale,
+    now,
+  );
+
+  return {
+    sailingId,
+    cruiseId: sailing.provider_key,
+    company,
+    cabinPricesWritten: cabinRows.length,
+    portCallsWritten: toPortCalls(cruise.ports_list).length,
+    leadPriceCents: sameMarket ? mapped.lead_price_cents : null,
+    currency: sameMarket ? mapped.currency : null,
+    budget: afterQuota,
+    ...(sameMarket ? {} : {
+      skipped: `provider answered in ${mapped.provider_locale}, not the row's ` +
+        `${sailing.provider_locale} — the sailing's own lead fare was left untouched. ` +
+        `Cabin prices were stored, tagged ${mapped.provider_locale}. The detail endpoint ` +
+        `takes no locale parameter and ignores one.`,
+    }),
+  };
 }
 
 interface ScopeContext {
@@ -639,7 +854,14 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
       rowsUpserted += 1;
 
       await replacePortCalls(db, sailingId, cruise.ports_list, now);
-      await replaceCabinPrices(db, sailingId, cruise, mapped.currency, now);
+      await replaceCabinPrices(
+        db,
+        sailingId,
+        cruise,
+        mapped.currency,
+        mapped.provider_locale,
+        now,
+      );
     }
 
     cursor = page.nextCursor;
@@ -759,9 +981,10 @@ async function replaceCabinPrices(
   sailingId: string,
   cruise: { cabin_prices_per_person?: Record<string, number> | null },
   currency: string | null,
+  providerLocale: string | null,
   now: Date,
 ): Promise<void> {
-  const rows = toCabinPrices(cruise.cabin_prices_per_person, currency);
+  const rows = toCabinPrices(cruise.cabin_prices_per_person, currency, providerLocale);
   // The list endpoint never sends this field, so an empty result is the normal case and
   // must NOT clear prices a previous detail fetch paid a request for.
   if (rows.length === 0) return;

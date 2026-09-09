@@ -31,10 +31,11 @@
  * the free tier it is the expected one.
  */
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
-import { forbidden, problem, unauthorized } from "../_shared/problem.ts";
+import { badRequest, forbidden, problem, unauthorized } from "../_shared/problem.ts";
 import { serviceClient } from "../_shared/db.ts";
 import { writeSystemAuditEvent } from "../_shared/audit.ts";
-import { runSync } from "../_shared/cruise/sync.ts";
+import { isUuid } from "../_shared/uuid.ts";
+import { refetchSailing, runSync } from "../_shared/cruise/sync.ts";
 
 Deno.serve(async (req: Request) => {
   const preflight = handlePreflight(req);
@@ -50,7 +51,7 @@ Deno.serve(async (req: Request) => {
 
     requireServiceRole(req);
 
-    const { trigger, scope } = await readBody(req);
+    const { trigger, scope, sailingId } = await readBody(req);
 
     // serviceClient because there is no caller to act as: cruise_* tables have RLS on with
     // no policies at all, audit_event has no insert policy, and the actor is a machine.
@@ -67,6 +68,40 @@ Deno.serve(async (req: Request) => {
             "See supabase/README.md.",
         ),
       );
+    }
+
+    // Demand-driven branch: refetch ONE sailing rather than run the schedule.
+    //
+    // This is the operation a quote request needs. GET /cruises/{id} is the only place
+    // cabin_prices_per_person exists — interior/oceanview/balcony/suite — so it is the only
+    // way cruise_sailing_cabin_price is ever populated, and it is what freezes an accurate
+    // breakdown onto whatever record a quote creates, so the record survives the mirror
+    // being refreshed underneath it.
+    //
+    // Deliberately separate from the sync: it spends from the ~10 requests the monthly
+    // ceiling holds back, it writes a ledger row with a null run_id, and it refuses rather
+    // than overspends when the budget is gone. Whether the quote itself creates a `lead` or
+    // a `trip` is still undecided (BRD §6.5 says lead; see the PR) — this half is the same
+    // either way, which is why it ships now.
+    if (sailingId) {
+      const result = await refetchSailing({ db, apiKey, sailingId });
+
+      await writeSystemAuditEvent(db, {
+        eventType: "cruise_sailing.refetched",
+        targetEntity: "cruise_sailing",
+        targetId: sailingId,
+        metadata: {
+          cruiseId: result.cruiseId,
+          company: result.company,
+          cabinPricesWritten: result.cabinPricesWritten,
+          portCallsWritten: result.portCallsWritten,
+          skipped: result.skipped ?? null,
+          monthToDateSpend: result.budget.ledgerSpent,
+          quotaRemaining: result.budget.quotaRemaining,
+        },
+      });
+
+      return json(result);
     }
 
     const outcome = await runSync({ db, apiKey, trigger, onlyLabel: scope });
@@ -165,17 +200,31 @@ function decodeClaims(jwt: string): Record<string, unknown> {
  */
 async function readBody(
   req: Request,
-): Promise<{ trigger: "cron" | "manual"; scope?: string }> {
+): Promise<{ trigger: "cron" | "manual"; scope?: string; sailingId?: string }> {
+  let body: unknown;
   try {
-    const body = await req.json();
-    const trigger = body?.trigger === "manual" ? "manual" : "cron";
-    const scope = typeof body?.scope === "string" && body.scope.trim() !== ""
-      ? body.scope.trim()
-      : undefined;
-    return { trigger, scope };
+    body = await req.json();
   } catch {
     return { trigger: "cron" };
   }
+
+  const fields = (body ?? {}) as Record<string, unknown>;
+  const trigger = fields.trigger === "manual" ? "manual" : "cron";
+  const scope = typeof fields.scope === "string" && fields.scope.trim() !== ""
+    ? fields.scope.trim()
+    : undefined;
+
+  let sailingId: string | undefined;
+  if (fields.sailingId !== undefined) {
+    // Validated here rather than deeper: a malformed id must not reach a query, and it
+    // must never reach the provider — a wasted request cannot be refunded.
+    if (!isUuid(fields.sailingId)) {
+      throw badRequest("sailingId must be a UUID.");
+    }
+    sailingId = fields.sailingId;
+  }
+
+  return { trigger, scope, sailingId };
 }
 
 function json(payload: unknown): Response {

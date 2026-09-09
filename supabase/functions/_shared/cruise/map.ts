@@ -350,6 +350,8 @@ export interface CabinPriceRow {
   cabin_code: string;
   price_cents: number;
   currency: string;
+  /** The market the provider answered in — often not the sailing's. See the column comment. */
+  provider_locale: string;
 }
 
 /**
@@ -363,15 +365,21 @@ export interface CabinPriceRow {
 export function toCabinPrices(
   cabinPrices: Record<string, number> | null | undefined,
   currency: string | null,
+  providerLocale: string | null,
 ): CabinPriceRow[] {
-  if (!cabinPrices || !currency) return [];
+  if (!cabinPrices || !currency || !providerLocale) return [];
   const rows: CabinPriceRow[] = [];
   for (const [rawCode, rawPrice] of Object.entries(cabinPrices)) {
     const code = rawCode.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_")
       .replace(/^_+|_+$/g, "");
     const cents = toCents(rawPrice);
     if (!code || cents === null) continue;
-    rows.push({ cabin_code: code, price_cents: cents, currency });
+    rows.push({
+      cabin_code: code,
+      price_cents: cents,
+      currency,
+      provider_locale: providerLocale,
+    });
   }
   return rows;
 }
