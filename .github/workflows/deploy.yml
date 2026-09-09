@@ -312,8 +312,33 @@ jobs:
       # roots its upload at web/ and cannot reach above it. This step reads the trace files
       # instead of assuming. It runs under dry_run, so it never deploys.
       - name: DIAG — where do the build's traced paths point?
+        shell: bash +e {0}
         run: |
-          set -uo pipefail
+          set +o pipefail
+          echo "── do any traces escape web/ ? (the whole question) ────────"
+          traces="$(find web/.vercel/output -name '*.nft.json' 2>/dev/null)"
+          if [ -z "$traces" ]; then
+            echo "NO .nft.json in the output — .func dirs carry their files inline."
+            echo "So the missing path is resolved by the CLI at upload time, not from a trace."
+            echo "func dirs: $(find web/.vercel/output/functions -name '*.func' | wc -l)"
+            echo "one .func's contents:"
+            find web/.vercel/output/functions -name '*.func' | head -1 | while read -r d; do
+              find "$d" -maxdepth 3 | sed -n '1,20p' | sed 's/^/      /'
+            done
+          else
+            echo "$traces" | sed -n '1,3p' | while read -r f; do
+              echo "--- $f"
+              echo "    files climbing above web/: $(jq -r '.files[]?' "$f" 2>/dev/null | grep -c '\.\./')"
+              jq -r '.files[]?' "$f" 2>/dev/null | grep '\.\./' | sed -n '1,5p' | sed 's/^/      /'
+            done
+          fi
+
+          echo
+          echo "── does anything in the output name @swc/helpers? ──────────"
+          grep -rl '@swc/helpers' web/.vercel/output 2>/dev/null | sed -n '1,5p' \
+            || echo "  (no matches)"
+
+          echo
           echo "── node_modules after vercel build ─────────────────────────"
           echo "root  : $(ls -1 node_modules 2>/dev/null | wc -l) entries"
           echo "web/  : $(ls -1 web/node_modules 2>/dev/null | wc -l) entries"
@@ -330,24 +355,6 @@ jobs:
           echo "── build output layout ─────────────────────────────────────"
           find web/.vercel/output -maxdepth 2 2>/dev/null | head -30
 
-          echo
-          echo "── do any traces escape web/ (paths with ../) ? ────────────"
-          # .nft.json is the Node file-trace manifest each .func carries.
-          traces="$(find web/.vercel/output -name '*.nft.json' 2>/dev/null)"
-          if [ -z "$traces" ]; then
-            echo "no .nft.json found — the .func dirs may embed files directly"
-          else
-            echo "$traces" | head -3 | while read -r f; do
-              echo "--- $f"
-              jq -r '.files[]?' "$f" 2>/dev/null | grep -c '\.\./' \
-                | sed 's/^/    paths containing ..\/: /'
-              jq -r '.files[]?' "$f" 2>/dev/null | grep '\.\./' | head -5 | sed 's/^/      /'
-            done
-          fi
-
-          echo
-          echo "── anything referencing @swc/helpers in the output ─────────"
-          grep -rl '@swc/helpers' web/.vercel/output 2>/dev/null | head -5
 
       - name: Deploy
         id: deploy
