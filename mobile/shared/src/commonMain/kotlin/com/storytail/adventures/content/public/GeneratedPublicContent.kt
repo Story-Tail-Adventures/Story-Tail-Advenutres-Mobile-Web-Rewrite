@@ -1141,6 +1141,7 @@ internal object PublicCatalog {
         Claim(id = "replyWithin48h", display = "within 48 hours", detail = null, verified = false),
         Claim(id = "islandsPlannedAll", display = "Twelve islands. One advisor who's planned every one of them.", detail = null, verified = false),
         Claim(id = "tripDetails", display = "Trip descriptions, highlights and sample itineraries", detail = "Drafted from the design prototype and public supplier information; confirm with suppliers.", verified = false),
+        Claim(id = "hotelRateBasis", display = "Nightly rates are public rates for the dates you picked, before taxes and fees — a starting point, not a quote.", detail = "Sourced live from Google Hotels. Confirm the wording with InteleTravel compliance (Free-Travel-APIs §9.2).", verified = false),
     )
 
     val TESTIMONIALS: List<Testimonial> = listOf(
