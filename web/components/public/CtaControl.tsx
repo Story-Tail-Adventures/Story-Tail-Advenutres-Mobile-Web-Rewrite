@@ -31,27 +31,33 @@ export function CtaControl({
   cta,
   className,
   children,
+  dataAuth,
 }: {
   cta: CtaLink;
   className: string;
   children: React.ReactNode;
+  /**
+   * Renders as `data-auth`, which is how the pre-paint gate in styles/public.css scopes
+   * itself to the unresolved state. Only StickyCtaSecondary passes it.
+   */
+  dataAuth?: string;
 }) {
   if (cta.submitFor !== undefined) {
     return (
-      <button type="submit" form={cta.submitFor} className={className}>
+      <button type="submit" form={cta.submitFor} className={className} data-auth={dataAuth}>
         {children}
       </button>
     );
   }
   if (cta.href.startsWith("/")) {
     return (
-      <Link href={cta.href} className={className}>
+      <Link href={cta.href} className={className} data-auth={dataAuth}>
         {children}
       </Link>
     );
   }
   return (
-    <a href={cta.href} className={className}>
+    <a href={cta.href} className={className} data-auth={dataAuth}>
       {children}
     </a>
   );

@@ -64,7 +64,11 @@ function getServerSnapshot(): AuthChrome {
  * `signedIn: false` IS authoritative, though — that is a stale flag cookie (they outlive
  * their token by design), and the honest thing is to show the sign-in links again.
  */
+let loading = false;
+
 async function loadInitials(): Promise<void> {
+  if (loading) return;
+  loading = true;
   try {
     const response = await fetch("/api/account/chrome", { credentials: "same-origin" });
     if (!response.ok) {
@@ -85,12 +89,23 @@ async function loadInitials(): Promise<void> {
     publish({ status: "in", initials: initials || INITIALS_FALLBACK });
   } catch {
     publish({ status: "in", initials: INITIALS_FALLBACK });
+  } finally {
+    loading = false;
   }
 }
 
-function resolve(): void {
+/**
+ * `force` re-verifies even when the flag has not changed, and is what the wake-up path
+ * passes. The flag is a boolean, so it cannot tell "still signed in" from "signed in as
+ * somebody else now" — a tab left open while another one switches accounts would otherwise
+ * keep the first person's initials indefinitely, because `loadInitials` never fired again.
+ * Mount does NOT force: every island on the page subscribes, and forcing there would be one
+ * request per island instead of one per page.
+ */
+function resolve(options?: { force?: boolean }): void {
   const flag = hasAuthFlag();
-  if (flag === lastFlag) return;
+  const changed = flag !== lastFlag;
+  if (!changed && !options?.force) return;
   lastFlag = flag;
 
   if (!flag) {
@@ -100,7 +115,9 @@ function resolve(): void {
 
   // Draw the avatar immediately — the flag alone is enough for that — and let the letters
   // arrive. The circle is a fixed size, so filling it in shifts nothing.
-  publish({ status: "in", initials: snapshot.initials });
+  if (changed) publish({ status: "in", initials: snapshot.initials });
+  // Cheap to repeat: the endpoint answers `private, max-age=60`, so a refocus loop is served
+  // from the browser's own cache, and `loading` collapses a burst into one request.
   void loadInitials();
 }
 
@@ -112,7 +129,7 @@ function resolve(): void {
 function watch(): void {
   if (watching) return;
   watching = true;
-  const onWake = () => resolve();
+  const onWake = () => resolve({ force: true });
   document.addEventListener("visibilitychange", onWake);
   window.addEventListener("focus", onWake);
 }
@@ -134,5 +151,6 @@ export function useAuthChrome(): AuthChrome {
 export function resetAuthChromeForTests(): void {
   snapshot = UNKNOWN;
   lastFlag = null;
+  loading = false;
   listeners.clear();
 }

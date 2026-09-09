@@ -205,7 +205,13 @@ function applyAuthFlag(
       // Deliberately NOT httpOnly: the pre-paint script reads it. It carries no identity.
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24,
+      // Long, because it is never renewed: `authFlagAction` returns null while the value is
+      // already correct, which is what keeps Set-Cookie off the steady-state response. A
+      // short life would therefore expire under a tab left open without navigating, and the
+      // chrome would flip to signed-out on its next focus. A stale flag is harmless in the
+      // other direction — the proxy clears it on the next request, and /api/account/chrome
+      // is the authority for the frame after that.
+      maxAge: 60 * 60 * 24 * 30,
     });
   } else if (action === "clear") {
     response.cookies.delete({ name: AUTH_FLAG_COOKIE, path: "/" });

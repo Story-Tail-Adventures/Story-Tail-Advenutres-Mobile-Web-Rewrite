@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { AUTH_FLAG_COOKIE } from "@/lib/auth/chrome-flag";
@@ -104,6 +104,74 @@ describe("PublicAuthCluster — signed in", () => {
     render(<PublicAuthCluster />);
 
     expect(await screen.findByRole("link", { name: "Your account" })).toHaveTextContent("ST");
+  });
+});
+
+/**
+ * Coming back to a tab that was left open while another one changed who is signed in.
+ *
+ * The flag is a boolean, so it cannot tell "still signed in" from "signed in as somebody
+ * else now" — the wake-up path therefore re-verifies rather than trusting an unchanged flag.
+ */
+describe("PublicAuthCluster — returning to the tab", () => {
+  it("picks up new initials when the flag has not changed", async () => {
+    document.cookie = `${AUTH_FLAG_COOKIE}=1; path=/`;
+    let initials = "JH";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ signedIn: true, initials }) })),
+    );
+
+    render(<PublicAuthCluster />);
+    expect(await screen.findByRole("link", { name: "Your account" })).toHaveTextContent("JH");
+
+    // Another tab switched accounts. This tab never navigated, so its flag is still "1".
+    initials = "PS";
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Your account" })).toHaveTextContent("PS");
+    });
+  });
+
+  it("reverts when the flag has gone", async () => {
+    document.cookie = `${AUTH_FLAG_COOKIE}=1; path=/`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, json: async () => ({ signedIn: true, initials: "JH" }) })),
+    );
+
+    render(<PublicAuthCluster />);
+    await screen.findByRole("link", { name: "Your account" });
+
+    document.cookie = `${AUTH_FLAG_COOKIE}=; max-age=0; path=/`;
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("link", { name: "Your account" })).not.toBeInTheDocument();
+  });
+
+  it("makes one request per page, not one per island", async () => {
+    document.cookie = `${AUTH_FLAG_COOKIE}=1; path=/`;
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ signedIn: true, initials: "JH" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Three islands share the store on a real page: the cluster, the drawer and the banner.
+    render(
+      <>
+        <PublicAuthCluster />
+        <PublicAuthCluster />
+        <PublicAuthCluster />
+      </>,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

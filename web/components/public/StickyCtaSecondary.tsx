@@ -1,6 +1,7 @@
 "use client";
 
 import { CtaControl, type CtaLink } from "./CtaControl";
+import { cn } from "@/lib/cn";
 import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 
 /**
@@ -8,12 +9,13 @@ import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
  *
  * §4.4 makes this bar the MOBILE equivalent of the /explore sign-in banner, so leaving a
  * "Sign in" button here while the banner and the top bar both know better would fix the
- * fault only above `md` — and the bar is mobile-only, so that is the half that shows on a
- * phone.
+ * fault only above `md` — and the bar is mobile-only, so that is the half a phone sees.
  *
- * Unlike the top bar this needs no pre-paint CSS gate: both controls are the same size and
- * sit in the same slot, so the swap costs no reflow, and `.sticky-cta` is a fixed bar whose
- * height the page reserves either way.
+ * It carries the same pre-paint gate as the top bar, for the same reason: picking on the
+ * store's status alone would render "Sign in" for one frame before resolving to "Your trips",
+ * which is exactly the flash AuthChromeScript exists to prevent. The controls are the same
+ * size, so nothing reflows either way — but a signed-in visitor should not watch the bar
+ * change its mind.
  */
 export function StickyCtaSecondary({
   signedOut,
@@ -25,11 +27,19 @@ export function StickyCtaSecondary({
   className: string;
 }) {
   const { status } = useAuthChrome();
-  const cta = status === "in" ? signedIn : signedOut;
 
   return (
-    <CtaControl cta={cta} className={className}>
-      {cta.label}
-    </CtaControl>
+    <>
+      {status !== "in" && (
+        <CtaControl cta={signedOut} className={cn(className, "pub-cta-out")} dataAuth={status}>
+          {signedOut.label}
+        </CtaControl>
+      )}
+      {status !== "out" && (
+        <CtaControl cta={signedIn} className={cn(className, "pub-cta-in")} dataAuth={status}>
+          {signedIn.label}
+        </CtaControl>
+      )}
+    </>
   );
 }
