@@ -311,50 +311,30 @@ jobs:
       # lockfile) and traces dependencies to paths relative to that root, while the deploy
       # roots its upload at web/ and cannot reach above it. This step reads the trace files
       # instead of assuming. It runs under dry_run, so it never deploys.
-      - name: DIAG — where do the build's traced paths point?
+      - name: DIAG — what does .vc-config.json say about @swc/helpers?
         shell: bash +e {0}
         run: |
           set +o pipefail
-          echo "── do any traces escape web/ ? (the whole question) ────────"
-          traces="$(find web/.vercel/output -name '*.nft.json' 2>/dev/null)"
-          if [ -z "$traces" ]; then
-            echo "NO .nft.json in the output — .func dirs carry their files inline."
-            echo "So the missing path is resolved by the CLI at upload time, not from a trace."
-            echo "func dirs: $(find web/.vercel/output/functions -name '*.func' | wc -l)"
-            echo "one .func's contents:"
-            find web/.vercel/output/functions -name '*.func' | head -1 | while read -r d; do
-              find "$d" -maxdepth 3 | sed -n '1,20p' | sed 's/^/      /'
-            done
-          else
-            echo "$traces" | sed -n '1,3p' | while read -r f; do
-              echo "--- $f"
-              echo "    files climbing above web/: $(jq -r '.files[]?' "$f" 2>/dev/null | grep -c '\.\./')"
-              jq -r '.files[]?' "$f" 2>/dev/null | grep '\.\./' | sed -n '1,5p' | sed 's/^/      /'
-            done
-          fi
+          f=web/.vercel/output/functions/link-account.func/.vc-config.json
+          echo "── $f ──────────────────────────────"
+          jq '.' "$f" 2>/dev/null | sed -n '1,60p'
 
           echo
-          echo "── does anything in the output name @swc/helpers? ──────────"
-          grep -rl '@swc/helpers' web/.vercel/output 2>/dev/null | sed -n '1,5p' \
-            || echo "  (no matches)"
+          echo "── every key whose VALUE mentions @swc/helpers ─────────────"
+          jq -r 'paths(scalars) as $p | select(getpath($p)|tostring|test("@swc/helpers"))
+                 | ($p|join("."))+" = "+(getpath($p)|tostring)' "$f" 2>/dev/null | sed -n '1,15p'
 
           echo
-          echo "── node_modules after vercel build ─────────────────────────"
-          echo "root  : $(ls -1 node_modules 2>/dev/null | wc -l) entries"
-          echo "web/  : $(ls -1 web/node_modules 2>/dev/null | wc -l) entries"
-          for d in node_modules/@swc/helpers web/node_modules/@swc/helpers; do
-            [ -e "$d" ] && echo "PRESENT $d" || echo "ABSENT  $d"
+          echo "── are those paths relative to web/ or to the repo root? ───"
+          jq -r '.filePathMap // {} | to_entries[] | .key+"  ->  "+.value' "$f" 2>/dev/null \
+            | grep -i 'swc\|node_modules' | sed -n '1,10p'
+
+          echo
+          echo "── resolve one, from each candidate root ───────────────────"
+          rel="node_modules/@swc/helpers/cjs/_interop_require_default.cjs"
+          for root in . ./web; do
+            if [ -e "$root/$rel" ]; then echo "  FOUND   $root/$rel"; else echo "  MISSING $root/$rel"; fi
           done
-
-          echo
-          echo "── the exact file the deploy could not find ────────────────"
-          find . -path ./node_modules -prune -o -name '_interop_require_default.cjs' -print 2>/dev/null | head
-          ls -l node_modules/@swc/helpers/cjs/_interop_require_default.cjs 2>&1 | head -1
-
-          echo
-          echo "── build output layout ─────────────────────────────────────"
-          find web/.vercel/output -maxdepth 2 2>/dev/null | head -30
-
 
       - name: Deploy
         id: deploy
