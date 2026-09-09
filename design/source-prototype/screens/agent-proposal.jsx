@@ -147,7 +147,7 @@ function A353_SendProposal() {
           <h2 className="t-title-l" style={{ margin: 0 }}>Send proposal · Sandals · Aug 2026</h2>
           <div className="card" style={{ padding: 12, marginTop: 10, background: 'var(--md-surface-2)' }}>
             <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>TO</div>
-            <div className="t-title-s" style={{ marginTop: 2 }}>Jordan & Sam Hayes · jordan.hayes@gmail.com</div>
+            <div className="t-title-s" style={{ marginTop: 2 }}>Jordan & Sam Hayes · jordan.hayes@example.com</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
             <div><label className="field-label">Subject</label><input className="input" defaultValue="Your honeymoon · two options to choose from"/></div>

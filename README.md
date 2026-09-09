@@ -2,6 +2,20 @@
 
 A custom CRM platform replacing Travefy for Story-Tail Adventures (hosted by Inteletravel). Mobile (Android + iOS) via Kotlin Multiplatform + Compose. Web via Next.js + React + TypeScript. Backend via Supabase Edge Functions. Database, auth, storage, and real-time via Supabase. Card tokenization via Stripe.
 
+## About this repository
+
+Public to read, not licensed to reuse — see [LICENSE](LICENSE). It runs a real travel
+advisory business, so the brand assets are excluded and there is no support commitment.
+
+Issues and pull requests are not monitored; this is not soliciting contributions. If you
+have found something genuinely alarming — a way to reach another traveler's data, say —
+please open an issue saying only that you have, and do not include details.
+
+Nothing secret lives here by design. The PR workflow (`.github/workflows/ci.yml`) needs
+zero secrets, deploys are gated on the `production` branch rather than on pull requests,
+and no prerendered route reads a Supabase key. Row-Level Security is the actual boundary,
+and `supabase/tests/` executes every policy as each role.
+
 ## Repo layout
 
 ```
