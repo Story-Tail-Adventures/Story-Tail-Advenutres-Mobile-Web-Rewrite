@@ -199,41 +199,18 @@
   .avatar.lg { width: 56px; height: 56px; font-size: 18px; }
   .avatar.xl { width: 84px; height: 84px; font-size: 26px; }
 
-  /* ── Brand mark ── */
-  .brand-mark {
-    display: inline-flex; align-items: center; gap: 10px;
-    font: 800 18px/1 var(--font-sans);
-    color: var(--brand-burgundy);
-    letter-spacing: -0.3px;
-  }
-  .scheme-dark .brand-mark { color: #FFC83F; }
-  .brand-mark .mark-script {
-    font: 700 22px/1 var(--font-script);
-    color: var(--brand-burgundy);
-    /* Caveat is a script face: its glyphs overhang their advance width by ~4px at this
-       size (measured). `background-clip: text` paints only inside the element box, so in
-       dark mode the tail of the final "l" falls outside the gradient and renders
-       transparent — the wordmark reads "Story-Tai". The gradient is vertical, so widening
-       the paint box costs nothing visually. Applied in both schemes so toggling the theme
-       doesn't shift layout. Upstream prototype has the same bug — see sync-design-handoff. */
-    padding-right: 0.4em;
-  }
-  .scheme-dark .brand-mark .mark-script {
-    /* Sunset orange -> yellow gradient to match the tropical logotype */
-    background: linear-gradient(180deg, #FFE08A 0%, #FF9436 60%, #F26B1A 100%);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent; color: transparent;
-  }
-  .brand-mark .mark-tagline { letter-spacing: 1.8px; color: var(--brand-orange); }
-  .scheme-dark .brand-mark .mark-tagline {
-    background: linear-gradient(180deg, #7CC5FF 0%, #1E92E5 100%);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent; color: transparent;
-  }
-  .sta-mark-light { display: inline-flex; }
-  .sta-mark-dark  { display: none; }
-  .scheme-dark .sta-mark-light { display: none; }
-  .scheme-dark .sta-mark-dark  { display: inline-flex; }
+  /* ── Brand mark (Design-System §11) · P1 ── */
+  /* The light and dark lockups are different artworks, not two colourways of one drawing
+     — see components/brand/BrandMark.tsx. Both <img> are rendered and CSS hides one, so
+     the correct lockup paints on the very first frame with no hydration flash; the scheme
+     is not knowable at SSR. `.sta-art-fixed` is the pinned-tone case (a surface that is
+     dark whatever the scheme), which must not participate in the swap. */
+  .sta-art { display: inline-flex; }
+  .sta-art-fixed { display: block; }
+  .sta-art-light { display: block; }
+  .sta-art-dark  { display: none; }
+  .scheme-dark .sta-art-light { display: none; }
+  .scheme-dark .sta-art-dark  { display: block; }
 
   /* ── Misc ── */
   .dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }

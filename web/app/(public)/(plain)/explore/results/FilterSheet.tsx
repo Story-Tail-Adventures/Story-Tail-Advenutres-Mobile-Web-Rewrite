@@ -65,7 +65,7 @@ export function FilterSheet({ label, title, closeLabel, children }: FilterSheetP
   };
 
   return (
-    <div id={FILTER_SHEET_ANCHOR} className="shrink-0 scroll-mt-20">
+    <div id={FILTER_SHEET_ANCHOR} className="shrink-0 scroll-mt-[calc(var(--public-topbar-h)+16px)]">
       <button
         ref={triggerRef}
         type="button"

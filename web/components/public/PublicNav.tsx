@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { cn } from "@/lib/cn";
 
 export interface NavLink {
@@ -89,7 +89,9 @@ export function PublicNav({ links, overlay = false }: PublicNavProps) {
         ref={triggerRef}
         type="button"
         className={cn(
-          "btn-icon tap-44 ml-auto size-9 md:hidden",
+          // Through tablet, not just mobile: from `md` the inline links are back but the
+          // sign-in buttons are not, and the drawer is where they live.
+          "btn-icon tap-44 ml-auto size-9 lg:hidden",
           // MTopBar gives the overlay trigger a translucent chip so it stays legible on a
           // bright hero photo; `.btn-glass` already carries exactly that treatment.
           overlay && "btn-glass text-white",
@@ -115,8 +117,8 @@ export function PublicNav({ links, overlay = false }: PublicNavProps) {
       >
         <div className="flex h-full flex-col p-5">
           <div className="flex items-center justify-between">
-            <Link href="/" onClick={closeMenu}>
-              <BrandWordmark size={26} />
+            <Link href="/" aria-label="Story-Tail Adventures home" onClick={closeMenu}>
+              <BrandMark size={80} alt="" />
             </Link>
             <button
               type="button"

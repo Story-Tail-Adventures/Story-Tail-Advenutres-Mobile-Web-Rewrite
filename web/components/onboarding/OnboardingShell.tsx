@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import {
@@ -44,7 +44,7 @@ export function OnboardingShell({
       <main className="flex flex-1 flex-col px-5 pt-5 pb-2 md:px-12 md:py-9">
         {/* The rail carries the wordmark on desktop; on mobile it has to sit inline. */}
         <div className="mb-4.5 md:hidden">
-          <BrandWordmark size={22} />
+          <BrandMark size={80} />
         </div>
 
         <StepPill stepIndex={stepIndex} />
@@ -69,8 +69,8 @@ export function OnboardingShell({
 function StepRail({ stepIndex }: { stepIndex: number }) {
   return (
     <aside className="hidden border-r border-outline-variant bg-surface-1 px-6 py-8 md:block">
-      <div className="mb-7">
-        <BrandWordmark size={28} />
+      <div className="mb-5">
+        <BrandMark size={80} />
       </div>
       <p className="t-label mb-3.5 text-on-surface-variant">
         {WIZARD_RAIL_HEADING}

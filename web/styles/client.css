@@ -15,6 +15,13 @@
  * the prototype's favour, and §9.2 is being amended to match.
  */
 
+:root {
+  /* 80px of brand lockup + 12px above and below. Everything that offsets against the
+     authenticated top bar reads this, so the bar and its dependants cannot drift — the
+     lesson from `--public-topbar-h`, whose consumers all moved for free when it grew. */
+  --client-topbar-h: 104px;
+}
+
 @layer components {
   /* ── The surface ───────────────────────────────────────────────────────── */
 
@@ -74,16 +81,16 @@
    * The one assumption left is that a bottom bar exists below 48rem, and it holds for every
    * `(client)` screen: the layout renders `<ClientBottomNav />` unconditionally. */
   .client-fill {
-    height: calc(100dvh - 64px);
+    height: calc(100dvh - var(--client-topbar-h));
   }
 
   @media not all and (min-width: 48rem) {
     .client-fill {
-      height: calc(100dvh - 64px - 64px - max(env(safe-area-inset-bottom), 8px));
+      height: calc(100dvh - var(--client-topbar-h) - 64px - max(env(safe-area-inset-bottom), 8px));
     }
   }
 
-  /* ── Top bar (64px, Design-System §9.1) ───────────────────────────────── */
+  /* ── Top bar (104px, Design-System §9.1) ──────────────────────────────── */
 
   .client-topbar {
     position: sticky;
@@ -92,7 +99,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    height: 64px;
+    height: var(--client-topbar-h);
     padding: 0 16px;
     background: color-mix(in srgb, var(--md-surface) 92%, transparent);
     backdrop-filter: blur(10px);

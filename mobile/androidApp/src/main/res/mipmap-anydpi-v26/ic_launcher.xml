@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher mask crops this to whatever shape the device uses, so the glyph is drawn
+  into the inner 66dp of the 108dp canvas (see web/scripts/build-brand-assets.mts).
+
+  <monochrome> is the Android 13+ themed icon. It is derived from the artwork's luminance
+  rather than its alpha: a flat silhouette of a book wrapped in a fox tail collapses into
+  one unreadable slab, whereas keeping the globe, plane and route as holes lets the shape
+  still read once the system paints it a single colour.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome" />
 </adaptive-icon>

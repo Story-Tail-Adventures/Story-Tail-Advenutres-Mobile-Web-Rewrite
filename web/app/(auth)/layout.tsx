@@ -1,4 +1,4 @@
-import { BrandWordmark } from "@/components/brand/BrandWordmark";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 /**
  * Pattern A shell for the 2.1.x authentication screens.
@@ -16,7 +16,7 @@ export default function AuthLayout({
   return (
     <div className="flex min-h-dvh flex-1 bg-surface">
       <aside className="tropical-gradient relative hidden shrink-0 grow-0 flex-col overflow-hidden p-8 px-9 text-white lg:flex lg:basis-[42%]">
-        <BrandWordmark size={36} onDark />
+        <BrandMark size={96} tone="dark" />
 
         {/* Decorative passport stamp, per ScreenSplitBrand in the prototype. */}
         <div
@@ -53,8 +53,8 @@ export default function AuthLayout({
       <main className="flex flex-1 items-center justify-center p-6 sm:p-8">
         <div className="flex w-full max-w-[440px] flex-col gap-3.5">
           {/* The brand panel is hidden on small screens, so the wordmark comes along. */}
-          <div className="mb-2 lg:hidden">
-            <BrandWordmark size={32} />
+          <div className="mb-1 lg:hidden">
+            <BrandMark size={80} />
           </div>
           {children}
         </div>

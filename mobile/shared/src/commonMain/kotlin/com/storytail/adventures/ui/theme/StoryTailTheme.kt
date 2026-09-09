@@ -71,7 +71,7 @@ fun StoryTailTheme(
  *       Box(modifier = Modifier.background(x.surface3)) { ... }
  *   }
  *
- *   @Composable fun BrandWordmark() {
+ *   @Composable fun BrandMark() {
  *       val brand = LocalStoryTailBrandTypography.current
  *       Text("Story-Tail", style = brand.script)
  *   }
