@@ -134,21 +134,49 @@ SELECT pg_temp.assert(
 -- ─────────────────────────────────────────────────────────────────────────────
 
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.cruise_sync_scope WHERE enabled) = 3,
-    'exactly three scopes ship enabled — the unpaginated reference calls'
+    (SELECT count(*) FROM public.cruise_sync_scope WHERE enabled AND endpoint IN
+        ('cruise_lines', 'filter_options', 'coverage')) = 3,
+    'the three unpaginated reference scopes ship enabled'
 );
 
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.cruise_sync_scope WHERE NOT enabled) = 9,
-    'the nine paginated and sailing scopes ship disabled'
+    (SELECT count(*) FROM public.cruise_sync_scope WHERE enabled AND endpoint = 'cruises') = 1,
+    'exactly one sailing scope ships enabled'
 );
 
--- The free tier is 100 requests/month. Three enabled scopes at one request each is the
--- arithmetic the whole design rests on; a fourth enabled scope should be a decision, not
--- a drift.
 SELECT pg_temp.assert(
-    (SELECT sum(max_requests_per_run) FROM public.cruise_sync_scope WHERE enabled) = 3,
-    'an enabled run costs three requests, so a weekly cadence costs ~12 of 100 a month'
+    NOT EXISTS (SELECT 1 FROM public.cruise_sync_scope
+                 WHERE enabled AND endpoint IN ('ships', 'ports')),
+    'the paginated ships/ports scopes stay disabled — /filter-options is 457x cheaper'
+);
+
+-- THE ASSERTION THAT MATTERS: a cost ceiling, not a row count.
+--
+-- The free tier is 100 requests a month and an overspent month cannot be bought back, so
+-- what needs guarding is the weekly bill, not how many rows happen to carry `enabled`.
+-- 8 requests a run is ~35 a month, which still leaves a comfortable majority of the quota
+-- for quote-time detail fetches. Crossing it should be a deliberate edit to this number,
+-- with the arithmetic redone — not something a config change does quietly.
+SELECT pg_temp.assert(
+    (SELECT sum(max_requests_per_run) FROM public.cruise_sync_scope WHERE enabled) <= 8,
+    'a run costs at most 8 requests, so a weekly cadence stays under ~35 of 100 a month'
+);
+
+-- Coverage before freshness. An empty catalogue walked with updated_at:desc chases churn
+-- and never accumulates; see the `sort` column comment. A sailing scope that ships in
+-- freshness mode would quietly sync almost nothing.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.cruise_sync_scope
+                 WHERE enabled AND endpoint = 'cruises' AND sort LIKE 'updated_at%'),
+    'no enabled sailing scope walks in freshness mode while the catalogue is still filling'
+);
+
+-- A sailing scope with no window would page the provider's entire inventory — 245,020
+-- rows — ten at a time, forever.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.cruise_sync_scope
+                 WHERE enabled AND endpoint = 'cruises' AND departure_within_days IS NULL),
+    'every enabled sailing scope has a bounded departure window'
 );
 
 SELECT pg_temp.assert(
