@@ -370,8 +370,18 @@ jobs:
       # incident can read what shipped together, so it names the migrations by file rather
       # than assuming anyone will diff two branches at 2am.
       #
-      # Date+sha, not semver: the three package.json versions already disagree (0.0.1 root,
-      # 0.1.0 web) and inventing a bump ceremony here would only add a lie to the tag.
+      # This used to tag date+sha and say so, because the package.json versions disagreed
+      # (0.0.1 root, 0.1.0 web) and a bump ceremony over that would only have added a lie to
+      # the tag. They agree now, and the root VERSION file is the one place that says which
+      # build this is — so the tag leads with it and the date+sha stays on the end, where it
+      # still does the work it was doing: one tag per commit per UTC day, which is what makes
+      # the re-deploy branch below safe.
+      #
+      # VERSION is a semver PRERELEASE (0.0.1-alpha), and the release is cut with
+      # --prerelease to match. That is not decoration either: `gh release list`, the repo's
+      # releases page and the Latest badge all key off that flag, and this platform handles
+      # cardholder-adjacent flows. An alpha that presents itself as a finished release is the
+      # kind of thing someone reads at 2am and believes.
       - name: Tag and release what shipped
         if: ${{ !inputs.dry_run }}
         env:
@@ -379,7 +389,19 @@ jobs:
         run: |
           set -euo pipefail
           sha="$(git rev-parse HEAD)"
-          tag="v$(date -u +%Y.%m.%d)-$(git rev-parse --short HEAD)"
+
+          # Same rule as SITE_ORIGIN above: a missing or empty VERSION fails here, loudly,
+          # rather than tagging the first production deploy "v." and leaving someone to
+          # work out which build that was.
+          version="$(tr -d '[:space:]' < VERSION 2>/dev/null || true)"
+          if [ -z "$version" ]; then
+            echo "::error::VERSION at the repo root is missing or empty; nothing to tag."
+            exit 1
+          fi
+
+          # v0.0.1-alpha.20260909.1a2b3c4 — valid semver, and the date+sha keeps one tag per
+          # commit per UTC day so the re-deploy branch below still recognises its own work.
+          tag="v${version}.$(date -u +%Y%m%d).$(git rev-parse --short HEAD)"
           previous="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
           # The first release has no predecessor, so list every migration rather than diffing.
@@ -393,6 +415,8 @@ jobs:
           [ -n "$migrations" ] || migrations="  (none)"
 
           {
+            echo "**${version}** — pre-release. Not release-grade; do not treat this as GA."
+            echo
             echo "Frontend: ${{ steps.deploy.outputs.url }}"
             echo
             echo "### Migrations in this release"
@@ -421,7 +445,7 @@ jobs:
             } > "$RUNNER_TEMP/merged.md"
             gh release edit "$tag" --notes-file "$RUNNER_TEMP/merged.md"
           else
-            gh release create "$tag" --target "$sha" --title "$tag" \
+            gh release create "$tag" --target "$sha" --title "$tag" --prerelease \
                --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
           fi
 
