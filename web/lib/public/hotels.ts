@@ -244,12 +244,17 @@ export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchRe
       // A 429 from the limiter is not an error the visitor should see — it degrades to the
       // same quiet fallback as an exhausted budget. 403 is the function refusing us: either
       // the caller token does not match the Supabase secret, or SERPAPI_API_KEY is unset.
-      console.warn("[hotels] search rejected", {
-        status: response.status,
-        hint: response.status === 403
-          ? "the function refused the call — check HOTEL_SEARCH_CALLER_TOKEN matches STA_HOTEL_SEARCH_TOKEN, and that SERPAPI_API_KEY is set"
-          : undefined,
-      });
+      // The two refusals mean different things and are fixed in different files, which is
+      // worth spelling out: both surface to a visitor as "the feed is quiet", and without
+      // this the only way to tell them apart is to read the function's source.
+      const hint = response.status === 401
+        ? "the caller token did not match — STA_HOTEL_SEARCH_TOKEN (web/.env.local) must equal HOTEL_SEARCH_CALLER_TOKEN (supabase secrets)"
+        : response.status === 403
+        ? "the function is not configured — SERPAPI_API_KEY is unset in its environment"
+        : response.status === 429
+        ? "rate limited by our own limiter, not by the provider — see hotel_search_rate_bucket"
+        : undefined;
+      console.warn("[hotels] search rejected", { status: response.status, hint });
       return { status: "unavailable" };
     }
 
