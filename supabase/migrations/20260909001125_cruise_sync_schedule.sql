@@ -26,10 +26,28 @@
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
-COMMENT ON EXTENSION pg_cron IS
-    'Scheduler for the weekly cruise sync (migration 20260909001125). First cron primitive '
-    'in this project — see that migration''s header for why the schedule is not a GitHub '
-    'Actions workflow.';
+-- COMMENT ON EXTENSION requires ownership of the extension. On Supabase's hosted Postgres
+-- pg_cron is owned by supabase_admin, not by the role the migration runs as, so this is
+-- `must be owner of extension pg_cron` (SQLSTATE 42501) in production and nowhere else.
+--
+-- WHY NOTHING CAUGHT IT. Locally the migration role DOES own the extension, so `supabase db
+-- reset` passes; and the Supabase CI job only ever runs against a local stack, so it passes
+-- too. The first environment that can fail this is production. It did, on 2026-09-09: the
+-- integration aborted here, which left the migrations after this one unapplied and took the
+-- v0.0.1-alpha release with it.
+--
+-- The comment is documentation, not schema. Set it where we are allowed to, skip it where we
+-- are not, and do not fail a deploy over a docstring. The catch is narrow on purpose —
+-- insufficient_privilege only — so a genuinely broken COMMENT still fails loudly.
+DO $$
+BEGIN
+    COMMENT ON EXTENSION pg_cron IS
+        'Scheduler for the weekly cruise sync (migration 20260909001125). First cron primitive in this project — see that migration''s header for why the schedule is not a GitHub Actions workflow.';
+EXCEPTION
+    WHEN insufficient_privilege THEN
+        RAISE NOTICE 'pg_cron is not owned by this role; skipping its COMMENT.';
+END
+$$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- The tick. Deliberately thin: it decides nothing about what to sync — that is
