@@ -1,11 +1,100 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# Dependabot — version updates.
+#
+# Distinct from Dependabot SECURITY updates, which are a repository setting and need no file:
+# those watch the dependency graph and open PRs for advisories on their own. This file is what
+# makes Dependabot also propose ROUTINE version bumps, and it is where the ecosystems and
+# directories are declared. Until it was filled in, `package-ecosystem: ""` made the config
+# invalid, so neither web nor mobile was getting anything.
+#
+# Deno is deliberately absent: supabase/functions/deno.json pins its imports by URL and
+# Dependabot has no Deno ecosystem, so the Edge Functions' dependencies are a manual review.
 version: 2
+
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/web" # Location of package manifests
+  # ── npm: the WHOLE workspace, from the root ──────────────────────────────────────
+  #
+  # `/` and not `/web`, which is what this file said before and would never have worked:
+  # web/ and contracts/ are npm workspaces (see the root package.json) and the only
+  # package-lock.json is at the repo root. Dependabot resolves a workspace tree from the
+  # directory holding the lockfile, so pointing it at web/ gives it a manifest with no lock
+  # to update. Rooting it here covers root, web/ and contracts/ in one go.
+  - package-ecosystem: npm
+    directory: "/"
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      # One PR for the safe stuff. Every PR costs a 7-job CI run, and a dozen separate
+      # patch bumps is a dozen of them for no extra information.
+      npm-minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      # No group for majors, deliberately: anything not matched by a group gets its own PR,
+      # and Next, React and Tailwind majors are each their own migration in this repo rather
+      # than something to review in a bundle. Adding an `npm-major` group here would do the
+      # opposite of what that sentence wants.
+
+  # ── Gradle: the mobile module ────────────────────────────────────────────────────
+  #
+  # `/mobile` is enough for the whole KMP build: androidApp/ and shared/ take their versions
+  # from mobile/gradle/libs.versions.toml, so the catalogue is the single place to bump.
+  - package-ecosystem: gradle
+    directory: "/mobile"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # THE ONE THAT MATTERS HERE. supabase-kt is pinned to the project's Kotlin version,
+      # not to "latest": a release newer than the compiler ships klibs with a higher ABI
+      # version, which Kotlin/Native refuses while the JVM/Android target silently tolerates
+      # it. So a lone `supabase` bump breaks iOS ONLY — and CLAUDE.md says to move `supabase`
+      # and `kotlin` together for exactly that reason.
+      #
+      # That used to be caught by the Mobile (iOS klib) CI job. It is parked (macOS runners
+      # bill at 10x), so nothing automated catches it now: Android and all seven required
+      # checks go green on a broken-for-iOS bump.
+      #
+      # Grouping them means it arrives as ONE reviewable PR instead of two that pass
+      # independently. It does NOT prove the versions are ABI-compatible, so before merging
+      # a PR from this group, run the gate locally — it needs no Xcode and takes seconds:
+      #
+      #     cd mobile && ./gradlew :shared:compileKotlinIosSimulatorArm64
+      #
+      # They are grouped rather than ignored on purpose: an `ignore` here would also
+      # suppress SECURITY updates for these packages, which is a worse trade.
+      kotlin-toolchain:
+        applies-to: version-updates
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx*"
+          - "org.jetbrains.compose*"
+          - "io.github.jan-tennert.supabase*"
+          - "com.android.tools.build*"
+      gradle-minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────────────
+  #
+  # The workflows pin actions by major tag (actions/checkout@v5, and so on). Worth watching:
+  # a pinned action going stale is how a supply-chain fix gets missed, and the CI and deploy
+  # workflows are the only things in this repo that hold secrets.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        applies-to: version-updates
+        patterns: ["*"]
