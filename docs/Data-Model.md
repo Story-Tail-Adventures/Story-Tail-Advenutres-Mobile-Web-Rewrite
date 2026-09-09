@@ -2425,8 +2425,10 @@ handler. The provider's BASIC tier allows **100 requests/month at 10 rows/reques
 rows/month — against a live inventory of **245,020 sailings**, so mirroring it is
 arithmetically out of reach (about 20 years) and no batching strategy changes that. What
 *is* affordable is the reference catalog: `/cruise-lines`, `/filter-options` and `/coverage`
-are unpaginated, so three requests refresh every line, ship, port, destination, locale and
-departure window. Measured, not estimated: one `/filter-options` call returns 4,566 ports —
+are unpaginated, so three requests refresh every line, port, destination, locale and
+departure window. Ships are the exception — an unscoped `/filter-options` gives ship names
+with no company to attach them to, so `cruise_ship` fills from sailing sync (stub rows) or
+from a paid-tier `/ships` pass; see §24.2. Measured, not estimated: one `/filter-options` call returns 4,566 ports —
 the same set `/ports` would charge 457 requests for, four months of quota. The reference scopes therefore ship enabled and the sailing scopes ship
 present-but-disabled; a tier upgrade is an `UPDATE ... SET enabled = true` and a wider
 `max_rows_per_request`, not a rewrite.

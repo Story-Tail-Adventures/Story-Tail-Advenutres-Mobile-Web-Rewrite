@@ -15,7 +15,6 @@
  *      comes from array position instead. See toPortCalls.
  */
 import type {
-  ProviderCoverage,
   ProviderCruise,
   ProviderCruiseLine,
   ProviderPortStop,
@@ -201,10 +200,23 @@ export interface ShipRow {
 }
 
 /**
+ * The provenance key for a ship.
+ *
  * The provider identifies a ship by NAME — /ships returns {ship_name, company,
- * sailing_count} with no id — so the provenance key is composite. Without the company
- * prefix, two lines that both sail a "Discovery" would collide on one row.
+ * sailing_count} with no id — so the key has to be composite: without the company prefix,
+ * two lines that both sail a "Discovery" collide on one row.
+ *
+ * THIS EXISTS AS A FUNCTION BECAUSE TWO CODE PATHS WRITE cruise_ship, and they diverged.
+ * /ships arrives through mapShip; a sailing naming a ship we have no row for mints a stub
+ * through sync.ts. When the stub built its key from the internal cruise_line UUID instead of
+ * the company slug, one ship could hold either format depending on which path saw it first
+ * — a UUID in a column documented as "the provider's identifier", and a provenance key that
+ * would change if the line row were ever recreated. Both paths now call this.
  */
+export function shipProviderKey(company: string, shipName: string): string {
+  return `${company}:${shipName.trim()}`;
+}
+
 export function mapShip(ship: ProviderShip): ShipRow {
   return {
     name: ship.ship_name.trim(),
@@ -213,7 +225,7 @@ export function mapShip(ship: ProviderShip): ShipRow {
     earliest_departure: toDate(ship.earliest_departure),
     latest_departure: toDate(ship.latest_departure),
     provider: PROVIDER,
-    provider_key: `${ship.company}:${ship.ship_name.trim()}`,
+    provider_key: shipProviderKey(ship.company, ship.ship_name),
     company: ship.company,
   };
 }
@@ -364,26 +376,6 @@ export function toCabinPrices(
   return rows;
 }
 
-export interface CoverageRow {
-  company: string;
-  slug: string;
-  sailing_count: number | null;
-  locales: string[];
-  last_updated: string | null;
-}
-
-export function mapCoverage(coverage: ProviderCoverage): CoverageRow {
-  return {
-    company: coverage.company,
-    slug: companyToSlug(coverage.company),
-    sailing_count: toIntOrNull(coverage.total_sailings),
-    locales: dedupeStrings(coverage.markets?.map((m) => m.locale).filter(isString)),
-    last_updated: toDate(coverage.last_updated),
-    // total_snapshots is deliberately ignored: their spec says "Reserved. Currently always
-    // 0", and storing a hard zero as if it were measured is how a dashboard lies later.
-  };
-}
-
 /**
  * Ship and port names arrive from several endpoints for the same entity, so duplicates
  * within one payload are normal. Order is preserved because destination arrays are rendered
@@ -406,8 +398,4 @@ export function dedupeStrings(values: unknown): string[] {
 function positiveOrNull(value: number | null | undefined): number | null {
   const int = toIntOrNull(value);
   return int !== null && int > 0 ? int : null;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === "string";
 }

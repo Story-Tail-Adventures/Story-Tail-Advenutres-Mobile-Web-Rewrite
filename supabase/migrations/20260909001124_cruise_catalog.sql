@@ -617,23 +617,29 @@ VALUES
     ('01a08376-dc00-7000-8000-000000000011', 'catalog:ports',
      'ports',           false, 50, NULL, NULL,  NULL,  10,  2),
 
-    -- Sailings, en_US, rolling 12-month window, one scope per line Story-Tail books and
-    -- track.cruises covers. Virgin Voyages is absent on purpose: the provider has no
-    -- coverage for it, so it can only ever be a curated cruise_line row.
+    -- Sailings, en_US, rolling 18-month window (548 days), one scope per line Story-Tail
+    -- books and track.cruises covers. Virgin Voyages is absent on purpose: the provider has
+    -- no coverage for it, so it can only ever be a curated cruise_line row.
+    --
+    -- 18 months is Gyasi's call and it is the right one on a metered budget. It does not
+    -- change the per-request row cap, so a single page still costs the same — but it shrinks
+    -- the result set, so a COMPLETE pass walks materially fewer pages. Departures beyond 18
+    -- months are also the ones most likely to be repriced before anyone books them, so the
+    -- pages saved are the least valuable ones.
     ('01a08376-dc00-7000-8000-000000000020', 'sailings:royal-caribbean',
-     'cruises',         false, 100, 'royal-caribbean',   'en_US', 365, 10, 2),
+     'cruises',         false, 100, 'royal-caribbean',   'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000021', 'sailings:celebrity',
-     'cruises',         false, 110, 'celebrity-cruises', 'en_US', 365, 10, 2),
+     'cruises',         false, 110, 'celebrity-cruises', 'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000022', 'sailings:disney',
-     'cruises',         false, 120, 'disney-cruise-line','en_US', 365, 10, 2),
+     'cruises',         false, 120, 'disney-cruise-line','en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000023', 'sailings:princess',
-     'cruises',         false, 130, 'princess',          'en_US', 365, 10, 2),
+     'cruises',         false, 130, 'princess',          'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000024', 'sailings:carnival',
-     'cruises',         false, 140, 'carnival',          'en_US', 365, 10, 2),
+     'cruises',         false, 140, 'carnival',          'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000025', 'sailings:norwegian',
-     'cruises',         false, 150, 'ncl',               'en_US', 365, 10, 2),
+     'cruises',         false, 150, 'ncl',               'en_US', 548, 10, 2),
     ('01a08376-dc00-7000-8000-000000000026', 'sailings:holland-america',
-     'cruises',         false, 160, 'holland-america',   'en_US', 365, 10, 2);
+     'cruises',         false, 160, 'holland-america',   'en_US', 548, 10, 2);
 
 -- Virgin Voyages. Story-Tail books it, screen 2.0.9 lists it, and track.cruises has no
 -- coverage for it at all — so it exists here as a curated row with a null provenance pair,

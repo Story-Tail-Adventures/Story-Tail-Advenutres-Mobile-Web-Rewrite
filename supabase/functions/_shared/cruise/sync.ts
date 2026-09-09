@@ -41,6 +41,7 @@ import {
   mapSailing,
   mapShip,
   PROVIDER,
+  shipProviderKey,
   toCabinPrices,
   toPortCalls,
 } from "./map.ts";
@@ -142,6 +143,7 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
   let rowsUpserted = 0;
   let rowsArchived = 0;
   let anyFailure = false;
+  let degraded = false;
 
   for (const scope of (scopes ?? []) as unknown as ScopeRow[]) {
     if (budget.allowance <= 0) {
@@ -155,6 +157,10 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
       rowsUpserted += result.rowsUpserted;
       rowsArchived += result.rowsArchived;
       scopesRun += 1;
+      if (result.note) notes.push(`${scope.label}: ${result.note}`);
+      // A scope that spent requests and stored nothing is not a success, whatever the HTTP
+      // status said. Reporting ok here is how a broken run stays broken for a month.
+      if (result.rowsUpserted === 0 && (result.droppedRows ?? 0) > 0) degraded = true;
 
       await db
         .from("cruise_sync_scope")
@@ -176,11 +182,10 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
       notes.push(`${scope.label}: ${detail}`);
 
       if (err instanceof TrackCruisesError) {
-        budget = applyQuota(budget, {
-          limit: null,
-          remaining: null,
-          resetSeconds: null,
-        });
+        // The failing response's own quota headers. A 429 reporting "0 remaining" is the
+        // most useful budget signal there is, and discarding it would let the scopes behind
+        // this one keep issuing requests the relay has already refused.
+        budget = applyQuota(budget, err.quota);
       }
 
       await db
@@ -195,7 +200,9 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     }
   }
 
-  const status = anyFailure ? (scopesRun > 0 ? "partial" : "failed") : "ok";
+  const status = anyFailure
+    ? (scopesRun > 0 ? "partial" : "failed")
+    : (degraded ? "partial" : "ok");
   requestsSpent = httpAttempts;
   await finishRun(
     db,
@@ -236,6 +243,18 @@ interface ScopeResult {
   cursor: string | null;
   highWater: string | null;
   complete: boolean;
+  /**
+   * Rows the provider returned that this scope could not store.
+   *
+   * Its own field rather than a silent `continue`, because the failure it exists to surface
+   * looked exactly like success: a sailing scope run against a catalog with no cruise_line
+   * rows spends its request, drops all ten sailings on an unresolvable line, and reports
+   * status ok with rowsUpserted 0. On a 100-request month, a request that buys nothing must
+   * say so.
+   */
+  droppedRows?: number;
+  /** Why they were dropped, for cruise_sync_run.error_detail. */
+  note?: string;
 }
 
 async function runScope(ctx: ScopeContext): Promise<ScopeResult> {
@@ -412,6 +431,8 @@ async function syncShips(ctx: ScopeContext): Promise<ScopeResult> {
   let requestsSpent = 0;
   let rowsUpserted = 0;
   let complete = false;
+  let droppedNoLine = 0;
+  const missingCompanies = new Set<string>();
   const stamp = now.toISOString();
 
   while (requestsSpent < scope.max_requests_per_run && budget.allowance > 0) {
@@ -426,7 +447,11 @@ async function syncShips(ctx: ScopeContext): Promise<ScopeResult> {
     const rows: Record<string, unknown>[] = [];
     for (const ship of page.data) {
       const lineId = await resolveLineId(db, ship.company);
-      if (!lineId) continue;
+      if (!lineId) {
+        droppedNoLine += 1;
+        missingCompanies.add(ship.company);
+        continue;
+      }
       const { company: _company, ...mapped } = mapShip(ship);
       rows.push({
         ...mapped,
@@ -457,6 +482,11 @@ async function syncShips(ctx: ScopeContext): Promise<ScopeResult> {
     cursor,
     highWater: null,
     complete,
+    droppedRows: droppedNoLine,
+    note: droppedNoLine > 0
+      ? `dropped ${droppedNoLine} ship(s): no cruise_line row for ` +
+        `${[...missingCompanies].join(", ")} — the reference scopes have to run first`
+      : undefined,
   };
 }
 
@@ -527,6 +557,8 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
   let rowsUpserted = 0;
   let complete = false;
   let highWater = scope.high_water_updated_at;
+  let droppedNoLine = 0;
+  const missingCompanies = new Set<string>();
   const stamp = now.toISOString();
 
   const departureBefore = scope.departure_within_days !== null
@@ -570,7 +602,13 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
       }
 
       const lineId = await resolveLineId(db, mapped.company);
-      if (!lineId) continue;
+      if (!lineId) {
+        // cruise_sailing.cruise_line_id is NOT NULL, so there is nothing to store this
+        // against. Counted, not swallowed — see ScopeResult.droppedRows.
+        droppedNoLine += 1;
+        missingCompanies.add(mapped.company);
+        continue;
+      }
 
       const sailingId = await upsertSailing(db, lineId, mapped, cruise, stamp, now);
       if (!sailingId) continue;
@@ -596,6 +634,11 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
     cursor,
     highWater,
     complete,
+    droppedRows: droppedNoLine,
+    note: droppedNoLine > 0
+      ? `dropped ${droppedNoLine} sailing(s): no cruise_line row for ` +
+        `${[...missingCompanies].join(", ")} — the reference scopes have to run first`
+      : undefined,
   };
 }
 
@@ -607,14 +650,29 @@ async function upsertSailing(
   stamp: string,
   now: Date,
 ): Promise<string | null> {
-  const { company: _company, ship_name: shipName, ...row } = mapped;
-  const shipId = shipName ? await resolveShipId(db, lineId, shipName, now) : null;
+  const { company, ship_name: shipName, ...row } = mapped;
+  const shipId = shipName
+    ? await resolveShipId(db, lineId, company, shipName, now)
+    : null;
+
+  // The id the stored sailing already holds, if any. Minting a new one here is what broke
+  // the second sync of every sailing that had port calls — see withExistingIds().
+  const { data: stored, error: lookupError } = await db
+    .from("cruise_sailing")
+    .select("id")
+    .eq("provider", row.provider)
+    .eq("provider_key", row.provider_key)
+    .eq("provider_locale", row.provider_locale)
+    .maybeSingle();
+  if (lookupError) {
+    throw new Error(`cruise_sailing lookup failed: ${lookupError.message}`);
+  }
 
   const { data, error } = await db
     .from("cruise_sailing")
     .upsert({
       ...row,
-      id: uuidV7(now.getTime()),
+      id: stored?.id ?? uuidV7(now.getTime()),
       cruise_line_id: lineId,
       ship_id: shipId,
       provider_payload: raw as Json,
@@ -705,15 +763,38 @@ async function upsert(
 ): Promise<number> {
   const deduped = dedupeByConflictKey(rows, onConflict);
   if (deduped.length === 0) return 0;
+  const prepared = await withExistingIds(db, table, deduped, onConflict);
   // One call site serving three tables, so the row type is the union of three Insert
   // shapes and PostgREST's builder cannot narrow it from a runtime table name. The rows
   // come from the mappers above and are asserted by the migration's constraints.
   // deno-lint-ignore no-explicit-any
-  const { error } = await (db.from(table) as any).upsert(deduped, { onConflict });
+  const { error } = await (db.from(table) as any).upsert(prepared, { onConflict });
   if (error) throw new Error(`${table} upsert failed: ${error.message}`);
-  return deduped.length;
+  return prepared.length;
 }
 
+/**
+ * Replace each row's freshly minted `id` with the id the stored row already has.
+ *
+ * WITHOUT THIS, EVERY RE-SYNC SILENTLY REWRITES PRIMARY KEYS. PostgREST's upsert is
+ * "merge duplicates", which compiles to `ON CONFLICT (...) DO UPDATE SET` over *every*
+ * column present in the payload — `id` included. So a second sync of a row that already
+ * exists sets `id = EXCLUDED.id` and the key churns.
+ *
+ * For a while that is invisible: row counts stay stable, no duplicates appear, and an
+ * idempotency check based on counting passes. It becomes a hard failure the moment anything
+ * references the id — a cruise_port_call pointing at its sailing is enough:
+ *
+ *     23503  update or delete on table "cruise_sailing" violates foreign key constraint
+ *            "cruise_port_call_sailing_id_fkey"
+ *
+ * And then it never recovers on its own, because a scope that throws never advances its
+ * cursor or high-water mark, so the same row jams every subsequent run. Which would have
+ * meant the incremental design — the entire point of `sort=updated_at:desc` — failing on its
+ * second pass, in production, on a budget that cannot be re-spent.
+ *
+ * The lookup is one query per batch keyed on the conflict columns, not one per row.
+ */
 /**
  * Drop rows repeating a conflict key WITHIN one batch, keeping the last.
  *
@@ -744,6 +825,76 @@ function dedupeByConflictKey(
 }
 
 /**
+ * Replace each row's freshly minted `id` with the id the stored row already has.
+ *
+ * WITHOUT THIS, EVERY RE-SYNC SILENTLY REWRITES PRIMARY KEYS. PostgREST's upsert is
+ * "merge duplicates", which compiles to `ON CONFLICT (...) DO UPDATE SET` over *every*
+ * column in the payload — `id` included. So a second sync of an existing row sets
+ * `id = EXCLUDED.id` and the key churns.
+ *
+ * For a while that is invisible: row counts stay stable, no duplicates appear, and an
+ * idempotency check based on counting rows passes. It becomes a hard failure the moment
+ * anything references the id — one cruise_port_call pointing at its sailing is enough:
+ *
+ *     23503  update or delete on table "cruise_sailing" violates foreign key constraint
+ *            "cruise_port_call_sailing_id_fkey"
+ *
+ * And it never recovers unaided, because a scope that throws never advances its cursor or
+ * high-water mark, so the same row jams every later run. That is the incremental design —
+ * the entire point of sort=updated_at:desc — failing on its second pass, in production, on
+ * a budget that cannot be re-spent.
+ */
+async function withExistingIds(
+  db: Db,
+  table: "cruise_line" | "cruise_ship" | "cruise_port",
+  rows: Record<string, unknown>[],
+  onConflict: string,
+): Promise<Record<string, unknown>[]> {
+  const columns = onConflict.split(",").map((c) => c.trim()).filter(Boolean);
+  if (columns.length === 0) return rows;
+
+  const keyOf = (row: Record<string, unknown>) =>
+    JSON.stringify(columns.map((c) => row[c] ?? null));
+
+  // Page the whole table's (id + key) columns rather than filtering by the batch's keys.
+  //
+  // The obvious `.in(column, values)` does not survive contact with real data: one
+  // /filter-options response carries 4,566 ports, and 4,566 names in a query string is a
+  // URL PostgREST rejects outright ("Invalid URL"). Chunking the filter would work, but
+  // these are small reference tables by definition — two columns across a few thousand rows
+  // — so fetching the lot in pages is one predictable cost instead of an unbounded number
+  // of round trips whose size depends on the provider's response.
+  //
+  // Paged rather than a bare select because PostgREST silently caps an unbounded select at
+  // its max-rows setting, and a silent cap here would look exactly like "no existing row",
+  // which is the bug this function exists to prevent.
+  //
+  // cruise_sailing deliberately does NOT use this path — it can grow to hundreds of
+  // thousands of rows, so upsertSailing() looks up its one row by natural key instead.
+  const existing = new Map<string, string>();
+  const pageSize = 1000;
+  for (let from = 0;; from += pageSize) {
+    // deno-lint-ignore no-explicit-any
+    const { data, error } = await (db.from(table) as any)
+      .select(["id", ...columns].join(","))
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`${table} id lookup failed: ${error.message}`);
+
+    const page = (data ?? []) as Record<string, unknown>[];
+    for (const row of page) {
+      const id = row.id;
+      if (typeof id === "string") existing.set(keyOf(row), id);
+    }
+    if (page.length < pageSize) break;
+  }
+
+  return rows.map((row) => {
+    const found = existing.get(keyOf(row));
+    return found ? { ...row, id: found } : row;
+  });
+}
+
+/**
  * Soft-archive rows this provider stopped returning.
  *
  * Only ever called after a COMPLETE pass, and only for rows this provider owns — a curated
@@ -768,23 +919,24 @@ async function archiveMissing(
   return (data as unknown[] | null)?.length ?? 0;
 }
 
-const lineIdCache = new Map<string, string | null>();
-
-/** Provider company -> our cruise_line id. Cached per invocation; the table is tiny. */
+/**
+ * Provider company -> our cruise_line id.
+ *
+ * DELIBERATELY NOT CACHED at module scope. An Edge Function isolate is reused across
+ * invocations, so a module-level map would hand back an id from a previous run — and an id
+ * is exactly the thing that can go stale, whether from an archival sweep or a concurrent
+ * re-sync. The failure mode is a foreign key violation on an insert that looks correct.
+ * cruise_line has ten rows; the lookup is not worth the risk.
+ */
 async function resolveLineId(db: Db, company: string): Promise<string | null> {
   const slug = companyToSlug(company);
-  if (lineIdCache.has(slug)) return lineIdCache.get(slug) ?? null;
-
   const { data, error } = await db
     .from("cruise_line")
     .select("id")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw new Error(`cruise_line lookup failed: ${error.message}`);
-
-  const id = data?.id ?? null;
-  lineIdCache.set(slug, id);
-  return id;
+  return data?.id ?? null;
 }
 
 /**
@@ -797,6 +949,7 @@ async function resolveLineId(db: Db, company: string): Promise<string | null> {
 async function resolveShipId(
   db: Db,
   lineId: string,
+  company: string,
   shipName: string,
   now: Date,
 ): Promise<string | null> {
@@ -818,7 +971,9 @@ async function resolveShipId(
       name: shipName,
       slug: null,
       provider: PROVIDER,
-      provider_key: `${lineId}:${shipName}`,
+      // shipProviderKey, not the line uuid: this column is the PROVIDER's identifier, and
+      // /ships must be able to upsert onto the same row later.
+      provider_key: shipProviderKey(company, shipName),
       synced_at: stamp,
       last_seen_at: stamp,
       updated_at: stamp,

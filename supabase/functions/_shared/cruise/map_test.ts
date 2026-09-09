@@ -14,6 +14,7 @@ import {
   mapPort,
   mapSailing,
   mapShip,
+  shipProviderKey,
   slugify,
   toCabinPrices,
   toCents,
@@ -381,4 +382,27 @@ Deno.test("mapPort strips the quoting debris in the live port catalogue", () => 
   // A count the vocabulary endpoint does not supply stays null, never a misleading zero.
   assertEquals(mapPort("Nassau, Bahamas").sailing_count, null);
   assertEquals(mapPort("Nassau, Bahamas", 5401).sailing_count, 5401);
+});
+
+Deno.test("both writers of cruise_ship agree on the provenance key", () => {
+  // Two code paths write this table: /ships through mapShip, and a sailing naming an unknown
+  // ship through sync.ts's stub path. They diverged — the stub built its key from the
+  // internal cruise_line UUID, so one ship could hold either format depending on which path
+  // saw it first, and the "provider's identifier" column held a value the provider never
+  // sent. This asserts they cannot drift apart again.
+  const fromShipsEndpoint = mapShip({
+    ship_name: "Norwegian Spirit",
+    company: "ncl",
+    sailing_count: 42,
+  });
+  assertEquals(
+    fromShipsEndpoint.provider_key,
+    shipProviderKey("ncl", "Norwegian Spirit"),
+  );
+  assertEquals(fromShipsEndpoint.provider_key, "ncl:Norwegian Spirit");
+
+  // The company slug, never a uuid: a provenance key must survive the line row being
+  // recreated, and must be reconcilable against the provider.
+  assertEquals(shipProviderKey("ncl", "  Norwegian Spirit  "), "ncl:Norwegian Spirit");
+  assertEquals(/^[0-9a-f-]{36}:/.test(fromShipsEndpoint.provider_key), false);
 });

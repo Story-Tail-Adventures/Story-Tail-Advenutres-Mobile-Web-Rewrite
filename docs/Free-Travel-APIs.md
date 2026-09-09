@@ -375,8 +375,16 @@ scheduling cleverness touches it.
 
 The reference catalogue, however, is nearly free, and by a wider margin than expected:
 `/cruise-lines`, `/filter-options` and `/coverage` take no `limit` parameter, so **three
-requests refresh every line, ship, port, destination, locale and departure-date window** — 12
+requests refresh every line, port, destination, locale and departure-date window** — 12
 requests/month at a weekly cadence out of 100.
+
+**Ships are the one exception, and it is worth being precise about.** An unscoped
+`/filter-options` returns ship names with no company attached, and `cruise_ship.cruise_line_id`
+is `NOT NULL` — there is nothing to attach them to, and guessing a line from a ship's name is
+how a "Discovery" ends up on the wrong one. So ships arrive by one of two routes instead: as
+stub rows minted whenever a synced sailing names a ship no row exists for (measured: one
+`/cruises` request produced 10 sailings and 7 Norwegian ships), or from `/ships` and
+per-company `/filter-options` scopes once a paid tier makes their pagination affordable.
 
 Measured, not estimated: one `/filter-options` call returned **4,566 ports**. Paging the same
 catalogue out of `/ports` at 10 rows a request would cost **457 requests — four and a half

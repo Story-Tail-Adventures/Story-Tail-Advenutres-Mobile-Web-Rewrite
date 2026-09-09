@@ -91,12 +91,28 @@ export class TrackCruisesError extends Error {
   constructor(
     readonly status: number | null,
     readonly code: string,
+    /**
+     * ALREADY REDACTED, at construction rather than at the one call site that writes a
+     * ledger row — because `detail` does not stop there. It also reaches
+     * cruise_sync_scope.last_error, cruise_sync_run.error_detail,
+     * audit_event.metadata.notes and the function's own HTTP response body. Redacting at
+     * one of five readers protects one of five.
+     */
     readonly detail: string,
     /** True when retrying cannot succeed: bad key, bad request, tier gate. */
     readonly permanent: boolean,
     readonly retryAfterSeconds: number | null = null,
     readonly requiredTier: string | null = null,
     readonly providerRequestId: string | null = null,
+    /**
+     * The quota the relay reported on the response that failed.
+     *
+     * Carried on the error because otherwise it is lost precisely when it matters most: a
+     * 429 whose headers say "0 remaining" is the most useful budget signal there is, and
+     * dropping it forces the caller to null out what it already knew. budget.ts's whole
+     * invariant is that the header wins — an error path that discards the header breaks it.
+     */
+    readonly quota: QuotaSnapshot = { limit: null, remaining: null, resetSeconds: null },
   ) {
     super(`${code}: ${detail}`);
     this.name = "TrackCruisesError";
@@ -196,7 +212,7 @@ export function createTrackCruisesClient(options: ClientOptions) {
         const parsed = safeJsonParse(text);
 
         if (!response.ok) {
-          failure = toError(response, parsed, text);
+          failure = toError(response, parsed, text, quota, options.apiKey);
           providerRequestId = failure.providerRequestId;
         } else {
           body = (parsed ?? {}) as T;
@@ -209,7 +225,7 @@ export function createTrackCruisesClient(options: ClientOptions) {
         failure = new TrackCruisesError(
           null,
           "network_error",
-          err instanceof Error ? err.message : String(err),
+          redact(err instanceof Error ? err.message : String(err), options.apiKey),
           false,
         );
       }
@@ -228,7 +244,7 @@ export function createTrackCruisesClient(options: ClientOptions) {
           providerRequestId,
           quota,
           errorCode: failure?.code ?? null,
-          errorDetail: failure ? redact(failure.detail, options.apiKey) : null,
+          errorDetail: failure?.detail ?? null,
         });
       }
 
@@ -406,6 +422,8 @@ function toError(
   response: Response,
   parsed: unknown,
   rawText: string,
+  quota: QuotaSnapshot,
+  apiKey: string,
 ): TrackCruisesError {
   const status = response.status;
   const problem = (parsed ?? {}) as ProviderProblem & { message?: string };
@@ -428,11 +446,12 @@ function toError(
   return new TrackCruisesError(
     status,
     code,
-    detail,
+    redact(detail, apiKey),
     permanent,
     retryAfter,
     problem.required_tier ?? null,
     problem.request_id ?? null,
+    quota,
   );
 }
 
