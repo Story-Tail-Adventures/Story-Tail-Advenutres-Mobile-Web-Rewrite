@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.Assurance
+import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
@@ -46,6 +47,7 @@ import com.storytail.adventures.ui.screens.auth.ResetPasswordViewModel
 import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
 import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
+import com.storytail.adventures.ui.screens.account.AccountRoute
 import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
@@ -63,10 +65,12 @@ fun App() {
         var authRepository by remember { mutableStateOf<AuthRepository?>(null) }
         var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
         var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
+        var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
             tripRepository = SupabaseClientProvider.tripRepository()
+            accountRepository = SupabaseClientProvider.accountRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -212,7 +216,6 @@ fun App() {
             is AppRoute.PastTrip,
             is AppRoute.TripUpdate,
             -> {
-                val scope = rememberCoroutineScope()
                 // The §2.2 section host, matching how PublicRoute and OnboardingRoute are
                 // handed a route rather than App.kt branching per screen.
                 val trips = tripRepository
@@ -230,6 +233,46 @@ fun App() {
                         // in rather than read from the clock inside them — see
                         // domain/trip/TripStatus.kt.
                         today = LocalDate.parse(today),
+                    )
+                }
+            }
+
+            // Every §2.5 route goes to one host, listed for the same reason §2.2's are: the
+            // `when` stays exhaustive, so a route added to AppRoute without a home fails to
+            // compile rather than falling through to whatever branch happened to be last.
+            AppRoute.Account,
+            AppRoute.AccountPersonal,
+            AppRoute.AccountPreferences,
+            AppRoute.AccountDocuments,
+            AppRoute.AccountNotifications,
+            AppRoute.AccountSecurity,
+            AppRoute.AccountConnected,
+            AppRoute.AccountPrivacy,
+            AppRoute.AccountClose,
+            AppRoute.AccountHelp,
+            -> {
+                val scope = rememberCoroutineScope()
+                val account = accountRepository
+                val onboarding = onboardingRepository
+                val trips = tripRepository
+                if (account == null || onboarding == null || trips == null) {
+                    SplashScreen()
+                } else {
+                    AccountRoute(
+                        route = route,
+                        nav = nav,
+                        account = account,
+                        // 2.5.2 and 2.5.3 write through the wizard's own Edge Functions,
+                        // minus the `advance` flag — see AccountRoute.
+                        onboarding = onboarding,
+                        // 2.5.4 opens a file through `trip-document-url`, which is the only
+                        // door into the bucket and works for an account-scoped document
+                        // too: it checks `client_id` before it looks at `trip_id`.
+                        trips = trips,
+                        // 2.5.7 reads MFA state from GoTrue rather than the dead
+                        // `mfa_device` table, exactly as 2.1.6 writes it.
+                        auth = repo,
+                        today = today,
                         onSignOut = { scope.launch { repo.signOut() } },
                     )
                 }

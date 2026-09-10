@@ -200,4 +200,87 @@ sealed interface AppRoute {
     data class TripUpdate(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
+
+    // ── Screen Inventory §2.5, Account & Profile ────────────────────────────────
+    //
+    // [Account] is the Account TAB'S ROOT; the other nine are pushed from it and carry a back
+    // bar instead of the tab bar. That split is the artboards' — `M251_AccountOverview` is
+    // the only §2.5 frame drawn with `MClientTabs` as its footer.
+    //
+    // ONE ROUTE EACH, rather than one route carrying a section like [Onboarding] does. The
+    // wizard is genuinely one screen with six faces — shared chrome, shared exits, an order
+    // that lives in a single enum. These ten share nothing but a back button: a settings hub,
+    // two forms, a document list, a placeholder, and five read-only panels.
+    //
+    // NO PER-TAB STACK YET, and §2.5 is where [Navigator.selectTab] said to revisit that.
+    // Going Account → Personal info → Trips → Account lands on the hub rather than back on
+    // the form. That is the platform-conventional behaviour for a tab that was RESET, and it
+    // is the behaviour every one of these screens can afford — none of them holds unsaved
+    // work across a tab switch, because both forms are Save-or-Cancel and the rest are reads.
+    // The decision is recorded here rather than deferred silently: a per-tab stack is four
+    // stacks to restore on process death, and it becomes worth it when §2.6's thread lands,
+    // where leaving a half-typed message behind IS a loss.
+
+    /** Screen 2.5.1, and the root of the Account tab. */
+    data object Account : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.2. */
+    data object AccountPersonal : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.3. */
+    data object AccountPreferences : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.5.4, the ACCOUNT-WIDE document library.
+     *
+     * Distinct from [TripDocuments], which is §2.2.6 and takes a trip. The rows look the
+     * same and the read is the same one without the trip filter, but a traveler with no trip
+     * yet still has a passport, and that is the case this route exists for.
+     */
+    data object AccountDocuments : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.6. A placeholder — see the screen for the four things that block it. */
+    data object AccountNotifications : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.7. */
+    data object AccountSecurity : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.8. */
+    data object AccountConnected : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.9. */
+    data object AccountPrivacy : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.5.10, account closure.
+     *
+     * A FULL-SCREEN ROUTE, not a bottom sheet — departure 11 in the mobile artboard. A
+     * sheet's grabber means "swipe this away", which is exactly the wrong affordance on a
+     * destructive confirmation, and the screen deserves its own Back for the same reason
+     * §2.2.9 is a route rather than an overlay.
+     */
+    data object AccountClose : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.11. */
+    data object AccountHelp : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
 }

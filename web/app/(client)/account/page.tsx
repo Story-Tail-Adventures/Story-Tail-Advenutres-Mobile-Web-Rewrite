@@ -63,7 +63,7 @@ export default async function AccountPage() {
   const initials = initialsFor(client?.preferred_name ?? client?.first_name, client?.last_name);
   const displayName =
     [client?.preferred_name ?? client?.first_name, client?.last_name].filter(Boolean).join(" ") ||
-    "Your account";
+    ACCOUNT.fallbackName;
 
   const memberSince = client?.created_at
     ? new Date(client.created_at).toLocaleDateString("en-US", {

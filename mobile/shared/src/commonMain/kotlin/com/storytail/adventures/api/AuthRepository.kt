@@ -327,6 +327,7 @@ object SupabaseClientProvider {
     private var cached: AuthRepository? = null
     private var cachedOnboarding: OnboardingRepository? = null
     private var cachedTrip: TripRepository? = null
+    private var cachedAccount: AccountRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -374,11 +375,28 @@ object SupabaseClientProvider {
             }
         }
 
+    /**
+     * The §2.5 account reads, on the SAME client again.
+     *
+     * Separate from [tripRepository] because the sections are separate — §2.5's reads are
+     * `client`, `address`, `travel_preference`, `account` and the account-wide `document`
+     * list, none of which is a trip — but it is deliberately NOT a second Supabase client.
+     * Two clients would mean two sessions and two refresh loops.
+     */
+    suspend fun accountRepository(): AccountRepository =
+        withContext(Dispatchers.Default) {
+            cachedAccount ?: run {
+                build()
+                cachedAccount!!
+            }
+        }
+
     private fun build() {
         if (!SupabaseConfig.isConfigured) {
             cached = UnconfiguredAuthRepository()
             cachedOnboarding = UnconfiguredOnboardingRepository()
             cachedTrip = UnconfiguredTripRepository()
+            cachedAccount = UnconfiguredAccountRepository()
             return
         }
         val client = createSupabaseClient(
@@ -392,5 +410,6 @@ object SupabaseClientProvider {
         cached = SupabaseAuthRepository(client)
         cachedOnboarding = SupabaseOnboardingRepository(client)
         cachedTrip = SupabaseTripRepository(client)
+        cachedAccount = SupabaseAccountRepository(client)
     }
 }

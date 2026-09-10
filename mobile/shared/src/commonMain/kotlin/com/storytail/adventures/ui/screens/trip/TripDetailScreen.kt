@@ -237,7 +237,7 @@ private fun QuickTiles(
                 formatMoney(it.amountCents, it.currency) +
                     (it.dueDate?.let { d -> " due ${formatDay(d)}" } ?: "")
             } ?: if (detail.milestones.isEmpty()) "Nothing scheduled" else "All paid",
-            // §2.4, which lands next. Disabled rather than pointed at a screen that is not
+            // §2.4, which is unbuilt. Disabled rather than pointed at a screen that is not
             // there — the tile keeps its place so the 2×2 does not reflow later.
             onClick = null,
         ),

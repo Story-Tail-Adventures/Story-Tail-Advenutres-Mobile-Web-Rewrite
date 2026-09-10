@@ -12,6 +12,8 @@ export const HELP = {
   subtitle: "Quick answers, or talk to Gyasi directly.",
 
   advisorName: "Gyasi Story · your advisor",
+  /** Initials, never a photograph — the same rule 2.5.1's avatar follows. */
+  advisorInitials: "GS",
   replyWindow: "Usually replies the same day",
   advisorBody: "Anything about your own trip is quickest this way. There is never a fee for asking.",
   messageCta: "Message Gyasi",

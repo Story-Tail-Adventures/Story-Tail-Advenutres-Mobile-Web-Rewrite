@@ -4,10 +4,21 @@ Android + iOS apps built with **Kotlin Multiplatform** and **Compose Multiplatfo
 
 ## Status
 
-**Building and running on Android.** The Story-Tail theme, supabase-kt, and Screen 2.1.1
-Login are all in place. What is still missing: the bundled brand fonts (the TTFs are not
-in the repo, so `StoryTailTypography.kt` falls back to `FontFamily.Default`), and every
-screen after Login.
+**Building and running on Android**, with four Screen Inventory sections shipped:
+
+| Section | Screens | Where |
+|---|---|---|
+| §2.0 public | 11 | `ui/screens/public/` |
+| §2.1 auth + onboarding | 13 (2.1.8 is web-only) | `ui/screens/auth/`, `ui/screens/onboarding/` |
+| §2.2 trips | 11 | `ui/screens/trip/`, `ui/screens/dashboard/` |
+| §2.5 account | 10 | `ui/screens/account/` |
+
+The bottom bar (`domain/trip/ClientDestinations.kt`) shows two live tabs of four — Trips and
+Account. Discover is §2.3 and Phase 2; Messages is §2.6 and unbuilt. Both stay VISIBLE and
+dimmed rather than hidden, so the bar does not move under the reader's thumb as sections land.
+
+Still missing: the bundled brand fonts (the TTFs are not in the repo, so
+`StoryTailTypography.kt` falls back to `FontFamily.Default`).
 
 ```bash
 ./gradlew :androidApp:assembleDebug

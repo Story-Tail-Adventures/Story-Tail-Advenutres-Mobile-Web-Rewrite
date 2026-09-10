@@ -25,15 +25,15 @@ import kotlinx.datetime.LocalDate
  * section either IS a tab root or was pushed from one, and App.kt should not have to know
  * which.
  *
- * [onSignOut] is threaded through but not yet rendered: the real 2.2.1 has no sign-out
- * control — that belongs to §2.5.1 Account, which is the tab it lives under. It stays on
- * this signature because App.kt owns the session and the Account tab will need it from
- * here, and dropping it would mean re-plumbing it in a stage's time.
+ * The sign-out control is NOT here: 2.2.1 has none, and it belongs to §2.5.1, which is now
+ * built and hosts it. This route used to carry an unused `onSignOut` against that day; the
+ * day arrived and the parameter went with it, because §2.5 is a sibling host under App.kt
+ * rather than something reached through this one.
  *
- * [onSelectTab] maps a tab id from `CLIENT_BAR_DESTINATIONS` to a route. Only `trips` is
- * built; the other three are dimmed and unpressable in the bar, so they cannot arrive here
- * — but the `else` branch is a no-op rather than a throw, because a bar that crashes the
- * app when a future tab is half-wired is worse than one that does nothing.
+ * [onSelectTab] maps a tab id from `CLIENT_BAR_DESTINATIONS` to a route. Two of the four are
+ * built; the other two are dimmed and unpressable in the bar, so they cannot arrive here —
+ * but the `else` branch is a no-op rather than a throw, because a bar that crashes the app
+ * when a future tab is half-wired is worse than one that does nothing.
  */
 @Composable
 fun TripRoute(
@@ -41,13 +41,13 @@ fun TripRoute(
     nav: Navigator,
     trips: TripRepository,
     today: LocalDate,
-    onSignOut: () -> Unit,
 ) {
     val links = rememberPlatformLinks()
 
     val onSelectTab: (String) -> Unit = { id ->
         when (id) {
             "trips" -> nav.selectTab(AppRoute.Dashboard)
+            "account" -> nav.selectTab(AppRoute.Account)
             else -> Unit
         }
     }

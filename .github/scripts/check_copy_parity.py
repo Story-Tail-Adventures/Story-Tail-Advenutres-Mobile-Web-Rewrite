@@ -27,6 +27,7 @@ DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventure
 WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
 TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
 TRIP_SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip"
+ACCOUNT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
@@ -559,7 +560,9 @@ MESSAGE_TABLES = [
         "label": "2.1.10 profile screen",
         "web_file": WEB_WIZARD / "profile/state.ts",
         "web_const": "PROFILE_TEXT",
-        "kmp_file": WIZARD_DIR / "ProfileScreen.kt",
+        # ProfileCopy moved to ProfileFields.kt when §2.5.2 mounted the same form. The
+        # labels belong to the fields, not to either screen that wraps them.
+        "kmp_file": WIZARD_DIR / "ProfileFields.kt",
         "kmp_object": "ProfileCopy",
         "keys": {
             "title": "TITLE",
@@ -598,7 +601,9 @@ MESSAGE_TABLES = [
         "label": "2.1.11 preferences screen",
         "web_file": WEB_WIZARD / "preferences/state.ts",
         "web_const": "PREFERENCES_TEXT",
-        "kmp_file": WIZARD_DIR / "PreferencesScreen.kt",
+        # PreferencesCopy moved to PreferencesFields.kt with the controls, for the same
+        # reason ProfileCopy moved — §2.5.3 mounts them too.
+        "kmp_file": WIZARD_DIR / "PreferencesFields.kt",
         "kmp_object": "PreferencesCopy",
         "keys": {
             "title": "TITLE",
@@ -716,6 +721,230 @@ MESSAGE_TABLES = [
             "shortProfile": "SHORT_PROFILE",
             "shortPreferences": "SHORT_PREFERENCES",
             "shortCompanions": "SHORT_COMPANIONS",
+        },
+    },
+    {
+        # Nine settings rows and three group headings. The subtitles say what is INSIDE, in
+        # data, so a wording change on one stack shows a different drawer label on the other.
+        "label": "2.5.1 account overview",
+        "web_file": ROOT / "web/app/(client)/account/content.ts",
+        "web_const": "ACCOUNT",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "AccountMessages",
+        "keys": {
+            "title": "TITLE",
+            "fallbackName": "FALLBACK_NAME",
+            "groupYou": "GROUP_YOU",
+            "groupApp": "GROUP_APP",
+            "groupSupport": "GROUP_SUPPORT",
+            "personal": "PERSONAL",
+            "personalSub": "PERSONAL_SUB",
+            "preferences": "PREFERENCES",
+            "preferencesSub": "PREFERENCES_SUB",
+            "documents": "DOCUMENTS",
+            "documentsEmptySub": "DOCUMENTS_EMPTY_SUB",
+            "notifications": "NOTIFICATIONS",
+            "security": "SECURITY",
+            "securitySub": "SECURITY_SUB",
+            "connected": "CONNECTED",
+            "connectedSub": "CONNECTED_SUB",
+            "help": "HELP",
+            "helpSub": "HELP_SUB",
+            "privacy": "PRIVACY",
+            "privacySub": "PRIVACY_SUB",
+            "wallet": "WALLET",
+            "comingSoon": "COMING_SOON",
+            "signOut": "SIGN_OUT",
+        },
+    },
+    {
+        # `identityNote` explains why two fields are read-only. If one stack softened it, that
+        # stack would be implying an edit the write path cannot take.
+        "label": "2.5.2 personal info",
+        "web_file": ROOT / "web/app/(client)/account/personal/content.ts",
+        "web_const": "PERSONAL",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "PersonalMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "identityHeading": "IDENTITY_HEADING",
+            "nameLabel": "NAME_LABEL",
+            "emailLabel": "EMAIL_LABEL",
+            "notSet": "NOT_SET",
+            "identityNote": "IDENTITY_NOTE",
+            "save": "SAVE",
+            "cancel": "CANCEL",
+        },
+    },
+    {
+        # Four strings. The form itself is 2.1.11's and already covered by that row.
+        "label": "2.5.3 preferences edit",
+        "web_file": ROOT / "web/app/(client)/account/preferences/content.ts",
+        "web_const": "ACCOUNT_PREFERENCES",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "AccountPreferencesMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "save": "SAVE",
+            "cancel": "CANCEL",
+        },
+    },
+    {
+        # `privacyNote` is a claim about the FILE in Storage — encrypted at rest, reachable
+        # only through the audited signer. A claim like that must not drift.
+        "label": "2.5.4 document library",
+        "web_file": ROOT / "web/app/(client)/documents/content.ts",
+        "web_const": "DOCUMENTS_LIBRARY",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "DocumentLibraryMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "uploadCta": "UPLOAD_CTA",
+            "uploadDeferred": "UPLOAD_DEFERRED",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "emptyCta": "EMPTY_CTA",
+            "privacyNote": "PRIVACY_NOTE",
+        },
+    },
+    {
+        # A placeholder whose whole job is the wording. Both stacks have to answer the reader's
+        # real question — "so how will you reach me?" — the same way.
+        "label": "2.5.6 notifications",
+        "web_file": ROOT / "web/app/(client)/account/notifications/content.ts",
+        "web_const": "NOTIFICATIONS",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "NotificationsMessages",
+        "keys": {
+            "title": "TITLE",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "reachYou": "REACH_YOU",
+        },
+    },
+    {
+        # The deferral sentences here are security advice. `sessionsAdvice` tells somebody what
+        # to do if their account is compromised; two versions of that is one too many.
+        "label": "2.5.7 security",
+        "web_file": ROOT / "web/app/(client)/account/security/content.ts",
+        "web_const": "SECURITY",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "SecurityMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "passwordTitle": "PASSWORD_TITLE",
+            "passwordBody": "PASSWORD_BODY",
+            "passwordCta": "PASSWORD_CTA",
+            "passwordDeferred": "PASSWORD_DEFERRED",
+            "noPasswordTitle": "NO_PASSWORD_TITLE",
+            "noPasswordCta": "NO_PASSWORD_CTA",
+            "mfaTitle": "MFA_TITLE",
+            "mfaOn": "MFA_ON",
+            "mfaOff": "MFA_OFF",
+            "mfaBody": "MFA_BODY",
+            "mfaEnableCta": "MFA_ENABLE_CTA",
+            "mfaManageCta": "MFA_MANAGE_CTA",
+            "mfaManageDeferred": "MFA_MANAGE_DEFERRED",
+            "sessionsHeading": "SESSIONS_HEADING",
+            "sessionsDeferred": "SESSIONS_DEFERRED",
+            "sessionsAdvice": "SESSIONS_ADVICE",
+        },
+    },
+    {
+        # `safetyNote` answers the question a disabled Unlink button provokes. Do not let
+        # either stack soften it into "manage your sign-in options".
+        "label": "2.5.8 connected accounts",
+        "web_file": ROOT / "web/app/(client)/account/connected/content.ts",
+        "web_const": "CONNECTED",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "ConnectedMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "linked": "LINKED",
+            "notLinked": "NOT_LINKED",
+            "linkCta": "LINK_CTA",
+            "unlinkCta": "UNLINK_CTA",
+            "linkDeferred": "LINK_DEFERRED",
+            "unlinkDeferred": "UNLINK_DEFERRED",
+            "emailAccountNote": "EMAIL_ACCOUNT_NOTE",
+            "oauthAccountNote": "OAUTH_ACCOUNT_NOTE",
+            "safetyNote": "SAFETY_NOTE",
+        },
+    },
+    {
+        # `trackingBody` must also stay consistent with the published cookie policy — a privacy
+        # claim that drifts from a legal page is worse than no claim.
+        "label": "2.5.9 privacy",
+        "web_file": ROOT / "web/app/(client)/account/privacy/content.ts",
+        "web_const": "PRIVACY",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "PrivacyMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "exportTitle": "EXPORT_TITLE",
+            "exportBody": "EXPORT_BODY",
+            "exportCta": "EXPORT_CTA",
+            "exportDeferred": "EXPORT_DEFERRED",
+            "trackingHeading": "TRACKING_HEADING",
+            "trackingBody": "TRACKING_BODY",
+            "cookiesLink": "COOKIES_LINK",
+            "closeTitle": "CLOSE_TITLE",
+            "closeBody": "CLOSE_BODY",
+            "closeCta": "CLOSE_CTA",
+        },
+    },
+    {
+        # EVERY LINE IS A RETENTION OR LEGAL CLAIM. `whatHappens` is a list and so is skipped by
+        # web_messages — it is covered by the paired unit test instead.
+        "label": "2.5.10 account closure",
+        "web_file": ROOT / "web/app/(client)/account/close/content.ts",
+        "web_const": "CLOSE",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "CloseMessages",
+        "keys": {
+            "title": "TITLE",
+            "back": "BACK",
+            "heading": "HEADING",
+            "whatHappensLabel": "WHAT_HAPPENS_LABEL",
+            "reconsiderBody": "RECONSIDER_BODY",
+            "reconsiderCta": "RECONSIDER_CTA",
+            "mailto": "MAILTO",
+            "reasonLabel": "REASON_LABEL",
+            "reasonPlaceholder": "REASON_PLACEHOLDER",
+            "confirmLabel": "CONFIRM_LABEL",
+            "confirmPlaceholder": "CONFIRM_PLACEHOLDER",
+            "confirmHint": "CONFIRM_HINT",
+            "confirmCta": "CONFIRM_CTA",
+            "keepCta": "KEEP_CTA",
+            "deferred": "DEFERRED",
+        },
+    },
+    {
+        # `replyWindow` is the settled authenticated-surface string. The public surface's
+        # "< 2h" is unverified and fenced behind PUBLIC_CLAIMS_MODE=strict; it must not
+        # spread here on either stack.
+        "label": "2.5.11 help",
+        "web_file": ROOT / "web/app/(client)/account/help/content.ts",
+        "web_const": "HELP",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "HelpMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "advisorName": "ADVISOR_NAME",
+            "advisorInitials": "ADVISOR_INITIALS",
+            "replyWindow": "REPLY_WINDOW",
+            "advisorBody": "ADVISOR_BODY",
+            "messageCta": "MESSAGE_CTA",
+            "mailto": "MAILTO",
+            "faqHeading": "FAQ_HEADING",
+            "legalHeading": "LEGAL_HEADING",
         },
     },
 ]

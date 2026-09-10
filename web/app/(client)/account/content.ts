@@ -16,6 +16,9 @@ export const ACCOUNT = {
   title: "Account",
   memberSince: (month: string) => `Traveling with Gyasi since ${month}`,
 
+  /** Shown when the name read failed or the columns are still at their placeholders. */
+  fallbackName: "Your account",
+
   groupYou: "YOU",
   groupApp: "APP",
   groupSupport: "SUPPORT",

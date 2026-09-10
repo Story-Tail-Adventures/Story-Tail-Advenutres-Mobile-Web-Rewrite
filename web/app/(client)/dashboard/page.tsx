@@ -32,7 +32,7 @@ export const metadata: Metadata = { title: "Your trips" };
  *     to count. The artboard's third tab is gone rather than rendered empty.
  *   * "New idea" / "Explore trips" repoint at the trip thread. §2.3 is Phase 2 and the CTA
  *     had no destination; asking Gyasi is how a trip actually starts at MVP.
- *   * "Authorize a card" renders DISABLED. §2.4 is Phase 1 and lands next, so unlike the
+ *   * "Authorize a card" renders DISABLED. §2.4 is Phase 1 and unbuilt, so unlike the
  *     search CTA there is a real destination coming — the button keeps its place in the
  *     layout and says why it is not pressable yet.
  *   * The countdown shows days only, not days/hours/minutes. The artboard's HR and MIN
@@ -224,7 +224,7 @@ function ActionNeeded({
         {formatTripMoney(payment.amountCents, payment.currency)}
         {payment.dueDate ? ` due ${formatDay(payment.dueDate)}` : ""}
       </div>
-      {/* §2.4 lands next. Disabled and saying why, rather than pointed at a route that
+      {/* §2.4 is unbuilt. Disabled and saying why, rather than pointed at a route that
           does not exist — see the departures note on the page component. */}
       <button
         type="button"

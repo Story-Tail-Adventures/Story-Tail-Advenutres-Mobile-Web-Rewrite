@@ -3,8 +3,7 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
-import { GYASI_FAQ } from "@/content/public/faq/gyasi";
-import { HOW_IT_WORKS_FAQ } from "@/content/public/faq/how-it-works";
+import { helpFaqs } from "@/lib/account/help-faqs";
 
 import { AccountHeader } from "../AccountHeader";
 import { HELP } from "./content";
@@ -33,18 +32,10 @@ export const metadata: Metadata = { title: "Help & support" };
  *    must not spread to an authenticated screen.
  */
 export default function HelpPage() {
-  // The two published FAQ sets, DEDUPED — both answer the planning-fee question, and it is
-  // the most important one on the screen, so it must appear exactly once. Filtered on the
-  // question AND the answer: two of the §2.4 entries mention card authorization only in the
-  // answer, and an FAQ that explains an unreachable screen is worse than no FAQ.
-  const seen = new Set<string>();
-  const faqs = [...GYASI_FAQ, ...HOW_IT_WORKS_FAQ].filter((item) => {
-    if (/\bcards?\b|authoriz/i.test(`${item.q} ${item.a}`)) return false;
-    const key = item.q.toLowerCase().replace(/[^a-z]/g, "");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // The two published FAQ sets, deduped by TOPIC and filtered of anything §2.4 owns. This
+  // was inline until it was tested, and inline is how it came to claim a dedupe it did not
+  // perform — see lib/account/help-faqs.ts.
+  const faqs = helpFaqs();
 
   return (
     <div className="client-fill">
@@ -57,7 +48,7 @@ export default function HelpPage() {
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-on-surface"
               aria-hidden="true"
             >
-              <span className="t-title-s">GS</span>
+              <span className="t-title-s">{HELP.advisorInitials}</span>
             </span>
             <div className="min-w-0">
               <p className="t-title-s">{HELP.advisorName}</p>
