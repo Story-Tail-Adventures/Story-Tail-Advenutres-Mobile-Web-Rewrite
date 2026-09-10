@@ -74,6 +74,16 @@
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
     }
   },
+  "remote": {
+    "https://deno.land/x/serpapi@2.2.1/mod.ts": "da55704ba1397ee3d4ac0d2a25fdca0cce8f1d8456faf4442b36a727d96e2a33",
+    "https://deno.land/x/serpapi@2.2.1/src/config.ts": "a55e86e70a0d42d450e50529440c49ea6e508b88d7447ecfbb20e115d56bfd73",
+    "https://deno.land/x/serpapi@2.2.1/src/errors.ts": "c7cb6b9b977cc4a62a4f9494df9612ca237c761a446f8aad9cdfbc89c34485c7",
+    "https://deno.land/x/serpapi@2.2.1/src/serpapi.ts": "9f2eaa21ebf8221c65f32b955f32369eab9932e21dcaf3bd6297630a6cc8072b",
+    "https://deno.land/x/serpapi@2.2.1/src/types.ts": "31e7ed8bf8f36c6a25d35b646c51454cdd3165f14bafd771d55cf841ac69728b",
+    "https://deno.land/x/serpapi@2.2.1/src/utils.ts": "ca2fbb8f6ef9639f6b04ccc6fd3f69ac7a273400c3b93b014cc75f19065d85c6",
+    "https://deno.land/x/serpapi@2.2.1/src/validators.ts": "44b61833bae9e1088b45b14a309bf8da88873595d8cca107506817cb30455a8d",
+    "https://deno.land/x/serpapi@2.2.1/version.ts": "2b175ba7ab40e4cc7329472f88b9828734a7af82ab9beb5f7154cc3b7ff2a29a"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@supabase/supabase-js@2"
