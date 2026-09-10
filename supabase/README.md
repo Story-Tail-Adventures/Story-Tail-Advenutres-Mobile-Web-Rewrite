@@ -152,7 +152,8 @@ supabase secrets set TRACK_CRUISES_API_KEY=<the RapidAPI key> --project-ref <pro
 ```
 
 Locally the same value goes in `supabase/.env.local` (gitignored by `.gitignore` here), and
-is loaded explicitly:
+reaches the runtime the same way as the hotel-search secrets — via `[edge_runtime.secrets]`
+and `npm run supabase:start`. For an edit-and-reload loop on this function specifically:
 
 ```bash
 supabase functions serve cruise-sync --env-file supabase/.env.local
@@ -268,11 +269,23 @@ goes quiet (and falls back to the curated catalog, which is the intended failure
 every live counter, which is harmless. Losing it is also harmless — nothing is recovered
 from those hashes by design, and a CHECK constraint refuses a bucket key that is not one.
 
-Locally, put all three in `supabase/.env.local` (gitignored) and pass it explicitly:
+Locally, put all three in `supabase/.env.local` (gitignored) and **start the stack through
+the npm script**, which is what gets them into the runtime:
 
 ```bash
-supabase functions serve hotel-search --env-file supabase/.env.local
+npm run supabase:start
 ```
+
+`supabase start` on its own does *not* read `supabase/.env.local`. The `[edge_runtime.secrets]`
+block in `config.toml` pulls each value from the environment via `env(NAME)`, and
+`npm run supabase:start` is a plain `supabase start` with that file sourced first. Start the
+stack the bare way and the runtime comes up with no secrets: `hotel-search` and `cruise-search`
+then answer **403 "HOTEL_SEARCH_CALLER_TOKEN is not set"**, and Screen 2.0.4 shows its quiet
+fallback in both modes — which looks exactly like a provider outage.
+
+`supabase functions serve --env-file supabase/.env.local` also works and adds hot reload, but
+it is a second long-running process; prefer it when you are editing a function, not as the way
+to make search work at all.
 
 ### The budget is a table, not a constant
 

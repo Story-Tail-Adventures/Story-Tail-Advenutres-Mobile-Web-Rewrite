@@ -408,8 +408,26 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# Local Edge Function secrets. `supabase start` does NOT read supabase/.env.local — only
+# `supabase functions serve --env-file` does — so without this block the containerised
+# runtime comes up with no secrets and both public search functions answer 403
+# "HOTEL_SEARCH_CALLER_TOKEN is not set" the moment a visitor searches. That left a working
+# local search depending on a second long-running `functions serve` process that nothing
+# restarts after a reboot.
+#
+# `env(NAME)` is substituted from the environment of whoever runs `supabase start`, which is
+# why `npm run supabase:start` sources supabase/.env.local first. Unset vars are NOT an
+# error — the config still parses (so CI's `supabase db start` is unaffected) and the
+# function fails closed with its own 403, which is the intended behaviour with no key.
+#
+# Safe to commit: nothing here is a value, and per the README nothing runs
+# `supabase config push`, so these names never reach the hosted project — production gets
+# the same secrets from `supabase secrets set`.
+[edge_runtime.secrets]
+HOTEL_SEARCH_CALLER_TOKEN = "env(HOTEL_SEARCH_CALLER_TOKEN)"
+HOTEL_SEARCH_IP_PEPPER = "env(HOTEL_SEARCH_IP_PEPPER)"
+SERPAPI_API_KEY = "env(SERPAPI_API_KEY)"
+TRACK_CRUISES_API_KEY = "env(TRACK_CRUISES_API_KEY)"
 
 # Declared explicitly, one block per function, because Supabase's GitHub integration deploys
 # the Edge Functions "declared in config.toml" — an undeclared directory may simply never
