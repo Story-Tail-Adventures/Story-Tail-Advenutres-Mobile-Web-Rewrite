@@ -225,8 +225,17 @@ async function visitorForwardedFor(): Promise<Record<string, string>> {
  * Call the hotel-search Edge Function.
  *
  * Never throws: a provider hiccup on a public marketing page must be a quiet fallback to
- * the curated catalog, not an error boundary. The timeout is deliberately short — a visitor
- * waiting eight seconds for a hotel list has already left.
+ * the curated catalog, not an error boundary.
+ *
+ * THE TIMEOUT MUST NOT BE TIGHTER THAN THE FUNCTION'S OWN, and for a while it was half of
+ * it. This aborted at 6s while `_shared/hotels/client.ts` allows `DEFAULT_TIMEOUT_MS`
+ * 12_000 per SerpApi attempt (plus two retries), so every cold search — the first one for
+ * any destination/date pair, which is most real searches — was cut off mid-flight and shown
+ * as "the hotel feed is quiet". Retrying then looked like a fix, because by that point the
+ * function's own six-hour cache had been warmed by the very request we abandoned. Worse, we
+ * were still billed: the metered provider call completed for a caller that had already gone.
+ * A cold search is slow, but the visitor is watching the Suspense skeleton, not a blank
+ * page, which is what the streaming boundary in 2.0.4 exists for.
  */
 export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchResult> {
   const token = env.hotelSearchToken;
@@ -265,7 +274,9 @@ export async function searchHotels(args: HotelSearchArgs): Promise<HotelSearchRe
         ...(await visitorForwardedFor()),
       },
       body: JSON.stringify(args),
-      signal: AbortSignal.timeout(6_000),
+      // 2s of headroom over one 12s provider attempt. A retry on the function's side can
+      // still outlast this, and that is the case we deliberately fall back on.
+      signal: AbortSignal.timeout(14_000),
       // The function has its own six-hour cache; this is a short shared cache in front of
       // it so a burst on one search does not become a burst of function invocations.
       next: { revalidate: 300, tags: ["hotel-search"] },
