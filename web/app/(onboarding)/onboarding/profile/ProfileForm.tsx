@@ -50,11 +50,25 @@ const COUNTRY_OPTIONS = COUNTRIES.map((country) => ({
   label: country.name,
 }));
 
-export function ProfileForm({ defaults }: { defaults: ProfileFormValues }) {
-  const [state, formAction, saving] = useActionState(
-    saveProfileAction,
-    initialProfileState,
-  );
+/**
+ * `action` and `footer` exist so Screen 2.5.2 can mount THIS form rather than grow a
+ * second set of rules. Both default to the wizard's, so 2.1.10 is unchanged.
+ *
+ * Passing a server action as a prop is supported and is NOT the "function across the RSC
+ * boundary" trap: a server action is a serialisable reference, not an arbitrary closure.
+ * The account route passes one that omits `advance`, so the Edge Function takes the write
+ * without moving the onboarding cursor.
+ */
+export function ProfileForm({
+  defaults,
+  action = saveProfileAction,
+  footer,
+}: {
+  defaults: ProfileFormValues;
+  action?: typeof saveProfileAction;
+  footer?: React.ReactNode;
+}) {
+  const [state, formAction, saving] = useActionState(action, initialProfileState);
   const shown = state.values ?? defaults;
 
   // Controlled, because the region and postal-code labels follow it: a Canadian typing
@@ -279,6 +293,7 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormValues }) {
         </fieldset>
       </form>
 
+      {footer ?? (
       <OnboardingActions
         formId={FORM_ID}
         saving={saving}
@@ -291,6 +306,7 @@ export function ProfileForm({ defaults }: { defaults: ProfileFormValues }) {
         backHref={previousRoute(STEP_INDEX)}
         backLabel={WIZARD_BACK_LABEL}
       />
+      )}
     </>
   );
 }

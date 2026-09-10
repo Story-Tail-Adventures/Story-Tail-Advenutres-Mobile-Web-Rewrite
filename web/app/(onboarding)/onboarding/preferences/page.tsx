@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import type { LoyaltyRow } from "@/lib/validation/preferences";
+import { readLoyalty } from "@/lib/validation/preferences-form";
 import { wizardStepIndex } from "@/lib/onboarding/steps";
 import { PreferencesForm } from "./PreferencesForm";
 import { PREFERENCES_TEXT, type PreferencesFormValues } from "./state";
@@ -92,23 +92,3 @@ async function currentPreferences(): Promise<PreferencesFormValues> {
   };
 }
 
-/**
- * `loyalty_programs` is jsonb with no CHECK on its shape, so what comes back is whatever
- * was written. Data-Model §6.2 documents `{program, number, tier}` and the Edge Function
- * builds exactly that, but a column with no constraint eventually holds something else —
- * and this one renders straight into an input.
- */
-function readLoyalty(value: unknown): LoyaltyRow[] {
-  if (!Array.isArray(value)) return [];
-  const rows: LoyaltyRow[] = [];
-  for (const entry of value) {
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry))
-      continue;
-    const row = entry as Record<string, unknown>;
-    const program = typeof row.program === "string" ? row.program : "";
-    const number = typeof row.number === "string" ? row.number : "";
-    if (program === "" && number === "") continue;
-    rows.push({ program, number });
-  }
-  return rows;
-}

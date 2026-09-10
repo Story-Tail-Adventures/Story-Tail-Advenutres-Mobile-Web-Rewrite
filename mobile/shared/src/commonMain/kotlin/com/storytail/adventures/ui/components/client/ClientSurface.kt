@@ -62,6 +62,15 @@ fun ClientScaffold(
     onSelectTab: (String) -> Unit = {},
     scrollable: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    /**
+     * A bar below the scroll — §2.5's Save/Cancel, and §2.6's composer when it lands.
+     *
+     * A SIBLING, exactly like [ClientBottomNav], and for the same reason: the scroll's
+     * `weight(1f)` already excludes it, so it cannot cover the last field on a short phone.
+     * A screen passes this or [activeTab], never both — a tab root has nothing to save and a
+     * pushed form has no tabs.
+     */
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -89,6 +98,7 @@ fun ClientScaffold(
             ) {
                 content()
             }
+            footer?.invoke()
             if (activeTab != null) {
                 ClientBottomNav(active = activeTab, onSelect = onSelectTab)
             }

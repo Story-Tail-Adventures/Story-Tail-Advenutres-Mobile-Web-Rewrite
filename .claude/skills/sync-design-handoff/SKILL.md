@@ -158,7 +158,25 @@ Re-run `web-reviewer` / `mobile-reviewer` on any in-progress screens; the protot
 The prototype is read-only and is the canonical token source, so these local corrections
 get clobbered by a sync unless you re-apply them. Check each one after pulling.
 
-### 1. Missing dark-scheme error tokens (found 2026-09-01)
+### 1. Missing dark-scheme error tokens — ✅ **RESOLVED 2026-09-10. Not a delta any more.**
+
+> Found 2026-09-01, fixed locally 2026-09-09 and **pushed upstream 2026-09-10**, so a sync no
+> longer clobbers it and nothing needs re-applying. Kept here as the record.
+>
+> It surfaced during the §2.5/§2.6 artboard work: §2.5.9's "Close your account" card and
+> §2.5.10's confirm are the first large `errorContainer` surfaces in the client app, which is
+> why it survived §2.0–§2.2 unnoticed. Measured **1.83:1 → 7.24:1** on the container and
+> **1.70:1 → 7.72:1** on the error button; both now clear AA and AAA.
+>
+> All five token sources were verified in agreement afterwards — the design project,
+> `design/source-prototype/styles/tokens.css`, `design/web-tokens/tokens.css`,
+> `design/web-tokens/design-tokens.ts`, `web/styles/tokens.css` and `web/app/globals.css` —
+> and they match `StoryTailColors.kt`, which is the authority:
+> `onError #690005`, `errorContainer #93000A`, `onErrorContainer #FFDAD6`.
+>
+> A sweep for the same class of bug found no other instance. The only tokens still absent
+> from `.scheme-dark` are the `--brand-*` palette, which is **deliberately** scheme-invariant
+> in both the prototype and `web/styles/tokens.css`.
 
 `design/source-prototype/styles/tokens.css` defines `--md-error` and `--md-error-container`
 inside `.scheme-dark` but **not** `--md-on-error` or `--md-on-error-container`. Both then
@@ -332,3 +350,132 @@ Still outstanding in the same file, unedited, and worth doing when it is next to
   `PUBLIC_CLAIMS_MODE=strict` (which fails `next build`), so nothing false can ship — but
   the artboards should be brought to one number once Gyasi measures it. See the note on
   `avgReplyTime` in that file.
+
+### 7. Sections 2.5 and 2.6 mobile artboards (2026-09-09) — **pushed upstream 2026-09-10**
+
+Like §2.2 before it, this reversed the skill's usual direction: these files were authored
+here and pushed to the design project with `DesignSync finalize_plan` → `write_files`.
+
+> **Status: all five are now upstream and verified by reading them back.** They are no longer
+> local-only, so a sync will match rather than flag them. What follows is the record of what
+> was pushed and why, not a list of files to protect.
+>
+> **The push worked even though the project is `PROJECT_TYPE_PROJECT`, not
+> `PROJECT_TYPE_DESIGN_SYSTEM`** — it reports `canEdit: true` and accepts writes, but it does
+> **not** appear in `DesignSync list_projects`, which filters to design-system projects. Do
+> not conclude from an empty `list_projects` that the project is unwritable; address it by id.
+
+**Pushed 2026-09-10:**
+
+- `screens/client-account-mobile.jsx` — 11 artboards, `M251_*` … `M2511_*`
+- `screens/client-messaging-mobile.jsx` — 3 artboards, `M261_*` … `M263_*`
+- `pages/c25-account.html`, `pages/c26-messaging.html` — generated from `c22-dashboard.html`,
+  a local page carrying the `#view-seg` Web/Mobile toggle. **Without that toggle no mobile
+  artboard in the section is reachable**, and the upstream copies of both pages did not have
+  it before this push. Regenerate rather than pull.
+
+  `c22-dashboard.html` is not the *only* local page with the toggle — `c20-public.html` has
+  it too, and this file and the commit that added these pages both said otherwise. Either
+  template works; c22 was chosen because its section shape is closest.
+
+  **Two traps when regenerating a section page from the `c22` template.** Both produce a page
+  that renders and looks right, so neither surfaces without a diff against upstream:
+  1. The template uses a **literal `&`**, not `&amp;`. A substitution written with the entity
+     fails *silently* and leaves §2.2's breadcrumb and prev-link in place. Make every
+     substitution assert, and refuse to write a file with any `2.2` residue left in it.
+  2. There are **two** titles, not one — the `<Section title=…>` and the `<DesignCanvas
+     title=… subtitle=…>` wrapper above it. Substituting only the Section leaves the canvas
+     announcing "2.2 · Dashboard & Trip Experience" while the visible section heading reads
+     correctly — invisible in a screenshot of the artboards themselves.
+- `pages/_sections.json` — `c25-account` and `c26-messaging` gain a `mobileScreens` array and
+  a second entry in `files`. Mobile entries carry no `w`/`h`; the `Section` component
+  hardcodes the mobile frame size.
+
+**Desktop frames that still need correcting upstream**, because the mobile files depart from
+them deliberately and the two should not disagree forever. Each is a thing the desktop frame
+draws that the platform cannot honour — the full reasoning is in the header comment of
+`client-account-mobile.jsx` (departures 1–16) and `client-messaging-mobile.jsx` (1–10) —
+**26 in total**, not the 16 the authoring commit's message claims nor the 21 this sentence
+used to imply. The list below is the load-bearing subset, not the whole set; read the file
+headers for the rest. All verified against the schema rather than assumed:
+
+1. **No OCR** (`C255_DocUpload`) — no OCR service exists anywhere in the stack, and adding
+   one is a new third-party SDK on a surface handling passport scans, which CLAUDE.md
+   requires a security review for.
+2. **No backup codes, no "Authy"** (`C257_Security`) — `web/app/(auth)/mfa/setup/actions.ts`
+   states it: "Supabase has no backup-code factor, and a home-grown one could not" be
+   trusted. The factor is TOTP; naming a vendor we do not integrate is worse than no name.
+3. **No Facebook** (`C258_Connected`) — `auth_provider` is `ENUM ('email','google','apple')`.
+4. **No "Member ID · STA-5839"** (`C251_AccountOverview`) — no such column exists anywhere.
+5. **No pronouns field** (`C252_PersonalInfo`) — `pronouns` is on `agent`
+   (Data-Model §813), not `client`. Adding it is a Data-Model change, doc first.
+6. **No session locations, no "Trusted" chip** (`C257_Security`) — `auth.sessions` holds an
+   `ip` and nothing resolves it to a place; `session.ip_country` has no writer. And the
+   desktop frame's "Atlanta, GA · **suspicious?**" has a question mark in it, which is the
+   design telling on itself — the platform cannot know. Same lesson as §2.2.8's carrier
+   narration (delta 6 above).
+7. **No tracking toggles** (`C259_Privacy`) — there is no analytics script, tag manager or
+   advertising pixel anywhere in `web/`, and `web/content/public/legal/cookies.ts` already
+   says so in writing. Three switches over nothing is a control that lies.
+8. **Closure confirms by typing the email, not a password** (`C2510_Closure`) — a Google or
+   Apple account has no password, so the desktop frame's password field is a wall those
+   accounts cannot pass. It is also drawn full-screen rather than as a sheet: a sheet's
+   grabber means "swipe this away", which is wrong for an irreversible action.
+9. **No presence dot, no read receipts, no reactions, no System threads** (`C261`/`C262`) —
+   there is no Realtime presence; `message.read_by_other_at` is withheld from
+   `authenticated` on purpose; no reaction entity exists; and `conversation.agent_id` is
+   `NOT NULL` with `user_role` offering no system sender. The "System" rows are
+   notifications, and the notification centre §2.2.2 deferred to "§2.6" is **still
+   homeless** — §2.6 has three screens and none of them is one.
+10. **One reply-time string.** `client-messaging.jsx` alone carries three different promises
+    (lines 9, 59, 155). Both new mobile files use the settled "Usually replies the same
+    day". See the standing note at the end of delta 6.
+
+**Glyph gap, blocking, and worth doing before any §2.5 screen on either stack:**
+
+| Set | Missing |
+|---|---|
+| `shared/icons.jsx` | `camera` — both the desktop and mobile 2.5.5 frames fall back to a 📷 emoji |
+| `web/components/ui/icon-paths.ts` | `lock`, `link`, `briefcase`, `camera` — the first three copy verbatim from `shared/icons.jsx` |
+| `StoryTailGlyph.kt` | **eight** — `heart`, `bell`, `shield`, `link`, `lock`, `question` (2.5.1's rows), `chevron_right` (every settings row), `camera` (2.5.5). Mobile has no Material icons; every mark is a hand-drawn Compose `Path` and there are currently ten. 2.5.7's device rows can reuse `USER`/`CARD` rather than adding `phone`/`briefcase`. |
+
+**Corrections made during the pre-push audit (2026-09-10), all verified against source.**
+A 47-agent adversarial pass over the push set found fifteen defects. Recording the classes,
+because every one of them renders fine and would have shipped:
+
+- **A CSS custom property that does not exist fails silently.** `MInitialsAvatar` built
+  `var(--md-${tone}-container)` from a `tone` prop; `tone="surface"` produced
+  `--md-surface-container`, which is not in the palette (there is `--md-surface` and
+  `--md-surface-1..5`). CSS drops the declaration, so the avatar circle on the §2.5 tab root
+  rendered with **no fill at all**, in both schemes, and looked plausible against a gradient.
+  Only the M3 accent roles have a `-container` pair — never template over tone names.
+- **`overflow: hidden` plus an inert `flex: 1` clips instead of scrolling.** 2.6m.2 passed
+  `scrollable={false}` and put `flex: 1; overflow: auto` on a child of a plain block box, so
+  the flex grow did nothing and the only real scroll container was switched off. `M227_
+  TripThread` has the right shape: let MFrame scroll, put the composer in `footer`.
+- **A departure that misattributes what it removes hides a real removal.** Messaging
+  departure 9 claimed to drop "the desktop frame's archive affordance" — the desktop frame has
+  no archive control anywhere. What actually vanished was the spec'd **"By trip"** filter
+  chip, under a rationale written about something else. Restored.
+- **Copy asserting limits the backend contradicts.** 2.5.5 said "JPG, PNG or PDF · up to
+  10 MB"; `_shared/trip.ts` allows pdf/jpeg/png/**heic**/webp at **50 MiB**. Omitting HEIC
+  tells iPhone users their camera photos are rejected, on the camera-first screen.
+- **Retention promises with nothing behind them.** 2.5.10 said personal details are
+  anonymized "within 30 days". Data-Model §18.5 describes that window but **no scrubber
+  exists** — no migration, no pg_cron entry, no Edge Function. The number is gone until one
+  ships. Same class: the data export claimed to include the document-access trail, which
+  lives in `audit_event` — the agency's table, which §2.2 deliberately gave clients no policy on.
+- **Precedent cited backwards.** A departure claimed §2.2 renders card actions "disabled with
+  a reason". The §2.2 *artboard* renders a live "Authorize a card · $4,180 due" CTA under
+  "Kept deliberately"; it is the *built web app* that disables it. **The §2.2 artboard is out
+  of step with the shipped app** — worth raising with the designer.
+- **Miscited §4.4 pattern letters.** Six of eleven §2.5 assignments and one of three §2.6 were
+  wrong (most of §2.5 is Pattern A, not B). That line is load-bearing guidance, so check it
+  against §4.4 lines 1791-1806 rather than inferring it from the layout.
+- **A pre-work list that undercounts.** The glyph note claimed eight Compose marks were
+  needed; mechanically diffing every `Icon name=` and `icon:` against `StoryTailGlyph.kt`'s
+  ten gives **17**. Count these with a script, never by eye.
+
+**Still owed after this push** — `docs/Screen-Inventory.md` §2.5.5, §2.5.6 and §2.6.1 have not
+been amended, and several departures deviate from the spec rather than from the artboard.
+CLAUDE.md's hierarchy says the doc moves first. Do that before the built screens land.

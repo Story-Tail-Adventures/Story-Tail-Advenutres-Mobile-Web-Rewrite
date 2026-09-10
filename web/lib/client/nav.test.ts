@@ -28,14 +28,15 @@ describe("the client destination registry", () => {
     ]);
   });
 
-  it("has exactly one built destination after §2.2, and it is Trips", () => {
-    // The point of `built` being separate from `phase`: four of the five unbuilt
-    // destinations are PHASE ONE, so a phase filter would leave four dead links.
+  it("has three built destinations after §2.5, and Wallet is the last unbuilt P1", () => {
+    // The point of `built` being separate from `phase`: after §2.5 the only unbuilt P1
+    // destinations are Messages (§2.6) and Wallet (§2.4), while Discover stays P2 — so a
+    // phase filter would still leave dead links, and `built` is what the rail renders on.
     const built = CLIENT_DESTINATIONS.filter((d) => d.built);
-    expect(built.map((d) => d.id)).toEqual(["trips"]);
+    expect(built.map((d) => d.id)).toEqual(["trips", "documents", "account"]);
 
     const unbuiltP1 = CLIENT_DESTINATIONS.filter((d) => !d.built && d.phase === "P1");
-    expect(unbuiltP1.map((d) => d.id)).toEqual(["messages", "wallet", "documents", "account"]);
+    expect(unbuiltP1.map((d) => d.id)).toEqual(["messages", "wallet"]);
   });
 
   it("names a section for every unbuilt destination, so the reason is greppable", () => {

@@ -45,7 +45,7 @@ val CLIENT_BAR_DESTINATIONS: List<ClientDestination> = listOf(
     ClientDestination("trips", "Trips", built = true, phase = null, section = "§2.2"),
     ClientDestination("discover", "Discover", built = false, phase = "P2", section = "§2.3"),
     ClientDestination("messages", "Messages", built = false, phase = "P1", section = "§2.6"),
-    ClientDestination("account", "Account", built = false, phase = "P1", section = "§2.5.1"),
+    ClientDestination("account", "Account", built = true, phase = null, section = "§2.5.1"),
 )
 
 object ClientNavMessages {

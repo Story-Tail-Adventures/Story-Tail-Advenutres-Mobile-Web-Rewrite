@@ -111,8 +111,8 @@ export const CLIENT_DESTINATIONS: readonly ClientDestination[] = [
     // Also absent from the mobile bar. Per-trip documents live at
     // /trips/[tripId]/documents, which §2.2.6 does build; this is the account-wide library.
     surfaces: ["rail", "tablet"],
-    built: false,
-    phase: "P1",
+    built: true,
+    phase: null,
     section: "§2.5.4",
   },
   {
@@ -121,8 +121,8 @@ export const CLIENT_DESTINATIONS: readonly ClientDestination[] = [
     icon: "user",
     label: "Account",
     surfaces: ["rail", "bar", "tablet"],
-    built: false,
-    phase: "P1",
+    built: true,
+    phase: null,
     section: "§2.5.1",
   },
 ] as const;

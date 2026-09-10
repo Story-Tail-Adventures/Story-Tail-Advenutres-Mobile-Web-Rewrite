@@ -618,7 +618,8 @@
     "title": "Client · Account & Profile",
     "subtitle": "Hub + 10 sub-screens.",
     "files": [
-      "screens/client-account.jsx"
+      "screens/client-account.jsx",
+      "screens/client-account-mobile.jsx"
     ],
     "sectionId": "c25",
     "sectionTitle": "2.5 · Account & Profile",
@@ -694,6 +695,63 @@
         "label": "2.5.11 Help & support",
         "h": 760
       }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m251",
+        "comp": "M251_AccountOverview",
+        "label": "2.5m.1 Account overview"
+      },
+      {
+        "id": "m252",
+        "comp": "M252_PersonalInfo",
+        "label": "2.5m.2 Personal info"
+      },
+      {
+        "id": "m253",
+        "comp": "M253_PreferencesEdit",
+        "label": "2.5m.3 Preferences edit"
+      },
+      {
+        "id": "m254",
+        "comp": "M254_TravelDocs",
+        "label": "2.5m.4 Travel documents"
+      },
+      {
+        "id": "m255",
+        "comp": "M255_DocUpload",
+        "label": "2.5m.5 Document upload sheet"
+      },
+      {
+        "id": "m256",
+        "comp": "M256_Notifications",
+        "label": "2.5m.6 Notifications"
+      },
+      {
+        "id": "m257",
+        "comp": "M257_Security",
+        "label": "2.5m.7 Security"
+      },
+      {
+        "id": "m258",
+        "comp": "M258_Connected",
+        "label": "2.5m.8 Connected accounts"
+      },
+      {
+        "id": "m259",
+        "comp": "M259_Privacy",
+        "label": "2.5m.9 Privacy & data"
+      },
+      {
+        "id": "m2510",
+        "comp": "M2510_Closure",
+        "label": "2.5m.10 Closure"
+      },
+      {
+        "id": "m2511",
+        "comp": "M2511_Help",
+        "label": "2.5m.11 Help & support"
+      }
     ]
   },
   {
@@ -702,7 +760,8 @@
     "title": "Client · Messaging",
     "subtitle": "Inbox, thread, new conversation.",
     "files": [
-      "screens/client-messaging.jsx"
+      "screens/client-messaging.jsx",
+      "screens/client-messaging-mobile.jsx"
     ],
     "sectionId": "c26",
     "sectionTitle": "2.6 · Messaging",
@@ -727,6 +786,23 @@
         "comp": "C263_NewConversation",
         "label": "2.6.3 New conversation",
         "h": 720
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m261",
+        "comp": "M261_Inbox",
+        "label": "2.6m.1 Inbox"
+      },
+      {
+        "id": "m262",
+        "comp": "M262_ConversationThread",
+        "label": "2.6m.2 Thread"
+      },
+      {
+        "id": "m263",
+        "comp": "M263_NewConversation",
+        "label": "2.6m.3 New conversation"
       }
     ]
   },

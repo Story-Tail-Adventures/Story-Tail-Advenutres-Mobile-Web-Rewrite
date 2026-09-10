@@ -144,7 +144,13 @@ open class OnboardingViewModel(
         else _events.send(OnboardingEvent.Advance(next))
     }
 
-    protected companion object {
+    /**
+     * PUBLIC, not protected. Screens 2.5.2 and 2.5.3 write through the same two Edge
+     * Functions and have to fail in the same words — the web twin reuses `PROFILE_TEXT`
+     * and `PREFERENCES_TEXT` from the wizard for exactly that reason, and a second
+     * "something went wrong" sentence is how the two stacks start disagreeing.
+     */
+    companion object {
         const val GENERIC_ERROR =
             "That didn't save — nothing's lost. Give it another try, or skip for now and " +
                 "we'll pick this up later."
