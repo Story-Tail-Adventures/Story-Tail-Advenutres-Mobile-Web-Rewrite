@@ -120,7 +120,7 @@ jobs:
       # .git/config's extraheader for that code to read. Nothing here needs authenticated
       # git: the release step talks to the REST API with GH_TOKEN, and the rest is local
       # rev-parse / describe / diff, which fetch-depth: 0 has already satisfied.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
           fetch-depth: 0
@@ -151,7 +151,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm

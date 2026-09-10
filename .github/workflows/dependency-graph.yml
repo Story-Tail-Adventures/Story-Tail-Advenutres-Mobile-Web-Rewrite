@@ -54,7 +54,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         # Nothing here needs authenticated git, and the next step runs the project's own
         # Gradle build — third-party code. Same reasoning as deploy.yml's checkout.
         with:
@@ -71,6 +71,6 @@ jobs:
       # configuration, which is what a complete graph needs, and a narrower task would
       # quietly under-report. Resolution downloads metadata; it does not link, so the iOS
       # targets do not drag in Xcode the way :shared:build would.
-      - uses: gradle/actions/dependency-submission@v5
+      - uses: gradle/actions/dependency-submission@v6
         with:
           build-root-directory: mobile
