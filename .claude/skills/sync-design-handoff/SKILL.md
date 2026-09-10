@@ -370,9 +370,13 @@ here and pushed to the design project with `DesignSync finalize_plan` → `write
 - `screens/client-account-mobile.jsx` — 11 artboards, `M251_*` … `M2511_*`
 - `screens/client-messaging-mobile.jsx` — 3 artboards, `M261_*` … `M263_*`
 - `pages/c25-account.html`, `pages/c26-messaging.html` — generated from `c22-dashboard.html`,
-  which is the only local page carrying the `#view-seg` Web/Mobile toggle. **Without that
-  toggle no mobile artboard in the section is reachable**, and the upstream copies of both
-  pages did not have it before this push. Regenerate rather than pull.
+  a local page carrying the `#view-seg` Web/Mobile toggle. **Without that toggle no mobile
+  artboard in the section is reachable**, and the upstream copies of both pages did not have
+  it before this push. Regenerate rather than pull.
+
+  `c22-dashboard.html` is not the *only* local page with the toggle — `c20-public.html` has
+  it too, and this file and the commit that added these pages both said otherwise. Either
+  template works; c22 was chosen because its section shape is closest.
 
   **Two traps when regenerating a section page from the `c22` template.** Both produce a page
   that renders and looks right, so neither surfaces without a diff against upstream:
@@ -390,8 +394,10 @@ here and pushed to the design project with `DesignSync finalize_plan` → `write
 **Desktop frames that still need correcting upstream**, because the mobile files depart from
 them deliberately and the two should not disagree forever. Each is a thing the desktop frame
 draws that the platform cannot honour — the full reasoning is in the header comment of
-`client-account-mobile.jsx` (departures 1–12) and `client-messaging-mobile.jsx` (1–9). In
-brief, and all verified against the schema rather than assumed:
+`client-account-mobile.jsx` (departures 1–16) and `client-messaging-mobile.jsx` (1–10) —
+**26 in total**, not the 16 the authoring commit's message claims nor the 21 this sentence
+used to imply. The list below is the load-bearing subset, not the whole set; read the file
+headers for the rest. All verified against the schema rather than assumed:
 
 1. **No OCR** (`C255_DocUpload`) — no OCR service exists anywhere in the stack, and adding
    one is a new third-party SDK on a surface handling passport scans, which CLAUDE.md

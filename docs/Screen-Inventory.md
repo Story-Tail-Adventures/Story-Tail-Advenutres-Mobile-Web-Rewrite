@@ -705,11 +705,20 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 ### 2.5 Account & Profile
 
-> **Mobile artboards published 2026-09-10; no screen in this section is built yet.** Eleven
-> mobile frames (`design/source-prototype/screens/client-account-mobile.jsx`) joined the
-> existing desktop ones in the design project, following the section's 1:1 parity convention
-> — §2.0 is 11/11, §2.1 14/14, §2.2 11/11. The per-screen notes below record what the
-> artboards departed from and why. Nothing here reads or writes real data yet.
+> **Built on both stacks 2026-09-10.** Ten of the eleven screens are implemented on web
+> (`web/app/(client)/account/`, plus `/documents` for 2.5.4) and on mobile
+> (`mobile/.../ui/screens/account/`); 2.5.5 Document Upload is the one that is not, because
+> there is no account-scoped upload door — see its own note. The copy is pinned across the
+> two stacks by `.github/scripts/check_copy_parity.py`.
+>
+> Eleven mobile frames (`design/source-prototype/screens/client-account-mobile.jsx`) joined
+> the existing desktop ones in the design project first, following the section's 1:1 parity
+> convention. The per-screen notes below record what the artboards departed from and why.
+>
+> **What is real and what is not** is recorded per screen. In short: 2.5.2 and 2.5.3 write
+> (through the wizard's own Edge Functions, minus the `advance` flag); 2.5.1, 2.5.4, 2.5.7,
+> 2.5.8, 2.5.9 and 2.5.11 read; 2.5.6 is a placeholder with nothing to switch; and 2.5.10's
+> confirmation is inert because nothing writes to `account`.
 >
 > **Amendments in this pass are corrections, not scope cuts.** Each one removes something the
 > spec promised that the platform cannot currently deliver — an OCR service, a geo-IP

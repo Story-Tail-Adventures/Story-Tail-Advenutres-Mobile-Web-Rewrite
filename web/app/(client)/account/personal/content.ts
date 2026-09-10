@@ -1,5 +1,5 @@
 /**
- * Copy for Screen 2.5.2. Not in MESSAGE_TABLES until a Kotlin twin exists.
+ * Copy for Screen 2.5.2. Pinned against `PersonalMessages` by check_copy_parity.py.
  *
  * `identityNote` has to explain a read-only field without sounding like a fault. The honest
  * framing is that these two are the account itself rather than a preference — and it points

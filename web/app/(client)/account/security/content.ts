@@ -1,5 +1,5 @@
 /**
- * Copy for Screen 2.5.7 Security. Not in MESSAGE_TABLES until a Kotlin twin exists.
+ * Copy for Screen 2.5.7 Security. Pinned against `SecurityMessages` by check_copy_parity.py.
  *
  * `sessionsDeferred` says what is true rather than "coming soon": the reader's real question
  * on a security screen is "can someone else be signed in as me?", and the honest answer is

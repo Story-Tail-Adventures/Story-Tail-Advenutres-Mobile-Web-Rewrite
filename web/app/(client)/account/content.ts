@@ -1,11 +1,15 @@
 /**
  * Copy for Screen 2.5.1 Account Overview.
  *
- * NOT registered in `.github/scripts/check_copy_parity.py`, deliberately. That script
- * compares a web module against its Kotlin twin, and §2.5 has no Compose implementation yet
- * — registering a row now would fail CI against a file that does not exist. **Add the row in
- * the same change that builds `AccountScreen.kt`**, or the parity gap is silent, which is
- * exactly what that script's header warns about.
+ * PINNED against its Kotlin twin `AccountMessages` in
+ * `mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt`
+ * by `.github/scripts/check_copy_parity.py`. Change a string here and the same change is
+ * required there, or CI fails.
+ *
+ * This note used to say the opposite — that the row was deliberately absent until a Compose
+ * implementation existed. It did, and then the Compose implementation landed and the note
+ * did not. A comment claiming parity is NOT enforced is worse than no comment: it invites
+ * the exact one-sided edit the script exists to catch.
  *
  * Subtitles say what is INSIDE, in data — "Name, email, phone, address", "4 files · 1
  * expiring soon" — rather than describing the screen ("Manage your notification

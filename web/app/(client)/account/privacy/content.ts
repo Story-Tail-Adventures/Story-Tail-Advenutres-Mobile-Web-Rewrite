@@ -1,5 +1,5 @@
 /**
- * Copy for Screen 2.5.9 Privacy & Data. Not in MESSAGE_TABLES until a Kotlin twin exists.
+ * Copy for Screen 2.5.9 Privacy & Data. Pinned against `PrivacyMessages` by check_copy_parity.py.
  *
  * `trackingBody` must stay consistent with web/content/public/legal/cookies.ts, which says
  * "We do not use advertising cookies or third-party trackers on the app subdomain." If a

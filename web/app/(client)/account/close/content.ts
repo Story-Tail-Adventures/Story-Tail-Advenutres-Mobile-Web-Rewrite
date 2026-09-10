@@ -1,5 +1,5 @@
 /**
- * Copy for Screen 2.5.10 Account Closure. Not in MESSAGE_TABLES until a Kotlin twin exists.
+ * Copy for Screen 2.5.10 Account Closure. Pinned against `CloseMessages` by check_copy_parity.py.
  *
  * EVERY LINE HERE IS A RETENTION OR LEGAL CLAIM. Two rules, both learned the hard way:
  *

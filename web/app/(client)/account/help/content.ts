@@ -1,6 +1,6 @@
 /**
- * Copy for Screen 2.5.11 Help & Support. Not in check_copy_parity's MESSAGE_TABLES until a
- * Kotlin twin exists — see the note in ../content.ts.
+ * Copy for Screen 2.5.11 Help & Support. Pinned against `HelpMessages` by
+ * check_copy_parity.py — see the note in ../content.ts.
  *
  * `replyWindow` is the settled authenticated-surface string. Do NOT reach for
  * `web/content/public/proof.ts`'s `avgReplyTime` ("< 2h"): it is `verified: false`, it is

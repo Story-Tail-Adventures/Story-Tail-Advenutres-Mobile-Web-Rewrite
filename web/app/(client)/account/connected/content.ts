@@ -1,5 +1,5 @@
 /**
- * Copy for Screen 2.5.8 Connected Accounts. Not in MESSAGE_TABLES until a Kotlin twin exists.
+ * Copy for Screen 2.5.8 Connected Accounts. Pinned against `ConnectedMessages` by check_copy_parity.py.
  *
  * `safetyNote` is doing real work: it answers the question a disabled Unlink button provokes
  * ("so am I stuck?") and it states the thing that is actually true — unlinking never deletes

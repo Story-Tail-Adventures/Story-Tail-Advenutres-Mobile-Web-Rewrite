@@ -1,6 +1,6 @@
 /**
- * Copy for Screen 2.5.4 Travel Documents (account-wide). Not in MESSAGE_TABLES until a
- * Kotlin twin exists.
+ * Copy for Screen 2.5.4 Travel Documents (account-wide). Pinned against
+ * `DocumentLibraryMessages` by check_copy_parity.py.
  *
  * `privacyNote` is a claim about the FILE in Storage — encrypted at rest, reachable only
  * through the audited signer — and it deliberately does NOT lean on

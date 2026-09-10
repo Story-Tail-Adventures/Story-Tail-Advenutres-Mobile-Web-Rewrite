@@ -1,6 +1,6 @@
 /**
- * Copy for Screen 2.5.6 Notification Preferences. Not in MESSAGE_TABLES until a Kotlin twin
- * exists.
+ * Copy for Screen 2.5.6 Notification Preferences. Pinned against `NotificationsMessages` by
+ * check_copy_parity.py.
  *
  * This screen is a placeholder and the copy has to be honest about WHY without being an
  * apology. It does not say "coming soon" alone, because the reader's real question is "so
