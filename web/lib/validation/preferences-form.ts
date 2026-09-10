@@ -44,3 +44,31 @@ export function readPreferencesForm(formData: FormData): PreferencesFormValues {
 export function text(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value : "";
 }
+
+/**
+ * `loyalty_programs` is jsonb with no CHECK on its shape, so what comes back is whatever was
+ * written. Data-Model §6.2 documents `{program, number, tier}` and the Edge Function builds
+ * exactly that — but a column with no constraint eventually holds something else, and this
+ * one renders straight into an input.
+ *
+ * SHARED, and the sharing is the point. `onboarding-preferences` persists
+ * `number: optionalText(row, "number") ?? null`, and `optionalText` maps "" to null — so
+ * "typed a program, left the member number blank" is stored as
+ * `{program: "AAdvantage", number: null}`. A reader that demands two strings drops that row
+ * entirely, and because the function replaces `loyalty_programs` wholesale, the next save
+ * deletes the program from the traveler's record. Coerce; drop only when BOTH halves are
+ * empty. §2.5.3 hand-copied this once and lost exactly that case.
+ */
+export function readLoyalty(value: unknown): LoyaltyRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: LoyaltyRow[] = [];
+  for (const entry of value) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const row = entry as Record<string, unknown>;
+    const program = typeof row.program === "string" ? row.program : "";
+    const number = typeof row.number === "string" ? row.number : "";
+    if (program === "" && number === "") continue;
+    rows.push({ program, number });
+  }
+  return rows;
+}

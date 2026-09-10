@@ -27,11 +27,16 @@ export const ACCOUNT = {
   preferencesSub: "Style, dietary, loyalty",
 
   documents: "Travel documents",
-  /** A count that the destination screen must agree with — 2.5.4 renders the same list. */
-  documentsSub: (files: number, expiring: number) =>
-    expiring > 0
-      ? `${files} ${files === 1 ? "file" : "files"} · ${expiring} expiring soon`
-      : `${files} ${files === 1 ? "file" : "files"}`,
+  /**
+   * A count that the destination screen must agree with — 2.5.4 renders the same list.
+   *
+   * NO "expiring soon" half. The Screen Inventory note at 2.5.1 describes one, and 2.5.4
+   * lists "expiration warnings" as a primary element, but neither is computed anywhere yet:
+   * it needs `travel_document.expires_on` compared against a window, and this hub reads
+   * `document`, which has no expiry at all. A hardcoded zero dressed as a real count is the
+   * kind of claim this section spent its doc pass removing. It returns with the warning.
+   */
+  documentsSub: (files: number) => `${files} ${files === 1 ? "file" : "files"}`,
   documentsEmptySub: "Passports, visas, insurance",
 
   notifications: "Notifications",

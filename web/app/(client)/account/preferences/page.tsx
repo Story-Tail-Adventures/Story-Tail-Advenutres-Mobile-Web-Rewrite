@@ -5,7 +5,7 @@ import { PreferencesForm } from "@/app/(onboarding)/onboarding/preferences/Prefe
 import type { PreferencesFormValues } from "@/app/(onboarding)/onboarding/preferences/state";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import type { LoyaltyRow } from "@/lib/validation/preferences";
+import { readLoyalty } from "@/lib/validation/preferences-form";
 
 import { AccountHeader } from "../AccountHeader";
 import { saveAccountPreferencesAction } from "./actions";
@@ -75,7 +75,7 @@ const EMPTY: PreferencesFormValues = {
 };
 
 /**
- * What is already on file — 2.1.11's own prefill read, unchanged.
+ * What is already on file — 2.1.11's own prefill read, sharing its loyalty reader.
  *
  * `travel_preference_self_select` scopes it to the caller and the table has no column-level
  * revokes, so the whole row is readable by its owner. A read failure yields an empty form
@@ -115,15 +115,4 @@ async function currentPreferences(): Promise<PreferencesFormValues> {
     budgetBand: data.budget_band ?? "",
     favoritePastTrips: data.favorite_past_trips ?? "",
   };
-}
-
-/** `loyalty_programs` is jsonb; anything that is not the two-string shape is dropped. */
-function readLoyalty(value: unknown): LoyaltyRow[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((row) => {
-    if (typeof row !== "object" || row === null) return [];
-    const { program, number } = row as Record<string, unknown>;
-    if (typeof program !== "string" || typeof number !== "string") return [];
-    return [{ program, number }];
-  });
 }

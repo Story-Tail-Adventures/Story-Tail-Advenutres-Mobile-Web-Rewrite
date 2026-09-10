@@ -40,9 +40,17 @@ export const metadata: Metadata = { title: "Connected accounts" };
  */
 export default async function ConnectedAccountsPage() {
   const supabase = await createClient();
-  const { data: account } = await supabase.from("account").select("auth_provider").maybeSingle();
+  const { data: account, error } = await supabase
+    .from("account")
+    .select("auth_provider")
+    .maybeSingle();
 
-  const signedUpWith = account?.auth_provider ?? null;
+  // A FAILED read is not the same as "no provider". Defaulting to null used to fall through
+  // to the OAuth note, which tells an email-and-password user they have no password — a
+  // false statement about their own account, on the screen they came to to check. Unknown
+  // stays unknown and the note is omitted.
+  if (error) console.warn("[account] auth_provider read failed", { code: error.code });
+  const signedUpWith = error ? undefined : (account?.auth_provider ?? null);
 
   return (
     <div className="client-fill">
@@ -74,9 +82,11 @@ export default async function ConnectedAccountsPage() {
           })}
         </SettingsGroup>
 
-        <p className="t-body-s mt-4 text-on-surface-variant">
-          {signedUpWith === "email" ? CONNECTED.emailAccountNote : CONNECTED.oauthAccountNote}
-        </p>
+        {signedUpWith !== undefined && (
+          <p className="t-body-s mt-4 text-on-surface-variant">
+            {signedUpWith === "email" ? CONNECTED.emailAccountNote : CONNECTED.oauthAccountNote}
+          </p>
+        )}
         <p className="t-body-s mt-3 text-on-surface-variant">{CONNECTED.safetyNote}</p>
       </div>
     </div>

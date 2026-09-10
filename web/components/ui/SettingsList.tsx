@@ -37,6 +37,12 @@ export type SettingsRowProps = {
   trailing?: React.ReactNode;
   danger?: boolean;
   first?: boolean;
+  /**
+   * Laid out as a tile in a grid rather than a row in a list. §4.4 puts 2.5.1 on Pattern D
+   * variant — "Mobile: list of tiles. Tablet/web: grid of tiles" — and a tile carries its
+   * own border instead of the shared top rule a stacked row uses.
+   */
+  tile?: boolean;
 };
 
 export function SettingsRow({
@@ -49,6 +55,7 @@ export function SettingsRow({
   trailing,
   danger = false,
   first = false,
+  tile = false,
 }: SettingsRowProps) {
   const inner = (
     <>
@@ -81,15 +88,23 @@ export function SettingsRow({
 
   const base = cn(
     "flex w-full items-center gap-3 px-4 py-3 text-left",
-    !first && "border-t border-outline-variant",
+    // A stacked row is separated by a top rule; a tile is separated by the grid gap and
+    // carries its own outline. Only `md:` is used here — pairing it with `web:` on the same
+    // property would lose the `web:` value, because Tailwind emits px-based `web:` first.
+    // Stacked: a top rule, except on the first. Tiles: no rule at all below md (they are
+    // still a stacked card there), and from md up each carries its own outline.
+    !tile && !first && "border-t border-outline-variant",
+    tile && !first && "border-t border-outline-variant md:border-t-0",
+    tile && "md:rounded-[14px] md:border md:border-outline-variant md:bg-surface-1",
     disabled && "opacity-55",
   );
 
   if (disabled) {
     return (
-      <div className={base} aria-disabled="true" title={reason}>
+      // `reason` replaces the subtitle and is therefore already announced as part of the
+      // row. An additional sr-only copy would read it twice.
+      <div className={base} aria-disabled="true">
         {inner}
-        {reason && <span className="sr-only">{title} — {reason}</span>}
       </div>
     );
   }
@@ -114,17 +129,28 @@ export function SettingsGroup({
   label,
   children,
   className,
+  tiles = false,
 }: {
   label?: string;
   children: React.ReactNode;
   className?: string;
+  /** Pair with `tile` on each row. See SettingsRowProps.tile for the §4.4 reference. */
+  tiles?: boolean;
 }) {
   return (
     <section className={cn("mt-5 first:mt-0", className)}>
       {label && (
         <h2 className="t-label mb-2 px-1 tracking-wide text-on-surface-variant">{label}</h2>
       )}
-      <Card className="overflow-hidden p-0">{children}</Card>
+      {tiles ? (
+        // Below md this is the same stacked card as a list group; from md up the card
+        // dissolves and the rows become a two-column grid of tiles.
+        <div className="card overflow-hidden p-0 md:grid md:grid-cols-2 md:gap-2.5 md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+          {children}
+        </div>
+      ) : (
+        <Card className="overflow-hidden p-0">{children}</Card>
+      )}
     </section>
   );
 }

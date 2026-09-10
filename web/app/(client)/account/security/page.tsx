@@ -43,11 +43,16 @@ export const metadata: Metadata = { title: "Security" };
 export default async function SecurityPage() {
   const supabase = await createClient();
 
-  const [{ data: account }, { data: factors }] = await Promise.all([
+  const [{ data: account, error: accountError }, { data: factors }] = await Promise.all([
     supabase.from("account").select("auth_provider, mfa_enrolled_at").maybeSingle(),
     supabase.auth.mfa.listFactors(),
   ]);
 
+  // On a failed read this falls back to the password card. That is the safe direction: the
+  // card is inert (see below), so the worst case is offering a disabled control to an OAuth
+  // account, rather than telling a password user they have none — which is what 2.5.8's
+  // fallback used to do.
+  if (accountError) console.warn("[account] security read failed", { code: accountError.code });
   const usesPassword = (account?.auth_provider ?? "email") === "email";
   const verified = factors?.all?.filter((f) => f.status === "verified") ?? [];
   const mfaOn = verified.length > 0;

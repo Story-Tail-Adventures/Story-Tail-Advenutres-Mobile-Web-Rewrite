@@ -33,10 +33,18 @@ export const metadata: Metadata = { title: "Help & support" };
  *    must not spread to an authenticated screen.
  */
 export default function HelpPage() {
-  // The two published FAQ sets, minus anything that answers for an unbuilt screen.
-  const faqs = [...GYASI_FAQ, ...HOW_IT_WORKS_FAQ].filter(
-    (item) => !/\bcard\b|authoriz/i.test(item.q),
-  );
+  // The two published FAQ sets, DEDUPED — both answer the planning-fee question, and it is
+  // the most important one on the screen, so it must appear exactly once. Filtered on the
+  // question AND the answer: two of the §2.4 entries mention card authorization only in the
+  // answer, and an FAQ that explains an unreachable screen is worse than no FAQ.
+  const seen = new Set<string>();
+  const faqs = [...GYASI_FAQ, ...HOW_IT_WORKS_FAQ].filter((item) => {
+    if (/\bcards?\b|authoriz/i.test(`${item.q} ${item.a}`)) return false;
+    const key = item.q.toLowerCase().replace(/[^a-z]/g, "");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   return (
     <div className="client-fill">

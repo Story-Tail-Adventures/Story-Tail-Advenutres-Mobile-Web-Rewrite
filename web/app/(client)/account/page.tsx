@@ -41,7 +41,8 @@ export const metadata: Metadata = { title: "Account" };
 export default async function AccountPage() {
   const supabase = await createClient();
 
-  const [{ data: client }, { data: documents }] = await Promise.all([
+  const [{ data: client, error: clientError }, { data: documents, error: documentsError }] =
+    await Promise.all([
     supabase
       .from("client")
       .select("first_name, last_name, preferred_name, email, created_at")
@@ -50,6 +51,14 @@ export default async function AccountPage() {
     // withheld columns (storage_bucket / storage_key / checksum_sha256) is selected.
     supabase.from("document").select("id, kind").is("archived_at", null),
   ]);
+
+  // Logged rather than thrown: a hub whose name read failed should still offer the eight
+  // destinations. But a DOCUMENT count that failed must not render as "0 files" — that is a
+  // statement about their documents, and a wrong one. It falls back to the neutral subtitle.
+  if (clientError) console.warn("[account] hub client read failed", { code: clientError.code });
+  if (documentsError) {
+    console.warn("[account] hub document count read failed", { code: documentsError.code });
+  }
 
   const initials = initialsFor(client?.preferred_name ?? client?.first_name, client?.last_name);
   const displayName =
@@ -64,11 +73,11 @@ export default async function AccountPage() {
       })
     : null;
 
-  const fileCount = documents?.length ?? 0;
+  const fileCount = documentsError ? null : (documents?.length ?? 0);
 
   return (
     <div className="client-fill">
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+      <div className="mx-auto w-full max-w-2xl p-4 md:max-w-3xl md:p-6">
         <header className="mb-6 flex items-center gap-4 rounded-[20px] bg-linear-to-br from-primary-container to-secondary-container p-5 text-on-primary-container">
           <span
             className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface text-on-surface"
@@ -85,60 +94,72 @@ export default async function AccountPage() {
           </div>
         </header>
 
-        <SettingsGroup label={ACCOUNT.groupYou}>
+        <SettingsGroup label={ACCOUNT.groupYou} tiles>
           <SettingsRow
             first
+            tile
             icon="user"
             title={ACCOUNT.personal}
             sub={ACCOUNT.personalSub}
             href="/account/personal"
           />
           <SettingsRow
+            tile
             icon="heart"
             title={ACCOUNT.preferences}
             sub={ACCOUNT.preferencesSub}
             href="/account/preferences"
           />
           <SettingsRow
+            tile
             icon="passport"
             title={ACCOUNT.documents}
-            sub={fileCount === 0 ? ACCOUNT.documentsEmptySub : ACCOUNT.documentsSub(fileCount, 0)}
+            sub={
+              fileCount === null || fileCount === 0
+                ? ACCOUNT.documentsEmptySub
+                : ACCOUNT.documentsSub(fileCount)
+            }
             href="/documents"
           />
         </SettingsGroup>
 
-        <SettingsGroup label={ACCOUNT.groupApp}>
+        <SettingsGroup label={ACCOUNT.groupApp} tiles>
           <SettingsRow
             first
+            tile
             icon="bell"
             title={ACCOUNT.notifications}
             disabled
             reason={ACCOUNT.comingSoon}
           />
           <SettingsRow
+            tile
             icon="shield"
             title={ACCOUNT.security}
             sub={ACCOUNT.securitySub}
             href="/account/security"
           />
           <SettingsRow
+            tile
             icon="link"
             title={ACCOUNT.connected}
             sub={ACCOUNT.connectedSub}
             href="/account/connected"
           />
-          <SettingsRow icon="card" title={ACCOUNT.wallet} disabled reason={ACCOUNT.comingSoon} />
+          <SettingsRow tile icon="card" title={ACCOUNT.wallet} disabled reason={ACCOUNT.comingSoon} />
         </SettingsGroup>
 
-        <SettingsGroup label={ACCOUNT.groupSupport}>
+        <SettingsGroup label={ACCOUNT.groupSupport} tiles>
           <SettingsRow
             first
+            tile
             icon="question"
             title={ACCOUNT.help}
             sub={ACCOUNT.helpSub}
             href="/account/help"
           />
           <SettingsRow
+            tile
             icon="lock"
             title={ACCOUNT.privacy}
             sub={ACCOUNT.privacySub}
