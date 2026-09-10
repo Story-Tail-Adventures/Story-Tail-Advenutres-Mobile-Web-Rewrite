@@ -47,6 +47,10 @@
 export const SIGNED_IN_SHELLS = [
   "/dashboard",
   "/trips",
+  // §2.5. Both are signed-in shells, so both have to be evicted on sign-out or the next
+  // navigation renders a cached page belonging to whoever just left.
+  "/account",
+  "/documents",
   "/welcome",
   "/onboarding",
   "/mfa",

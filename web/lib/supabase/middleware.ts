@@ -14,6 +14,10 @@ const PROTECTED_PREFIXES = [
   "/dashboard",
   "/trips",
   "/account",
+  // Screen 2.5.4's account-wide library. The (client) layout gates it too, but the proxy is
+  // the first line and a route that lists somebody's passports should not depend on the
+  // second one being correct.
+  "/documents",
   "/agent",
   "/mfa",
   // The onboarding wizard, Screens 2.1.9-2.1.14. It reads and writes a traveler's own
