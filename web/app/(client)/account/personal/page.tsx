@@ -131,13 +131,31 @@ async function currentProfile(): Promise<{
     return blank;
   }
 
-  const { data: address } = client.mailing_address_id
-    ? await supabase
-        .from("address")
-        .select("line1, line2, city, region, postal_code, country")
-        .eq("id", client.mailing_address_id)
-        .maybeSingle()
-    : { data: null };
+  // The passport read is NOT optional, and leaving it out was silent data loss: this form
+  // posts every field, `toProfilePayload` maps an empty expiry AND country to
+  // `passport: null`, and `onboarding-profile` archives the existing `travel_document` row
+  // when it receives null. So a screen that rendered the passport fields blank would wipe a
+  // traveler's passport record on every save — including a save that only changed a phone
+  // number. 2.1.10 reads it back for the same reason; this is its query.
+  //
+  // The NUMBER is not selected, and cannot be: `document_number_encrypted` is outside the
+  // column grant, which is what stops even the ciphertext being selectable.
+  const [{ data: address }, { data: passport }] = await Promise.all([
+    client.mailing_address_id
+      ? supabase
+          .from("address")
+          .select("line1, line2, city, region, postal_code, country")
+          .eq("id", client.mailing_address_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("travel_document")
+      .select("expires_on, issuing_country")
+      .eq("kind", "passport")
+      .is("companion_id", null)
+      .is("archived_at", null)
+      .maybeSingle(),
+  ]);
 
   const emergency = (client.emergency_contact ?? {}) as Record<string, unknown>;
   const str = (value: unknown) => (typeof value === "string" ? value : "");
@@ -162,9 +180,10 @@ async function currentProfile(): Promise<{
       emergencyPhone: str(emergency.phone),
       emergencyRelationship: str(emergency.relationship),
       // The passport NUMBER is deliberately absent — see 2.1.10's note and the Screen
-      // Inventory note at 2.5.5. Expiry and issuing country are what drive the reminder.
-      passportExpiry: "",
-      passportCountry: "",
+      // Inventory note at 2.5.5. Expiry and issuing country are what drive the reminder,
+      // and they MUST round-trip: see the comment on the read above.
+      passportExpiry: passport?.expires_on ?? "",
+      passportCountry: passport?.issuing_country ?? "",
     },
   };
 }

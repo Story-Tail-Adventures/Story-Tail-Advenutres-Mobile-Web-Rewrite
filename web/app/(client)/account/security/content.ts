@@ -16,6 +16,8 @@ export const SECURITY = {
   passwordTitle: "Password",
   passwordBody: "Change it whenever you like — you’ll get a link by email.",
   passwordCta: "Change password",
+  /** /forgot-password bounces a signed-in visitor; see the page comment. */
+  passwordDeferred: "Coming with the next release — for now, sign out and use “Forgot?” on the sign-in screen.",
 
   noPasswordTitle: "How you sign in",
   noPasswordBody: (provider: string) =>
@@ -28,6 +30,8 @@ export const SECURITY = {
   mfaBody: "A six-digit code from your authenticator app, on top of your password.",
   mfaEnableCta: "Turn on two-factor",
   mfaManageCta: "Replace your authenticator",
+  /** 2.1.6 redirects anyone already enrolled; managing a factor is this screen's own job. */
+  mfaManageDeferred: "Coming with the next release. Two-factor is on and working in the meantime.",
 
   sessionsHeading: "WHERE YOU ARE SIGNED IN",
   sessionsDeferred:

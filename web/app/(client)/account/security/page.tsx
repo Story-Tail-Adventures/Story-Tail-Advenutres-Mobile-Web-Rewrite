@@ -61,9 +61,23 @@ export default async function SecurityPage() {
           <Card className="p-5">
             <h2 className="t-title-s">{SECURITY.passwordTitle}</h2>
             <p className="t-body-s mt-1 text-on-surface-variant">{SECURITY.passwordBody}</p>
-            <Link href="/forgot-password" className="btn btn-tonal mt-4 w-full">
+            {/* NOT a link to /forgot-password. That route is in the proxy's
+                AUTH_ONLY_PREFIXES, so a signed-in visitor is bounced straight off it — the
+                control would look live and do nothing for precisely the people who can
+                reach this screen. A real in-place change needs its own form calling
+                `supabase.auth.updateUser({ password })`, and that is a decision as much as
+                a build: `secure_password_change` is currently false in supabase/config.toml,
+                so a stolen session could change a password with no reauthentication. The
+                Screen Inventory note at 2.5.7 records it. */}
+            <button
+              type="button"
+              className="btn btn-tonal mt-4 w-full"
+              disabled
+              aria-disabled="true"
+            >
               {SECURITY.passwordCta}
-            </Link>
+            </button>
+            <p className="t-body-s mt-2 text-on-surface-variant">{SECURITY.passwordDeferred}</p>
           </Card>
         ) : (
           <Card className="p-5">
@@ -85,9 +99,28 @@ export default async function SecurityPage() {
             </span>
           </div>
           <p className="t-body-s mt-1.5 text-on-surface-variant">{SECURITY.mfaBody}</p>
-          <Link href="/mfa/setup" className="btn btn-tonal mt-4 w-full">
-            {mfaOn ? SECURITY.mfaManageCta : SECURITY.mfaEnableCta}
-          </Link>
+          {/* Enrolling works and is a real link. MANAGING an existing factor is not: 2.1.6
+              redirects anyone who already has a verified factor straight back out, and its
+              own comment says why — "enrolling a second one from this screen is Security
+              Settings' job (2.5.7), not first-run's". That job is this screen's and is not
+              built, so the control says so instead of bouncing the reader off 2.1.6. */}
+          {mfaOn ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-tonal mt-4 w-full"
+                disabled
+                aria-disabled="true"
+              >
+                {SECURITY.mfaManageCta}
+              </button>
+              <p className="t-body-s mt-2 text-on-surface-variant">{SECURITY.mfaManageDeferred}</p>
+            </>
+          ) : (
+            <Link href="/mfa/setup" className="btn btn-tonal mt-4 w-full">
+              {SECURITY.mfaEnableCta}
+            </Link>
+          )}
         </Card>
 
         <h2 className="t-label mt-6 mb-2 px-1 tracking-wide text-on-surface-variant">
