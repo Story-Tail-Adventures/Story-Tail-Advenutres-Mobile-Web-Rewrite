@@ -1,5 +1,5 @@
 /**
- * SerpApi Google Hotels fixtures, plus the fetch stub.
+ * SerpApi Google Hotels fixtures, plus the provider stub.
  *
  * THE POISONED FIXTURE IS THE POINT. `SEARCH_PAGE` carries a full `prices[]` with real
  * booking-site names, their logos and their links, an `ads[]` block, a sponsored property
@@ -8,14 +8,15 @@
  * would assert nothing. Any fixture added here should keep the hostile fields.
  *
  * CI runs `deno test --allow-env` with no network and no read permission, so fixtures are
- * TypeScript modules rather than JSON on disk, and `fetch` is injected.
+ * TypeScript modules rather than JSON on disk, and the library's calls are injected.
  */
 import type { ProviderAccount, ProviderSearchResponse } from "../types.ts";
 
 export const API_KEY = "test-serpapi-key-do-not-use";
 
 /** A second, different-looking key, to prove the pattern redactor is not just an equality check. */
-export const ROTATED_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+export const ROTATED_KEY =
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 export const SEARCH_PAGE: ProviderSearchResponse = {
   search_metadata: { id: "68c0f0aa1e3b4a0001b2c3d4", status: "Success" },
@@ -70,7 +71,8 @@ export const SEARCH_PAGE: ProviderSearchResponse = {
       extracted_hotel_class: 5,
       images: [
         {
-          thumbnail: "https://lh3.googleusercontent.com/proxy/abc=s287-w287-h192-n-k-no-v1",
+          thumbnail:
+            "https://lh3.googleusercontent.com/proxy/abc=s287-w287-h192-n-k-no-v1",
           original_image: "https://lh3.googleusercontent.com/proxy/abc",
         },
         {
@@ -149,45 +151,47 @@ export const ACCOUNT: ProviderAccount = {
   account_rate_limit_per_hour: 50,
 };
 
-export const ERROR_BODY = { error: "Invalid API key. Your API key should be here: /manage-api-key" };
+export const ERROR_BODY = {
+  error: "Invalid API key. Your API key should be here: /manage-api-key",
+};
 
-export interface StubCall {
-  url: string;
-  headers: Record<string, string>;
-}
+/** A rate-limit refusal, as the provider words it. Permanence is now inferred from this. */
+export const RATE_LIMITED_BODY = {
+  error: "Your account has hit its rate limit. Please slow down your requests.",
+};
+
+/** A transient upstream failure whose wording matches none of the permanent patterns. */
+export const TRANSIENT_BODY = { error: "Backend responded with 502" };
 
 export interface StubResponse {
-  status?: number;
-  body: unknown;
-  headers?: Record<string, string>;
-  /** Reject instead of responding — the network-failure branch. */
-  throws?: Error;
+  /** Resolve with this. The library resolves only on HTTP 200. */
+  body?: unknown;
+  /**
+   * Reject with this. The library's error channel is a RAW BODY STRING on any non-200 — no
+   * status code, not an Error — so that is what these tests hand back. An Error here stands
+   * in for a transport failure instead.
+   */
+  rejects?: unknown;
 }
 
-/** A fetch stub that replays a queue of responses and records what it was asked for. */
-export function stubFetch(responses: StubResponse[]) {
-  const calls: StubCall[] = [];
+/**
+ * A stub for the library's two calls, replacing the old fetch stub.
+ *
+ * `calls` records the PARAMETER OBJECTS we handed the library rather than URLs, because
+ * this module no longer builds a URL. That is what lets the tests below still assert both
+ * halves of the credential rule: the key goes to the provider, and never into the ledger.
+ */
+export function stubProvider(responses: StubResponse[]) {
+  const calls: Record<string, string | number>[] = [];
   const queue = [...responses];
 
-  const impl = ((input: string | URL | Request, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : String(input);
-    const headers: Record<string, string> = {};
-    new Headers(init?.headers).forEach((value, key) => {
-      headers[key] = value;
-    });
-    calls.push({ url, headers });
-
+  const impl = (params: Record<string, string | number>): Promise<unknown> => {
+    calls.push(params);
     const next = queue.shift();
-    if (!next) throw new Error(`stubFetch: no queued response for ${url}`);
-    if (next.throws) return Promise.reject(next.throws);
-
-    return Promise.resolve(
-      new Response(JSON.stringify(next.body), {
-        status: next.status ?? 200,
-        headers: { "Content-Type": "application/json", ...(next.headers ?? {}) },
-      }),
-    );
-  }) as typeof fetch;
+    if (!next) return Promise.reject(new Error("stubProvider: no queued response"));
+    if ("rejects" in next) return Promise.reject(next.rejects);
+    return Promise.resolve(next.body);
+  };
 
   return { impl, calls, remaining: () => queue.length };
 }

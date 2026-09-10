@@ -13,16 +13,16 @@ import type { Db } from "../db.ts";
 type Json = Database["public"]["Tables"]["hotel_search_cache"]["Insert"]["payload"];
 import { uuidV7 } from "../uuid.ts";
 import {
-  type Budget,
   applyQuota,
+  type Budget,
   exhaustionReason,
   type HotelSearchConfig,
   readBudget,
 } from "./budget.ts";
 import {
   cacheKey,
-  type CanonicalQuery,
   canonicalize,
+  type CanonicalQuery,
   echo,
   providerParams,
   type SearchInput,
@@ -30,6 +30,7 @@ import {
 } from "./cache.ts";
 import {
   createSerpApiClient,
+  type ProviderCall,
   readQuota,
   type RequestRecord,
   SerpApiError,
@@ -44,7 +45,9 @@ export interface SearchDeps {
   db: Db;
   apiKey: string;
   config: HotelSearchConfig;
-  fetchImpl?: typeof fetch;
+  /** The library's two calls, injected by tests; production passes nothing. */
+  searchImpl?: ProviderCall;
+  accountImpl?: ProviderCall;
   now?: Date;
   /** Injected so tests are deterministic; production passes nothing. */
   sleep?: (ms: number) => Promise<void>;
@@ -169,7 +172,8 @@ export async function runSearch(
 
   const client = createSerpApiClient({
     apiKey: deps.apiKey,
-    fetchImpl: deps.fetchImpl,
+    searchImpl: deps.searchImpl,
+    accountImpl: deps.accountImpl,
     onRequest: makeRecorder(deps.db, key),
     sleep: deps.sleep,
   });
@@ -221,7 +225,14 @@ export async function runSearch(
     // re-fetched fifty times before somebody notices.
     await writeCache(deps.db, key, canonical, payload, ttl, now);
 
-    return { ...payload, ...base, source: "live", degraded: null, asOf: now.toISOString(), staleAsOf: null };
+    return {
+      ...payload,
+      ...base,
+      source: "live",
+      degraded: null,
+      asOf: now.toISOString(),
+      staleAsOf: null,
+    };
   } catch (err) {
     const code = err instanceof SerpApiError ? err.code : "unknown";
     console.warn("[hotel-search] provider call failed", { code });
@@ -237,7 +248,12 @@ export async function runSearch(
  * the figure explicit, which is what §3.8 wants anyway.
  */
 function degraded(
-  base: { version: number; currency: string; hasMore: false; query: ReturnType<typeof echo> },
+  base: {
+    version: number;
+    currency: string;
+    hasMore: false;
+    query: ReturnType<typeof echo>;
+  },
   cached: CacheRow | null,
   _budget: Budget,
   config: HotelSearchConfig,
