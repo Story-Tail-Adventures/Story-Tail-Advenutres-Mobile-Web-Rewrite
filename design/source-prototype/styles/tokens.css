@@ -100,8 +100,15 @@
   --md-tertiary-container: #105228;
   --md-on-tertiary-container: #B6F2C8;
 
+  /* The `on-` halves were missing here, so they fell through to the :root LIGHT values and
+     dark rendered #410002 on #93000A — near-black on dark red, about 1.5:1. It only shows
+     on a surface that actually uses errorContainer, which is why it survived §2.0-§2.2:
+     §2.5.9's "Close your account" card and §2.5.10's confirm are the first large ones.
+     These four now match web/styles/tokens.css, which already carries the fix. */
   --md-error: #FFB4AB;
+  --md-on-error: #690005;
   --md-error-container: #93000A;
+  --md-on-error-container: #FFDAD6;
 
   --md-success: #8DDCA4;
   --md-success-container: #00522A;
