@@ -1,5 +1,9 @@
 /**
- * SerpApi client, built on the provider's official library (`deno.land/x/serpapi`).
+ * SerpApi client, built on the provider's official library (`npm:serpapi`).
+ *
+ * IMPORTED AS `npm:serpapi@2.2.1`, not from deno.land/x. Supabase's own dependency guidance
+ * prefers `npm:` and `jsr:` and says to minimise `deno.land/x` — and the deploy serialises the
+ * module graph into an eszip, so the specifier is a deploy-time concern, not a style one.
  *
  * WHY THE LIBRARY, AND WHAT IT COST. This file used to own the HTTP call. It now delegates
  * transport to `getJson`/`getAccount` and keeps everything that call sits inside: the

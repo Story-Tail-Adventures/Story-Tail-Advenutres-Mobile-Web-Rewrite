@@ -1,7 +1,7 @@
 {
   "imports": {
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@^2",
-    "serpapi": "https://deno.land/x/serpapi@2.2.1/mod.ts"
+    "serpapi": "npm:serpapi@2.2.1"
   },
   "lint": {
     "rules": {

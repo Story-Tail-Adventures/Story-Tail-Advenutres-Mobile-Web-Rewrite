@@ -5,7 +5,7 @@
  * incident, a retry that cannot succeed spending requests to learn nothing, or an
  * unrecorded attempt making the ledger lie about a 250-a-month budget.
  *
- * WHAT CHANGED WITH THE LIBRARY. The transport is now `deno.land/x/serpapi`, which rejects
+ * WHAT CHANGED WITH THE LIBRARY. The transport is now `npm:serpapi`, which rejects
  * with the raw body STRING and no status code, so the cases that used to be expressed as
  * "a 401" and "a 5xx" are expressed as the provider's wording instead. The two tests named
  * for that loss say so out loud, because it is the one place this file is weaker than the
