@@ -3,7 +3,7 @@
 import { refresh, revalidatePath } from "next/cache";
 
 import { DOCUMENT_MESSAGES } from "./documents";
-import { THREAD_MESSAGES } from "./thread";
+import { THREAD_MESSAGES, type SendMessageState } from "./thread";
 import { uuidV7 } from "@/lib/uuid";
 import { absoluteStorageUrl, callTripFunction } from "./api";
 
@@ -46,7 +46,17 @@ export async function signDocument(documentId: string): Promise<SignedDocument> 
   return { ok: true, url: absoluteStorageUrl(path) };
 }
 
-export type SendMessageState = { status: "idle" | "sent" } | { status: "error"; message: string; draft: string };
+/**
+ * Declared in `@/lib/trips/thread` and imported at the top of this file, NOT re-exported
+ * from here.
+ *
+ * A `"use server"` module may export only async functions. `export type { … } from` is
+ * erased by the compiler and would very likely be fine — but "very likely" is not worth it
+ * here, because the failure mode is a 500 on every POST to any route that imports this file,
+ * and it is invisible to tsc, to eslint and to the unit tests alike. See the header of
+ * `lib/auth/signed-in-shells.ts`, which is that lesson already paid for once. Importers take
+ * the type from `@/lib/trips/thread` directly.
+ */
 
 /**
  * Send a message on a trip thread, for 2.2.7's compose bar.

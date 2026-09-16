@@ -87,8 +87,8 @@ export const CLIENT_DESTINATIONS: readonly ClientDestination[] = [
     icon: "message",
     label: "Messages",
     surfaces: ["rail", "bar", "tablet"],
-    built: false,
-    phase: "P1",
+    built: true,
+    phase: null,
     section: "§2.6",
   },
   {

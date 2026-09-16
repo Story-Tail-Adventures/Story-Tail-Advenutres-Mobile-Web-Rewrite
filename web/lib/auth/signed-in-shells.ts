@@ -51,6 +51,9 @@ export const SIGNED_IN_SHELLS = [
   // navigation renders a cached page belonging to whoever just left.
   "/account",
   "/documents",
+  // §2.6, and the one with the most to leak: a cached inbox renders the previous person's
+  // conversations, their advisor's own words in the preview line included.
+  "/messages",
   "/welcome",
   "/onboarding",
   "/mfa",

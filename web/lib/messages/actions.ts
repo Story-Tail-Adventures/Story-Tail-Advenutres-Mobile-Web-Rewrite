@@ -4,6 +4,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { callTripFunction } from "@/lib/trips/api";
+import type { SendMessageState } from "@/lib/trips/thread";
 import { uuidV7 } from "@/lib/uuid";
 
 /**
@@ -20,9 +21,11 @@ import { uuidV7 } from "@/lib/uuid";
  * contract and both clients together.
  */
 
-export type SendMessageState =
-  | { status: "idle" | "sent" }
-  | { status: "error"; message: string; draft: string };
+/**
+ * The state shape is `SendMessageState` from `@/lib/trips/thread`, imported above and NOT
+ * re-exported — same reasoning as the note in `lib/trips/actions.ts`. It is shared because
+ * 2.6.2's compose bar IS 2.2.7's, handed a different action.
+ */
 
 /**
  * Post into an existing thread, for 2.6.2's compose bar.

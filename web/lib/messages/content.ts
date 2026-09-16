@@ -55,8 +55,29 @@ export const MESSAGES = {
   backToMessages: "Messages",
   openTrip: "Open trip",
 
+  /**
+   * The empty thread, on a conversation with no trip.
+   *
+   * `THREAD_MESSAGES.emptyBody` says "you and Gyasi talk about THIS TRIP", which is right on
+   * 2.2.7 and wrong on the one thread that has no trip at all. Caught in a browser, on the
+   * general thread, reading a sentence about a trip that does not exist.
+   *
+   * IT IS REACHABLE, which is the reason it is worth a string rather than a shrug.
+   * `trip-message` creates the conversation and inserts the message in two statements and is
+   * explicitly NOT atomic — a failure between them leaves a conversation with no messages in
+   * it, and this is what that looks like.
+   */
+  threadEmptyBody:
+    "This is where you and Gyasi talk. Ask anything — the small questions are the ones worth asking.",
+
   /** 2.6.3. */
   newTitle: "New message",
+  /**
+   * The field's own label, which must NOT be `newTitle` — that is the page heading directly
+   * above it, and a form whose only field is labelled the same as its page reads like a
+   * rendering bug. The artboard labels it "Message".
+   */
+  newBodyLabel: "Message",
   newSubtitle:
     "Anything at all — an idea you can't shake, a date that might work, a question about somewhere you've been reading about. There is never a fee for asking.",
   newPlaceholder: "What's on your mind?",

@@ -1,4 +1,4 @@
-import { MESSAGES } from "@/lib/messages/content";
+import { inboxTitle } from "@/lib/messages/inbox";
 import { createClient } from "@/lib/supabase/server";
 import {
   currentPlatformUser,
@@ -137,18 +137,14 @@ export async function loadConversationThread(
 }
 
 /**
- * What to call a thread.
+ * `inboxTitle` used to live here, and moving it to `./inbox` was not tidying.
  *
- * `subject` is set to the trip title when `trip-message` creates a trip thread, so it is
- * almost always there. A GENERAL THREAD HAS NEITHER: 2.6.3 deliberately does not ask for a
- * subject line, because a subject field is the first step towards a structured intake form,
- * and BRD §6.5 consolidated intake onto `quote-request` precisely so there would not be a
- * second queue. So the fallback is a name for the conversation rather than a description of
- * it — the person you are talking to.
+ * It is imported by the inbox list, which is a CLIENT component. A value imported from this
+ * module drags this module into the browser bundle, and this module imports
+ * `lib/supabase/server`, which imports `next/headers` — so every route touching it 500s with
+ * "This API is only available in Server Components". Typecheck, lint and all 874 unit tests
+ * passed with that edge in place; only loading the page showed it.
  *
- * The trip title is preferred over a stale subject when both exist, because a trip can be
- * renamed after the thread was created and the header should follow the trip.
+ * The rule it illustrates: a pure helper a client component needs does not live in a module
+ * that opens a database connection. `./inbox` imports only a TYPE from here, which is erased.
  */
-export function inboxTitle(row: { subject: string | null; tripTitle: string | null }): string {
-  return row.tripTitle ?? row.subject ?? MESSAGES.generalThreadTitle;
-}
