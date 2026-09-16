@@ -169,8 +169,15 @@ data class SendTripMessageRequest(
     // the id client-side is what makes a retry idempotent.
     @SerialName("messageId")
     val messageId: String,
+    // The trip whose thread this belongs to. Mutually exclusive with `conversationId`;
+    // omit both to post into the traveler's general (trip-less) thread.
     @SerialName("tripId")
-    val tripId: String,
+    val tripId: String? = null,
+    // An existing thread, addressed directly. Screen 2.6.2 uses this because a general
+    // thread has `trip_id IS NULL` and so has no trip to key on. Mutually exclusive
+    // with `tripId`.
+    @SerialName("conversationId")
+    val conversationId: String? = null,
     @SerialName("body")
     val body: String,
     // Documents already registered via POST /trip-document.
