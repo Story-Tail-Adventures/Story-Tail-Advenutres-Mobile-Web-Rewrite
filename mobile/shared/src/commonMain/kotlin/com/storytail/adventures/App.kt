@@ -48,6 +48,7 @@ import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
 import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.account.AccountRoute
+import com.storytail.adventures.ui.screens.messages.MessagesRoute
 import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
@@ -234,6 +235,24 @@ fun App() {
                         // domain/trip/TripStatus.kt.
                         today = LocalDate.parse(today),
                     )
+                }
+            }
+
+            // §2.6, listed for the same reason: the `when` stays exhaustive.
+            AppRoute.Messages,
+            is AppRoute.ConversationThread,
+            AppRoute.NewConversation,
+            -> {
+                val trips = tripRepository
+                if (trips == null) {
+                    SplashScreen()
+                } else {
+                    // No `today` parameter: §2.6's dates are all rendered in the DEVICE zone
+                    // through `localToday()` at the point of use, not derived from App.kt's
+                    // UTC date. The thread's separators and the inbox's timestamps have to
+                    // agree with each other, and the device is the only clock that knows where
+                    // the traveler is.
+                    MessagesRoute(route = route, nav = nav, trips = trips)
                 }
             }
 

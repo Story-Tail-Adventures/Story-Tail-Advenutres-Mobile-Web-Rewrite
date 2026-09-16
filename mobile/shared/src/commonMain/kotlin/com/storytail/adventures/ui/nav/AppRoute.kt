@@ -217,9 +217,20 @@ sealed interface AppRoute {
     // the form. That is the platform-conventional behaviour for a tab that was RESET, and it
     // is the behaviour every one of these screens can afford — none of them holds unsaved
     // work across a tab switch, because both forms are Save-or-Cancel and the rest are reads.
-    // The decision is recorded here rather than deferred silently: a per-tab stack is four
-    // stacks to restore on process death, and it becomes worth it when §2.6's thread lands,
-    // where leaving a half-typed message behind IS a loss.
+    //
+    // THE REASON THIS NOTE GAVE FOR REVISITING AT §2.6 WAS WRONG, and §2.6 is where that got
+    // checked rather than repeated. It said a per-tab stack "becomes worth it when §2.6's
+    // thread lands, where leaving a half-typed message behind IS a loss". A half-typed message
+    // is a real loss — but a per-tab stack does not save it, and not having one does not cost
+    // it. The draft lives in a ViewModel obtained through `viewModel(key = "…")` against an
+    // app-scoped store, so it outlives the composable either way: switch tabs mid-sentence,
+    // come back, reopen the same thread, and the words are still in the box. Verified on the
+    // emulator, because the answer depends on the store's lifetime rather than on anything
+    // visible in this file.
+    //
+    // So what a per-tab stack would actually buy is landing back ON the thread instead of on
+    // the inbox — a convenience, not a rescue — in exchange for four stacks to restore on
+    // process death. Still deferred, now for the honest reason.
 
     /** Screen 2.5.1, and the root of the Account tab. */
     data object Account : AppRoute {
@@ -281,6 +292,37 @@ sealed interface AppRoute {
 
     /** Screen 2.5.11. */
     data object AccountHelp : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── Screen Inventory §2.6, Messaging ────────────────────────────────────────
+    //
+    // [Messages] is the Messages TAB'S ROOT; the other two are pushed on top of it and carry a
+    // back bar instead of the tab bar — `M261_Inbox` is the only §2.6 frame drawn with
+    // `MClientTabs` as its footer.
+
+    /** Screen 2.6.1, and the root of the Messages tab. */
+    data object Messages : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.6.2, addressed by CONVERSATION and not by trip.
+     *
+     * The distinction from [TripThread] is the whole point of this section rather than a
+     * naming preference: 2.6.3 creates a conversation with `trip_id IS NULL`, and there is no
+     * trip id that reaches it. A traveler with no trip yet would find every thread they own
+     * unreachable through [TripThread].
+     *
+     * Both routes render ONE screen — see `ThreadSurface` — so this is a different address for
+     * the same thing, not a second implementation of it.
+     */
+    data class ConversationThread(val conversationId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.6.3. */
+    data object NewConversation : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }

@@ -1,13 +1,13 @@
 /**
  * Copy for Screen Inventory §2.6 Messaging.
  *
- * NOT YET PINNED. Its Kotlin twin `MessagesMessages` in
+ * Pinned against its Kotlin twin `MessagesMessages` in
  * `mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessagesCopy.kt`
- * lands with this section's mobile build, and the `MESSAGE_TABLES` row in
- * `.github/scripts/check_copy_parity.py` is added at the same time. Until that row exists
- * parity does not look at this module at all — the script's own header says it plainly: a
- * message added on one side and left out of the map is a SILENT gap, not a failure. So this
- * comment is the only thing holding the two sides together right now.
+ * by `.github/scripts/check_copy_parity.py`. Change a string here and the same change is
+ * required there, or CI fails.
+ *
+ * EVERY plain-string key below is in that map. Adding one here without adding it there is not
+ * a failure — it is invisible, which is the silent gap the script's own header warns about.
  *
  * TWO STRINGS IN HERE ARE LOAD-BEARING BEYOND THEIR SCREEN:
  *
@@ -51,9 +51,14 @@ export const MESSAGES = {
 
   newCta: "New message",
 
-  /** 2.6.2. */
+  /**
+   * 2.6.2.
+   *
+   * "Open trip" is NOT here. It is `THREAD_MESSAGES.openTrip`, already pinned for 2.2.7, and
+   * both screens render the identical string — a second copy would double the parity surface
+   * for one word and give the two screens somewhere to disagree.
+   */
   backToMessages: "Messages",
-  openTrip: "Open trip",
 
   /**
    * The empty thread, on a conversation with no trip.

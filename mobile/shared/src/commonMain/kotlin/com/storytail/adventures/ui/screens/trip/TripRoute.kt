@@ -11,6 +11,7 @@ import com.storytail.adventures.domain.trip.TripStatus
 import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
 import com.storytail.adventures.domain.trip.localToday
+import com.storytail.adventures.ui.components.client.ThreadScreen
 import com.storytail.adventures.ui.nav.rememberPlatformLinks
 import com.storytail.adventures.ui.screens.dashboard.DashboardScreen
 import com.storytail.adventures.ui.screens.dashboard.DashboardViewModel
@@ -30,10 +31,10 @@ import kotlinx.datetime.LocalDate
  * day arrived and the parameter went with it, because §2.5 is a sibling host under App.kt
  * rather than something reached through this one.
  *
- * [onSelectTab] maps a tab id from `CLIENT_BAR_DESTINATIONS` to a route. Two of the four are
- * built; the other two are dimmed and unpressable in the bar, so they cannot arrive here —
- * but the `else` branch is a no-op rather than a throw, because a bar that crashes the app
- * when a future tab is half-wired is worse than one that does nothing.
+ * [onSelectTab] maps a tab id from `CLIENT_BAR_DESTINATIONS` to a route. THREE of the four are
+ * built as of §2.6; only Discover (§2.3, Phase 2) is dimmed and unpressable in the bar, so it
+ * cannot arrive here — but the `else` branch is a no-op rather than a throw, because a bar that
+ * crashes the app when a future tab is half-wired is worse than one that does nothing.
  */
 @Composable
 fun TripRoute(
@@ -47,6 +48,7 @@ fun TripRoute(
     val onSelectTab: (String) -> Unit = { id ->
         when (id) {
             "trips" -> nav.selectTab(AppRoute.Dashboard)
+            "messages" -> nav.selectTab(AppRoute.Messages)
             "account" -> nav.selectTab(AppRoute.Account)
             else -> Unit
         }

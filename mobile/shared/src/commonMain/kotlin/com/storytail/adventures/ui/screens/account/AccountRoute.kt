@@ -60,6 +60,7 @@ fun AccountRoute(
     val onSelectTab: (String) -> Unit = { id ->
         when (id) {
             "trips" -> nav.selectTab(AppRoute.Dashboard)
+            "messages" -> nav.selectTab(AppRoute.Messages)
             "account" -> nav.selectTab(AppRoute.Account)
             else -> Unit
         }

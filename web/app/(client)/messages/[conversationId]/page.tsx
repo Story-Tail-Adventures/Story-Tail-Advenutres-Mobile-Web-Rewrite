@@ -100,7 +100,7 @@ export default async function ConversationThreadPage({
                 disabled button explaining that would be furniture. */}
             {thread.tripId && (
               <Link href={`/trips/${thread.tripId}`} className="btn btn-tonal btn-sm shrink-0">
-                <span className="hidden md:inline">{MESSAGES.openTrip}</span>
+                <span className="hidden md:inline">{THREAD_MESSAGES.openTrip}</span>
                 <span className="md:hidden">
                   <Icon name="trip" size={14} />
                 </span>

@@ -947,6 +947,47 @@ MESSAGE_TABLES = [
             "legalHeading": "LEGAL_HEADING",
         },
     },
+    {
+        # §2.6's whole section, all three screens, in one module on each side.
+        #
+        # EVERY plain-string key in MESSAGES is listed here. That is the point: an unlisted key
+        # is not a failure, it is invisible, so a string added to one stack and left out of this
+        # map is exactly the silent gap this file's header warns about.
+        #
+        # "openTrip" is deliberately NOT here — both §2.6.2 and §2.2.7 render
+        # `THREAD_MESSAGES.openTrip` / `ThreadMessages.OPEN_TRIP`, which the "2.2.7 thread" row
+        # above already pins. A second copy of one word would double the surface and give the
+        # two screens somewhere to disagree.
+        "label": "2.6 messaging",
+        "web_file": ROOT / "web/lib/messages/content.ts",
+        "web_const": "MESSAGES",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessagesCopy.kt",
+        "kmp_object": "MessagesMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "advisorName": "ADVISOR_NAME",
+            "advisorInitials": "ADVISOR_INITIALS",
+            "replyWindow": "REPLY_WINDOW",
+            "searchPlaceholder": "SEARCH_PLACEHOLDER",
+            "searchEmpty": "SEARCH_EMPTY",
+            "generalThreadTitle": "GENERAL_THREAD_TITLE",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "emptyCta": "EMPTY_CTA",
+            "newCta": "NEW_CTA",
+            "backToMessages": "BACK_TO_MESSAGES",
+            "threadEmptyBody": "THREAD_EMPTY_BODY",
+            "newTitle": "NEW_TITLE",
+            "newBodyLabel": "NEW_BODY_LABEL",
+            "newSubtitle": "NEW_SUBTITLE",
+            "newPlaceholder": "NEW_PLACEHOLDER",
+            "newSend": "NEW_SEND",
+            "newSending": "NEW_SENDING",
+            "newFailed": "NEW_FAILED",
+            "attachDeferred": "ATTACH_DEFERRED",
+        },
+    },
 ]
 
 # web BY_KIND key -> kotlin data object
