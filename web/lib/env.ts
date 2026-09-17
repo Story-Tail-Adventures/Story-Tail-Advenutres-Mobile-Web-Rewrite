@@ -96,27 +96,54 @@ export const env = {
   },
 
   /**
-   * The shared secret proving a hotel-search call came from our own server.
+   * The shared secret proving a cruise-search call came from our own server.
    *
    * NOT `NEXT_PUBLIC_` — deliberately, and it is the reason this getter exists at all. The
    * anon key satisfies the Edge Function's gateway but authenticates nobody, because it is
    * inlined into the browser bundle; this value never is. Reading it in a client component
    * yields undefined, which is the failure mode we want.
    *
-   * Null rather than throwing when unset: the hotels mode then reports itself unavailable
-   * and the page falls back to the curated catalog, which is a better outcome on a public
-   * marketing route than a 500.
+   * Null rather than throwing when unset: the mode then reports itself unavailable and the
+   * page falls back to the curated catalog, which is a better outcome on a public marketing
+   * route than a 500.
+   *
+   * STILL NAMED FOR HOTELS, and only `lib/public/cruises.ts` reads it now — hotel search no
+   * longer calls an Edge Function at all. The env var is the same shared secret on both
+   * sides (`HOTEL_SEARCH_CALLER_TOKEN` in supabase secrets), so renaming it is a two-place
+   * rotation rather than an edit, and it is not part of this change.
    */
   get hotelSearchToken(): string | null {
     return process.env.STA_HOTEL_SEARCH_TOKEN ?? null;
   },
 
   /**
+   * The metered SerpApi credential. Live hotel search is ONE call with this ONE key.
+   *
+   * NOT `NEXT_PUBLIC_`, and the stake is higher than it was for `hotelSearchToken`: this is
+   * the provider credential itself, not a token that merely unlocked a function of ours. A
+   * leak here spends a 250-searches-a-month budget that an overspent month cannot buy back.
+   * Next inlines only `NEXT_PUBLIC_*` into the browser bundle, so reading this from a client
+   * component yields undefined and a quiet "unavailable" — never the key.
+   *
+   * Null rather than throwing when unset, for the same reason as above: the hotels mode
+   * reports itself unavailable and the page falls back to the curated catalog.
+   */
+  get serpApiKey(): string | null {
+    return process.env.SERPAPI_API_KEY ?? null;
+  },
+
+  /**
    * The kill switch. Live hotel search spends a metered third-party budget on a public
    * page, so it needs to be one env var from off without a deploy or a code change.
+   *
+   * IT NO LONGER KEYS OFF `STA_HOTEL_SEARCH_TOKEN`, and that was a real coupling bug the
+   * moment hotel search stopped calling an Edge Function: the token is the CRUISE caller
+   * secret now, so leaving the default here meant unsetting a cruise credential silently
+   * turned hotel search off, and setting `SERPAPI_API_KEY` alone left it dead with nothing
+   * in any log to say why. "Configured" is `serpApiKey` being present, which the caller
+   * checks separately; this getter is the switch and nothing else, so it defaults to on.
    */
   get hotelSearchEnabled(): boolean {
-    if (process.env.HOTEL_SEARCH_ENABLED === "false") return false;
-    return Boolean(process.env.STA_HOTEL_SEARCH_TOKEN);
+    return process.env.HOTEL_SEARCH_ENABLED !== "false";
   },
 };
