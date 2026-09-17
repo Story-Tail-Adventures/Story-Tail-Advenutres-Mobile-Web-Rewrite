@@ -483,6 +483,9 @@ verify_jwt = true
 [functions.payment-wallet]
 verify_jwt = true
 
+[functions.card-authorization]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand
