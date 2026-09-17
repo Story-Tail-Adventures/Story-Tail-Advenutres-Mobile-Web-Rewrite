@@ -18,8 +18,15 @@ export const HELP = {
   advisorBody: "Anything about your own trip is quickest this way. There is never a fee for asking.",
   messageCta: "Message Gyasi",
 
-  /** Until §2.6.3 can send, this is the honest path — the same call 2.1.14 makes. */
-  mailto: "mailto:hello@story-tail.com?subject=A%20question",
+  /**
+   * THE `mailto:` IS GONE. It said "until §2.6.3 can send, this is the honest path" — 2.6.3
+   * can send now, so the honest path is the thread.
+   *
+   * No replacement string, on purpose. The destination is `/messages/new` on web and
+   * `AppRoute.NewConversation` on native, and neither of those is copy: a route is not a
+   * phrase the two stacks have to agree on word for word, and holding a web path in a
+   * parity-pinned constant would force native to carry a URL it has no use for.
+   */
 
   faqHeading: "COMMON QUESTIONS",
   legalHeading: "Legal",

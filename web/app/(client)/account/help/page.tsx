@@ -24,9 +24,11 @@ export const metadata: Metadata = { title: "Help & support" };
  *    routes somewhere other than Gyasi would promise a queue nobody staffs.
  *  · The card-authorization questions are held until §2.4 ships. An FAQ that explains an
  *    unreachable screen is worse than no FAQ.
- *  · "Message Gyasi" is a mailto, NOT /messages/new: §2.6.3 cannot send yet, and a CTA that
- *    looks like a way to reach him and is not one is worse than a plain email link. It
- *    repoints the day §2.6 lands — the same rule 2.1.14 already applies to its third action.
+ *  · "Message Gyasi" now goes to /messages/new. It was a `mailto:` while §2.6.3 could not
+ *    send, on the rule that a CTA which looks like a way to reach him and is not one is worse
+ *    than a plain email link. §2.6 landed, so it repoints — which is what that note said it
+ *    would do. A message left here now arrives in the inbox, where the reply can be found
+ *    again; an emailed one arrives wherever that address goes.
  *  · Reply-window wording is the settled "Usually replies the same day". The public
  *    surface's "< 2h" is an unverified claim fenced behind PUBLIC_CLAIMS_MODE=strict and
  *    must not spread to an authenticated screen.
@@ -56,9 +58,9 @@ export default function HelpPage() {
             </div>
           </div>
           <p className="t-body-s mt-3 opacity-90">{HELP.advisorBody}</p>
-          <a href={HELP.mailto} className="btn btn-filled mt-4 w-full">
+          <Link href="/messages/new" className="btn btn-filled mt-4 w-full">
             <Icon name="message" size={14} /> {HELP.messageCta}
-          </a>
+          </Link>
         </Card>
 
         <h2 className="t-label mt-6 mb-2 px-1 tracking-wide text-on-surface-variant">

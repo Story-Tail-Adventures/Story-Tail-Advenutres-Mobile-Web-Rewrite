@@ -87,6 +87,10 @@ fun NewMessageScreen(
         },
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            // `ClientScaffold` applies no content padding of its own, so without this the
+            // subtitle's first line sits against the top bar's divider.
+            Spacer(Modifier.height(14.dp))
+
             Text(
                 MessagesMessages.NEW_SUBTITLE,
                 style = MaterialTheme.typography.bodyMedium,

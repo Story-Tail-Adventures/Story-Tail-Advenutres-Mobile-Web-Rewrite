@@ -75,9 +75,12 @@ export default async function CloseAccountPage() {
         <Card className="mt-3 border-0 bg-secondary-container p-4 text-on-secondary-container">
           <p className="t-body-s">
             {CLOSE.reconsiderBody}{" "}
-            <a href={CLOSE.mailto} className="font-semibold underline">
+            {/* 2.6.3 rather than a `mailto:`. Somebody about to close their account and
+                choosing to write first should reach the thread their advisor actually reads,
+                not an email client that may not be configured on the device at all. */}
+            <Link href="/messages/new" className="font-semibold underline">
               {CLOSE.reconsiderCta}
-            </a>
+            </Link>
           </p>
         </Card>
 

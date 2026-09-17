@@ -54,9 +54,9 @@ import com.storytail.adventures.ui.theme.StoryTailRadius
  *    staffs. Story-Tail is one advisor.
  *  · The card-authorization questions are held until §2.4 ships. An FAQ that explains an
  *    unreachable screen is worse than no FAQ.
- *  · "Message Gyasi" is a MAILTO, not a thread. §2.6.3 cannot send yet, and a CTA that looks
- *    like a way to reach him and is not one is worse than a plain email link. It repoints the
- *    day §2.6 lands — the same rule 2.1.14 already applies to its third action.
+ *  · "Message Gyasi" now opens 2.6.3. It was a MAILTO while §2.6.3 could not send, on the rule
+ *    that a CTA which looks like a way to reach him and is not one is worse than a plain email
+ *    link. §2.6 landed, so it repoints — which is what that note said it would do.
  *  · Reply-window wording is the settled "Usually replies the same day". The public surface's
  *    "< 2h" is an unverified claim fenced behind PUBLIC_CLAIMS_MODE=strict and must not
  *    spread to an authenticated screen.

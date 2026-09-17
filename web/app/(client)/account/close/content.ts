@@ -28,7 +28,7 @@ export const CLOSE = {
   reconsiderBody:
     "If something went wrong, Gyasi would rather hear it than lose you. This page will still be here afterwards.",
   reconsiderCta: "Message him first",
-  mailto: "mailto:hello@story-tail.com?subject=Before%20I%20close%20my%20account",
+  /** The `mailto:` is gone — see the note in ../help/content.ts. This goes to 2.6.3 now. */
 
   reasonLabel: "Anything you want to tell us? (optional)",
   reasonPlaceholder: "Only if you feel like it.",

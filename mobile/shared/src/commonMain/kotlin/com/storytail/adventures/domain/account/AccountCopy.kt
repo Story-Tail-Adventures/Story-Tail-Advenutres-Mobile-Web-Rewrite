@@ -153,7 +153,7 @@ object CloseMessages {
     const val WHAT_HAPPENS_LABEL = "WHAT HAPPENS"
     const val RECONSIDER_BODY = "If something went wrong, Gyasi would rather hear it than lose you. This page will still be here afterwards."
     const val RECONSIDER_CTA = "Message him first"
-    const val MAILTO = "mailto:hello@story-tail.com?subject=Before%20I%20close%20my%20account"
+    // The `mailto:` is gone — see the note on HelpMessages. This opens 2.6.3 now.
     const val REASON_LABEL = "Anything you want to tell us? (optional)"
     const val REASON_PLACEHOLDER = "Only if you feel like it."
     const val CONFIRM_LABEL = "Type your email address to confirm"
@@ -172,7 +172,10 @@ object HelpMessages {
     const val REPLY_WINDOW = "Usually replies the same day"
     const val ADVISOR_BODY = "Anything about your own trip is quickest this way. There is never a fee for asking."
     const val MESSAGE_CTA = "Message Gyasi"
-    const val MAILTO = "mailto:hello@story-tail.com?subject=A%20question"
+    // THE `mailto:` IS GONE. It was the honest path only while §2.6.3 could not send; it can
+    // now, so this opens the thread instead. No replacement constant, on purpose: the
+    // destination is `AppRoute.NewConversation` here and `/messages/new` on web, and a route
+    // is not a phrase the two stacks have to agree on word for word.
     const val FAQ_HEADING = "COMMON QUESTIONS"
     const val LEGAL_HEADING = "Legal"
     /** Gyasi's own initials, for the advisor card. Not a photograph — see [InitialsAvatar]. */

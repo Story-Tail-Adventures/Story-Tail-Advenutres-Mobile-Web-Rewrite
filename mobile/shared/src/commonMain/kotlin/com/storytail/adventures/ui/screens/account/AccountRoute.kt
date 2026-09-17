@@ -9,8 +9,6 @@ import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
-import com.storytail.adventures.domain.account.CloseMessages
-import com.storytail.adventures.domain.account.HelpMessages
 import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
 import com.storytail.adventures.ui.nav.rememberPlatformLinks
@@ -39,9 +37,15 @@ import com.storytail.adventures.ui.screens.onboarding.toggleSentinelValue
  *    real and is recorded: back from a legal page returns here, but the page itself wears the
  *    public menu. A signed-in legal shell is §2.0's to grow, not §2.5's to fork.
  *
- * The mailto hand-offs go through [rememberPlatformLinks], the same launcher §2.2.6 uses for
- * a signed document URL. Both `mailto:` strings are pre-encoded and are passed through
- * verbatim for the same reason a signed URL is.
+ * A THIRD HAND-OFF ARRIVED WITH §2.6, and it replaced two that used to leave the app
+ * entirely: 2.5.10's "Message him first" and 2.5.11's "Message Gyasi" both opened a `mailto:`
+ * through [rememberPlatformLinks], because until 2.6.3 could send there was nowhere in the app
+ * to send them. Both now push [AppRoute.NewConversation], so the message lands in the inbox
+ * where the reply can be found again — and on a device with no mail client configured, the
+ * control now does something at all.
+ *
+ * [rememberPlatformLinks] is still here for 2.5.4, which opens a signed document URL through
+ * the same launcher §2.2.6 uses.
  */
 @Composable
 fun AccountRoute(
@@ -190,7 +194,7 @@ fun AccountRoute(
             CloseAccountScreen(
                 email = email,
                 onBack = { nav.pop() },
-                onMessageGyasi = { links.openUrl(CloseMessages.MAILTO) },
+                onMessageGyasi = { nav.push(AppRoute.NewConversation) },
                 // "Keep my account" is the same movement as Back, and says so in words —
                 // §4.4 Pattern J wants the non-destructive choice named, not just available
                 // as a chevron in the corner.
@@ -200,7 +204,7 @@ fun AccountRoute(
 
         AppRoute.AccountHelp -> HelpScreen(
             onBack = { nav.pop() },
-            onMessageGyasi = { links.openUrl(HelpMessages.MAILTO) },
+            onMessageGyasi = { nav.push(AppRoute.NewConversation) },
             onOpenLegal = { slug -> nav.push(AppRoute.PublicLegal(slug)) },
         )
 
