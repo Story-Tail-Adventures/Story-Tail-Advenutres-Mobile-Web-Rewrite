@@ -80,9 +80,20 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.trip) >= 1,
     'client sees their own trips through the auth bridge');
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.payment_card) = 0,
-    'client sees no payment_card rows (rule 4)');
+-- The payment-domain assertion that used to sit here has MOVED to rls_payment.sql, and it
+-- was rewritten on the way rather than relocated.
+--
+-- It read `(SELECT count(*) FROM public.payment_card) = 0` and was labelled 'rule 4'. It
+-- passed — but for the wrong reason. `payment_card` had RLS enabled with zero policies AND a
+-- live table-level SELECT grant to anon and authenticated, so the count came back 0 because
+-- no policy admitted a row, not because the traveler was denied. The assertion would have
+-- gone on passing on the day a `payment_card_self_select` policy shipped
+-- `stripe_payment_method_id` to a browser, which is the exact failure rule 4 exists to stop.
+--
+-- 20260917090000_payment_domain_lockdown.sql revoked the grants; rls_payment.sql now demands
+-- a PRIVILEGE ERROR rather than an empty result, on all six payment-domain tables, for both
+-- `authenticated` and `anon`. A zero-row answer and a permission-denied answer are different
+-- claims and only the second is the one this repo makes.
 
 -- ── …and not one column of what the agent wrote about them ─────────────────────
 --
