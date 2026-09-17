@@ -2098,7 +2098,22 @@ Stays server-side only (lives in the Postgres schema; not exposed in any API res
 - `integration.credentials_encrypted`
 - `audit_event` (mostly — agents may see some via Client Activity Log via a sanitized endpoint)
 
-Enforcement: Row-Level Security (RLS) policies on Supabase Postgres prevent these columns from being readable by anonymous or authenticated client roles. Edge Functions run with the `service_role` key (server-side only, never exposed) and have access to these columns when needed.
+Enforcement: **column GRANTs**, not RLS.
+
+This distinction is load-bearing and this paragraph used to get it wrong — it said RLS policies were what kept these columns from client roles. **RLS cannot restrict columns.** A policy decides which *rows* a role may see; once a row is visible, every column the role holds a privilege on comes with it. A reader implementing the old sentence literally would add a `SELECT` policy, believe the server-only list was still protected, and ship `stripe_payment_method_id` to a browser.
+
+The mechanism is:
+
+1. `REVOKE ALL ON <table> FROM anon, authenticated` — this must come **first**. `REVOKE SELECT (col)` is a no-op against a standing table-level grant, so revoking a column from a table the role still holds wholesale does nothing at all.
+2. Then either `GRANT SELECT (col, col, …)` naming exactly the client-visible columns, or no grant at all for tables a client never reads directly.
+
+Both shapes are in the schema: `20260905171542_client_column_grant.sql` and `20260907031255_trip_read_policies.sql` do the revoke-then-column-grant for `client`, `trip`, `conversation` and nine more; `20260909001124_cruise_catalog.sql` and `20260917090000_payment_domain_lockdown.sql` do the revoke-with-no-grant for tables read only by Edge Functions.
+
+RLS still matters and stays enabled everywhere — it is what scopes rows to their owner, and it is the second layer if a grant is ever widened by mistake. It is simply not what protects a column.
+
+The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero policies and a live table-level `SELECT` grant to both `anon` and `authenticated` covering both Stripe columns and `authorization_request.token_hash`. Nothing leaked — zero policies fails closed — but the first `SELECT` policy anyone added would have opened it. `supabase/tests/rls_payment.sql` now asserts a privilege *error* rather than an empty result, because a zero-row answer and a permission-denied answer are different claims.
+
+Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
 
 ### 21.3 Value Classes for Domain Primitives
 
