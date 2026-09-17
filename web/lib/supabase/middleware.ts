@@ -21,6 +21,9 @@ const PROTECTED_PREFIXES = [
   // §2.6. A thread is somebody's correspondence with their advisor; the (client) layout gates
   // it too, but the proxy is the first line and this should not depend on the second.
   "/messages",
+  // §2.4. Card authorizations and the record of every supplier charge; the (client) layout
+  // gates it too, but the proxy is the first line.
+  "/wallet",
   "/agent",
   "/mfa",
   // The onboarding wizard, Screens 2.1.9-2.1.14. It reads and writes a traveler's own

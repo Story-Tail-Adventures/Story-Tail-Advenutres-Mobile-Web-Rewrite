@@ -54,6 +54,9 @@ export const SIGNED_IN_SHELLS = [
   // §2.6, and the one with the most to leak: a cached inbox renders the previous person's
   // conversations, their advisor's own words in the preview line included.
   "/messages",
+  // §2.4. A cached wallet would render the previous person's cards and what was charged to
+  // them, which is the most sensitive thing this shell can hold.
+  "/wallet",
   "/welcome",
   "/onboarding",
   "/mfa",
