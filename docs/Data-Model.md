@@ -1377,16 +1377,42 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `agent_user_id` | `uuid` | No | Public | FK → User (the agent who used it) |
 | `supplier_id` | `uuid` | Yes | Public | FK → Supplier |
 | `supplier_name_snapshot` | `text` | No | PII | In case Supplier record changes |
-| `amount_cents` | `bigint` | No | Internal | — |
+| `amount_cents` | `bigint` | No | Client-visible | Amended 2026-09-17 — see below |
 | `currency` | `char(3)` | No | Public | — |
 | `reference_number` | `text` | Yes | PII | Supplier confirmation/auth code |
 | `justification` | `text` | No | Internal | Agent-entered reason at time of reveal |
 | `receipt_document_id` | `uuid` | Yes | Public | FK → Document (uploaded receipt) |
-| `client_flag_status` | `text` | No | Internal | `not_flagged`, `flagged`, `resolved` |
+| `client_flag_status` | `text` | No | Internal | `not_flagged`, `flagged`, `resolved` — but see the append-only conflict below |
 | `client_flagged_at` | `timestamptz` | Yes | Internal | — |
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Append-only:** no UPDATE, no DELETE.
+
+**Amended 2026-09-17, while building Screen Inventory §2.4.**
+
+**`amount_cents` was classified Internal.** It is the amount charged to the traveler's own
+card, and Screen 2.4.5 exists to show them exactly that — BRD §10.3 makes per-use transparency
+part of the SAQ A trust posture, and the BRD outranks this document. Reclassified
+client-visible. `justification` stays Internal: it is the agent's reason, written for the
+audit trail rather than for the traveler.
+
+**The append-only rule and `client_flag_status` contradict each other, and this is not yet
+resolved.** Three values — `not_flagged`, `flagged`, `resolved` — describe a lifecycle that
+only UPDATEs can produce, on a table this section, the DDL comment on `card_use_event`, and
+`.claude/skills/rls-policy/SKILL.md` all call append-only with no UPDATE.
+
+One of the two has to give, and the choice is a decision rather than an implementation detail:
+
+* a separate append-only `card_use_flag` table, where a flag and its resolution are two rows
+  and the ledger stays untouched — consistent with everything already written; or
+* an explicit narrowing of the append-only claim to exclude exactly these two columns, which
+  keeps the read simple and makes "append-only" mean "append-only except here".
+
+Until it is settled, Screen 2.4.6's "Flag as unfamiliar" renders disabled with a reason.
+Writing an UPDATE against a ledger three documents call append-only is not a decision a screen
+build should make quietly. Both flag columns are also classified Internal, which cannot be
+right either — a traveler who flags a charge and then cannot see that they flagged it has been
+given a control that appears to do nothing. That goes with the same ruling.
 
 **Indexes:** index on `(card_authorization_id, created_at desc)`; index on `(payment_card_id, created_at desc)`; index on `(trip_id, created_at desc)`.
 

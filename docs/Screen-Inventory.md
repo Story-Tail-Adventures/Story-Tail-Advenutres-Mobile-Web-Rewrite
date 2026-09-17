@@ -652,6 +652,35 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 ### 2.4 Payment & Card Authorization
 
+> **Amended 2026-09-17, as the section was built.** Six of the seven screens ship; **2.4.2 Add
+> Card is deferred**, and with it the only thing in §2.4 that needs a Stripe account. The
+> per-screen notes below record what changed and why. Three things this section's spec asked
+> for are not built at all — a CSV export, an agent-notification preview, and the emailed
+> authorization link — each for a reason recorded at its screen.
+>
+> **The payment tables were locked down before anything read them.** `payment_card`,
+> `card_authorization`, `authorization_request` and `card_use_event` were created with RLS
+> enabled and no policies, but they kept the schema-wide `SELECT` grant to `anon` and
+> `authenticated` — covering `stripe_payment_method_id`, `stripe_customer_id` and
+> `authorization_request.token_hash`. Nothing leaked, because zero policies fails closed. But
+> the obvious first migration for 2.4.1 is a self-select policy, and adding one would have
+> opened every granted column at once. `20260917090000_payment_domain_lockdown.sql` revokes
+> them; `supabase/tests/rls_payment.sql` asserts a privilege *error* rather than an empty
+> result, on both client roles, with real fixture rows behind it.
+>
+> **So every screen here reads through an Edge Function on the service role**, projecting a
+> hand-written column list — never PostgREST, and never the two Stripe columns.
+> `.claude/skills/rls-policy/SKILL.md` had already classified these tables service-role-only;
+> this section is the first to need that ruling, and it holds.
+>
+> **`card_use_event.amount_cents` is reclassified.** `docs/Data-Model.md` §9.4 marks it
+> *Internal*, the same class as the agent's `justification`. That cannot be right for this
+> section: 2.4.5 exists to show a traveler what was charged to their own card, and BRD §10.3
+> makes that transparency part of the SAQ A trust posture. BRD outranks the Data Model in
+> CLAUDE.md's hierarchy, so the amount is the traveler's to see and §9.4 is amended to match.
+> `justification` stays Internal — it is the agent's reason, written for the audit trail, not
+> a line of prose the client was ever meant to read.
+
 #### 2.4.1 My Cards / Payment Methods List
 **Purpose:** Show the client every card they have authorized and its status.
 **Primary elements:** Card list (brand + last 4, nickname, expiration, authorized trips, status); "Add a card" CTA; help text explaining what card storage is used for and what it is *not* used for (PCI-aware, trust-building); link to security policy.
@@ -666,12 +695,66 @@ gate (2.0.6) sits in front of it rather than beside it.
 **Entry points:** My Cards "Add"; Card Authorization for Trip flow.
 **Related screens:** My Cards, Card Authorization for Trip.
 
+> **Deferred 2026-09-17. This is the only §2.4 screen not built, and it cannot be partially
+> built.** `payment_card.stripe_payment_method_id` and `.stripe_customer_id` are both NOT
+> NULL, so there is no version of this screen that produces a row without a real
+> tokenization. There is no Stripe account, no publishable key, no secret key, no SDK on
+> either stack and no payment Edge Function. 2.4.1's "Add a card" renders disabled with a
+> reason, the way every §2.5 deferral does.
+>
+> **The desktop artboard must not be built as drawn.** `design/source-prototype/screens/
+> client-payment.jsx` draws the card number as an ordinary first-party `<input>` with a
+> security-code input beside it, under a "Secured by Stripe · PCI DSS · SAQ A" badge.
+> CLAUDE.md requires every screen to be visually faithful to its prototype; this is the one
+> place that rule is suspended, and the suspension is the point. Tech-Recommendations §4.6
+> names receiving the card number in any call to our backend as one of the three things that
+> moves the platform from SAQ A to SAQ D — an annual compliance cost in the tens of thousands
+> against a stack that runs at $50–150/month. The mobile artboards drawn for this section show
+> a hosted field instead, and record that as their first departure.
+>
+> **Two integration shapes, and the choice is not a detail.** Stripe Checkout in
+> `mode: 'setup'` adds no package to either stack and so does not trip CLAUDE.md's
+> security-review requirement for a payment-adjacent SDK; it is a redirect, so it departs
+> further from the artboard. Elements plus the native Android and iOS SDKs matches the drawing
+> and trips that requirement three times — and there is no review process, template or record
+> anywhere in the repo today, so choosing it means creating one first.
+>
+> **Whichever is chosen, the Stripe call is pinned:** a `SetupIntent` with
+> `usage: 'off_session'`, or a Checkout Session with `mode: 'setup'`. A `PaymentIntent`, a
+> capturing SetupIntent, or Checkout in `mode: 'payment'` would be a BRD §10.5 violation
+> inside the Stripe call rather than in the UI — where no amount of design review would catch
+> it. Whatever builds this owes an assertion on that, not a comment.
+
 #### 2.4.3 Card Authorization for Trip
 **Purpose:** Bind a stored card to a specific trip with a spending limit.
 **Primary elements:** Trip summary header; card picker (existing cards or "Add new"); spending limit input with suggested amounts; authorization expiry date (defaults to trip end + 7 days); explicit consent statement; "Authorize" CTA.
 **Key actions:** Select card; set limit; consent and authorize.
-**Entry points:** Trip Detail "Authorize a card"; notification from agent requesting authorization; link in agent-sent email.
+**Entry points:** Trip Detail "Authorize a card"; notification from agent requesting authorization. (The emailed link is deferred — see below.)
 **Related screens:** My Cards, Add Card, Trip Detail.
+
+> **Amended 2026-09-17: the emailed link is not built, and the entry point above is narrowed
+> to match.** `authorization_request` exists, with a `token_hash`, an `expires_at` and a
+> `status` — the whole shape of a single-use emailed link. Nothing writes a row to it: the
+> requesting side is the agent's (§3.x, unbuilt), and there is no transactional email
+> anywhere in the stack. Building the consuming half against a table nothing populates would
+> be a route that can only 404.
+>
+> That token is also why this section's first migration was a revoke rather than a policy:
+> `authorization_request.token_hash` was readable by `anon`, which for a bearer secret is an
+> authorization-bypass primitive rather than a disclosure.
+>
+> **The screen ships reached from the trip**, which is the entry point that works today, and
+> binds an existing card to a trip with a limit and an expiry. Authorizing a card the traveler
+> has not added yet is not reachable while 2.4.2 is deferred; the picker says so rather than
+> offering an "Add new" branch that dead-ends.
+>
+> **The consent text is frozen into `card_authorization.consent_payload` and therefore has to
+> be true when it is written.** The prototype's mandate promises "I'll be notified every time
+> the card is used". No dispatcher exists — no transactional email, no push, and
+> `notification_preference` is read and written by nothing. A stored consent record containing
+> an undeliverable term is a compliance artifact, not a copy nit, so the notification clause
+> is cut from the mandate rather than shipped and quietly unhonoured. It returns with the
+> notification pass, as a new consent version.
 
 #### 2.4.4 Card Authorization Confirmation
 **Purpose:** Confirm a card has been authorized for a trip.
@@ -682,10 +765,31 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 #### 2.4.5 Card Use History / Activity
 **Purpose:** Transparent record of every time a stored card was used by the advisor.
-**Primary elements:** Timeline of events (date, agent, supplier, amount, note); filter by card or by trip; export CSV.
+**Primary elements:** Timeline of events (date, agent, supplier, amount, note); filter by card or by trip. (CSV export is deferred — see below.)
 **Key actions:** Filter; tap event for detail.
 **Entry points:** My Cards card detail; Trip Detail "Payment activity".
 **Related screens:** Card Use Detail.
+
+> **Amended 2026-09-17: CSV export is cut, not postponed with a disabled button.** It is the
+> one surface in §2.4 that would persist this data outside the platform, where no revocation
+> reaches it and no audit follows it. A naive implementation — select the rows, join to
+> `payment_card` for "visa ••••4242", write the file — carries both Stripe tokens onto a
+> device. There is no export precedent anywhere in the repo to copy, so there is nothing to
+> follow safely. If it is ever built it is a server-side function with a hand-written column
+> allowlist, audited as a bulk export per Data-Model §18.3 — which is a feature with its own
+> design, not a button on this screen.
+>
+> **The timeline is real but currently fixture-fed.** Nothing writes `card_use_event`: the
+> producing surface is the agent's reveal-and-record flow in §3.6, unbuilt. The screen is
+> built, and `supabase/seed.sql` carries three events so it can be reviewed against something.
+> This is the §2.5 precedent — say plainly what is not live rather than withhold the screen.
+>
+> **`amount_cents` is shown.** Data-Model §9.4 classified it Internal; see the section note
+> above for why BRD §10.3 wins that conflict. `justification` is **not** shown — it is the
+> agent's own reason, written for the audit trail. The supplier name comes from
+> `supplier_name_snapshot`, never from a join: a supplier renamed later must not silently
+> rewrite a traveler's history, and a portal booking names a merchant that has no `supplier`
+> row at all.
 
 #### 2.4.6 Card Use Detail / Event Detail
 **Purpose:** Drill into a single card-use event.
@@ -694,12 +798,60 @@ gate (2.0.6) sits in front of it rather than beside it.
 **Entry points:** Card Use History timeline tap.
 **Related screens:** Conversation Thread.
 
+> **Amended 2026-09-17. "Flag as unfamiliar" renders disabled with a reason, and the blocker
+> is a contradiction in the Data Model rather than missing code.** §9.4 says of
+> `card_use_event`: "**Append-only:** no UPDATE, no DELETE" — and in the same table defines
+> `client_flag_status` with three values, `not_flagged`, `flagged`, `resolved`, which only a
+> sequence of UPDATEs can produce. The table's own DDL comment and
+> `.claude/skills/rls-policy/SKILL.md` both repeat the append-only rule. One of the two has to
+> give, and which one is a ruling, not an implementation detail: either a separate append-only
+> `card_use_flag` table, or an explicit narrowing of the append-only claim to exclude the two
+> flag columns. Writing an UPDATE against a ledger three documents call append-only is not a
+> decision a screen build gets to make quietly.
+>
+> Both flag columns are also classified *Internal*, which cannot be right either — a traveler
+> who flags their own charge and then cannot see that they flagged it has been given a button
+> that appears to do nothing. That goes with the same ruling.
+>
+> **"Message agent" works** and goes to §2.6.2, which is built.
+>
+> **The receipt attachment is not shown, and that is a deliberate existing decision rather
+> than an omission.** `card_use_event.receipt_document_id` FKs into `document`, but
+> `document_self_select`'s kind allowlist excludes `receipt` on purpose
+> (`20260907031255_trip_read_policies.sql`): a supplier receipt discloses what the agency
+> actually paid, immediately after `cost_cents` and `total_commission_cents` were withheld to
+> prevent exactly that. Reversing it is a margin decision for the business, not a screen fix.
+
 #### 2.4.7 Revoke Card Authorization Confirmation
 **Purpose:** Final confirmation before revoking a stored card or its trip authorization.
-**Primary elements:** Plain-language explanation of what revoking will do (and not do — does not affect already-completed supplier charges); list of trips currently using the card; agent-notification preview; "Revoke" CTA; cancel link.
+**Primary elements:** Plain-language explanation of what revoking will do (and not do — does not affect already-completed supplier charges); list of trips currently using the card; "Revoke" CTA; cancel link. (The agent-notification preview is deferred — see below.)
 **Key actions:** Revoke; cancel.
 **Entry points:** My Cards; Card Authorization for Trip edit.
 **Related screens:** My Cards, Trip Detail.
+
+> **Amended 2026-09-17: this screen revokes an AUTHORIZATION, not a card, and the distinction
+> is the whole amendment.**
+>
+> Revoking a `card_authorization` is a local row and a local truth: the agent may no longer
+> charge that card for that trip, and setting `status = 'revoked'` makes it so. That ships.
+>
+> Revoking a `payment_card` is not local. With no Stripe integration, setting
+> `status = 'revoked'` in Postgres leaves the `PaymentMethod` live in Stripe's vault while
+> this screen tells the traveler the card is gone. Data-Model §18.5 expects the Stripe
+> Customer to be deleted on erasure; the local half alone is a broken promise, and a broken
+> promise about a stored card is worse than an absent button. Card-level revocation arrives
+> with 2.4.2's Stripe integration, in the same change that can actually detach the
+> PaymentMethod. Until then 2.4.1 offers "Remove authorization" per trip and says why the card
+> itself cannot be removed yet.
+>
+> **The agent-notification preview is cut.** It previews an email nothing sends. The revoke
+> still writes its `audit_event`, so the agent's own surface will show it when §3.x reads that
+> trail — the record exists, the message does not.
+>
+> **The "does not affect already-completed supplier charges" language is kept exactly**, and
+> the prototype's phrasing for it is already correct BRD §10.5 wording: a charge that has
+> settled with a supplier is between the traveler and that supplier, and Story-Tail is not the
+> merchant of record and cannot reverse it.
 
 ---
 
