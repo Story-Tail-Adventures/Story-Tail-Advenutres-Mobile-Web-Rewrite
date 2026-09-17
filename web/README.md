@@ -32,8 +32,41 @@ name of Supabase's auth cookie). It deliberately does not — the proxy publishe
 of our own instead, and `lib/auth/chrome-flag.ts` records why. A CI build with no Supabase
 env still produces byte-identical public HTML to production's.
 
-`SUPABASE_SERVICE_ROLE_KEY` must never appear anywhere under `web/`. It bypasses RLS and
-belongs only to Edge Functions, which receive it automatically.
+### `SUPABASE_SERVICE_ROLE_KEY` — a reversal, 2026-09-16
+
+This README used to say the service-role key must never appear anywhere under `web/`, because
+it bypasses RLS and Edge Functions receive it automatically. **That rule was deliberately
+reversed; the old wording is restated here so nobody reads the change as an oversight.** It was
+not a rule we discovered to be wrong — it was one we chose to give up.
+
+Live hotel search (Screen 2.0.4, Hotels mode, P2) moved out of
+`supabase/functions/hotel-search` and now runs in-process here. Its four tables —
+`hotel_search_cache`, `hotel_api_request`, `hotel_search_rate_bucket`,
+`hotel_search_config` — have RLS enabled with **zero policies**, because the caller is an
+anonymous visitor and there is no predicate that could express "this stranger may read this
+cached search". The Edge Function reached them with the service role the platform injected;
+running here, this app must hold that key itself or the feature does not exist.
+
+What it costs, said out loud: **the service role bypasses RLS for the entire schema, not just
+those four tables.** Supabase has no key scoped to a subset of tables, so there was nothing
+narrower to ask for. An accidental import into a client component, a leaked build log, or a
+handler that echoes its own config therefore exposes every row we hold — `client`, `trip`,
+`commission`, `payment_card` metadata, `audit_event` — and not merely a cache of hotel
+prices. The safeguards that replace the old prohibition are procedural, and all three are
+non-negotiable:
+
+- **No `NEXT_PUBLIC_` prefix**, on this or on `SERPAPI_API_KEY` or `HOTEL_SEARCH_IP_PEPPER`.
+- **Server-only reads.** Exactly two files read it from the environment: `lib/env.ts`, which
+  exposes it as a getter for presence checks, and `lib/hotels/db.ts`, which builds the client
+  and is the only consumer of the value itself. `db.ts` opens with `import "server-only"`, so
+  importing it from a component that ships to the browser is a build error rather than a
+  review question — that guard is the reason the read lives there and not only in `env.ts`.
+  Any third reader is a defect.
+- **Never in a response body or a log line.** Treat a diff that moves it toward the client as
+  a defect rather than a style question.
+
+The reasoning in full is in the header of `lib/env.ts`, alongside `docs/Data-Model.md` §21.2
+and `docs/Free-Travel-APIs.md` §10.1.
 
 ## Public content gate
 

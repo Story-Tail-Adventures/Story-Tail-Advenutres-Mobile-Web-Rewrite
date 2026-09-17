@@ -37,6 +37,17 @@ import { SortMenu } from "./SortControl";
 
 const SEARCH_ENTRY = "/explore";
 
+/**
+ * Paired with HOTEL_SEARCH_DEADLINE_MS in web/lib/public/hotels.ts, and with the identical
+ * export in web/app/api/hotel-search/route.ts.
+ *
+ * This is the path that actually runs today — the route handler has no caller yet — so
+ * without this the in-process provider chain could outlive the invocation and be killed
+ * mid-flight, which spends a metered search and returns nothing. The deadline inside the
+ * pipeline is the real control; this is the platform ceiling that must sit above it.
+ */
+export const maxDuration = 20;
+
 export const metadata: Metadata = {
   title: RESULTS.meta.title,
   description: RESULTS.meta.description,

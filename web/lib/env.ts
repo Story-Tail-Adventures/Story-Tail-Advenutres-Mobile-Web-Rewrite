@@ -1,9 +1,39 @@
 /**
  * Typed, fail-fast access to the web app's environment.
  *
- * Only NEXT_PUBLIC_* values belong here — they are inlined into the browser bundle.
- * SUPABASE_SERVICE_ROLE_KEY must NEVER appear in `web/`: it bypasses RLS and belongs
- * only to Edge Functions, which get it injected automatically. See docs/Data-Model.md §21.2.
+ * Most of what belongs here is NEXT_PUBLIC_* — inlined into the browser bundle, and safe to
+ * be. Everything else is server-only, and the rule for those is absolute: no NEXT_PUBLIC_
+ * prefix, ever, and never read from a client component. A server-only getter evaluated in
+ * the browser yields undefined, which is the failure mode we want rather than one to fix.
+ *
+ * SUPABASE_SERVICE_ROLE_KEY — A DELIBERATE REVERSAL, 2026-09-16.
+ *
+ * This header used to say the service-role key must NEVER appear under `web/`, that it
+ * belongs only to Edge Functions, and that they receive it automatically. That prohibition
+ * was real and it was load-bearing — `supabase/functions/hotel-search` cites it by name as
+ * the reason it exists as a function at all. It is recorded here rather than quietly
+ * deleted, because it did not turn out to be wrong. It was overridden, with the cost known.
+ *
+ * WHAT CHANGED. Live hotel search (Screen 2.0.4, Hotels mode, P2) moved out of that Edge
+ * Function and now runs in-process in this app. Its four tables — `hotel_search_cache`,
+ * `hotel_api_request`, `hotel_search_rate_bucket`, `hotel_search_config` — have RLS enabled
+ * with zero policies, because the caller is an anonymous visitor and no predicate can
+ * express "this stranger may read this cached search". The function reached them with the
+ * service role the platform injected. Running here, this app has to hold that key itself or
+ * the feature does not work. There is no third option: an `anon` policy on those tables
+ * would publish the ledger and the rate buckets to the internet.
+ *
+ * WHAT IT COSTS, PLAINLY. The service role bypasses RLS for the ENTIRE schema, not just the
+ * four hotel tables. Supabase has no key scoped to a subset of tables, so there is nothing
+ * narrower to ask for. The blast radius of an accidental client-component import, a leaked
+ * build log, or a handler that echoes its own config is therefore every row we hold —
+ * `client`, `trip`, `commission`, `payment_card` metadata, `audit_event` — and not merely a
+ * cache of hotel prices. That is strictly worse than the posture this file held before, and
+ * the replacement safeguards are procedural rather than structural: server-only reads, no
+ * NEXT_PUBLIC_ prefix, and the value never crossing into a response body or a log line.
+ * Treat any diff that moves it toward the client as a defect, not a style question.
+ *
+ * See docs/Data-Model.md §21.2, docs/Free-Travel-APIs.md §10.1, and web/README.md.
  */
 
 function required(name: string, value: string | undefined): string {
@@ -118,5 +148,55 @@ export const env = {
   get hotelSearchEnabled(): boolean {
     if (process.env.HOTEL_SEARCH_ENABLED === "false") return false;
     return Boolean(process.env.STA_HOTEL_SEARCH_TOKEN);
+  },
+
+  /**
+   * SerpApi's key, for the Google Hotels engine. Previously a Supabase Edge Function secret;
+   * it lives here now because the search that spends it does.
+   *
+   * Server-only, and the prefix rule bites hardest here of anything in this file: this is a
+   * metered credential billed to us, so a NEXT_PUBLIC_ prefix would not leak data, it would
+   * hand strangers our monthly quota. The free tier is 250 searches a month and an overspent
+   * month cannot be bought back.
+   *
+   * Null rather than throwing when unset, for the same reason hotelSearchToken is: the
+   * hotels mode reports itself unavailable and the page falls back to the curated catalog.
+   * "Nobody configured this" and "the month is gone" stay distinguishable to whoever reads
+   * the log, which is why this is a separate signal from the budget's.
+   */
+  get serpApiKey(): string | null {
+    return process.env.SERPAPI_API_KEY ?? null;
+  },
+
+  /**
+   * The server-only pepper the rate limiter hashes a caller's IP with before it becomes a
+   * bucket key. The raw address never reaches Postgres — Data-Model classifies IP as PII, a
+   * counter is not a licence to keep a visitor log on a public marketing route, and the
+   * table's CHECK constraint refuses anything that is not a digest.
+   *
+   * Empty string rather than null, which is exactly what the Edge Function passed: an unset
+   * pepper still yields a stable digest, so the limiter keeps working rather than failing
+   * closed on a public page. It works WEAKLY, though — an unpeppered digest of an IPv4
+   * address is brute-forceable in seconds, so the anonymity this exists for is only real
+   * once the value is set. Set it in every deployed environment.
+   */
+  get hotelSearchIpPepper(): string {
+    return process.env.HOTEL_SEARCH_IP_PEPPER ?? "";
+  },
+
+  /**
+   * The Supabase service-role key. READ THE REVERSAL NOTE AT THE TOP OF THIS FILE before
+   * adding a second caller: this key bypasses RLS for the whole schema, and hotel search is
+   * the one use case that justified admitting it to `web/`.
+   *
+   * Server-only. It must never gain a NEXT_PUBLIC_ prefix and must never be imported,
+   * directly or transitively, from a component that ships to the browser.
+   *
+   * Null rather than throwing when unset, so a deployment that has not been given the key
+   * degrades hotel search to unavailable instead of 500ing a public route — and so every
+   * other route in the app, which needs no such privilege, still boots without it.
+   */
+  get supabaseServiceRoleKey(): string | null {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
   },
 };

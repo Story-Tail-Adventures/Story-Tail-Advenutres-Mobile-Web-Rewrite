@@ -689,12 +689,40 @@ That last row deserves emphasis: **§1.3.1 requires compliance approval of the s
 > dated availability lookup, because there is no static answer to mirror — the reply to
 > "Aruba, 12–19 August, two adults" is a function of the dates. That is the case this
 > section's own last practical note already carves out ("a request-time proxy is still right
-> for the interactive bits"). The proxy is `supabase/functions/hotel-search`, and the quota
-> math the table above warns about is handled explicitly rather than wished away: a six-hour
-> response cache checked before anything is spent, a per-IP and global rate limiter, an
-> append-only ledger, and ceilings below the plan limits — all in migration
-> `20260909120000_hotel_search.sql`. The compliance row is answered by storing the
-> NORMALISED payload rather than the raw one, so what a reviewer sees is what we keep.
+> for the interactive bits"). The quota math the table above warns about is handled
+> explicitly rather than wished away: a six-hour response cache checked before anything is
+> spent, a per-IP and global rate limiter, an append-only ledger, and ceilings below the plan
+> limits — all against the four tables in migration `20260909120000_hotel_search.sql`. The
+> compliance row is answered by storing the NORMALISED payload rather than the raw one, so
+> what a reviewer sees is what we keep.
+>
+> **WHERE THE PROXY LIVES — updated 2026-09-16.** This carve-out originally named
+> `supabase/functions/hotel-search`, and that is no longer where the code is. The proxy is
+> now the Next.js app under `web/`: the runtime modules moved verbatim to
+> `web/lib/hotels/{types,map,cache,client,budget,ratelimit,search}.ts`, and the route in
+> `web/` replaces the function as the single entry point. **Every safeguard listed above
+> still exists and still runs before a provider request is spent — they moved with the code,
+> they were not dropped.** The allow-list mapper that §10.2 points at is now
+> `web/lib/hotels/map.ts` rather than `supabase/functions/_shared/hotels/map.ts`; the schema
+> that strips in `web/lib/public/hotels.ts` and the serialised-output tests are unchanged.
+>
+> Three consequences worth stating plainly, because they are what the move actually costs:
+>
+> - **The proxy now runs on Vercel, not co-located with Postgres.** Every cache read, ledger
+>   write and rate-bucket update is a network hop to Supabase instead of an in-region call,
+>   so the cheap pre-flight checks are no longer free. They still run first and in the same
+>   order, which is what keeps a crawler from reaching the provider.
+> - **`web/` now holds `SUPABASE_SERVICE_ROLE_KEY`.** The four hotel tables have RLS on with
+>   zero policies and the caller is an anonymous visitor, so the service role is how they are
+>   reached — exactly as it was inside the Edge Function. The difference is that the key now
+>   sits in the web app's environment, where it bypasses RLS for the whole schema rather than
+>   for four tables. This reverses a prohibition that `web/lib/env.ts`, `web/.env.example`
+>   and `web/README.md` all stated; all three now record the reversal and its cost.
+> - **§10.2's "keys are server-side only" rule is intact, and its wording is now too narrow.**
+>   `SERPAPI_API_KEY` moved from a Supabase Edge Function secret to a server-only variable in
+>   `web/`. The rule that matters is that no provider key reaches a *client* — no
+>   `NEXT_PUBLIC_` prefix, no import from a component that ships to the browser — not that
+>   the key lives in a particular directory.
 
 **Practical notes:**
 
