@@ -471,6 +471,18 @@ verify_jwt = true
 [functions.trip-document-url]
 verify_jwt = true
 
+# ── §2.4 payment surface ──────────────────────────────────────────────────────
+# The payment tables hold NO client-role privilege — 20260917090000_payment_domain_lockdown
+# revoked it and added no policy — so these are not a convenience over PostgREST, they are
+# the only read and write path that exists. Both verify the JWT: each resolves the caller to
+# a client and every row is keyed to that client's id.
+#
+# `payment-wallet` never selects payment_card.stripe_payment_method_id or
+# .stripe_customer_id. Data-Model §21.2 names both server-only.
+
+[functions.payment-wallet]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand
