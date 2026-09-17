@@ -300,8 +300,14 @@ UPDATE public.hotel_search_config
  WHERE id;
 ```
 
-Turning it off entirely is `SET enabled = false`, or unsetting `STA_HOTEL_SEARCH_TOKEN` in
-Vercel. Either way the page falls back to Gyasi's curated catalog.
+Turning hotel search off is **`HOTEL_SEARCH_ENABLED=false` in Vercel** — one env var, no
+deploy, and the page falls back to Gyasi's curated catalog.
+
+Note what no longer works, because both were the documented answer until hotels moved into
+Next.js: `hotel_search_config.enabled` and `STA_HOTEL_SEARCH_TOKEN` gate **cruise** search
+only. The config table above is still read by nothing but the orphaned `hotel-search`
+function, and the token is read by `cruise-search`. Unsetting either to stop hotel pricing
+takes cruises down and leaves hotels running.
 
 ### Watching the spend
 
