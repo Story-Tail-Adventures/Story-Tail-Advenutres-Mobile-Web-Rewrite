@@ -65,6 +65,8 @@ fun StatusChangeScreen(
     onOpenTrip: () -> Unit,
     onOpenItinerary: () -> Unit,
     onOpenMemories: () -> Unit,
+    /** §2.4.3 for this trip — the payment CTA the artboard has always drawn. */
+    onAuthorizeCard: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -105,6 +107,7 @@ fun StatusChangeScreen(
                 onOpenTrip = onOpenTrip,
                 onOpenItinerary = onOpenItinerary,
                 onOpenMemories = onOpenMemories,
+                onAuthorizeCard = onAuthorizeCard,
             )
         }
     }
@@ -117,6 +120,7 @@ private fun Body(
     onOpenTrip: () -> Unit,
     onOpenItinerary: () -> Unit,
     onOpenMemories: () -> Unit,
+    onAuthorizeCard: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val trip = snapshot.trip
@@ -246,19 +250,14 @@ private fun Body(
             Text(primary.first)
         }
 
-        // §2.4 is Phase 1 and next, so the payment CTA the artboard shows renders disabled
-        // rather than being dropped — the plan's "build them visually, disabled" decision.
+        // The payment CTA the artboard shows, live now that §2.4.3 exists. It rendered
+        // disabled with a reason under the plan's "build them visually, disabled" decision;
+        // the reason string is gone rather than left unreferenced in the copy module.
         if (snapshot.nextPayment != null) {
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onAuthorizeCard, modifier = Modifier.fillMaxWidth()) {
                 Text(StatusChangeMessages.AUTHORIZE_CARD)
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                StatusChangeMessages.AUTHORIZE_DEFERRED,
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-            )
         }
 
         Spacer(Modifier.height(24.dp))

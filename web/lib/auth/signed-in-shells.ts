@@ -40,13 +40,23 @@
  * under /login but is not an auth-only page — reaching it means holding a half-assured
  * session — so it needs clearing while bare `/login` must NOT be listed.
  *
- * `/account` (§2.5.1) and `/agent` (§3.x) have no routes yet. Add them when they do; the
+ * `/agent` (§3.x) has no routes yet. Add them when they do; the
  * cross-check in signed-in-shells.test.ts fails until they are, by walking the app directory
  * and asking the proxy which of the routes it finds require a session.
  */
 export const SIGNED_IN_SHELLS = [
   "/dashboard",
   "/trips",
+  // §2.5. Both are signed-in shells, so both have to be evicted on sign-out or the next
+  // navigation renders a cached page belonging to whoever just left.
+  "/account",
+  "/documents",
+  // §2.6, and the one with the most to leak: a cached inbox renders the previous person's
+  // conversations, their advisor's own words in the preview line included.
+  "/messages",
+  // §2.4. A cached wallet would render the previous person's cards and what was charged to
+  // them, which is the most sensitive thing this shell can hold.
+  "/wallet",
   "/welcome",
   "/onboarding",
   "/mfa",

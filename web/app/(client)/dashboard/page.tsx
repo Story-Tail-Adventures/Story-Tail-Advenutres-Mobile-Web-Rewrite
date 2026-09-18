@@ -32,9 +32,10 @@ export const metadata: Metadata = { title: "Your trips" };
  *     to count. The artboard's third tab is gone rather than rendered empty.
  *   * "New idea" / "Explore trips" repoint at the trip thread. §2.3 is Phase 2 and the CTA
  *     had no destination; asking Gyasi is how a trip actually starts at MVP.
- *   * "Authorize a card" renders DISABLED. §2.4 is Phase 1 and lands next, so unlike the
- *     search CTA there is a real destination coming — the button keeps its place in the
- *     layout and says why it is not pressable yet.
+ *   * "Authorize a card" opens §2.4.3 for the upcoming trip. It rendered disabled with a
+ *     reason while §2.4 was unbuilt — which was the right call then and the wrong state to
+ *     leave behind: a CTA still disabled after its screen ships is exactly the failure the
+ *     disabled-with-a-reason convention exists to make visible.
  *   * The countdown shows days only, not days/hours/minutes. The artboard's HR and MIN
  *     tiles need a ticking client component, and a server-rendered "14 HR" is wrong the
  *     moment it is sent. Days is the unit that survives a cache.
@@ -106,7 +107,7 @@ export default async function DashboardPage() {
         <div className="mt-4 grid gap-3 web:grid-cols-[2.1fr_1fr]">
           <HeroCountdown trip={upcoming} days={days} itineraryReady={itineraryReady} />
           <div className="flex flex-col gap-2.5">
-            {nextPayment && <ActionNeeded payment={nextPayment} />}
+            {nextPayment && <ActionNeeded payment={nextPayment} tripId={upcoming.id} />}
             {/* Only the advisor's own words are quoted here. When the traveler spoke last
                 the card drops the quote and keeps the reply-window line, which is exactly
                 what somebody waiting for an answer wants to see. */}
@@ -122,15 +123,15 @@ export default async function DashboardPage() {
             icon="palm"
             title="No trip booked yet"
             body="When there is one, it lives right here with a countdown on it."
-            // A mailto, because with no trip there is no trip-scoped thread to open and
-            // §2.6's inbox is not built. This used to point at "/dashboard" — the page it
-            // renders on — so the only route to Gyasi in this state went nowhere. Same
-            // escalation ErrorState uses, and for the same reason: a form that goes
-            // nowhere would be worse.
-            action={{
-              label: DASHBOARD.startSomethingNew,
-              href: "mailto:hello@story-tail.com?subject=Somewhere%20new",
-            }}
+            // 2.6.3, now that it exists. This was a `mailto:` because with no trip there is
+            // no trip-scoped thread to open and §2.6's inbox was not built — and before
+            // that it pointed at "/dashboard", the page it renders on, so the only route to
+            // Gyasi in this state went nowhere at all.
+            //
+            // 2.6.3 is the screen written for exactly this person: no trip yet, something to
+            // say. It lands in the inbox rather than in an email client, which means the
+            // reply arrives somewhere they can find it again.
+            action={{ label: DASHBOARD.startSomethingNew, href: "/messages/new" }}
           />
         </div>
       )}
@@ -205,8 +206,10 @@ function HeroCountdown({
 
 function ActionNeeded({
   payment,
+  tripId,
 }: {
   payment: NonNullable<Awaited<ReturnType<typeof loadDashboard>>>["nextPayment"];
+  tripId: string;
 }) {
   if (!payment) return null;
   const due = payment.daysUntilDue;
@@ -224,18 +227,16 @@ function ActionNeeded({
         {formatTripMoney(payment.amountCents, payment.currency)}
         {payment.dueDate ? ` due ${formatDay(payment.dueDate)}` : ""}
       </div>
-      {/* §2.4 lands next. Disabled and saying why, rather than pointed at a route that
-          does not exist — see the departures note on the page component. */}
-      <button
-        type="button"
+      {/* §2.4.3, scoped to the trip this milestone belongs to. `card_authorization.trip_id`
+          is NOT NULL, so the trip travels in the route rather than being asked for on the
+          far side — the milestone already knows which trip it is due on. */}
+      <Link
+        href={`/wallet/authorize/${tripId}`}
         className="btn btn-filled mt-2.5 w-full"
-        disabled
-        aria-disabled="true"
-        title={DASHBOARD.authorizeCardComingSoon}
         style={{ background: "var(--md-on-error-container)", color: "var(--md-error-container)" }}
       >
         {DASHBOARD.authorizeCard}
-      </button>
+      </Link>
     </Card>
   );
 }

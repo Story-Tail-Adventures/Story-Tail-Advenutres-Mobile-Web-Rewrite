@@ -28,7 +28,6 @@ export const STATUS_CHANGE = {
   viewSummary: STATUS_CHANGE_MESSAGES.viewSummary,
   viewMemories: STATUS_CHANGE_MESSAGES.viewMemories,
   authorizeCard: STATUS_CHANGE_MESSAGES.authorizeCard,
-  authorizeDeferred: STATUS_CHANGE_MESSAGES.authorizeDeferred,
 
   narrativeFor: statusChangeNarrative,
   nextSteps: statusChangeNextSteps,

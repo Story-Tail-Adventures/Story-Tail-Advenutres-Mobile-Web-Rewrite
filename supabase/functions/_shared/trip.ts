@@ -82,6 +82,66 @@ export async function requireOwnedTrip(
 }
 
 /**
+ * Assert the conversation belongs to this client, and return what a send needs from it.
+ *
+ * §2.6's counterpart to [requireOwnedTrip], and it exists because §2.6.2 and §2.6.3 address
+ * a thread by CONVERSATION rather than by trip — a general thread has `trip_id IS NULL` and
+ * so has no trip to key on at all.
+ *
+ * Same 404-not-403 convention, for the same reason: "no such conversation" and "not yours"
+ * are one answer, so a client cannot enumerate other people's conversation ids.
+ *
+ * ARCHIVED IS NOT FOUND. `conversation_self_select` carries `archived_at IS NULL` in its
+ * USING clause, so a client cannot read an archived thread; letting them WRITE to one would
+ * put a message somewhere they can never see it again.
+ */
+export async function requireOwnedConversation(
+  db: Db,
+  clientId: string,
+  conversationId: string,
+): Promise<{ id: string; agentId: string; tripId: string | null; agentUnread: number }> {
+  if (!isUuid(conversationId)) throw badRequest("That is not a conversation id.");
+
+  const { data, error } = await db
+    .from("conversation")
+    .select("id, client_id, agent_id, trip_id, agent_unread_count, archived_at")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (error) throw new Error(`conversation lookup failed: ${error.message}`);
+  if (!data || data.client_id !== clientId || data.archived_at !== null) {
+    throw notFound("No such conversation.");
+  }
+  return {
+    id: data.id,
+    agentId: data.agent_id,
+    tripId: data.trip_id,
+    agentUnread: data.agent_unread_count ?? 0,
+  };
+}
+
+/**
+ * The agent this client belongs to.
+ *
+ * Needed only when CREATING a thread with no trip: `conversation.agent_id` is NOT NULL, and
+ * the trip-scoped path gets the agent from the trip it already loaded. `ctx.agentId` is not
+ * an option — the `platform_user` CHECK makes it NULL for every client caller, by design.
+ *
+ * `client.agent_id` is itself NOT NULL, so this cannot come back empty for a real client.
+ */
+export async function requireClientAgentId(db: Db, clientId: string): Promise<string> {
+  const { data, error } = await db
+    .from("client")
+    .select("agent_id")
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (error) throw new Error(`client lookup failed: ${error.message}`);
+  if (!data?.agent_id) throw notFound("No such client.");
+  return data.agent_id;
+}
+
+/**
  * `http://kong:8000/storage/v1/object/sign/...?token=...` → `/storage/v1/object/sign/...?token=...`
  *
  * WHY THE FUNCTIONS RETURN A PATH AND NOT AN ABSOLUTE URL.

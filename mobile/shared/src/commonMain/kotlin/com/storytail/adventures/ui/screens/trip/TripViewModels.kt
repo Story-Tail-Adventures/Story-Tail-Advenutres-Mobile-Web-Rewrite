@@ -16,6 +16,7 @@ import com.storytail.adventures.api.TripsList
 import com.storytail.adventures.domain.trip.DocumentMessages
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.ThreadMessages
+import com.storytail.adventures.ui.components.client.ThreadSurface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -205,8 +206,15 @@ class ThreadViewModel(
     private val tripId: String,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow<Loadable<TripThreadSnapshot>>(Loadable.Loading)
-    val state: StateFlow<Loadable<TripThreadSnapshot>> = _state.asStateFlow()
+    private val _state = MutableStateFlow<Loadable<ThreadSurface>>(Loadable.Loading)
+
+    /**
+     * A [ThreadSurface], not a [TripThreadSnapshot], because 2.6.2 renders the same screen off
+     * a conversation that has no trip at all. The flattening happens here so the screen cannot
+     * tell the two apart — see ThreadSurface's own note for why that is a requirement rather
+     * than a preference.
+     */
+    val state: StateFlow<Loadable<ThreadSurface>> = _state.asStateFlow()
 
     private val _draft = MutableStateFlow("")
     val draft: StateFlow<String> = _draft.asStateFlow()
@@ -225,7 +233,7 @@ class ThreadViewModel(
         _state.value = Loadable.Loading
         viewModelScope.launch {
             val result = trips.tripThread(tripId)
-            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+            _state.value = result?.let { Loadable.Ready(it.toSurface()) } ?: Loadable.Failed()
         }
     }
 
@@ -250,7 +258,7 @@ class ThreadViewModel(
                     // record, and a locally-appended bubble would show a message that might
                     // not have the id, timestamp or ordering the server gave it.
                     val refreshed = trips.tripThread(tripId)
-                    if (refreshed != null) _state.value = Loadable.Ready(refreshed)
+                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface())
                 }
 
                 is SendMessageOutcome.Failed ->
@@ -260,6 +268,24 @@ class ThreadViewModel(
         }
     }
 }
+
+/**
+ * 2.2.7's header, flattened for the shared screen.
+ *
+ * The unread line is only here: `client_unread_count` is the half of the read signal that
+ * belongs to the client — what THEY have not read — and 2.6.2 shows the reply-window promise
+ * instead, because its list already carries a badge for the same number.
+ */
+private fun TripThreadSnapshot.toSurface(): ThreadSurface = ThreadSurface(
+    title = "Gyasi · $tripTitle",
+    subtitle = when {
+        unreadCount == 1 -> "1 new message"
+        unreadCount > 1 -> "$unreadCount new messages"
+        else -> ThreadMessages.REPLY_WINDOW
+    },
+    messages = messages,
+    emptyBody = ThreadMessages.EMPTY_BODY,
+)
 
 /**
  * Screen 2.2.11.

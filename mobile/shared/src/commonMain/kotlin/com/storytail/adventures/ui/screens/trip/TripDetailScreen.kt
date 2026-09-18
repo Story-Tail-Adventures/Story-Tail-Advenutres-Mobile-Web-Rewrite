@@ -70,6 +70,8 @@ fun TripDetailScreen(
     onOpenItinerary: (tripId: String) -> Unit,
     onOpenDocuments: (tripId: String) -> Unit,
     onOpenThread: (tripId: String) -> Unit,
+    /** §2.4.3 for this trip, behind the Payments tile. */
+    onAuthorizeCard: (tripId: String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,6 +109,7 @@ fun TripDetailScreen(
                 onOpenItinerary = onOpenItinerary,
                 onOpenDocuments = onOpenDocuments,
                 onOpenThread = onOpenThread,
+                onAuthorizeCard = onAuthorizeCard,
             )
         }
     }
@@ -119,6 +122,7 @@ private fun Body(
     onOpenItinerary: (String) -> Unit,
     onOpenDocuments: (String) -> Unit,
     onOpenThread: (String) -> Unit,
+    onAuthorizeCard: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val trip = detail.trip
@@ -168,6 +172,7 @@ private fun Body(
                 onOpenItinerary = { onOpenItinerary(trip.id) },
                 onOpenDocuments = { onOpenDocuments(trip.id) },
                 onOpenThread = { onOpenThread(trip.id) },
+                onAuthorizeCard = { onAuthorizeCard(trip.id) },
             )
         }
 
@@ -217,6 +222,7 @@ private fun QuickTiles(
     onOpenItinerary: () -> Unit,
     onOpenDocuments: () -> Unit,
     onOpenThread: () -> Unit,
+    onAuthorizeCard: () -> Unit,
 ) {
     val next = detail.milestones.firstOrNull { it.status != "paid" && it.status != "waived" }
     val tiles = listOf(
@@ -237,9 +243,10 @@ private fun QuickTiles(
                 formatMoney(it.amountCents, it.currency) +
                     (it.dueDate?.let { d -> " due ${formatDay(d)}" } ?: "")
             } ?: if (detail.milestones.isEmpty()) "Nothing scheduled" else "All paid",
-            // §2.4, which lands next. Disabled rather than pointed at a screen that is not
-            // there — the tile keeps its place so the 2×2 does not reflow later.
-            onClick = null,
+            // §2.4.3, which the Screen Inventory names as reached from Trip Detail. The tile
+            // kept its place while §2.4 was unbuilt so the 2×2 would not reflow when it
+            // landed; this is that landing.
+            onClick = onAuthorizeCard,
         ),
         Tile(
             mark = StoryTailMark.PASSPORT,

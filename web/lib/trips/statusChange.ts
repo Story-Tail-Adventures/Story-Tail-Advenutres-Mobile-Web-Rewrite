@@ -40,7 +40,6 @@ export const STATUS_CHANGE_MESSAGES = {
   viewSummary: "See the cancellation summary",
   viewMemories: "Open the memories",
   authorizeCard: "Authorize a card",
-  authorizeDeferred: "Card authorization arrives with the payments screen",
 
   /** Shown when `status_changed_at` is null — a trip whose status never moved. */
   changedUnknown: "Recently",

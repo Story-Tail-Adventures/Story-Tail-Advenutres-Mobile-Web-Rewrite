@@ -3,14 +3,24 @@
 import { useActionState, useRef, useState } from "react";
 
 import { Icon } from "@/components/ui/Icon";
-import { sendTripMessage, type SendMessageState } from "@/lib/trips/actions";
-import { QUICK_REPLIES, THREAD_MESSAGES } from "@/lib/trips/thread";
-import { THREAD } from "./content";
+import { QUICK_REPLIES, THREAD_MESSAGES, type SendMessageState } from "@/lib/trips/thread";
 
 const IDLE: SendMessageState = { status: "idle" };
 
 /**
- * The 2.2.7 compose bar: quick-reply chips, a growing textarea, attach and send.
+ * The compose bar: quick-reply chips, a growing textarea, attach and send.
+ *
+ * SHARED BY 2.2.7 AND 2.6.2, which is why it takes the action as a prop instead of binding
+ * one itself. It used to do `sendTripMessage.bind(null, tripId)` internally, and that is
+ * exactly what made it a trip component; a thread with no trip cannot be addressed that way
+ * at all. The caller binds its own key — a trip id for 2.2.7, a conversation id for 2.6.2 —
+ * and hands the result down.
+ *
+ * A SERVER ACTION IS SERIALISABLE, so this crosses the server/client boundary safely. A plain
+ * function would not: passing one from a server component to a client one typechecks, passes
+ * unit tests (they render in-process, so the boundary is never crossed) and throws only in a
+ * real browser. That trap is recorded in the plan's verification section; the action-as-prop
+ * shape is the one §2.5 used for `ProfileForm` for the same reason.
  *
  * THE TEXTAREA IS CONTROLLED, which a plain server-action form would not need. It is
  * controlled because three other things write to it: a quick-reply chip fills it, a failed
@@ -33,8 +43,17 @@ const IDLE: SendMessageState = { status: "idle" };
  * people write one-line messages forever. The form still submits normally without
  * JavaScript, because it is a real form with a real action.
  */
-export function Composer({ tripId }: { tripId: string }) {
-  const send = sendTripMessage.bind(null, tripId);
+export function Composer({
+  action: send,
+  attachTitle,
+  placeholder = THREAD_MESSAGES.composePlaceholder,
+}: {
+  /** Already bound to its thread's key by the server component that renders this. */
+  action: (previous: SendMessageState, formData: FormData) => Promise<SendMessageState>;
+  /** Why the attach button is disabled — the one string that differs between the two screens. */
+  attachTitle: string;
+  placeholder?: string;
+}) {
   const [state, action, pending] = useActionState(send, IDLE);
   const [typed, setTyped] = useState<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -52,6 +71,9 @@ export function Composer({ tripId }: { tripId: string }) {
 
       <div className="mx-auto w-full max-w-3xl px-4 py-2.5 md:px-6">
         <div className="flex gap-1.5 overflow-x-auto pb-2">
+          {/* The same four on both screens. They are parity-pinned copy rather than data, and
+              offering a traveler a different set of words depending on which list they
+              reached the thread from is the drift this extraction exists to prevent. */}
           {QUICK_REPLIES.map((reply) => (
             <button
               key={reply}
@@ -82,7 +104,7 @@ export function Composer({ tripId }: { tripId: string }) {
             disabled
             aria-disabled="true"
             aria-label={THREAD_MESSAGES.attachLabel}
-            title={THREAD.attachDeferred}
+            title={attachTitle}
           >
             <Icon name="attach" size={18} />
           </button>
@@ -99,8 +121,8 @@ export function Composer({ tripId }: { tripId: string }) {
                 if (!empty) event.currentTarget.form?.requestSubmit();
               }
             }}
-            placeholder={THREAD_MESSAGES.composePlaceholder}
-            aria-label={THREAD_MESSAGES.composePlaceholder}
+            placeholder={placeholder}
+            aria-label={placeholder}
             className="t-body max-h-32 min-h-11 flex-1 resize-none rounded-3xl border border-outline-variant bg-bg px-3.5 py-2.5 text-on-surface placeholder:text-on-surface-variant"
           />
 

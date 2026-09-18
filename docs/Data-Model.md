@@ -1377,16 +1377,42 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `agent_user_id` | `uuid` | No | Public | FK → User (the agent who used it) |
 | `supplier_id` | `uuid` | Yes | Public | FK → Supplier |
 | `supplier_name_snapshot` | `text` | No | PII | In case Supplier record changes |
-| `amount_cents` | `bigint` | No | Internal | — |
+| `amount_cents` | `bigint` | No | Client-visible | Amended 2026-09-17 — see below |
 | `currency` | `char(3)` | No | Public | — |
 | `reference_number` | `text` | Yes | PII | Supplier confirmation/auth code |
 | `justification` | `text` | No | Internal | Agent-entered reason at time of reveal |
 | `receipt_document_id` | `uuid` | Yes | Public | FK → Document (uploaded receipt) |
-| `client_flag_status` | `text` | No | Internal | `not_flagged`, `flagged`, `resolved` |
+| `client_flag_status` | `text` | No | Internal | `not_flagged`, `flagged`, `resolved` — but see the append-only conflict below |
 | `client_flagged_at` | `timestamptz` | Yes | Internal | — |
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Append-only:** no UPDATE, no DELETE.
+
+**Amended 2026-09-17, while building Screen Inventory §2.4.**
+
+**`amount_cents` was classified Internal.** It is the amount charged to the traveler's own
+card, and Screen 2.4.5 exists to show them exactly that — BRD §10.3 makes per-use transparency
+part of the SAQ A trust posture, and the BRD outranks this document. Reclassified
+client-visible. `justification` stays Internal: it is the agent's reason, written for the
+audit trail rather than for the traveler.
+
+**The append-only rule and `client_flag_status` contradict each other, and this is not yet
+resolved.** Three values — `not_flagged`, `flagged`, `resolved` — describe a lifecycle that
+only UPDATEs can produce, on a table this section, the DDL comment on `card_use_event`, and
+`.claude/skills/rls-policy/SKILL.md` all call append-only with no UPDATE.
+
+One of the two has to give, and the choice is a decision rather than an implementation detail:
+
+* a separate append-only `card_use_flag` table, where a flag and its resolution are two rows
+  and the ledger stays untouched — consistent with everything already written; or
+* an explicit narrowing of the append-only claim to exclude exactly these two columns, which
+  keeps the read simple and makes "append-only" mean "append-only except here".
+
+Until it is settled, Screen 2.4.6's "Flag as unfamiliar" renders disabled with a reason.
+Writing an UPDATE against a ledger three documents call append-only is not a decision a screen
+build should make quietly. Both flag columns are also classified Internal, which cannot be
+right either — a traveler who flags a charge and then cannot see that they flagged it has been
+given a control that appears to do nothing. That goes with the same ruling.
 
 **Indexes:** index on `(card_authorization_id, created_at desc)`; index on `(payment_card_id, created_at desc)`; index on `(trip_id, created_at desc)`.
 
@@ -2098,7 +2124,22 @@ Stays server-side only (lives in the Postgres schema; not exposed in any API res
 - `integration.credentials_encrypted`
 - `audit_event` (mostly — agents may see some via Client Activity Log via a sanitized endpoint)
 
-Enforcement: Row-Level Security (RLS) policies on Supabase Postgres prevent these columns from being readable by anonymous or authenticated client roles. Edge Functions run with the `service_role` key (server-side only, never exposed) and have access to these columns when needed.
+Enforcement: **column GRANTs**, not RLS.
+
+This distinction is load-bearing and this paragraph used to get it wrong — it said RLS policies were what kept these columns from client roles. **RLS cannot restrict columns.** A policy decides which *rows* a role may see; once a row is visible, every column the role holds a privilege on comes with it. A reader implementing the old sentence literally would add a `SELECT` policy, believe the server-only list was still protected, and ship `stripe_payment_method_id` to a browser.
+
+The mechanism is:
+
+1. `REVOKE ALL ON <table> FROM anon, authenticated` — this must come **first**. `REVOKE SELECT (col)` is a no-op against a standing table-level grant, so revoking a column from a table the role still holds wholesale does nothing at all.
+2. Then either `GRANT SELECT (col, col, …)` naming exactly the client-visible columns, or no grant at all for tables a client never reads directly.
+
+Both shapes are in the schema: `20260905171542_client_column_grant.sql` and `20260907031255_trip_read_policies.sql` do the revoke-then-column-grant for `client`, `trip`, `conversation` and nine more; `20260909001124_cruise_catalog.sql` and `20260917090000_payment_domain_lockdown.sql` do the revoke-with-no-grant for tables read only by Edge Functions.
+
+RLS still matters and stays enabled everywhere — it is what scopes rows to their owner, and it is the second layer if a grant is ever widened by mistake. It is simply not what protects a column.
+
+The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero policies and a live table-level `SELECT` grant to both `anon` and `authenticated` covering both Stripe columns and `authorization_request.token_hash`. Nothing leaked — zero policies fails closed — but the first `SELECT` policy anyone added would have opened it. `supabase/tests/rls_payment.sql` now asserts a privilege *error* rather than an empty result, because a zero-row answer and a permission-denied answer are different claims.
+
+Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
 
 ### 21.3 Value Classes for Domain Primitives
 

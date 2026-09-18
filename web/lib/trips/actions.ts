@@ -3,7 +3,8 @@
 import { refresh, revalidatePath } from "next/cache";
 
 import { DOCUMENT_MESSAGES } from "./documents";
-import { THREAD_MESSAGES } from "./thread";
+import { THREAD_MESSAGES, type SendMessageState } from "./thread";
+import { uuidV7 } from "@/lib/uuid";
 import { absoluteStorageUrl, callTripFunction } from "./api";
 
 /**
@@ -45,7 +46,17 @@ export async function signDocument(documentId: string): Promise<SignedDocument> 
   return { ok: true, url: absoluteStorageUrl(path) };
 }
 
-export type SendMessageState = { status: "idle" | "sent" } | { status: "error"; message: string; draft: string };
+/**
+ * Declared in `@/lib/trips/thread` and imported at the top of this file, NOT re-exported
+ * from here.
+ *
+ * A `"use server"` module may export only async functions. `export type { … } from` is
+ * erased by the compiler and would very likely be fine — but "very likely" is not worth it
+ * here, because the failure mode is a 500 on every POST to any route that imports this file,
+ * and it is invisible to tsc, to eslint and to the unit tests alike. See the header of
+ * `lib/auth/signed-in-shells.ts`, which is that lesson already paid for once. Importers take
+ * the type from `@/lib/trips/thread` directly.
+ */
 
 /**
  * Send a message on a trip thread, for 2.2.7's compose bar.
@@ -98,32 +109,6 @@ export async function sendTripMessage(
   // theirs.
   revalidatePath("/dashboard");
   return { status: "sent" };
-}
-
-/**
- * UUID v7, time-ordered, per Data-Model §21.6.
- *
- * The 48-bit big-endian millisecond timestamp is what the functions validate for recency;
- * the rest is random. `crypto.getRandomValues` rather than `Math.random` because these ids
- * are primary keys and a collision is a lost message.
- */
-function uuidV7(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-
-  const ms = Date.now();
-  bytes[0] = (ms / 2 ** 40) & 0xff;
-  bytes[1] = (ms / 2 ** 32) & 0xff;
-  bytes[2] = (ms / 2 ** 24) & 0xff;
-  bytes[3] = (ms / 2 ** 16) & 0xff;
-  bytes[4] = (ms / 2 ** 8) & 0xff;
-  bytes[5] = ms & 0xff;
-
-  bytes[6] = 0x70 | (bytes[6] & 0x0f); // version 7
-  bytes[8] = 0x80 | (bytes[8] & 0x3f); // variant 10
-
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 export type ReflectionState =

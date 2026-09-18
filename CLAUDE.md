@@ -108,6 +108,15 @@ Things that cost real time to rediscover:
   project's Kotlin compiler ship klibs with a higher ABI version, which Kotlin/Native
   refuses — while the JVM/Android target silently tolerates the mismatch. So a bad bump
   breaks *only* iOS. Bump `supabase` and `kotlin` in `libs.versions.toml` together.
+- **`client.functions.invoke` THROWS on a non-2xx; it does not return the response.**
+  supabase-kt validates every response, so `if (response.status.value in 400..499)` written
+  *after* the call is unreachable code — the rejection already left through the `catch`. Three
+  repositories shipped that shape, and every Edge Function rejection reached the traveler as
+  the generic "try again in a moment" instead of the sentence the function wrote. Catch
+  `io.github.jan.supabase.exceptions.RestException` and read the body off **`rest.error`** —
+  `Functions.parseErrorResponse` puts the raw body there, leaves `description` null, and
+  appends `URL:` / `Headers:` lines to `message`, so parsing `message` fails on the trailing
+  text and silently yields null. `rest.statusCode` is the status.
 - **The Android emulator reaches local Supabase at `http://10.0.2.2:54321`,** not
   `127.0.0.1` — that is the emulator's own loopback. Set it in `mobile/local.properties`.
 - **`supabase db reset` is the local loop; `supabase db push` targets a linked remote.**

@@ -5,9 +5,11 @@ import com.storytail.adventures.domain.trip.daysUntilDeparture
 import com.storytail.adventures.domain.trip.tripStatusPresentation
 import com.storytail.adventures.domain.trip.StatusChip
 import com.storytail.adventures.config.SupabaseConfig
+import com.storytail.adventures.domain.messages.inboxTitle
 import com.storytail.adventures.domain.trip.MessageSender
 import com.storytail.adventures.domain.uuidV7
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -22,6 +24,7 @@ import kotlinx.datetime.daysUntil
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -79,6 +82,43 @@ interface TripRepository {
 
     /** Send a message on a trip thread, for 2.2.7's compose bar. */
     suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome
+
+    // ── Screen Inventory §2.6, Messaging ────────────────────────────────────────
+    //
+    // WHY §2.6 IS HERE AND NOT IN A MessagesRepository OF ITS OWN. The interface name is a
+    // little wrong for it — a general thread has no trip — and that was weighed against the
+    // alternative, which is worse: every row type and helper in this file is file-private, so
+    // a separate repository would have to re-implement the message read and its
+    // message_attachment → document embed. That read is the one piece of logic whose
+    // divergence would make 2.6.2 and 2.2.7 show different threads, which is the single thing
+    // this section is built to prevent. So they share `threadMessages` instead, and the name
+    // is the price. Rename the interface when §3.x gives the agent side its own.
+
+    /** Screen 2.6.1's list. Null on a failed read; EMPTY means no conversations. */
+    suspend fun inbox(): List<InboxConversationView>?
+
+    /**
+     * Screen 2.6.2, addressed by CONVERSATION rather than by trip.
+     *
+     * Not [tripThread]: that one resolves the conversation from a trip and cannot reach a row
+     * with `trip_id IS NULL`, so it would miss exactly the threads 2.6.3 creates.
+     *
+     * Null covers no such row, not yours, and archived alike — `conversation_self_select`
+     * makes all three invisible, so none of them can be told apart and none of them should be.
+     */
+    suspend fun conversationThread(conversationId: String): ConversationThreadSnapshot?
+
+    /** Send into an existing thread, for 2.6.2's compose bar. */
+    suspend fun sendToConversation(conversationId: String, body: String): SendMessageOutcome
+
+    /**
+     * Start — or continue — the general thread, for 2.6.3.
+     *
+     * SENDS NEITHER ID, which is what tells `trip-message` to find-or-create against
+     * `trip_id IS NULL`, so a traveler who writes twice lands in one thread rather than two.
+     * Returns the conversation id so the screen can push straight into it.
+     */
+    suspend fun startConversation(body: String): StartConversationOutcome
 
     /** Screen 2.2.11. Null when the trip is not the caller's. */
     suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot?
@@ -164,6 +204,39 @@ data class TripThreadSnapshot(
     val unreadCount: Int,
     val messages: List<ThreadMessageView>,
 )
+
+/** One row of Screen 2.6.1's list. */
+data class InboxConversationView(
+    val id: String,
+    /** Null on a general thread — nothing sets a subject on one. See `inboxTitle`. */
+    val subject: String?,
+    val tripId: String?,
+    val tripTitle: String?,
+    val lastMessageAt: String,
+    val lastMessagePreview: String?,
+    /**
+     * Granted and rendered, but no runtime path in this repo raises it: `trip-message` sets it
+     * to 0 at creation and only ever increments the agent's side. `seed.sql` hand-writes a 2 so
+     * §2.2.3 has an unread state to show. It starts meaning something when the agent send path
+     * lands in §3.x.
+     */
+    val unreadCount: Int,
+)
+
+/** Screen 2.6.2's thread. [tripId] null is what suppresses "Open trip". */
+data class ConversationThreadSnapshot(
+    val conversationId: String,
+    val title: String,
+    val tripId: String?,
+    val unreadCount: Int,
+    val messages: List<ThreadMessageView>,
+)
+
+sealed interface StartConversationOutcome {
+    /** [conversationId] is what 2.6.3 pushes into once the message is away. */
+    data class Started(val conversationId: String) : StartConversationOutcome
+    data class Failed(val detail: String?) : StartConversationOutcome
+}
 
 sealed interface SignedDocument {
     /** An ABSOLUTE url, already joined to this build's Supabase origin. */
@@ -338,6 +411,12 @@ class UnconfiguredTripRepository : TripRepository {
     override suspend fun tripDocuments(tripId: String): TripDocumentsSnapshot? = null
     override suspend fun tripThread(tripId: String): TripThreadSnapshot? = null
     override suspend fun signDocumentUrl(documentId: String): SignedDocument = SignedDocument.Failed
+    override suspend fun inbox(): List<InboxConversationView>? = null
+    override suspend fun conversationThread(conversationId: String): ConversationThreadSnapshot? = null
+    override suspend fun sendToConversation(conversationId: String, body: String): SendMessageOutcome =
+        SendMessageOutcome.Failed(null)
+    override suspend fun startConversation(body: String): StartConversationOutcome =
+        StartConversationOutcome.Failed(null)
     override suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome =
         SendMessageOutcome.Failed(null)
     override suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot? = null
@@ -834,14 +913,38 @@ class SupabaseTripRepository(
             return TripThreadSnapshot(trip.id, trip.title, null, 0, emptyList())
         }
 
-        // `is_internal_note` is not filtered here, and that is not an omission: it is outside
-        // the client column grant, so naming it would raise 42501. The filtering lives in
-        // `message_self_select`, which carries `is_internal_note = false` as a ROW predicate —
-        // the internal notes are invisible rather than redacted.
+        val messages = threadMessages(conversation.id) ?: return null
+
+        return TripThreadSnapshot(
+            tripId = trip.id,
+            tripTitle = trip.title,
+            conversationId = conversation.id,
+            unreadCount = conversation.client_unread_count ?: 0,
+            messages = messages,
+        )
+    }
+
+    /**
+     * Every message in one conversation, oldest first, with its readable attachments.
+     *
+     * SHARED BY 2.2.7 AND 2.6.2 — extracted when §2.6 landed, and the extraction is the point
+     * rather than a tidy-up. The mobile artboard says 2.6.2 "is not a new screen", so the two
+     * screens must not be able to render the same conversation differently; one read is how
+     * that is enforced rather than hoped for.
+     *
+     * `is_internal_note` is not filtered here, and that is not an omission: it is outside the
+     * client column grant, so naming it would raise 42501. The filtering lives in
+     * `message_self_select`, which carries `is_internal_note = false` as a ROW predicate — the
+     * internal notes are invisible rather than redacted.
+     *
+     * Null is a failed read. An EMPTY list is a real conversation with nothing in it, which
+     * `trip-message` can genuinely leave behind because it is not atomic.
+     */
+    private suspend fun threadMessages(conversationId: String): List<ThreadMessageView>? {
         val messageRows = read {
             client.postgrest.from("message")
                 .select(Columns.list("id", "sender_role", "body", "created_at")) {
-                    filter { eq("conversation_id", conversation.id) }
+                    filter { eq("conversation_id", conversationId) }
                     order("created_at", Order.ASCENDING)
                 }
                 .decodeList<MessageRow>()
@@ -872,21 +975,148 @@ class SupabaseTripRepository(
                 .groupBy({ it.first }, { it.second })
         }
 
-        return TripThreadSnapshot(
-            tripId = trip.id,
-            tripTitle = trip.title,
+        return messageRows.map { row ->
+            ThreadMessageView(
+                id = row.id,
+                sender = if (row.sender_role == "client") MessageSender.CLIENT else MessageSender.AGENT,
+                body = row.body,
+                createdAt = row.created_at,
+                attachments = attachments[row.id].orEmpty(),
+            )
+        }
+    }
+
+    override suspend fun inbox(): List<InboxConversationView>? {
+        // KEYED ON THE CLIENT, NOT A TRIP, which is the whole difference from every
+        // conversation read §2.2 has: those are `eq("trip_id", …)` single-row lookups and none
+        // of them can see a thread with no trip. `conversation_self_select` already scopes rows
+        // to the caller, so this needs no filter of its own — and it carries
+        // `archived_at IS NULL`, so there is no client-side archive view to build.
+        //
+        // The trip title is EMBEDDED rather than joined in a second pass; `trip`'s own policy
+        // still applies to the embedded side, so an unreadable trip comes back null and the row
+        // falls back to its subject.
+        val rows = read {
+            client.postgrest.from("conversation")
+                .select(
+                    Columns.raw(
+                        "id, subject, trip_id, last_message_at, last_message_preview, " +
+                            "client_unread_count, trip:trip_id(title)",
+                    ),
+                ) {
+                    order("last_message_at", Order.DESCENDING)
+                }
+                .decodeList<InboxRow>()
+        } ?: return null
+
+        return rows.map { row ->
+            InboxConversationView(
+                id = row.id,
+                subject = row.subject,
+                tripId = row.trip_id,
+                tripTitle = row.trip?.title,
+                lastMessageAt = row.last_message_at,
+                lastMessagePreview = row.last_message_preview,
+                unreadCount = row.client_unread_count ?: 0,
+            )
+        }
+    }
+
+    override suspend fun conversationThread(conversationId: String): ConversationThreadSnapshot? {
+        val conversation = read {
+            client.postgrest.from("conversation")
+                .select(
+                    Columns.raw(
+                        "id, subject, trip_id, client_unread_count, trip:trip_id(title)",
+                    ),
+                ) {
+                    filter { eq("id", conversationId) }
+                    limit(1)
+                }
+                .decodeList<ConversationThreadRow>()
+                .firstOrNull()
+        } ?: return null
+
+        val messages = threadMessages(conversation.id) ?: return null
+
+        return ConversationThreadSnapshot(
             conversationId = conversation.id,
+            title = inboxTitle(conversation.subject, conversation.trip?.title),
+            tripId = conversation.trip_id,
             unreadCount = conversation.client_unread_count ?: 0,
-            messages = messageRows.map { row ->
-                ThreadMessageView(
-                    id = row.id,
-                    sender = if (row.sender_role == "client") MessageSender.CLIENT else MessageSender.AGENT,
-                    body = row.body,
-                    createdAt = row.created_at,
-                    attachments = attachments[row.id].orEmpty(),
-                )
-            },
+            messages = messages,
         )
+    }
+
+    override suspend fun sendToConversation(
+        conversationId: String,
+        body: String,
+    ): SendMessageOutcome {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return SendMessageOutcome.Failed(null)
+
+        val payload = buildJsonObject {
+            put("messageId", JsonPrimitive(uuidV7()))
+            // By CONVERSATION. A general thread has no trip to key on, so `sendMessage`
+            // cannot serve 2.6.2 at all.
+            put("conversationId", JsonPrimitive(conversationId))
+            put("body", JsonPrimitive(trimmed))
+        }
+
+        return invokeTripMessage(payload).outcome
+    }
+
+    override suspend fun startConversation(body: String): StartConversationOutcome {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return StartConversationOutcome.Failed(null)
+
+        val payload = buildJsonObject {
+            put("messageId", JsonPrimitive(uuidV7()))
+            // NEITHER id — see the interface note. This is what reaches the general thread.
+            put("body", JsonPrimitive(trimmed))
+        }
+
+        val result = invokeTripMessage(payload)
+        return when (val outcome = result.outcome) {
+            is SendMessageOutcome.Sent ->
+                result.conversationId?.let { StartConversationOutcome.Started(it) }
+                    // Sent, but with no id to navigate to. Reported as failure would be a lie
+                    // — the message is away — so the screen treats a null id as "go to the
+                    // inbox", which is where it landed.
+                    ?: StartConversationOutcome.Started("")
+            is SendMessageOutcome.Failed -> StartConversationOutcome.Failed(outcome.detail)
+        }
+    }
+
+    /**
+     * One call site for `trip-message`, which is now three endpoints wearing one name.
+     *
+     * Shared so the error handling cannot drift between the three addressing modes: the
+     * never-log-the-body rule is the kind of thing that gets remembered in two places out of
+     * three.
+     */
+    private suspend fun invokeTripMessage(payload: JsonObject): TripMessageResult {
+        val response = try {
+            client.functions.invoke("trip-message", payload)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (rest: RestException) {
+            // NEVER log the body — it is somebody's message.
+            return TripMessageResult(SendMessageOutcome.Failed(restDetail(rest)), null)
+        } catch (throwable: Throwable) {
+            return TripMessageResult(SendMessageOutcome.Failed(null), null)
+        }
+
+        // NO STATUS CHECK. supabase-kt validates the response, so a non-2xx is thrown, not
+        // returned — the `status.value in 400..499` branch that used to live here never ran
+        // and every rejection reached the traveler as the generic failure. Found in §2.4 and
+        // fixed in all four places at once; see WalletRepository.problemDetail for why the
+        // body has to be read off `RestException.error` rather than `message`.
+        val text = runCatching { response.bodyAsText() }.getOrDefault("")
+        val id = runCatching {
+            json.decodeFromString<SendMessageResponse>(text).conversationId
+        }.getOrNull()
+        return TripMessageResult(SendMessageOutcome.Sent, id)
     }
 
     override suspend fun signDocumentUrl(documentId: String): SignedDocument {
@@ -899,11 +1129,10 @@ class SupabaseTripRepository(
             throw cancellation
         } catch (throwable: Throwable) {
             // Never log the throwable: a storage error carries the key, which is the one
-            // thing this whole path exists to withhold.
+            // thing this whole path exists to withhold. A non-2xx is one of these throws —
+            // supabase-kt validates the response — so there is no status check below.
             return SignedDocument.Failed
         }
-
-        if (response.status.value !in 200..299) return SignedDocument.Failed
 
         val body = runCatching {
             json.decodeFromString<SignedUrlResponse>(response.bodyAsText())
@@ -932,20 +1161,17 @@ class SupabaseTripRepository(
             put("body", JsonPrimitive(trimmed))
         }
 
-        val response = try {
+        return try {
             client.functions.invoke("trip-message", payload)
+            SendMessageOutcome.Sent
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (throwable: Throwable) {
+        } catch (rest: RestException) {
             // NEVER log the body — it is somebody's message.
-            return SendMessageOutcome.Failed(null)
+            SendMessageOutcome.Failed(restDetail(rest))
+        } catch (throwable: Throwable) {
+            SendMessageOutcome.Failed(null)
         }
-
-        if (response.status.value in 200..299) return SendMessageOutcome.Sent
-
-        val text = runCatching { response.bodyAsText() }.getOrDefault("")
-        val detail = if (response.status.value in 400..499) problemDetail(text) else null
-        return SendMessageOutcome.Failed(detail)
     }
 
     override suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot? {
@@ -1136,26 +1362,34 @@ class SupabaseTripRepository(
             put("submit", JsonPrimitive(submit))
         }
 
-        val response = try {
+        return try {
             client.functions.invoke("testimonial", payload)
+            SendMessageOutcome.Sent
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (throwable: Throwable) {
+        } catch (rest: RestException) {
             // NEVER log the body — it is somebody's reflection on their own holiday.
-            return SendMessageOutcome.Failed(null)
+            SendMessageOutcome.Failed(restDetail(rest))
+        } catch (throwable: Throwable) {
+            SendMessageOutcome.Failed(null)
         }
-
-        if (response.status.value in 200..299) return SendMessageOutcome.Sent
-
-        val text = runCatching { response.bodyAsText() }.getOrDefault("")
-        val detail = if (response.status.value in 400..499) problemDetail(text) else null
-        return SendMessageOutcome.Failed(detail)
     }
 
-    /** The `detail` from an RFC 7807 body, if it carried one. */
-    private fun problemDetail(text: String): String? = runCatching {
-        json.decodeFromString<ProblemBody>(text).detail
-    }.getOrNull()
+    /**
+     * The RFC 7807 `detail` off a rejected Edge Function call.
+     *
+     * 4xx ONLY: those are sentences written for a traveler to read, while a 5xx detail
+     * carries whatever Postgres said and belongs in the function log.
+     *
+     * READ OFF `error`, NOT `message`. supabase-kt's `Functions.parseErrorResponse` puts the
+     * RAW BODY in `RestException.error`, leaves `description` null, and builds `message` as
+     * the body plus appended `URL:` / `Headers:` / `Http Method:` lines — which kotlinx
+     * .serialization rejects as trailing content, silently yielding null.
+     */
+    private fun restDetail(rest: RestException): String? {
+        if (rest.statusCode !in 400..499) return null
+        return runCatching { json.decodeFromString<ProblemBody>(rest.error).detail }.getOrNull()
+    }
 
     /**
      * The caller's own `platform_user.id`.
@@ -1488,4 +1722,49 @@ private fun StatusChangeRow.toTripRow(): TripRow = TripRow(
     total_value_cents = total_value_cents,
     total_paid_cents = total_paid_cents,
     currency = currency,
+)
+
+/**
+ * §2.6's rows.
+ *
+ * `trip:trip_id(title)` embeds rather than joins, so `trip`'s own policy applies to the
+ * embedded side: a conversation whose trip the caller cannot read comes back with a null
+ * `trip` and falls back to its subject, instead of the whole row disappearing.
+ */
+@Serializable
+private data class TripTitleEmbed(val title: String? = null)
+
+@Serializable
+private data class InboxRow(
+    val id: String,
+    val subject: String? = null,
+    val trip_id: String? = null,
+    val last_message_at: String,
+    val last_message_preview: String? = null,
+    val client_unread_count: Int? = null,
+    val trip: TripTitleEmbed? = null,
+)
+
+@Serializable
+private data class ConversationThreadRow(
+    val id: String,
+    val subject: String? = null,
+    val trip_id: String? = null,
+    val client_unread_count: Int? = null,
+    val trip: TripTitleEmbed? = null,
+)
+
+/**
+ * `trip-message`'s response body.
+ *
+ * Only `conversationId` is read. 2.6.3 needs it to push into the thread it just created, and
+ * the other fields the function returns are things this client already knows.
+ */
+@Serializable
+private data class SendMessageResponse(val conversationId: String? = null)
+
+/** [SupabaseTripRepository.invokeTripMessage]'s two answers, which callers need separately. */
+private data class TripMessageResult(
+    val outcome: SendMessageOutcome,
+    val conversationId: String?,
 )
