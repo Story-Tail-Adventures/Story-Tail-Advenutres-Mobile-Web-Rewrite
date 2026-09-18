@@ -19,6 +19,7 @@ import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.WalletRepository
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
@@ -49,6 +50,7 @@ import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.account.AccountRoute
 import com.storytail.adventures.ui.screens.messages.MessagesRoute
+import com.storytail.adventures.ui.screens.wallet.WalletRoute
 import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
@@ -67,11 +69,13 @@ fun App() {
         var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
         var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
         var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
+        var walletRepository by remember { mutableStateOf<WalletRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
             tripRepository = SupabaseClientProvider.tripRepository()
             accountRepository = SupabaseClientProvider.accountRepository()
+            walletRepository = SupabaseClientProvider.walletRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -253,6 +257,27 @@ fun App() {
                     // agree with each other, and the device is the only clock that knows where
                     // the traveler is.
                     MessagesRoute(route = route, nav = nav, trips = trips)
+                }
+            }
+
+            // §2.4, listed for the same reason: the `when` stays exhaustive, so a route added to
+            // AppRoute without a home is a compile error rather than a screen that silently
+            // falls through. That is not hypothetical — it caught these six.
+            AppRoute.Wallet,
+            is AppRoute.WalletAuthorize,
+            is AppRoute.WalletAuthorization,
+            is AppRoute.WalletRemoveAuthorization,
+            is AppRoute.WalletActivity,
+            is AppRoute.WalletUseDetail,
+            -> {
+                val walletRepo = walletRepository
+                val trips = tripRepository
+                if (walletRepo == null || trips == null) {
+                    SplashScreen()
+                } else {
+                    // `trips` is here for 2.4.3 alone, which needs the trip's balance due to
+                    // derive its limit presets. Everything else in §2.4 comes from the wallet.
+                    WalletRoute(route = route, nav = nav, wallet = walletRepo, trips = trips)
                 }
             }
 

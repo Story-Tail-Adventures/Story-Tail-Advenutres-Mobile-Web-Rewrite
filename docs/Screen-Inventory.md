@@ -893,11 +893,17 @@ gate (2.0.6) sits in front of it rather than beside it.
 > treatment differs by shape: a destination or a switch renders disabled with a reason
 > (2.5.1's Payment methods row, 2.5.6's payment category); a clause inside a paragraph is cut
 > rather than greyed (2.5.9); and a consequence is stated plainly because it is true whether
-> or not §2.4 has shipped (2.5.10's "any saved card stops being usable"). Note this matches
-> the **built** app — `web/app/(client)/dashboard/content.ts` carries
-> `authorizeCardComingSoon` — and **not** the §2.2 artboard, which still draws a live
-> "Authorize a card · $4,180 due" CTA. That artboard is the one out of step; raised with the
-> designer 2026-09-10.
+> or not §2.4 has shipped (2.5.10's "any saved card stops being usable"). At the time this
+> was written the §2.2 artboard's live "Authorize a card · $4,180 due" CTA looked like the
+> thing out of step with the built app, and it was raised with the designer 2026-09-10.
+>
+> **Resolved 2026-09-17, the other way: the artboard was right.** §2.4 shipped, and every one
+> of those CTAs went live with it — the dashboard's, the Trip Detail Payments tile, and
+> 2.2.9's — all pointing at 2.4.3 for the trip in hand. 2.5.1's "Payment methods" row now
+> opens 2.4.1. `authorizeCardComingSoon` and `authorizeDeferred` are deleted from both stacks
+> and from the parity map rather than left unreferenced, where the next reader would take
+> them for live copy. Only 2.5.6's payment-notification category is still disabled, and for
+> its own reason — no dispatcher exists — not because §2.4 is missing.
 
 #### 2.5.1 Account Overview / My Account
 **Purpose:** Hub for everything related to the client's account.

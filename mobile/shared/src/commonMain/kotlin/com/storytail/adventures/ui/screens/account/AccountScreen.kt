@@ -52,7 +52,9 @@ import com.storytail.adventures.ui.theme.PillShape
  *    customer number is a support burden rather than a feature.
  *  · The avatar is INITIALS, never a photograph. `web/lib/images.ts` has no avatar entries,
  *    so every `staImg('avatar*')` in the artboards is a stock portrait of a stranger.
- *  · "Payment methods" renders disabled with a reason — §2.4 is unbuilt.
+ *  · "Payment methods" opens §2.4, which is the only way into that section on mobile:
+ *    Wallet is rail-only on web and absent from the four-tab bar, so this row is its entry
+ *    point rather than a shortcut to one.
  *  · "Notifications" is disabled too: `notification_preference` has RLS with no policy and
  *    no row-creation path, so 2.5.6 would read zero rows forever. Its route still exists and
  *    says so; see NotificationsScreen.
@@ -75,6 +77,7 @@ fun AccountScreen(
     onOpenConnected: () -> Unit,
     onOpenHelp: () -> Unit,
     onOpenPrivacy: () -> Unit,
+    onOpenWallet: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -150,8 +153,8 @@ fun AccountScreen(
                 SettingsRow(
                     mark = StoryTailMark.CARD,
                     title = AccountMessages.WALLET,
-                    disabled = true,
-                    reason = AccountMessages.COMING_SOON,
+                    sub = AccountMessages.WALLET_SUB,
+                    onClick = onOpenWallet,
                 )
             }
 

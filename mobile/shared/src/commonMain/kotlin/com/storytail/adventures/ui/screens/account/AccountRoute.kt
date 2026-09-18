@@ -84,6 +84,9 @@ fun AccountRoute(
                 onOpenConnected = { nav.push(AppRoute.AccountConnected) },
                 onOpenHelp = { nav.push(AppRoute.AccountHelp) },
                 onOpenPrivacy = { nav.push(AppRoute.AccountPrivacy) },
+                // §2.4's only entry point on mobile — Wallet is rail-only on web and is not
+                // one of the four tabs.
+                onOpenWallet = { nav.push(AppRoute.Wallet) },
                 onSignOut = onSignOut,
             )
         }

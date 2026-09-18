@@ -328,6 +328,7 @@ object SupabaseClientProvider {
     private var cachedOnboarding: OnboardingRepository? = null
     private var cachedTrip: TripRepository? = null
     private var cachedAccount: AccountRepository? = null
+    private var cachedWallet: WalletRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -383,6 +384,21 @@ object SupabaseClientProvider {
      * list, none of which is a trip — but it is deliberately NOT a second Supabase client.
      * Two clients would mean two sessions and two refresh loops.
      */
+    /**
+     * §2.4's payment surface, on the SAME client again.
+     *
+     * Separate from the others because §2.4 has no PostgREST query at all: the payment tables
+     * hold no client-role privilege, so every call is an Edge Function invocation. It still
+     * shares the client — two clients would mean two sessions and two refresh loops.
+     */
+    suspend fun walletRepository(): WalletRepository =
+        withContext(Dispatchers.Default) {
+            cachedWallet ?: run {
+                build()
+                cachedWallet!!
+            }
+        }
+
     suspend fun accountRepository(): AccountRepository =
         withContext(Dispatchers.Default) {
             cachedAccount ?: run {
@@ -397,6 +413,7 @@ object SupabaseClientProvider {
             cachedOnboarding = UnconfiguredOnboardingRepository()
             cachedTrip = UnconfiguredTripRepository()
             cachedAccount = UnconfiguredAccountRepository()
+            cachedWallet = UnconfiguredWalletRepository()
             return
         }
         val client = createSupabaseClient(
@@ -411,5 +428,6 @@ object SupabaseClientProvider {
         cachedOnboarding = SupabaseOnboardingRepository(client)
         cachedTrip = SupabaseTripRepository(client)
         cachedAccount = SupabaseAccountRepository(client)
+        cachedWallet = SupabaseWalletRepository(client)
     }
 }

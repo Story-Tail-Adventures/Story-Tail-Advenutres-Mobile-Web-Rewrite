@@ -11,7 +11,7 @@ import { WALLET } from "@/lib/wallet/content";
 import { brandName, cardLabel, formatDate, remainingLabel } from "@/lib/wallet/format";
 import { authorizationFor, cardFor, loadWallet } from "@/lib/wallet/queries";
 
-export const metadata: Metadata = { title: WALLET.authorizeTitle };
+export const metadata: Metadata = { title: WALLET.confirmedTitle };
 
 /**
  * Screen 2.4.4 Card Authorization Confirmation — docs/Screen-Inventory.md §2.4.4, §4.4

@@ -73,6 +73,11 @@ export const WALLET = {
   consentRequired: "Tick the box to authorize.",
 
   /** 2.4.4. */
+  // The screen's own name, not 2.4.3's. The confirmation used to wear `authorizeTitle` in
+  // its chrome — a tab and a top bar reading "Authorize a card" over a page whose first line
+  // says the card is already authorized. The artboard draws no top bar here at all, so there
+  // was nothing to copy; this is the smallest true thing to put in it.
+  confirmedTitle: "Card authorization",
   confirmedOverline: "AUTHORIZED",
   confirmedSummary: "SUMMARY",
   confirmedTrip: "Trip",

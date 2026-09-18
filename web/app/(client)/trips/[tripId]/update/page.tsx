@@ -120,19 +120,13 @@ export default async function TripUpdatePage({
           {primary.label} <Icon name="arrow_right" size={13} />
         </Link>
 
-        {/* §2.4 is Phase 1 and unbuilt, so the payment CTA the artboard shows renders
-            disabled rather than being dropped — the plan's "build them visually, disabled"
-            decision. */}
+        {/* The payment CTA the artboard shows, live now that §2.4.3 exists. It rendered
+            disabled under the plan's "build them visually, disabled" decision; the point of
+            that decision was that the button keeps its place until the screen arrives. */}
         {update.nextPayment && (
-          <button
-            type="button"
-            className="btn btn-outlined w-full"
-            disabled
-            aria-disabled="true"
-            title={STATUS_CHANGE.authorizeDeferred}
-          >
+          <Link href={`/wallet/authorize/${tripId}`} className="btn btn-outlined w-full">
             <Icon name="card" size={14} /> {STATUS_CHANGE.authorizeCard}
-          </button>
+          </Link>
         )}
       </div>
     </div>

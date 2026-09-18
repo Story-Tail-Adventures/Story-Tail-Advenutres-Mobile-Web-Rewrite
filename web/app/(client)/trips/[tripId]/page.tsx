@@ -33,7 +33,8 @@ export const metadata: Metadata = { title: "Your trip" };
  *   * "Card on file · VISA •••• 4242" is dropped from At a glance. That lives on
  *     `payment_card`, which belongs to §2.4 — and the wallet is where a client should manage
  *     it, not a read-only echo on a trip page.
- *   * "Authorize card" is disabled, like the dashboard's. §2.4 is Phase 1 and unbuilt.
+ *   * The "Payments" tile opens §2.4.3 for this trip, which is the entry point the Screen
+ *     Inventory names for that screen. It was disabled while §2.4 was unbuilt.
  */
 export default async function TripDetailPage({
   params,
@@ -166,8 +167,12 @@ function QuickTiles({ detail }: { detail: TripDetail }) {
       icon: "card",
       label: TRIP_DETAIL.tilePayments,
       sub: nextDueLabel(detail.milestones),
-      // §2.4. Disabled rather than pointed at a route that does not exist.
-      href: null,
+      // §2.4.3. The Screen Inventory names Trip Detail "Authorize a card" as this screen's
+      // entry point, and this tile is the only card affordance on it. A fully-paid trip
+      // still lands somewhere real: the form's presets come out at $0 and the submit stays
+      // disabled until a custom limit is typed, which is a readable state rather than a
+      // dead tile.
+      href: `/wallet/authorize/${trip.id}`,
       tone: "error",
     },
     {
