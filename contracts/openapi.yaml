@@ -277,6 +277,143 @@ paths:
 
 
   # ───────────────────────────────────────────────────────────────────────────
+  # §2.4 Payment & Card Authorization (2.4.1, 2.4.3 – 2.4.7)
+  #
+  # BOTH ENDPOINTS RUN ON THE SERVICE ROLE AND PROJECT A HAND-WRITTEN COLUMN
+  # LIST, and that is not the usual "no write policy" reason — it applies to the
+  # READ as well. `20260917090000_payment_domain_lockdown.sql` revoked every
+  # table and column privilege on `payment_card`, `card_authorization`,
+  # `authorization_request` and `card_use_event` from `anon` and
+  # `authenticated`, so there is no PostgREST route to this data at all, for
+  # either role. `.claude/skills/rls-policy/SKILL.md` classifies these tables
+  # service-role-only; §2.4 is the first section to need that ruling.
+  #
+  # `stripe_payment_method_id` and `stripe_customer_id` ARE NEVER NAMED in
+  # either projection. CLAUDE.md rule 4 makes them server-only, and a column
+  # list is the only place that promise can be kept or broken.
+  #
+  # 2.4.2 Add Card is DEFERRED, so nothing here creates a `payment_card` — both
+  # NOT NULL Stripe columns need a real tokenization and there is no Stripe
+  # account. There is no POST /payment-card, by design rather than by omission.
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /payment-wallet:
+    get:
+      operationId: getWallet
+      summary: The caller's cards, authorizations and card-use history.
+      description: |
+        Screens 2.4.1, 2.4.4, 2.4.5, 2.4.6 and 2.4.7 — one read behind all five, because
+        they are five views of the same three lists and a second endpoint would be a second
+        column list to keep honest.
+
+        Ownership is resolved from the JWT and applied explicitly: the service role means
+        RLS checks nothing, so every query filters on the caller's own `client_id`. A card,
+        authorization or event belonging to somebody else is simply absent from the answer.
+
+        `tripId` and `cardId` NARROW the lists; they never widen them. Passing a trip that
+        is not the caller's returns empty rather than 404 — this is a list endpoint, and
+        "no rows" is the honest answer to a filter that matches nothing.
+
+        `supplierName` is `card_use_event.supplier_name_snapshot`, never a join to
+        `supplier`. A supplier renamed later must not rewrite a traveler's history, and a
+        portal booking names a merchant that has no `supplier` row at all.
+
+        `justification` is NOT returned. Data-Model §9.4 classes it Internal and that is
+        right — it is the agent's reason, written for the audit trail. `amountCents` IS
+        returned, and §9.4 was amended to match: 2.4.5 exists to show a traveler what was
+        charged to their own card, which BRD §10.3 makes part of the SAQ A trust posture.
+      parameters:
+        - name: tripId
+          in: query
+          required: false
+          description: Narrow the authorizations and events to one trip.
+          schema:
+            type: string
+            format: uuid
+        - name: cardId
+          in: query
+          required: false
+          description: Narrow the authorizations and events to one card.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: |
+            The three lists. All three are empty for a caller with no `client_id` — an
+            agent, for instance — rather than a 403, because an agent has no wallet rather
+            than a forbidden one.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /card-authorization:
+    post:
+      operationId: changeCardAuthorization
+      summary: Authorize a card for a trip, or revoke that authorization.
+      description: |
+        Screens 2.4.3 and 2.4.7. ONE ENDPOINT WITH AN EXPLICIT `action`, not two: the
+        ownership check, the consent rules and the audit write are identical, and a second
+        function is a second place for that proof to drift.
+
+        AN AUTHORIZATION IS ALWAYS TRIP-SCOPED. `card_authorization.trip_id` is NOT NULL and
+        a partial unique index (`card_auth_active_per_trip`) allows one ACTIVE authorization
+        per card per trip. A second `create` for the same pair is a 400 saying so — a real
+        conflict the traveler can act on — while a repeat of the same `authorizationId` is a
+        retry and returns `created: false` with a 200.
+
+        REVOKE NEVER TOUCHES THE CARD. It sets `card_authorization.status`, leaving
+        `payment_card` alone: the card stays on file for the traveler's other trips.
+        Removing a card outright belongs with 2.4.2 and is deferred with it.
+
+        `consentPayload` IS WRITTEN FROM THE SERVER'S FROZEN TEXT, never from the request.
+        A mandate the client could compose is not a mandate. The `consent` flag is
+        re-checked server-side even though both clients disable the submit button without
+        it — the button is a courtesy, this is the record.
+
+        NOT ATOMIC. The insert and the `audit_event` are separate round trips; the audit is
+        written after the row exists so a failed write is never recorded as an authorization
+        that never happened. `supabase/functions/_shared/audit.ts` records why and names the
+        fix.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardAuthorizationRequest'
+      responses:
+        '200':
+          description: |
+            Nothing changed because it was already in this state — a retried create or a
+            second revoke. `created` / `changed` is false.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardAuthorizationResponse'
+        '201':
+          description: The authorization was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardAuthorizationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: |
+            No such card, trip or authorization — OR one that is not the caller's. The two
+            are deliberately the same answer, as everywhere else in this API.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+
+  # ───────────────────────────────────────────────────────────────────────────
   # §2.1 Onboarding (2.1.9 – 2.1.14)
   #
   # Backfilled September 2026; the functions shipped earlier. Every one of them
@@ -650,6 +787,181 @@ components:
         submittedAt:
           type: string
           format: date-time
+
+    # ── §2.4 Payment & Card Authorization ──────────────────────────────────
+    #
+    # MONEY IS `integer` HERE, NOT THE `Money` SCHEMA ABOVE, and the difference
+    # is deliberate. `Money` carries its amount as a STRING because a `bigint`
+    # cent value can exceed `Number.MAX_SAFE_INTEGER` and JSON numbers cannot be
+    # trusted to survive it. These fields are bounded well below that: the
+    # function caps a spending limit at 25,000,000 cents ($250,000) and rejects
+    # anything larger, so a JSON number is safe and both generated clients get a
+    # type they can do arithmetic on without parsing. If that cap is ever lifted,
+    # these become `Money`.
+
+    WalletCard:
+      type: object
+      description: |
+        A card on file. NEITHER STRIPE COLUMN APPEARS HERE and neither ever
+        should — see CLAUDE.md rule 4. Brand and last 4 are the non-sensitive
+        metadata the traveler needs to recognize their own card.
+      required: [id, brand, last4, expMonth, expYear, status]
+      properties:
+        id: { type: string, format: uuid }
+        brand:
+          type: string
+          description: Stripe's brand slug, e.g. `visa`, `mastercard`, `amex`.
+          examples: ["visa"]
+        last4:
+          type: string
+          minLength: 4
+          maxLength: 4
+        expMonth: { type: integer, minimum: 1, maximum: 12 }
+        expYear: { type: integer }
+        nickname:
+          type: [string, "null"]
+          description: The traveler's own label, e.g. "Personal Visa".
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        consentRecordedAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
+        revokedReason: { type: [string, "null"] }
+
+    WalletAuthorization:
+      type: object
+      description: One card bound to one trip, with a ceiling and an expiry.
+      required: [id, cardId, tripId, spendingLimitCents, amountUsedCents, expiresAt, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        cardId: { type: string, format: uuid }
+        tripId: { type: string, format: uuid }
+        tripTitle:
+          type: [string, "null"]
+          description: |
+            Resolved server-side so neither client has to join. Null when the trip is no
+            longer readable — an authorization outliving its trip is a state the traveler
+            should still see rather than a row that renders blank.
+        spendingLimitCents:
+          type: integer
+          minimum: 1
+          maximum: 25000000
+          description: The ceiling the traveler set. Capped at $250,000 by the function.
+        amountUsedCents:
+          type: integer
+          minimum: 0
+          description: |
+            Denormalized on `card_authorization`. Both clients derive "remaining" from this
+            and clamp it at zero — a supplier overcharging past the ceiling is a real state,
+            and a negative remaining is not a number to show anybody.
+        expiresAt: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        revokedAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    WalletUseEvent:
+      type: object
+      description: |
+        One time a card on file was used to pay a supplier. Currently fixture-fed: the
+        producing surface is the agent's reveal-and-record flow in §3.6, which is unbuilt.
+      required: [id, cardId, amountCents, currency, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        authorizationId: { type: [string, "null"], format: uuid }
+        cardId: { type: string, format: uuid }
+        tripId: { type: [string, "null"], format: uuid }
+        tripTitle: { type: [string, "null"] }
+        supplierName:
+          type: [string, "null"]
+          description: |
+            `supplier_name_snapshot`, never a join. Null is possible and is not an error: a
+            portal booking names a merchant with no `supplier` row behind it.
+        amountCents: { type: integer }
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        referenceNumber: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+
+    WalletResponse:
+      type: object
+      required: [cards, authorizations, events]
+      properties:
+        cards:
+          type: array
+          items: { $ref: '#/components/schemas/WalletCard' }
+        authorizations:
+          type: array
+          items: { $ref: '#/components/schemas/WalletAuthorization' }
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/WalletUseEvent' }
+
+    CardAuthorizationRequest:
+      type: object
+      # Only `action` is unconditionally required. `create` additionally needs
+      # authorizationId, cardId, tripId, spendingLimitCents and expiresAt; `revoke` needs
+      # only authorizationId. That is a discriminated union the generators handle poorly,
+      # so it is stated here and enforced in the function.
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [create, revoke]
+        authorizationId:
+          type: string
+          format: uuid
+          description: |
+            Client-generated UUID v7 on `create`; the server validates the embedded
+            timestamp is recent (Data-Model §21.6). Supplying it client-side is what makes a
+            retry idempotent against the primary key rather than a second authorization. On
+            `revoke` it names the existing row.
+        cardId:
+          type: string
+          format: uuid
+          description: '`create` only. Must be an active card belonging to the caller.'
+        tripId:
+          type: string
+          format: uuid
+          description: '`create` only. `card_authorization.trip_id` is NOT NULL.'
+        spendingLimitCents:
+          type: integer
+          minimum: 1
+          maximum: 25000000
+          description: |
+            `create` only. Zero and negatives are refused: an authorization that permits
+            nothing is a record with no meaning, not a cautious default.
+        expiresAt:
+          type: string
+          format: date-time
+          description: |
+            `create` only. Both clients default to trip end + 7 days so a late supplier
+            charge still goes through. The function caps it at ten years out.
+        consent:
+          type: boolean
+          description: |
+            `create` only, and required to be true. Re-checked server-side even though both
+            clients gate the submit button on it — the stored `consent_payload` is a
+            compliance record, and one written for somebody who never ticked the box is
+            worse than no record at all. The TEXT is the server's, never the request's.
+
+    CardAuthorizationResponse:
+      type: object
+      required: [authorizationId, status]
+      properties:
+        authorizationId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        created:
+          type: boolean
+          description: '`create` only. False means the id already existed — a retry.'
+        changed:
+          type: boolean
+          description: '`revoke` only. False means it was already revoked or expired.'
 
     # ── §2.1 Onboarding ────────────────────────────────────────────────────
     #
