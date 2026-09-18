@@ -9,6 +9,7 @@ import com.storytail.adventures.domain.messages.inboxTitle
 import com.storytail.adventures.domain.trip.MessageSender
 import com.storytail.adventures.domain.uuidV7
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -1099,22 +1100,23 @@ class SupabaseTripRepository(
             client.functions.invoke("trip-message", payload)
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (throwable: Throwable) {
+        } catch (rest: RestException) {
             // NEVER log the body — it is somebody's message.
+            return TripMessageResult(SendMessageOutcome.Failed(restDetail(rest)), null)
+        } catch (throwable: Throwable) {
             return TripMessageResult(SendMessageOutcome.Failed(null), null)
         }
 
+        // NO STATUS CHECK. supabase-kt validates the response, so a non-2xx is thrown, not
+        // returned — the `status.value in 400..499` branch that used to live here never ran
+        // and every rejection reached the traveler as the generic failure. Found in §2.4 and
+        // fixed in all four places at once; see WalletRepository.problemDetail for why the
+        // body has to be read off `RestException.error` rather than `message`.
         val text = runCatching { response.bodyAsText() }.getOrDefault("")
-
-        if (response.status.value in 200..299) {
-            val id = runCatching {
-                json.decodeFromString<SendMessageResponse>(text).conversationId
-            }.getOrNull()
-            return TripMessageResult(SendMessageOutcome.Sent, id)
-        }
-
-        val detail = if (response.status.value in 400..499) problemDetail(text) else null
-        return TripMessageResult(SendMessageOutcome.Failed(detail), null)
+        val id = runCatching {
+            json.decodeFromString<SendMessageResponse>(text).conversationId
+        }.getOrNull()
+        return TripMessageResult(SendMessageOutcome.Sent, id)
     }
 
     override suspend fun signDocumentUrl(documentId: String): SignedDocument {
@@ -1127,11 +1129,10 @@ class SupabaseTripRepository(
             throw cancellation
         } catch (throwable: Throwable) {
             // Never log the throwable: a storage error carries the key, which is the one
-            // thing this whole path exists to withhold.
+            // thing this whole path exists to withhold. A non-2xx is one of these throws —
+            // supabase-kt validates the response — so there is no status check below.
             return SignedDocument.Failed
         }
-
-        if (response.status.value !in 200..299) return SignedDocument.Failed
 
         val body = runCatching {
             json.decodeFromString<SignedUrlResponse>(response.bodyAsText())
@@ -1160,20 +1161,17 @@ class SupabaseTripRepository(
             put("body", JsonPrimitive(trimmed))
         }
 
-        val response = try {
+        return try {
             client.functions.invoke("trip-message", payload)
+            SendMessageOutcome.Sent
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (throwable: Throwable) {
+        } catch (rest: RestException) {
             // NEVER log the body — it is somebody's message.
-            return SendMessageOutcome.Failed(null)
+            SendMessageOutcome.Failed(restDetail(rest))
+        } catch (throwable: Throwable) {
+            SendMessageOutcome.Failed(null)
         }
-
-        if (response.status.value in 200..299) return SendMessageOutcome.Sent
-
-        val text = runCatching { response.bodyAsText() }.getOrDefault("")
-        val detail = if (response.status.value in 400..499) problemDetail(text) else null
-        return SendMessageOutcome.Failed(detail)
     }
 
     override suspend fun pastTrip(tripId: String, today: LocalDate): PastTripSnapshot? {
@@ -1364,26 +1362,34 @@ class SupabaseTripRepository(
             put("submit", JsonPrimitive(submit))
         }
 
-        val response = try {
+        return try {
             client.functions.invoke("testimonial", payload)
+            SendMessageOutcome.Sent
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (throwable: Throwable) {
+        } catch (rest: RestException) {
             // NEVER log the body — it is somebody's reflection on their own holiday.
-            return SendMessageOutcome.Failed(null)
+            SendMessageOutcome.Failed(restDetail(rest))
+        } catch (throwable: Throwable) {
+            SendMessageOutcome.Failed(null)
         }
-
-        if (response.status.value in 200..299) return SendMessageOutcome.Sent
-
-        val text = runCatching { response.bodyAsText() }.getOrDefault("")
-        val detail = if (response.status.value in 400..499) problemDetail(text) else null
-        return SendMessageOutcome.Failed(detail)
     }
 
-    /** The `detail` from an RFC 7807 body, if it carried one. */
-    private fun problemDetail(text: String): String? = runCatching {
-        json.decodeFromString<ProblemBody>(text).detail
-    }.getOrNull()
+    /**
+     * The RFC 7807 `detail` off a rejected Edge Function call.
+     *
+     * 4xx ONLY: those are sentences written for a traveler to read, while a 5xx detail
+     * carries whatever Postgres said and belongs in the function log.
+     *
+     * READ OFF `error`, NOT `message`. supabase-kt's `Functions.parseErrorResponse` puts the
+     * RAW BODY in `RestException.error`, leaves `description` null, and builds `message` as
+     * the body plus appended `URL:` / `Headers:` / `Http Method:` lines — which kotlinx
+     * .serialization rejects as trailing content, silently yielding null.
+     */
+    private fun restDetail(rest: RestException): String? {
+        if (rest.statusCode !in 400..499) return null
+        return runCatching { json.decodeFromString<ProblemBody>(rest.error).detail }.getOrNull()
+    }
 
     /**
      * The caller's own `platform_user.id`.
