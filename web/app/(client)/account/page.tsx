@@ -28,9 +28,10 @@ export const metadata: Metadata = { title: "Account" };
  *  · The avatar is INITIALS, not a photograph. `web/lib/images.ts` has no avatar entries at
  *    all, so every `staImg('avatar*')` in the artboards is a stock portrait of a stranger.
  *    `platform_user.avatar_url` exists for the day a traveler uploads one.
- *  · "Payment methods" renders disabled with a reason — §2.4 is unbuilt. This matches the
- *    built dashboard, which carries `authorizeCardComingSoon`, rather than the §2.2
- *    artboard, which still draws a live "Authorize a card" CTA.
+ *  · "Payment methods" opens §2.4.1. It rendered disabled with a reason while §2.4 was
+ *    unbuilt, and the §2.2 artboard's live "Authorize a card" CTA was flagged to the
+ *    designer as out of step with the shipped app. §2.4 settled that the other way: the
+ *    artboard was right and the app has caught up, so the flag is retired.
  *  · "Notifications" is disabled too: `notification_preference` has RLS with no policy and
  *    no row-creation path, so 2.5.6 would read zero rows forever. See its own note.
  *
@@ -146,7 +147,13 @@ export default async function AccountPage() {
             sub={ACCOUNT.connectedSub}
             href="/account/connected"
           />
-          <SettingsRow tile icon="card" title={ACCOUNT.wallet} disabled reason={ACCOUNT.comingSoon} />
+          <SettingsRow
+            tile
+            icon="card"
+            title={ACCOUNT.wallet}
+            sub={ACCOUNT.walletSub}
+            href="/wallet"
+          />
         </SettingsGroup>
 
         <SettingsGroup label={ACCOUNT.groupSupport} tiles>

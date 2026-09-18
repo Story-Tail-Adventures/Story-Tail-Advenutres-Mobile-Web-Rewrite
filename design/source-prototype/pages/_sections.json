@@ -559,7 +559,8 @@
     "title": "Client · Payment & Card Authorization",
     "subtitle": "Wallet, add, authorize, audit.",
     "files": [
-      "screens/client-payment.jsx"
+      "screens/client-payment.jsx",
+      "screens/client-payment-mobile.jsx"
     ],
     "sectionId": "c24",
     "sectionTitle": "2.4 · Payment & Card Authorization",
@@ -609,6 +610,43 @@
         "label": "2.4.7 Revoke modal",
         "w": 900,
         "h": 720
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m241",
+        "comp": "M241_MyCards",
+        "label": "2.4m.1 My cards"
+      },
+      {
+        "id": "m242",
+        "comp": "M242_AddCard",
+        "label": "2.4m.2 Add card"
+      },
+      {
+        "id": "m243",
+        "comp": "M243_Authorize",
+        "label": "2.4m.3 Authorize"
+      },
+      {
+        "id": "m244",
+        "comp": "M244_Confirmation",
+        "label": "2.4m.4 Confirmed"
+      },
+      {
+        "id": "m245",
+        "comp": "M245_Activity",
+        "label": "2.4m.5 Card activity"
+      },
+      {
+        "id": "m246",
+        "comp": "M246_UseDetail",
+        "label": "2.4m.6 Use detail"
+      },
+      {
+        "id": "m247",
+        "comp": "M247_RevokeConfirm",
+        "label": "2.4m.7 Remove authorization"
       }
     ]
   },

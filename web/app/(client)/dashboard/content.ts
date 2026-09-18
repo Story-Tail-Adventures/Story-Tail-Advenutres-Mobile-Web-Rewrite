@@ -57,10 +57,10 @@ export const DASHBOARD = {
   itineraryNotReady: "Gyasi is still writing this one",
 
   actionNeededLabel: "ACTION NEEDED",
+  // Points at §2.4.3 for the upcoming trip. `authorizeCardComingSoon` used to sit beside
+  // this as the disabled reason; §2.4 shipped it, so the reason is gone rather than left
+  // in the module unreferenced where the next reader would take it for live copy.
   authorizeCard: "Authorize a card",
-  // §2.4 is Phase 1 and unbuilt; until it lands the CTA has no destination, so it is
-  // rendered disabled rather than pointed at a 404. Phase-leak treatment per the plan.
-  authorizeCardComingSoon: "Card authorization opens with the next release",
 
   advisorLabel: "YOUR ADVISOR",
   advisorName: "Gyasi",

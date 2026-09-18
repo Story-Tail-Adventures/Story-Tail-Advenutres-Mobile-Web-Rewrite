@@ -53,12 +53,11 @@
 //      §2.4 is unbuilt and the right treatment differs by screen:
 //        · 2.5.1's "Payment methods" row and 2.5.6's payment/card notification category
 //          render DISABLED with "Coming with the next release" — they are destinations and
-//          switches, and a dead one should say so. This matches the BUILT web app, where
-//          `web/app/(client)/dashboard/content.ts` carries `authorizeCardComingSoon` and the
-//          dashboard CTA is disabled. NOTE it does NOT match the §2.2 ARTBOARD, which under
-//          "Kept deliberately" still draws a live "Authorize a card · $4,180 due" CTA. The
-//          artboard is the one that is out of step with the shipped app; flagged for the
-//          designer rather than copied here.
+//          switches, and a dead one should say so. The §2.2 ARTBOARD disagreed, drawing a
+//          live "Authorize a card · $4,180 due" CTA, and was flagged for the designer as the
+//          one out of step. UPDATE 2026-09-17: §2.4 shipped and the artboard was right. The
+//          Payment methods row opens 2.4.1 and every "Authorize a card" CTA opens 2.4.3.
+//          Only 2.5.6's category stays disabled, because no notification dispatcher exists.
 //        · 2.5.9's danger card DROPS the desktop's "cards revoked" line outright rather than
 //          disabling it — it is one clause inside a paragraph, not an affordance, and a
 //          greyed-out clause mid-sentence is unreadable.

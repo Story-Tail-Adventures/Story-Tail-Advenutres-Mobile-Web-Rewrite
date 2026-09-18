@@ -325,4 +325,65 @@ sealed interface AppRoute {
     data object NewConversation : AppRoute {
         override val requiresSession: Boolean get() = true
     }
+
+    // ── Screen Inventory §2.4, Payment & Card Authorization ─────────────────────
+    //
+    // §2.4 IS NOT A TAB ON MOBILE, which is the structural difference from every other
+    // section here and from the desktop frames, all of which carry `tab="wallet"`. The bar
+    // has four tabs — Trips · Discover · Messages · Account — and Wallet is not one of them;
+    // it is rail-only on web by the same 2026-09-06 decision that settled the bar. So all six
+    // of these are PUSHED, every one carries a back bar, and the entry point is 2.5.1's
+    // "Payment methods" row, which this section lights.
+    //
+    // 2.4.2 Add Card has no route at all. It is deferred until a Stripe account exists —
+    // payment_card.stripe_payment_method_id and .stripe_customer_id are both NOT NULL, so
+    // there is no row without a real tokenization and therefore no half-built screen worth
+    // reaching. 2.4.1 renders the CTA disabled with its reason instead, which is the §2.5
+    // rule for every deferral.
+
+    /** Screen 2.4.1, reached from the Account tab. */
+    data object Wallet : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.4.3, scoped to a trip by the route.
+     *
+     * `card_authorization.trip_id` is NOT NULL and a partial unique index allows one active
+     * authorization per card per trip, so an authorization with no trip is not a state the
+     * schema can hold. Carrying the trip in the route means the screen cannot be reached with
+     * that question open.
+     */
+    data class WalletAuthorize(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.4.4, and the detail view afterwards.
+     *
+     * [justAuthorized] decides only whether the success chrome shows. The authorization has an
+     * id the moment it exists, so it has an address — and "what did I agree to, and until
+     * when" is a question that outlives the tap that answered it.
+     */
+    data class WalletAuthorization(
+        val authorizationId: String,
+        val justAuthorized: Boolean = false,
+    ) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.4.7. Removes an AUTHORIZATION, never a card — see the screen for why. */
+    data class WalletRemoveAuthorization(val authorizationId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.4.5. [cardId] is the optional filter 2.4.1's per-card "Activity" passes. */
+    data class WalletActivity(val cardId: String? = null) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.4.6. */
+    data class WalletUseDetail(val eventId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
 }

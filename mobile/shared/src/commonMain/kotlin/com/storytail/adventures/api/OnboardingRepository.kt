@@ -2,6 +2,7 @@ package com.storytail.adventures.api
 
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -163,21 +164,26 @@ class SupabaseOnboardingRepository(
             // The screen is leaving; let the cancellation finish its job rather than
             // reporting it to a caller that is about to disappear.
             throw cancellation
+        } catch (rest: RestException) {
+            // A NON-2XX IS THROWN, NOT RETURNED — supabase-kt validates the response. The
+            // `when` below used to branch on `response.status` and so could only ever reach
+            // its first arm: every rejection collapsed into `Unavailable`, taking both
+            // `Unauthenticated` and the function's own sentence with it. Found while
+            // building §2.4 and fixed everywhere the pattern appears.
+            val status = HttpStatusCode.fromValue(rest.statusCode)
+            return when {
+                status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden ->
+                    OnboardingResult.Unauthenticated
+                rest.statusCode in 400..499 -> OnboardingResult.Rejected(problemDetail(rest.error))
+                else -> OnboardingResult.Unavailable
+            }
         } catch (throwable: Throwable) {
             // The function never answered. NEVER log the body — it is somebody's profile.
             return OnboardingResult.Unavailable
         }
 
-        val status = response.status
         val text = runCatching { response.bodyAsText() }.getOrDefault("")
-
-        return when {
-            status.value in 200..299 -> OnboardingResult.Ok(parseObject(text))
-            status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden ->
-                OnboardingResult.Unauthenticated
-            status.value in 400..499 -> OnboardingResult.Rejected(problemDetail(text))
-            else -> OnboardingResult.Unavailable
-        }
+        return OnboardingResult.Ok(parseObject(text))
     }
 
     /**

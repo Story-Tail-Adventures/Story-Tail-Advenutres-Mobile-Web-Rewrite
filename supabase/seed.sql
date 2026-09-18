@@ -738,4 +738,139 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 
+-- ============================================================
+-- Payment domain (Screen Inventory §2.4)
+--
+-- NOTHING HERE RESEMBLES CARDHOLDER DATA, and the values are the ones this file's own header
+-- mandates: brand 'visa', last4 '4242', stripe_payment_method_id 'pm_card_visa_DEV_FAKE'.
+-- `pm_card_visa` is Stripe's published test PaymentMethod handle — a token, not a card — and
+-- the _DEV_FAKE suffix makes the row unusable against a real Stripe account should one ever
+-- be configured. There is no cardholder name and no security-code column; the schema has
+-- neither, by CLAUDE.md rule 1 and the table's own COMMENT. Never write a test card number
+-- into this file, not even inside a comment: a fixture is exactly where one gets normalised,
+-- and the repo's pre-write guard rejects one on sight.
+--
+-- WHY THESE ROWS EXIST AT ALL. payment_card.stripe_payment_method_id and .stripe_customer_id
+-- are both NOT NULL, so no card row can be created without a real Stripe tokenization, and
+-- Screen 2.4.2 (Add Card) is deferred until a Stripe account exists. Six of §2.4's seven
+-- screens read rows that only 2.4.2 can create. Without a fixture they render empty and
+-- cannot be built, reviewed or demoed at all.
+--
+-- These rows are readable ONLY through the service role. 20260917090000_payment_domain_
+-- lockdown.sql revoked every client-role grant on these four tables and no policy replaced
+-- it — see supabase/tests/rls_payment.sql.
+-- ============================================================
+
+-- Jordan's card, and Sam's.
+--
+-- SAM'S IS A POISON ROW, not decoration. Every §2.4 read is scoped by client, and a scoping
+-- bug that returns "all cards" looks identical to a correct one when only a single client
+-- owns a card. With two, an isolation test can fail honestly — the same reason the trip
+-- fixtures span more than one traveler.
+INSERT INTO public.payment_card (
+    id, client_id, stripe_payment_method_id, stripe_customer_id,
+    brand, last4, exp_month, exp_year, nickname, consent_recorded_at, status
+)
+SELECT '01a0b1c2-d300-7000-8000-000000000010', c.id,
+       'pm_card_visa_DEV_FAKE', 'cus_DEV_FAKE_JORDAN',
+       'visa', '4242', 11, 2029, 'Personal Visa', now() - interval '40 days', 'active'
+FROM public.client c WHERE c.email = 'jordan.hayes@example.com'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.payment_card (
+    id, client_id, stripe_payment_method_id, stripe_customer_id,
+    brand, last4, exp_month, exp_year, nickname, consent_recorded_at, status
+)
+SELECT '01a0b1c2-d300-7000-8000-000000000011', c.id,
+       'pm_card_visa_DEV_FAKE_SAM', 'cus_DEV_FAKE_SAM',
+       'visa', '4242', 4, 2028, 'Sam''s card — must never appear in Jordan''s wallet',
+       now() - interval '12 days', 'active'
+FROM public.client c WHERE c.email = 'sam.rivera@example.com'
+ON CONFLICT (id) DO NOTHING;
+
+-- A revoked card for Jordan, so 2.4.1 has a non-active row to render. The list is not a list
+-- of usable cards; it is a record, and a revoked card stays visible with its date.
+INSERT INTO public.payment_card (
+    id, client_id, stripe_payment_method_id, stripe_customer_id,
+    brand, last4, exp_month, exp_year, nickname, consent_recorded_at,
+    status, revoked_at, revoked_reason
+)
+SELECT '01a0b1c2-d300-7000-8000-000000000012', c.id,
+       'pm_card_mastercard_DEV_FAKE', 'cus_DEV_FAKE_JORDAN',
+       'mastercard', '4444', 2, 2027, 'Old joint card', now() - interval '400 days',
+       'revoked', now() - interval '90 days', 'client_request'
+FROM public.client c WHERE c.email = 'jordan.hayes@example.com'
+ON CONFLICT (id) DO NOTHING;
+
+-- An active authorization on the Negril trip — the one §2.2.1's "Authorize a card" tile and
+-- §2.2.3's payment timeline both point at.
+--
+-- consent_payload is a SNAPSHOT of the mandate text the traveler actually agreed to, frozen
+-- at the moment of consent. It is jsonb and NOT NULL precisely so the wording cannot be
+-- rewritten out from under a past agreement. Note what it does NOT promise: there is no
+-- per-use notification clause, because no dispatcher exists on either stack to deliver one —
+-- see the §2.4 amendment in docs/Screen-Inventory.md.
+INSERT INTO public.card_authorization (
+    id, payment_card_id, trip_id, spending_limit_cents, amount_used_cents,
+    expires_at, status, consent_payload
+)
+VALUES (
+    '01a0b1c2-d300-7000-8000-000000000020',
+    '01a0b1c2-d300-7000-8000-000000000010',
+    '0195a2c0-1a00-7000-8000-000000000040',
+    900000, 784500,
+    now() + interval '75 days', 'active',
+    jsonb_build_object(
+        'version', 1,
+        'agreed_at', (now() - interval '30 days')::text,
+        'text', 'I authorize Story-Tail Adventures to use this card to pay suppliers for '
+                || 'this trip, up to the limit shown. Story-Tail does not charge me a '
+                || 'planning or service fee.'
+    )
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Three uses against it, oldest first. Between them they cover the three shapes 2.4.5 and
+-- 2.4.6 have to render: a supplier we have a row for, a supplier we do not (portal bookings
+-- name a merchant that is not in our supplier table), and one the traveler has flagged.
+--
+-- supplier_name_snapshot is NOT NULL and separate from supplier_id on purpose: the name at
+-- the time of the charge is what appears on a statement, and a supplier renamed later must
+-- not silently rewrite the traveler's history.
+INSERT INTO public.card_use_event (
+    id, card_authorization_id, payment_card_id, trip_id, agent_user_id,
+    supplier_id, supplier_name_snapshot, amount_cents, currency,
+    reference_number, justification, client_flag_status, client_flagged_at, created_at
+)
+SELECT v.id, '01a0b1c2-d300-7000-8000-000000000020',
+       '01a0b1c2-d300-7000-8000-000000000010',
+       '0195a2c0-1a00-7000-8000-000000000040',
+       pu.id, v.supplier_id, v.supplier_name, v.amount, 'USD',
+       v.reference, v.justification, v.flag, v.flagged_at, v.created_at
+FROM (VALUES
+    ('01a0b1c2-d300-7000-8000-000000000030'::uuid,
+     '0195a2c0-1a00-7000-8000-000000000030'::uuid, 'Sandals Resorts',
+     450000::bigint, 'SDL-88213',
+     'Deposit to hold the ocean-view suite for the Nov 15 arrival.',
+     'not_flagged', NULL::timestamptz, now() - interval '28 days'),
+    ('01a0b1c2-d300-7000-8000-000000000031'::uuid,
+     '0195a2c0-1a00-7000-8000-000000000032'::uuid, 'Island Routes Adventures',
+     18500::bigint, 'IR-4471',
+     'Catamaran sunset cruise for two, booked at the resort rate.',
+     'not_flagged', NULL::timestamptz, now() - interval '9 days'),
+    -- No supplier_id: a portal booking whose merchant is not in our supplier table. This is
+    -- the row that proves the UI reads the snapshot rather than joining for a name.
+    ('01a0b1c2-d300-7000-8000-000000000032'::uuid,
+     NULL::uuid, 'NEGRIL TRANSFERS LTD',
+     31600::bigint, NULL,
+     'Airport transfers both ways. Booked through the resort portal.',
+     'flagged', now() - interval '2 days', now() - interval '3 days')
+) AS v(id, supplier_id, supplier_name, amount, reference, justification,
+       flag, flagged_at, created_at)
+CROSS JOIN LATERAL (
+    SELECT pu.id FROM public.platform_user pu WHERE pu.role = 'agent' LIMIT 1
+) pu
+ON CONFLICT (id) DO NOTHING;
+
+
 COMMIT;

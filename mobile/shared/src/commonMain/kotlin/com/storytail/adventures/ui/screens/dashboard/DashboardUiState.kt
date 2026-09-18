@@ -28,7 +28,6 @@ object DashboardMessages {
     const val ITINERARY_NOT_READY = "Gyasi is still writing this one"
     const val ACTION_NEEDED_LABEL = "ACTION NEEDED"
     const val AUTHORIZE_CARD = "Authorize a card"
-    const val AUTHORIZE_CARD_COMING_SOON = "Card authorization opens with the next release"
     const val ADVISOR_NAME = "Gyasi"
     const val ADVISOR_ROLE = "Your advisor"
     const val ADVISOR_REPLY_TIME = "Usually replies the same day"

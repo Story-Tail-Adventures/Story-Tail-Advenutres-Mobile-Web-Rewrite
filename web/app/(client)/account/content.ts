@@ -59,8 +59,13 @@ export const ACCOUNT = {
   privacy: "Privacy & data",
   privacySub: "Download a copy of your data",
 
-  /** §2.4 is unbuilt. Same wording the nav rail uses for its own dead destinations. */
+  /**
+   * §2.4, built 2026-09-17. On WEB this row is a second way in — the rail carries Wallet
+   * too. On MOBILE it is the only way in, because Wallet is rail-only and absent from the
+   * four-tab bar, which is why the row has a subtitle rather than being a bare label.
+   */
   wallet: "Payment methods",
+  walletSub: "Cards on file and what they were used for",
   comingSoon: "Coming with the next release",
 
   signOut: "Sign out",

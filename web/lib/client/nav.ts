@@ -99,8 +99,8 @@ export const CLIENT_DESTINATIONS: readonly ClientDestination[] = [
     // Not on the mobile bar: the prototype's StaMobileTabs has four tabs and this is not
     // one of them. It is reachable from a trip's Payments tile either way.
     surfaces: ["rail", "tablet"],
-    built: false,
-    phase: "P1",
+    built: true,
+    phase: null,
     section: "§2.4",
   },
   {

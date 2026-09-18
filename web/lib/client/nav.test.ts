@@ -28,18 +28,30 @@ describe("the client destination registry", () => {
     ]);
   });
 
-  it("has four built destinations after §2.6, and Wallet is the last unbuilt P1", () => {
-    // The point of `built` being separate from `phase`: after §2.6 the only unbuilt P1
-    // destination is Wallet (§2.4), while Discover stays P2 — so a phase filter would still
-    // leave a dead link, and `built` is what the rail renders on.
+  it("has every P1 destination built after §2.4, leaving only Discover", () => {
+    // §2.4 is the last Phase 1 destination. `built` and `phase` were separated because a
+    // phase filter would have left four dead links while §2.4-§2.6 were unbuilt; that job is
+    // now done, and Discover (§2.3, Phase 2) is the only thing the rail still dims.
     //
-    // Rail order, not build order: Messages sits before Documents on the rail because
-    // `destinationsFor` preserves registry order, and the registry is the prototype's.
+    // Rail order, not build order: `destinationsFor` preserves registry order, and the
+    // registry is the prototype's ScreenNavRail.
     const built = CLIENT_DESTINATIONS.filter((d) => d.built);
-    expect(built.map((d) => d.id)).toEqual(["trips", "messages", "documents", "account"]);
+    expect(built.map((d) => d.id)).toEqual([
+      "trips",
+      "messages",
+      "wallet",
+      "documents",
+      "account",
+    ]);
 
-    const unbuiltP1 = CLIENT_DESTINATIONS.filter((d) => !d.built && d.phase === "P1");
-    expect(unbuiltP1.map((d) => d.id)).toEqual(["wallet"]);
+    // The assertion that matters going forward: nothing Phase 1 is left unbuilt. It fails if
+    // a future destination is added without a route, which is the state this separation
+    // existed to make visible.
+    expect(CLIENT_DESTINATIONS.filter((d) => !d.built && d.phase === "P1")).toEqual([]);
+
+    const unbuilt = CLIENT_DESTINATIONS.filter((d) => !d.built);
+    expect(unbuilt.map((d) => d.id)).toEqual(["discover"]);
+    expect(unbuilt[0].phase).toBe("P2");
   });
 
   it("names a section for every unbuilt destination, so the reason is greppable", () => {
