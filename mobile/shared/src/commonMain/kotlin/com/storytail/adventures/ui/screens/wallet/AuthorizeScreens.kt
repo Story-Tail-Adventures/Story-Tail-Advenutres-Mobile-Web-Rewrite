@@ -42,6 +42,7 @@ import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
 import com.storytail.adventures.ui.components.client.AccountTopBar
 import com.storytail.adventures.ui.components.client.ClientEmptyState
+import com.storytail.adventures.ui.components.client.ClientErrorState
 import com.storytail.adventures.ui.components.client.ClientScaffold
 import com.storytail.adventures.ui.components.client.formatMoney
 import com.storytail.adventures.ui.theme.PillShape
@@ -88,6 +89,7 @@ fun AuthorizeScreen(
     onToggleConsent: (Boolean) -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -139,6 +141,40 @@ fun AuthorizeScreen(
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Spacer(Modifier.height(14.dp))
+
+            // LOADING AND FAILED ARE NOT "YOU HAVE NO CARDS", and this screen used to say
+            // they were. `cards` is derived from `Loadable.Ready` alone, so it is empty in
+            // all three states — a slow network or a dead one fell straight through to the
+            // empty state below and told a traveler with a wallet full of cards that they had
+            // none, on the screen where they are about to authorize money against one. There
+            // was no spinner, no error and no way back. The sibling screens in this file all
+            // had the branch; the one that most needed it did not.
+            when (state) {
+                is Loadable.Loading -> {
+                    Box(
+                        Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = scheme.primary)
+                    }
+                    return@ClientScaffold
+                }
+
+                is Loadable.Failed -> {
+                    ClientErrorState(
+                        title = "We could not open your cards",
+                        body = "The connection dropped on the way. Try again in a moment.",
+                        retryLabel = "Try again",
+                        onRetry = onRetry,
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    return@ClientScaffold
+                }
+
+                // Ready and Empty both mean "the read finished". Empty falls through to the
+                // no-cards state below, which is then the truth rather than a guess.
+                else -> Unit
+            }
 
             // The desktop's right rail, moved ABOVE the form: on a phone the traveler needs to
             // know which trip they are authorizing before they pick a card, not after.
@@ -361,6 +397,7 @@ fun AuthorizationConfirmedScreen(
     onOpenActivity: () -> Unit,
     onOpenTrip: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -373,8 +410,20 @@ fun AuthorizationConfirmedScreen(
         topBar = { AccountTopBar(title = WalletMessages.CONFIRMED_TITLE, onBack = onBack) },
     ) {
         if (auth == null) {
-            Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = scheme.primary)
+            // A FAILED READ IS NOT A SLOW ONE. This used to spin forever on both, with no
+            // way out but the back arrow — `auth` is null while loading AND when the read
+            // died, and the branch could not tell them apart.
+            if (state is Loadable.Failed) {
+                ClientErrorState(
+                    title = "We could not open this authorization",
+                    body = "The connection dropped on the way. Try again in a moment.",
+                    retryLabel = "Try again",
+                    onRetry = onRetry,
+                )
+            } else {
+                Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = scheme.primary)
+                }
             }
             return@ClientScaffold
         }
@@ -505,6 +554,7 @@ fun RemoveAuthorizationScreen(
     error: String?,
     onBack: () -> Unit,
     onConfirm: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -551,8 +601,20 @@ fun RemoveAuthorizationScreen(
         },
     ) {
         if (auth == null) {
-            Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = scheme.primary)
+            // A FAILED READ IS NOT A SLOW ONE. This used to spin forever on both, with no
+            // way out but the back arrow — `auth` is null while loading AND when the read
+            // died, and the branch could not tell them apart.
+            if (state is Loadable.Failed) {
+                ClientErrorState(
+                    title = "We could not open this authorization",
+                    body = "The connection dropped on the way. Try again in a moment.",
+                    retryLabel = "Try again",
+                    onRetry = onRetry,
+                )
+            } else {
+                Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = scheme.primary)
+                }
             }
             return@ClientScaffold
         }

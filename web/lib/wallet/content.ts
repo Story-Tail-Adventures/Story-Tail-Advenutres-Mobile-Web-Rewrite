@@ -41,6 +41,8 @@ export const WALLET = {
   statusActive: "Active",
   statusRevoked: "Revoked",
   statusExpired: "Expired",
+  /** `card_status` has four values, not two — see `cardStatusLabel`. */
+  statusFailed: "Needs attention",
 
   /** 2.4.1's per-card actions. */
   viewActivity: "Activity",

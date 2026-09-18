@@ -51,8 +51,13 @@ fun WalletRoute(
             // REPLACE, not push: once the authorization exists this screen has nothing left
             // to show, and Back from the confirmation should return to the wallet rather than
             // to a form whose submission already happened.
+            //
+            // CONSUMED BEFORE NAVIGATING, because this view model is app-scoped and outlives
+            // the screen — see `consumeAuthorized`. Leaving the id set made a second visit to
+            // this trip's form skip straight back to the first authorization.
             LaunchedEffect(authorized) {
                 val id = authorized ?: return@LaunchedEffect
+                viewModel.consumeAuthorized()
                 nav.replace(AppRoute.WalletAuthorization(id, justAuthorized = true))
             }
 
@@ -72,6 +77,7 @@ fun WalletRoute(
                 onToggleConsent = viewModel::toggleConsent,
                 onSubmit = viewModel::submit,
                 onBack = { nav.pop() },
+                onRetry = viewModel::load,
             )
         }
 
@@ -93,6 +99,7 @@ fun WalletRoute(
                 // through a confirmation the traveler has already read.
                 onOpenTrip = { tripId -> nav.replace(AppRoute.TripDetail(tripId)) },
                 onRemove = { id -> nav.push(AppRoute.WalletRemoveAuthorization(id)) },
+                onRetry = viewModel::load,
             )
         }
 
@@ -118,6 +125,7 @@ fun WalletRoute(
                 error = error,
                 onBack = { nav.pop() },
                 onConfirm = viewModel::confirm,
+                onRetry = viewModel::load,
             )
         }
 

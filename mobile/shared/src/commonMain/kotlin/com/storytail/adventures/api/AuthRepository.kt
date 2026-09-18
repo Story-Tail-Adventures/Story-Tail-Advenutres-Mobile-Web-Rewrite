@@ -377,14 +377,6 @@ object SupabaseClientProvider {
         }
 
     /**
-     * The §2.5 account reads, on the SAME client again.
-     *
-     * Separate from [tripRepository] because the sections are separate — §2.5's reads are
-     * `client`, `address`, `travel_preference`, `account` and the account-wide `document`
-     * list, none of which is a trip — but it is deliberately NOT a second Supabase client.
-     * Two clients would mean two sessions and two refresh loops.
-     */
-    /**
      * §2.4's payment surface, on the SAME client again.
      *
      * Separate from the others because §2.4 has no PostgREST query at all: the payment tables
@@ -399,6 +391,14 @@ object SupabaseClientProvider {
             }
         }
 
+    /**
+     * The §2.5 account reads, on the SAME client again.
+     *
+     * Separate from [tripRepository] because the sections are separate — §2.5's reads are
+     * `client`, `address`, `travel_preference`, `account` and the account-wide `document`
+     * list, none of which is a trip — but it is deliberately NOT a second Supabase client.
+     * Two clients would mean two sessions and two refresh loops.
+     */
     suspend fun accountRepository(): AccountRepository =
         withContext(Dispatchers.Default) {
             cachedAccount ?: run {

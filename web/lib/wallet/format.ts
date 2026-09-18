@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/public/money";
+import { WALLET } from "@/lib/wallet/content";
 import type { WalletAuthorization, WalletCard } from "@/lib/wallet/queries";
 
 /**
@@ -81,6 +82,52 @@ export function brandName(brand: string): string {
 
 export function brandChip(brand: string): string {
   return BRAND_CHIPS[brand.toLowerCase()] ?? brand.slice(0, 4).toUpperCase();
+}
+
+/**
+ * The plate colour behind a brand chip.
+ *
+ * NOT A THEME TOKEN and deliberately scheme-invariant: these are third-party marks, and a
+ * Visa plate that turned gold in dark mode would be a worse lie than a slightly low-contrast
+ * navy one. Returned as a hex for an inline `style` rather than a Tailwind class, because a
+ * dynamically built `bg-[#…]` is invisible to the JIT scanner and silently produces nothing.
+ *
+ * This replaced `brand === "visa" ? navy : red`, which painted an AMEX chip Mastercard red —
+ * the same one-brand-and-everything-else mistake that made `brand.slice(0, 4)` render "MAST".
+ */
+export function brandPlate(brand: string): string {
+  return BRAND_PLATES[brand.toLowerCase()] ?? "#0D2137";
+}
+
+const BRAND_PLATES: Record<string, string> = {
+  visa: "#1A1F71",
+  mastercard: "#EB001B",
+  amex: "#006FCF",
+  discover: "#FF6000",
+  diners: "#0079BE",
+  jcb: "#0B4EA2",
+  unionpay: "#E21836",
+};
+
+/**
+ * The chip on a card in 2.4.1.
+ *
+ * `card_status` is `active | revoked | expired | failed` (Data-Model §9.1). This used to be
+ * `status === "active" ? "Active" : "Revoked"`, which told a traveler their EXPIRED card had
+ * been revoked — a different and more alarming thing than what happened to it.
+ * `statusExpired` was defined and unreferenced, which is how it went unnoticed.
+ */
+export function cardStatusLabel(status: string): string {
+  switch (status.toLowerCase()) {
+    case "active":
+      return WALLET.statusActive;
+    case "expired":
+      return WALLET.statusExpired;
+    case "failed":
+      return WALLET.statusFailed;
+    default:
+      return WALLET.statusRevoked;
+  }
 }
 
 /** "VISA •••• 4242". Uppercased because `payment_card.brand` is Stripe's lowercase token. */

@@ -104,9 +104,31 @@ class AuthorizeViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    /** The new authorization's id, which the route watches to push into 2.4.4. */
+    /**
+     * The new authorization's id, which the route watches to push into 2.4.4.
+     *
+     * A ONE-SHOT SIGNAL, and [consumeAuthorized] is what makes it one. This view model lives
+     * in the APP-SCOPED store under `authorize-$tripId`, so it outlives the screen: leaving
+     * it set meant that re-opening 2.4.3 for the same trip got the cached instance with the
+     * old id still in it, and the route's `LaunchedEffect` — a fresh effect on a fresh
+     * composition — immediately replaced the form with the PREVIOUS authorization's
+     * confirmation, wearing "just authorized" chrome. The form was unreachable, so a second
+     * card could never be authorized for that trip. Same class of bug as §2.6's inbox never
+     * refreshing; that one showed stale data, this one swallowed the screen.
+     */
     private val _authorized = MutableStateFlow<String?>(null)
     val authorized: StateFlow<String?> = _authorized.asStateFlow()
+
+    /**
+     * Clear the navigation signal, once the route has acted on it.
+     *
+     * Deliberately NOT a full `load()` on route entry, which is what the other §2.4 branches
+     * do. `LaunchedEffect(Unit)` cannot tell a fresh navigation from a rotation, and this
+     * view model exists to survive rotation with the traveler's picked card, custom limit
+     * and ticked mandate intact — reloading would reset all three. Clearing the signal fixes
+     * the reachability bug without costing the thing the state was hoisted here for.
+     */
+    fun consumeAuthorized() { _authorized.value = null }
 
     init {
         load()

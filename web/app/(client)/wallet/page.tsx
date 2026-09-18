@@ -8,7 +8,14 @@ import { Icon } from "@/components/ui/Icon";
 import { formatMoney } from "@/lib/public/money";
 import { currentPlatformUser } from "@/lib/trips/queries";
 import { WALLET } from "@/lib/wallet/content";
-import { brandChip, cardExpiry, formatDate, remainingLabel } from "@/lib/wallet/format";
+import {
+  brandChip,
+  brandPlate,
+  cardExpiry,
+  cardStatusLabel,
+  formatDate,
+  remainingLabel,
+} from "@/lib/wallet/format";
 import { activeAuthorizationsFor, loadWallet } from "@/lib/wallet/queries";
 
 export const metadata: Metadata = { title: WALLET.title };
@@ -70,11 +77,8 @@ export default async function WalletPage() {
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className={`t-label inline-flex h-6 w-10 shrink-0 items-center justify-center rounded text-[9px] font-extrabold text-white ${
-                        card.brand.toLowerCase() === "visa"
-                          ? "bg-[#1A1F71]"
-                          : "bg-[#EB001B]"
-                      }`}
+                      className="t-label inline-flex h-6 w-10 shrink-0 items-center justify-center rounded text-[9px] font-extrabold text-white"
+                      style={{ background: brandPlate(card.brand) }}
                     >
                       {brandChip(card.brand)}
                     </span>
@@ -87,7 +91,7 @@ export default async function WalletPage() {
                     <span
                       className={`chip-status ${card.status === "active" ? "booked" : "past"}`}
                     >
-                      {card.status === "active" ? WALLET.statusActive : WALLET.statusRevoked}
+                      {cardStatusLabel(card.status)}
                     </span>
                   </div>
 

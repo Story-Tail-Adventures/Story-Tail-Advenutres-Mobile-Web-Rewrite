@@ -31,6 +31,34 @@ object StoryTailBrand {
 }
 
 /**
+ * Card-network plate colors for §2.4's brand chips.
+ *
+ * NOT STORY-TAIL'S PALETTE and not a theme role — these are third-party marks, so they are
+ * scheme-invariant for the same reason [StoryTailBrand] is: a Visa plate that turned gold in
+ * dark mode would be a worse lie than a slightly low-contrast navy one.
+ *
+ * They live here rather than inline in the wallet screen because an inline
+ * `if (brand == "visa") navy else red` was exactly the shape that shipped a MASTERCARD-red
+ * plate behind an AMEX chip — the same one-brand-and-everything-else mistake that produced
+ * "MAST" from `brand.take(4)`. Keyed like `BRAND_CHIPS` in `domain/wallet/WalletCopy.kt`, on
+ * Stripe's lowercase brand token.
+ */
+object CardNetworkPlate {
+    private val COLORS = mapOf(
+        "visa" to Color(0xFF1A1F71),
+        "mastercard" to Color(0xFFEB001B),
+        "amex" to Color(0xFF006FCF),
+        "discover" to Color(0xFFFF6000),
+        "diners" to Color(0xFF0079BE),
+        "jcb" to Color(0xFF0B4EA2),
+        "unionpay" to Color(0xFFE21836),
+    )
+
+    /** Falls back to Story-Tail's own navy — neutral, and never another network's colour. */
+    fun of(brand: String): Color = COLORS[brand.lowercase()] ?: StoryTailBrand.Navy
+}
+
+/**
  * Story-Tail status colors for trip and lead chips.
  * Provided as a CompositionLocal so screens can read them
  * without hardcoding hex values.

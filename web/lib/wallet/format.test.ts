@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   brandChip,
   brandName,
+  brandPlate,
   cardExpiry,
   cardLabel,
+  cardStatusLabel,
   defaultExpiry,
   formatDate,
   limitPresets,
@@ -139,5 +141,52 @@ describe("formatDate", () => {
     // platform_user.time_zone is free text that onboarding wrote. One bad row should cost a
     // wrong hour, not a thrown render.
     expect(formatDate("2026-11-29T12:00:00.000Z", "Mars/Olympus_Mons")).toBe("Nov 29, 2026");
+  });
+});
+
+describe("brandPlate", () => {
+  it("gives every network its own colour, not visa-or-mastercard", () => {
+    // The bug this replaced: `brand === "visa" ? navy : red`, which painted an AMEX chip
+    // Mastercard red. Same one-brand-and-everything-else shape that made `slice(0, 4)`
+    // render "MAST".
+    const plates = ["visa", "mastercard", "amex", "discover", "diners", "jcb", "unionpay"].map(
+      brandPlate,
+    );
+    expect(new Set(plates).size).toBe(plates.length);
+    expect(brandPlate("visa")).toBe("#1A1F71");
+    expect(brandPlate("mastercard")).toBe("#EB001B");
+  });
+
+  it("is case-insensitive, because the column holds Stripe's lowercase token", () => {
+    expect(brandPlate("VISA")).toBe(brandPlate("visa"));
+  });
+
+  it("falls back to a neutral colour, never another network's", () => {
+    const unknown = brandPlate("cartes_bancaires");
+    expect(unknown).toBe("#0D2137");
+    expect(["#1A1F71", "#EB001B", "#006FCF"]).not.toContain(unknown);
+  });
+});
+
+describe("cardStatusLabel", () => {
+  it("does not call an expired card revoked", () => {
+    // `status === "active" ? "Active" : "Revoked"` told a traveler their expired card had
+    // been revoked — a different and more alarming thing than what happened to it. That is
+    // also how `statusExpired` sat defined and unreferenced.
+    expect(cardStatusLabel("expired")).toBe("Expired");
+    expect(cardStatusLabel("revoked")).toBe("Revoked");
+    expect(cardStatusLabel("active")).toBe("Active");
+  });
+
+  it("covers every value of card_status", () => {
+    // Data-Model §9.1: active | revoked | expired | failed. Four, not two.
+    const labels = ["active", "revoked", "expired", "failed"].map(cardStatusLabel);
+    expect(new Set(labels).size).toBe(4);
+    expect(cardStatusLabel("failed")).toBe("Needs attention");
+  });
+
+  it("treats an unknown status as revoked — the cautious reading", () => {
+    // A status we cannot name should not read "Active" on a screen about who can charge you.
+    expect(cardStatusLabel("something_new")).toBe("Revoked");
   });
 });

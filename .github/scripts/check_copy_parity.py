@@ -1026,6 +1026,7 @@ MESSAGE_TABLES = [
             "authorizeCta": "AUTHORIZE_CTA",
             "authorizeFailed": "AUTHORIZE_FAILED",
             "consentRequired": "CONSENT_REQUIRED",
+            "statusFailed": "STATUS_FAILED",
             "confirmedTitle": "CONFIRMED_TITLE",
             "confirmedOverline": "CONFIRMED_OVERLINE",
             "confirmedSummary": "CONFIRMED_SUMMARY",

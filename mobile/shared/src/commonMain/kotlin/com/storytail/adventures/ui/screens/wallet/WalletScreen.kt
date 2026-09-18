@@ -33,6 +33,7 @@ import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.wallet.WalletMessages
 import com.storytail.adventures.domain.wallet.brandChip
 import com.storytail.adventures.domain.wallet.cardExpiry
+import com.storytail.adventures.domain.wallet.cardStatusLabel
 import com.storytail.adventures.domain.wallet.formatDay
 import com.storytail.adventures.domain.wallet.remainingLabel
 import com.storytail.adventures.ui.components.StoryTailGlyph
@@ -41,6 +42,7 @@ import com.storytail.adventures.ui.components.client.AccountTopBar
 import com.storytail.adventures.ui.components.client.ClientEmptyState
 import com.storytail.adventures.ui.components.client.ClientErrorState
 import com.storytail.adventures.ui.components.client.ClientScaffold
+import com.storytail.adventures.ui.theme.CardNetworkPlate
 import com.storytail.adventures.ui.theme.PillShape
 import com.storytail.adventures.ui.theme.StoryTailRadius
 
@@ -243,10 +245,7 @@ private fun CardRow(
                 Modifier
                     .width(38.dp)
                     .height(24.dp)
-                    .background(
-                        if (card.brand.lowercase() == "visa") Color(0xFF1A1F71) else Color(0xFFEB001B),
-                        RoundedCornerShape(4.dp),
-                    ),
+                    .background(CardNetworkPlate.of(card.brand), RoundedCornerShape(4.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -272,7 +271,7 @@ private fun CardRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            StatusChip(if (card.isActive) WalletMessages.STATUS_ACTIVE else WalletMessages.STATUS_REVOKED, card.isActive)
+            StatusChip(cardStatusLabel(card.status), card.isActive)
         }
 
         if (card.isActive && live.isNotEmpty()) {

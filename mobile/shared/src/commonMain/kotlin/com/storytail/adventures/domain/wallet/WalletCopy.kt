@@ -45,6 +45,8 @@ object WalletMessages {
     const val STATUS_ACTIVE = "Active"
     const val STATUS_REVOKED = "Revoked"
     const val STATUS_EXPIRED = "Expired"
+    /** `card_status` has four values, not two — see `cardStatusLabel`. */
+    const val STATUS_FAILED = "Needs attention"
 
     /** 2.4.1's per-card actions. */
     const val VIEW_ACTIVITY = "Activity"
@@ -164,6 +166,24 @@ private val BRAND_WORDS = mapOf(
 
 fun brandChip(brand: String): String =
     BRAND_CHIPS[brand.lowercase()] ?: brand.take(4).uppercase()
+
+/**
+ * The chip on a card in 2.4.1.
+ *
+ * `card_status` is `active | revoked | expired | failed` (Data-Model §9.1). This used to be
+ * `if (isActive) "Active" else "Revoked"`, which told a traveler their EXPIRED card had been
+ * revoked — a different and more alarming thing than what happened to it. `STATUS_EXPIRED`
+ * was defined and unreferenced, which is how it went unnoticed.
+ *
+ * `isActive` is still right for FILTERING — only an active card can be authorized — and it
+ * is still what colours the chip. It is only wrong as a label.
+ */
+fun cardStatusLabel(status: String): String = when (status.lowercase()) {
+    "active" -> WalletMessages.STATUS_ACTIVE
+    "expired" -> WalletMessages.STATUS_EXPIRED
+    "failed" -> WalletMessages.STATUS_FAILED
+    else -> WalletMessages.STATUS_REVOKED
+}
 
 fun brandName(brand: String): String =
     BRAND_WORDS[brand.lowercase()] ?: brand.lowercase().replaceFirstChar { it.uppercase() }
