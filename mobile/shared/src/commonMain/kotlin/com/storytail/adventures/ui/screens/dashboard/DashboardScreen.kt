@@ -343,7 +343,7 @@ private fun ActionNeededCard(payment: NextPayment) {
             color = scheme.onErrorContainer.copy(alpha = 0.85f),
         )
         Spacer(Modifier.height(10.dp))
-        // §2.4 lands next. Disabled rather than pointed at a screen that does not exist —
+        // §2.4 is unbuilt. Disabled rather than pointed at a screen that does not exist —
         // the button keeps its place so the card does not reflow when it goes live.
         Button(
             onClick = {},

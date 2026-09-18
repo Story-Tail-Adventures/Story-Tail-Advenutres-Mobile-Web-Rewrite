@@ -120,8 +120,9 @@ export default async function TripUpdatePage({
           {primary.label} <Icon name="arrow_right" size={13} />
         </Link>
 
-        {/* §2.4 is Phase 1 and next, so the payment CTA the artboard shows renders disabled
-            rather than being dropped — the plan's "build them visually, disabled" decision. */}
+        {/* §2.4 is Phase 1 and unbuilt, so the payment CTA the artboard shows renders
+            disabled rather than being dropped — the plan's "build them visually, disabled"
+            decision. */}
         {update.nextPayment && (
           <button
             type="button"

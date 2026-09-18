@@ -23,6 +23,27 @@
 export type MessageSender = "agent" | "client";
 
 /**
+ * What a compose bar's server action returns.
+ *
+ * ONE DEFINITION, because two screens' actions feed one component. `sendTripMessage` (2.2.7)
+ * and `sendConversationMessage` (2.6.2) are separate actions addressing a thread by different
+ * keys, but the shared Composer takes whichever of them it is handed as a prop — so the
+ * moment these shapes drift, one of the two screens stops typechecking against a component it
+ * is supposed to be sharing. They were briefly declared twice, identically, which is the
+ * state right before that happens.
+ *
+ * It lives in this module rather than in either actions file because both of those are
+ * `"use server"`, and whichever one owned it would become an import the other needs for a
+ * type alone.
+ *
+ * `draft` rides back on failure. Losing a paragraph somebody typed because a request timed
+ * out is the kind of small betrayal that stops people using a thread at all.
+ */
+export type SendMessageState =
+  | { status: "idle" | "sent" }
+  | { status: "error"; message: string; draft: string };
+
+/**
  * Flat, and shared with the Kotlin twin.
  *
  * The suggested-reply chips are copy, not data: §2.2.7 lists "tap suggested-reply chips" as

@@ -17,6 +17,9 @@ export const ICON_PATHS = {
   card: "M3 6h18v12H3zM3 10h18M7 15h3",
   shield: "M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6l-8-3Z",
   heart: "M12 21s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9Z",
+  // §2.5.1's tiles. Copied verbatim from the prototype, per the note above.
+  lock: "M6 11V8a6 6 0 0 1 12 0v3m-9 4h2m-5-4h12v9H5v-9Z",
+  link: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1m-1 8a5 5 0 0 1-7 0l-3-3a5 5 0 0 1 7-7l1 1",
   star: "m12 3 2.6 5.5 6 .9-4.3 4.3 1 6L12 17l-5.4 2.7 1-6L3.3 9.4l6-.9L12 3Z",
   check: "m5 12 5 5L20 6",
   arrow_right: "M5 12h14m-5-6 6 6-6 6",

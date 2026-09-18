@@ -12,6 +12,19 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "design-canvas",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4310",
+        "--directory",
+        "design/source-prototype"
+      ],
+      "port": 4310,
+      "autoPort": true
     }
   ]
 }

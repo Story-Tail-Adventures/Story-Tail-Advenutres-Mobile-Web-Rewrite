@@ -33,7 +33,7 @@ export const metadata: Metadata = { title: "Your trip" };
  *   * "Card on file · VISA •••• 4242" is dropped from At a glance. That lives on
  *     `payment_card`, which belongs to §2.4 — and the wallet is where a client should manage
  *     it, not a read-only echo on a trip page.
- *   * "Authorize card" is disabled, like the dashboard's. §2.4 is Phase 1 and next.
+ *   * "Authorize card" is disabled, like the dashboard's. §2.4 is Phase 1 and unbuilt.
  */
 export default async function TripDetailPage({
   params,

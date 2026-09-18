@@ -58,7 +58,7 @@ export const DASHBOARD = {
 
   actionNeededLabel: "ACTION NEEDED",
   authorizeCard: "Authorize a card",
-  // §2.4 is Phase 1 and lands next; until it does the CTA has no destination, so it is
+  // §2.4 is Phase 1 and unbuilt; until it lands the CTA has no destination, so it is
   // rendered disabled rather than pointed at a 404. Phase-leak treatment per the plan.
   authorizeCardComingSoon: "Card authorization opens with the next release",
 

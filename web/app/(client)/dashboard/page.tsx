@@ -32,7 +32,7 @@ export const metadata: Metadata = { title: "Your trips" };
  *     to count. The artboard's third tab is gone rather than rendered empty.
  *   * "New idea" / "Explore trips" repoint at the trip thread. §2.3 is Phase 2 and the CTA
  *     had no destination; asking Gyasi is how a trip actually starts at MVP.
- *   * "Authorize a card" renders DISABLED. §2.4 is Phase 1 and lands next, so unlike the
+ *   * "Authorize a card" renders DISABLED. §2.4 is Phase 1 and unbuilt, so unlike the
  *     search CTA there is a real destination coming — the button keeps its place in the
  *     layout and says why it is not pressable yet.
  *   * The countdown shows days only, not days/hours/minutes. The artboard's HR and MIN
@@ -122,15 +122,15 @@ export default async function DashboardPage() {
             icon="palm"
             title="No trip booked yet"
             body="When there is one, it lives right here with a countdown on it."
-            // A mailto, because with no trip there is no trip-scoped thread to open and
-            // §2.6's inbox is not built. This used to point at "/dashboard" — the page it
-            // renders on — so the only route to Gyasi in this state went nowhere. Same
-            // escalation ErrorState uses, and for the same reason: a form that goes
-            // nowhere would be worse.
-            action={{
-              label: DASHBOARD.startSomethingNew,
-              href: "mailto:hello@story-tail.com?subject=Somewhere%20new",
-            }}
+            // 2.6.3, now that it exists. This was a `mailto:` because with no trip there is
+            // no trip-scoped thread to open and §2.6's inbox was not built — and before
+            // that it pointed at "/dashboard", the page it renders on, so the only route to
+            // Gyasi in this state went nowhere at all.
+            //
+            // 2.6.3 is the screen written for exactly this person: no trip yet, something to
+            // say. It lands in the inbox rather than in an email client, which means the
+            // reply arrives somewhere they can find it again.
+            action={{ label: DASHBOARD.startSomethingNew, href: "/messages/new" }}
           />
         </div>
       )}
@@ -224,7 +224,7 @@ function ActionNeeded({
         {formatTripMoney(payment.amountCents, payment.currency)}
         {payment.dueDate ? ` due ${formatDay(payment.dueDate)}` : ""}
       </div>
-      {/* §2.4 lands next. Disabled and saying why, rather than pointed at a route that
+      {/* §2.4 is unbuilt. Disabled and saying why, rather than pointed at a route that
           does not exist — see the departures note on the page component. */}
       <button
         type="button"

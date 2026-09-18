@@ -705,12 +705,70 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 ### 2.5 Account & Profile
 
+> **Built on both stacks 2026-09-10.** Ten of the eleven screens are implemented on web
+> (`web/app/(client)/account/`, plus `/documents` for 2.5.4) and on mobile
+> (`mobile/.../ui/screens/account/`); 2.5.5 Document Upload is the one that is not, because
+> there is no account-scoped upload door — see its own note. The copy is pinned across the
+> two stacks by `.github/scripts/check_copy_parity.py`.
+>
+> Eleven mobile frames (`design/source-prototype/screens/client-account-mobile.jsx`) joined
+> the existing desktop ones in the design project first, following the section's 1:1 parity
+> convention. The per-screen notes below record what the artboards departed from and why.
+>
+> **What is real and what is not** is recorded per screen. In short: 2.5.2 and 2.5.3 write
+> (through the wizard's own Edge Functions, minus the `advance` flag); 2.5.1, 2.5.4, 2.5.7,
+> 2.5.8, 2.5.9 and 2.5.11 read; 2.5.6 is a placeholder with nothing to switch; and 2.5.10's
+> confirmation is inert because nothing writes to `account`.
+>
+> **Amendments in this pass are corrections, not scope cuts.** Each one removes something the
+> spec promised that the platform cannot currently deliver — an OCR service, a geo-IP
+> resolver, an SMS channel, a notification dispatcher, a retention scrubber, tracking toggles
+> over nothing. CLAUDE.md's document hierarchy is why they land here first: the doc moves
+> before the code, so that a builder reading this section is not told to build something that
+> cannot exist. Where the gap is a missing *decision* rather than a missing feature, the note
+> says so and names who owns it.
+>
+> **Three cross-cutting facts the per-screen notes assume.** First, this section inherits
+> §2.2's security model wholesale: RLS decides rows, GRANTs decide columns, and client writes
+> go through audited Edge Functions rather than PostgREST, because no table here has a write
+> policy and a browser `.insert()` would return 204 and change nothing. Second, Storage still
+> has exactly one door — `trip-document-url` — and it signs on demand, which is why neither
+> 2.5.4 nor 2.6.2 renders thumbnails. Third, `session`, `mfa_device` and `auth_event` are
+> shadow tables that **nothing writes**; Data-Model §5.1.1 says not to double-implement what
+> GoTrue owns, so 2.5.7 reads GoTrue rather than growing policies on empty tables.
+>
+> **Card and payment surfaces are phase-leaked three different ways**, because the right
+> treatment differs by shape: a destination or a switch renders disabled with a reason
+> (2.5.1's Payment methods row, 2.5.6's payment category); a clause inside a paragraph is cut
+> rather than greyed (2.5.9); and a consequence is stated plainly because it is true whether
+> or not §2.4 has shipped (2.5.10's "any saved card stops being usable"). Note this matches
+> the **built** app — `web/app/(client)/dashboard/content.ts` carries
+> `authorizeCardComingSoon` — and **not** the §2.2 artboard, which still draws a live
+> "Authorize a card · $4,180 due" CTA. That artboard is the one out of step; raised with the
+> designer 2026-09-10.
+
 #### 2.5.1 Account Overview / My Account
 **Purpose:** Hub for everything related to the client's account.
-**Primary elements:** Profile summary card; navigation tiles for Personal Info, Travel Preferences, Travel Documents, Notifications, Security, Connected Accounts, Privacy.
-**Key actions:** Navigate to any sub-screen.
-**Entry points:** Profile icon in main nav.
+**Primary elements:** Profile summary card; navigation tiles for Personal Info, Travel Preferences, Travel Documents, Notifications, Security, Connected Accounts, Privacy, Help & Support; sign out.
+**Key actions:** Navigate to any sub-screen; sign out.
+**Entry points:** Account tab (mobile) / Account on the nav rail (web).
 **Related screens:** All account sub-screens.
+
+> **Amended 2026-09-10.** This screen is the **root of the Account tab**, not a pushed route,
+> so it is the only §2.5 frame carrying the bottom bar — and it is the one place in the app
+> that owns **sign out**, which `states.tsx`'s `UnauthorizedState` currently notes has no home.
+> Per §4.4 it is Pattern **D variant**: a grid of tiles on tablet/web, a grouped list on
+> mobile.
+>
+> **Two elements the prototype drew have no backing and are not part of this screen.** The
+> "Member ID · STA-5839" chip has no column anywhere — inventing a customer number is a
+> support burden, not a feature. And the avatar is **initials**, not a photograph:
+> `web/lib/images.ts` has no avatar entries at all, though `platform_user.avatar_url` exists
+> for the day a client uploads one.
+>
+> **Row subtitles state what is inside, in data** ("Name, email, phone, address"; "4 files ·
+> 1 expiring soon") rather than describing the screen ("Manage your notification
+> preferences"). Any count shown here must agree with its destination screen.
 
 #### 2.5.2 Personal Info Edit
 **Purpose:** Edit name, email, phone, mailing address, date of birth, emergency contact.
@@ -718,6 +776,26 @@ gate (2.0.6) sits in front of it rather than beside it.
 **Key actions:** Update fields; save.
 **Entry points:** Account Overview.
 **Related screens:** Email Verification (if email changed).
+
+> **Amended 2026-09-10: the email change needs a trigger that does not exist yet.** Changing
+> an email is GoTrue's (`supabase.auth.updateUser({ email })`), not a column write — but
+> `auth_bridge` has triggers only for `AFTER INSERT ON auth.users` and `AFTER UPDATE OF
+> email_confirmed_at`. **Nothing fires on `AFTER UPDATE OF email`,** so a confirmed change
+> updates `auth.users.email` and leaves `account.email` stale. That is not cosmetic:
+> `account.email` is what the agent's CRM shows, and `handle_user_email_confirmed()` matches
+> a pre-created client on it — so the next person to register the old address could be adopted
+> onto the wrong client row. A mirroring trigger ships with this screen. It should update
+> `client.email` only when that still equals the old account email, since a pre-created client
+> may carry an address the agent set deliberately.
+>
+> **Reuse 2.1.10 rather than growing a second rule set.** This screen is the same fields as
+> Profile Completion plus DOB and emergency contact, and `onboarding-profile` already gates
+> its wizard advance behind `advance === true` — so it takes the write with `advance` omitted.
+> The 2.1.10 notes above already settle the shape of the mailing address (six structured
+> fields, not one line), phone normalisation (E.164), and the passport number. All of it
+> applies here unchanged. What this screen must **not** send that function is the email
+> address: a function writing `account.email` directly would leave the login and the record
+> disagreeing, which is the very divergence the trigger above exists to prevent.
 
 #### 2.5.3 Travel Preferences Edit
 **Purpose:** Edit the preferences captured during onboarding.
@@ -728,84 +806,444 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 #### 2.5.4 Travel Documents
 **Purpose:** Manage uploaded travel documents (passport, visa, insurance certificate).
-**Primary elements:** Document list with thumbnails; expiration warnings; "Upload" CTA; per-document actions (view, share, delete).
-**Key actions:** Upload; view; share securely; delete.
+**Primary elements:** Document list; expiration warnings; "Upload" CTA; per-document actions (view, send to Gyasi, remove).
+**Key actions:** Upload; view; send to Gyasi; remove.
 **Entry points:** Account Overview; Trip Document Library.
 **Related screens:** Document Upload.
 
+> **Amended 2026-09-10: "share securely" becomes "send to Gyasi", and the secure link stays
+> deferred to §2.8.** §2.2.6 already removed share-with-co-traveler rather than disabling it,
+> and §7's open question about account-less co-traveler access belongs with Group Trip
+> Coordination. At MVP the only recipient a passport has is the advisor, so the action
+> resolves to attaching it to a message — which `trip-message` already supports and already
+> filters `attachmentDocumentIds` to documents the caller owns. That is a real action on a
+> path that exists, rather than a link nobody can issue.
+>
+> **"Delete" is an archive.** `document.archived_at` is the mechanism; rows are not removed,
+> because `card_use_event.receipt_document_id` and `commission_import.document_id` reference
+> them. The label says "remove" and the copy should not promise erasure.
+>
+> **Thumbnails are not free.** Storage is addressed by key, `document.storage_key` is outside
+> the client column grant, and `trip-document-url` signs **on demand** precisely so that a
+> five-minute URL for a file nobody opened is not a false entry on the access trail. A grid
+> of thumbnails would sign every document and write an access record per document per page
+> load. The list shows a type badge and the filename; a signature happens when a document is
+> opened. Same reasoning §2.2.11 used to leave its photographs unrendered.
+>
+> **THE BLOCKER ON THIS SCREEN: there is no account-scoped upload door, so "Upload" renders
+> disabled with a reason until one exists.** The *model* supports an account-level document —
+> `document.trip_id` is nullable, and both read paths already handle a trip-less row
+> (`document_self_select` matches `client_id = … OR trip_id IN (…)`, and `trip-document-url`
+> tests `client_id` before it ever consults `trip_id`). It is the **write** door that is
+> trip-only. `trip-document` demands a `tripId`, proves ownership of it, derives the object
+> key as `trips/<tripId>/<documentId>.<ext>`, and stamps `trip_id` on the row — and it is the
+> **only** insert into `document` anywhere in the repo. `document` has a SELECT policy and no
+> INSERT policy, so a PostgREST insert matches nothing, and the bucket carries no
+> `authenticated` policies either. A passport that belongs to a person rather than to one
+> trip therefore cannot be created from anywhere today.
+>
+> **A trip picker is a stopgap, not the fix**, and it fails the very client this screen exists
+> for. `20260903190707_onboarding_schema.sql` dropped NOT NULL from
+> `travel_document.document_id` precisely for the just-onboarded traveler — "Null means 'we
+> have the details, not the scan'" — who may have no trip to pick at all. Filing their
+> passport under whichever trip they happen to have also drops it into that trip's §2.2.6
+> library, where it does not belong.
+>
+> **What the account-scoped door must add:** a `tripId`-free variant that keys the object
+> outside the `trips/` prefix (`clients/<clientId>/…`), leaves `trip_id` null, and links the
+> new row onto `travel_document.document_id` — **a column nothing writes today**, so the
+> details captured at 2.1.10 and a scan uploaded here are currently two unrelated rows. This
+> is a *separate* gap from the missing confirm step at 2.5.5: that one completes an upload
+> that started; this one is about an upload that cannot start.
+
 #### 2.5.5 Document Upload / Camera Capture
 **Purpose:** Upload a new document, from device file picker or (mobile) camera.
-**Primary elements:** Document type picker; file picker / camera shutter; preview; OCR-extracted fields (expiry, document number — editable); "Save" CTA.
-**Key actions:** Capture or pick; review extracted fields; save.
-**Entry points:** Travel Documents; Trip Document Library "Upload".
+**Primary elements:** Document type picker; file picker / camera shutter; preview; hand-entered fields (expiry, issuing country); "Save" CTA.
+**Key actions:** Capture or pick; enter the details; save.
+**Entry points:** Trip Document Library "Upload" (2.2.6). The Travel Documents (2.5.4) entry waits on an account-scoped upload endpoint — see the blocker recorded at 2.5.4.
 **Related screens:** Travel Documents, Trip Document Library.
+
+> **Amended 2026-09-10: no OCR, and two capture fields rather than three.** The line above
+> read "OCR-extracted fields (expiry, document number — editable)" and "review extracted
+> fields". There is no OCR service anywhere in the stack, none is specified in the BRD, and
+> adding one would be a new third-party SDK processing passport images — which CLAUDE.md
+> requires a security review for. Nothing can pre-fill anything, so the fields are entered by
+> hand and the screen says so.
+>
+> **The document NUMBER is not collected here either**, for the reason 2.1.10 already
+> records above: Data-Model §18.2 requires `travel_document.document_number_encrypted` to be
+> encrypted under a backend-held key, there is no crypto helper in
+> `supabase/functions/_shared/` and no key management, and `onboarding-profile` refuses a
+> `passport.number` key loudly rather than storing one unprotected. Drawing the field on a
+> second screen would invite exactly the write that function declines. It returns with the
+> encryption pass, on both screens at once. The desktop artboard's "Name (OCR)" is dropped
+> outright — `travel_document` has no name column, and the holder's name is already on
+> `client` / `companion`.
+>
+> **The stated file constraints were wrong twice.** The prototype says "JPG, PNG, PDF · up to
+> 10 MB". `supabase/functions/_shared/trip.ts` allows `application/pdf`, `image/jpeg`,
+> `image/png`, **`image/heic`** and `image/webp`, with `MAX_UPLOAD_BYTES = 52_428_800` — **50
+> MiB**, matching the bucket's `file_size_limit`. HEIC is what an iPhone camera produces by
+> default, so omitting it told the exact user this camera-first screen exists for that their
+> photos would be rejected.
+>
+> **Upload is a two-step write and the second step is unbuilt.** `trip-document` registers
+> the row and signs an upload URL, but its own header records that it does not confirm the
+> upload: `checksum_sha256` is written as 32 zero bytes because the digest cannot be known
+> before the bytes arrive. This screen owns the confirm step — a `document-confirm` function
+> that hashes the object server-side and flips a pending state. A client-supplied checksum is
+> not acceptable: it would be a digest of whatever the client says, which is worse than a
+> visible placeholder because it looks verified.
+>
+> **"Save" cannot yet file the details beside the file.** It can register the document, but
+> **nothing in the repo ever writes `travel_document.document_id`** — the only insert into
+> `travel_document` at all is `onboarding-profile`, writing the traveler's own passport row
+> from 2.1.10. So the metadata captured during onboarding and a scan uploaded here stay two
+> unrelated rows, and this screen's expiry and issuing-country fields have nowhere to land on
+> an existing record. Linking them is part of the same pass as 2.5.4's account-scoped door.
 
 #### 2.5.6 Notification Preferences
 **Purpose:** Control which notifications are sent and through which channels.
-**Primary elements:** Channel-by-category matrix (email, push, SMS) for: Trip Updates, Payment Activity, Messages, Pre-Trip Reminders, Marketing/Deals; master toggle; "Save" CTA.
+**Primary elements:** Channel-by-category matrix (email, push) for the eight categories below; "Save" CTA.
 **Key actions:** Toggle per channel/category; save.
 **Entry points:** Account Overview.
 **Related screens:** Dashboard.
 
+> **Amended 2026-09-10, and this screen needs a decision before it is built.** Three changes,
+> plus one open question that is not ours to settle.
+>
+> **The categories are eight, reconciled against BRD §6.6.** This line named five (Trip
+> Updates, Payment Activity, Messages, Pre-Trip Reminders, Marketing/Deals). BRD §6.6 names
+> seven outbound kinds — trip status changes, itinerary updates, payment authorizations
+> needed, payment activity on stored cards, pre-trip reminders, post-trip follow-ups,
+> marketing — and in-app messaging makes eight. The five collapsed two pairs and dropped
+> post-trip follow-ups entirely. The BRD is the higher authority, so the set is:
+> `trip_status`, `itinerary_change`, `payment_authorization`, `card_use`,
+> `pre_trip_reminder`, `post_trip`, `messages`, `marketing`.
+>
+> **SMS is removed as a channel.** BRD §6.6 says "(email and push)" and never mentions SMS.
+> `[auth.sms]` in `supabase/config.toml` has `enable_signup = false` and
+> `enable_confirmations = false`, there is no SMS provider anywhere in the repo, and
+> `web/app/(auth)/mfa/setup/actions.ts` already records that SMS-as-a-backup-factor is off
+> for the same reason. A third column over nothing is a switch that cannot do anything.
+>
+> **The master toggle is removed.** It was listed as a primary element and neither artboard
+> drew one. A single switch that silences everything is at odds with this screen's own
+> promise that trip-critical alerts still reach you — it would either lie, or need a
+> published exception list nobody has specified. If it comes back it needs that list first.
+>
+> **THE OPEN QUESTION, and the reason this screen should not ship as drawn: nothing delivers
+> a notification today.** There is no dispatcher, no transactional email sender, no FCM or
+> APNs wiring anywhere in the repo — the only `firebase` reference in `supabase/config.toml`
+> is `[auth.third_party.firebase]`, an identity provider, not messaging. `notification_
+> preference` is read and written by exactly nothing. So the screen as specified stores
+> preferences that no code consults, which is the trap the disabled §2.4 CTAs exist to avoid.
+> Either the delivery path lands with this screen, or the screen ships stating plainly which
+> channels are live — and at present that is none of them.
+>
+> Two mechanical requirements when it is built: `notification_preference.user_id` is the
+> primary key and **no path creates a row**, so this screen needs an upsert and
+> `handle_new_user()` needs to seed one (2.1.14's deferred control, above, is waiting on
+> exactly that); and `channels` is schemaless `jsonb`, so a mistyped category key writes
+> cleanly and renders a toggle that will never control anything — it needs the same closed
+> vocabulary CHECK that `travel_preference` got.
+
 #### 2.5.7 Security Settings
 **Purpose:** Manage password, MFA, and active sessions.
-**Primary elements:** Change password section; MFA status with enable/disable; active sessions list with device, location, last-active, and "Sign out" per session; suspicious-activity log; sign-out-of-all-devices button.
+**Primary elements:** Change password section (email accounts only); MFA status with enable/disable; active sessions list with device, last-active, "this device" marker, and "Sign out" per session; sign-out-of-all-devices button.
 **Key actions:** Change password; enroll/disable MFA; sign out a session.
 **Entry points:** Account Overview.
-**Related screens:** MFA Setup, Login.
+**Related screens:** MFA Setup, Login, Connected Accounts.
+
+> **Amended 2026-09-10.** Three of the elements listed above cannot be rendered honestly, and
+> one assumed every account has a password.
+>
+> **Session LOCATION is removed.** `auth.sessions` holds an `ip`, and nothing resolves an IP
+> to a place — there is no geo-IP service in the repo and `session.ip_country` has no writer.
+> The prototype's "Miami, FL" and "Atlanta, GA · suspicious?" are invented, and the question
+> mark is the design admitting it. The row shows device, when it was last used, whether it is
+> the one you are holding, and a way out.
+>
+> **The "suspicious-activity log" is removed, not deferred-with-a-placeholder.** `auth_event`
+> exists in the schema and **nothing has ever written a row to it** — no login path, no Edge
+> Function. `audit_event` is the agency's record and §2.2 deliberately gave clients no policy
+> on it, which is the same reason 2.2.1's activity feed was dropped. A panel that would
+> always be empty is worse than its absence. It returns if and when login starts writing
+> `auth_event`, which is an open item from the bootstrap.
+>
+> **"Trusted" is not a status we hold.** The prototype chips a session as Trusted; what that
+> would mean is "has a current session", which is what every row in the list already means.
+>
+> **The password section is conditional on `auth_provider = 'email'`.** The enum is
+> `('email','google','apple')`, so a Google or Apple account has no password: "Last changed
+> 14 March" is a fabrication for them and "Change password" leads nowhere. Those accounts get
+> a "How you sign in" card pointing at Connected Accounts instead. This is the same hole
+> 2.5.10 closes by confirming with a typed email rather than a password — it has to be closed
+> on both screens.
+>
+> **`session` and `mfa_device` are shadow tables and should stay empty.** Data-Model §5.1.1
+> says not to double-implement what GoTrue owns, and nothing writes either table. MFA shipped
+> GoTrue-native (`supabase.auth.mfa.*` in `web/app/(auth)/mfa/setup/actions.ts`), so this
+> screen reads `auth.mfa_factors` and `auth.sessions` through a service-role Edge Function
+> rather than growing policies on two empty tables. **Backup codes are not offered** — that
+> same file records that Supabase has no backup-code factor and a home-grown one could not be
+> trusted — and no authenticator vendor is named, because any TOTP app works.
+>
+> Note `secure_password_change` is currently `false` in `supabase/config.toml`, so a stolen
+> session can change a password without reauthentication. Turning it on is a one-line change
+> with a real UX consequence, so it is a decision for this screen rather than a cleanup.
 
 #### 2.5.8 Connected Accounts
 **Purpose:** Manage social login linkages.
 **Primary elements:** Google account link state; Apple account link state; connect/disconnect actions.
 **Key actions:** Connect; disconnect.
-**Entry points:** Account Overview.
+**Entry points:** Account Overview, Security Settings.
 **Related screens:** Login.
+
+> **This spec is already correct and should stay as written — Google and Apple only.**
+> `auth_provider` is `ENUM ('email','google','apple')` and `web/lib/auth/providers.ts` carries
+> the same two. The desktop artboard adds a Facebook row marked "Not connected · available",
+> which is not a provider we have and reads as one call away; it is dropped, and this line is
+> the authority.
+>
+> **The real hazard here is a permanent lockout, and the screen must refuse it server-side.**
+> Disconnecting the last identity on an account with no password (`auth_provider` google or
+> apple) leaves no way back in. The refusal belongs in an Edge Function, not in a disabled
+> button and not in a reliance on GoTrue's own guard. This is the same OAuth-shaped gap 2.5.7
+> closes on the password card and 2.5.10 closes on its confirmation field — three screens,
+> one assumption to stop making.
+>
+> **Connected accounts are `auth.identities`,** reached via `supabase.auth.getUserIdentities()`.
+> Neither `session` nor `mfa_device` is involved, and neither should grow a policy for this
+> screen.
 
 #### 2.5.9 Privacy & Data Export
 **Purpose:** Honor data-rights requirements (CCPA where applicable).
-**Primary elements:** "Download my data" CTA; explanation of what is included; data export status indicator; cookie/tracking preferences.
-**Key actions:** Request data export; manage tracking preferences.
+**Primary elements:** "Download my data" CTA; explanation of what is included; data export status indicator; a statement of what we do not track.
+**Key actions:** Request data export.
 **Entry points:** Account Overview.
-**Related screens:** Account Overview.
+**Related screens:** Account Overview, Account Closure.
+
+> **Amended 2026-09-10: the tracking toggles are replaced by a statement.** The screen listed
+> "cookie/tracking preferences" and the prototype drew Essential / Analytics / Marketing
+> switches. There is no analytics script, tag manager or advertising pixel anywhere in
+> `web/` — and `web/content/public/legal/cookies.ts` already tells people in writing that
+> "We do not use advertising cookies or third-party trackers on the app subdomain." Switches
+> over nothing are a control that lies, and they contradicted a shipped legal page. One true
+> sentence is the stronger privacy position; the toggles return the day a tracker does.
+>
+> **The export cannot include the document-access trail.** Every signature from
+> `trip-document-url` writes an `audit_event` (`document.url_signed`), but `audit_event` is
+> the agency's table and §2.2 deliberately gave clients no policy on it. Naming it in the
+> export would promise data the client has no path to. The export covers profile, trips,
+> documents and messages.
+>
+> **This needs an entity that does not exist.** There is nowhere to read an export status
+> from, and reading it out of `audit_event` would mean giving clients a policy on it — the
+> side door §2.2 refused. A small `data_export_request` (id, account_id, requested_at,
+> status, document_id, expires_at) belongs in Data-Model §18.5 **before** this screen is
+> built. The export pipeline itself is not P1; the entity is what lets the screen say
+> "requested 14 March, we'll email you" instead of a button that does nothing.
 
 #### 2.5.10 Account Closure
-**Purpose:** Delete or deactivate the account.
-**Primary elements:** Warning about what closure will do (trips archived, cards revoked, data retained for tax/business compliance with PII anonymized); reason field (optional); password re-entry; "Close my account" CTA; final confirmation.
+**Purpose:** Deactivate the account. Records are retained and personal identifiers anonymized; nothing is hard-deleted.
+**Primary elements:** Warning about what closure will do (trips archived, stored cards stop being usable, booking and tax records retained with PII anonymized); reason field (optional); type-your-email confirmation; "Close my account" CTA; final confirmation.
 **Key actions:** Close account.
 **Entry points:** Privacy & Data Export.
-**Related screens:** Login (after closure).
+**Related screens:** Login (after closure), Conversation Thread.
+
+> **Amended 2026-09-10.** Three changes, one of which is a blocker on building the screen.
+>
+> **Confirmation is a typed email address, not a password re-entry.** `auth_provider` is
+> `('email','google','apple')`, so a Google or Apple account has no password and the password
+> field is a wall those accounts cannot pass. Typing your own address works for every account
+> shape, and the server pairs it with a recent-auth check on the first-factor timestamp.
+>
+> **No specific anonymization window on screen until a scrubber exists.** Data-Model §18.5
+> describes a 30-day window, but **nothing implements it** — no migration, no `pg_cron`
+> entry, no Edge Function anywhere under `supabase/`. A dated retention promise on a legal
+> screen is precisely the class of claim `PUBLIC_CLAIMS_MODE=strict` exists to stop shipping.
+> **This screen ships with the scrubber, or its copy states the intent without the number.**
+> That is a decision to take before the screen is built, not after.
+>
+> **Closure never deletes `auth.users`, and the database already refuses to let it.**
+> `account_auth_user_fk` is `ON DELETE RESTRICT` — deliberately, and
+> `20260902020243_auth_bridge.sql` sets out the reasoning at length: a cascade could not
+> reach past `account` anyway (`platform_user`, `session`, `mfa_device` and `auth_event` all
+> reference `account(id)` with no cascade of their own), and cascading those too would
+> destroy `audit_event` rows retained 7–10 years, which §18.5 explicitly excludes from
+> erasure. Physical deletion is not a supported operation. Closure sets `account.archived_at`,
+> `locked_at` and `locked_reason`, archives the client, and signs the user out globally;
+> erasure is the §18.5 anonymization flow, not a delete.
+>
+> **One consequence to resolve:** `account_email_active` is `UNIQUE (email) WHERE archived_at
+> IS NULL`, so archiving frees the address for re-registration — a second account can be
+> created on it while the first is still inside its scrub window. Either hold the address or
+> make the scrubber safe against it.
+>
+> **The optional reason field has nowhere of its own to go.** The only candidate column is
+> `account.locked_reason`, which `20260905171542_client_column_grant.sql` deliberately
+> withholds from clients as "free text from agent or system" — writing a traveler's parting
+> words into an agent-facing field mixes two voices in one column, and the agent later reads
+> it as though the system wrote it. Either give closure its own column, or treat the reason
+> as a message to Gyasi rather than stored state. Keep the field either way: someone leaving
+> is the most useful feedback the business gets. Drop the prototype's "helps Gyasi follow up
+> if you reconsider" — §2.5 of the Design System says the brand is not used to sell, and a
+> retention hook on a closure screen is exactly that.
+>
+> The screen is drawn full-screen rather than as a bottom sheet on mobile: a sheet's grabber
+> means "swipe this away", which is the wrong affordance for an irreversible action with a
+> text field the keyboard covers.
 
 #### 2.5.11 Help & Support
 **Purpose:** Access help articles, FAQs, and contact the agent or platform support.
-**Primary elements:** Search; FAQ categories; "Message Gyasi" CTA; "Email platform support" CTA; legal links.
-**Key actions:** Search; open article; message agent; email support.
+**Primary elements:** Search; FAQ list; "Message Gyasi" CTA; legal links.
+**Key actions:** Search; open article; message agent.
 **Entry points:** Account Overview; nav footer.
 **Related screens:** Conversation Thread.
+
+> **Amended 2026-09-10: the FAQ set is scoped to what a reader can act on.** The artboards'
+> list included "How does payment authorization work?" and "Can I revoke a card?" — both
+> answer questions about §2.4, which nobody can reach. An FAQ that explains an unreachable
+> screen is worse than no FAQ, so those two are held until §2.4 ships and replaced with
+> questions that are true today. "Do I pay you a planning fee?" stays and is the most
+> important one on the screen: BRD §10.5 prohibits client-facing fees entirely, and this is
+> where a traveler asks.
+>
+> **"Message Gyasi" is the §2.6.3 route, not a mailto,** once that screen exists — and it
+> carries the settled "Usually replies the same day" wording, never the public surface's
+> unverified "< 2h". The FAQ articles themselves have no CMS: `web/content/public/faq/`
+> holds the public ones as typed modules, and this screen should read from there rather than
+> introduce a second store.
+>
+> **"Email platform support" is removed: there is no platform-support desk.** No `support@`
+> address exists anywhere in the repo. The app configures exactly one outbound address —
+> `env.inquiryEmail`, documented as the "Message Gyasi without an account" destination and
+> deliberately null when unset so that nothing invents one — plus a single hardcoded
+> `hello@story-tail.com` in `states.tsx`'s `ErrorState`. Story-Tail Adventures is one advisor;
+> a second support tier that routes somewhere other than Gyasi does not exist, and offering it
+> promises a queue nobody staffs. If the split is genuinely wanted, it needs a real mailbox
+> first. Until then this screen has one contact route and it is §2.6.3. **The prototype's
+> `support@story-tail.com` button is not to be transcribed.**
 
 ---
 
 ### 2.6 Messaging
 
+> **Mobile artboards published 2026-09-10; no screen in this section is built yet.** Three
+> mobile frames (`design/source-prototype/screens/client-messaging-mobile.jsx`) joined the
+> desktop ones in the design project.
+>
+> **The read side of this section already exists.** `conversation` and `message` have
+> policies *and* column grants from `20260907031255_trip_read_policies.sql`, including
+> `client_unread_count`, `last_message_preview`, `subject` and `archived_at` — so the inbox
+> can be built on grants that are already in place. `message_self_select` also carries the
+> internal-note filter, which is what stops the agent's private notes about a client
+> appearing in that client's own thread as ordinary messages.
+>
+> **`trip-message` was written for this section before it existed.** It already creates the
+> conversation on first message and denormalizes `last_message_at`, `last_message_preview` and
+> `agent_unread_count` — its header says explicitly that the inbox reads those instead of
+> joining to the newest message. Two writes are still missing: zeroing
+> `client_unread_count` (2.6.1), and the trip-less path (2.6.3).
+>
+> **§2.6.2 is the same component as §2.2.7**, and both stacks should mount it rather than
+> copy it. What §2.2 deliberately left unbuilt stays unbuilt here for the same reasons — no
+> typing indicator, no read receipts — and the notification centre that §2.2.2 parked at
+> "§2.6" **still has no home**: this section has three screens and none of them is one. That
+> gap is recorded rather than resolved.
+
 #### 2.6.1 Messages Inbox
-**Purpose:** All conversations the client has with the agent, grouped by trip and including pre-trip lead-stage threads.
-**Primary elements:** Conversation list (agent name/photo, last message preview, timestamp, unread indicator); search; filter by trip; archive action.
-**Key actions:** Open conversation; archive; search.
-**Entry points:** Bottom nav "Messages" on mobile; nav menu on web.
-**Related screens:** Conversation Thread.
+**Purpose:** All conversations the client has with the agent, grouped by trip and including threads that predate any trip.
+**Primary elements:** Conversation list (agent initials, subject, last message preview, timestamp, unread indicator); search; filter by trip.
+**Key actions:** Open conversation; search.
+**Entry points:** Bottom nav "Messages" on mobile; nav rail on web.
+**Related screens:** Conversation Thread, New Conversation.
+
+> **Amended 2026-09-10: archive is not a client action.** It was listed as a primary element
+> and a key action; neither the desktop artboard nor the mobile one ever drew one.
+> `conversation_self_select` filters `archived_at IS NULL`, and widening it so a client could
+> read archived threads would silently change what §2.2's `loadDashboard` and `loadTripDetail`
+> return — both read `conversation` on the assumption the policy carries that filter. Archive
+> is the agent's filing tool for hundreds of threads (§3.10); a traveler with one advisor and
+> three threads does not need one. **"Filter by trip" stays** — `conversation.trip_id` is
+> granted to `authenticated` and indexed.
+>
+> **"lead-stage threads" is restated.** The `lead` domain is deferred and unbuilt (§3.8, and
+> Data-Model §11), and per BRD §6.5 a quote request creates a Trip in `inquiry`. A thread that
+> predates a trip is simply one with `conversation.trip_id IS NULL`, which the schema already
+> allows.
+>
+> **The agent's photo is initials.** `web/lib/images.ts` has no avatar entries at all; every
+> `staImg('avatar*')` in the artboards is a stock portrait of a stranger, and putting one on
+> Gyasi is worse than initials.
+>
+> **One write this screen needs that does not exist.** `conversation.client_unread_count` is
+> granted and the row renders a badge off it, but nothing zeroes it — so without a
+> `conversation-read` write the badge is permanent.
 
 #### 2.6.2 Conversation Thread (Client View)
-**Purpose:** Threaded conversation with the agent for a given trip or lead.
-**Primary elements:** Thread header; message bubbles; attachment thumbnails; compose bar with attachment button; typing indicator; quick-reply chips ("Yes, book it", "I have questions", etc.); link to the related trip.
+**Purpose:** Threaded conversation with the agent, for a trip or for no trip yet.
+**Primary elements:** Thread header; message bubbles; attachments; compose bar with attachment button; quick-reply chips ("Yes, book it", "I have questions", etc.); link to the related trip, when there is one.
 **Key actions:** Send message; attach; tap quick reply; open trip.
 **Entry points:** Messages Inbox; Trip Detail; notification.
 **Related screens:** Trip Detail.
 
+> **Amended 2026-09-10.** This screen **is** 2.2.7, not a sibling of it — the same component
+> mounted from a different list, which is what `web/app/(client)/trips/[tripId]/messages/
+> page.tsx` already commits to in its own header. The only structural difference is that
+> "open trip" is conditional, because a thread with `trip_id IS NULL` has nowhere to go.
+>
+> **The typing indicator is removed**, for the reason §2.2.7 already deferred it: there is no
+> Realtime presence in this stack. It is worse here — a thread with no trip has no id to
+> scope a presence channel to, so even a naive version has no key.
+>
+> **Read receipts are not shown.** `message.read_by_other_at` is withheld from
+> `authenticated` on purpose; telling a traveler when Gyasi read their message is a promise
+> about his attention that nobody agreed to make. Reactions are likewise not drawn — there is
+> no reaction entity in the model.
+>
+> **Attachments are listed, not thumbnailed**, for §2.5.4's reason: every signature writes an
+> access record, so rendering previews would sign every attachment on every page load.
+
 #### 2.6.3 New Conversation / Start a Message
-**Purpose:** Initiate a new message (especially before any trip exists).
-**Primary elements:** Subject (optional); message body; "Send" CTA; helper text suggesting the agent will reply within X hours.
-**Key actions:** Send.
-**Entry points:** Help & Support "Message Gyasi"; Account "Contact agent".
+**Purpose:** Initiate a message before any trip exists.
+**Primary elements:** Subject (optional); message body; attach; "Send" CTA; helper text carrying the settled reply-window wording.
+**Key actions:** Send; attach.
+**Entry points:** Help & Support "Message Gyasi"; Account "Contact agent"; the signed-in error and onboarding-complete escalations.
 **Related screens:** Conversation Thread.
+
+> **Amended 2026-09-10: "within X hours" is one settled string, not a variable.** The
+> artboards carry five different promises between them, from "reply in < 2h" to "within 48
+> hours". §2.1/§2.2 settled the authenticated surface on **"Usually replies the same day"**,
+> and the competing "< 2h" lives in `web/content/public/proof.ts` as `avgReplyTime` with
+> `verified: false`, fenced by `PUBLIC_CLAIMS_MODE=strict` so it cannot ship unexamined. Use
+> the settled string; it is not a per-screen choice.
+>
+> **This screen must not promise a quote.** Per BRD §6.5 (decided 2026-09-09) structured
+> intake goes through `quote-request` and creates a Trip in `inquiry` status. 2.6.3 is prose
+> that lands in the inbox. Copy that offers a quote here would open a second intake queue
+> bypassing the pipeline that decision consolidated onto.
+>
+> **It replaces the signed-in mailtos only.** The public `mailto:` path (§2.0.5's "Message
+> Gyasi without an account", and `web/lib/public/inquiry.ts`) stays exactly as the phase note
+> at 2.0.5 records — that is the no-account path and it is load-bearing. What this screen
+> replaces is the signed-in escalations: the dashboard's advisor card, onboarding-complete's
+> third action, `states.tsx`'s `ErrorState`, and 2.5.11's "Message Gyasi".
+>
+> **`trip-message` needs widening rather than a sibling function.** `conversation.trip_id` is
+> nullable, so the find-or-create already fits — but note its lookup is
+> `.eq("trip_id", tripId)`, and PostgREST renders `.eq("trip_id", null)` as `trip_id=eq.null`,
+> which matches nothing. A trip-less thread needs `.is("trip_id", null)` or it creates a fresh
+> conversation on every send and the thread fragments one message at a time. `agent_id` is
+> read from the client row, never the request, for the reason `quote-request` records.
+>
+> **Attach has nothing to attach on this screen, and ships disabled here.** `trip-message`
+> filters `attachmentDocumentIds` to documents the caller owns, so attaching requires a
+> `document` row to exist first — and the only door that creates one requires a trip
+> (§2.5.4's blocker). A screen defined by there being no trip yet therefore cannot produce an
+> attachment. It turns on with the account-scoped upload endpoint, not before. Attaching an
+> *existing* account-level document once that door exists is the natural first use.
 
 ---
 
@@ -1791,9 +2229,9 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.5.1 Account Overview** — Pattern D variant. Mobile: list of tiles. Tablet/web: grid of tiles.
 - **2.5.2 Personal Info Edit** — Pattern A.
 - **2.5.3 Travel Preferences Edit** — Pattern A. Same chip behavior as 2.1.11.
-- **2.5.4 Travel Documents** — Pattern B. Thumbnail grid on tablet/web.
+- **2.5.4 Travel Documents** — Pattern B. A type badge and filename per row, not a thumbnail grid: previews would sign every document on every page load and write an access record for each. See the note at 2.5.4.
 - **2.5.5 Document Upload / Camera Capture** — Pattern J. Mobile uses native camera; tablet uses either camera or file picker; web is file picker only.
-- **2.5.6 Notification Preferences** — Pattern A (matrix form). Mobile: stacked toggles per category. Tablet/web: actual matrix table.
+- **2.5.6 Notification Preferences** — Pattern A (matrix form). Mobile: stacked toggles per category. Tablet/web: actual matrix table. Two channel columns, not three — SMS was removed 2026-09-10; see the note at 2.5.6.
 - **2.5.7 Security Settings** — Pattern A.
 - **2.5.8 Connected Accounts** — Pattern A.
 - **2.5.9 Privacy & Data Export** — Pattern A.

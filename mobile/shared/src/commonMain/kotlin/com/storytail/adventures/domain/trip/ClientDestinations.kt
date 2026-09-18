@@ -21,9 +21,12 @@ package com.storytail.adventures.domain.trip
  * Screen-Inventory §6.3 and Design-System §9.3 are being amended to match.
  *
  * WHY [built] IS SEPARATE FROM [phase]. Filtering on phase removes exactly one destination
- * (Discover, §2.3, Phase 2). Messages, Wallet, Documents and Account are all Phase ONE and
- * still have no screen, so a phase filter would leave dead tabs. [built] is what the bar
- * renders against; [phase] only says why something is not built yet.
+ * (Discover, §2.3, Phase 2), and it is the only one the mobile bar still dims. The separation
+ * earned itself while §2.4-§2.6 were unbuilt: Wallet, Documents, Messages and Account were all
+ * Phase ONE with no screen, so a phase filter would have left dead tabs. §2.6 lights Messages
+ * and leaves Wallet (§2.4) as the last unbuilt P1 — rail-only, so the mobile bar is now three
+ * live tabs and one dimmed. [built] is what the bar renders against; [phase] only says why
+ * something is not built yet.
  */
 data class ClientDestination(
     val id: String,
@@ -44,8 +47,8 @@ data class ClientDestination(
 val CLIENT_BAR_DESTINATIONS: List<ClientDestination> = listOf(
     ClientDestination("trips", "Trips", built = true, phase = null, section = "§2.2"),
     ClientDestination("discover", "Discover", built = false, phase = "P2", section = "§2.3"),
-    ClientDestination("messages", "Messages", built = false, phase = "P1", section = "§2.6"),
-    ClientDestination("account", "Account", built = false, phase = "P1", section = "§2.5.1"),
+    ClientDestination("messages", "Messages", built = true, phase = null, section = "§2.6"),
+    ClientDestination("account", "Account", built = true, phase = null, section = "§2.5.1"),
 )
 
 object ClientNavMessages {

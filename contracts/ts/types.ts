@@ -58,12 +58,26 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Post a message into a trip thread.
-         * @description Screen 2.2.7. `message` has SELECT-only RLS and no write policy, so a PostgREST
-         *     insert would match zero rows and return 204 — looking like it worked and changing
-         *     nothing. The function resolves the conversation from the trip, refuses if the
-         *     caller does not own it, writes the message and any attachment rows in one
-         *     transaction, and writes an `audit_event` (CLAUDE.md rule 3).
+         * Post a message into a thread.
+         * @description Screens 2.2.7, 2.6.2 and 2.6.3. `message` has SELECT-only RLS and no write policy,
+         *     so a PostgREST insert would match zero rows and return 204 — looking like it worked
+         *     and changing nothing.
+         *
+         *     Address the thread ONE of three ways: `tripId` for a trip thread, `conversationId`
+         *     for an existing thread (which may have no trip), or neither for the general thread,
+         *     which is found or created against `trip_id IS NULL`. Sending both ids is a 400
+         *     rather than a silent preference — they can disagree.
+         *
+         *     The function refuses if the caller does not own the trip or conversation, writes the
+         *     message and any attachment rows, denormalizes the conversation row, and writes an
+         *     `audit_event` (CLAUDE.md rule 3).
+         *
+         *     NOT ATOMIC. The message insert, the attachment rows and the conversation update are
+         *     separate round trips on the service role; a failure between them can leave a stale
+         *     preview or an attachment-less message. The implementation says so at the top of
+         *     `supabase/functions/trip-message/index.ts` and names the fix (one Postgres function
+         *     over RPC, together with the audit-transaction work). This description previously
+         *     claimed the writes were "in one transaction", which was never true.
          */
         post: operations["sendTripMessage"];
         delete?: never;
@@ -322,8 +336,19 @@ export interface components {
              *     the id client-side is what makes a retry idempotent.
              */
             messageId: string;
-            /** Format: uuid */
-            tripId: string;
+            /**
+             * Format: uuid
+             * @description The trip whose thread this belongs to. Mutually exclusive with `conversationId`;
+             *     omit both to post into the traveler's general (trip-less) thread.
+             */
+            tripId?: string;
+            /**
+             * Format: uuid
+             * @description An existing thread, addressed directly. Screen 2.6.2 uses this because a general
+             *     thread has `trip_id IS NULL` and so has no trip to key on. Mutually exclusive
+             *     with `tripId`.
+             */
+            conversationId?: string;
             body: string;
             /** @description Documents already registered via POST /trip-document. */
             attachmentDocumentIds?: string[];
