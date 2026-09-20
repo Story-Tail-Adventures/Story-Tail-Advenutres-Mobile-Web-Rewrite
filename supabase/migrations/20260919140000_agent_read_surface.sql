@@ -247,6 +247,25 @@ COMMENT ON FUNCTION public.agent_kpis() IS
     '"an agent with nothing" must be distinguishable, or the screen renders a confident $0 '
     'at a client. Money is a digit-string; see the migration header.';
 
+-- THE GENERATED TYPES LIE ABOUT NULLABILITY, and this is the one that will bite a caller.
+--
+-- `supabase gen types` cannot infer nullability from a RETURNS TABLE signature, so it
+-- declares every column non-nullable: web/types/supabase.ts says
+-- `commission_confidence_pct: number` and `inquiry_to_book_days: number`. Both are NULL in
+-- exactly the cases the screen most needs to distinguish — an empty pipeline has no
+-- confidence to report, and a book with no booked transitions has no cycle time — and
+-- rls_agent_reads.sql asserts they come back NULL rather than 0, because a zero there is a
+-- claim where an absence is the truth.
+--
+-- So a caller that trusts the generated type will render "0%" and "0 days" for "we don't
+-- know yet". Every consumer must treat these two, and `dominant_currency`, as nullable
+-- whatever TypeScript says. The same applies to `agent_trip_board`'s `notes`,
+-- `proposal_sent_at`, `proposal_viewed_at`, `next_due_date`, `next_due_cents` and
+-- `next_due_currency`, all of which come from LEFT JOINs.
+COMMENT ON COLUMN public.trip.total_commission_cents IS
+    'The agency''s expected margin. Outside the column grant to `authenticated` '
+    '(20260904140753) and reached by the agent through public.agent_trip_board().';
+
 -- MIXED CURRENCY. trip.currency is char(3) and holds whatever was entered, so summing across
 -- currencies produces a number that is not money in any of them. EVERY money column here is
 -- therefore scoped to the agent's most-used currency, and `currency_count` says how many
