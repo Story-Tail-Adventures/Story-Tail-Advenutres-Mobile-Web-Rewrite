@@ -66,12 +66,27 @@ SELECT (SELECT count(*) FROM public.trip
        (SELECT count(*) FROM public.trip
          WHERE agent_id = '0195a2c0-1a00-7000-8000-000000000001'
            AND archived_at IS NULL AND status = 'inquiry')
-           AS inquiries;
+           AS inquiries,
+       (SELECT count(DISTINCT h.trip_id) FROM public.trip_status_history h
+          JOIN public.trip t ON t.id = h.trip_id
+         WHERE t.agent_id = '0195a2c0-1a00-7000-8000-000000000001'
+           AND t.archived_at IS NULL AND h.to_status = 'booked')
+           AS booked_ever;
+
+CREATE TEMP TABLE expected_booked_month AS
+SELECT DISTINCT t.id, t.total_value_cents
+  FROM public.trip t
+  JOIN public.trip_status_history h ON h.trip_id = t.id AND h.to_status = 'booked'
+ WHERE t.agent_id = '0195a2c0-1a00-7000-8000-000000000001'
+   AND t.archived_at IS NULL
+   AND (h.changed_at AT TIME ZONE 'UTC')::date >= date_trunc('month', current_date)::date
+   AND (h.changed_at AT TIME ZONE 'UTC')::date
+         < (date_trunc('month', current_date) + interval '1 month')::date;
 
 -- The temp table belongs to the migration role, so the assertions below — which run as
 -- `authenticated` — need reading rights on it. It lives in pg_temp and dies with the
 -- transaction; nothing in the schema is widened.
-GRANT SELECT ON expected TO authenticated;
+GRANT SELECT ON expected, expected_booked_month TO authenticated;
 
 -- ── As the agent ─────────────────────────────────────────────────────────────────
 
@@ -117,13 +132,36 @@ SELECT pg_temp.assert(
     (SELECT bool_and(total_value_cents ~ '^-?\d+$') FROM public.agent_trip_board()),
     'agent_trip_board() renders money as a digit-string');
 
--- Null, not zero, for the two figures that have no data behind them yet. This is the
--- "not enough history" state Data-Model §8.8 promises the screen will render honestly; a 0
--- here would be a claim rather than an absence.
+-- The cycle time, against the seed's synthetic history. `> 0` is the assertion that matters:
+-- the figure is `first booked transition - trip.created_at`, so a fixture whose history
+-- predates its trip — or an implementation that subtracts the wrong way round — yields a
+-- negative average and a screen that reports trips booked before they existed.
 SELECT pg_temp.assert(
-    (SELECT inquiry_to_book_days IS NULL AND inquiry_to_book_sample = 0
+    (SELECT inquiry_to_book_days > 0 FROM public.agent_kpis()),
+    'inquiry_to_book_days is positive — history sits after each trip''s created_at');
+SELECT pg_temp.assert(
+    (SELECT inquiry_to_book_sample FROM public.agent_kpis()) = (SELECT booked_ever FROM expected)
+      AND (SELECT booked_ever FROM expected) > 0,
+    'inquiry_to_book_sample counts exactly the trips with a booked transition');
+
+-- "Booked · month" is the figure trip.status_changed_at could not produce: a trip booked last
+-- month and progressed this month would land in the wrong bucket. The seed puts exactly one
+-- booking inside the current month, so this is checkable by hand.
+SELECT pg_temp.assert(
+    (SELECT booked_month_cents::bigint FROM public.agent_kpis()) =
+    (SELECT coalesce(sum(t.total_value_cents), 0) FROM expected_booked_month t),
+    'booked_month_cents is exactly the trips whose booked transition is in the current month');
+
+-- Weighted strictly below raw. Equality would mean pipeline_weight is not being applied at
+-- all — the seed deliberately puts commission on two `proposal` trips, which weigh 50.
+SELECT pg_temp.assert(
+    (SELECT commission_weighted_cents::bigint < commission_expected_cents::bigint
+        AND commission_expected_cents::bigint > 0
        FROM public.agent_kpis()),
-    'inquiry_to_book is NULL with a zero sample until trip_status_history accumulates');
+    'the forecast is weighted — weighted total is strictly below the raw total');
+SELECT pg_temp.assert(
+    (SELECT commission_confidence_pct BETWEEN 1 AND 99 FROM public.agent_kpis()),
+    'commission_confidence_pct is a real ratio, not a 0%% or 100%% placeholder');
 
 SELECT pg_temp.assert(
     (SELECT new_inquiry_count FROM public.agent_kpis()) = (SELECT inquiries FROM expected),
@@ -283,6 +321,19 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.agent_inbox()) = 0,
     'the second agent sees none of Gyasi''s conversations');
+
+-- The "not enough history" state, on an agent who genuinely has none. NULL rather than 0:
+-- Data-Model §8.8 commits the screen to rendering an absence rather than a claim, and a
+-- zero-day average would be a claim. Gyasi cannot test this any more — the seed gives him
+-- synthetic history on purpose — so it belongs here.
+SELECT pg_temp.assert(
+    (SELECT inquiry_to_book_days IS NULL AND inquiry_to_book_sample = 0
+       FROM public.agent_kpis()),
+    'an agent with no booked transitions gets NULL cycle time, not zero');
+SELECT pg_temp.assert(
+    (SELECT booked_month_cents = '0' AND commission_confidence_pct IS NULL
+       FROM public.agent_kpis()),
+    'and NULL confidence over an empty pipeline, not 0%%');
 RESET ROLE;
 
 SELECT pg_temp.become(:gyasi::uuid);

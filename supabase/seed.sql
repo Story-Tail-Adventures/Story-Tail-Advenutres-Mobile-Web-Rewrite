@@ -873,4 +873,203 @@ CROSS JOIN LATERAL (
 ON CONFLICT (id) DO NOTHING;
 
 
+-- ============================================================
+-- §3.2 agent worklist fixtures
+--
+-- Everything above this point was seeded for the CLIENT surface, and §3.2 rendered correct
+-- and empty against it: no commission rows at all, no agent_availability, no
+-- trip_status_history, nothing departing inside thirty days, and an empty `in_progress`
+-- column on the pipeline board. A screen that is right and blank is the failure mode the
+-- (client) layout's role gate was added to avoid — it reads as data loss rather than as an
+-- empty book.
+-- ============================================================
+
+-- ── Three more trips ─────────────────────────────────────────────────────────────
+--
+-- Assigned to Maya rather than Jordan on purpose: Jordan is the §2.2 fixture and several
+-- committed tests assert exact counts over Jordan's trips.
+--
+-- Between them these fill the two holes in the board — `in_progress` had no trip at all, and
+-- the nearest departure was 64 days out, so "Travelers in next 30 days" was empty.
+
+INSERT INTO public.trip (
+    id, client_id, agent_id, title, trip_type, status,
+    start_date, end_date, destinations, traveler_count,
+    total_value_cents, total_paid_cents, total_commission_cents, currency, notes, created_at
+) VALUES
+    -- Travelling right now. The only row that exercises the in_progress stage.
+    ('0195a2c0-1a00-7000-8000-000000000046',
+     '0195a2c0-1a00-7000-8000-000000000013',
+     '0195a2c0-1a00-7000-8000-000000000001',
+     'Saint Lucia · Between Semesters', 'all_inclusive', 'in_progress',
+     current_date - 2, current_date + 5, ARRAY['Soufriere, Saint Lucia'], 2,
+     748000, 748000, 89760, 'USD',
+     'Landed Tuesday. Resort has the anniversary note; nothing else scheduled.',
+     now() - interval '40 days'),
+
+    -- Departing inside the thirty-day window the worklist section is built on.
+    ('0195a2c0-1a00-7000-8000-000000000047',
+     '0195a2c0-1a00-7000-8000-000000000013',
+     '0195a2c0-1a00-7000-8000-000000000001',
+     'Cabo, Four Nights', 'all_inclusive', 'booked',
+     current_date + 12, current_date + 16, ARRAY['Cabo San Lucas, Mexico'], 2,
+     512000, 256000, 61440, 'USD',
+     'Flights are theirs. Transfers still to confirm with the resort.',
+     now() - interval '20 days'),
+
+    -- A second departure, so the section is a list rather than a single row.
+    ('0195a2c0-1a00-7000-8000-000000000048',
+     '0195a2c0-1a00-7000-8000-000000000013',
+     '0195a2c0-1a00-7000-8000-000000000001',
+     'Bimini, Long Weekend', 'custom', 'booked',
+     current_date + 26, current_date + 29, ARRAY['Bimini, Bahamas'], 4,
+     396000, 99000, 47520, 'USD',
+     'Four adults, two rooms. They asked about a fishing charter for the Saturday.',
+     now() - interval '15 days');
+
+-- The existing booked and completed trips get a plausible age, so the cycle-time KPI has
+-- something other than "created and booked in the same instant" to average. Without this
+-- every trip's created_at is the moment of the reset and inquiry-to-book is zero days.
+UPDATE public.trip SET created_at = now() - interval '60 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000040';
+UPDATE public.trip SET created_at = now() - interval '700 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000044';
+
+-- ── Status history ───────────────────────────────────────────────────────────────
+--
+-- Data-Model §8.8 is explicit that this table accumulates FORWARD and that no backfill from
+-- trip.status_changed_at can produce a cycle time. That is true in production; here the point
+-- of a fixture is to let the screen be verified without waiting weeks for real transitions,
+-- so this is synthetic on purpose and says so.
+--
+-- Every changed_at sits between its trip's created_at and now(), which is what keeps the
+-- derived cycle time positive. One booking (trip 47) lands inside the current month, so
+-- "Booked · month" has exactly one contributing trip and the number is checkable by hand.
+
+INSERT INTO public.trip_status_history (id, trip_id, from_status, to_status, changed_at, changed_by_user_id)
+SELECT v.id, v.trip_id, v.from_status, v.to_status, v.changed_at, pu.id
+FROM (VALUES
+    -- 40 · Negril. Booked 41 days ago, i.e. in a previous month.
+    ('01a0b1c2-d300-7000-8000-000000000060'::uuid, '0195a2c0-1a00-7000-8000-000000000040'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '48 days'),
+    ('01a0b1c2-d300-7000-8000-000000000061'::uuid, '0195a2c0-1a00-7000-8000-000000000040'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '41 days'),
+
+    -- 44 · a completed trip from two years ago, so the average is not built from one shape.
+    ('01a0b1c2-d300-7000-8000-000000000062'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '690 days'),
+    ('01a0b1c2-d300-7000-8000-000000000063'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '685 days'),
+    ('01a0b1c2-d300-7000-8000-000000000064'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'booked'::trip_status,   'in_progress'::trip_status, now() - interval '620 days'),
+    ('01a0b1c2-d300-7000-8000-000000000065'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'in_progress'::trip_status, 'completed'::trip_status, now() - interval '610 days'),
+
+    -- 46 · booked 22 days ago, departed 2 days ago.
+    ('01a0b1c2-d300-7000-8000-000000000066'::uuid, '0195a2c0-1a00-7000-8000-000000000046'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '30 days'),
+    ('01a0b1c2-d300-7000-8000-000000000067'::uuid, '0195a2c0-1a00-7000-8000-000000000046'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '22 days'),
+    ('01a0b1c2-d300-7000-8000-000000000068'::uuid, '0195a2c0-1a00-7000-8000-000000000046'::uuid,
+     'booked'::trip_status,   'in_progress'::trip_status, now() - interval '2 days'),
+
+    -- 47 · THE one booked inside the current month. "Booked · month" should equal its value.
+    ('01a0b1c2-d300-7000-8000-000000000069'::uuid, '0195a2c0-1a00-7000-8000-000000000047'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '14 days'),
+    ('01a0b1c2-d300-7000-8000-00000000006a'::uuid, '0195a2c0-1a00-7000-8000-000000000047'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '3 days'),
+
+    -- 45 · the cancelled one, so a terminal branch is represented.
+    ('01a0b1c2-d300-7000-8000-00000000006b'::uuid, '0195a2c0-1a00-7000-8000-000000000045'::uuid,
+     'proposal'::trip_status, 'cancelled'::trip_status,   now() - interval '200 days')
+) AS v(id, trip_id, from_status, to_status, changed_at)
+CROSS JOIN LATERAL (
+    SELECT pu.id FROM public.platform_user pu WHERE pu.role = 'agent' LIMIT 1
+) pu;
+
+-- ── Commission ───────────────────────────────────────────────────────────────────
+--
+-- The table had no rows at all, so "Commission expected" rendered an honest but unverifiable
+-- $0. The forecast reads `expected`/`invoiced` rows on OPEN trips and weights them by
+-- pipeline_weight (Data-Model §7.4), so these are chosen to make the confidence figure land
+-- somewhere other than 0% or 100% — a weighted total equal to the raw one would not prove the
+-- weighting is wired up at all.
+--
+-- The `received` row on the completed trip is deliberately outside the forecast: it is money
+-- already earned, not money expected. It is here for §3.7, and so that a future change that
+-- accidentally sweeps it into the forecast shows up as a number moving.
+
+INSERT INTO public.commission (
+    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
+    expected_commission_cents, received_commission_cents, payment_terms, status, received_at,
+    inteletravel_reference
+) VALUES
+    -- Booked · weight 100 · contributes in full.
+    ('01a0b1c2-d300-7000-8000-000000000070', '0195a2c0-1a00-7000-8000-000000000040',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     1284500, 12.00, 154140, 0, '60 days after travel', 'expected', NULL, NULL),
+
+    -- Proposal · weight 50 · contributes half. Two of these, on the two proposal trips.
+    ('01a0b1c2-d300-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000041',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     964000, 12.00, 115680, 0, '60 days after travel', 'expected', NULL, NULL),
+    ('01a0b1c2-d300-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000042',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     1912000, 12.00, 229440, 0, '60 days after travel', 'expected', NULL, NULL),
+
+    -- In progress · weight 100 · and `invoiced` rather than `expected`, so both statuses the
+    -- forecast accepts are represented.
+    ('01a0b1c2-d300-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000046',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     748000, 12.00, 89760, 0, '60 days after travel', 'invoiced', NULL, 'ITV-2026-0912'),
+
+    -- Booked · weight 100.
+    ('01a0b1c2-d300-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000047',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000031',
+     512000, 12.00, 61440, 0, '60 days after travel', 'expected', NULL, NULL),
+
+    -- Received, on a completed trip. OUTSIDE the forecast on both counts.
+    ('01a0b1c2-d300-7000-8000-000000000075', '0195a2c0-1a00-7000-8000-000000000044',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     692000, 12.00, 83040, 83040, '60 days after travel', 'received',
+     current_date - 540, 'ITV-2025-0331');
+
+-- ── Payment milestones ───────────────────────────────────────────────────────────
+--
+-- Trip 40 already carries one scheduled milestone eleven days out. What was missing is an
+-- OVERDUE one: days_until goes negative and the section's ordering puts it first, and neither
+-- behaviour was exercised by any fixture.
+
+INSERT INTO public.payment_milestone (
+    id, trip_id, kind, label, amount_cents, currency, due_date, status, order_index
+) VALUES
+    ('0195a2c0-1a00-7000-8000-0000000000a3', '0195a2c0-1a00-7000-8000-000000000047',
+     'final', 'Final balance', 256000, 'USD', current_date - 4, 'overdue', 1),
+    ('0195a2c0-1a00-7000-8000-0000000000a4', '0195a2c0-1a00-7000-8000-000000000048',
+     'deposit', 'Deposit', 99000, 'USD', current_date + 6, 'scheduled', 0);
+
+-- ── Agent availability ───────────────────────────────────────────────────────────
+--
+-- Screen 3.2.3's availability layer is deferred because `time_off_blocks` is jsonb with no
+-- declared schema — there is nothing to validate a parse against, which is the open item
+-- Data-Model §7.4 cites as the reason pipeline_weight is a table instead. The row exists so
+-- agent_availability_self() returns something and the deferral is a UI decision rather than
+-- an empty read that looks like a bug.
+--
+-- calendar_sync_refresh_token_encrypted stays NULL. A seeded value is how a projection test
+-- starts passing for the wrong reason.
+
+INSERT INTO public.agent_availability (
+    agent_id, weekly_schedule, response_time_hours, time_off_blocks, calendar_sync_provider
+) VALUES (
+    '0195a2c0-1a00-7000-8000-000000000001',
+    '{"mon":["09:00","17:00"],"tue":["09:00","17:00"],"wed":["09:00","17:00"],'
+    '"thu":["09:00","17:00"],"fri":["09:00","15:00"],"sat":[],"sun":[]}'::jsonb,
+    4,
+    '[{"starts_on":"2026-11-26","ends_on":"2026-11-29","reason":"Thanksgiving"},'
+    '{"starts_on":"2026-12-24","ends_on":"2027-01-02","reason":"Christmas"}]'::jsonb,
+    NULL
+);
+
+
 COMMIT;
