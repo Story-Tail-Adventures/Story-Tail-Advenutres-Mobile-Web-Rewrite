@@ -123,12 +123,13 @@ SET search_path = public, pg_temp
 AS $$
     WITH me AS (
         SELECT a.id AS agent_id,
+               a.time_zone,
                (now() AT TIME ZONE a.time_zone)::date AS today
           FROM public.agent a
          WHERE a.id = public.current_agent_id()
     ),
     span AS (
-        SELECT agent_id, today,
+        SELECT agent_id, time_zone, today,
                date_trunc('month', today)::date                            AS month_start,
                (date_trunc('month', today) + interval '1 month')::date     AS month_end
           FROM me
@@ -140,8 +141,9 @@ AS $$
            AND t.archived_at IS NULL
            AND t.status IN ('inquiry', 'proposal', 'booked', 'in_progress')
     ),
-    -- The agent's own currencies, most-used first. See the note below on why the money
-    -- figures are scoped to one rather than summed across all of them.
+    -- The agent's own currencies, most-used first. EVERY money figure below is scoped to
+    -- this one — see the note under the function on why that is the shape, and why scoping
+    -- three of four would have been worse than scoping none.
     cur AS (
         SELECT currency, count(*) AS n
           FROM open_trip
@@ -150,34 +152,56 @@ AS $$
          LIMIT 1
     ),
     -- Weighted against pipeline_weight (Data-Model §7.4), joined on the TRIP's status.
+    --
+    -- `c.agent_id = s.agent_id` is not redundant with the join to open_trip. A commission row
+    -- carries its OWN agent_id, and nothing in the schema requires it to match the trip's —
+    -- a split booking or a corrected import can leave one pointing at another advisor's trip.
+    -- Without this predicate that row lands in this agent's forecast, and the weight lookup
+    -- would resolve against the wrong advisor's weights.
     comm AS (
         SELECT
             coalesce(sum(c.expected_commission_cents), 0)::bigint AS raw_cents,
             coalesce(sum(c.expected_commission_cents * pw.weight_pct / 100.0), 0)::bigint
                 AS weighted_cents
           FROM public.commission c
-          JOIN open_trip t          ON t.id = c.trip_id
+          JOIN open_trip t ON t.id = c.trip_id
+          JOIN span s      ON c.agent_id = s.agent_id
           JOIN public.pipeline_weight pw
-                                    ON pw.agent_id = c.agent_id AND pw.status = t.status
+                           ON pw.agent_id = s.agent_id AND pw.status = t.status
          WHERE c.status IN ('expected', 'invoiced')
+           AND t.currency = (SELECT currency FROM cur)
     ),
-    -- Trips that transitioned TO booked inside the agent's current month. Exact, unlike
-    -- `trip.status_changed_at`, which only knows the latest transition — a trip booked last
-    -- month and moved to in_progress this month would land in the wrong bucket.
+    -- Trips whose FIRST booking inside the month happened this month.
+    --
+    -- EXISTS over the history rather than a join to it, because a join sums the trip's value
+    -- once per matching row. `trip_status_history` only forbids a transition to the status
+    -- the trip is already in, so booked -> in_progress -> booked is legal and routine (a
+    -- client changes dates, the deposit is re-run) — and under a join that trip's whole value
+    -- is counted twice, with nothing on the screen to say so.
+    --
+    -- The comparison is in the AGENT's time zone, matching the boundaries `span` computed.
+    -- Comparing a UTC calendar date against agent-local month boundaries misfiles every
+    -- booking made in the offset's worth of hours at each month edge: for America/Chicago a
+    -- trip booked at 23:00 on the 31st is 04:00 UTC on the 1st, and lands in the wrong month.
     booked_month AS (
         SELECT coalesce(sum(t.total_value_cents), 0)::bigint AS cents
-          FROM public.trip_status_history h
-          JOIN public.trip t ON t.id = h.trip_id
-          JOIN span s        ON t.agent_id = s.agent_id
-         WHERE h.to_status = 'booked'
-           AND (h.changed_at AT TIME ZONE 'UTC')::date >= s.month_start
-           AND (h.changed_at AT TIME ZONE 'UTC')::date <  s.month_end
-           AND t.archived_at IS NULL
+          FROM public.trip t
+          JOIN span s ON t.agent_id = s.agent_id
+         WHERE t.archived_at IS NULL
+           AND t.currency = (SELECT currency FROM cur)
+           AND EXISTS (
+                SELECT 1
+                  FROM public.trip_status_history h
+                 WHERE h.trip_id = t.id
+                   AND h.to_status = 'booked'
+                   AND (h.changed_at AT TIME ZONE s.time_zone)::date >= s.month_start
+                   AND (h.changed_at AT TIME ZONE s.time_zone)::date <  s.month_end
+               )
     ),
     -- Time from a trip's creation to its FIRST booked transition. `trip.created_at` is the
     -- inquiry moment (trip.status defaults to inquiry), so only the booked end needs history
     -- — which means this populates from the first booking after this migration rather than
-    -- waiting for a full inquiry→booked pair to accumulate.
+    -- waiting for a full inquiry-to-booked pair to accumulate.
     cycle AS (
         SELECT avg(EXTRACT(epoch FROM first_booked - t.created_at) / 86400.0) AS days,
                count(*)::integer                                              AS sample
@@ -224,11 +248,19 @@ COMMENT ON FUNCTION public.agent_kpis() IS
     'at a client. Money is a digit-string; see the migration header.';
 
 -- MIXED CURRENCY. trip.currency is char(3) and holds whatever was entered, so summing across
--- currencies would produce a number that is not money in any of them. The totals here are
--- scoped to the agent's most-used currency and `currency_count` says how many exist, so a
--- screen showing one figure can say what it excluded. Under-reporting with the exclusion
--- named beats a plausible wrong total. If the count ever exceeds one in practice, the answer
--- is a per-currency breakdown, not a conversion rate nobody has agreed on.
+-- currencies produces a number that is not money in any of them. EVERY money column here is
+-- therefore scoped to the agent's most-used currency, and `currency_count` says how many
+-- exist so a screen showing one figure can say what it excluded. Under-reporting with the
+-- exclusion named beats a plausible wrong total.
+--
+-- Scoping all four matters more than it looks. The first version of this function scoped only
+-- `pipeline_value_cents` and left the other three summing across everything, under a single
+-- `dominant_currency` label — which is strictly worse than scoping none of them, because the
+-- label makes a claim about figures that do not honour it. If the count ever exceeds one in
+-- practice the answer is a per-currency breakdown, not a conversion rate nobody has agreed on.
+--
+-- `commission` has no currency column of its own; a commission is denominated in its trip's
+-- currency, which is why the scope is applied through the join to open_trip.
 --
 -- `new_inquiry_count`, not `new_lead_count`. The lead domain is specified and deliberately
 -- unbuilt (Data-Model §11, BRD §6.5 as amended 2026-09-09); a quote request creates a trip in
@@ -266,6 +298,7 @@ RETURNS TABLE (
     proposal_viewed_at     timestamptz,
     next_due_date          date,
     next_due_cents         text,
+    next_due_currency      char(3),
     agent_unread_count     integer
 )
 LANGUAGE sql
@@ -301,6 +334,7 @@ AS $$
         p.viewed_at,
         m.due_date,
         m.amount_cents::text,
+        m.currency,
         coalesce(u.unread, 0)::integer
       FROM public.trip t
       JOIN public.client c ON c.id = t.client_id
@@ -313,7 +347,10 @@ AS $$
              LIMIT 1
            ) p ON true
       LEFT JOIN LATERAL (
-            SELECT pm.due_date, pm.amount_cents
+            -- The milestone's OWN currency, not the trip's. payment_milestone.currency is a
+            -- separate column and a supplier can invoice in something other than the trip's
+            -- denomination; pairing the amount with the trip's code would mislabel it.
+            SELECT pm.due_date, pm.amount_cents, pm.currency
               FROM public.payment_milestone pm
              WHERE pm.trip_id = t.id AND pm.status IN ('scheduled', 'overdue')
              ORDER BY pm.due_date NULLS LAST

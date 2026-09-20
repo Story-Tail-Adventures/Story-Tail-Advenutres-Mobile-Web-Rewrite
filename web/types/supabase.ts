@@ -3211,6 +3211,7 @@ export type Database = {
           destinations: string[]
           end_date: string
           next_due_cents: string
+          next_due_currency: string
           next_due_date: string
           notes: string
           proposal_sent_at: string

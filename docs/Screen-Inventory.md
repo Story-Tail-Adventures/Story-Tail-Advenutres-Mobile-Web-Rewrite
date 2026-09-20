@@ -1589,12 +1589,61 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Post-login; nav "Home".
 **Related screens:** Every other agent screen as a destination.
 
+> **Amended 2026-09-19, with the backend built.** Three things in the description above are
+> superseded, and the reasons are worth keeping because each one came from the data rather
+> than from a preference.
+>
+> **The KPI strip is the prototype's five, not the four named above.** Gyasi chose them over
+> this list on 2026-09-19: pipeline value, booked this month, commission expected with a
+> confidence percentage, inquiry-to-book cycle time, and active clients. The same call §2.2
+> decision 4 made for navigation — where the prototype and the inventory disagree on a
+> surface he uses every day, the drawing wins and the doc is amended. Two of the five had
+> nothing behind them, which is why Data-Model §7.4 (PipelineWeight) and §8.8
+> (TripStatusHistory) exist.
+>
+> **"New leads" is not a lead.** The `lead` domain is specified and deliberately unbuilt
+> (Data-Model §11); a quote request creates a trip in `inquiry` status (BRD §6.5, amended
+> 2026-09-09). The KPI and the worklist section both resolve to inquiry-status trips, and the
+> field is `new_inquiry_count` — no column, function or route on the agent side may be named
+> `lead`, or the deferred domain comes back by autocomplete. Copy may still say either.
+>
+> **Cycle time starts empty and the screen must say so.** `trip.status_changed_at` keeps only
+> the latest transition, so the figure is computed from `trip_status_history`, which
+> accumulates forward from 2026-09-19. It returns NULL with a zero sample until trips move
+> through stages, and a zero-day average would be a claim where an absence is the truth. The
+> seed carries synthetic history so the tile can be verified locally.
+>
+> **Money is scoped to one currency, never summed across them.** Every money figure in the
+> strip is the agent's most-used currency alone, with `currency_count` beside it so a screen
+> showing one number can name what it left out.
+
 #### 3.2.2 Pipeline / Funnel View
 **Purpose:** Visual representation of all trips by stage.
 **Primary elements:** Columns for Inquiry, Proposal Sent, Booked, In Progress, Completed; drag-and-drop or status-change menu; cards per trip with quick info.
 **Key actions:** Move stage; open trip.
 **Entry points:** Nav "Pipeline".
 **Related screens:** Trip Detail.
+
+> **Amended 2026-09-19.** The five columns above are correct and the prototype is not.
+> `design/source-prototype/screens/agent-dashboard.jsx` draws `Inquiry · Qualified · Proposal ·
+> Booked · Traveling`; `qualified` and `traveling` do not exist in the `trip_status` enum,
+> which is `inquiry · proposal · booked · in_progress · completed · cancelled`. Recorded as a
+> prototype defect rather than chased with a migration — the Data Model and this document
+> agree against the drawing, and the document hierarchy puts both above it.
+>
+> `cancelled` is the sixth value and a real destination, but not a funnel column: it is
+> filtered off the board and surfaced as a count beneath it, so cancelled trips are excluded
+> without becoming invisible.
+>
+> **The stage change is built and is the first writer of `trip` anywhere.**
+> `agent-trip-status` requires the `expectedVersion` the board was rendered from and answers
+> **409** when it no longer matches — `trip.version` has existed since the initial migration
+> and nothing had ever honoured it. Dropping a card back into its own column is a 200 with
+> `changed: false` and writes no history row.
+>
+> **The "All advisors / Gyasi" filter chips in the prototype are not built.** There is one
+> advisor until P3, and a filter with a single option is noise rather than an honest disabled
+> state.
 
 #### 3.2.3 Calendar View
 **Purpose:** Calendar of trips and key dates.
@@ -1604,6 +1653,16 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Related screens:** Trip Detail.
 
 ---
+
+> **Amended 2026-09-19.** The availability layer is deferred.
+> `agent_availability.time_off_blocks` is `jsonb` with no declared schema, so there is nothing
+> to validate a parse against — the same gap Data-Model §7.4 cites as its reason for making
+> PipelineWeight a table rather than a jsonb column. `agent_availability_self()` returns the
+> row and the calendar renders the layer absent with a stated reason; defining the shape is
+> §3.12's job, and it is one of the two items the build is waiting on.
+>
+> Departures, returns and payment due dates are all served and are built. Month is the web
+> default, agenda the mobile one, per §4.4.
 
 ### 3.3 Client Management (CRM)
 
