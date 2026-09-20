@@ -101,6 +101,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Agent | Agent | P1 | Advisor profile |
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
+| PipelineWeight | Agent | P1 | Per-stage probability the commission forecast multiplies by |
 | Supplier | Trip | P1 | Resort, cruise line, tour operator, etc. |
 | Trip | Trip | P1 | Core unit of work — one trip end-to-end |
 | TripComponent | Trip | P1 | Flight, hotel, cruise, transfer, excursion, etc. |
@@ -110,6 +111,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Proposal | Trip | P1 | Snapshot of a trip presented to the client |
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
 | Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
+| TripStatusHistory | Trip | P1 | Append-only record of every trip status transition |
 | PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
 | CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
 | AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
@@ -855,6 +857,37 @@ mutation on the `client` blast radius and rule 3 applies in full.
 
 ---
 
+### 7.4 PipelineWeight
+
+**Purpose:** The probability, per pipeline stage, that a trip in that stage will convert. The commission forecast multiplies expected commission by it. Read by Screen 3.2.1's "Commission expected" KPI and by 3.7.7 Commission Forecast / Pipeline View.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `agent_id` | `uuid` | No | Public | FK → Agent. Half of the primary key |
+| `status` | `trip_status` enum | No | Public | The other half. **All six values carry a row** |
+| `weight_pct` | `smallint` | No | Public | 0–100 |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Why a table and not a `jsonb` column on Agent.** Four numbers would fit in a blob, and `agent_availability.time_off_blocks` is the cautionary example of what that costs: it is `jsonb` with no declared schema, so nothing can validate it and the calendar's availability layer is deferred because there is nothing to parse against. A keyed table gets a `CHECK (weight_pct BETWEEN 0 AND 100)` and an enum-typed `status` for free, and the forecast joins it in SQL rather than unnesting a blob per row.
+
+**Every status carries a row, including the ones the forecast ignores.** `completed` is money already earned and `cancelled` is money that will not arrive, so neither belongs in a forward-looking figure — but leaving them out would make "which statuses count" an implicit rule living in whichever query happened to be written first. They are present with honest values and the forecast selects the open statuses explicitly.
+
+**Defaults (set 2026-09-19, Gyasi's call — the moderate of three options offered):**
+
+| `inquiry` | `proposal` | `booked` | `in_progress` | `completed` | `cancelled` |
+|---|---|---|---|---|---|
+| 20 | 50 | 100 | 100 | 100 | 0 |
+
+These are defaults, not constants: the rows are seeded per agent and 3.12 Agent Settings edits them. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
+
+**The confidence figure** the prototype draws as "71%" is the weighted total over the unweighted one, not a stored value. It is therefore a property of the book's current shape, and it moves when trips move, which is the intended reading.
+
+**Indexes:** primary key on `(agent_id, status)`. Nothing else — it is at most six rows per agent.
+
+---
+
 ## 8. Trip Domain
 
 This is the largest and most central domain. Trip is the unit of work the entire business orbits around.
@@ -1234,6 +1267,33 @@ data class Trip(
 **Voice note:** the prompt is *"What did you carry home from this trip?"* (Design-System §2.4), not "rate your experience". The field is a reflection first and a testimonial second, which is also why `rating` is nullable.
 
 **Indexes:** unique on `(client_id, trip_id)` where `trip_id IS NOT NULL`; index on `(agent_id, status, created_at desc)` for the approval queue; index on `(status, published_at desc)` where `status = 'published'` for the public surface.
+
+---
+
+### 8.8 TripStatusHistory
+
+**Purpose:** One row per trip status transition, append-only. It exists because `trip.status_changed_at` holds only the **latest** transition, so no elapsed-time question can be answered from `trip` alone.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `trip_id` | `uuid` | No | Public | FK → Trip |
+| `from_status` | `trip_status` enum | Yes | Public | Null on the row recording the trip's creation |
+| `to_status` | `trip_status` enum | No | Public | — |
+| `changed_at` | `timestamptz` | No | Public | — |
+| `changed_by_user_id` | `uuid` | Yes | Internal | FK → User. Null when a system path moved it — `quote-request` creates a trip in `inquiry` with no human actor |
+
+**What it unlocks.** Screen 3.2.1's "Inquiry → book" KPI is the elapsed time between a trip's first `inquiry` row and its first `booked` row, averaged over the book. 3.11 Reporting wants the same shape for every other pair of stages. Neither is computable without this table, and both were specified before it existed.
+
+**It accumulates forward, and that is worth stating plainly rather than discovering.** A backfill from `trip.status_changed_at` yields exactly one row per trip — its most recent transition — which is not a cycle time and never becomes one. So the KPI is empty until trips have moved through stages *after* this table shipped, and the screen must render that as a real "not enough history yet" state rather than as a zero. Seed data carries synthetic history so the tile can be verified locally without waiting.
+
+**Append-only.** No UPDATE, no DELETE, by the same reasoning as `card_use_event` (§9.4) and `audit_event` (§15): a history somebody can edit answers a different question from the one it appears to answer. Correcting a wrong status is a new transition, not an amendment to an old one.
+
+**Written by exactly one path** — the `agent-trip-status` Edge Function, in the same transaction as the `trip.status` update and alongside the `audit_event` that CLAUDE.md rule 3 requires. The two records are not redundant: `audit_event` is the agency's tamper-evident trail of who did what, and this is a queryable business timeline. Deriving the KPI from `audit_event` would mean teaching a reporting query to parse audit metadata, which couples the analytics surface to the audit schema.
+
+**Indexes:** index on `(trip_id, changed_at)` for a single trip's timeline; index on `(to_status, changed_at)` for the cross-book aggregates 3.2.1 and 3.11 run.
 
 ---
 
