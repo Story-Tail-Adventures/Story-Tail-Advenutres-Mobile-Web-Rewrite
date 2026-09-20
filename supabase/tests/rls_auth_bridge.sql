@@ -211,9 +211,14 @@ SELECT pg_temp.assert(
 -- ── Anonymous ──────────────────────────────────────────────────────────────────
 SET LOCAL ROLE anon;
 
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.account) = 0,
-    'anon sees no accounts');
+-- Was `count(*) = 0` — anon could run the query and RLS filtered it to nothing. Since
+-- 20260919120000_agent_domain_lockdown.sql, anon holds no column privilege on `account`
+-- either, so the query is refused outright and never reaches the policy. Exactly the
+-- transformation described for `client` just below, for the same reason: the assertion has
+-- to say which of the two guarantees it is relying on.
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.account',
+    'anon cannot read the account table at all');
 -- Was `count(*) = 0` — anon could run the query and RLS filtered it to nothing. Since
 -- client_column_grant, anon holds no column privilege on this table at all, so the query is
 -- refused outright and never reaches the policy. Strictly stronger, and the assertion has to
