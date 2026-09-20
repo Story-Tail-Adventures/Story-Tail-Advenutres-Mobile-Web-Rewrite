@@ -1020,7 +1020,8 @@
     "title": "Agent · Dashboard & Pipeline",
     "subtitle": "Worklist, Kanban pipeline, calendar.",
     "files": [
-      "screens/agent-dashboard.jsx"
+      "screens/agent-dashboard.jsx",
+      "screens/agent-dashboard-mobile.jsx"
     ],
     "sectionId": "a32",
     "sectionTitle": "3.2 · Dashboard & Pipeline",
@@ -1045,6 +1046,23 @@
         "comp": "A323_Calendar",
         "label": "3.2.3 Calendar",
         "h": 820
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m321",
+        "comp": "M321_Worklist",
+        "label": "3.2m.1 Worklist"
+      },
+      {
+        "id": "m322",
+        "comp": "M322_Pipeline",
+        "label": "3.2m.2 Pipeline"
+      },
+      {
+        "id": "m323",
+        "comp": "M323_Calendar",
+        "label": "3.2m.3 Calendar"
       }
     ]
   },
