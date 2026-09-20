@@ -429,6 +429,76 @@ paths:
   # endpoint with one flag, and so a failed write never advances the cursor.
   # ───────────────────────────────────────────────────────────────────────────
 
+  # ── §3.2 Agent worklist ────────────────────────────────────────────────
+  #
+  # The first agent-side endpoint, and the first writer of `trip` anywhere. Agent
+  # READS are not described here, for the same reason §2.2's are not: they go
+  # through `public.agent_*()` SECURITY DEFINER accessors whose RETURNS TABLE
+  # signatures ARE the read contract, and restating them would create a second
+  # source of truth. `contracts/` describes the write.
+
+  /agent-trip-status:
+    post:
+      operationId: setAgentTripStatus
+      summary: Move a trip between pipeline stages.
+      description: |
+        Screen 3.2.2 (Pipeline / Funnel View). Agent role only — a traveler gets a 403
+        naming the other side of the platform.
+
+        THE MUTATION IS ATOMIC IN SQL, not here. A stage change is a `trip` update plus a
+        `trip_status_history` row, and `public.agent_set_trip_status` does the pair under
+        `FOR UPDATE`. Losing the history row is unrecoverable: `trip.status_changed_at`
+        keeps only the LATEST transition, so a transition without its history row leaves
+        nothing to reconstruct the timing from and the inquiry-to-book KPI is wrong
+        permanently. The `audit_event` is written after, in TypeScript, because it carries
+        the IP and user agent that only exist at the HTTP layer.
+
+        `expectedVersion` IS REQUIRED. `trip.version` has existed since the initial
+        migration and nothing had ever honoured it (Data-Model §20.4); a drag-and-drop
+        board with two tabs open is exactly what it is for. A mismatch is a **409**, not a
+        400 — the caller did nothing wrong, the row moved under them, and a reload fixes
+        it. Omitting the field is a 400: the board always has a version in hand, and
+        allowing it to be left out would quietly make every drop last-write-wins.
+
+        A NO-OP IS A 200, NOT AN ERROR. Dropping a card back into its own column asks for
+        a state that already holds. `changed` is false and NO history row is written — a
+        logged transition that never happened corrupts the cycle-time KPI exactly as
+        badly as a missing one.
+
+        `cancellationReason` IS REQUIRED WHEN `status` IS `cancelled`. It lands in
+        `trip.cancellation_reason`, which is inside the client column grant and which
+        Screen 2.2.10 renders. A cancellation that cannot tell the traveler why is a worse
+        row than no cancellation. A later non-cancel transition does not clear it.
+
+        THE STATUS SET IS THE `trip_status` ENUM, all six values. The board draws five of
+        them; `cancelled` is a real destination but not a funnel column. The design
+        prototype draws `Qualified` and `Traveling`, neither of which exists in the enum —
+        recorded as a prototype defect rather than chased with a migration.
+
+        WHAT IT DOES NOT DO: it does not create a commission row, touch payment milestones,
+        or send anything. Marking a trip `booked` is what §3.7's commission entry hangs
+        off, but minting money records as a side effect of a drag is §3.7.4's job to do
+        deliberately.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentTripStatusRequest'
+      responses:
+        '200':
+          description: |
+            The trip is in the requested stage. `changed` is false when it already was.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTripStatusResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /onboarding-step:
     post:
       operationId: setOnboardingStep
@@ -963,6 +1033,49 @@ components:
           type: boolean
           description: '`revoke` only. False means it was already revoked or expired.'
 
+    # ── §3.2 Agent worklist ────────────────────────────────────────────────
+
+    AgentTripStatusRequest:
+      type: object
+      required: [tripId, status, expectedVersion]
+      properties:
+        tripId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [inquiry, proposal, booked, in_progress, completed, cancelled]
+        expectedVersion:
+          type: integer
+          description: >-
+            `trip.version` as the board was rendered from. A mismatch is a 409.
+            Required: the board always has it, and omitting it would make every
+            drop last-write-wins.
+        cancellationReason:
+          type: string
+          description: >-
+            Required when `status` is `cancelled`, ignored otherwise. Reaches
+            `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler.
+
+    AgentTripStatusResponse:
+      type: object
+      required: [tripId, status, version, changed]
+      properties:
+        tripId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [inquiry, proposal, booked, in_progress, completed, cancelled]
+        previousStatus:
+          type: string
+          enum: [inquiry, proposal, booked, in_progress, completed, cancelled]
+          description: Absent on a no-op, because nothing was left behind.
+        version:
+          type: integer
+          description: The version after the write. Send this as the next `expectedVersion`.
+        changed:
+          type: boolean
+          description: >-
+            False when the trip was already in this stage. No history row and no
+            audit row were written.
+
     # ── §2.1 Onboarding ────────────────────────────────────────────────────
     #
     # No `required` list on any of these, and that is the contract rather than an
@@ -1445,6 +1558,15 @@ components:
             $ref: '#/components/schemas/Problem'
     Forbidden:
       description: Authenticated, but the caller's role may not perform this action.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: >-
+        The row moved since the caller read it. Distinct from a 400 on purpose: the
+        request was well formed and the caller did nothing wrong, so the remedy is a
+        reload rather than a correction.
       content:
         application/problem+json:
           schema:

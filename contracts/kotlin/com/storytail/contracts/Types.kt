@@ -132,6 +132,54 @@ enum class OnboardingStepRequestStep {
 }
 
 @Serializable
+enum class AgentTripStatusResponsePreviousStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+    @SerialName("cancelled")
+    CANCELLED,
+}
+
+@Serializable
+enum class AgentTripStatusResponseStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+    @SerialName("cancelled")
+    CANCELLED,
+}
+
+@Serializable
+enum class AgentTripStatusRequestStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+    @SerialName("cancelled")
+    CANCELLED,
+}
+
+@Serializable
 enum class CardAuthorizationResponseStatus {
     @SerialName("active")
     ACTIVE,
@@ -454,6 +502,37 @@ data class CardAuthorizationResponse(
     // `revoke` only. False means it was already revoked or expired.
     @SerialName("changed")
     val changed: Boolean? = null,
+)
+
+@Serializable
+data class AgentTripStatusRequest(
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("status")
+    val status: AgentTripStatusRequestStatus,
+    // `trip.version` as the board was rendered from. A mismatch is a 409. Required: the board always has it, and omitting it would make every drop last-write-wins.
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    // Required when `status` is `cancelled`, ignored otherwise. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler.
+    @SerialName("cancellationReason")
+    val cancellationReason: String? = null,
+)
+
+@Serializable
+data class AgentTripStatusResponse(
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("status")
+    val status: AgentTripStatusResponseStatus,
+    // Absent on a no-op, because nothing was left behind.
+    @SerialName("previousStatus")
+    val previousStatus: AgentTripStatusResponsePreviousStatus? = null,
+    // The version after the write. Send this as the next `expectedVersion`.
+    @SerialName("version")
+    val version: Int,
+    // False when the trip was already in this stage. No history row and no audit row were written.
+    @SerialName("changed")
+    val changed: Boolean,
 )
 
 @Serializable

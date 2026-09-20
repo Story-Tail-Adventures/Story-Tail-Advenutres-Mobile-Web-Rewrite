@@ -486,6 +486,13 @@ verify_jwt = true
 [functions.card-authorization]
 verify_jwt = true
 
+# ── §3.2 agent worklist ───────────────────────────────────────────────────────
+# The first write on the agent side. verify_jwt is not the gate that matters here —
+# requireAgentId is — but without this block the function is simply never deployed, which
+# CI's "Every Edge Function is declared for deployment" step exists to catch.
+[functions.agent-trip-status]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand

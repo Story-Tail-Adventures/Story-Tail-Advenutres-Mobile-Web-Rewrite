@@ -3181,6 +3181,22 @@ export type Database = {
           trip_title: string
         }[]
       }
+      agent_set_trip_status: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_expected_version: number
+          p_reason?: string
+          p_status: Database["public"]["Enums"]["trip_status"]
+          p_trip_id: string
+        }
+        Returns: {
+          from_status: Database["public"]["Enums"]["trip_status"]
+          outcome: string
+          to_status: Database["public"]["Enums"]["trip_status"]
+          version: number
+        }[]
+      }
       agent_trip_board: {
         Args: {
           p_departing_within_days?: number
