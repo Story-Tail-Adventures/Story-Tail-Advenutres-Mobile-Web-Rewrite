@@ -2374,6 +2374,35 @@ export type Database = {
           },
         ]
       }
+      pipeline_weight: {
+        Row: {
+          agent_id: string
+          status: Database["public"]["Enums"]["trip_status"]
+          updated_at: string
+          weight_pct: number
+        }
+        Insert: {
+          agent_id: string
+          status: Database["public"]["Enums"]["trip_status"]
+          updated_at?: string
+          weight_pct: number
+        }
+        Update: {
+          agent_id?: string
+          status?: Database["public"]["Enums"]["trip_status"]
+          updated_at?: string
+          weight_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_weight_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_user: {
         Row: {
           account_id: string
@@ -2997,6 +3026,48 @@ export type Database = {
           },
         ]
       }
+      trip_status_history: {
+        Row: {
+          changed_at: string
+          changed_by_user_id: string | null
+          from_status: Database["public"]["Enums"]["trip_status"] | null
+          id: string
+          to_status: Database["public"]["Enums"]["trip_status"]
+          trip_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by_user_id?: string | null
+          from_status?: Database["public"]["Enums"]["trip_status"] | null
+          id: string
+          to_status: Database["public"]["Enums"]["trip_status"]
+          trip_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by_user_id?: string | null
+          from_status?: Database["public"]["Enums"]["trip_status"] | null
+          id?: string
+          to_status?: Database["public"]["Enums"]["trip_status"]
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_status_history_changed_by_user_id_fkey"
+            columns: ["changed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_status_history_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_template: {
         Row: {
           agent_id: string
@@ -3046,8 +3117,104 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_availability_self: {
+        Args: never
+        Returns: {
+          agent_id: string
+          calendar_sync_provider: string
+          response_time_hours: number
+          time_off_blocks: Json
+          time_zone: string
+          updated_at: string
+          weekly_schedule: Json
+        }[]
+      }
+      agent_inbox: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_unread_count: number
+          client_display_name: string
+          client_id: string
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          subject: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_kpis: {
+        Args: never
+        Returns: {
+          active_client_count: number
+          active_trip_count: number
+          agent_id: string
+          as_of_date: string
+          booked_month_cents: string
+          commission_confidence_pct: number
+          commission_expected_cents: string
+          commission_weighted_cents: string
+          currency_count: number
+          dominant_currency: string
+          inquiry_to_book_days: number
+          inquiry_to_book_sample: number
+          new_inquiry_count: number
+          pipeline_value_cents: string
+          unread_message_count: number
+        }[]
+      }
+      agent_payments_due: {
+        Args: { p_within_days?: number }
+        Returns: {
+          amount_cents: string
+          client_display_name: string
+          client_id: string
+          currency: string
+          days_until: number
+          due_date: string
+          kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          label: string
+          milestone_id: string
+          paid_cents: string
+          status: Database["public"]["Enums"]["payment_milestone_status"]
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_trip_board: {
+        Args: {
+          p_departing_within_days?: number
+          p_limit?: number
+          p_statuses?: Database["public"]["Enums"]["trip_status"][]
+        }
+        Returns: {
+          agent_unread_count: number
+          client_display_name: string
+          client_id: string
+          currency: string
+          destinations: string[]
+          end_date: string
+          next_due_cents: string
+          next_due_date: string
+          notes: string
+          proposal_sent_at: string
+          proposal_viewed_at: string
+          start_date: string
+          status: Database["public"]["Enums"]["trip_status"]
+          status_changed_at: string
+          title: string
+          total_commission_cents: string
+          total_paid_cents: string
+          total_value_cents: string
+          traveler_count: number
+          trip_id: string
+          trip_type: Database["public"]["Enums"]["trip_type"]
+          version: number
+        }[]
+      }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
       cruise_sync_tick: { Args: never; Returns: number }
+      current_agent_id: { Args: never; Returns: string }
       current_client_mailing_address_id: { Args: never; Returns: string }
       current_platform_user: {
         Args: never
