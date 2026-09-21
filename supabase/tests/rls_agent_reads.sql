@@ -273,7 +273,6 @@ SELECT pg_temp.assert(
 -- This has to WRITE the second transition to prove anything: the seed has no trip booked
 -- twice, so a passive assertion over it would go on passing if the EXISTS became a join.
 RESET ROLE;
-CREATE TEMP TABLE before_rebook AS SELECT id FROM public.trip WHERE false;  -- marker, see below
 INSERT INTO public.trip_status_history (id, trip_id, from_status, to_status, changed_at) VALUES
     ('01a0b1c2-d300-7000-8000-0000000000f1', '0195a2c0-1a00-7000-8000-000000000047',
      'booked', 'in_progress', now() - interval '2 days'),
@@ -287,7 +286,6 @@ SELECT pg_temp.assert(
 RESET ROLE;
 DELETE FROM public.trip_status_history
  WHERE id IN ('01a0b1c2-d300-7000-8000-0000000000f1', '01a0b1c2-d300-7000-8000-0000000000f2');
-DROP TABLE before_rebook;
 SELECT pg_temp.become(:gyasi::uuid);
 
 -- (c) Every money figure honours `dominant_currency`. The first version scoped only
