@@ -15,7 +15,11 @@ import {
  */
 
 function status(over: Partial<OnboardingStatus> = {}): OnboardingStatus {
-  return { isClient: true, completedAt: null, step: null, ...over };
+  // `role` and `isClient` are kept consistent by default. A caller overriding one and not
+  // the other would be constructing a row the database cannot produce, and the wizard gate
+  // reads `isClient` while the shell gate reads `role`.
+  const role = over.role ?? (over.isClient === false ? "agent" : "client");
+  return { completedAt: null, step: null, ...over, role, isClient: role === "client" };
 }
 
 describe("onboardingRedirectFor", () => {

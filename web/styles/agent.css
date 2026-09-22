@@ -1,0 +1,229 @@
+/* Story-Tail Adventures — authenticated AGENT surface layer.
+ *
+ * Screens 3.2.1–3.2.3 (docs/Screen-Inventory.md §3.2; prototypes in
+ * design/source-prototype/screens/agent-dashboard.jsx and agent-dashboard-mobile.jsx).
+ * Imported from web/app/globals.css after client.css.
+ *
+ * A SECTION stylesheet, on the precedent client.css set for §2.2 and public.css for §2.0:
+ * components.css holds what any screen may use, and this holds one surface's chrome.
+ * `.agent-surface` scopes it so a client page cannot reach it.
+ *
+ * WHY THIS IS NOT `.client-surface` WITH A MODIFIER. The two shells differ in the rail's
+ * contents (seven against six), the bar's contents (§6.6's four are not §6.3's four), the
+ * top bar (§6.4 adds search and quick-add), the tablet behaviour (§6.5 wants a collapsible
+ * icon rail where §6.2 explicitly refuses one) and the role gate, which runs in opposite
+ * directions. A shared shell would branch on a role prop at every one of those points,
+ * which is what the prototype's ScreenFrame does — right for an artboard, wrong here.
+ *
+ * The 72px rail width is the prototype's, matching the client rail for the same reason
+ * client.css gives: Design-System §9.2 says 88px and the prototype draws 72, and the
+ * 2026-09-06 call went to the prototype.
+ */
+
+@layer components {
+  /* ── The surface ───────────────────────────────────────────────────────── */
+
+  .agent-surface {
+    min-height: 100dvh;
+    background: var(--md-bg);
+    color: var(--md-on-surface);
+  }
+
+  /* Reserve for the fixed bottom bar, so the last card is not under it. Mirrors
+     `.client-main`'s reserve; the bar only exists below `md`. */
+  .agent-main {
+    padding-bottom: calc(68px + max(env(safe-area-inset-bottom), 8px));
+  }
+  @media (min-width: 48rem) {
+    .agent-main {
+      padding-bottom: 0;
+    }
+  }
+
+  /* ── The rail (tablet and web) ──────────────────────────────────────────── */
+
+  .agent-rail {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    flex-shrink: 0;
+    width: 72px;
+    height: 100dvh;
+    padding: 14px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: var(--md-surface);
+    border-right: 1px solid var(--md-outline-variant);
+  }
+
+  .agent-rail-item {
+    width: 60px;
+    padding: 6px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--md-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .agent-rail-item .pill {
+    width: 56px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .agent-rail-item[aria-current="page"] .pill {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  }
+
+  .agent-rail-item[aria-current="page"] .agent-rail-label {
+    color: var(--md-on-surface);
+  }
+
+  .agent-rail-label {
+    font: 600 10px / 1.2 var(--font-sans);
+    text-align: center;
+  }
+
+  /* ── The bottom bar (mobile, §6.6) ──────────────────────────────────────── */
+
+  .agent-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding: 8px 6px max(env(safe-area-inset-bottom), 8px);
+    background: var(--md-surface-1);
+    border-top: 1px solid var(--md-outline-variant);
+  }
+
+  .agent-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-width: 56px;
+    color: var(--md-on-surface-variant);
+    text-decoration: none;
+  }
+
+  .agent-tab .pill {
+    width: 56px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .agent-tab[aria-current="page"] .pill {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+  }
+
+  .agent-tab-label {
+    font: 600 10px / 1.2 var(--font-sans);
+  }
+
+  /* One disabled treatment for both surfaces, at the same 0.38 alpha every other deferral
+     in this product uses. `cursor: default` rather than `not-allowed`: the destination is
+     not forbidden, it does not exist yet. */
+  .agent-nav-item-disabled {
+    opacity: 0.38;
+    cursor: default;
+  }
+
+  /* ── The view switcher (§3.2's three views under one rail destination) ──── */
+
+  .agent-views {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .agent-view-link {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--md-outline-variant);
+    background: transparent;
+    color: var(--md-on-surface-variant);
+    font: 600 13px / 1 var(--font-sans);
+    text-decoration: none;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .agent-view-link[aria-current="page"] {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+    border-color: transparent;
+  }
+
+  /* ── KPI rail ───────────────────────────────────────────────────────────── */
+
+  /* A horizontal carousel below md (Pattern D: "KPI cards in a horizontal carousel near
+     the top"), a five-up grid above it. Five across a phone gives each tile 72px, which is
+     narrower than the amounts inside them. */
+  .agent-kpis {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 2px;
+  }
+
+  .agent-kpi {
+    min-width: 152px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    border-radius: 16px;
+    padding: 14px 16px;
+  }
+
+  @media (min-width: 48rem) {
+    .agent-kpis {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      overflow-x: visible;
+    }
+    .agent-kpi {
+      min-width: 0;
+    }
+  }
+
+  /* ── The pipeline board ─────────────────────────────────────────────────── */
+
+  /* A horizontally scrolling row of columns. NOT a fixed-height grid: the prototype sets
+     `height: calc(100% - 80px)` with scrolling off, which is right for an artboard and
+     wrong in a browser — and `.client-fill`'s doc comment in client.css records what
+     happens when an ancestor-dependent height meets React streaming. */
+  .agent-board {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    align-items: flex-start;
+    padding-bottom: 8px;
+  }
+
+  .agent-board-column {
+    flex: 0 0 272px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--md-surface-2);
+    border-radius: 14px;
+    padding: 10px;
+  }
+}

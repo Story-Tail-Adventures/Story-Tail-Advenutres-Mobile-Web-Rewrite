@@ -30,6 +30,7 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 
 import { signInWithProviderAction, signOutAction } from "./actions";
+import { SIGNED_IN_SHELLS } from "./signed-in-shells";
 
 const PROVIDER_URL = "https://accounts.google.com/o/oauth2/auth?state=abc";
 
@@ -130,10 +131,12 @@ describe("signOutAction", () => {
   it("drops the cached signed-in shells before leaving", async () => {
     await expect(signOutAction()).rejects.toThrow(RedirectSignal);
 
-    // Both shells that render somebody's signed-in state: the client portal and the
-    // onboarding wizard. `/trips` and `/onboarding` as layouts, so their nested routes go
-    // with them.
-    for (const path of ["/dashboard", "/trips", "/welcome", "/onboarding", "/mfa", "/login/mfa"]) {
+    // Iterated from SIGNED_IN_SHELLS rather than written out again. The literal list this
+    // replaces had fallen four entries behind — /account, /documents, /messages and /wallet
+    // were all added to the shell without it noticing, and /agent would have been the fifth.
+    // A test that restates the thing it is testing stops testing it.
+    expect(SIGNED_IN_SHELLS.length).toBeGreaterThan(6);
+    for (const path of SIGNED_IN_SHELLS) {
       expect(mocks.revalidatePath).toHaveBeenCalledWith(path, "layout");
     }
   });

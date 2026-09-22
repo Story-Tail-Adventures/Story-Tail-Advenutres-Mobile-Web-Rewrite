@@ -10,13 +10,33 @@ import { WIZARD_ROUTE_BY_SLUG, WIZARD_STEPS } from "./steps";
  * is no reason to reach past RLS for it.
  */
 
+export type PlatformRole = "client" | "agent" | "admin";
+
 export interface OnboardingStatus {
-  /** False for an agent or admin — they have no wizard. */
+  /**
+   * `platform_user.role`, verbatim.
+   *
+   * This read has always SELECTed it and thrown it away behind `isClient`. §3.2 needs the
+   * value: the two shells route in opposite directions and `admin` is a third answer, not
+   * "not a client" — an admin may legally carry neither a client_id nor an agent_id, so
+   * every read on either side returns nothing for them.
+   */
+  role: PlatformRole;
+  /** False for an agent or admin — they have no wizard. Derived, so existing callers stand. */
   isClient: boolean;
   /** Null while the wizard is unfinished. */
   completedAt: string | null;
   /** Which step to resume on, or null before it starts and after it finishes. */
   step: string | null;
+}
+
+/**
+ * `user_role` has three values and the column is NOT NULL, so anything else is a schema
+ * change that has not reached this file. Fall back to `client`, which is the least
+ * privileged shell, rather than widening the type to string.
+ */
+function asRole(value: string): PlatformRole {
+  return value === "agent" || value === "admin" ? value : "client";
 }
 
 /**
@@ -49,8 +69,10 @@ export async function onboardingStatus(): Promise<OnboardingStatus | null> {
     return null;
   }
 
+  const role = asRole(data.role);
   return {
-    isClient: data.role === "client",
+    role,
+    isClient: role === "client",
     completedAt: data.onboarding_completed_at,
     step: data.onboarding_step,
   };

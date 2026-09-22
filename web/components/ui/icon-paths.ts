@@ -59,6 +59,14 @@ export const ICON_PATHS = {
   building: "M4 22V4h10v18M14 22V10h6v12M8 8h2M8 12h2M8 16h2M17 14h.01M17 18h.01",
   sun: "M12 4v2m0 12v2M4 12H2m20 0h-2M5.6 5.6 4 4m16 16-1.6-1.6M5.6 18.4 4 20m16-16-1.6 1.6M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
   receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6m-6 4h6m-6 4h3",
+  // Added for §3.2, the agent worklist. Same rule as the rest — the `d` strings are
+  // the prototype's, copied rather than redrawn, so the two sets cannot drift.
+  plus: "M12 5v14m-7-7h14",
+  inbox: "M3 12h6l2 3h2l2-3h6M3 12V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 12v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6",
+  briefcase: "M3 7h18v13H3zM8 7V4h8v3M3 12h18",
+  dollar: "M12 3v18m5-14a4 4 0 0 0-4-4h-2a3 3 0 0 0 0 6h2a3 3 0 0 1 0 6h-2a4 4 0 0 1-4-4",
+  chart: "M3 21V3m0 18h18m-3-6V9m-5 12V6M8 21v-8",
+  pulse: "M3 12h4l3-8 4 16 3-8h4",
 } as const satisfies Record<string, string>;
 
 export type IconName = keyof typeof ICON_PATHS;
