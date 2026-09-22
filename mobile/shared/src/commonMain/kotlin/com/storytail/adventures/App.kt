@@ -19,6 +19,8 @@ import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.ui.screens.agent.AgentRoute
 import com.storytail.adventures.api.WalletRepository
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
@@ -70,12 +72,14 @@ fun App() {
         var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
         var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
         var walletRepository by remember { mutableStateOf<WalletRepository?>(null) }
+        var agentRepository by remember { mutableStateOf<AgentRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
             tripRepository = SupabaseClientProvider.tripRepository()
             accountRepository = SupabaseClientProvider.accountRepository()
             walletRepository = SupabaseClientProvider.walletRepository()
+            agentRepository = SupabaseClientProvider.agentRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -136,6 +140,17 @@ fun App() {
 
         when (val route = nav.current) {
             AppRoute.Resolving -> SplashScreen()
+
+            // Screen Inventory §3.2. A SIBLING host, not a wrapper — see AgentRoute.
+            AppRoute.Worklist -> {
+                val agent = agentRepository
+                val onboarding = onboardingRepository
+                if (agent == null || onboarding == null) {
+                    SplashScreen()
+                } else {
+                    AgentWorklistHost(agent = agent, onboarding = onboarding, nav = nav)
+                }
+            }
 
             // Screen Inventory §2.0. One host for all nine screens — see PublicRoute.
             AppRoute.PublicLanding,
@@ -490,11 +505,67 @@ fun App() {
  * cleared on completion, but the gate does not depend on that having happened.
  */
 fun destinationFor(status: OnboardingStatus?): AppRoute = when {
+    // FAILS OPEN TO THE CLIENT SHELL, and with two shells that direction is the security
+    // property rather than a convenience. A bookkeeping query going wrong must not lock
+    // somebody out of their own dashboard — but rendering the WORKLIST on a failed read
+    // would put an unknown visitor in front of somebody else's book. A client who lands on
+    // the dashboard by accident sees their own trips; an agent who does sees an empty one
+    // and a way back. The web gate (web/lib/agent/role.ts) records the same asymmetry.
     status == null -> AppRoute.Dashboard
+
+    status.role == "agent" -> AppRoute.Worklist
+
+    // An admin has neither a client_id nor an agent_id in the general case — the
+    // platform_user CHECK permits it — so `current_agent_id()` refuses them and every §3.x
+    // read returns nothing. The client dashboard is the same dead end, but it is the one
+    // that already has an unauthorized state; §3.9 is agent tooling, not an admin console.
+    status.role == "admin" -> AppRoute.Dashboard
+
     !status.isClient -> AppRoute.Dashboard
     status.completed -> AppRoute.Dashboard
     // Started but unfinished: resume where they stopped. Never started: the cover page.
     else -> AppRoute.Onboarding(WizardStep.ofSlug(status.step) ?: WizardStep.WELCOME)
+}
+
+/**
+ * §3.1.6 MANDATORY AGENT MFA IS NOT ENFORCED HERE, and that is a known gap rather than an
+ * oversight. Data-Model §5.1 requires it and `account.mfa_required` is true for the seeded
+ * agent, but nothing in this gate sends an agent without a verified factor to [AppRoute.MfaSetup]
+ * — the MFA challenge only fires when `repo.assurance()` already says REQUIRED. Closing it
+ * belongs with §3.1, which builds the agent activation wizard. Left visible in the gate
+ * rather than discovered later.
+ */
+
+/**
+ * Resolves who the advisor is before handing off to [AgentRoute].
+ *
+ * The display name and the time zone both come off `platform_user`, which
+ * `OnboardingRepository.status()` already reads — no second round trip, and no new read
+ * surface: `time_zone` is inside the client column grant.
+ */
+@Composable
+private fun AgentWorklistHost(
+    agent: AgentRepository,
+    onboarding: OnboardingRepository,
+    nav: Navigator,
+) {
+    var identity by remember { mutableStateOf<Pair<String, String>?>(null) }
+    LaunchedEffect(onboarding) {
+        val status = onboarding.status()
+        identity = (status?.displayName.orEmpty()) to (status?.timeZone ?: "America/Chicago")
+    }
+    val resolved = identity
+    if (resolved == null) {
+        SplashScreen()
+    } else {
+        AgentRoute(
+            route = AppRoute.Worklist,
+            nav = nav,
+            agent = agent,
+            displayName = resolved.first,
+            timeZone = resolved.second,
+        )
+    }
 }
 
 /** Plain branded ground while the session resolves. Milliseconds in the common case. */

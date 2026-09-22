@@ -329,6 +329,7 @@ object SupabaseClientProvider {
     private var cachedTrip: TripRepository? = null
     private var cachedAccount: AccountRepository? = null
     private var cachedWallet: WalletRepository? = null
+    private var cachedAgent: AgentRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -392,6 +393,21 @@ object SupabaseClientProvider {
         }
 
     /**
+     * §3.2's reads, on the SAME client again.
+     *
+     * One client, one session, one refresh loop — a second would be a second of each. The
+     * agent surface reads through SECURITY DEFINER accessors over PostgREST rather than
+     * Edge Functions, which is a different call shape but the same authenticated client.
+     */
+    suspend fun agentRepository(): AgentRepository =
+        withContext(Dispatchers.Default) {
+            cachedAgent ?: run {
+                build()
+                cachedAgent!!
+            }
+        }
+
+    /**
      * The §2.5 account reads, on the SAME client again.
      *
      * Separate from [tripRepository] because the sections are separate — §2.5's reads are
@@ -414,6 +430,7 @@ object SupabaseClientProvider {
             cachedTrip = UnconfiguredTripRepository()
             cachedAccount = UnconfiguredAccountRepository()
             cachedWallet = UnconfiguredWalletRepository()
+            cachedAgent = UnconfiguredAgentRepository()
             return
         }
         val client = createSupabaseClient(
@@ -429,5 +446,6 @@ object SupabaseClientProvider {
         cachedTrip = SupabaseTripRepository(client)
         cachedAccount = SupabaseAccountRepository(client)
         cachedWallet = SupabaseWalletRepository(client)
+        cachedAgent = SupabaseAgentRepository(client)
     }
 }

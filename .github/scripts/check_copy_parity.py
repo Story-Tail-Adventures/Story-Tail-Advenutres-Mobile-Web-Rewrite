@@ -28,11 +28,50 @@ WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
 TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
 TRIP_SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip"
 ACCOUNT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account"
+AGENT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
+    {
+        # §3.2's copy. The web side's greeting line, currency note and cancelled note are
+        # FUNCTIONS — each takes a count and pluralises — and web_messages skips anything
+        # that is not a string literal, so those three are covered by the paired unit tests
+        # (web/lib/agent/content.test.ts) rather than here.
+        #
+        # The web module carries more than this: the pipeline and calendar strings belong to
+        # screens §6.6 keeps web-only at MVP, so they have no KMP twin to compare against.
+        # Listed here is exactly the set both surfaces render.
+        "label": "agent 3.2",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "AGENT_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "AgentCopy.kt",
+        "kmp_object": "AgentCopy",
+        "keys": {
+            "greetingZero": "GREETING_ZERO",
+            "greetingZeroSub": "GREETING_ZERO_SUB",
+            "greetingOne": "GREETING_ONE",
+            "proposalsTitle": "PROPOSALS_TITLE",
+            "proposalsEmpty": "PROPOSALS_EMPTY",
+            "paymentsTitle": "PAYMENTS_TITLE",
+            "paymentsEmpty": "PAYMENTS_EMPTY",
+            "inquiriesTitle": "INQUIRIES_TITLE",
+            "inquiriesEmpty": "INQUIRIES_EMPTY",
+            "departingTitle": "DEPARTING_TITLE",
+            "departingEmpty": "DEPARTING_EMPTY",
+            "messagesTitle": "MESSAGES_TITLE",
+            "messagesEmpty": "MESSAGES_EMPTY",
+            "cycleTimeUnavailable": "CYCLE_TIME_UNAVAILABLE",
+            "tripDetailDeferred": "TRIP_DETAIL_DEFERRED",
+            "clientDetailDeferred": "CLIENT_DETAIL_DEFERRED",
+            "messagesDeferred": "MESSAGES_DEFERRED",
+            "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
+            "quickAddClientDeferred": "QUICK_ADD_CLIENT_DEFERRED",
+            "leadsDeferred": "LEADS_DEFERRED",
+            "availabilityDeferred": "AVAILABILITY_DEFERRED",
+        },
+    },
     {
         # Screen 2.2.1's copy. Only the plain-string keys are listed: the web side's
         # greeting variants are functions (the "0 days"/"1 day" special cases need one) and

@@ -16,10 +16,10 @@ import kotlin.test.assertEquals
 class OnboardingGateTest {
 
     private fun status(
-        isClient: Boolean = true,
+        role: String? = "client",
         completed: Boolean = false,
         step: String? = null,
-    ) = OnboardingStatus(isClient = isClient, completed = completed, step = step)
+    ) = OnboardingStatus(role = role, completed = completed, step = step)
 
     @Test
     fun sends_a_client_who_has_never_started_to_the_cover_page() {
@@ -53,14 +53,44 @@ class OnboardingGateTest {
     }
 
     @Test
-    fun never_routes_an_agent_into_the_client_wizard() {
-        assertEquals(AppRoute.Dashboard, destinationFor(status(isClient = false)))
+    fun sends_an_agent_to_the_worklist() {
+        // This assertion used to read `Dashboard`, and changing it is the single line in the
+        // §3.2 diff that proves launch behaviour moved. Before it, an agent landed on the
+        // client dashboard, every §2.2 read returned zero rows because their
+        // platform_user.client_id is NULL, and the screen rendered a friendly "no trips
+        // yet" — which reads as data loss rather than a wrong turn.
+        assertEquals(AppRoute.Worklist, destinationFor(status(role = "agent")))
     }
 
     @Test
-    fun falls_open_when_the_status_could_not_be_read() {
-        // A bookkeeping read going wrong must not lock somebody out of their own dashboard.
+    fun never_routes_an_agent_into_the_client_wizard() {
+        // Even carrying a stray step slug. An agent has no wizard at all.
+        assertEquals(AppRoute.Worklist, destinationFor(status(role = "agent", step = "profile")))
+    }
+
+    @Test
+    fun falls_open_TO_THE_CLIENT_SHELL_when_the_status_could_not_be_read() {
+        // The direction is the security property, not the falling open. A bookkeeping read
+        // going wrong must not lock somebody out of their own dashboard — but with two
+        // shells, rendering the WORKLIST on a failed read would put an unknown visitor in
+        // front of somebody else's book.
         assertEquals(AppRoute.Dashboard, destinationFor(null))
+    }
+
+    @Test
+    fun an_admin_does_not_reach_the_worklist() {
+        // platform_user's CHECK permits an admin with neither a client_id nor an agent_id,
+        // so current_agent_id() refuses them and every §3.x read returns nothing. The client
+        // dashboard is the same dead end, but it is the one with an unauthorized state.
+        assertEquals(AppRoute.Dashboard, destinationFor(status(role = "admin")))
+    }
+
+    @Test
+    fun an_unrecognised_role_does_not_reach_the_worklist() {
+        // A fourth `user_role` value added to the database ahead of the app must fall to the
+        // least privileged shell, not the most.
+        assertEquals(AppRoute.Dashboard, destinationFor(status(role = "auditor")))
+        assertEquals(AppRoute.Dashboard, destinationFor(status(role = null)))
     }
 
     @Test
