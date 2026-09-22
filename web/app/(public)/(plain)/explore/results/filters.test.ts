@@ -11,6 +11,24 @@ import {
   toggleChip,
 } from "./filters";
 
+/**
+ * A stay that is always in the future.
+ *
+ * This test used to hardcode `2026-09-20`/`2026-09-27`, and on 2026-09-21 it started
+ * failing everywhere at once — `parseStay` drops a check-in before today (search.ts:293),
+ * which is correct behaviour, so the fixture had simply expired. A date literal in a test
+ * that needs a FUTURE date is a time bomb with a fuse the length of the gap between writing
+ * it and today; derive it instead.
+ */
+function futureStay(): { in: string; out: string } {
+  const day = (offset: number) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + offset);
+    return d.toISOString().slice(0, 10);
+  };
+  return { in: day(30), out: day(37) };
+}
+
 const chip = (id: string) => {
   const found = MOBILE_CHIPS.find((c) => c.id === id);
   if (!found) throw new Error(`no chip ${id}`);
@@ -100,7 +118,8 @@ describe("chipsFor", () => {
   });
 
   it("toggles a hotel chip into the URL and back out without disturbing the search", () => {
-    const q = parseSearchParams({ dest: "Aruba", in: "2026-09-20", out: "2026-09-27", mode: "hotels" });
+    const stay = futureStay();
+    const q = parseSearchParams({ dest: "Aruba", in: stay.in, out: stay.out, mode: "hotels" });
     const spa = chipsFor("hotels").find((c) => c.label === "Spa")!;
     expect(chipIsOn(q, spa)).toBe(false);
 
@@ -109,8 +128,8 @@ describe("chipsFor", () => {
     expect(chipIsOn(on, spa)).toBe(true);
     // The search itself survives the toggle — that is what makes it a filter and not a reset.
     expect(on.dest).toBe("Aruba");
-    expect(on.checkIn).toBe("2026-09-20");
-    expect(on.checkOut).toBe("2026-09-27");
+    expect(on.checkIn).toBe(stay.in);
+    expect(on.checkOut).toBe(stay.out);
 
     const href = chipHref(q, spa);
     expect(href).toContain("amenity=10");
