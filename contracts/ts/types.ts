@@ -251,6 +251,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-trip-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a trip between pipeline stages.
+         * @description Screen 3.2.2 (Pipeline / Funnel View). Agent role only — a traveler gets a 403
+         *     naming the other side of the platform, and so does an advisor whose `agent.status`
+         *     is `archived`. Every read on this side already refuses that advisor
+         *     (`current_agent_id()` tests `status <> 'archived'`); a write path that did not
+         *     would leave an offboarded advisor moving trips they can no longer see, which is
+         *     an empty board that looks like enforcement next to an open door. `inactive` is
+         *     not `archived` — a paused advisor still works the book they hold.
+         *
+         *     THE MUTATION IS ATOMIC IN SQL, not here. A stage change is a `trip` update plus a
+         *     `trip_status_history` row, and `public.agent_set_trip_status` does the pair under
+         *     `FOR UPDATE`. Losing the history row is unrecoverable: `trip.status_changed_at`
+         *     keeps only the LATEST transition, so a transition without its history row leaves
+         *     nothing to reconstruct the timing from and the inquiry-to-book KPI is wrong
+         *     permanently. The `audit_event` is written after, in TypeScript, because it carries
+         *     the IP and user agent that only exist at the HTTP layer.
+         *
+         *     `expectedVersion` IS REQUIRED. `trip.version` has existed since the initial
+         *     migration and nothing had ever honoured it (Data-Model §20.4); a drag-and-drop
+         *     board with two tabs open is exactly what it is for. A mismatch is a **409**, not a
+         *     400 — the caller did nothing wrong, the row moved under them, and a reload fixes
+         *     it. Omitting the field is a 400: the board always has a version in hand, and
+         *     allowing it to be left out would quietly make every drop last-write-wins.
+         *
+         *     A NO-OP IS A 200, NOT AN ERROR. Dropping a card back into its own column asks for
+         *     a state that already holds. `changed` is false and NO history row is written — a
+         *     logged transition that never happened corrupts the cycle-time KPI exactly as
+         *     badly as a missing one.
+         *
+         *     ONE SAME-STAGE CALL STILL WRITES: `cancelled` → `cancelled` carrying a DIFFERENT
+         *     reason. This endpoint is the only writer of `trip.cancellation_reason` in the
+         *     schema, and the call that makes the reason mandatory used to take it, answer 200
+         *     and drop it. The reason now lands, and an `audit_event` is written under
+         *     `trip.cancellation_reason_changed` rather than under a status change that did not
+         *     happen. `changed` stays false, because no stage moved and no history row was
+         *     written — so `changed: false` does NOT promise that nothing was recorded.
+         *     `cancellationReasonUpdated` is what tells the two apart, and it is present on
+         *     every `cancelled` call.
+         *
+         *     `cancellationReason` IS REQUIRED WHEN `status` IS `cancelled`. It lands in
+         *     `trip.cancellation_reason`, which is inside the client column grant and which
+         *     Screen 2.2.10 renders. A cancellation that cannot tell the traveler why is a worse
+         *     row than no cancellation. A later non-cancel transition does not clear it.
+         *
+         *     THE STATUS SET IS THE `trip_status` ENUM, all six values. The board draws five of
+         *     them; `cancelled` is a real destination but not a funnel column. The design
+         *     prototype draws `Qualified` and `Traveling`, neither of which exists in the enum —
+         *     recorded as a prototype defect rather than chased with a migration.
+         *
+         *     WHAT IT DOES NOT DO: it does not create a commission row, touch payment milestones,
+         *     or send anything. Marking a trip `booked` is what §3.7's commission entry hangs
+         *     off, but minting money records as a side effect of a drag is §3.7.4's job to do
+         *     deliberately.
+         */
+        post: operations["setAgentTripStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding-step": {
         parameters: {
             query?: never;
@@ -647,6 +718,33 @@ export interface components {
             /** @description `revoke` only. False means it was already revoked or expired. */
             changed?: boolean;
         };
+        AgentTripStatusRequest: {
+            /** Format: uuid */
+            tripId: string;
+            /** @enum {string} */
+            status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
+            /** @description `trip.version` as the board was rendered from. A mismatch is a 409. Required: the board always has it, and omitting it would make every drop last-write-wins. */
+            expectedVersion: number;
+            /** @description Required when `status` is `cancelled`, ignored otherwise. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler. */
+            cancellationReason?: string;
+        };
+        AgentTripStatusResponse: {
+            /** Format: uuid */
+            tripId: string;
+            /** @enum {string} */
+            status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
+            /**
+             * @description Absent whenever the stage did not move — a no-op, or a cancellation-reason correction — because nothing was left behind.
+             * @enum {string}
+             */
+            previousStatus?: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
+            /** @description The version after the write. Send this as the next `expectedVersion`. */
+            version: number;
+            /** @description False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded — a corrected cancellation reason writes the column and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false. */
+            changed: boolean;
+            /** @description Present on every `cancelled` call and only those, because the reason is mandatory on all of them and the caller is owed an answer about where it went. True when this call wrote it to `trip.cancellation_reason` — either on a transition into `cancelled` or on a same-stage correction. False when the stored reason already read that way, so there was nothing to write. Either answer means the traveler now sees the sentence you sent, on Screen 2.2.10. */
+            cancellationReasonUpdated?: boolean;
+        };
         OnboardingStepRequest: {
             /**
              * @description The step to move the cursor to. Reaching `complete` is not the same as finishing — that is what `complete: true` is for.
@@ -916,6 +1014,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description The row moved since the caller read it. Distinct from a 400 on purpose: the request was well formed and the caller did nothing wrong, so the remedy is a reload rather than a correction. */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: never;
     requestBodies: never;
@@ -1140,6 +1247,39 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    setAgentTripStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTripStatusRequest"];
+            };
+        };
+        responses: {
+            /**
+             * @description The trip is in the requested stage. `changed` is false when it already was.
+             *     On a `cancelled` call, `cancellationReasonUpdated` says whether the reason
+             *     reached `trip.cancellation_reason`.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTripStatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     setOnboardingStep: {

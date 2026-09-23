@@ -386,4 +386,21 @@ sealed interface AppRoute {
     data class WalletUseDetail(val eventId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
+
+    // ── §3.2 · the advisor's side ────────────────────────────────────────────────
+    //
+    // ONE ROUTE TYPE, NOT TWO. A parallel `sealed interface AgentRoute` would mean
+    // [Navigator] becomes generic or gets duplicated, and App.kt's `PlatformBackHandler`
+    // would have to know which stack it is unwinding. The two shells stay apart because of
+    // what RENDERS them — `AgentRoute` in ui/screens/agent/ is a sibling host to TripRoute
+    // and AccountRoute, and no composable under ui/screens/agent/ imports ClientScaffold.
+    //
+    // Screen-Inventory §6.6 keeps the agent's phone deliberately narrow: Worklist, Clients,
+    // Messages, More. Only the first has a screen in this slice; the other three are drawn
+    // dimmed, which is why they are not routes yet.
+
+    /** Screen 3.2.1, and the root of the Worklist tab. */
+    data object Worklist : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
 }

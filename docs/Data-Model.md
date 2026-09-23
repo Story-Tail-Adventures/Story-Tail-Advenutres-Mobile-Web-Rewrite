@@ -101,6 +101,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Agent | Agent | P1 | Advisor profile |
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
+| PipelineWeight | Agent | P1 | Per-stage probability the commission forecast multiplies by |
 | Supplier | Trip | P1 | Resort, cruise line, tour operator, etc. |
 | Trip | Trip | P1 | Core unit of work — one trip end-to-end |
 | TripComponent | Trip | P1 | Flight, hotel, cruise, transfer, excursion, etc. |
@@ -110,6 +111,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Proposal | Trip | P1 | Snapshot of a trip presented to the client |
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
 | Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
+| TripStatusHistory | Trip | P1 | Append-only record of every trip status transition |
 | PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
 | CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
 | AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
@@ -855,6 +857,37 @@ mutation on the `client` blast radius and rule 3 applies in full.
 
 ---
 
+### 7.4 PipelineWeight
+
+**Purpose:** The probability, per pipeline stage, that a trip in that stage will convert. The commission forecast multiplies expected commission by it. Read by Screen 3.2.1's "Commission expected" KPI and by 3.7.7 Commission Forecast / Pipeline View.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `agent_id` | `uuid` | No | Public | FK → Agent. Half of the primary key |
+| `status` | `trip_status` enum | No | Public | The other half. **All six values carry a row** |
+| `weight_pct` | `smallint` | No | Public | 0–100 |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Why a table and not a `jsonb` column on Agent.** Four numbers would fit in a blob, and `agent_availability.time_off_blocks` is the cautionary example of what that costs: it is `jsonb` with no declared schema, so nothing can validate it and the calendar's availability layer is deferred because there is nothing to parse against. A keyed table gets a `CHECK (weight_pct BETWEEN 0 AND 100)` and an enum-typed `status` for free, and the forecast joins it in SQL rather than unnesting a blob per row.
+
+**Every status carries a row, including the ones the forecast ignores.** `completed` is money already earned and `cancelled` is money that will not arrive, so neither belongs in a forward-looking figure — but leaving them out would make "which statuses count" an implicit rule living in whichever query happened to be written first. They are present with honest values and the forecast selects the open statuses explicitly.
+
+**Defaults (set 2026-09-19, Gyasi's call — the moderate of three options offered):**
+
+| `inquiry` | `proposal` | `booked` | `in_progress` | `completed` | `cancelled` |
+|---|---|---|---|---|---|
+| 20 | 50 | 100 | 100 | 100 | 0 |
+
+These are defaults, not constants: the rows are seeded per agent and 3.12 Agent Settings edits them. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
+
+**The confidence figure** the prototype draws as "71%" is the weighted total over the unweighted one, not a stored value. It is therefore a property of the book's current shape, and it moves when trips move, which is the intended reading.
+
+**Indexes:** primary key on `(agent_id, status)`. Nothing else — it is at most six rows per agent.
+
+---
+
 ## 8. Trip Domain
 
 This is the largest and most central domain. Trip is the unit of work the entire business orbits around.
@@ -1234,6 +1267,80 @@ data class Trip(
 **Voice note:** the prompt is *"What did you carry home from this trip?"* (Design-System §2.4), not "rate your experience". The field is a reflection first and a testimonial second, which is also why `rating` is nullable.
 
 **Indexes:** unique on `(client_id, trip_id)` where `trip_id IS NOT NULL`; index on `(agent_id, status, created_at desc)` for the approval queue; index on `(status, published_at desc)` where `status = 'published'` for the public surface.
+
+---
+
+### 8.8 TripStatusHistory
+
+**Purpose:** One row per trip status transition, append-only. It exists because `trip.status_changed_at` holds only the **latest** transition, so no elapsed-time question can be answered from `trip` alone.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `trip_id` | `uuid` | No | Public | FK → Trip |
+| `from_status` | `trip_status` enum | Yes | Public | Null on the row recording the trip's creation. Nothing writes that row yet: see the amendment below |
+| `to_status` | `trip_status` enum | No | Public | — |
+| `changed_at` | `timestamptz` | No | Public | — |
+| `changed_by_user_id` | `uuid` | Yes | Internal | FK → User. Null when a system path moved the trip. No system path writes a row yet: see the amendment below |
+
+**What it unlocks.** Screen 3.2.1's "Inquiry → book" KPI is the elapsed time between a trip's creation and its **first** `booked` row, averaged over the book. `trip.created_at` stands in for the inquiry moment, and the amendment below says why that substitution is sound today and where it stops being sound. 3.11 Reporting wants the same shape for every other pair of stages, and that one needs both ends out of this table. Neither is computable without it, and both were specified before it existed.
+
+**It accumulates forward, and that is worth stating plainly rather than discovering.** A backfill from `trip.status_changed_at` yields exactly one row per trip — its most recent transition — which is not a cycle time and never becomes one. So the KPI is empty until trips have moved through stages *after* this table shipped, and the screen must render that as a real "not enough history yet" state rather than as a zero. Seed data carries synthetic history so the tile can be verified locally without waiting.
+
+**Append-only.** No UPDATE, no DELETE, by the same reasoning as `card_use_event` (§9.4) and `audit_event` (§15): a history somebody can edit answers a different question from the one it appears to answer. Correcting a wrong status is a new transition, not an amendment to an old one.
+
+**Written by exactly one path** — the `agent-trip-status` Edge Function, in the same transaction as the `trip.status` update and alongside the `audit_event` that CLAUDE.md rule 3 requires. The two records are not redundant: `audit_event` is the agency's tamper-evident trail of who did what, and this is a queryable business timeline. Deriving the KPI from `audit_event` would mean teaching a reporting query to parse audit metadata, which couples the analytics surface to the audit schema.
+
+**Amended 2026-09-23, reconciling this section with what shipped.**
+
+**The cycle time anchors on `trip.created_at`, not on a first `inquiry` row.** This section
+previously defined the KPI as the span between a trip's first `inquiry` row and its first
+`booked` row. `agent_kpis()` reads no inquiry row at all: its `cycle` CTE averages
+`first_booked - t.created_at` over trips that have at least one `to_status = 'booked'` row
+(`20260919140000_agent_read_surface.sql`). The two definitions agree today, and that is not
+luck: `trip.status` defaults to `inquiry`, `quote-request` is the only production path that
+inserts a trip and deliberately leaves the default alone, and no client or agent role holds
+INSERT on `trip` anywhere in the migrations. Every trip's creation is therefore its inquiry.
+The definition above is now the shipped one rather than a second one sitting beside it.
+
+**A trip walked back to `inquiry` is still measured from creation.**
+`agent_set_trip_status` enforces no transition whitelist: it rejects only a move to the
+status the trip already holds, and `inquiry` is one of the five columns on the §3.2.2 board.
+An agent can move a trip backwards, which writes a `to_status = 'inquiry'` row dated after
+`created_at`, and the KPI ignores it. A re-opened trip reports one long cycle rather than a
+short second one. Recorded rather than changed, because the tile answers "how long from
+first contact to a booking" and first contact does not move when a trip re-opens. Cycle time
+per attempt is a stage-pair question, which is 3.11's shape and not this tile's. If that
+call is ever reversed, the change is a filter in `cycle` plus a matching line here, and it
+belongs with 3.11's work rather than on its own.
+
+**The creation row is specified and unbuilt, and it is the stated reason two columns are
+nullable.** The intended shape is one row per trip at creation, `from_status` NULL because
+there was no prior status and `changed_by_user_id` NULL when a system path created it.
+Nothing writes it. `agent_set_trip_status` is the only production writer and always supplies
+the trip's current status and the acting agent; `quote-request` inserts the trip and no
+history row at all; every seeded row names both. So on every row a production path writes
+today both columns are populated, and a consumer that goes looking for the
+`from_status`-NULL row to find a trip's inquiry timestamp finds nothing. The write
+belongs with the paths that create trips: `quote-request` (Screen Inventory §2.3.8) on the
+client side, and §3.4.3 Create New Trip when the agent side ships. Until one of them writes it,
+`trip.created_at` is the anchor, and the two column comments in
+`20260919130000_agent_pipeline_entities.sql` carry the same unbuilt promise this table does.
+
+**That statement covers production paths and the seed; `changed_by_user_id` has one known
+exception and it is a test fixture.** The pgTAP file `supabase/tests/rls_agent_reads.sql`
+writes transient history rows twice — in the `booked_month` month-boundary block and in the
+booked-twice block beneath it — with a column list that stops at `changed_at`, so those rows
+carry a NULL actor. Both blocks delete their rows again inside the same run, and both still
+name an explicit `from_status`, so nothing above changes. It is recorded because the
+paragraph above otherwise reads as licence to put `NOT NULL` on `changed_by_user_id`: that
+would fail those inserts, and it would foreclose the creation row this section is holding
+the column open for. `from_status` is the stronger of the two — no path anywhere, production
+or fixture, writes a row without it yet.
+
+**Indexes:** index on `(trip_id, changed_at)` for a single trip's timeline; index on `(to_status, changed_at)` for the cross-book aggregates 3.2.1 and 3.11 run.
 
 ---
 

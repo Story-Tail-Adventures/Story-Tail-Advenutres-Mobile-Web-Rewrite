@@ -40,9 +40,11 @@
  * under /login but is not an auth-only page — reaching it means holding a half-assured
  * session — so it needs clearing while bare `/login` must NOT be listed.
  *
- * `/agent` (§3.x) has no routes yet. Add them when they do; the
- * cross-check in signed-in-shells.test.ts fails until they are, by walking the app directory
- * and asking the proxy which of the routes it finds require a session.
+ * `/agent` (§3.x) arrived with the worklist. One prefix covers the whole agent surface —
+ * `/agent`, `/agent/pipeline` and `/agent/calendar` today, every §3 route later — and the
+ * cross-check in signed-in-shells.test.ts is what makes forgetting the next one impossible:
+ * it walks the app directory and asks the proxy which of the routes it finds require a
+ * session.
  */
 export const SIGNED_IN_SHELLS = [
   "/dashboard",
@@ -51,8 +53,12 @@ export const SIGNED_IN_SHELLS = [
   // navigation renders a cached page belonging to whoever just left.
   "/account",
   "/documents",
-  // §2.6, and the one with the most to leak: a cached inbox renders the previous person's
-  // conversations, their advisor's own words in the preview line included.
+  // §3.x. The agent surface leaks differently from the client ones: a cached worklist
+  // renders the whole book — every client's name, every trip's value, the commission
+  // forecast — to whoever signs in next on a shared machine.
+  "/agent",
+  // §2.6, and the one with the most to leak on the client side: a cached inbox renders the
+  // previous person's conversations, their advisor's own words in the preview line included.
   "/messages",
   // §2.4. A cached wallet would render the previous person's cards and what was charged to
   // them, which is the most sensitive thing this shell can hold.

@@ -40,6 +40,17 @@ enum class StoryTailMark {
     // does mean §2.5 could not start until these existed, which is why they landed first.
     HEART, BELL, SHIELD, LINK, LOCK, QUESTION, CHEVRON_RIGHT, CHEVRON_DOWN,
     CLOSE, DOWNLOAD, UPLOAD, WARNING, INFO, MORE_VERT, BRIEFCASE,
+
+    // §3.2's five, for the agent bar and the worklist's KPI rail. Same rule as above: each
+    // is the prototype glyph (design/source-prototype/shared/icons.jsx) cut down to what
+    // still reads at 16-20dp, and each is used by the web build's matching screen.
+    //
+    // DOLLAR and USERS are the two that lose the most in the cut. The prototype's dollar is
+    // an S-curve built from two arcs and its users is two heads over two overlapping
+    // shoulders; at 19dp on a tab bar the arcs turn to mush. Both are redrawn from straight
+    // segments that read at that size and keep the silhouette, which is the same trade
+    // PASSPORT and SHIP already made.
+    PULSE, USERS, DOLLAR, CLOCK, CHECK,
 }
 
 @Composable
@@ -548,6 +559,119 @@ fun StoryTailGlyph(
                         lineTo(w * 0.34f, h * 0.16f)
                         lineTo(w * 0.66f, h * 0.16f)
                         lineTo(w * 0.66f, h * 0.32f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // pulse: 'M3 12h4l3-8 4 16 3-8h4' — a heartbeat trace, straight segments only.
+            StoryTailMark.PULSE -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.08f, h * 0.50f)
+                        lineTo(w * 0.29f, h * 0.50f)
+                        lineTo(w * 0.42f, h * 0.17f)
+                        lineTo(w * 0.58f, h * 0.83f)
+                        lineTo(w * 0.71f, h * 0.50f)
+                        lineTo(w * 0.92f, h * 0.50f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // users: two heads and two shoulder lines. The prototype fills two overlapping
+            // bodies; outlined at this size they merge into a blob, so the rear figure is a
+            // head plus one arc offset behind the front one.
+            StoryTailMark.USERS -> {
+                drawCircle(
+                    color = color,
+                    radius = w * 0.15f,
+                    center = Offset(w * 0.38f, h * 0.30f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.12f, h * 0.84f)
+                        lineTo(w * 0.12f, h * 0.72f)
+                        quadraticTo(w * 0.38f, h * 0.54f, w * 0.64f, h * 0.72f)
+                        lineTo(w * 0.64f, h * 0.84f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawCircle(
+                    color = color,
+                    radius = w * 0.11f,
+                    center = Offset(w * 0.73f, h * 0.26f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.74f, h * 0.84f)
+                        lineTo(w * 0.92f, h * 0.84f)
+                        lineTo(w * 0.92f, h * 0.70f)
+                        quadraticTo(w * 0.86f, h * 0.56f, w * 0.72f, h * 0.55f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // dollar: the prototype's S is two arcs. Redrawn as a stem plus a zig that keeps
+            // the silhouette and survives 16dp.
+            StoryTailMark.DOLLAR -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.06f)
+                        lineTo(w * 0.50f, h * 0.94f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.72f, h * 0.28f)
+                        quadraticTo(w * 0.60f, h * 0.17f, w * 0.42f, h * 0.20f)
+                        quadraticTo(w * 0.22f, h * 0.26f, w * 0.34f, h * 0.44f)
+                        quadraticTo(w * 0.46f, h * 0.55f, w * 0.64f, h * 0.58f)
+                        quadraticTo(w * 0.80f, h * 0.66f, w * 0.66f, h * 0.80f)
+                        quadraticTo(w * 0.48f, h * 0.88f, w * 0.30f, h * 0.74f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // clock: 'M12 7v5l3 2m-3 7a9 9 0 1 1 0-18 9 9 0 0 1 0 18Z'
+            StoryTailMark.CLOCK -> {
+                drawCircle(
+                    color = color,
+                    radius = w * 0.40f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.27f)
+                        lineTo(w * 0.50f, h * 0.52f)
+                        lineTo(w * 0.68f, h * 0.63f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // check: 'm5 12 5 5L20 6'. CheckMark already draws this as its own composable for
+            // §2.0's feature list; this is the same stroke as an enum member, so the KPI rail
+            // can ask for it by mark like every other icon.
+            StoryTailMark.CHECK -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.21f, h * 0.50f)
+                        lineTo(w * 0.42f, h * 0.71f)
+                        lineTo(w * 0.83f, h * 0.25f)
                     },
                     color = color,
                     style = outline,

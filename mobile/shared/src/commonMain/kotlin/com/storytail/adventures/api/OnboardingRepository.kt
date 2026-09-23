@@ -90,10 +90,28 @@ interface OnboardingRepository {
  * Null everywhere is a legitimate answer for an agent, who has no wizard at all.
  */
 data class OnboardingStatus(
-    val isClient: Boolean,
+    /**
+     * `platform_user.role`, verbatim — 'client', 'agent' or 'admin'.
+     *
+     * This read has always SELECTed it and thrown it away behind [isClient]. §3.2 needs the
+     * value: the two shells route in opposite directions and `admin` is a third answer
+     * rather than "not a client", because platform_user's CHECK permits an admin carrying
+     * neither a client_id nor an agent_id.
+     */
+    val role: String?,
     val completed: Boolean,
     val step: String?,
-)
+    /**
+     * `platform_user.time_zone`. The agent's greeting is derived from it — the accessors
+     * compute every figure in the agent's own zone and deriving "Morning" from the device
+     * clock would undo that in the most visible line on the screen.
+     */
+    val timeZone: String = "America/Chicago",
+    /** `platform_user.display_name`. The agent's greeting; a client has one too, unused. */
+    val displayName: String = "",
+) {
+    val isClient: Boolean get() = role == "client"
+}
 
 /** The five functions the wizard writes through. */
 enum class OnboardingFunction(val path: String) {
@@ -195,13 +213,15 @@ class SupabaseOnboardingRepository(
     override suspend fun status(): OnboardingStatus? = read {
         client.postgrest
             .from("platform_user")
-            .select(Columns.list("role", "onboarding_step", "onboarding_completed_at"))
+            .select(Columns.list("role", "onboarding_step", "onboarding_completed_at", "time_zone", "display_name"))
             .decodeSingleOrNull<PlatformUserRow>()
     }?.let {
         OnboardingStatus(
-            isClient = it.role == "client",
+            role = it.role,
             completed = it.onboarding_completed_at != null,
             step = it.onboarding_step,
+            timeZone = it.time_zone ?: "America/Chicago",
+            displayName = it.display_name.orEmpty(),
         )
     }
 
@@ -337,6 +357,8 @@ class SupabaseOnboardingRepository(
         val role: String? = null,
         val onboarding_step: String? = null,
         val onboarding_completed_at: String? = null,
+        val time_zone: String? = null,
+        val display_name: String? = null,
     )
 
     private fun parseObject(text: String): JsonObject =

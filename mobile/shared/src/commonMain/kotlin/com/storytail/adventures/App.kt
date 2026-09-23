@@ -19,6 +19,8 @@ import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.ui.screens.agent.AgentRoute
 import com.storytail.adventures.api.WalletRepository
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
@@ -70,12 +72,14 @@ fun App() {
         var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
         var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
         var walletRepository by remember { mutableStateOf<WalletRepository?>(null) }
+        var agentRepository by remember { mutableStateOf<AgentRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
             tripRepository = SupabaseClientProvider.tripRepository()
             accountRepository = SupabaseClientProvider.accountRepository()
             walletRepository = SupabaseClientProvider.walletRepository()
+            agentRepository = SupabaseClientProvider.agentRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -93,6 +97,17 @@ fun App() {
         val sessionStatus by repo.sessionStatus.collectAsState(
             initial = SessionStatus.Initializing,
         )
+
+        /**
+         * The row the gate below resolves, KEPT rather than dropped.
+         *
+         * `platform_user` carries `display_name` and `time_zone`, both added to this read
+         * for §3.2's greeting, and the gate used to throw the whole status away after
+         * reading the role off it — so [AgentWorklistHost] issued a second identical select
+         * behind a full-screen splash, serialised ahead of the four worklist RPCs, with its
+         * own independent way to fail. One read, one failure point.
+         */
+        var onboardingStatus by remember { mutableStateOf<OnboardingStatus?>(null) }
 
         /**
          * The session decides the stack, not the other way round.
@@ -116,8 +131,13 @@ fun App() {
                     nav.resetTo(
                         when {
                             repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
-                            else -> onboardingRepository?.let { destinationFor(it.status()) }
-                                ?: AppRoute.Dashboard
+                            else -> onboardingRepository?.let { onboarding ->
+                                // Assigned BEFORE the route is chosen, so anything the
+                                // route then renders already has it.
+                                val status = onboarding.status()
+                                onboardingStatus = status
+                                destinationFor(status)
+                            } ?: AppRoute.Dashboard
                         },
                     )
 
@@ -136,6 +156,26 @@ fun App() {
 
         when (val route = nav.current) {
             AppRoute.Resolving -> SplashScreen()
+
+            // Screen Inventory §3.2. A SIBLING host, not a wrapper — see AgentRoute.
+            AppRoute.Worklist -> {
+                val scope = rememberCoroutineScope()
+                val agent = agentRepository
+                if (agent == null) {
+                    SplashScreen()
+                } else {
+                    AgentWorklistHost(
+                        agent = agent,
+                        status = onboardingStatus,
+                        nav = nav,
+                        // The same call the client shell's Account tab makes. Worklist is
+                        // the whole agent shell in this slice, so without this an agent who
+                        // signs in on a phone has no way to sign out — and before §3.2 they
+                        // landed in the client shell, which has one.
+                        onSignOut = { scope.launch { repo.signOut() } },
+                    )
+                }
+            }
 
             // Screen Inventory §2.0. One host for all nine screens — see PublicRoute.
             AppRoute.PublicLanding,
@@ -490,11 +530,67 @@ fun App() {
  * cleared on completion, but the gate does not depend on that having happened.
  */
 fun destinationFor(status: OnboardingStatus?): AppRoute = when {
+    // FAILS OPEN TO THE CLIENT SHELL, and with two shells that direction is the security
+    // property rather than a convenience. A bookkeeping query going wrong must not lock
+    // somebody out of their own dashboard — but rendering the WORKLIST on a failed read
+    // would put an unknown visitor in front of somebody else's book. A client who lands on
+    // the dashboard by accident sees their own trips; an agent who does sees an empty one
+    // and a way back. The web gate (web/lib/agent/role.ts) records the same asymmetry.
     status == null -> AppRoute.Dashboard
+
+    status.role == "agent" -> AppRoute.Worklist
+
+    // An admin has neither a client_id nor an agent_id in the general case — the
+    // platform_user CHECK permits it — so `current_agent_id()` refuses them and every §3.x
+    // read returns nothing. The client dashboard is the same dead end, but it is the one
+    // that already has an unauthorized state; §3.9 is agent tooling, not an admin console.
+    status.role == "admin" -> AppRoute.Dashboard
+
     !status.isClient -> AppRoute.Dashboard
     status.completed -> AppRoute.Dashboard
     // Started but unfinished: resume where they stopped. Never started: the cover page.
     else -> AppRoute.Onboarding(WizardStep.ofSlug(status.step) ?: WizardStep.WELCOME)
+}
+
+/**
+ * §3.1.6 MANDATORY AGENT MFA IS NOT ENFORCED HERE, and that is a known gap rather than an
+ * oversight. Data-Model §5.1 requires it and `account.mfa_required` is true for the seeded
+ * agent, but nothing in this gate sends an agent without a verified factor to [AppRoute.MfaSetup]
+ * — the MFA challenge only fires when `repo.assurance()` already says REQUIRED. Closing it
+ * belongs with §3.1, which builds the agent activation wizard. Left visible in the gate
+ * rather than discovered later.
+ */
+
+/**
+ * Resolves who the advisor is before handing off to [AgentRoute].
+ *
+ * NO READ OF ITS OWN, and the comment used to claim that while the code did the opposite.
+ * The display name and the time zone both come off `platform_user`, which the session gate
+ * has already read to pick this route — so the row is threaded in rather than fetched
+ * again. Re-reading cost a second uncached select, a full-screen splash in front of it, and
+ * a second independent way to fail, all serialised ahead of the four worklist RPCs.
+ *
+ * [status] IS NON-NULL IN PRACTICE: [destinationFor] only answers [AppRoute.Worklist] for
+ * `status.role == "agent"`, which needs a row. The defaults are the cross-platform
+ * convention for a status that could not be read — `agentIdentity()` on the web returns the
+ * same two — so the screen degrades to "there" and Central rather than hanging on a splash
+ * that nothing will resolve.
+ */
+@Composable
+private fun AgentWorklistHost(
+    agent: AgentRepository,
+    status: OnboardingStatus?,
+    nav: Navigator,
+    onSignOut: () -> Unit,
+) {
+    AgentRoute(
+        route = AppRoute.Worklist,
+        nav = nav,
+        agent = agent,
+        displayName = status?.displayName.orEmpty(),
+        timeZone = status?.timeZone ?: "America/Chicago",
+        onSignOut = onSignOut,
+    )
 }
 
 /** Plain branded ground while the session resolves. Milliseconds in the common case. */

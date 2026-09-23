@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 
+import { AdminNoAccess } from "@/components/agent/AdminNoAccess";
 import { ClientBottomNav, ClientNavRail } from "@/components/client/ClientNav";
 import { ClientTopBar } from "@/components/client/ClientTopBar";
-import { UnauthorizedState } from "@/components/client/states";
+import { clientShellDecision } from "@/lib/agent/role";
 import { INITIALS_FALLBACK, initialsFor } from "@/lib/auth/initials";
 import { env } from "@/lib/env";
 import { onboardingRedirectFor, onboardingStatus } from "@/lib/onboarding/status";
@@ -43,6 +44,7 @@ import { createClient } from "@/lib/supabase/server";
  * the decision is made, which is the correct trade — and the two queries are a single
  * round-trip each against a local index.
  */
+
 export default async function ClientLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -67,15 +69,25 @@ export default async function ClientLayout({
     const destination = onboardingRedirectFor(status);
     if (destination) redirect(destination);
 
-    // An agent or admin is authenticated and onboarded, and still does not belong here.
-    // Rendered rather than redirected: sending them to an agent route that does not exist
-    // yet (§3.x) would be a redirect to a 404.
+    // An agent or an admin is authenticated and onboarded, and still does not belong here.
+    // The two are no longer the same answer, which is what changed with §3.2.
     //
-    // `status === null` means the read failed, and that path fails OPEN by design — see
-    // the comment above. So a null status is NOT treated as the wrong role: locking a
-    // traveler out of their own dashboard because a query timed out would be worse than
-    // briefly showing an agent an empty one.
-    wrongRole = status !== null && !status.isClient;
+    // AN AGENT IS NOW REDIRECTED. This block used to render an UnauthorizedState for both,
+    // and said why: "sending them to an agent route that does not exist yet (§3.x) would be
+    // a redirect to a 404." That route exists now, so the reason has expired.
+    //
+    // AN ADMIN IS STILL RENDERED the unauthorized state. `platform_user`'s CHECK permits an
+    // admin with neither a client_id nor an agent_id, so every read on either side returns
+    // nothing for them — and `current_agent_id()` refuses them deliberately. Routing them to
+    // the worklist would be the same dead end on a surface never designed for them.
+    //
+    // A NULL STATUS STILL RENDERS. The read failed, and this path fails open by design —
+    // locking a traveler out of their own dashboard because a query timed out is worse than
+    // briefly showing an agent an empty one. `lib/agent/role.ts` records why that direction
+    // is now a security property rather than a convenience.
+    const decision = clientShellDecision(status);
+    if (decision.kind === "redirect") redirect(decision.to);
+    wrongRole = decision.kind === "unauthorized";
 
     if (!wrongRole) {
       // Their own name, for the avatar. `client_self_select` plus the column grant in
@@ -95,7 +107,7 @@ export default async function ClientLayout({
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         <ClientTopBar initials={initials || INITIALS_FALLBACK} />
         <main id="main" className="client-main min-w-0 flex-1">
-          {wrongRole ? <UnauthorizedState /> : children}
+          {wrongRole ? <AdminNoAccess /> : children}
         </main>
       </div>
       <ClientBottomNav />

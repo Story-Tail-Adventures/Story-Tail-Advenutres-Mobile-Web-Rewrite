@@ -26,6 +26,16 @@ export const badRequest = (detail?: string) =>
   new HttpError(400, "Bad Request", detail);
 export const notFound = (detail?: string) =>
   new HttpError(404, "Not Found", detail);
+/**
+ * 409, for a write that lost a race rather than one that was malformed.
+ *
+ * Added with §3.2.2's pipeline board, which is the first surface where two views of the same
+ * row can be open at once. A stale write must be distinguishable from a bad one: 400 tells
+ * the agent they did something wrong, 409 tells them the row moved under them and a reload
+ * fixes it.
+ */
+export const conflict = (detail?: string) =>
+  new HttpError(409, "Conflict", detail);
 
 /**
  * Turn any thrown value into a problem+json Response.
