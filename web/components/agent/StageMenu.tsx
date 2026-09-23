@@ -45,13 +45,23 @@ export function StageMenu({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // THE 409 IS ITS OWN STATE, not a substring of the message. `changeTripStage` sets
+  // `stale` from the typed `conflict` flag the transport carries, and until this existed
+  // nothing in the repo read either that flag or `AGENT_COPY.stageStale` — a signal
+  // declared, threaded through two modules and then consumed by nobody, which is the same
+  // dead shape the substring match was replaced for.
+  const [stale, setStale] = useState(false);
 
   function onChange(next: string) {
     if (next === status) return;
     setError(null);
+    setStale(false);
     startTransition(async () => {
       const result = await changeTripStage({ tripId, status: next, expectedVersion: version });
-      if (!result.ok) setError(result.message);
+      if (!result.ok) {
+        setStale(result.stale === true);
+        setError(result.message);
+      }
     });
   }
 
@@ -76,9 +86,16 @@ export function StageMenu({
             screen can show, which this control has nowhere to collect — so it is offered
             from the trip rather than from the board. */}
       </select>
+      {/* OUR SENTENCE ON THE ONE CONDITION WE CAN NAME. A stale write is a condition this
+          surface understands on its own — the board it was rendered from is out of date and
+          the remedy is a reload — so it reads from `AGENT_COPY`, the module that owns every
+          user-facing string here. Every other rejection keeps the Edge Function's own
+          sentence, which is written next to the rule it enforces and which this side cannot
+          reconstruct. The two happen to be word-for-word the same today; that coincidence is
+          exactly what let the old substring match look like it worked. */}
       {error && (
         <p className="t-body-s mt-1 text-[var(--md-error)]" role="alert">
-          {error}
+          {stale ? AGENT_COPY.stageStale : error}
         </p>
       )}
     </div>

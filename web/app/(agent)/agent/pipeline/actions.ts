@@ -42,11 +42,24 @@ export async function changeTripStage(input: {
     return { ok: true };
   }
 
-  // A 409 arrives as `rejected` with the function's own sentence. Prefer that sentence: it
-  // is the one written next to the rule, and the generic copy is the fallback.
+  // A 409 arrives as `rejected`, and `conflict` IS the 409 — carried down from the one
+  // place that holds the status code (lib/supabase/edge.ts) rather than recovered here.
+  //
+  // THE OLD TEST WAS `detail.toLowerCase().includes("moved since")`. Reword the sentence in
+  // supabase/functions/agent-trip-status/index.ts — a copy edit, on the other stack, by
+  // someone with no reason to look at this file — and optimistic-lock detection silently
+  // stops working, with nothing in the type checker and nothing in the tests to notice. The
+  // whole point of declaring the flag was to stop reading the server's English as an API.
+  //
+  // `detail` still carries the MESSAGE for every other rejection, because that sentence is
+  // written next to the rule it enforces. On the stale branch StageMenu prefers
+  // `AGENT_COPY.stageStale` instead; its comment says why.
   if (result.kind === "rejected") {
-    const stale = (result.detail ?? "").toLowerCase().includes("moved since");
-    return { ok: false, message: result.detail ?? AGENT_COPY.stageFailed, stale };
+    return {
+      ok: false,
+      message: result.detail ?? AGENT_COPY.stageFailed,
+      stale: result.conflict === true,
+    };
   }
 
   return { ok: false, message: AGENT_COPY.stageFailed };

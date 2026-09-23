@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { AdminNoAccess } from "@/components/agent/AdminNoAccess";
 import { AgentBottomNav, AgentNavRail } from "@/components/agent/AgentNav";
 import { AgentTopBar } from "@/components/agent/AgentTopBar";
-import { UnauthorizedState } from "@/components/client/states";
 import { agentShellDecision } from "@/lib/agent/role";
 import { INITIALS_FALLBACK, initialsFor } from "@/lib/auth/initials";
 import { env } from "@/lib/env";
@@ -31,6 +31,7 @@ import { createClient } from "@/lib/supabase/server";
  * wrong-role visitor a frame of the advisor's shell before the redirect. Blocking here
  * streams no HTML until the decision is made.
  */
+
 export default async function AgentLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -74,7 +75,7 @@ export default async function AgentLayout({
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         <AgentTopBar initials={initials || INITIALS_FALLBACK} />
         <main id="main" className="agent-main min-w-0 flex-1">
-          {unauthorized ? <UnauthorizedState /> : children}
+          {unauthorized ? <AdminNoAccess /> : children}
         </main>
       </div>
       <AgentBottomNav />

@@ -27,14 +27,17 @@ import com.storytail.adventures.api.WorklistMessage
 import com.storytail.adventures.api.WorklistPayment
 import com.storytail.adventures.api.WorklistSnapshot
 import com.storytail.adventures.api.WorklistTrip
+import com.storytail.adventures.domain.agent.AGENT_BAR_DESTINATIONS
 import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.isOverdue
 import com.storytail.adventures.domain.agent.label
 import com.storytail.adventures.domain.agent.needsYouLine
+import com.storytail.adventures.domain.agent.paymentDueLabel
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
 import com.storytail.adventures.ui.components.agent.AgentScaffold
+import com.storytail.adventures.ui.components.agent.AgentTopBar
 import com.storytail.adventures.ui.components.client.formatMoney
 import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
 
@@ -67,10 +70,24 @@ import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
 fun WorklistScreen(
     state: Loadable<WorklistUiState>,
     onSelectTab: (String) -> Unit,
+    /**
+     * THE ONLY WAY OFF THIS SURFACE until §3.12 builds More — see [AgentTopBar] for why it
+     * rides the top bar rather than a tab. Required rather than defaulted: a second agent
+     * screen must decide where its sign-out lives, not inherit a silent no-op.
+     */
+    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
         modifier = modifier,
+        topBar = {
+            AgentTopBar(
+                // Off the same registry the bottom bar draws, so the two names cannot
+                // disagree — one destination, one label, on both ends of the screen.
+                title = AGENT_BAR_DESTINATIONS.first { it.id == "worklist" }.label,
+                onSignOut = onSignOut,
+            )
+        },
         activeTab = "worklist",
         onSelectTab = onSelectTab,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
@@ -301,7 +318,9 @@ private fun PaymentRow(payment: WorklistPayment, first: Boolean) {
             val days = payment.daysUntil
             if (days != null) {
                 Text(
-                    text = if (late) "${-days} days late" else "in $days days",
+                    // "Today", "Tomorrow", "5 days", "1 day late" — the web twin's words
+                    // exactly. One plural template printed "in 0 days" and "1 days late".
+                    text = paymentDueLabel(days),
                     style = MaterialTheme.typography.bodySmall,
                     // Lateness is the real signal — no risk dots, see WorklistSections.
                     color = if (late) scheme.error else scheme.onSurfaceVariant,

@@ -20,9 +20,32 @@ import { createClient } from "@/lib/supabase/server";
  * component cannot read it, and giving it one that could is a worse trade than a round trip.
  */
 
+/**
+ * `conflict` IS THE 409, CARRIED RATHER THAN RE-DERIVED. It was previously spread into the
+ * rejected arm as an untyped property — TypeScript skips excess-property checking on a
+ * spread, so it compiled and no caller could ever read it. The status code was available at
+ * the one place that has it and was thrown away there, and `changeTripStage` recovered the
+ * same signal by substring-matching the Edge Function's English sentence ("moved since").
+ * Reword that sentence and optimistic-lock detection silently stops working, with nothing in
+ * the type checker or the tests to notice. So it is a declared field now.
+ *
+ * DECLARING IT IS ONLY HALF THE FIX, and the half that changes nothing on its own. The
+ * caller has to READ it. `changeTripStage` in `app/(agent)/agent/pipeline/actions.ts` is
+ * the one consumer today, and it must derive staleness from `result.conflict === true` —
+ * never from `(result.detail ?? "").includes("moved since")`, which is the substring match
+ * this field exists to retire. A typed signal nothing consumes is the same dead-signal
+ * shape the field was added to remove. Any later caller of an Edge Function with an
+ * optimistic lock inherits the same rule.
+ */
 export type EdgeCallResult =
   | { ok: true; data: Record<string, unknown> }
-  | { ok: false; kind: "unauthenticated" | "rejected" | "unavailable"; detail?: string };
+  | {
+      ok: false;
+      kind: "unauthenticated" | "rejected" | "unavailable";
+      detail?: string;
+      /** True only on an HTTP 409 — the optimistic-lock rejection. */
+      conflict?: boolean;
+    };
 
 export type EdgeCallInit =
   | { method: "GET"; query: Record<string, string> }
@@ -86,7 +109,7 @@ export async function callEdgeFunction(
     } catch {
       /* not a problem+json body */
     }
-    return { ok: false, kind: "rejected", detail, ...(response.status === 409 ? { conflict: true } : {}) } as EdgeCallResult;
+    return { ok: false, kind: "rejected", detail, conflict: response.status === 409 };
   }
 
   console.warn(`[${logTag}] function failed`, { fn, status: response.status });

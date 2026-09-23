@@ -224,13 +224,58 @@ SELECT pg_temp.assert(
 
 -- The invariant this migration made true for the first time. `anon` has no policy anywhere
 -- in this schema, so it should hold no privilege anywhere; those seventeen tables were the
--- last place it did.
+-- last place it held a column privilege.
 SELECT pg_temp.assert(
     NOT EXISTS (
         SELECT 1 FROM information_schema.column_privileges
          WHERE table_schema = 'public' AND grantee = 'anon'
     ),
     'anon holds no column privilege anywhere in public');
+
+-- The same claim in the ledger the query above cannot reach. `column_privileges` carries
+-- four privilege types and no function rows at all, so every assertion built on it — the
+-- one above, and the class one below — is blind to EXECUTE, which is the privilege
+-- Supabase's default ACL for `public` hands `anon` on every function anybody creates.
+--
+-- Unscoped by name on purpose: the 'no agent read function is executable by anon' assertion
+-- in rls_agent_reads.sql asks this of `agent\_%` and `current_agent_id` only, so it passes
+-- for a function called anything else. (Cited by its message rather than by line: several
+-- agents edit that file at once and a line number is stale by the time it is read. The last
+-- one here pointed at an unrelated currency assertion.) This is the net for the NEXT one
+-- somebody writes. Extension-owned functions are excluded through
+-- pg_depend — `citext` and `pg_trgm` were installed into `public` in 20260514120000 and
+-- their functions are anon-executable wherever they live, so demanding zero rows without
+-- that exclusion would be an assertion that can never pass.
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1
+          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public'
+           AND has_function_privilege('anon', p.oid, 'EXECUTE')
+           AND NOT EXISTS (
+                SELECT 1 FROM pg_depend d
+                 WHERE d.classid = 'pg_proc'::regclass
+                   AND d.objid   = p.oid
+                   AND d.deptype = 'e')
+    ),
+    'anon can execute no function in public that an extension did not install');
+
+-- And the default that would re-arm it one function at a time. This one catches a re-GRANT
+-- of the default privilege the migration took back; the hard-wired PUBLIC EXECUTE that
+-- survives it is why every function REVOKE on this branch names `public` as well as `anon`.
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1
+          FROM pg_default_acl d
+          JOIN pg_namespace n ON n.oid = d.defaclnamespace
+          CROSS JOIN LATERAL aclexplode(d.defaclacl) a
+         WHERE n.nspname = 'public'
+           AND d.defaclobjtype = 'f'
+           AND pg_get_userbyid(d.defaclrole) = current_user
+           AND a.privilege_type = 'EXECUTE'
+           AND a.grantee = 'anon'::regrole::oid
+    ),
+    'no default privilege of the migration role grants anon EXECUTE on a future function');
 
 -- The class rather than the instance. This is the assertion that would have caught the
 -- payment domain in May rather than September, and the agent domain with it.

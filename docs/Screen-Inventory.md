@@ -1616,6 +1616,73 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > **Money is scoped to one currency, never summed across them.** Every money figure in the
 > strip is the agent's most-used currency alone, with `currency_count` beside it so a screen
 > showing one number can name what it left out.
+>
+> **Amended 2026-09-23, with the phone frames drawn.**
+> `design/source-prototype/screens/agent-dashboard-mobile.jsx` records fourteen numbered
+> entries, and the doc carried only some of them. Twelve are the phone frames departing
+> from the desktop artboards. Already settled: two above (the inquiry rename and the
+> confidence figure), two under §3.2.2 (the enum stages and the advisor filter chips), one
+> under §3.2.3 (the availability layer), and one in §4.4 as the Pattern D mapping. Five of
+> the six below are the rest that belong to this screen; the calendar grid is recorded
+> under §3.2.3, and the thirteenth entry in that file is a seed-and-prototype error rather
+> than a departure. The sixth, the top bar, runs the other way — the build departing from
+> the phone frames — and is the fourteenth entry there. They are written down because a
+> reasoned call that lives only in a prototype comment gets re-derived or assumed away by
+> the next reader.
+>
+> **Quick-add has two items, not the three the Key actions line above names.** "New trip"
+> (§3.4.3) and "New client" (§3.3.9) are unbuilt and render disabled with their reasons, per
+> the treatment §2.5 settled. The third is cut outright rather than drawn disabled, and the
+> distinction is the decision: a disabled control promises a thing that will exist, and
+> there is no lead to add. The Key actions line is superseded.
+>
+> **No month-over-month deltas on any KPI.** The desktop frame carries one per tile ("+18%
+> LM", "−3 d vs LM", "+4 this month"). Nothing stores a prior-period snapshot, and last
+> month's pipeline value cannot be reconstructed from current rows at all, because
+> `trip.total_value_cents` is the value now. Computing the rest live is a second aggregate
+> that §3.11 Reporting owns. Cut rather than drawn disabled: a number-shaped hole reads as a
+> broken number.
+>
+> **Client initials, not portraits.** The desktop frames pull stock photographs of strangers
+> against named clients. Every other surface in this product answered that the same way (the
+> About page, AdvisorCard, ClientTopBar and the wallet all use initials), and these are the
+> agency's own clients rather than its advisor.
+>
+> **No risk dots on "Payments due soon".** The desktop draws high / medium / low in three
+> colours. `payment_milestone.status` is `scheduled | paid | waived | overdue`: four states,
+> and no risk model anywhere in the schema. Three colours over a four-value enum is a
+> control that lies. Days-until goes negative when a milestone is late, which is the real
+> signal, and that is what the row shows.
+>
+> **Every "See all" renders disabled with a reason.** §3.3, §3.4 and §3.10 are unbuilt, and so
+> is trip detail, so in this slice the worklist is a read-only screen with no live
+> destination. That is a strange first delivery and the frames say so, rather than wiring
+> rows to nothing.
+>
+> **The mobile shell gains a top bar, which neither the frames nor §6.6 draw.** §6.6
+> describes the agent mobile shell as a bottom tab bar and nothing else, and the phone
+> frames honour that — `MFrame` insets 54px for the status bar and goes straight into
+> content, with no header anywhere in the file. The Compose build puts a 56dp bar above the
+> content: the screen's name on the left, a "Sign out" text button on the right, a divider
+> beneath, structurally identical to the client shell's account bar so the two shells do not
+> drift. This is the one entry here where the build departs from the phone frames rather
+> than the frames from the desktop.
+>
+> **The reason is that Worklist is the entire agent shell in this slice.** `nav.resetTo`
+> clears the back stack, the other three tabs are unbuilt and draw dimmed and unpressable,
+> and on iOS the back handler is a deliberate no-op with no system exit — so there is no
+> second screen to hang sign-out on and no gesture that reaches one. It is not a missing
+> nicety either: before §3.2, an agent signing in on a phone landed in the *client* shell,
+> whose Account tab carries a sign-out. Shipping the agent shell without a bar would have
+> removed the only sign-out an agent had rather than merely not added one. A word rather
+> than a glyph, because there is no logout mark in the icon set and an unlabelled icon is
+> the opposite of findable. No brand lockup, unlike the web top bar, because the mark has an
+> 80dp height floor and §6.6's whole argument for this surface is on-the-go density.
+>
+> **§3.12 (More) takes the sign-out over when it lands**, and the bar keeps the title. Until
+> then the frames should gain the bar rather than the build losing it: §6.6's sentence is
+> about how *deep* the agent's mobile navigation goes, and a title-and-sign-out bar adds no
+> destinations to it.
 
 #### 3.2.2 Pipeline / Funnel View
 **Purpose:** Visual representation of all trips by stage.
@@ -1644,6 +1711,42 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > **The "All advisors / Gyasi" filter chips in the prototype are not built.** There is one
 > advisor until P3, and a filter with a single option is noise rather than an honest disabled
 > state.
+>
+> **Amended 2026-09-23, with the web board built. Three deliberate substitutions against
+> §4.4's Pattern B variant mapping, recorded here because the hierarchy says an intentional
+> change amends the document rather than a code comment. §4.4's tablet half shipped as
+> written; these are the phone picker, the web column sizing, and the move gesture.**
+>
+> **On a phone the stage-picker is a row of `?stage=` links, not a swipe.** §4.4 specifies
+> "one stage at a time, swipe between stages". The board ships one DOM at every width —
+> `.agent-board-column` is `display: none` below `md` unless it is the selected stage — and
+> the picker above it is five `<Link>` pills carrying the stage and its count. One stage at
+> a time is honoured; the gesture is not. Three reasons, in the order they decided it. A
+> link keeps the stage in the URL, so a stage is shareable and the back button means what
+> it says, where a swipe leaves no address. The board stays a server component, because
+> only the per-card stage menu needs to be a client island; a swipe would make the whole
+> board one. And the count rides on each pill, so the agent can see where the work is
+> before switching, which a swipe cannot show. Reversing this is a client wrapper around
+> the same markup and the same `?stage=` value, so the substitution costs nothing later.
+>
+> **The five-up web kanban is flexible columns, not five fixed ones.** §4.4 says web shows
+> all five side-by-side, and the drawing's columns are 272px. Five of those need 1400px of
+> board and the agent container caps at 1336, so fixed columns put the fifth stage behind a
+> horizontal scrollbar on the very viewport that is supposed to show the whole funnel. From
+> §4.2's web breakpoint the columns go `flex: 1 1 0` and the scroller is switched off.
+> Between `md` and there — §4.4's tablet — they stay 272px in a horizontal scroller, which
+> is the "2-3 stages at once with horizontal scroll" that mapping asks for.
+>
+> **Drag-and-drop is not built, and that is a choice rather than a deferral.** §4.4 names it
+> for web and the artboard subtitles the screen "Drag a card to change its stage." The stage
+> change ships as the menu on each card — the other half of what the Primary elements line
+> above already allows ("drag-and-drop **or** status-change menu"), and the half that works
+> on all three viewports with one code path and one `expectedVersion` check. The two reasons
+> that settle it rather than merely favour it: WCAG 2.2 SC 2.5.7 requires a single-pointer
+> alternative for every drag and BRD §11 commits to AA, so the menu has to exist either way;
+> and a drop has no confirmation, while moving a trip to `booked` is what §3.7's commission
+> entry hangs off — a mis-drop between neighbouring columns is silent where a menu names the
+> destination in words. The artboard should be corrected.
 
 #### 3.2.3 Calendar View
 **Purpose:** Calendar of trips and key dates.
@@ -1651,8 +1754,6 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Tap event; create event.
 **Entry points:** Nav "Calendar".
 **Related screens:** Trip Detail.
-
----
 
 > **Amended 2026-09-19.** The availability layer is deferred.
 > `agent_availability.time_off_blocks` is `jsonb` with no declared schema, so there is nothing
@@ -1663,6 +1764,36 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 >
 > Departures, returns and payment due dates are all served and are built. Month is the web
 > default, agenda the mobile one, per §4.4.
+>
+> **Amended 2026-09-23, with the phone frames drawn. The desktop artboard's month grid is
+> not real arithmetic.** `design/source-prototype/screens/agent-dashboard.jsx` builds the
+> month as a fixed 35 cells with a hardcoded three-day leading offset and allows exactly one
+> event per date. Real months need the offset for the month in question, 28 to 31 days, six
+> rows when a long month starts late in the week, and several events on one date: a departure
+> and a payment falling together is routine rather than an edge case. The web build computes
+> it properly in its own date-injected module (`web/lib/agent/calendar.ts`) instead of
+> following the drawing, and mobile is agenda-first per §4.4, which sidesteps the grid
+> entirely. Recorded as a prototype defect: the desktop frame should be corrected.
+>
+> **`?view=` pins a view at every width; unset is the responsive default.** §4.4 asks for a
+> different default per viewport — agenda on mobile, week on tablet, month on web — and the
+> first version of this screen read `?view=` and nothing else, so a phone loaded the
+> seven-column month table at roughly 49px a day cell. Both branches now sit in the DOM and
+> `web/styles/agent.css`'s `md` breakpoint chooses between them, which gets the two defaults
+> §4.4 asks for with no client state, no viewport sniffing and no layout shift. When
+> `?view=` is set it wins at every width, so a month link opens as a month on a phone and
+> both views stay shareable. The distinction worth recording is that unset is now a
+> *responsive* default rather than a literal "month" — a reader who assumes the parameter
+> always has an effective value will misread the agenda a phone renders.
+>
+> **Week is deferred, so tablet gets the month grid.** §4.4's tablet half is a week view.
+> Every event §3.2.3 serves is all-day — departures, returns and payment due dates — so a
+> week view today would be a time grid with nothing in the time axis, which is a worse month
+> grid rather than a different one. It becomes meaningful when §3.12 lands availability with
+> hours, which is the same dependency the availability layer above is waiting on. Stated as
+> a deferral rather than left as a gap.
+
+---
 
 ### 3.3 Client Management (CRM)
 
@@ -2492,8 +2623,8 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 
 #### Agent — Dashboard & Pipeline (3.2.x)
 - **3.2.1 Agent Dashboard / Worklist** — Pattern D.
-- **3.2.2 Pipeline / Funnel** — Pattern B variant. **Important deviation:** mobile collapses the kanban into a stage-picker (one stage at a time, swipe between stages). Tablet shows 2-3 stages at once with horizontal scroll. Web shows the full kanban (5 stages side-by-side) with drag-and-drop.
-- **3.2.3 Calendar** — Pattern D variant. Mobile: agenda view default; tablet: week view; web: month view default.
+- **3.2.2 Pipeline / Funnel** — Pattern B variant. **Important deviation:** mobile collapses the kanban into a stage-picker (one stage at a time, swipe between stages). Tablet shows 2-3 stages at once with horizontal scroll. Web shows the full kanban (5 stages side-by-side) with drag-and-drop. *As built (2026-09-23), three parts of this line were substituted deliberately and the §3.2.2 amendment records why: the phone picker is a row of `?stage=` links rather than a swipe, the web columns are flexible rather than five fixed ones, and the stage change is the card menu rather than drag-and-drop. The tablet half shipped as written.*
+- **3.2.3 Calendar** — Pattern D variant. Mobile: agenda view default; tablet: week view; web: month view default. *As built (2026-09-23), both defaults are honoured by a CSS breakpoint over one DOM and `?view=` overrides them at any width; the tablet week view is deferred behind §3.12 and tablet gets the month grid. See the §3.2.3 amendment.*
 
 #### Agent — Client Management (3.3.x)
 - **3.3.1 Client List / Roster** — Pattern B.
@@ -2667,6 +2798,8 @@ Collapsible left rail (icon-only by default, expands on hover/tap); top utility 
 
 ### 6.6 Agent Mobile Navigation
 The mobile experience for agents at MVP is intentionally narrower than web — designed for on-the-go tasks rather than deep work. Bottom tab bar: Worklist, Clients, Messages, More. The full pipeline, reporting, and template management features remain web-only at MVP.
+
+> **Amended 2026-09-23.** The shell also carries a 56dp top bar — screen title left, "Sign out" right — which this line did not anticipate. It adds no destination, so the sentence above still holds as a statement about navigational depth; it exists because Worklist is the whole agent shell in this slice and there is nowhere else to reach sign-out. The §3.2.1 amendment carries the full reasoning, and §3.12 (More) takes the control over when it lands.
 
 ---
 

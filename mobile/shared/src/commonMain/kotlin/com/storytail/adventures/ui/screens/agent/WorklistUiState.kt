@@ -5,6 +5,7 @@ import com.storytail.adventures.api.WorklistSnapshot
 import com.storytail.adventures.api.WorklistTrip
 import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.PartOfDay
+import com.storytail.adventures.domain.agent.currencyNote
 import com.storytail.adventures.domain.agent.departingWithin30
 import com.storytail.adventures.domain.agent.needsYouCount
 import com.storytail.adventures.domain.agent.paymentsInOrder
@@ -62,11 +63,10 @@ fun worklistUiState(
         today,
     ).distinctBy { it.tripId },
     // Under-reporting with the exclusion named, never a mixed sum. The accessors scope every
-    // money figure to one currency; this is the screen saying so.
+    // money figure to one currency; this is the screen saying so. `currencyCount` counts
+    // distinct CURRENCIES, so `- 1` is how many other currencies exist — never a trip count.
     currencyNote = if (snapshot.kpis.currencyCount > 1) {
-        val others = snapshot.kpis.currencyCount - 1
-        val trips = if (others == 1) "trip is" else "trips are"
-        "${snapshot.kpis.currency} only. $others $trips priced in another currency and not counted here."
+        currencyNote(snapshot.kpis.currency, snapshot.kpis.currencyCount - 1)
     } else {
         null
     },

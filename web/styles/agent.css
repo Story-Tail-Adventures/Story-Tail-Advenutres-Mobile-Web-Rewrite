@@ -174,8 +174,21 @@
   /* ── KPI rail ───────────────────────────────────────────────────────────── */
 
   /* A horizontal carousel below md (Pattern D: "KPI cards in a horizontal carousel near
-     the top"), a five-up grid above it. Five across a phone gives each tile 72px, which is
-     narrower than the amounts inside them. */
+   * the top"), a THREE-up grid across the tablet band, and the five-up grid only at §4.2's
+   * web breakpoint.
+   *
+   * FIVE ACROSS AT 768px DOES NOT FIT, which is what the first version of this file got
+   * wrong by reasoning about phone width alone. At 768 the rail takes 72 and the page
+   * wrapper's `md:px-8` takes 64, so five `minmax(0, 1fr)` tracks with four 10px gaps are
+   * 118px each and the content box is 86px. The amount is Poppins ExtraBold at 26px with
+   * `leading-none` and no space in it, so it cannot wrap and the track cannot grow:
+   * "$9,640" is already ~93px and paints over the next tile's background. Five tiles do
+   * not clear a six-figure total until roughly 935px. Three across at 768 gives a 172px
+   * content box, which holds a seven-figure amount with room to spare.
+   *
+   * ORDER MATTERS AND IS LOAD-BEARING: the narrower min-width comes first. Reversed, the
+   * 48rem block would win at every width above 1200 and the five-up grid would never
+   * apply. */
   .agent-kpis {
     display: flex;
     gap: 10px;
@@ -190,12 +203,15 @@
     scroll-snap-align: start;
     border-radius: 16px;
     padding: 14px 16px;
+    /* Deliberately NO `overflow: hidden`. Clipping an amount turns "$1,284,500" into
+       "$1,284,50", which reads as a real number and is wrong; overlap at least reads as
+       broken. The breakpoints above are the fix, not a clip. */
   }
 
   @media (min-width: 48rem) {
     .agent-kpis {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       overflow-x: visible;
     }
     .agent-kpi {
@@ -203,27 +219,91 @@
     }
   }
 
+  /* §4.2's web breakpoint, matching `--breakpoint-web` in globals.css and public.css. */
+  @media (min-width: 1200px) {
+    .agent-kpis {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
   /* ── The pipeline board ─────────────────────────────────────────────────── */
 
-  /* A horizontally scrolling row of columns. NOT a fixed-height grid: the prototype sets
-     `height: calc(100% - 80px)` with scrolling off, which is right for an artboard and
-     wrong in a browser — and `.client-fill`'s doc comment in client.css records what
-     happens when an ancestor-dependent height meets React streaming. */
+  /* THREE LAYOUTS, ONE DOM, per §4.4's three-way split for 3.2.2:
+   *
+   *   phone  — the stage-picker. One stage at a time, chosen by `?stage=`; the other four
+   *            columns are hidden. A 272px column inside a 343px phone was the tablet
+   *            layout handed to a phone, with four stages behind a horizontal drag.
+   *   tablet — "2-3 stages at once with horizontal scroll". The 272px columns, scrolling.
+   *   web    — "the full kanban (5 stages side-by-side)". Flexible tracks, no scroll:
+   *            5 x 272 + 4 gaps needs 1400px of board and the content column caps at
+   *            1336, so fixed columns scrolled on a desktop too.
+   *
+   * ONE DOM RATHER THAN TWO MARKUP BRANCHES, so each card and its stage menu — a client
+   * island with a server action behind it — exists once, and the hidden stages cost no
+   * second copy of either.
+   *
+   * NOT a fixed-height grid: the prototype sets `height: calc(100% - 80px)` with scrolling
+   * off, which is right for an artboard and wrong in a browser — and `.client-fill`'s doc
+   * comment in client.css records what happens when an ancestor-dependent height meets
+   * React streaming. */
   .agent-board {
     display: flex;
+    flex-direction: column;
     gap: 10px;
-    overflow-x: auto;
-    align-items: flex-start;
-    padding-bottom: 8px;
   }
 
   .agent-board-column {
-    flex: 0 0 272px;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 8px;
     background: var(--md-surface-2);
     border-radius: 14px;
     padding: 10px;
+  }
+
+  .agent-board-column[data-selected="true"] {
+    display: flex;
+  }
+
+  @media (min-width: 48rem) {
+    .agent-board {
+      flex-direction: row;
+      overflow-x: auto;
+      align-items: flex-start;
+      padding-bottom: 8px;
+    }
+    /* The attribute selector is repeated so this beats the base rule above it on
+       specificity as well as order — every stage shows from here up. */
+    .agent-board-column,
+    .agent-board-column[data-selected="true"] {
+      display: flex;
+      flex: 0 0 272px;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .agent-board {
+      overflow-x: visible;
+    }
+    .agent-board-column,
+    .agent-board-column[data-selected="true"] {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  }
+
+  /* ── Touch targets ──────────────────────────────────────────────────────── */
+
+  /* Coarse pointers get the 44pt minimum §4.2 requires, on the precedent client.css set at
+     its own line 255. `.agent-view-link` is 34px on its own — the view switcher and the
+     pipeline's stage-picker both use it — and `.agent-tab` computes to 43px from its 28px
+     pill, 3px gap and 12px label line box. Kept last in the file so nothing above it wins
+     on order. */
+  @media (pointer: coarse) {
+    .agent-view-link,
+    .agent-tab,
+    .agent-signout {
+      min-height: 44px;
+    }
   }
 }

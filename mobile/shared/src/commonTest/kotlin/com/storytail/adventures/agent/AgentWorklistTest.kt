@@ -7,12 +7,14 @@ import com.storytail.adventures.api.WorklistTrip
 import com.storytail.adventures.domain.agent.AGENT_BAR_DESTINATIONS
 import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.PartOfDay
+import com.storytail.adventures.domain.agent.currencyNote
 import com.storytail.adventures.domain.agent.daysBetween
 import com.storytail.adventures.domain.agent.departingWithin30
 import com.storytail.adventures.domain.agent.isOverdue
 import com.storytail.adventures.domain.agent.needsYouCount
 import com.storytail.adventures.domain.agent.needsYouLine
 import com.storytail.adventures.domain.agent.partOfDay
+import com.storytail.adventures.domain.agent.paymentDueLabel
 import com.storytail.adventures.domain.agent.paymentsInOrder
 import com.storytail.adventures.ui.screens.agent.periodLabelFor
 import com.storytail.adventures.ui.screens.agent.worklistUiState
@@ -101,6 +103,40 @@ class AgentWorklistTest {
     // ── The greeting ─────────────────────────────────────────────────────────
 
     @Test
+    fun the_zero_greeting_reads_at_every_hour_of_the_day() {
+        // It renders directly under "Morning," / "Afternoon," / "Evening,", computed in the
+        // agent's own zone — so "Nothing urgent this morning." contradicted the line above
+        // it at every hour after noon. Pinned as a literal: this is the one line the copy
+        // file says earns the worldview, and a derived assertion would move with the bug.
+        assertEquals("Nothing urgent today.", AgentCopy.GREETING_ZERO)
+        for (timeOfDay in listOf("morning", "afternoon", "evening", "tonight")) {
+            assertTrue(
+                timeOfDay !in AgentCopy.GREETING_ZERO.lowercase(),
+                "names a time of day: ${AgentCopy.GREETING_ZERO}",
+            )
+        }
+        // The sub-line is time-neutral already and stays as it is.
+        assertEquals("The book is quiet. That is allowed.", AgentCopy.GREETING_ZERO_SUB)
+    }
+
+    // ── The payment day label ────────────────────────────────────────────────
+
+    @Test
+    fun the_payment_label_pluralises_and_says_today_rather_than_in_0_days() {
+        assertEquals("Today", paymentDueLabel(0))
+        assertEquals("Tomorrow", paymentDueLabel(1))
+        assertEquals("2 days", paymentDueLabel(2))
+        assertEquals("21 days", paymentDueLabel(21))
+        assertEquals("1 day late", paymentDueLabel(-1))
+        assertEquals("6 days late", paymentDueLabel(-6))
+        // The three the single plural template got wrong.
+        for (days in listOf(0, 1, -1)) {
+            assertTrue("1 days" !in paymentDueLabel(days), "bad plural at $days")
+            assertTrue("0 days" !in paymentDueLabel(days), "bad zero at $days")
+        }
+    }
+
+    @Test
     fun the_greeting_never_says_zero_things() {
         assertEquals(AgentCopy.GREETING_ZERO, needsYouLine(0))
         assertTrue("0" !in needsYouLine(0))
@@ -149,6 +185,49 @@ class AgentWorklistTest {
             listOf("today", "day29"),
             departingWithin30(trips, "2026-09-22").map { it.tripId },
         )
+    }
+
+    @Test
+    fun a_cancelled_trip_is_not_a_departure() {
+        // C3 on the phone. `agent_trip_board` returns cancelled rows on purpose — the web
+        // pipeline board counts them — and a trip cancelled eight days before departure
+        // keeps its `start_date`, so the date window alone lets it through. The browser
+        // excludes it in `departingSoon` in `web/lib/agent/queries.ts`; until this test the
+        // handset did not, and the two surfaces printed different counts off the same rows.
+        //
+        // All three leave on the SAME DAY, so nothing but the status can separate them.
+        //
+        // FAILS ON ONE CHARACTER: the guard in `departingWithin30` (WorklistSections.kt)
+        // reads `if (trip.status == "cancelled") return@filter false`. Replace the first
+        // `=` with `!` and the cancelled trip is the only row that comes back.
+        val gone = trip("gone", "cancelled", "2026-09-30")
+        val asked = trip("asked", "inquiry", "2026-09-30")
+        val going = trip("going", "booked", "2026-09-30")
+
+        // A denylist, never a whitelist of booked statuses: an inquiry's `start_date` is a
+        // requested date and the section is "who is travelling", not "who is booked".
+        assertEquals(
+            listOf("asked", "going"),
+            departingWithin30(listOf(gone, asked, going), "2026-09-22").map { it.tripId },
+        )
+
+        // And through the state the screen renders, which is where the section's header
+        // count comes from as well as its rows.
+        val ui = worklistUiState(
+            snapshot = WorklistSnapshot(
+                asOfDate = "2026-09-22",
+                kpis = kpis(),
+                awaitingResponse = emptyList(),
+                paymentsDue = emptyList(),
+                newInquiries = emptyList(),
+                departingSoon = listOf(gone, going),
+                recentMessages = emptyList(),
+            ),
+            displayName = "Gyasi Story",
+            partOfDay = PartOfDay.MORNING,
+            today = "2026-09-22",
+        )
+        assertEquals(listOf("going"), ui.departing.map { it.tripId })
     }
 
     @Test
@@ -219,10 +298,40 @@ class AgentWorklistTest {
             today = "2026-09-22",
         ).currencyNote
 
+        // HAND-WRITTEN, NOT DERIVED. These used to read `contains("1 trip is")`, which is
+        // the implementation's own `currencyCount - 1` restated — so the test agreed with
+        // the sentence rather than checking it, and held in place a line that called a
+        // count of CURRENCIES a count of TRIPS. With 10 USD, 4 EUR and 2 GBP trips
+        // `currency_count` is 3 and the old wording claimed two excluded trips against six.
         assertNull(note(1))
-        assertTrue(note(2)!!.contains("1 trip is"))
-        assertTrue(note(3)!!.contains("2 trips are"))
-        assertTrue(note(2)!!.startsWith("USD only."))
+        assertEquals(
+            "USD only. Trips priced in 1 other currency are not counted here.",
+            note(2),
+        )
+        assertEquals(
+            "USD only. Trips priced in 2 other currencies are not counted here.",
+            note(3),
+        )
+        assertEquals(
+            "USD only. Trips priced in 6 other currencies are not counted here.",
+            note(7),
+        )
+    }
+
+    @Test
+    fun the_currency_note_counts_currencies_and_never_trips() {
+        // The word the number modifies is the whole defect: `currency_count` is
+        // `count(DISTINCT currency)`, and nothing in the read surface knows how many TRIPS
+        // are excluded. A sentence that names trips is a specific small number an agent
+        // will believe without checking.
+        for (others in 1..5) {
+            val note = currencyNote("EUR", others)
+            // The number must never be the count a trip noun hangs off.
+            assertTrue("$others trip" !in note, "counts trips: $note")
+            assertTrue(note.startsWith("EUR only."), "wrong dominant: $note")
+        }
+        assertTrue(currencyNote("USD", 1).contains("1 other currency "))
+        assertTrue(currencyNote("USD", 2).contains("2 other currencies "))
     }
 
     @Test

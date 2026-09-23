@@ -57,6 +57,35 @@ export function clientShellDecision(status: OnboardingStatus | null): ShellDecis
   }
 }
 
+/**
+ * ── THIS GATE DOES NOT ENFORCE MFA, AND §3.1.6 SAYS IT MUST ─────────────────────
+ *
+ * OPEN, NOT CLOSED. This block is a RECORD of a gap, not a fix for one — the function below
+ * still branches on role and nothing else, exactly as it did before the block was written.
+ * A review round once listed this under "fixed" on the strength of the comment alone; it is
+ * spelled out here so the next reader cannot make the same mistake. The section that closes
+ * it is §3.1.6, named again at the end of this comment.
+ *
+ * Screen Inventory §3.1.6 "Mandatory MFA Setup (Agents)" reads: "Force MFA enrollment
+ * before the agent can access any client data — non-skippable for agent role." The worklist
+ * IS that data. This gate sees a role and nothing else — no assurance level, no
+ * `account.mfa_required` — so an agent with no second factor enrolled signs in at aal1 and
+ * renders. The proxy does not cover it either: `authRedirectFor` forces /login/mfa only
+ * when assurance is already "required", which means a factor exists and the session has not
+ * been challenged. An agent with NO factor is "none" and passes straight through.
+ *
+ * DEFERRED ON PURPOSE, RECORDED HERE SO IT IS NOT REDISCOVERED AS A SURPRISE. §3.1 — the
+ * agent activation flow, and §3.1.6 specifically — is the section that enrols the factor and
+ * owns the forced redirect; there is no invitation or activation path in the product yet, so
+ * a hard gate here would lock out the only agent account that exists. /mfa/setup does work
+ * today for any signed-in user, so an agent can enrol by typing the URL; what is missing is
+ * the requirement, not the screen.
+ *
+ * WHEN §3.1.6 LANDS, THE LAYOUT IS NOT ENOUGH. The five §3.2 accessors are granted to
+ * `authenticated` with no `aal` predicate, so an aal1 session can read the same rows
+ * straight off PostgREST. The check belongs in `current_agent_id()` (or each accessor) as
+ * well as here.
+ */
 export function agentShellDecision(status: OnboardingStatus | null): ShellDecision {
   if (!status) return { kind: "redirect", to: CLIENT_SHELL_ROOT };
   switch (status.role) {

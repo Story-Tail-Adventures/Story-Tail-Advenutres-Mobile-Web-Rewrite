@@ -36,8 +36,9 @@ val AGENT_BAR_DESTINATIONS: List<AgentDestination> = listOf(
     AgentDestination("worklist", "Worklist", built = true, phase = null, section = "§3.2"),
     AgentDestination("clients", "Clients", built = false, phase = "P1", section = "§3.3"),
     AgentDestination("messages", "Messages", built = false, phase = "P1", section = "§3.10"),
-    // Not a rail destination on web. It is the eventual home of sign-out, which an agent
-    // signing in on a phone has no other way to reach today — §3.12 builds it.
+    // Not a rail destination on web. It is the eventual home of sign-out; until §3.12
+    // builds it, sign-out rides the worklist's top bar (see `AgentTopBar`) rather than
+    // waiting here, because Worklist is the whole agent shell and nothing else can reach it.
     AgentDestination("more", "More", built = false, phase = "P1", section = "§3.12"),
 )
 

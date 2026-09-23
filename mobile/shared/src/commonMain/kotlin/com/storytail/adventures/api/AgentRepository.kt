@@ -4,6 +4,8 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -145,36 +147,76 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * FOUR ROUND TRIPS AT ONCE, NOT ONE AFTER ANOTHER.
+     *
+     * Nothing here depends on a value from an earlier call — the `as_of_date` the board is
+     * filtered against is read after all four have landed — so awaiting them in sequence
+     * cost four serialised round trips on the client with the worst latency. The web build
+     * of this same screen puts all of them in one `Promise.all`; this is that shape.
+     *
+     * THE THREE-WAY ANSWER SURVIVES, which is the part concurrency could quietly break.
+     * `coroutineScope` rethrows the FIRST child failure rather than the cancellation it
+     * causes in its siblings, so a 403 on any one of the four still leaves through the
+     * `RestException` catch below and still answers [WorklistRead.Forbidden] — not
+     * [WorklistRead.Failed]. What does change: when two calls fail differently the one that
+     * fails FIRST decides the answer, where sequence used to decide it. A 403 from one
+     * accessor and a 500 from another is not a state the read surface can produce — every
+     * one of them is `SECURITY DEFINER` over the same `current_agent_id()`.
+     */
     override suspend fun worklist(): WorklistRead = try {
-        val kpiRows = client.postgrest.rpc("agent_kpis").decodeList<KpiDto>()
-        // No row at all means the caller is not an agent — App.kt's gate should already
-        // have caught that, so this is the second line of defence. One row of zeros is a
-        // different answer and must not be confused with it.
-        val kpi = kpiRows.firstOrNull() ?: return WorklistRead.Forbidden
+        coroutineScope {
+            val kpiCall = async { client.postgrest.rpc("agent_kpis").decodeList<KpiDto>() }
+            val tripCall = async { client.postgrest.rpc("agent_trip_board").decodeList<TripDto>() }
+            val paymentCall = async {
+                client.postgrest
+                    .rpc("agent_payments_due", buildJsonObject { put("p_within_days", 21) })
+                    .decodeList<PaymentDto>()
+            }
+            val inboxCall = async {
+                client.postgrest
+                    .rpc("agent_inbox", buildJsonObject { put("p_limit", 5) })
+                    .decodeList<InboxDto>()
+            }
 
-        val trips = client.postgrest.rpc("agent_trip_board").decodeList<TripDto>()
-        val payments = client.postgrest
-            .rpc("agent_payments_due", buildJsonObject { put("p_within_days", 21) })
-            .decodeList<PaymentDto>()
-        val inbox = client.postgrest
-            .rpc("agent_inbox", buildJsonObject { put("p_limit", 5) })
-            .decodeList<InboxDto>()
+            val kpiRows = kpiCall.await()
+            val trips = tripCall.await()
+            val payments = paymentCall.await()
+            val inbox = inboxCall.await()
 
-        WorklistRead.Ok(
-            WorklistSnapshot(
-                asOfDate = kpi.as_of_date,
-                kpis = kpi.toDomain(),
-                awaitingResponse = trips
-                    .filter { it.status == "proposal" && it.proposal_sent_at != null }
-                    .map { it.toDomain() },
-                paymentsDue = payments.map { it.toDomain() },
-                newInquiries = trips.filter { it.status == "inquiry" }.map { it.toDomain() },
-                departingSoon = trips
-                    .filter { it.start_date != null && it.start_date >= kpi.as_of_date }
-                    .map { it.toDomain() },
-                recentMessages = inbox.map { it.toDomain() },
-            ),
-        )
+            // No row at all means the caller is not an agent — App.kt's gate should already
+            // have caught that, so this is the second line of defence. One row of zeros is a
+            // different answer and must not be confused with it.
+            //
+            // Checked after the join rather than before it: a non-agent wastes three calls
+            // that return nothing, and in exchange the agent — every other caller — waits
+            // for one round trip instead of two. `return@coroutineScope`, never a bare
+            // `return`: `coroutineScope` is not inline, so a non-local return out of it
+            // does not compile.
+            val kpi = kpiRows.firstOrNull()
+                ?: return@coroutineScope WorklistRead.Forbidden
+
+            WorklistRead.Ok(
+                WorklistSnapshot(
+                    asOfDate = kpi.as_of_date,
+                    kpis = kpi.toDomain(),
+                    awaitingResponse = trips
+                        .filter { it.status == "proposal" && it.proposal_sent_at != null }
+                        .map { it.toDomain() },
+                    paymentsDue = payments.map { it.toDomain() },
+                    newInquiries = trips.filter { it.status == "inquiry" }.map { it.toDomain() },
+                    // The raw date pre-slice, NOT the section. Cancelled trips are excluded
+                    // one layer up, in `departingWithin30` — the mobile twin of web's
+                    // `departingSoon` filter, and the only thing that reaches `ui.departing`.
+                    // A second `status != "cancelled"` here would be a predicate no test can
+                    // drive: this class needs a live Supabase client to run at all.
+                    departingSoon = trips
+                        .filter { it.start_date != null && it.start_date >= kpi.as_of_date }
+                        .map { it.toDomain() },
+                    recentMessages = inbox.map { it.toDomain() },
+                ),
+            )
+        }
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (rest: RestException) {

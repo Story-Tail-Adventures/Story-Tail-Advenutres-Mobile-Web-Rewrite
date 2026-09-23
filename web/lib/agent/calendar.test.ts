@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMonth, daysInMonth, firstWeekday, shiftMonth, type CalendarEvent } from "./calendar";
+import {
+  buildMonth,
+  daysInMonth,
+  firstWeekday,
+  navMonth,
+  shiftMonth,
+  validMonth,
+  type CalendarEvent,
+} from "./calendar";
 
 /**
  * The module that replaces the prototype's `Array.from({length: 35}, (_, i) => i - 3)`.
@@ -31,6 +39,95 @@ describe("month arithmetic", () => {
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");
     expect(shiftMonth("2026-09", 4)).toBe("2027-01");
+  });
+});
+
+// ── The `?month=` guard, which used to be page-local and untested ─────────────
+
+describe("validMonth", () => {
+  it("rejects a month number no month has", () => {
+    // These three all match /^\d{4}-\d{2}$/, which is why shape alone is not enough.
+    // "2026-99" built a February 2034 grid; "2026-13" made every cell key "2026-13-07",
+    // which no event date can equal, so the agenda came back empty as if the book were
+    // clear. FAILS IF: `month1 > 12` in calendar.ts loses a character and becomes
+    // `month1 > 2`, or the `<`/`>` in either bound flips.
+    expect(validMonth("2026-00", "2026-09")).toBe("2026-09");
+    expect(validMonth("2026-13", "2026-09")).toBe("2026-09");
+    expect(validMonth("2026-99", "2026-09")).toBe("2026-09");
+  });
+
+  it("rejects a year outside the window", () => {
+    // "0000-01" is the one that emitted a "-1-00" previous-month link. FAILS IF: the `&&`
+    // joining the two year bounds in `inWindow` becomes `||`.
+    expect(validMonth("0000-01", "2026-09")).toBe("2026-09");
+    expect(validMonth("1999-12", "2026-09")).toBe("2026-09");
+    expect(validMonth("2101-01", "2026-09")).toBe("2026-09");
+  });
+
+  it("rejects anything that is not the shape at all, including absent", () => {
+    expect(validMonth(undefined, "2026-09")).toBe("2026-09");
+    expect(validMonth("", "2026-09")).toBe("2026-09");
+    expect(validMonth("2026-9", "2026-09")).toBe("2026-09");
+    expect(validMonth("2026-09-01", "2026-09")).toBe("2026-09");
+    expect(validMonth("not-a-month", "2026-09")).toBe("2026-09");
+  });
+
+  it("round-trips a valid value untouched, including both window edges", () => {
+    // The guard must not silently rewrite a good value — the heading and the link text are
+    // both derived from what comes back. FAILS IF: the `? raw :` in validMonth becomes
+    // `? fallback :`.
+    expect(validMonth("2026-09", "2026-01")).toBe("2026-09");
+    expect(validMonth("2000-01", "2026-01")).toBe("2000-01");
+    expect(validMonth("2100-12", "2026-01")).toBe("2100-12");
+  });
+});
+
+describe("navMonth agrees with validMonth", () => {
+  it("holds the step inside the window at the window's own edges", () => {
+    // The claim this replaces: "shiftMonth can only ever emit in-range months". It cannot —
+    // from the edges it emits exactly the two values the guard rejects, and the rendered
+    // "2101-01 →" link landed on today's month under a heading that did not match it.
+    // FAILS IF: navMonth's `return inWindow(stepped) ? stepped : month` loses the guard and
+    // becomes `return stepped`.
+    expect(shiftMonth("2100-12", 1)).toBe("2101-01");
+    expect(navMonth("2100-12", 1)).toBe("2100-12");
+    expect(shiftMonth("2000-01", -1)).toBe("1999-12");
+    expect(navMonth("2000-01", -1)).toBe("2000-01");
+  });
+
+  it("steps normally everywhere inside the window", () => {
+    expect(navMonth("2026-12", 1)).toBe("2027-01");
+    expect(navMonth("2026-01", -1)).toBe("2025-12");
+    expect(navMonth("2100-11", 1)).toBe("2100-12");
+    expect(navMonth("2000-02", -1)).toBe("2000-01");
+  });
+
+  it("leaves a month outside the window to step on its own", () => {
+    // buildMonth stays pure for anything the guard would never have let through.
+    expect(navMonth("1850-03", 1)).toBe("1850-04");
+  });
+
+  it("every nav link buildMonth renders is a value the guard accepts", () => {
+    // The invariant the whole pairing exists for, swept across the window's edges and a
+    // year in the middle. FAILS IF: buildMonth's `prevMonth: navMonth(month, -1)` reverts
+    // to `shiftMonth(month, -1)` — one word, and the two edge months break.
+    for (const month of ["2000-01", "2000-02", "2026-06", "2100-11", "2100-12"]) {
+      const grid = buildMonth(month, "2026-01-01", []);
+      expect(validMonth(grid.prevMonth, "FALLBACK"), `${month} prev`).toBe(grid.prevMonth);
+      expect(validMonth(grid.nextMonth, "FALLBACK"), `${month} next`).toBe(grid.nextMonth);
+    }
+  });
+
+  it("still spills into the REAL neighbouring month at the window edge", () => {
+    // Holding the nav link must not bend the grid: December 2100's trailing cells belong to
+    // January 2101 even though no link may point there. FAILS IF: buildMonth's spill math
+    // reads `nextMonth` (the held value) instead of `gridNext`.
+    const grid = buildMonth("2100-12", "2026-01-01", []);
+    const spill = grid.weeks.flat().filter((d) => !d.inMonth && d.date > "2100-12");
+    // December 2100 starts on a Wednesday and runs 31 days, so the grid has exactly one
+    // trailing cell. Asserted so the `every` below cannot pass on an empty list.
+    expect(spill.map((d) => d.date)).toEqual(["2101-01-01"]);
+    expect(grid.nextMonth).toBe("2100-12");
   });
 });
 

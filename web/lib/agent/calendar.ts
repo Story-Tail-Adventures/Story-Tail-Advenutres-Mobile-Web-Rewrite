@@ -78,6 +78,67 @@ export function monthOf(isoDate: string): string {
 }
 
 /**
+ * The navigable window: 2000-01 through 2100-12.
+ *
+ * Wide enough that no real booking is refused, narrow enough that a garbage year cannot
+ * produce a nav link no date library will parse back.
+ */
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2100;
+
+/** `YYYY-MM`, a real month number, and a year inside the window. */
+function inWindow(month: string): boolean {
+  const parts = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!parts) return false;
+  const month1 = Number(parts[2]);
+  if (month1 < 1 || month1 > 12) return false;
+  const year = Number(parts[1]);
+  return year >= MIN_YEAR && year <= MAX_YEAR;
+}
+
+/**
+ * `?month=` validated for RANGE, not only for shape.
+ *
+ * `/^\d{4}-\d{2}$/` accepts "2026-00", "2026-13" and "2026-99". `buildMonth` then indexes
+ * `MONTH_NAMES[month1 - 1]` unchecked, so the heading reads "undefined 2026", `Date.UTC`
+ * silently rolls the month over — "2026-99" builds a February 2034 grid — and every
+ * in-month cell gets an impossible key like "2026-13-07", which `isToday` can never match
+ * and no event's date can equal, so the agenda comes back empty as though the book were
+ * clear. The year is guarded too: "0000-01" emitted a "-1-00" previous-month link.
+ *
+ * An out-of-range value FALLS BACK to the month the agent is in, which is what the guard
+ * always claimed to do. Clamping was the other option and it is worse: "2026-99" has no
+ * nearest sensible month, and a silent clamp to December would look like real data.
+ *
+ * LIVES HERE, NOT IN THE PAGE. It was page-local and unexported, so the one piece of §3.2.3
+ * logic that decides whether a URL is trusted had no test while its three siblings above did.
+ */
+export function validMonth(raw: string | undefined, fallback: string): string {
+  return raw !== undefined && inWindow(raw) ? raw : fallback;
+}
+
+/**
+ * `shiftMonth`, held inside the window `validMonth` accepts. What a NAV LINK may point at.
+ *
+ * The §3.2.3 handoff claimed "shiftMonth can only ever emit in-range months, so every
+ * in-app link stays valid". That is false at the window's own edges: from "2100-12"
+ * `shiftMonth` emits "2101-01" and from "2000-01" it emits "1999-12", both of which
+ * `validMonth` rejects — so the rendered "2101-01 →" link landed on today's month under a
+ * heading that did not match the link text. No bounded set is closed under ±1 month, so the
+ * guard cannot be widened into agreement; the step is held instead. At the two extreme
+ * months the arrow points at the month you are already on, which is a dead end rather than
+ * a silent jump.
+ *
+ * A month OUTSIDE the window steps normally — `buildMonth` stays pure for anything the
+ * guard would never have let through in the first place.
+ */
+export function navMonth(month: string, delta: number): string {
+  const stepped = shiftMonth(month, delta);
+  if (!inWindow(month)) return stepped;
+  return inWindow(stepped) ? stepped : month;
+}
+
+/**
  * Build the grid.
  *
  * Six rows only when the month needs them — a 31-day month starting on Friday or Saturday,
@@ -102,9 +163,13 @@ export function buildMonth(
     else byDate.set(e.date, [e]);
   }
 
-  const prevMonth = shiftMonth(month, -1);
-  const nextMonth = shiftMonth(month, 1);
-  const [py, pm] = prevMonth.split("-").map(Number);
+  // THE GRID'S ARITHMETIC IS UNBOUNDED AND THE NAV LINKS ARE NOT. The spill cells have to
+  // carry the real neighbouring months whatever they are — a December grid's trailing cells
+  // belong to the following January even when that January is outside the navigable window.
+  // Only `prevMonth`/`nextMonth`, which the page renders as hrefs, are held inside it.
+  const gridPrev = shiftMonth(month, -1);
+  const gridNext = shiftMonth(month, 1);
+  const [py, pm] = gridPrev.split("-").map(Number);
   const prevTotal = daysInMonth(py, pm);
 
   const days: CalendarDay[] = [];
@@ -119,7 +184,7 @@ export function buildMonth(
       date = iso(py, pm, dayOfMonth);
       inMonth = false;
     } else if (offset >= total) {
-      const [ny, nm] = nextMonth.split("-").map(Number);
+      const [ny, nm] = gridNext.split("-").map(Number);
       dayOfMonth = offset - total + 1;
       date = iso(ny, nm, dayOfMonth);
       inMonth = false;
@@ -147,8 +212,8 @@ export function buildMonth(
   return {
     month,
     monthLabel: `${MONTH_NAMES[month1 - 1]} ${year}`,
-    prevMonth,
-    nextMonth,
+    prevMonth: navMonth(month, -1),
+    nextMonth: navMonth(month, 1),
     weeks,
     agenda,
   };

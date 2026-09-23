@@ -3,6 +3,7 @@ import { ErrorState } from "@/components/client/states";
 import { Icon } from "@/components/ui/Icon";
 import { AGENT_COPY, needsYouLine } from "@/lib/agent/content";
 import { loadWorklist, type AgentKpi } from "@/lib/agent/queries";
+import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
 
 /**
  * Screen 3.2.1 — Agent Dashboard / Worklist.
@@ -95,6 +96,31 @@ function Row({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/**
+ * A trip's status chip, from the one mapper that owns the translation.
+ *
+ * THIS USED TO BE A LITERAL `chip-status lead`, which was the only place in the repo that
+ * produced a `lead` chip from a trip. `web/lib/trips/status.ts` calls itself "the one place
+ * a trip becomes a chip and a label", its `StatusChip` union deliberately excludes `lead`
+ * ("`lead` belongs to the Phase 2 Lead entity and is never produced from a trip"), and
+ * `status.test.ts` asserts exactly that — writing the class in JSX broke the invariant
+ * while stepping around the test that guards it. The visible cost was two colours for one
+ * status: pink here, purple on the pipeline board one click away.
+ *
+ * `today` is read on one branch only — a `booked` trip with an unpaid milestone — and no
+ * row on this screen carries a milestone date, so the empty string never reaches
+ * `daysBetween`. The alternative is threading a date through five sections to feed a
+ * parameter none of them uses.
+ */
+function TripChip({ status }: { status: string }) {
+  const { chip, label } = tripStatusPresentation({
+    status: status as TripStatus,
+    nextUnpaidDueDate: null,
+    today: "",
+  });
+  return <span className={`chip-status ${chip}`}>{label}</span>;
 }
 
 /** Initials, never a stock portrait standing in for a named client. */
@@ -214,7 +240,7 @@ export default async function AgentWorklistPage() {
               <p className="t-title-s text-[13px]">{t.clientName}</p>
               <p className="t-body-s text-[var(--md-on-surface-variant)]">{t.title}</p>
             </div>
-            <span className="chip-status lead">Inquiry</span>
+            <TripChip status={t.status} />
           </Row>
         ))}
       </Section>

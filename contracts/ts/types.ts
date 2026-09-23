@@ -263,7 +263,12 @@ export interface paths {
         /**
          * Move a trip between pipeline stages.
          * @description Screen 3.2.2 (Pipeline / Funnel View). Agent role only — a traveler gets a 403
-         *     naming the other side of the platform.
+         *     naming the other side of the platform, and so does an advisor whose `agent.status`
+         *     is `archived`. Every read on this side already refuses that advisor
+         *     (`current_agent_id()` tests `status <> 'archived'`); a write path that did not
+         *     would leave an offboarded advisor moving trips they can no longer see, which is
+         *     an empty board that looks like enforcement next to an open door. `inactive` is
+         *     not `archived` — a paused advisor still works the book they hold.
          *
          *     THE MUTATION IS ATOMIC IN SQL, not here. A stage change is a `trip` update plus a
          *     `trip_status_history` row, and `public.agent_set_trip_status` does the pair under
@@ -284,6 +289,16 @@ export interface paths {
          *     a state that already holds. `changed` is false and NO history row is written — a
          *     logged transition that never happened corrupts the cycle-time KPI exactly as
          *     badly as a missing one.
+         *
+         *     ONE SAME-STAGE CALL STILL WRITES: `cancelled` → `cancelled` carrying a DIFFERENT
+         *     reason. This endpoint is the only writer of `trip.cancellation_reason` in the
+         *     schema, and the call that makes the reason mandatory used to take it, answer 200
+         *     and drop it. The reason now lands, and an `audit_event` is written under
+         *     `trip.cancellation_reason_changed` rather than under a status change that did not
+         *     happen. `changed` stays false, because no stage moved and no history row was
+         *     written — so `changed: false` does NOT promise that nothing was recorded.
+         *     `cancellationReasonUpdated` is what tells the two apart, and it is present on
+         *     every `cancelled` call.
          *
          *     `cancellationReason` IS REQUIRED WHEN `status` IS `cancelled`. It lands in
          *     `trip.cancellation_reason`, which is inside the client column grant and which
@@ -719,14 +734,16 @@ export interface components {
             /** @enum {string} */
             status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
             /**
-             * @description Absent on a no-op, because nothing was left behind.
+             * @description Absent whenever the stage did not move — a no-op, or a cancellation-reason correction — because nothing was left behind.
              * @enum {string}
              */
             previousStatus?: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
             /** @description The version after the write. Send this as the next `expectedVersion`. */
             version: number;
-            /** @description False when the trip was already in this stage. No history row and no audit row were written. */
+            /** @description False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded — a corrected cancellation reason writes the column and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false. */
             changed: boolean;
+            /** @description Present on every `cancelled` call and only those, because the reason is mandatory on all of them and the caller is owed an answer about where it went. True when this call wrote it to `trip.cancellation_reason` — either on a transition into `cancelled` or on a same-stage correction. False when the stored reason already read that way, so there was nothing to write. Either answer means the traveler now sees the sentence you sent, on Screen 2.2.10. */
+            cancellationReasonUpdated?: boolean;
         };
         OnboardingStepRequest: {
             /**
@@ -1245,7 +1262,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The trip is in the requested stage. `changed` is false when it already was. */
+            /**
+             * @description The trip is in the requested stage. `changed` is false when it already was.
+             *     On a `cancelled` call, `cancellationReasonUpdated` says whether the reason
+             *     reached `trip.cancellation_reason`.
+             */
             200: {
                 headers: {
                     [name: string]: unknown;

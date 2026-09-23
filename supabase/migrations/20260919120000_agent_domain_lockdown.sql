@@ -71,8 +71,19 @@
 -- ── WHAT THIS MIGRATION LOCKS IN THAT NO EARLIER ONE COULD ───────────────────────
 --
 -- `anon` has no policy anywhere in this schema, so it should hold no privilege anywhere
--- either. Those 17 tables were the last place it did. After this, `anon` holds NOTHING in
--- `public` — asserted at the bottom, and true for the first time since 2026-05-14.
+-- either. Those 17 tables were the last place it held a TABLE or COLUMN privilege, and
+-- after this it holds neither — asserted at the bottom, and true for the first time since
+-- 2026-05-14.
+--
+-- Say it that narrowly on purpose. The flat sentence "anon holds nothing in public" claims
+-- more than the assertion below proves and more than is achievable at all.
+-- `information_schema.column_privileges` carries four privilege types — SELECT, INSERT,
+-- UPDATE, REFERENCES — and no function rows whatsoever, so a query over it is blind to
+-- EXECUTE. And `citext` and `pg_trgm` were installed into `public` in 20260514120000, so
+-- their functions are anon-executable and will stay that way for as long as they live
+-- there. Functions are a second ledger: they get their own REVOKEs and their own
+-- assertion, both below, and that assertion excludes extension-owned objects because that
+-- is the only form of it that can ever pass.
 --
 -- The second assertion is the one that closes the class rather than the instance: nothing
 -- outside the nineteen-table client read surface may hold a client-role privilege, table or
@@ -176,6 +187,59 @@ GRANT SELECT (
     budget_band, favorite_past_trips, updated_at
 ) ON public.travel_preference TO authenticated;
 
+-- ── THE OTHER LEDGER: FUNCTION EXECUTE ───────────────────────────────────────────
+--
+-- A function in `public` reaches `anon` by two independent routes, and closing one leaves
+-- the other wide open:
+--
+--   1. PostgreSQL's own hard-wired default grants EXECUTE to PUBLIC on every function ever
+--      created, and `anon` is a member of PUBLIC. It is the `=X/postgres` entry in `proacl`.
+--   2. Supabase's `ALTER DEFAULT PRIVILEGES` for schema `public` names `anon`,
+--      `authenticated` and `service_role`, so each new function also carries `anon=X`.
+--
+-- That is why every function REVOKE on this branch reads `FROM public, anon` and not one or
+-- the other: the REVOKE beside `seed_pipeline_weights()` in the agent_pipeline_entities
+-- migration, the one beside `current_agent_id()` and the accessor loop in the
+-- agent_read_surface migration, and the one under `agent_set_trip_status(...)` in the
+-- agent_trip_status_write migration all name both. (Cited by statement rather than by line —
+-- several agents edit those files at once, and the last number written here had already
+-- drifted onto a comment inside a function body.) Route 2 is closed
+-- below for the role migrations run as, which is the role that creates every function in
+-- this repo. It is NOT closed for `supabase_admin`, which carries a default ACL of its own
+-- over `public` and which `postgres` is not a member of, so this migration cannot amend it.
+-- Route 1 CANNOT be closed at all: the stored default ACL is merged on top of the
+-- hard-wired one when the function is created, so an `ALTER DEFAULT PRIVILEGES ... REVOKE
+-- EXECUTE ON FUNCTIONS FROM PUBLIC` leaves no trace in the created function's `proacl`.
+-- Measured on the Supabase image, PostgreSQL 17.6: after that REVOKE a brand-new function
+-- still carries `=X/postgres`, and `has_function_privilege('anon', …)` is still true.
+--
+-- So the per-function `REVOKE ... FROM public, anon` stays mandatory, and what makes the
+-- invariant hold is not anybody remembering it — it is the assertion at the bottom, which
+-- fails the migration.
+--
+-- Three trigger functions carried both routes into this migration: `handle_new_user()` and
+-- `handle_user_email_confirmed()` (20260902020243, 20260903190707) and
+-- `enforce_companion_cap()` (20260904132811). All three RETURN trigger, so no caller can
+-- reach them — "trigger functions can only be called as triggers" — and nothing leaks
+-- today. They are revoked anyway, because an assertion that is honest about EXECUTE names
+-- them, and the answer to a true assertion is to fix the state rather than narrow the
+-- assertion.
+--
+-- Revoking cannot stop the triggers. EXECUTE on a trigger function is checked when the
+-- TRIGGER is created, not each time it fires — verified against the local stack: a BEFORE
+-- INSERT trigger fires for `authenticated` while `has_function_privilege` on its function
+-- is false. `authenticated` is in the list for the same reason 20260919130000:116 puts it
+-- there; the invariant asserted below is only about `anon`.
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM anon;
+
+REVOKE EXECUTE ON FUNCTION public.handle_new_user()
+    FROM public, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_user_email_confirmed()
+    FROM public, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.enforce_companion_cap()
+    FROM public, anon, authenticated;
+
 -- ── ASSERTIONS ───────────────────────────────────────────────────────────────────
 
 -- The instance: none of the seventeen grants anything to a client role any more, except the
@@ -256,8 +320,10 @@ BEGIN
     END IF;
 END $$;
 
--- And the sharper half of the same idea. `anon` has no policy anywhere in this schema, so it
--- should hold no privilege anywhere. Those seventeen tables were the last place it did.
+-- And the sharper half of the same idea, said in both ledgers because neither query can see
+-- the other's. `anon` has no policy anywhere in this schema, so it should hold no privilege
+-- anywhere. First the table one: those seventeen tables were the last place `anon` held a
+-- column privilege.
 DO $$
 DECLARE
     leaked text;
@@ -271,6 +337,37 @@ BEGIN
         RAISE EXCEPTION
             'anon still holds column privileges in public on: %. anon has no policy in this '
             'schema and must hold nothing.', leaked;
+    END IF;
+END $$;
+
+-- Then the function one, which the query above physically cannot make: column_privileges
+-- has four privilege types and no function rows. Extension-owned functions are excluded via
+-- pg_depend — 20260514120000 installed citext, pgcrypto, pg_trgm and uuid-ossp into
+-- `public`, and that their functions are anon-executable is a fact about where they were
+-- installed, not about this schema's posture.
+DO $$
+DECLARE
+    leaked text;
+BEGIN
+    SELECT string_agg(p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+                      ', ' ORDER BY p.proname)
+      INTO leaked
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND has_function_privilege('anon', p.oid, 'EXECUTE')
+       AND NOT EXISTS (
+            SELECT 1
+              FROM pg_depend d
+             WHERE d.classid = 'pg_proc'::regclass
+               AND d.objid   = p.oid
+               AND d.deptype = 'e'
+           );
+
+    IF leaked IS NOT NULL THEN
+        RAISE EXCEPTION
+            'anon can execute functions in public: %. Add REVOKE EXECUTE ON FUNCTION ... '
+            'FROM public, anon — both grantees, one for each route named above.', leaked;
     END IF;
 END $$;
 

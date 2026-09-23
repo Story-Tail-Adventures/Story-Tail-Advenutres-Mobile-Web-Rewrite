@@ -28,18 +28,28 @@
  * the unbuilt set can be listed rather than remembered. `content.test.ts` asserts that every
  * one of them names a `§`.
  *
- * ── NOT YET IN THE COPY-PARITY GATE ─────────────────────────────────────────────
+ * ── IN THE COPY-PARITY GATE ─────────────────────────────────────────────────────
  *
- * `.github/scripts/check_copy_parity.py` pairs a web module with a KMP one. There is no
- * agent Compose surface yet; when §3.2's mobile Worklist lands, this file and its
- * `AgentCopy.kt` twin get a `MESSAGE_TABLES` row. Until then `content.test.ts` is the only
- * thing holding these strings, and the gate's own header warns that an unregistered module
- * is a silent gap rather than a covered one.
+ * `.github/scripts/check_copy_parity.py` pairs this file with `AgentCopy.kt` under the
+ * "agent 3.2" row, so every plain string listed there is compared BYTE FOR BYTE against its
+ * Kotlin twin. Editing one side alone turns CI red — which is the point. The four function
+ * entries (the greeting count, the currency note, the cancelled note, the excluded note)
+ * take a count and pluralise, so the gate skips them and `content.test.ts` holds them
+ * instead.
+ *
+ * The gate's key list is also SHORTER than this object on purpose: the pipeline and calendar
+ * strings belong to screens §6.6 keeps web-only at MVP, so they have no Kotlin twin to
+ * compare against. Adding one here does not oblige `AgentCopy.kt` to grow a matching
+ * constant; moving one into the gate's list does.
  */
 
 export const AGENT_COPY = {
   // ── Greeting ────────────────────────────────────────────────────────────
-  greetingZero: "Nothing urgent this morning.",
+  // TIME-NEUTRAL ON PURPOSE. It renders on the line directly under the computed part of
+  // day, so "this morning" sat beneath an "Afternoon," or "Evening," heading every hour
+  // after noon. The zero state still says so and stops; it just no longer names an hour
+  // the line above it has already contradicted.
+  greetingZero: "Nothing urgent today.",
   greetingZeroSub: "The book is quiet. That is allowed.",
   greetingOne: "1 thing needs you today.",
   greetingMany: (n: number) => `${n} things need you today.`,
@@ -62,8 +72,12 @@ export const AGENT_COPY = {
   // Data-Model §8.8: the figure accumulates forward. An empty tile says why rather than
   // showing a zero-day average, which would be a claim where an absence is the truth.
   cycleTimeUnavailable: "Not enough history yet — this fills in as trips move to Booked.",
+  // `others` IS A COUNT OF CURRENCIES, NOT OF TRIPS. It comes from `currency_count - 1`,
+  // and the old sentence ("3 trips are priced in another currency") claimed a trip count
+  // the caller has never held — three other currencies could be thirty trips. Say what the
+  // number actually is.
   currencyNote: (dominant: string, others: number) =>
-    `${dominant} only. ${others} ${others === 1 ? "trip is" : "trips are"} priced in another currency and not counted here.`,
+    `${dominant} only. Trips priced in ${others} other ${others === 1 ? "currency" : "currencies"} are not counted here.`,
 
   // ── Pipeline ────────────────────────────────────────────────────────────
   pipelineTitle: "Pipeline",
@@ -71,7 +85,22 @@ export const AGENT_COPY = {
   pipelineEmptyColumn: "Nothing here.",
   cancelledNote: (n: number) =>
     `${n} cancelled ${n === 1 ? "trip is" : "trips are"} not on the board. Cancelled is a status, not a stage.`,
+  // What one COLUMN total left out, and it counts TRIPS — where `currencyNote`, which sits
+  // above the whole board, counts CURRENCIES. Two numbers of different kinds on one screen
+  // is why this one names its unit and stays to five words: the page-level sentence has
+  // already explained the rule, so this only has to say how much of this column is missing
+  // from this figure. It lived as a literal inside pipeline/page.tsx, where neither the
+  // parity script nor `content.test.ts` could see it.
+  excludedNote: (n: number) =>
+    `+${n} ${n === 1 ? "trip in another currency" : "trips in other currencies"}`,
   stageMenuLabel: "Move stage",
+  // THE 409 FALLBACK, and the only thing it is for. A conflict normally arrives with the
+  // Edge Function's own sentence in `detail` and that sentence is preferred — it is written
+  // next to the rule. This is what the agent reads when the 409 body is not parseable, and
+  // a generic "try again in a moment" there would tell them to retry a write that will keep
+  // failing until they reload. Its one consumer is `changeTripStage` in
+  // `app/(agent)/agent/pipeline/actions.ts`, which must select it off `result.conflict` —
+  // the typed flag `lib/supabase/edge.ts` carries — and never off a substring of `detail`.
   stageStale: "This trip moved since the board was loaded. Reload and try again.",
   stageFailed: "Could not move the trip. Try again in a moment.",
 

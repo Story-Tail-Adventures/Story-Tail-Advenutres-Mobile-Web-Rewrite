@@ -21,8 +21,13 @@
 //
 // DELIBERATE DEPARTURES from the desktop artboards. Each is a thing the desktop frame draws
 // that the platform cannot honour, verified against the schema, the migrations and the
-// shipped accessors rather than assumed, and each is recorded in docs/Screen-Inventory.md
-// §3.2 as well.
+// shipped accessors rather than assumed. Departures 1 through 12 are recorded in
+// docs/Screen-Inventory.md as well, and it is worth knowing where: 1, 4, 9, 10 and 12 in the
+// §3.2.x amendments dated 2026-09-19, and 2, 3, 5, 7, 8 and 11 in the ones dated 2026-09-23.
+// 6 is the Pattern D mapping in §4.4 rather than a §3.2 decision. 13 is a seed-and-prototype
+// error logged here, not a departure at all. 14 runs the other way — the BUILD departs from
+// THESE frames rather than these frames from the desktop — and is recorded in the §3.2.1
+// amendment dated 2026-09-23 alongside the rest.
 //
 //   1. THERE IS NO `lead` TABLE, SO THERE IS NO "FRESH LEADS" CARD. The desktop draws leads
 //      as a distinct secondary-container panel with per-row "Reply" buttons, which is what
@@ -77,8 +82,10 @@
 //      `Array.from({length: 35}, (_, i) => i - 3)` hardcodes a three-day leading offset and
 //      35 cells, and `events[dayNum]` allows exactly one event per day. Real months need the
 //      right offset, 28–31 days, sometimes six rows, and a departure plus a payment on one
-//      date is routine. Mobile is agenda-first anyway (§4.4), which sidesteps the grid — the
-//      web build owes the real arithmetic.
+//      date is routine. Mobile is agenda-first anyway (§4.4), which sidesteps the grid. The
+//      web build no longer follows the drawing: `web/lib/agent/calendar.ts` does the real
+//      arithmetic, date-injected so it can be tested. agent-dashboard.jsx should be
+//      corrected.
 //  12. THE AVAILABILITY LAYER IS ABSENT, WITH A REASON. `agent_availability.time_off_blocks`
 //      is `jsonb` with no declared schema, so there is nothing to validate a parse against —
 //      the same gap Data-Model §7.4 cites as its reason for making PipelineWeight a table.
@@ -88,6 +95,29 @@
 //      `agent.pronouns` is 'he/him' in the seed. That is the third and fourth instance of an
 //      error client-trip-mobile.jsx:19 and client-payment-mobile.jsx already recorded.
 //      Flagged here so the frames get fixed rather than the error quietly persisting.
+//  14. THE BUILD ADDS A TOP BAR THAT THESE FRAMES DO NOT DRAW. Every entry above is the
+//      phone frame departing from the desktop; this one is the shipped Compose shell
+//      departing from the phone frame, which is why it is last and called out separately.
+//      `MFrame` gives each screen a 54px status-bar inset and goes straight into content —
+//      there is no header element anywhere in this file — and §6.6 describes the agent
+//      mobile shell as a bottom tab bar and nothing else. `AgentTopBar`
+//      (mobile/shared/.../ui/components/agent/AgentSurface.kt) puts a 56dp bar above the
+//      content instead: the screen's name on the left, a "Sign out" text button on the
+//      right, and a divider. It matches the client shell's `AccountTopBar` deliberately,
+//      because the two shells must not drift structurally.
+//      WHY: Worklist is the ENTIRE agent shell in this slice. `nav.resetTo` clears the back
+//      stack, Clients / Messages / More are all `built = false` and draw dimmed and
+//      unpressable, and on iOS `PlatformBackHandler` is a deliberate no-op with no system
+//      exit at all. Before §3.2 an agent signing in on a phone landed in the CLIENT shell,
+//      whose Account tab carries a sign-out — so shipping this surface without a bar would
+//      REMOVE the only sign-out an agent had rather than merely not add one. A word rather
+//      than a glyph, because there is no logout mark in StoryTailMark. No brand lockup,
+//      unlike the web top bar: BrandMark has an 80dp height floor, which would cost 80dp of
+//      a phone screen above the densest surface in the product, and §6.6's whole argument
+//      for this surface is on-the-go density.
+//      WHEN IT GOES: §3.12 (More) takes the sign-out over once it lands, and the bar keeps
+//      the title. Until then these frames should gain the bar rather than the build losing
+//      it — the departure is the frames' to close.
 //
 // WHAT IS REAL BEHIND THESE FRAMES: `agent_kpis()`, `agent_trip_board()`,
 // `agent_payments_due()`, `agent_inbox()` and `agent_availability_self()` — SECURITY DEFINER

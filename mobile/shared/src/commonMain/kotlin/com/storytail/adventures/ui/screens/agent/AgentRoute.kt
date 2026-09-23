@@ -37,6 +37,15 @@ fun AgentRoute(
     displayName: String,
     /** `platform_user.time_zone`. The greeting is derived from it, never from the handset. */
     timeZone: String,
+    /**
+     * Ends the session. Handed down from `App.kt` the same way the client shell's is, rather
+     * than reached for here — this package holds no repository but [AgentRepository].
+     *
+     * Worklist is the whole agent shell in this slice, so this is the ONLY way out of it:
+     * `nav.resetTo` cleared the stack, the other three tabs are unbuilt, and iOS has no
+     * system back at all. See `AgentTopBar`.
+     */
+    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (route) {
@@ -80,6 +89,7 @@ fun AgentRoute(
                 // because the second §3.x screen needs it and a no-op today is clearer than
                 // a signature that changes later.
                 onSelectTab = { if (it != "worklist") nav.selectTab(AppRoute.Worklist) },
+                onSignOut = onSignOut,
                 modifier = modifier,
             )
         }

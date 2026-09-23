@@ -25,14 +25,17 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.storytail.adventures.domain.agent.AGENT_BAR_DESTINATIONS
+import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.AgentDestination
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
@@ -89,6 +92,69 @@ fun AgentScaffold(
                 AgentBottomNav(active = activeTab, onSelect = onSelectTab)
             }
         }
+    }
+}
+
+/**
+ * The advisor's top bar, and the only way off this surface.
+ *
+ * WHY SIGN-OUT LIVES HERE RATHER THAN BEHIND "MORE". Worklist is the whole agent shell in
+ * this slice: `nav.resetTo` clears the stack so system back is disabled, and Clients,
+ * Messages and More are all `built = false`, which [AgentTab] draws dimmed and unpressable.
+ * Until §3.12 builds More there is no other screen to put this on, and before §3.2 an agent
+ * signing in on a phone landed in the CLIENT shell, whose Account tab has one — so shipping
+ * without it would REMOVE the only sign-out an agent had rather than merely not add one.
+ * That matters most on iOS, where `PlatformBackHandler` is a deliberate no-op and there is
+ * no system exit at all, and the session is restored from storage on every relaunch.
+ *
+ * A WORD, NOT A GLYPH. There is no logout mark in [StoryTailMark], and an unlabelled icon is
+ * the opposite of "somewhere a phone user will find it". When §3.12 lands, More takes this
+ * over and this bar keeps the title.
+ *
+ * NO BRAND LOCKUP, unlike the web top bar. [com.storytail.adventures.ui.components.BrandMark]
+ * takes a HEIGHT with an 80dp floor — below that the light lockup's "ADVENTURES" line stops
+ * being readable — and the dark scheme's lockup is a near-square badge, so the mark would
+ * cost 80dp of a phone screen above the densest surface in the product. The screen's own
+ * name is the orientation a phone needs here; §6.6's whole argument for this surface is
+ * on-the-go density.
+ *
+ * 56dp and a divider, the same bar [com.storytail.adventures.ui.components.client.AccountTopBar]
+ * draws — the two shells must not drift structurally. Nothing here imports from
+ * `ui/screens/account/` or `ui/components/client/`, which is the rule [AgentScaffold] states.
+ */
+@Composable
+fun AgentTopBar(
+    title: String,
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+
+    Column(modifier.fillMaxWidth().background(scheme.background)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .padding(start = 16.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                color = scheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(
+                onClick = onSignOut,
+                // §4.2's 44pt floor on touch; 48dp is the platform's own.
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) {
+                Text(AgentCopy.SIGN_OUT)
+            }
+        }
+        HorizontalDivider(color = scheme.outlineVariant)
     }
 }
 

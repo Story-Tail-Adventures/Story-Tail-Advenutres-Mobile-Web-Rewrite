@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { AdminNoAccess } from "@/components/agent/AdminNoAccess";
 import { ClientBottomNav, ClientNavRail } from "@/components/client/ClientNav";
 import { ClientTopBar } from "@/components/client/ClientTopBar";
-import { UnauthorizedState } from "@/components/client/states";
 import { clientShellDecision } from "@/lib/agent/role";
 import { INITIALS_FALLBACK, initialsFor } from "@/lib/auth/initials";
 import { env } from "@/lib/env";
@@ -44,6 +44,7 @@ import { createClient } from "@/lib/supabase/server";
  * the decision is made, which is the correct trade — and the two queries are a single
  * round-trip each against a local index.
  */
+
 export default async function ClientLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -106,7 +107,7 @@ export default async function ClientLayout({
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
         <ClientTopBar initials={initials || INITIALS_FALLBACK} />
         <main id="main" className="client-main min-w-0 flex-1">
-          {wrongRole ? <UnauthorizedState /> : children}
+          {wrongRole ? <AdminNoAccess /> : children}
         </main>
       </div>
       <ClientBottomNav />

@@ -134,19 +134,93 @@ AS $$
                (date_trunc('month', today) + interval '1 month')::date     AS month_end
           FROM me
     ),
-    open_trip AS (
+    -- The whole book: every non-archived trip this agent owns, whatever its status. Nothing
+    -- is scoped to `book_trip` itself — it is the pool the three sets below are cut from.
+    book_trip AS (
         SELECT t.*
           FROM public.trip t, span s
          WHERE t.agent_id = s.agent_id
            AND t.archived_at IS NULL
-           AND t.status IN ('inquiry', 'proposal', 'booked', 'in_progress')
     ),
-    -- The agent's own currencies, most-used first. EVERY money figure below is scoped to
-    -- this one — see the note under the function on why that is the shape, and why scoping
-    -- three of four would have been worse than scoping none.
+    open_trip AS (
+        SELECT * FROM book_trip
+         WHERE status IN ('inquiry', 'proposal', 'booked', 'in_progress')
+    ),
+    -- Trips whose FIRST booking inside the month happened this month. Split out of
+    -- `booked_month` so the currency base below can be built from the very rows that figure
+    -- sums, instead of from a set that merely overlaps them.
+    --
+    -- EXISTS over the history rather than a join to it, because a join sums the trip's value
+    -- once per matching row. `trip_status_history` only forbids a transition to the status
+    -- the trip is already in, so booked -> in_progress -> booked is legal and routine (a
+    -- client changes dates, the deposit is re-run) — and under a join that trip's whole value
+    -- is counted twice, with nothing on the screen to say so.
+    --
+    -- The comparison is in the AGENT's time zone, matching the boundaries `span` computed.
+    -- Comparing a UTC calendar date against agent-local month boundaries misfiles every
+    -- booking made in the offset's worth of hours at each month edge: for America/Chicago a
+    -- trip booked at 23:00 on the 31st is 04:00 UTC on the 1st, and lands in the wrong month.
+    booked_month_trip AS (
+        SELECT t.*
+          FROM book_trip t
+          JOIN span s ON t.agent_id = s.agent_id
+         WHERE EXISTS (
+                SELECT 1
+                  FROM public.trip_status_history h
+                 WHERE h.trip_id = t.id
+                   AND h.to_status = 'booked'
+                   AND (h.changed_at AT TIME ZONE s.time_zone)::date >= s.month_start
+                   AND (h.changed_at AT TIME ZONE s.time_zone)::date <  s.month_end
+               )
+    ),
+    -- THE CURRENCY BASE: exactly the trips that feed a money figure, and nothing else.
+    --
+    -- Read the four money columns' own FROM clauses and the set falls out. pipeline_value
+    -- sums `open_trip`; both commission figures sum commission rows joined to `open_trip`;
+    -- booked_month sums `booked_month_trip`, where a trip counts for the month it was
+    -- booked in whatever status it has reached since, so a completed one still belongs.
+    -- Nothing else in the book reaches a tile. A trip that is neither open nor booked
+    -- inside this month — last quarter's cancellation, a trip completed after an earlier
+    -- month's booking — contributes to no figure at all, and a currency that only such
+    -- trips use has no number on the screen for the label to be about. (A trip booked this
+    -- month and cancelled since is still in booked_month, as it was before this change;
+    -- whether the month's bookings should net out a same-month cancellation is a question
+    -- about that figure, not about the currency it is labelled in.)
+    --
+    -- Both of the obvious bases have now been wrong here, in the same way and one tile
+    -- apart. `open_trip` alone was too narrow: an agent whose last open trip completed got
+    -- an EMPTY `cur`, `t.currency = NULL` is NULL for every row, and the "Booked · month"
+    -- tile fell to $0 the moment nothing was open, with no booking data having changed.
+    -- `book_trip` was then too wide, which moved that same confident zero rather than
+    -- removing it: an advisor whose closed book is mostly EUR and whose open book is USD
+    -- got a EUR label beside a EUR pipeline of 0 and two EUR commission figures of 0, while
+    -- "3 active trips" — not currency-scoped — sat next to it saying otherwise. A base that
+    -- is neither the numerator nor the denominator of anything on the screen will always be
+    -- able to label a figure it does not describe.
+    --
+    -- `currency_count` counts over THIS set too, not over the book. It drives the note that
+    -- says what the figures left out, and counting a currency no figure could have included
+    -- names an exclusion that never happened.
+    --
+    -- One case stays imperfect, and is left visible rather than papered over: when this
+    -- month's bookings are in one currency and the open book in another, no single label is
+    -- true of both, and the tiles the label loses read 0. `currency_count` is 2 there, so
+    -- the note fires and names the exclusion — under-reporting with the exclusion stated,
+    -- which is the posture the note under this function argues for. The answer if that ever
+    -- happens in practice is a per-currency breakdown, not a second, hidden scope.
+    money_trip AS (
+        SELECT t.*
+          FROM book_trip t
+         WHERE t.id IN (SELECT id FROM open_trip)
+            OR t.id IN (SELECT id FROM booked_month_trip)
+    ),
+    -- The agent's own currencies over that base, most-used first, ties broken by currency
+    -- ascending so the answer is stable from one read to the next. EVERY money figure below
+    -- is scoped to this one — see the note under the function on why that is the shape, and
+    -- why scoping three of four would have been worse than scoping none.
     cur AS (
         SELECT currency, count(*) AS n
-          FROM open_trip
+          FROM money_trip
          GROUP BY currency
          ORDER BY n DESC, currency
          LIMIT 1
@@ -171,32 +245,13 @@ AS $$
          WHERE c.status IN ('expected', 'invoiced')
            AND t.currency = (SELECT currency FROM cur)
     ),
-    -- Trips whose FIRST booking inside the month happened this month.
-    --
-    -- EXISTS over the history rather than a join to it, because a join sums the trip's value
-    -- once per matching row. `trip_status_history` only forbids a transition to the status
-    -- the trip is already in, so booked -> in_progress -> booked is legal and routine (a
-    -- client changes dates, the deposit is re-run) — and under a join that trip's whole value
-    -- is counted twice, with nothing on the screen to say so.
-    --
-    -- The comparison is in the AGENT's time zone, matching the boundaries `span` computed.
-    -- Comparing a UTC calendar date against agent-local month boundaries misfiles every
-    -- booking made in the offset's worth of hours at each month edge: for America/Chicago a
-    -- trip booked at 23:00 on the 31st is 04:00 UTC on the 1st, and lands in the wrong month.
+    -- The month's bookings, in the dominant currency. The row set is `booked_month_trip`
+    -- above — the same rows `money_trip` counted when it chose that currency, which is what
+    -- keeps the label true of this figure rather than merely near it.
     booked_month AS (
         SELECT coalesce(sum(t.total_value_cents), 0)::bigint AS cents
-          FROM public.trip t
-          JOIN span s ON t.agent_id = s.agent_id
-         WHERE t.archived_at IS NULL
-           AND t.currency = (SELECT currency FROM cur)
-           AND EXISTS (
-                SELECT 1
-                  FROM public.trip_status_history h
-                 WHERE h.trip_id = t.id
-                   AND h.to_status = 'booked'
-                   AND (h.changed_at AT TIME ZONE s.time_zone)::date >= s.month_start
-                   AND (h.changed_at AT TIME ZONE s.time_zone)::date <  s.month_end
-               )
+          FROM booked_month_trip t
+         WHERE t.currency = (SELECT currency FROM cur)
     ),
     -- Time from a trip's creation to its FIRST booked transition. `trip.created_at` is the
     -- inquiry moment (trip.status defaults to inquiry), so only the booked end needs history
@@ -218,7 +273,7 @@ AS $$
         s.agent_id,
         s.today,
         (SELECT currency FROM cur),
-        (SELECT count(DISTINCT currency)::integer FROM open_trip),
+        (SELECT count(DISTINCT currency)::integer FROM money_trip),
         (SELECT coalesce(sum(total_value_cents), 0)::text
            FROM open_trip WHERE currency = (SELECT currency FROM cur)),
         (SELECT cents::text FROM booked_month),
@@ -272,6 +327,13 @@ COMMENT ON COLUMN public.trip.total_commission_cents IS
 -- exist so a screen showing one figure can say what it excluded. Under-reporting with the
 -- exclusion named beats a plausible wrong total.
 --
+-- Both are derived from `money_trip`: the union of the row sets the money figures actually
+-- range over — open trips, plus the trips booked this month whatever status they carry now.
+-- Neither of the two obvious bases works. `open_trip` alone hands a NULL currency, and so a
+-- confident unexplained $0, to any agent with nothing currently open. The whole book labels
+-- the tiles with a currency that only cancelled or long-completed trips voted for, and those
+-- tiles then read 0 beside an untouched "3 active trips". The CTE carries the derivation.
+--
 -- Scoping all four matters more than it looks. The first version of this function scoped only
 -- `pipeline_value_cents` and left the other three summing across everything, under a single
 -- `dominant_currency` label — which is strictly worse than scoping none of them, because the
@@ -293,7 +355,7 @@ COMMENT ON COLUMN public.trip.total_commission_cents IS
 CREATE OR REPLACE FUNCTION public.agent_trip_board(
     p_statuses               trip_status[] DEFAULT NULL,
     p_departing_within_days  integer       DEFAULT NULL,
-    p_limit                  integer       DEFAULT 200
+    p_limit                  integer       DEFAULT NULL
 )
 RETURNS TABLE (
     trip_id                uuid,
@@ -388,7 +450,27 @@ AS $$
                 AND t.start_date >= me.today
                 AND t.start_date <  me.today + p_departing_within_days))
      ORDER BY t.start_date NULLS LAST, t.status_changed_at DESC
-     LIMIT least(coalesce(p_limit, 200), 500);
+     -- NO DEFAULT CAP, AND NO CEILING. `LIMIT NULL` is "all rows", which is the contract
+     -- rls_agent_reads.sql:170 already asserts: every non-archived trip in the agent's
+     -- book, and no more.
+     --
+     -- Both callers ask for the whole board with no arguments and then aggregate the rows
+     -- they get — the pipeline columns' counts and totals, the cancelled count, the
+     -- worklist's sections and its needs-you count, the calendar's departures and returns.
+     -- A default cap made every one of those an aggregate over a PAGE, and this ORDER BY
+     -- chose the page badly: no status filter, so every `completed` trip an advisor has
+     -- ever had stays in the set forever and sorts to the FRONT under oldest-departure-
+     -- first, while `inquiry` trips — which characteristically have no dates yet — sort
+     -- last under NULLS LAST and are the first to be cut. Past the cap the sections
+     -- silently under-reported while the KPI strip above them, computed in SQL with no
+     -- cap, kept counting the whole book; the tile and the sections beneath it disagreed,
+     -- and nothing on the page said the list had been cut. The old ceiling of 500 meant
+     -- an explicit larger p_limit could not recover the rows either.
+     --
+     -- `p_limit` is still honoured when a caller passes one. That is then that caller's
+     -- page, asked for and therefore known about, rather than a hidden truncation of
+     -- everybody's board. A caller that pages owes its reader the fact that it did.
+     LIMIT p_limit;
 $$;
 
 COMMENT ON FUNCTION public.agent_trip_board(trip_status[], integer, integer) IS
@@ -396,7 +478,9 @@ COMMENT ON FUNCTION public.agent_trip_board(trip_status[], integer, integer) IS
     'days. `CROSS JOIN me` is the tenancy boundary: me is empty for a client, an admin or '
     'anon, so the whole query returns zero rows without a branch. client_display_name is '
     'composed here rather than returned as three columns — two hand-written name formatters, '
-    'one TS and one Kotlin, is the drift check_copy_parity.py exists to police.';
+    'one TS and one Kotlin, is the drift check_copy_parity.py exists to police. Uncapped '
+    'unless p_limit is given, because every caller aggregates the rows it returns and an '
+    'aggregate over a page is a wrong number with no way to tell.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3.2.1 "Payments to settle", 3.2.3 payment-due events
@@ -445,13 +529,28 @@ AS $$
        AND pm.status IN ('scheduled', 'overdue')
        AND pm.due_date IS NOT NULL
        AND pm.due_date < me.today + coalesce(p_within_days, 14)
-     ORDER BY pm.due_date
-     LIMIT 200;
+     -- NO CAP, for the reason agent_trip_board above has none: both callers AGGREGATE
+     -- these rows rather than paging them. The worklist adds this row count into the
+     -- "needs you" total beside the proposals and the new inquiries, and the calendar asks
+     -- for a 400-day window and then emits one event per row. Under the old `LIMIT 200` an
+     -- advisor with more scheduled or overdue milestones than that inside the window lost
+     -- events off the calendar and had the badge understate the work, with nothing on
+     -- either screen saying the list had been cut — a count over a page is a wrong number
+     -- with no way to tell.
+     --
+     -- No p_limit parameter either, on purpose. `supabase gen types` puts a function's
+     -- ARGUMENTS in the generated types as well as its columns, so adding one drifts
+     -- web/types/supabase.ts and supabase/functions/_shared/database.types.ts; and no
+     -- caller wants a page — they want the window, which p_within_days already bounds. The
+     -- day one does, it can add the parameter and own the paging it asked for.
+     ORDER BY pm.due_date;
 $$;
 
 COMMENT ON FUNCTION public.agent_payments_due(integer) IS
     'Supplier payments due soon. No lower bound on due_date on purpose — already-overdue is '
-    'the point of the section, and days_until goes negative to say so.';
+    'the point of the section, and days_until goes negative to say so. Uncapped, like '
+    'agent_trip_board: both callers aggregate these rows rather than paging them, and '
+    'p_within_days is the bound that is meant to do the narrowing.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3.2.1 "Recent messages", later 3.10.1
@@ -490,7 +589,18 @@ AS $$
      WHERE cv.agent_id = me.agent_id
        AND cv.archived_at IS NULL
      ORDER BY cv.last_message_at DESC
-     LIMIT least(coalesce(p_limit, 20), 100);
+     -- A DEFAULT IS FINE HERE; THE CEILING WAS NOT. Unlike the two functions above,
+     -- nothing aggregates these rows into a total: this is a "recent messages" list, every
+     -- caller passes an explicit p_limit (the worklist asks for 5), and a list that returns
+     -- exactly the number of rows it was asked for has told its reader it is a page. The
+     -- default of 20 is part of the declared signature, so omitting the argument is a
+     -- choice rather than a surprise.
+     --
+     -- `least(..., 100)` was the part that could not be told from the truth. A caller
+     -- asking for 500 got 100 rows back with no way to know whether that was the whole
+     -- inbox or a silent trim of it, and no larger argument could recover the rest. These
+     -- are the agent's own conversations; there is nothing protected by refusing them.
+     LIMIT coalesce(p_limit, 20);
 $$;
 
 COMMENT ON FUNCTION public.agent_inbox(integer) IS
@@ -554,6 +664,41 @@ BEGIN
     END LOOP;
 END $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- pg_temp, named LAST, on the definer functions that predate this one
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The header's rule is POSITIONAL. A search_path that does not name pg_temp leaves it
+-- searched FIRST for relation names, which is precisely the shadowing the header is about;
+-- `SET search_path = public` looks pinned and is not.
+--
+-- Seven SECURITY DEFINER functions already in `public` are in that state, and they passed
+-- the assertion below only because it used to look for the string `search_path=` and
+-- nothing else. None is exploitable today — every one schema-qualifies its relations,
+-- `authenticated` is NOLOGIN, PostgREST exposes no DDL, and the two trigger functions run
+-- in GoTrue's session rather than a caller's — but the assertion is tightened here to check
+-- the property the header actually argues for, and it cannot be tightened without these.
+--
+-- ALTER rather than CREATE OR REPLACE on purpose: this changes the pin and nothing else, so
+-- each body stays owned by the migration that wrote it. Note that a later CREATE OR REPLACE
+-- of any of these drops the pin again — handle_new_user() has already been replaced three
+-- times — which is why the guard below is schema-wide rather than a list.
+ALTER FUNCTION public.handle_new_user()
+    SET search_path = public, extensions, pg_temp;
+ALTER FUNCTION public.handle_user_email_confirmed()
+    SET search_path = public, extensions, pg_temp;
+ALTER FUNCTION public.current_platform_user()
+    SET search_path = public, pg_temp;
+ALTER FUNCTION public.current_client_mailing_address_id()
+    SET search_path = public, pg_temp;
+ALTER FUNCTION public.cruise_sync_tick()
+    SET search_path = public, pg_temp;
+ALTER FUNCTION public.hotel_search_take_token(
+        text, public.hotel_rate_window, timestamptz, integer)
+    SET search_path = public, pg_temp;
+ALTER FUNCTION public.hotel_search_gc()
+    SET search_path = public, pg_temp;
+
 -- ── ASSERTIONS ───────────────────────────────────────────────────────────────────
 
 -- A future `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public` is exactly the kind of thing
@@ -573,23 +718,74 @@ BEGIN
 END $$;
 
 -- Schema-wide rather than per-function, so it catches the NEXT definer function anyone
--- writes as well as these six. An unpinned search_path on a definer function is the trap
--- this migration's header is about.
+-- writes as well as these six.
+--
+-- WHAT IT CHECKS IS THE POSITION, not merely the presence, of a pin. The previous version
+-- of this block tested `cfg LIKE 'search_path=%'` — that SOME value was set — and then
+-- claimed in its own comment to catch "the trap this migration's header is about". It did
+-- not. The header's trap is pg_temp searched first for relation names, and
+-- `SET search_path = public` leaves it exactly there while satisfying that test. So the old
+-- guard caught only a COMPLETELY MISSING pin, which is strictly weaker than the property
+-- the file argues for, and anything written in the shape of current_platform_user() got a
+-- green build. pg_temp must be NAMED, and named LAST.
+--
+-- ONE PIN PASSES WITHOUT NAMING IT: the empty one. `SET search_path = ''` is stored as the
+-- proconfig entry search_path="", whose last comma-separated element btrims to the empty
+-- string, so the positional test would read the strictest setting there is as an offender.
+-- An empty search_path resolves NOTHING implicitly — pg_temp included — which means every
+-- relation name in the body must already be schema-qualified and there is no position for
+-- a temp relation to be shadowed FROM. It is stricter than pg_temp-last, not weaker, and
+-- it is what Supabase's own function_search_path_mutable advisor recommends. Rejecting it
+-- would hand the next author a build failure telling them to append pg_temp to the safest
+-- thing they could have written, which is a guard arguing for the weaker configuration.
+-- public.enforce_companion_cap already carries exactly this pin, and escapes this block
+-- only by being SECURITY INVOKER.
+--
+-- Extension-owned functions are out of scope: citext, pgcrypto, pg_trgm and uuid-ossp are
+-- installed into `public`, nothing here can ALTER what an extension owns, and CREATE
+-- EXTENSION is not the surface being guarded. `pg_depend.deptype = 'e'` is that test — a
+-- guard that demanded zero rows without it would be unsatisfiable rather than strict.
 DO $$
 DECLARE unpinned text;
 BEGIN
-    SELECT string_agg(p.proname, ', ') INTO unpinned
-      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    SELECT string_agg(
+               p.proname || ' (search_path=' || coalesce(sp.value, '<unset>') || ')',
+               ', ' ORDER BY p.proname)
+      INTO unpinned
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      LEFT JOIN LATERAL (
+            SELECT substr(cfg, length('search_path=') + 1) AS value
+              FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) cfg
+             WHERE cfg LIKE 'search\_path=%'
+             LIMIT 1
+           ) sp ON true
      WHERE n.nspname = 'public'
        AND p.prosecdef
        AND NOT EXISTS (
-            SELECT 1 FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) cfg
-             WHERE cfg LIKE 'search\_path=%'
+            SELECT 1 FROM pg_depend d
+             WHERE d.classid = 'pg_proc'::regclass
+               AND d.objid   = p.oid
+               AND d.deptype = 'e'
+           )
+       AND (
+            sp.value IS NULL
+            OR (
+                 -- The empty pin is not an offender; see the paragraph above.
+                 btrim(sp.value, ' "') <> ''
+                 AND btrim(
+                       (string_to_array(sp.value, ','))[
+                           cardinality(string_to_array(sp.value, ','))],
+                       ' "'
+                     ) <> 'pg_temp'
+               )
            );
 
     IF unpinned IS NOT NULL THEN
         RAISE EXCEPTION
-            'SECURITY DEFINER functions in public with no pinned search_path: %', unpinned;
+            'SECURITY DEFINER functions in public must end their search_path with pg_temp, '
+            'so a temp relation cannot shadow a real one inside a function running as the '
+            'table owner: %', unpinned;
     END IF;
 END $$;
 

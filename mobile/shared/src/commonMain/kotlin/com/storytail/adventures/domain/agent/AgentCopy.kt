@@ -29,7 +29,13 @@ package com.storytail.adventures.domain.agent
  */
 object AgentCopy {
     // Greeting
-    const val GREETING_ZERO = "Nothing urgent this morning."
+    //
+    // TIME-NEUTRAL, AND THAT IS THE WHOLE POINT OF THE WORDING. This line renders directly
+    // under the part-of-day heading the screen computes in the agent's own zone, so
+    // "this morning" contradicted an "Afternoon," or "Evening," heading at every hour after
+    // noon. Threading PartOfDay in here is not the fix: the parity gate compares flat
+    // constants, and WorklistSections.kt documents a clock-free contract.
+    const val GREETING_ZERO = "Nothing urgent today."
     const val GREETING_ZERO_SUB = "The book is quiet. That is allowed."
     const val GREETING_ONE = "1 thing needs you today."
 
@@ -44,6 +50,14 @@ object AgentCopy {
     const val DEPARTING_EMPTY = "Nobody travelling in the next month."
     const val MESSAGES_TITLE = "Recent messages"
     const val MESSAGES_EMPTY = "No messages waiting."
+
+    // Shell
+    //
+    // NOT REGISTERED IN THE PARITY GATE YET, and deliberately said out loud: the web agent
+    // shell has no sign-out of its own (a browser has the client account page one URL away),
+    // so there is nothing in `web/lib/agent/content.ts` to pair this with. When one lands it
+    // takes this wording and `check_copy_parity.py` gains the row.
+    const val SIGN_OUT = "Sign out"
 
     // KPI states
     const val CYCLE_TIME_UNAVAILABLE =

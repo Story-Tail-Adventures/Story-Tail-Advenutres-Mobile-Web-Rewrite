@@ -19,12 +19,17 @@ import { createClient } from "@/lib/supabase/server";
  *     A function in a props object passed from a server component to a client one
  *     typechecks, passes every unit test — they render both sides in one process, so the
  *     boundary is never crossed — and throws at runtime. `copy.nights(n)` did exactly that
- *     on the hotel-search work. `queries.test.ts` asserts JSON round-tripping per model.
+ *     on the hotel-search work. `queries.test.ts` round-trips every model through JSON AND
+ *     walks it for functions, `Date`, `Map` and `undefined` — the round trip alone drops a
+ *     function silently instead of failing, so on its own it is not a gate.
  *
  *  2. FORMATTING HAPPENS HERE, SERVER-SIDE. Money and dates arrive as strings. That is also
  *     what keeps the agent's time zone correct: the accessors compute "this month" and
  *     "departing in 30 days" in `agent.time_zone`, and formatting a date in the browser
- *     would reintroduce the mismatch one layer up.
+ *     would reintroduce the mismatch one layer up. An INSTANT is not a date, either — a
+ *     `timestamptz` arrives serialised in UTC and has to be bucketed through
+ *     `localDate(…, me.timeZone)` before it can be labelled. Slicing the first ten
+ *     characters off it labels a 19:00 Chicago message with tomorrow's date.
  *
  *  3. NULL IS NOT ZERO. `commission_confidence_pct` and `inquiry_to_book_days` come back
  *     NULL when there is nothing to report, and the generated types claim otherwise — see
@@ -122,6 +127,39 @@ function monthDay(iso: string | null): string | null {
   const [, m, d] = iso.split("-");
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${months[Number(m) - 1]} ${d}`;
+}
+
+/**
+ * The calendar date an INSTANT falls on, in the agent's own zone.
+ *
+ * PostgREST serialises `timestamptz` in UTC, so `last_message_at.slice(0, 10)` is the UTC
+ * date and not the agent's: a message at 19:30 in Chicago stores 00:30Z the next day and was
+ * labelled with a date that has not happened where he is reading it. Zones ahead of UTC skew
+ * the other way. Every other date on this surface — `as_of_date`, the month span, the
+ * departing window — is computed in `agent.time_zone` in SQL; this is the one value that
+ * arrives as an instant, so it is bucketed here against the same zone the greeting uses.
+ *
+ * Exported for `queries.test.ts`: the skew is invisible to any test that runs in UTC, which
+ * is where CI runs.
+ */
+export function localDate(timestamp: string, timeZone: string): string | null {
+  const at = new Date(timestamp);
+  if (Number.isNaN(at.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(at);
+    const part = (type: string) => parts.find((p) => p.type === type)?.value;
+    const [y, m, d] = [part("year"), part("month"), part("day")];
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch {
+    // Same trade as `partOfDayIn`: an unrecognised IANA name must not throw inside a server
+    // component. A date that is briefly the UTC one beats a page that does not render.
+  }
+  return timestamp.slice(0, 10);
 }
 
 function partOfDayIn(timeZone: string): Worklist["partOfDay"] {
@@ -257,24 +295,40 @@ export async function loadWorklist(): Promise<Worklist | null> {
     .filter((t) => t.status === "inquiry")
     .map((t) => toWorklistTrip(t, today, null));
 
+  // CANCELLED IS NOT A DEPARTURE. `agent_trip_board` filters archived trips and deliberately
+  // not cancelled ones — `loadPipeline` needs them to count — so the exclusion has to happen
+  // at each slice. A trip cancelled eight days before departure keeps its `start_date`, and
+  // without this predicate the advisor's first screen lists a traveller who is not going.
+  // Inquiry and proposal trips DO belong here: their `start_date` is a requested date, and
+  // the section is "who is travelling", not "who is booked".
   const departingSoon = trips
-    .filter((t) => t.start_date !== null && daysFrom(today, t.start_date) >= 0 && daysFrom(today, t.start_date) < 30)
+    .filter(
+      (t) =>
+        t.status !== "cancelled" &&
+        t.start_date !== null &&
+        daysFrom(today, t.start_date) >= 0 &&
+        daysFrom(today, t.start_date) < 30,
+    )
     .map((t) => toWorklistTrip(t, today, null));
 
-  const paymentsDue = dueRes.rows.map((p) => ({
-    milestoneId: p.milestone_id,
-    clientName: p.client_display_name,
-    label: `${p.trip_title} · ${p.label}`,
-    amountLabel: money(p.amount_cents, p.currency),
-    dueLabel: relativeDay(today, p.due_date) ?? "No date",
-    overdue: (p.days_until ?? 0) < 0,
-  }));
+  // Same rule as `departingSoon` above, on the other read. See `cancelledTripIds`.
+  const cancelled = cancelledTripIds(trips);
+  const paymentsDue = dueRes.rows
+    .filter((p) => !cancelled.has(p.trip_id))
+    .map((p) => ({
+      milestoneId: p.milestone_id,
+      clientName: p.client_display_name,
+      label: `${p.trip_title} · ${p.label}`,
+      amountLabel: money(p.amount_cents, p.currency),
+      dueLabel: relativeDay(today, p.due_date) ?? "No date",
+      overdue: (p.days_until ?? 0) < 0,
+    }));
 
   const recentMessages = inboxRes.rows.map((m) => ({
     conversationId: m.conversation_id,
     clientName: m.client_display_name,
     preview: m.last_message_preview ?? "",
-    timeLabel: monthDay(m.last_message_at.slice(0, 10)) ?? "",
+    timeLabel: monthDay(localDate(m.last_message_at, me.timeZone)) ?? "",
     unread: m.agent_unread_count,
   }));
 
@@ -305,6 +359,40 @@ export async function loadWorklist(): Promise<Worklist | null> {
   };
 }
 
+/**
+ * THE ONE PLACE C3 IS DECIDED: a cancelled trip's money is not work to do.
+ *
+ * `agent_payments_due` filters `t.archived_at IS NULL` and `pm.status IN
+ * ('scheduled','overdue')`, and `agent_set_trip_status` waives nothing on cancellation — so
+ * every milestone of a cancelled trip survives the cancellation and arrives on this read
+ * looking exactly like a live one. The first version of C3 dropped cancelled trips from
+ * "Travelers in next 30 days" and from the calendar's departure/return events and stopped
+ * there, which left the same trip absent from three sections and present in two: a
+ * `payment` chip on the month grid, and a row in "Payments to settle" that was also counted
+ * into `needsYouCount`. An advisor was being told to settle a supplier balance for a trip
+ * nobody is taking.
+ *
+ * SO THEY ARE EXCLUDED, not labelled. The other reading — that a surviving milestone is a
+ * cancellation penalty still genuinely owed — does not hold against what the write path
+ * actually does: nothing in §3.2 creates a penalty milestone or waives an obsolete one, so
+ * a `scheduled` row on a cancelled trip is leftover data every time. Labelling leftovers
+ * "cancelled" would dress a stale row up as a decision. When a section does start writing a
+ * real penalty, this is the comment that has to be revisited, and the row will need the
+ * trip's status on it so the screen can say which kind it is.
+ *
+ * THE DURABLE PLACE IS THE ACCESSOR, not here. `AND t.status <> 'cancelled'` in
+ * `agent_payments_due` would fix web, Compose and any later reader at once, where this
+ * fixes one of them; it is in another agent's migration. This filter is correct either way
+ * and becomes a no-op the day the accessor stops sending the rows.
+ *
+ * FAILS OPEN. A payment whose trip is not on the board at all is kept — both reads filter
+ * only `archived_at`, so that should not happen, and dropping a payment on a guess is the
+ * worse error.
+ */
+function cancelledTripIds(trips: AgentTripRow[]): Set<string> {
+  return new Set(trips.filter((t) => t.status === "cancelled").map((t) => t.trip_id));
+}
+
 function toWorklistTrip(t: AgentTripRow, today: string, dueLabel: string | null): WorklistTrip {
   return {
     tripId: t.trip_id,
@@ -329,8 +417,12 @@ export type PipelineCard = {
 export type PipelineColumn = {
   status: string;
   label: string;
+  /** Every card in the column, whatever it is priced in. */
   count: number;
+  /** Scoped to the dominant currency. Never a sum across two of them. */
   totalLabel: string;
+  /** How many of this column's cards the total leaves out. Zero in the single-currency case. */
+  excludedCount: number;
   cards: PipelineCard[];
 };
 
@@ -365,14 +457,27 @@ export async function loadPipeline(): Promise<Pipeline | null> {
   if (!k) return null;
 
   const trips = boardRes.rows;
+
+  // A COLUMN TOTAL MUST NOT MIX CURRENCIES. The accessors scope every money figure they
+  // return to the dominant currency; this reduce used to sum the column's cards whatever
+  // each was priced in and then label the result `dominant_currency` — the exact shape the
+  // read-surface migration calls "strictly worse than scoping none of them, because the
+  // label makes a claim about figures that do not honour it".
+  //
+  // So: sum only the cards denominated in the dominant code, and hand the screen the number
+  // of cards that leaves out. Naming the exclusion is the whole rule — `count` stays the
+  // honest count of cards in the column, because a card count is not money.
+  const dominant = k.dominant_currency ?? "USD";
   const columns = PIPELINE_STAGES.map((stage) => {
     const cards = trips.filter((t) => t.status === stage.status);
-    const total = cards.reduce((sum, t) => sum + cents(t.total_value_cents), 0);
+    const counted = cards.filter((t) => t.currency === dominant);
+    const total = counted.reduce((sum, t) => sum + cents(t.total_value_cents), 0);
     return {
       status: stage.status,
       label: stage.label,
       count: cards.length,
-      totalLabel: formatTripMoney(total, k.dominant_currency ?? "USD", { whole: true }),
+      totalLabel: formatTripMoney(total, dominant, { whole: true }),
+      excludedCount: cards.length - counted.length,
       cards: cards.map((t) => ({
         tripId: t.trip_id,
         clientName: t.client_display_name,
@@ -390,10 +495,11 @@ export async function loadPipeline(): Promise<Pipeline | null> {
     // trips are excluded without becoming invisible. The board read filters archived trips,
     // not cancelled ones, so they are here to count.
     cancelledCount: trips.filter((t) => t.status === "cancelled").length,
+    // `currency_count` is now computed over the agent's whole non-archived book, not just
+    // the open trips, so a euro trip sitting in Completed reaches this note instead of
+    // sliding into a column total with nothing on the page to say so.
     currencyNote:
-      k.currency_count > 1
-        ? AGENT_COPY.currencyNote(k.dominant_currency ?? "USD", k.currency_count - 1)
-        : null,
+      k.currency_count > 1 ? AGENT_COPY.currencyNote(dominant, k.currency_count - 1) : null,
   };
 }
 
@@ -426,6 +532,12 @@ export async function loadCalendar(): Promise<{
   const events: CalendarEvent[] = [];
 
   for (const t of boardRes.rows) {
+    // A cancelled trip draws neither event. Its dates survive the cancellation and the board
+    // read keeps the row (only `archived_at` is filtered there), so without this the month
+    // grid shows "<client> departs" and "<client> returns" for a trip nobody is taking. Both
+    // halves go, not just the departure: a return with no departure is a worse artefact than
+    // either one alone. The trip is still counted under the board by `cancelledCount`.
+    if (t.status === "cancelled") continue;
     if (t.start_date) {
       events.push({
         id: `dep-${t.trip_id}`,
@@ -449,8 +561,14 @@ export async function loadCalendar(): Promise<{
     }
   }
 
+  // The other half of the same decision. Without it a cancelled trip lost its departure and
+  // return chips and kept its payment chip, so the month grid showed money moving for a
+  // trip with no travel dates on it anywhere. See `cancelledTripIds`.
+  const cancelled = cancelledTripIds(boardRes.rows);
+
   for (const p of dueRes.rows) {
     if (!p.due_date) continue;
+    if (cancelled.has(p.trip_id)) continue;
     events.push({
       id: `pay-${p.milestone_id}`,
       kind: "payment",

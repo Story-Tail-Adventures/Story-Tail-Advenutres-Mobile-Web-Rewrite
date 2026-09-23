@@ -103,6 +103,34 @@ SELECT pg_temp.assert(
     'no client role holds EXECUTE — p_agent_id is trusted input and the grant is why that is safe');
 
 -- ── Tenancy ──────────────────────────────────────────────────────────────────────
+--
+-- A REAL second advisor has to exist for the assertion below to assert anything.
+--
+-- `agent_set_trip_status` now opens with an existence-and-not-archived check on
+-- `public.agent` (the `a.status <> 'archived'` guard, first statement in the function) and
+-- returns zero rows when it fails. An id with NO agent row fails that guard too — and
+-- `…00ee` had no row: seed.sql inserts exactly one agent, and this file inserts none. So the
+-- call returned at the guard and never reached the trip SELECT, and this assertion passed
+-- for "no such advisor" while claiming to prove "not your trip". A tenancy check that the
+-- caller cannot reach is not a tenancy check.
+--
+-- With the advisor real, the call gets past the guard and the ownership predicate is what
+-- answers. Change the `=` in the trip SELECT's `AND t.agent_id = p_agent_id` to `<` — one
+-- character — and trip 42's agent (…0001) sorts below …00ee, the row is found, the function
+-- reports `changed`, and this is the assertion that goes red.
+--
+-- Measured, because that is the whole point of this fixture: DELETE that predicate outright
+-- and this file passed, every assertion of it, with the ownership check gone. It fails here
+-- now.
+--
+-- No `auth.users` row, because nothing signs this advisor in; `pg_temp.become` is only ever
+-- called with the two seeded accounts. If a later case does need one, it must name an
+-- `agent_id` in `raw_user_meta_data`: two active agents exist now, and `handle_new_user()`'s
+-- fallback branch raises `too_many_rows` when it has to guess which agent a new signup
+-- belongs to — the trap both fixtures in rls_agent_reads.sql document.
+INSERT INTO public.agent (id, display_name, email, status)
+VALUES ('0195a2c0-1a00-7000-8000-0000000000ee', 'Other Advisor',
+        'other.advisor@example.com', 'active');
 
 SELECT pg_temp.assert(
     NOT EXISTS (
@@ -112,9 +140,56 @@ SELECT pg_temp.assert(
     ),
     'another agent''s id returns ZERO ROWS — "no such trip" and "not yours" are one answer');
 
+-- The same call, made by an advisor who does not exist at all, is the guard's answer rather
+-- than the predicate's — asserted separately so the two reasons for zero rows stay told
+-- apart, and so nobody deletes the INSERT above on the grounds that "the test passes anyway".
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1 FROM public.agent_set_trip_status(
+            :trip::uuid, '0195a2c0-1a00-7000-8000-0000000000ef'::uuid,
+            pg_temp.actor(), 'booked'::trip_status, 1)
+    ),
+    'an id with no agent row at all is also zero rows — the existence guard, not tenancy');
+
 SELECT pg_temp.assert(
     (SELECT status FROM public.trip WHERE id = :trip) = 'proposal',
     'and it did not write anything on the way to saying no');
+
+-- ── The advisor's own status ─────────────────────────────────────────────────────
+--
+-- The guard that answers first, asserted for what it refuses AND for what it must not.
+-- Both calls are made against Gyasi's own trip with his own id, so the only thing that can
+-- change the answer is `agent.status`.
+--
+-- Deleting the guard from the head of the function turns the archived case red and nothing
+-- else in this file: an id with no agent row (asserted above) still falls to the ownership
+-- predicate and still answers zero rows.
+UPDATE public.agent SET status = 'archived' WHERE id = :agent;
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1 FROM public.agent_set_trip_status(
+            :trip::uuid, :agent::uuid, pg_temp.actor(), 'booked'::trip_status, 1)
+    ),
+    'an ARCHIVED advisor moves nothing — their board, KPIs and inbox already return zero '
+    'rows, and a write that still landed would make offboarding half-enforced');
+SELECT pg_temp.assert(
+    (SELECT status FROM public.trip WHERE id = :trip) = 'proposal'
+      AND pg_temp.history_count(:trip) = 0,
+    'and it wrote neither the trip nor a history row on the way to saying no');
+
+-- `inactive` is paused, not gone. This is the assertion that tells `<> archived` from
+-- `= active`: narrow the guard to the latter and an advisor who is merely paused loses the
+-- book they still hold, and this is the only assertion that goes red. A `noop` answer is
+-- the proof the call got PAST the guard, since a refused caller gets zero rows rather than
+-- an outcome; asking for the stage the trip is already in keeps the version at 1 for the
+-- concurrency assertions below.
+UPDATE public.agent SET status = 'inactive' WHERE id = :agent;
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_set_trip_status(
+        :trip::uuid, :agent::uuid, pg_temp.actor(), 'proposal'::trip_status, 1)) = 'noop',
+    'an INACTIVE advisor still works their book — the read surface says `<> archived`, and '
+    'this write says the same word for word');
+UPDATE public.agent SET status = 'active' WHERE id = :agent;
 
 -- An archived trip is not a live trip. The read board filters them out, so a stage change
 -- against one can only come from a stale client or a crafted request.

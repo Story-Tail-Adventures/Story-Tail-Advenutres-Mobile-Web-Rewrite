@@ -46,7 +46,7 @@ CREATE OR REPLACE FUNCTION public.agent_set_trip_status(
     p_reason           text DEFAULT NULL
 )
 RETURNS TABLE (
-    outcome     text,          -- 'changed' | 'noop' | 'stale'
+    outcome     text,          -- 'changed' | 'reason_changed' | 'noop' | 'stale'
     from_status trip_status,
     to_status   trip_status,
     version     integer
@@ -59,6 +59,26 @@ DECLARE
     v_trip   public.trip%ROWTYPE;
     v_now    timestamptz := now();
 BEGIN
+    -- An ARCHIVED advisor writes nothing, which is the test every read on this side already
+    -- applies. `current_agent_id()` joins public.agent and refuses `status = 'archived'`
+    -- (agent_read_surface.sql:71), so without this an offboarded advisor's board, KPIs,
+    -- inbox and calendar all return zero rows while this function keeps moving their trips.
+    -- Half-enforced offboarding is worse than none: the empty board makes it look closed.
+    --
+    -- `<> 'archived'`, not `= 'active'` — word for word what the read surface uses. An
+    -- `inactive` advisor is paused, not gone, and must still work the book they hold.
+    --
+    -- The Edge Function refuses this caller first, with a 403 and a sentence. This is the
+    -- second lock, for a direct service_role caller, and it answers zero rows — the same
+    -- answer as "no such trip", so it is no more of a probe than that one.
+    IF NOT EXISTS (
+        SELECT 1 FROM public.agent a
+         WHERE a.id = p_agent_id
+           AND a.status <> 'archived'
+    ) THEN
+        RETURN;
+    END IF;
+
     -- FOR UPDATE, not a plain read. Two agents on two devices — or one agent double-tapping
     -- a drag — would otherwise both pass the version check against the same row and both
     -- write, and the second history row would claim a transition that never happened.
@@ -89,6 +109,35 @@ BEGIN
     -- than saying "nothing to do" — the same call card-authorization makes on a double
     -- revoke. No history row, because no transition happened.
     IF v_trip.status = p_status THEN
+        -- ONE same-stage call still has work to do: a cancelled trip whose reason is being
+        -- corrected. The Edge Function makes `p_reason` mandatory on every `cancelled`
+        -- call, and this function is the only writer of `trip.cancellation_reason` anywhere
+        -- in the schema — the agent role holds no UPDATE on public.trip — so returning
+        -- 'noop' here took a reason the caller was forced to supply, dropped it, and
+        -- reported success. The traveler kept reading the old sentence on §2.2.10 with no
+        -- way for the advisor to fix it.
+        --
+        -- It writes the column and nothing else: no `status_changed_at`, because the stage
+        -- did not move, and no trip_status_history row, because no transition happened. The
+        -- version DOES climb — a row that changed is a row a second tab is now stale
+        -- against. A distinct outcome, so the Edge Function can write the audit row this
+        -- deserves under its own event type rather than logging a transition that did not
+        -- happen.
+        IF p_status = 'cancelled'
+           AND p_reason IS NOT NULL
+           AND p_reason IS DISTINCT FROM v_trip.cancellation_reason
+        THEN
+            UPDATE public.trip
+               SET cancellation_reason = p_reason,
+                   updated_at          = v_now,
+                   version             = v_trip.version + 1
+             WHERE id = v_trip.id;
+
+            RETURN QUERY SELECT 'reason_changed'::text, v_trip.status, p_status,
+                                v_trip.version + 1;
+            RETURN;
+        END IF;
+
         RETURN QUERY SELECT 'noop'::text, v_trip.status, p_status, v_trip.version;
         RETURN;
     END IF;
@@ -117,8 +166,11 @@ $$;
 COMMENT ON FUNCTION public.agent_set_trip_status(uuid, uuid, uuid, trip_status, integer, text) IS
     'Move a trip between pipeline stages (Screen 3.2.2). The trip update and its '
     'trip_status_history row are one atomic pair: losing the history row is unrecoverable, '
-    'because trip.status_changed_at keeps only the latest transition. service_role only — '
-    'p_agent_id is trusted input and the grant is the only thing that makes it safe.';
+    'because trip.status_changed_at keeps only the latest transition. Writes nothing for an '
+    'agent whose agent.status is archived, matching current_agent_id() on the read side. '
+    'cancelled -> cancelled with a different reason is outcome ''reason_changed'': the reason '
+    'lands, no history row, version climbs. service_role only — p_agent_id is trusted input '
+    'and the grant is the only thing that makes it safe.';
 
 REVOKE EXECUTE ON FUNCTION
     public.agent_set_trip_status(uuid, uuid, uuid, trip_status, integer, text)

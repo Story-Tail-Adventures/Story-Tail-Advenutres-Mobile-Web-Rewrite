@@ -99,6 +99,17 @@ fun App() {
         )
 
         /**
+         * The row the gate below resolves, KEPT rather than dropped.
+         *
+         * `platform_user` carries `display_name` and `time_zone`, both added to this read
+         * for §3.2's greeting, and the gate used to throw the whole status away after
+         * reading the role off it — so [AgentWorklistHost] issued a second identical select
+         * behind a full-screen splash, serialised ahead of the four worklist RPCs, with its
+         * own independent way to fail. One read, one failure point.
+         */
+        var onboardingStatus by remember { mutableStateOf<OnboardingStatus?>(null) }
+
+        /**
          * The session decides the stack, not the other way round.
          *
          * Signing in resets rather than pushes, so the sign-in form is not one back gesture
@@ -120,8 +131,13 @@ fun App() {
                     nav.resetTo(
                         when {
                             repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
-                            else -> onboardingRepository?.let { destinationFor(it.status()) }
-                                ?: AppRoute.Dashboard
+                            else -> onboardingRepository?.let { onboarding ->
+                                // Assigned BEFORE the route is chosen, so anything the
+                                // route then renders already has it.
+                                val status = onboarding.status()
+                                onboardingStatus = status
+                                destinationFor(status)
+                            } ?: AppRoute.Dashboard
                         },
                     )
 
@@ -143,12 +159,21 @@ fun App() {
 
             // Screen Inventory §3.2. A SIBLING host, not a wrapper — see AgentRoute.
             AppRoute.Worklist -> {
+                val scope = rememberCoroutineScope()
                 val agent = agentRepository
-                val onboarding = onboardingRepository
-                if (agent == null || onboarding == null) {
+                if (agent == null) {
                     SplashScreen()
                 } else {
-                    AgentWorklistHost(agent = agent, onboarding = onboarding, nav = nav)
+                    AgentWorklistHost(
+                        agent = agent,
+                        status = onboardingStatus,
+                        nav = nav,
+                        // The same call the client shell's Account tab makes. Worklist is
+                        // the whole agent shell in this slice, so without this an agent who
+                        // signs in on a phone has no way to sign out — and before §3.2 they
+                        // landed in the client shell, which has one.
+                        onSignOut = { scope.launch { repo.signOut() } },
+                    )
                 }
             }
 
@@ -539,33 +564,33 @@ fun destinationFor(status: OnboardingStatus?): AppRoute = when {
 /**
  * Resolves who the advisor is before handing off to [AgentRoute].
  *
- * The display name and the time zone both come off `platform_user`, which
- * `OnboardingRepository.status()` already reads — no second round trip, and no new read
- * surface: `time_zone` is inside the client column grant.
+ * NO READ OF ITS OWN, and the comment used to claim that while the code did the opposite.
+ * The display name and the time zone both come off `platform_user`, which the session gate
+ * has already read to pick this route — so the row is threaded in rather than fetched
+ * again. Re-reading cost a second uncached select, a full-screen splash in front of it, and
+ * a second independent way to fail, all serialised ahead of the four worklist RPCs.
+ *
+ * [status] IS NON-NULL IN PRACTICE: [destinationFor] only answers [AppRoute.Worklist] for
+ * `status.role == "agent"`, which needs a row. The defaults are the cross-platform
+ * convention for a status that could not be read — `agentIdentity()` on the web returns the
+ * same two — so the screen degrades to "there" and Central rather than hanging on a splash
+ * that nothing will resolve.
  */
 @Composable
 private fun AgentWorklistHost(
     agent: AgentRepository,
-    onboarding: OnboardingRepository,
+    status: OnboardingStatus?,
     nav: Navigator,
+    onSignOut: () -> Unit,
 ) {
-    var identity by remember { mutableStateOf<Pair<String, String>?>(null) }
-    LaunchedEffect(onboarding) {
-        val status = onboarding.status()
-        identity = (status?.displayName.orEmpty()) to (status?.timeZone ?: "America/Chicago")
-    }
-    val resolved = identity
-    if (resolved == null) {
-        SplashScreen()
-    } else {
-        AgentRoute(
-            route = AppRoute.Worklist,
-            nav = nav,
-            agent = agent,
-            displayName = resolved.first,
-            timeZone = resolved.second,
-        )
-    }
+    AgentRoute(
+        route = AppRoute.Worklist,
+        nav = nav,
+        agent = agent,
+        displayName = status?.displayName.orEmpty(),
+        timeZone = status?.timeZone ?: "America/Chicago",
+        onSignOut = onSignOut,
+    )
 }
 
 /** Plain branded ground while the session resolves. Milliseconds in the common case. */
