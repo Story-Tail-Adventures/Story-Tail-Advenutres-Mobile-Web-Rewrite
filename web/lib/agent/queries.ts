@@ -66,6 +66,7 @@ export type WorklistTrip = {
 
 export type WorklistPayment = {
   milestoneId: string;
+  tripId: string;
   clientName: string;
   label: string;
   amountLabel: string;
@@ -95,14 +96,20 @@ export type Worklist = {
   recentMessages: WorklistMessage[];
 };
 
-/** Money arrives as a digit-string; `Number()` is applied exactly once, here. */
-function cents(value: string | null | undefined): number {
+/**
+ * Money arrives as a digit-string; `Number()` is applied exactly once, here.
+ *
+ * Exported for `lib/agent/tripDetail.ts`, §3.4.2's view-model sibling — same formatting
+ * discipline, a different screen, and one implementation rather than a second copy that
+ * could drift from this one.
+ */
+export function cents(value: string | null | undefined): number {
   if (!value) return 0;
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 }
 
-function money(value: string | null | undefined, currency: string | null): string {
+export function money(value: string | null | undefined, currency: string | null): string {
   return formatTripMoney(cents(value), currency ?? "USD", { whole: true });
 }
 
@@ -113,7 +120,8 @@ function daysFrom(todayIso: string, thenIso: string): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-function relativeDay(todayIso: string, thenIso: string | null): string | null {
+/** Exported for `lib/agent/tripDetail.ts` — see `cents` above. */
+export function relativeDay(todayIso: string, thenIso: string | null): string | null {
   if (!thenIso) return null;
   const d = daysFrom(todayIso, thenIso);
   if (d === 0) return "Today";
@@ -122,7 +130,8 @@ function relativeDay(todayIso: string, thenIso: string | null): string | null {
   return `${d} days`;
 }
 
-function monthDay(iso: string | null): string | null {
+/** Exported for `lib/agent/tripDetail.ts` — see `cents` above. */
+export function monthDay(iso: string | null): string | null {
   if (!iso) return null;
   const [, m, d] = iso.split("-");
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -254,7 +263,7 @@ function kpisFrom(k: AgentKpiRow): AgentKpi[] {
  * `platform_user.time_zone` is inside the client column grant, so this needs no new read
  * surface. It defaults to America/Chicago.
  */
-async function agentIdentity(): Promise<{ displayName: string; timeZone: string }> {
+export async function agentIdentity(): Promise<{ displayName: string; timeZone: string }> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_user")
@@ -317,6 +326,7 @@ export async function loadWorklist(): Promise<Worklist | null> {
     .filter((p) => !cancelled.has(p.trip_id))
     .map((p) => ({
       milestoneId: p.milestone_id,
+      tripId: p.trip_id,
       clientName: p.client_display_name,
       label: `${p.trip_title} · ${p.label}`,
       amountLabel: money(p.amount_cents, p.currency),
@@ -545,8 +555,7 @@ export async function loadCalendar(): Promise<{
         date: t.start_date,
         label: `${t.client_display_name} departs`,
         detail: t.title,
-        // Trip detail is §3.4.2 and unbuilt. Null rather than a link to a 404.
-        href: null,
+        href: `/agent/trips/${t.trip_id}`,
       });
     }
     if (t.end_date) {
@@ -556,7 +565,7 @@ export async function loadCalendar(): Promise<{
         date: t.end_date,
         label: `${t.client_display_name} returns`,
         detail: t.title,
-        href: null,
+        href: `/agent/trips/${t.trip_id}`,
       });
     }
   }
@@ -575,7 +584,7 @@ export async function loadCalendar(): Promise<{
       date: p.due_date,
       label: `${p.label} · ${money(p.amount_cents, p.currency)}`,
       detail: p.client_display_name,
-      href: null,
+      href: `/agent/trips/${p.trip_id}`,
     });
   }
 

@@ -34,7 +34,15 @@ export type AgentRead =
   | "agent_trip_board"
   | "agent_payments_due"
   | "agent_inbox"
-  | "agent_availability_self";
+  | "agent_availability_self"
+  | "agent_trip_overview"
+  | "agent_trip_components"
+  | "agent_trip_itinerary_meta"
+  | "agent_trip_itinerary_days"
+  | "agent_trip_payments"
+  | "agent_trip_documents"
+  | "agent_trip_messages"
+  | "agent_trip_activity";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -121,6 +129,131 @@ export type AgentInboxRow = {
 };
 
 /**
+ * §3.4.2's eight row shapes. Same warning as `AgentKpiRow`/`AgentTripRow` above: every
+ * nullable field here carries `| null` by hand, because `supabase gen types` cannot infer it
+ * from `RETURNS TABLE`.
+ */
+export type AgentTripOverviewRow = {
+  trip_id: string;
+  client_id: string;
+  client_display_name: string;
+  title: string;
+  trip_type: string;
+  status: string;
+  status_changed_at: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: string[] | null;
+  traveler_count: number;
+  traveler_breakdown: Record<string, unknown> | null;
+  total_value_cents: string;
+  total_paid_cents: string;
+  total_commission_cents: string;
+  currency: string;
+  cancellation_reason: string | null;
+  refund_status: string | null;
+  notes: string | null;
+  version: number;
+  card_last4: string | null;
+  card_brand: string | null;
+  card_spending_limit_cents: string | null;
+  last_activity_at: string | null;
+  component_count: number;
+  manual_component_count: number;
+  api_component_count: number;
+  as_of_date: string;
+  /** Earliest scheduled/overdue milestone. Null when nothing is outstanding. */
+  next_unpaid_due_date: string | null;
+};
+
+export type AgentTripComponentRow = {
+  component_id: string;
+  kind: string;
+  display_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  confirmation_number: string | null;
+  cost_cents: string;
+  commission_pct: number | null;
+  commission_cents: string;
+  currency: string;
+  api_source: string | null;
+  order_index: number;
+};
+
+export type AgentTripItineraryMetaRow = {
+  itinerary_id: string;
+  cover_image_url: string | null;
+  intro_note: string | null;
+  closing_note: string | null;
+  published_at: string | null;
+  last_published_at: string | null;
+};
+
+export type AgentTripItineraryDayRow = {
+  day_id: string;
+  day_number: number;
+  date: string;
+  day_label: string | null;
+  day_summary: string | null;
+  activity_id: string | null;
+  block: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  activity_title: string | null;
+  activity_body: string | null;
+  location: string | null;
+  address: string | null;
+  phone: string | null;
+  confirmation_number: string | null;
+  gyasis_tip: string | null;
+  component_id: string | null;
+  activity_order: number | null;
+};
+
+export type AgentTripPaymentRow = {
+  milestone_id: string;
+  kind: string;
+  label: string;
+  amount_cents: string;
+  paid_cents: string;
+  currency: string;
+  due_date: string | null;
+  status: string;
+  order_index: number;
+};
+
+export type AgentTripDocumentRow = {
+  document_id: string;
+  owner_user_id: string;
+  kind: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: string;
+  is_sensitive: boolean;
+  created_at: string;
+};
+
+export type AgentTripMessageRow = {
+  message_id: string;
+  sender_role: string;
+  body: string;
+  created_at: string;
+  is_internal_note: boolean;
+};
+
+export type AgentTripActivityRow = {
+  history_id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_at: string;
+  changed_by_name: string | null;
+};
+
+/**
  * Call one accessor.
  *
  * ZERO ROWS IS A VALID ANSWER, NOT AN ERROR. A client, an admin or an archived agent gets an
@@ -154,7 +287,7 @@ export async function callAgentRead<T>(
   return { ok: true, rows: (data ?? []) as T[] };
 }
 
-export type AgentFunction = "agent-trip-status";
+export type AgentFunction = "agent-trip-status" | "agent-trip-notes";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

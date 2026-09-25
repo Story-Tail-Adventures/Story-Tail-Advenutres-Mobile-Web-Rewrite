@@ -70,15 +70,21 @@ function DayCell({ day }: { day: CalendarDay }) {
           {day.dayOfMonth}
         </span>
       </div>
-      {shown.map((e) => (
-        <p
-          key={e.id}
-          className={`mt-1 truncate rounded px-1 py-0.5 text-[11px] ${KIND_TONE[e.kind]}`}
-          title={`${e.label}${e.detail ? ` · ${e.detail}` : ""}`}
-        >
-          {e.label}
-        </p>
-      ))}
+      {shown.map((e) => {
+        const title = `${e.label}${e.detail ? ` · ${e.detail}` : ""}`;
+        const className = `mt-1 block truncate rounded px-1 py-0.5 text-[11px] ${KIND_TONE[e.kind]}`;
+        // A departure/return/payment event carries a trip id and is now a live link; an
+        // `availability` event (not yet emitted anywhere) has nowhere to go.
+        return e.href ? (
+          <Link key={e.id} href={e.href} className={className} title={title}>
+            {e.label}
+          </Link>
+        ) : (
+          <p key={e.id} className={className} title={title}>
+            {e.label}
+          </p>
+        );
+      })}
       {/* Several events on one day is routine; the prototype's map allows exactly one. */}
       {overflow > 0 && (
         <p className="mt-1 text-[11px] text-[var(--md-on-surface-variant)]">+{overflow} more</p>
@@ -180,18 +186,31 @@ export default async function AgentCalendarPage({
       )}
 
       <ol className={`mt-4 ${agendaClass}`}>
-        {grid.agenda.map((e) => (
-          <li key={e.id} className="card mt-2 flex items-center gap-3 p-3">
-            <span className={`w-2 self-stretch rounded-full ${KIND_TONE[e.kind]}`} aria-hidden="true" />
-            <div className="min-w-0 flex-1">
-              <p className="t-title-s text-[13px]">{e.label}</p>
-              {e.detail && (
-                <p className="t-body-s text-[var(--md-on-surface-variant)]">{e.detail}</p>
+        {grid.agenda.map((e) => {
+          const body = (
+            <>
+              <span className={`w-2 self-stretch rounded-full ${KIND_TONE[e.kind]}`} aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="t-title-s text-[13px]">{e.label}</p>
+                {e.detail && (
+                  <p className="t-body-s text-[var(--md-on-surface-variant)]">{e.detail}</p>
+                )}
+              </div>
+              <span className="t-body-s text-[var(--md-on-surface-variant)]">{e.date.slice(5)}</span>
+            </>
+          );
+          return (
+            <li key={e.id} className="card mt-2 p-0">
+              {e.href ? (
+                <Link href={e.href} className="flex items-center gap-3 p-3 hover:bg-[var(--md-surface-2)]">
+                  {body}
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3 p-3">{body}</div>
               )}
-            </div>
-            <span className="t-body-s text-[var(--md-on-surface-variant)]">{e.date.slice(5)}</span>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
 
       {/* The wrapper carries the visibility, not the table: `md:block` on a `<table>` would

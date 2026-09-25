@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AgentViews } from "@/components/agent/AgentViews";
 import { ErrorState } from "@/components/client/states";
 import { Icon } from "@/components/ui/Icon";
@@ -17,10 +19,10 @@ import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
  * why Data-Model §7.4 (PipelineWeight) and §8.8 (TripStatusHistory) exist. Screen-Inventory
  * §3.2.1 carries the amendment.
  *
- * EVERY ROW IS READ-ONLY IN THIS SLICE, and the screen says so rather than wiring taps to
- * nothing. Trip detail is §3.4.2, client detail §3.3.2, messaging §3.10 — none built. A
- * worklist you cannot tap into is a strange first delivery; pretending otherwise by linking
- * to a 404 is worse.
+ * TRIP ROWS ARE NOW LIVE LINKS. §3.4.2 shipped after this screen did; the four sections
+ * whose rows carry a `tripId` (proposals, payments, inquiries, departures) now route to
+ * `/agent/trips/[tripId]`. Client detail (§3.3.2) and messaging (§3.10) are still unbuilt, so
+ * the "Recent messages" section stays read-only and keeps its `messagesDeferred` footer.
  *
  * A server component throughout. Nothing here needs state, so nothing crosses a client
  * boundary — which is also what keeps the agent's time zone correct: every date was
@@ -69,7 +71,8 @@ function Section({
   title: string;
   count: number;
   empty: string;
-  seeAll: string;
+  /** Omitted once the section's rows are live links — there is nowhere else to send "see all". */
+  seeAll?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -83,10 +86,24 @@ function Section({
       ) : (
         children
       )}
-      <p className="t-body-s border-t border-[var(--md-outline-variant)] px-4 py-2 text-[var(--md-on-surface-variant)] opacity-60">
-        {seeAll}
-      </p>
+      {seeAll && (
+        <p className="t-body-s border-t border-[var(--md-outline-variant)] px-4 py-2 text-[var(--md-on-surface-variant)] opacity-60">
+          {seeAll}
+        </p>
+      )}
     </section>
+  );
+}
+
+/** A row whose trip now has somewhere to go. */
+function TripRow({ tripId, children }: { tripId: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={`/agent/trips/${tripId}`}
+      className="flex items-center gap-3 border-t border-[var(--md-outline-variant)] px-4 py-3 first:border-t-0 hover:bg-[var(--md-surface-2)]"
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -184,10 +201,9 @@ export default async function AgentWorklistPage() {
         title={AGENT_COPY.proposalsTitle}
         count={worklist.proposalsAwaiting.length}
         empty={AGENT_COPY.proposalsEmpty}
-        seeAll={AGENT_COPY.tripDetailDeferred}
       >
         {worklist.proposalsAwaiting.map((t) => (
-          <Row key={t.tripId}>
+          <TripRow key={t.tripId} tripId={t.tripId}>
             <Initials name={t.clientName} />
             <div className="min-w-0 flex-1">
               <p className="t-title-s text-[13px]">{t.clientName}</p>
@@ -197,7 +213,7 @@ export default async function AgentWorklistPage() {
               <p className="font-mono text-xs font-bold">{t.valueLabel}</p>
               {t.dueLabel && <span className="chip-status proposal mt-1 inline-block">{t.dueLabel}</span>}
             </div>
-          </Row>
+          </TripRow>
         ))}
       </Section>
 
@@ -205,10 +221,9 @@ export default async function AgentWorklistPage() {
         title={AGENT_COPY.paymentsTitle}
         count={worklist.paymentsDue.length}
         empty={AGENT_COPY.paymentsEmpty}
-        seeAll={AGENT_COPY.tripDetailDeferred}
       >
         {worklist.paymentsDue.map((p) => (
-          <Row key={p.milestoneId}>
+          <TripRow key={p.milestoneId} tripId={p.tripId}>
             <div className="min-w-0 flex-1">
               <p className="t-title-s text-[13px]">{p.clientName}</p>
               <p className="t-body-s text-[var(--md-on-surface-variant)]">{p.label}</p>
@@ -223,7 +238,7 @@ export default async function AgentWorklistPage() {
                 {p.dueLabel}
               </p>
             </div>
-          </Row>
+          </TripRow>
         ))}
       </Section>
 
@@ -234,14 +249,14 @@ export default async function AgentWorklistPage() {
         seeAll={AGENT_COPY.leadsDeferred}
       >
         {worklist.newInquiries.map((t) => (
-          <Row key={t.tripId}>
+          <TripRow key={t.tripId} tripId={t.tripId}>
             <Initials name={t.clientName} />
             <div className="min-w-0 flex-1">
               <p className="t-title-s text-[13px]">{t.clientName}</p>
               <p className="t-body-s text-[var(--md-on-surface-variant)]">{t.title}</p>
             </div>
             <TripChip status={t.status} />
-          </Row>
+          </TripRow>
         ))}
       </Section>
 
@@ -249,10 +264,9 @@ export default async function AgentWorklistPage() {
         title={AGENT_COPY.departingTitle}
         count={worklist.departingSoon.length}
         empty={AGENT_COPY.departingEmpty}
-        seeAll={AGENT_COPY.tripDetailDeferred}
       >
         {worklist.departingSoon.map((t) => (
-          <Row key={t.tripId}>
+          <TripRow key={t.tripId} tripId={t.tripId}>
             <div className="min-w-0 flex-1">
               <p className="t-title-s text-[13px]">{t.clientName}</p>
               <p className="t-body-s text-[var(--md-on-surface-variant)]">{t.title}</p>
@@ -260,7 +274,7 @@ export default async function AgentWorklistPage() {
             {t.startLabel && (
               <span className="chip-status traveling">{t.startLabel}</span>
             )}
-          </Row>
+          </TripRow>
         ))}
       </Section>
 
