@@ -1659,6 +1659,15 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > destination. That is a strange first delivery and the frames say so, rather than wiring
 > rows to nothing.
 >
+> > **Overtaken 2026-09-25 on the web, and still true on Compose.** §3.4.2 shipped, so every
+> > worklist row carrying a `tripId` — proposals, payments, inquiries, departures — is now a
+> > link to `/agent/trips/[tripId]`, and the three sections whose footer was the trip-detail
+> > deferral lost it: a deferral naming a section that has since been built is worse than no
+> > sentence. "Recent messages" keeps its own, because §3.10 is still unbuilt. The paragraph
+> > above still describes `WorklistScreen.kt` exactly — §3.4.2 is web-only, so a Compose row
+> > genuinely still has nowhere to go, which is why the two stacks now hold different copy
+> > here and `check_copy_parity.py` no longer pairs that string.
+>
 > **The mobile shell gains a top bar, which neither the frames nor §6.6 draw.** §6.6
 > describes the agent mobile shell as a bottom tab bar and nothing else, and the phone
 > frames honour that — `MFrame` insets 54px for the status bar and goes straight into
@@ -1900,6 +1909,62 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Edit; change status; navigate tabs.
 **Entry points:** Trip List, Client Trips Tab, Pipeline, Calendar, Lead Conversion.
 **Related screens:** All trip sub-screens.
+
+> **Amended 2026-09-25, on shipping this screen.** All eight tabs are built, on the web only.
+> The eight lines above are otherwise correct and stay; what follows is where the build
+> departs from the drawing, where it departs from the two lines above that have since gone
+> stale, and what an advisor can and cannot do here in this slice. Written down because a
+> reasoned call that lives only in a commit message gets re-derived by the next reader.
+>
+> **Components and Itinerary are two tabs, exactly as the Primary elements line says, and
+> the prototype is not.** `design/source-prototype/screens/agent-trip.jsx`'s `A342_TripDetail`
+> folds the component rows into a single "Itinerary" section with a count chip. They are
+> genuinely different reads — a flat `trip_component` list against the
+> `itinerary_day`/`itinerary_activity` narrative, which an activity links back through
+> `itinerary_activity.component_id` — so the merge would have cost a tab rather than saved
+> one. The document hierarchy puts this section above the drawing; recorded as a prototype
+> defect rather than reshaped.
+>
+> **No "Booking source" field in the at-a-glance grid.** The prototype draws one ("Inteletravel
+> · Sandals") and no such column exists on `trip`, or anywhere else in the schema. Same class
+> as §3.2.2's `Qualified` and `Traveling` columns: an invented field, recorded rather than
+> chased with a migration. The grid ships the six the data supports — trip type, destination,
+> travelers, dates, card on file and last activity — plus the cancellation reason and refund
+> status, which appear only on a trip that has them.
+>
+> **Three of the four header actions render disabled with their reasons**, per the treatment
+> §2.5 settled and §3.2.1 repeats: Duplicate (§3.4.4), Client preview (§3.3.2) and Send
+> proposal (§3.5). The Primary elements line's "quick actions" are superseded — "message
+> client" waits on §3.10 and "request card" on §3.6, so neither is drawn at all rather than
+> drawn disabled, because the row they would sit in already carries three promises.
+>
+> **The status-change menu is §3.2.2's `StageMenu`, reused verbatim** rather than a bespoke
+> "Mark booked" button. It already offers every stage a trip can move to, which is a superset
+> of what one fixed-target button would do, and it is the same audited write — a second
+> control onto one endpoint is a second thing to keep honest.
+>
+> **The Entry points line is superseded in both directions.** Trip List (§3.4.1) is unbuilt,
+> and "Lead Conversion" cannot happen at all: the lead domain is deferred and a quote request
+> creates a trip in `inquiry` directly (BRD §6.5, amended 2026-09-09). What actually reaches
+> this screen today is the worklist's rows, the pipeline's cards and the calendar's events —
+> the three §3.2 surfaces, whose trip references were read-only until this screen existed and
+> are now links.
+>
+> **The Notes tab writes; the other seven read.** `trip.notes` had no write path anywhere in
+> the codebase before this, and it is the only thing an advisor can edit here — "Edit" on the
+> Key actions line means the note and the stage, not the trip's fields. Editing components,
+> dates and travelers is §3.4.4's, which is why that screen and not this one is the
+> trip builder.
+>
+> **Messages is read-only, and shows the internal notes.** Composing is §3.10. The traveler's
+> own policy hides `message.is_internal_note` from them; this screen deliberately shows it,
+> because the advisor wrote it.
+>
+> **Web only at MVP, and this one is a gap rather than a decision.** `agent-trip.jsx` carries
+> no phone frame for any §3.4 screen — unlike §2.2, which has a `-mobile.jsx` twin — so there
+> was nothing to build Compose against. §4.4 maps this screen to Pattern C and does not mark
+> it web-primary the way it does 3.4.4, 3.4.13 and 3.4.14, so a phone treatment is still owed
+> and wants artboards first, per the artboards-first rule.
 
 #### 3.4.3 Create New Trip — Type Selector
 **Purpose:** Choose what kind of trip to build.
