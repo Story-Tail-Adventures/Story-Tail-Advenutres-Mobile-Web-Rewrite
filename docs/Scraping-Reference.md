@@ -4,9 +4,9 @@
 **Captured:** 2026-09-26.
 **Why it exists:** Gyasi proposed scraping CruiseCritic because cruise search isn't
 working, and later scraping deals off his personalized InteleTravel site. He saved a
-Playwright Server Action template to work from. This records the template, what is
-wrong with it, what the source sites actually permit, and what the project's own
-documents already say about all of it.
+Playwright Server Action template to work from, then proposed Apify's CruiseMapper actor
+as an alternative. This records both routes, what is wrong with each, what the source
+sites actually permit, and what the project's own documents already say about all of it.
 
 > **Read §1 before anything else.** The stated reason for scraping was that cruise
 > search is broken. It was diagnosed on 2026-09-26 and the backend is fine: the Edge
@@ -329,7 +329,143 @@ Its real limit is coverage, not permission: nine lines, and Virgin Voyages absen
 
 ---
 
-## 7. Appendix — the saved template
+## 7. The Apify route — CruiseMapper actor (reviewed 2026-09-26)
+
+Gyasi proposed using "the free version of Apify" with
+`louisdeconinck/cruisemapper-cruise-scraper` as an alternative to hand-writing a scraper.
+
+**Verdict in one line: Apify solves every engineering problem in §5 and none of the legal
+ones in §2–§4, and it makes one of them harder to see.**
+
+### The actor
+
+| Field | Value |
+|---|---|
+| ID | `louisdeconinck/cruisemapper-cruise-scraper` |
+| Developer | Louis Deconinck, **Maintained by Community** (not by Apify) |
+| Pricing | **$2.00 per 1,000 results**, pay-per-event. "You only pay for the data collected, not platform usage." |
+| Total users | 153 |
+| **Monthly active users** | **0** |
+| **Last modified** | **7 months ago** |
+| Rating | 5.0, from **2** reviews. 4 bookmarks. |
+| Input | `startUrls` — optional array of `https://www.cruisemapper.com/cruise-search` URLs. Omit it and the actor scrapes all listings. |
+| Output fields | `date`, `cruiseLine`, `shipName`, `itinerary`, `price`, `cruiseType`, `isFlyCruise` |
+| Access | REST API, JS client (`apify-client`), Python client, CLI, MCP server |
+
+### What "free" actually means
+
+Apify's Free plan: **$5/month of platform credit, no credit card required.** Credits do not
+roll over and expire at the end of the cycle. When they run out, "your access to Apify's
+services will be blocked until the beginning of the next monthly cycle." Five concurrent
+runs. Paid tiers are Starter $19/mo, Scale $199/mo, Business $999/mo.
+
+**So the free tier is $5 ÷ $2 per 1,000 = 2,500 results per month.**
+
+That is a genuinely good number, and better than the alternative already wired up here:
+track.cruises BASIC allows 100 requests a month at 10 rows each, so **1,000 rows a month**.
+Apify free is **2.5× the row ceiling** for $0. On quota alone, Gyasi's instinct is right.
+
+### robots.txt looks permissive, and that is the trap
+
+CruiseMapper's `robots.txt` is nearly wide open, the opposite of CruiseCritic's:
+
+```
+User-agent: *
+Disallow: /admin/
+Sitemap: http://www.cruisemapper.com/sitemap.xml
+```
+
+No AI-crawler block, no `/search` exclusion, nothing about deals. Read on its own, it looks
+like an invitation.
+
+**Their Terms of Use say the opposite, in as many words:**
+
+> "You must not conduct any systematic or automated data collection activities (including,
+> without limitation, scraping, data mining, data extraction and data harvesting) on or in
+> relation to our website **without our express written consent**."
+
+The same terms prohibit reproducing content "for a commercial purpose," and permit
+republishing only "with appropriate accreditation to CruiseMapper.com or a backlink."
+
+So this is the inverse of CruiseCritic. CruiseCritic's restrictive robots.txt at least tells
+you where it stands. CruiseMapper's permissive one reads as consent while the binding
+document withholds it. **Checking robots.txt and stopping there would produce exactly the
+wrong conclusion here.**
+
+Note also that §4.6 of `Free-Travel-APIs.md` names **CruiseMapper specifically** as the
+example when it says "Several marketplaces sell scrapers for CruiseMapper … do not build on
+scraped cruise data … It breaks the source sites' terms of service." That prediction is now
+confirmed by the terms themselves.
+
+### Apify assigns the liability to us
+
+From Apify's General Terms and Conditions:
+
+> §5.8 — "You are solely responsible for the legality, accuracy, quality, appropriateness,
+> and use of all Customer Data."
+>
+> §11.1 — "Should you use the Services or Actors to extract Customer Data from unauthorized
+> sources, **you shall be responsible for compensating any damages incurred by and/or any
+> claims of the affected third parties**."
+
+Apify is a tool vendor, not a licensor of the data. Running the scrape through them changes
+who executes it, not who is answerable for it. There is no "express written consent" in this
+arrangement, which is the thing CruiseMapper's terms require.
+
+### Three practical problems, separate from the legal one
+
+1. **The actor looks abandoned.** 0 monthly active users and last modified 7 months ago.
+   Scrapers rot when the target's DOM changes, and 7 months is a long time for a live site.
+   The 100% success rate and 5.0 rating are computed over almost no activity: 2 reviews and
+   no current users. Treat both numbers as noise.
+2. **The output does not fit our schema.** It returns a flat `itinerary` field. Our
+   `cruise_port_call` table needs one row per call with an ordered `sequence` and a
+   `port_name`, which is what makes the "Ports of call" list on the card work. A text blob
+   would need parsing, and parsing a scraped blob is where freshness bugs live. Sibling
+   actors on the same page fit better if this route is taken anyway:
+   `automation-lab/cruisemapper-cruise-itineraries-scraper` advertises "ordered itinerary
+   calls, call times," and `parsebird/cruisemapper-scraper` advertises "port-by-port
+   schedules."
+3. **It returns `price`, which §1.0 does not want.** Cruise price is optional per §1.0 and
+   §4.7 recommends launching without it. Ingesting a scraped fare re-opens §9.2 and puts a
+   staling number on a public page. If this route is taken, drop the field at the mapper the
+   way `public.ts` already drops `lead_price_cents`.
+
+### What Apify genuinely does fix
+
+Worth saying plainly, because it is most of §5:
+
+- No Playwright to install, no Chromium binary, **no Vercel serverless size problem** (§5 #5).
+- No public unauthenticated Server Action launching browsers on our box (§5 #6, #7).
+- No new long-running service, so the `CLAUDE.md` "don't add a backend service" tension
+  mostly goes away. An Edge Function can call the Apify REST API on a schedule, which fits
+  the §10.1 sync-into-Postgres architecture cleanly.
+- Retries, proxies, pagination and scheduling are the vendor's problem.
+
+**If the decision were purely technical, this is a better plan than §5's template.** The
+decision is not purely technical.
+
+### The recommendation
+
+1. **Cruise search is fixed** (§1). The reason this came up has gone away. Decide on
+   scraping as a data-coverage question, not as an outage workaround.
+2. **If more cruise coverage is the goal, ask Widgety for the free test key first.** §4.2:
+   their product *is* the §1.0 requirement, 60+ lines and ~1,000 ships, and a test key is
+   free on request. It moves at email speed, so starting that thread costs nothing while
+   other options are considered.
+3. **If CruiseMapper's data specifically is wanted, ask them for consent.** Their terms name
+   "express written consent" as the mechanism. A single-advisor travel business asking to
+   sync itinerary content, with accreditation and a backlink, is a reasonable ask and they
+   have a stated path for it. That converts the whole question from a risk into a licence.
+4. **Do not rely on robots.txt as the permission signal here.** §3 and this section together
+   are the reason: the two sites point opposite ways, and neither file is the binding
+   document.
+5. **If Gyasi proceeds anyway**, §6's checklist still applies, plus: use a maintained actor
+   rather than this one, drop `price` at the mapper, and amend §4.6 first.
+
+---
+
+## 8. Appendix — the saved template
 
 Kept verbatim in shape, with the two broken template literals repaired so it parses.
 Still contains placeholder selectors and a dummy domain. **Not runnable against a real
