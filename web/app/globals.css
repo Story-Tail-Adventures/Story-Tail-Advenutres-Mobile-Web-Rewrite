@@ -137,11 +137,25 @@
 @layer base {
   html {
     background: var(--md-bg);
-    /* Both schemes are authored, so let the UA style form controls and scrollbars
-       to match whichever is active. */
-    color-scheme: light dark;
+    /* KEYED OFF THE CLASS, NOT THE OS, and `light dark` would be wrong.
+    
+       That value tells the UA to style scrollbars and native controls — including the
+       date pickers in DateField/DateRangePicker — from `prefers-color-scheme`. The OS is
+       the wrong authority the moment someone uses the top bar's toggle: they get dark
+       scrollbars on a light page. `.scheme-dark` IS the resolved scheme (ThemeScript sets
+       it from the OS when nothing is stored), so keying off it is correct in every case
+       — including with JS off, where the class never appears and the page really is light.
+
+       public.css's @media print forces `color-scheme: light` from @layer components,
+       which beats @layer base on layer order, so paper is unaffected. Do not move either
+       rule between layers. */
+    color-scheme: light;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  html.scheme-dark {
+    color-scheme: dark;
   }
 
   body {

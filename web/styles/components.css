@@ -212,6 +212,32 @@
   .scheme-dark .sta-art-light { display: none; }
   .scheme-dark .sta-art-dark  { display: block; }
 
+  /* Scheme-gated chrome: emit both halves of a light/dark pair, show one. Same idiom as
+     .sta-art-* above, under generic names because those carry brand-artwork meaning and
+     the print block hides them outright (`.sta-art { display: none !important }`).
+
+     THE GLYPH IS THE SCHEME YOU ARE SWITCHING *TO* — the theme toggle shows a moon while
+     light and a sun while dark — so .sta-light-only holds the moon. That reads backwards
+     at a glance and it is correct; do not "fix" it.
+
+     `display: none`, and callers must NOT add a Tailwind `hidden`/`flex` utility: those
+     land in a later cascade layer and would beat this.
+
+     The gate goes on the CONTROL, not on a label inside it. `display: none` reliably keeps
+     the hidden half out of the accessibility tree and out of the tab order — but it does
+     not help an element earn a NAME, and Tailwind's `sr-only` (clip-path: inset(50%) on a
+     1×1 box) contributes nothing to name-from-content in Chrome. So each half is a whole
+     button with its own `aria-label`; see ThemeToggle.tsx.
+
+     These also have to beat `.btn-icon`'s own `display: inline-flex`, which they do on
+     source order — same layer, same specificity, declared later. Keep them below it.
+
+     Mirrored in design/source-prototype/styles/app.css. */
+  .sta-light-only { display: inline-flex; }
+  .sta-dark-only  { display: none; }
+  .scheme-dark .sta-light-only { display: none; }
+  .scheme-dark .sta-dark-only  { display: inline-flex; }
+
   /* ── Misc ── */
   .dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
   .divider { height: 1px; background: var(--md-outline-variant); border: 0; margin: 0; }

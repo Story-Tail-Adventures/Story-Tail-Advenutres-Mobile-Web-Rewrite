@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { PUBLIC_NAV_LINKS } from "@/content/public/contact";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/cn";
 import { PublicAuthCluster } from "./PublicAuthCluster";
 import { PublicNav } from "./PublicNav";
@@ -50,7 +51,19 @@ export function PublicTopBar({ variant = "solid" }: { variant?: TopBarVariant })
         )}
       </Link>
 
-      <PublicNav links={PUBLIC_NAV_LINKS} overlay={overlay} />
+      {/* THE TOGGLE GOES THROUGH PublicNav, not straight into this header, because it has
+          to sit at the HEAD of the right-hand group — left of the menu trigger and left of
+          the auth buttons — the way the design's ScreenTopBar draws it. PublicNav returns
+          a fragment, so its <nav> and its trigger are both direct flex children here and
+          nothing rendered from this file can land between them.
+
+          `size-9` matches the trigger rather than .btn-icon's 40px, and the glass chip is
+          for the widths where this bar floats over a hero photo. */}
+      <PublicNav
+        links={PUBLIC_NAV_LINKS}
+        overlay={overlay}
+        actions={<ThemeToggle overlay={overlay} size={20} className="size-9" />}
+      />
 
       <PublicAuthCluster />
     </header>

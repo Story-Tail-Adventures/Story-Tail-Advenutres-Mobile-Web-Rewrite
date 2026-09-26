@@ -31,8 +31,10 @@ import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 export function PublicAuthCluster() {
   const { status, initials } = useAuthChrome();
 
+  // No `ml-auto`. PublicNav's spacer opens the right-hand group now, so this just follows
+  // the theme toggle in document order.
   return (
-    <div className="ml-auto hidden lg:flex" data-auth={status}>
+    <div className="hidden lg:flex" data-auth={status}>
       {status !== "in" && (
         <div className="pub-auth-out">
           <Link href="/login" className="btn btn-text btn-sm px-3 web:px-4">

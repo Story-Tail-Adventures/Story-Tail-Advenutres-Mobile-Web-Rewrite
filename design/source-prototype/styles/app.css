@@ -159,6 +159,22 @@ img { display: block; max-width: 100%; }
 .scheme-dark .sta-mark-light { display: none; }
 .scheme-dark .sta-mark-dark  { display: inline-flex; }
 
+/* Scheme-gated chrome: emit both halves of a light/dark pair, show one.
+   Same idiom as .sta-mark-* above, and used by the top bar's theme toggle.
+
+   The gate goes on the CONTROL, so it has to beat .btn-icon's own display. Same specificity,
+   so it wins on source order — keep these below .btn-icon.
+
+   THE GLYPH IS THE SCHEME YOU ARE SWITCHING *TO* — a moon while light, a sun
+   while dark — so .sta-light-only holds the moon. That reads backwards at a
+   glance and it is correct; do not "fix" it.
+
+   Mirrored in web/styles/components.css. */
+.sta-light-only { display: inline-flex; }
+.sta-dark-only  { display: none; }
+.scheme-dark .sta-light-only { display: none; }
+.scheme-dark .sta-dark-only  { display: inline-flex; }
+
 /* ── Scrollable areas inside artboards (purely visual; no real scroll) ── */
 .scroll-mask {
   -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent);

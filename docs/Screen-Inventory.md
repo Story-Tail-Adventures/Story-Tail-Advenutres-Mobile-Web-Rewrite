@@ -72,7 +72,9 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 
 **September 2026 design iteration.** The Claude Design project reorganised this section as "Public landing pages" and added four topic/advisor pages — 2.0.8 Caribbean, 2.0.9 Cruises, 2.0.10 Honeymoons, 2.0.11 About Gyasi. They are curated editorial pages (no travel-API dependency) that complement, not replace, adventures.story-tail.com, and carry the **P2** marker like the rest of the lead-generation surface. All eleven were built ahead of phase in September 2026 (user decision); the public search/results/detail pages run on Gyasi's curated catalog until the Phase 2 API search replaces the data source.
 
-**Public top bar navigation** (all 2.0.x screens): Explore (2.0.3) · Caribbean (2.0.8) · Cruises (2.0.9) · Honeymoons (2.0.10) · About Gyasi (2.0.11), plus "Sign in" and "Create account". The footer on every public screen links the 2.0.7 legal pages, How it works (2.0.2) and the marketing site.
+**Public top bar navigation** (all 2.0.x screens): Explore (2.0.3) · Caribbean (2.0.8) · Cruises (2.0.9) · Honeymoons (2.0.10) · About Gyasi (2.0.11), plus "Sign in" and "Create account", and a light/dark toggle after them. The footer on every public screen links the 2.0.7 legal pages, How it works (2.0.2) and the marketing site.
+
+> **Amended September 2026, built as amended — the toggle.** It sits last in the bar, after the auth cluster, and that position is forced rather than chosen: exactly one `margin-left: auto` is ever active in this header (the hamburger carries one below `lg`, the auth cluster carries one from `lg`), and flexbox splits free space equally among multiple auto margins — so a toggle with its own would land in the middle of the bar. Below `md` the bar floats transparent over the hero photo on five routes, so the toggle takes a glass chip there and drops it when the bar goes solid at 768px. See Design-System §10.1 for why the control is here and not on a settings screen.
 
 #### 2.0.1 App Subdomain Public Landing
 **Purpose:** Greet anonymous visitors at app.story-tail.com and direct them into the right next action.
@@ -2832,7 +2834,7 @@ In addition to those four, three more states apply selectively:
 
 ### 6.1 Client Web Navigation
 
-**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 104px top bar above the content alongside notifications and the account avatar — 104px because the bar carries the real brand lockup, whose legibility floor is 80px (Design-System §11.2).
+**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 104px top bar above the content alongside a light/dark toggle, notifications and the account avatar — 104px because the bar carries the real brand lockup, whose legibility floor is 80px (Design-System §11.2). The toggle is leftmost in that cluster (Design-System §9.1, added 2026-09-25); it is the only user preference reachable from the shell, because §2.5 Account has no Appearance screen.
 
 This contradicts what this section said originally — "Top nav: Logo, Trips, Search, Messages, Profile menu (with Account submenu)" — and the contradiction was settled in the prototype's favour by Gyasi on 2026-09-06. Three reasons it is the better answer, recorded so nobody re-litigates it:
 
@@ -2856,7 +2858,13 @@ The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape 
 `web/lib/client/nav.ts` and `domain/trip/ClientDestinations.kt` are the two implementations of this, held in step by `.github/scripts/check_copy_parity.py`. Both model a **union of six destinations with per-surface inclusion flags** rather than one list with a projection, precisely because §6.1's set and this one differ.
 
 ### 6.4 Agent Web Navigation
-Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commissions, Reports, Templates, Settings. Top utility bar: search, quick-add, notifications, profile menu.
+Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commissions, Reports, Templates, Settings. Top utility bar: light/dark toggle, search, quick-add, notifications, profile menu.
+
+> **Amended September 2026, built as amended.** Three of the five are not what shipped, and the reasons are on `web/components/agent/AgentTopBar.tsx`: search is **absent** rather than disabled (no agent search surface exists, and a field that does nothing is worse than no field), quick-add is drawn **disabled with its reason** (new trip is §3.4.3, new client is §3.3.9), and the profile menu is an initials avatar plus a **sign-out** control — the only one an advisor has on the web, since §3.2 redirects agents off every (client) route including /account.
+>
+> The **light/dark toggle** was added 2026-09-25 and is leftmost in the cluster, so sign-out stays anchored at the right edge. It is the one control in this bar with something behind it. See Design-System §10.1.
+>
+> **Quick-add hides below 640px so the toggle can have its place.** The bar does not overflow — the brand link has no `shrink-0`, so the lockup absorbs the pressure and shrinks past the 80px legibility floor (Design-System §11.2) instead. Measured in Chrome, lockup width against its natural 201px: at 375px it went 152 → 115 when the toggle was added, and back to 144 once quick-add yields; at 400px, 131 → 94 → 120; from 500px up it is 201 either way. A disabled placeholder was costing a working control about 35px of logo at every phone width, so the placeholder gives way.
 
 ### 6.5 Agent Tablet Navigation
 Collapsible left rail (icon-only by default, expands on hover/tap); top utility bar present. Landscape behaves like a compressed web layout; portrait collapses to a bottom tab bar with the deeper navigation in a drawer.

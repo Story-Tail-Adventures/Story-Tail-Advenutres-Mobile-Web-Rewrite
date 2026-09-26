@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Icon } from "@/components/ui/Icon";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { signOutAction } from "@/lib/auth/actions";
 
 /**
@@ -54,9 +55,38 @@ export function AgentTopBar({ initials }: { initials: string }) {
 
       <div className="flex-1" />
 
+      {/* LEFTMOST IN THE CLUSTER, so sign-out stays anchored at the right edge — see the
+          note on it below for why that one control's position is load-bearing. It is also
+          the only control in this bar with anything behind it; the other two are drawn
+          disabled with their reasons. */}
+      <ThemeToggle />
+
+      {/* QUICK-ADD YIELDS TO THE TOGGLE BELOW `sm`, and it is a measured call rather than a
+          taste one. This bar never overflows — the brand link has no `shrink-0`, so the
+          lockup absorbs every bit of pressure via `object-fit: contain` (BrandMark lines
+          92–98). What gets squeezed is the artwork, against the 80px legibility floor in
+          Design-System §11.2.
+
+          Measured in Chrome, lockup width against its natural 201px:
+
+            viewport   before the toggle   toggle added   toggle + this rule
+            375px            152                115              144
+            400px            131                 94              120
+            500px            201                166              201
+            640px            201                201              201
+
+          So a DISABLED placeholder was costing a working control ~35px of logo at every
+          phone width. Hiding it below `sm` puts the bar back where it was — identical from
+          500px up, and within 8–11px below that. The residue is because `.btn-icon` has no
+          `shrink-0` and quick-add used to absorb pressure by shrinking, which the toggle
+          deliberately will not do.
+
+          `sm` is Tailwind's 640px here, not a phone boundary — globals.css redefines only
+          `--breakpoint-web`. 640 is simply where the measurement says everything fits at
+          natural size anyway. */}
       <button
         type="button"
-        className="btn-icon"
+        className="btn-icon hidden sm:inline-flex"
         aria-label="Quick add — new trip arrives with §3.4, new client with §3.3"
         aria-disabled="true"
         disabled

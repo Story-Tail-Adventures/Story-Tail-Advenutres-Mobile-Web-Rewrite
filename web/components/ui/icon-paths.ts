@@ -67,6 +67,10 @@ export const ICON_PATHS = {
   dollar: "M12 3v18m5-14a4 4 0 0 0-4-4h-2a3 3 0 0 0 0 6h2a3 3 0 0 1 0 6h-2a4 4 0 0 1-4-4",
   chart: "M3 21V3m0 18h18m-3-6V9m-5 12V6M8 21v-8",
   pulse: "M3 12h4l3-8 4 16 3-8h4",
+
+  // Added for the top bar's theme toggle. `sun` is already above (ported for §2.2); this
+  // is its pair, the prototype's `moon` at shared/icons.jsx, copied not redrawn.
+  moon: "M21 13A8 8 0 0 1 11 3a8 8 0 1 0 10 10Z",
 } as const satisfies Record<string, string>;
 
 export type IconName = keyof typeof ICON_PATHS;

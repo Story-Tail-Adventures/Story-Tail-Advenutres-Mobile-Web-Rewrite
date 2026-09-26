@@ -34,6 +34,8 @@ function StaTopBar({ scheme = 'light', userInitials = 'GS', userName = 'Gyasi St
         </div>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button className="btn-icon sta-light-only" title="Switch to dark mode"><Icon name="moon" size={20}/></button>
+        <button className="btn-icon sta-dark-only" title="Switch to light mode"><Icon name="sun" size={20}/></button>
         <button className="btn-icon" title="Help"><Icon name="question" size={20}/></button>
         <button className="btn-icon" title="Messages" style={{ position: 'relative' }}>
           <Icon name="message" size={20}/>

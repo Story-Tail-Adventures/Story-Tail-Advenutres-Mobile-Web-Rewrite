@@ -345,9 +345,13 @@ These are not Material primitives but Story-Tail-specific layouts that appear ac
 
 ### 9.1 Top App Bar (`StaTopBar`)
 
-**104px** tall, 24px horizontal padding. Contains: the brand mark, a search pill (40px tall, pill-shaped, role-aware placeholder), and a right-side action cluster (help, messages with red dot, notifications with badge, avatar + name + role).
+**104px** tall, 24px horizontal padding. Contains: the brand mark, a search pill (40px tall, pill-shaped, role-aware placeholder), and a right-side action cluster (theme toggle, help, messages with red dot, notifications with badge, avatar + name + role).
 
 The brand mark swaps the whole lockup on theme, not just a glyph: the book/fox lockup in light, the palm/sun lockup in dark. CSS-driven — the JSX renders both `<img>` and CSS hides the wrong one, because the scheme is not knowable at SSR.
+
+> Amended September 2026, built as amended. **The action cluster gained a light/dark toggle**, leftmost in the cluster so the controls that end a session stay anchored at the right edge. It is the override §10.1 promises, and the top bar is where it lives — see that section for why it is not on a settings screen. The same control sits in the public top bar, after the auth cluster.
+>
+> The toggle renders BOTH glyphs and lets CSS hide one, exactly as the brand mark below does and for exactly the same reason: the scheme is not knowable at SSR. The glyph shown is the scheme you are switching **to** — a moon in light, a sun in dark.
 
 > Amended September 2026, built as amended. This said 64px, sized for a 26px glyph beside live Caveat/Poppins text. The bar now carries the real artwork at its 80px legibility floor (§11), so 64px cannot hold it: 80px of lockup + 12px above and below. The public top bar moved 56px → 96px for the same reason (`--public-topbar-h` in `web/styles/public.css`). Built in `web/styles/client.css` (`.client-topbar`).
 
@@ -381,7 +385,11 @@ The hallmark card on `C221_Dashboard`. Large hero image + day countdown overlay 
 
 Every component reads tokens through CSS variables in the prototype. In production (Compose Multiplatform): a `MaterialTheme` wrapper provides a `LightStoryTailColors` or `DarkStoryTailColors` object via `LocalColorScheme`. Components never reference brand hex values directly.
 
-The system listens to the OS-level theme by default; users can override in Settings → Appearance.
+The system listens to the OS-level theme by default. Users override it with a control in the top bar's action cluster (§9.1) — on every authenticated screen and on the public pages.
+
+> Amended September 2026, built as amended. This said "users can override in Settings → Appearance", and that screen does not exist: §2.5 Account is eleven screens in the Screen Inventory and none of them is Appearance. So the override this section promised had nowhere to live, and for the whole life of the project nothing ever wrote the preference — the read half ran before every paint and the write half was never built. Gyasi moved the control into the top bar on 2026-09-25.
+>
+> **It is a two-state control: light ↔ dark.** Pressing it stores an explicit choice, and the OS is ignored from then on. There is no "match my device" affordance anywhere in the product, so someone who wants to go back to following their device has to clear site data. That is a known cost of keeping this to a single press, accepted deliberately. `ThemePreference` still carries a third `system` value for the day a settings screen wants it, and the pre-paint script honours it correctly if it ever appears.
 
 ### 10.2 Tweaks (Design-Exploration Only)
 
@@ -501,7 +509,7 @@ When the engineering team starts building, they should:
 
 1. **Copy the three Compose theme files** from `design/compose-theme/` into the KMP shared module under `commonMain/kotlin/com/storytail/ui/theme/`.
 2. **Add the font resources** (Poppins, Caveat, JetBrains Mono) to `commonMain/composeResources/font/`. Compose Multiplatform supports `Font(resource = ...)` cross-platform.
-3. **Wire `StoryTailTheme` into the app root** of every target (Android `MainActivity`, iOS `MainViewController`, web `App.kt`). Apply system-theme detection by default; expose a user override in Settings → Appearance.
+3. **Wire `StoryTailTheme` into the app root** of every target (Android `MainActivity`, iOS `MainViewController`, web `App.kt`). Apply system-theme detection by default; expose a user override in the top bar (§10.1). On web that is `ThemeToggle`; on Compose, `StoryTailTheme`'s `useDarkTheme` parameter is the hook and nothing passes it yet.
 4. **Reference the prototype** in `design/source-prototype/` when building each screen. Open the screen-specific JSX file and recreate it in Compose — match the visual output, not the prototype's internal structure.
 5. **Use the per-screen variant mapping** in Screen Inventory Section 4.4 to determine which Pattern (A through J) a screen uses, and therefore what its mobile/tablet/web layouts look like.
 6. **Run a design QA pass** against the prototype's light + dark artboards before each screen lands. The prototype's 336 artboards are the visual ground truth — if Compose deviates, fix Compose unless the prototype is wrong.
