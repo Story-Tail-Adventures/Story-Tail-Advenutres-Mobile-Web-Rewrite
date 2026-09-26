@@ -74,6 +74,48 @@ export async function writeAuditEvent(
 }
 
 /**
+ * Write SEVERAL audit_events in one statement.
+ *
+ * One row per target, which is the same invariant `writeAuditEvent` keeps — a bulk action
+ * over twenty-five clients owes twenty-five rows, because "which records did this touch" is
+ * the question the trail answers and a single row with a count cannot answer it.
+ *
+ * What this changes is the number of round trips, not the number of rows. Twenty-five
+ * sequential inserts is twenty-five chances to half-succeed and leave the trail describing
+ * part of a write that fully landed. One `insert([...])` is one statement, so the rows land
+ * together or not at all.
+ *
+ * That still is not atomic WITH the mutation — see the note on `when` above, which applies
+ * here unchanged. Callers must let this throw, for the same reason.
+ */
+export async function writeAuditEvents(
+  ctx: AuthContext,
+  specs: AuditSpec[],
+): Promise<void> {
+  if (specs.length === 0) return;
+
+  const { error } = await serviceClient()
+    .from("audit_event")
+    .insert(specs.map((spec) => ({
+      id: uuidV7(),
+      actor_user_id: ctx.platformUserId,
+      actor_role: ctx.role,
+      event_type: spec.eventType,
+      target_entity: spec.targetEntity,
+      target_id: spec.targetId,
+      metadata: (spec.metadata ?? {}) as never,
+      ip_address: ctx.ip,
+      user_agent: ctx.userAgent,
+    })));
+
+  if (error) {
+    throw new Error(
+      `Audit write failed for ${specs.length} ${specs[0].eventType} events: ${error.message}`,
+    );
+  }
+}
+
+/**
  * Write an audit_event for a SYSTEM actor — no human, no platform_user row.
  *
  * `writeAuditEvent` above takes an AuthContext, which presumes somebody logged in. A
