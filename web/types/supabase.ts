@@ -3129,6 +3129,49 @@ export type Database = {
           weekly_schedule: Json
         }[]
       }
+      agent_client_roster: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: Database["public"]["Enums"]["client_status"][]
+          p_tags?: string[]
+        }
+        Returns: {
+          archived_at: string
+          as_of_date: string
+          client_id: string
+          created_at: string
+          display_name: string
+          email: string
+          first_name: string
+          last_contact_at: string
+          last_name: string
+          last_trip_end_date: string
+          last_trip_title: string
+          lifetime_currency: string
+          lifetime_currency_count: number
+          lifetime_value_cents: string
+          next_trip_destinations: string[]
+          next_trip_start_date: string
+          next_trip_status: Database["public"]["Enums"]["trip_status"]
+          next_trip_title: string
+          phone: string
+          status: Database["public"]["Enums"]["client_status"]
+          tags: string[]
+          total_count: number
+          trip_count: number
+        }[]
+      }
+      agent_client_roster_summary: {
+        Args: never
+        Returns: {
+          active_count: number
+          archived_count: number
+          in_motion_count: number
+          inquiry_count: number
+        }[]
+      }
       agent_inbox: {
         Args: { p_limit?: number }
         Returns: {

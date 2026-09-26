@@ -162,11 +162,21 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT role FROM public.platform_user)::text = 'agent',
     'agent resolves to the agent role');
--- Documented scope limit, not a bug: client_self_select keys on platform_user.client_id,
--- which is NULL for an agent. The agent's book of business needs the full RLS pass.
+-- Permanent by design, and §3.3 is what settled it. client_self_select keys on
+-- platform_user.client_id, which is NULL for an agent, so a DIRECT read of `client` returns
+-- nothing to the advisor whose book it is. This line used to promise "book-of-business
+-- policies still to come"; none came, and none should. §3.3.1 reaches the book through
+-- public.agent_client_roster(), a SECURITY DEFINER accessor
+-- (20260926140000_agent_client_read_surface.sql), because three of the roster's own columns
+-- — status, tags, lifetime_value_cents — are outside the `client` column grant and no RLS
+-- policy can hand back a column the GRANT withholds.
+--
+-- So this zero is the correct answer forever, and rls_agent_clients.sql asserts the other
+-- half: those same three columns arriving NON-NULL through the accessor, to this same agent,
+-- one statement later.
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.client) = 0,
-    'agent sees no clients yet (book-of-business policies still to come)');
+    'agent sees no clients through a DIRECT read — the book arrives via agent_client_roster()');
 
 RESET ROLE;
 
