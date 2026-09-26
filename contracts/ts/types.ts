@@ -322,6 +322,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-trip-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit a trip's agent-only notes.
+         * @description Screen 3.4.2 (Trip Detail, Notes tab). Same optimistic-concurrency shape as
+         *     `/agent-trip-status` against `trip.version`, and the same agent-only,
+         *     archived-advisor-refused access rule. No `trip_status_history` row — unlike
+         *     a stage change, there is no history table a free-text edit could corrupt by
+         *     losing a row to it, so the only outcomes are `changed` and a no-op.
+         *
+         *     `expectedVersion` IS REQUIRED, for the same reason as the stage write: two
+         *     tabs open on the same trip is exactly what `trip.version` is for. A
+         *     mismatch is a 409, not a 400 — the row moved under the caller, and a
+         *     reload is the fix.
+         *
+         *     `notes` MUST BE A STRING. An empty string clears the field; sending
+         *     anything else is a 400.
+         */
+        post: operations["setAgentTripNotes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding-step": {
         parameters: {
             query?: never;
@@ -744,6 +776,22 @@ export interface components {
             changed: boolean;
             /** @description Present on every `cancelled` call and only those, because the reason is mandatory on all of them and the caller is owed an answer about where it went. True when this call wrote it to `trip.cancellation_reason` — either on a transition into `cancelled` or on a same-stage correction. False when the stored reason already read that way, so there was nothing to write. Either answer means the traveler now sees the sentence you sent, on Screen 2.2.10. */
             cancellationReasonUpdated?: boolean;
+        };
+        AgentTripNotesRequest: {
+            /** Format: uuid */
+            tripId: string;
+            /** @description Replaces `trip.notes` outright. An empty string clears it. */
+            notes: string;
+            /** @description `trip.version` as the tab was rendered from. A mismatch is a 409. Required for the same reason as `/agent-trip-status`'s field. */
+            expectedVersion: number;
+        };
+        AgentTripNotesResponse: {
+            /** Format: uuid */
+            tripId: string;
+            /** @description The version after the write. Send this as the next `expectedVersion`. */
+            version: number;
+            /** @description False when the submitted notes matched what was already stored. */
+            changed: boolean;
         };
         OnboardingStepRequest: {
             /**
@@ -1273,6 +1321,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentTripStatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    setAgentTripNotes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTripNotesRequest"];
+            };
+        };
+        responses: {
+            /** @description The notes are saved. `changed` is false when nothing was different. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTripNotesResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

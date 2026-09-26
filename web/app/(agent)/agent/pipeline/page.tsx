@@ -171,9 +171,14 @@ export default async function AgentPipelinePage({
             ) : (
               col.cards.map((c) => (
                 <article key={c.tripId} className="card p-3">
-                  <p className="t-title-s text-[13px]">{c.clientName}</p>
-                  <p className="t-body-s text-[var(--md-on-surface-variant)]">{c.title}</p>
-                  <p className="mt-2 font-mono text-xs font-bold">{c.valueLabel}</p>
+                  {/* The link wraps everything except StageMenu below: a Link inside an
+                      interactive control's own click target is a nested-interactive-element
+                      a11y violation, and StageMenu's own click must stay independent of it. */}
+                  <Link href={`/agent/trips/${c.tripId}`} className="block">
+                    <p className="t-title-s text-[13px]">{c.clientName}</p>
+                    <p className="t-body-s text-[var(--md-on-surface-variant)]">{c.title}</p>
+                    <p className="mt-2 font-mono text-xs font-bold">{c.valueLabel}</p>
+                  </Link>
                   <StageMenu
                     tripId={c.tripId}
                     status={c.status}

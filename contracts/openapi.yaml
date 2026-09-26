@@ -516,6 +516,43 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /agent-trip-notes:
+    post:
+      operationId: setAgentTripNotes
+      summary: Edit a trip's agent-only notes.
+      description: |
+        Screen 3.4.2 (Trip Detail, Notes tab). Same optimistic-concurrency shape as
+        `/agent-trip-status` against `trip.version`, and the same agent-only,
+        archived-advisor-refused access rule. No `trip_status_history` row — unlike
+        a stage change, there is no history table a free-text edit could corrupt by
+        losing a row to it, so the only outcomes are `changed` and a no-op.
+
+        `expectedVersion` IS REQUIRED, for the same reason as the stage write: two
+        tabs open on the same trip is exactly what `trip.version` is for. A
+        mismatch is a 409, not a 400 — the row moved under the caller, and a
+        reload is the fix.
+
+        `notes` MUST BE A STRING. An empty string clears the field; sending
+        anything else is a 400.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentTripNotesRequest'
+      responses:
+        '200':
+          description: The notes are saved. `changed` is false when nothing was different.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTripNotesResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
   /onboarding-step:
     post:
       operationId: setOnboardingStep
@@ -1106,6 +1143,32 @@ components:
             False when the stored reason already read that way, so there was nothing
             to write. Either answer means the traveler now sees the sentence you
             sent, on Screen 2.2.10.
+
+    AgentTripNotesRequest:
+      type: object
+      required: [tripId, notes, expectedVersion]
+      properties:
+        tripId: { type: string, format: uuid }
+        notes:
+          type: string
+          description: Replaces `trip.notes` outright. An empty string clears it.
+        expectedVersion:
+          type: integer
+          description: >-
+            `trip.version` as the tab was rendered from. A mismatch is a 409.
+            Required for the same reason as `/agent-trip-status`'s field.
+
+    AgentTripNotesResponse:
+      type: object
+      required: [tripId, version, changed]
+      properties:
+        tripId: { type: string, format: uuid }
+        version:
+          type: integer
+          description: The version after the write. Send this as the next `expectedVersion`.
+        changed:
+          type: boolean
+          description: False when the submitted notes matched what was already stored.
 
     # ── §2.1 Onboarding ────────────────────────────────────────────────────
     #

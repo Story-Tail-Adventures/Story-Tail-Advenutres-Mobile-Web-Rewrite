@@ -493,6 +493,14 @@ verify_jwt = true
 [functions.agent-trip-status]
 verify_jwt = true
 
+# ── §3.4.2 trip detail ────────────────────────────────────────────────────────
+# The Notes tab's write, and the only door onto `agent_set_trip_notes` — that function is
+# service_role only precisely so a browser cannot reach it and skip the audit_event. Same
+# note as above about this block: verify_jwt is not the gate that matters, requireAgentId
+# is, but a function with no block here is never deployed at all.
+[functions.agent-trip-notes]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand

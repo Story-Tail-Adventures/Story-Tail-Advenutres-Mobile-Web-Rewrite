@@ -539,6 +539,30 @@ data class AgentTripStatusResponse(
 )
 
 @Serializable
+data class AgentTripNotesRequest(
+    @SerialName("tripId")
+    val tripId: String,
+    // Replaces `trip.notes` outright. An empty string clears it.
+    @SerialName("notes")
+    val notes: String,
+    // `trip.version` as the tab was rendered from. A mismatch is a 409. Required for the same reason as `/agent-trip-status`'s field.
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+)
+
+@Serializable
+data class AgentTripNotesResponse(
+    @SerialName("tripId")
+    val tripId: String,
+    // The version after the write. Send this as the next `expectedVersion`.
+    @SerialName("version")
+    val version: Int,
+    // False when the submitted notes matched what was already stored.
+    @SerialName("changed")
+    val changed: Boolean,
+)
+
+@Serializable
 data class OnboardingStepRequest(
     // The step to move the cursor to. Reaching `complete` is not the same as finishing — that is what `complete: true` is for.
     @SerialName("step")

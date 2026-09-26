@@ -110,8 +110,65 @@ export const AGENT_COPY = {
   calendarMonthLabel: "Month",
   calendarAgendaLabel: "Agenda",
 
+  // ── Trip detail (§3.4.2) ────────────────────────────────────────────────
+  tripComponentsEmpty: "No components added yet.",
+  tripItineraryEmpty: "No itinerary drafted yet.",
+  tripPaymentsEmpty: "No payments scheduled.",
+  // NOT the same state as the line above, and saying so is the point. The sidebar hides
+  // paid milestones, so a trip whose balance has cleared has nothing left to list — and
+  // reporting "No payments scheduled." there tells an advisor the opposite of the truth
+  // about a trip that has been paid for in full.
+  tripPaymentsAllSettled: "All payments settled.",
+  tripDocumentsEmpty: "No documents on file for this trip.",
+  tripMessagesEmpty: "No messages on this trip yet.",
+  tripActivityEmpty: "No activity recorded yet.",
+  // A PLACEHOLDER, NOT AN EMPTY STATE, which is why it does not read like the six above.
+  // Every placeholder in this codebase is one example-driven clause with a trailing ellipsis
+  // — "Add a place — or a few, separated by commas", "Where were you, and what made it
+  // stick?" — because it has to show the kind of thing that goes in the box. This key used
+  // to open "No notes yet", which narrates a state the empty box has already made obvious
+  // and costs the one line available to prompt anything.
+  tripNotesPlaceholder: "Flight changes, a promise you made them, anything worth remembering…",
+
+  // ── Trip detail · the two sidebar cards and the at-a-glance grid ────────
+  costCommissionTitle: "Cost & commission",
+  clientTotalLabel: "Client total",
+  paidSoFarLabel: "Paid so far",
+  commissionLabel: "Commission",
+  glanceTripType: "Trip type",
+  glanceDestination: "Destination",
+  glanceTravelers: "Travelers",
+  glanceDates: "Dates",
+  glanceCardOnFile: "Card on file",
+  glanceLastActivity: "Last activity",
+  glanceCancellationReason: "Cancellation reason",
+  glanceRefundStatus: "Refund status",
+  glanceNotSet: "Not set",
+  glanceNoCard: "None on file",
+  glanceNoActivity: "No activity yet",
+  // Each names what it is waiting on, matching the *Deferred convention above — these are
+  // per-action, not per-section, because §3.4.2's header offers four buttons and only one
+  // (Mark booked, via the existing stage-change write) has anywhere to go yet.
+  duplicateTripDeferred: "Duplicating a trip arrives with §3.4.4.",
+  clientPreviewDeferred: "Client preview arrives with §3.3.2.",
+  sendProposalDeferred: "Sending a proposal arrives with §3.5.",
+  notesStale: "This trip changed since you opened it. Reload and try again.",
+  notesFailed: "Could not save the note. Try again in a moment.",
+  notesSaveLabel: "Save note",
+  notesSavedLabel: "Saved",
+  // One sentence for both causes — deleted, and belonging to another advisor — because the
+  // accessor deliberately cannot tell them apart, and that is what stops trip ids being
+  // enumerated. It must not read as a fault on our side: nothing went wrong and there is
+  // nothing to retry.
+  tripNotFoundTitle: "No such trip",
+  tripNotFoundBody: "It may have been deleted, or it belongs to another advisor.",
+  tripNotFoundAction: "Back to the worklist",
+
   // ── Deferrals. Every one names the section that builds it. ──────────────
-  tripDetailDeferred: "Trip detail arrives with §3.4.",
+  // `tripDetailDeferred` lived here until §3.4.2 shipped. Every worklist section that
+  // rendered it now links its rows straight into the trip, so the string had no call site
+  // left — a deferral that names a section which has since been built is worse than no
+  // sentence at all.
   clientDetailDeferred: "Client detail arrives with §3.3.",
   messagesDeferred: "Agent messaging arrives with §3.10.",
   quickAddTripDeferred: "Creating trips arrives with §3.4.",

@@ -63,7 +63,21 @@ MESSAGE_TABLES = [
             "messagesTitle": "MESSAGES_TITLE",
             "messagesEmpty": "MESSAGES_EMPTY",
             "cycleTimeUnavailable": "CYCLE_TIME_UNAVAILABLE",
-            "tripDetailDeferred": "TRIP_DETAIL_DEFERRED",
+            # `tripDetailDeferred` / TRIP_DETAIL_DEFERRED was paired here until §3.4.2
+            # shipped on the web. It is NOT an oversight that only the Kotlin side still
+            # holds it, and re-pairing them would be wrong in both directions.
+            #
+            # The web worklist's rows are now links into /agent/trips/[tripId], so the
+            # sentence has no call site there and a deferral naming a section that has
+            # since been built is worse than no sentence. WorklistScreen.kt still renders
+            # it on three sections, and on a phone it is still TRUE — §3.4.2 is web-only
+            # at MVP, so a Compose row genuinely has nowhere to go yet.
+            #
+            # This list is the set of strings that must match BYTE FOR BYTE across both
+            # stacks. A string only one stack has does not belong in it — the same reason
+            # the pipeline and calendar keys were never added. Delete the Kotlin constant
+            # and its three usages when trip detail lands on Compose; nothing here needs
+            # touching then either.
             "clientDetailDeferred": "CLIENT_DETAIL_DEFERRED",
             "messagesDeferred": "MESSAGES_DEFERRED",
             "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
