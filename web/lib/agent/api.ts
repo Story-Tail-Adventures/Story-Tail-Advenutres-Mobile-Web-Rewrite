@@ -42,7 +42,9 @@ export type AgentRead =
   | "agent_trip_payments"
   | "agent_trip_documents"
   | "agent_trip_messages"
-  | "agent_trip_activity";
+  | "agent_trip_activity"
+  | "agent_client_roster"
+  | "agent_client_roster_summary";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -251,6 +253,62 @@ export type AgentTripActivityRow = {
   to_status: string;
   changed_at: string;
   changed_by_name: string | null;
+};
+
+/**
+ * §3.3.1's roster row.
+ *
+ * NEARLY EVERY FIELD HERE IS NULLABLE, and the generated types say none of them are. A
+ * roster is mostly clients who are missing something: `email` is nullable on the table,
+ * `phone` and the four trip fields are absent for anyone without a trip, and
+ * `lifetime_currency` is NULL for anyone with nothing committed — which is the honest answer
+ * and not a zero, so `rls_agent_clients.sql` asserts it comes back NULL rather than 'USD'.
+ *
+ * `lifetime_value_cents` and `total_count` are the two that are genuinely NOT NULL. The
+ * first is a digit-string, not a number: a bigint that crosses as JSON loses precision past
+ * 2^53, and the roster sums whole books of business.
+ */
+export type AgentClientRosterRow = {
+  client_id: string;
+  display_name: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  tags: string[] | null;
+  lifetime_value_cents: string;
+  lifetime_currency: string | null;
+  lifetime_currency_count: number;
+  trip_count: number;
+  last_trip_title: string | null;
+  last_trip_end_date: string | null;
+  next_trip_title: string | null;
+  next_trip_start_date: string | null;
+  next_trip_status: string | null;
+  next_trip_destinations: string[] | null;
+  last_contact_at: string | null;
+  created_at: string;
+  archived_at: string | null;
+  as_of_date: string;
+  total_count: number;
+};
+
+/**
+ * §3.3.1's header counts and the tag chips.
+ *
+ * The four counts are NOT NULL — an empty book reports four zeros. `tag_facets` comes back
+ * as `Json` from the generated types because PostgREST cannot describe a jsonb's shape; the
+ * accessor builds it with `jsonb_build_object('tag', …, 'count', …)` and
+ * `rls_agent_clients.sql` asserts every facet's count equals what that chip actually
+ * returns, so the shape below is asserted in SQL rather than merely declared here.
+ */
+export type AgentClientSummaryRow = {
+  active_count: number;
+  in_motion_count: number;
+  inquiry_count: number;
+  archived_count: number;
+  tag_facets: { tag: string; count: number }[] | null;
 };
 
 /**

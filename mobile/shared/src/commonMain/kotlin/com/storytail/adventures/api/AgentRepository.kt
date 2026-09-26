@@ -8,6 +8,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -52,7 +53,67 @@ import kotlinx.serialization.json.put
 interface AgentRepository {
     /** Null on a FAILED read. An agent with an empty book gets a [WorklistSnapshot] of zeros. */
     suspend fun worklist(): WorklistRead
+
+    /**
+     * Screen 3.3.1's roster. Two accessors, one answer.
+     *
+     * `offset` pages it. §6.6 keeps the phone narrow, so the screen appends rather than
+     * paginating — but the ACCESSOR is the same one the web roster calls, with the same
+     * window, because a second read shape for the same rows is a second thing to keep true.
+     */
+    suspend fun clientRoster(
+        status: String = "active",
+        search: String? = null,
+        limit: Int = 25,
+        offset: Int = 0,
+    ): ClientRosterRead
 }
+
+/** Three answers, for the reason [WorklistRead] gives. */
+sealed interface ClientRosterRead {
+    data class Ok(val snapshot: ClientRosterSnapshot) : ClientRosterRead
+    /** 401/403: not an agent, or no longer one. */
+    data object Forbidden : ClientRosterRead
+    data object Failed : ClientRosterRead
+}
+
+data class ClientRosterSnapshot(
+    val rows: List<RosterClient>,
+    /** The count BEFORE the window — the only figure "27 of 30" can be built from. */
+    val total: Int,
+    val summary: ClientRosterSummary,
+)
+
+data class ClientRosterSummary(
+    val activeCount: Int,
+    val inMotionCount: Int,
+    /** `trip.status = 'inquiry'`. NOT leads — there is no lead entity (BRD §6.5). */
+    val inquiryCount: Int,
+    val archivedCount: Int,
+)
+
+data class RosterClient(
+    val clientId: String,
+    val displayName: String,
+    val initials: String,
+    /** Nullable on the table, and a roster is mostly people who are missing something. */
+    val email: String?,
+    val phone: String?,
+    val tags: List<String>,
+    val archived: Boolean,
+    /** Null when nothing is committed — NOT zero. A labelled $0 is a claim, not an absence. */
+    val lifetimeValueCents: Long?,
+    val lifetimeCurrency: String?,
+    /** More than one means this row's figure excluded a currency, and the screen must say so. */
+    val lifetimeCurrencyCount: Int,
+    val tripCount: Int,
+    val lastTripTitle: String?,
+    val lastTripEndDate: String?,
+    val nextTripTitle: String?,
+    val nextTripStartDate: String?,
+    val nextTripStatus: String?,
+    val nextTripDestination: String?,
+)
 
 /**
  * Three answers, not two.
@@ -141,6 +202,13 @@ data class WorklistMessage(
 /** Before `supabase start` has ever run there is nothing to ask. */
 class UnconfiguredAgentRepository : AgentRepository {
     override suspend fun worklist(): WorklistRead = WorklistRead.Failed
+
+    override suspend fun clientRoster(
+        status: String,
+        search: String?,
+        limit: Int,
+        offset: Int,
+    ): ClientRosterRead = ClientRosterRead.Failed
 }
 
 class SupabaseAgentRepository(private val client: SupabaseClient) : AgentRepository {
@@ -234,6 +302,65 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
      * null, and appends `URL:` / `Headers:` lines to `message` — so parsing `message` hands
      * kotlinx.serialization trailing text and the detail silently comes back null.
      */
+    /**
+     * §3.3.1's two reads, together.
+     *
+     * TWO ROUND TRIPS AT ONCE, for the reason [worklist] gives — neither depends on the
+     * other's result, and `coroutineScope` still rethrows the FIRST child failure, so the
+     * three-way answer survives the concurrency.
+     *
+     * THE SUMMARY IS REQUIRED, NOT OPTIONAL. A roster rendered without its header counts
+     * shows chips claiming zero of everything over a table full of rows; a missing summary
+     * row means the caller is not an agent, the same second line of defence [worklist] keeps.
+     */
+    override suspend fun clientRoster(
+        status: String,
+        search: String?,
+        limit: Int,
+        offset: Int,
+    ): ClientRosterRead = try {
+        coroutineScope {
+            val rowsCall = async {
+                client.postgrest
+                    .rpc(
+                        "agent_client_roster",
+                        buildJsonObject {
+                            put("p_status", Json.parseToJsonElement("[\"$status\"]"))
+                            if (search.isNullOrBlank()) put("p_search", JsonNull)
+                            else put("p_search", search)
+                            put("p_tags", JsonNull)
+                            put("p_limit", limit)
+                            put("p_offset", offset)
+                        },
+                    )
+                    .decodeList<RosterDto>()
+            }
+            val summaryCall = async {
+                client.postgrest.rpc("agent_client_roster_summary").decodeList<RosterSummaryDto>()
+            }
+
+            val rows = rowsCall.await()
+            val summary = summaryCall.await().firstOrNull()
+                ?: return@coroutineScope ClientRosterRead.Forbidden
+
+            ClientRosterRead.Ok(
+                ClientRosterSnapshot(
+                    rows = rows.map { it.toDomain() },
+                    // `total_count` rides on every row and is the pre-window count. With no
+                    // rows there is nothing to read it off, and zero is the right answer.
+                    total = rows.firstOrNull()?.total_count ?: 0,
+                    summary = summary.toDomain(),
+                ),
+            )
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (rest: RestException) {
+        if (rest.statusCode in 401..403) ClientRosterRead.Forbidden else ClientRosterRead.Failed
+    } catch (_: Exception) {
+        ClientRosterRead.Failed
+    }
+
     @Suppress("unused")
     private fun problemDetail(rest: RestException): String? {
         if (rest.statusCode !in 400..499) return null
@@ -342,5 +469,71 @@ private data class InboxDto(
         preview = last_message_preview.orEmpty(),
         lastMessageAt = last_message_at,
         unread = agent_unread_count,
+    )
+}
+
+@Serializable
+private data class RosterDto(
+    val client_id: String = "",
+    val display_name: String = "",
+    val first_name: String = "",
+    val last_name: String = "",
+    val email: String? = null,
+    val phone: String? = null,
+    val tags: List<String>? = null,
+    val lifetime_value_cents: String? = null,
+    val lifetime_currency: String? = null,
+    val lifetime_currency_count: Int = 0,
+    val trip_count: Int = 0,
+    val last_trip_title: String? = null,
+    val last_trip_end_date: String? = null,
+    val next_trip_title: String? = null,
+    val next_trip_start_date: String? = null,
+    val next_trip_status: String? = null,
+    val next_trip_destinations: List<String>? = null,
+    val archived_at: String? = null,
+    val total_count: Int = 0,
+) {
+    fun toDomain() = RosterClient(
+        clientId = client_id,
+        displayName = display_name,
+        // Built from the NAME PARTS, not the display name: `preferred_name` replaces the
+        // first name in `display_name`, so "Belle Fitzwilliam-Castellanos" would give BF
+        // where the record is Annabelle's.
+        initials = buildString {
+            first_name.trim().firstOrNull()?.let { append(it) }
+            last_name.trim().firstOrNull()?.let { append(it) }
+        }.uppercase().ifBlank { "?" },
+        email = email,
+        phone = phone,
+        tags = tags.orEmpty(),
+        archived = archived_at != null,
+        // NULL currency is the accessor's way of saying nothing is committed. Kept as null
+        // rather than folded to 0 so the screen can show a dash instead of "$0.00".
+        lifetimeValueCents = if (lifetime_currency == null) null else lifetime_value_cents.cents(),
+        lifetimeCurrency = lifetime_currency,
+        lifetimeCurrencyCount = lifetime_currency_count,
+        tripCount = trip_count,
+        lastTripTitle = last_trip_title,
+        lastTripEndDate = last_trip_end_date,
+        nextTripTitle = next_trip_title,
+        nextTripStartDate = next_trip_start_date,
+        nextTripStatus = next_trip_status,
+        nextTripDestination = next_trip_destinations?.firstOrNull(),
+    )
+}
+
+@Serializable
+private data class RosterSummaryDto(
+    val active_count: Int = 0,
+    val in_motion_count: Int = 0,
+    val inquiry_count: Int = 0,
+    val archived_count: Int = 0,
+) {
+    fun toDomain() = ClientRosterSummary(
+        activeCount = active_count,
+        inMotionCount = in_motion_count,
+        inquiryCount = inquiry_count,
+        archivedCount = archived_count,
     )
 }

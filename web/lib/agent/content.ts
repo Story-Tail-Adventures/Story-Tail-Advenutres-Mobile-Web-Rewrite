@@ -169,10 +169,12 @@ export const AGENT_COPY = {
   // rendered it now links its rows straight into the trip, so the string had no call site
   // left — a deferral that names a section which has since been built is worse than no
   // sentence at all.
-  clientDetailDeferred: "Client detail arrives with §3.3.",
+  // Sharpened when §3.3.1 shipped: "§3.3" named a section that now half exists, so each
+  // deferral points at the SCREEN that builds it rather than the section it sits in.
+  clientDetailDeferred: "Client detail arrives with §3.3.2.",
   messagesDeferred: "Agent messaging arrives with §3.10.",
   quickAddTripDeferred: "Creating trips arrives with §3.4.",
-  quickAddClientDeferred: "Creating clients arrives with §3.3.",
+  quickAddClientDeferred: "Creating clients arrives with §3.3.9.",
   // The one that is not "not yet". It explains where the thing actually is.
   leadsDeferred:
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
@@ -181,6 +183,80 @@ export const AGENT_COPY = {
   commissionDeferred: "Commission tracking arrives with §3.7.",
   reportsDeferred: "Reporting arrives with §3.11.",
 } as const;
+
+/**
+ * Screen 3.3.1's strings, kept separate from AGENT_COPY so the roster's copy can be paired
+ * with Compose independently — `.github/scripts/check_copy_parity.py` maps one web const to
+ * one Kotlin object, and §3.2's table already covers exactly the set both surfaces render.
+ *
+ * SAME REGISTER AS AGENT_COPY: terse, numerate, Gyasi's own shorthand, named people rather
+ * than records. The zero state is the one line that carries any warmth, and it still does
+ * not put a call to action underneath itself.
+ */
+export const CLIENT_COPY = {
+  title: "Clients",
+  // The prototype's header reads "68 active · 14 in motion · 4 leads to qualify." Those are
+  // three live counts, so the sentence is assembled from them rather than stored whole.
+  subtitleActive: "active",
+  subtitleInMotion: "in motion",
+  // "Leads" survives in COPY while the field stays inquiry_count — §3.2's rule. Gyasi says
+  // "lead" out loud; the schema must not.
+  subtitleToQualify: "leads to qualify",
+
+  searchLabel: "Search clients",
+  searchPlaceholder: "Search by name, email, trip…",
+
+  filterStatusLabel: "Status",
+  filterActive: "Active",
+  filterArchived: "Archived",
+  filterTagsLabel: "Tags",
+  filterClear: "Clear filters",
+
+  colClient: "Client",
+  colLastTrip: "Last trip",
+  colNextTrip: "Next trip",
+  colLifetime: "Lifetime",
+  colTags: "Tags",
+
+  noEmail: "No email on file",
+  noTrip: "—",
+  noLifetime: "—",
+  travellingNow: "Now",
+
+  // The money note §3.2's rule requires wherever one figure stands for several currencies.
+  currencyNoteOne:
+    "One client banks in more than one currency. Their lifetime figure covers their most-used one.",
+
+  // ── Empty states. The prototype draws none, so all of these are written here. ──
+  emptyTitle: "No clients yet",
+  emptyBody: "The first one arrives when you add them, or when a quote request comes in.",
+  emptyFilteredTitle: "Nothing matches",
+  emptyFilteredBody: "Try a different search, or clear the filters.",
+  emptyArchivedTitle: "Nothing archived",
+  emptyArchivedBody: "Archived clients keep their trips and their history. None are here yet.",
+
+  paginationPrev: "Previous",
+  paginationNext: "Next",
+
+  // Named per-action, matching the *Deferred convention: the roster's row menu offers three
+  // things and none of them has anywhere to go until §3.3.2 and §3.3.9 land.
+  rowOpenDeferred: "Client detail arrives with §3.3.2.",
+  rowEditDeferred: "Editing a client arrives with §3.3.10.",
+  rowArchiveDeferred: "Archiving a client arrives with §3.3.12.",
+  mergeDeferred: "Merging clients arrives with §3.9, alongside the account-admin tools it shares a screen with.",
+  bulkDeferred: "Bulk actions arrive with §3.3.9; bulk messaging needs §3.10.",
+} as const;
+
+/** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */
+export function rosterSubtitle(active: number, inMotion: number, toQualify: number): string {
+  const parts = [`${active} ${CLIENT_COPY.subtitleActive}`, `${inMotion} ${CLIENT_COPY.subtitleInMotion}`];
+  if (toQualify > 0) {
+    parts.push(
+      toQualify === 1 ? "1 lead to qualify" : `${toQualify} ${CLIENT_COPY.subtitleToQualify}`,
+    );
+  }
+  return `${parts.join(" · ")}.`;
+}
 
 /** The greeting line, derived rather than written. */
 export function needsYouLine(count: number): string {

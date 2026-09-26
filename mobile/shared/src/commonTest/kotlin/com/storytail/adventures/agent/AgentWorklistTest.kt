@@ -81,11 +81,21 @@ class AgentWorklistTest {
     }
 
     @Test
-    fun only_the_worklist_is_built_and_every_other_tab_names_its_section() {
-        assertEquals(listOf("worklist"), AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id })
+    fun two_tabs_are_built_and_every_other_one_names_its_section() {
+        // `clients` joined `worklist` on 2026-09-26 with §3.3.1. The order matters: this is
+        // §6.6's bar, and the built pair are its first two.
+        assertEquals(
+            listOf("worklist", "clients"),
+            AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id },
+        )
         for (d in AGENT_BAR_DESTINATIONS.filterNot { it.built }) {
             assertTrue(d.section.startsWith("§3."), "${d.id} has no section")
             assertTrue(d.phase != null, "${d.id} has no phase")
+        }
+        // A built destination carries no phase: `phase` answers "when does this arrive",
+        // and the answer for a built one is that it already has.
+        for (d in AGENT_BAR_DESTINATIONS.filter { it.built }) {
+            assertTrue(d.phase == null, "${d.id} is built but still carries a phase")
         }
     }
 

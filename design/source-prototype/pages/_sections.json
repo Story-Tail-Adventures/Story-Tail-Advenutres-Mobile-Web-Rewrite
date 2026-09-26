@@ -1072,7 +1072,8 @@
     "title": "Agent · Client Management (CRM)",
     "subtitle": "Roster, detail, tabs, merge, archive.",
     "files": [
-      "screens/agent-crm.jsx"
+      "screens/agent-crm.jsx",
+      "screens/agent-crm-mobile.jsx"
     ],
     "sectionId": "a33",
     "sectionTitle": "3.3 · Client Management (CRM)",
@@ -1155,6 +1156,13 @@
         "label": "3.3.12 Archive",
         "w": 900,
         "h": 700
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m331",
+        "comp": "M331_ClientRoster",
+        "label": "3.3m.1 Client roster"
       }
     ]
   },
