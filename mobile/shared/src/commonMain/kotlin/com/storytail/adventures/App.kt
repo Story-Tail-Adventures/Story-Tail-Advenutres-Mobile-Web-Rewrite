@@ -162,6 +162,7 @@ fun App() {
             // and one sign-out; AgentRoute's own `when` picks the screen.
             AppRoute.Worklist,
             AppRoute.AgentClients,
+            is AppRoute.AgentClientDetail,
             -> {
                 val scope = rememberCoroutineScope()
                 val agent = agentRepository

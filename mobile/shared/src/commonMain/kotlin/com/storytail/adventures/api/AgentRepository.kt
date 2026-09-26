@@ -67,7 +67,138 @@ interface AgentRepository {
         limit: Int = 25,
         offset: Int = 0,
     ): ClientRosterRead
+
+    /**
+     * Screens 3.3.2 – 3.3.8. EVERY TAB IN ONE READ, which is the opposite of what the web
+     * build does and deliberate.
+     *
+     * The web page fetches only the active tab's rows, because a tab switch there is a
+     * navigation and the next read starts while the browser is still painting. On a phone a
+     * tab switch is a thumb moving two centimetres, and paying a round trip for it on the
+     * connection this screen is designed for — §6.6's "on-the-go" — turns an instant
+     * interaction into a spinner six times over. One client's whole detail is a few dozen
+     * rows; fetching it once and switching locally is the cheaper trade.
+     */
+    suspend fun clientDetail(clientId: String): ClientDetailRead
 }
+
+/** Three answers, for the reason [WorklistRead] gives. */
+sealed interface ClientDetailRead {
+    data class Ok(val snapshot: ClientDetailSnapshot) : ClientDetailRead
+    /**
+     * Zero rows from the overview accessor. "No such client", "not this advisor's" and "a
+     * merged tombstone" are ONE answer on purpose, so ids cannot be probed — the screen
+     * says the client is not there rather than that something failed.
+     */
+    data object NotFound : ClientDetailRead
+    /** 401/403: not an agent, or no longer one. */
+    data object Forbidden : ClientDetailRead
+    data object Failed : ClientDetailRead
+}
+
+data class ClientDetailSnapshot(
+    val overview: ClientOverviewRow,
+    val companions: List<CompanionRow>,
+    val trips: List<ClientTripRow>,
+    val threads: List<ClientThreadRow>,
+    val documents: List<ClientDocumentRow>,
+    val notes: List<ClientNoteRow>,
+    val activity: List<ClientActivityRow>,
+)
+
+data class ClientOverviewRow(
+    val clientId: String,
+    val displayName: String,
+    val initials: String,
+    val email: String?,
+    val phone: String?,
+    val status: String,
+    val archived: Boolean,
+    val tags: List<String>,
+    val createdAt: String,
+    val addressLine: String?,
+    val dateOfBirth: String?,
+    /** `client.notes` — the Snapshot card's free text, NOT the Notes tab. */
+    val snapshotNote: String?,
+    val preferredDestinations: List<String>,
+    val travelStyles: List<String>,
+    val dietaryRestrictions: List<String>,
+    /** The allergy the closed vocabulary has no slug for. */
+    val dietaryNote: String?,
+    val accessibilityNeeds: List<String>,
+    val accessibilityNote: String?,
+    /** Programme and tier only. The NUMBER is an account credential and is never read. */
+    val loyaltyPrograms: List<Pair<String, String?>>,
+    val budgetBand: String?,
+    /** Null when nothing is committed — NOT zero. */
+    val lifetimeValueCents: Long?,
+    val commissionCents: Long?,
+    val lifetimeCurrency: String?,
+    val lifetimeCurrencyCount: Int,
+    val tripCount: Int,
+    val activeTripCount: Int,
+    val noteCount: Int,
+    val documentCount: Int,
+    val lastContactAt: String?,
+    val asOfDate: String,
+)
+
+data class CompanionRow(
+    val companionId: String,
+    val name: String,
+    val initials: String,
+    val relationship: String?,
+    val passportExpiry: String?,
+)
+
+data class ClientTripRow(
+    val tripId: String,
+    val title: String,
+    val status: String,
+    val startDate: String?,
+    val endDate: String?,
+    val destination: String?,
+    val totalValueCents: Long,
+    val commissionCents: Long,
+    val currency: String,
+    val asOfDate: String,
+)
+
+data class ClientThreadRow(
+    val conversationId: String,
+    val subject: String?,
+    val tripTitle: String?,
+    val preview: String?,
+    val lastMessageAt: String,
+    val unread: Int,
+    val messageCount: Int,
+)
+
+data class ClientDocumentRow(
+    val documentId: String,
+    val filename: String,
+    val kind: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val sensitive: Boolean,
+    val tripTitle: String?,
+)
+
+data class ClientNoteRow(
+    val noteId: String,
+    val body: String,
+    val authorName: String?,
+    val mine: Boolean,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+data class ClientActivityRow(
+    val eventId: String,
+    val eventType: String,
+    val actorName: String?,
+    val createdAt: String,
+)
 
 /** Three answers, for the reason [WorklistRead] gives. */
 sealed interface ClientRosterRead {
@@ -209,6 +340,8 @@ class UnconfiguredAgentRepository : AgentRepository {
         limit: Int,
         offset: Int,
     ): ClientRosterRead = ClientRosterRead.Failed
+
+    override suspend fun clientDetail(clientId: String): ClientDetailRead = ClientDetailRead.Failed
 }
 
 class SupabaseAgentRepository(private val client: SupabaseClient) : AgentRepository {
@@ -291,6 +424,72 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
         if (rest.statusCode in 401..403) WorklistRead.Forbidden else WorklistRead.Failed
     } catch (_: Exception) {
         WorklistRead.Failed
+    }
+
+    /**
+     * §3.3.2 – §3.3.8's seven reads, all at once.
+     *
+     * SEVEN ROUND TRIPS CONCURRENTLY, for the reason [worklist] gives about its four:
+     * nothing here depends on another's result, and `coroutineScope` still rethrows the
+     * FIRST child failure, so the three-way answer survives the concurrency.
+     *
+     * THE OVERVIEW DECIDES WHETHER THERE IS A CLIENT AT ALL. Zero rows means "no such
+     * client", "not this advisor's" or "a merged tombstone" — one answer for all three, on
+     * purpose. That is [ClientDetailRead.NotFound], which is NOT [ClientDetailRead.Failed]:
+     * a mistyped id is neither our fault nor retryable, and a screen that offered a retry
+     * would offer it forever.
+     */
+    override suspend fun clientDetail(clientId: String): ClientDetailRead = try {
+        coroutineScope {
+            val arg = buildJsonObject { put("p_client_id", clientId) }
+            val overviewCall = async {
+                client.postgrest.rpc("agent_client_overview", arg).decodeList<OverviewDto>()
+            }
+            val companionCall = async {
+                client.postgrest.rpc("agent_client_companions", arg).decodeList<CompanionDto>()
+            }
+            val tripCall = async {
+                client.postgrest.rpc("agent_client_trips", arg).decodeList<ClientTripDto>()
+            }
+            val threadCall = async {
+                client.postgrest.rpc("agent_client_conversations", arg).decodeList<ThreadDto>()
+            }
+            val docCall = async {
+                client.postgrest.rpc("agent_client_documents", arg).decodeList<ClientDocDto>()
+            }
+            val noteCall = async {
+                client.postgrest.rpc("agent_client_notes", arg).decodeList<NoteDto>()
+            }
+            val activityCall = async {
+                client.postgrest
+                    .rpc(
+                        "agent_client_activity",
+                        buildJsonObject { put("p_client_id", clientId); put("p_limit", 50) },
+                    )
+                    .decodeList<ActivityDto>()
+            }
+
+            val overview = overviewCall.await().firstOrNull()
+                ?: return@coroutineScope ClientDetailRead.NotFound
+
+            ClientDetailRead.Ok(
+                ClientDetailSnapshot(
+                    overview = overview.toDomain(),
+                    companions = companionCall.await().map { it.toDomain() },
+                    trips = tripCall.await().map { it.toDomain() },
+                    threads = threadCall.await().map { it.toDomain() },
+                    documents = docCall.await().map { it.toDomain() },
+                    notes = noteCall.await().map { it.toDomain() },
+                    activity = activityCall.await().map { it.toDomain() },
+                ),
+            )
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (rest: RestException) {
+        if (rest.statusCode in 401..403) ClientDetailRead.Forbidden else ClientDetailRead.Failed
+    } catch (_: Exception) {
+        ClientDetailRead.Failed
     }
 
     /**
@@ -535,5 +734,212 @@ private data class RosterSummaryDto(
         inMotionCount = in_motion_count,
         inquiryCount = inquiry_count,
         archivedCount = archived_count,
+    )
+}
+
+private fun initialsOf(first: String, last: String): String = buildString {
+    first.trim().firstOrNull()?.let { append(it) }
+    last.trim().firstOrNull()?.let { append(it) }
+}.uppercase().ifBlank { "?" }
+
+@Serializable
+private data class LoyaltyDto(val program: String? = null, val tier: String? = null)
+
+@Serializable
+private data class OverviewDto(
+    val client_id: String = "",
+    val display_name: String = "",
+    val first_name: String = "",
+    val last_name: String = "",
+    val email: String? = null,
+    val phone: String? = null,
+    val date_of_birth: String? = null,
+    val status: String = "active",
+    val tags: List<String>? = null,
+    val address_line1: String? = null,
+    val address_city: String? = null,
+    val address_region: String? = null,
+    val notes: String? = null,
+    val created_at: String = "",
+    val archived_at: String? = null,
+    val preferred_destinations: List<String>? = null,
+    val travel_styles: List<String>? = null,
+    val dietary_restrictions: List<String>? = null,
+    val dietary_notes: String? = null,
+    val accessibility_needs: List<String>? = null,
+    val accessibility_notes: String? = null,
+    val loyalty_programs: List<LoyaltyDto>? = null,
+    val budget_band: String? = null,
+    val lifetime_value_cents: String? = null,
+    val lifetime_currency: String? = null,
+    val lifetime_currency_count: Int = 0,
+    val commission_cents: String? = null,
+    val trip_count: Int = 0,
+    val active_trip_count: Int = 0,
+    val note_count: Int = 0,
+    val document_count: Int = 0,
+    val last_contact_at: String? = null,
+    val as_of_date: String = "",
+) {
+    fun toDomain() = ClientOverviewRow(
+        clientId = client_id,
+        displayName = display_name,
+        initials = initialsOf(first_name, last_name),
+        email = email,
+        phone = phone,
+        status = status,
+        archived = archived_at != null,
+        tags = tags.orEmpty(),
+        createdAt = created_at,
+        addressLine = listOfNotNull(address_line1, address_city, address_region)
+            .filter { it.isNotBlank() }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(", "),
+        dateOfBirth = date_of_birth,
+        snapshotNote = notes,
+        preferredDestinations = preferred_destinations.orEmpty(),
+        travelStyles = travel_styles.orEmpty(),
+        dietaryRestrictions = dietary_restrictions.orEmpty(),
+        dietaryNote = dietary_notes,
+        accessibilityNeeds = accessibility_needs.orEmpty(),
+        accessibilityNote = accessibility_notes,
+        // Programme and tier. The accessor returns the jsonb whole and the NUMBER is simply
+        // never read out of it — a loyalty number is an account credential, and a booking
+        // needs the programme and the tier.
+        loyaltyPrograms = loyalty_programs.orEmpty()
+            .mapNotNull { l -> l.program?.takeIf { it.isNotBlank() }?.let { it to l.tier } },
+        budgetBand = budget_band,
+        // A NULL currency is the accessor saying nothing is committed. Kept null rather than
+        // folded to 0 so the screen shows a dash instead of "$0.00".
+        lifetimeValueCents = if (lifetime_currency == null) null else lifetime_value_cents.cents(),
+        commissionCents = if (lifetime_currency == null) null else commission_cents.cents(),
+        lifetimeCurrency = lifetime_currency,
+        lifetimeCurrencyCount = lifetime_currency_count,
+        tripCount = trip_count,
+        activeTripCount = active_trip_count,
+        noteCount = note_count,
+        documentCount = document_count,
+        lastContactAt = last_contact_at,
+        asOfDate = as_of_date,
+    )
+}
+
+@Serializable
+private data class CompanionDto(
+    val companion_id: String = "",
+    val first_name: String = "",
+    val last_name: String = "",
+    val relationship: String? = null,
+    val passport_expiry: String? = null,
+) {
+    fun toDomain() = CompanionRow(
+        companionId = companion_id,
+        name = "$first_name $last_name".trim(),
+        initials = initialsOf(first_name, last_name),
+        relationship = relationship,
+        passportExpiry = passport_expiry,
+    )
+}
+
+@Serializable
+private data class ClientTripDto(
+    val trip_id: String = "",
+    val title: String = "",
+    val status: String = "",
+    val start_date: String? = null,
+    val end_date: String? = null,
+    val destinations: List<String>? = null,
+    val total_value_cents: String? = null,
+    val total_commission_cents: String? = null,
+    val currency: String = "USD",
+    val as_of_date: String = "",
+) {
+    fun toDomain() = ClientTripRow(
+        tripId = trip_id,
+        title = title,
+        status = status,
+        startDate = start_date,
+        endDate = end_date,
+        destination = destinations?.firstOrNull(),
+        totalValueCents = total_value_cents.cents(),
+        commissionCents = total_commission_cents.cents(),
+        currency = currency,
+        asOfDate = as_of_date,
+    )
+}
+
+@Serializable
+private data class ThreadDto(
+    val conversation_id: String = "",
+    val subject: String? = null,
+    val trip_title: String? = null,
+    val last_message_preview: String? = null,
+    val last_message_at: String = "",
+    val agent_unread_count: Int = 0,
+    val message_count: Int = 0,
+) {
+    fun toDomain() = ClientThreadRow(
+        conversationId = conversation_id,
+        subject = subject,
+        tripTitle = trip_title,
+        preview = last_message_preview,
+        lastMessageAt = last_message_at,
+        unread = agent_unread_count,
+        messageCount = message_count,
+    )
+}
+
+@Serializable
+private data class ClientDocDto(
+    val document_id: String = "",
+    val filename: String = "",
+    val kind: String = "",
+    val mime_type: String = "",
+    val size_bytes: String? = null,
+    val is_sensitive: Boolean = false,
+    val trip_title: String? = null,
+) {
+    fun toDomain() = ClientDocumentRow(
+        documentId = document_id,
+        filename = filename,
+        kind = kind,
+        mimeType = mime_type,
+        sizeBytes = size_bytes.cents(),
+        sensitive = is_sensitive,
+        tripTitle = trip_title,
+    )
+}
+
+@Serializable
+private data class NoteDto(
+    val note_id: String = "",
+    val body: String = "",
+    val author_name: String? = null,
+    val author_is_me: Boolean = false,
+    val created_at: String = "",
+    val updated_at: String = "",
+) {
+    fun toDomain() = ClientNoteRow(
+        noteId = note_id,
+        body = body,
+        authorName = author_name,
+        mine = author_is_me,
+        createdAt = created_at,
+        updatedAt = updated_at,
+    )
+}
+
+@Serializable
+private data class ActivityDto(
+    val event_id: String = "",
+    val event_type: String = "",
+    val actor_name: String? = null,
+    val created_at: String = "",
+) {
+    fun toDomain() = ClientActivityRow(
+        eventId = event_id,
+        eventType = event_type,
+        actorName = actor_name,
+        createdAt = created_at,
     )
 }
