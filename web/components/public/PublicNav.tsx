@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { cn } from "@/lib/cn";
@@ -17,6 +17,13 @@ interface PublicNavProps {
   links: readonly NavLink[];
   /** Below `md` the bar sits on a photo, so the hamburger is white. */
   overlay?: boolean;
+  /**
+   * Chrome that belongs to the right-hand group but has to sit BEFORE the menu trigger —
+   * the theme toggle. It comes through here rather than straight from PublicTopBar because
+   * this component returns a fragment: its <nav> and its trigger are both direct flex
+   * children of the header, so nothing outside can be placed between them.
+   */
+  actions?: ReactNode;
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -29,7 +36,7 @@ function isActive(pathname: string, href: string): boolean {
  * backdrop come from the browser). Closes itself after navigation and hands focus back to
  * the button that opened it.
  */
-export function PublicNav({ links, overlay = false }: PublicNavProps) {
+export function PublicNav({ links, overlay = false, actions }: PublicNavProps) {
   const pathname = usePathname();
   const { status: authStatus } = useAuthChrome();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -87,16 +94,36 @@ export function PublicNav({ links, overlay = false }: PublicNavProps) {
         })}
       </nav>
 
+      {/* THE ONE AUTO MARGIN IN THIS HEADER, and it is a spacer rather than an `ml-auto` on
+          whichever control happens to be visible. It used to be the latter: the trigger
+          below carried one and PublicAuthCluster carried another, and exactly one of them
+          was ever displayed — which mattered, because flexbox splits free space EQUALLY
+          among multiple auto margins, so two live ones would have parked both mid-bar.
+          That held only while nothing else joined the group. The theme toggle did, and it
+          has to sit left of the trigger to match the design, so the group now opens with an
+          explicit spacer — the idiom ClientTopBar and AgentTopBar already use — and
+          everything after it simply falls in order. */}
+      <div className="flex-1" />
+
+      {actions}
+
       <button
         ref={triggerRef}
         type="button"
         className={cn(
           // Through tablet, not just mobile: from `md` the inline links are back but the
           // sign-in buttons are not, and the drawer is where they live.
-          "btn-icon tap-44 ml-auto size-9 lg:hidden",
+          "btn-icon tap-44 size-9 lg:hidden",
           // MTopBar gives the overlay trigger a translucent chip so it stays legible on a
-          // bright hero photo; `.btn-glass` already carries exactly that treatment.
-          overlay && "btn-glass text-white",
+          // bright hero photo.
+          //
+          // `.pub-topbar-glass` RATHER THAN `.btn-glass text-white`, which was a bug: the
+          // overlay bar is only transparent below `md` — it goes solid at 768px — but
+          // those two classes had no breakpoint gate, so from 768px to 1023px this was a
+          // white icon on a bar whose light `--md-surface-1` is pure white. The new class
+          // gates itself. Do not put `text-white` back: a utility outranks the class's own
+          // `md` reset and restores the white-on-white.
+          overlay && "pub-topbar-glass",
         )}
         aria-haspopup="dialog"
         aria-expanded={open}

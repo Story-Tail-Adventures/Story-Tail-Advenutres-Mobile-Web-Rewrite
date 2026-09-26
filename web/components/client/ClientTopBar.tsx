@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Icon } from "@/components/ui/Icon";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 /**
  * The authenticated top bar (Design-System §9.1: 104px, brand mark, search pill, actions).
@@ -27,6 +28,8 @@ export function ClientTopBar({ initials }: { initials: string }) {
       </Link>
 
       <div className="flex-1" />
+
+      <ThemeToggle />
 
       <button
         type="button"

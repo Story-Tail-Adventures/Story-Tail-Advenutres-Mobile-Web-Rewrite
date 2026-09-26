@@ -299,6 +299,33 @@
     -webkit-backdrop-filter: blur(6px);
   }
   .btn-glass:hover:not(:disabled) { background: var(--hero-glass-bg-hover); filter: none; }
+  /* Glass chip for a control in the OVERLAY top bar, gated to where that bar is actually
+     transparent. `.pub-topbar-overlay` floats over the hero photo below md and goes SOLID
+     at 768px (see above), and light `--md-surface-1` is pure white — so an ungated
+     `.btn-glass` up there is a white icon on a white bar from 768px to 1023px.
+
+     Do NOT pair this with a `text-white` utility. Utilities are a later cascade layer and
+     would beat the md reset below, putting the white-on-white straight back. The class
+     owns the colour. */
+  .pub-topbar-glass {
+    background: var(--hero-glass-bg);
+    color: var(--hero-fg);
+    border: 1px solid var(--hero-glass-border);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .pub-topbar-glass:hover:not(:disabled) { background: var(--hero-glass-bg-hover); }
+  @media (min-width: 768px) {
+    .pub-topbar-glass {
+      background: transparent;
+      color: var(--md-on-surface-variant);
+      border-color: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    /* .btn-icon's own hover is (0,2,0) and loses to the rule above, so restore it here. */
+    .pub-topbar-glass:hover:not(:disabled) { background: var(--md-surface-3); }
+  }
   .chip-glass {
     background: var(--hero-chip-bg);
     color: var(--hero-fg);
