@@ -15,6 +15,7 @@ The canonical source-of-truth documents for the Story-Tail Adventures rewrite. R
 
 Not canonical — these inform decisions but do not override the six documents above.
 
+- **`Stripe-Projects-Reference.md`** — captured notes on two links Gyasi saved for the Credit Card Authorization work: the Supabase app on the Stripe App Marketplace, and the Stripe Projects CLI docs. Both turn out to be infrastructure *provisioning* tools, not card handling. Section 3 spells out the gap against what BRD §10.4 actually needs (SetupIntent, Vault and Forward, audited PAN reveal), flags that the Marketplace app has no sandbox support, and notes that paid provider tiers bill through our Stripe account. Read before anyone installs either one.
 - **`Free-Travel-APIs.md`** — the free/no-contract slice of the travel API landscape (cruise, hotels, deals, plus open datasets), with signup paths and quotas. Section 1.0 fixes the scope: the public search surface is for discovery, not transaction, so the APIs supply content (location, images, descriptions, ratings; cruise line, ship, itinerary) and never availability or rates. Section 1.3 records what the InteleTravel Training Manual settles — an independent site is permitted but needs compliance approval before launch, bookings hand off to the advisor's personalized InteleTravel site, affiliate monetisation is out, and net rates are prohibited. Section 10.1 draws the architectural consequence: sync content into Postgres on a schedule rather than proxying per request. Expands on `BRD.md` §9 and §10.5. Phase 2.
 
 ## Format
