@@ -1877,6 +1877,30 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > (`screens/agent-crm-mobile.jsx`, frame 3.3m.1); the remaining eleven arrive with the changes
 > that build them.
 
+> **Amended 2026-09-26, on shipping the bulk action.** Bulk-select was cut from the first
+> pass of this screen because nothing consumed it. **Bulk-tag is built now, and the checkbox
+> column comes with it** — on the table only. The phone's card list does not get checkboxes:
+> a card row is one link covering the whole card, a checkbox inside an anchor is neither
+> valid nor operable, and tagging twenty-five clients at once is not one of the on-the-go
+> tasks §6.6 scopes that surface to.
+>
+> **Bulk-message is still not here**, and this screen's "Key actions" line should be read as
+> naming two actions of which one exists. It needs §3.10, which is unbuilt.
+>
+> **One tag, one direction, one call.** The action adds or removes a single tag. A list of
+> tags, or a mixed add-and-remove, makes partial success unreportable — "3 of 6 changed" says
+> nothing when six clients were each offered four different edits.
+>
+> **The count reported is what MOVED, not what was selected.** A client that already carried
+> the tag, one already at the 20-tag cap, and one belonging to another advisor are all
+> deliberately indistinguishable in the answer, because telling them apart would confirm that
+> an id exists. The receipt says "Added to 4 clients. The other 2 were already tagged."
+>
+> **Tagging bumps `client.version` without checking it.** The write is set-valued and
+> idempotent, so there is nothing for a stale expectation to protect. The bump is still
+> required in the other direction: the edit form (3.3.10) overwrites the whole tags array, so
+> without it an edit form opened before a bulk tag would silently undo it on save.
+
 #### 3.3.2 Client Detail / Profile
 **Purpose:** Single-pane view of a client.
 **Primary elements:** Header card (photo, name, contact, lifetime value, tags); tabs: Overview, Trips, Messages, Documents, Notes, Activity Log; quick actions (new trip, send message, log call).
@@ -2003,6 +2027,45 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Save; cancel.
 **Entry points:** Client Detail edit actions.
 **Related screens:** Client Detail.
+
+> **Amended 2026-09-26, on shipping 3.3.9, 3.3.10 and 3.3.12.** All three are built, on the
+> web only — §6.6 scopes the agent's phone to "on-the-go tasks rather than deep work", and a
+> form is the definition of deep work. Four departures from the prototype, each deliberate:
+>
+> **The address is six fields, not one.** The artboard draws a single "Address" line.
+> `address` is a real table with `line1`, `line2`, `city`, `region`, `postal_code` and
+> `country` (Data-Model §6.2), and one free-text box cannot be split back into them later
+> without guessing. When all six are blank the link is cleared rather than a row of nulls
+> being stored.
+>
+> **Important dates are a repeater, not a text field.** `client.important_dates` is jsonb
+> shaped `{label, date, recurring}`. A text box would have stored prose that no birthday
+> reminder can read. The prototype's "surprise flag" is dropped for the reason 3.3.2 records:
+> it has never existed in the schema.
+>
+> **"Invite to portal" renders disabled.** The invite flow is §3.9.3, unbuilt. A toggle that
+> silently does nothing on save is worse than one that says why it is off.
+>
+> **"Save & create trip" renders disabled**, for the same reason against §3.4.3.
+>
+> **Restore is not drawn anywhere in the prototype** — only the Archived filter chip implies
+> it exists. It is built as the archive dialog's mirror, minus the reason field: an archive
+> is a decision worth explaining and a restore is an undo.
+>
+> **Archive and restore are ONE function, not two.** `client.status` sits outside the column
+> grant to `authenticated` and `client.archived_at` sits inside it, so a row where only one
+> moved reads as archived through the roster accessor and active through the detail header.
+> One write moves both or neither.
+>
+> The archive **reason** has no column on `client` and is not invented one; it rides the
+> `audit_event` metadata, which is where "why was this record archived" belongs anyway. It is
+> the one field value these functions put in the trail — an update audits the NAMES of the
+> fields that moved and none of their values.
+>
+> **Optimistic locking is real here.** Both the edit and the archive take the `client.version`
+> they were shown and refuse a stale write (Data-Model §20.4). A duplicate email is answered
+> with the existing client's id rather than a refusal, so the form can offer a link to the
+> record the advisor already has.
 
 #### 3.3.11 Merge Clients
 **Purpose:** Combine two client records.

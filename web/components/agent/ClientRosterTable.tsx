@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Avatar } from "@/components/public/Avatar";
+import { SelectAllClients } from "@/components/agent/ClientBulkTag";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientRosterRow } from "@/lib/agent/clients";
 
@@ -23,11 +24,15 @@ import type { ClientRosterRow } from "@/lib/agent/clients";
  * plainly not a link. It exists now, so they are links — on BOTH layouts, because a phone
  * row is the one most likely to be tapped.
  *
- * NO BULK-SELECT COLUMN. The prototype draws a checkbox in the header and in every row, and
- * nothing consumes them: bulk-tag is a write (§3.3.9's migration) and bulk-message needs
- * §3.10, which is unbuilt. §6.4's own amendment settled the principle when it cut the search
- * field from the top bar rather than disabling it — a control that does nothing is worse
- * than no control. The column arrives with the action behind it.
+ * THE BULK-SELECT COLUMN IS ON THE TABLE ONLY, as of 2026-09-26. It was cut entirely while
+ * nothing consumed it — §6.4's rule that a control doing nothing is worse than no control —
+ * and it arrives now with bulk-tag behind it. It does NOT arrive on the phone cards, and
+ * that is the prototype's own line as well as §6.6's: a card row is one `<Link>` covering
+ * the whole card, a checkbox inside an anchor is neither valid nor clickable, and tagging
+ * twenty-five clients at once is not one of the "on-the-go tasks" §6.6 scopes the phone to.
+ *
+ * The checkboxes are plain inputs with no React state behind them — see `ClientBulkTag.tsx`
+ * for why the selection lives in the browser rather than in a component.
  */
 
 function RowMeta({ row }: { row: ClientRosterRow }) {
@@ -123,6 +128,11 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
         <table className="w-full border-collapse">
           <thead>
             <tr className="text-[10.5px] font-semibold uppercase tracking-[0.5px] text-[var(--md-on-surface-variant)]">
+              {/* Fixed width so the columns do not shift when the select-all appears on
+                  hydration. See SelectAllClients. */}
+              <th scope="col" className="w-10 px-3.5 py-2.5 text-left">
+                <SelectAllClients />
+              </th>
               <th scope="col" className="px-3.5 py-2.5 text-left">
                 {CLIENT_COPY.colClient}
               </th>
@@ -143,6 +153,15 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.clientId} className="border-t border-[var(--md-outline-variant)]">
+                <td className="px-3.5 py-2.5">
+                  <input
+                    type="checkbox"
+                    name="clientId"
+                    value={row.clientId}
+                    aria-label={`${CLIENT_COPY.bulkSelectRow} ${row.displayName}`}
+                    className="size-4 cursor-pointer accent-[var(--md-primary)]"
+                  />
+                </td>
                 <td className="px-3.5 py-2.5">
                   <span className="flex min-w-0 items-center gap-2.5">
                     <Avatar initials={row.initials} size={32} tone="brand" />

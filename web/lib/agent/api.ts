@@ -488,7 +488,9 @@ export type AgentFunction =
   | "agent-trip-notes"
   // §3.3.7. An RPC write would let an agent POST from a browser with no audit_event,
   // which is the reason every agent write on this surface is a function.
-  | "agent-client-notes";
+  | "agent-client-notes"
+  // §3.3.9 / §3.3.10 / §3.3.12 and §3.3.1's bulk tag — one function, four ops.
+  | "agent-client";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

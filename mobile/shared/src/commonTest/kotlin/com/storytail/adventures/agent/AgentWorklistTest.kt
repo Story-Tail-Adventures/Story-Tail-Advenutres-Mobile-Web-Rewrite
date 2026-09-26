@@ -383,7 +383,6 @@ class AgentWorklistTest {
             AgentCopy.TRIP_DETAIL_DEFERRED,
             AgentCopy.MESSAGES_DEFERRED,
             AgentCopy.QUICK_ADD_TRIP_DEFERRED,
-            AgentCopy.QUICK_ADD_CLIENT_DEFERRED,
             AgentCopy.LEADS_DEFERRED,
             AgentCopy.AVAILABILITY_DEFERRED,
         )) {

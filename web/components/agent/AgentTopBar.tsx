@@ -84,15 +84,17 @@ export function AgentTopBar({ initials }: { initials: string }) {
           `sm` is Tailwind's 640px here, not a phone boundary — globals.css redefines only
           `--breakpoint-web`. 640 is simply where the measurement says everything fits at
           natural size anyway. */}
-      <button
-        type="button"
+      {/* LIVE AS OF §3.3.9, and a LINK rather than a menu. It was one disabled button
+          standing for two unbuilt actions; creating a client is built now and creating a
+          trip is §3.4.3, so the honest control is the one thing it can do. When §3.4.3
+          lands this becomes a menu with two entries and the label loses its object. */}
+      <Link
+        href="/agent/clients/new"
         className="btn-icon hidden sm:inline-flex"
-        aria-label="Quick add — new trip arrives with §3.4, new client with §3.3"
-        aria-disabled="true"
-        disabled
+        aria-label="New client"
       >
         <Icon name="plus" size={18} />
-      </button>
+      </Link>
 
       <button
         type="button"

@@ -292,6 +292,29 @@
     }
   }
 
+  /* ── §3.3.1's bulk-tag bar ──────────────────────────────────────────────
+   *
+   * REVEALED BY CSS, NOT BY STATE, so the bar appears the moment a row is ticked — before
+   * hydration, and with JavaScript off entirely. The checkboxes are plain form inputs, so
+   * React never has to know which ones are ticked. See ClientBulkTag.tsx.
+   *
+   * `:has()` is safe here where §2.2's two dead rules were not: both sides of the selector
+   * are inside one server component with no Suspense boundary between them, so React
+   * streaming cannot park the subtree in a body-level holder and break the ancestor
+   * relationship the selector needs.
+   *
+   * MD AND UP ONLY, because the checkbox column is table-only and the phone gets the card
+   * list. Without the media query, ticking rows at desktop width and then narrowing would
+   * leave a bar above a list with nothing ticked in it.
+   */
+  .bulk-bar { display: none; }
+
+  @media (min-width: 768px) {
+    .bulk-form:has(input[name="clientId"]:checked) .bulk-bar {
+      display: flex;
+    }
+  }
+
   /* ── Touch targets ──────────────────────────────────────────────────────── */
 
   /* Coarse pointers get the 44pt minimum §4.2 requires, on the precedent client.css set at

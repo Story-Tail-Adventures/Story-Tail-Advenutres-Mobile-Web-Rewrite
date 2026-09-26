@@ -3129,6 +3129,18 @@ export type Database = {
           weekly_schedule: Json
         }[]
       }
+      agent_bulk_tag_clients: {
+        Args: {
+          p_add: boolean
+          p_agent_id: string
+          p_client_ids: string[]
+          p_tag: string
+        }
+        Returns: {
+          client_id: string
+          version: number
+        }[]
+      }
       agent_client_activity: {
         Args: { p_client_id: string; p_limit?: number }
         Returns: {
@@ -3302,6 +3314,31 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
         }[]
       }
+      agent_create_client: {
+        Args: {
+          p_agent_id: string
+          p_city: string
+          p_client_id: string
+          p_country: string
+          p_date_of_birth: string
+          p_email: string
+          p_first_name: string
+          p_important_dates: Json
+          p_last_name: string
+          p_line1: string
+          p_line2: string
+          p_notes: string
+          p_phone: string
+          p_postal_code: string
+          p_preferred_name: string
+          p_region: string
+          p_tags: string[]
+        }
+        Returns: {
+          client_id: string
+          outcome: string
+        }[]
+      }
       agent_inbox: {
         Args: { p_limit?: number }
         Returns: {
@@ -3352,6 +3389,18 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_set_client_archived: {
+        Args: {
+          p_agent_id: string
+          p_archived: boolean
+          p_client_id: string
+          p_expected_version: number
+        }
+        Returns: {
+          outcome: string
+          version: number
         }[]
       }
       agent_set_trip_notes: {
@@ -3548,6 +3597,46 @@ export type Database = {
           paid_cents: string
           status: Database["public"]["Enums"]["payment_milestone_status"]
         }[]
+      }
+      agent_update_client: {
+        Args: {
+          p_agent_id: string
+          p_city: string
+          p_client_id: string
+          p_country: string
+          p_date_of_birth: string
+          p_email: string
+          p_expected_version: number
+          p_first_name: string
+          p_important_dates: Json
+          p_last_name: string
+          p_line1: string
+          p_line2: string
+          p_notes: string
+          p_phone: string
+          p_postal_code: string
+          p_preferred_name: string
+          p_region: string
+          p_tags: string[]
+        }
+        Returns: {
+          changed_fields: string[]
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_upsert_client_address: {
+        Args: {
+          p_city: string
+          p_client_id: string
+          p_country: string
+          p_existing_id: string
+          p_line1: string
+          p_line2: string
+          p_postal_code: string
+          p_region: string
+        }
+        Returns: string
       }
       agent_write_client_note: {
         Args: {

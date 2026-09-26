@@ -183,7 +183,6 @@ export const AGENT_COPY = {
   // `tripDetailDeferred` got when §3.4.2 landed.
   messagesDeferred: "Agent messaging arrives with §3.10.",
   quickAddTripDeferred: "Creating trips arrives with §3.4.",
-  quickAddClientDeferred: "Creating clients arrives with §3.3.9.",
   // The one that is not "not yet". It explains where the thing actually is.
   leadsDeferred:
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
@@ -247,13 +246,25 @@ export const CLIENT_COPY = {
   paginationPrev: "Previous",
   paginationNext: "Next",
 
-  // Named per-action, matching the *Deferred convention: the roster's row menu offers three
-  // things and none of them has anywhere to go until §3.3.2 and §3.3.9 land.
-  rowOpenDeferred: "Client detail arrives with §3.3.2.",
-  rowEditDeferred: "Editing a client arrives with §3.3.10.",
-  rowArchiveDeferred: "Archiving a client arrives with §3.3.12.",
+  // FOUR DEFERRALS CAME DUE AND ARE GONE, not rewritten: `rowOpenDeferred`,
+  // `rowEditDeferred`, `rowArchiveDeferred` and `bulkDeferred` all named sections that now
+  // exist, and none had a call site left once the rows became links and the bulk bar shipped.
+  // Same removal `clientDetailDeferred` got. `mergeDeferred` stays because §3.9 really is
+  // still ahead.
   mergeDeferred: "Merging clients arrives with §3.9, alongside the account-admin tools it shares a screen with.",
-  bulkDeferred: "Bulk actions arrive with §3.3.9; bulk messaging needs §3.10.",
+
+  // ── §3.3.1's bulk-tag bar ──────────────────────────────────────────────
+  bulkSelectAll: "Select every client on this page",
+  bulkSelectRow: "Select this client",
+  bulkLegend: "Tag the clients you've ticked",
+  bulkTagLabel: "Tag",
+  bulkTagPlaceholder: "vip, honeymoon, repeat…",
+  bulkAdd: "Add tag",
+  bulkRemove: "Remove tag",
+  bulkWorking: "Saving…",
+  bulkNoSelection: "Tick at least one client first.",
+  bulkNoTag: "Type a tag first.",
+  bulkFailed: "That didn't save. Try again in a moment.",
 
   // ── §3.3.2 – §3.3.8, the detail surface ────────────────────────────────
   backToRoster: "All clients",
@@ -319,11 +330,68 @@ export const CLIENT_COPY = {
 
   // Per-action deferrals on the detail surface.
   accountAdminDeferred: "Account admin arrives with §3.9.",
-  editClientDeferred: "Editing a client arrives with §3.3.10.",
   newTripForClientDeferred: "Creating trips arrives with §3.4.3.",
   messageClientDeferred: "Agent messaging arrives with §3.10.",
   openThreadDeferred: "Opening a thread arrives with §3.10.2.",
   documentDownloadDeferred: "Downloading a document arrives with §3.3.6's upload path.",
+
+  // ── §3.3.9 / §3.3.10 / §3.3.12, the write path ─────────────────────────
+  newClientTitle: "New client",
+  newClientSub: "Required: a name and an email. Everything else can be added later.",
+  editClientTitle: "Edit",
+  editClientSub: "Email and phone changes are what the portal and every update use.",
+  formSave: "Save",
+  formSaving: "Saving…",
+  formCancel: "Cancel",
+  saveFailed: "That didn't save. Nothing's lost — give it another try.",
+  saveStale: "This client changed since you opened it. Reload and try again.",
+  duplicateEmail: "You already have a client with that email.",
+  duplicateEmailLink: "Open the record you already have",
+
+  groupBasics: "Who they are",
+  groupContact: "How to reach them",
+  groupAddress: "Mailing address",
+  groupTags: "Tags",
+  groupDates: "Dates worth remembering",
+  groupNotes: "A note to yourself",
+
+  labelFirstName: "First name",
+  labelLastName: "Last name",
+  labelPreferredName: "Goes by",
+  hintPreferredName: "What you'd actually call them. Used everywhere their name appears.",
+  labelDateLabel: "What it is",
+  labelDateValue: "Date",
+  labelDateRecurring: "Every year",
+  addDate: "Add a date",
+  removeDate: "Remove",
+  hintDates: "Birthdays, anniversaries, a passport renewal — anything worth a nudge.",
+  hintTags: "Your own shorthand. Type a new one or pick one you've used before.",
+  addTag: "Add",
+  newTagPlaceholder: "New tag",
+  hintNotes: "Only you see this. It shows on their Snapshot card.",
+
+  // The prototype draws a live "Send a portal invitation with welcome template?" toggle.
+  // Nothing in the repository creates a client_invite row and no email provider is wired,
+  // and issuing a portal invitation is handing out a bearer credential — it wants its own
+  // expiry, revocation and rate-limit thinking rather than a checkbox on a create form.
+  inviteDeferred:
+    "Sending a portal invitation arrives with §3.9.3, where emailing a client a one-time link gets built.",
+  inviteLabel: "Send a portal invitation",
+  saveAndTripDeferred: "Creating a trip arrives with §3.4.3.",
+  saveAndTrip: "Save & create trip",
+
+  archiveTitle: "Archive",
+  archiveEyebrow: "ARCHIVE CLIENT",
+  archiveBody:
+    "Hides them from the active roster. Past trips and the audit log remain. You can restore anytime.",
+  archiveReasonLabel: "Reason (optional)",
+  archiveReasonPlaceholder: "e.g. Cold lead · no reply for six months",
+  archiveConfirm: "Archive",
+  restoreTitle: "Restore",
+  restoreEyebrow: "RESTORE CLIENT",
+  restoreBody: "Puts them back on the active roster. Nothing else about the record changes.",
+  restoreConfirm: "Restore",
+  moreActions: "More actions",
 } as const;
 
 /** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */
@@ -335,6 +403,36 @@ export function rosterSubtitle(active: number, inMotion: number, toQualify: numb
     );
   }
   return `${parts.join(" · ")}.`;
+}
+
+/**
+ * What the bulk-tag bar says afterwards.
+ *
+ * THE COUNT IS WHAT MOVED, NOT WHAT WAS ASKED FOR, and the difference is deliberate. A
+ * client already carrying the tag, one at the 20-tag cap, and one belonging to another
+ * advisor all land in the same gap — the SQL function returns nothing for any of them on
+ * purpose, so that a stranger's id cannot be confirmed by the answer. Saying "4 of 6" is the
+ * honest version of that; saying "tagged 6" would be a lie the advisor could check.
+ */
+export function bulkTagResult(tag: string, changed: number, requested: number, added: boolean): string {
+  if (changed === 0) {
+    return added
+      ? `Every client you picked already had "${tag}".`
+      : `None of the clients you picked had "${tag}".`;
+  }
+
+  const who = changed === 1 ? "1 client" : `${changed} clients`;
+  const head = added ? `Added "${tag}" to ${who}.` : `Removed "${tag}" from ${who}.`;
+
+  const rest = requested - changed;
+  if (rest === 0) return head;
+
+  // Both halves pluralise. "The other 1 were" is the sentence a count-shaped template writes
+  // when nobody checks the singular, and it was on screen before this line existed.
+  const tail = added
+    ? `The other ${rest} ${rest === 1 ? "was" : "were"} already tagged.`
+    : `The other ${rest} ${rest === 1 ? "wasn't" : "weren't"} tagged.`;
+  return `${head} ${tail}`;
 }
 
 /** The greeting line, derived rather than written. */

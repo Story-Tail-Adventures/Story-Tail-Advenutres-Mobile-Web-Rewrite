@@ -24,8 +24,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.ClientCopy
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.ui.components.agent.AgentScaffold
@@ -321,6 +323,10 @@ private fun TripsTab(ui: ClientDetailUiState) {
             }
         }
     }
+    // These cards are a dead end until §3.4 builds trip detail on this stack, and the
+    // worklist already says so under its own trip rows. A reader who taps one here and gets
+    // nothing had no way to tell whether that was the design or a bug.
+    DeferralLine(AgentCopy.TRIP_DETAIL_DEFERRED)
 }
 
 @Composable
@@ -447,6 +453,23 @@ private fun ActivityTab(ui: ClientDetailUiState) {
     )
 }
 
+@Composable
+private fun DeferralLine(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).alpha(0.7f),
+    )
+}
+
+/**
+ * ONLY WHERE THERE IS SOMETHING TO EXPLAIN. This is where the tab departs from the
+ * worklist, whose `Section` prints its deferral whether it holds rows or not: those
+ * sections are permanent fixtures, and this is a tab that has already said "No trips yet".
+ * Following that with "Trip detail arrives with §3.4." answers a question nobody asked
+ * about rows that are not on screen.
+ */
 @Composable
 private fun EmptyLine(text: String) {
     Text(

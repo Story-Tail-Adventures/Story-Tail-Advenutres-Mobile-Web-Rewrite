@@ -80,7 +80,6 @@ MESSAGE_TABLES = [
             # touching then either.
             "messagesDeferred": "MESSAGES_DEFERRED",
             "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
-            "quickAddClientDeferred": "QUICK_ADD_CLIENT_DEFERRED",
             "leadsDeferred": "LEADS_DEFERRED",
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
         },

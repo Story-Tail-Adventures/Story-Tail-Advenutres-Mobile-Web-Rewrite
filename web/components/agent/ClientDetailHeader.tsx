@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Avatar } from "@/components/public/Avatar";
+import { ClientArchiveDialog } from "@/components/agent/ClientArchiveDialog";
 import { Icon } from "@/components/ui/Icon";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientOverview } from "@/lib/agent/clientDetail";
@@ -74,6 +75,24 @@ export function ClientDetailHeader({ client }: { client: ClientOverview }) {
           >
             <Icon name="plus" size={12} /> New trip
             <span className="sr-only"> — {CLIENT_COPY.newTripForClientDeferred}</span>
+          </button>
+          {/* §3.3.12, both directions. The dialog picks its own verb from `archived`. */}
+          <ClientArchiveDialog
+            clientId={client.clientId}
+            displayName={client.displayName}
+            version={client.version}
+            archived={client.archived}
+          />
+          {/* §3.3.11 is DEFERRED to §3.9, where it also lives as 3.9.7 — the riskiest write
+              in the section, next to the account-admin tools it shares a screen with. */}
+          <button
+            type="button"
+            disabled
+            title={CLIENT_COPY.mergeDeferred}
+            className="btn btn-text btn-sm opacity-50"
+          >
+            Merge
+            <span className="sr-only"> — {CLIENT_COPY.mergeDeferred}</span>
           </button>
         </div>
       </div>

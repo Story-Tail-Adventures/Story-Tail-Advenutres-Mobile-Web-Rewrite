@@ -509,6 +509,16 @@ verify_jwt = true
 [functions.agent-client-notes]
 verify_jwt = true
 
+# ── §3.3's client writes ──────────────────────────────────────────────────────
+# Create, edit, archive and bulk-tag (§3.3.9, §3.3.10, §3.3.12, and §3.3.1's
+# checkbox column). The only door onto agent_create_client, agent_update_client,
+# agent_set_client_archived and agent_bulk_tag_clients, every one of which is
+# service_role only because each takes p_agent_id as trusted input. `client` is a
+# CLAUDE.md rule-3 table, so every one of those writes owes an audit_event that a
+# PostgREST call could not produce — a bulk tag owes one per client it moves.
+[functions.agent-client]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand
