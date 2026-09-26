@@ -72,7 +72,9 @@ object AgentCopy {
     // and a deferral naming a built section is worse than no sentence.
     const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
     const val QUICK_ADD_TRIP_DEFERRED = "Creating trips arrives with §3.4."
-    const val QUICK_ADD_CLIENT_DEFERRED = "Creating clients arrives with §3.3.9."
+    // QUICK_ADD_CLIENT_DEFERRED lived here until §3.3.9 shipped. It never had a render
+    // site on this side — §3.2.1 on Compose has no quick-add at all, by decision — and
+    // the web control it paired with is now a link to /agent/clients/new.
     const val LEADS_DEFERRED =
         "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8)."
     const val AVAILABILITY_DEFERRED =

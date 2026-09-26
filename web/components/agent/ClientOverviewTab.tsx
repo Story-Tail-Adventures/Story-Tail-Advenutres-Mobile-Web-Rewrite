@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Avatar } from "@/components/public/Avatar";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientCompanion, ClientOverview } from "@/lib/agent/clientDetail";
@@ -72,15 +74,13 @@ export function ClientOverviewTab({
         <section className="card p-4">
           <div className="flex items-center">
             <h2 className="t-title-l m-0">{CLIENT_COPY.snapshotTitle}</h2>
-            <button
-              type="button"
-              disabled
-              title={CLIENT_COPY.editClientDeferred}
-              className="btn btn-text btn-sm ml-auto opacity-50"
+            <Link
+              href={`/agent/clients/${client.clientId}/edit`}
+              className="btn btn-text btn-sm ml-auto"
             >
               Edit
-              <span className="sr-only"> — {CLIENT_COPY.editClientDeferred}</span>
-            </button>
+              <span className="sr-only"> {client.displayName}</span>
+            </Link>
           </div>
 
           <div className="mt-2 grid gap-x-4 gap-y-2.5 sm:grid-cols-2">

@@ -472,3 +472,81 @@ export async function loadClientActivity(clientId: string): Promise<ClientActivi
     icon: iconFor(r.event_type),
   }));
 }
+
+/**
+ * §3.3.10's prefill, and a SECOND projection of the same row on purpose.
+ *
+ * `ClientOverview` is tuned for display: it formats the date of birth, assembles one
+ * address line out of six columns, and turns a `null` currency into a dash. A form needs
+ * exactly the opposite — the ISO date, the six columns apart, and the raw values it will
+ * post back. Bending one shape to serve both would mean the Overview card re-parsing the
+ * strings it just formatted, or the form shipping a display label into the database.
+ *
+ * `version` rides along because it is the optimistic lock: two tabs open on one client is
+ * what `client.version` exists for, and the number has to be read at the moment the form
+ * renders rather than carried in from somewhere earlier.
+ */
+export type ClientEditValues = {
+  clientId: string;
+  displayName: string;
+  version: number;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  notes: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressCity: string;
+  addressRegion: string;
+  addressPostalCode: string;
+  addressCountry: string;
+  tags: string[];
+  importantDates: { label: string; date: string; recurring: boolean }[];
+};
+
+export type ClientEditResult =
+  | { ok: true; values: ClientEditValues }
+  | { ok: false; reason: "not-found" | "unavailable" };
+
+export async function loadClientForEdit(clientId: string): Promise<ClientEditResult> {
+  const result = await callAgentRead<AgentClientOverviewRow>("agent_client_overview", {
+    p_client_id: clientId,
+  });
+  if (!result.ok) return { ok: false, reason: "unavailable" };
+
+  const r = result.rows[0];
+  if (!r) return { ok: false, reason: "not-found" };
+
+  return {
+    ok: true,
+    values: {
+      clientId: r.client_id,
+      displayName: r.display_name,
+      version: r.version,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      preferredName: r.preferred_name ?? "",
+      email: r.email ?? "",
+      phone: r.phone ?? "",
+      dateOfBirth: r.date_of_birth ?? "",
+      notes: r.notes ?? "",
+      addressLine1: r.address_line1 ?? "",
+      addressLine2: r.address_line2 ?? "",
+      addressCity: r.address_city ?? "",
+      addressRegion: r.address_region ?? "",
+      addressPostalCode: r.address_postal_code ?? "",
+      addressCountry: r.address_country ?? "",
+      tags: r.tags ?? [],
+      // Same defensive read as the display side: `important_dates` is jsonb with no schema
+      // in Postgres, so a malformed entry costs its own row rather than the form.
+      importantDates: importantDates(r.important_dates).map((d) => ({
+        label: d.label,
+        date: d.date ?? "",
+        recurring: d.recurring,
+      })),
+    },
+  };
+}

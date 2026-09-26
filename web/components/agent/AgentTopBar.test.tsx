@@ -16,13 +16,23 @@ describe("AgentTopBar", () => {
     expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeEnabled();
   });
 
-  // It is the only working control in this cluster. Quick-add and the bell are drawn
-  // disabled with their reasons, and this pins that the toggle did not get swept in with
-  // them by a copy-paste.
-  it("leaves quick-add and notifications disabled", () => {
+  // The bell is still drawn disabled with its reason; this pins that the toggle did not get
+  // swept in with it by a copy-paste.
+  //
+  // QUICK-ADD LEFT THIS TEST WHEN §3.3.9 SHIPPED. It was one disabled button standing for
+  // two unbuilt actions; creating a client is built now, so it is a LINK to
+  // /agent/clients/new. When §3.4.3 lands it becomes a menu with two entries.
+  it("leaves notifications disabled, and the toggle enabled", () => {
     render(<AgentTopBar initials="GS" />);
-    expect(screen.getByRole("button", { name: /Quick add/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Notifications/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Switch to dark mode" })).toBeEnabled();
+  });
+
+  it("points quick-add at the one thing it can now do", () => {
+    render(<AgentTopBar initials="GS" />);
+    const quickAdd = screen.getByRole("link", { name: "New client" });
+
+    expect(quickAdd).toHaveAttribute("href", "/agent/clients/new");
   });
 
   // The disabled placeholder yields to the working toggle on a phone, so the brand lockup
@@ -30,7 +40,9 @@ describe("AgentTopBar", () => {
   // this pins the CLASSES that carry the rule; the numbers behind it came from Chrome.
   it("hides quick-add below sm so the lockup keeps its width", () => {
     render(<AgentTopBar initials="GS" />);
-    const quickAdd = screen.getByRole("button", { name: /Quick add/ });
+    // A link now rather than a button — see above. The RULE it carries is unchanged, and
+    // that rule is what the measurement table on the component is about.
+    const quickAdd = screen.getByRole("link", { name: "New client" });
 
     expect(quickAdd).toHaveClass("hidden", "sm:inline-flex");
     // The toggle must NOT pick up the same treatment: it is the one control that works.
