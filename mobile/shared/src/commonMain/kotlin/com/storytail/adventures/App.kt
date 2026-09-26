@@ -103,7 +103,7 @@ fun App() {
          *
          * `platform_user` carries `display_name` and `time_zone`, both added to this read
          * for §3.2's greeting, and the gate used to throw the whole status away after
-         * reading the role off it — so [AgentWorklistHost] issued a second identical select
+         * reading the role off it — so [AgentSectionHost] issued a second identical select
          * behind a full-screen splash, serialised ahead of the four worklist RPCs, with its
          * own independent way to fail. One read, one failure point.
          */
@@ -157,21 +157,26 @@ fun App() {
         when (val route = nav.current) {
             AppRoute.Resolving -> SplashScreen()
 
-            // Screen Inventory §3.2. A SIBLING host, not a wrapper — see AgentRoute.
-            AppRoute.Worklist -> {
+            // Screen Inventory §3.2 and §3.3. A SIBLING host, not a wrapper — see AgentRoute.
+            // Both agent tabs share one branch because they share one host, one repository
+            // and one sign-out; AgentRoute's own `when` picks the screen.
+            AppRoute.Worklist,
+            AppRoute.AgentClients,
+            -> {
                 val scope = rememberCoroutineScope()
                 val agent = agentRepository
                 if (agent == null) {
                     SplashScreen()
                 } else {
-                    AgentWorklistHost(
+                    AgentSectionHost(
+                        route = route,
                         agent = agent,
                         status = onboardingStatus,
                         nav = nav,
-                        // The same call the client shell's Account tab makes. Worklist is
-                        // the whole agent shell in this slice, so without this an agent who
-                        // signs in on a phone has no way to sign out — and before §3.2 they
-                        // landed in the client shell, which has one.
+                        // The same call the client shell's Account tab makes. §3.12 has not
+                        // built More, so the top bar is still the only way out of the agent
+                        // shell — and before §3.2 an agent signing in on a phone landed in
+                        // the client shell, which has one.
                         onSignOut = { scope.launch { repo.signOut() } },
                     )
                 }
@@ -577,14 +582,15 @@ fun destinationFor(status: OnboardingStatus?): AppRoute = when {
  * that nothing will resolve.
  */
 @Composable
-private fun AgentWorklistHost(
+private fun AgentSectionHost(
+    route: AppRoute,
     agent: AgentRepository,
     status: OnboardingStatus?,
     nav: Navigator,
     onSignOut: () -> Unit,
 ) {
     AgentRoute(
-        route = AppRoute.Worklist,
+        route = route,
         nav = nav,
         agent = agent,
         displayName = status?.displayName.orEmpty(),

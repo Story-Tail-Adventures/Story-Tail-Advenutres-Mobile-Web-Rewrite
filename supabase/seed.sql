@@ -1072,4 +1072,159 @@ INSERT INTO public.agent_availability (
 );
 
 
+-- ============================================================
+-- §3.3 client roster fixtures
+--
+-- Before this block the seed held THREE clients, and §3.3.1 is a screen with search, six
+-- filter chips, a money column and pagination. Three rows exercise none of it: every filter
+-- returns everything, the paginator never renders, and an empty state cannot be told from a
+-- broken read.
+--
+-- The nine named clients below are each here for a state the roster has to render, and the
+-- filler block after them exists only so the page window is crossed. NONE of them get an
+-- `auth.users` row: an unclaimed client is one with no platform_user pointing at it (the
+-- same fixture shape Maya Carter uses above), and hand-seeding GoTrue is how `confirmation_token`
+-- NULLs turn every login into a 500.
+--
+-- WHY THE MONEY IS IN TRIPS AND NOT IN client.lifetime_value_cents. Nothing in the repository
+-- maintains that column — see 20260926140000_agent_client_read_surface.sql. agent_client_roster()
+-- derives lifetime value from committed trips, so seeding the cache would prove nothing and
+-- seeding it WRONG is how a fixture starts agreeing with a bug.
+-- ============================================================
+
+INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, email, phone, tags, status, lifetime_value_cents) VALUES
+    -- No trips at all: the roster's "—" in both trip columns, and $0 with a NULL currency.
+    ('0195a2c0-1a00-7000-8000-000000000100', '0195a2c0-1a00-7000-8000-000000000001',
+     'Eli', 'Park', NULL, 'eli.park@example.com', '+1-555-0190', ARRAY['referral'], 'active', 0),
+
+    -- Inquiry only: counts toward the header's "leads to qualify" and toward nothing else.
+    ('0195a2c0-1a00-7000-8000-000000000101', '0195a2c0-1a00-7000-8000-000000000001',
+     'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active', 0),
+
+    -- Two currencies on committed trips: lifetime_currency_count = 2, and the roster must
+    -- name the one it summed instead of adding USD to EUR.
+    ('0195a2c0-1a00-7000-8000-000000000102', '0195a2c0-1a00-7000-8000-000000000001',
+     'Priya', 'Raghunathan', 'Pri', 'priya.r@example.com', '+1-555-0191',
+     ARRAY['vip','multi-destination'], 'active', 0),
+
+    -- No email. `client.email` is nullable and the roster must not assume otherwise.
+    ('0195a2c0-1a00-7000-8000-000000000103', '0195a2c0-1a00-7000-8000-000000000001',
+     'Marcus', 'Webb', NULL, NULL, '+1-555-0192', ARRAY['cruise'], 'active', 0),
+
+    -- Cancelled trip only: excluded from lifetime value AND from both trip columns, so the
+    -- row reads exactly like Eli's despite having a trip.
+    ('0195a2c0-1a00-7000-8000-000000000104', '0195a2c0-1a00-7000-8000-000000000001',
+     'Dana', 'Okonkwo', NULL, 'dana.okonkwo@example.com', '+1-555-0193', ARRAY['family'], 'active', 0),
+
+    -- Many tags, long name: the Tags cell and the Client cell both have to wrap or truncate.
+    ('0195a2c0-1a00-7000-8000-000000000105', '0195a2c0-1a00-7000-8000-000000000001',
+     'Annabelle', 'Fitzwilliam-Castellanos', 'Belle', 'annabelle.fc@example.com', '+1-555-0194',
+     ARRAY['vip','honeymoon','all-inclusive','adults-only','repeat','referral'], 'active', 0),
+
+    -- A second archived client, so the Archived chip returns more than one row.
+    ('0195a2c0-1a00-7000-8000-000000000106', '0195a2c0-1a00-7000-8000-000000000001',
+     'Curtis', 'Nakamura', NULL, 'curtis.n@example.com', NULL, ARRAY['cold'], 'archived', 0),
+
+    -- A merged tombstone. agent_client_roster() must NEVER return this row, for any filter:
+    -- there is no p_status value that can ask for it. rls_agent_clients.sql asserts that.
+    ('0195a2c0-1a00-7000-8000-000000000107', '0195a2c0-1a00-7000-8000-000000000001',
+     'Jordan', 'Hayes-Old', NULL, 'jordan.old@example.com', NULL, ARRAY[]::text[], 'merged_into', 0),
+
+    -- Completed trip well in the past: drives the "Last trip" column with nothing in "Next".
+    ('0195a2c0-1a00-7000-8000-000000000108', '0195a2c0-1a00-7000-8000-000000000001',
+     'Tomás', 'Delgado', NULL, 'tomas.delgado@example.com', '+1-555-0195', ARRAY['repeat'], 'active', 0);
+
+UPDATE public.client
+   SET merged_into_client_id = (SELECT id FROM public.client WHERE email = 'jordan.hayes@example.com'),
+       archived_at = now() - interval '200 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000107';
+
+UPDATE public.client
+   SET archived_at = now() - interval '45 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000106';
+
+-- Trips for the named fixtures above.
+INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status, start_date, end_date,
+                         destinations, traveler_count, total_value_cents, total_paid_cents,
+                         total_commission_cents, currency) VALUES
+    ('0195a2c0-1a00-7000-8000-000000000110', '0195a2c0-1a00-7000-8000-000000000101',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Somewhere warm, February-ish', 'custom', 'inquiry',
+     NULL, NULL, ARRAY[]::text[], 2, 0, 0, 0, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000111', '0195a2c0-1a00-7000-8000-000000000102',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Lisbon & the Douro Valley', 'multi_destination',
+     'completed', current_date - 400, current_date - 388,
+     ARRAY['Lisbon, Portugal','Porto, Portugal'], 2, 812000, 812000, 97440, 'EUR'),
+
+    ('0195a2c0-1a00-7000-8000-000000000112', '0195a2c0-1a00-7000-8000-000000000102',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Kyoto in the spring', 'multi_destination', 'booked',
+     current_date + 60, current_date + 72, ARRAY['Kyoto, Japan','Tokyo, Japan'], 2,
+     1140000, 285000, 136800, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000113', '0195a2c0-1a00-7000-8000-000000000102',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Amalfi Coast, slow', 'multi_destination', 'completed',
+     current_date - 700, current_date - 690, ARRAY['Positano, Italy'], 2, 690000, 690000, 82800, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000114', '0195a2c0-1a00-7000-8000-000000000103',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Alaska, the inside passage', 'cruise', 'proposal',
+     current_date + 150, current_date + 157, ARRAY['Juneau, AK','Skagway, AK'], 4, 0, 0, 0, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000115', '0195a2c0-1a00-7000-8000-000000000104',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Cabo, cancelled', 'all_inclusive', 'cancelled',
+     current_date + 30, current_date + 37, ARRAY['Cabo San Lucas, Mexico'], 4, 540000, 0, 0, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000116', '0195a2c0-1a00-7000-8000-000000000105',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Maldives, overwater', 'all_inclusive', 'booked',
+     current_date + 210, current_date + 220, ARRAY['Malé, Maldives'], 2, 2480000, 620000, 297600, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000117', '0195a2c0-1a00-7000-8000-000000000108',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Barcelona, long weekend', 'custom', 'completed',
+     current_date - 120, current_date - 116, ARRAY['Barcelona, Spain'], 2, 318000, 318000, 38160, 'USD');
+
+-- Filler, so the roster crosses a page window and the paginator is exercised rather than
+-- merely written. Eighteen rows, deterministic ids derived from the index so a reset is
+-- reproducible. Half carry one committed trip; the rest have none.
+DO $$
+DECLARE
+    i        integer;
+    firsts   text[] := ARRAY['Ava','Noah','Mia','Liam','Zoe','Omar','Ivy','Ruth','Kai',
+                             'Nina','Hugo','Elsa','Amir','Cleo','Jonah','Rosa','Theo','Wren'];
+    lasts    text[] := ARRAY['Bennett','Castillo','Duval','Ellison','Fontaine','Greaves',
+                             'Halloran','Iyer','Jansen','Kowalski','Lindqvist','Moreau',
+                             'Novak','Oyelaran','Prescott','Quintero','Rasmussen','Sandoval'];
+    -- A FLAT array, wrapped at the call site. Postgres arrays are rectangular rather than
+    -- arrays-of-arrays, so a single subscript into a text[][] yields a scalar and the insert
+    -- fails with "column tags is of type text[] but expression is of type text".
+    tagpool  text[] := ARRAY['cruise','family','vip','honeymoon','repeat','referral'];
+    cid      uuid;
+    tid      uuid;
+BEGIN
+    FOR i IN 1..18 LOOP
+        cid := ('0195a2c0-1a00-7000-8000-0000000002' || lpad(i::text, 2, '0'))::uuid;
+        INSERT INTO public.client (id, agent_id, first_name, last_name, email, phone, tags, status)
+        VALUES (cid, '0195a2c0-1a00-7000-8000-000000000001',
+                firsts[i], lasts[i],
+                lower(firsts[i] || '.' || lasts[i] || '@example.com'),
+                '+1-555-' || lpad((200 + i)::text, 4, '0'),
+                ARRAY[tagpool[1 + (i % 6)]],
+                'active');
+
+        IF i % 2 = 0 THEN
+            tid := ('0195a2c0-1a00-7000-8000-0000000003' || lpad(i::text, 2, '0'))::uuid;
+            INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status,
+                                     start_date, end_date, destinations, traveler_count,
+                                     total_value_cents, total_paid_cents, total_commission_cents,
+                                     currency)
+            VALUES (tid, cid, '0195a2c0-1a00-7000-8000-000000000001',
+                    'Getaway #' || i, 'all_inclusive', 'completed',
+                    current_date - (90 + i * 7), current_date - (83 + i * 7),
+                    ARRAY['Montego Bay, Jamaica'], 2,
+                    (240000 + i * 15000)::bigint, (240000 + i * 15000)::bigint,
+                    ((240000 + i * 15000) * 12 / 100)::bigint, 'USD');
+        END IF;
+    END LOOP;
+END $$;
+
+
+
 COMMIT;

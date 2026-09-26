@@ -63,12 +63,14 @@ object AgentCopy {
     const val CYCLE_TIME_UNAVAILABLE =
         "Not enough history yet — this fills in as trips move to Booked."
 
-    // Deferrals. Every one names the section that builds it.
+    // Deferrals. Every one names the section that builds it — and once a section half
+    // ships, the SCREEN that builds it: "§3.3" stopped being a useful answer when
+    // §3.3.1 landed and the roster existed while detail and create did not.
     const val TRIP_DETAIL_DEFERRED = "Trip detail arrives with §3.4."
-    const val CLIENT_DETAIL_DEFERRED = "Client detail arrives with §3.3."
+    const val CLIENT_DETAIL_DEFERRED = "Client detail arrives with §3.3.2."
     const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
     const val QUICK_ADD_TRIP_DEFERRED = "Creating trips arrives with §3.4."
-    const val QUICK_ADD_CLIENT_DEFERRED = "Creating clients arrives with §3.3."
+    const val QUICK_ADD_CLIENT_DEFERRED = "Creating clients arrives with §3.3.9."
     const val LEADS_DEFERRED =
         "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8)."
     const val AVAILABILITY_DEFERRED =
