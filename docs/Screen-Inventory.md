@@ -1815,6 +1815,68 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Nav "Clients".
 **Related screens:** Client Detail, Create Client.
 
+> **Amended 2026-09-26, on shipping this screen.** 3.3.1 is built, on the web and on the
+> phone. The rest of §3.3 follows in two more changes — 3.3.2 through 3.3.8 (detail and its
+> six tabs), then 3.3.9, 3.3.10 and 3.3.12 (the write path). **3.3.11 Merge Clients is
+> deferred to §3.9**, where it already exists as 3.9.7 ("Same as 3.3.11"); it is the
+> riskiest write in the section and belongs next to the account-admin tools it shares a
+> screen with. The roster's row menu names it with its reason rather than dropping it.
+>
+> **`client.lifetime_value_cents` is not what the money column reads, and the reason is a
+> defect in this document.** Data-Model §6.1 calls the column "Computed; cached for
+> sort/filter" and its own `COMMENT` repeats it. Nothing computes it. There is no trigger,
+> no function and no Edge Function in the repository that writes it; the only write anywhere
+> is one hand-set seed row, and that row was stale by $6,920. Reading the cache would have
+> put a confident `$0` against every real client — a figure that is wrong rather than
+> missing, which is the worse of the two. `agent_client_roster()` derives lifetime value
+> from committed trips (`booked`, `in_progress`, `completed`), and the cache is left alone
+> rather than quietly back-filled: maintaining it is a write-path concern and belongs with
+> the §3.3.9/§3.3.10 change or a trigger, not with a read.
+>
+> **Money is scoped to one currency PER CLIENT, not per agent.** §3.2 settled that a money
+> figure names one currency and says how many it left out. The scope here is the row,
+> because two clients on one roster can legitimately bank in different currencies and an
+> agent-wide dominant currency would mislabel every row that did not share it. The currency
+> is chosen over the very trips the figure sums, so the label is true of that figure rather
+> than merely near it, and a client with nothing committed gets a dash rather than a
+> labelled zero.
+>
+> **The filter chips are read from the book, and the two the prototype draws disagree with
+> each other.** The page frame draws `Active · VIP · Honeymoon · Family · Lead · Archived`;
+> the rail inside the detail shell draws `Active · VIP · Honeymoon · New`. Both disagree with
+> the schema — `client.tags` is free-form with no vocabulary table and no CHECK — so a
+> hardcoded row would offer filters matching nothing and omit every tag Gyasi actually types.
+> The built screen has a status pair (Active/Archived) plus tag chips derived from the
+> agent's own clients, with counts, from `agent_client_roster_summary().tag_facets`. The
+> "filters (status, tags, last contacted, lifetime value)" line above is therefore partly
+> superseded: status and tags are built; last-contacted and lifetime-value are sort
+> dimensions rather than filters and are not built.
+>
+> **Bulk-select is cut, not drawn disabled.** The prototype draws a checkbox in the header
+> and in every row and nothing consumes them. Bulk-tag is a write that arrives with §3.3.9;
+> bulk-message needs §3.10, which is unbuilt. §6.4's own amendment settled the principle when
+> it cut the top bar's search field rather than disabling it — a control that does nothing is
+> worse than no control. The column arrives with the action behind it. "New client" runs the
+> other way and renders disabled with its reason, because §3.3.9 is a real planned screen.
+>
+> **Two phone departures from §4.4's Pattern B, both because of §6.6.** Pattern B mobile says
+> "filter and search collapsed behind icon buttons"; the phone roster keeps SEARCH VISIBLE
+> and collapses only the filters. §6.6 scopes the agent's phone to "on-the-go tasks rather
+> than deep work", and for a roster the on-the-go task *is* the search — putting the one
+> control that serves it behind a tap to save 56pt inverts the section's purpose. And the
+> phone APPENDS where the web build pages: Previous/Next is Pattern B's desk half, and paging
+> a book of business back and forth on a phone is deep work by another name.
+>
+> **The phone shows one trip line where the table shows two columns.** A row has room for
+> one, and the useful half for an advisor looking someone up on the move is the trip that has
+> not happened yet — so it shows the next trip, falls back to the last, and shows nothing only
+> when there is neither. A client travelling right now reads "Now · Saint Lucia" instead of a
+> date.
+>
+> Mobile artboards for this screen were drawn and pushed back to the design project
+> (`screens/agent-crm-mobile.jsx`, frame 3.3m.1); the remaining eleven arrive with the changes
+> that build them.
+
 #### 3.3.2 Client Detail / Profile
 **Purpose:** Single-pane view of a client.
 **Primary elements:** Header card (photo, name, contact, lifetime value, tags); tabs: Overview, Trips, Messages, Documents, Notes, Activity Log; quick actions (new trip, send message, log call).
@@ -2863,6 +2925,20 @@ Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commi
 > **Amended September 2026, built as amended.** Three of the five are not what shipped, and the reasons are on `web/components/agent/AgentTopBar.tsx`: search is **absent** rather than disabled (no agent search surface exists, and a field that does nothing is worse than no field), quick-add is drawn **disabled with its reason** (new trip is §3.4.3, new client is §3.3.9), and the profile menu is an initials avatar plus a **sign-out** control — the only one an advisor has on the web, since §3.2 redirects agents off every (client) route including /account.
 >
 > The **light/dark toggle** was added 2026-09-25 and is leftmost in the cluster, so sign-out stays anchored at the right edge. It is the one control in this bar with something behind it. See Design-System §10.1.
+>
+> **Amended 2026-09-26 — the rail is SEVEN, and this line's eleven are superseded.** The
+> prototype's seven were taken provisionally on 2026-09-19, with `web/lib/agent/nav.ts`
+> recording that the final shape would be revisited at §3.3 "once there is more than one
+> agent section to use it with". §3.3.1 made Clients the second live destination and Gyasi
+> settled it: Worklist · Clients · Trips · Leads · Messages · Commission · Reports.
+>
+> What the second destination showed that one could not: the rail holds SECTIONS, and §3.2's
+> three views share a read model, a date scope and a header — they are three views of one
+> section, which is why a view switcher inside it is the honest shape and three rail rows are
+> not. Promoting them would have made the rail's first three rows one screen while Clients,
+> Trips and Commission were each a whole area. Templates and Settings stay off for the reason
+> §6.6 gives about the phone bar: depth is not the same as reach. Settings is reachable from
+> the profile menu; Templates is §3.10.4, inside Messaging.
 >
 > **Quick-add hides below 640px so the toggle can have its place.** The bar does not overflow — the brand link has no `shrink-0`, so the lockup absorbs the pressure and shrinks past the 80px legibility floor (Design-System §11.2) instead. Measured in Chrome, lockup width against its natural 201px: at 375px it went 152 → 115 when the toggle was added, and back to 144 once quick-add yields; at 400px, 131 → 94 → 120; from 500px up it is 201 either way. A disabled placeholder was costing a working control about 35px of logo at every phone width, so the placeholder gives way.
 

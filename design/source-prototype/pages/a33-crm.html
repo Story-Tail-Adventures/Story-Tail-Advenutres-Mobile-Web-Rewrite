@@ -41,7 +41,10 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
       <button data-theme="light" class="is-on">Light</button>
       <button data-theme="dark">Dark</button>
     </div>
-    
+    <div class="seg" id="view-seg" role="group" aria-label="Viewport">
+      <button data-view="web" class="is-on">Web</button>
+      <button data-view="mobile">Mobile</button>
+    </div>
     <span class="nav-div"></span>
     <a class="navlink" href="a32-pipeline.html" title="3.2 · Agent · Dashboard & Pipeline">← 3.2</a>
     <a class="navlink primary" href="index.html">All sections</a>
@@ -99,6 +102,7 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
 <script type="text/babel" src="../shared/screen-frame.jsx"></script>
 
 <script type="text/babel" src="../screens/agent-crm.jsx"></script>
+<script type="text/babel" src="../screens/agent-crm-mobile.jsx"></script>
 
 <script type="text/babel" src="../tweaks-panel.jsx"></script>
 <script type="text/babel" src="../tweaks/tweaks.jsx"></script>
@@ -165,7 +169,7 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
   function App() {
     return (
       <DesignCanvas title="Story-Tail · 3.3 · Agent · Client Management (CRM)" subtitle="Roster, detail, tabs, merge, archive." background="#221C1A">
-        <Section id="a33" title="3.3 · Client Management (CRM)" subtitle="Roster, detail, tabs, merge, archive." width={1440} height={900} screens={[{"id":"331","comp":"A331_ClientList","label":"3.3.1 Client list","h":820},{"id":"332","comp":"A332_ClientDetail","label":"3.3.2 Client detail","h":880},{"id":"333","comp":"A333_OverviewTab","label":"3.3.3 Overview tab","h":880},{"id":"334","comp":"A334_TripsTab","label":"3.3.4 Trips tab","h":880},{"id":"335","comp":"A335_MessagesTab","label":"3.3.5 Messages tab","h":880},{"id":"336","comp":"A336_DocumentsTab","label":"3.3.6 Documents tab","h":880},{"id":"337","comp":"A337_NotesTab","label":"3.3.7 Notes tab","h":880},{"id":"338","comp":"A338_ActivityLog","label":"3.3.8 Activity log","h":880},{"id":"339","comp":"A339_CreateClient","label":"3.3.9 Create client","w":1280,"h":820},{"id":"3310","comp":"A3310_EditClient","label":"3.3.10 Edit client","w":1280,"h":720},{"id":"3311","comp":"A3311_MergeClients","label":"3.3.11 Merge clients","w":1280,"h":760},{"id":"3312","comp":"A3312_Archive","label":"3.3.12 Archive","w":900,"h":700}]} mobileScreens={null}/>
+        <Section id="a33" title="3.3 · Client Management (CRM)" subtitle="Roster, detail, tabs, merge, archive." width={1440} height={900} screens={[{"id":"331","comp":"A331_ClientList","label":"3.3.1 Client list","h":820},{"id":"332","comp":"A332_ClientDetail","label":"3.3.2 Client detail","h":880},{"id":"333","comp":"A333_OverviewTab","label":"3.3.3 Overview tab","h":880},{"id":"334","comp":"A334_TripsTab","label":"3.3.4 Trips tab","h":880},{"id":"335","comp":"A335_MessagesTab","label":"3.3.5 Messages tab","h":880},{"id":"336","comp":"A336_DocumentsTab","label":"3.3.6 Documents tab","h":880},{"id":"337","comp":"A337_NotesTab","label":"3.3.7 Notes tab","h":880},{"id":"338","comp":"A338_ActivityLog","label":"3.3.8 Activity log","h":880},{"id":"339","comp":"A339_CreateClient","label":"3.3.9 Create client","w":1280,"h":820},{"id":"3310","comp":"A3310_EditClient","label":"3.3.10 Edit client","w":1280,"h":720},{"id":"3311","comp":"A3311_MergeClients","label":"3.3.11 Merge clients","w":1280,"h":760},{"id":"3312","comp":"A3312_Archive","label":"3.3.12 Archive","w":900,"h":700}]} mobileScreens={[{"id":"m331","comp":"M331_ClientRoster","label":"3.3m.1 Client roster"}]}/>
       </DesignCanvas>
     );
   }

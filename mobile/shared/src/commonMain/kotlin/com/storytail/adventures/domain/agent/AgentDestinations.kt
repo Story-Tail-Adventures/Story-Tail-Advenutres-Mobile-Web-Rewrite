@@ -3,7 +3,8 @@ package com.storytail.adventures.domain.agent
 /**
  * The agent's bottom bar, mirroring `web/lib/agent/nav.ts`.
  *
- * FOUR TABS, AND THREE OF THEM ARE DIMMED. Screen-Inventory §6.6: "The mobile experience for
+ * FOUR TABS, AND TWO OF THEM ARE DIMMED. Clients went `built` on 2026-09-26 with §3.3.1.
+ * Screen-Inventory §6.6: "The mobile experience for
  * agents at MVP is intentionally narrower than web — designed for on-the-go tasks rather
  * than deep work. Bottom tab bar: Worklist, Clients, Messages, More. The full pipeline,
  * reporting, and template management features remain web-only at MVP."
@@ -34,7 +35,7 @@ data class AgentDestination(
 /** §6.6's four, in order. */
 val AGENT_BAR_DESTINATIONS: List<AgentDestination> = listOf(
     AgentDestination("worklist", "Worklist", built = true, phase = null, section = "§3.2"),
-    AgentDestination("clients", "Clients", built = false, phase = "P1", section = "§3.3"),
+    AgentDestination("clients", "Clients", built = true, phase = null, section = "§3.3"),
     AgentDestination("messages", "Messages", built = false, phase = "P1", section = "§3.10"),
     // Not a rail destination on web. It is the eventual home of sign-out; until §3.12
     // builds it, sign-out rides the worklist's top bar (see `AgentTopBar`) rather than

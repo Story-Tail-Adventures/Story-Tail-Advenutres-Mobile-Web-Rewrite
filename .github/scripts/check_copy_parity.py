@@ -87,6 +87,42 @@ MESSAGE_TABLES = [
         },
     },
     {
+        # §3.3.1's copy. The web const is the LARGER of the two on purpose: it also carries
+        # the data table's five column headers, the paginator's labels and four per-row
+        # deferrals, and the phone has none of those — §4.4's Pattern B gives the desk a
+        # table and the phone a card list, and §6.6 makes the phone append rather than
+        # paginate. ClientCopy's own LOAD_MORE runs the other way and has no web twin.
+        #
+        # Listed here is exactly the set BOTH surfaces render. A string only one stack has
+        # does not belong in it, for the reason the agent 3.2 row records.
+        "label": "agent 3.3",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "CLIENT_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "ClientCopy.kt",
+        "kmp_object": "ClientCopy",
+        "keys": {
+            "title": "TITLE",
+            "subtitleActive": "SUBTITLE_ACTIVE",
+            "subtitleInMotion": "SUBTITLE_IN_MOTION",
+            "subtitleToQualify": "SUBTITLE_TO_QUALIFY",
+            "searchLabel": "SEARCH_LABEL",
+            "searchPlaceholder": "SEARCH_PLACEHOLDER",
+            "filterActive": "FILTER_ACTIVE",
+            "filterArchived": "FILTER_ARCHIVED",
+            "noEmail": "NO_EMAIL",
+            "noTrip": "NO_TRIP",
+            "noLifetime": "NO_LIFETIME",
+            "travellingNow": "TRAVELLING_NOW",
+            "currencyNoteOne": "CURRENCY_NOTE_ONE",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",
+            "emptyFilteredBody": "EMPTY_FILTERED_BODY",
+            "emptyArchivedTitle": "EMPTY_ARCHIVED_TITLE",
+            "emptyArchivedBody": "EMPTY_ARCHIVED_BODY",
+        },
+    },
+    {
         # Screen 2.2.1's copy. Only the plain-string keys are listed: the web side's
         # greeting variants are functions (the "0 days"/"1 day" special cases need one) and
         # web_messages skips anything that is not a string literal, so those are covered by

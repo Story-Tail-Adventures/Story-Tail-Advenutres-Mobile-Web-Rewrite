@@ -396,11 +396,16 @@ sealed interface AppRoute {
     // and AccountRoute, and no composable under ui/screens/agent/ imports ClientScaffold.
     //
     // Screen-Inventory §6.6 keeps the agent's phone deliberately narrow: Worklist, Clients,
-    // Messages, More. Only the first has a screen in this slice; the other three are drawn
-    // dimmed, which is why they are not routes yet.
+    // Messages, More. The first two have screens; Messages (§3.10) and More (§3.12) are
+    // drawn dimmed, which is why they are not routes yet.
 
     /** Screen 3.2.1, and the root of the Worklist tab. */
     data object Worklist : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.3.1, and the root of the Clients tab. The second built destination. */
+    data object AgentClients : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }
