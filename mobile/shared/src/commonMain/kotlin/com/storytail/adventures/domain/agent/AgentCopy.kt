@@ -68,8 +68,10 @@ object AgentCopy {
     // §3.3.1 landed and the roster existed while detail and create did not.
     const val TRIP_DETAIL_DEFERRED = "Trip detail arrives with §3.4."
     // CLIENT_DETAIL_DEFERRED lived here until §3.3.2 shipped. It had no call site on this
-    // side either — only TRIP_DETAIL_DEFERRED is rendered, on three worklist sections —
-    // and a deferral naming a built section is worse than no sentence.
+    // side either — only TRIP_DETAIL_DEFERRED is rendered, on three worklist sections and
+    // the client detail Trips tab — and a deferral naming a built section is worse than no
+    // sentence. Note it is deliberately NOT in the copy-parity map: §3.4.2 Trip Detail is
+    // BUILT on the web, so the web twin was deleted and this one must outlive it.
     const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
     const val QUICK_ADD_TRIP_DEFERRED = "Creating trips arrives with §3.4."
     // QUICK_ADD_CLIENT_DEFERRED lived here until §3.3.9 shipped. It never had a render
