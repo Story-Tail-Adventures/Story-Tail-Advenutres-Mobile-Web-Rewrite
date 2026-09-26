@@ -67,7 +67,9 @@ object AgentCopy {
     // ships, the SCREEN that builds it: "§3.3" stopped being a useful answer when
     // §3.3.1 landed and the roster existed while detail and create did not.
     const val TRIP_DETAIL_DEFERRED = "Trip detail arrives with §3.4."
-    const val CLIENT_DETAIL_DEFERRED = "Client detail arrives with §3.3.2."
+    // CLIENT_DETAIL_DEFERRED lived here until §3.3.2 shipped. It had no call site on this
+    // side either — only TRIP_DETAIL_DEFERRED is rendered, on three worklist sections —
+    // and a deferral naming a built section is worse than no sentence.
     const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
     const val QUICK_ADD_TRIP_DEFERRED = "Creating trips arrives with §3.4."
     const val QUICK_ADD_CLIENT_DEFERRED = "Creating clients arrives with §3.3.9."

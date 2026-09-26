@@ -408,4 +408,16 @@ sealed interface AppRoute {
     data object AgentClients : AppRoute {
         override val requiresSession: Boolean get() = true
     }
+
+    /**
+     * Screens 3.3.2 – 3.3.8, pushed from the roster.
+     *
+     * The TAB is not in the route, unlike the web build's `?tab=`. The phone fetches the
+     * whole detail once and switches locally (see `AgentRepository.clientDetail`), so a tab
+     * is view state rather than a destination — and putting it in the route would make the
+     * back gesture walk back through six tabs before leaving the screen.
+     */
+    data class AgentClientDetail(val clientId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
 }

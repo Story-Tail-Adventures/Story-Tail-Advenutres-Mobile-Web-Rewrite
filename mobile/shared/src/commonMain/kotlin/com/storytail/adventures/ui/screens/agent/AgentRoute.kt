@@ -8,9 +8,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.api.ClientDetailRead
 import com.storytail.adventures.api.ClientRosterRead
 import com.storytail.adventures.api.ClientRosterSnapshot
 import com.storytail.adventures.api.WorklistRead
+import com.storytail.adventures.domain.agent.ClientCopy
 import com.storytail.adventures.domain.agent.partOfDay
 import com.storytail.adventures.domain.trip.Loadable
 import kotlinx.datetime.Clock
@@ -118,6 +120,7 @@ fun AgentRoute(
 
             ClientRosterScreen(
                 state = state,
+                onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
                 search = search,
                 onSearchChange = {
                     search = it
@@ -133,6 +136,42 @@ fun AgentRoute(
                 },
                 onLoadMore = { limit += PAGE },
                 onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
+                onSignOut = onSignOut,
+                modifier = modifier,
+            )
+        }
+
+        is AppRoute.AgentClientDetail -> {
+            var tab by remember(route.clientId) { mutableStateOf("overview") }
+            var state by remember(route.clientId) {
+                mutableStateOf<Loadable<ClientDetailUiState>>(Loadable.Loading)
+            }
+
+            // Keyed on the client id alone — NOT on `tab`. All seven reads land in one pass
+            // and the strip switches over what is already held, so re-running this on a tab
+            // change would re-fetch the whole detail to show data the screen already has.
+            LaunchedEffect(agent, route.clientId) {
+                state = when (val read = agent.clientDetail(route.clientId)) {
+                    is ClientDetailRead.Ok -> Loadable.Ready(
+                        clientDetailUiState(read.snapshot) { cents, currency ->
+                            formatMoney(cents, currency)
+                        },
+                    )
+                    ClientDetailRead.NotFound -> Loadable.Empty(
+                        title = ClientCopy.NOT_FOUND_TITLE,
+                        body = ClientCopy.NOT_FOUND_BODY,
+                    )
+                    ClientDetailRead.Forbidden -> Loadable.Unauthorized
+                    ClientDetailRead.Failed -> Loadable.Failed()
+                }
+            }
+
+            ClientDetailScreen(
+                state = state,
+                activeTab = tab,
+                onSelectTab = { tab = it },
+                onBack = { if (!nav.pop()) nav.selectTab(AppRoute.AgentClients) },
+                onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
                 onSignOut = onSignOut,
                 modifier = modifier,
             )

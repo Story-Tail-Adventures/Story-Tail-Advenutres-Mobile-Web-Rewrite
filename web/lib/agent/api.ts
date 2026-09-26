@@ -44,7 +44,14 @@ export type AgentRead =
   | "agent_trip_messages"
   | "agent_trip_activity"
   | "agent_client_roster"
-  | "agent_client_roster_summary";
+  | "agent_client_roster_summary"
+  | "agent_client_overview"
+  | "agent_client_companions"
+  | "agent_client_trips"
+  | "agent_client_conversations"
+  | "agent_client_documents"
+  | "agent_client_notes"
+  | "agent_client_activity";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -303,6 +310,137 @@ export type AgentClientRosterRow = {
  * `rls_agent_clients.sql` asserts every facet's count equals what that chip actually
  * returns, so the shape below is asserted in SQL rather than merely declared here.
  */
+/**
+ * §3.3.2 / §3.3.3's one row.
+ *
+ * Wide, because the Overview tab IS wide — a header card, a snapshot grid, a preferences
+ * card and four mini-stats all read from the same client. travel_preference rides it
+ * because `travel_preference.client_id` is UNIQUE, so there is no cardinality to fold.
+ *
+ * `notes` here is `client.notes`, the agent's free-form column that the Snapshot card
+ * shows. The Notes TAB is the `client_note` table and has its own row type below. Two note
+ * surfaces, and Data-Model §6.1 says so out loud.
+ *
+ * The jsonb columns are typed structurally rather than as `unknown`: nothing validates
+ * their shape in Postgres, so every field is optional here and every reader must treat it
+ * that way. `important_dates` in particular is where the prototype's invented "surprise
+ * flag" would have gone, and there is no such field.
+ */
+export type AgentClientOverviewRow = {
+  client_id: string;
+  display_name: string;
+  first_name: string;
+  last_name: string;
+  preferred_name: string | null;
+  email: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
+  status: string;
+  tags: string[] | null;
+  important_dates: { label?: string; date?: string; recurring?: boolean }[] | null;
+  emergency_contact: { name?: string; phone?: string; relationship?: string } | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_city: string | null;
+  address_region: string | null;
+  address_postal_code: string | null;
+  address_country: string | null;
+  notes: string | null;
+  version: number;
+  created_at: string;
+  archived_at: string | null;
+  preferred_destinations: string[] | null;
+  travel_styles: string[] | null;
+  dietary_restrictions: string[] | null;
+  dietary_notes: string | null;
+  accessibility_needs: string[] | null;
+  accessibility_notes: string | null;
+  loyalty_programs: { program?: string; number?: string; tier?: string }[] | null;
+  budget_band: string | null;
+  favorite_past_trips: string | null;
+  lifetime_value_cents: string;
+  lifetime_currency: string | null;
+  lifetime_currency_count: number;
+  commission_cents: string;
+  trip_count: number;
+  active_trip_count: number;
+  note_count: number;
+  document_count: number;
+  last_contact_at: string | null;
+  as_of_date: string;
+};
+
+export type AgentClientCompanionRow = {
+  companion_id: string;
+  first_name: string;
+  last_name: string;
+  relationship: string | null;
+  date_of_birth: string | null;
+  passport_expiry: string | null;
+  passport_country: string | null;
+  linked_client_id: string | null;
+  invited: boolean;
+};
+
+export type AgentClientTripRow = {
+  trip_id: string;
+  title: string;
+  trip_type: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: string[] | null;
+  traveler_count: number;
+  total_value_cents: string;
+  total_paid_cents: string;
+  total_commission_cents: string;
+  currency: string;
+  as_of_date: string;
+};
+
+export type AgentClientConversationRow = {
+  conversation_id: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  subject: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  agent_unread_count: number;
+  message_count: number;
+};
+
+export type AgentClientDocumentRow = {
+  document_id: string;
+  kind: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: string;
+  is_sensitive: boolean;
+  trip_id: string | null;
+  trip_title: string | null;
+  created_at: string;
+};
+
+export type AgentClientNoteRow = {
+  note_id: string;
+  body: string;
+  author_name: string | null;
+  author_is_me: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentClientActivityRow = {
+  event_id: string;
+  event_type: string;
+  target_entity: string | null;
+  target_id: string | null;
+  actor_name: string | null;
+  actor_role: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
 export type AgentClientSummaryRow = {
   active_count: number;
   in_motion_count: number;
@@ -345,7 +483,12 @@ export async function callAgentRead<T>(
   return { ok: true, rows: (data ?? []) as T[] };
 }
 
-export type AgentFunction = "agent-trip-status" | "agent-trip-notes";
+export type AgentFunction =
+  | "agent-trip-status"
+  | "agent-trip-notes"
+  // §3.3.7. An RPC write would let an agent POST from a browser with no audit_event,
+  // which is the reason every agent write on this surface is a function.
+  | "agent-client-notes";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Avatar } from "@/components/public/Avatar";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientRosterRow } from "@/lib/agent/clients";
@@ -15,6 +17,11 @@ import type { ClientRosterRow } from "@/lib/agent/clients";
  *
  * The duplication is 25 rows of markup. The alternative is a structure that lies to a screen
  * reader at whichever width it lies at.
+ *
+ * ROWS LINK INTO §3.3.2 as of 2026-09-26. Until the detail screen existed they were plain
+ * list items, on §3.2.1's rule that a row wired to nothing is worse than a row that is
+ * plainly not a link. It exists now, so they are links — on BOTH layouts, because a phone
+ * row is the one most likely to be tapped.
  *
  * NO BULK-SELECT COLUMN. The prototype draws a checkbox in the header and in every row, and
  * nothing consumes them: bulk-tag is a write (§3.3.9's migration) and bulk-message needs
@@ -91,7 +98,11 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
       {/* ── Phone: a list of cards (Pattern B mobile) ─────────────────────── */}
       <ul className="flex flex-col gap-2 md:hidden">
         {rows.map((row) => (
-          <li key={row.clientId} className="card flex items-center gap-3 px-3.5 py-3">
+          <li key={row.clientId}>
+            <Link
+              href={`/agent/clients/${row.clientId}`}
+              className="card flex items-center gap-3 px-3.5 py-3 hover:bg-[var(--md-surface-2)]"
+            >
             <Avatar initials={row.initials} size={32} tone="brand" />
             <span className="min-w-0 flex-1">
               <RowMeta row={row} />
@@ -102,6 +113,7 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
             <span className="t-body-s shrink-0 text-right">
               <Lifetime row={row} />
             </span>
+            </Link>
           </li>
         ))}
       </ul>
@@ -134,9 +146,12 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
                 <td className="px-3.5 py-2.5">
                   <span className="flex min-w-0 items-center gap-2.5">
                     <Avatar initials={row.initials} size={32} tone="brand" />
-                    <span className="min-w-0">
+                    <Link
+                      href={`/agent/clients/${row.clientId}`}
+                      className="min-w-0 hover:underline"
+                    >
                       <RowMeta row={row} />
-                    </span>
+                    </Link>
                   </span>
                 </td>
                 <td className="px-3.5 py-2.5 text-[12.5px] font-medium text-[var(--md-on-surface-variant)]">

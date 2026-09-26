@@ -150,7 +150,12 @@ export const AGENT_COPY = {
   // per-action, not per-section, because §3.4.2's header offers four buttons and only one
   // (Mark booked, via the existing stage-change write) has anywhere to go yet.
   duplicateTripDeferred: "Duplicating a trip arrives with §3.4.4.",
-  clientPreviewDeferred: "Client preview arrives with §3.3.2.",
+  // REPOINTED when §3.3.2 shipped. This said "§3.3.2" and that section is now built —
+  // and building it delivered no client preview, because previewing a TRIP as the
+  // traveler sees it is §3.5.6 Itinerary Preview, not the client's CRM record. A
+  // deferral aimed at the wrong section is worse than a vague one: it comes due and
+  // nothing arrives.
+  clientPreviewDeferred: "Client preview arrives with §3.5.6.",
   sendProposalDeferred: "Sending a proposal arrives with §3.5.",
   notesStale: "This trip changed since you opened it. Reload and try again.",
   notesFailed: "Could not save the note. Try again in a moment.",
@@ -171,7 +176,11 @@ export const AGENT_COPY = {
   // sentence at all.
   // Sharpened when §3.3.1 shipped: "§3.3" named a section that now half exists, so each
   // deferral points at the SCREEN that builds it rather than the section it sits in.
-  clientDetailDeferred: "Client detail arrives with §3.3.2.",
+  //
+  // `clientDetailDeferred` lived here until §3.3.2 shipped. The roster's rows now link
+  // straight into the client, so the string had no call site left — and a deferral naming a
+  // section which has since been built is worse than no sentence at all. Same removal
+  // `tripDetailDeferred` got when §3.4.2 landed.
   messagesDeferred: "Agent messaging arrives with §3.10.",
   quickAddTripDeferred: "Creating trips arrives with §3.4.",
   quickAddClientDeferred: "Creating clients arrives with §3.3.9.",
@@ -245,6 +254,76 @@ export const CLIENT_COPY = {
   rowArchiveDeferred: "Archiving a client arrives with §3.3.12.",
   mergeDeferred: "Merging clients arrives with §3.9, alongside the account-admin tools it shares a screen with.",
   bulkDeferred: "Bulk actions arrive with §3.3.9; bulk messaging needs §3.10.",
+
+  // ── §3.3.2 – §3.3.8, the detail surface ────────────────────────────────
+  backToRoster: "All clients",
+  notFoundTitle: "No such client",
+  notFoundBody: "It may have been archived, merged, or it belongs to another advisor.",
+  notFoundAction: "Back to clients",
+  archivedBanner: "Archived. They keep their trips and their history.",
+
+  // Overview
+  snapshotTitle: "Snapshot",
+  preferencesTitle: "Preferences",
+  householdTitle: "Household",
+  emergencyTitle: "In an emergency",
+  statLifetime: "Lifetime",
+  statTrips: "Trips",
+  statCommission: "Commission",
+  statLastContact: "Last contact",
+  labelPhone: "Phone",
+  labelEmail: "Email",
+  labelAddress: "Address",
+  labelBirthday: "Date of birth",
+  labelDates: "Important dates",
+  labelBudget: "Budget",
+  labelLoyalty: "Loyalty",
+  noPreferences: "Nothing recorded yet.",
+  noHousehold: "No one else on file.",
+  noAddress: "No address on file",
+  passportExpiringSoon: "Expires within six months",
+
+  // Trips
+  tripsActive: "Active",
+  tripsPast: "Past",
+  tripsCancelled: "Cancelled",
+  tripsEmpty: "No trips yet.",
+  tripCommissionPrefix: "Comm",
+
+  // Messages
+  threadsEmpty: "No conversations yet.",
+  threadUnreadLabel: "unread",
+
+  // Documents
+  documentsEmpty: "No documents on file for this client.",
+  documentSensitive: "Sensitive",
+
+  // Notes
+  noteComposerEyebrow: "NEW NOTE · INTERNAL ONLY",
+  noteComposerPlaceholder: "Internal note (the client doesn't see this)…",
+  noteSave: "Save note",
+  noteSaving: "Saving…",
+  noteSaved: "Saved",
+  noteEdit: "Edit",
+  noteDelete: "Delete",
+  noteCancel: "Cancel",
+  noteEditedMarker: "edited",
+  notesEmpty: "No notes yet. This is where you keep what you'd otherwise try to remember.",
+  noteFailed: "That didn't save. Try again in a moment.",
+  noteEmptyRefused: "A note needs something in it.",
+
+  // Activity
+  activityEmpty: "Nothing recorded yet.",
+  activityNote:
+    "Sign-ins are on the account's own activity screen, which arrives with §3.9.6.",
+
+  // Per-action deferrals on the detail surface.
+  accountAdminDeferred: "Account admin arrives with §3.9.",
+  editClientDeferred: "Editing a client arrives with §3.3.10.",
+  newTripForClientDeferred: "Creating trips arrives with §3.4.3.",
+  messageClientDeferred: "Agent messaging arrives with §3.10.",
+  openThreadDeferred: "Opening a thread arrives with §3.10.2.",
+  documentDownloadDeferred: "Downloading a document arrives with §3.3.6's upload path.",
 } as const;
 
 /** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */

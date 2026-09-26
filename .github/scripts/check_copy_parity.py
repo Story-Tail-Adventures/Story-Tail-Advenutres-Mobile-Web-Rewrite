@@ -78,7 +78,6 @@ MESSAGE_TABLES = [
             # the pipeline and calendar keys were never added. Delete the Kotlin constant
             # and its three usages when trip detail lands on Compose; nothing here needs
             # touching then either.
-            "clientDetailDeferred": "CLIENT_DETAIL_DEFERRED",
             "messagesDeferred": "MESSAGES_DEFERRED",
             "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
             "quickAddClientDeferred": "QUICK_ADD_CLIENT_DEFERRED",
@@ -120,6 +119,36 @@ MESSAGE_TABLES = [
             "emptyFilteredBody": "EMPTY_FILTERED_BODY",
             "emptyArchivedTitle": "EMPTY_ARCHIVED_TITLE",
             "emptyArchivedBody": "EMPTY_ARCHIVED_BODY",
+            # §3.3.2 - §3.3.8. The six TAB LABELS are not here: the web build reads those
+            # from its own tab registry (clientTabs.ts) rather than from CLIENT_COPY, so
+            # there is nothing on that side for this map to point at.
+            "backToRoster": "BACK_TO_ROSTER",
+            "notFoundTitle": "NOT_FOUND_TITLE",
+            "notFoundBody": "NOT_FOUND_BODY",
+            "archivedBanner": "ARCHIVED_BANNER",
+            "snapshotTitle": "SNAPSHOT_TITLE",
+            "preferencesTitle": "PREFERENCES_TITLE",
+            "householdTitle": "HOUSEHOLD_TITLE",
+            "statLifetime": "STAT_LIFETIME",
+            "statTrips": "STAT_TRIPS",
+            "statCommission": "STAT_COMMISSION",
+            "statLastContact": "STAT_LAST_CONTACT",
+            "labelPhone": "LABEL_PHONE",
+            "labelEmail": "LABEL_EMAIL",
+            "labelAddress": "LABEL_ADDRESS",
+            "noPreferences": "NO_PREFERENCES",
+            "noHousehold": "NO_HOUSEHOLD",
+            "noAddress": "NO_ADDRESS",
+            "passportExpiringSoon": "PASSPORT_EXPIRING_SOON",
+            "tripsEmpty": "TRIPS_EMPTY",
+            "tripCommissionPrefix": "TRIP_COMMISSION_PREFIX",
+            "threadsEmpty": "THREADS_EMPTY",
+            "documentsEmpty": "DOCUMENTS_EMPTY",
+            "documentSensitive": "DOCUMENT_SENSITIVE",
+            "notesEmpty": "NOTES_EMPTY",
+            "noteEditedMarker": "NOTE_EDITED_MARKER",
+            "activityEmpty": "ACTIVITY_EMPTY",
+            "activityNote": "ACTIVITY_NOTE",
         },
     },
     {

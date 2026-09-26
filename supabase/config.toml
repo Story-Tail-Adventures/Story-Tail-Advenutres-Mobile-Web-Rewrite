@@ -501,6 +501,14 @@ verify_jwt = true
 [functions.agent-trip-notes]
 verify_jwt = true
 
+# ── §3.3.7 client notes ───────────────────────────────────────────────────────
+# The Notes tab's add/edit/delete, and the only door onto `agent_write_client_note` —
+# service_role only for the same reason. Same note again about verify_jwt: requireAgentId
+# is the gate, but a function with no block here is never deployed at all, which is what
+# CI's "Every Edge Function is declared for deployment" step exists to catch.
+[functions.agent-client-notes]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand

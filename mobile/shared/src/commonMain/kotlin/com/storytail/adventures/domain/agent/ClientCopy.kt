@@ -57,6 +57,51 @@ object ClientCopy {
      * the web build has it. This has no twin in CLIENT_COPY and is not in the parity map.
      */
     const val LOAD_MORE = "Load more"
+
+    // ── §3.3.2 – §3.3.8, the detail surface ────────────────────────────
+    const val BACK_TO_ROSTER = "All clients"
+    const val NOT_FOUND_TITLE = "No such client"
+    const val NOT_FOUND_BODY = "It may have been archived, merged, or it belongs to another advisor."
+    const val ARCHIVED_BANNER = "Archived. They keep their trips and their history."
+
+    const val SNAPSHOT_TITLE = "Snapshot"
+    const val PREFERENCES_TITLE = "Preferences"
+    const val HOUSEHOLD_TITLE = "Household"
+    const val STAT_LIFETIME = "Lifetime"
+    const val STAT_TRIPS = "Trips"
+    const val STAT_COMMISSION = "Commission"
+    const val STAT_LAST_CONTACT = "Last contact"
+    const val LABEL_PHONE = "Phone"
+    const val LABEL_EMAIL = "Email"
+    const val LABEL_ADDRESS = "Address"
+    const val NO_PREFERENCES = "Nothing recorded yet."
+    const val NO_HOUSEHOLD = "No one else on file."
+    const val NO_ADDRESS = "No address on file"
+    const val PASSPORT_EXPIRING_SOON = "Expires within six months"
+
+    const val TRIPS_EMPTY = "No trips yet."
+    const val TRIP_COMMISSION_PREFIX = "Comm"
+    const val THREADS_EMPTY = "No conversations yet."
+    const val DOCUMENTS_EMPTY = "No documents on file for this client."
+    const val DOCUMENT_SENSITIVE = "Sensitive"
+    const val NOTES_EMPTY =
+        "No notes yet. This is where you keep what you'd otherwise try to remember."
+    const val NOTE_EDITED_MARKER = "edited"
+    const val ACTIVITY_EMPTY = "Nothing recorded yet."
+    const val ACTIVITY_NOTE =
+        "Sign-ins are on the account's own activity screen, which arrives with §3.9.6."
+
+    /**
+     * The six tab labels. Phone-only strings — the web build gets these from its own tab
+     * registry rather than from CLIENT_COPY, so they have no twin and are not in the
+     * parity map.
+     */
+    const val TAB_OVERVIEW = "Overview"
+    const val TAB_TRIPS = "Trips"
+    const val TAB_MESSAGES = "Messages"
+    const val TAB_DOCUMENTS = "Documents"
+    const val TAB_NOTES = "Notes"
+    const val TAB_ACTIVITY = "Activity"
 }
 
 /** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */

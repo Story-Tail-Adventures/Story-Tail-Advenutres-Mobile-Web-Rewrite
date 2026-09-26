@@ -1,5 +1,6 @@
 package com.storytail.adventures.ui.screens.agent
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -59,8 +60,9 @@ import com.storytail.adventures.ui.theme.PillShape
  *
  * ── WHAT IS NOT HERE, AND WHY IT IS CUT RATHER THAN DISABLED ───────────────────
  *
- *  * NO ROW TAP. Client detail is §3.3.2 and is not built. The worklist made the same call
- *    and said so; a row wired to nothing is worse than a row that is plainly a list item.
+ *  * ROWS TAP INTO §3.3.2 as of 2026-09-26. Until the detail screen existed they were
+ *    plain list items, on the worklist's rule that a row wired to nothing is worse than a
+ *    row that is plainly not tappable. It exists now.
  *  * NO "NEW CLIENT". §3.3.9 is a form, which is the definition of deep work. Web has it
  *    disabled-with-a-reason because it has the room for the sentence.
  *  * NO TAG FILTER, NO BULK SELECT. Desk affordances both.
@@ -70,6 +72,7 @@ import com.storytail.adventures.ui.theme.PillShape
 @Composable
 fun ClientRosterScreen(
     state: Loadable<ClientRosterUiState>,
+    onOpenClient: (String) -> Unit,
     search: String,
     onSearchChange: (String) -> Unit,
     status: String,
@@ -125,6 +128,7 @@ fun ClientRosterScreen(
                 searching = search.isNotBlank(),
                 status = status,
                 onLoadMore = onLoadMore,
+                onOpenClient = onOpenClient,
             )
         }
     }
@@ -171,6 +175,7 @@ private fun RosterBody(
     searching: Boolean,
     status: String,
     onLoadMore: () -> Unit,
+    onOpenClient: (String) -> Unit,
 ) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
@@ -199,7 +204,7 @@ private fun RosterBody(
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ui.rows.forEach { row -> RosterRow(row) }
+        ui.rows.forEach { row -> RosterRow(row, onOpenClient) }
     }
 
     // The note §3.2's currency rule requires: one figure names one currency, and where it
@@ -224,13 +229,13 @@ private fun RosterBody(
 }
 
 @Composable
-private fun RosterRow(row: RosterRowUi) {
+private fun RosterRow(row: RosterRowUi, onOpenClient: (String) -> Unit) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
 
     Card(
         colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerLow),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onOpenClient(row.clientId) },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
