@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,6 +27,7 @@ import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
 import com.storytail.adventures.ui.nav.AppRoute
+import com.storytail.adventures.ui.nav.SessionGate
 import com.storytail.adventures.ui.nav.Navigator
 import com.storytail.adventures.ui.nav.PlatformBackHandler
 import com.storytail.adventures.ui.nav.rememberNavigator
@@ -110,6 +112,25 @@ fun App() {
         var onboardingStatus by remember { mutableStateOf<OnboardingStatus?>(null) }
 
         /**
+         * Where the gate last sent the stack, ACROSS an Activity recreation.
+         *
+         * This is what tells a session CHANGE apart from the same session being re-delivered
+         * — and without it, `rememberNavigator`'s saver accomplishes nothing visible. On a
+         * rotation the effect below re-runs from scratch: `sessionStatus` re-emits
+         * `Initializing` and then `Authenticated`, and the old code read each of those as
+         * news and called `resetTo` twice, so a restored back stack was wiped on the way
+         * back up. That is why rotating anywhere in the app landed you on the Worklist.
+         *
+         * A DESTINATION AND NOT A BOOLEAN. See [SessionGate] — a boolean cannot tell
+         * "MfaChallenge became Dashboard" from "the same session arrived twice", and the
+         * MFA screen navigates nowhere on its own.
+         *
+         * Saveable, not `remember`: a plain one would be null again after exactly the
+         * recreation it exists to notice.
+         */
+        var lastGateDestination by rememberSaveable { mutableStateOf<String?>(null) }
+
+        /**
          * The session decides the stack, not the other way round.
          *
          * Signing in resets rather than pushes, so the sign-in form is not one back gesture
@@ -120,6 +141,10 @@ fun App() {
          * Restoring a persisted session lands straight on the dashboard, which is what
          * proves the round trip survived an app kill. Initializing has its own route so a
          * returning user does not see Login flash before the session resolves.
+         *
+         * EACH ARM RESETS ONLY WHEN THE ANSWER CHANGED, per [SessionGate]. The onboarding
+         * read still happens every time, because [onboardingStatus] is what the screens
+         * below render from and it does not survive the recreation.
          */
         LaunchedEffect(sessionStatus, onboardingRepository) {
             when (sessionStatus) {
@@ -128,8 +153,8 @@ fun App() {
                     // exists. Same three-way gate the web proxy applies in
                     // web/lib/supabase/middleware.ts, and then the same onboarding gate the
                     // (client) layout applies after it.
-                    nav.resetTo(
-                        when {
+                    run {
+                        val destination = when {
                             repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
                             else -> onboardingRepository?.let { onboarding ->
                                 // Assigned BEFORE the route is chosen, so anything the
@@ -138,15 +163,30 @@ fun App() {
                                 onboardingStatus = status
                                 destinationFor(status)
                             } ?: AppRoute.Dashboard
-                        },
-                    )
+                        }
+                        // Only when the destination actually moved. The same answer means
+                        // the same session arriving again after a recreation, with the
+                        // stack the user was on already restored underneath us.
+                        SessionGate.onAuthenticated(lastGateDestination, destination)?.let {
+                            nav.resetTo(it)
+                        }
+                        lastGateDestination = SessionGate.key(destination)
+                    }
 
-                SessionStatus.Initializing -> nav.resetTo(AppRoute.Resolving)
+                // Only before anything has ever resolved. After a recreation the flow
+                // re-emits this before the session comes back, and showing the splash over a
+                // restored screen would be a flash of nothing on every rotation.
+                SessionStatus.Initializing -> if (SessionGate.showsSplash(lastGateDestination)) {
+                    nav.resetTo(AppRoute.Resolving)
+                }
 
                 // The front door is 2.0.1 now, not Login. Before §2.0 existed, opening the
                 // app without a session put a password form in front of somebody who had
                 // just installed it and had nothing to sign in with.
-                else -> nav.onSignedOut(AppRoute.PublicLanding)
+                else -> {
+                    nav.onSignedOut(AppRoute.PublicLanding)
+                    lastGateDestination = SessionGate.SIGNED_OUT
+                }
             }
         }
 

@@ -1,8 +1,13 @@
 package com.storytail.adventures.ui.nav
 
+import androidx.compose.runtime.saveable.SaverScope
+import com.storytail.adventures.content.public.LegalSlug
+import com.storytail.adventures.content.public.Topic
+import com.storytail.adventures.domain.onboarding.WizardStep
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -240,5 +245,101 @@ class NavigatorTest {
         // Data classes, so two routes to the same trip are the same destination — which is
         // what makes push()'s `route != current` guard work.
         assertEquals(AppRoute.TripDetail("t1"), AppRoute.TripDetail("t1"))
+    }
+
+    // ── Surviving an Activity recreation ──────────────────────────────────
+
+    /**
+     * Rotation, a dark-mode flip from the system shade, process death. Until 2026-09-26 the
+     * navigator held its stack in a plain `remember`, so every one of those threw the whole
+     * thing away and dropped the app on its default route — rotating anywhere sent you back
+     * to the Worklist.
+     *
+     * These test the SAVER. The other half of the fix lives in App.kt's session gate, which
+     * used to `resetTo` on every re-emission of the same status and so wiped a restored
+     * stack on the way back up; that half has no unit-testable seam here.
+     */
+    private fun roundTrip(nav: Navigator): Navigator? {
+        // `Saver.save` is a MEMBER-EXTENSION — `fun SaverScope.save(value: Original)` — so it
+        // needs the saver as the dispatch receiver and a SaverScope as the extension one.
+        // `NavigatorSaver.save(nav)` does not compile, and the error it gives
+        // ("Unresolved reference 'save'") does not hint at why.
+        val scope = SaverScope { true }
+        val saved: String? = with(NavigatorSaver) { with(scope) { save(nav) } }
+        return saved?.let { encoded -> NavigatorSaver.restore(encoded) }
+    }
+
+    @Test
+    fun `a saved stack comes back whole, not just its top`() {
+        val nav = Navigator(AppRoute.Worklist)
+        nav.push(AppRoute.AgentClients)
+        nav.push(AppRoute.AgentClientDetail("0195a2c0-1a00-7000-8000-000000000101"))
+
+        val restored = roundTrip(nav)
+        assertEquals(nav.snapshot(), restored?.snapshot())
+        // Depth is the point: restoring only `current` would leave Back exiting the app
+        // from a screen two levels down.
+        assertTrue(restored!!.canGoBack)
+        assertEquals(AppRoute.AgentClients, restored.snapshot()[1])
+    }
+
+    @Test
+    fun `every shape of route survives, arguments and all`() {
+        // One of each KIND the sealed interface has, because these are what break
+        // separately: a bare object, a String argument, an Int, a nullable with a default,
+        // a Boolean with a default, and two different enums. A route carrying a type
+        // kotlinx cannot write would fail here rather than on somebody's phone.
+        val every = listOf(
+            AppRoute.Resolving,
+            AppRoute.PublicResults(),                      // nullable arg left at its default
+            AppRoute.PublicResults("Maldives"),            // ... and supplied
+            AppRoute.PublicTripDetail("overwater-villas"),
+            AppRoute.PublicJoin(intent = "quote", tripSlug = null),
+            AppRoute.PublicTopic(Topic.HONEYMOONS),
+            AppRoute.PublicLegal(LegalSlug.PRIVACY),
+            AppRoute.VerifyEmail("someone@example.com"),
+            AppRoute.Onboarding(WizardStep.WELCOME),
+            AppRoute.ItineraryDay(tripId = "t-1", dayNumber = 3),
+            AppRoute.WalletAuthorization(authorizationId = "a-1", justAuthorized = true),
+            AppRoute.WalletActivity(cardId = null),
+            AppRoute.AgentClientDetail("c-1"),
+        )
+        val nav = Navigator(every.first())
+        every.drop(1).forEach(nav::push)
+
+        assertEquals(every, roundTrip(nav)?.snapshot())
+    }
+
+    @Test
+    fun `unreadable saved state restores as nothing rather than throwing`() {
+        // The real case is process death across an app update, where the saved JSON names a
+        // route the new binary no longer has. `null` is how a Saver says "nothing usable",
+        // and rememberSaveable then falls back to the initial route. The alternative is
+        // crashing on launch, permanently, until the user clears app data.
+        assertNull(NavigatorSaver.restore("not json"))
+        assertNull(NavigatorSaver.restore("[{\"type\":\"com.storytail.adventures.ui.nav.AppRoute.Deleted\"}]"))
+        assertNull(NavigatorSaver.restore(""))
+    }
+
+    @Test
+    fun `an empty saved stack is refused rather than restored broken`() {
+        // `current` is `stack.last()`, so an empty Navigator is a crash waiting for its
+        // first composition. The saver turns that into "nothing saved".
+        assertNull(NavigatorSaver.restore("[]"))
+    }
+
+    @Test
+    fun `a restored navigator is a working one, not a frozen snapshot`() {
+        val nav = Navigator(AppRoute.Worklist)
+        nav.push(AppRoute.AgentClients)
+        val restored = roundTrip(nav)!!
+
+        restored.push(AppRoute.AgentClientDetail("c-9"))
+        assertEquals(AppRoute.AgentClientDetail("c-9"), restored.current)
+        assertTrue(restored.pop())
+        assertEquals(AppRoute.AgentClients, restored.current)
+        assertTrue(restored.pop())
+        assertEquals(AppRoute.Worklist, restored.current)
+        assertFalse(restored.canGoBack)
     }
 }

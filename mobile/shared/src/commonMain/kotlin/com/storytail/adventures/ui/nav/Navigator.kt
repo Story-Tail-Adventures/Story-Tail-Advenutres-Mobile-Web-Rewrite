@@ -3,7 +3,8 @@ package com.storytail.adventures.ui.nav
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 
 /**
  * The app's back stack.
@@ -104,8 +105,63 @@ class Navigator(initial: AppRoute) {
 
     /** For tests and for the back-handler's enabled flag. */
     fun snapshot(): List<AppRoute> = stack.toList()
+
+    companion object {
+        /**
+         * Rebuild from a saved stack. Only [NavigatorSaver] calls this.
+         *
+         * A FACTORY RATHER THAN A SECOND CONSTRUCTOR: `Navigator(List<AppRoute>)` and the
+         * primary one erase to the same JVM signature, which is a compile error on the
+         * Android target and would not have shown up on iOS.
+         *
+         * An empty list is refused rather than accepted. [current] is `stack.last()`, so an
+         * empty Navigator is a crash waiting for its first composition rather than an
+         * unusual state worth supporting — and the saver turns the exception back into
+         * "nothing saved", which lands on the front door.
+         */
+        fun fromSaved(routes: List<AppRoute>): Navigator {
+            require(routes.isNotEmpty()) { "a restored back stack cannot be empty" }
+            return Navigator(routes.first()).apply {
+                stack.clear()
+                stack.addAll(routes)
+            }
+        }
+    }
 }
 
+/**
+ * Survives an Activity recreation — rotation, a theme change, process death.
+ *
+ * WHAT THIS FIXES. With a plain `remember`, every configuration change threw the whole back
+ * stack away and dropped the app on its default route: rotating the phone anywhere in the
+ * app, or flipping dark mode in the system shade, sent the user back to the Worklist from
+ * wherever they were. It had been that way since this file was written.
+ *
+ * KOTLINX RATHER THAN A HAND-WRITTEN SAVER, and that is the load-bearing choice. A Saver
+ * that mapped each route to a list of primitives would need a branch per route, and a new
+ * route added without one is the exact silent gap this codebase keeps getting bitten by —
+ * it would compile, run, and lose that screen on rotation only. `@Serializable` on the
+ * sealed interface makes the compiler refuse a subtype that forgot, so the failure is a
+ * build error rather than a bug nobody reproduces.
+ *
+ * A FAILED RESTORE FALLS BACK TO [initial] rather than throwing. `restore` returning null is
+ * how a Saver says "nothing usable here", and the case that produces it is real: process
+ * death across an app update, where the saved JSON names a route the new binary no longer
+ * has. Landing on the front door is the right answer to that; crashing on launch is not.
+ *
+ * NOTE THIS IS ONLY HALF THE FIX. App.kt's session gate re-runs on recreation and used to
+ * `resetTo` on every re-emission of the same status, which wiped a restored stack the moment
+ * it came back. See the `lastSessionGate` note there — without it, this saver does nothing
+ * you can see.
+ */
 @Composable
 fun rememberNavigator(initial: AppRoute = AppRoute.Resolving): Navigator =
-    remember { Navigator(initial) }
+    rememberSaveable(saver = NavigatorSaver) { Navigator(initial) }
+
+val NavigatorSaver: Saver<Navigator, String> = Saver(
+    save = { navigator -> navJson.encodeToString(navigator.snapshot()) },
+    restore = { encoded ->
+        // Anything unreadable is "no saved state" — see the note above.
+        runCatching { Navigator.fromSaved(navJson.decodeFromString(encoded)) }.getOrNull()
+    },
+)
