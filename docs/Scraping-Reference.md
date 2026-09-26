@@ -3,10 +3,15 @@
 **Status:** reference notes only. Nothing built, nothing decided.
 **Captured:** 2026-09-26.
 **Why it exists:** Gyasi proposed scraping CruiseCritic because cruise search isn't
-working, and later scraping deals off his personalized InteleTravel site. He saved a
-Playwright Server Action template to work from, then proposed Apify's CruiseMapper actor
-as an alternative. This records both routes, what is wrong with each, what the source
-sites actually permit, and what the project's own documents already say about all of it.
+working, and later scraping deals off his personalized InteleTravel site. Three routes were
+considered in turn: a hand-written Playwright scraper (§5), Apify's CruiseMapper actor (§7),
+and importing the Travel Leaders Network departures file he already receives (§8). This
+records all three, what is wrong with each, what the source sites actually permit, and what
+the project's own documents already say about it.
+
+**Where it landed: §8.** The TLN file is supplied rather than crawled, carries no price
+column at all, and covers the one line track.cruises misses. It clears every objection the
+other two routes raised.
 
 > **Read §1 before anything else.** The stated reason for scraping was that cruise
 > search is broken. It was diagnosed on 2026-09-26 and the backend is fine: the Edge
@@ -449,23 +454,188 @@ decision is not purely technical.
 
 1. **Cruise search is fixed** (§1). The reason this came up has gone away. Decide on
    scraping as a data-coverage question, not as an outage workaround.
-2. **If more cruise coverage is the goal, ask Widgety for the free test key first.** §4.2:
+2. **A better source already exists and needs no permission — see §8.** The Travel Leaders
+   Network departures file Gyasi already receives covers six of the eight lines he books,
+   4,769 sailings, and carries no price column to worry about. It makes this whole section
+   moot.
+3. **If still more cruise coverage is wanted, ask Widgety for the free test key.** §4.2:
    their product *is* the §1.0 requirement, 60+ lines and ~1,000 ships, and a test key is
    free on request. It moves at email speed, so starting that thread costs nothing while
    other options are considered.
-3. **If CruiseMapper's data specifically is wanted, ask them for consent.** Their terms name
+4. **If CruiseMapper's data specifically is wanted, ask them for consent.** Their terms name
    "express written consent" as the mechanism. A single-advisor travel business asking to
    sync itinerary content, with accreditation and a backlink, is a reasonable ask and they
    have a stated path for it. That converts the whole question from a risk into a licence.
-4. **Do not rely on robots.txt as the permission signal here.** §3 and this section together
+5. **Do not rely on robots.txt as the permission signal here.** §3 and this section together
    are the reason: the two sites point opposite ways, and neither file is the binding
    document.
-5. **If Gyasi proceeds anyway**, §6's checklist still applies, plus: use a maintained actor
+6. **If Gyasi proceeds anyway**, §6's checklist still applies, plus: use a maintained actor
    rather than this one, drop `price` at the mapper, and amend §4.6 first.
 
 ---
 
-## 8. Appendix — the saved template
+## 8. The manual route — a supplier file, not hand typing (reviewed 2026-09-26)
+
+Gyasi raised doing "a manual update to cruises" and supplied the source he has in mind:
+**`ADD and DV Departures as of September 25 2026.xlsx`**, the Travel Leaders Network list of
+departures carrying group rates. Reviewed 2026-09-26 against the actual file.
+
+**This is the best of the three routes, and it is not really "manual."** It is a
+file-based import from a supplier who hands Gyasi the data. That makes it a third category,
+distinct from both scraping and hand typing, and it clears every objection §2 through §7
+raised.
+
+### What the file is
+
+| | |
+|---|---|
+| Size | 2.7 MB, 68 columns |
+| Sheets | `All Sailings` (9,075 rows), `US Sailings` (8,723), `CA Sailings` (8,674), `River Sailings` (810) |
+| Date range | **2026-10-10 → 2029-05-13** |
+| Cruise lines | 25 distinct |
+| Record types | `Amenity Departure` (7,966) and `Distinctive Voyage` (1,109) — the ADD and DV of the filename |
+| Trip types | Ocean (8,266), River (809) |
+| Top destinations | Caribbean 2,802 · Mediterranean 1,299 · European Rivers 688 · Alaska 645 · Galapagos 410 · Bahamas 330 |
+
+Columns 1–20 are the sailing and its offer. Columns 21–68 are six repeating blocks of shore
+event detail, mostly empty on Amenity Departures and populated on Distinctive Voyages.
+
+### Why this beats both scraping routes outright
+
+1. **No terms-of-service question exists.** The file is supplied to Gyasi as an advisor.
+   Nothing is crawled, no robots.txt applies, and §4.6 is not engaged at all. The entire
+   §2/§3/§7 problem disappears rather than being managed.
+2. **There is no price column anywhere in the file.** Not one. It carries *amenities* and
+   group numbers, never fares. So §1.3.4's net-rate prohibition cannot be triggered by
+   construction, and §1.0's "price optional" is satisfied by absence. Every scraping route
+   led with price, which was their worst property; this one structurally cannot.
+3. **It covers Virgin Voyages — 315 sailings, 229 of them Caribbean or Bahamas.** §4.8
+   records that track.cruises does not cover Virgin at all. This file closes the single
+   named coverage gap in the provider already wired up.
+4. **The amenities are genuine merchandising nobody else has.** "Shipboard Credit Per
+   Stateroom ($50)", "Distinctive Voyage including Host, Private Welcome Reception &
+   Exclusive Shore Event", named shore excursions with locations and durations. No public
+   scrape would ever surface these, and they are exactly the "sounds like Gyasi rather than
+   like a database" material §4.7 item 3 asks for.
+
+### Coverage against the eight lines Story-Tail books
+
+From `web/content/public/cruise-lines.ts`. **Six of eight present, 4,769 sailings, 2,824 of
+them Caribbean or Bahamas.**
+
+| File's `Cruise Line` | Our slug | Sailings | Caribbean + Bahamas |
+|---|---|---|---|
+| Royal Caribbean International | `royal-caribbean` | 2,549 | 1,916 |
+| Celebrity Cruises | `celebrity` | 1,064 | 448 |
+| Norwegian Cruise Line | `norwegian` | 492 | 178 |
+| Virgin Voyages | `virgin-voyages` | 315 | 229 |
+| Princess Cruises | `princess` | 221 | 31 |
+| Holland America Line | `holland-america` | 128 | 22 |
+| — | `disney` | **absent** | — |
+| — | `carnival` | **absent** | — |
+
+Note the names need mapping, exactly as track.cruises did: "Royal Caribbean International"
+against our `royal-caribbean`, "Norwegian Cruise Line" against `norwegian`, and so on. Reuse
+the mapping layer rather than writing a second one.
+
+### What the file does NOT contain
+
+This is the part that decides how far it gets on its own.
+
+- **No port-by-port itinerary.** Only `Embarkation City`, `Disembarkation City`, and an
+  itinerary *title* string such as "7-Night Southern Caribbean Cruise". So `cruise_port_call`
+  can be filled with **two** rows per sailing, not the ordered list the card renders under
+  "Ports of call". The middle of every itinerary is missing.
+- **No images, descriptions, deck plans or ship specifications.**
+- **No price**, which is a feature here rather than a gap, but means nothing can ever be
+  merchandised on fare.
+
+**So the file is a strong spine and a thin skin.** Pair it with Wikidata port and ship
+reference data (§8 of `Free-Travel-APIs.md`) for the middle of the itinerary, and with
+curated copy in `trips.ts` for the voice.
+
+### Mapping to our schema
+
+| File column | Target | Note |
+|---|---|---|
+| `Cruise Line` | `cruise_line.name` | needs slug mapping |
+| `Ship` | `cruise_ship.name` | title-cased oddly: "Radiance Of The Seas" |
+| `Itinerary` | `cruise_sailing.title` | |
+| `Sail Date` | `cruise_sailing.departure_date` | datetime in the cell, date in our column |
+| `# Days` | `cruise_sailing.duration_nights` | **the column name lies.** A "5-Night Western Caribbean Cruise" has `# Days` = 5, sailing 10-10 and disembarking 10-15, so the value is *nights*. Verify before trusting it wholesale. |
+| `Destination` | `cruise_sailing.destinations[]` | single value; our column is an array |
+| `Embarkation City` | `cruise_port_call` sequence 1 | |
+| `Disembarkation City` | `cruise_port_call` final sequence | |
+| `Sailing Record Type` | new enum, `amenity_departure` / `distinctive_voyage` | needs a Data-Model change first |
+| `All Amenities` | merchandising copy | see the caution below |
+| `US Group #` / `CA Group #` | **Internal. Never serve it.** | a group booking reference; drop it at the mapper the way `public.ts` already drops `lead_price_cents` |
+
+Adding any of these fields means updating `docs/Data-Model.md` first and regenerating the
+docx, per `CLAUDE.md`.
+
+### Three cautions
+
+1. **9,075 rows is not hand entry, and should not become a feed dump either.** §4.7 item 3
+   is still right: "A curated set of six well-photographed sailings converts better than an
+   unfiltered feed dump." The realistic shape is *import the file into Postgres as the
+   breadth layer, curate a handful into `trips.ts` as the editorial layer* — which is
+   exactly the two-layer split already running on `/explore/results`.
+2. **The amenity text is a promotional offer, so publishing it is marketing material.**
+   §1.3.1 requires InteleTravel compliance approval before launch for the whole public site,
+   and offer language is the most scrutinised kind. Separately, this is a **Travel Leaders
+   Network** file while the host relationship is **InteleTravel**, and §1.3.5 says "Website
+   content must ONLY be InteleTravel content and no other content mentioned." Whether TLN
+   group amenities count as InteleTravel content is a question for compliance, not for this
+   document. **Get it in writing before any amenity string reaches a public page.** Using the
+   file internally, to decide what Gyasi curates and pitches, raises none of this.
+3. **It is a dated snapshot, not a feed.** The filename says "as of September 25 2026", and
+   `US Group Status` is already `Active` on 8,722 rows, `None` on 351, `Closed` on 1. A
+   sailing whose group closes is stale the moment it does. Re-import on each new file TLN
+   issues, and stamp every row with the source filename and import date so a stale sailing
+   is traceable rather than mysterious.
+
+### Reading the file
+
+System Python is externally managed on this Mac, so `pip install openpyxl` fails with
+PEP 668. Use a throwaway venv:
+
+```bash
+python3 -m venv /tmp/xlsx && /tmp/xlsx/bin/pip install openpyxl
+/tmp/xlsx/bin/python -c "
+import openpyxl
+wb = openpyxl.load_workbook('ADD and DV Departures.xlsx', read_only=True, data_only=True)
+ws = wb['All Sailings']
+rows = ws.iter_rows(values_only=True)
+hdr = next(rows)
+print(hdr)
+"
+```
+
+`read_only=True` matters at this size. `data_only=True` returns computed values rather than
+formulas.
+
+### Recommended shape, if this is built
+
+1. **Update `docs/Data-Model.md` first** for `sailing_record_type`, the amenity text, and the
+   group number's Internal classification.
+2. **A one-off import script, not an Edge Function.** Parsing a 2.7 MB workbook is a
+   developer action run against a file on disk, not something a Deno function should do. It
+   writes to the same `cruise_sailing` / `cruise_port_call` tables `cruise-sync` already owns,
+   so the public read path does not change at all.
+3. **Filter on import.** The six matching lines, Caribbean and Bahamas, departures inside the
+   next twelve months. That is a few hundred rows rather than 9,075, and it is the set Gyasi
+   actually sells.
+4. **Stamp provenance on every row:** source filename, the "as of" date, and the import
+   timestamp. Same discipline `proof.ts` already applies to unverified claims.
+5. **Keep the group number server-side** and keep the amenity text behind the compliance
+   answer in caution 2. Neither needs to block the import; both can be withheld at the mapper
+   until they are cleared.
+6. **Curate six to ten into `trips.ts` by hand** with real copy and images. That is the part
+   that converts, and the part no import produces.
+
+---
+
+## 9. Appendix — the saved template
 
 Kept verbatim in shape, with the two broken template literals repaired so it parses.
 Still contains placeholder selectors and a dummy domain. **Not runnable against a real
