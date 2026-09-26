@@ -264,7 +264,8 @@ RETURNS TABLE (
     active_count    integer,
     in_motion_count integer,
     inquiry_count   integer,
-    archived_count  integer
+    archived_count  integer,
+    tag_facets      jsonb
 )
 LANGUAGE sql
 STABLE
@@ -277,7 +278,7 @@ AS $$
          WHERE a.id = public.current_agent_id()
     ),
     book AS (
-        SELECT c.id, c.status
+        SELECT c.id, c.status, c.tags
           FROM public.client c
          CROSS JOIN me
          WHERE c.agent_id = me.agent_id
@@ -308,6 +309,28 @@ AS $$
         SELECT DISTINCT client_id FROM book_trip
          WHERE status = 'inquiry'
            AND client_id NOT IN (SELECT client_id FROM in_motion)
+    ),
+    -- The tag chips above the roster, and the reason they are a READ rather than a constant.
+    -- `client.tags` is free-form (Data-Model §6.1) — there is no vocabulary table and no
+    -- CHECK — so the only honest source for "which tags does this agent use" is the book
+    -- itself. A hardcoded chip row would offer filters that match nothing and omit the ones
+    -- he actually types, which is how the prototype's two chip rows came to disagree with
+    -- each other (`Active/VIP/Honeymoon/Family/Lead/Archived` on the page,
+    -- `Active/VIP/Honeymoon/New` in the rail) and with the data under both.
+    --
+    -- Counted over active clients only: an archived client's tags are not a filter the
+    -- active roster can usefully offer, and including them puts chips on screen that return
+    -- nothing until the status filter is changed too.
+    facets AS (
+        SELECT jsonb_agg(jsonb_build_object('tag', tag, 'count', n)
+                         ORDER BY n DESC, tag) AS js
+          FROM (
+              SELECT t.tag, count(*)::integer AS n
+                FROM book b
+               CROSS JOIN LATERAL unnest(b.tags) AS t(tag)
+               WHERE b.status = 'active'
+               GROUP BY t.tag
+          ) g
     )
     SELECT
         count(*) FILTER (WHERE b.status = 'active')::integer,
@@ -315,13 +338,16 @@ AS $$
                            AND b.id IN (SELECT client_id FROM in_motion))::integer,
         count(*) FILTER (WHERE b.status = 'active'
                            AND b.id IN (SELECT client_id FROM to_qualify))::integer,
-        count(*) FILTER (WHERE b.status = 'archived')::integer
+        count(*) FILTER (WHERE b.status = 'archived')::integer,
+        coalesce((SELECT js FROM facets), '[]'::jsonb)
       FROM book b;
 $$;
 
 COMMENT ON FUNCTION public.agent_client_roster_summary() IS
-    'Screen 3.3.1''s header counts and the Archived filter chip''s total. Reads '
-    'client.status, which is outside the column grant to `authenticated`.';
+    'Screen 3.3.1''s header counts, the Archived chip''s total, and the tag chips. Reads '
+    'client.status and client.tags, both outside the column grant to `authenticated`. '
+    'tag_facets is derived from the book rather than from a vocabulary table, because '
+    'client.tags is free-form and has neither.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Grants

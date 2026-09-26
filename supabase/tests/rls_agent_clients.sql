@@ -228,6 +228,25 @@ SELECT pg_temp.assert(
        FROM public.agent_client_roster(NULL, ARRAY['vip'], NULL, 200, 0)),
     'the tag filter returns only rows carrying that tag');
 
+-- The chips are derived from the book, not from a constant. `client.tags` is free-form and
+-- has no vocabulary table, so a hardcoded chip row would offer filters matching nothing.
+SELECT pg_temp.assert(
+    (SELECT jsonb_array_length(tag_facets) FROM public.agent_client_roster_summary()) > 0,
+    'tag_facets is populated from the agent''s own book');
+
+-- Every chip must return at least one row when clicked. A facet whose count disagrees with
+-- the filter is the specific failure this catches: both read client.tags, and if the facet
+-- counted archived clients while the default roster shows active ones, the chip would look
+-- live and return nothing.
+SELECT pg_temp.assert(
+    (SELECT bool_and(
+        (SELECT count(*) FROM public.agent_client_roster(
+             ARRAY['active']::client_status[], ARRAY[f.tag], NULL, 200, 0)) = f.n)
+       FROM (SELECT x->>'tag' AS tag, (x->>'count')::integer AS n
+               FROM public.agent_client_roster_summary() s,
+                    jsonb_array_elements(s.tag_facets) x) f),
+    'every tag facet count equals what that chip actually returns');
+
 -- total_count is the count BEFORE the page window, which is the only thing a paginator can
 -- use. A window-aware count would equal the page size and the last page would never render.
 SELECT pg_temp.assert(

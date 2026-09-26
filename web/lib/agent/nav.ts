@@ -9,11 +9,18 @@ import type { IconName } from "@/components/ui/icon-paths";
  * seven, and all three §3.2 frames pass `tab="home"` — so the drawing treats §3.2 as ONE
  * rail destination carrying three views rather than three destinations.
  *
- * Gyasi took the prototype's seven on 2026-09-19, PROVISIONALLY: the rail's final shape is
- * revisited at §3.3, once there is more than one agent section to use it with. §6.4 is
- * therefore NOT amended yet, which is the difference from the 2026-09-06 client-nav call —
- * that one settled the question, this one defers it. If the eleven win later, it is three
- * registry entries and deleting the view switcher; nothing else moves.
+ * Gyasi took the prototype's seven on 2026-09-19, provisionally, with the final shape to be
+ * revisited at §3.3 once there was more than one agent section to use the rail with. That
+ * revisit happened on 2026-09-26 when §3.3.1 shipped and Clients became the second live
+ * destination: THE SEVEN ARE FINAL. §6.4 is amended to match, so the eleven it named are no
+ * longer an outstanding claim against this file.
+ *
+ * What the second destination settled that one could not: the rail's job is to hold sections,
+ * and §3.2's three views (Worklist, Pipeline, Calendar) are three views of one section — they
+ * share a read model, a date scope and a header. Promoting them to three rail entries would
+ * have made the rail's first three rows one screen while Clients, Trips and Commission were
+ * each a whole area. Templates and Settings stay off it for the reason §6.6 gives about the
+ * phone bar: depth is not the same as reach.
  *
  * WHY AVAILABILITY IS THREE STATES AND NOT `built: boolean`.
  *
@@ -59,7 +66,7 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "users",
     label: "Clients",
     surfaces: ["rail", "bar", "tablet"],
-    availability: { kind: "planned", phase: "P1", section: "§3.3" },
+    availability: { kind: "built" },
   },
   {
     id: "trips",

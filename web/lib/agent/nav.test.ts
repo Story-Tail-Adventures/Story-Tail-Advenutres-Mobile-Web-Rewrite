@@ -50,7 +50,6 @@ describe("AGENT_DESTINATIONS", () => {
     // The snapshot that replaces the client test's phase assertion. Editing it is the point:
     // when §3.3 ships, this line changes in the same commit.
     expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
-      "clients",
       "trips",
       "leads",
       "messages",
@@ -58,7 +57,10 @@ describe("AGENT_DESTINATIONS", () => {
       "reports",
       "more",
     ]);
-    expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual(["worklist"]);
+    // `clients` joined `worklist` when §3.3.1 shipped on 2026-09-26. Trip DETAIL exists at
+    // /agent/trips/[tripId] but `trips` stays unbuilt: the rail entry points at the LIST,
+    // which is §3.4.1 and has no route.
+    expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual(["worklist", "clients"]);
   });
 
   it("gives every planned destination a phase and a section", () => {

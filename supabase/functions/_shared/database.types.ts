@@ -3170,6 +3170,7 @@ export type Database = {
           archived_count: number
           in_motion_count: number
           inquiry_count: number
+          tag_facets: Json
         }[]
       }
       agent_inbox: {
