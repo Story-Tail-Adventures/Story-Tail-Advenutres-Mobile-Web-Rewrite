@@ -18,13 +18,19 @@ export function PaymentsSummaryCard({
 }) {
   const rows = full ? payments : payments.filter((p) => p.status !== "paid").slice(0, 3);
 
+  // TWO EMPTY STATES, NOT ONE. The sidebar hides paid milestones, so `rows` empties both
+  // when a trip has no schedule at all and when every milestone on it has been paid — and
+  // those are opposite facts. Collapsing them told an advisor "No payments scheduled." on a
+  // trip that had been paid for in full, which is the one reading of that card nobody could
+  // act on. `payments` is the unfiltered set, so it is what decides which sentence applies.
+  const emptyCopy =
+    payments.length === 0 ? AGENT_COPY.tripPaymentsEmpty : AGENT_COPY.tripPaymentsAllSettled;
+
   return (
     <div className="card p-3.5">
       <p className="t-title-s">Payments</p>
       {rows.length === 0 ? (
-        <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-          {AGENT_COPY.tripPaymentsEmpty}
-        </p>
+        <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">{emptyCopy}</p>
       ) : (
         rows.map((p) => (
           <div key={p.milestoneId} className="flex items-center gap-2 py-1.5">

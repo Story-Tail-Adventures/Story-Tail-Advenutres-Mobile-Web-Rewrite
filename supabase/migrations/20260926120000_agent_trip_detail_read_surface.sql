@@ -100,12 +100,19 @@ AS $$
     -- "Last activity" is the later of a stage change or a message on this trip's threads.
     -- Both are business events worth surfacing; document uploads and payments are not, since
     -- neither is a signal the agent needs an "activity" line to catch their attention for.
+    --
+    -- ARCHIVED THREADS DO NOT COUNT, and every other conversation read on this side already
+    -- agrees: agent_kpis, agent_trip_board's unread LATERAL and agent_inbox all carry
+    -- `cv.archived_at IS NULL`, as does the client-side policy. Without it here, archiving a
+    -- thread — the advisor's only way to put one down — left its last message still driving
+    -- this field, so the worklist reported no activity on a trip whose header still named a
+    -- date from the thread they had deliberately filed away.
     activity AS (
         SELECT greatest(
                    (SELECT max(h.changed_at) FROM public.trip_status_history h
                      WHERE h.trip_id = p_trip_id),
                    (SELECT max(cv.last_message_at) FROM public.conversation cv
-                     WHERE cv.trip_id = p_trip_id)
+                     WHERE cv.trip_id = p_trip_id AND cv.archived_at IS NULL)
                ) AS at
     ),
     comps AS (
@@ -398,6 +405,7 @@ AS $$
        AND t.agent_id = public.current_agent_id()
        AND t.archived_at IS NULL
      WHERE cv.trip_id = p_trip_id
+       AND cv.archived_at IS NULL
        AND m.archived_at IS NULL
      ORDER BY m.created_at;
 $$;
@@ -406,7 +414,9 @@ COMMENT ON FUNCTION public.agent_trip_messages(uuid) IS
     '`is_internal_note` IS SELECTED, unlike the client-side message read that excludes it. '
     'The exclusion exists to hide an agent''s own internal notes from the client on that '
     'thread; an agent viewing their own trip needs to see the note they left. Read-only in '
-    'this pass — sending is §3.10.';
+    'this pass — sending is §3.10. Archived CONVERSATIONS are excluded, matching agent_inbox '
+    'and the client policy: archiving is the advisor''s way to put a thread down, and a tab '
+    'that keeps listing it makes the gesture do nothing.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3.4.2 Activity tab — the business timeline, not the forensic audit trail

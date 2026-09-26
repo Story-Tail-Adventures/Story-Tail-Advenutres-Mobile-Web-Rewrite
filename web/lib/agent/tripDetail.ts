@@ -22,6 +22,21 @@ import type { IconName } from "@/components/ui/icon-paths";
  * tab is a populated object (or empty array) rather than `null`.
  */
 
+/**
+ * The overview's three outcomes, where the other six loaders have two.
+ *
+ * `null` means "the read failed" everywhere else in this file and in `queries.ts`, and that
+ * convention holds — but this loader has a third case the others do not: zero rows, which
+ * `agent_trip_overview` returns for a trip that does not exist AND for one belonging to
+ * another advisor, deliberately indistinguishable so trip ids cannot be probed. Collapsing
+ * that into `null` made a mistyped URL or a stale bookmark render "Something went wrong on
+ * our side" over a link into the traveler app. It is not our side and there is nothing to
+ * retry, so it gets its own arm and the page turns it into a real 404.
+ */
+export type TripOverviewResult =
+  | { ok: true; overview: TripDetailOverview }
+  | { ok: false; reason: "not-found" | "unavailable" };
+
 export type TripDetailOverview = {
   tripId: string;
   clientId: string;
@@ -29,7 +44,6 @@ export type TripDetailOverview = {
   title: string;
   tripType: string;
   status: string;
-  statusChangedLabel: string | null;
   startLabel: string | null;
   endLabel: string | null;
   destinations: string[];
@@ -56,14 +70,14 @@ export type TripDetailOverview = {
   nextUnpaidDueDate: string | null;
 };
 
-async function loadOverview(tripId: string): Promise<TripDetailOverview | null> {
+async function loadOverview(tripId: string): Promise<TripOverviewResult> {
   const [me, res] = await Promise.all([
     agentIdentity(),
     callAgentRead<AgentTripOverviewRow>("agent_trip_overview", { p_trip_id: tripId }),
   ]);
-  if (!res.ok) return null;
+  if (!res.ok) return { ok: false, reason: "unavailable" };
   const r = res.rows[0];
-  if (!r) return null;
+  if (!r) return { ok: false, reason: "not-found" };
 
   const cardOnFile =
     r.card_last4 && r.card_brand
@@ -72,14 +86,13 @@ async function loadOverview(tripId: string): Promise<TripDetailOverview | null> 
         }`
       : null;
 
-  return {
+  const overview: TripDetailOverview = {
     tripId: r.trip_id,
     clientId: r.client_id,
     clientName: r.client_display_name,
     title: r.title,
     tripType: r.trip_type,
     status: r.status,
-    statusChangedLabel: monthDay(localDate(r.status_changed_at, me.timeZone)),
     startLabel: monthDay(r.start_date),
     endLabel: monthDay(r.end_date),
     destinations: r.destinations ?? [],
@@ -101,6 +114,8 @@ async function loadOverview(tripId: string): Promise<TripDetailOverview | null> 
     today: r.as_of_date,
     nextUnpaidDueDate: r.next_unpaid_due_date,
   };
+
+  return { ok: true, overview };
 }
 
 /** `time` arrives as `HH:MM:SS`; the seconds are never meaningful to show. */

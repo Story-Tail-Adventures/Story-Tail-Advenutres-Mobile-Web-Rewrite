@@ -114,6 +114,11 @@ export const AGENT_COPY = {
   tripComponentsEmpty: "No components added yet.",
   tripItineraryEmpty: "No itinerary drafted yet.",
   tripPaymentsEmpty: "No payments scheduled.",
+  // NOT the same state as the line above, and saying so is the point. The sidebar hides
+  // paid milestones, so a trip whose balance has cleared has nothing left to list — and
+  // reporting "No payments scheduled." there tells an advisor the opposite of the truth
+  // about a trip that has been paid for in full.
+  tripPaymentsAllSettled: "All payments settled.",
   tripDocumentsEmpty: "No documents on file for this trip.",
   tripMessagesEmpty: "No messages on this trip yet.",
   tripActivityEmpty: "No activity recorded yet.",
@@ -151,6 +156,13 @@ export const AGENT_COPY = {
   notesFailed: "Could not save the note. Try again in a moment.",
   notesSaveLabel: "Save note",
   notesSavedLabel: "Saved",
+  // One sentence for both causes — deleted, and belonging to another advisor — because the
+  // accessor deliberately cannot tell them apart, and that is what stops trip ids being
+  // enumerated. It must not read as a fault on our side: nothing went wrong and there is
+  // nothing to retry.
+  tripNotFoundTitle: "No such trip",
+  tripNotFoundBody: "It may have been deleted, or it belongs to another advisor.",
+  tripNotFoundAction: "Back to the worklist",
 
   // ── Deferrals. Every one names the section that builds it. ──────────────
   // `tripDetailDeferred` lived here until §3.4.2 shipped. Every worklist section that

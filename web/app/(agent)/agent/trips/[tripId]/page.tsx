@@ -9,6 +9,7 @@ import { TripDocumentsList } from "@/components/agent/TripDocumentsList";
 import { TripItineraryView } from "@/components/agent/TripItineraryView";
 import { TripMessagesThread } from "@/components/agent/TripMessagesThread";
 import { TripNotesEditor } from "@/components/agent/TripNotesEditor";
+import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
 import {
   loadTripActivity,
@@ -54,9 +55,17 @@ export default async function AgentTripDetailPage({
   // Overview and payments back the header and the persistent sidebar on every tab; the rest
   // are fetched only for the tab actually being rendered — the same "fetch what this render
   // needs" discipline `loadWorklist`/`loadPipeline`/`loadCalendar` already follow.
-  const [overview, payments] = await Promise.all([loadTripOverview(tripId), loadTripPayments(tripId)]);
+  const [result, payments] = await Promise.all([loadTripOverview(tripId), loadTripPayments(tripId)]);
 
-  if (!overview || !payments) return <ErrorState />;
+  // A TRIP THAT IS NOT THERE IS NOT AN ERROR. `agent_trip_overview` answers zero rows for
+  // "no such trip" and "not yours" alike; both mean this URL has no page, and neither is a
+  // fault on our side that retrying fixes. `ErrorState` claimed both and sent the advisor to
+  // /dashboard — the traveler route — to recover. `TripNotFound` carries the reasoning for
+  // why this is a plain render rather than `notFound()`.
+  if (!result.ok && result.reason === "not-found") return <TripNotFound />;
+  if (!result.ok || !payments) return <ErrorState />;
+
+  const overview = result.overview;
 
   // NO `<AgentViews />` HERE, and the other three agent pages all have one. That strip is
   // §3.2's three views under the "Worklist" rail destination; Trip Detail is a different

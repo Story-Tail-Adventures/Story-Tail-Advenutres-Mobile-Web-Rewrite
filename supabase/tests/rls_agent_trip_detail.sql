@@ -99,6 +99,30 @@ UPDATE public.trip_component
  WHERE trip_id = :trip::uuid
    AND kind = 'flight';
 
+-- AN ARCHIVED CONVERSATION, carrying a message and a last_message_at far in the future.
+-- Nothing in the seed is archived, so both `cv.archived_at IS NULL` predicates — in
+-- agent_trip_messages and in agent_trip_overview's activity CTE — could be deleted with
+-- every assertion in this file still passing. The future date is what makes the second one
+-- fail loudly: if the predicate goes, `last_activity_at` jumps to 2099 and the at-a-glance
+-- grid reports activity on a trip nobody has touched.
+INSERT INTO public.conversation (
+    id, client_id, agent_id, trip_id, subject,
+    last_message_at, last_message_preview, client_unread_count, agent_unread_count,
+    archived_at)
+SELECT '01a0b1c2-d300-7000-8000-0000000000e1',
+       t.client_id, t.agent_id, t.id, 'Archived thread',
+       timestamptz '2099-01-01 00:00:00+00', 'Filed away.', 0, 0, now()
+  FROM public.trip t WHERE t.id = :trip::uuid;
+
+INSERT INTO public.message (
+    id, conversation_id, sender_user_id, sender_role, body, is_internal_note, created_at)
+SELECT '01a0b1c2-d300-7000-8000-0000000000e2',
+       '01a0b1c2-d300-7000-8000-0000000000e1',
+       pu.id, 'agent', 'This thread was archived and must not appear.', false,
+       timestamptz '2099-01-01 00:00:00+00'
+  FROM public.platform_user pu
+ WHERE pu.agent_id = '0195a2c0-1a00-7000-8000-000000000001';
+
 -- ── Expectations, captured as the owner before dropping into the agent's role ────
 --
 -- Derived from the tables rather than restated as literals, so a seed edit moves both sides
@@ -113,9 +137,13 @@ SELECT (SELECT count(*) FROM public.trip_component
        (SELECT count(*) FROM public.payment_milestone WHERE trip_id = :trip::uuid) AS milestones,
        (SELECT count(*) FROM public.document
          WHERE trip_id = :trip::uuid AND archived_at IS NULL)                      AS documents,
+       -- `c.archived_at IS NULL` here as well as in the function: the fixture above adds an
+       -- archived thread, so an expectation that counted it would agree with a broken
+       -- implementation and disagree with the correct one.
        (SELECT count(*) FROM public.message m JOIN public.conversation c
                                                 ON c.id = m.conversation_id
-         WHERE c.trip_id = :trip::uuid AND m.archived_at IS NULL)                  AS messages,
+         WHERE c.trip_id = :trip::uuid AND m.archived_at IS NULL
+           AND c.archived_at IS NULL)                                              AS messages,
        (SELECT count(*) FROM public.trip_status_history WHERE trip_id = :trip::uuid)
                                                                                    AS history,
        (SELECT count(*) FROM public.itinerary_activity a
@@ -208,6 +236,19 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.agent_trip_messages(:trip::uuid) WHERE is_internal_note) > 0,
     'INCLUDING the internal note — withheld from the traveler, never from the advisor');
+
+-- ARCHIVED THREADS ARE NOT INCLUDED, matching agent_inbox and the client policy. Archiving
+-- is the advisor's only way to put a thread down; a tab that keeps listing it makes the
+-- gesture do nothing.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_trip_messages(:trip::uuid)
+      WHERE body = 'This thread was archived and must not appear.') = 0,
+    'and NOT the archived thread''s message');
+SELECT pg_temp.assert(
+    (SELECT last_activity_at < timestamptz '2090-01-01 00:00:00+00'
+       FROM public.agent_trip_overview(:trip::uuid)),
+    'last_activity_at ignores the archived thread — its 2099 timestamp must not surface as '
+    'activity on a trip nobody has touched');
 
 -- THE DOCUMENT ALLOWLIST. The `receipt` is the agency''s own filing and must arrive; the
 -- `csv_import` fixture must not.

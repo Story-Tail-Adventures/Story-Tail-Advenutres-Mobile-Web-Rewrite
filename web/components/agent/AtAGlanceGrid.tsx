@@ -1,5 +1,6 @@
 import { AGENT_COPY } from "@/lib/agent/content";
 import type { TripDetailOverview } from "@/lib/agent/tripDetail";
+import { tripTypeLabel } from "@/lib/trips/tripType";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -24,7 +25,7 @@ export function AtAGlanceGrid({ overview }: { overview: TripDetailOverview }) {
   return (
     <div className="card p-3.5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Field label={AGENT_COPY.glanceTripType} value={overview.tripType} />
+        <Field label={AGENT_COPY.glanceTripType} value={tripTypeLabel(overview.tripType)} />
         <Field
           label={AGENT_COPY.glanceDestination}
           value={
