@@ -1926,6 +1926,70 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Client Detail.
 **Related screens:** Audit Event Detail.
 
+> **Amended 2026-09-26, on shipping 3.3.2 – 3.3.8.** The detail surface is built, on the web
+> in full and on the phone as a read. Seven SECURITY DEFINER accessors back it — the Overview
+> needs two, one row of the client's own facts and a list of household companions, and
+> `travel_preference` rides the Overview row because its `client_id` is UNIQUE.
+>
+> **The tab strip is SIX, and the prototype's seventh is disabled rather than cut.**
+> `CRMShell` draws "Account admin" with no artboard behind it; those screens are §3.9. A
+> disabled control promises a thing that will exist and §3.9 is a real planned section, which
+> is the distinction §3.2.1 settled — the roster's bulk-select was cut instead, because
+> nothing will ever consume it there.
+>
+> **3.3.3 has no distinct drawing and now has no distinct screen.** `A333_OverviewTab` is
+> literally `return <A332_ClientDetail/>`. The Overview IS the detail's default tab, which is
+> what the prototype was saying; it is recorded here so the next reader does not go looking
+> for a seventh screen.
+>
+> **The Snapshot's "Anniversary · Sep 14 (surprise flag)" is an invented field.**
+> `client.important_dates` is `{label, date, recurring}` (Data-Model §6.1) and there is no
+> surprise flag anywhere in the schema. The date survives, the flag is dropped — the same
+> class as §3.4.2's "Booking source" and §3.2.2's "Qualified" column. **"Frequent flyer ·
+> AAdvantage Platinum" is real but lives elsewhere**: `travel_preference.loyalty_programs`,
+> so it moved to the Preferences card where its data is. The loyalty NUMBER is never
+> rendered on either surface — it is an account credential, and a booking needs the
+> programme and the tier.
+>
+> **The Preferences card shows the dietary NOTE, not just the chips.** The closed vocabulary
+> from `20260904124903` has no slug for an allergy, so a real one arrives in
+> `travel_preference.dietary_notes` — the migration's own comment calls it "the allergy the
+> chip list cannot say". "Pescatarian" without "shellfish is a hard no" is worse than useless
+> to whoever books the restaurant.
+>
+> **3.3.8 is `audit_event`, and sign-ins are NOT in it.** The description above names logins
+> first and the prototype draws one. Sign-ins live in `auth_event` and already have their own
+> screen — **3.9.6 Login Activity** — so putting them here would build half of §3.9.6 under a
+> different heading and give two screens separate reads of one table. The tab unions events
+> targeting the CLIENT with events targeting their TRIPS, and that union is load-bearing: a
+> card authorization is recorded against the trip it was raised for, so scoping to the client
+> alone would have left the tab whose whole purpose is the timeline showing almost nothing.
+> A line at the foot of the tab says where sign-ins are rather than leaving a reader to wonder.
+>
+> **Three columns are unnameable rather than merely unselected**, asserted at apply time and
+> again in the test file: `document.storage_key`/`checksum_sha256` (a signed URL is
+> `trip-document-url`'s job), `companion.passport_number_encrypted` (the expiry and country
+> are what a trip needs; the number is not, and an accessor that returns it makes every caller
+> a place it can leak from), and `audit_event.ip_address`/`user_agent` (forensic columns that
+> belong to §3.9.6).
+>
+> **3.3.7's delete is an archive**, per Data-Model §20.1's soft-delete set, and only the
+> AUTHOR may edit or archive — enforced in SQL, not just offered in the UI. There is no
+> optimistic locking: `client_note` has no `version` column, Data-Model §20.4 lists the tables
+> that do, and adding one is a Data-Model change rather than this change's business.
+>
+> **The prototype's 300px client rail inside the detail is not built.** `CRMShell` redraws the
+> roster down the left of every tab. That is a second paginated read on every tab for a list
+> the previous page already showed, and §4.4's Pattern C asks for "persistent left
+> navigation" — which the agent rail already is.
+>
+> **Two phone departures.** The tab strip SCROLLS, which is Pattern C mobile's own
+> instruction and the opposite of the roster's wrapping chips. And the phone fetches ALL SEVEN
+> reads at once and switches tabs locally, where the web page fetches one tab's per
+> navigation: a tab on a desk is a navigation worth making shareable, and a tab on a phone is
+> a thumb moving two centimetres. The phone's Notes tab LISTS notes and does not compose them,
+> per §6.6.
+
 #### 3.3.9 Create Client
 **Purpose:** Add a new client record.
 **Primary elements:** Required (name, email); optional (phone, address, DOB, important dates, preferences, tags); "Invite to portal" toggle.
