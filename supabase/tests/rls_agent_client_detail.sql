@@ -344,4 +344,115 @@ SELECT pg_temp.assert(
         NOT LIKE '%user_agent%',
     'agent_client_activity cannot name a forensic column — those are §3.9.6''s');
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 10. §3.3.7's write — agent_write_client_note
+--
+-- Exercised as the OWNER, because the function is service_role only and the Edge Function
+-- is its only door. What is asserted as a client role is the thing that matters from out
+-- there: that neither `authenticated` nor `anon` can reach it at all.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Section 9 left the session as the OWNER, who can execute anything. The question here is
+-- what an AGENT can reach, so drop back into that role before asking.
+SELECT pg_temp.become(:gyasi::uuid);
+
+SELECT pg_temp.expect_denied(
+    $$SELECT public.agent_write_client_note(
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '00000000-0000-0000-0000-000000000001'::uuid, 'x', 'create')$$,
+    'even an AGENT cannot execute agent_write_client_note — service_role only');
+
+RESET ROLE;
+
+CREATE TEMP TABLE w AS
+SELECT
+    (SELECT belle FROM fix)                                                  AS client_id,
+    '0195a2c0-1a00-7000-8000-000000000001'::uuid                             AS agent_id,
+    (SELECT id FROM public.platform_user WHERE role = 'agent' LIMIT 1)       AS actor,
+    '0195a2c0-1a00-7000-8000-000000000700'::uuid                             AS new_note,
+    (SELECT jordan FROM fix)                                                 AS other_client;
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), '  A note with surrounding space.  ', 'create')) = 'created',
+    'create writes a note');
+
+SELECT pg_temp.assert(
+    (SELECT body FROM public.client_note WHERE id = (SELECT new_note FROM w))
+        = 'A note with surrounding space.',
+    'the body is trimmed on the way in, so a stray newline is not content');
+
+-- A re-save of identical text must NOT bump updated_at: the tab shows "edited" off that
+-- column, and a timestamp that moved with nothing behind it is a claim the note changed.
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), 'A note with surrounding space.', 'update')) = 'noop',
+    're-saving identical text is a noop, not a silent updated_at bump');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), 'Rewritten.', 'update')) = 'changed',
+    'update rewrites the body');
+
+-- An empty body is NOT a way to delete. Collapsing the two would make a mistyped save
+-- silently destructive.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), '   ', 'update')),
+    'a whitespace-only body is refused rather than treated as a delete');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), 'x', 'obliterate')),
+    'an unrecognised op writes nothing rather than falling through to a real one');
+
+-- A note id that belongs to a DIFFERENT client must not be reachable by naming this one.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_write_client_note(
+        (SELECT other_client FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), 'x', 'update')),
+    'a note cannot be edited through another client''s id');
+
+-- Not this agent's client: the second advisor from section 8 owns nothing here.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), '0195a2c0-1a00-7000-8000-000000000600'::uuid,
+        (SELECT actor FROM w), (SELECT new_note FROM w), 'x', 'update')),
+    'another advisor cannot write a note on this advisor''s client');
+
+-- Only the AUTHOR may edit. One advisor exists until P3, so this predicate is always
+-- satisfied in practice — which is exactly when it is most likely to have been skipped.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w),
+        '00000000-0000-0000-0000-0000000000ee'::uuid,
+        (SELECT new_note FROM w), 'x', 'update')),
+    'a note may only be edited by its author');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_write_client_note(
+        (SELECT client_id FROM w), (SELECT agent_id FROM w), (SELECT actor FROM w),
+        (SELECT new_note FROM w), NULL, 'archive')) = 'archived',
+    'archive soft-deletes the note');
+
+SELECT pg_temp.become(:gyasi::uuid);
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1 FROM public.agent_client_notes((SELECT belle FROM fix)) n
+         WHERE n.note_id = '0195a2c0-1a00-7000-8000-000000000700'::uuid),
+    'an archived note leaves the Notes tab but not the record');
+RESET ROLE;
+
+SELECT pg_temp.assert(
+    (SELECT archived_at IS NOT NULL FROM public.client_note
+      WHERE id = '0195a2c0-1a00-7000-8000-000000000700'::uuid),
+    '... and the row is still there, which is what soft delete means');
+
 ROLLBACK;

@@ -78,7 +78,6 @@ MESSAGE_TABLES = [
             # the pipeline and calendar keys were never added. Delete the Kotlin constant
             # and its three usages when trip detail lands on Compose; nothing here needs
             # touching then either.
-            "clientDetailDeferred": "CLIENT_DETAIL_DEFERRED",
             "messagesDeferred": "MESSAGES_DEFERRED",
             "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
             "quickAddClientDeferred": "QUICK_ADD_CLIENT_DEFERRED",

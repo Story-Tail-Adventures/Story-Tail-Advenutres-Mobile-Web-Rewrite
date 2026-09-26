@@ -381,7 +381,6 @@ class AgentWorklistTest {
     fun every_deferral_names_the_section_that_builds_it() {
         for (copy in listOf(
             AgentCopy.TRIP_DETAIL_DEFERRED,
-            AgentCopy.CLIENT_DETAIL_DEFERRED,
             AgentCopy.MESSAGES_DEFERRED,
             AgentCopy.QUICK_ADD_TRIP_DEFERRED,
             AgentCopy.QUICK_ADD_CLIENT_DEFERRED,

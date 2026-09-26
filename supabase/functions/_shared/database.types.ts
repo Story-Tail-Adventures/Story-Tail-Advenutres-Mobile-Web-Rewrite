@@ -3549,6 +3549,20 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_milestone_status"]
         }[]
       }
+      agent_write_client_note: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_body: string
+          p_client_id: string
+          p_note_id: string
+          p_op: string
+        }
+        Returns: {
+          note_id: string
+          outcome: string
+        }[]
+      }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
       cruise_sync_tick: { Args: never; Returns: number }
       current_agent_id: { Args: never; Returns: string }
