@@ -17,6 +17,9 @@ export const ICON_PATHS = {
   card: "M3 6h18v12H3zM3 10h18M7 15h3",
   shield: "M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6l-8-3Z",
   heart: "M12 21s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9Z",
+  // §2.5.1's tiles. Copied verbatim from the prototype, per the note above.
+  lock: "M6 11V8a6 6 0 0 1 12 0v3m-9 4h2m-5-4h12v9H5v-9Z",
+  link: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1m-1 8a5 5 0 0 1-7 0l-3-3a5 5 0 0 1 7-7l1 1",
   star: "m12 3 2.6 5.5 6 .9-4.3 4.3 1 6L12 17l-5.4 2.7 1-6L3.3 9.4l6-.9L12 3Z",
   check: "m5 12 5 5L20 6",
   arrow_right: "M5 12h14m-5-6 6 6-6 6",
@@ -56,6 +59,18 @@ export const ICON_PATHS = {
   building: "M4 22V4h10v18M14 22V10h6v12M8 8h2M8 12h2M8 16h2M17 14h.01M17 18h.01",
   sun: "M12 4v2m0 12v2M4 12H2m20 0h-2M5.6 5.6 4 4m16 16-1.6-1.6M5.6 18.4 4 20m16-16-1.6 1.6M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
   receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6m-6 4h6m-6 4h3",
+  // Added for §3.2, the agent worklist. Same rule as the rest — the `d` strings are
+  // the prototype's, copied rather than redrawn, so the two sets cannot drift.
+  plus: "M12 5v14m-7-7h14",
+  inbox: "M3 12h6l2 3h2l2-3h6M3 12V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 12v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6",
+  briefcase: "M3 7h18v13H3zM8 7V4h8v3M3 12h18",
+  dollar: "M12 3v18m5-14a4 4 0 0 0-4-4h-2a3 3 0 0 0 0 6h2a3 3 0 0 1 0 6h-2a4 4 0 0 1-4-4",
+  chart: "M3 21V3m0 18h18m-3-6V9m-5 12V6M8 21v-8",
+  pulse: "M3 12h4l3-8 4 16 3-8h4",
+
+  // Added for the top bar's theme toggle. `sun` is already above (ported for §2.2); this
+  // is its pair, the prototype's `moon` at shared/icons.jsx, copied not redrawn.
+  moon: "M21 13A8 8 0 0 1 11 3a8 8 0 1 0 10 10Z",
 } as const satisfies Record<string, string>;
 
 export type IconName = keyof typeof ICON_PATHS;

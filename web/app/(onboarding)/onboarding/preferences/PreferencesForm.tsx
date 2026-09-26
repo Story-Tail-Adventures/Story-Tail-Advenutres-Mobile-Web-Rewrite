@@ -74,15 +74,25 @@ function initialLoyaltyRows(
   return rows;
 }
 
+/**
+ * `action` and `footer` exist so Screen 2.5.3 can mount THIS form rather than grow a
+ * second set of rules. Both default to the wizard's, so 2.1.11 is unchanged.
+ *
+ * Passing a server action as a prop is supported and is NOT the "function across the RSC
+ * boundary" trap: a server action is a serialisable reference, not an arbitrary closure.
+ * The account route passes one that omits `advance`, so the Edge Function takes the write
+ * without moving the onboarding cursor.
+ */
 export function PreferencesForm({
   defaults,
+  action = savePreferencesAction,
+  footer,
 }: {
   defaults: PreferencesFormValues;
+  action?: typeof savePreferencesAction;
+  footer?: React.ReactNode;
 }) {
-  const [state, formAction, saving] = useActionState(
-    savePreferencesAction,
-    initialPreferencesState,
-  );
+  const [state, formAction, saving] = useActionState(action, initialPreferencesState);
   const shown = state.values ?? defaults;
 
   const errors = state.fieldErrors ?? {};
@@ -333,6 +343,7 @@ export function PreferencesForm({
         </fieldset>
       </form>
 
+      {footer ?? (
       <OnboardingActions
         formId={FORM_ID}
         saving={saving}
@@ -345,6 +356,7 @@ export function PreferencesForm({
         backHref={previousRoute(STEP_INDEX)}
         backLabel={WIZARD_BACK_LABEL}
       />
+      )}
     </>
   );
 }

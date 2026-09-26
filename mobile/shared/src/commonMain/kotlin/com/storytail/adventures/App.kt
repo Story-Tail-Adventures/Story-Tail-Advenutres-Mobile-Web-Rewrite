@@ -11,17 +11,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.storytail.adventures.api.Assurance
+import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.ui.screens.agent.AgentRoute
+import com.storytail.adventures.api.WalletRepository
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
 import com.storytail.adventures.ui.nav.AppRoute
+import com.storytail.adventures.ui.nav.SessionGate
 import com.storytail.adventures.ui.nav.Navigator
 import com.storytail.adventures.ui.nav.PlatformBackHandler
 import com.storytail.adventures.ui.nav.rememberNavigator
@@ -46,6 +52,9 @@ import com.storytail.adventures.ui.screens.auth.ResetPasswordViewModel
 import com.storytail.adventures.ui.screens.auth.VerifyEmailEvent
 import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
+import com.storytail.adventures.ui.screens.account.AccountRoute
+import com.storytail.adventures.ui.screens.messages.MessagesRoute
+import com.storytail.adventures.ui.screens.wallet.WalletRoute
 import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
@@ -63,10 +72,16 @@ fun App() {
         var authRepository by remember { mutableStateOf<AuthRepository?>(null) }
         var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
         var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
+        var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
+        var walletRepository by remember { mutableStateOf<WalletRepository?>(null) }
+        var agentRepository by remember { mutableStateOf<AgentRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
             tripRepository = SupabaseClientProvider.tripRepository()
+            accountRepository = SupabaseClientProvider.accountRepository()
+            walletRepository = SupabaseClientProvider.walletRepository()
+            agentRepository = SupabaseClientProvider.agentRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -86,6 +101,36 @@ fun App() {
         )
 
         /**
+         * The row the gate below resolves, KEPT rather than dropped.
+         *
+         * `platform_user` carries `display_name` and `time_zone`, both added to this read
+         * for §3.2's greeting, and the gate used to throw the whole status away after
+         * reading the role off it — so [AgentSectionHost] issued a second identical select
+         * behind a full-screen splash, serialised ahead of the four worklist RPCs, with its
+         * own independent way to fail. One read, one failure point.
+         */
+        var onboardingStatus by remember { mutableStateOf<OnboardingStatus?>(null) }
+
+        /**
+         * Where the gate last sent the stack, ACROSS an Activity recreation.
+         *
+         * This is what tells a session CHANGE apart from the same session being re-delivered
+         * — and without it, `rememberNavigator`'s saver accomplishes nothing visible. On a
+         * rotation the effect below re-runs from scratch: `sessionStatus` re-emits
+         * `Initializing` and then `Authenticated`, and the old code read each of those as
+         * news and called `resetTo` twice, so a restored back stack was wiped on the way
+         * back up. That is why rotating anywhere in the app landed you on the Worklist.
+         *
+         * A DESTINATION AND NOT A BOOLEAN. See [SessionGate] — a boolean cannot tell
+         * "MfaChallenge became Dashboard" from "the same session arrived twice", and the
+         * MFA screen navigates nowhere on its own.
+         *
+         * Saveable, not `remember`: a plain one would be null again after exactly the
+         * recreation it exists to notice.
+         */
+        var lastGateDestination by rememberSaveable { mutableStateOf<String?>(null) }
+
+        /**
          * The session decides the stack, not the other way round.
          *
          * Signing in resets rather than pushes, so the sign-in form is not one back gesture
@@ -96,6 +141,10 @@ fun App() {
          * Restoring a persisted session lands straight on the dashboard, which is what
          * proves the round trip survived an app kill. Initializing has its own route so a
          * returning user does not see Login flash before the session resolves.
+         *
+         * EACH ARM RESETS ONLY WHEN THE ANSWER CHANGED, per [SessionGate]. The onboarding
+         * read still happens every time, because [onboardingStatus] is what the screens
+         * below render from and it does not survive the recreation.
          */
         LaunchedEffect(sessionStatus, onboardingRepository) {
             when (sessionStatus) {
@@ -104,20 +153,40 @@ fun App() {
                     // exists. Same three-way gate the web proxy applies in
                     // web/lib/supabase/middleware.ts, and then the same onboarding gate the
                     // (client) layout applies after it.
-                    nav.resetTo(
-                        when {
+                    run {
+                        val destination = when {
                             repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
-                            else -> onboardingRepository?.let { destinationFor(it.status()) }
-                                ?: AppRoute.Dashboard
-                        },
-                    )
+                            else -> onboardingRepository?.let { onboarding ->
+                                // Assigned BEFORE the route is chosen, so anything the
+                                // route then renders already has it.
+                                val status = onboarding.status()
+                                onboardingStatus = status
+                                destinationFor(status)
+                            } ?: AppRoute.Dashboard
+                        }
+                        // Only when the destination actually moved. The same answer means
+                        // the same session arriving again after a recreation, with the
+                        // stack the user was on already restored underneath us.
+                        SessionGate.onAuthenticated(lastGateDestination, destination)?.let {
+                            nav.resetTo(it)
+                        }
+                        lastGateDestination = SessionGate.key(destination)
+                    }
 
-                SessionStatus.Initializing -> nav.resetTo(AppRoute.Resolving)
+                // Only before anything has ever resolved. After a recreation the flow
+                // re-emits this before the session comes back, and showing the splash over a
+                // restored screen would be a flash of nothing on every rotation.
+                SessionStatus.Initializing -> if (SessionGate.showsSplash(lastGateDestination)) {
+                    nav.resetTo(AppRoute.Resolving)
+                }
 
                 // The front door is 2.0.1 now, not Login. Before §2.0 existed, opening the
                 // app without a session put a password form in front of somebody who had
                 // just installed it and had nothing to sign in with.
-                else -> nav.onSignedOut(AppRoute.PublicLanding)
+                else -> {
+                    nav.onSignedOut(AppRoute.PublicLanding)
+                    lastGateDestination = SessionGate.SIGNED_OUT
+                }
             }
         }
 
@@ -127,6 +196,32 @@ fun App() {
 
         when (val route = nav.current) {
             AppRoute.Resolving -> SplashScreen()
+
+            // Screen Inventory §3.2 and §3.3. A SIBLING host, not a wrapper — see AgentRoute.
+            // Both agent tabs share one branch because they share one host, one repository
+            // and one sign-out; AgentRoute's own `when` picks the screen.
+            AppRoute.Worklist,
+            AppRoute.AgentClients,
+            is AppRoute.AgentClientDetail,
+            -> {
+                val scope = rememberCoroutineScope()
+                val agent = agentRepository
+                if (agent == null) {
+                    SplashScreen()
+                } else {
+                    AgentSectionHost(
+                        route = route,
+                        agent = agent,
+                        status = onboardingStatus,
+                        nav = nav,
+                        // The same call the client shell's Account tab makes. §3.12 has not
+                        // built More, so the top bar is still the only way out of the agent
+                        // shell — and before §3.2 an agent signing in on a phone landed in
+                        // the client shell, which has one.
+                        onSignOut = { scope.launch { repo.signOut() } },
+                    )
+                }
+            }
 
             // Screen Inventory §2.0. One host for all nine screens — see PublicRoute.
             AppRoute.PublicLanding,
@@ -212,7 +307,6 @@ fun App() {
             is AppRoute.PastTrip,
             is AppRoute.TripUpdate,
             -> {
-                val scope = rememberCoroutineScope()
                 // The §2.2 section host, matching how PublicRoute and OnboardingRoute are
                 // handed a route rather than App.kt branching per screen.
                 val trips = tripRepository
@@ -230,6 +324,85 @@ fun App() {
                         // in rather than read from the clock inside them — see
                         // domain/trip/TripStatus.kt.
                         today = LocalDate.parse(today),
+                    )
+                }
+            }
+
+            // §2.6, listed for the same reason: the `when` stays exhaustive.
+            AppRoute.Messages,
+            is AppRoute.ConversationThread,
+            AppRoute.NewConversation,
+            -> {
+                val trips = tripRepository
+                if (trips == null) {
+                    SplashScreen()
+                } else {
+                    // No `today` parameter: §2.6's dates are all rendered in the DEVICE zone
+                    // through `localToday()` at the point of use, not derived from App.kt's
+                    // UTC date. The thread's separators and the inbox's timestamps have to
+                    // agree with each other, and the device is the only clock that knows where
+                    // the traveler is.
+                    MessagesRoute(route = route, nav = nav, trips = trips)
+                }
+            }
+
+            // §2.4, listed for the same reason: the `when` stays exhaustive, so a route added to
+            // AppRoute without a home is a compile error rather than a screen that silently
+            // falls through. That is not hypothetical — it caught these six.
+            AppRoute.Wallet,
+            is AppRoute.WalletAuthorize,
+            is AppRoute.WalletAuthorization,
+            is AppRoute.WalletRemoveAuthorization,
+            is AppRoute.WalletActivity,
+            is AppRoute.WalletUseDetail,
+            -> {
+                val walletRepo = walletRepository
+                val trips = tripRepository
+                if (walletRepo == null || trips == null) {
+                    SplashScreen()
+                } else {
+                    // `trips` is here for 2.4.3 alone, which needs the trip's balance due to
+                    // derive its limit presets. Everything else in §2.4 comes from the wallet.
+                    WalletRoute(route = route, nav = nav, wallet = walletRepo, trips = trips)
+                }
+            }
+
+            // Every §2.5 route goes to one host, listed for the same reason §2.2's are: the
+            // `when` stays exhaustive, so a route added to AppRoute without a home fails to
+            // compile rather than falling through to whatever branch happened to be last.
+            AppRoute.Account,
+            AppRoute.AccountPersonal,
+            AppRoute.AccountPreferences,
+            AppRoute.AccountDocuments,
+            AppRoute.AccountNotifications,
+            AppRoute.AccountSecurity,
+            AppRoute.AccountConnected,
+            AppRoute.AccountPrivacy,
+            AppRoute.AccountClose,
+            AppRoute.AccountHelp,
+            -> {
+                val scope = rememberCoroutineScope()
+                val account = accountRepository
+                val onboarding = onboardingRepository
+                val trips = tripRepository
+                if (account == null || onboarding == null || trips == null) {
+                    SplashScreen()
+                } else {
+                    AccountRoute(
+                        route = route,
+                        nav = nav,
+                        account = account,
+                        // 2.5.2 and 2.5.3 write through the wizard's own Edge Functions,
+                        // minus the `advance` flag — see AccountRoute.
+                        onboarding = onboarding,
+                        // 2.5.4 opens a file through `trip-document-url`, which is the only
+                        // door into the bucket and works for an account-scoped document
+                        // too: it checks `client_id` before it looks at `trip_id`.
+                        trips = trips,
+                        // 2.5.7 reads MFA state from GoTrue rather than the dead
+                        // `mfa_device` table, exactly as 2.1.6 writes it.
+                        auth = repo,
+                        today = today,
                         onSignOut = { scope.launch { repo.signOut() } },
                     )
                 }
@@ -403,11 +576,68 @@ fun App() {
  * cleared on completion, but the gate does not depend on that having happened.
  */
 fun destinationFor(status: OnboardingStatus?): AppRoute = when {
+    // FAILS OPEN TO THE CLIENT SHELL, and with two shells that direction is the security
+    // property rather than a convenience. A bookkeeping query going wrong must not lock
+    // somebody out of their own dashboard — but rendering the WORKLIST on a failed read
+    // would put an unknown visitor in front of somebody else's book. A client who lands on
+    // the dashboard by accident sees their own trips; an agent who does sees an empty one
+    // and a way back. The web gate (web/lib/agent/role.ts) records the same asymmetry.
     status == null -> AppRoute.Dashboard
+
+    status.role == "agent" -> AppRoute.Worklist
+
+    // An admin has neither a client_id nor an agent_id in the general case — the
+    // platform_user CHECK permits it — so `current_agent_id()` refuses them and every §3.x
+    // read returns nothing. The client dashboard is the same dead end, but it is the one
+    // that already has an unauthorized state; §3.9 is agent tooling, not an admin console.
+    status.role == "admin" -> AppRoute.Dashboard
+
     !status.isClient -> AppRoute.Dashboard
     status.completed -> AppRoute.Dashboard
     // Started but unfinished: resume where they stopped. Never started: the cover page.
     else -> AppRoute.Onboarding(WizardStep.ofSlug(status.step) ?: WizardStep.WELCOME)
+}
+
+/**
+ * §3.1.6 MANDATORY AGENT MFA IS NOT ENFORCED HERE, and that is a known gap rather than an
+ * oversight. Data-Model §5.1 requires it and `account.mfa_required` is true for the seeded
+ * agent, but nothing in this gate sends an agent without a verified factor to [AppRoute.MfaSetup]
+ * — the MFA challenge only fires when `repo.assurance()` already says REQUIRED. Closing it
+ * belongs with §3.1, which builds the agent activation wizard. Left visible in the gate
+ * rather than discovered later.
+ */
+
+/**
+ * Resolves who the advisor is before handing off to [AgentRoute].
+ *
+ * NO READ OF ITS OWN, and the comment used to claim that while the code did the opposite.
+ * The display name and the time zone both come off `platform_user`, which the session gate
+ * has already read to pick this route — so the row is threaded in rather than fetched
+ * again. Re-reading cost a second uncached select, a full-screen splash in front of it, and
+ * a second independent way to fail, all serialised ahead of the four worklist RPCs.
+ *
+ * [status] IS NON-NULL IN PRACTICE: [destinationFor] only answers [AppRoute.Worklist] for
+ * `status.role == "agent"`, which needs a row. The defaults are the cross-platform
+ * convention for a status that could not be read — `agentIdentity()` on the web returns the
+ * same two — so the screen degrades to "there" and Central rather than hanging on a splash
+ * that nothing will resolve.
+ */
+@Composable
+private fun AgentSectionHost(
+    route: AppRoute,
+    agent: AgentRepository,
+    status: OnboardingStatus?,
+    nav: Navigator,
+    onSignOut: () -> Unit,
+) {
+    AgentRoute(
+        route = route,
+        nav = nav,
+        agent = agent,
+        displayName = status?.displayName.orEmpty(),
+        timeZone = status?.timeZone ?: "America/Chicago",
+        onSignOut = onSignOut,
+    )
 }
 
 /** Plain branded ground while the session resolves. Milliseconds in the common case. */

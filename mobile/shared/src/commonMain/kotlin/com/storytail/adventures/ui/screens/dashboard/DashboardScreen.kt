@@ -67,8 +67,9 @@ import kotlinx.datetime.number
  * the first two cards BELOW the hero, in the same order, because both are things to act on.
  *
  * Departures from the artboard, matching the web twin exactly so the two screens agree:
- * no "Saved searches" tab (Phase 2 entity), "Authorize a card" renders disabled (§2.4 is
- * next), and the countdown shows DAYS only rather than days/hours/minutes.
+ * no "Saved searches" tab (Phase 2 entity) and the countdown shows DAYS only rather than
+ * days/hours/minutes. "Authorize a card" rendered disabled while §2.4 was unbuilt; it opens
+ * 2.4.3 for the upcoming trip now, which is what the artboard drew all along.
  */
 @Composable
 fun DashboardScreen(
@@ -78,6 +79,8 @@ fun DashboardScreen(
     onOpenItinerary: (tripId: String) -> Unit,
     onSeeAllTrips: () -> Unit,
     onMessageAgent: (tripId: String) -> Unit,
+    /** §2.4.3, scoped to the trip the action-needed milestone is due on. */
+    onAuthorizeCard: (tripId: String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -114,6 +117,7 @@ fun DashboardScreen(
                 onOpenItinerary = onOpenItinerary,
                 onSeeAllTrips = onSeeAllTrips,
                 onMessageAgent = onMessageAgent,
+                onAuthorizeCard = onAuthorizeCard,
             )
         }
     }
@@ -127,6 +131,7 @@ private fun DashboardBody(
     onOpenItinerary: (String) -> Unit,
     onSeeAllTrips: () -> Unit,
     onMessageAgent: (String) -> Unit,
+    onAuthorizeCard: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val brandType = LocalStoryTailBrandTypography.current
@@ -178,7 +183,7 @@ private fun DashboardBody(
         )
         data.nextPayment?.let {
             Spacer(Modifier.height(10.dp))
-            ActionNeededCard(it)
+            ActionNeededCard(it, onAuthorize = { onAuthorizeCard(upcoming.id) })
         }
         Spacer(Modifier.height(10.dp))
         AdvisorCard(
@@ -312,7 +317,7 @@ private fun HeroCountdown(
 }
 
 @Composable
-private fun ActionNeededCard(payment: NextPayment) {
+private fun ActionNeededCard(payment: NextPayment, onAuthorize: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier
@@ -343,15 +348,14 @@ private fun ActionNeededCard(payment: NextPayment) {
             color = scheme.onErrorContainer.copy(alpha = 0.85f),
         )
         Spacer(Modifier.height(10.dp))
-        // §2.4 lands next. Disabled rather than pointed at a screen that does not exist —
-        // the button keeps its place so the card does not reflow when it goes live.
+        // 2.4.3, for the trip this milestone is due on. The button kept its place here while
+        // §2.4 was unbuilt precisely so this card would not reflow the day it went live.
         Button(
-            onClick = {},
-            enabled = false,
+            onClick = onAuthorize,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
-                disabledContainerColor = scheme.onErrorContainer.copy(alpha = 0.5f),
-                disabledContentColor = scheme.errorContainer,
+                containerColor = scheme.onErrorContainer,
+                contentColor = scheme.errorContainer,
             ),
         ) {
             Text(DashboardMessages.AUTHORIZE_CARD)

@@ -1,6 +1,8 @@
 package com.storytail.adventures.ui.nav
 
 import com.storytail.adventures.domain.onboarding.WizardStep
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Every destination the app can be on.
@@ -17,12 +19,37 @@ import com.storytail.adventures.domain.onboarding.WizardStep
  * they are on. Losing a session while reading the dashboard must land on Login; losing one
  * while filling in the registration form must not.
  */
+/**
+ * The one Json for routes, shared by the back stack's saver and the session gate's key.
+ *
+ * Lenient on read so a route gaining a field does not invalidate a stack saved by the
+ * previous build. Both users encode through [AppRoute]'s own serializer rather than an
+ * inferred one — see [routeKey].
+ */
+internal val navJson: Json = Json { ignoreUnknownKeys = true }
+
+/**
+ * A route's identity as text.
+ *
+ * `AppRoute.serializer()` EXPLICITLY, and that is the whole point of this function existing
+ * rather than an inline `encodeToString`. With the concrete type inferred, kotlinx writes
+ * the subtype's own form with no polymorphic discriminator — so every `data object` route
+ * encodes to `{}` and `Worklist`, `Dashboard` and `PublicLanding` all become the same
+ * string. The gate that compares these would then treat a genuine move between two of them
+ * as "nothing changed" and skip the reset, which is the lockout this key was introduced to
+ * stop. Passing the base serializer forces the discriminator in.
+ */
+internal fun routeKey(route: AppRoute): String =
+    navJson.encodeToString(AppRoute.serializer(), route)
+
+@Serializable
 sealed interface AppRoute {
 
     /** True when being signed out makes this screen meaningless. */
     val requiresSession: Boolean get() = false
 
     /** Session restore has not finished. Distinct from Login so it does not flash. */
+    @Serializable
     data object Resolving : AppRoute
 
     // ── Screen Inventory §2.0, the public (pre-auth) surface ─────────────────────
@@ -32,18 +59,23 @@ sealed interface AppRoute {
     // at and nothing to decide. 2.0.1 is now the front door, and Login is one tap from it.
 
     /** Screen 2.0.1, the app's front door for anyone not signed in. */
+    @Serializable
     data object PublicLanding : AppRoute
 
     /** Screen 2.0.2. */
+    @Serializable
     data object PublicHowItWorks : AppRoute
 
     /** Screen 2.0.3. */
+    @Serializable
     data object PublicExplore : AppRoute
 
     /** Screen 2.0.4. [dest] is the destination text the visitor searched, if any. */
+    @Serializable
     data class PublicResults(val dest: String? = null) : AppRoute
 
     /** Screen 2.0.5, by catalog slug. */
+    @Serializable
     data class PublicTripDetail(val slug: String) : AppRoute
 
     /**
@@ -54,6 +86,7 @@ sealed interface AppRoute {
      * details" reads very differently from a registration form appearing unannounced.
      * [intent] and [tripSlug] are what let it say that, and they carry through to Register.
      */
+    @Serializable
     data class PublicJoin(val intent: String, val tripSlug: String? = null) : AppRoute
 
     /**
@@ -63,19 +96,24 @@ sealed interface AppRoute {
      * three pages are one screen with three faces — same hero, same inquire band, same
      * curated grid — and the differences live in the content, not the layout.
      */
+    @Serializable
     data class PublicTopic(val topic: com.storytail.adventures.content.public.Topic) : AppRoute
 
     /** Screen 2.0.11. */
+    @Serializable
     data object PublicAbout : AppRoute
 
     /** Screen 2.0.7, the legal pages. Reachable signed in or out. */
+    @Serializable
     data class PublicLegal(
         val slug: com.storytail.adventures.content.public.LegalSlug,
     ) : AppRoute
 
+    @Serializable
     data object Login : AppRoute
 
     /** Screen 2.1.2. */
+    @Serializable
     data object Register : AppRoute
 
     /**
@@ -83,15 +121,19 @@ sealed interface AppRoute {
      * there is no session to read it from, because GoTrue withholds one until the address
      * is confirmed.
      */
+    @Serializable
     data class VerifyEmail(val email: String? = null) : AppRoute
 
     /** Screen 2.1.4. */
+    @Serializable
     data object ForgotPassword : AppRoute
 
     /** Screen 2.1.5, on the recovery session the emailed link produces. */
+    @Serializable
     data object ResetPassword : AppRoute
 
     /** Screen 2.1.6. */
+    @Serializable
     data object MfaSetup : AppRoute {
         override val requiresSession: Boolean get() = true
     }
@@ -100,6 +142,7 @@ sealed interface AppRoute {
      * Screen 2.1.7. Requires a session — a half-assured one. It is the only screen reached
      * BECAUSE the session is incomplete rather than despite it.
      */
+    @Serializable
     data object MfaChallenge : AppRoute {
         override val requiresSession: Boolean get() = true
     }
@@ -112,6 +155,7 @@ sealed interface AppRoute {
      * lives in [com.storytail.adventures.domain.onboarding.WizardStep] where the cursor and
      * the progress bars can both read it.
      */
+    @Serializable
     data class Onboarding(val step: WizardStep) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
@@ -130,21 +174,25 @@ sealed interface AppRoute {
     //     from a pushed screen inside a tab pops to that tab's root.
 
     /** Screen 2.2.1, and the root of the Trips tab. */
+    @Serializable
     data object Dashboard : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
     /** Screen 2.2.2. */
+    @Serializable
     data object AllTrips : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
     /** Screen 2.2.3. */
+    @Serializable
     data class TripDetail(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
     /** Screen 2.2.4. */
+    @Serializable
     data class Itinerary(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
@@ -153,16 +201,19 @@ sealed interface AppRoute {
      * Screen 2.2.5. [dayNumber] rather than a day id, because that is what the URL-shaped
      * twin uses and what a "Day 3" deep link would carry.
      */
+    @Serializable
     data class ItineraryDay(val tripId: String, val dayNumber: Int) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
     /** Screen 2.2.6. */
+    @Serializable
     data class TripDocuments(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
     /** Screen 2.2.7. */
+    @Serializable
     data class TripThread(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
@@ -184,6 +235,7 @@ sealed interface AppRoute {
      * still satisfied, because `/trips/[id]` for a cancelled trip IS that path and a
      * notification can link straight to it.
      */
+    @Serializable
     data class PastTrip(val tripId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
@@ -197,7 +249,250 @@ sealed interface AppRoute {
      * sheet has nothing to arrive at. The sheet presentation belongs to §2.6's notification
      * centre.
      */
+    @Serializable
     data class TripUpdate(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── Screen Inventory §2.5, Account & Profile ────────────────────────────────
+    //
+    // [Account] is the Account TAB'S ROOT; the other nine are pushed from it and carry a back
+    // bar instead of the tab bar. That split is the artboards' — `M251_AccountOverview` is
+    // the only §2.5 frame drawn with `MClientTabs` as its footer.
+    //
+    // ONE ROUTE EACH, rather than one route carrying a section like [Onboarding] does. The
+    // wizard is genuinely one screen with six faces — shared chrome, shared exits, an order
+    // that lives in a single enum. These ten share nothing but a back button: a settings hub,
+    // two forms, a document list, a placeholder, and five read-only panels.
+    //
+    // NO PER-TAB STACK YET, and §2.5 is where [Navigator.selectTab] said to revisit that.
+    // Going Account → Personal info → Trips → Account lands on the hub rather than back on
+    // the form. That is the platform-conventional behaviour for a tab that was RESET, and it
+    // is the behaviour every one of these screens can afford — none of them holds unsaved
+    // work across a tab switch, because both forms are Save-or-Cancel and the rest are reads.
+    //
+    // THE REASON THIS NOTE GAVE FOR REVISITING AT §2.6 WAS WRONG, and §2.6 is where that got
+    // checked rather than repeated. It said a per-tab stack "becomes worth it when §2.6's
+    // thread lands, where leaving a half-typed message behind IS a loss". A half-typed message
+    // is a real loss — but a per-tab stack does not save it, and not having one does not cost
+    // it. The draft lives in a ViewModel obtained through `viewModel(key = "…")` against an
+    // app-scoped store, so it outlives the composable either way: switch tabs mid-sentence,
+    // come back, reopen the same thread, and the words are still in the box. Verified on the
+    // emulator, because the answer depends on the store's lifetime rather than on anything
+    // visible in this file.
+    //
+    // So what a per-tab stack would actually buy is landing back ON the thread instead of on
+    // the inbox — a convenience, not a rescue — in exchange for four stacks to restore on
+    // process death. Still deferred, now for the honest reason.
+
+    /** Screen 2.5.1, and the root of the Account tab. */
+    @Serializable
+    data object Account : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.2. */
+    @Serializable
+    data object AccountPersonal : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.3. */
+    @Serializable
+    data object AccountPreferences : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.5.4, the ACCOUNT-WIDE document library.
+     *
+     * Distinct from [TripDocuments], which is §2.2.6 and takes a trip. The rows look the
+     * same and the read is the same one without the trip filter, but a traveler with no trip
+     * yet still has a passport, and that is the case this route exists for.
+     */
+    @Serializable
+    data object AccountDocuments : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.6. A placeholder — see the screen for the four things that block it. */
+    @Serializable
+    data object AccountNotifications : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.7. */
+    @Serializable
+    data object AccountSecurity : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.8. */
+    @Serializable
+    data object AccountConnected : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.9. */
+    @Serializable
+    data object AccountPrivacy : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.5.10, account closure.
+     *
+     * A FULL-SCREEN ROUTE, not a bottom sheet — departure 11 in the mobile artboard. A
+     * sheet's grabber means "swipe this away", which is exactly the wrong affordance on a
+     * destructive confirmation, and the screen deserves its own Back for the same reason
+     * §2.2.9 is a route rather than an overlay.
+     */
+    @Serializable
+    data object AccountClose : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.5.11. */
+    @Serializable
+    data object AccountHelp : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── Screen Inventory §2.6, Messaging ────────────────────────────────────────
+    //
+    // [Messages] is the Messages TAB'S ROOT; the other two are pushed on top of it and carry a
+    // back bar instead of the tab bar — `M261_Inbox` is the only §2.6 frame drawn with
+    // `MClientTabs` as its footer.
+
+    /** Screen 2.6.1, and the root of the Messages tab. */
+    @Serializable
+    data object Messages : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.6.2, addressed by CONVERSATION and not by trip.
+     *
+     * The distinction from [TripThread] is the whole point of this section rather than a
+     * naming preference: 2.6.3 creates a conversation with `trip_id IS NULL`, and there is no
+     * trip id that reaches it. A traveler with no trip yet would find every thread they own
+     * unreachable through [TripThread].
+     *
+     * Both routes render ONE screen — see `ThreadSurface` — so this is a different address for
+     * the same thing, not a second implementation of it.
+     */
+    @Serializable
+    data class ConversationThread(val conversationId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.6.3. */
+    @Serializable
+    data object NewConversation : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── Screen Inventory §2.4, Payment & Card Authorization ─────────────────────
+    //
+    // §2.4 IS NOT A TAB ON MOBILE, which is the structural difference from every other
+    // section here and from the desktop frames, all of which carry `tab="wallet"`. The bar
+    // has four tabs — Trips · Discover · Messages · Account — and Wallet is not one of them;
+    // it is rail-only on web by the same 2026-09-06 decision that settled the bar. So all six
+    // of these are PUSHED, every one carries a back bar, and the entry point is 2.5.1's
+    // "Payment methods" row, which this section lights.
+    //
+    // 2.4.2 Add Card has no route at all. It is deferred until a Stripe account exists —
+    // payment_card.stripe_payment_method_id and .stripe_customer_id are both NOT NULL, so
+    // there is no row without a real tokenization and therefore no half-built screen worth
+    // reaching. 2.4.1 renders the CTA disabled with its reason instead, which is the §2.5
+    // rule for every deferral.
+
+    /** Screen 2.4.1, reached from the Account tab. */
+    @Serializable
+    data object Wallet : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.4.3, scoped to a trip by the route.
+     *
+     * `card_authorization.trip_id` is NOT NULL and a partial unique index allows one active
+     * authorization per card per trip, so an authorization with no trip is not a state the
+     * schema can hold. Carrying the trip in the route means the screen cannot be reached with
+     * that question open.
+     */
+    @Serializable
+    data class WalletAuthorize(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 2.4.4, and the detail view afterwards.
+     *
+     * [justAuthorized] decides only whether the success chrome shows. The authorization has an
+     * id the moment it exists, so it has an address — and "what did I agree to, and until
+     * when" is a question that outlives the tap that answered it.
+     */
+    @Serializable
+    data class WalletAuthorization(
+        val authorizationId: String,
+        val justAuthorized: Boolean = false,
+    ) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.4.7. Removes an AUTHORIZATION, never a card — see the screen for why. */
+    @Serializable
+    data class WalletRemoveAuthorization(val authorizationId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.4.5. [cardId] is the optional filter 2.4.1's per-card "Activity" passes. */
+    @Serializable
+    data class WalletActivity(val cardId: String? = null) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 2.4.6. */
+    @Serializable
+    data class WalletUseDetail(val eventId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── §3.2 · the advisor's side ────────────────────────────────────────────────
+    //
+    // ONE ROUTE TYPE, NOT TWO. A parallel `sealed interface AgentRoute` would mean
+    // [Navigator] becomes generic or gets duplicated, and App.kt's `PlatformBackHandler`
+    // would have to know which stack it is unwinding. The two shells stay apart because of
+    // what RENDERS them — `AgentRoute` in ui/screens/agent/ is a sibling host to TripRoute
+    // and AccountRoute, and no composable under ui/screens/agent/ imports ClientScaffold.
+    //
+    // Screen-Inventory §6.6 keeps the agent's phone deliberately narrow: Worklist, Clients,
+    // Messages, More. The first two have screens; Messages (§3.10) and More (§3.12) are
+    // drawn dimmed, which is why they are not routes yet.
+
+    /** Screen 3.2.1, and the root of the Worklist tab. */
+    @Serializable
+    data object Worklist : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.3.1, and the root of the Clients tab. The second built destination. */
+    @Serializable
+    data object AgentClients : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screens 3.3.2 – 3.3.8, pushed from the roster.
+     *
+     * The TAB is not in the route, unlike the web build's `?tab=`. The phone fetches the
+     * whole detail once and switches locally (see `AgentRepository.clientDetail`), so a tab
+     * is view state rather than a destination — and putting it in the route would make the
+     * back gesture walk back through six tabs before leaving the screen.
+     */
+    @Serializable
+    data class AgentClientDetail(val clientId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }

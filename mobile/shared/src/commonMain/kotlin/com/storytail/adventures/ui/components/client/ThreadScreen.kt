@@ -1,4 +1,4 @@
-package com.storytail.adventures.ui.screens.trip
+package com.storytail.adventures.ui.components.client
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.storytail.adventures.api.ThreadMessageView
-import com.storytail.adventures.api.TripThreadSnapshot
 import com.storytail.adventures.domain.trip.DocumentBadge
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.MessageSender
@@ -51,18 +50,42 @@ import com.storytail.adventures.domain.trip.formatMessageTime
 import com.storytail.adventures.domain.trip.groupMessagesByDay
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
-import com.storytail.adventures.ui.components.client.ClientEmptyState
-import com.storytail.adventures.ui.components.client.ClientErrorState
-import com.storytail.adventures.ui.components.client.ClientScaffold
 import com.storytail.adventures.ui.theme.PillShape
 import com.storytail.adventures.ui.theme.StoryTailBrand
 import com.storytail.adventures.ui.theme.StoryTailRadius
 import kotlinx.datetime.LocalDate
 
 /**
- * Screen 2.2.7 Trip Messages / Conversation Thread — docs/Screen-Inventory.md §2.2.7, §4.4
- * ("mobile is full-screen"), and design/source-prototype/screens/client-trip-mobile.jsx
- * (M227_TripThread). P1.
+ * Everything a thread screen needs, whichever list it was reached from.
+ *
+ * THIS TYPE IS WHY THERE IS ONE THREAD SCREEN. `client-messaging-mobile.jsx` requires it in so
+ * many words — 2.6.2 "is not a new screen — it is M227_TripThread with a different header",
+ * drawn to match "so that both builds mount one component instead of copying it. If the two
+ * drift visually, the extraction never happens." A trip snapshot and a conversation snapshot
+ * both flatten to this, so the screen cannot tell which it is looking at and has no way to
+ * render them differently.
+ */
+data class ThreadSurface(
+    val title: String,
+    /** The unread line on 2.2.7, the reply-window promise everywhere else. */
+    val subtitle: String,
+    val messages: List<ThreadMessageView>,
+    /**
+     * 2.2.7's names the trip; the general thread's must not, because it has none. Passed in
+     * rather than read from `ThreadMessages` for exactly that reason.
+     */
+    val emptyBody: String,
+)
+
+/**
+ * Screens 2.2.7 and 2.6.2, Conversation Thread — docs/Screen-Inventory.md §2.2.7 and §2.6.2,
+ * §4.4 ("mobile is full-screen", Pattern C), and
+ * design/source-prototype/screens/client-trip-mobile.jsx (M227_TripThread) +
+ * client-messaging-mobile.jsx (M262_ConversationThread). P1.
+ *
+ * ONE SCREEN, TWO ROUTES. See [ThreadSurface]. What differs is which action the send is wired
+ * to, where Back goes, and whether [onOpenTrip] is non-null — the general thread has no trip
+ * to open, and a disabled button explaining that would be furniture.
  *
  * THE COMPOSE BAR IS THE LAST CHILD OF THE COLUMN, not an overlay on the list — the same
  * structural rule `ClientScaffold` documents for the bottom bar, and for the same reason: a
@@ -84,7 +107,7 @@ import kotlinx.datetime.LocalDate
  */
 @Composable
 fun ThreadScreen(
-    state: Loadable<TripThreadSnapshot>,
+    state: Loadable<ThreadSurface>,
     draft: String,
     sending: Boolean,
     sendError: String?,
@@ -92,7 +115,8 @@ fun ThreadScreen(
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onBack: () -> Unit,
-    onOpenTrip: () -> Unit,
+    /** Null on a thread with no trip, which hides the control rather than disabling it. */
+    onOpenTrip: (() -> Unit)?,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -132,12 +156,8 @@ fun ThreadScreen(
             is Loadable.Ready -> {
                 val thread = state.value
                 ThreadHeader(
-                    title = "Gyasi · ${thread.tripTitle}",
-                    subtitle = if (thread.unreadCount > 0) {
-                        if (thread.unreadCount == 1) "1 new message" else "${thread.unreadCount} new messages"
-                    } else {
-                        ThreadMessages.REPLY_WINDOW
-                    },
+                    title = thread.title,
+                    subtitle = thread.subtitle,
                     onBack = onBack,
                     onOpenTrip = onOpenTrip,
                 )
@@ -224,7 +244,7 @@ private fun ThreadHeader(
 
 @Composable
 private fun ThreadList(
-    thread: TripThreadSnapshot,
+    thread: ThreadSurface,
     today: LocalDate,
     modifier: Modifier = Modifier,
 ) {
@@ -244,7 +264,8 @@ private fun ThreadList(
         Column(modifier.fillMaxWidth().padding(16.dp)) {
             ClientEmptyState(
                 title = ThreadMessages.EMPTY_TITLE,
-                body = ThreadMessages.EMPTY_BODY,
+                // The caller's, because 2.2.7's names a trip and the general thread has none.
+                body = thread.emptyBody,
                 mark = StoryTailMark.MESSAGE,
             )
         }

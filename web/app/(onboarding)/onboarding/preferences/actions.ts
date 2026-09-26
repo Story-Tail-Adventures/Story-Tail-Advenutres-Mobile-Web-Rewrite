@@ -4,15 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { callOnboarding } from "@/lib/onboarding/api";
 import { WIZARD_STEPS } from "@/lib/onboarding/steps";
-import {
-  parsePreferences,
-  type LoyaltyRow,
-} from "@/lib/validation/preferences";
-import {
-  PREFERENCES_TEXT,
-  type PreferencesFormValues,
-  type PreferencesState,
-} from "./state";
+import { parsePreferences } from "@/lib/validation/preferences";
+import { readPreferencesForm } from "@/lib/validation/preferences-form";
+import { PREFERENCES_TEXT, type PreferencesState } from "./state";
 
 /**
  * Screen 2.1.11's two exits.
@@ -33,7 +27,7 @@ export async function savePreferencesAction(
   _prev: PreferencesState,
   formData: FormData,
 ): Promise<PreferencesState> {
-  const values = readValues(formData);
+  const values = readPreferencesForm(formData);
 
   const parsed = parsePreferences(values);
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors, values };
@@ -73,33 +67,4 @@ export async function skipPreferencesAction(): Promise<void> {
  * this alone". The repeater posts two parallel lists, paired by index; a row the browser
  * sent with neither half filled in is dropped by `parsePreferences`.
  */
-function readValues(formData: FormData): PreferencesFormValues {
-  const programs = formData.getAll("loyaltyProgram").map(text);
-  const numbers = formData.getAll("loyaltyNumber").map(text);
-  // The longer of the two, not just the programs. The rendered form always posts them in
-  // pairs, but a hand-built post with one more number than program would otherwise lose
-  // that number silently instead of failing with "which program is that number for?".
-  const rowCount = Math.max(programs.length, numbers.length);
-  const loyalty: LoyaltyRow[] = Array.from({ length: rowCount }, (_, index) => ({
-    program: programs[index] ?? "",
-    number: numbers[index] ?? "",
-  }));
 
-  return {
-    destinations: formData.getAll("destinations").map(text),
-    destinationOther: text(formData.get("destinationOther")),
-    travelStyles: formData.getAll("travelStyles").map(text),
-    dietary: formData.getAll("dietary").map(text),
-    dietaryNotes: text(formData.get("dietaryNotes")),
-    accessibility: formData.getAll("accessibility").map(text),
-    accessibilityNotes: text(formData.get("accessibilityNotes")),
-    loyalty,
-    budgetBand: text(formData.get("budgetBand")),
-    favoritePastTrips: text(formData.get("favoritePastTrips")),
-  };
-}
-
-/** A File — from a multipart post that has no business here — is not a value. */
-function text(value: FormDataEntryValue | null): string {
-  return typeof value === "string" ? value : "";
-}

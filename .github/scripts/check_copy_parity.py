@@ -27,11 +27,129 @@ DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventure
 WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
 TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
 TRIP_SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip"
+ACCOUNT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account"
+AGENT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent"
 
 # Each entry is one pair of parallel modules. The key map is the whole point: this script
 # only compares what it is told about, so a message added on one side and left out of the
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
+    {
+        # §3.2's copy. The web side's greeting line, currency note and cancelled note are
+        # FUNCTIONS — each takes a count and pluralises — and web_messages skips anything
+        # that is not a string literal, so those three are covered by the paired unit tests
+        # (web/lib/agent/content.test.ts) rather than here.
+        #
+        # The web module carries more than this: the pipeline and calendar strings belong to
+        # screens §6.6 keeps web-only at MVP, so they have no KMP twin to compare against.
+        # Listed here is exactly the set both surfaces render.
+        "label": "agent 3.2",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "AGENT_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "AgentCopy.kt",
+        "kmp_object": "AgentCopy",
+        "keys": {
+            "greetingZero": "GREETING_ZERO",
+            "greetingZeroSub": "GREETING_ZERO_SUB",
+            "greetingOne": "GREETING_ONE",
+            "proposalsTitle": "PROPOSALS_TITLE",
+            "proposalsEmpty": "PROPOSALS_EMPTY",
+            "paymentsTitle": "PAYMENTS_TITLE",
+            "paymentsEmpty": "PAYMENTS_EMPTY",
+            "inquiriesTitle": "INQUIRIES_TITLE",
+            "inquiriesEmpty": "INQUIRIES_EMPTY",
+            "departingTitle": "DEPARTING_TITLE",
+            "departingEmpty": "DEPARTING_EMPTY",
+            "messagesTitle": "MESSAGES_TITLE",
+            "messagesEmpty": "MESSAGES_EMPTY",
+            "cycleTimeUnavailable": "CYCLE_TIME_UNAVAILABLE",
+            # `tripDetailDeferred` / TRIP_DETAIL_DEFERRED was paired here until §3.4.2
+            # shipped on the web. It is NOT an oversight that only the Kotlin side still
+            # holds it, and re-pairing them would be wrong in both directions.
+            #
+            # The web worklist's rows are now links into /agent/trips/[tripId], so the
+            # sentence has no call site there and a deferral naming a section that has
+            # since been built is worse than no sentence. WorklistScreen.kt still renders
+            # it on three sections, and on a phone it is still TRUE — §3.4.2 is web-only
+            # at MVP, so a Compose row genuinely has nowhere to go yet.
+            #
+            # This list is the set of strings that must match BYTE FOR BYTE across both
+            # stacks. A string only one stack has does not belong in it — the same reason
+            # the pipeline and calendar keys were never added. Delete the Kotlin constant
+            # and its three usages when trip detail lands on Compose; nothing here needs
+            # touching then either.
+            "messagesDeferred": "MESSAGES_DEFERRED",
+            "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
+            "leadsDeferred": "LEADS_DEFERRED",
+            "availabilityDeferred": "AVAILABILITY_DEFERRED",
+        },
+    },
+    {
+        # §3.3.1's copy. The web const is the LARGER of the two on purpose: it also carries
+        # the data table's five column headers, the paginator's labels and four per-row
+        # deferrals, and the phone has none of those — §4.4's Pattern B gives the desk a
+        # table and the phone a card list, and §6.6 makes the phone append rather than
+        # paginate. ClientCopy's own LOAD_MORE runs the other way and has no web twin.
+        #
+        # Listed here is exactly the set BOTH surfaces render. A string only one stack has
+        # does not belong in it, for the reason the agent 3.2 row records.
+        "label": "agent 3.3",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "CLIENT_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "ClientCopy.kt",
+        "kmp_object": "ClientCopy",
+        "keys": {
+            "title": "TITLE",
+            "subtitleActive": "SUBTITLE_ACTIVE",
+            "subtitleInMotion": "SUBTITLE_IN_MOTION",
+            "subtitleToQualify": "SUBTITLE_TO_QUALIFY",
+            "searchLabel": "SEARCH_LABEL",
+            "searchPlaceholder": "SEARCH_PLACEHOLDER",
+            "filterActive": "FILTER_ACTIVE",
+            "filterArchived": "FILTER_ARCHIVED",
+            "noEmail": "NO_EMAIL",
+            "noTrip": "NO_TRIP",
+            "noLifetime": "NO_LIFETIME",
+            "travellingNow": "TRAVELLING_NOW",
+            "currencyNoteOne": "CURRENCY_NOTE_ONE",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",
+            "emptyFilteredBody": "EMPTY_FILTERED_BODY",
+            "emptyArchivedTitle": "EMPTY_ARCHIVED_TITLE",
+            "emptyArchivedBody": "EMPTY_ARCHIVED_BODY",
+            # §3.3.2 - §3.3.8. The six TAB LABELS are not here: the web build reads those
+            # from its own tab registry (clientTabs.ts) rather than from CLIENT_COPY, so
+            # there is nothing on that side for this map to point at.
+            "backToRoster": "BACK_TO_ROSTER",
+            "notFoundTitle": "NOT_FOUND_TITLE",
+            "notFoundBody": "NOT_FOUND_BODY",
+            "archivedBanner": "ARCHIVED_BANNER",
+            "snapshotTitle": "SNAPSHOT_TITLE",
+            "preferencesTitle": "PREFERENCES_TITLE",
+            "householdTitle": "HOUSEHOLD_TITLE",
+            "statLifetime": "STAT_LIFETIME",
+            "statTrips": "STAT_TRIPS",
+            "statCommission": "STAT_COMMISSION",
+            "statLastContact": "STAT_LAST_CONTACT",
+            "labelPhone": "LABEL_PHONE",
+            "labelEmail": "LABEL_EMAIL",
+            "labelAddress": "LABEL_ADDRESS",
+            "noPreferences": "NO_PREFERENCES",
+            "noHousehold": "NO_HOUSEHOLD",
+            "noAddress": "NO_ADDRESS",
+            "passportExpiringSoon": "PASSPORT_EXPIRING_SOON",
+            "tripsEmpty": "TRIPS_EMPTY",
+            "tripCommissionPrefix": "TRIP_COMMISSION_PREFIX",
+            "threadsEmpty": "THREADS_EMPTY",
+            "documentsEmpty": "DOCUMENTS_EMPTY",
+            "documentSensitive": "DOCUMENT_SENSITIVE",
+            "notesEmpty": "NOTES_EMPTY",
+            "noteEditedMarker": "NOTE_EDITED_MARKER",
+            "activityEmpty": "ACTIVITY_EMPTY",
+            "activityNote": "ACTIVITY_NOTE",
+        },
+    },
     {
         # Screen 2.2.1's copy. Only the plain-string keys are listed: the web side's
         # greeting variants are functions (the "0 days"/"1 day" special cases need one) and
@@ -51,7 +169,6 @@ MESSAGE_TABLES = [
             "itineraryNotReady": "ITINERARY_NOT_READY",
             "actionNeededLabel": "ACTION_NEEDED_LABEL",
             "authorizeCard": "AUTHORIZE_CARD",
-            "authorizeCardComingSoon": "AUTHORIZE_CARD_COMING_SOON",
             "advisorName": "ADVISOR_NAME",
             "advisorRole": "ADVISOR_ROLE",
             "advisorReplyTime": "ADVISOR_REPLY_TIME",
@@ -196,7 +313,6 @@ MESSAGE_TABLES = [
             "viewSummary": "VIEW_SUMMARY",
             "viewMemories": "VIEW_MEMORIES",
             "authorizeCard": "AUTHORIZE_CARD",
-            "authorizeDeferred": "AUTHORIZE_DEFERRED",
             "changedUnknown": "CHANGED_UNKNOWN",
         },
     },
@@ -559,7 +675,9 @@ MESSAGE_TABLES = [
         "label": "2.1.10 profile screen",
         "web_file": WEB_WIZARD / "profile/state.ts",
         "web_const": "PROFILE_TEXT",
-        "kmp_file": WIZARD_DIR / "ProfileScreen.kt",
+        # ProfileCopy moved to ProfileFields.kt when §2.5.2 mounted the same form. The
+        # labels belong to the fields, not to either screen that wraps them.
+        "kmp_file": WIZARD_DIR / "ProfileFields.kt",
         "kmp_object": "ProfileCopy",
         "keys": {
             "title": "TITLE",
@@ -598,7 +716,9 @@ MESSAGE_TABLES = [
         "label": "2.1.11 preferences screen",
         "web_file": WEB_WIZARD / "preferences/state.ts",
         "web_const": "PREFERENCES_TEXT",
-        "kmp_file": WIZARD_DIR / "PreferencesScreen.kt",
+        # PreferencesCopy moved to PreferencesFields.kt with the controls, for the same
+        # reason ProfileCopy moved — §2.5.3 mounts them too.
+        "kmp_file": WIZARD_DIR / "PreferencesFields.kt",
         "kmp_object": "PreferencesCopy",
         "keys": {
             "title": "TITLE",
@@ -716,6 +836,350 @@ MESSAGE_TABLES = [
             "shortProfile": "SHORT_PROFILE",
             "shortPreferences": "SHORT_PREFERENCES",
             "shortCompanions": "SHORT_COMPANIONS",
+        },
+    },
+    {
+        # Nine settings rows and three group headings. The subtitles say what is INSIDE, in
+        # data, so a wording change on one stack shows a different drawer label on the other.
+        "label": "2.5.1 account overview",
+        "web_file": ROOT / "web/app/(client)/account/content.ts",
+        "web_const": "ACCOUNT",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "AccountMessages",
+        "keys": {
+            "title": "TITLE",
+            "fallbackName": "FALLBACK_NAME",
+            "groupYou": "GROUP_YOU",
+            "groupApp": "GROUP_APP",
+            "groupSupport": "GROUP_SUPPORT",
+            "personal": "PERSONAL",
+            "personalSub": "PERSONAL_SUB",
+            "preferences": "PREFERENCES",
+            "preferencesSub": "PREFERENCES_SUB",
+            "documents": "DOCUMENTS",
+            "documentsEmptySub": "DOCUMENTS_EMPTY_SUB",
+            "notifications": "NOTIFICATIONS",
+            "security": "SECURITY",
+            "securitySub": "SECURITY_SUB",
+            "connected": "CONNECTED",
+            "connectedSub": "CONNECTED_SUB",
+            "help": "HELP",
+            "helpSub": "HELP_SUB",
+            "privacy": "PRIVACY",
+            "privacySub": "PRIVACY_SUB",
+            "wallet": "WALLET",
+            "walletSub": "WALLET_SUB",
+            "comingSoon": "COMING_SOON",
+            "signOut": "SIGN_OUT",
+        },
+    },
+    {
+        # `identityNote` explains why two fields are read-only. If one stack softened it, that
+        # stack would be implying an edit the write path cannot take.
+        "label": "2.5.2 personal info",
+        "web_file": ROOT / "web/app/(client)/account/personal/content.ts",
+        "web_const": "PERSONAL",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "PersonalMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "identityHeading": "IDENTITY_HEADING",
+            "nameLabel": "NAME_LABEL",
+            "emailLabel": "EMAIL_LABEL",
+            "notSet": "NOT_SET",
+            "identityNote": "IDENTITY_NOTE",
+            "save": "SAVE",
+            "cancel": "CANCEL",
+        },
+    },
+    {
+        # Four strings. The form itself is 2.1.11's and already covered by that row.
+        "label": "2.5.3 preferences edit",
+        "web_file": ROOT / "web/app/(client)/account/preferences/content.ts",
+        "web_const": "ACCOUNT_PREFERENCES",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "AccountPreferencesMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "save": "SAVE",
+            "cancel": "CANCEL",
+        },
+    },
+    {
+        # `privacyNote` is a claim about the FILE in Storage — encrypted at rest, reachable
+        # only through the audited signer. A claim like that must not drift.
+        "label": "2.5.4 document library",
+        "web_file": ROOT / "web/app/(client)/documents/content.ts",
+        "web_const": "DOCUMENTS_LIBRARY",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "DocumentLibraryMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "uploadCta": "UPLOAD_CTA",
+            "uploadDeferred": "UPLOAD_DEFERRED",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "emptyCta": "EMPTY_CTA",
+            "privacyNote": "PRIVACY_NOTE",
+        },
+    },
+    {
+        # A placeholder whose whole job is the wording. Both stacks have to answer the reader's
+        # real question — "so how will you reach me?" — the same way.
+        "label": "2.5.6 notifications",
+        "web_file": ROOT / "web/app/(client)/account/notifications/content.ts",
+        "web_const": "NOTIFICATIONS",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "NotificationsMessages",
+        "keys": {
+            "title": "TITLE",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "reachYou": "REACH_YOU",
+        },
+    },
+    {
+        # The deferral sentences here are security advice. `sessionsAdvice` tells somebody what
+        # to do if their account is compromised; two versions of that is one too many.
+        "label": "2.5.7 security",
+        "web_file": ROOT / "web/app/(client)/account/security/content.ts",
+        "web_const": "SECURITY",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "SecurityMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "passwordTitle": "PASSWORD_TITLE",
+            "passwordBody": "PASSWORD_BODY",
+            "passwordCta": "PASSWORD_CTA",
+            "passwordDeferred": "PASSWORD_DEFERRED",
+            "noPasswordTitle": "NO_PASSWORD_TITLE",
+            "noPasswordCta": "NO_PASSWORD_CTA",
+            "mfaTitle": "MFA_TITLE",
+            "mfaOn": "MFA_ON",
+            "mfaOff": "MFA_OFF",
+            "mfaBody": "MFA_BODY",
+            "mfaEnableCta": "MFA_ENABLE_CTA",
+            "mfaManageCta": "MFA_MANAGE_CTA",
+            "mfaManageDeferred": "MFA_MANAGE_DEFERRED",
+            "sessionsHeading": "SESSIONS_HEADING",
+            "sessionsDeferred": "SESSIONS_DEFERRED",
+            "sessionsAdvice": "SESSIONS_ADVICE",
+        },
+    },
+    {
+        # `safetyNote` answers the question a disabled Unlink button provokes. Do not let
+        # either stack soften it into "manage your sign-in options".
+        "label": "2.5.8 connected accounts",
+        "web_file": ROOT / "web/app/(client)/account/connected/content.ts",
+        "web_const": "CONNECTED",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "ConnectedMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "linked": "LINKED",
+            "notLinked": "NOT_LINKED",
+            "linkCta": "LINK_CTA",
+            "unlinkCta": "UNLINK_CTA",
+            "linkDeferred": "LINK_DEFERRED",
+            "unlinkDeferred": "UNLINK_DEFERRED",
+            "emailAccountNote": "EMAIL_ACCOUNT_NOTE",
+            "oauthAccountNote": "OAUTH_ACCOUNT_NOTE",
+            "safetyNote": "SAFETY_NOTE",
+        },
+    },
+    {
+        # `trackingBody` must also stay consistent with the published cookie policy — a privacy
+        # claim that drifts from a legal page is worse than no claim.
+        "label": "2.5.9 privacy",
+        "web_file": ROOT / "web/app/(client)/account/privacy/content.ts",
+        "web_const": "PRIVACY",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "PrivacyMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "exportTitle": "EXPORT_TITLE",
+            "exportBody": "EXPORT_BODY",
+            "exportCta": "EXPORT_CTA",
+            "exportDeferred": "EXPORT_DEFERRED",
+            "trackingHeading": "TRACKING_HEADING",
+            "trackingBody": "TRACKING_BODY",
+            "cookiesLink": "COOKIES_LINK",
+            "closeTitle": "CLOSE_TITLE",
+            "closeBody": "CLOSE_BODY",
+            "closeCta": "CLOSE_CTA",
+        },
+    },
+    {
+        # EVERY LINE IS A RETENTION OR LEGAL CLAIM. `whatHappens` is a list and so is skipped by
+        # web_messages — it is covered by the paired unit test instead.
+        "label": "2.5.10 account closure",
+        "web_file": ROOT / "web/app/(client)/account/close/content.ts",
+        "web_const": "CLOSE",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "CloseMessages",
+        "keys": {
+            "title": "TITLE",
+            "back": "BACK",
+            "heading": "HEADING",
+            "whatHappensLabel": "WHAT_HAPPENS_LABEL",
+            "reconsiderBody": "RECONSIDER_BODY",
+            "reconsiderCta": "RECONSIDER_CTA",
+            "reasonLabel": "REASON_LABEL",
+            "reasonPlaceholder": "REASON_PLACEHOLDER",
+            "confirmLabel": "CONFIRM_LABEL",
+            "confirmPlaceholder": "CONFIRM_PLACEHOLDER",
+            "confirmHint": "CONFIRM_HINT",
+            "confirmCta": "CONFIRM_CTA",
+            "keepCta": "KEEP_CTA",
+            "deferred": "DEFERRED",
+        },
+    },
+    {
+        # `replyWindow` is the settled authenticated-surface string. The public surface's
+        # "< 2h" is unverified and fenced behind PUBLIC_CLAIMS_MODE=strict; it must not
+        # spread here on either stack.
+        "label": "2.5.11 help",
+        "web_file": ROOT / "web/app/(client)/account/help/content.ts",
+        "web_const": "HELP",
+        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
+        "kmp_object": "HelpMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "advisorName": "ADVISOR_NAME",
+            "advisorInitials": "ADVISOR_INITIALS",
+            "replyWindow": "REPLY_WINDOW",
+            "advisorBody": "ADVISOR_BODY",
+            "messageCta": "MESSAGE_CTA",
+            "faqHeading": "FAQ_HEADING",
+            "legalHeading": "LEGAL_HEADING",
+        },
+    },
+    {
+        # §2.6's whole section, all three screens, in one module on each side.
+        #
+        # EVERY plain-string key in MESSAGES is listed here. That is the point: an unlisted key
+        # is not a failure, it is invisible, so a string added to one stack and left out of this
+        # map is exactly the silent gap this file's header warns about.
+        #
+        # "openTrip" is deliberately NOT here — both §2.6.2 and §2.2.7 render
+        # `THREAD_MESSAGES.openTrip` / `ThreadMessages.OPEN_TRIP`, which the "2.2.7 thread" row
+        # above already pins. A second copy of one word would double the surface and give the
+        # two screens somewhere to disagree.
+        "label": "2.6 messaging",
+        "web_file": ROOT / "web/lib/messages/content.ts",
+        "web_const": "MESSAGES",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessagesCopy.kt",
+        "kmp_object": "MessagesMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "advisorName": "ADVISOR_NAME",
+            "advisorInitials": "ADVISOR_INITIALS",
+            "replyWindow": "REPLY_WINDOW",
+            "searchPlaceholder": "SEARCH_PLACEHOLDER",
+            "searchEmpty": "SEARCH_EMPTY",
+            "generalThreadTitle": "GENERAL_THREAD_TITLE",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "emptyCta": "EMPTY_CTA",
+            "newCta": "NEW_CTA",
+            "backToMessages": "BACK_TO_MESSAGES",
+            "threadEmptyBody": "THREAD_EMPTY_BODY",
+            "newTitle": "NEW_TITLE",
+            "newBodyLabel": "NEW_BODY_LABEL",
+            "newSubtitle": "NEW_SUBTITLE",
+            "newPlaceholder": "NEW_PLACEHOLDER",
+            "newSend": "NEW_SEND",
+            "newSending": "NEW_SENDING",
+            "newFailed": "NEW_FAILED",
+            "attachDeferred": "ATTACH_DEFERRED",
+        },
+    },
+    {
+        # §2.4's whole section. The most compliance-sensitive copy in the app: `feeAssurance`
+        # states a hard BRD §10.5 constraint, `chargedBySupplier*` says who actually took the
+        # money, and `consentMandate` is FROZEN into card_authorization.consent_payload at the
+        # moment a traveler agrees — that string may be superseded by a new version, never
+        # edited, and the Edge Function holds its own copy for the same reason.
+        #
+        # Every plain-string key in WALLET is listed. An unlisted key is not a failure here,
+        # it is invisible — which on this table would mean the two stacks quietly disagreeing
+        # about what a traveler consented to.
+        "label": "2.4 wallet",
+        "web_file": ROOT / "web/lib/wallet/content.ts",
+        "web_const": "WALLET",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/wallet/WalletCopy.kt",
+        "kmp_object": "WalletMessages",
+        "keys": {
+            "title": "TITLE",
+            "subtitle": "SUBTITLE",
+            "feeAssurance": "FEE_ASSURANCE",
+            "feeAssuranceBody": "FEE_ASSURANCE_BODY",
+            "statusActive": "STATUS_ACTIVE",
+            "statusRevoked": "STATUS_REVOKED",
+            "statusExpired": "STATUS_EXPIRED",
+            "viewActivity": "VIEW_ACTIVITY",
+            "removeAuthorization": "REMOVE_AUTHORIZATION",
+            "addCard": "ADD_CARD",
+            "addCardDeferred": "ADD_CARD_DEFERRED",
+            "emptyTitle": "EMPTY_TITLE",
+            "emptyBody": "EMPTY_BODY",
+            "authorizeTitle": "AUTHORIZE_TITLE",
+            "authorizeCardHeading": "AUTHORIZE_CARD_HEADING",
+            "authorizeNoNewCard": "AUTHORIZE_NO_NEW_CARD",
+            "limitHeading": "LIMIT_HEADING",
+            "limitBody": "LIMIT_BODY",
+            "limitCustom": "LIMIT_CUSTOM",
+            "expiresLabel": "EXPIRES_LABEL",
+            "expiresHint": "EXPIRES_HINT",
+            "consentMandate": "CONSENT_MANDATE",
+            "authorizeCta": "AUTHORIZE_CTA",
+            "authorizeFailed": "AUTHORIZE_FAILED",
+            "consentRequired": "CONSENT_REQUIRED",
+            "statusFailed": "STATUS_FAILED",
+            "confirmedTitle": "CONFIRMED_TITLE",
+            "confirmedOverline": "CONFIRMED_OVERLINE",
+            "confirmedSummary": "CONFIRMED_SUMMARY",
+            "confirmedTrip": "CONFIRMED_TRIP",
+            "confirmedCard": "CONFIRMED_CARD",
+            "confirmedLimit": "CONFIRMED_LIMIT",
+            "confirmedExpires": "CONFIRMED_EXPIRES",
+            "confirmedBackToTrip": "CONFIRMED_BACK_TO_TRIP",
+            "activityTitle": "ACTIVITY_TITLE",
+            "activitySubtitle": "ACTIVITY_SUBTITLE",
+            "activityEmptyTitle": "ACTIVITY_EMPTY_TITLE",
+            "activityEmptyBody": "ACTIVITY_EMPTY_BODY",
+            "filterAllCards": "FILTER_ALL_CARDS",
+            "filterAllTrips": "FILTER_ALL_TRIPS",
+            "useDetailTitle": "USE_DETAIL_TITLE",
+            "chargedBySupplier": "CHARGED_BY_SUPPLIER",
+            "chargedBySupplierBody": "CHARGED_BY_SUPPLIER_BODY",
+            "detailAmount": "DETAIL_AMOUNT",
+            "detailCard": "DETAIL_CARD",
+            "detailSupplier": "DETAIL_SUPPLIER",
+            "detailPaidBy": "DETAIL_PAID_BY",
+            "detailTrip": "DETAIL_TRIP",
+            "detailWhen": "DETAIL_WHEN",
+            "detailReference": "DETAIL_REFERENCE",
+            "askGyasi": "ASK_GYASI",
+            "flagUnfamiliar": "FLAG_UNFAMILIAR",
+            "flagDeferred": "FLAG_DEFERRED",
+            "removeTitle": "REMOVE_TITLE",
+            "removeOverline": "REMOVE_OVERLINE",
+            "removeBodyLead": "REMOVE_BODY_LEAD",
+            "removeBodyPast": "REMOVE_BODY_PAST",
+            "removeThisAuthorization": "REMOVE_THIS_AUTHORIZATION",
+            "removeCardStays": "REMOVE_CARD_STAYS",
+            "removeCta": "REMOVE_CTA",
+            "removeCancel": "REMOVE_CANCEL",
+            "removeFailed": "REMOVE_FAILED",
         },
     },
 ]

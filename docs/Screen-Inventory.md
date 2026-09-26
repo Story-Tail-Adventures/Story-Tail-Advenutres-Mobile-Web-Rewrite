@@ -72,7 +72,9 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 
 **September 2026 design iteration.** The Claude Design project reorganised this section as "Public landing pages" and added four topic/advisor pages — 2.0.8 Caribbean, 2.0.9 Cruises, 2.0.10 Honeymoons, 2.0.11 About Gyasi. They are curated editorial pages (no travel-API dependency) that complement, not replace, adventures.story-tail.com, and carry the **P2** marker like the rest of the lead-generation surface. All eleven were built ahead of phase in September 2026 (user decision); the public search/results/detail pages run on Gyasi's curated catalog until the Phase 2 API search replaces the data source.
 
-**Public top bar navigation** (all 2.0.x screens): Explore (2.0.3) · Caribbean (2.0.8) · Cruises (2.0.9) · Honeymoons (2.0.10) · About Gyasi (2.0.11), plus "Sign in" and "Create account". The footer on every public screen links the 2.0.7 legal pages, How it works (2.0.2) and the marketing site.
+**Public top bar navigation** (all 2.0.x screens): Explore (2.0.3) · Caribbean (2.0.8) · Cruises (2.0.9) · Honeymoons (2.0.10) · About Gyasi (2.0.11), plus "Sign in" and "Create account", and a light/dark toggle after them. The footer on every public screen links the 2.0.7 legal pages, How it works (2.0.2) and the marketing site.
+
+> **Amended September 2026, built as amended — the toggle.** It sits last in the bar, after the auth cluster, and that position is forced rather than chosen: exactly one `margin-left: auto` is ever active in this header (the hamburger carries one below `lg`, the auth cluster carries one from `lg`), and flexbox splits free space equally among multiple auto margins — so a toggle with its own would land in the middle of the bar. Below `md` the bar floats transparent over the hero photo on five routes, so the toggle takes a glass chip there and drops it when the bar goes solid at 768px. See Design-System §10.1 for why the control is here and not on a settings screen.
 
 #### 2.0.1 App Subdomain Public Landing
 **Purpose:** Greet anonymous visitors at app.story-tail.com and direct them into the right next action.
@@ -652,6 +654,35 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 ### 2.4 Payment & Card Authorization
 
+> **Amended 2026-09-17, as the section was built.** Six of the seven screens ship; **2.4.2 Add
+> Card is deferred**, and with it the only thing in §2.4 that needs a Stripe account. The
+> per-screen notes below record what changed and why. Three things this section's spec asked
+> for are not built at all — a CSV export, an agent-notification preview, and the emailed
+> authorization link — each for a reason recorded at its screen.
+>
+> **The payment tables were locked down before anything read them.** `payment_card`,
+> `card_authorization`, `authorization_request` and `card_use_event` were created with RLS
+> enabled and no policies, but they kept the schema-wide `SELECT` grant to `anon` and
+> `authenticated` — covering `stripe_payment_method_id`, `stripe_customer_id` and
+> `authorization_request.token_hash`. Nothing leaked, because zero policies fails closed. But
+> the obvious first migration for 2.4.1 is a self-select policy, and adding one would have
+> opened every granted column at once. `20260917090000_payment_domain_lockdown.sql` revokes
+> them; `supabase/tests/rls_payment.sql` asserts a privilege *error* rather than an empty
+> result, on both client roles, with real fixture rows behind it.
+>
+> **So every screen here reads through an Edge Function on the service role**, projecting a
+> hand-written column list — never PostgREST, and never the two Stripe columns.
+> `.claude/skills/rls-policy/SKILL.md` had already classified these tables service-role-only;
+> this section is the first to need that ruling, and it holds.
+>
+> **`card_use_event.amount_cents` is reclassified.** `docs/Data-Model.md` §9.4 marks it
+> *Internal*, the same class as the agent's `justification`. That cannot be right for this
+> section: 2.4.5 exists to show a traveler what was charged to their own card, and BRD §10.3
+> makes that transparency part of the SAQ A trust posture. BRD outranks the Data Model in
+> CLAUDE.md's hierarchy, so the amount is the traveler's to see and §9.4 is amended to match.
+> `justification` stays Internal — it is the agent's reason, written for the audit trail, not
+> a line of prose the client was ever meant to read.
+
 #### 2.4.1 My Cards / Payment Methods List
 **Purpose:** Show the client every card they have authorized and its status.
 **Primary elements:** Card list (brand + last 4, nickname, expiration, authorized trips, status); "Add a card" CTA; help text explaining what card storage is used for and what it is *not* used for (PCI-aware, trust-building); link to security policy.
@@ -666,12 +697,66 @@ gate (2.0.6) sits in front of it rather than beside it.
 **Entry points:** My Cards "Add"; Card Authorization for Trip flow.
 **Related screens:** My Cards, Card Authorization for Trip.
 
+> **Deferred 2026-09-17. This is the only §2.4 screen not built, and it cannot be partially
+> built.** `payment_card.stripe_payment_method_id` and `.stripe_customer_id` are both NOT
+> NULL, so there is no version of this screen that produces a row without a real
+> tokenization. There is no Stripe account, no publishable key, no secret key, no SDK on
+> either stack and no payment Edge Function. 2.4.1's "Add a card" renders disabled with a
+> reason, the way every §2.5 deferral does.
+>
+> **The desktop artboard must not be built as drawn.** `design/source-prototype/screens/
+> client-payment.jsx` draws the card number as an ordinary first-party `<input>` with a
+> security-code input beside it, under a "Secured by Stripe · PCI DSS · SAQ A" badge.
+> CLAUDE.md requires every screen to be visually faithful to its prototype; this is the one
+> place that rule is suspended, and the suspension is the point. Tech-Recommendations §4.6
+> names receiving the card number in any call to our backend as one of the three things that
+> moves the platform from SAQ A to SAQ D — an annual compliance cost in the tens of thousands
+> against a stack that runs at $50–150/month. The mobile artboards drawn for this section show
+> a hosted field instead, and record that as their first departure.
+>
+> **Two integration shapes, and the choice is not a detail.** Stripe Checkout in
+> `mode: 'setup'` adds no package to either stack and so does not trip CLAUDE.md's
+> security-review requirement for a payment-adjacent SDK; it is a redirect, so it departs
+> further from the artboard. Elements plus the native Android and iOS SDKs matches the drawing
+> and trips that requirement three times — and there is no review process, template or record
+> anywhere in the repo today, so choosing it means creating one first.
+>
+> **Whichever is chosen, the Stripe call is pinned:** a `SetupIntent` with
+> `usage: 'off_session'`, or a Checkout Session with `mode: 'setup'`. A `PaymentIntent`, a
+> capturing SetupIntent, or Checkout in `mode: 'payment'` would be a BRD §10.5 violation
+> inside the Stripe call rather than in the UI — where no amount of design review would catch
+> it. Whatever builds this owes an assertion on that, not a comment.
+
 #### 2.4.3 Card Authorization for Trip
 **Purpose:** Bind a stored card to a specific trip with a spending limit.
 **Primary elements:** Trip summary header; card picker (existing cards or "Add new"); spending limit input with suggested amounts; authorization expiry date (defaults to trip end + 7 days); explicit consent statement; "Authorize" CTA.
 **Key actions:** Select card; set limit; consent and authorize.
-**Entry points:** Trip Detail "Authorize a card"; notification from agent requesting authorization; link in agent-sent email.
+**Entry points:** Trip Detail "Authorize a card"; notification from agent requesting authorization. (The emailed link is deferred — see below.)
 **Related screens:** My Cards, Add Card, Trip Detail.
+
+> **Amended 2026-09-17: the emailed link is not built, and the entry point above is narrowed
+> to match.** `authorization_request` exists, with a `token_hash`, an `expires_at` and a
+> `status` — the whole shape of a single-use emailed link. Nothing writes a row to it: the
+> requesting side is the agent's (§3.x, unbuilt), and there is no transactional email
+> anywhere in the stack. Building the consuming half against a table nothing populates would
+> be a route that can only 404.
+>
+> That token is also why this section's first migration was a revoke rather than a policy:
+> `authorization_request.token_hash` was readable by `anon`, which for a bearer secret is an
+> authorization-bypass primitive rather than a disclosure.
+>
+> **The screen ships reached from the trip**, which is the entry point that works today, and
+> binds an existing card to a trip with a limit and an expiry. Authorizing a card the traveler
+> has not added yet is not reachable while 2.4.2 is deferred; the picker says so rather than
+> offering an "Add new" branch that dead-ends.
+>
+> **The consent text is frozen into `card_authorization.consent_payload` and therefore has to
+> be true when it is written.** The prototype's mandate promises "I'll be notified every time
+> the card is used". No dispatcher exists — no transactional email, no push, and
+> `notification_preference` is read and written by nothing. A stored consent record containing
+> an undeliverable term is a compliance artifact, not a copy nit, so the notification clause
+> is cut from the mandate rather than shipped and quietly unhonoured. It returns with the
+> notification pass, as a new consent version.
 
 #### 2.4.4 Card Authorization Confirmation
 **Purpose:** Confirm a card has been authorized for a trip.
@@ -682,10 +767,31 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 #### 2.4.5 Card Use History / Activity
 **Purpose:** Transparent record of every time a stored card was used by the advisor.
-**Primary elements:** Timeline of events (date, agent, supplier, amount, note); filter by card or by trip; export CSV.
+**Primary elements:** Timeline of events (date, agent, supplier, amount, note); filter by card or by trip. (CSV export is deferred — see below.)
 **Key actions:** Filter; tap event for detail.
 **Entry points:** My Cards card detail; Trip Detail "Payment activity".
 **Related screens:** Card Use Detail.
+
+> **Amended 2026-09-17: CSV export is cut, not postponed with a disabled button.** It is the
+> one surface in §2.4 that would persist this data outside the platform, where no revocation
+> reaches it and no audit follows it. A naive implementation — select the rows, join to
+> `payment_card` for "visa ••••4242", write the file — carries both Stripe tokens onto a
+> device. There is no export precedent anywhere in the repo to copy, so there is nothing to
+> follow safely. If it is ever built it is a server-side function with a hand-written column
+> allowlist, audited as a bulk export per Data-Model §18.3 — which is a feature with its own
+> design, not a button on this screen.
+>
+> **The timeline is real but currently fixture-fed.** Nothing writes `card_use_event`: the
+> producing surface is the agent's reveal-and-record flow in §3.6, unbuilt. The screen is
+> built, and `supabase/seed.sql` carries three events so it can be reviewed against something.
+> This is the §2.5 precedent — say plainly what is not live rather than withhold the screen.
+>
+> **`amount_cents` is shown.** Data-Model §9.4 classified it Internal; see the section note
+> above for why BRD §10.3 wins that conflict. `justification` is **not** shown — it is the
+> agent's own reason, written for the audit trail. The supplier name comes from
+> `supplier_name_snapshot`, never from a join: a supplier renamed later must not silently
+> rewrite a traveler's history, and a portal booking names a merchant that has no `supplier`
+> row at all.
 
 #### 2.4.6 Card Use Detail / Event Detail
 **Purpose:** Drill into a single card-use event.
@@ -694,23 +800,135 @@ gate (2.0.6) sits in front of it rather than beside it.
 **Entry points:** Card Use History timeline tap.
 **Related screens:** Conversation Thread.
 
+> **Amended 2026-09-17. "Flag as unfamiliar" renders disabled with a reason, and the blocker
+> is a contradiction in the Data Model rather than missing code.** §9.4 says of
+> `card_use_event`: "**Append-only:** no UPDATE, no DELETE" — and in the same table defines
+> `client_flag_status` with three values, `not_flagged`, `flagged`, `resolved`, which only a
+> sequence of UPDATEs can produce. The table's own DDL comment and
+> `.claude/skills/rls-policy/SKILL.md` both repeat the append-only rule. One of the two has to
+> give, and which one is a ruling, not an implementation detail: either a separate append-only
+> `card_use_flag` table, or an explicit narrowing of the append-only claim to exclude the two
+> flag columns. Writing an UPDATE against a ledger three documents call append-only is not a
+> decision a screen build gets to make quietly.
+>
+> Both flag columns are also classified *Internal*, which cannot be right either — a traveler
+> who flags their own charge and then cannot see that they flagged it has been given a button
+> that appears to do nothing. That goes with the same ruling.
+>
+> **"Message agent" works** and goes to §2.6.2, which is built.
+>
+> **The receipt attachment is not shown, and that is a deliberate existing decision rather
+> than an omission.** `card_use_event.receipt_document_id` FKs into `document`, but
+> `document_self_select`'s kind allowlist excludes `receipt` on purpose
+> (`20260907031255_trip_read_policies.sql`): a supplier receipt discloses what the agency
+> actually paid, immediately after `cost_cents` and `total_commission_cents` were withheld to
+> prevent exactly that. Reversing it is a margin decision for the business, not a screen fix.
+
 #### 2.4.7 Revoke Card Authorization Confirmation
 **Purpose:** Final confirmation before revoking a stored card or its trip authorization.
-**Primary elements:** Plain-language explanation of what revoking will do (and not do — does not affect already-completed supplier charges); list of trips currently using the card; agent-notification preview; "Revoke" CTA; cancel link.
+**Primary elements:** Plain-language explanation of what revoking will do (and not do — does not affect already-completed supplier charges); list of trips currently using the card; "Revoke" CTA; cancel link. (The agent-notification preview is deferred — see below.)
 **Key actions:** Revoke; cancel.
 **Entry points:** My Cards; Card Authorization for Trip edit.
 **Related screens:** My Cards, Trip Detail.
+
+> **Amended 2026-09-17: this screen revokes an AUTHORIZATION, not a card, and the distinction
+> is the whole amendment.**
+>
+> Revoking a `card_authorization` is a local row and a local truth: the agent may no longer
+> charge that card for that trip, and setting `status = 'revoked'` makes it so. That ships.
+>
+> Revoking a `payment_card` is not local. With no Stripe integration, setting
+> `status = 'revoked'` in Postgres leaves the `PaymentMethod` live in Stripe's vault while
+> this screen tells the traveler the card is gone. Data-Model §18.5 expects the Stripe
+> Customer to be deleted on erasure; the local half alone is a broken promise, and a broken
+> promise about a stored card is worse than an absent button. Card-level revocation arrives
+> with 2.4.2's Stripe integration, in the same change that can actually detach the
+> PaymentMethod. Until then 2.4.1 offers "Remove authorization" per trip and says why the card
+> itself cannot be removed yet.
+>
+> **The agent-notification preview is cut.** It previews an email nothing sends. The revoke
+> still writes its `audit_event`, so the agent's own surface will show it when §3.x reads that
+> trail — the record exists, the message does not.
+>
+> **The "does not affect already-completed supplier charges" language is kept exactly**, and
+> the prototype's phrasing for it is already correct BRD §10.5 wording: a charge that has
+> settled with a supplier is between the traveler and that supplier, and Story-Tail is not the
+> merchant of record and cannot reverse it.
 
 ---
 
 ### 2.5 Account & Profile
 
+> **Built on both stacks 2026-09-10.** Ten of the eleven screens are implemented on web
+> (`web/app/(client)/account/`, plus `/documents` for 2.5.4) and on mobile
+> (`mobile/.../ui/screens/account/`); 2.5.5 Document Upload is the one that is not, because
+> there is no account-scoped upload door — see its own note. The copy is pinned across the
+> two stacks by `.github/scripts/check_copy_parity.py`.
+>
+> Eleven mobile frames (`design/source-prototype/screens/client-account-mobile.jsx`) joined
+> the existing desktop ones in the design project first, following the section's 1:1 parity
+> convention. The per-screen notes below record what the artboards departed from and why.
+>
+> **What is real and what is not** is recorded per screen. In short: 2.5.2 and 2.5.3 write
+> (through the wizard's own Edge Functions, minus the `advance` flag); 2.5.1, 2.5.4, 2.5.7,
+> 2.5.8, 2.5.9 and 2.5.11 read; 2.5.6 is a placeholder with nothing to switch; and 2.5.10's
+> confirmation is inert because nothing writes to `account`.
+>
+> **Amendments in this pass are corrections, not scope cuts.** Each one removes something the
+> spec promised that the platform cannot currently deliver — an OCR service, a geo-IP
+> resolver, an SMS channel, a notification dispatcher, a retention scrubber, tracking toggles
+> over nothing. CLAUDE.md's document hierarchy is why they land here first: the doc moves
+> before the code, so that a builder reading this section is not told to build something that
+> cannot exist. Where the gap is a missing *decision* rather than a missing feature, the note
+> says so and names who owns it.
+>
+> **Three cross-cutting facts the per-screen notes assume.** First, this section inherits
+> §2.2's security model wholesale: RLS decides rows, GRANTs decide columns, and client writes
+> go through audited Edge Functions rather than PostgREST, because no table here has a write
+> policy and a browser `.insert()` would return 204 and change nothing. Second, Storage still
+> has exactly one door — `trip-document-url` — and it signs on demand, which is why neither
+> 2.5.4 nor 2.6.2 renders thumbnails. Third, `session`, `mfa_device` and `auth_event` are
+> shadow tables that **nothing writes**; Data-Model §5.1.1 says not to double-implement what
+> GoTrue owns, so 2.5.7 reads GoTrue rather than growing policies on empty tables.
+>
+> **Card and payment surfaces are phase-leaked three different ways**, because the right
+> treatment differs by shape: a destination or a switch renders disabled with a reason
+> (2.5.1's Payment methods row, 2.5.6's payment category); a clause inside a paragraph is cut
+> rather than greyed (2.5.9); and a consequence is stated plainly because it is true whether
+> or not §2.4 has shipped (2.5.10's "any saved card stops being usable"). At the time this
+> was written the §2.2 artboard's live "Authorize a card · $4,180 due" CTA looked like the
+> thing out of step with the built app, and it was raised with the designer 2026-09-10.
+>
+> **Resolved 2026-09-17, the other way: the artboard was right.** §2.4 shipped, and every one
+> of those CTAs went live with it — the dashboard's, the Trip Detail Payments tile, and
+> 2.2.9's — all pointing at 2.4.3 for the trip in hand. 2.5.1's "Payment methods" row now
+> opens 2.4.1. `authorizeCardComingSoon` and `authorizeDeferred` are deleted from both stacks
+> and from the parity map rather than left unreferenced, where the next reader would take
+> them for live copy. Only 2.5.6's payment-notification category is still disabled, and for
+> its own reason — no dispatcher exists — not because §2.4 is missing.
+
 #### 2.5.1 Account Overview / My Account
 **Purpose:** Hub for everything related to the client's account.
-**Primary elements:** Profile summary card; navigation tiles for Personal Info, Travel Preferences, Travel Documents, Notifications, Security, Connected Accounts, Privacy.
-**Key actions:** Navigate to any sub-screen.
-**Entry points:** Profile icon in main nav.
+**Primary elements:** Profile summary card; navigation tiles for Personal Info, Travel Preferences, Travel Documents, Notifications, Security, Connected Accounts, Privacy, Help & Support; sign out.
+**Key actions:** Navigate to any sub-screen; sign out.
+**Entry points:** Account tab (mobile) / Account on the nav rail (web).
 **Related screens:** All account sub-screens.
+
+> **Amended 2026-09-10.** This screen is the **root of the Account tab**, not a pushed route,
+> so it is the only §2.5 frame carrying the bottom bar — and it is the one place in the app
+> that owns **sign out**, which `states.tsx`'s `UnauthorizedState` currently notes has no home.
+> Per §4.4 it is Pattern **D variant**: a grid of tiles on tablet/web, a grouped list on
+> mobile.
+>
+> **Two elements the prototype drew have no backing and are not part of this screen.** The
+> "Member ID · STA-5839" chip has no column anywhere — inventing a customer number is a
+> support burden, not a feature. And the avatar is **initials**, not a photograph:
+> `web/lib/images.ts` has no avatar entries at all, though `platform_user.avatar_url` exists
+> for the day a client uploads one.
+>
+> **Row subtitles state what is inside, in data** ("Name, email, phone, address"; "4 files ·
+> 1 expiring soon") rather than describing the screen ("Manage your notification
+> preferences"). Any count shown here must agree with its destination screen.
 
 #### 2.5.2 Personal Info Edit
 **Purpose:** Edit name, email, phone, mailing address, date of birth, emergency contact.
@@ -718,6 +936,26 @@ gate (2.0.6) sits in front of it rather than beside it.
 **Key actions:** Update fields; save.
 **Entry points:** Account Overview.
 **Related screens:** Email Verification (if email changed).
+
+> **Amended 2026-09-10: the email change needs a trigger that does not exist yet.** Changing
+> an email is GoTrue's (`supabase.auth.updateUser({ email })`), not a column write — but
+> `auth_bridge` has triggers only for `AFTER INSERT ON auth.users` and `AFTER UPDATE OF
+> email_confirmed_at`. **Nothing fires on `AFTER UPDATE OF email`,** so a confirmed change
+> updates `auth.users.email` and leaves `account.email` stale. That is not cosmetic:
+> `account.email` is what the agent's CRM shows, and `handle_user_email_confirmed()` matches
+> a pre-created client on it — so the next person to register the old address could be adopted
+> onto the wrong client row. A mirroring trigger ships with this screen. It should update
+> `client.email` only when that still equals the old account email, since a pre-created client
+> may carry an address the agent set deliberately.
+>
+> **Reuse 2.1.10 rather than growing a second rule set.** This screen is the same fields as
+> Profile Completion plus DOB and emergency contact, and `onboarding-profile` already gates
+> its wizard advance behind `advance === true` — so it takes the write with `advance` omitted.
+> The 2.1.10 notes above already settle the shape of the mailing address (six structured
+> fields, not one line), phone normalisation (E.164), and the passport number. All of it
+> applies here unchanged. What this screen must **not** send that function is the email
+> address: a function writing `account.email` directly would leave the login and the record
+> disagreeing, which is the very divergence the trigger above exists to prevent.
 
 #### 2.5.3 Travel Preferences Edit
 **Purpose:** Edit the preferences captured during onboarding.
@@ -728,84 +966,444 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 #### 2.5.4 Travel Documents
 **Purpose:** Manage uploaded travel documents (passport, visa, insurance certificate).
-**Primary elements:** Document list with thumbnails; expiration warnings; "Upload" CTA; per-document actions (view, share, delete).
-**Key actions:** Upload; view; share securely; delete.
+**Primary elements:** Document list; expiration warnings; "Upload" CTA; per-document actions (view, send to Gyasi, remove).
+**Key actions:** Upload; view; send to Gyasi; remove.
 **Entry points:** Account Overview; Trip Document Library.
 **Related screens:** Document Upload.
 
+> **Amended 2026-09-10: "share securely" becomes "send to Gyasi", and the secure link stays
+> deferred to §2.8.** §2.2.6 already removed share-with-co-traveler rather than disabling it,
+> and §7's open question about account-less co-traveler access belongs with Group Trip
+> Coordination. At MVP the only recipient a passport has is the advisor, so the action
+> resolves to attaching it to a message — which `trip-message` already supports and already
+> filters `attachmentDocumentIds` to documents the caller owns. That is a real action on a
+> path that exists, rather than a link nobody can issue.
+>
+> **"Delete" is an archive.** `document.archived_at` is the mechanism; rows are not removed,
+> because `card_use_event.receipt_document_id` and `commission_import.document_id` reference
+> them. The label says "remove" and the copy should not promise erasure.
+>
+> **Thumbnails are not free.** Storage is addressed by key, `document.storage_key` is outside
+> the client column grant, and `trip-document-url` signs **on demand** precisely so that a
+> five-minute URL for a file nobody opened is not a false entry on the access trail. A grid
+> of thumbnails would sign every document and write an access record per document per page
+> load. The list shows a type badge and the filename; a signature happens when a document is
+> opened. Same reasoning §2.2.11 used to leave its photographs unrendered.
+>
+> **THE BLOCKER ON THIS SCREEN: there is no account-scoped upload door, so "Upload" renders
+> disabled with a reason until one exists.** The *model* supports an account-level document —
+> `document.trip_id` is nullable, and both read paths already handle a trip-less row
+> (`document_self_select` matches `client_id = … OR trip_id IN (…)`, and `trip-document-url`
+> tests `client_id` before it ever consults `trip_id`). It is the **write** door that is
+> trip-only. `trip-document` demands a `tripId`, proves ownership of it, derives the object
+> key as `trips/<tripId>/<documentId>.<ext>`, and stamps `trip_id` on the row — and it is the
+> **only** insert into `document` anywhere in the repo. `document` has a SELECT policy and no
+> INSERT policy, so a PostgREST insert matches nothing, and the bucket carries no
+> `authenticated` policies either. A passport that belongs to a person rather than to one
+> trip therefore cannot be created from anywhere today.
+>
+> **A trip picker is a stopgap, not the fix**, and it fails the very client this screen exists
+> for. `20260903190707_onboarding_schema.sql` dropped NOT NULL from
+> `travel_document.document_id` precisely for the just-onboarded traveler — "Null means 'we
+> have the details, not the scan'" — who may have no trip to pick at all. Filing their
+> passport under whichever trip they happen to have also drops it into that trip's §2.2.6
+> library, where it does not belong.
+>
+> **What the account-scoped door must add:** a `tripId`-free variant that keys the object
+> outside the `trips/` prefix (`clients/<clientId>/…`), leaves `trip_id` null, and links the
+> new row onto `travel_document.document_id` — **a column nothing writes today**, so the
+> details captured at 2.1.10 and a scan uploaded here are currently two unrelated rows. This
+> is a *separate* gap from the missing confirm step at 2.5.5: that one completes an upload
+> that started; this one is about an upload that cannot start.
+
 #### 2.5.5 Document Upload / Camera Capture
 **Purpose:** Upload a new document, from device file picker or (mobile) camera.
-**Primary elements:** Document type picker; file picker / camera shutter; preview; OCR-extracted fields (expiry, document number — editable); "Save" CTA.
-**Key actions:** Capture or pick; review extracted fields; save.
-**Entry points:** Travel Documents; Trip Document Library "Upload".
+**Primary elements:** Document type picker; file picker / camera shutter; preview; hand-entered fields (expiry, issuing country); "Save" CTA.
+**Key actions:** Capture or pick; enter the details; save.
+**Entry points:** Trip Document Library "Upload" (2.2.6). The Travel Documents (2.5.4) entry waits on an account-scoped upload endpoint — see the blocker recorded at 2.5.4.
 **Related screens:** Travel Documents, Trip Document Library.
+
+> **Amended 2026-09-10: no OCR, and two capture fields rather than three.** The line above
+> read "OCR-extracted fields (expiry, document number — editable)" and "review extracted
+> fields". There is no OCR service anywhere in the stack, none is specified in the BRD, and
+> adding one would be a new third-party SDK processing passport images — which CLAUDE.md
+> requires a security review for. Nothing can pre-fill anything, so the fields are entered by
+> hand and the screen says so.
+>
+> **The document NUMBER is not collected here either**, for the reason 2.1.10 already
+> records above: Data-Model §18.2 requires `travel_document.document_number_encrypted` to be
+> encrypted under a backend-held key, there is no crypto helper in
+> `supabase/functions/_shared/` and no key management, and `onboarding-profile` refuses a
+> `passport.number` key loudly rather than storing one unprotected. Drawing the field on a
+> second screen would invite exactly the write that function declines. It returns with the
+> encryption pass, on both screens at once. The desktop artboard's "Name (OCR)" is dropped
+> outright — `travel_document` has no name column, and the holder's name is already on
+> `client` / `companion`.
+>
+> **The stated file constraints were wrong twice.** The prototype says "JPG, PNG, PDF · up to
+> 10 MB". `supabase/functions/_shared/trip.ts` allows `application/pdf`, `image/jpeg`,
+> `image/png`, **`image/heic`** and `image/webp`, with `MAX_UPLOAD_BYTES = 52_428_800` — **50
+> MiB**, matching the bucket's `file_size_limit`. HEIC is what an iPhone camera produces by
+> default, so omitting it told the exact user this camera-first screen exists for that their
+> photos would be rejected.
+>
+> **Upload is a two-step write and the second step is unbuilt.** `trip-document` registers
+> the row and signs an upload URL, but its own header records that it does not confirm the
+> upload: `checksum_sha256` is written as 32 zero bytes because the digest cannot be known
+> before the bytes arrive. This screen owns the confirm step — a `document-confirm` function
+> that hashes the object server-side and flips a pending state. A client-supplied checksum is
+> not acceptable: it would be a digest of whatever the client says, which is worse than a
+> visible placeholder because it looks verified.
+>
+> **"Save" cannot yet file the details beside the file.** It can register the document, but
+> **nothing in the repo ever writes `travel_document.document_id`** — the only insert into
+> `travel_document` at all is `onboarding-profile`, writing the traveler's own passport row
+> from 2.1.10. So the metadata captured during onboarding and a scan uploaded here stay two
+> unrelated rows, and this screen's expiry and issuing-country fields have nowhere to land on
+> an existing record. Linking them is part of the same pass as 2.5.4's account-scoped door.
 
 #### 2.5.6 Notification Preferences
 **Purpose:** Control which notifications are sent and through which channels.
-**Primary elements:** Channel-by-category matrix (email, push, SMS) for: Trip Updates, Payment Activity, Messages, Pre-Trip Reminders, Marketing/Deals; master toggle; "Save" CTA.
+**Primary elements:** Channel-by-category matrix (email, push) for the eight categories below; "Save" CTA.
 **Key actions:** Toggle per channel/category; save.
 **Entry points:** Account Overview.
 **Related screens:** Dashboard.
 
+> **Amended 2026-09-10, and this screen needs a decision before it is built.** Three changes,
+> plus one open question that is not ours to settle.
+>
+> **The categories are eight, reconciled against BRD §6.6.** This line named five (Trip
+> Updates, Payment Activity, Messages, Pre-Trip Reminders, Marketing/Deals). BRD §6.6 names
+> seven outbound kinds — trip status changes, itinerary updates, payment authorizations
+> needed, payment activity on stored cards, pre-trip reminders, post-trip follow-ups,
+> marketing — and in-app messaging makes eight. The five collapsed two pairs and dropped
+> post-trip follow-ups entirely. The BRD is the higher authority, so the set is:
+> `trip_status`, `itinerary_change`, `payment_authorization`, `card_use`,
+> `pre_trip_reminder`, `post_trip`, `messages`, `marketing`.
+>
+> **SMS is removed as a channel.** BRD §6.6 says "(email and push)" and never mentions SMS.
+> `[auth.sms]` in `supabase/config.toml` has `enable_signup = false` and
+> `enable_confirmations = false`, there is no SMS provider anywhere in the repo, and
+> `web/app/(auth)/mfa/setup/actions.ts` already records that SMS-as-a-backup-factor is off
+> for the same reason. A third column over nothing is a switch that cannot do anything.
+>
+> **The master toggle is removed.** It was listed as a primary element and neither artboard
+> drew one. A single switch that silences everything is at odds with this screen's own
+> promise that trip-critical alerts still reach you — it would either lie, or need a
+> published exception list nobody has specified. If it comes back it needs that list first.
+>
+> **THE OPEN QUESTION, and the reason this screen should not ship as drawn: nothing delivers
+> a notification today.** There is no dispatcher, no transactional email sender, no FCM or
+> APNs wiring anywhere in the repo — the only `firebase` reference in `supabase/config.toml`
+> is `[auth.third_party.firebase]`, an identity provider, not messaging. `notification_
+> preference` is read and written by exactly nothing. So the screen as specified stores
+> preferences that no code consults, which is the trap the disabled §2.4 CTAs exist to avoid.
+> Either the delivery path lands with this screen, or the screen ships stating plainly which
+> channels are live — and at present that is none of them.
+>
+> Two mechanical requirements when it is built: `notification_preference.user_id` is the
+> primary key and **no path creates a row**, so this screen needs an upsert and
+> `handle_new_user()` needs to seed one (2.1.14's deferred control, above, is waiting on
+> exactly that); and `channels` is schemaless `jsonb`, so a mistyped category key writes
+> cleanly and renders a toggle that will never control anything — it needs the same closed
+> vocabulary CHECK that `travel_preference` got.
+
 #### 2.5.7 Security Settings
 **Purpose:** Manage password, MFA, and active sessions.
-**Primary elements:** Change password section; MFA status with enable/disable; active sessions list with device, location, last-active, and "Sign out" per session; suspicious-activity log; sign-out-of-all-devices button.
+**Primary elements:** Change password section (email accounts only); MFA status with enable/disable; active sessions list with device, last-active, "this device" marker, and "Sign out" per session; sign-out-of-all-devices button.
 **Key actions:** Change password; enroll/disable MFA; sign out a session.
 **Entry points:** Account Overview.
-**Related screens:** MFA Setup, Login.
+**Related screens:** MFA Setup, Login, Connected Accounts.
+
+> **Amended 2026-09-10.** Three of the elements listed above cannot be rendered honestly, and
+> one assumed every account has a password.
+>
+> **Session LOCATION is removed.** `auth.sessions` holds an `ip`, and nothing resolves an IP
+> to a place — there is no geo-IP service in the repo and `session.ip_country` has no writer.
+> The prototype's "Miami, FL" and "Atlanta, GA · suspicious?" are invented, and the question
+> mark is the design admitting it. The row shows device, when it was last used, whether it is
+> the one you are holding, and a way out.
+>
+> **The "suspicious-activity log" is removed, not deferred-with-a-placeholder.** `auth_event`
+> exists in the schema and **nothing has ever written a row to it** — no login path, no Edge
+> Function. `audit_event` is the agency's record and §2.2 deliberately gave clients no policy
+> on it, which is the same reason 2.2.1's activity feed was dropped. A panel that would
+> always be empty is worse than its absence. It returns if and when login starts writing
+> `auth_event`, which is an open item from the bootstrap.
+>
+> **"Trusted" is not a status we hold.** The prototype chips a session as Trusted; what that
+> would mean is "has a current session", which is what every row in the list already means.
+>
+> **The password section is conditional on `auth_provider = 'email'`.** The enum is
+> `('email','google','apple')`, so a Google or Apple account has no password: "Last changed
+> 14 March" is a fabrication for them and "Change password" leads nowhere. Those accounts get
+> a "How you sign in" card pointing at Connected Accounts instead. This is the same hole
+> 2.5.10 closes by confirming with a typed email rather than a password — it has to be closed
+> on both screens.
+>
+> **`session` and `mfa_device` are shadow tables and should stay empty.** Data-Model §5.1.1
+> says not to double-implement what GoTrue owns, and nothing writes either table. MFA shipped
+> GoTrue-native (`supabase.auth.mfa.*` in `web/app/(auth)/mfa/setup/actions.ts`), so this
+> screen reads `auth.mfa_factors` and `auth.sessions` through a service-role Edge Function
+> rather than growing policies on two empty tables. **Backup codes are not offered** — that
+> same file records that Supabase has no backup-code factor and a home-grown one could not be
+> trusted — and no authenticator vendor is named, because any TOTP app works.
+>
+> Note `secure_password_change` is currently `false` in `supabase/config.toml`, so a stolen
+> session can change a password without reauthentication. Turning it on is a one-line change
+> with a real UX consequence, so it is a decision for this screen rather than a cleanup.
 
 #### 2.5.8 Connected Accounts
 **Purpose:** Manage social login linkages.
 **Primary elements:** Google account link state; Apple account link state; connect/disconnect actions.
 **Key actions:** Connect; disconnect.
-**Entry points:** Account Overview.
+**Entry points:** Account Overview, Security Settings.
 **Related screens:** Login.
+
+> **This spec is already correct and should stay as written — Google and Apple only.**
+> `auth_provider` is `ENUM ('email','google','apple')` and `web/lib/auth/providers.ts` carries
+> the same two. The desktop artboard adds a Facebook row marked "Not connected · available",
+> which is not a provider we have and reads as one call away; it is dropped, and this line is
+> the authority.
+>
+> **The real hazard here is a permanent lockout, and the screen must refuse it server-side.**
+> Disconnecting the last identity on an account with no password (`auth_provider` google or
+> apple) leaves no way back in. The refusal belongs in an Edge Function, not in a disabled
+> button and not in a reliance on GoTrue's own guard. This is the same OAuth-shaped gap 2.5.7
+> closes on the password card and 2.5.10 closes on its confirmation field — three screens,
+> one assumption to stop making.
+>
+> **Connected accounts are `auth.identities`,** reached via `supabase.auth.getUserIdentities()`.
+> Neither `session` nor `mfa_device` is involved, and neither should grow a policy for this
+> screen.
 
 #### 2.5.9 Privacy & Data Export
 **Purpose:** Honor data-rights requirements (CCPA where applicable).
-**Primary elements:** "Download my data" CTA; explanation of what is included; data export status indicator; cookie/tracking preferences.
-**Key actions:** Request data export; manage tracking preferences.
+**Primary elements:** "Download my data" CTA; explanation of what is included; data export status indicator; a statement of what we do not track.
+**Key actions:** Request data export.
 **Entry points:** Account Overview.
-**Related screens:** Account Overview.
+**Related screens:** Account Overview, Account Closure.
+
+> **Amended 2026-09-10: the tracking toggles are replaced by a statement.** The screen listed
+> "cookie/tracking preferences" and the prototype drew Essential / Analytics / Marketing
+> switches. There is no analytics script, tag manager or advertising pixel anywhere in
+> `web/` — and `web/content/public/legal/cookies.ts` already tells people in writing that
+> "We do not use advertising cookies or third-party trackers on the app subdomain." Switches
+> over nothing are a control that lies, and they contradicted a shipped legal page. One true
+> sentence is the stronger privacy position; the toggles return the day a tracker does.
+>
+> **The export cannot include the document-access trail.** Every signature from
+> `trip-document-url` writes an `audit_event` (`document.url_signed`), but `audit_event` is
+> the agency's table and §2.2 deliberately gave clients no policy on it. Naming it in the
+> export would promise data the client has no path to. The export covers profile, trips,
+> documents and messages.
+>
+> **This needs an entity that does not exist.** There is nowhere to read an export status
+> from, and reading it out of `audit_event` would mean giving clients a policy on it — the
+> side door §2.2 refused. A small `data_export_request` (id, account_id, requested_at,
+> status, document_id, expires_at) belongs in Data-Model §18.5 **before** this screen is
+> built. The export pipeline itself is not P1; the entity is what lets the screen say
+> "requested 14 March, we'll email you" instead of a button that does nothing.
 
 #### 2.5.10 Account Closure
-**Purpose:** Delete or deactivate the account.
-**Primary elements:** Warning about what closure will do (trips archived, cards revoked, data retained for tax/business compliance with PII anonymized); reason field (optional); password re-entry; "Close my account" CTA; final confirmation.
+**Purpose:** Deactivate the account. Records are retained and personal identifiers anonymized; nothing is hard-deleted.
+**Primary elements:** Warning about what closure will do (trips archived, stored cards stop being usable, booking and tax records retained with PII anonymized); reason field (optional); type-your-email confirmation; "Close my account" CTA; final confirmation.
 **Key actions:** Close account.
 **Entry points:** Privacy & Data Export.
-**Related screens:** Login (after closure).
+**Related screens:** Login (after closure), Conversation Thread.
+
+> **Amended 2026-09-10.** Three changes, one of which is a blocker on building the screen.
+>
+> **Confirmation is a typed email address, not a password re-entry.** `auth_provider` is
+> `('email','google','apple')`, so a Google or Apple account has no password and the password
+> field is a wall those accounts cannot pass. Typing your own address works for every account
+> shape, and the server pairs it with a recent-auth check on the first-factor timestamp.
+>
+> **No specific anonymization window on screen until a scrubber exists.** Data-Model §18.5
+> describes a 30-day window, but **nothing implements it** — no migration, no `pg_cron`
+> entry, no Edge Function anywhere under `supabase/`. A dated retention promise on a legal
+> screen is precisely the class of claim `PUBLIC_CLAIMS_MODE=strict` exists to stop shipping.
+> **This screen ships with the scrubber, or its copy states the intent without the number.**
+> That is a decision to take before the screen is built, not after.
+>
+> **Closure never deletes `auth.users`, and the database already refuses to let it.**
+> `account_auth_user_fk` is `ON DELETE RESTRICT` — deliberately, and
+> `20260902020243_auth_bridge.sql` sets out the reasoning at length: a cascade could not
+> reach past `account` anyway (`platform_user`, `session`, `mfa_device` and `auth_event` all
+> reference `account(id)` with no cascade of their own), and cascading those too would
+> destroy `audit_event` rows retained 7–10 years, which §18.5 explicitly excludes from
+> erasure. Physical deletion is not a supported operation. Closure sets `account.archived_at`,
+> `locked_at` and `locked_reason`, archives the client, and signs the user out globally;
+> erasure is the §18.5 anonymization flow, not a delete.
+>
+> **One consequence to resolve:** `account_email_active` is `UNIQUE (email) WHERE archived_at
+> IS NULL`, so archiving frees the address for re-registration — a second account can be
+> created on it while the first is still inside its scrub window. Either hold the address or
+> make the scrubber safe against it.
+>
+> **The optional reason field has nowhere of its own to go.** The only candidate column is
+> `account.locked_reason`, which `20260905171542_client_column_grant.sql` deliberately
+> withholds from clients as "free text from agent or system" — writing a traveler's parting
+> words into an agent-facing field mixes two voices in one column, and the agent later reads
+> it as though the system wrote it. Either give closure its own column, or treat the reason
+> as a message to Gyasi rather than stored state. Keep the field either way: someone leaving
+> is the most useful feedback the business gets. Drop the prototype's "helps Gyasi follow up
+> if you reconsider" — §2.5 of the Design System says the brand is not used to sell, and a
+> retention hook on a closure screen is exactly that.
+>
+> The screen is drawn full-screen rather than as a bottom sheet on mobile: a sheet's grabber
+> means "swipe this away", which is the wrong affordance for an irreversible action with a
+> text field the keyboard covers.
 
 #### 2.5.11 Help & Support
 **Purpose:** Access help articles, FAQs, and contact the agent or platform support.
-**Primary elements:** Search; FAQ categories; "Message Gyasi" CTA; "Email platform support" CTA; legal links.
-**Key actions:** Search; open article; message agent; email support.
+**Primary elements:** Search; FAQ list; "Message Gyasi" CTA; legal links.
+**Key actions:** Search; open article; message agent.
 **Entry points:** Account Overview; nav footer.
 **Related screens:** Conversation Thread.
+
+> **Amended 2026-09-10: the FAQ set is scoped to what a reader can act on.** The artboards'
+> list included "How does payment authorization work?" and "Can I revoke a card?" — both
+> answer questions about §2.4, which nobody can reach. An FAQ that explains an unreachable
+> screen is worse than no FAQ, so those two are held until §2.4 ships and replaced with
+> questions that are true today. "Do I pay you a planning fee?" stays and is the most
+> important one on the screen: BRD §10.5 prohibits client-facing fees entirely, and this is
+> where a traveler asks.
+>
+> **"Message Gyasi" is the §2.6.3 route, not a mailto,** once that screen exists — and it
+> carries the settled "Usually replies the same day" wording, never the public surface's
+> unverified "< 2h". The FAQ articles themselves have no CMS: `web/content/public/faq/`
+> holds the public ones as typed modules, and this screen should read from there rather than
+> introduce a second store.
+>
+> **"Email platform support" is removed: there is no platform-support desk.** No `support@`
+> address exists anywhere in the repo. The app configures exactly one outbound address —
+> `env.inquiryEmail`, documented as the "Message Gyasi without an account" destination and
+> deliberately null when unset so that nothing invents one — plus a single hardcoded
+> `hello@story-tail.com` in `states.tsx`'s `ErrorState`. Story-Tail Adventures is one advisor;
+> a second support tier that routes somewhere other than Gyasi does not exist, and offering it
+> promises a queue nobody staffs. If the split is genuinely wanted, it needs a real mailbox
+> first. Until then this screen has one contact route and it is §2.6.3. **The prototype's
+> `support@story-tail.com` button is not to be transcribed.**
 
 ---
 
 ### 2.6 Messaging
 
+> **Mobile artboards published 2026-09-10; no screen in this section is built yet.** Three
+> mobile frames (`design/source-prototype/screens/client-messaging-mobile.jsx`) joined the
+> desktop ones in the design project.
+>
+> **The read side of this section already exists.** `conversation` and `message` have
+> policies *and* column grants from `20260907031255_trip_read_policies.sql`, including
+> `client_unread_count`, `last_message_preview`, `subject` and `archived_at` — so the inbox
+> can be built on grants that are already in place. `message_self_select` also carries the
+> internal-note filter, which is what stops the agent's private notes about a client
+> appearing in that client's own thread as ordinary messages.
+>
+> **`trip-message` was written for this section before it existed.** It already creates the
+> conversation on first message and denormalizes `last_message_at`, `last_message_preview` and
+> `agent_unread_count` — its header says explicitly that the inbox reads those instead of
+> joining to the newest message. Two writes are still missing: zeroing
+> `client_unread_count` (2.6.1), and the trip-less path (2.6.3).
+>
+> **§2.6.2 is the same component as §2.2.7**, and both stacks should mount it rather than
+> copy it. What §2.2 deliberately left unbuilt stays unbuilt here for the same reasons — no
+> typing indicator, no read receipts — and the notification centre that §2.2.2 parked at
+> "§2.6" **still has no home**: this section has three screens and none of them is one. That
+> gap is recorded rather than resolved.
+
 #### 2.6.1 Messages Inbox
-**Purpose:** All conversations the client has with the agent, grouped by trip and including pre-trip lead-stage threads.
-**Primary elements:** Conversation list (agent name/photo, last message preview, timestamp, unread indicator); search; filter by trip; archive action.
-**Key actions:** Open conversation; archive; search.
-**Entry points:** Bottom nav "Messages" on mobile; nav menu on web.
-**Related screens:** Conversation Thread.
+**Purpose:** All conversations the client has with the agent, grouped by trip and including threads that predate any trip.
+**Primary elements:** Conversation list (agent initials, subject, last message preview, timestamp, unread indicator); search; filter by trip.
+**Key actions:** Open conversation; search.
+**Entry points:** Bottom nav "Messages" on mobile; nav rail on web.
+**Related screens:** Conversation Thread, New Conversation.
+
+> **Amended 2026-09-10: archive is not a client action.** It was listed as a primary element
+> and a key action; neither the desktop artboard nor the mobile one ever drew one.
+> `conversation_self_select` filters `archived_at IS NULL`, and widening it so a client could
+> read archived threads would silently change what §2.2's `loadDashboard` and `loadTripDetail`
+> return — both read `conversation` on the assumption the policy carries that filter. Archive
+> is the agent's filing tool for hundreds of threads (§3.10); a traveler with one advisor and
+> three threads does not need one. **"Filter by trip" stays** — `conversation.trip_id` is
+> granted to `authenticated` and indexed.
+>
+> **"lead-stage threads" is restated.** The `lead` domain is deferred and unbuilt (§3.8, and
+> Data-Model §11), and per BRD §6.5 a quote request creates a Trip in `inquiry`. A thread that
+> predates a trip is simply one with `conversation.trip_id IS NULL`, which the schema already
+> allows.
+>
+> **The agent's photo is initials.** `web/lib/images.ts` has no avatar entries at all; every
+> `staImg('avatar*')` in the artboards is a stock portrait of a stranger, and putting one on
+> Gyasi is worse than initials.
+>
+> **One write this screen needs that does not exist.** `conversation.client_unread_count` is
+> granted and the row renders a badge off it, but nothing zeroes it — so without a
+> `conversation-read` write the badge is permanent.
 
 #### 2.6.2 Conversation Thread (Client View)
-**Purpose:** Threaded conversation with the agent for a given trip or lead.
-**Primary elements:** Thread header; message bubbles; attachment thumbnails; compose bar with attachment button; typing indicator; quick-reply chips ("Yes, book it", "I have questions", etc.); link to the related trip.
+**Purpose:** Threaded conversation with the agent, for a trip or for no trip yet.
+**Primary elements:** Thread header; message bubbles; attachments; compose bar with attachment button; quick-reply chips ("Yes, book it", "I have questions", etc.); link to the related trip, when there is one.
 **Key actions:** Send message; attach; tap quick reply; open trip.
 **Entry points:** Messages Inbox; Trip Detail; notification.
 **Related screens:** Trip Detail.
 
+> **Amended 2026-09-10.** This screen **is** 2.2.7, not a sibling of it — the same component
+> mounted from a different list, which is what `web/app/(client)/trips/[tripId]/messages/
+> page.tsx` already commits to in its own header. The only structural difference is that
+> "open trip" is conditional, because a thread with `trip_id IS NULL` has nowhere to go.
+>
+> **The typing indicator is removed**, for the reason §2.2.7 already deferred it: there is no
+> Realtime presence in this stack. It is worse here — a thread with no trip has no id to
+> scope a presence channel to, so even a naive version has no key.
+>
+> **Read receipts are not shown.** `message.read_by_other_at` is withheld from
+> `authenticated` on purpose; telling a traveler when Gyasi read their message is a promise
+> about his attention that nobody agreed to make. Reactions are likewise not drawn — there is
+> no reaction entity in the model.
+>
+> **Attachments are listed, not thumbnailed**, for §2.5.4's reason: every signature writes an
+> access record, so rendering previews would sign every attachment on every page load.
+
 #### 2.6.3 New Conversation / Start a Message
-**Purpose:** Initiate a new message (especially before any trip exists).
-**Primary elements:** Subject (optional); message body; "Send" CTA; helper text suggesting the agent will reply within X hours.
-**Key actions:** Send.
-**Entry points:** Help & Support "Message Gyasi"; Account "Contact agent".
+**Purpose:** Initiate a message before any trip exists.
+**Primary elements:** Subject (optional); message body; attach; "Send" CTA; helper text carrying the settled reply-window wording.
+**Key actions:** Send; attach.
+**Entry points:** Help & Support "Message Gyasi"; Account "Contact agent"; the signed-in error and onboarding-complete escalations.
 **Related screens:** Conversation Thread.
+
+> **Amended 2026-09-10: "within X hours" is one settled string, not a variable.** The
+> artboards carry five different promises between them, from "reply in < 2h" to "within 48
+> hours". §2.1/§2.2 settled the authenticated surface on **"Usually replies the same day"**,
+> and the competing "< 2h" lives in `web/content/public/proof.ts` as `avgReplyTime` with
+> `verified: false`, fenced by `PUBLIC_CLAIMS_MODE=strict` so it cannot ship unexamined. Use
+> the settled string; it is not a per-screen choice.
+>
+> **This screen must not promise a quote.** Per BRD §6.5 (decided 2026-09-09) structured
+> intake goes through `quote-request` and creates a Trip in `inquiry` status. 2.6.3 is prose
+> that lands in the inbox. Copy that offers a quote here would open a second intake queue
+> bypassing the pipeline that decision consolidated onto.
+>
+> **It replaces the signed-in mailtos only.** The public `mailto:` path (§2.0.5's "Message
+> Gyasi without an account", and `web/lib/public/inquiry.ts`) stays exactly as the phase note
+> at 2.0.5 records — that is the no-account path and it is load-bearing. What this screen
+> replaces is the signed-in escalations: the dashboard's advisor card, onboarding-complete's
+> third action, `states.tsx`'s `ErrorState`, and 2.5.11's "Message Gyasi".
+>
+> **`trip-message` needs widening rather than a sibling function.** `conversation.trip_id` is
+> nullable, so the find-or-create already fits — but note its lookup is
+> `.eq("trip_id", tripId)`, and PostgREST renders `.eq("trip_id", null)` as `trip_id=eq.null`,
+> which matches nothing. A trip-less thread needs `.is("trip_id", null)` or it creates a fresh
+> conversation on every send and the thread fragments one message at a time. `agent_id` is
+> read from the client row, never the request, for the reason `quote-request` records.
+>
+> **Attach has nothing to attach on this screen, and ships disabled here.** `trip-message`
+> filters `attachmentDocumentIds` to documents the caller owns, so attaching requires a
+> `document` row to exist first — and the only door that creates one requires a trip
+> (§2.5.4's blocker). A screen defined by there being no trip yet therefore cannot produce an
+> attachment. It turns on with the account-scoped upload endpoint, not before. Attaching an
+> *existing* account-level document once that door exists is the natural first use.
 
 ---
 
@@ -993,6 +1591,110 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Post-login; nav "Home".
 **Related screens:** Every other agent screen as a destination.
 
+> **Amended 2026-09-19, with the backend built.** Three things in the description above are
+> superseded, and the reasons are worth keeping because each one came from the data rather
+> than from a preference.
+>
+> **The KPI strip is the prototype's five, not the four named above.** Gyasi chose them over
+> this list on 2026-09-19: pipeline value, booked this month, commission expected with a
+> confidence percentage, inquiry-to-book cycle time, and active clients. The same call §2.2
+> decision 4 made for navigation — where the prototype and the inventory disagree on a
+> surface he uses every day, the drawing wins and the doc is amended. Two of the five had
+> nothing behind them, which is why Data-Model §7.4 (PipelineWeight) and §8.8
+> (TripStatusHistory) exist.
+>
+> **"New leads" is not a lead.** The `lead` domain is specified and deliberately unbuilt
+> (Data-Model §11); a quote request creates a trip in `inquiry` status (BRD §6.5, amended
+> 2026-09-09). The KPI and the worklist section both resolve to inquiry-status trips, and the
+> field is `new_inquiry_count` — no column, function or route on the agent side may be named
+> `lead`, or the deferred domain comes back by autocomplete. Copy may still say either.
+>
+> **Cycle time starts empty and the screen must say so.** `trip.status_changed_at` keeps only
+> the latest transition, so the figure is computed from `trip_status_history`, which
+> accumulates forward from 2026-09-19. It returns NULL with a zero sample until trips move
+> through stages, and a zero-day average would be a claim where an absence is the truth. The
+> seed carries synthetic history so the tile can be verified locally.
+>
+> **Money is scoped to one currency, never summed across them.** Every money figure in the
+> strip is the agent's most-used currency alone, with `currency_count` beside it so a screen
+> showing one number can name what it left out.
+>
+> **Amended 2026-09-23, with the phone frames drawn.**
+> `design/source-prototype/screens/agent-dashboard-mobile.jsx` records fourteen numbered
+> entries, and the doc carried only some of them. Twelve are the phone frames departing
+> from the desktop artboards. Already settled: two above (the inquiry rename and the
+> confidence figure), two under §3.2.2 (the enum stages and the advisor filter chips), one
+> under §3.2.3 (the availability layer), and one in §4.4 as the Pattern D mapping. Five of
+> the six below are the rest that belong to this screen; the calendar grid is recorded
+> under §3.2.3, and the thirteenth entry in that file is a seed-and-prototype error rather
+> than a departure. The sixth, the top bar, runs the other way — the build departing from
+> the phone frames — and is the fourteenth entry there. They are written down because a
+> reasoned call that lives only in a prototype comment gets re-derived or assumed away by
+> the next reader.
+>
+> **Quick-add has two items, not the three the Key actions line above names.** "New trip"
+> (§3.4.3) and "New client" (§3.3.9) are unbuilt and render disabled with their reasons, per
+> the treatment §2.5 settled. The third is cut outright rather than drawn disabled, and the
+> distinction is the decision: a disabled control promises a thing that will exist, and
+> there is no lead to add. The Key actions line is superseded.
+>
+> **No month-over-month deltas on any KPI.** The desktop frame carries one per tile ("+18%
+> LM", "−3 d vs LM", "+4 this month"). Nothing stores a prior-period snapshot, and last
+> month's pipeline value cannot be reconstructed from current rows at all, because
+> `trip.total_value_cents` is the value now. Computing the rest live is a second aggregate
+> that §3.11 Reporting owns. Cut rather than drawn disabled: a number-shaped hole reads as a
+> broken number.
+>
+> **Client initials, not portraits.** The desktop frames pull stock photographs of strangers
+> against named clients. Every other surface in this product answered that the same way (the
+> About page, AdvisorCard, ClientTopBar and the wallet all use initials), and these are the
+> agency's own clients rather than its advisor.
+>
+> **No risk dots on "Payments due soon".** The desktop draws high / medium / low in three
+> colours. `payment_milestone.status` is `scheduled | paid | waived | overdue`: four states,
+> and no risk model anywhere in the schema. Three colours over a four-value enum is a
+> control that lies. Days-until goes negative when a milestone is late, which is the real
+> signal, and that is what the row shows.
+>
+> **Every "See all" renders disabled with a reason.** §3.3, §3.4 and §3.10 are unbuilt, and so
+> is trip detail, so in this slice the worklist is a read-only screen with no live
+> destination. That is a strange first delivery and the frames say so, rather than wiring
+> rows to nothing.
+>
+> > **Overtaken 2026-09-25 on the web, and still true on Compose.** §3.4.2 shipped, so every
+> > worklist row carrying a `tripId` — proposals, payments, inquiries, departures — is now a
+> > link to `/agent/trips/[tripId]`, and the three sections whose footer was the trip-detail
+> > deferral lost it: a deferral naming a section that has since been built is worse than no
+> > sentence. "Recent messages" keeps its own, because §3.10 is still unbuilt. The paragraph
+> > above still describes `WorklistScreen.kt` exactly — §3.4.2 is web-only, so a Compose row
+> > genuinely still has nowhere to go, which is why the two stacks now hold different copy
+> > here and `check_copy_parity.py` no longer pairs that string.
+>
+> **The mobile shell gains a top bar, which neither the frames nor §6.6 draw.** §6.6
+> describes the agent mobile shell as a bottom tab bar and nothing else, and the phone
+> frames honour that — `MFrame` insets 54px for the status bar and goes straight into
+> content, with no header anywhere in the file. The Compose build puts a 56dp bar above the
+> content: the screen's name on the left, a "Sign out" text button on the right, a divider
+> beneath, structurally identical to the client shell's account bar so the two shells do not
+> drift. This is the one entry here where the build departs from the phone frames rather
+> than the frames from the desktop.
+>
+> **The reason is that Worklist is the entire agent shell in this slice.** `nav.resetTo`
+> clears the back stack, the other three tabs are unbuilt and draw dimmed and unpressable,
+> and on iOS the back handler is a deliberate no-op with no system exit — so there is no
+> second screen to hang sign-out on and no gesture that reaches one. It is not a missing
+> nicety either: before §3.2, an agent signing in on a phone landed in the *client* shell,
+> whose Account tab carries a sign-out. Shipping the agent shell without a bar would have
+> removed the only sign-out an agent had rather than merely not added one. A word rather
+> than a glyph, because there is no logout mark in the icon set and an unlabelled icon is
+> the opposite of findable. No brand lockup, unlike the web top bar, because the mark has an
+> 80dp height floor and §6.6's whole argument for this surface is on-the-go density.
+>
+> **§3.12 (More) takes the sign-out over when it lands**, and the bar keeps the title. Until
+> then the frames should gain the bar rather than the build losing it: §6.6's sentence is
+> about how *deep* the agent's mobile navigation goes, and a title-and-sign-out bar adds no
+> destinations to it.
+
 #### 3.2.2 Pipeline / Funnel View
 **Purpose:** Visual representation of all trips by stage.
 **Primary elements:** Columns for Inquiry, Proposal Sent, Booked, In Progress, Completed; drag-and-drop or status-change menu; cards per trip with quick info.
@@ -1000,12 +1702,107 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Nav "Pipeline".
 **Related screens:** Trip Detail.
 
+> **Amended 2026-09-19.** The five columns above are correct and the prototype is not.
+> `design/source-prototype/screens/agent-dashboard.jsx` draws `Inquiry · Qualified · Proposal ·
+> Booked · Traveling`; `qualified` and `traveling` do not exist in the `trip_status` enum,
+> which is `inquiry · proposal · booked · in_progress · completed · cancelled`. Recorded as a
+> prototype defect rather than chased with a migration — the Data Model and this document
+> agree against the drawing, and the document hierarchy puts both above it.
+>
+> `cancelled` is the sixth value and a real destination, but not a funnel column: it is
+> filtered off the board and surfaced as a count beneath it, so cancelled trips are excluded
+> without becoming invisible.
+>
+> **The stage change is built and is the first writer of `trip` anywhere.**
+> `agent-trip-status` requires the `expectedVersion` the board was rendered from and answers
+> **409** when it no longer matches — `trip.version` has existed since the initial migration
+> and nothing had ever honoured it. Dropping a card back into its own column is a 200 with
+> `changed: false` and writes no history row.
+>
+> **The "All advisors / Gyasi" filter chips in the prototype are not built.** There is one
+> advisor until P3, and a filter with a single option is noise rather than an honest disabled
+> state.
+>
+> **Amended 2026-09-23, with the web board built. Three deliberate substitutions against
+> §4.4's Pattern B variant mapping, recorded here because the hierarchy says an intentional
+> change amends the document rather than a code comment. §4.4's tablet half shipped as
+> written; these are the phone picker, the web column sizing, and the move gesture.**
+>
+> **On a phone the stage-picker is a row of `?stage=` links, not a swipe.** §4.4 specifies
+> "one stage at a time, swipe between stages". The board ships one DOM at every width —
+> `.agent-board-column` is `display: none` below `md` unless it is the selected stage — and
+> the picker above it is five `<Link>` pills carrying the stage and its count. One stage at
+> a time is honoured; the gesture is not. Three reasons, in the order they decided it. A
+> link keeps the stage in the URL, so a stage is shareable and the back button means what
+> it says, where a swipe leaves no address. The board stays a server component, because
+> only the per-card stage menu needs to be a client island; a swipe would make the whole
+> board one. And the count rides on each pill, so the agent can see where the work is
+> before switching, which a swipe cannot show. Reversing this is a client wrapper around
+> the same markup and the same `?stage=` value, so the substitution costs nothing later.
+>
+> **The five-up web kanban is flexible columns, not five fixed ones.** §4.4 says web shows
+> all five side-by-side, and the drawing's columns are 272px. Five of those need 1400px of
+> board and the agent container caps at 1336, so fixed columns put the fifth stage behind a
+> horizontal scrollbar on the very viewport that is supposed to show the whole funnel. From
+> §4.2's web breakpoint the columns go `flex: 1 1 0` and the scroller is switched off.
+> Between `md` and there — §4.4's tablet — they stay 272px in a horizontal scroller, which
+> is the "2-3 stages at once with horizontal scroll" that mapping asks for.
+>
+> **Drag-and-drop is not built, and that is a choice rather than a deferral.** §4.4 names it
+> for web and the artboard subtitles the screen "Drag a card to change its stage." The stage
+> change ships as the menu on each card — the other half of what the Primary elements line
+> above already allows ("drag-and-drop **or** status-change menu"), and the half that works
+> on all three viewports with one code path and one `expectedVersion` check. The two reasons
+> that settle it rather than merely favour it: WCAG 2.2 SC 2.5.7 requires a single-pointer
+> alternative for every drag and BRD §11 commits to AA, so the menu has to exist either way;
+> and a drop has no confirmation, while moving a trip to `booked` is what §3.7's commission
+> entry hangs off — a mis-drop between neighbouring columns is silent where a menu names the
+> destination in words. The artboard should be corrected.
+
 #### 3.2.3 Calendar View
 **Purpose:** Calendar of trips and key dates.
 **Primary elements:** Month/week/agenda toggle; trip departures and returns; payment due dates; agent availability blocks.
 **Key actions:** Tap event; create event.
 **Entry points:** Nav "Calendar".
 **Related screens:** Trip Detail.
+
+> **Amended 2026-09-19.** The availability layer is deferred.
+> `agent_availability.time_off_blocks` is `jsonb` with no declared schema, so there is nothing
+> to validate a parse against — the same gap Data-Model §7.4 cites as its reason for making
+> PipelineWeight a table rather than a jsonb column. `agent_availability_self()` returns the
+> row and the calendar renders the layer absent with a stated reason; defining the shape is
+> §3.12's job, and it is one of the two items the build is waiting on.
+>
+> Departures, returns and payment due dates are all served and are built. Month is the web
+> default, agenda the mobile one, per §4.4.
+>
+> **Amended 2026-09-23, with the phone frames drawn. The desktop artboard's month grid is
+> not real arithmetic.** `design/source-prototype/screens/agent-dashboard.jsx` builds the
+> month as a fixed 35 cells with a hardcoded three-day leading offset and allows exactly one
+> event per date. Real months need the offset for the month in question, 28 to 31 days, six
+> rows when a long month starts late in the week, and several events on one date: a departure
+> and a payment falling together is routine rather than an edge case. The web build computes
+> it properly in its own date-injected module (`web/lib/agent/calendar.ts`) instead of
+> following the drawing, and mobile is agenda-first per §4.4, which sidesteps the grid
+> entirely. Recorded as a prototype defect: the desktop frame should be corrected.
+>
+> **`?view=` pins a view at every width; unset is the responsive default.** §4.4 asks for a
+> different default per viewport — agenda on mobile, week on tablet, month on web — and the
+> first version of this screen read `?view=` and nothing else, so a phone loaded the
+> seven-column month table at roughly 49px a day cell. Both branches now sit in the DOM and
+> `web/styles/agent.css`'s `md` breakpoint chooses between them, which gets the two defaults
+> §4.4 asks for with no client state, no viewport sniffing and no layout shift. When
+> `?view=` is set it wins at every width, so a month link opens as a month on a phone and
+> both views stay shareable. The distinction worth recording is that unset is now a
+> *responsive* default rather than a literal "month" — a reader who assumes the parameter
+> always has an effective value will misread the agenda a phone renders.
+>
+> **Week is deferred, so tablet gets the month grid.** §4.4's tablet half is a week view.
+> Every event §3.2.3 serves is all-day — departures, returns and payment due dates — so a
+> week view today would be a time grid with nothing in the time axis, which is a worse month
+> grid rather than a different one. It becomes meaningful when §3.12 lands availability with
+> hours, which is the same dependency the availability layer above is waiting on. Stated as
+> a deferral rather than left as a gap.
 
 ---
 
@@ -1017,6 +1814,92 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Search; filter; open client; bulk-tag; bulk-message.
 **Entry points:** Nav "Clients".
 **Related screens:** Client Detail, Create Client.
+
+> **Amended 2026-09-26, on shipping this screen.** 3.3.1 is built, on the web and on the
+> phone. The rest of §3.3 follows in two more changes — 3.3.2 through 3.3.8 (detail and its
+> six tabs), then 3.3.9, 3.3.10 and 3.3.12 (the write path). **3.3.11 Merge Clients is
+> deferred to §3.9**, where it already exists as 3.9.7 ("Same as 3.3.11"); it is the
+> riskiest write in the section and belongs next to the account-admin tools it shares a
+> screen with. The roster's row menu names it with its reason rather than dropping it.
+>
+> **`client.lifetime_value_cents` is not what the money column reads, and the reason is a
+> defect in this document.** Data-Model §6.1 calls the column "Computed; cached for
+> sort/filter" and its own `COMMENT` repeats it. Nothing computes it. There is no trigger,
+> no function and no Edge Function in the repository that writes it; the only write anywhere
+> is one hand-set seed row, and that row was stale by $6,920. Reading the cache would have
+> put a confident `$0` against every real client — a figure that is wrong rather than
+> missing, which is the worse of the two. `agent_client_roster()` derives lifetime value
+> from committed trips (`booked`, `in_progress`, `completed`), and the cache is left alone
+> rather than quietly back-filled: maintaining it is a write-path concern and belongs with
+> the §3.3.9/§3.3.10 change or a trigger, not with a read.
+>
+> **Money is scoped to one currency PER CLIENT, not per agent.** §3.2 settled that a money
+> figure names one currency and says how many it left out. The scope here is the row,
+> because two clients on one roster can legitimately bank in different currencies and an
+> agent-wide dominant currency would mislabel every row that did not share it. The currency
+> is chosen over the very trips the figure sums, so the label is true of that figure rather
+> than merely near it, and a client with nothing committed gets a dash rather than a
+> labelled zero.
+>
+> **The filter chips are read from the book, and the two the prototype draws disagree with
+> each other.** The page frame draws `Active · VIP · Honeymoon · Family · Lead · Archived`;
+> the rail inside the detail shell draws `Active · VIP · Honeymoon · New`. Both disagree with
+> the schema — `client.tags` is free-form with no vocabulary table and no CHECK — so a
+> hardcoded row would offer filters matching nothing and omit every tag Gyasi actually types.
+> The built screen has a status pair (Active/Archived) plus tag chips derived from the
+> agent's own clients, with counts, from `agent_client_roster_summary().tag_facets`. The
+> "filters (status, tags, last contacted, lifetime value)" line above is therefore partly
+> superseded: status and tags are built; last-contacted and lifetime-value are sort
+> dimensions rather than filters and are not built.
+>
+> **Bulk-select is cut, not drawn disabled.** The prototype draws a checkbox in the header
+> and in every row and nothing consumes them. Bulk-tag is a write that arrives with §3.3.9;
+> bulk-message needs §3.10, which is unbuilt. §6.4's own amendment settled the principle when
+> it cut the top bar's search field rather than disabling it — a control that does nothing is
+> worse than no control. The column arrives with the action behind it. "New client" runs the
+> other way and renders disabled with its reason, because §3.3.9 is a real planned screen.
+>
+> **Two phone departures from §4.4's Pattern B, both because of §6.6.** Pattern B mobile says
+> "filter and search collapsed behind icon buttons"; the phone roster keeps SEARCH VISIBLE
+> and collapses only the filters. §6.6 scopes the agent's phone to "on-the-go tasks rather
+> than deep work", and for a roster the on-the-go task *is* the search — putting the one
+> control that serves it behind a tap to save 56pt inverts the section's purpose. And the
+> phone APPENDS where the web build pages: Previous/Next is Pattern B's desk half, and paging
+> a book of business back and forth on a phone is deep work by another name.
+>
+> **The phone shows one trip line where the table shows two columns.** A row has room for
+> one, and the useful half for an advisor looking someone up on the move is the trip that has
+> not happened yet — so it shows the next trip, falls back to the last, and shows nothing only
+> when there is neither. A client travelling right now reads "Now · Saint Lucia" instead of a
+> date.
+>
+> Mobile artboards for this screen were drawn and pushed back to the design project
+> (`screens/agent-crm-mobile.jsx`, frame 3.3m.1); the remaining eleven arrive with the changes
+> that build them.
+
+> **Amended 2026-09-26, on shipping the bulk action.** Bulk-select was cut from the first
+> pass of this screen because nothing consumed it. **Bulk-tag is built now, and the checkbox
+> column comes with it** — on the table only. The phone's card list does not get checkboxes:
+> a card row is one link covering the whole card, a checkbox inside an anchor is neither
+> valid nor operable, and tagging twenty-five clients at once is not one of the on-the-go
+> tasks §6.6 scopes that surface to.
+>
+> **Bulk-message is still not here**, and this screen's "Key actions" line should be read as
+> naming two actions of which one exists. It needs §3.10, which is unbuilt.
+>
+> **One tag, one direction, one call.** The action adds or removes a single tag. A list of
+> tags, or a mixed add-and-remove, makes partial success unreportable — "3 of 6 changed" says
+> nothing when six clients were each offered four different edits.
+>
+> **The count reported is what MOVED, not what was selected.** A client that already carried
+> the tag, one already at the 20-tag cap, and one belonging to another advisor are all
+> deliberately indistinguishable in the answer, because telling them apart would confirm that
+> an id exists. The receipt says "Added to 4 clients. The other 2 were already tagged."
+>
+> **Tagging bumps `client.version` without checking it.** The write is set-valued and
+> idempotent, so there is nothing for a stale expectation to protect. The bump is still
+> required in the other direction: the edit form (3.3.10) overwrites the whole tags array, so
+> without it an edit form opened before a bulk tag would silently undo it on save.
 
 #### 3.3.2 Client Detail / Profile
 **Purpose:** Single-pane view of a client.
@@ -1067,6 +1950,70 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Client Detail.
 **Related screens:** Audit Event Detail.
 
+> **Amended 2026-09-26, on shipping 3.3.2 – 3.3.8.** The detail surface is built, on the web
+> in full and on the phone as a read. Seven SECURITY DEFINER accessors back it — the Overview
+> needs two, one row of the client's own facts and a list of household companions, and
+> `travel_preference` rides the Overview row because its `client_id` is UNIQUE.
+>
+> **The tab strip is SIX, and the prototype's seventh is disabled rather than cut.**
+> `CRMShell` draws "Account admin" with no artboard behind it; those screens are §3.9. A
+> disabled control promises a thing that will exist and §3.9 is a real planned section, which
+> is the distinction §3.2.1 settled — the roster's bulk-select was cut instead, because
+> nothing will ever consume it there.
+>
+> **3.3.3 has no distinct drawing and now has no distinct screen.** `A333_OverviewTab` is
+> literally `return <A332_ClientDetail/>`. The Overview IS the detail's default tab, which is
+> what the prototype was saying; it is recorded here so the next reader does not go looking
+> for a seventh screen.
+>
+> **The Snapshot's "Anniversary · Sep 14 (surprise flag)" is an invented field.**
+> `client.important_dates` is `{label, date, recurring}` (Data-Model §6.1) and there is no
+> surprise flag anywhere in the schema. The date survives, the flag is dropped — the same
+> class as §3.4.2's "Booking source" and §3.2.2's "Qualified" column. **"Frequent flyer ·
+> AAdvantage Platinum" is real but lives elsewhere**: `travel_preference.loyalty_programs`,
+> so it moved to the Preferences card where its data is. The loyalty NUMBER is never
+> rendered on either surface — it is an account credential, and a booking needs the
+> programme and the tier.
+>
+> **The Preferences card shows the dietary NOTE, not just the chips.** The closed vocabulary
+> from `20260904124903` has no slug for an allergy, so a real one arrives in
+> `travel_preference.dietary_notes` — the migration's own comment calls it "the allergy the
+> chip list cannot say". "Pescatarian" without "shellfish is a hard no" is worse than useless
+> to whoever books the restaurant.
+>
+> **3.3.8 is `audit_event`, and sign-ins are NOT in it.** The description above names logins
+> first and the prototype draws one. Sign-ins live in `auth_event` and already have their own
+> screen — **3.9.6 Login Activity** — so putting them here would build half of §3.9.6 under a
+> different heading and give two screens separate reads of one table. The tab unions events
+> targeting the CLIENT with events targeting their TRIPS, and that union is load-bearing: a
+> card authorization is recorded against the trip it was raised for, so scoping to the client
+> alone would have left the tab whose whole purpose is the timeline showing almost nothing.
+> A line at the foot of the tab says where sign-ins are rather than leaving a reader to wonder.
+>
+> **Three columns are unnameable rather than merely unselected**, asserted at apply time and
+> again in the test file: `document.storage_key`/`checksum_sha256` (a signed URL is
+> `trip-document-url`'s job), `companion.passport_number_encrypted` (the expiry and country
+> are what a trip needs; the number is not, and an accessor that returns it makes every caller
+> a place it can leak from), and `audit_event.ip_address`/`user_agent` (forensic columns that
+> belong to §3.9.6).
+>
+> **3.3.7's delete is an archive**, per Data-Model §20.1's soft-delete set, and only the
+> AUTHOR may edit or archive — enforced in SQL, not just offered in the UI. There is no
+> optimistic locking: `client_note` has no `version` column, Data-Model §20.4 lists the tables
+> that do, and adding one is a Data-Model change rather than this change's business.
+>
+> **The prototype's 300px client rail inside the detail is not built.** `CRMShell` redraws the
+> roster down the left of every tab. That is a second paginated read on every tab for a list
+> the previous page already showed, and §4.4's Pattern C asks for "persistent left
+> navigation" — which the agent rail already is.
+>
+> **Two phone departures.** The tab strip SCROLLS, which is Pattern C mobile's own
+> instruction and the opposite of the roster's wrapping chips. And the phone fetches ALL SEVEN
+> reads at once and switches tabs locally, where the web page fetches one tab's per
+> navigation: a tab on a desk is a navigation worth making shareable, and a tab on a phone is
+> a thumb moving two centimetres. The phone's Notes tab LISTS notes and does not compose them,
+> per §6.6.
+
 #### 3.3.9 Create Client
 **Purpose:** Add a new client record.
 **Primary elements:** Required (name, email); optional (phone, address, DOB, important dates, preferences, tags); "Invite to portal" toggle.
@@ -1080,6 +2027,45 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Save; cancel.
 **Entry points:** Client Detail edit actions.
 **Related screens:** Client Detail.
+
+> **Amended 2026-09-26, on shipping 3.3.9, 3.3.10 and 3.3.12.** All three are built, on the
+> web only — §6.6 scopes the agent's phone to "on-the-go tasks rather than deep work", and a
+> form is the definition of deep work. Four departures from the prototype, each deliberate:
+>
+> **The address is six fields, not one.** The artboard draws a single "Address" line.
+> `address` is a real table with `line1`, `line2`, `city`, `region`, `postal_code` and
+> `country` (Data-Model §6.2), and one free-text box cannot be split back into them later
+> without guessing. When all six are blank the link is cleared rather than a row of nulls
+> being stored.
+>
+> **Important dates are a repeater, not a text field.** `client.important_dates` is jsonb
+> shaped `{label, date, recurring}`. A text box would have stored prose that no birthday
+> reminder can read. The prototype's "surprise flag" is dropped for the reason 3.3.2 records:
+> it has never existed in the schema.
+>
+> **"Invite to portal" renders disabled.** The invite flow is §3.9.3, unbuilt. A toggle that
+> silently does nothing on save is worse than one that says why it is off.
+>
+> **"Save & create trip" renders disabled**, for the same reason against §3.4.3.
+>
+> **Restore is not drawn anywhere in the prototype** — only the Archived filter chip implies
+> it exists. It is built as the archive dialog's mirror, minus the reason field: an archive
+> is a decision worth explaining and a restore is an undo.
+>
+> **Archive and restore are ONE function, not two.** `client.status` sits outside the column
+> grant to `authenticated` and `client.archived_at` sits inside it, so a row where only one
+> moved reads as archived through the roster accessor and active through the detail header.
+> One write moves both or neither.
+>
+> The archive **reason** has no column on `client` and is not invented one; it rides the
+> `audit_event` metadata, which is where "why was this record archived" belongs anyway. It is
+> the one field value these functions put in the trail — an update audits the NAMES of the
+> fields that moved and none of their values.
+>
+> **Optimistic locking is real here.** Both the edit and the archive take the `client.version`
+> they were shown and refuse a stale write (Data-Model §20.4). A duplicate email is answered
+> with the existing client's id rather than a refusal, so the form can offer a link to the
+> record the advisor already has.
 
 #### 3.3.11 Merge Clients
 **Purpose:** Combine two client records.
@@ -1114,6 +2100,62 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Edit; change status; navigate tabs.
 **Entry points:** Trip List, Client Trips Tab, Pipeline, Calendar, Lead Conversion.
 **Related screens:** All trip sub-screens.
+
+> **Amended 2026-09-25, on shipping this screen.** All eight tabs are built, on the web only.
+> The eight lines above are otherwise correct and stay; what follows is where the build
+> departs from the drawing, where it departs from the two lines above that have since gone
+> stale, and what an advisor can and cannot do here in this slice. Written down because a
+> reasoned call that lives only in a commit message gets re-derived by the next reader.
+>
+> **Components and Itinerary are two tabs, exactly as the Primary elements line says, and
+> the prototype is not.** `design/source-prototype/screens/agent-trip.jsx`'s `A342_TripDetail`
+> folds the component rows into a single "Itinerary" section with a count chip. They are
+> genuinely different reads — a flat `trip_component` list against the
+> `itinerary_day`/`itinerary_activity` narrative, which an activity links back through
+> `itinerary_activity.component_id` — so the merge would have cost a tab rather than saved
+> one. The document hierarchy puts this section above the drawing; recorded as a prototype
+> defect rather than reshaped.
+>
+> **No "Booking source" field in the at-a-glance grid.** The prototype draws one ("Inteletravel
+> · Sandals") and no such column exists on `trip`, or anywhere else in the schema. Same class
+> as §3.2.2's `Qualified` and `Traveling` columns: an invented field, recorded rather than
+> chased with a migration. The grid ships the six the data supports — trip type, destination,
+> travelers, dates, card on file and last activity — plus the cancellation reason and refund
+> status, which appear only on a trip that has them.
+>
+> **Three of the four header actions render disabled with their reasons**, per the treatment
+> §2.5 settled and §3.2.1 repeats: Duplicate (§3.4.4), Client preview (§3.3.2) and Send
+> proposal (§3.5). The Primary elements line's "quick actions" are superseded — "message
+> client" waits on §3.10 and "request card" on §3.6, so neither is drawn at all rather than
+> drawn disabled, because the row they would sit in already carries three promises.
+>
+> **The status-change menu is §3.2.2's `StageMenu`, reused verbatim** rather than a bespoke
+> "Mark booked" button. It already offers every stage a trip can move to, which is a superset
+> of what one fixed-target button would do, and it is the same audited write — a second
+> control onto one endpoint is a second thing to keep honest.
+>
+> **The Entry points line is superseded in both directions.** Trip List (§3.4.1) is unbuilt,
+> and "Lead Conversion" cannot happen at all: the lead domain is deferred and a quote request
+> creates a trip in `inquiry` directly (BRD §6.5, amended 2026-09-09). What actually reaches
+> this screen today is the worklist's rows, the pipeline's cards and the calendar's events —
+> the three §3.2 surfaces, whose trip references were read-only until this screen existed and
+> are now links.
+>
+> **The Notes tab writes; the other seven read.** `trip.notes` had no write path anywhere in
+> the codebase before this, and it is the only thing an advisor can edit here — "Edit" on the
+> Key actions line means the note and the stage, not the trip's fields. Editing components,
+> dates and travelers is §3.4.4's, which is why that screen and not this one is the
+> trip builder.
+>
+> **Messages is read-only, and shows the internal notes.** Composing is §3.10. The traveler's
+> own policy hides `message.is_internal_note` from them; this screen deliberately shows it,
+> because the advisor wrote it.
+>
+> **Web only at MVP, and this one is a gap rather than a decision.** `agent-trip.jsx` carries
+> no phone frame for any §3.4 screen — unlike §2.2, which has a `-mobile.jsx` twin — so there
+> was nothing to build Compose against. §4.4 maps this screen to Pattern C and does not mark
+> it web-primary the way it does 3.4.4, 3.4.13 and 3.4.14, so a phone treatment is still owed
+> and wants artboards first, per the artboards-first rule.
 
 #### 3.4.3 Create New Trip — Type Selector
 **Purpose:** Choose what kind of trip to build.
@@ -1791,9 +2833,9 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.5.1 Account Overview** — Pattern D variant. Mobile: list of tiles. Tablet/web: grid of tiles.
 - **2.5.2 Personal Info Edit** — Pattern A.
 - **2.5.3 Travel Preferences Edit** — Pattern A. Same chip behavior as 2.1.11.
-- **2.5.4 Travel Documents** — Pattern B. Thumbnail grid on tablet/web.
+- **2.5.4 Travel Documents** — Pattern B. A type badge and filename per row, not a thumbnail grid: previews would sign every document on every page load and write an access record for each. See the note at 2.5.4.
 - **2.5.5 Document Upload / Camera Capture** — Pattern J. Mobile uses native camera; tablet uses either camera or file picker; web is file picker only.
-- **2.5.6 Notification Preferences** — Pattern A (matrix form). Mobile: stacked toggles per category. Tablet/web: actual matrix table.
+- **2.5.6 Notification Preferences** — Pattern A (matrix form). Mobile: stacked toggles per category. Tablet/web: actual matrix table. Two channel columns, not three — SMS was removed 2026-09-10; see the note at 2.5.6.
 - **2.5.7 Security Settings** — Pattern A.
 - **2.5.8 Connected Accounts** — Pattern A.
 - **2.5.9 Privacy & Data Export** — Pattern A.
@@ -1837,8 +2879,8 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 
 #### Agent — Dashboard & Pipeline (3.2.x)
 - **3.2.1 Agent Dashboard / Worklist** — Pattern D.
-- **3.2.2 Pipeline / Funnel** — Pattern B variant. **Important deviation:** mobile collapses the kanban into a stage-picker (one stage at a time, swipe between stages). Tablet shows 2-3 stages at once with horizontal scroll. Web shows the full kanban (5 stages side-by-side) with drag-and-drop.
-- **3.2.3 Calendar** — Pattern D variant. Mobile: agenda view default; tablet: week view; web: month view default.
+- **3.2.2 Pipeline / Funnel** — Pattern B variant. **Important deviation:** mobile collapses the kanban into a stage-picker (one stage at a time, swipe between stages). Tablet shows 2-3 stages at once with horizontal scroll. Web shows the full kanban (5 stages side-by-side) with drag-and-drop. *As built (2026-09-23), three parts of this line were substituted deliberately and the §3.2.2 amendment records why: the phone picker is a row of `?stage=` links rather than a swipe, the web columns are flexible rather than five fixed ones, and the stage change is the card menu rather than drag-and-drop. The tablet half shipped as written.*
+- **3.2.3 Calendar** — Pattern D variant. Mobile: agenda view default; tablet: week view; web: month view default. *As built (2026-09-23), both defaults are honoured by a CSS breakpoint over one DOM and `?view=` overrides them at any width; the tablet week view is deferred behind §3.12 and tablet gets the month grid. See the §3.2.3 amendment.*
 
 #### Agent — Client Management (3.3.x)
 - **3.3.1 Client List / Roster** — Pattern B.
@@ -1981,7 +3023,7 @@ In addition to those four, three more states apply selectively:
 
 ### 6.1 Client Web Navigation
 
-**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 104px top bar above the content alongside notifications and the account avatar — 104px because the bar carries the real brand lockup, whose legibility floor is 80px (Design-System §11.2).
+**Amended September 2026, built as amended.** A 72px vertical **navigation rail** on the left, not a top nav: Trips, Discover, Messages, Wallet, Documents, Account. The logo sits in a 104px top bar above the content alongside a light/dark toggle, notifications and the account avatar — 104px because the bar carries the real brand lockup, whose legibility floor is 80px (Design-System §11.2). The toggle is leftmost in that cluster (Design-System §9.1, added 2026-09-25); it is the only user preference reachable from the shell, because §2.5 Account has no Appearance screen.
 
 This contradicts what this section said originally — "Top nav: Logo, Trips, Search, Messages, Profile menu (with Account submenu)" — and the contradiction was settled in the prototype's favour by Gyasi on 2026-09-06. Three reasons it is the better answer, recorded so nobody re-litigates it:
 
@@ -2005,13 +3047,35 @@ The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape 
 `web/lib/client/nav.ts` and `domain/trip/ClientDestinations.kt` are the two implementations of this, held in step by `.github/scripts/check_copy_parity.py`. Both model a **union of six destinations with per-surface inclusion flags** rather than one list with a projection, precisely because §6.1's set and this one differ.
 
 ### 6.4 Agent Web Navigation
-Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commissions, Reports, Templates, Settings. Top utility bar: search, quick-add, notifications, profile menu.
+Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commissions, Reports, Templates, Settings. Top utility bar: light/dark toggle, search, quick-add, notifications, profile menu.
+
+> **Amended September 2026, built as amended.** Three of the five are not what shipped, and the reasons are on `web/components/agent/AgentTopBar.tsx`: search is **absent** rather than disabled (no agent search surface exists, and a field that does nothing is worse than no field), quick-add is drawn **disabled with its reason** (new trip is §3.4.3, new client is §3.3.9), and the profile menu is an initials avatar plus a **sign-out** control — the only one an advisor has on the web, since §3.2 redirects agents off every (client) route including /account.
+>
+> The **light/dark toggle** was added 2026-09-25 and is leftmost in the cluster, so sign-out stays anchored at the right edge. It is the one control in this bar with something behind it. See Design-System §10.1.
+>
+> **Amended 2026-09-26 — the rail is SEVEN, and this line's eleven are superseded.** The
+> prototype's seven were taken provisionally on 2026-09-19, with `web/lib/agent/nav.ts`
+> recording that the final shape would be revisited at §3.3 "once there is more than one
+> agent section to use it with". §3.3.1 made Clients the second live destination and Gyasi
+> settled it: Worklist · Clients · Trips · Leads · Messages · Commission · Reports.
+>
+> What the second destination showed that one could not: the rail holds SECTIONS, and §3.2's
+> three views share a read model, a date scope and a header — they are three views of one
+> section, which is why a view switcher inside it is the honest shape and three rail rows are
+> not. Promoting them would have made the rail's first three rows one screen while Clients,
+> Trips and Commission were each a whole area. Templates and Settings stay off for the reason
+> §6.6 gives about the phone bar: depth is not the same as reach. Settings is reachable from
+> the profile menu; Templates is §3.10.4, inside Messaging.
+>
+> **Quick-add hides below 640px so the toggle can have its place.** The bar does not overflow — the brand link has no `shrink-0`, so the lockup absorbs the pressure and shrinks past the 80px legibility floor (Design-System §11.2) instead. Measured in Chrome, lockup width against its natural 201px: at 375px it went 152 → 115 when the toggle was added, and back to 144 once quick-add yields; at 400px, 131 → 94 → 120; from 500px up it is 201 either way. A disabled placeholder was costing a working control about 35px of logo at every phone width, so the placeholder gives way.
 
 ### 6.5 Agent Tablet Navigation
 Collapsible left rail (icon-only by default, expands on hover/tap); top utility bar present. Landscape behaves like a compressed web layout; portrait collapses to a bottom tab bar with the deeper navigation in a drawer.
 
 ### 6.6 Agent Mobile Navigation
 The mobile experience for agents at MVP is intentionally narrower than web — designed for on-the-go tasks rather than deep work. Bottom tab bar: Worklist, Clients, Messages, More. The full pipeline, reporting, and template management features remain web-only at MVP.
+
+> **Amended 2026-09-23.** The shell also carries a 56dp top bar — screen title left, "Sign out" right — which this line did not anticipate. It adds no destination, so the sentence above still holds as a statement about navigational depth; it exists because Worklist is the whole agent shell in this slice and there is nowhere else to reach sign-out. The §3.2.1 amendment carries the full reasoning, and §3.12 (More) takes the control over when it lands.
 
 ---
 

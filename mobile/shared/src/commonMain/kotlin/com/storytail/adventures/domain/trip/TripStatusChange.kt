@@ -38,7 +38,6 @@ object StatusChangeMessages {
     const val VIEW_SUMMARY = "See the cancellation summary"
     const val VIEW_MEMORIES = "Open the memories"
     const val AUTHORIZE_CARD = "Authorize a card"
-    const val AUTHORIZE_DEFERRED = "Card authorization arrives with the payments screen"
 
     /** Shown when `status_changed_at` is null — a trip whose status never moved. */
     const val CHANGED_UNKNOWN = "Recently"

@@ -2,6 +2,7 @@ package com.storytail.adventures.api
 
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.exceptions.RestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -89,10 +90,28 @@ interface OnboardingRepository {
  * Null everywhere is a legitimate answer for an agent, who has no wizard at all.
  */
 data class OnboardingStatus(
-    val isClient: Boolean,
+    /**
+     * `platform_user.role`, verbatim — 'client', 'agent' or 'admin'.
+     *
+     * This read has always SELECTed it and thrown it away behind [isClient]. §3.2 needs the
+     * value: the two shells route in opposite directions and `admin` is a third answer
+     * rather than "not a client", because platform_user's CHECK permits an admin carrying
+     * neither a client_id nor an agent_id.
+     */
+    val role: String?,
     val completed: Boolean,
     val step: String?,
-)
+    /**
+     * `platform_user.time_zone`. The agent's greeting is derived from it — the accessors
+     * compute every figure in the agent's own zone and deriving "Morning" from the device
+     * clock would undo that in the most visible line on the screen.
+     */
+    val timeZone: String = "America/Chicago",
+    /** `platform_user.display_name`. The agent's greeting; a client has one too, unused. */
+    val displayName: String = "",
+) {
+    val isClient: Boolean get() = role == "client"
+}
 
 /** The five functions the wizard writes through. */
 enum class OnboardingFunction(val path: String) {
@@ -163,21 +182,26 @@ class SupabaseOnboardingRepository(
             // The screen is leaving; let the cancellation finish its job rather than
             // reporting it to a caller that is about to disappear.
             throw cancellation
+        } catch (rest: RestException) {
+            // A NON-2XX IS THROWN, NOT RETURNED — supabase-kt validates the response. The
+            // `when` below used to branch on `response.status` and so could only ever reach
+            // its first arm: every rejection collapsed into `Unavailable`, taking both
+            // `Unauthenticated` and the function's own sentence with it. Found while
+            // building §2.4 and fixed everywhere the pattern appears.
+            val status = HttpStatusCode.fromValue(rest.statusCode)
+            return when {
+                status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden ->
+                    OnboardingResult.Unauthenticated
+                rest.statusCode in 400..499 -> OnboardingResult.Rejected(problemDetail(rest.error))
+                else -> OnboardingResult.Unavailable
+            }
         } catch (throwable: Throwable) {
             // The function never answered. NEVER log the body — it is somebody's profile.
             return OnboardingResult.Unavailable
         }
 
-        val status = response.status
         val text = runCatching { response.bodyAsText() }.getOrDefault("")
-
-        return when {
-            status.value in 200..299 -> OnboardingResult.Ok(parseObject(text))
-            status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden ->
-                OnboardingResult.Unauthenticated
-            status.value in 400..499 -> OnboardingResult.Rejected(problemDetail(text))
-            else -> OnboardingResult.Unavailable
-        }
+        return OnboardingResult.Ok(parseObject(text))
     }
 
     /**
@@ -189,13 +213,15 @@ class SupabaseOnboardingRepository(
     override suspend fun status(): OnboardingStatus? = read {
         client.postgrest
             .from("platform_user")
-            .select(Columns.list("role", "onboarding_step", "onboarding_completed_at"))
+            .select(Columns.list("role", "onboarding_step", "onboarding_completed_at", "time_zone", "display_name"))
             .decodeSingleOrNull<PlatformUserRow>()
     }?.let {
         OnboardingStatus(
-            isClient = it.role == "client",
+            role = it.role,
             completed = it.onboarding_completed_at != null,
             step = it.onboarding_step,
+            timeZone = it.time_zone ?: "America/Chicago",
+            displayName = it.display_name.orEmpty(),
         )
     }
 
@@ -331,6 +357,8 @@ class SupabaseOnboardingRepository(
         val role: String? = null,
         val onboarding_step: String? = null,
         val onboarding_completed_at: String? = null,
+        val time_zone: String? = null,
+        val display_name: String? = null,
     )
 
     private fun parseObject(text: String): JsonObject =

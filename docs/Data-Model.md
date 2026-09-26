@@ -101,6 +101,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Agent | Agent | P1 | Advisor profile |
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
+| PipelineWeight | Agent | P1 | Per-stage probability the commission forecast multiplies by |
 | Supplier | Trip | P1 | Resort, cruise line, tour operator, etc. |
 | Trip | Trip | P1 | Core unit of work — one trip end-to-end |
 | TripComponent | Trip | P1 | Flight, hotel, cruise, transfer, excursion, etc. |
@@ -110,6 +111,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Proposal | Trip | P1 | Snapshot of a trip presented to the client |
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
 | Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
+| TripStatusHistory | Trip | P1 | Append-only record of every trip status transition |
 | PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
 | CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
 | AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
@@ -855,6 +857,37 @@ mutation on the `client` blast radius and rule 3 applies in full.
 
 ---
 
+### 7.4 PipelineWeight
+
+**Purpose:** The probability, per pipeline stage, that a trip in that stage will convert. The commission forecast multiplies expected commission by it. Read by Screen 3.2.1's "Commission expected" KPI and by 3.7.7 Commission Forecast / Pipeline View.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `agent_id` | `uuid` | No | Public | FK → Agent. Half of the primary key |
+| `status` | `trip_status` enum | No | Public | The other half. **All six values carry a row** |
+| `weight_pct` | `smallint` | No | Public | 0–100 |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Why a table and not a `jsonb` column on Agent.** Four numbers would fit in a blob, and `agent_availability.time_off_blocks` is the cautionary example of what that costs: it is `jsonb` with no declared schema, so nothing can validate it and the calendar's availability layer is deferred because there is nothing to parse against. A keyed table gets a `CHECK (weight_pct BETWEEN 0 AND 100)` and an enum-typed `status` for free, and the forecast joins it in SQL rather than unnesting a blob per row.
+
+**Every status carries a row, including the ones the forecast ignores.** `completed` is money already earned and `cancelled` is money that will not arrive, so neither belongs in a forward-looking figure — but leaving them out would make "which statuses count" an implicit rule living in whichever query happened to be written first. They are present with honest values and the forecast selects the open statuses explicitly.
+
+**Defaults (set 2026-09-19, Gyasi's call — the moderate of three options offered):**
+
+| `inquiry` | `proposal` | `booked` | `in_progress` | `completed` | `cancelled` |
+|---|---|---|---|---|---|
+| 20 | 50 | 100 | 100 | 100 | 0 |
+
+These are defaults, not constants: the rows are seeded per agent and 3.12 Agent Settings edits them. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
+
+**The confidence figure** the prototype draws as "71%" is the weighted total over the unweighted one, not a stored value. It is therefore a property of the book's current shape, and it moves when trips move, which is the intended reading.
+
+**Indexes:** primary key on `(agent_id, status)`. Nothing else — it is at most six rows per agent.
+
+---
+
 ## 8. Trip Domain
 
 This is the largest and most central domain. Trip is the unit of work the entire business orbits around.
@@ -1237,6 +1270,80 @@ data class Trip(
 
 ---
 
+### 8.8 TripStatusHistory
+
+**Purpose:** One row per trip status transition, append-only. It exists because `trip.status_changed_at` holds only the **latest** transition, so no elapsed-time question can be answered from `trip` alone.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | — |
+| `trip_id` | `uuid` | No | Public | FK → Trip |
+| `from_status` | `trip_status` enum | Yes | Public | Null on the row recording the trip's creation. Nothing writes that row yet: see the amendment below |
+| `to_status` | `trip_status` enum | No | Public | — |
+| `changed_at` | `timestamptz` | No | Public | — |
+| `changed_by_user_id` | `uuid` | Yes | Internal | FK → User. Null when a system path moved the trip. No system path writes a row yet: see the amendment below |
+
+**What it unlocks.** Screen 3.2.1's "Inquiry → book" KPI is the elapsed time between a trip's creation and its **first** `booked` row, averaged over the book. `trip.created_at` stands in for the inquiry moment, and the amendment below says why that substitution is sound today and where it stops being sound. 3.11 Reporting wants the same shape for every other pair of stages, and that one needs both ends out of this table. Neither is computable without it, and both were specified before it existed.
+
+**It accumulates forward, and that is worth stating plainly rather than discovering.** A backfill from `trip.status_changed_at` yields exactly one row per trip — its most recent transition — which is not a cycle time and never becomes one. So the KPI is empty until trips have moved through stages *after* this table shipped, and the screen must render that as a real "not enough history yet" state rather than as a zero. Seed data carries synthetic history so the tile can be verified locally without waiting.
+
+**Append-only.** No UPDATE, no DELETE, by the same reasoning as `card_use_event` (§9.4) and `audit_event` (§15): a history somebody can edit answers a different question from the one it appears to answer. Correcting a wrong status is a new transition, not an amendment to an old one.
+
+**Written by exactly one path** — the `agent-trip-status` Edge Function, in the same transaction as the `trip.status` update and alongside the `audit_event` that CLAUDE.md rule 3 requires. The two records are not redundant: `audit_event` is the agency's tamper-evident trail of who did what, and this is a queryable business timeline. Deriving the KPI from `audit_event` would mean teaching a reporting query to parse audit metadata, which couples the analytics surface to the audit schema.
+
+**Amended 2026-09-23, reconciling this section with what shipped.**
+
+**The cycle time anchors on `trip.created_at`, not on a first `inquiry` row.** This section
+previously defined the KPI as the span between a trip's first `inquiry` row and its first
+`booked` row. `agent_kpis()` reads no inquiry row at all: its `cycle` CTE averages
+`first_booked - t.created_at` over trips that have at least one `to_status = 'booked'` row
+(`20260919140000_agent_read_surface.sql`). The two definitions agree today, and that is not
+luck: `trip.status` defaults to `inquiry`, `quote-request` is the only production path that
+inserts a trip and deliberately leaves the default alone, and no client or agent role holds
+INSERT on `trip` anywhere in the migrations. Every trip's creation is therefore its inquiry.
+The definition above is now the shipped one rather than a second one sitting beside it.
+
+**A trip walked back to `inquiry` is still measured from creation.**
+`agent_set_trip_status` enforces no transition whitelist: it rejects only a move to the
+status the trip already holds, and `inquiry` is one of the five columns on the §3.2.2 board.
+An agent can move a trip backwards, which writes a `to_status = 'inquiry'` row dated after
+`created_at`, and the KPI ignores it. A re-opened trip reports one long cycle rather than a
+short second one. Recorded rather than changed, because the tile answers "how long from
+first contact to a booking" and first contact does not move when a trip re-opens. Cycle time
+per attempt is a stage-pair question, which is 3.11's shape and not this tile's. If that
+call is ever reversed, the change is a filter in `cycle` plus a matching line here, and it
+belongs with 3.11's work rather than on its own.
+
+**The creation row is specified and unbuilt, and it is the stated reason two columns are
+nullable.** The intended shape is one row per trip at creation, `from_status` NULL because
+there was no prior status and `changed_by_user_id` NULL when a system path created it.
+Nothing writes it. `agent_set_trip_status` is the only production writer and always supplies
+the trip's current status and the acting agent; `quote-request` inserts the trip and no
+history row at all; every seeded row names both. So on every row a production path writes
+today both columns are populated, and a consumer that goes looking for the
+`from_status`-NULL row to find a trip's inquiry timestamp finds nothing. The write
+belongs with the paths that create trips: `quote-request` (Screen Inventory §2.3.8) on the
+client side, and §3.4.3 Create New Trip when the agent side ships. Until one of them writes it,
+`trip.created_at` is the anchor, and the two column comments in
+`20260919130000_agent_pipeline_entities.sql` carry the same unbuilt promise this table does.
+
+**That statement covers production paths and the seed; `changed_by_user_id` has one known
+exception and it is a test fixture.** The pgTAP file `supabase/tests/rls_agent_reads.sql`
+writes transient history rows twice — in the `booked_month` month-boundary block and in the
+booked-twice block beneath it — with a column list that stops at `changed_at`, so those rows
+carry a NULL actor. Both blocks delete their rows again inside the same run, and both still
+name an explicit `from_status`, so nothing above changes. It is recorded because the
+paragraph above otherwise reads as licence to put `NOT NULL` on `changed_by_user_id`: that
+would fail those inserts, and it would foreclose the creation row this section is holding
+the column open for. `from_status` is the stronger of the two — no path anywhere, production
+or fixture, writes a row without it yet.
+
+**Indexes:** index on `(trip_id, changed_at)` for a single trip's timeline; index on `(to_status, changed_at)` for the cross-book aggregates 3.2.1 and 3.11 run.
+
+---
+
 ## 9. Payment Domain
 
 This domain is governed by PCI DSS SAQ A constraints (see Section 18). No card primary account number (PAN) is ever stored. All "card" entities here reference a Stripe-issued token; the only locally-stored card data is metadata Stripe explicitly returns (brand, last 4, expiration).
@@ -1377,16 +1484,42 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `agent_user_id` | `uuid` | No | Public | FK → User (the agent who used it) |
 | `supplier_id` | `uuid` | Yes | Public | FK → Supplier |
 | `supplier_name_snapshot` | `text` | No | PII | In case Supplier record changes |
-| `amount_cents` | `bigint` | No | Internal | — |
+| `amount_cents` | `bigint` | No | Client-visible | Amended 2026-09-17 — see below |
 | `currency` | `char(3)` | No | Public | — |
 | `reference_number` | `text` | Yes | PII | Supplier confirmation/auth code |
 | `justification` | `text` | No | Internal | Agent-entered reason at time of reveal |
 | `receipt_document_id` | `uuid` | Yes | Public | FK → Document (uploaded receipt) |
-| `client_flag_status` | `text` | No | Internal | `not_flagged`, `flagged`, `resolved` |
+| `client_flag_status` | `text` | No | Internal | `not_flagged`, `flagged`, `resolved` — but see the append-only conflict below |
 | `client_flagged_at` | `timestamptz` | Yes | Internal | — |
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Append-only:** no UPDATE, no DELETE.
+
+**Amended 2026-09-17, while building Screen Inventory §2.4.**
+
+**`amount_cents` was classified Internal.** It is the amount charged to the traveler's own
+card, and Screen 2.4.5 exists to show them exactly that — BRD §10.3 makes per-use transparency
+part of the SAQ A trust posture, and the BRD outranks this document. Reclassified
+client-visible. `justification` stays Internal: it is the agent's reason, written for the
+audit trail rather than for the traveler.
+
+**The append-only rule and `client_flag_status` contradict each other, and this is not yet
+resolved.** Three values — `not_flagged`, `flagged`, `resolved` — describe a lifecycle that
+only UPDATEs can produce, on a table this section, the DDL comment on `card_use_event`, and
+`.claude/skills/rls-policy/SKILL.md` all call append-only with no UPDATE.
+
+One of the two has to give, and the choice is a decision rather than an implementation detail:
+
+* a separate append-only `card_use_flag` table, where a flag and its resolution are two rows
+  and the ledger stays untouched — consistent with everything already written; or
+* an explicit narrowing of the append-only claim to exclude exactly these two columns, which
+  keeps the read simple and makes "append-only" mean "append-only except here".
+
+Until it is settled, Screen 2.4.6's "Flag as unfamiliar" renders disabled with a reason.
+Writing an UPDATE against a ledger three documents call append-only is not a decision a screen
+build should make quietly. Both flag columns are also classified Internal, which cannot be
+right either — a traveler who flags a charge and then cannot see that they flagged it has been
+given a control that appears to do nothing. That goes with the same ruling.
 
 **Indexes:** index on `(card_authorization_id, created_at desc)`; index on `(payment_card_id, created_at desc)`; index on `(trip_id, created_at desc)`.
 
@@ -2098,7 +2231,22 @@ Stays server-side only (lives in the Postgres schema; not exposed in any API res
 - `integration.credentials_encrypted`
 - `audit_event` (mostly — agents may see some via Client Activity Log via a sanitized endpoint)
 
-Enforcement: Row-Level Security (RLS) policies on Supabase Postgres prevent these columns from being readable by anonymous or authenticated client roles. Edge Functions run with the `service_role` key (server-side only, never exposed) and have access to these columns when needed.
+Enforcement: **column GRANTs**, not RLS.
+
+This distinction is load-bearing and this paragraph used to get it wrong — it said RLS policies were what kept these columns from client roles. **RLS cannot restrict columns.** A policy decides which *rows* a role may see; once a row is visible, every column the role holds a privilege on comes with it. A reader implementing the old sentence literally would add a `SELECT` policy, believe the server-only list was still protected, and ship `stripe_payment_method_id` to a browser.
+
+The mechanism is:
+
+1. `REVOKE ALL ON <table> FROM anon, authenticated` — this must come **first**. `REVOKE SELECT (col)` is a no-op against a standing table-level grant, so revoking a column from a table the role still holds wholesale does nothing at all.
+2. Then either `GRANT SELECT (col, col, …)` naming exactly the client-visible columns, or no grant at all for tables a client never reads directly.
+
+Both shapes are in the schema: `20260905171542_client_column_grant.sql` and `20260907031255_trip_read_policies.sql` do the revoke-then-column-grant for `client`, `trip`, `conversation` and nine more; `20260909001124_cruise_catalog.sql` and `20260917090000_payment_domain_lockdown.sql` do the revoke-with-no-grant for tables read only by Edge Functions.
+
+RLS still matters and stays enabled everywhere — it is what scopes rows to their owner, and it is the second layer if a grant is ever widened by mistake. It is simply not what protects a column.
+
+The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero policies and a live table-level `SELECT` grant to both `anon` and `authenticated` covering both Stripe columns and `authorization_request.token_hash`. Nothing leaked — zero policies fails closed — but the first `SELECT` policy anyone added would have opened it. `supabase/tests/rls_payment.sql` now asserts a privilege *error* rather than an empty result, because a zero-row answer and a permission-denied answer are different claims.
+
+Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
 
 ### 21.3 Value Classes for Domain Primitives
 

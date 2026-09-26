@@ -28,6 +28,15 @@ describe("PublicTopBar", () => {
     expect(screen.getByRole("link", { name: "Story-Tail Adventures home" })).toHaveAttribute("href", "/");
   });
 
+  // Both halves of the toggle are always in the DOM — CSS hides one, and vitest applies no
+  // CSS — so query an exact name; `/Switch to/` matches both and throws. None of the cases above collide with
+  // it: every one is scoped to `role: "link"`, and these are buttons.
+  it("ships the theme toggle, both halves, in the prerendered markup", () => {
+    render(<PublicTopBar />);
+    expect(screen.getByRole("button", { name: "Switch to dark mode" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeEnabled();
+  });
+
   it("renders the primary nav", () => {
     render(<PublicTopBar />);
     for (const label of ["Explore", "Caribbean", "Cruises", "Honeymoons", "About Gyasi"]) {

@@ -80,9 +80,20 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.trip) >= 1,
     'client sees their own trips through the auth bridge');
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.payment_card) = 0,
-    'client sees no payment_card rows (rule 4)');
+-- The payment-domain assertion that used to sit here has MOVED to rls_payment.sql, and it
+-- was rewritten on the way rather than relocated.
+--
+-- It read `(SELECT count(*) FROM public.payment_card) = 0` and was labelled 'rule 4'. It
+-- passed — but for the wrong reason. `payment_card` had RLS enabled with zero policies AND a
+-- live table-level SELECT grant to anon and authenticated, so the count came back 0 because
+-- no policy admitted a row, not because the traveler was denied. The assertion would have
+-- gone on passing on the day a `payment_card_self_select` policy shipped
+-- `stripe_payment_method_id` to a browser, which is the exact failure rule 4 exists to stop.
+--
+-- 20260917090000_payment_domain_lockdown.sql revoked the grants; rls_payment.sql now demands
+-- a PRIVILEGE ERROR rather than an empty result, on all six payment-domain tables, for both
+-- `authenticated` and `anon`. A zero-row answer and a permission-denied answer are different
+-- claims and only the second is the one this repo makes.
 
 -- ── …and not one column of what the agent wrote about them ─────────────────────
 --
@@ -151,11 +162,21 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT role FROM public.platform_user)::text = 'agent',
     'agent resolves to the agent role');
--- Documented scope limit, not a bug: client_self_select keys on platform_user.client_id,
--- which is NULL for an agent. The agent's book of business needs the full RLS pass.
+-- Permanent by design, and §3.3 is what settled it. client_self_select keys on
+-- platform_user.client_id, which is NULL for an agent, so a DIRECT read of `client` returns
+-- nothing to the advisor whose book it is. This line used to promise "book-of-business
+-- policies still to come"; none came, and none should. §3.3.1 reaches the book through
+-- public.agent_client_roster(), a SECURITY DEFINER accessor
+-- (20260926140000_agent_client_read_surface.sql), because three of the roster's own columns
+-- — status, tags, lifetime_value_cents — are outside the `client` column grant and no RLS
+-- policy can hand back a column the GRANT withholds.
+--
+-- So this zero is the correct answer forever, and rls_agent_clients.sql asserts the other
+-- half: those same three columns arriving NON-NULL through the accessor, to this same agent,
+-- one statement later.
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.client) = 0,
-    'agent sees no clients yet (book-of-business policies still to come)');
+    'agent sees no clients through a DIRECT read — the book arrives via agent_client_roster()');
 
 RESET ROLE;
 
@@ -200,9 +221,14 @@ SELECT pg_temp.assert(
 -- ── Anonymous ──────────────────────────────────────────────────────────────────
 SET LOCAL ROLE anon;
 
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.account) = 0,
-    'anon sees no accounts');
+-- Was `count(*) = 0` — anon could run the query and RLS filtered it to nothing. Since
+-- 20260919120000_agent_domain_lockdown.sql, anon holds no column privilege on `account`
+-- either, so the query is refused outright and never reaches the policy. Exactly the
+-- transformation described for `client` just below, for the same reason: the assertion has
+-- to say which of the two guarantees it is relying on.
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.account',
+    'anon cannot read the account table at all');
 -- Was `count(*) = 0` — anon could run the query and RLS filtered it to nothing. Since
 -- client_column_grant, anon holds no column privilege on this table at all, so the query is
 -- refused outright and never reaches the policy. Strictly stronger, and the assertion has to

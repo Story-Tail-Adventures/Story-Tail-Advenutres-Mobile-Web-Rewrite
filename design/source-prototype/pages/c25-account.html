@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+
+<meta charset="utf-8"/>
+<title>Story-Tail · 2.5 Client · Account & Profile</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="../styles/tokens.css"/>
+<link rel="stylesheet" href="../styles/app.css"/>
+<link rel="stylesheet" href="../styles/tweaks.css"/>
+<style>
+html,body,#root{height:100%}body{background:#2A2422;margin:0}
+.section-nav{position:fixed;top:12px;left:12px;right:12px;z-index:9999;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 12px;border-radius:14px;background:rgba(20,14,12,.82);backdrop-filter:blur(14px);color:#FBF6EE;font:500 13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.section-nav .crumb{display:flex;align-items:baseline;gap:8px;min-width:0}
+.section-nav .crumb .num{font-weight:800;color:#FFC83F;letter-spacing:.5px}
+.section-nav .crumb .title{font-weight:600;color:#FBF6EE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.section-nav .crumb .sub{color:rgba(251,246,238,.6);font-weight:400;margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.nav-div{width:1px;height:22px;background:rgba(251,246,238,.16);margin:0 2px}
+.seg{display:flex;padding:2px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+.seg button{appearance:none;border:0;background:transparent;color:rgba(251,246,238,.62);font:600 11.5px/1 -apple-system,BlinkMacSystemFont,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer;transition:background .15s ease,color .15s ease}
+.seg button:hover{color:#FBF6EE}
+.seg button.is-on{background:#E87722;color:#fff}
+#view-seg button.is-on{background:#1E92E5}
+.navlink{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:999px;color:#FBF6EE;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-weight:600;font-size:12.5px;transition:background .15s ease}
+.navlink:hover{background:rgba(255,255,255,.18)}
+.navlink.primary{background:#E87722;border-color:#E87722;color:#fff}
+.navlink.primary:hover{background:#F58F33}
+.navlink.disabled{opacity:.3;pointer-events:none}
+#root{padding-top:58px}
+</style>
+</head>
+<body>
+<nav class="section-nav">
+  <div class="crumb">
+    <span class="num">2.5</span>
+    <span class="title">Client · Account & Profile</span>
+    <span class="sub">· Hub + 10 sub-screens.</span>
+  </div>
+  <div class="nav-right">
+    <div class="seg" id="theme-seg" role="group" aria-label="Theme">
+      <button data-theme="light" class="is-on">Light</button>
+      <button data-theme="dark">Dark</button>
+    </div>
+    <div class="seg" id="view-seg" role="group" aria-label="Viewport">
+      <button data-view="web" class="is-on">Web</button>
+      <button data-view="mobile">Mobile</button>
+    </div>
+    <span class="nav-div"></span>
+    <a class="navlink" href="c24-payment.html" title="2.4 · Client · Payment & Card Authorization">← 2.4</a>
+    <a class="navlink primary" href="index.html">All sections</a>
+    <a class="navlink" href="c26-messaging.html" title="2.6 · Client · Messaging">2.6 →</a>
+  </div>
+</nav>
+<div id="root"></div>
+
+<script>
+// Header toggles own the canvas theme + viewport. Both persist per-browser and
+// broadcast the same events the canvas (and the Tweaks panel) listen for.
+(function(){
+  var KT='st-theme', KV='st-view';
+  window.__stTheme = localStorage.getItem(KT) || 'light';
+  window.__stView = localStorage.getItem(KV) || 'web';
+  function paint(seg, attr, val){
+    if(!seg) return;
+    seg.querySelectorAll('button').forEach(function(b){
+      b.classList.toggle('is-on', b.getAttribute(attr) === val);
+    });
+  }
+  function boot(){
+    var ts=document.getElementById('theme-seg'), vs=document.getElementById('view-seg');
+    paint(ts,'data-theme',window.__stTheme); paint(vs,'data-view',window.__stView);
+    if(ts) ts.addEventListener('click',function(e){
+      var b=e.target.closest('button[data-theme]'); if(!b) return;
+      window.__stTheme=b.getAttribute('data-theme');
+      localStorage.setItem(KT,window.__stTheme);
+      paint(ts,'data-theme',window.__stTheme);
+      window.dispatchEvent(new CustomEvent('st-theme-change',{detail:window.__stTheme}));
+    });
+    if(vs) vs.addEventListener('click',function(e){
+      var b=e.target.closest('button[data-view]'); if(!b) return;
+      window.__stView=b.getAttribute('data-view');
+      localStorage.setItem(KV,window.__stView);
+      paint(vs,'data-view',window.__stView);
+      window.dispatchEvent(new CustomEvent('st-view-change',{detail:window.__stView}));
+    });
+    window.addEventListener('st-theme-change',function(e){window.__stTheme=e.detail;localStorage.setItem(KT,e.detail);paint(ts,'data-theme',e.detail);});
+    window.addEventListener('st-view-change',function(e){window.__stView=e.detail;localStorage.setItem(KV,e.detail);paint(vs,'data-view',e.detail);});
+  }
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot):boot();
+})();
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="../shared/images.js"></script>
+<script type="text/babel" src="../design-canvas.jsx"></script>
+<script type="text/babel" src="../ios-frame.jsx"></script>
+<script type="text/babel" src="../shared/icons.jsx"></script>
+<script type="text/babel" src="../shared/components.jsx"></script>
+<script type="text/babel" src="../shared/screen-frame.jsx"></script>
+
+<script type="text/babel" src="../screens/client-account.jsx"></script>
+<script type="text/babel" src="../screens/client-account-mobile.jsx"></script>
+
+<script type="text/babel" src="../tweaks-panel.jsx"></script>
+<script type="text/babel" src="../tweaks/tweaks.jsx"></script>
+
+<script type="text/babel">
+  function useTheme() {
+    const [theme, setTheme] = React.useState(window.__stTheme || 'light');
+    React.useEffect(() => {
+      const h = (e) => setTheme(e.detail);
+      window.addEventListener('st-theme-change', h);
+      return () => window.removeEventListener('st-theme-change', h);
+    }, []);
+    return theme;
+  }
+  function useView() {
+    const [view, setView] = React.useState(window.__stView || 'web');
+    React.useEffect(() => {
+      const h = (e) => setView(e.detail);
+      window.addEventListener('st-view-change', h);
+      return () => window.removeEventListener('st-view-change', h);
+    }, []);
+    return view;
+  }
+  function Scheme({ scheme, children, bg }) {
+    const themed = useTheme();
+    const mode = scheme || themed;
+    return (
+      <div className={mode === 'dark' ? 'scheme-dark' : ''}
+           style={{ width: '100%', height: '100%', background: bg || 'var(--md-bg)', color: 'var(--md-on-surface)', overflow: 'hidden' }}>
+        {children}
+      </div>
+    );
+  }
+  function Stub({ label }) {
+    return <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background: 'var(--md-surface-2)', color: 'var(--md-on-surface-variant)', font: '600 16px/1 var(--font-sans)' }}>{label}</div>;
+  }
+  function Section({ id, title, subtitle, screens, mobileScreens, width = 1280, height = 820, mobile = false }) {
+    const theme = useTheme();
+    const view = useView();
+    const useMobile = mobile || (view === 'mobile' && mobileScreens && mobileScreens.length);
+    const active = useMobile ? (mobileScreens || screens) : screens;
+    return (
+      <DCSection id={id} title={title} subtitle={subtitle}>
+        {active.map((s) => {
+          const Comp = window[s.comp];
+          const w = s.w || width;
+          const h = s.h || height;
+          if (useMobile || s.mobile) {
+            return (
+              <DCArtboard key={s.id} id={s.id} label={s.label} width={420} height={900}>
+                {Comp ? <Comp dark={theme === 'dark'}/> : <Stub label={s.label}/>}
+              </DCArtboard>
+            );
+          }
+          return (
+            <DCArtboard key={s.id} id={s.id} label={s.label} width={w} height={h}>
+              {Comp ? <Scheme><Comp/></Scheme> : <Stub label={s.label}/>}
+            </DCArtboard>
+          );
+        })}
+      </DCSection>
+    );
+  }
+  function App() {
+    return (
+      <DesignCanvas title="Story-Tail · 2.5 · Client · Account & Profile" subtitle="Hub + 10 sub-screens." background="#221C1A">
+        <Section id="c25" title="2.5 · Account & Profile" subtitle="Hub + 10 sub-screens." width={1280} height={820} screens={[{"id":"251","comp":"C251_AccountOverview","label":"2.5.1 Account overview","h":720},{"id":"252","comp":"C252_PersonalInfo","label":"2.5.2 Personal info","h":780},{"id":"253","comp":"C253_PreferencesEdit","label":"2.5.3 Preferences edit","h":840},{"id":"254","comp":"C254_TravelDocs","label":"2.5.4 Travel documents","h":820},{"id":"255","comp":"C255_DocUpload","label":"2.5.5 Document upload","w":900,"h":720},{"id":"256","comp":"C256_Notifications","label":"2.5.6 Notifications","h":720},{"id":"257","comp":"C257_Security","label":"2.5.7 Security","h":760},{"id":"258","comp":"C258_Connected","label":"2.5.8 Connected accounts","h":600},{"id":"259","comp":"C259_Privacy","label":"2.5.9 Privacy & data","h":760},{"id":"2510","comp":"C2510_Closure","label":"2.5.10 Closure","w":900,"h":760},{"id":"2511","comp":"C2511_Help","label":"2.5.11 Help & support","h":760}]} mobileScreens={[{"id":"m251","comp":"M251_AccountOverview","label":"2.5m.1 Account overview"},{"id":"m252","comp":"M252_PersonalInfo","label":"2.5m.2 Personal info"},{"id":"m253","comp":"M253_PreferencesEdit","label":"2.5m.3 Preferences edit"},{"id":"m254","comp":"M254_TravelDocs","label":"2.5m.4 Travel documents"},{"id":"m255","comp":"M255_DocUpload","label":"2.5m.5 Document upload sheet"},{"id":"m256","comp":"M256_Notifications","label":"2.5m.6 Notifications"},{"id":"m257","comp":"M257_Security","label":"2.5m.7 Security"},{"id":"m258","comp":"M258_Connected","label":"2.5m.8 Connected accounts"},{"id":"m259","comp":"M259_Privacy","label":"2.5m.9 Privacy & data"},{"id":"m2510","comp":"M2510_Closure","label":"2.5m.10 Closure"},{"id":"m2511","comp":"M2511_Help","label":"2.5m.11 Help & support"}]}/>
+      </DesignCanvas>
+    );
+  }
+  function Root() { return <><App/><StoryTailTweaks/></>; }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
+</script>
+</body>
+</html>

@@ -471,6 +471,54 @@ verify_jwt = true
 [functions.trip-document-url]
 verify_jwt = true
 
+# ── §2.4 payment surface ──────────────────────────────────────────────────────
+# The payment tables hold NO client-role privilege — 20260917090000_payment_domain_lockdown
+# revoked it and added no policy — so these are not a convenience over PostgREST, they are
+# the only read and write path that exists. Both verify the JWT: each resolves the caller to
+# a client and every row is keyed to that client's id.
+#
+# `payment-wallet` never selects payment_card.stripe_payment_method_id or
+# .stripe_customer_id. Data-Model §21.2 names both server-only.
+
+[functions.payment-wallet]
+verify_jwt = true
+
+[functions.card-authorization]
+verify_jwt = true
+
+# ── §3.2 agent worklist ───────────────────────────────────────────────────────
+# The first write on the agent side. verify_jwt is not the gate that matters here —
+# requireAgentId is — but without this block the function is simply never deployed, which
+# CI's "Every Edge Function is declared for deployment" step exists to catch.
+[functions.agent-trip-status]
+verify_jwt = true
+
+# ── §3.4.2 trip detail ────────────────────────────────────────────────────────
+# The Notes tab's write, and the only door onto `agent_set_trip_notes` — that function is
+# service_role only precisely so a browser cannot reach it and skip the audit_event. Same
+# note as above about this block: verify_jwt is not the gate that matters, requireAgentId
+# is, but a function with no block here is never deployed at all.
+[functions.agent-trip-notes]
+verify_jwt = true
+
+# ── §3.3.7 client notes ───────────────────────────────────────────────────────
+# The Notes tab's add/edit/delete, and the only door onto `agent_write_client_note` —
+# service_role only for the same reason. Same note again about verify_jwt: requireAgentId
+# is the gate, but a function with no block here is never deployed at all, which is what
+# CI's "Every Edge Function is declared for deployment" step exists to catch.
+[functions.agent-client-notes]
+verify_jwt = true
+
+# ── §3.3's client writes ──────────────────────────────────────────────────────
+# Create, edit, archive and bulk-tag (§3.3.9, §3.3.10, §3.3.12, and §3.3.1's
+# checkbox column). The only door onto agent_create_client, agent_update_client,
+# agent_set_client_archived and agent_bulk_tag_clients, every one of which is
+# service_role only because each takes p_agent_id as trusted input. `client` is a
+# CLAUDE.md rule-3 table, so every one of those writes owes an audit_event that a
+# PostgREST call could not produce — a bulk tag owes one per client it moves.
+[functions.agent-client]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand

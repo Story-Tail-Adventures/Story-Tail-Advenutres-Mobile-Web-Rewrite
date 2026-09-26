@@ -663,8 +663,11 @@ async function currentPlatformUserId(): Promise<string | null> {
  * The zone is what stops the thread rendering in the SERVER's zone — see the long note at
  * the top of web/lib/trips/thread.ts. Read together with the id because both come off the
  * same single row and the thread needs both.
+ *
+ * Exported for §2.6, whose thread is addressed by conversation rather than by trip and needs
+ * the same zone for the same reason.
  */
-async function currentPlatformUser(): Promise<{ id: string | null; timeZone: string }> {
+export async function currentPlatformUser(): Promise<{ id: string | null; timeZone: string }> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_user")
@@ -794,11 +797,42 @@ export async function loadTripThread(tripId: string): Promise<TripThreadView | n
     };
   }
 
+  const [messages, me] = await Promise.all([
+    loadThreadMessages(conversation.id),
+    currentPlatformUser(),
+  ]);
+
+  return {
+    tripId: trip.id,
+    tripTitle: trip.title,
+    conversationId: conversation.id,
+    unreadCount: conversation.client_unread_count ?? 0,
+    timeZone: me.timeZone,
+    messages,
+  };
+}
+
+/**
+ * Every readable message on one conversation, with its attachments.
+ *
+ * SHARED BY §2.2.7 AND §2.6.2, which is why it takes a conversation id rather than a trip.
+ * 2.6.2 addresses threads that may have no trip at all, and duplicating this read for them
+ * would mean two places to forget the attachment behaviour below.
+ *
+ * `is_internal_note` is not filtered here, and that is not an omission: it is outside the
+ * client column grant, so naming it would raise 42501. The filtering happens in
+ * `message_self_select`, which carries `is_internal_note = false` as a ROW predicate — the
+ * internal notes are invisible rather than redacted. The seed keeps a deliberate internal
+ * note on Jordan's thread and `rls_trip_graph.sql` asserts it never comes back.
+ */
+export async function loadThreadMessages(conversationId: string): Promise<ThreadMessage[]> {
+  const supabase = await createClient();
+
   const [{ data: rows }, me] = await Promise.all([
     supabase
       .from("message")
       .select("id, sender_role, body, created_at")
-      .eq("conversation_id", conversation.id)
+      .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true }),
     currentPlatformUser(),
   ]);
@@ -834,20 +868,13 @@ export async function loadTripThread(tripId: string): Promise<TripThreadView | n
     }
   }
 
-  return {
-    tripId: trip.id,
-    tripTitle: trip.title,
-    conversationId: conversation.id,
-    unreadCount: conversation.client_unread_count ?? 0,
-    timeZone: me.timeZone,
-    messages: messages.map((m) => ({
-      id: m.id,
-      sender: m.sender_role as "agent" | "client",
-      body: m.body,
-      createdAt: m.created_at,
-      attachments: attachmentsByMessage.get(m.id) ?? [],
-    })),
-  };
+  return messages.map((m) => ({
+    id: m.id,
+    sender: m.sender_role as "agent" | "client",
+    body: m.body,
+    createdAt: m.created_at,
+    attachments: attachmentsByMessage.get(m.id) ?? [],
+  }));
 }
 
 export type PastTripView = {

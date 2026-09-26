@@ -3,6 +3,7 @@ import { fontVariables } from "./fonts";
 import { AuthChromeScript } from "@/components/AuthChromeScript";
 import { ThemeScript } from "@/components/ThemeScript";
 import { env } from "@/lib/env";
+import { THEME_COLOR_DARK, THEME_COLOR_LIGHT } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,11 +26,13 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "light dark",
+  // The static pair, correct for anyone who has not used the top bar's toggle. These
+  // match on the OS, so ThemeScript rewrites BOTH of them when an explicit choice is
+  // stored — see applyScheme in lib/theme.ts. The hexes come from there so the script,
+  // the toggle and this export cannot drift.
   themeColor: [
-    // --brand-cream, the light background
-    { media: "(prefers-color-scheme: light)", color: "#FBF6EE" },
-    // dark --md-bg, the tropical-dark background
-    { media: "(prefers-color-scheme: dark)", color: "#050D1A" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR_LIGHT },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR_DARK },
   ],
 };
 

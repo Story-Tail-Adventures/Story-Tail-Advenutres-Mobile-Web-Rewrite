@@ -31,6 +31,34 @@ object StoryTailBrand {
 }
 
 /**
+ * Card-network plate colors for §2.4's brand chips.
+ *
+ * NOT STORY-TAIL'S PALETTE and not a theme role — these are third-party marks, so they are
+ * scheme-invariant for the same reason [StoryTailBrand] is: a Visa plate that turned gold in
+ * dark mode would be a worse lie than a slightly low-contrast navy one.
+ *
+ * They live here rather than inline in the wallet screen because an inline
+ * `if (brand == "visa") navy else red` was exactly the shape that shipped a MASTERCARD-red
+ * plate behind an AMEX chip — the same one-brand-and-everything-else mistake that produced
+ * "MAST" from `brand.take(4)`. Keyed like `BRAND_CHIPS` in `domain/wallet/WalletCopy.kt`, on
+ * Stripe's lowercase brand token.
+ */
+object CardNetworkPlate {
+    private val COLORS = mapOf(
+        "visa" to Color(0xFF1A1F71),
+        "mastercard" to Color(0xFFEB001B),
+        "amex" to Color(0xFF006FCF),
+        "discover" to Color(0xFFFF6000),
+        "diners" to Color(0xFF0079BE),
+        "jcb" to Color(0xFF0B4EA2),
+        "unionpay" to Color(0xFFE21836),
+    )
+
+    /** Falls back to Story-Tail's own navy — neutral, and never another network's colour. */
+    fun of(brand: String): Color = COLORS[brand.lowercase()] ?: StoryTailBrand.Navy
+}
+
+/**
  * Story-Tail status colors for trip and lead chips.
  * Provided as a CompositionLocal so screens can read them
  * without hardcoding hex values.
@@ -175,7 +203,10 @@ val LightStoryTailColorScheme: ColorScheme = lightColorScheme(
     surfaceContainerLow    = Color(0xFFF6F1EA),
     surfaceContainer       = Color(0xFFF0EAE2),
     surfaceContainerHigh   = Color(0xFFEAE4DB),
-    surfaceContainerHighest = Color(0xFFE3DCD2),
+    // #E3DCD2 until the dark ladder was corrected; surface5 is #E4DDD4 and the
+    // extended scheme declares these two the same role. Sub-perceptual either way,
+    // but the contract is only testable if it holds exactly.
+    surfaceContainerHighest = Color(0xFFE4DDD4),
     surfaceBright        = Color(0xFFFBF8F3),
     surfaceDim           = Color(0xFFE0D9CF),
     surfaceTint          = StoryTailBrand.Burgundy,
@@ -212,11 +243,23 @@ val DarkStoryTailColorScheme: ColorScheme = darkColorScheme(
     scrim                = Color(0xA6000000),
     // Same reason as the light scheme, and the dark one would fail louder: an unset
     // container role here is a LIGHT purple, on navy.
-    surfaceContainerLowest = Color(0xFF050D1A),
-    surfaceContainerLow    = Color(0xFF0A1828),
-    surfaceContainer       = Color(0xFF0F2034),
-    surfaceContainerHigh   = Color(0xFF142A41),
-    surfaceContainerHighest = Color(0xFF1A314D),
+    //
+    // These five must be surface1..surface5, exactly as the light scheme's five are and
+    // exactly as design/source-prototype/styles/tokens.css labels them — that file gets
+    // this right in both schemes (`--md-surface-1: #0A1828` over `--md-bg: #050D1A`);
+    // only the transcription into darkColorScheme() came out one step low, with
+    // lowest..highest landing on background + surface1..surface4.
+    //
+    // So `surfaceContainerLowest` was byte-equal to `background`, and the fifteen call
+    // sites that paint a card with it — the worklist's five sections, the client
+    // dashboard's advisor block, TonalCard, both bottom bars — had no edge at all in
+    // dark: the same fill as the page behind them. Light could not show it, because
+    // there `lowest` is white on cream. Locked by StoryTailColorsTest.
+    surfaceContainerLowest = Color(0xFF0A1828),
+    surfaceContainerLow    = Color(0xFF0F2034),
+    surfaceContainer       = Color(0xFF142A41),
+    surfaceContainerHigh   = Color(0xFF1A314D),
+    surfaceContainerHighest = Color(0xFF21395A),
     surfaceBright        = Color(0xFF1A314D),
     surfaceDim           = Color(0xFF050D1A),
     surfaceTint          = Color(0xFF5BB6FF),

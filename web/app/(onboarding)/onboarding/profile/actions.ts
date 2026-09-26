@@ -10,7 +10,8 @@ import {
   profileSchema,
   toProfilePayload,
 } from "@/lib/validation/profile";
-import { PROFILE_TEXT, type ProfileFormValues, type ProfileState } from "./state";
+import { readProfileForm } from "@/lib/validation/profile-form";
+import { PROFILE_TEXT, type ProfileState } from "./state";
 
 /**
  * Screen 2.1.10 Profile Completion — the two ways off the screen.
@@ -37,7 +38,7 @@ export async function saveProfileAction(
   // Echoed back on failure so a fumbled submit does not empty thirteen inputs. These are
   // the raw strings, not the normalised ones: showing somebody `+13055550184` after they
   // typed `(305) 555-0184` and got a different field wrong would be its own small insult.
-  const values = readValues(formData);
+  const values = readProfileForm(formData);
 
   const parsed = profileSchema.safeParse(values);
   if (!parsed.success) {
@@ -75,35 +76,4 @@ export async function skipProfileAction(): Promise<void> {
   redirect(NEXT_ROUTE);
 }
 
-/**
- * Every input as a trimmed-of-nothing string; the schema does the trimming.
- *
- * RAW, and the form depends on that. Eleven of its thirteen inputs are uncontrolled, and
- * React does not re-apply `defaultValue` to a DOM node that is already mounted — so after a
- * failed submit those inputs show whatever the browser kept, not what this echoes back.
- * That is only invisible because the two agree. Normalise anything here — trim it,
- * uppercase it, turn `(305) 555-0184` into `+13055550184` — and the uncontrolled fields
- * will quietly keep showing the old text while the controlled ones update.
- */
-function readValues(formData: FormData): ProfileFormValues {
-  return {
-    phone: text(formData.get("phone")),
-    dateOfBirth: text(formData.get("dateOfBirth")),
-    addressLine1: text(formData.get("addressLine1")),
-    addressLine2: text(formData.get("addressLine2")),
-    addressCity: text(formData.get("addressCity")),
-    addressRegion: text(formData.get("addressRegion")),
-    addressPostalCode: text(formData.get("addressPostalCode")),
-    addressCountry: text(formData.get("addressCountry")),
-    emergencyName: text(formData.get("emergencyName")),
-    emergencyPhone: text(formData.get("emergencyPhone")),
-    emergencyRelationship: text(formData.get("emergencyRelationship")),
-    passportExpiry: text(formData.get("passportExpiry")),
-    passportCountry: text(formData.get("passportCountry")),
-  };
-}
 
-/** A File — from a multipart post that has no business here — is not a value. */
-function text(value: FormDataEntryValue | null): string {
-  return typeof value === "string" ? value : "";
-}

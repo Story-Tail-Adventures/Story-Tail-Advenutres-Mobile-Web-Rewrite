@@ -5,6 +5,10 @@ import { useEffect, useRef, type ReactNode } from "react";
 /**
  * The thread's scroll region, opened at the newest message.
  *
+ * Moved here from `app/(client)/trips/[tripId]/messages/` unchanged, because 2.6.2 mounts the
+ * same thread. See `ThreadMessages.tsx` for why that extraction is a design requirement and
+ * not a tidy-up.
+ *
  * A thread that opens at the top shows a traveler the oldest thing Gyasi said and asks them
  * to scroll to find out what is actually happening. Every messaging surface they already use
  * opens at the bottom, and this one has to as well.
@@ -42,7 +46,7 @@ export function ThreadScroll({
     <div
       ref={region}
       // `min-h-0` is what lets this shrink below its content inside the flex column instead
-      // of pushing the compose bar off the bottom. See the note in page.tsx.
+      // of pushing the compose bar off the bottom. See the note in the pages that mount it.
       className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6"
     >
       {children}

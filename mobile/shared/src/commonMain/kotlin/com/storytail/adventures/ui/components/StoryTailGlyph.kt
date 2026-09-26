@@ -28,7 +28,30 @@ import androidx.compose.ui.unit.dp
  * Each is the prototype's icon (design/source-prototype/shared/icons.jsx) cut down to what
  * still reads at 16–20dp, expressed in a 0..1 viewport so it scales with [size].
  */
-enum class StoryTailMark { PLANE, CARD, MESSAGE, HOME, SEARCH, USER, PASSPORT, ARROW_LEFT, SUN, SHIP }
+enum class StoryTailMark {
+    PLANE, CARD, MESSAGE, HOME, SEARCH, USER, PASSPORT, ARROW_LEFT, SUN, SHIP,
+
+    // §2.5's fifteen. Every one is the prototype glyph
+    // (design/source-prototype/shared/icons.jsx) cut down to what still reads at 16-20dp,
+    // and each is used by the web build's matching screen — the two sets must not drift.
+    //
+    // There is no Material icon artifact on this classpath and adding one to ship a
+    // settings list would be the trade CheckMark and FeatureGlyph already declined. That
+    // does mean §2.5 could not start until these existed, which is why they landed first.
+    HEART, BELL, SHIELD, LINK, LOCK, QUESTION, CHEVRON_RIGHT, CHEVRON_DOWN,
+    CLOSE, DOWNLOAD, UPLOAD, WARNING, INFO, MORE_VERT, BRIEFCASE,
+
+    // §3.2's five, for the agent bar and the worklist's KPI rail. Same rule as above: each
+    // is the prototype glyph (design/source-prototype/shared/icons.jsx) cut down to what
+    // still reads at 16-20dp, and each is used by the web build's matching screen.
+    //
+    // DOLLAR and USERS are the two that lose the most in the cut. The prototype's dollar is
+    // an S-curve built from two arcs and its users is two heads over two overlapping
+    // shoulders; at 19dp on a tab bar the arcs turn to mush. Both are redrawn from straight
+    // segments that read at that size and keep the silhouette, which is the same trade
+    // PASSPORT and SHIP already made.
+    PULSE, USERS, DOLLAR, CLOCK, CHECK,
+}
 
 @Composable
 fun StoryTailGlyph(
@@ -247,6 +270,410 @@ fun StoryTailGlyph(
                     useCenter = false,
                     topLeft = Offset(w * 0.14f, h * 0.58f),
                     size = Size(w * 0.72f, h * 0.60f),
+                    style = outline,
+                )
+            }
+
+            // A pair of lobes meeting at a point — the prototype's `heart`.
+            StoryTailMark.HEART -> drawPath(
+                path = Path().apply {
+                    moveTo(w * 0.50f, h * 0.88f)
+                    cubicTo(w * 0.08f, h * 0.60f, w * 0.10f, h * 0.20f, w * 0.32f, h * 0.20f)
+                    cubicTo(w * 0.44f, h * 0.20f, w * 0.50f, h * 0.32f, w * 0.50f, h * 0.36f)
+                    cubicTo(w * 0.50f, h * 0.32f, w * 0.56f, h * 0.20f, w * 0.68f, h * 0.20f)
+                    cubicTo(w * 0.90f, h * 0.20f, w * 0.92f, h * 0.60f, w * 0.50f, h * 0.88f)
+                    close()
+                },
+                color = color,
+                style = outline,
+            )
+
+            // A dome, a lip, and the clapper below it.
+            StoryTailMark.BELL -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.20f, h * 0.68f)
+                        lineTo(w * 0.20f, h * 0.44f)
+                        cubicTo(w * 0.20f, h * 0.20f, w * 0.36f, h * 0.10f, w * 0.50f, h * 0.10f)
+                        cubicTo(w * 0.64f, h * 0.10f, w * 0.80f, h * 0.20f, w * 0.80f, h * 0.44f)
+                        lineTo(w * 0.80f, h * 0.68f)
+                        close()
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.10f, h * 0.70f),
+                    end = Offset(w * 0.90f, h * 0.70f),
+                    strokeWidth = w * 0.10f,
+                    cap = StrokeCap.Round,
+                )
+                drawArc(
+                    color = color,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.40f, h * 0.72f),
+                    size = Size(w * 0.20f, h * 0.16f),
+                    style = outline,
+                )
+            }
+
+            // A crest: flat shoulders, tapering to a point.
+            StoryTailMark.SHIELD -> drawPath(
+                path = Path().apply {
+                    moveTo(w * 0.50f, h * 0.08f)
+                    lineTo(w * 0.14f, h * 0.24f)
+                    lineTo(w * 0.14f, h * 0.52f)
+                    cubicTo(w * 0.14f, h * 0.76f, w * 0.32f, h * 0.88f, w * 0.50f, h * 0.94f)
+                    cubicTo(w * 0.68f, h * 0.88f, w * 0.86f, h * 0.76f, w * 0.86f, h * 0.52f)
+                    lineTo(w * 0.86f, h * 0.24f)
+                    close()
+                },
+                color = color,
+                style = outline,
+            )
+
+            // Two interlocking arcs — a chain link, on the diagonal.
+            StoryTailMark.LINK -> {
+                drawArc(
+                    color = color,
+                    startAngle = 135f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.06f, h * 0.06f),
+                    size = Size(w * 0.56f, h * 0.56f),
+                    style = outline,
+                )
+                drawArc(
+                    color = color,
+                    startAngle = -45f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.38f, h * 0.38f),
+                    size = Size(w * 0.56f, h * 0.56f),
+                    style = outline,
+                )
+            }
+
+            // A padlock: shackle above, body below.
+            StoryTailMark.LOCK -> {
+                drawArc(
+                    color = color,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.28f, h * 0.10f),
+                    size = Size(w * 0.44f, h * 0.44f),
+                    style = outline,
+                )
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(w * 0.16f, h * 0.44f),
+                    size = Size(w * 0.68f, h * 0.46f),
+                    cornerRadius = CornerRadius(w * 0.10f),
+                    style = outline,
+                )
+            }
+
+            // A question mark: the hook, and the dot.
+            StoryTailMark.QUESTION -> {
+                drawArc(
+                    color = color,
+                    startAngle = 160f,
+                    sweepAngle = 230f,
+                    useCenter = false,
+                    topLeft = Offset(w * 0.28f, h * 0.10f),
+                    size = Size(w * 0.44f, h * 0.44f),
+                    style = outline,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.50f, h * 0.52f),
+                    end = Offset(w * 0.50f, h * 0.66f),
+                    strokeWidth = w * 0.11f,
+                    cap = StrokeCap.Round,
+                )
+                drawCircle(color = color, radius = w * 0.06f, center = Offset(w * 0.50f, h * 0.86f))
+            }
+
+            // The disclosure chevron every settings row ends in.
+            StoryTailMark.CHEVRON_RIGHT -> drawPath(
+                path = Path().apply {
+                    moveTo(w * 0.38f, h * 0.20f)
+                    lineTo(w * 0.66f, h * 0.50f)
+                    lineTo(w * 0.38f, h * 0.80f)
+                },
+                color = color,
+                style = outline,
+            )
+
+            StoryTailMark.CHEVRON_DOWN -> drawPath(
+                path = Path().apply {
+                    moveTo(w * 0.20f, h * 0.38f)
+                    lineTo(w * 0.50f, h * 0.66f)
+                    lineTo(w * 0.80f, h * 0.38f)
+                },
+                color = color,
+                style = outline,
+            )
+
+            StoryTailMark.CLOSE -> {
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.22f, h * 0.22f),
+                    end = Offset(w * 0.78f, h * 0.78f),
+                    strokeWidth = w * 0.11f,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.78f, h * 0.22f),
+                    end = Offset(w * 0.22f, h * 0.78f),
+                    strokeWidth = w * 0.11f,
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            // A tray with an arrow into it.
+            StoryTailMark.DOWNLOAD -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.10f)
+                        lineTo(w * 0.50f, h * 0.62f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.28f, h * 0.42f)
+                        lineTo(w * 0.50f, h * 0.64f)
+                        lineTo(w * 0.72f, h * 0.42f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.14f, h * 0.78f)
+                        lineTo(w * 0.14f, h * 0.90f)
+                        lineTo(w * 0.86f, h * 0.90f)
+                        lineTo(w * 0.86f, h * 0.78f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // DOWNLOAD's arrow, reversed.
+            StoryTailMark.UPLOAD -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.64f)
+                        lineTo(w * 0.50f, h * 0.12f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.28f, h * 0.32f)
+                        lineTo(w * 0.50f, h * 0.10f)
+                        lineTo(w * 0.72f, h * 0.32f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.14f, h * 0.78f)
+                        lineTo(w * 0.14f, h * 0.90f)
+                        lineTo(w * 0.86f, h * 0.90f)
+                        lineTo(w * 0.86f, h * 0.78f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // A triangle with a bang in it.
+            StoryTailMark.WARNING -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.10f)
+                        lineTo(w * 0.94f, h * 0.86f)
+                        lineTo(w * 0.06f, h * 0.86f)
+                        close()
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.50f, h * 0.42f),
+                    end = Offset(w * 0.50f, h * 0.62f),
+                    strokeWidth = w * 0.10f,
+                    cap = StrokeCap.Round,
+                )
+                drawCircle(color = color, radius = w * 0.055f, center = Offset(w * 0.50f, h * 0.74f))
+            }
+
+            // WARNING's sibling, inverted: a ring with an i in it.
+            StoryTailMark.INFO -> {
+                drawCircle(
+                    color = color,
+                    radius = w * 0.40f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = outline,
+                )
+                drawCircle(color = color, radius = w * 0.055f, center = Offset(w * 0.50f, h * 0.28f))
+                drawLine(
+                    color = color,
+                    start = Offset(w * 0.50f, h * 0.44f),
+                    end = Offset(w * 0.50f, h * 0.72f),
+                    strokeWidth = w * 0.10f,
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            StoryTailMark.MORE_VERT -> {
+                for (y in listOf(0.20f, 0.50f, 0.80f)) {
+                    drawCircle(color = color, radius = w * 0.075f, center = Offset(w * 0.50f, h * y))
+                }
+            }
+
+            // A case with a handle — 2.5.7's laptop-shaped session row.
+            StoryTailMark.BRIEFCASE -> {
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(w * 0.08f, h * 0.32f),
+                    size = Size(w * 0.84f, h * 0.54f),
+                    cornerRadius = CornerRadius(w * 0.10f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.34f, h * 0.32f)
+                        lineTo(w * 0.34f, h * 0.16f)
+                        lineTo(w * 0.66f, h * 0.16f)
+                        lineTo(w * 0.66f, h * 0.32f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // pulse: 'M3 12h4l3-8 4 16 3-8h4' — a heartbeat trace, straight segments only.
+            StoryTailMark.PULSE -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.08f, h * 0.50f)
+                        lineTo(w * 0.29f, h * 0.50f)
+                        lineTo(w * 0.42f, h * 0.17f)
+                        lineTo(w * 0.58f, h * 0.83f)
+                        lineTo(w * 0.71f, h * 0.50f)
+                        lineTo(w * 0.92f, h * 0.50f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // users: two heads and two shoulder lines. The prototype fills two overlapping
+            // bodies; outlined at this size they merge into a blob, so the rear figure is a
+            // head plus one arc offset behind the front one.
+            StoryTailMark.USERS -> {
+                drawCircle(
+                    color = color,
+                    radius = w * 0.15f,
+                    center = Offset(w * 0.38f, h * 0.30f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.12f, h * 0.84f)
+                        lineTo(w * 0.12f, h * 0.72f)
+                        quadraticTo(w * 0.38f, h * 0.54f, w * 0.64f, h * 0.72f)
+                        lineTo(w * 0.64f, h * 0.84f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawCircle(
+                    color = color,
+                    radius = w * 0.11f,
+                    center = Offset(w * 0.73f, h * 0.26f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.74f, h * 0.84f)
+                        lineTo(w * 0.92f, h * 0.84f)
+                        lineTo(w * 0.92f, h * 0.70f)
+                        quadraticTo(w * 0.86f, h * 0.56f, w * 0.72f, h * 0.55f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // dollar: the prototype's S is two arcs. Redrawn as a stem plus a zig that keeps
+            // the silhouette and survives 16dp.
+            StoryTailMark.DOLLAR -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.06f)
+                        lineTo(w * 0.50f, h * 0.94f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.72f, h * 0.28f)
+                        quadraticTo(w * 0.60f, h * 0.17f, w * 0.42f, h * 0.20f)
+                        quadraticTo(w * 0.22f, h * 0.26f, w * 0.34f, h * 0.44f)
+                        quadraticTo(w * 0.46f, h * 0.55f, w * 0.64f, h * 0.58f)
+                        quadraticTo(w * 0.80f, h * 0.66f, w * 0.66f, h * 0.80f)
+                        quadraticTo(w * 0.48f, h * 0.88f, w * 0.30f, h * 0.74f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // clock: 'M12 7v5l3 2m-3 7a9 9 0 1 1 0-18 9 9 0 0 1 0 18Z'
+            StoryTailMark.CLOCK -> {
+                drawCircle(
+                    color = color,
+                    radius = w * 0.40f,
+                    center = Offset(w * 0.50f, h * 0.50f),
+                    style = outline,
+                )
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.50f, h * 0.27f)
+                        lineTo(w * 0.50f, h * 0.52f)
+                        lineTo(w * 0.68f, h * 0.63f)
+                    },
+                    color = color,
+                    style = outline,
+                )
+            }
+
+            // check: 'm5 12 5 5L20 6'. CheckMark already draws this as its own composable for
+            // §2.0's feature list; this is the same stroke as an enum member, so the KPI rail
+            // can ask for it by mark like every other icon.
+            StoryTailMark.CHECK -> {
+                drawPath(
+                    path = Path().apply {
+                        moveTo(w * 0.21f, h * 0.50f)
+                        lineTo(w * 0.42f, h * 0.71f)
+                        lineTo(w * 0.83f, h * 0.25f)
+                    },
+                    color = color,
                     style = outline,
                 )
             }

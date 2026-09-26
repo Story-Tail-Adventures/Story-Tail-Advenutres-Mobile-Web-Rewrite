@@ -132,6 +132,92 @@ enum class OnboardingStepRequestStep {
 }
 
 @Serializable
+enum class AgentTripStatusResponsePreviousStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+    @SerialName("cancelled")
+    CANCELLED,
+}
+
+@Serializable
+enum class AgentTripStatusResponseStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+    @SerialName("cancelled")
+    CANCELLED,
+}
+
+@Serializable
+enum class AgentTripStatusRequestStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+    @SerialName("cancelled")
+    CANCELLED,
+}
+
+@Serializable
+enum class CardAuthorizationResponseStatus {
+    @SerialName("active")
+    ACTIVE,
+    @SerialName("revoked")
+    REVOKED,
+    @SerialName("expired")
+    EXPIRED,
+}
+
+@Serializable
+enum class CardAuthorizationRequestAction {
+    @SerialName("create")
+    CREATE,
+    @SerialName("revoke")
+    REVOKE,
+}
+
+@Serializable
+enum class WalletAuthorizationStatus {
+    @SerialName("active")
+    ACTIVE,
+    @SerialName("revoked")
+    REVOKED,
+    @SerialName("expired")
+    EXPIRED,
+}
+
+@Serializable
+enum class WalletCardStatus {
+    @SerialName("active")
+    ACTIVE,
+    @SerialName("revoked")
+    REVOKED,
+    @SerialName("expired")
+    EXPIRED,
+}
+
+@Serializable
 enum class SaveTestimonialResponseStatus {
     @SerialName("draft")
     DRAFT,
@@ -169,8 +255,15 @@ data class SendTripMessageRequest(
     // the id client-side is what makes a retry idempotent.
     @SerialName("messageId")
     val messageId: String,
+    // The trip whose thread this belongs to. Mutually exclusive with `conversationId`;
+    // omit both to post into the traveler's general (trip-less) thread.
     @SerialName("tripId")
-    val tripId: String,
+    val tripId: String? = null,
+    // An existing thread, addressed directly. Screen 2.6.2 uses this because a general
+    // thread has `trip_id IS NULL` and so has no trip to key on. Mutually exclusive
+    // with `tripId`.
+    @SerialName("conversationId")
+    val conversationId: String? = null,
     @SerialName("body")
     val body: String,
     // Documents already registered via POST /trip-document.
@@ -264,6 +357,209 @@ data class SaveTestimonialResponse(
     val status: SaveTestimonialResponseStatus,
     @SerialName("submittedAt")
     val submittedAt: String? = null,
+)
+
+/** A card on file. NEITHER STRIPE COLUMN APPEARS HERE and neither ever */
+/** should — see CLAUDE.md rule 4. Brand and last 4 are the non-sensitive */
+/** metadata the traveler needs to recognize their own card. */
+@Serializable
+data class WalletCard(
+    @SerialName("id")
+    val id: String,
+    // Stripe's brand slug, e.g. `visa`, `mastercard`, `amex`.
+    @SerialName("brand")
+    val brand: String,
+    @SerialName("last4")
+    val last4: String,
+    @SerialName("expMonth")
+    val expMonth: Int,
+    @SerialName("expYear")
+    val expYear: Int,
+    // The traveler's own label, e.g. "Personal Visa".
+    @SerialName("nickname")
+    val nickname: String? = null,
+    @SerialName("status")
+    val status: WalletCardStatus,
+    @SerialName("consentRecordedAt")
+    val consentRecordedAt: String? = null,
+    @SerialName("revokedAt")
+    val revokedAt: String? = null,
+    @SerialName("revokedReason")
+    val revokedReason: String? = null,
+)
+
+/** One card bound to one trip, with a ceiling and an expiry. */
+@Serializable
+data class WalletAuthorization(
+    @SerialName("id")
+    val id: String,
+    @SerialName("cardId")
+    val cardId: String,
+    @SerialName("tripId")
+    val tripId: String,
+    // Resolved server-side so neither client has to join. Null when the trip is no
+    // longer readable — an authorization outliving its trip is a state the traveler
+    // should still see rather than a row that renders blank.
+    @SerialName("tripTitle")
+    val tripTitle: String? = null,
+    // The ceiling the traveler set. Capped at $250,000 by the function.
+    @SerialName("spendingLimitCents")
+    val spendingLimitCents: Int,
+    // Denormalized on `card_authorization`. Both clients derive "remaining" from this
+    // and clamp it at zero — a supplier overcharging past the ceiling is a real state,
+    // and a negative remaining is not a number to show anybody.
+    @SerialName("amountUsedCents")
+    val amountUsedCents: Int,
+    @SerialName("expiresAt")
+    val expiresAt: String,
+    @SerialName("status")
+    val status: WalletAuthorizationStatus,
+    @SerialName("revokedAt")
+    val revokedAt: String? = null,
+    @SerialName("createdAt")
+    val createdAt: String,
+)
+
+/** One time a card on file was used to pay a supplier. Currently fixture-fed: the */
+/** producing surface is the agent's reveal-and-record flow in §3.6, which is unbuilt. */
+@Serializable
+data class WalletUseEvent(
+    @SerialName("id")
+    val id: String,
+    @SerialName("authorizationId")
+    val authorizationId: String? = null,
+    @SerialName("cardId")
+    val cardId: String,
+    @SerialName("tripId")
+    val tripId: String? = null,
+    @SerialName("tripTitle")
+    val tripTitle: String? = null,
+    // `supplier_name_snapshot`, never a join. Null is possible and is not an error: a
+    // portal booking names a merchant with no `supplier` row behind it.
+    @SerialName("supplierName")
+    val supplierName: String? = null,
+    @SerialName("amountCents")
+    val amountCents: Int,
+    @SerialName("currency")
+    val currency: String,
+    @SerialName("referenceNumber")
+    val referenceNumber: String? = null,
+    @SerialName("createdAt")
+    val createdAt: String,
+)
+
+@Serializable
+data class WalletResponse(
+    @SerialName("cards")
+    val cards: List<WalletCard>,
+    @SerialName("authorizations")
+    val authorizations: List<WalletAuthorization>,
+    @SerialName("events")
+    val events: List<WalletUseEvent>,
+)
+
+@Serializable
+data class CardAuthorizationRequest(
+    @SerialName("action")
+    val action: CardAuthorizationRequestAction,
+    // Client-generated UUID v7 on `create`; the server validates the embedded
+    // timestamp is recent (Data-Model §21.6). Supplying it client-side is what makes a
+    // retry idempotent against the primary key rather than a second authorization. On
+    // `revoke` it names the existing row.
+    @SerialName("authorizationId")
+    val authorizationId: String? = null,
+    // `create` only. Must be an active card belonging to the caller.
+    @SerialName("cardId")
+    val cardId: String? = null,
+    // `create` only. `card_authorization.trip_id` is NOT NULL.
+    @SerialName("tripId")
+    val tripId: String? = null,
+    // `create` only. Zero and negatives are refused: an authorization that permits
+    // nothing is a record with no meaning, not a cautious default.
+    @SerialName("spendingLimitCents")
+    val spendingLimitCents: Int? = null,
+    // `create` only. Both clients default to trip end + 7 days so a late supplier
+    // charge still goes through. The function caps it at ten years out.
+    @SerialName("expiresAt")
+    val expiresAt: String? = null,
+    // `create` only, and required to be true. Re-checked server-side even though both
+    // clients gate the submit button on it — the stored `consent_payload` is a
+    // compliance record, and one written for somebody who never ticked the box is
+    // worse than no record at all. The TEXT is the server's, never the request's.
+    @SerialName("consent")
+    val consent: Boolean? = null,
+)
+
+@Serializable
+data class CardAuthorizationResponse(
+    @SerialName("authorizationId")
+    val authorizationId: String,
+    @SerialName("status")
+    val status: CardAuthorizationResponseStatus,
+    // `create` only. False means the id already existed — a retry.
+    @SerialName("created")
+    val created: Boolean? = null,
+    // `revoke` only. False means it was already revoked or expired.
+    @SerialName("changed")
+    val changed: Boolean? = null,
+)
+
+@Serializable
+data class AgentTripStatusRequest(
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("status")
+    val status: AgentTripStatusRequestStatus,
+    // `trip.version` as the board was rendered from. A mismatch is a 409. Required: the board always has it, and omitting it would make every drop last-write-wins.
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    // Required when `status` is `cancelled`, ignored otherwise. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler.
+    @SerialName("cancellationReason")
+    val cancellationReason: String? = null,
+)
+
+@Serializable
+data class AgentTripStatusResponse(
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("status")
+    val status: AgentTripStatusResponseStatus,
+    // Absent whenever the stage did not move — a no-op, or a cancellation-reason correction — because nothing was left behind.
+    @SerialName("previousStatus")
+    val previousStatus: AgentTripStatusResponsePreviousStatus? = null,
+    // The version after the write. Send this as the next `expectedVersion`.
+    @SerialName("version")
+    val version: Int,
+    // False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded — a corrected cancellation reason writes the column and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false.
+    @SerialName("changed")
+    val changed: Boolean,
+    // Present on every `cancelled` call and only those, because the reason is mandatory on all of them and the caller is owed an answer about where it went. True when this call wrote it to `trip.cancellation_reason` — either on a transition into `cancelled` or on a same-stage correction. False when the stored reason already read that way, so there was nothing to write. Either answer means the traveler now sees the sentence you sent, on Screen 2.2.10.
+    @SerialName("cancellationReasonUpdated")
+    val cancellationReasonUpdated: Boolean? = null,
+)
+
+@Serializable
+data class AgentTripNotesRequest(
+    @SerialName("tripId")
+    val tripId: String,
+    // Replaces `trip.notes` outright. An empty string clears it.
+    @SerialName("notes")
+    val notes: String,
+    // `trip.version` as the tab was rendered from. A mismatch is a 409. Required for the same reason as `/agent-trip-status`'s field.
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+)
+
+@Serializable
+data class AgentTripNotesResponse(
+    @SerialName("tripId")
+    val tripId: String,
+    // The version after the write. Send this as the next `expectedVersion`.
+    @SerialName("version")
+    val version: Int,
+    // False when the submitted notes matched what was already stored.
+    @SerialName("changed")
+    val changed: Boolean,
 )
 
 @Serializable

@@ -738,4 +738,647 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 
+-- ============================================================
+-- Payment domain (Screen Inventory §2.4)
+--
+-- NOTHING HERE RESEMBLES CARDHOLDER DATA, and the values are the ones this file's own header
+-- mandates: brand 'visa', last4 '4242', stripe_payment_method_id 'pm_card_visa_DEV_FAKE'.
+-- `pm_card_visa` is Stripe's published test PaymentMethod handle — a token, not a card — and
+-- the _DEV_FAKE suffix makes the row unusable against a real Stripe account should one ever
+-- be configured. There is no cardholder name and no security-code column; the schema has
+-- neither, by CLAUDE.md rule 1 and the table's own COMMENT. Never write a test card number
+-- into this file, not even inside a comment: a fixture is exactly where one gets normalised,
+-- and the repo's pre-write guard rejects one on sight.
+--
+-- WHY THESE ROWS EXIST AT ALL. payment_card.stripe_payment_method_id and .stripe_customer_id
+-- are both NOT NULL, so no card row can be created without a real Stripe tokenization, and
+-- Screen 2.4.2 (Add Card) is deferred until a Stripe account exists. Six of §2.4's seven
+-- screens read rows that only 2.4.2 can create. Without a fixture they render empty and
+-- cannot be built, reviewed or demoed at all.
+--
+-- These rows are readable ONLY through the service role. 20260917090000_payment_domain_
+-- lockdown.sql revoked every client-role grant on these four tables and no policy replaced
+-- it — see supabase/tests/rls_payment.sql.
+-- ============================================================
+
+-- Jordan's card, and Sam's.
+--
+-- SAM'S IS A POISON ROW, not decoration. Every §2.4 read is scoped by client, and a scoping
+-- bug that returns "all cards" looks identical to a correct one when only a single client
+-- owns a card. With two, an isolation test can fail honestly — the same reason the trip
+-- fixtures span more than one traveler.
+INSERT INTO public.payment_card (
+    id, client_id, stripe_payment_method_id, stripe_customer_id,
+    brand, last4, exp_month, exp_year, nickname, consent_recorded_at, status
+)
+SELECT '01a0b1c2-d300-7000-8000-000000000010', c.id,
+       'pm_card_visa_DEV_FAKE', 'cus_DEV_FAKE_JORDAN',
+       'visa', '4242', 11, 2029, 'Personal Visa', now() - interval '40 days', 'active'
+FROM public.client c WHERE c.email = 'jordan.hayes@example.com'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.payment_card (
+    id, client_id, stripe_payment_method_id, stripe_customer_id,
+    brand, last4, exp_month, exp_year, nickname, consent_recorded_at, status
+)
+SELECT '01a0b1c2-d300-7000-8000-000000000011', c.id,
+       'pm_card_visa_DEV_FAKE_SAM', 'cus_DEV_FAKE_SAM',
+       'visa', '4242', 4, 2028, 'Sam''s card — must never appear in Jordan''s wallet',
+       now() - interval '12 days', 'active'
+FROM public.client c WHERE c.email = 'sam.rivera@example.com'
+ON CONFLICT (id) DO NOTHING;
+
+-- A revoked card for Jordan, so 2.4.1 has a non-active row to render. The list is not a list
+-- of usable cards; it is a record, and a revoked card stays visible with its date.
+INSERT INTO public.payment_card (
+    id, client_id, stripe_payment_method_id, stripe_customer_id,
+    brand, last4, exp_month, exp_year, nickname, consent_recorded_at,
+    status, revoked_at, revoked_reason
+)
+SELECT '01a0b1c2-d300-7000-8000-000000000012', c.id,
+       'pm_card_mastercard_DEV_FAKE', 'cus_DEV_FAKE_JORDAN',
+       'mastercard', '4444', 2, 2027, 'Old joint card', now() - interval '400 days',
+       'revoked', now() - interval '90 days', 'client_request'
+FROM public.client c WHERE c.email = 'jordan.hayes@example.com'
+ON CONFLICT (id) DO NOTHING;
+
+-- An active authorization on the Negril trip — the one §2.2.1's "Authorize a card" tile and
+-- §2.2.3's payment timeline both point at.
+--
+-- consent_payload is a SNAPSHOT of the mandate text the traveler actually agreed to, frozen
+-- at the moment of consent. It is jsonb and NOT NULL precisely so the wording cannot be
+-- rewritten out from under a past agreement. Note what it does NOT promise: there is no
+-- per-use notification clause, because no dispatcher exists on either stack to deliver one —
+-- see the §2.4 amendment in docs/Screen-Inventory.md.
+INSERT INTO public.card_authorization (
+    id, payment_card_id, trip_id, spending_limit_cents, amount_used_cents,
+    expires_at, status, consent_payload
+)
+VALUES (
+    '01a0b1c2-d300-7000-8000-000000000020',
+    '01a0b1c2-d300-7000-8000-000000000010',
+    '0195a2c0-1a00-7000-8000-000000000040',
+    900000, 784500,
+    now() + interval '75 days', 'active',
+    jsonb_build_object(
+        'version', 1,
+        'agreed_at', (now() - interval '30 days')::text,
+        'text', 'I authorize Story-Tail Adventures to use this card to pay suppliers for '
+                || 'this trip, up to the limit shown. Story-Tail does not charge me a '
+                || 'planning or service fee.'
+    )
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Three uses against it, oldest first. Between them they cover the three shapes 2.4.5 and
+-- 2.4.6 have to render: a supplier we have a row for, a supplier we do not (portal bookings
+-- name a merchant that is not in our supplier table), and one the traveler has flagged.
+--
+-- supplier_name_snapshot is NOT NULL and separate from supplier_id on purpose: the name at
+-- the time of the charge is what appears on a statement, and a supplier renamed later must
+-- not silently rewrite the traveler's history.
+INSERT INTO public.card_use_event (
+    id, card_authorization_id, payment_card_id, trip_id, agent_user_id,
+    supplier_id, supplier_name_snapshot, amount_cents, currency,
+    reference_number, justification, client_flag_status, client_flagged_at, created_at
+)
+SELECT v.id, '01a0b1c2-d300-7000-8000-000000000020',
+       '01a0b1c2-d300-7000-8000-000000000010',
+       '0195a2c0-1a00-7000-8000-000000000040',
+       pu.id, v.supplier_id, v.supplier_name, v.amount, 'USD',
+       v.reference, v.justification, v.flag, v.flagged_at, v.created_at
+FROM (VALUES
+    ('01a0b1c2-d300-7000-8000-000000000030'::uuid,
+     '0195a2c0-1a00-7000-8000-000000000030'::uuid, 'Sandals Resorts',
+     450000::bigint, 'SDL-88213',
+     'Deposit to hold the ocean-view suite for the Nov 15 arrival.',
+     'not_flagged', NULL::timestamptz, now() - interval '28 days'),
+    ('01a0b1c2-d300-7000-8000-000000000031'::uuid,
+     '0195a2c0-1a00-7000-8000-000000000032'::uuid, 'Island Routes Adventures',
+     18500::bigint, 'IR-4471',
+     'Catamaran sunset cruise for two, booked at the resort rate.',
+     'not_flagged', NULL::timestamptz, now() - interval '9 days'),
+    -- No supplier_id: a portal booking whose merchant is not in our supplier table. This is
+    -- the row that proves the UI reads the snapshot rather than joining for a name.
+    ('01a0b1c2-d300-7000-8000-000000000032'::uuid,
+     NULL::uuid, 'NEGRIL TRANSFERS LTD',
+     31600::bigint, NULL,
+     'Airport transfers both ways. Booked through the resort portal.',
+     'flagged', now() - interval '2 days', now() - interval '3 days')
+) AS v(id, supplier_id, supplier_name, amount, reference, justification,
+       flag, flagged_at, created_at)
+CROSS JOIN LATERAL (
+    SELECT pu.id FROM public.platform_user pu WHERE pu.role = 'agent' LIMIT 1
+) pu
+ON CONFLICT (id) DO NOTHING;
+
+
+-- ============================================================
+-- §3.2 agent worklist fixtures
+--
+-- Everything above this point was seeded for the CLIENT surface, and §3.2 rendered correct
+-- and empty against it: no commission rows at all, no agent_availability, no
+-- trip_status_history, nothing departing inside thirty days, and an empty `in_progress`
+-- column on the pipeline board. A screen that is right and blank is the failure mode the
+-- (client) layout's role gate was added to avoid — it reads as data loss rather than as an
+-- empty book.
+-- ============================================================
+
+-- ── Three more trips ─────────────────────────────────────────────────────────────
+--
+-- Assigned to Maya rather than Jordan on purpose: Jordan is the §2.2 fixture and several
+-- committed tests assert exact counts over Jordan's trips.
+--
+-- Between them these fill the two holes in the board — `in_progress` had no trip at all, and
+-- the nearest departure was 64 days out, so "Travelers in next 30 days" was empty.
+
+INSERT INTO public.trip (
+    id, client_id, agent_id, title, trip_type, status,
+    start_date, end_date, destinations, traveler_count,
+    total_value_cents, total_paid_cents, total_commission_cents, currency, notes, created_at
+) VALUES
+    -- Travelling right now. The only row that exercises the in_progress stage.
+    ('0195a2c0-1a00-7000-8000-000000000046',
+     '0195a2c0-1a00-7000-8000-000000000013',
+     '0195a2c0-1a00-7000-8000-000000000001',
+     'Saint Lucia · Between Semesters', 'all_inclusive', 'in_progress',
+     current_date - 2, current_date + 5, ARRAY['Soufriere, Saint Lucia'], 2,
+     748000, 748000, 89760, 'USD',
+     'Landed Tuesday. Resort has the anniversary note; nothing else scheduled.',
+     now() - interval '40 days'),
+
+    -- Departing inside the thirty-day window the worklist section is built on.
+    ('0195a2c0-1a00-7000-8000-000000000047',
+     '0195a2c0-1a00-7000-8000-000000000013',
+     '0195a2c0-1a00-7000-8000-000000000001',
+     'Cabo, Four Nights', 'all_inclusive', 'booked',
+     current_date + 12, current_date + 16, ARRAY['Cabo San Lucas, Mexico'], 2,
+     512000, 256000, 61440, 'USD',
+     'Flights are theirs. Transfers still to confirm with the resort.',
+     now() - interval '20 days'),
+
+    -- A second departure, so the section is a list rather than a single row.
+    ('0195a2c0-1a00-7000-8000-000000000048',
+     '0195a2c0-1a00-7000-8000-000000000013',
+     '0195a2c0-1a00-7000-8000-000000000001',
+     'Bimini, Long Weekend', 'custom', 'booked',
+     current_date + 26, current_date + 29, ARRAY['Bimini, Bahamas'], 4,
+     396000, 99000, 47520, 'USD',
+     'Four adults, two rooms. They asked about a fishing charter for the Saturday.',
+     now() - interval '15 days');
+
+-- The existing booked and completed trips get a plausible age, so the cycle-time KPI has
+-- something other than "created and booked in the same instant" to average. Without this
+-- every trip's created_at is the moment of the reset and inquiry-to-book is zero days.
+UPDATE public.trip SET created_at = now() - interval '60 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000040';
+UPDATE public.trip SET created_at = now() - interval '700 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000044';
+
+-- ── Status history ───────────────────────────────────────────────────────────────
+--
+-- Data-Model §8.8 is explicit that this table accumulates FORWARD and that no backfill from
+-- trip.status_changed_at can produce a cycle time. That is true in production; here the point
+-- of a fixture is to let the screen be verified without waiting weeks for real transitions,
+-- so this is synthetic on purpose and says so.
+--
+-- Every changed_at sits between its trip's created_at and now(), which is what keeps the
+-- derived cycle time positive. One booking (trip 47) lands inside the current month, so
+-- "Booked · month" has exactly one contributing trip and the number is checkable by hand.
+
+INSERT INTO public.trip_status_history (id, trip_id, from_status, to_status, changed_at, changed_by_user_id)
+SELECT v.id, v.trip_id, v.from_status, v.to_status, v.changed_at, pu.id
+FROM (VALUES
+    -- 40 · Negril. Booked 41 days ago, i.e. in a previous month.
+    ('01a0b1c2-d300-7000-8000-000000000060'::uuid, '0195a2c0-1a00-7000-8000-000000000040'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '48 days'),
+    ('01a0b1c2-d300-7000-8000-000000000061'::uuid, '0195a2c0-1a00-7000-8000-000000000040'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '41 days'),
+
+    -- 44 · a completed trip from two years ago, so the average is not built from one shape.
+    ('01a0b1c2-d300-7000-8000-000000000062'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '690 days'),
+    ('01a0b1c2-d300-7000-8000-000000000063'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '685 days'),
+    ('01a0b1c2-d300-7000-8000-000000000064'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'booked'::trip_status,   'in_progress'::trip_status, now() - interval '620 days'),
+    ('01a0b1c2-d300-7000-8000-000000000065'::uuid, '0195a2c0-1a00-7000-8000-000000000044'::uuid,
+     'in_progress'::trip_status, 'completed'::trip_status, now() - interval '610 days'),
+
+    -- 46 · booked 22 days ago, departed 2 days ago.
+    ('01a0b1c2-d300-7000-8000-000000000066'::uuid, '0195a2c0-1a00-7000-8000-000000000046'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '30 days'),
+    ('01a0b1c2-d300-7000-8000-000000000067'::uuid, '0195a2c0-1a00-7000-8000-000000000046'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '22 days'),
+    ('01a0b1c2-d300-7000-8000-000000000068'::uuid, '0195a2c0-1a00-7000-8000-000000000046'::uuid,
+     'booked'::trip_status,   'in_progress'::trip_status, now() - interval '2 days'),
+
+    -- 47 · THE one booked inside the current month. "Booked · month" should equal its value.
+    ('01a0b1c2-d300-7000-8000-000000000069'::uuid, '0195a2c0-1a00-7000-8000-000000000047'::uuid,
+     'inquiry'::trip_status,  'proposal'::trip_status,    now() - interval '14 days'),
+    ('01a0b1c2-d300-7000-8000-00000000006a'::uuid, '0195a2c0-1a00-7000-8000-000000000047'::uuid,
+     'proposal'::trip_status, 'booked'::trip_status,      now() - interval '3 days'),
+
+    -- 45 · the cancelled one, so a terminal branch is represented.
+    ('01a0b1c2-d300-7000-8000-00000000006b'::uuid, '0195a2c0-1a00-7000-8000-000000000045'::uuid,
+     'proposal'::trip_status, 'cancelled'::trip_status,   now() - interval '200 days')
+) AS v(id, trip_id, from_status, to_status, changed_at)
+CROSS JOIN LATERAL (
+    SELECT pu.id FROM public.platform_user pu WHERE pu.role = 'agent' LIMIT 1
+) pu;
+
+-- ── Commission ───────────────────────────────────────────────────────────────────
+--
+-- The table had no rows at all, so "Commission expected" rendered an honest but unverifiable
+-- $0. The forecast reads `expected`/`invoiced` rows on OPEN trips and weights them by
+-- pipeline_weight (Data-Model §7.4), so these are chosen to make the confidence figure land
+-- somewhere other than 0% or 100% — a weighted total equal to the raw one would not prove the
+-- weighting is wired up at all.
+--
+-- The `received` row on the completed trip is deliberately outside the forecast: it is money
+-- already earned, not money expected. It is here for §3.7, and so that a future change that
+-- accidentally sweeps it into the forecast shows up as a number moving.
+
+INSERT INTO public.commission (
+    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
+    expected_commission_cents, received_commission_cents, payment_terms, status, received_at,
+    inteletravel_reference
+) VALUES
+    -- Booked · weight 100 · contributes in full.
+    ('01a0b1c2-d300-7000-8000-000000000070', '0195a2c0-1a00-7000-8000-000000000040',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     1284500, 12.00, 154140, 0, '60 days after travel', 'expected', NULL, NULL),
+
+    -- Proposal · weight 50 · contributes half. Two of these, on the two proposal trips.
+    ('01a0b1c2-d300-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000041',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     964000, 12.00, 115680, 0, '60 days after travel', 'expected', NULL, NULL),
+    ('01a0b1c2-d300-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000042',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     1912000, 12.00, 229440, 0, '60 days after travel', 'expected', NULL, NULL),
+
+    -- In progress · weight 100 · and `invoiced` rather than `expected`, so both statuses the
+    -- forecast accepts are represented.
+    ('01a0b1c2-d300-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000046',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     748000, 12.00, 89760, 0, '60 days after travel', 'invoiced', NULL, 'ITV-2026-0912'),
+
+    -- Booked · weight 100.
+    ('01a0b1c2-d300-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000047',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000031',
+     512000, 12.00, 61440, 0, '60 days after travel', 'expected', NULL, NULL),
+
+    -- Received, on a completed trip. OUTSIDE the forecast on both counts.
+    ('01a0b1c2-d300-7000-8000-000000000075', '0195a2c0-1a00-7000-8000-000000000044',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     692000, 12.00, 83040, 83040, '60 days after travel', 'received',
+     current_date - 540, 'ITV-2025-0331');
+
+-- ── Payment milestones ───────────────────────────────────────────────────────────
+--
+-- Trip 40 already carries one scheduled milestone eleven days out. What was missing is an
+-- OVERDUE one: days_until goes negative and the section's ordering puts it first, and neither
+-- behaviour was exercised by any fixture.
+
+INSERT INTO public.payment_milestone (
+    id, trip_id, kind, label, amount_cents, currency, due_date, status, order_index
+) VALUES
+    ('0195a2c0-1a00-7000-8000-0000000000a3', '0195a2c0-1a00-7000-8000-000000000047',
+     'final', 'Final balance', 256000, 'USD', current_date - 4, 'overdue', 1),
+    ('0195a2c0-1a00-7000-8000-0000000000a4', '0195a2c0-1a00-7000-8000-000000000048',
+     'deposit', 'Deposit', 99000, 'USD', current_date + 6, 'scheduled', 0);
+
+-- ── Agent availability ───────────────────────────────────────────────────────────
+--
+-- Screen 3.2.3's availability layer is deferred because `time_off_blocks` is jsonb with no
+-- declared schema — there is nothing to validate a parse against, which is the open item
+-- Data-Model §7.4 cites as the reason pipeline_weight is a table instead. The row exists so
+-- agent_availability_self() returns something and the deferral is a UI decision rather than
+-- an empty read that looks like a bug.
+--
+-- calendar_sync_refresh_token_encrypted stays NULL. A seeded value is how a projection test
+-- starts passing for the wrong reason.
+
+INSERT INTO public.agent_availability (
+    agent_id, weekly_schedule, response_time_hours, time_off_blocks, calendar_sync_provider
+) VALUES (
+    '0195a2c0-1a00-7000-8000-000000000001',
+    '{"mon":["09:00","17:00"],"tue":["09:00","17:00"],"wed":["09:00","17:00"],'
+    '"thu":["09:00","17:00"],"fri":["09:00","15:00"],"sat":[],"sun":[]}'::jsonb,
+    4,
+    '[{"starts_on":"2026-11-26","ends_on":"2026-11-29","reason":"Thanksgiving"},'
+    '{"starts_on":"2026-12-24","ends_on":"2027-01-02","reason":"Christmas"}]'::jsonb,
+    NULL
+);
+
+
+-- ============================================================
+-- §3.3 client roster fixtures
+--
+-- Before this block the seed held THREE clients, and §3.3.1 is a screen with search, six
+-- filter chips, a money column and pagination. Three rows exercise none of it: every filter
+-- returns everything, the paginator never renders, and an empty state cannot be told from a
+-- broken read.
+--
+-- The nine named clients below are each here for a state the roster has to render, and the
+-- filler block after them exists only so the page window is crossed. NONE of them get an
+-- `auth.users` row: an unclaimed client is one with no platform_user pointing at it (the
+-- same fixture shape Maya Carter uses above), and hand-seeding GoTrue is how `confirmation_token`
+-- NULLs turn every login into a 500.
+--
+-- WHY THE MONEY IS IN TRIPS AND NOT IN client.lifetime_value_cents. Nothing in the repository
+-- maintains that column — see 20260926140000_agent_client_read_surface.sql. agent_client_roster()
+-- derives lifetime value from committed trips, so seeding the cache would prove nothing and
+-- seeding it WRONG is how a fixture starts agreeing with a bug.
+-- ============================================================
+
+INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, email, phone, tags, status, lifetime_value_cents) VALUES
+    -- No trips at all: the roster's "—" in both trip columns, and $0 with a NULL currency.
+    ('0195a2c0-1a00-7000-8000-000000000100', '0195a2c0-1a00-7000-8000-000000000001',
+     'Eli', 'Park', NULL, 'eli.park@example.com', '+1-555-0190', ARRAY['referral'], 'active', 0),
+
+    -- Inquiry only: counts toward the header's "leads to qualify" and toward nothing else.
+    ('0195a2c0-1a00-7000-8000-000000000101', '0195a2c0-1a00-7000-8000-000000000001',
+     'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active', 0),
+
+    -- Two currencies on committed trips: lifetime_currency_count = 2, and the roster must
+    -- name the one it summed instead of adding USD to EUR.
+    ('0195a2c0-1a00-7000-8000-000000000102', '0195a2c0-1a00-7000-8000-000000000001',
+     'Priya', 'Raghunathan', 'Pri', 'priya.r@example.com', '+1-555-0191',
+     ARRAY['vip','multi-destination'], 'active', 0),
+
+    -- No email. `client.email` is nullable and the roster must not assume otherwise.
+    ('0195a2c0-1a00-7000-8000-000000000103', '0195a2c0-1a00-7000-8000-000000000001',
+     'Marcus', 'Webb', NULL, NULL, '+1-555-0192', ARRAY['cruise'], 'active', 0),
+
+    -- Cancelled trip only: excluded from lifetime value AND from both trip columns, so the
+    -- row reads exactly like Eli's despite having a trip.
+    ('0195a2c0-1a00-7000-8000-000000000104', '0195a2c0-1a00-7000-8000-000000000001',
+     'Dana', 'Okonkwo', NULL, 'dana.okonkwo@example.com', '+1-555-0193', ARRAY['family'], 'active', 0),
+
+    -- Many tags, long name: the Tags cell and the Client cell both have to wrap or truncate.
+    ('0195a2c0-1a00-7000-8000-000000000105', '0195a2c0-1a00-7000-8000-000000000001',
+     'Annabelle', 'Fitzwilliam-Castellanos', 'Belle', 'annabelle.fc@example.com', '+1-555-0194',
+     ARRAY['vip','honeymoon','all-inclusive','adults-only','repeat','referral'], 'active', 0),
+
+    -- A second archived client, so the Archived chip returns more than one row.
+    ('0195a2c0-1a00-7000-8000-000000000106', '0195a2c0-1a00-7000-8000-000000000001',
+     'Curtis', 'Nakamura', NULL, 'curtis.n@example.com', NULL, ARRAY['cold'], 'archived', 0),
+
+    -- A merged tombstone. agent_client_roster() must NEVER return this row, for any filter:
+    -- there is no p_status value that can ask for it. rls_agent_clients.sql asserts that.
+    ('0195a2c0-1a00-7000-8000-000000000107', '0195a2c0-1a00-7000-8000-000000000001',
+     'Jordan', 'Hayes-Old', NULL, 'jordan.old@example.com', NULL, ARRAY[]::text[], 'merged_into', 0),
+
+    -- Completed trip well in the past: drives the "Last trip" column with nothing in "Next".
+    ('0195a2c0-1a00-7000-8000-000000000108', '0195a2c0-1a00-7000-8000-000000000001',
+     'Tomás', 'Delgado', NULL, 'tomas.delgado@example.com', '+1-555-0195', ARRAY['repeat'], 'active', 0);
+
+UPDATE public.client
+   SET merged_into_client_id = (SELECT id FROM public.client WHERE email = 'jordan.hayes@example.com'),
+       archived_at = now() - interval '200 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000107';
+
+UPDATE public.client
+   SET archived_at = now() - interval '45 days'
+ WHERE id = '0195a2c0-1a00-7000-8000-000000000106';
+
+-- Trips for the named fixtures above.
+INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status, start_date, end_date,
+                         destinations, traveler_count, total_value_cents, total_paid_cents,
+                         total_commission_cents, currency) VALUES
+    ('0195a2c0-1a00-7000-8000-000000000110', '0195a2c0-1a00-7000-8000-000000000101',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Somewhere warm, February-ish', 'custom', 'inquiry',
+     NULL, NULL, ARRAY[]::text[], 2, 0, 0, 0, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000111', '0195a2c0-1a00-7000-8000-000000000102',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Lisbon & the Douro Valley', 'multi_destination',
+     'completed', current_date - 400, current_date - 388,
+     ARRAY['Lisbon, Portugal','Porto, Portugal'], 2, 812000, 812000, 97440, 'EUR'),
+
+    ('0195a2c0-1a00-7000-8000-000000000112', '0195a2c0-1a00-7000-8000-000000000102',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Kyoto in the spring', 'multi_destination', 'booked',
+     current_date + 60, current_date + 72, ARRAY['Kyoto, Japan','Tokyo, Japan'], 2,
+     1140000, 285000, 136800, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000113', '0195a2c0-1a00-7000-8000-000000000102',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Amalfi Coast, slow', 'multi_destination', 'completed',
+     current_date - 700, current_date - 690, ARRAY['Positano, Italy'], 2, 690000, 690000, 82800, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000114', '0195a2c0-1a00-7000-8000-000000000103',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Alaska, the inside passage', 'cruise', 'proposal',
+     current_date + 150, current_date + 157, ARRAY['Juneau, AK','Skagway, AK'], 4, 0, 0, 0, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000115', '0195a2c0-1a00-7000-8000-000000000104',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Cabo, cancelled', 'all_inclusive', 'cancelled',
+     current_date + 30, current_date + 37, ARRAY['Cabo San Lucas, Mexico'], 4, 540000, 0, 0, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000116', '0195a2c0-1a00-7000-8000-000000000105',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Maldives, overwater', 'all_inclusive', 'booked',
+     current_date + 210, current_date + 220, ARRAY['Malé, Maldives'], 2, 2480000, 620000, 297600, 'USD'),
+
+    ('0195a2c0-1a00-7000-8000-000000000117', '0195a2c0-1a00-7000-8000-000000000108',
+     '0195a2c0-1a00-7000-8000-000000000001', 'Barcelona, long weekend', 'custom', 'completed',
+     current_date - 120, current_date - 116, ARRAY['Barcelona, Spain'], 2, 318000, 318000, 38160, 'USD');
+
+-- Filler, so the roster crosses a page window and the paginator is exercised rather than
+-- merely written. Eighteen rows, deterministic ids derived from the index so a reset is
+-- reproducible. Half carry one committed trip; the rest have none.
+DO $$
+DECLARE
+    i        integer;
+    firsts   text[] := ARRAY['Ava','Noah','Mia','Liam','Zoe','Omar','Ivy','Ruth','Kai',
+                             'Nina','Hugo','Elsa','Amir','Cleo','Jonah','Rosa','Theo','Wren'];
+    lasts    text[] := ARRAY['Bennett','Castillo','Duval','Ellison','Fontaine','Greaves',
+                             'Halloran','Iyer','Jansen','Kowalski','Lindqvist','Moreau',
+                             'Novak','Oyelaran','Prescott','Quintero','Rasmussen','Sandoval'];
+    -- A FLAT array, wrapped at the call site. Postgres arrays are rectangular rather than
+    -- arrays-of-arrays, so a single subscript into a text[][] yields a scalar and the insert
+    -- fails with "column tags is of type text[] but expression is of type text".
+    tagpool  text[] := ARRAY['cruise','family','vip','honeymoon','repeat','referral'];
+    cid      uuid;
+    tid      uuid;
+BEGIN
+    FOR i IN 1..18 LOOP
+        cid := ('0195a2c0-1a00-7000-8000-0000000002' || lpad(i::text, 2, '0'))::uuid;
+        INSERT INTO public.client (id, agent_id, first_name, last_name, email, phone, tags, status)
+        VALUES (cid, '0195a2c0-1a00-7000-8000-000000000001',
+                firsts[i], lasts[i],
+                lower(firsts[i] || '.' || lasts[i] || '@example.com'),
+                '+1-555-' || lpad((200 + i)::text, 4, '0'),
+                ARRAY[tagpool[1 + (i % 6)]],
+                'active');
+
+        IF i % 2 = 0 THEN
+            tid := ('0195a2c0-1a00-7000-8000-0000000003' || lpad(i::text, 2, '0'))::uuid;
+            INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status,
+                                     start_date, end_date, destinations, traveler_count,
+                                     total_value_cents, total_paid_cents, total_commission_cents,
+                                     currency)
+            VALUES (tid, cid, '0195a2c0-1a00-7000-8000-000000000001',
+                    'Getaway #' || i, 'all_inclusive', 'completed',
+                    current_date - (90 + i * 7), current_date - (83 + i * 7),
+                    ARRAY['Montego Bay, Jamaica'], 2,
+                    (240000 + i * 15000)::bigint, (240000 + i * 15000)::bigint,
+                    ((240000 + i * 15000) * 12 / 100)::bigint, 'USD');
+        END IF;
+    END LOOP;
+END $$;
+
+
+
+-- ============================================================
+-- §3.3.2 – §3.3.8 client detail fixtures
+--
+-- Four of the six tabs had NOTHING to render before this block: client_note, companion and
+-- travel_preference were empty tables, and audit_event held exactly one row. An accessor
+-- that returns zero rows looks identical to a correct one, so every assertion about those
+-- tabs would have compared a number against itself and passed for nothing. That is the trap
+-- rls_agent_trip_detail.sql's header records having shipped once.
+--
+-- Everything here hangs off ANNABELLE FITZWILLIAM-CASTELLANOS rather than Jordan Hayes,
+-- and the reason is a collision worth recording. rls_onboarding.sql gives Jordan the
+-- travel_preference and companion rows "the wizard would have written" and then asserts
+-- tight counts and exact values on them — `travel_styles = ARRAY['resort']`, one
+-- companion named Alex. Seeding those tables for Jordan breaks three of its assertions
+-- and, worse, `travel_preference.client_id` is UNIQUE so its INSERT fails outright.
+--
+-- Loosening that test to accommodate unrelated seed data would weaken a real scoping
+-- assertion, so the fixtures moved instead. Annabelle has a booked trip, six tags and no
+-- §2.x coupling. Jordan keeps the documents, conversations and trips that make the other
+-- tabs real; between the two, every tab has something to render.
+-- ============================================================
+
+-- ── Travel preferences (§3.3.3's Preferences card) ───────────────────────────────
+--
+-- The vocabulary CHECKs from 20260904124903 bind these: values outside the allowed sets are
+-- rejected, which is why they are written out rather than invented.
+INSERT INTO public.travel_preference (
+    id, client_id, preferred_destinations, travel_styles, dietary_restrictions,
+    accessibility_needs, loyalty_programs, budget_band, favorite_past_trips, dietary_notes
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000500',
+    c.id,
+    ARRAY['Caribbean', 'Bahamas', 'Jamaica'],
+    -- The closed vocabulary from 20260904124903: resort · cruise · adventure · family ·
+    -- romantic · group. "all_inclusive" and "beach" are NOT members and the CHECK rejects
+    -- them — which is the constraint doing its job, not a seed to work around.
+    ARRAY['resort', 'romantic', 'family'],
+    ARRAY['pescatarian'],
+    ARRAY[]::text[],
+    '[{"program":"AAdvantage","number":"REDACTED","tier":"Platinum"},
+      {"program":"Marriott Bonvoy","number":"REDACTED","tier":"Gold"}]'::jsonb,
+    'premium',
+    'Beaches Turks & Caicos — the quiet end of the resort.',
+    'Partner is pescatarian; shellfish is a hard no, not a preference.'
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+-- ── Household (§3.3.3's companions card) ─────────────────────────────────────────
+--
+-- passport_number_encrypted stays NULL. agent_client_companions() cannot name that column
+-- and an assertion enforces it; a seeded value is how a projection test starts passing for
+-- the wrong reason.
+INSERT INTO public.companion (
+    id, client_id, first_name, last_name, relationship, date_of_birth,
+    passport_expiry, passport_country, frequent_flyer_numbers, is_invited_to_platform
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000510', c.id,
+    'Dominic', 'Castellanos', 'spouse', '1990-11-03', '2027-02-14', 'US',
+    '[{"airline":"AA","number":"REDACTED"}]'::jsonb, true
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+INSERT INTO public.companion (
+    id, client_id, first_name, last_name, relationship, date_of_birth,
+    passport_expiry, passport_country, is_invited_to_platform
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000511', c.id,
+    'Rosa', 'Castellanos', 'child', '2018-06-09', '2029-08-30', 'US', false
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+-- An ARCHIVED companion, so the accessor's `archived_at IS NULL` predicate is falsifiable.
+-- Without one, dropping that line changes nothing and the test still passes.
+INSERT INTO public.companion (
+    id, client_id, first_name, last_name, relationship, is_invited_to_platform, archived_at
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000512', c.id,
+    'Gone', 'Companion', 'friend', false, now() - interval '60 days'
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+-- ── Internal notes (§3.3.7) ──────────────────────────────────────────────────────
+--
+-- The agent's own platform_user is the author: §3.3.7's purpose line is "Internal notes only
+-- the agent sees", and author_user_id is what agent_client_notes() compares to decide
+-- whether the edit affordance is offered.
+INSERT INTO public.client_note (id, client_id, author_user_id, body, created_at, updated_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000520', c.id, pu.id,
+    'Jordan asked about Greece for 2027 — worth pricing against a Sandals repeat. Save for fall outreach.',
+    now() - interval '12 days', now() - interval '12 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.client_note (id, client_id, author_user_id, body, created_at, updated_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000521', c.id, pu.id,
+    'Her mother is covering the deposit — check refund routing if this one is ever cancelled.',
+    now() - interval '40 days', now() - interval '40 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.client_note (id, client_id, author_user_id, body, created_at, updated_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000522', c.id, pu.id,
+    'Anniversary is Sep 14. Surprise is fine — Dominic is in on it.',
+    now() - interval '95 days', now() - interval '90 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+-- An ARCHIVED note, for the same reason as the archived companion.
+INSERT INTO public.client_note (id, client_id, author_user_id, body, archived_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000523', c.id, pu.id,
+    'Superseded note that must never reach the Notes tab.', now() - interval '5 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+-- ── Activity (§3.3.8) ────────────────────────────────────────────────────────────
+--
+-- audit_event held ONE row, targeting a trip. The Activity tab unions client-targeted and
+-- trip-targeted events, and with only one of each kind present the union is untestable: drop
+-- either arm and the count barely moves. These give both arms something to lose.
+--
+-- ip_address and user_agent are set here ON PURPOSE even though the accessor cannot name
+-- them — that is what makes the projection assertion meaningful rather than vacuous.
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, ip_address, user_agent, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000530', pu.id, 'agent', 'client.updated', 'client', c.id,
+       '{"fields":["phone"]}'::jsonb, '203.0.113.7'::inet, 'seed/1.0', now() - interval '3 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000531', pu.id, 'agent', 'client.tag_added', 'client', c.id,
+       '{"tag":"all-inclusive"}'::jsonb, now() - interval '30 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000532', pu.id, 'agent', 'trip.status_changed', 'trip', t.id,
+       '{"from":"proposal","to":"booked"}'::jsonb, now() - interval '20 days'
+FROM public.trip t, public.platform_user pu
+WHERE t.title = 'Maldives, overwater' AND pu.role = 'agent';
+
+-- An event on ANOTHER client's trip. It must never reach Jordan's timeline, and without it
+-- the union's scoping predicate is unfalsifiable.
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000533', pu.id, 'agent', 'trip.status_changed', 'trip', t.id,
+       '{"from":"inquiry","to":"proposal"}'::jsonb, now() - interval '2 days'
+FROM public.trip t, public.platform_user pu
+WHERE t.title = 'Kyoto in the spring' AND pu.role = 'agent';
+
+
+
 COMMIT;

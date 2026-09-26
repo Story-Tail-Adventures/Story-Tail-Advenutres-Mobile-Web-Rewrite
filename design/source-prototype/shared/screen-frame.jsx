@@ -70,6 +70,8 @@ function ScreenTopBar({ role = 'client', search = true }) {
         </div>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <button className="btn-icon sta-light-only" style={{ width: 34, height: 34 }} title="Switch to dark mode"><Icon name="moon" size={16}/></button>
+        <button className="btn-icon sta-dark-only" style={{ width: 34, height: 34 }} title="Switch to light mode"><Icon name="sun" size={16}/></button>
         <button className="btn-icon" style={{ width: 34, height: 34 }}><Icon name="bell" size={16}/></button>
         <div className="avatar sm" style={{ width: 28, height: 28, fontSize: 10, background: 'var(--brand-burgundy)', color: '#FFF' }}>
           {role === 'agent' ? 'GS' : 'JH'}

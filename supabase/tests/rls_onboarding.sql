@@ -371,8 +371,13 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT city FROM public.address) = 'Chicago',
     'client sees their own address row');
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.client_invite) = 0,
+-- Was `count(*) = 0`: RLS filtered the row away (zero policies fails closed) while the
+-- table-level grant still stood, so this passed for the weaker of the two reasons. Since
+-- 20260919120000_agent_domain_lockdown.sql the client holds no privilege on the table at
+-- all and the query is refused. Worth the change on its own merits — what this assertion is
+-- really about is `code_hash`, a single-use bearer credential.
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.client_invite',
     'client_invite is invisible — redemption is service-role only');
 
 -- ── The ciphertext columns are unreadable, by privilege not by policy ──────────
@@ -482,12 +487,20 @@ SELECT pg_temp.expect_denied(
 -- ── Anonymous ──────────────────────────────────────────────────────────────────
 SET LOCAL ROLE anon;
 
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.travel_preference) = 0, 'anon sees no preferences');
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.address) = 0, 'anon sees no addresses');
-SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.client_invite) = 0, 'anon sees no invites');
+-- All four are now the same, stronger claim. These three asserted `count(*) = 0` until
+-- 20260919120000_agent_domain_lockdown.sql, which is what `trip` below already said about
+-- itself: anon held a table-level SELECT and RLS filtered the rows away, so the query ran
+-- and returned nothing. anon has no policy anywhere in this schema, so it now holds no
+-- privilege anywhere either and every one of these is refused before RLS is consulted.
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.travel_preference',
+    'anon is refused travel_preference outright, before RLS is consulted');
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.address',
+    'anon is refused address outright, before RLS is consulted');
+SELECT pg_temp.expect_denied(
+    'SELECT count(*) FROM public.client_invite',
+    'anon is refused client_invite outright — code_hash is a bearer credential');
 SELECT pg_temp.expect_denied(
     'SELECT count(*) FROM public.trip',
     'anon is refused trip outright, before RLS is consulted');
