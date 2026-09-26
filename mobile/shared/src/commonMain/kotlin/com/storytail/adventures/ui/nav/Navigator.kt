@@ -5,7 +5,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
-import kotlinx.serialization.json.Json
 
 /**
  * The app's back stack.
@@ -158,9 +157,6 @@ class Navigator(initial: AppRoute) {
 @Composable
 fun rememberNavigator(initial: AppRoute = AppRoute.Resolving): Navigator =
     rememberSaveable(saver = NavigatorSaver) { Navigator(initial) }
-
-/** Lenient on read so a route gaining a field does not invalidate a saved stack. */
-private val navJson = Json { ignoreUnknownKeys = true }
 
 val NavigatorSaver: Saver<Navigator, String> = Saver(
     save = { navigator -> navJson.encodeToString(navigator.snapshot()) },

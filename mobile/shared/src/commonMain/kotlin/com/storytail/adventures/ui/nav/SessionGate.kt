@@ -32,13 +32,17 @@ internal object SessionGate {
     const val SIGNED_OUT = "signed-out"
 
     /**
-     * `toString()`, not the serialized form, and it is adequate for the reason it is only
-     * ever compared against a string THIS build wrote a moment earlier. Every [AppRoute] is
-     * a data object or data class, so the value is generated and carries the arguments —
-     * `Onboarding(step=WELCOME)` is distinct from `Onboarding(step=PREFERENCES)`. Across an
-     * app update a renamed route stops matching, which resets: the safe direction.
+     * The serialized form, which is the same text the back stack is saved as — so the gate
+     * and the saver agree on what makes two routes the same, by construction rather than by
+     * two implementations happening to.
+     *
+     * It carries arguments, so `Onboarding(step=WELCOME)` is distinct from the next step —
+     * which matters the day the wizard leans on this gate. Across an app update a renamed
+     * route stops matching, which resets: the safe direction.
+     *
+     * See [routeKey] for why it must not be an inferred `encodeToString`.
      */
-    fun key(route: AppRoute): String = route.toString()
+    fun key(route: AppRoute): String = routeKey(route)
 
     /**
      * @return the route to reset to, or null to leave the stack alone.

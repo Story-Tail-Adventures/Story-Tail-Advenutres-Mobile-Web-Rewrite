@@ -83,6 +83,30 @@ class SessionGateTest {
     }
 
     @Test
+    fun `the key carries the polymorphic discriminator, and that is not automatic`() {
+        // THE TRAP `routeKey` EXISTS TO STOP, demonstrated rather than described. Encoding
+        // with the CONCRETE type inferred writes the subtype's own form with no
+        // discriminator — so every data-object route becomes the same empty string and they
+        // all collide. The gate would then read a genuine move between two of them as
+        // "nothing changed" and skip the reset, which is the same class of lockout the MFA
+        // case above is. Passing AppRoute.serializer() explicitly forces it in.
+        assertEquals("{}", navJson.encodeToString(AppRoute.Worklist))
+        assertEquals("{}", navJson.encodeToString(AppRoute.Dashboard))
+
+        assertTrue(SessionGate.key(AppRoute.Worklist).contains("Worklist"))
+        assertTrue(SessionGate.key(AppRoute.Worklist) != SessionGate.key(AppRoute.Dashboard))
+    }
+
+    @Test
+    fun `the gate and the back stack agree on what makes two routes the same`() {
+        // Both go through `routeKey`/navJson, so this holds by construction. Asserted anyway
+        // because the alternative — two implementations that happen to agree today — is how
+        // a restored stack and the gate that guards it drift apart.
+        val route = AppRoute.AgentClientDetail("c-1")
+        assertTrue(SessionGate.key(route) in navJson.encodeToString(listOf<AppRoute>(route)))
+    }
+
+    @Test
     fun `keys tell routes apart, including ones differing only by argument`() {
         assertTrue(SessionGate.key(AppRoute.Worklist) != SessionGate.key(AppRoute.Dashboard))
         assertTrue(

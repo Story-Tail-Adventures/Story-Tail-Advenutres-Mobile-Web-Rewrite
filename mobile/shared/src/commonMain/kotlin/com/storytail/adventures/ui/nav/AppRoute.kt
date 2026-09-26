@@ -2,6 +2,7 @@ package com.storytail.adventures.ui.nav
 
 import com.storytail.adventures.domain.onboarding.WizardStep
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Every destination the app can be on.
@@ -18,6 +19,29 @@ import kotlinx.serialization.Serializable
  * they are on. Losing a session while reading the dashboard must land on Login; losing one
  * while filling in the registration form must not.
  */
+/**
+ * The one Json for routes, shared by the back stack's saver and the session gate's key.
+ *
+ * Lenient on read so a route gaining a field does not invalidate a stack saved by the
+ * previous build. Both users encode through [AppRoute]'s own serializer rather than an
+ * inferred one — see [routeKey].
+ */
+internal val navJson: Json = Json { ignoreUnknownKeys = true }
+
+/**
+ * A route's identity as text.
+ *
+ * `AppRoute.serializer()` EXPLICITLY, and that is the whole point of this function existing
+ * rather than an inline `encodeToString`. With the concrete type inferred, kotlinx writes
+ * the subtype's own form with no polymorphic discriminator — so every `data object` route
+ * encodes to `{}` and `Worklist`, `Dashboard` and `PublicLanding` all become the same
+ * string. The gate that compares these would then treat a genuine move between two of them
+ * as "nothing changed" and skip the reset, which is the lockout this key was introduced to
+ * stop. Passing the base serializer forces the discriminator in.
+ */
+internal fun routeKey(route: AppRoute): String =
+    navJson.encodeToString(AppRoute.serializer(), route)
+
 @Serializable
 sealed interface AppRoute {
 
