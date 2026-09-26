@@ -3129,6 +3129,117 @@ export type Database = {
           weekly_schedule: Json
         }[]
       }
+      agent_client_activity: {
+        Args: { p_client_id: string; p_limit?: number }
+        Returns: {
+          actor_name: string
+          actor_role: Database["public"]["Enums"]["user_role"]
+          created_at: string
+          event_id: string
+          event_type: string
+          metadata: Json
+          target_entity: string
+          target_id: string
+        }[]
+      }
+      agent_client_companions: {
+        Args: { p_client_id: string }
+        Returns: {
+          companion_id: string
+          date_of_birth: string
+          first_name: string
+          invited: boolean
+          last_name: string
+          linked_client_id: string
+          passport_country: string
+          passport_expiry: string
+          relationship: string
+        }[]
+      }
+      agent_client_conversations: {
+        Args: { p_client_id: string }
+        Returns: {
+          agent_unread_count: number
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          message_count: number
+          subject: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_client_documents: {
+        Args: { p_client_id: string }
+        Returns: {
+          created_at: string
+          document_id: string
+          filename: string
+          is_sensitive: boolean
+          kind: Database["public"]["Enums"]["document_kind"]
+          mime_type: string
+          size_bytes: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_client_notes: {
+        Args: { p_client_id: string }
+        Returns: {
+          author_is_me: boolean
+          author_name: string
+          body: string
+          created_at: string
+          note_id: string
+          updated_at: string
+        }[]
+      }
+      agent_client_overview: {
+        Args: { p_client_id: string }
+        Returns: {
+          accessibility_needs: string[]
+          accessibility_notes: string
+          active_trip_count: number
+          address_city: string
+          address_country: string
+          address_line1: string
+          address_line2: string
+          address_postal_code: string
+          address_region: string
+          archived_at: string
+          as_of_date: string
+          budget_band: string
+          client_id: string
+          commission_cents: string
+          created_at: string
+          date_of_birth: string
+          dietary_notes: string
+          dietary_restrictions: string[]
+          display_name: string
+          document_count: number
+          email: string
+          emergency_contact: Json
+          favorite_past_trips: string
+          first_name: string
+          important_dates: Json
+          last_contact_at: string
+          last_name: string
+          lifetime_currency: string
+          lifetime_currency_count: number
+          lifetime_value_cents: string
+          loyalty_programs: Json
+          note_count: number
+          notes: string
+          phone: string
+          preferred_destinations: string[]
+          preferred_name: string
+          status: Database["public"]["Enums"]["client_status"]
+          tags: string[]
+          travel_styles: string[]
+          trip_count: number
+          version: number
+        }[]
+      }
       agent_client_roster: {
         Args: {
           p_limit?: number
@@ -3171,6 +3282,24 @@ export type Database = {
           in_motion_count: number
           inquiry_count: number
           tag_facets: Json
+        }[]
+      }
+      agent_client_trips: {
+        Args: { p_client_id: string }
+        Returns: {
+          as_of_date: string
+          currency: string
+          destinations: string[]
+          end_date: string
+          start_date: string
+          status: Database["public"]["Enums"]["trip_status"]
+          title: string
+          total_commission_cents: string
+          total_paid_cents: string
+          total_value_cents: string
+          traveler_count: number
+          trip_id: string
+          trip_type: Database["public"]["Enums"]["trip_type"]
         }[]
       }
       agent_inbox: {

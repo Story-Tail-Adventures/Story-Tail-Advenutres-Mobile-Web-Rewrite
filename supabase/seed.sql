@@ -1227,4 +1227,158 @@ END $$;
 
 
 
+-- ============================================================
+-- §3.3.2 – §3.3.8 client detail fixtures
+--
+-- Four of the six tabs had NOTHING to render before this block: client_note, companion and
+-- travel_preference were empty tables, and audit_event held exactly one row. An accessor
+-- that returns zero rows looks identical to a correct one, so every assertion about those
+-- tabs would have compared a number against itself and passed for nothing. That is the trap
+-- rls_agent_trip_detail.sql's header records having shipped once.
+--
+-- Everything here hangs off ANNABELLE FITZWILLIAM-CASTELLANOS rather than Jordan Hayes,
+-- and the reason is a collision worth recording. rls_onboarding.sql gives Jordan the
+-- travel_preference and companion rows "the wizard would have written" and then asserts
+-- tight counts and exact values on them — `travel_styles = ARRAY['resort']`, one
+-- companion named Alex. Seeding those tables for Jordan breaks three of its assertions
+-- and, worse, `travel_preference.client_id` is UNIQUE so its INSERT fails outright.
+--
+-- Loosening that test to accommodate unrelated seed data would weaken a real scoping
+-- assertion, so the fixtures moved instead. Annabelle has a booked trip, six tags and no
+-- §2.x coupling. Jordan keeps the documents, conversations and trips that make the other
+-- tabs real; between the two, every tab has something to render.
+-- ============================================================
+
+-- ── Travel preferences (§3.3.3's Preferences card) ───────────────────────────────
+--
+-- The vocabulary CHECKs from 20260904124903 bind these: values outside the allowed sets are
+-- rejected, which is why they are written out rather than invented.
+INSERT INTO public.travel_preference (
+    id, client_id, preferred_destinations, travel_styles, dietary_restrictions,
+    accessibility_needs, loyalty_programs, budget_band, favorite_past_trips, dietary_notes
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000500',
+    c.id,
+    ARRAY['Caribbean', 'Bahamas', 'Jamaica'],
+    -- The closed vocabulary from 20260904124903: resort · cruise · adventure · family ·
+    -- romantic · group. "all_inclusive" and "beach" are NOT members and the CHECK rejects
+    -- them — which is the constraint doing its job, not a seed to work around.
+    ARRAY['resort', 'romantic', 'family'],
+    ARRAY['pescatarian'],
+    ARRAY[]::text[],
+    '[{"program":"AAdvantage","number":"REDACTED","tier":"Platinum"},
+      {"program":"Marriott Bonvoy","number":"REDACTED","tier":"Gold"}]'::jsonb,
+    'premium',
+    'Beaches Turks & Caicos — the quiet end of the resort.',
+    'Partner is pescatarian; shellfish is a hard no, not a preference.'
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+-- ── Household (§3.3.3's companions card) ─────────────────────────────────────────
+--
+-- passport_number_encrypted stays NULL. agent_client_companions() cannot name that column
+-- and an assertion enforces it; a seeded value is how a projection test starts passing for
+-- the wrong reason.
+INSERT INTO public.companion (
+    id, client_id, first_name, last_name, relationship, date_of_birth,
+    passport_expiry, passport_country, frequent_flyer_numbers, is_invited_to_platform
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000510', c.id,
+    'Dominic', 'Castellanos', 'spouse', '1990-11-03', '2027-02-14', 'US',
+    '[{"airline":"AA","number":"REDACTED"}]'::jsonb, true
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+INSERT INTO public.companion (
+    id, client_id, first_name, last_name, relationship, date_of_birth,
+    passport_expiry, passport_country, is_invited_to_platform
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000511', c.id,
+    'Rosa', 'Castellanos', 'child', '2018-06-09', '2029-08-30', 'US', false
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+-- An ARCHIVED companion, so the accessor's `archived_at IS NULL` predicate is falsifiable.
+-- Without one, dropping that line changes nothing and the test still passes.
+INSERT INTO public.companion (
+    id, client_id, first_name, last_name, relationship, is_invited_to_platform, archived_at
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000512', c.id,
+    'Gone', 'Companion', 'friend', false, now() - interval '60 days'
+FROM public.client c WHERE c.email = 'annabelle.fc@example.com';
+
+-- ── Internal notes (§3.3.7) ──────────────────────────────────────────────────────
+--
+-- The agent's own platform_user is the author: §3.3.7's purpose line is "Internal notes only
+-- the agent sees", and author_user_id is what agent_client_notes() compares to decide
+-- whether the edit affordance is offered.
+INSERT INTO public.client_note (id, client_id, author_user_id, body, created_at, updated_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000520', c.id, pu.id,
+    'Jordan asked about Greece for 2027 — worth pricing against a Sandals repeat. Save for fall outreach.',
+    now() - interval '12 days', now() - interval '12 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.client_note (id, client_id, author_user_id, body, created_at, updated_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000521', c.id, pu.id,
+    'Her mother is covering the deposit — check refund routing if this one is ever cancelled.',
+    now() - interval '40 days', now() - interval '40 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.client_note (id, client_id, author_user_id, body, created_at, updated_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000522', c.id, pu.id,
+    'Anniversary is Sep 14. Surprise is fine — Dominic is in on it.',
+    now() - interval '95 days', now() - interval '90 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+-- An ARCHIVED note, for the same reason as the archived companion.
+INSERT INTO public.client_note (id, client_id, author_user_id, body, archived_at)
+SELECT
+    '0195a2c0-1a00-7000-8000-000000000523', c.id, pu.id,
+    'Superseded note that must never reach the Notes tab.', now() - interval '5 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+-- ── Activity (§3.3.8) ────────────────────────────────────────────────────────────
+--
+-- audit_event held ONE row, targeting a trip. The Activity tab unions client-targeted and
+-- trip-targeted events, and with only one of each kind present the union is untestable: drop
+-- either arm and the count barely moves. These give both arms something to lose.
+--
+-- ip_address and user_agent are set here ON PURPOSE even though the accessor cannot name
+-- them — that is what makes the projection assertion meaningful rather than vacuous.
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, ip_address, user_agent, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000530', pu.id, 'agent', 'client.updated', 'client', c.id,
+       '{"fields":["phone"]}'::jsonb, '203.0.113.7'::inet, 'seed/1.0', now() - interval '3 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000531', pu.id, 'agent', 'client.tag_added', 'client', c.id,
+       '{"tag":"all-inclusive"}'::jsonb, now() - interval '30 days'
+FROM public.client c, public.platform_user pu
+WHERE c.email = 'annabelle.fc@example.com' AND pu.role = 'agent';
+
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000532', pu.id, 'agent', 'trip.status_changed', 'trip', t.id,
+       '{"from":"proposal","to":"booked"}'::jsonb, now() - interval '20 days'
+FROM public.trip t, public.platform_user pu
+WHERE t.title = 'Maldives, overwater' AND pu.role = 'agent';
+
+-- An event on ANOTHER client's trip. It must never reach Jordan's timeline, and without it
+-- the union's scoping predicate is unfalsifiable.
+INSERT INTO public.audit_event (id, actor_user_id, actor_role, event_type, target_entity, target_id, metadata, created_at)
+SELECT '0195a2c0-1a00-7000-8000-000000000533', pu.id, 'agent', 'trip.status_changed', 'trip', t.id,
+       '{"from":"inquiry","to":"proposal"}'::jsonb, now() - interval '2 days'
+FROM public.trip t, public.platform_user pu
+WHERE t.title = 'Kyoto in the spring' AND pu.role = 'agent';
+
+
+
 COMMIT;
