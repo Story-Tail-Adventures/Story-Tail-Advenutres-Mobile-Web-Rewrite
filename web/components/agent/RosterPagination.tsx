@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { CLIENT_COPY } from "@/lib/agent/content";
-import type { RosterQuery } from "@/lib/agent/clients";
 
 /**
  * The roster's paginator — the first one in this codebase.
@@ -12,33 +11,34 @@ import type { RosterQuery } from "@/lib/agent/clients";
  * IT CARRIES THE FILTERS FORWARD. A "Next" that dropped `q` and `tag` would page through a
  * different result set than the one on screen — the count would say 27 and the second page
  * would show strangers.
+ *
+ * THE CALLER BUILDS THE HREFS, and that is the whole reason this takes a function rather
+ * than a query object. It used to own a `hrefFor` that hardcoded `/agent/clients` and the
+ * client roster's own parameter names; reusing it for §3.4.1's trips typechecked perfectly
+ * and would have paged the advisor off the screen they were on, silently dropping the stage
+ * filter on the way. Which parameters a list uses is the list's knowledge, not this
+ * component's.
  */
-function hrefFor(query: RosterQuery, page: number): string {
-  const params = new URLSearchParams();
-  if (query.status !== "active") params.set("status", query.status);
-  if (query.search) params.set("q", query.search);
-  for (const tag of query.tags) params.append("tag", tag);
-  if (page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/agent/clients?${qs}` : "/agent/clients";
-}
 
 export function RosterPagination({
-  query,
+  hrefFor,
   page,
   pageCount,
   total,
   shown,
+  pageSize = 25,
 }: {
-  query: RosterQuery;
+  /** Given a 1-based page, the URL for it — filters and all. */
+  hrefFor: (page: number) => string;
   page: number;
   pageCount: number;
   total: number;
   shown: number;
+  pageSize?: number;
 }) {
   if (pageCount <= 1) return null;
 
-  const first = (page - 1) * 25 + 1;
+  const first = (page - 1) * pageSize + 1;
   const last = first + shown - 1;
 
   return (
@@ -51,7 +51,7 @@ export function RosterPagination({
       </p>
       <span className="flex gap-2">
         {page > 1 ? (
-          <Link href={hrefFor(query, page - 1)} className="btn btn-outlined btn-sm">
+          <Link href={hrefFor(page - 1)} className="btn btn-outlined btn-sm">
             {CLIENT_COPY.paginationPrev}
           </Link>
         ) : (
@@ -60,7 +60,7 @@ export function RosterPagination({
           </span>
         )}
         {page < pageCount ? (
-          <Link href={hrefFor(query, page + 1)} className="btn btn-outlined btn-sm">
+          <Link href={hrefFor(page + 1)} className="btn btn-outlined btn-sm">
             {CLIENT_COPY.paginationNext}
           </Link>
         ) : (

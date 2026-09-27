@@ -309,8 +309,13 @@
    */
   .bulk-bar { display: none; }
 
+  /* `.bulk-pick` RATHER THAN A FIELD NAME. This selector used to read
+     `input[name="clientId"]:checked`, which worked for exactly one screen: §3.4.1's trip
+     list posts `name="trip"`, so the bar simply never appeared — no error, no failing test,
+     just a control that stayed hidden with rows ticked behind it. A class the row checkbox
+     opts into means the next bulk surface cannot forget to come back here. */
   @media (min-width: 768px) {
-    .bulk-form:has(input[name="clientId"]:checked) .bulk-bar {
+    .bulk-form:has(.bulk-pick:checked) .bulk-bar {
       display: flex;
     }
   }

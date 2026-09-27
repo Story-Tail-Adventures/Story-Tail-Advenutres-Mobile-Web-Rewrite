@@ -31,6 +31,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AgentRead =
   | "agent_kpis"
+  // §3.4.1. A sibling of agent_trip_board rather than an extension of it — the board is
+  // stage-shaped and §3.2.2 depends on that.
+  | "agent_trip_roster"
+  | "agent_trip_roster_summary"
   | "agent_trip_board"
   | "agent_payments_due"
   | "agent_inbox"
@@ -275,6 +279,49 @@ export type AgentTripActivityRow = {
  * first is a digit-string, not a number: a bigint that crosses as JSON loses precision past
  * 2^53, and the roster sums whole books of business.
  */
+/**
+ * §3.4.1's roster row.
+ *
+ * HAND-DECLARED NULLABILITY, like every other row type in this file. `supabase gen types`
+ * cannot infer it from a `RETURNS TABLE` signature and calls every column non-nullable, so
+ * a generated type would promise a `start_date` that an inquiry has never had.
+ */
+export type AgentTripRosterRow = {
+  trip_id: string;
+  title: string;
+  client_id: string;
+  client_display_name: string;
+  trip_type: string;
+  status: string;
+  status_changed_at: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: string[] | null;
+  traveler_count: number;
+  total_value_cents: string;
+  total_paid_cents: string;
+  total_commission_cents: string;
+  currency: string;
+  component_count: number;
+  last_activity_at: string | null;
+  version: number;
+  as_of_date: string;
+  total_count: number;
+};
+
+export type AgentTripSummaryRow = {
+  inquiry_count: number;
+  proposal_count: number;
+  booked_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  cancelled_count: number;
+  total_count: number;
+  pipeline_cents: string;
+  pipeline_currency: string | null;
+  currency_count: number;
+};
+
 export type AgentClientRosterRow = {
   client_id: string;
   display_name: string;

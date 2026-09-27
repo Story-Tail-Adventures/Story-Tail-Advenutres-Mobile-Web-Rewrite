@@ -159,7 +159,7 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
                     name="clientId"
                     value={row.clientId}
                     aria-label={`${CLIENT_COPY.bulkSelectRow} ${row.displayName}`}
-                    className="size-4 cursor-pointer accent-[var(--md-primary)]"
+                    className="bulk-pick size-4 cursor-pointer accent-[var(--md-primary)]"
                   />
                 </td>
                 <td className="px-3.5 py-2.5">
