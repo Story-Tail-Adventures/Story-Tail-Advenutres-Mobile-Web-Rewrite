@@ -406,6 +406,88 @@ export function rosterSubtitle(active: number, inMotion: number, toQualify: numb
 }
 
 /**
+ * §3.4.1 Trip List.
+ *
+ * WEB ONLY, and not by the same reasoning §3.3 used. Trips is not one of the four agent
+ * tabs on the phone (§6.6), and §3.4 has no phone artboards at all — so there is no Kotlin
+ * twin for these and nothing for the copy-parity map to pair them with.
+ */
+export const TRIP_COPY = {
+  title: "Trips",
+  subtitle: "Every trip you own or assist with.",
+
+  searchLabel: "Search trips",
+  searchPlaceholder: "Trip, destination, or client…",
+
+  // THE LAST TWO ARE NOT IN THE PROTOTYPE. Its chip row draws four; `trip_status` has six,
+  // and on the seed 13 of 26 trips are completed — half the book with no way to reach it.
+  filterInquiry: "Inquiry",
+  filterProposal: "Proposal",
+  filterBooked: "Booked",
+  filterTraveling: "Traveling",
+  filterCompleted: "Completed",
+  filterCancelled: "Cancelled",
+  filterAll: "All",
+  filterLive: "In motion",
+
+  colTrip: "Trip",
+  colClient: "Client",
+  colTravel: "Travel",
+  colStage: "Stage",
+  colValue: "Value",
+  colCommission: "Comm",
+
+  noDates: "No dates yet",
+  noCommission: "—",
+  noDestination: "—",
+
+  pipelinePrefix: "Pipeline",
+  currencyNote:
+    "More than one currency is in motion. The pipeline figure covers your most-used one.",
+
+  emptyTitle: "No trips yet",
+  emptyBody: "The first one arrives when you build it, or when a quote request comes in.",
+  emptyFilteredTitle: "Nothing matches",
+  emptyFilteredBody: "Try a different search, or a different stage.",
+
+  newTripDeferred: "Building a trip arrives with §3.4.3.",
+
+  // ── The bulk status bar ────────────────────────────────────────────────
+  bulkSelectAll: "Select every trip on this page",
+  bulkSelectRow: "Select",
+  bulkLegend: "Move the trips you've ticked to",
+  bulkApply: "Move",
+  bulkWorking: "Moving…",
+  bulkNoSelection: "Tick at least one trip first.",
+  bulkNoStatus: "Pick a stage first.",
+  bulkFailed: "That didn't save. Try again in a moment.",
+  // §3.4.16 owns cancelling: it has an impact list and a mandatory reason, and neither
+  // survives a checkbox column.
+  bulkCancelRefused: "Cancelling a trip is one at a time — it needs a reason and the impact review.",
+} as const;
+
+/**
+ * What the bulk status bar says afterwards.
+ *
+ * THE COUNT IS WHAT MOVED, NOT WHAT WAS PICKED, and the gap has a meaning worth naming
+ * here that §3.3's bulk tag did not have: a trip is skipped when its stage CHANGED since
+ * the page rendered. That is not a no-op, it is a refusal to overwrite somebody — so the
+ * sentence says "already moved on" rather than "already as you wanted them".
+ */
+export function bulkStatusResult(label: string, moved: number, requested: number): string {
+  if (moved === 0) {
+    return `Nothing moved — every trip you picked had already changed stage.`;
+  }
+  const who = moved === 1 ? "1 trip" : `${moved} trips`;
+  const head = `Moved ${who} to ${label}.`;
+  const rest = requested - moved;
+  if (rest === 0) return head;
+  return rest === 1
+    ? `${head} The other one had already moved on.`
+    : `${head} The other ${rest} had already moved on.`;
+}
+
+/**
  * What the bulk-tag bar says afterwards.
  *
  * THE COUNT IS WHAT MOVED, NOT WHAT WAS ASKED FOR, and the difference is deliberate. A

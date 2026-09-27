@@ -49,7 +49,7 @@
  * §3.7.4's job and doing it here would mean a stage change silently minting money records.
  */
 import { requireUser } from "../_shared/auth.ts";
-import { writeAuditEvent } from "../_shared/audit.ts";
+import { writeAuditEvent, writeAuditEvents } from "../_shared/audit.ts";
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { badRequest, conflict, notFound, problem } from "../_shared/problem.ts";
 import { isUuid } from "../_shared/uuid.ts";
@@ -84,6 +84,10 @@ function isStatus(value: unknown): value is Status {
   return typeof value === "string" && (STATUSES as readonly string[]).includes(value);
 }
 
+// The SQL function refuses more than this too, and says so there. Checked here as well so
+// an oversized request comes back in English rather than as a 500.
+const MAX_BULK = 100;
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -104,6 +108,83 @@ Deno.serve(async (req) => {
     // writes agent.status and nothing else, and platform_user alone cannot see it.
     const agentId = await requireAgentId(ctx, db);
     const payload = await readJson(req);
+
+    // ── §3.4.1's bulk status change ───────────────────────────────────────
+    //
+    // AN OP RATHER THAN A SECOND FUNCTION, and it defaults to the single-trip path so every
+    // existing caller — the board's drag, the detail screen's StageMenu — is untouched by
+    // this. One door onto trip status writes is one place to keep the audit honest.
+    //
+    // THE GUARD IS PER TRIP, which is where this stops resembling §3.3's bulk tag. Adding a
+    // tag is set-valued and cannot clobber; setting a status overwrites. So the caller sends
+    // the status each row was SHOWING, and a trip somebody else has moved since the page
+    // rendered is skipped rather than overwritten. See the SQL function's header.
+    if (payload.op === "bulk") {
+      if (!Array.isArray(payload.trips)) throw badRequest("trips must be a list.");
+      if (payload.trips.length === 0) throw badRequest("Pick at least one trip.");
+      if (payload.trips.length > MAX_BULK) throw badRequest("That is too many trips.");
+
+      const toStatus = payload.status;
+      if (!isStatus(toStatus)) {
+        throw badRequest(`Send a status of ${STATUSES.join(", ")}.`);
+      }
+      // Refused here as well as in SQL, so the advisor gets a sentence rather than a 500 off
+      // a RAISE. §3.4.16 owns cancelling: it has an impact list and a mandatory reason, and
+      // neither survives a checkbox column.
+      if (toStatus === "cancelled") {
+        throw badRequest(
+          "Cancelling a trip is one at a time — it needs a reason and the impact review.",
+        );
+      }
+
+      const ids: string[] = [];
+      const froms: string[] = [];
+      for (const raw of payload.trips) {
+        const entry = raw as Record<string, unknown>;
+        if (typeof entry?.tripId !== "string" || !isUuid(entry.tripId)) {
+          throw badRequest("That is not a trip id.");
+        }
+        if (!isStatus(entry.fromStatus)) {
+          throw badRequest("Each trip needs the status it was showing.");
+        }
+        ids.push(entry.tripId);
+        froms.push(entry.fromStatus);
+      }
+
+      const { data, error } = await db.rpc("agent_bulk_set_trip_status", {
+        p_trip_ids: ids,
+        p_from_statuses: froms as never,
+        p_agent_id: agentId,
+        p_actor_user_id: ctx.platformUserId,
+        p_to_status: toStatus,
+      });
+      if (error) throw new Error(`bulk trip status failed: ${error.message}`);
+
+      // One row per trip that ACTUALLY moved. The ones missing are a mix of "not yours",
+      // "already there" and "somebody moved it first" — deliberately indistinguishable, so
+      // the answer cannot be used to probe for an id.
+      const moved = (data ?? []) as
+        { trip_id: string; from_status: string; version: number }[];
+
+      await writeAuditEvents(ctx, moved.map((row) => ({
+        eventType: "trip.status_changed",
+        targetEntity: "trip",
+        targetId: row.trip_id,
+        metadata: {
+          from: row.from_status,
+          to: toStatus,
+          version: row.version,
+          bulk: true,
+        },
+      })));
+
+      return json({
+        outcome: "moved",
+        status: toStatus,
+        movedCount: moved.length,
+        requestedCount: ids.length,
+      });
+    }
 
     const tripId = payload.tripId;
     if (typeof tripId !== "string" || !isUuid(tripId)) {

@@ -2324,7 +2324,36 @@ Decisions that should be settled with the implementation team before initial mig
 
 **Address normalization.** Should we use a single Address table referenced by Client (and later by Companion if needed), or embed an address jsonb on each entity that needs one? The current model uses a separate table for clarity but the trade-off is one extra join in common queries.
 
-**Trip Component subtypes.** The `trip_component.payload` jsonb keeps subtype detail in one table; an alternative is dedicated tables (`flight_component`, `hotel_component`, ...) for stronger typing. The jsonb approach matches typical agent CRM patterns and is much simpler operationally, but loses some database-level validation. Decision deferred until a real component-add UI is designed.
+**Trip Component subtypes.** ~~Decision deferred until a real component-add UI is designed.~~ The `trip_component.payload` jsonb keeps subtype detail in one table; an alternative is dedicated tables (`flight_component`, `hotel_component`, ...) for stronger typing. The jsonb approach matches typical agent CRM patterns and is much simpler operationally, but loses some database-level validation.
+
+> **Settled 2026-09-27 — `payload` jsonb stays, and no subtype tables are added.** The
+> condition this was waiting on has arrived: Screen Inventory §3.4.4 and the seven component
+> sheets (§3.4.5–§3.4.11) are the component-add UI, and they are being built now.
+>
+> **Seven kinds, one table.** `component_kind` is
+> `flight, hotel, cruise, transfer, excursion, insurance, custom`, and the columns every kind
+> shares are already on the row and already typed — `start_date`, `end_date`, `start_time`,
+> `end_time`, `location`, `confirmation_number`, `cost_cents`, `commission_pct`,
+> `commission_cents`, `currency`, `supplier_id`, `order_index`. What `payload` carries is the
+> handful of fields one kind has and the others do not: a flight's PNR and seats, a cruise's
+> ship and cabin, a policy number. Seven tables to type those would be seven joins on a read
+> whose whole job is "list this trip's components in order", and `agent_trip_components()`
+> would become a seven-arm union.
+>
+> **What this gives up, stated plainly:** Postgres will not stop a malformed `payload`. The
+> validation lives in the Edge Function, the same place `important_dates` is validated
+> (§6.1 took this trade first, for the same reason and at a smaller scale). That is a real
+> loss and the reason this was an open question rather than an obvious call.
+>
+> **The boundary that keeps it honest:** anything a QUERY needs — filtered, sorted, summed,
+> or joined — gets a column, not a payload key. `payload` is for detail a screen renders and
+> nothing aggregates. A field that starts in `payload` and later needs filtering is a
+> migration, not a reinterpretation of the jsonb.
+>
+> **`custom` is where the prototype's eighth kind lands.** `design/source-prototype`'s
+> `A3410_AddDining` draws a dining sheet and `A344_TripBuilder` lists "Dining · manual"; there
+> is no `dining` value in `component_kind` and none is being added. A dinner reservation is a
+> `custom` component, which is what §3.4.11 Other/Custom is for.
 
 **Money representation.** The model uses `bigint` cents with an explicit `currency char(3)`. An alternative is `numeric(15,4)` for higher precision. For a USD-dominated travel business, cents are sufficient and arithmetic-safer; revisit if EUR/multi-currency volume grows.
 

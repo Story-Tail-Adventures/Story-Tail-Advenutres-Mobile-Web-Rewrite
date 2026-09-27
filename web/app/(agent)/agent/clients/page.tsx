@@ -119,7 +119,15 @@ export default async function AgentClientsPage({
 
       {roster.rows.length > 0 && (
         <RosterPagination
-          query={query}
+          hrefFor={(p) => {
+            const params = new URLSearchParams();
+            if (query.status !== "active") params.set("status", query.status);
+            if (query.search) params.set("q", query.search);
+            for (const tag of query.tags) params.append("tag", tag);
+            if (p > 1) params.set("page", String(p));
+            const qs = params.toString();
+            return qs ? `/agent/clients?${qs}` : "/agent/clients";
+          }}
           page={roster.page}
           pageCount={roster.pageCount}
           total={roster.total}

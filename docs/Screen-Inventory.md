@@ -2094,6 +2094,40 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Nav "Trips".
 **Related screens:** Trip Detail.
 
+> **Amended 2026-09-27, on shipping this screen.** Built on the web; there is no phone
+> treatment and none is owed yet, because Trips is not one of §6.6's four agent tabs and
+> §3.4 has no phone artboards at all.
+>
+> **Six stage chips, where the prototype draws four.** `A341_TripList` offers All, Inquiry,
+> Proposal, Booked and Traveling; `trip_status` has six values. On the seed that is 13
+> completed trips out of 26 — half the book with no chip to reach it from the screen called
+> "Trips". Completed and Cancelled both ship. They are **checkboxes**, not §3.3.1's radios:
+> a client is active or archived and never both, but "show me proposals and booked" is an
+> ordinary ask and the accessor already took an array. The default is the four live ones, so
+> the screen still opens on work in progress rather than on a decade of history.
+>
+> **Archived is an exclusion, not a chip.** §3.4.16 archives a trip to take it off the
+> working surfaces, so a filter that could show them again would undo the point. Cancelled
+> is the opposite and *is* askable: a cancelled trip is still a record of work, and its
+> commission reversal is something an advisor looks up.
+>
+> **"Bulk actions" on the Primary elements line is now one action: bulk stage change**
+> (chosen 2026-09-27). Bulk cancel is deliberately not among them — §3.4.16 is a whole
+> screen with an impact list and a mandatory reason, and neither survives a checkbox column.
+> The write is guarded per trip by the stage the screen was showing, because setting a stage
+> overwrites where §3.3.1's bulk tag could not; a trip somebody else moved meanwhile is
+> skipped rather than clobbered, and the advisor is told so.
+>
+> **Two controls the prototype draws are absent rather than disabled.** Its "Filter" button
+> opens a sheet the chips already make unnecessary at this width, and its "Sort · Departure"
+> chip offers a sort with one option — the list is already in departure order, nulls last,
+> because a trip with no dates is an inquiry nobody has planned. "New trip" *is* drawn
+> disabled, because §3.4.3 is a real planned screen.
+>
+> **The Entry points line is now true.** It said "Nav 'Trips'", and until this screen existed
+> that entry pointed at a route that 404'd while trip *detail* was reachable only from the
+> worklist, the pipeline and the calendar.
+
 #### 3.4.2 Trip Detail (Agent View)
 **Purpose:** All the operational detail an agent needs for a trip.
 **Primary elements:** Header (client, dates, status, total, commission); tabs: Overview, Components, Itinerary, Payments, Documents, Messages, Notes, Activity; status-change menu; quick actions (message client, request card, send proposal).
