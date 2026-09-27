@@ -3129,6 +3129,20 @@ export type Database = {
           weekly_schedule: Json
         }[]
       }
+      agent_bulk_set_trip_status: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_from_statuses: Database["public"]["Enums"]["trip_status"][]
+          p_to_status: Database["public"]["Enums"]["trip_status"]
+          p_trip_ids: string[]
+        }
+        Returns: {
+          from_status: Database["public"]["Enums"]["trip_status"]
+          trip_id: string
+          version: number
+        }[]
+      }
       agent_bulk_tag_clients: {
         Args: {
           p_add: boolean
@@ -3596,6 +3610,52 @@ export type Database = {
           order_index: number
           paid_cents: string
           status: Database["public"]["Enums"]["payment_milestone_status"]
+        }[]
+      }
+      agent_trip_roster: {
+        Args: {
+          p_client_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: Database["public"]["Enums"]["trip_status"][]
+        }
+        Returns: {
+          as_of_date: string
+          client_display_name: string
+          client_id: string
+          component_count: number
+          currency: string
+          destinations: string[]
+          end_date: string
+          last_activity_at: string
+          start_date: string
+          status: Database["public"]["Enums"]["trip_status"]
+          status_changed_at: string
+          title: string
+          total_commission_cents: string
+          total_count: number
+          total_paid_cents: string
+          total_value_cents: string
+          traveler_count: number
+          trip_id: string
+          trip_type: Database["public"]["Enums"]["trip_type"]
+          version: number
+        }[]
+      }
+      agent_trip_roster_summary: {
+        Args: never
+        Returns: {
+          booked_count: number
+          cancelled_count: number
+          completed_count: number
+          currency_count: number
+          in_progress_count: number
+          inquiry_count: number
+          pipeline_cents: string
+          pipeline_currency: string
+          proposal_count: number
+          total_count: number
         }[]
       }
       agent_update_client: {

@@ -383,6 +383,40 @@ WHERE c.email = 'jordan.hayes@example.com';
 -- cost_cents and commission_cents are populated on purpose: they are what the client column
 -- grant withholds, so a leak has something to leak.
 
+-- ── An ARCHIVED trip, so §3.4.1's exclusion can fail ────────────────────────
+--
+-- §3.4.16 archives a trip to take it off the working surfaces, and `agent_trip_roster()`
+-- drops archived rows unconditionally — not as a status the caller may ask for. Without a
+-- row in this state the assertion that proves it compares a number against itself and
+-- passes for nothing, which is exactly what rls_agent_client_detail.sql recorded happening
+-- to four tabs at once.
+--
+-- Deliberately `completed` and not `cancelled`: archived and cancelled are different
+-- states, and a fixture that is both cannot tell the two exclusions apart.
+INSERT INTO public.trip (
+    id, client_id, agent_id, title, trip_type, status, status_changed_at,
+    start_date, end_date, destinations, traveler_count,
+    total_value_cents, total_paid_cents, total_commission_cents, currency,
+    archived_at, notes
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-0000000000af',
+    c.id,
+    '0195a2c0-1a00-7000-8000-000000000001',
+    'Barbados, long weekend (archived)',
+    'custom',
+    'completed',
+    now() - interval '400 days',
+    (current_date - 405)::date,
+    (current_date - 401)::date,
+    ARRAY['Bridgetown, Barbados'],
+    2,
+    288000, 288000, 34560, 'USD',
+    now() - interval '390 days',
+    'Archived after reconciliation. Present so the roster can prove it hides archived trips.'
+FROM public.client c
+WHERE c.email = 'maya.carter@example.com';
+
 INSERT INTO public.trip_component (
     id, trip_id, kind, supplier_id, display_name, start_date, end_date, start_time, end_time,
     location, confirmation_number, cost_cents, commission_pct, commission_cents, payload, order_index
