@@ -509,6 +509,14 @@ verify_jwt = true
 [functions.agent-client-notes]
 verify_jwt = true
 
+# ── §3.4.3 create trip ────────────────────────────────────────────────────────
+# The only door onto agent_create_trip, which is service_role only because it takes
+# p_agent_id as trusted input. Separate from agent-trip-status: that one is about a
+# trip's STAGE and takes a version to refuse a stale write, neither of which a
+# creation has. §3.4.4's component writes will land here too.
+[functions.agent-trip]
+verify_jwt = true
+
 # ── §3.3's client writes ──────────────────────────────────────────────────────
 # Create, edit, archive and bulk-tag (§3.3.9, §3.3.10, §3.3.12, and §3.3.1's
 # checkbox column). The only door onto agent_create_client, agent_update_client,

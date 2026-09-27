@@ -157,7 +157,15 @@ export function rosterQueryFromParams(params: {
  * `null` means a read failed. Both reads are required: a roster with no header counts would
  * render chips claiming zero of everything over a table full of rows.
  */
-export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster | null> {
+export async function loadClientRoster(
+  query: RosterQuery,
+  /**
+   * §3.4.3 loads the whole active book at once to fill a `<datalist>` the browser filters
+   * locally. Named rather than passed as a bare number so a call site cannot quietly page
+   * at 500 by accident.
+   */
+  options?: { pageSize?: number },
+): Promise<ClientRoster | null> {
   const { timeZone } = await agentIdentity();
   void timeZone;
 
@@ -166,8 +174,8 @@ export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster
       p_status: [query.status],
       p_tags: query.tags.length > 0 ? query.tags : null,
       p_search: query.search.length > 0 ? query.search : null,
-      p_limit: ROSTER_PAGE_SIZE,
-      p_offset: (query.page - 1) * ROSTER_PAGE_SIZE,
+      p_limit: options?.pageSize ?? ROSTER_PAGE_SIZE,
+      p_offset: (query.page - 1) * (options?.pageSize ?? ROSTER_PAGE_SIZE),
     }),
     callAgentRead<AgentClientSummaryRow>("agent_client_roster_summary", {}),
   ]);

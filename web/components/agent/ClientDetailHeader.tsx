@@ -67,15 +67,14 @@ export function ClientDetailHeader({ client }: { client: ClientOverview }) {
               <span className="sr-only">Call {client.displayName}</span>
             </a>
           ) : null}
-          <button
-            type="button"
-            disabled
-            title={CLIENT_COPY.newTripForClientDeferred}
-            className="btn btn-filled btn-sm opacity-50"
+          {/* Live as of §3.4.3, carrying the client so the next screen does not ask again
+              for the person whose page this is. */}
+          <Link
+            href={`/agent/trips/new?client=${client.clientId}`}
+            className="btn btn-filled btn-sm"
           >
             <Icon name="plus" size={12} /> New trip
-            <span className="sr-only"> — {CLIENT_COPY.newTripForClientDeferred}</span>
-          </button>
+          </Link>
           {/* §3.3.12, both directions. The dialog picks its own verb from `archived`. */}
           <ClientArchiveDialog
             clientId={client.clientId}

@@ -79,7 +79,6 @@ MESSAGE_TABLES = [
             # and its three usages when trip detail lands on Compose; nothing here needs
             # touching then either.
             "messagesDeferred": "MESSAGES_DEFERRED",
-            "quickAddTripDeferred": "QUICK_ADD_TRIP_DEFERRED",
             "leadsDeferred": "LEADS_DEFERRED",
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
         },

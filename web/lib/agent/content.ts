@@ -182,7 +182,6 @@ export const AGENT_COPY = {
   // section which has since been built is worse than no sentence at all. Same removal
   // `tripDetailDeferred` got when §3.4.2 landed.
   messagesDeferred: "Agent messaging arrives with §3.10.",
-  quickAddTripDeferred: "Creating trips arrives with §3.4.",
   // The one that is not "not yet". It explains where the thing actually is.
   leadsDeferred:
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
@@ -330,7 +329,6 @@ export const CLIENT_COPY = {
 
   // Per-action deferrals on the detail surface.
   accountAdminDeferred: "Account admin arrives with §3.9.",
-  newTripForClientDeferred: "Creating trips arrives with §3.4.3.",
   messageClientDeferred: "Agent messaging arrives with §3.10.",
   openThreadDeferred: "Opening a thread arrives with §3.10.2.",
   documentDownloadDeferred: "Downloading a document arrives with §3.3.6's upload path.",
@@ -377,7 +375,10 @@ export const CLIENT_COPY = {
   inviteDeferred:
     "Sending a portal invitation arrives with §3.9.3, where emailing a client a one-time link gets built.",
   inviteLabel: "Send a portal invitation",
-  saveAndTripDeferred: "Creating a trip arrives with §3.4.3.",
+  // FOUR DEFERRALS CAME DUE WITH §3.4.3 AND ARE DELETED, not reworded: quickAddTripDeferred,
+  // newTripForClientDeferred, saveAndTripDeferred and newTripDeferred all named a screen
+  // that now exists, and every one of their controls is live. Same removal
+  // clientDetailDeferred got. `duplicateTripDeferred` stays — §3.4.4 really is still ahead.
   saveAndTrip: "Save & create trip",
 
   archiveTitle: "Archive",
@@ -404,6 +405,61 @@ export function rosterSubtitle(active: number, inMotion: number, toQualify: numb
   }
   return `${parts.join(" · ")}.`;
 }
+
+/**
+ * §3.4.3 Create New Trip.
+ *
+ * FIVE TYPES, NOT THE PROTOTYPE'S SIX. `A343_NewTripType` draws a "Honeymoon" tile and
+ * `trip_type` has no such value — a honeymoon is an all-inclusive or a custom trip. Third
+ * invented field found in §3.4, after the dining component sheet and Trip Detail's
+ * "Booking source".
+ */
+export const NEW_TRIP_COPY = {
+  title: "New trip",
+  subtitle: "Pick a shape and a client. Everything else comes next.",
+
+  typeLabel: "What kind of trip?",
+  typeCruise: "Cruise",
+  typeCruiseHint: "A sailing, with or without flights around it.",
+  typeAllInclusive: "All-inclusive resort",
+  typeAllInclusiveHint: "One property, one price. Honeymoons usually live here.",
+  typeMultiDestination: "Multi-destination",
+  typeMultiDestinationHint: "More than one stop, stitched together.",
+  typeGroup: "Group trip",
+  typeGroupHint: "Several households travelling as one party.",
+  typeCustom: "Custom",
+  typeCustomHint: "Anything the other four do not describe.",
+
+  clientLabel: "Who is it for?",
+  clientHint: "Search your own clients by name or email.",
+  clientPlaceholder: "Start typing a name…",
+  clientRequired: "Pick a client first.",
+  clientMissing: "That client is not on your book any more. Pick another.",
+  noClients: "No clients match that.",
+
+  titleLabel: "What should it be called?",
+  titleHint: "The advisor-facing name. The traveler sees the itinerary title, not this.",
+  titlePlaceholder: "Sandals honeymoon · Aug 2026",
+  titleRequired: "Give the trip a name.",
+
+  travelersLabel: "Travelers",
+  travelersHint: "A starting guess. The builder corrects it.",
+
+  submit: "Create trip",
+  submitting: "Creating…",
+  cancel: "Cancel",
+  failed: "That didn't save. Try again in a moment.",
+
+  // §3.4.13 is Stage 4 and `trip_template` has no rows, so the prototype's "12 templates"
+  // counts have nothing behind them. Disabled with its reason rather than offering an empty
+  // list — §3.2.1's rule.
+  templateDeferred: "Starting from a template arrives with §3.4.13.",
+  templateLabel: "Start from a template",
+
+  // A trip is born in `inquiry` and the screen says so, because an advisor who expected
+  // "booked" would otherwise go looking for the stage control.
+  startsAsInquiry: "New trips start as an inquiry. Move the stage once it firms up.",
+} as const;
 
 /**
  * §3.4.1 Trip List.
@@ -450,7 +506,6 @@ export const TRIP_COPY = {
   emptyFilteredTitle: "Nothing matches",
   emptyFilteredBody: "Try a different search, or a different stage.",
 
-  newTripDeferred: "Building a trip arrives with §3.4.3.",
 
   // ── The bulk status bar ────────────────────────────────────────────────
   bulkSelectAll: "Select every trip on this page",

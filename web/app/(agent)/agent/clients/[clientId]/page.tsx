@@ -119,7 +119,7 @@ async function OverviewTab({
 async function TripsTab({ clientId }: { clientId: string }) {
   const trips = await loadClientTrips(clientId);
   if (!trips) return <RetryState />;
-  return <ClientTripsTab trips={trips} />;
+  return <ClientTripsTab trips={trips} clientId={clientId} />;
 }
 
 async function MessagesTab({ clientId }: { clientId: string }) {

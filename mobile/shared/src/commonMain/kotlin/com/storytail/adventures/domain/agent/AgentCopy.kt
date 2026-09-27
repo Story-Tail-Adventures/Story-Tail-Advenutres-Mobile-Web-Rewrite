@@ -73,7 +73,10 @@ object AgentCopy {
     // sentence. Note it is deliberately NOT in the copy-parity map: §3.4.2 Trip Detail is
     // BUILT on the web, so the web twin was deleted and this one must outlive it.
     const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
-    const val QUICK_ADD_TRIP_DEFERRED = "Creating trips arrives with §3.4."
+    // QUICK_ADD_TRIP_DEFERRED lived here until §3.4.3 shipped, and followed
+    // QUICK_ADD_CLIENT_DEFERRED out for the same reason: §3.2.1 on Compose has no quick-add
+    // at all, by decision, so neither ever had a render site on this side. The web control
+    // they paired with is a two-entry menu now.
     // QUICK_ADD_CLIENT_DEFERRED lived here until §3.3.9 shipped. It never had a render
     // site on this side — §3.2.1 on Compose has no quick-add at all, by decision — and
     // the web control it paired with is now a link to /agent/clients/new.

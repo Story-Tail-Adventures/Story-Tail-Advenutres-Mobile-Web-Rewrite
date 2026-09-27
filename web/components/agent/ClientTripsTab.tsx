@@ -21,12 +21,29 @@ import type { ClientTripRow } from "@/lib/agent/clientDetail";
  * catalog concern — so a row that reserved space for one would render a grey box on every
  * line. Dropped rather than faked, the same call §3.2.1's KPI deltas got.
  */
-export function ClientTripsTab({ trips }: { trips: ClientTripRow[] }) {
+export function ClientTripsTab({
+  trips,
+  clientId,
+}: {
+  trips: ClientTripRow[];
+  clientId: string;
+}) {
   if (trips.length === 0) {
+    // EVEN WITH NO TRIPS THE CTA BELONGS HERE, and it did not before: this tab used to
+    // return a bare sentence, which meant the one client most likely to need a new trip —
+    // the one with none — was the only client whose tab could not start one.
     return (
-      <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
-        {CLIENT_COPY.tripsEmpty}
-      </p>
+      <div className="px-1 py-4">
+        <p className="t-body-s text-[var(--md-on-surface-variant)]">
+          {CLIENT_COPY.tripsEmpty}
+        </p>
+        <Link
+          href={`/agent/trips/new?client=${clientId}`}
+          className="btn btn-orange btn-sm mt-3"
+        >
+          <Icon name="plus" size={12} /> New trip
+        </Link>
+      </div>
     );
   }
 
@@ -42,15 +59,14 @@ export function ClientTripsTab({ trips }: { trips: ClientTripRow[] }) {
         <span className="chip">{`${CLIENT_COPY.tripsActive} · ${counts.active}`}</span>
         <span className="chip">{`${CLIENT_COPY.tripsPast} · ${counts.past}`}</span>
         <span className="chip">{`${CLIENT_COPY.tripsCancelled} · ${counts.cancelled}`}</span>
-        <button
-          type="button"
-          disabled
-          title={CLIENT_COPY.newTripForClientDeferred}
-          className="btn btn-orange btn-sm ml-auto opacity-50"
+        {/* Live as of §3.4.3, and it carries the client so the next screen does not ask
+            again for somebody this one already knows. */}
+        <Link
+          href={`/agent/trips/new?client=${clientId}`}
+          className="btn btn-orange btn-sm ml-auto"
         >
           <Icon name="plus" size={12} /> New trip
-          <span className="sr-only"> — {CLIENT_COPY.newTripForClientDeferred}</span>
-        </button>
+        </Link>
       </div>
 
       <ul className="flex flex-col gap-2">

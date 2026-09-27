@@ -3353,6 +3353,20 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_create_trip: {
+        Args: {
+          p_agent_id: string
+          p_client_id: string
+          p_title: string
+          p_traveler_count?: number
+          p_trip_id: string
+          p_trip_type: Database["public"]["Enums"]["trip_type"]
+        }
+        Returns: {
+          outcome: string
+          trip_id: string
+        }[]
+      }
       agent_inbox: {
         Args: { p_limit?: number }
         Returns: {

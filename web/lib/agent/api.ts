@@ -532,6 +532,8 @@ export async function callAgentRead<T>(
 
 export type AgentFunction =
   | "agent-trip-status"
+  // §3.4.3, and §3.4.4's component writes when they land.
+  | "agent-trip"
   | "agent-trip-notes"
   // §3.3.7. An RPC write would let an agent POST from a browser with no audit_event,
   // which is the reason every agent write on this surface is a function.
