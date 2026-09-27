@@ -168,6 +168,16 @@ NULL with a notice when either is missing — so a fresh local stack schedules a
 deliberately does nothing rather than spending a metered budget in the background. To arm it
 on a real project:
 
+> ⚠️ **`<service-role key>` below is a placeholder. Replace it, and use the LEGACY key.**
+> Production ran for two weeks with the literal placeholder text in that secret. Every weekly
+> tick 401'd at the gateway with `UNAUTHORIZED_INVALID_JWT_FORMAT`, `cron.job_run_details`
+> recorded `succeeded` each time (it only measures whether the statement ran), and the public
+> page showed "No sailings on the books for that yet" — correct copy for an empty catalog, and
+> indistinguishable from this. `cruise_sync_tick()` now RAISES on a value that is present but
+> not JWT-shaped, so a repeat turns the cron job red instead of silent. It must be the legacy
+> service-role JWT (three dot-separated base64url segments); an `sb_secret_…` key is not a JWT
+> and `cruise-sync` sets `verify_jwt = true`, so the gateway rejects it before the function runs.
+
 ```sql
 select vault.create_secret(
   'https://<project-ref>.supabase.co/functions/v1/cruise-sync',
