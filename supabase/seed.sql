@@ -426,6 +426,16 @@ INSERT INTO public.trip_component (
      current_date + 67, current_date + 67, '06:40', '09:30',
      'Miami International Airport', 'TLR8QV', 84200, 0.00, 0,
      '{"airline":"American Airlines","flight_number":"AA 1413","origin":"MIA","destination":"MBJ","cabin":"main","seat":"14A, 14B"}'::jsonb, 0),
+    -- THE RETURN LEG, added 2026-09-28 when trip.total_value_cents became a computed sum.
+    -- Its absence was a fixture bug hiding behind a hand-set total: the components summed to
+    -- $11,645 while the row claimed $12,845 and the payment milestones were balanced against
+    -- the claim. Nothing checked, because nothing computed the sum. A round trip to Jamaica
+    -- with no way home was the tell nobody read.
+    ('0195a2c0-1a00-7000-8000-00000000007f', '0195a2c0-1a00-7000-8000-000000000040',
+     'flight', '0195a2c0-1a00-7000-8000-000000000031', 'AA 1410 · MBJ → MIA',
+     current_date + 74, current_date + 74, '11:35', '14:20',
+     'Sangster International Airport', 'TLR8QV', 120000, 0.00, 0,
+     '{"airline":"American Airlines","flight_number":"AA 1410","origin":"MBJ","destination":"MIA","cabin":"main","seat":"12A, 12B"}'::jsonb, 5),
     ('0195a2c0-1a00-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000040',
      'transfer', '0195a2c0-1a00-7000-8000-000000000032', 'Private transfer · Mercedes Vito',
      current_date + 67, current_date + 67, '10:20', '11:45',
@@ -554,7 +564,12 @@ INSERT INTO public.itinerary_day (id, itinerary_id, day_number, date, label, sum
      'Snorkelling straight off the beach, then the Sesame Street breakfast.');
 
 -- ── Payment milestones (trip 0040) ──────────────────────────────────────────
--- Sums to total_value_cents 1284500; paid sums to total_paid_cents 500000.
+-- Sums to 1284500, which is what the trip's COMPONENTS now sum to as well — see the return
+-- leg above. `trip.total_value_cents` is no longer a hand-set number to be balanced against:
+-- a trigger recomputes it from the components (20260928100000), so this comment is now a
+-- statement the database enforces rather than one a reader has to take on faith.
+-- Paid sums to total_paid_cents 500000, which IS still hand-set: money that moved is not a
+-- function of the component list.
 
 INSERT INTO public.payment_milestone (
     id, trip_id, kind, label, amount_cents, currency, due_date, paid_at, paid_cents, status, order_index
@@ -1413,6 +1428,56 @@ SELECT '0195a2c0-1a00-7000-8000-000000000533', pu.id, 'agent', 'trip.status_chan
 FROM public.trip t, public.platform_user pu
 WHERE t.title = 'Kyoto in the spring' AND pu.role = 'agent';
 
-
+-- ── One package component per trip that had none ────────────────────────────
+--
+-- THE PROBLEM THIS SOLVES, found 2026-09-28 when `trip.total_value_cents` became a computed
+-- sum. Twenty-two of the twenty-six seeded trips carried a hand-set total and NOT ONE
+-- component — $150,320 of money with nothing behind it. Every downstream fixture (payment
+-- milestones, commission rows, the worklist's pipeline KPI) was balanced against those
+-- numbers, and the Data-Model has always said the total is the sum of the components.
+--
+-- That was harmless while nothing could add a component. Screen 3.4.4 can, and the first
+-- component added to any of those trips would have recomputed its total from that ONE line —
+-- collapsing a $6,920 trip to $500 in front of the advisor who just added a transfer.
+--
+-- So each gets a single component carrying exactly what the trip already claimed. One row,
+-- not an invented itinerary: it preserves every downstream number to the cent, it makes the
+-- Data-Model's definition true for every trip rather than one, and it reads honestly —
+-- an all-inclusive package really is often booked as a single line. A trip with a real
+-- itinerary (0040) is left alone; this only fills in what was empty.
+INSERT INTO public.trip_component (
+    id, trip_id, kind, display_name, start_date, end_date,
+    cost_cents, commission_pct, commission_cents, currency, payload, order_index
+)
+SELECT
+    -- Deterministic, so a reset produces the same ids twice running.
+    ('0195a2c0-1a00-7000-8000-0000000f' || lpad(row_number() OVER (ORDER BY t.id)::text, 4, '0'))::uuid,
+    t.id,
+    CASE t.trip_type
+        WHEN 'cruise' THEN 'cruise'::public.component_kind
+        WHEN 'all_inclusive' THEN 'hotel'::public.component_kind
+        ELSE 'custom'::public.component_kind
+    END,
+    CASE t.trip_type
+        WHEN 'cruise' THEN 'Sailing · package'
+        WHEN 'all_inclusive' THEN 'Resort stay · all-inclusive package'
+        WHEN 'group' THEN 'Group package'
+        WHEN 'multi_destination' THEN 'Multi-stop package'
+        ELSE 'Trip package'
+    END,
+    t.start_date, t.end_date,
+    t.total_value_cents,
+    CASE WHEN t.total_value_cents > 0
+         THEN round((t.total_commission_cents::numeric / t.total_value_cents) * 100, 2)
+         ELSE 0 END,
+    t.total_commission_cents,
+    t.currency,
+    '{"synthesized":"seed package — one line standing for a trip booked before the component builder existed"}'::jsonb,
+    0
+FROM public.trip t
+WHERE t.total_value_cents > 0
+  AND NOT EXISTS (
+      SELECT 1 FROM public.trip_component c WHERE c.trip_id = t.id
+  );
 
 COMMIT;
