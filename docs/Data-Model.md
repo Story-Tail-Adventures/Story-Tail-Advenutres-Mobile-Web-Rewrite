@@ -940,7 +940,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `traveler_count` | `integer` | No | Public | — |
 | `traveler_breakdown` | `jsonb` | Yes | PII | `{adults, children, infants}` |
 | `total_value_cents` | `bigint` | No | Client-visible | Sum of components — what the trip costs them |
-| `total_paid_cents` | `bigint` | No | Client-visible | Track of supplier payments via stored cards |
+| `total_paid_cents` | `bigint` | No | Client-visible | **Computed** — `sum(payment_milestone.paid_cents)`, maintained by a trigger since `20260929100000`. See §9.5 |
 | `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
 | `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one |
@@ -1592,6 +1592,14 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `order_index` | `integer` | No | Public | Display order; ties are broken by `due_date` |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+
+> **`total_paid_cents` got its producer on 2026-09-29, and had none before that.** The
+> purpose line above promised one when this entity was added; five accessors read the column
+> and nothing wrote it, so 20 trips claimed $81,390 of payments with no schedule behind them
+> and two of the three that had a schedule contradicted it. `20260929100000` adds the
+> trigger and backfills. **Only `paid_cents` feeds it** — `amount_cents` is what the supplier
+> expects, and conflating the two is the error that made an overdue balance read as paid.
+> A `waived` milestone contributes nothing, which is the distinction this entity exists for.
 
 **Why `status` is stored rather than derived.** `overdue` could be computed from `due_date < today`, but the agent needs to be able to suppress it — a supplier who has verbally extended a deadline should not produce a red row on the client's dashboard. `waived` exists for the same reason: suppliers do forgive milestones, and a waived one is not the same as a paid one.
 

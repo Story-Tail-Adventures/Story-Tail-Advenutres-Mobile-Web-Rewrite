@@ -151,6 +151,7 @@ export const AGENT_COPY = {
   // word that covers both is the shorter one.
   openBuilder: "Build",
   editComponents: "Edit components",
+  editSchedule: "Edit schedule",
   // Each names what it is waiting on, matching the *Deferred convention above — these are
   // per-action, not per-section, because §3.4.2's header offers four buttons and only one
   // (Mark booked, via the existing stage-change write) has anywhere to go yet.
@@ -756,4 +757,88 @@ export const BUILDER_COPY = {
   savedUpdated: "Saved.",
   savedNoop: "Nothing to change.",
   savedRemoved: "Removed.",
+} as const;
+
+/**
+ * §3.4.15 Trip Payment Schedule.
+ *
+ * WEB ONLY, for the reason `TRIP_COPY` gives: §3.4 has no phone artboards, so there is no
+ * Kotlin twin and nothing for the copy-parity map to pair these with.
+ *
+ * THE VOICE HERE IS CAREFUL, and Design-System §2 is the reason. These rows are what a
+ * supplier expects and when — BRD §10.5 prohibits client-facing billing, so nothing on this
+ * screen is a bill from us and nothing here may read like a demand. "Due" is the supplier's
+ * date; "on file" is money we have a record of. No "amount owing", no "outstanding", no
+ * "pay now", because none of those is a thing this business does.
+ */
+export const SCHEDULE_COPY = {
+  title: "Payment schedule",
+  subtitle: "What the supplier expects, and when.",
+  backToTrip: "Back to the trip",
+
+  kindDeposit: "Deposit",
+  kindInterim: "Interim payment",
+  kindFinal: "Final balance",
+
+  statusScheduled: "Scheduled",
+  statusScheduledHint: "Not paid yet.",
+  statusPaid: "Paid",
+  statusPaidHint: "The money has moved.",
+  statusOverdue: "Overdue",
+  statusOverdueHint: "Past its date and still unpaid. Leave it scheduled if the supplier has given more time.",
+  statusWaived: "Waived",
+  // The distinction §9.5 exists for, said out loud where the advisor picks it.
+  statusWaivedHint: "The supplier let it go. Not a payment — this doesn't count toward what's been paid.",
+
+  addHeading: "Add a payment",
+  editHeading: "Edit this payment",
+  kindLabel: "What kind",
+  labelLabel: "What the client sees",
+  labelPlaceholder: "Deposit",
+  labelRequired: "Give it a name — it's the line the client reads.",
+  amountLabel: "Amount",
+  amountHint: "What the supplier expects on this date.",
+  amountNotANumber: "That doesn't look like an amount.",
+  amountRequired: "A payment needs an amount.",
+  dueLabel: "Due",
+  dueHint: "Leave it blank until the supplier sets one.",
+
+  markLabel: "Mark this",
+  markPaidAmount: "Amount that arrived",
+  markPaidAmountHint: "Leave blank to record the whole amount. Partial payments happen.",
+  markApply: "Save",
+  markWorking: "Saving…",
+
+  save: "Save",
+  saving: "Saving…",
+  cancel: "Cancel",
+  edit: "Edit",
+  remove: "Remove",
+  // A hard delete, and the copy says so rather than implying it can be undone.
+  removeHint: "Removing a payment takes it off the schedule for good.",
+
+  colLabel: "Payment",
+  colDue: "Due",
+  colAmount: "Amount",
+  colPaid: "On file",
+  colStatus: "Status",
+
+  totalExpected: "Scheduled",
+  totalPaid: "On file",
+  totalTrip: "Trip total",
+  // The one figure that needs explaining: a schedule need not add up to the trip, because a
+  // supplier may not have set every date yet.
+  totalsHint: "A schedule doesn't have to add up to the trip total — suppliers set their dates when they set them.",
+
+  emptyTitle: "No schedule yet",
+  emptyBody: "Add the deposit when the supplier confirms it. The rest can follow.",
+
+  failed: "That didn't save. Try again in a moment.",
+  gone: "That's not on this trip any more. Reload and take another look.",
+
+  // §3.10 is agent messaging and nothing exists to send on. The Screen Inventory's
+  // "trigger reminder" and "reminder cadence toggle" both wait on it — a button that
+  // silently sends nothing would be worse than one that says why it is off.
+  remindLabel: "Remind the client",
+  remindDeferred: "Sending a reminder arrives with §3.10, where agent messaging gets built.",
 } as const;

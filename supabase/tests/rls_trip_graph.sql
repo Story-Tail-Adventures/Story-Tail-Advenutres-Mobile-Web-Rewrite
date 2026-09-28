@@ -275,14 +275,31 @@ SELECT pg_temp.expect_denied(
     'document.is_sensitive — withheld (internal logging flag)');
 
 -- ── payment_milestone and testimonial ───────────────────────────────────────
+-- ASSERTED AS A SCOPE, NOT A MAGIC NUMBER — the third one in this file to need it, and it
+-- broke the same way. This read `= 3` until 2026-09-29, when `trip.total_paid_cents` got
+-- the producer Data-Model §9.5 always said it had and every trip claiming a payment with
+-- no schedule behind it gained one (see constraints_trip_paid.sql). That has nothing to do
+-- with row-level security, which is what this file is for.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') = 3,
-    'payment_milestone — sees the full schedule for their own trip');
+    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') > 0,
+    'payment_milestone — sees a schedule at all');
 
 SELECT pg_temp.assert(
+    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') =
     pg_temp.count_of(
-      'SELECT coalesce(sum(paid_cents),0) FROM public.payment_milestone WHERE status = ''paid''') = 500000,
-    'payment_milestone — paid milestones sum to trip.total_paid_cents');
+        'SELECT count(*) FROM public.payment_milestone m '
+        'WHERE m.trip_id IN (SELECT t.id FROM public.trip t)'),
+    'payment_milestone — every visible milestone is on a trip they can see, and no other');
+
+-- DERIVED ON BOTH SIDES rather than compared to 500000. The relationship is the claim —
+-- what a traveler is told they have paid is the sum of the milestones they can see — and
+-- the literal was only ever one trip's arithmetic, restated by hand.
+SELECT pg_temp.assert(
+    pg_temp.count_of(
+        'SELECT coalesce(sum(m.paid_cents), 0) FROM public.payment_milestone m') =
+    pg_temp.count_of(
+        'SELECT coalesce(sum(t.total_paid_cents), 0) FROM public.trip t'),
+    'payment_milestone — the milestones they can see sum to what their trips say they paid');
 
 SELECT pg_temp.assert(
     pg_temp.count_of('SELECT count(*) FROM public.testimonial') = 1,

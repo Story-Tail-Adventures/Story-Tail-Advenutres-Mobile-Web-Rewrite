@@ -608,4 +608,134 @@ SELECT pg_temp.assert(
 
 RESET ROLE;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- §3.4.15's payment-schedule writes
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- THE SEPARATION IS THE POINT OF THIS SECTION. `agent_upsert_payment_milestone` says what
+-- the supplier expects; `agent_set_milestone_paid` says whether the money moved. Only the
+-- second may touch `trip.total_paid_cents`, which since 20260929100000 is what
+-- `wallet/authorize/[tripId]` subtracts from the trip value to show a traveler their
+-- outstanding balance. A label edit that could move that number is the failure this shape
+-- exists to prevent.
+
+SET ROLE postgres;
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_upsert_payment_milestone(
+        :trip40::uuid, :agent::uuid, NULL, 'interim', 'Test milestone', 75000,
+        current_date + 10)) = 'created',
+    'agent_upsert_payment_milestone creates a scheduled milestone');
+
+SELECT pg_temp.assert(
+    (SELECT status = 'scheduled' AND paid_cents = 0
+       FROM public.payment_milestone WHERE label = 'Test milestone'),
+    '... scheduled and unpaid, whatever the amount says');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_upsert_payment_milestone(
+        :trip40::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Test milestone'),
+        'interim', 'Test milestone', 75000, current_date + 10)) = 'noop',
+    'an unchanged schedule save is a noop, not a write');
+
+-- THE ASSERTION THIS SECTION IS FOR.
+SELECT set_config('pg_temp.paid_before',
+    (SELECT total_paid_cents FROM public.trip WHERE id = :trip40::uuid)::text, false);
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_upsert_payment_milestone(
+        :trip40::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Test milestone'),
+        'interim', 'Renamed milestone', 90000, current_date + 12)) = 'updated',
+    'editing the schedule updates it');
+
+SELECT pg_temp.assert(
+    (SELECT total_paid_cents FROM public.trip WHERE id = :trip40::uuid)
+        = current_setting('pg_temp.paid_before')::bigint,
+    '... and moves trip.total_paid_cents by nothing at all');
+
+-- Now the money.
+SELECT pg_temp.assert(
+    (SELECT paid_cents FROM public.agent_set_milestone_paid(
+        :trip40::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone'),
+        'paid', NULL)) = '90000',
+    'marking a milestone paid with no amount pays it in full');
+
+SELECT pg_temp.assert(
+    (SELECT total_paid_cents FROM public.trip WHERE id = :trip40::uuid)
+        = current_setting('pg_temp.paid_before')::bigint + 90000,
+    '... and THAT moves the trip total');
+
+SELECT pg_temp.assert(
+    (SELECT paid_at IS NOT NULL FROM public.payment_milestone WHERE label = 'Renamed milestone'),
+    '... and stamps paid_at, which the table''s own CHECK requires');
+
+-- WAIVED IS NOT PAID. §9.5: suppliers do forgive milestones, and a waived one must not
+-- raise what the client has paid — nor leave a paid_at behind claiming it did.
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_set_milestone_paid(
+        :trip40::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone'),
+        'waived', NULL)) = 'changed',
+    'a paid milestone can be waived');
+
+SELECT pg_temp.assert(
+    (SELECT paid_cents = 0 AND paid_at IS NULL
+       FROM public.payment_milestone WHERE label = 'Renamed milestone')
+    AND (SELECT total_paid_cents FROM public.trip WHERE id = :trip40::uuid)
+        = current_setting('pg_temp.paid_before')::bigint,
+    '... and waiving takes the money back off the trip, with no paid_at left behind');
+
+-- A partial payment is a real thing (§9.5: "Partial payments happen").
+SELECT pg_temp.assert(
+    (SELECT paid_cents FROM public.agent_set_milestone_paid(
+        :trip40::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone'),
+        'paid', 40000)) = '40000',
+    'a partial payment records what actually arrived, not the full amount');
+
+-- Ownership, on all three. `p_agent_id` is trusted input, so the check is the function's.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_upsert_payment_milestone(
+        :trip40::uuid, gen_random_uuid(), NULL, 'final', 'Not yours', 1000, NULL)),
+    'another advisor cannot add a milestone to this trip');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_set_milestone_paid(
+        :trip40::uuid, gen_random_uuid(),
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone'),
+        'paid', NULL)),
+    'another advisor cannot mark it paid');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_delete_payment_milestone(
+        :trip40::uuid, gen_random_uuid(),
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone'))),
+    'another advisor cannot delete it');
+
+-- SCOPED TO THE TRIP, not just to the id — without this an advisor could edit any
+-- milestone whose id they knew by naming one of their own trips.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_upsert_payment_milestone(
+        '0195a2c0-1a00-7000-8000-000000000044'::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone'),
+        'final', 'Moved', 1000, NULL)),
+    'a milestone cannot be edited through a DIFFERENT trip the advisor owns');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_delete_payment_milestone(
+        :trip40::uuid, :agent::uuid,
+        (SELECT id FROM public.payment_milestone WHERE label = 'Renamed milestone')))
+    = 'deleted',
+    'agent_delete_payment_milestone removes it — a hard delete, per Data-Model §20.1');
+
+SELECT pg_temp.assert(
+    (SELECT total_paid_cents FROM public.trip WHERE id = :trip40::uuid)
+        = current_setting('pg_temp.paid_before')::bigint,
+    '... and the trip total settles back');
+
+RESET ROLE;
+
 ROLLBACK;

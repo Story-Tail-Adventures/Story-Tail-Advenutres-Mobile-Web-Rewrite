@@ -85,7 +85,20 @@ export default async function AgentTripDetailPage({
           {tab === "overview" && <AtAGlanceGrid overview={overview} />}
           {tab === "components" && <TripComponentsTab tripId={tripId} />}
           {tab === "itinerary" && <TripItineraryTab tripId={tripId} />}
-          {tab === "payments" && <PaymentsSummaryCard payments={payments} full />}
+          {tab === "payments" && (
+            <>
+              {/* §3.4.15's entry point, the one the Screen Inventory calls "Trip Detail
+                  'Payments'". The tab stays a READ — it is one of eight on a screen about
+                  the whole trip — and the schedule is worked on at its own route, which is
+                  the same split §3.4.4 made for components. */}
+              <div className="mb-2 flex justify-end">
+                <Link href={`/agent/trips/${tripId}/payments`} className="btn btn-tonal btn-sm">
+                  {AGENT_COPY.editSchedule}
+                </Link>
+              </div>
+              <PaymentsSummaryCard payments={payments} full />
+            </>
+          )}
           {tab === "documents" && <TripDocumentsTab tripId={tripId} />}
           {tab === "messages" && <TripMessagesTab tripId={tripId} />}
           {tab === "notes" && (
