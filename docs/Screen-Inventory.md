@@ -2366,6 +2366,51 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Detail "Itinerary"; Trip Builder.
 **Related screens:** Itinerary Preview, Trip Builder.
 
+> **Amended 2026-09-28, as the screen was built.**
+>
+> **This is where the day grouping lives, and §3.4.4's amendment already said so.** The
+> design prototype draws days inside the builder; `itinerary_day` and `itinerary_activity`
+> are their own tables and this is their screen. What ties the two is
+> `itinerary_activity.component_id`, one-directional — an entry may point at a booking, a
+> booking does not know its entry.
+>
+> **"Auto-generate" is additive and idempotent, and that is the whole design.** The Key
+> actions line says "Auto-generate" and says nothing about a second press. An advisor who
+> rewrote "AA 1413 · MIA → MBJ" as "Your flight to paradise" has done the thing this screen
+> exists for, so a generator that overwrites it has destroyed the feature rather than a row.
+> It creates the days the trip's date range needs, adds one entry per component with no
+> entry pointing at it, and touches no existing entry ever. Run twice, the second run
+> answers `noop`. The button states that promise beside itself rather than in a confirmation
+> dialog an advisor would learn to dismiss.
+>
+> **It does not generate an `insurance` component.** A client's day-by-day does not include
+> "your policy is in effect" — that is a fact about the trip, not a thing that happens on a
+> morning. Every other kind does, `custom` included. An advisor who wants it there adds the
+> entry by hand and the generator then leaves it alone.
+>
+> **The fixture made the case for itself.** Trip 0040's seeded itinerary covered Dec 4–7 on
+> a Dec 4–11 trip, so half the days did not exist and the return flight added in §3.4.4 had
+> nowhere to live.
+>
+> **Reorder is arrow buttons, not the drawn drag handle** — the same call §3.4.4 made, for
+> the same reasons: a drag is pointer-only so the keyboard path would be these anyway, and
+> they work with JavaScript off on the screen with the most typing.
+>
+> **`itinerary.version` is not an optimistic lock here.** Gating a per-entry write on a
+> whole-itinerary version would make editing day 1 then day 2 a conflict with yourself. What
+> the column is for on this table is said by the two beside it, `published_at` and
+> `last_published_at`: it is bumped on every change so §3.5's publish can answer "changed
+> since the client last saw it".
+>
+> **"Rich text" from the Primary elements line is plain text.** `itinerary_activity.body` is
+> `text` with no markup contract anywhere in the schema, and inventing one here would mean
+> §2.2.4's traveler view and §3.5's proposal both had to learn to render it. A textarea, and
+> the decision recorded rather than silently downgraded.
+>
+> **Intro and closing notes are not on this screen.** `itinerary.intro_note` and
+> `closing_note` exist, but they are the proposal's covering letter and belong to §3.5, which
+> is where the Related screens line points.
+
 #### 3.4.15 Trip Payment Schedule
 **Purpose:** Manage deposit and final-payment dates and remind the client.
 **Primary elements:** Schedule rows (date, amount, paid Y/N, paid date); reminder cadence toggle.

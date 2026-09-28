@@ -236,12 +236,28 @@ export type TripItineraryActivity = {
   confirmationNumber: string | null;
   gyasisTip: string | null;
   componentId: string | null;
+  /**
+   * The fields §3.4.14's form edits that nothing renders read-only — the arrangement
+   * `TripComponentRow.edit` and `TripPaymentRow.edit` already use, and for the same reason:
+   * one accessor, one mapping, and the form's row is one the list already returned.
+   *
+   * `startTime`/`endTime` are `HH:MM` — what `<input type="time">` wants, and what Postgres
+   * does NOT hand back (it gives `HH:MM:SS`, which Safari renders as an empty field).
+   */
+  edit: {
+    startTime: string | null;
+    endTime: string | null;
+    address: string | null;
+    phone: string | null;
+  };
 };
 
 export type TripItineraryDay = {
   dayId: string;
   dayNumber: number;
   dateLabel: string | null;
+  /** ISO `yyyy-mm-dd`, for the date input and for matching a component's own start_date. */
+  date: string | null;
   label: string | null;
   summary: string | null;
   activities: TripItineraryActivity[];
@@ -286,6 +302,7 @@ async function loadItinerary(tripId: string): Promise<TripItineraryView | null> 
         dayId: row.day_id,
         dayNumber: row.day_number,
         dateLabel: monthDay(row.date),
+        date: row.date,
         label: row.day_label,
         summary: row.day_summary,
         activities: [],
@@ -304,6 +321,12 @@ async function loadItinerary(tripId: string): Promise<TripItineraryView | null> 
         confirmationNumber: row.confirmation_number,
         gyasisTip: row.gyasis_tip,
         componentId: row.component_id,
+        edit: {
+          startTime: hhmm(row.start_time),
+          endTime: hhmm(row.end_time),
+          address: row.address,
+          phone: row.phone,
+        },
       });
     }
   }

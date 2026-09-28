@@ -141,7 +141,20 @@ async function TripComponentsTab({ tripId }: { tripId: string }) {
 async function TripItineraryTab({ tripId }: { tripId: string }) {
   const itinerary = await loadTripItinerary(tripId);
   if (!itinerary) return <ErrorState />;
-  return <TripItineraryView itinerary={itinerary} />;
+  return (
+    <>
+      {/* §3.4.14's entry point, one of the two its Screen-Inventory entry names ("Trip
+          Detail 'Itinerary'"; the other is the builder). This tab stays a READ — one of
+          eight on a screen about the whole trip — and the writing happens at its own
+          route, the same split §3.4.4 and §3.4.15 made. */}
+      <div className="mb-2 flex justify-end">
+        <Link href={`/agent/trips/${tripId}/itinerary`} className="btn btn-tonal btn-sm">
+          {AGENT_COPY.editItinerary}
+        </Link>
+      </div>
+      <TripItineraryView itinerary={itinerary} />
+    </>
+  );
 }
 
 async function TripDocumentsTab({ tripId }: { tripId: string }) {
