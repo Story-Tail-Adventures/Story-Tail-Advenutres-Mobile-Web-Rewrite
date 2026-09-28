@@ -3374,10 +3374,25 @@ export type Database = {
           trip_id: string
         }[]
       }
+      agent_delete_itinerary_activity: {
+        Args: { p_activity_id: string; p_agent_id: string; p_trip_id: string }
+        Returns: {
+          activity_id: string
+          outcome: string
+        }[]
+      }
       agent_delete_payment_milestone: {
         Args: { p_agent_id: string; p_milestone_id: string; p_trip_id: string }
         Returns: {
           milestone_id: string
+          outcome: string
+        }[]
+      }
+      agent_generate_itinerary: {
+        Args: { p_agent_id: string; p_trip_id: string }
+        Returns: {
+          activities_added: number
+          days_added: number
           outcome: string
         }[]
       }
@@ -3431,6 +3446,18 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_reorder_itinerary_activities: {
+        Args: {
+          p_activity_ids: string[]
+          p_agent_id: string
+          p_day_id: string
+          p_trip_id: string
+        }
+        Returns: {
+          moved: number
+          outcome: string
         }[]
       }
       agent_reorder_trip_components: {
@@ -3764,6 +3791,42 @@ export type Database = {
         }
         Returns: string
       }
+      agent_upsert_itinerary_activity: {
+        Args: {
+          p_activity_id: string
+          p_address?: string
+          p_agent_id: string
+          p_block?: Database["public"]["Enums"]["block_kind"]
+          p_body?: string
+          p_confirmation_number?: string
+          p_day_id: string
+          p_end_time?: string
+          p_gyasis_tip?: string
+          p_location?: string
+          p_phone?: string
+          p_start_time?: string
+          p_title: string
+          p_trip_id: string
+        }
+        Returns: {
+          activity_id: string
+          outcome: string
+        }[]
+      }
+      agent_upsert_itinerary_day: {
+        Args: {
+          p_agent_id: string
+          p_date: string
+          p_day_id: string
+          p_label?: string
+          p_summary?: string
+          p_trip_id: string
+        }
+        Returns: {
+          day_id: string
+          outcome: string
+        }[]
+      }
       agent_upsert_payment_milestone: {
         Args: {
           p_agent_id: string
@@ -3817,6 +3880,10 @@ export type Database = {
           outcome: string
         }[]
       }
+      block_for_time: {
+        Args: { p_time: string }
+        Returns: Database["public"]["Enums"]["block_kind"]
+      }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
       cruise_sync_tick: { Args: never; Returns: number }
       current_agent_id: { Args: never; Returns: string }
@@ -3865,6 +3932,8 @@ export type Database = {
           hits: number
         }[]
       }
+      itinerary_for_trip: { Args: { p_trip_id: string }; Returns: string }
+      itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
