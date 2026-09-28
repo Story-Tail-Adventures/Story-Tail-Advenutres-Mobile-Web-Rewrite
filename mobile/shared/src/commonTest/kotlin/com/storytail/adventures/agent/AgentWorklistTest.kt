@@ -7,7 +7,6 @@ import com.storytail.adventures.api.WorklistTrip
 import com.storytail.adventures.domain.agent.AGENT_BAR_DESTINATIONS
 import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.PartOfDay
-import com.storytail.adventures.domain.agent.currencyNote
 import com.storytail.adventures.domain.agent.daysBetween
 import com.storytail.adventures.domain.agent.departingWithin30
 import com.storytail.adventures.domain.agent.isOverdue
@@ -33,7 +32,6 @@ class AgentWorklistTest {
         confidence: Int? = 73,
         cycleDays: Double? = 17.3,
         sample: Int = 4,
-        currencyCount: Int = 1,
     ) = WorklistKpis(
         pipelineValueCents = 5_816_500,
         bookedMonthCents = 512_000,
@@ -46,7 +44,6 @@ class AgentWorklistTest {
         newInquiries = 1,
         unreadMessages = 0,
         currency = "USD",
-        currencyCount = currencyCount,
     )
 
     private fun trip(id: String, status: String, start: String?) = WorklistTrip(
@@ -289,59 +286,6 @@ class AgentWorklistTest {
         assertNull(ui.snapshot.kpis.commissionConfidencePct)
         assertNull(ui.snapshot.kpis.inquiryToBookDays)
         assertEquals(0, ui.needsYouCount)
-    }
-
-    @Test
-    fun the_currency_note_appears_only_when_something_is_excluded() {
-        fun note(count: Int) = worklistUiState(
-            snapshot = WorklistSnapshot(
-                asOfDate = "2026-09-22",
-                kpis = kpis(currencyCount = count),
-                awaitingResponse = emptyList(),
-                paymentsDue = emptyList(),
-                newInquiries = emptyList(),
-                departingSoon = emptyList(),
-                recentMessages = emptyList(),
-            ),
-            displayName = "Gyasi",
-            partOfDay = PartOfDay.MORNING,
-            today = "2026-09-22",
-        ).currencyNote
-
-        // HAND-WRITTEN, NOT DERIVED. These used to read `contains("1 trip is")`, which is
-        // the implementation's own `currencyCount - 1` restated — so the test agreed with
-        // the sentence rather than checking it, and held in place a line that called a
-        // count of CURRENCIES a count of TRIPS. With 10 USD, 4 EUR and 2 GBP trips
-        // `currency_count` is 3 and the old wording claimed two excluded trips against six.
-        assertNull(note(1))
-        assertEquals(
-            "USD only. Trips priced in 1 other currency are not counted here.",
-            note(2),
-        )
-        assertEquals(
-            "USD only. Trips priced in 2 other currencies are not counted here.",
-            note(3),
-        )
-        assertEquals(
-            "USD only. Trips priced in 6 other currencies are not counted here.",
-            note(7),
-        )
-    }
-
-    @Test
-    fun the_currency_note_counts_currencies_and_never_trips() {
-        // The word the number modifies is the whole defect: `currency_count` is
-        // `count(DISTINCT currency)`, and nothing in the read surface knows how many TRIPS
-        // are excluded. A sentence that names trips is a specific small number an agent
-        // will believe without checking.
-        for (others in 1..5) {
-            val note = currencyNote("EUR", others)
-            // The number must never be the count a trip noun hangs off.
-            assertTrue("$others trip" !in note, "counts trips: $note")
-            assertTrue(note.startsWith("EUR only."), "wrong dominant: $note")
-        }
-        assertTrue(currencyNote("USD", 1).contains("1 other currency "))
-        assertTrue(currencyNote("USD", 2).contains("2 other currencies "))
     }
 
     @Test

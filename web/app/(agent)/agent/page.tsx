@@ -193,10 +193,6 @@ export default async function AgentWorklistPage() {
         ))}
       </div>
 
-      {worklist.currencyNote && (
-        <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">{worklist.currencyNote}</p>
-      )}
-
       <Section
         title={AGENT_COPY.proposalsTitle}
         count={worklist.proposalsAwaiting.length}

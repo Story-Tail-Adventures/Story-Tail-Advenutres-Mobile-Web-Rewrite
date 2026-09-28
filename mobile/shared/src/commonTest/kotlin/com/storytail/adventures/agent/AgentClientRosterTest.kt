@@ -5,7 +5,6 @@ import com.storytail.adventures.api.ClientRosterSummary
 import com.storytail.adventures.api.RosterClient
 import com.storytail.adventures.domain.agent.AGENT_BAR_DESTINATIONS
 import com.storytail.adventures.domain.agent.ClientCopy
-import com.storytail.adventures.domain.agent.rosterCurrencyNote
 import com.storytail.adventures.domain.agent.rosterSubtitle
 import com.storytail.adventures.ui.screens.agent.clientRosterUiState
 import com.storytail.adventures.ui.screens.agent.monthYear
@@ -39,7 +38,6 @@ class AgentClientRosterTest {
         phone: String? = "+1-555-0142",
         lifetimeCents: Long? = 1_976_500,
         currency: String? = "USD",
-        currencyCount: Int = 1,
         lastTitle: String? = "Beaches Turks & Caicos",
         lastEnd: String? = "2025-01-13",
         nextTitle: String? = "Anniversary Week in Negril",
@@ -56,7 +54,6 @@ class AgentClientRosterTest {
         archived = false,
         lifetimeValueCents = lifetimeCents,
         lifetimeCurrency = currency,
-        lifetimeCurrencyCount = currencyCount,
         tripCount = 5,
         lastTripTitle = lastTitle,
         lastTripEndDate = lastEnd,
@@ -148,9 +145,8 @@ class AgentClientRosterTest {
     fun aClientWithNothingCommittedGetsNoFigureRatherThanZero() {
         // The accessor returns a NULL currency for exactly that case. A labelled $0 claims
         // they have spent nothing, where the truth is that nothing has been booked yet.
-        val row = rosterRowUi(client(lifetimeCents = null, currency = null, currencyCount = 0), ::money)
+        val row = rosterRowUi(client(lifetimeCents = null, currency = null), ::money)
         assertNull(row.lifetimeLabel)
-        assertFalse(row.lifetimeExcludesACurrency)
     }
 
     @Test
@@ -160,10 +156,9 @@ class AgentClientRosterTest {
     }
 
     @Test
-    fun aRowThatExcludedACurrencyIsMarked() {
-        val row = rosterRowUi(client(currencyCount = 2), ::money)
+    fun aCommittedFigureIsLabelledWithItsCurrency() {
+        val row = rosterRowUi(client(), ::money)
         assertEquals("USD 1976500", row.lifetimeLabel)
-        assertTrue(row.lifetimeExcludesACurrency)
     }
 
     // ── The row's second line ────────────────────────────────────────────────
@@ -187,13 +182,6 @@ class AgentClientRosterTest {
         assertEquals("27 active · 5 in motion.", rosterSubtitle(27, 5, 0))
     }
 
-    @Test
-    fun theCurrencyNoteFiresOnlyWhenARowActuallyLeftOneOut() {
-        assertNull(rosterCurrencyNote(0))
-        assertEquals(ClientCopy.CURRENCY_NOTE_ONE, rosterCurrencyNote(1))
-        assertTrue(rosterCurrencyNote(3)!!.startsWith("3 clients"))
-    }
-
     // ── The whole state ──────────────────────────────────────────────────────
 
     private fun snapshot(rows: List<RosterClient>, total: Int) = ClientRosterSnapshot(
@@ -213,12 +201,8 @@ class AgentClientRosterTest {
 
     @Test
     fun theStateCarriesTheHeaderAndTheNoteTogether() {
-        val ui = clientRosterUiState(
-            snapshot(listOf(client(currencyCount = 2), client()), total = 2),
-            ::money,
-        )
+        val ui = clientRosterUiState(snapshot(listOf(client(), client()), total = 2), ::money)
         assertEquals("27 active · 5 in motion · 1 lead to qualify.", ui.subtitle)
-        assertEquals(ClientCopy.CURRENCY_NOTE_ONE, ui.currencyNote)
         assertEquals(2, ui.archivedCount)
     }
 
@@ -227,7 +211,6 @@ class AgentClientRosterTest {
         val ui = clientRosterUiState(snapshot(emptyList(), total = 0), ::money)
         assertEquals(emptyList(), ui.rows)
         assertEquals(0, ui.total)
-        assertNull(ui.currencyNote)
     }
 
     // ── The status chips ─────────────────────────────────────────────────────

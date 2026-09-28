@@ -31,7 +31,6 @@ function row(over: Partial<ClientRosterRow> = {}): ClientRosterRow {
     tags: ["vip"],
     archived: false,
     lifetimeLabel: "$12,400",
-    lifetimeCurrencyCount: 1,
     tripCount: 3,
     lastTripLabel: "Mar 2026",
     nextTripLabel: "Nov 2026",

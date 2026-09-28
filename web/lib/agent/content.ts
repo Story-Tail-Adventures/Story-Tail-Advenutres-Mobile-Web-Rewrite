@@ -72,27 +72,12 @@ export const AGENT_COPY = {
   // Data-Model §8.8: the figure accumulates forward. An empty tile says why rather than
   // showing a zero-day average, which would be a claim where an absence is the truth.
   cycleTimeUnavailable: "Not enough history yet — this fills in as trips move to Booked.",
-  // `others` IS A COUNT OF CURRENCIES, NOT OF TRIPS. It comes from `currency_count - 1`,
-  // and the old sentence ("3 trips are priced in another currency") claimed a trip count
-  // the caller has never held — three other currencies could be thirty trips. Say what the
-  // number actually is.
-  currencyNote: (dominant: string, others: number) =>
-    `${dominant} only. Trips priced in ${others} other ${others === 1 ? "currency" : "currencies"} are not counted here.`,
-
   // ── Pipeline ────────────────────────────────────────────────────────────
   pipelineTitle: "Pipeline",
   pipelineSub: "Move a trip with the stage menu. Totals are summed live.",
   pipelineEmptyColumn: "Nothing here.",
   cancelledNote: (n: number) =>
     `${n} cancelled ${n === 1 ? "trip is" : "trips are"} not on the board. Cancelled is a status, not a stage.`,
-  // What one COLUMN total left out, and it counts TRIPS — where `currencyNote`, which sits
-  // above the whole board, counts CURRENCIES. Two numbers of different kinds on one screen
-  // is why this one names its unit and stays to five words: the page-level sentence has
-  // already explained the rule, so this only has to say how much of this column is missing
-  // from this figure. It lived as a literal inside pipeline/page.tsx, where neither the
-  // parity script nor `content.test.ts` could see it.
-  excludedNote: (n: number) =>
-    `+${n} ${n === 1 ? "trip in another currency" : "trips in other currencies"}`,
   stageMenuLabel: "Move stage",
   // THE 409 FALLBACK, and the only thing it is for. A conflict normally arrives with the
   // Edge Function's own sentence in `detail` and that sentence is preferred — it is written
@@ -242,10 +227,6 @@ export const CLIENT_COPY = {
   noTrip: "—",
   noLifetime: "—",
   travellingNow: "Now",
-
-  // The money note §3.2's rule requires wherever one figure stands for several currencies.
-  currencyNoteOne:
-    "One client banks in more than one currency. Their lifetime figure covers their most-used one.",
 
   // ── Empty states. The prototype draws none, so all of these are written here. ──
   emptyTitle: "No clients yet",
@@ -512,8 +493,6 @@ export const TRIP_COPY = {
   noDestination: "—",
 
   pipelinePrefix: "Pipeline",
-  currencyNote:
-    "More than one currency is in motion. The pipeline figure covers your most-used one.",
 
   emptyTitle: "No trips yet",
   emptyBody: "The first one arrives when you build it, or when a quote request comes in.",

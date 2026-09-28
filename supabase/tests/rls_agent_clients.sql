@@ -152,7 +152,7 @@ SELECT pg_temp.assert(
     'the summary counts agree with the table for both statuses it reports');
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 3. Money: derived, and scoped to one currency
+-- 3. Money: derived, and USD
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- The cache is NOT the source. Jordan's seeded client.lifetime_value_cents is a stale
@@ -165,33 +165,42 @@ SELECT pg_temp.assert(
     <> (SELECT jordan_cached_ltv FROM expected),
     'lifetime value is derived from committed trips, not read from the unmaintained cache');
 
--- The two-currency client, asserted against figures read off the seed BY HAND rather than
+-- The three-trip client, asserted against figures read off the seed BY HAND rather than
 -- recomputed with the accessor's own expression. A fixture derived from the implementation
 -- agrees with the implementation whatever either one does, which is how a money bug ships
--- green. Priya's committed trips are EUR 812,000 (Lisbon, completed), USD 1,140,000 (Kyoto,
--- booked) and USD 690,000 (Amalfi, completed): two USD rows to one EUR, so USD dominates,
--- and the sum it names is 1,140,000 + 690,000.
+-- green. Priya's committed trips are 812,000 (Lisbon, completed), 1,140,000 (Kyoto, booked)
+-- and 690,000 (Amalfi, completed). All three sum, because all three are USD and there is no
+-- longer a dominant-currency filter throwing one of them away.
+SELECT pg_temp.assert(
+    (SELECT lifetime_value_cents
+       FROM public.agent_client_roster(NULL, NULL, 'Raghunathan', 10, 0)) = '2642000',
+    'lifetime value sums every committed trip: 812,000 + 1,140,000 + 690,000');
+
 SELECT pg_temp.assert(
     (SELECT lifetime_currency FROM public.agent_client_roster(NULL, NULL, 'Raghunathan', 10, 0))
         = 'USD',
-    'the dominant currency is the one with the most committed trips, not the largest total');
+    'the figure names the currency it is denominated in');
 
+-- THE SHAPE THAT REPLACED THE DOMINANT-CURRENCY PICK, and the reason it is not just a
+-- deletion. `lifetime_currency` is now NULL unless the committed set has exactly ONE
+-- currency in it, so if trip_currency_usd is ever lifted the label goes blank rather than
+-- naming one currency of a mixture. A most-used pick degraded to WRONG; this degrades to
+-- UNKNOWN. Asserted from the catalog because the constraint makes the runtime case
+-- unreachable — which is exactly why the expression would otherwise rot unnoticed.
 SELECT pg_temp.assert(
-    (SELECT lifetime_currency_count
-       FROM public.agent_client_roster(NULL, NULL, 'Raghunathan', 10, 0)) = 2,
-    'a client with trips in two currencies reports currency_count = 2');
-
-SELECT pg_temp.assert(
-    (SELECT lifetime_value_cents
-       FROM public.agent_client_roster(NULL, NULL, 'Raghunathan', 10, 0)) = '1830000',
-    'the sum is the USD trips alone — the EUR 812,000 is excluded, not converted or added');
+    pg_get_functiondef(
+        'public.agent_client_roster(client_status[], text[], text, integer, integer)'::regprocedure
+    ) LIKE '%count(DISTINCT ct.currency) = 1%',
+    'the roster still refuses to label a multi-currency sum, should the constraint ever go');
 
 -- A client with nothing committed reports NULL currency, not a confident zero in a currency
--- they have never transacted in.
+-- they have never transacted in. This signal predates the currency rule and outlives it: it
+-- is what makes the Lifetime cell a dash rather than "$0.00".
 SELECT pg_temp.assert(
     (SELECT lifetime_currency IS NULL AND lifetime_value_cents = '0'
        FROM public.agent_client_roster(NULL, NULL, 'eli.park@example.com', 10, 0)),
     'a client with no committed trips has a NULL currency rather than a labelled $0');
+
 
 -- A cancelled trip is money that never moved, and it must not reach either trip column
 -- either: Dana's row has to read exactly like a client with no trips at all.

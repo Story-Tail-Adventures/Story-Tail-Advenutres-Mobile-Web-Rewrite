@@ -63,27 +63,12 @@ function Tags({ tags }: { tags: string[] }) {
  * The money cell. A dash, never "$0.00": the accessor returns a NULL currency for a client
  * with nothing committed, and a labelled zero would claim they have spent nothing where the
  * truth is that nothing has been booked yet.
- *
- * `lifetimeCurrencyCount > 1` gets a marker, because that row's figure covers one currency
- * out of several and the number alone would read as a total.
  */
 function Lifetime({ row }: { row: ClientRosterRow }) {
   if (!row.lifetimeLabel) {
     return <span className="text-[var(--md-on-surface-variant)]">{CLIENT_COPY.noLifetime}</span>;
   }
-  return (
-    <span className="font-mono font-bold">
-      {row.lifetimeLabel}
-      {row.lifetimeCurrencyCount > 1 && (
-        <sup
-          className="ml-0.5 font-sans text-[10px] font-semibold text-[var(--md-on-surface-variant)]"
-          title={`Covers this client's most-used currency of ${row.lifetimeCurrencyCount}.`}
-        >
-          *
-        </sup>
-      )}
-    </span>
-  );
+  return <span className="font-mono font-bold">{row.lifetimeLabel}</span>;
 }
 
 function NextTrip({ row }: { row: ClientRosterRow }) {

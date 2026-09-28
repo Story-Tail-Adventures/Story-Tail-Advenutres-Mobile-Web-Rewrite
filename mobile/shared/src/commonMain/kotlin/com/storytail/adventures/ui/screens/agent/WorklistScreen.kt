@@ -146,15 +146,6 @@ private fun WorklistBody(ui: WorklistUiState) {
     Spacer(Modifier.height(14.dp))
     KpiRail(ui)
 
-    if (ui.currencyNote != null) {
-        Text(
-            text = ui.currencyNote,
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
-
     Section(AgentCopy.PROPOSALS_TITLE, ui.snapshot.awaitingResponse.size, AgentCopy.PROPOSALS_EMPTY, AgentCopy.TRIP_DETAIL_DEFERRED) {
         ui.snapshot.awaitingResponse.forEachIndexed { i, trip -> TripRow(trip, first = i == 0) }
     }

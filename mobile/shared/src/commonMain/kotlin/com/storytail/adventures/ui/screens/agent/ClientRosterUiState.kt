@@ -3,7 +3,6 @@ package com.storytail.adventures.ui.screens.agent
 import com.storytail.adventures.api.ClientRosterSnapshot
 import com.storytail.adventures.api.RosterClient
 import com.storytail.adventures.domain.agent.ClientCopy
-import com.storytail.adventures.domain.agent.rosterCurrencyNote
 import com.storytail.adventures.domain.agent.rosterSubtitle
 
 /**
@@ -26,8 +25,6 @@ data class ClientRosterUiState(
     val total: Int,
     /** True while the list is a prefix of the book and "Load more" has somewhere to go. */
     val hasMore: Boolean,
-    /** Non-null when at least one row's money figure excluded a currency. */
-    val currencyNote: String?,
     val archivedCount: Int,
 )
 
@@ -40,8 +37,6 @@ data class RosterRowUi(
     val tags: List<String>,
     /** Null for a client with nothing committed — the screen shows a dash, not "$0.00". */
     val lifetimeLabel: String?,
-    /** True when this row's figure covers one currency out of several. */
-    val lifetimeExcludesACurrency: Boolean,
     /** The one trip line a phone row has room for. Null when there is no trip at all. */
     val tripLine: String?,
     val travellingNow: Boolean,
@@ -103,7 +98,6 @@ fun rosterRowUi(client: RosterClient, money: (Long, String) -> String): RosterRo
     // claim they have spent nothing, where the truth is that nothing has been booked yet.
     lifetimeLabel = client.lifetimeCurrency
         ?.let { currency -> client.lifetimeValueCents?.takeIf { it > 0L }?.let { money(it, currency) } },
-    lifetimeExcludesACurrency = client.lifetimeCurrencyCount > 1,
     tripLine = rosterTripLine(client),
     travellingNow = client.nextTripStatus == "in_progress",
 )
@@ -122,7 +116,6 @@ fun clientRosterUiState(
         rows = rows,
         total = snapshot.total,
         hasMore = rows.size < snapshot.total,
-        currencyNote = rosterCurrencyNote(rows.count { it.lifetimeExcludesACurrency }),
         archivedCount = snapshot.summary.archivedCount,
     )
 }

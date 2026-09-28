@@ -37,7 +37,6 @@ const BASE_ROW = {
   tags: ["anniversary"],
   lifetime_value_cents: "1976500",
   lifetime_currency: "USD",
-  lifetime_currency_count: 1,
   trip_count: 5,
   last_trip_title: "Beaches Turks & Caicos",
   last_trip_end_date: "2024-01-13",
@@ -173,26 +172,11 @@ describe("loadClientRoster", () => {
         last_name: "Park",
         lifetime_value_cents: "0",
         lifetime_currency: null,
-        lifetime_currency_count: 0,
       },
     ]);
     const roster = await loadClientRoster(QUERY);
     expect(roster?.rows[0]?.lifetimeLabel).toContain("19,765");
     expect(roster?.rows[1]?.lifetimeLabel).toBeNull();
-  });
-
-  it("raises the currency note only when a row actually left a currency out", async () => {
-    arrange([BASE_ROW]);
-    expect((await loadClientRoster(QUERY))?.currencyNote).toBeNull();
-
-    arrange([{ ...BASE_ROW, lifetime_currency_count: 2 }]);
-    expect((await loadClientRoster(QUERY))?.currencyNote).toMatch(/one client/i);
-
-    arrange([
-      { ...BASE_ROW, lifetime_currency_count: 2 },
-      { ...BASE_ROW, client_id: "c3", lifetime_currency_count: 3 },
-    ]);
-    expect((await loadClientRoster(QUERY))?.currencyNote).toMatch(/^2 clients/);
   });
 
   it("says 'Now' for a client who is travelling, instead of a date that has passed", async () => {

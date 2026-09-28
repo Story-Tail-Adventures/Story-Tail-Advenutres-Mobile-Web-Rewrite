@@ -29,14 +29,11 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Stat({ label, value, marked }: { label: string; value: string; marked?: boolean }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="card p-2.5">
       <div className="t-label text-[var(--md-on-surface-variant)]">{label}</div>
-      <div className="t-title-s mt-0.5">
-        {value}
-        {marked && <sup className="ml-0.5 text-[10px] font-semibold">*</sup>}
-      </div>
+      <div className="t-title-s mt-0.5">{value}</div>
     </div>
   );
 }
@@ -173,7 +170,6 @@ export function ClientOverviewTab({
           <Stat
             label={CLIENT_COPY.statLifetime}
             value={client.lifetimeLabel ?? CLIENT_COPY.noLifetime}
-            marked={client.lifetimeCurrencyCount > 1}
           />
           <Stat
             label={CLIENT_COPY.statTrips}
@@ -186,20 +182,12 @@ export function ClientOverviewTab({
           <Stat
             label={CLIENT_COPY.statCommission}
             value={client.commissionLabel ?? CLIENT_COPY.noLifetime}
-            marked={client.lifetimeCurrencyCount > 1}
           />
           <Stat
             label={CLIENT_COPY.statLastContact}
             value={client.lastContactLabel ?? "—"}
           />
         </div>
-
-        {client.lifetimeCurrencyCount > 1 && (
-          <p className="t-body-s m-0 text-[var(--md-on-surface-variant)]">
-            <span aria-hidden>* </span>
-            {CLIENT_COPY.currencyNoteOne}
-          </p>
-        )}
 
         <section className="card p-3.5">
           <h2 className="t-title-s m-0">{CLIENT_COPY.householdTitle}</h2>

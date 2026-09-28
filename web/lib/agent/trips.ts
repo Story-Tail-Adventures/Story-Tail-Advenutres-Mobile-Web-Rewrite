@@ -5,7 +5,6 @@ import {
 } from "@/lib/agent/api";
 import { agentIdentity, cents, money, relativeDay } from "@/lib/agent/queries";
 import { tripStatusPresentation, type StatusChip, type TripStatus } from "@/lib/trips/status";
-import { TRIP_COPY } from "@/lib/agent/content";
 import type { TripQuery, TripStatusFilter } from "@/lib/agent/tripStatuses";
 
 /**
@@ -57,7 +56,6 @@ export type TripRoster = {
   counts: Record<TripStatusFilter, number>;
   total: number;
   pipelineLabel: string | null;
-  currencyNote: string | null;
   page: number;
   pageCount: number;
   pageSize: number;
@@ -168,9 +166,6 @@ export async function loadTripRoster(query: TripQuery): Promise<TripRoster | nul
     pipelineLabel: summary && cents(summary.pipeline_cents) > 0
       ? money(summary.pipeline_cents, summary.pipeline_currency)
       : null,
-    // §3.2's rule: one figure, one currency, and the screen says what it left out rather
-    // than letting the number imply a total.
-    currencyNote: (summary?.currency_count ?? 0) > 1 ? TRIP_COPY.currencyNote : null,
     page: query.page,
     pageCount: Math.max(1, Math.ceil(total / TRIP_PAGE_SIZE)),
     pageSize: TRIP_PAGE_SIZE,

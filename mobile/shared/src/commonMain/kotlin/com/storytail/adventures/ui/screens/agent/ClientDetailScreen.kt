@@ -266,14 +266,6 @@ private fun OverviewTab(ui: ClientDetailUiState) {
                 Text(value, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
             }
         }
-        ui.currencyNote?.takeIf { ui.moneyExcludesACurrency }?.let {
-            Text(
-                "* $it",
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
     }
 
     SectionCard(ClientCopy.HOUSEHOLD_TITLE) {

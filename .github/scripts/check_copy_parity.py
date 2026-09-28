@@ -35,10 +35,12 @@ AGENT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adv
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
     {
-        # §3.2's copy. The web side's greeting line, currency note and cancelled note are
-        # FUNCTIONS — each takes a count and pluralises — and web_messages skips anything
-        # that is not a string literal, so those three are covered by the paired unit tests
-        # (web/lib/agent/content.test.ts) rather than here.
+        # §3.2's copy. The web side's greeting line and cancelled note are FUNCTIONS —
+        # each takes a count and pluralises — and web_messages skips anything that is not a
+        # string literal, so those two are covered by the paired unit tests
+        # (web/lib/agent/content.test.ts) rather than here. There were three until
+        # 20260930100000; the currency note went with §3.2's multi-currency rule, which
+        # Story-Tail's USD-only constraint made unreachable.
         #
         # The web module carries more than this: the pipeline and calendar strings belong to
         # screens §6.6 keeps web-only at MVP, so they have no KMP twin to compare against.
@@ -110,7 +112,6 @@ MESSAGE_TABLES = [
             "noTrip": "NO_TRIP",
             "noLifetime": "NO_LIFETIME",
             "travellingNow": "TRAVELLING_NOW",
-            "currencyNoteOne": "CURRENCY_NOTE_ONE",
             "emptyTitle": "EMPTY_TITLE",
             "emptyBody": "EMPTY_BODY",
             "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",

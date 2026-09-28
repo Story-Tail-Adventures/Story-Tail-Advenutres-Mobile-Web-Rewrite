@@ -50,8 +50,7 @@ import { PIPELINE_STAGES, loadCalendar, loadPipeline, loadWorklist, localDate } 
 const KPI: AgentKpiRow = {
   agent_id: "0195a2c0-1a00-7000-8000-000000000001",
   as_of_date: "2026-09-21",
-  dominant_currency: "USD",
-  currency_count: 1,
+  currency: "USD",
   pipeline_value_cents: "1250000",
   booked_month_cents: "748000",
   commission_expected_cents: "94000",
@@ -222,96 +221,61 @@ describe("a failed read is not an empty book", () => {
   });
 
   it("returns a populated object with empty sections for an empty book", async () => {
-    reads({ agent_kpis: [kpi({ active_trip_count: 0, new_inquiry_count: 0, currency_count: 0, dominant_currency: null })] });
+    reads({ agent_kpis: [kpi({ active_trip_count: 0, new_inquiry_count: 0, currency: null })] });
 
     const worklist = await loadWorklist();
     expect(worklist).not.toBeNull();
     expect(worklist?.proposalsAwaiting).toEqual([]);
     expect(worklist?.departingSoon).toEqual([]);
     expect(worklist?.needsYouCount).toBe(0);
-    expect(worklist?.currencyNote).toBeNull();
   });
 });
 
-// ── C2: a column total never mixes currencies ─────────────────────────────────
+// ── C2: a column total sums its whole column ─────────────────────────────────
+//
+// This block used to assert that a total never MIXED currencies: each column summed only
+// the cards in the agent's most-used currency and reported how many it set aside. Since
+// 20260930100000 `trip_currency_usd` means every card is USD, so there is nothing to set
+// aside and `excludedCount` is gone. What is still worth pinning is that the total covers
+// the whole column and that the five stages come back in order.
 
 describe("pipeline column totals", () => {
-  it("sums only the cards in the dominant currency and counts what it left out", async () => {
+  it("sums every card in the column", async () => {
     reads({
-      agent_kpis: [kpi({ dominant_currency: "USD", currency_count: 2 })],
+      agent_kpis: [kpi()],
       agent_trip_board: [
-        trip({ trip_id: "t-usd", status: "proposal", currency: "USD", total_value_cents: "1000000" }),
-        trip({ trip_id: "t-eur", status: "proposal", currency: "EUR", total_value_cents: "4000000" }),
+        trip({ trip_id: "a", status: "proposal", total_value_cents: "1000000" }),
+        trip({ trip_id: "b", status: "proposal", total_value_cents: "4000000" }),
       ],
     });
 
     const proposal = (await loadPipeline())?.columns.find((c) => c.status === "proposal");
-
-    // $10,000, not the $50,000 a mixed sum would print.
-    expect(proposal?.totalLabel).toBe("$10,000");
-    expect(proposal?.excludedCount).toBe(1);
-    // The card count is a count of cards, not money, so it still counts both.
+    expect(proposal?.totalLabel).toBe("$50,000");
     expect(proposal?.count).toBe(2);
     expect(proposal?.cards).toHaveLength(2);
   });
 
-  it("excludes nothing and says so when the column is single-currency", async () => {
+  it("labels the total with the currency the accessor reported", async () => {
+    // Not hard-coded to USD in the view model: `k.currency` is what the accessor said its
+    // figures are denominated in, and the label follows it. A NULL there means the book
+    // reached no money figure, and `money()` renders that as USD rather than throwing.
+    reads({
+      agent_kpis: [kpi({ currency: null })],
+      agent_trip_board: [trip({ trip_id: "a", status: "booked", total_value_cents: "300000" })],
+    });
+    const booked = (await loadPipeline())?.columns.find((c) => c.status === "booked");
+    expect(booked?.totalLabel).toBe("$3,000");
+  });
+
+  it("gives the five stages in order, each with its own cards", async () => {
+    // A BOARD WITH CARDS IN IT. Against an empty board a per-column assertion passes for
+    // essentially any expression put there, so every stage gets a card and the totals are
+    // real answers rather than zeros that agree by accident.
     reads({
       agent_kpis: [kpi()],
-      agent_trip_board: [
-        trip({ trip_id: "a", status: "booked", total_value_cents: "300000" }),
-        trip({ trip_id: "b", status: "booked", total_value_cents: "200000" }),
-      ],
-    });
-
-    const booked = (await loadPipeline())?.columns.find((c) => c.status === "booked");
-    expect(booked?.totalLabel).toBe("$5,000");
-    expect(booked?.excludedCount).toBe(0);
-  });
-
-  it("follows the dominant currency rather than assuming USD", async () => {
-    reads({
-      agent_kpis: [kpi({ dominant_currency: "EUR", currency_count: 2 })],
-      agent_trip_board: [
-        trip({ trip_id: "t-eur", status: "completed", currency: "EUR", total_value_cents: "4000000" }),
-        trip({ trip_id: "t-usd", status: "completed", currency: "USD", total_value_cents: "1000000" }),
-      ],
-    });
-
-    const completed = (await loadPipeline())?.columns.find((c) => c.status === "completed");
-
-    // THE FIGURE IS RIGHT AND THE SYMBOL IS WRONG, and this asserts BOTH so the wrong one
-    // is recorded rather than hidden. C2 scoped the total to the dominant currency, so the
-    // amount is the euro card's 40,000 and not a 50,000 mixed sum. But `formatTripMoney`
-    // narrows any code outside `KNOWN = ["USD"]` to USD (web/lib/trips/money.ts), so a
-    // EUR-dominant column labels 40,000 EUR with a dollar sign and warns once per call —
-    // which the `console.warn` stub in `beforeEach` swallows. Per-card `valueLabel` has the
-    // same problem independently.
-    //
-    // A `toContain("40,000")` here would keep passing after money.ts widens its union and
-    // the symbol becomes "€", so the gap would close with nothing to notice. Asserted
-    // exactly instead: WHEN `Currency` GROWS PAST USD THIS TEST GOES RED, and the expected
-    // string is what changes. That is the intended signal, not a regression.
-    expect(completed?.totalLabel).toBe("$40,000");
-    expect(completed?.excludedCount).toBe(1);
-  });
-
-  it("gives every column an excludedCount, and the five stages in order", async () => {
-    // A BOARD WITH CARDS IN IT. Against an empty board `cards.length - counted.length` is 0
-    // for essentially any expression put there — `counted.length - cards.length`, a
-    // hardcoded `0`, `cards.length * 0` all passed — so the loop asserted nothing. Every
-    // stage gets one dominant-currency card and `proposal` gets a second in EUR, which
-    // makes the zeros a real answer and gives the one non-zero something to be different
-    // from. FAILS IF: queries.ts's `cards.length - counted.length` swaps its operands —
-    // proposal reads -1, and every other column still reads 0.
-    reads({
-      agent_kpis: [kpi({ dominant_currency: "USD", currency_count: 2 })],
-      agent_trip_board: [
-        ...PIPELINE_STAGES.map((s) =>
-          trip({ trip_id: `usd-${s.status}`, status: s.status, currency: "USD" }),
-        ),
-        trip({ trip_id: "eur-proposal", status: "proposal", currency: "EUR" }),
-      ],
+      agent_trip_board: PIPELINE_STAGES.map((st) =>
+        trip({ trip_id: `t-${st.status}`, status: st.status, total_value_cents: "100000" }),
+      ),
     });
     const pipeline = await loadPipeline();
 
@@ -322,9 +286,14 @@ describe("pipeline column totals", () => {
       "in_progress",
       "completed",
     ]);
-    expect(pipeline?.columns.map((c) => c.excludedCount)).toEqual([0, 1, 0, 0, 0]);
-    // Every column has a card, so none of those zeros came from an empty list.
     expect(pipeline?.columns.every((c) => c.cards.length > 0)).toBe(true);
+    expect(pipeline?.columns.map((c) => c.totalLabel)).toEqual([
+      "$1,000",
+      "$1,000",
+      "$1,000",
+      "$1,000",
+      "$1,000",
+    ]);
   });
 
   it("keeps cancelled off the board and counted beneath it", async () => {
@@ -447,36 +416,6 @@ describe("cancelled trips", () => {
   });
 });
 
-// ── C4: the currency note counts currencies ───────────────────────────────────
-
-describe("the currency note", () => {
-  it("is absent when there is only one currency", async () => {
-    reads({ agent_kpis: [kpi({ currency_count: 1 })] });
-    expect((await loadWorklist())?.currencyNote).toBeNull();
-    expect((await loadPipeline())?.currencyNote).toBeNull();
-  });
-
-  it("says one OTHER currency, singular, when currency_count is 2", async () => {
-    reads({ agent_kpis: [kpi({ currency_count: 2, dominant_currency: "USD" })] });
-    const expected = "USD only. Trips priced in 1 other currency are not counted here.";
-    expect((await loadWorklist())?.currencyNote).toBe(expected);
-    expect((await loadPipeline())?.currencyNote).toBe(expected);
-  });
-
-  it("pluralises past that, and never claims a count of trips", async () => {
-    reads({ agent_kpis: [kpi({ currency_count: 4, dominant_currency: "EUR" })] });
-    const note = (await loadWorklist())?.currencyNote;
-    expect(note).toBe("EUR only. Trips priced in 3 other currencies are not counted here.");
-    expect(note).not.toMatch(/\btrips? (is|are)\b/);
-  });
-
-  it("is the same sentence both screens use", async () => {
-    reads({ agent_kpis: [kpi({ currency_count: 3, dominant_currency: "USD" })] });
-    expect((await loadWorklist())?.currencyNote).toBe(AGENT_COPY.currencyNote("USD", 2));
-    expect((await loadPipeline())?.currencyNote).toBe(AGENT_COPY.currencyNote("USD", 2));
-  });
-});
-
 // ── F28: an instant is bucketed in the agent's zone, not UTC ──────────────────
 
 describe("recent-message dates", () => {
@@ -583,7 +522,7 @@ describe("the KPI strip tells an absence from a zero", () => {
   });
 
   it("formats money against USD when there is no dominant currency to name", async () => {
-    reads({ agent_kpis: [kpi({ dominant_currency: null, pipeline_value_cents: "1250000" })] });
+    reads({ agent_kpis: [kpi({ currency: null, pipeline_value_cents: "1250000" })] });
     const pipeline = (await loadWorklist())?.kpis.find((t) => t.id === "pipeline");
 
     expect(pipeline?.value).toBe("$12,500");
@@ -595,7 +534,7 @@ describe("the KPI strip tells an absence from a zero", () => {
 describe("the view models are plain data", () => {
   it("survives a JSON round trip, with no function, Date, Map or undefined anywhere", async () => {
     reads({
-      agent_kpis: [kpi({ currency_count: 2, commission_confidence_pct: null, inquiry_to_book_days: null })],
+      agent_kpis: [kpi({ commission_confidence_pct: null, inquiry_to_book_days: null })],
       agent_trip_board: [
         trip({ trip_id: "p", status: "proposal", proposal_sent_at: "2026-09-10T12:00:00+00:00", start_date: "2026-09-29", end_date: "2026-10-03" }),
         trip({ trip_id: "i", status: "inquiry" }),
