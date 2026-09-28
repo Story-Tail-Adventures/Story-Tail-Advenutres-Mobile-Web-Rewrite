@@ -4,7 +4,6 @@ import com.storytail.adventures.api.ClientDetailSnapshot
 import com.storytail.adventures.api.ClientNoteRow
 import com.storytail.adventures.api.ClientTripRow
 import com.storytail.adventures.domain.agent.ClientCopy
-import com.storytail.adventures.domain.agent.rosterCurrencyNote
 
 /**
  * Everything Screens 3.3.2 – 3.3.8 render on a phone, already derived.
@@ -35,9 +34,6 @@ data class ClientDetailUiState(
     val preferenceNotes: List<String>,
     val snapshotNote: String?,
     val stats: List<Pair<String, String>>,
-    /** True when a money figure on this screen covers one currency out of several. */
-    val moneyExcludesACurrency: Boolean,
-    val currencyNote: String?,
     val household: List<HouseholdUi>,
     val trips: List<ClientTripUi>,
     val threads: List<ClientThreadUi>,
@@ -264,8 +260,6 @@ fun clientDetailUiState(
         preferenceNotes = listOfNotNull(o.dietaryNote, o.accessibilityNote),
         snapshotNote = o.snapshotNote,
         stats = stats,
-        moneyExcludesACurrency = o.lifetimeCurrencyCount > 1,
-        currencyNote = rosterCurrencyNote(if (o.lifetimeCurrencyCount > 1) 1 else 0),
         household = snapshot.companions.map { c ->
             HouseholdUi(
                 companionId = c.companionId,

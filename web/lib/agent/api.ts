@@ -74,8 +74,8 @@ export type AgentReadResult<T> =
 export type AgentKpiRow = {
   agent_id: string;
   as_of_date: string;
-  dominant_currency: string | null;
-  currency_count: number;
+  /** NULL when the book reaches no money figure at all; 'USD' otherwise. */
+  currency: string | null;
   pipeline_value_cents: string;
   booked_month_cents: string;
   commission_expected_cents: string;
@@ -340,7 +340,6 @@ export type AgentTripSummaryRow = {
   total_count: number;
   pipeline_cents: string;
   pipeline_currency: string | null;
-  currency_count: number;
 };
 
 export type AgentClientRosterRow = {
@@ -354,7 +353,6 @@ export type AgentClientRosterRow = {
   tags: string[] | null;
   lifetime_value_cents: string;
   lifetime_currency: string | null;
-  lifetime_currency_count: number;
   trip_count: number;
   last_trip_title: string | null;
   last_trip_end_date: string | null;
@@ -428,7 +426,6 @@ export type AgentClientOverviewRow = {
   favorite_past_trips: string | null;
   lifetime_value_cents: string;
   lifetime_currency: string | null;
-  lifetime_currency_count: number;
   commission_cents: string;
   trip_count: number;
   active_trip_count: number;

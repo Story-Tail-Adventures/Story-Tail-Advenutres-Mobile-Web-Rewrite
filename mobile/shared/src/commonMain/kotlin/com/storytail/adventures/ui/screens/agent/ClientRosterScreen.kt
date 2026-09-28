@@ -207,17 +207,6 @@ private fun RosterBody(
         ui.rows.forEach { row -> RosterRow(row, onOpenClient) }
     }
 
-    // The note §3.2's currency rule requires: one figure names one currency, and where it
-    // left others out the screen says so rather than letting a number imply a total.
-    ui.currencyNote?.let { note ->
-        Text(
-            text = "* $note",
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 10.dp),
-        )
-    }
-
     if (ui.hasMore) {
         OutlinedButton(
             onClick = onLoadMore,
@@ -290,8 +279,7 @@ private fun RosterRow(row: RosterRowUi, onOpenClient: (String) -> Unit) {
             }
 
             Text(
-                text = row.lifetimeLabel?.let { if (row.lifetimeExcludesACurrency) "$it*" else it }
-                    ?: ClientCopy.NO_LIFETIME,
+                text = row.lifetimeLabel ?: ClientCopy.NO_LIFETIME,
                 style = type.labelXS,
                 color = scheme.onSurfaceVariant,
             )

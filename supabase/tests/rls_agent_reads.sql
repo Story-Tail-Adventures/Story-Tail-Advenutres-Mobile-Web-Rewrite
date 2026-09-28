@@ -558,13 +558,15 @@ SELECT pg_temp.assert(
     (SELECT coalesce(sum(total_value_cents), 0) FROM expected_booked_month),
     'and the written rows left no residue — the tile is back to the seeded book exactly');
 
--- (c) Every money figure honours `dominant_currency`. The first version scoped only
--- pipeline_value_cents and left three summing across everything under the same label, which
--- is worse than scoping none of them.
+-- (c) The money figures name the currency they are in. The original defect here was that
+-- three of the four columns summed across every currency under a label only the fourth
+-- honoured; the answer then was to scope all four to a dominant currency. Since
+-- 20260930100000 the answer is upstream of the accessor — `trip_currency_usd` means there
+-- is only one currency to be in — so what is left to assert is that the label is still
+-- derived from the rows summed rather than hard-coded, and that it is right.
 SELECT pg_temp.assert(
-    (SELECT currency_count FROM public.agent_kpis()) = 1,
-    'the seed is single-currency, so the scoped and unscoped totals cannot diverge here — '
-    'the cross-currency case is asserted below, where a second currency exists');
+    (SELECT currency FROM public.agent_kpis()) = 'USD',
+    'the KPI strip names the currency its figures are denominated in');
 
 -- (d) A commission row carries its own agent_id and nothing requires it to match the trip's.
 SELECT pg_temp.assert(
@@ -836,160 +838,44 @@ RESET ROLE;
 
 DELETE FROM public.commission WHERE id = '01a0b1c2-d300-7000-8000-0000000000f6';
 
--- ── Cross-currency, where a second currency actually exists ──────────────────────
+-- ── Cross-currency: REMOVED 2026-09-28, and why ─────────────────────────────────
 --
--- The seed is single-currency, so Gyasi's totals cannot show the difference between scoping
--- every money column and scoping none. Giving the second agent a EUR trip alongside their USD
--- one makes `dominant_currency` mean something, and asserts that the label and the figures
--- agree — which is the defect the audit found: three of four columns summed across everything
--- under a label only the fourth honoured.
-
-INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status,
-                         total_value_cents, currency)
-VALUES ('0195a2c0-1a00-7000-8000-0000000000e6',
-        '0195a2c0-1a00-7000-8000-0000000000e4',
-        '0195a2c0-1a00-7000-8000-0000000000e2',
-        'A trip priced in euros', 'custom', 'proposal', 4000000, 'EUR');
-
-SELECT pg_temp.become('0195a2c0-1a00-7000-8000-0000000000e3'::uuid);
-SELECT pg_temp.assert(
-    (SELECT currency_count FROM public.agent_kpis()) = 2,
-    'currency_count reports both currencies');
-SELECT pg_temp.assert(
-    (SELECT dominant_currency FROM public.agent_kpis()) = 'EUR',
-    'one trip each is a tie, broken alphabetically — EUR, deterministically, so the tile does '
-    'not change which currency it means between two reads of the same book');
-SELECT pg_temp.assert(
-    (SELECT pipeline_value_cents::bigint FROM public.agent_kpis()) = 4000000,
-    'and the total is the EUR trip ALONE — 4,999,999 would be euros and dollars added together');
-RESET ROLE;
-
--- Again with the majority the other way, so the assertion is about the scoping rather than
--- about which code happens to sort first.
-INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status,
-                         total_value_cents, currency)
-VALUES ('0195a2c0-1a00-7000-8000-0000000000e7',
-        '0195a2c0-1a00-7000-8000-0000000000e4',
-        '0195a2c0-1a00-7000-8000-0000000000e2',
-        'A second dollar trip', 'custom', 'proposal', 250000, 'USD');
-
-SELECT pg_temp.become('0195a2c0-1a00-7000-8000-0000000000e3'::uuid);
-SELECT pg_temp.assert(
-    (SELECT dominant_currency FROM public.agent_kpis()) = 'USD',
-    'two dollar trips against one euro trip makes USD dominant on count, not on spelling');
-SELECT pg_temp.assert(
-    (SELECT pipeline_value_cents::bigint FROM public.agent_kpis()) = 1249999,
-    'and the total is the two dollar trips, with the larger euro one excluded — '
-    'under-reporting with currency_count naming the exclusion, never a mixed sum');
-RESET ROLE;
-
--- ── The currency base is not the open book ───────────────────────────────────────
+-- Three fixture blocks lived here (a EUR proposal trip, two completed EUR trips plus a EUR
+-- commission row, and four cancelled GBP trips) and roughly twenty assertions about which
+-- currency `agent_kpis()` picked, what `currency_count` reported, and that a money figure
+-- under-reported with the exclusion named rather than summing across currencies.
 --
--- Both fixtures above move the dominant currency by changing the OPEN book, so they pass
--- whatever set `cur` is derived from and neither can tell one base from another. That is why
--- widening the base could ship green: Gyasi's seeded book is USD in every status, and this
--- advisor's three trips are all `proposal`, so the open book and the trips that feed a tile
--- were the same set everywhere in this file.
+-- All of it went with 20260930100000. Story-Tail quotes in USD and operates in North America
+-- only (Gyasi, 2026-09-27), so `trip_currency_usd` now makes a non-USD trip impossible to
+-- store and these fixtures could not be inserted: the INSERTs themselves would fail the
+-- CHECK. The rule they tested was correct for a business that had two currencies, and it
+-- guarded a case this one cannot have.
 --
--- Here they cannot be. Two EUR trips booked AND completed inside this month: closed, so they
--- hold no pipeline and no commission, and still summed by "Booked · month" — which is the
--- whole reason the base cannot be `open_trip`. EUR is now the most-used currency among the
--- trips that feed a figure, 3 to 2, while USD is still the majority of the open book, 2 to 1.
+-- WHAT SURVIVES INSTEAD. Deleting the assertions would leave nothing watching the boundary,
+-- so two things take their place and they are deliberately of different kinds:
 --
--- Revert `cur` and `currency_count` to `FROM open_trip` and every assertion below flips:
--- dominant USD, pipeline 1,249,999, booked_month 0 — no USD trip of theirs was booked this
--- month — and both commission figures 0, because the only commission row sits on the EUR
--- trip. That is the shape the tile showed when an advisor's last open trip completed.
---
--- `changed_at` is now() and `created_at` two days back: the transition is inside the
--- agent-local month on every calendar date and never precedes the trip it describes, which
--- is the anchoring trap documented at the booked-month fixtures above.
-INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status,
-                         total_value_cents, currency, created_at)
-VALUES
-    ('0195a2c0-1a00-7000-8000-0000000000e8',
-     '0195a2c0-1a00-7000-8000-0000000000e4',
-     '0195a2c0-1a00-7000-8000-0000000000e2',
-     'Euros, booked and travelled this month', 'custom', 'completed',
-     3000000, 'EUR', now() - interval '2 days'),
-    ('0195a2c0-1a00-7000-8000-0000000000e9',
-     '0195a2c0-1a00-7000-8000-0000000000e4',
-     '0195a2c0-1a00-7000-8000-0000000000e2',
-     'A second euro trip, already home', 'custom', 'completed',
-     1500000, 'EUR', now() - interval '2 days');
+--   * `constraints_trip_totals.sql` section 3 asserts the CHECK actually refuses a EUR trip,
+--     as the table owner and against a seeded row. That is the runtime half.
+--   * the catalog assertion below asserts the accessor still refuses to LABEL a sum it
+--     cannot vouch for. That is the half a constraint cannot cover, because if the
+--     constraint is ever lifted it is the accessor that decides whether the screen gets a
+--     wrong answer or an honest blank.
 
-INSERT INTO public.trip_status_history (id, trip_id, from_status, to_status, changed_at)
-VALUES ('01a0b1c2-d300-7000-8000-0000000000fa',
-        '0195a2c0-1a00-7000-8000-0000000000e8', 'proposal', 'booked', now()),
-       ('01a0b1c2-d300-7000-8000-0000000000fb',
-        '0195a2c0-1a00-7000-8000-0000000000e9', 'proposal', 'booked', now());
-
--- A commission on the OPEN euro trip, so the forecast has something to be scoped wrongly.
--- Without it both commission columns are 0 under every base and half the strip proves
--- nothing.
-INSERT INTO public.commission (
-    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
-    expected_commission_cents, payment_terms, status
-) VALUES (
-    '01a0b1c2-d300-7000-8000-0000000000fc',
-    '0195a2c0-1a00-7000-8000-0000000000e6',
-    '0195a2c0-1a00-7000-8000-0000000000e2',
-    '0195a2c0-1a00-7000-8000-000000000030',
-    5000000, 12.00, 600000, '60 days after travel', 'expected');
-
-SELECT pg_temp.become('0195a2c0-1a00-7000-8000-0000000000e3'::uuid);
 SELECT pg_temp.assert(
-    (SELECT dominant_currency FROM public.agent_kpis()) = 'EUR'
-      AND (SELECT currency_count FROM public.agent_kpis()) = 2,
-    'the label follows the trips that feed a figure, not the open book — two euro trips '
-    'booked and completed this month outvote two open dollar ones');
+    pg_get_functiondef('public.agent_kpis()'::regprocedure)
+        LIKE '%count(DISTINCT t.currency) = 1%',
+    'agent_kpis() still returns a NULL currency rather than naming one currency of a '
+    'mixture, so lifting trip_currency_usd degrades the label to unknown, never to wrong');
 
--- The half that matters most, and the one a currency assertion alone does not make: a label
--- is only worth having if the numbers under it are real. Every figure here is non-zero and
--- in euros — the open EUR trip, the two EUR bookings, and the EUR commission at proposal
--- weight. A base that names a currency the money columns cannot fill reports 0 under a label
--- that says otherwise, and the exclusion note then names an exclusion that never happened.
+-- And the vocabulary is gone rather than merely unused, which is what stops the next reader
+-- reviving it by autocomplete. `currency_count` reaching a caller again would put a note
+-- about an impossible exclusion back on three screens.
 SELECT pg_temp.assert(
-    (SELECT pipeline_value_cents::bigint       FROM public.agent_kpis()) = 4000000
-      AND (SELECT booked_month_cents::bigint        FROM public.agent_kpis()) = 4500000
-      AND (SELECT commission_expected_cents::bigint FROM public.agent_kpis()) = 600000
-      AND (SELECT commission_weighted_cents::bigint FROM public.agent_kpis()) = 300000
-      AND (SELECT commission_confidence_pct        FROM public.agent_kpis()) = 50,
-    'and every money figure is a real number in the currency the label names — 4,000,000 '
-    'open, 4,500,000 booked this month, 600,000 of commission at proposal weight, no 0s');
-RESET ROLE;
+    pg_get_function_result('public.agent_kpis()'::regprocedure) NOT LIKE '%currency_count%'
+      AND pg_get_function_result('public.agent_kpis()'::regprocedure)
+            NOT LIKE '%dominant_currency%',
+    'agent_kpis() names neither currency_count nor dominant_currency');
 
--- ── Nor is it the whole book ─────────────────────────────────────────────────────
---
--- The mirror of the fixture above, and the reason the base is the trips that feed a figure
--- rather than every trip the advisor owns. Four cancelled GBP trips are now the largest group
--- in this book and reach no figure on the strip: not open, so no pipeline and no commission;
--- no booking this month, so nothing in "Booked · month". A base of the whole book hands them
--- the label anyway, and the tiles they cannot fill read 0 beside an untouched "3 active
--- trips" — a wrong number presented as a fact, under an exclusion note counting a currency
--- that was never in any of these sums to be excluded from.
---
--- Change `FROM money_trip` to `FROM book_trip` in the `cur` CTE and this assertion is the
--- only one in the suite that notices: dominant GBP, currency_count 3, pipeline 0, both
--- commission figures 0 and commission_confidence_pct NULL. The fixture above stays green
--- under that same edit, because EUR leads the whole book too.
-INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status,
-                         total_value_cents, currency)
-SELECT ('01a0b1c2-d300-7000-8000-4' || lpad(g::text, 11, '0'))::uuid,
-       '0195a2c0-1a00-7000-8000-0000000000e4',
-       '0195a2c0-1a00-7000-8000-0000000000e2',
-       'Cancelled, priced in pounds #' || g, 'custom', 'cancelled', 800000, 'GBP'
-  FROM generate_series(1, 4) AS g;
-
-SELECT pg_temp.become('0195a2c0-1a00-7000-8000-0000000000e3'::uuid);
-SELECT pg_temp.assert(
-    (SELECT dominant_currency FROM public.agent_kpis()) = 'EUR'
-      AND (SELECT currency_count FROM public.agent_kpis()) = 2
-      AND (SELECT pipeline_value_cents::bigint FROM public.agent_kpis()) = 4000000
-      AND (SELECT active_trip_count FROM public.agent_kpis()) = 3,
-    'four cancelled pound trips get no vote — a currency no figure on the strip could have '
-    'included cannot take the label, and cannot turn a live pipeline into a 0');
-RESET ROLE;
 
 -- ── A book bigger than any page ──────────────────────────────────────────────────
 --
@@ -1041,12 +927,12 @@ DELETE FROM public.trip
    AND title LIKE 'A book of many trips #%';
 DROP TABLE expected_bulk;
 
--- WHAT THE THREE FIXTURES ABOVE LEAVE BEHIND, stated rather than left to be rediscovered.
--- The generated trips are gone. The second advisor keeps the two completed EUR trips, the
--- four cancelled GBP ones and the EUR commission row, so an assertion added below reads a
--- book of nine trips in three currencies rather than the three it had earlier in this file.
--- Nothing of GYASI's moved: every row written since his last assertion belongs to `…e2`,
--- which is the property that lets these sit at the end without an ordering rule.
+-- WHAT THE FIXTURES ABOVE LEAVE BEHIND, stated rather than left to be rediscovered.
+-- The 201 generated trips are gone, and so are the EUR and GBP fixtures that used to sit
+-- here (see the cross-currency note above). The second advisor's book is back to what the
+-- earlier sections describe. Nothing of GYASI's moved: every row written since his last
+-- assertion belongs to `…e2`, which is the property that lets these sit at the end without
+-- an ordering rule.
 --
 -- ── The posture itself ───────────────────────────────────────────────────────────
 

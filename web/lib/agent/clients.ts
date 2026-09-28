@@ -37,8 +37,6 @@ export type ClientRosterRow = {
   archived: boolean;
   /** Already formatted, or null when there is nothing committed to report. */
   lifetimeLabel: string | null;
-  /** How many currencies this row's figure left out. 0 or 1 means it left out none. */
-  lifetimeCurrencyCount: number;
   tripCount: number;
   lastTripLabel: string | null;
   nextTripLabel: string | null;
@@ -67,8 +65,6 @@ export type ClientRoster = {
     archived: number;
   };
   facets: TagFacet[];
-  /** Set when at least one row's money figure excluded a currency. Null when none did. */
-  currencyNote: string | null;
   query: RosterQuery;
 };
 
@@ -206,7 +202,6 @@ export async function loadClientRoster(
       r.lifetime_currency === null || cents(r.lifetime_value_cents) === 0
         ? null
         : money(r.lifetime_value_cents, r.lifetime_currency),
-    lifetimeCurrencyCount: r.lifetime_currency_count,
     tripCount: r.trip_count,
     lastTripLabel: tripLabel(r.last_trip_title, r.last_trip_end_date),
     nextTripLabel:
@@ -216,16 +211,6 @@ export async function loadClientRoster(
     nextTripIsNow: r.next_trip_status === "in_progress",
     lastContactLabel: contactLabel(r.last_contact_at, asOf),
   }));
-
-  // The note §3.2 settled the rule for: a money figure names one currency, and where it left
-  // others out the screen says so rather than letting one column imply a total it is not.
-  const multi = rows.filter((r) => r.lifetimeCurrencyCount > 1).length;
-  const currencyNote =
-    multi > 0
-      ? multi === 1
-        ? "One client banks in more than one currency. Their lifetime figure covers their most-used one."
-        : `${multi} clients bank in more than one currency. Each lifetime figure covers that client's most-used one.`
-      : null;
 
   const selected = new Set(query.tags);
   const facets: TagFacet[] = (summaryRow?.tag_facets ?? []).map((f) => ({
@@ -247,7 +232,6 @@ export async function loadClientRoster(
       archived: summaryRow?.archived_count ?? 0,
     },
     facets,
-    currencyNote,
     query,
   };
 }

@@ -144,13 +144,22 @@ SELECT pg_temp.assert(
        FROM public.agent_client_overview((SELECT belle FROM fix))),
     'preferences and the dietary note both reach the Overview tab');
 
--- Priya's two currencies, asserted with the figure read off the seed BY HAND rather than
--- recomputed with the accessor's own expression — see rls_agent_clients.sql for why.
+-- Priya's three committed trips, asserted with the figures read off the seed BY HAND rather
+-- than recomputed with the accessor's own expression — see rls_agent_clients.sql for why.
+-- Value: 812,000 + 1,140,000 + 690,000. Commission: 97,440 + 136,800 + 82,800.
 SELECT pg_temp.assert(
-    (SELECT lifetime_currency = 'USD' AND lifetime_currency_count = 2
-        AND lifetime_value_cents = '1830000'
+    (SELECT lifetime_currency = 'USD'
+        AND lifetime_value_cents = '2642000'
+        AND commission_cents     = '317040'
        FROM public.agent_client_overview((SELECT priya FROM fix))),
-    'the overview scopes money to one currency per client, exactly as the roster does');
+    'the overview derives money over the same committed set the roster does');
+
+-- The dash signal, on the detail side too. Eli has no committed trip, so the currency is
+-- NULL and 3.3.2's Lifetime and Commission stats both read as a dash rather than $0.00.
+SELECT pg_temp.assert(
+    (SELECT lifetime_currency IS NULL AND lifetime_value_cents = '0'
+       FROM public.agent_client_overview('0195a2c0-1a00-7000-8000-000000000100'::uuid)),
+    'a client with nothing committed gets a NULL currency, not a labelled zero');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 4. The tabs that hang off trips

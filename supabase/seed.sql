@@ -1180,8 +1180,10 @@ INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, 
     ('0195a2c0-1a00-7000-8000-000000000101', '0195a2c0-1a00-7000-8000-000000000001',
      'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active', 0),
 
-    -- Two currencies on committed trips: lifetime_currency_count = 2, and the roster must
-    -- name the one it summed instead of adding USD to EUR.
+    -- Three committed trips spanning past and future, so this row is the one that drives
+    -- BOTH the roster's "Last trip" and "Next trip" columns at once, and the only lifetime
+    -- figure that sums more than two trips. (Until 20260930100000 it existed to make
+    -- lifetime_currency_count = 2; Story-Tail is USD only, so that case is now impossible.)
     ('0195a2c0-1a00-7000-8000-000000000102', '0195a2c0-1a00-7000-8000-000000000001',
      'Priya', 'Raghunathan', 'Pri', 'priya.r@example.com', '+1-555-0191',
      ARRAY['vip','multi-destination'], 'active', 0),
@@ -1233,7 +1235,7 @@ INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status, star
     ('0195a2c0-1a00-7000-8000-000000000111', '0195a2c0-1a00-7000-8000-000000000102',
      '0195a2c0-1a00-7000-8000-000000000001', 'Lisbon & the Douro Valley', 'multi_destination',
      'completed', current_date - 400, current_date - 388,
-     ARRAY['Lisbon, Portugal','Porto, Portugal'], 2, 812000, 812000, 97440, 'EUR'),
+     ARRAY['Lisbon, Portugal','Porto, Portugal'], 2, 812000, 812000, 97440, 'USD'),
 
     ('0195a2c0-1a00-7000-8000-000000000112', '0195a2c0-1a00-7000-8000-000000000102',
      '0195a2c0-1a00-7000-8000-000000000001', 'Kyoto in the spring', 'multi_destination', 'booked',

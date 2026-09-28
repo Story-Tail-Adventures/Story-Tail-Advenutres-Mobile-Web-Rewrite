@@ -39,7 +39,6 @@ class AgentClientDetailTest {
         lifetime: Long? = 2_480_000,
         commission: Long? = 297_600,
         currency: String? = "USD",
-        currencyCount: Int = 1,
         trips: Int = 1,
         activeTrips: Int = 1,
         notes: Int = 3,
@@ -70,7 +69,6 @@ class AgentClientDetailTest {
         lifetimeValueCents = lifetime,
         commissionCents = commission,
         lifetimeCurrency = currency,
-        lifetimeCurrencyCount = currencyCount,
         tripCount = trips,
         activeTripCount = activeTrips,
         noteCount = notes,
@@ -215,21 +213,12 @@ class AgentClientDetailTest {
     @Test
     fun a_client_with_nothing_committed_gets_a_dash_rather_than_zero() {
         val ui = clientDetailUiState(
-            snapshot(overview(lifetime = null, commission = null, currency = null, currencyCount = 0)),
+            snapshot(overview(lifetime = null, commission = null, currency = null)),
             ::money,
         )
         val stats = ui.stats.toMap()
         assertEquals(ClientCopy.NO_LIFETIME, stats[ClientCopy.STAT_LIFETIME])
         assertEquals(ClientCopy.NO_LIFETIME, stats[ClientCopy.STAT_COMMISSION])
-        assertFalse(ui.moneyExcludesACurrency)
-        assertNull(ui.currencyNote)
-    }
-
-    @Test
-    fun a_row_that_excluded_a_currency_says_so() {
-        val ui = clientDetailUiState(snapshot(overview(currencyCount = 2)), ::money)
-        assertTrue(ui.moneyExcludesACurrency)
-        assertEquals(ClientCopy.CURRENCY_NOTE_ONE, ui.currencyNote)
     }
 
     @Test

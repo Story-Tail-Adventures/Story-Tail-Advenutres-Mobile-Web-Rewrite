@@ -66,7 +66,6 @@ export type ClientOverview = {
 
   lifetimeLabel: string | null;
   commissionLabel: string | null;
-  lifetimeCurrencyCount: number;
   tripCount: number;
   activeTripCount: number;
   noteCount: number;
@@ -281,7 +280,6 @@ export async function loadClientOverview(clientId: string): Promise<ClientOvervi
         r.lifetime_currency === null || cents(r.commission_cents) === 0
           ? null
           : money(r.commission_cents, r.lifetime_currency),
-      lifetimeCurrencyCount: r.lifetime_currency_count,
       tripCount: r.trip_count,
       activeTripCount: r.active_trip_count,
       noteCount: r.note_count,

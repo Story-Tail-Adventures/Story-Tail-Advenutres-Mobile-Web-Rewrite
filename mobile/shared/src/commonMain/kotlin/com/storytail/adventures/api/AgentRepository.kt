@@ -134,7 +134,6 @@ data class ClientOverviewRow(
     val lifetimeValueCents: Long?,
     val commissionCents: Long?,
     val lifetimeCurrency: String?,
-    val lifetimeCurrencyCount: Int,
     val tripCount: Int,
     val activeTripCount: Int,
     val noteCount: Int,
@@ -235,8 +234,6 @@ data class RosterClient(
     /** Null when nothing is committed — NOT zero. A labelled $0 is a claim, not an absence. */
     val lifetimeValueCents: Long?,
     val lifetimeCurrency: String?,
-    /** More than one means this row's figure excluded a currency, and the screen must say so. */
-    val lifetimeCurrencyCount: Int,
     val tripCount: Int,
     val lastTripTitle: String?,
     val lastTripEndDate: String?,
@@ -297,8 +294,6 @@ data class WorklistKpis(
     val newInquiries: Int,
     val unreadMessages: Int,
     val currency: String,
-    /** More than one means the money figures exclude something, and the screen must say so. */
-    val currencyCount: Int,
 )
 
 data class WorklistTrip(
@@ -580,8 +575,7 @@ private fun String?.cents(): Long = this?.toLongOrNull() ?: 0L
 @Serializable
 private data class KpiDto(
     val as_of_date: String = "",
-    val dominant_currency: String? = null,
-    val currency_count: Int = 0,
+    val currency: String? = null,
     val pipeline_value_cents: String? = null,
     val booked_month_cents: String? = null,
     val commission_expected_cents: String? = null,
@@ -604,8 +598,7 @@ private data class KpiDto(
         activeTrips = active_trip_count,
         newInquiries = new_inquiry_count,
         unreadMessages = unread_message_count,
-        currency = dominant_currency ?: "USD",
-        currencyCount = currency_count,
+        currency = currency ?: "USD",
     )
 }
 
@@ -682,7 +675,6 @@ private data class RosterDto(
     val tags: List<String>? = null,
     val lifetime_value_cents: String? = null,
     val lifetime_currency: String? = null,
-    val lifetime_currency_count: Int = 0,
     val trip_count: Int = 0,
     val last_trip_title: String? = null,
     val last_trip_end_date: String? = null,
@@ -711,7 +703,6 @@ private data class RosterDto(
         // rather than folded to 0 so the screen can show a dash instead of "$0.00".
         lifetimeValueCents = if (lifetime_currency == null) null else lifetime_value_cents.cents(),
         lifetimeCurrency = lifetime_currency,
-        lifetimeCurrencyCount = lifetime_currency_count,
         tripCount = trip_count,
         lastTripTitle = last_trip_title,
         lastTripEndDate = last_trip_end_date,
@@ -772,7 +763,6 @@ private data class OverviewDto(
     val budget_band: String? = null,
     val lifetime_value_cents: String? = null,
     val lifetime_currency: String? = null,
-    val lifetime_currency_count: Int = 0,
     val commission_cents: String? = null,
     val trip_count: Int = 0,
     val active_trip_count: Int = 0,
@@ -814,7 +804,6 @@ private data class OverviewDto(
         lifetimeValueCents = if (lifetime_currency == null) null else lifetime_value_cents.cents(),
         commissionCents = if (lifetime_currency == null) null else commission_cents.cents(),
         lifetimeCurrency = lifetime_currency,
-        lifetimeCurrencyCount = lifetime_currency_count,
         tripCount = trip_count,
         activeTripCount = active_trip_count,
         noteCount = note_count,

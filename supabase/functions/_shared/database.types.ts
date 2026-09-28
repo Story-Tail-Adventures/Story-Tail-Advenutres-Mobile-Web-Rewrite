@@ -3258,7 +3258,6 @@ export type Database = {
           last_contact_at: string
           last_name: string
           lifetime_currency: string
-          lifetime_currency_count: number
           lifetime_value_cents: string
           loyalty_programs: Json
           note_count: number
@@ -3294,7 +3293,6 @@ export type Database = {
           last_trip_end_date: string
           last_trip_title: string
           lifetime_currency: string
-          lifetime_currency_count: number
           lifetime_value_cents: string
           next_trip_destinations: string[]
           next_trip_start_date: string
@@ -3421,8 +3419,7 @@ export type Database = {
           commission_confidence_pct: number
           commission_expected_cents: string
           commission_weighted_cents: string
-          currency_count: number
-          dominant_currency: string
+          currency: string
           inquiry_to_book_days: number
           inquiry_to_book_sample: number
           new_inquiry_count: number
@@ -3742,7 +3739,6 @@ export type Database = {
           booked_count: number
           cancelled_count: number
           completed_count: number
-          currency_count: number
           in_progress_count: number
           inquiry_count: number
           pipeline_cents: string

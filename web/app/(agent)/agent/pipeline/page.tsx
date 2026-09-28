@@ -69,32 +69,6 @@ function stageChipTone(status: string): string {
   }).chip;
 }
 
-/**
- * What a column total left out.
- *
- * A total must not add two currencies together, so each column sums only the cards priced
- * in the agent's dominant currency and reports how many it set aside. Naming the excluded
- * cards is the whole point — a quiet total that is short by one trip is worse than a total
- * with a footnote.
- *
- * TODO(copy): call `AGENT_COPY.excludedNote(count)` and delete this function. The sentence
- * is user-facing, and web/lib/agent/content.ts opens by claiming "every user-facing string
- * on the agent surface" — its two siblings of exactly this shape, `currencyNote(dominant,
- * others)` and `cancelledNote(n)`, both live there and are pinned by content.test.ts,
- * precisely because check_copy_parity.py skips non-literal entries. A count-pluralising
- * string written HERE is invisible to the copy module and to the gate alike. The key does
- * not exist in AGENT_COPY as this is written and content.ts belongs to another change; the
- * wording wants to get SHORTER on the way in, because `pipeline.currencyNote` renders a few
- * lines above and says the same thing with a different number — a count of CURRENCIES there
- * ("Trips priced in 2 other currencies are not counted here") against a count of TRIPS here
- * ("3 trips priced in other currencies are not in this total"), stacked on one screen.
- */
-function excludedNote(count: number): string {
-  return count === 1
-    ? "1 trip priced in another currency is not in this total."
-    : `${count} trips priced in other currencies are not in this total.`;
-}
-
 export default async function AgentPipelinePage({
   searchParams,
 }: {
@@ -119,12 +93,6 @@ export default async function AgentPipelinePage({
           {AGENT_COPY.pipelineSub}
         </p>
       </header>
-
-      {pipeline.currencyNote && (
-        <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-          {pipeline.currencyNote}
-        </p>
-      )}
 
       {/* §4.4's stage-picker. Phone only — above `md` every column is on screen, so a
           picker would be a control that selects what you can already see. The count rides
@@ -157,11 +125,6 @@ export default async function AgentPipelinePage({
                   {col.totalLabel}
                 </span>
               </p>
-              {col.excludedCount > 0 && (
-                <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-                  {excludedNote(col.excludedCount)}
-                </p>
-              )}
             </header>
 
             {col.cards.length === 0 ? (

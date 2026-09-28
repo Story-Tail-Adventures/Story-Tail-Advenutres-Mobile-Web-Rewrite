@@ -141,6 +141,24 @@ SELECT pg_temp.assert(
 -- business has. The guard exists anyway because summing across currencies needs an FX rate
 -- that is nowhere in this schema, and silently dropping the odd one out would make the
 -- headline total omit a cost the advisor entered.
+--
+-- TWO SEPARATE GUARDS, and the order they fire in is the point. `trip_currency_usd`
+-- (20260930100000) pins the PARENT to USD; the trigger below pins a CHILD to its parent.
+-- Both assertions live here, and they are deliberately not merged: the constraint is on
+-- `trip`, so a component insert never reaches it, which is what keeps the trigger test
+-- honest rather than passing against a CHECK it was never about. Both run as the table
+-- OWNER, because the accessors' own migration ran its CHECK against an empty table (db reset
+-- applies migrations first and seeds afterwards) and so proved nothing about a real row.
+DO $usd$
+BEGIN
+    UPDATE public.trip SET currency = 'EUR'
+     WHERE id = '0195a2c0-1a00-7000-8000-000000000040';
+    RAISE EXCEPTION 'FAILED: a EUR trip should have been refused by trip_currency_usd';
+EXCEPTION
+    WHEN check_violation THEN
+        RAISE NOTICE '  ok    trip_currency_usd refuses a non-USD trip';
+END $usd$;
+
 DO $cur$
 BEGIN
     INSERT INTO public.trip_component

@@ -77,6 +77,8 @@ Direct payment processing where the client is charged by Story-Tail Adventures (
 
 We assume the advisor remains hosted by Inteletravel and that Inteletravel continues to be the booking entity of record. We assume clients will continue to receive supplier-facing invoices and confirmations directly from the supplier when applicable, and that Story-Tail's role is curation, advisory, and concierge support. We assume initial scale is one advisor with a backlog of approximately 50–150 active clients and 20–40 active trips at any time, growing 2–3x over the first 18 months.
 
+**Currency: USD only, North America only.** Recorded 2026-09-28 on Gyasi's statement: *"I only deal in US Currency I can't operate out of North America. All prices I give will be in USD."* A supplier who quotes in another currency is converted when the advisor enters the cost, so the figure the client is presented is always USD. This is a business constraint rather than a technical one, and it is written here rather than only in the Screen Inventory because it is the reason a whole reporting mechanism was removed: §3.2 had built per-figure currency scoping with an excluded-currency count, and this constraint makes that case unreachable. `trip.currency` is enforced as `'USD'` at the database level. Money is still stored as cents plus an explicit currency code, and the cruise catalog is still genuinely multi-currency — that is the external provider's pricing, not Story-Tail's. **If this ever changes, the scoping must come back before the constraint comes off**, or every agent-facing total silently becomes a sum across currencies.
+
 ---
 
 ## 5. User Roles & Personas

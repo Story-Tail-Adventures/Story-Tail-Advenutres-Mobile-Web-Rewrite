@@ -90,11 +90,6 @@ export default async function AgentTripsPage({
         ) : (
           <>
             <TripRosterTable rows={roster.rows} />
-            {roster.currencyNote && (
-              <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-                {roster.currencyNote}
-              </p>
-            )}
           </>
         )}
       </TripBulkStatusForm>

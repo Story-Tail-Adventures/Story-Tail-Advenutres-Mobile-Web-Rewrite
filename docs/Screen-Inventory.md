@@ -1619,6 +1619,19 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > strip is the agent's most-used currency alone, with `currency_count` beside it so a screen
 > showing one number can name what it left out.
 >
+> **Amended 2026-09-28 — the rule above is WITHDRAWN, and the case it guarded made
+> impossible.** Gyasi: *"I only deal in US Currency I can't operate out of North America.
+> All prices I give will be in USD."* §7's "Currency display" open question is answered by
+> that, so migration `20260930100000` adds `CHECK (currency = 'USD')` to `trip` and the
+> accessors stopped scoping. `dominant_currency` and `currency_count` are replaced by a
+> single `currency`, and the note this paragraph describes is gone from the strip.
+>
+> The order is the point: the constraint lands FIRST and the reporting comes out behind it.
+> Deleting the scoping alone would leave one non-USD trip producing a mixed sum with nothing
+> on the screen to say so. The accessor still returns NULL rather than a currency name when
+> its rows hold more than one, so lifting the constraint degrades the label to unknown
+> rather than to wrong.
+>
 > **Amended 2026-09-23, with the phone frames drawn.**
 > `design/source-prototype/screens/agent-dashboard-mobile.jsx` records fourteen numbered
 > entries, and the doc carried only some of them. Twelve are the phone frames departing
@@ -1840,6 +1853,16 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > is chosen over the very trips the figure sums, so the label is true of that figure rather
 > than merely near it, and a client with nothing committed gets a dash rather than a
 > labelled zero.
+>
+> **Amended 2026-09-28 — the per-client scoping is WITHDRAWN with §3.2.1's, but the last
+> clause above is NOT.** Story-Tail is USD only (see §3.2.1's amendment of the same date),
+> so `lifetime_currency_count` and the asterisk it drove are gone from both the roster and
+> the Overview tab. **A client with nothing committed still gets a dash rather than a
+> labelled zero**, and that is a separate rule with a separate cause: the accessor returns
+> a NULL `lifetime_currency` for a client with no committed trip, and a labelled $0.00 would
+> claim they have spent nothing where the truth is that nothing has been booked yet. It
+> survives the removal deliberately, and `rls_agent_clients.sql` asserts it on both the
+> roster and the detail so it cannot be lost as collateral.
 >
 > **The filter chips are read from the book, and the two the prototype draws disagree with
 > each other.** The page frame draws `Active · VIP · Honeymoon · Family · Lead · Archived`;
@@ -3297,7 +3320,7 @@ These are decisions that should be settled before final design and engineering b
 
 **Multi-language support.** Many travel clients are bilingual or international. Is Spanish a Phase 1 requirement? It affects how every screen handles text expansion and locale-specific dates/currency.
 
-**Currency display.** USD-first is the default, but suppliers in the Caribbean may quote in EUR or local currency. Should the platform display original currency, convert to USD, or both?
+**Currency display.** ~~USD-first is the default, but suppliers in the Caribbean may quote in EUR or local currency. Should the platform display original currency, convert to USD, or both?~~ **ANSWERED 2026-09-28.** Gyasi: *"I only deal in US Currency I can't operate out of North America. All prices I give will be in USD."* A supplier quoting in euros is converted when the agent enters the cost; the trip's own currency is the one presented to the client, and `trip.currency` is now pinned to `'USD'` by a CHECK constraint (`20260930100000`). §3.2's multi-currency reporting machinery was removed with it — see the amendments under §3.2.1 and §3.3.1. The per-row `currency char(3)` columns stay, because money is stored as cents plus a currency code (CLAUDE.md rule 5) and the cruise catalog genuinely is multi-currency per locale.
 
 **Client app "lite" experience.** Should there be a read-only access mode for invited co-travelers who have not created accounts (e.g., a magic-link itinerary view)? This affects screens 2.8.2 and 2.8.4.
 

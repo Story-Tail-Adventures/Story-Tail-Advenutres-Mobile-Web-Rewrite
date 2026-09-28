@@ -104,15 +104,6 @@ export default async function AgentClientsPage({
         ) : (
           <>
             <ClientRosterTable rows={roster.rows} />
-            {/* The note §3.2's currency rule requires: one figure, one currency, and the
-                screen says where it left others out rather than letting a column imply a
-                total. */}
-            {roster.currencyNote && (
-              <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-                <span aria-hidden>* </span>
-                {roster.currencyNote}
-              </p>
-            )}
           </>
         )}
       </ClientBulkTagForm>
