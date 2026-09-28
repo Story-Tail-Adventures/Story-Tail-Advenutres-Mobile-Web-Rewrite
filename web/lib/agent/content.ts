@@ -152,6 +152,7 @@ export const AGENT_COPY = {
   openBuilder: "Build",
   editComponents: "Edit components",
   editSchedule: "Edit schedule",
+  editItinerary: "Write the itinerary",
   // Each names what it is waiting on, matching the *Deferred convention above — these are
   // per-action, not per-section, because §3.4.2's header offers four buttons and only one
   // (Mark booked, via the existing stage-change write) has anywhere to go yet.
@@ -841,4 +842,99 @@ export const SCHEDULE_COPY = {
   // silently sends nothing would be worse than one that says why it is off.
   remindLabel: "Remind the client",
   remindDeferred: "Sending a reminder arrives with §3.10, where agent messaging gets built.",
+} as const;
+
+/**
+ * §3.4.14 Itinerary Editor.
+ *
+ * WEB ONLY, for the reason `TRIP_COPY` gives: §3.4 has no phone artboards.
+ *
+ * THIS IS THE ONE SCREEN WHERE THE ADVISOR IS WRITING FOR THE CLIENT, so the labels name
+ * the reader. "What the client reads" rather than "Title"; "Gyasi's Tip" verbatim, because
+ * Design-System §2 makes it a named thing and not a generic callout. The auto-generate copy
+ * says what the button will and will not touch, because an advisor who has spent an hour
+ * writing needs to know that before pressing it — not after.
+ */
+export const ITINERARY_COPY = {
+  title: "Itinerary",
+  subtitle: "The trip, told day by day.",
+  backToTrip: "Back to the trip",
+
+  publishedLabel: "Published",
+  draftLabel: "Draft",
+  dayCount: "days",
+  dayCountOne: "day",
+  activityCount: "entries",
+  activityCountOne: "entry",
+
+  // ── Auto-generate ──────────────────────────────────────────────────────
+  generateLabel: "Fill in from the trip",
+  generateWorking: "Filling in…",
+  // The promise the button makes, stated before it is pressed.
+  generateHint: "Adds a day for every date and an entry for anything booked that isn't here yet. Never changes what you've already written.",
+  generatedSome: "Filled in what was missing.",
+  generatedNothing: "Already up to date — nothing to add.",
+  generateNoDates: "Give the trip a start and end date first, then this can lay out the days.",
+  generateFailed: "That didn't run. Try again in a moment.",
+
+  // ── Days ───────────────────────────────────────────────────────────────
+  addDay: "Add a day",
+  editDay: "Edit this day",
+  dayDateLabel: "Date",
+  dayLabelLabel: "What to call it",
+  dayLabelPlaceholder: "Seven Mile Beach",
+  dayLabelHint: "A few words the client sees above the day.",
+  daySummaryLabel: "Set the scene",
+  daySummaryHint: "Optional. A sentence or two about the shape of the day.",
+  dayDateRequired: "A day needs a date.",
+  dayEmpty: "Nothing on this day yet.",
+
+  // ── Activities ─────────────────────────────────────────────────────────
+  addActivity: "Add something",
+  addToDay: "Add to this day",
+  editActivity: "Edit this entry",
+  activityTitleLabel: "What the client reads",
+  activityTitlePlaceholder: "Catamaran to Booby Cay",
+  activityTitleRequired: "Give it a name — it's the line the client reads.",
+  activityBodyLabel: "Tell them about it",
+  activityBodyHint: "Optional. The part that makes it feel like a trip rather than a booking.",
+  blockLabel: "When in the day",
+  blockAuto: "Work it out from the time",
+  blockMorning: "Morning",
+  blockAfternoon: "Afternoon",
+  blockEvening: "Evening",
+  blockAllDay: "All day",
+  startsLabel: "Starts",
+  endsLabel: "Ends",
+  whereLabel: "Where",
+  addressLabel: "Address",
+  phoneLabel: "Phone",
+  confirmationLabel: "Confirmation number",
+  // Named, not "note" — Design-System §2 makes this a branded thing.
+  tipLabel: "Gyasi's Tip",
+  tipHint: "The bit only someone who's been there would know.",
+
+  fromBooking: "From a booking",
+  fromBookingHint: "This entry came from something on the trip. Editing it here doesn't change the booking.",
+
+  moveUp: "Move up",
+  moveDown: "Move down",
+  edit: "Edit",
+  remove: "Remove",
+  removeHint: "Removing an entry takes it off the itinerary. The booking it came from stays.",
+
+  save: "Save",
+  saving: "Saving…",
+  cancel: "Cancel",
+
+  emptyTitle: "Nothing written yet",
+  emptyBody: "Fill it in from the trip to get the days laid out, then make it yours.",
+
+  failed: "That didn't save. Try again in a moment.",
+  stale: "This day changed in another tab. Reload and try again.",
+  gone: "That's not on this itinerary any more. Reload and take another look.",
+
+  // §3.5.6 owns the client-facing preview and §3.5 the sending. Neither exists.
+  previewDeferred: "Previewing what the client sees arrives with §3.5.6.",
+  previewLabel: "Preview",
 } as const;

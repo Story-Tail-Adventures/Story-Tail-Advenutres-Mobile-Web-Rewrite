@@ -556,6 +556,10 @@ export type AgentFunction =
   // §3.4.3, and §3.4.4's component writes when they land.
   | "agent-trip"
   | "agent-trip-notes"
+  // §3.4.14. Its own door rather than five more ops on `agent-trip`, which already
+  // carries seven over 500 lines — the itinerary is a different entity graph reached
+  // through a different screen, the same reasoning that split `agent-trip-status` out.
+  | "agent-itinerary"
   // §3.3.7. An RPC write would let an agent POST from a browser with no audit_event,
   // which is the reason every agent write on this surface is a function.
   | "agent-client-notes"
