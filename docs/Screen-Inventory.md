@@ -2373,6 +2373,48 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Detail "Payments".
 **Related screens:** Card Use Log, Conversation Thread.
 
+> **Amended 2026-09-29, as the screen was built.**
+>
+> **`trip.total_paid_cents` had no producer, and this screen is what exposed it.**
+> Data-Model §9.5 said PaymentMilestone *"is what finally gives `trip.total_paid_cents` a
+> producer"*; five accessors read the column and nothing wrote it. 20 trips claimed
+> $81,390 of payments with no schedule behind them, and of the three that had a schedule,
+> two contradicted it — one showing a final balance marked `overdue` while the trip claimed
+> that exact amount as paid. It is also an input rather than a display figure:
+> `wallet/authorize/[tripId]` subtracts it from the trip value to show a traveler the
+> balance they are authorizing a card against. Fixed in `20260929100000`.
+>
+> **The schedule and the money are two writes, and stay apart at every layer.**
+> `agent_upsert_payment_milestone` says what the supplier expects and when;
+> `agent_set_milestone_paid` says whether the money moved, and only the second can reach
+> `total_paid_cents`. The Primary elements line reads "date, amount, paid Y/N, paid date"
+> as one row, and building it as one form would have let a label edit move the figure above.
+>
+> **"Paid Y/N" is a four-value select, not a checkbox.** `payment_milestone_status` has
+> `scheduled`, `paid`, `overdue` and `waived`, and a checkbox makes two of them unreachable.
+> `waived` is the one that matters: §9.5 says suppliers do forgive milestones, and a waived
+> one must not raise what the client has paid.
+>
+> **The schedule reads in due-date order.** `agent_trip_payments` ordered by `order_index`
+> alone, which Data-Model §9.5 calls "display order" with due_date as the tiebreak — and
+> that is backwards for dated payments. A deposit added after the final balance sorted below
+> it, and the Overview sidebar's "next unpaid" was the next INSERTED rather than the next
+> DUE. `order_index` keeps its job as the stable tiebreak.
+>
+> **"Trigger reminder" and the reminder cadence toggle are not built.** Both wait on §3.10,
+> where agent messaging gets built, and nothing in the schema can send on a client's behalf
+> yet. The control renders disabled with its reason — the call §3.4.2's "Account admin" tab
+> got, since §3.10 is a real planned section.
+>
+> **Removing a payment is a hard delete.** `payment_milestone` is not on Data-Model §20.1's
+> soft-delete list, has no `archived_at`, and nothing references it — unlike §3.4.4's
+> components, which `itinerary_activity.component_id` points at. The copy says so rather
+> than implying it can be undone, and the audit row is the only record left.
+>
+> **No "amount owing" anywhere in the copy.** BRD §10.5 prohibits client-facing billing, so
+> these rows describe what a *supplier* expects, never a bill from us. "Due" is the
+> supplier's date and "on file" is money we have a record of.
+
 #### 3.4.16 Cancel / Archive Trip
 **Purpose:** Mark a trip as cancelled, with reason and refund tracking.
 **Primary elements:** Cancellation reason; refund status; supplier-side action checklist; "Confirm cancellation" CTA.

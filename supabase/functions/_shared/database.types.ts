@@ -3374,6 +3374,13 @@ export type Database = {
           trip_id: string
         }[]
       }
+      agent_delete_payment_milestone: {
+        Args: { p_agent_id: string; p_milestone_id: string; p_trip_id: string }
+        Returns: {
+          milestone_id: string
+          outcome: string
+        }[]
+      }
       agent_inbox: {
         Args: { p_limit?: number }
         Returns: {
@@ -3447,6 +3454,20 @@ export type Database = {
         Returns: {
           outcome: string
           version: number
+        }[]
+      }
+      agent_set_milestone_paid: {
+        Args: {
+          p_agent_id: string
+          p_milestone_id: string
+          p_paid_cents?: number
+          p_status: Database["public"]["Enums"]["payment_milestone_status"]
+          p_trip_id: string
+        }
+        Returns: {
+          milestone_id: string
+          outcome: string
+          paid_cents: string
         }[]
       }
       agent_set_trip_notes: {
@@ -3652,6 +3673,7 @@ export type Database = {
           label: string
           milestone_id: string
           order_index: number
+          paid_at: string
           paid_cents: string
           status: Database["public"]["Enums"]["payment_milestone_status"]
         }[]
@@ -3741,6 +3763,21 @@ export type Database = {
           p_region: string
         }
         Returns: string
+      }
+      agent_upsert_payment_milestone: {
+        Args: {
+          p_agent_id: string
+          p_amount_cents: number
+          p_due_date?: string
+          p_kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          p_label: string
+          p_milestone_id: string
+          p_trip_id: string
+        }
+        Returns: {
+          milestone_id: string
+          outcome: string
+        }[]
       }
       agent_upsert_trip_component: {
         Args: {

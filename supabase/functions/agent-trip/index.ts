@@ -51,6 +51,13 @@ const OPS = [
   "component_upsert",
   "component_archive",
   "component_reorder",
+  // §3.4.15. `payment_paid` is separate from `payment_upsert` for the reason the migration
+  // gives: `paid_cents`, `paid_at` and `status` move together and they are the only thing
+  // that may touch `trip.total_paid_cents`, which sizes the balance a traveler is shown
+  // when they authorize a card. A label edit must not be able to reach it.
+  "payment_upsert",
+  "payment_paid",
+  "payment_delete",
 ] as const;
 type Op = (typeof OPS)[number];
 
@@ -80,6 +87,17 @@ const MAX_CONFIRMATION = 80;
  * point where the `unnest ... WITH ORDINALITY` update would be worth thinking about.
  */
 const MAX_REORDER = 500;
+
+const MILESTONE_KINDS = ["deposit", "interim", "final"] as const;
+/**
+ * All four, and `waived` is the one worth naming. Data-Model §9.5: suppliers do forgive
+ * milestones, and a waived one is not a paid one — it must not raise what the client has
+ * paid. `overdue` is stored rather than derived from `due_date < today` because an advisor
+ * has to be able to suppress it when a supplier has verbally extended a deadline.
+ */
+const MILESTONE_STATUSES = ["scheduled", "paid", "waived", "overdue"] as const;
+
+const MAX_MILESTONE_LABEL = 120;
 
 /** Postgres's SQLSTATE for a bare `RAISE EXCEPTION`. */
 const RAISE_EXCEPTION = "P0001";
@@ -324,6 +342,124 @@ Deno.serve(async (req) => {
       }
 
       return json({ outcome: result.outcome, componentId: result.component_id });
+    }
+
+    // ── 3.4.15 The payment schedule ───────────────────────────────────────
+    if (op === "payment_upsert") {
+      const kind = payload.kind;
+      if (typeof kind !== "string" || !(MILESTONE_KINDS as readonly string[]).includes(kind)) {
+        throw badRequest(`kind must be one of ${MILESTONE_KINDS.join(", ")}.`);
+      }
+
+      const milestoneId = payload.milestoneId === undefined || payload.milestoneId === null
+        ? null
+        : requireComponentId(payload.milestoneId);
+
+      const { data, error } = await db.rpc("agent_upsert_payment_milestone", {
+        p_trip_id: tripId,
+        p_agent_id: agentId,
+        p_milestone_id: milestoneId,
+        p_kind: kind,
+        p_label: str(payload.label, "Label", MAX_MILESTONE_LABEL, true) as string,
+        p_amount_cents: readCents(payload.amountCents, "Amount"),
+        p_due_date: isoDate(payload.dueDate, "Due date"),
+      } as never);
+      if (error) throw new Error(`milestone upsert failed: ${error.message}`);
+
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result) throw notFound("That trip is not on your board.");
+
+      if (result.outcome !== "noop") {
+        await writeAuditEvent(ctx, {
+          eventType: milestoneId ? "payment_milestone.updated" : "payment_milestone.created",
+          targetEntity: "payment_milestone",
+          targetId: result.milestone_id,
+          // No label — it is the client-facing sentence and can name their plans. The
+          // amount is the financially material fact an audit is for.
+          metadata: {
+            trip_id: tripId,
+            kind,
+            amount_cents: String(readCents(payload.amountCents, "Amount")),
+          },
+        });
+      }
+
+      return json({ outcome: result.outcome, milestoneId: result.milestone_id });
+    }
+
+    if (op === "payment_paid") {
+      const status = payload.status;
+      if (
+        typeof status !== "string" ||
+        !(MILESTONE_STATUSES as readonly string[]).includes(status)
+      ) {
+        throw badRequest(`status must be one of ${MILESTONE_STATUSES.join(", ")}.`);
+      }
+
+      const milestoneId = requireComponentId(payload.milestoneId);
+      // Absent means "the whole amount"; a number means a partial payment actually
+      // arrived. Zero is NOT absent — it is an advisor recording that nothing landed.
+      const paidCents = payload.paidCents === undefined || payload.paidCents === null ||
+          payload.paidCents === ""
+        ? null
+        : readCents(payload.paidCents, "Amount paid");
+
+      const { data, error } = await db.rpc("agent_set_milestone_paid", {
+        p_trip_id: tripId,
+        p_agent_id: agentId,
+        p_milestone_id: milestoneId,
+        p_status: status,
+        p_paid_cents: paidCents,
+      } as never);
+      if (error) throw new Error(`milestone paid failed: ${error.message}`);
+
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result) throw notFound("That trip is not on your board.");
+
+      if (result.outcome !== "noop") {
+        // MONEY MOVING IS THE AUDITABLE EVENT ON THIS TABLE. `trip.total_paid_cents` is
+        // recomputed by a trigger from this write, and that figure is subtracted from the
+        // trip value to show a traveler their outstanding balance — so the row recording
+        // who changed it, and to what, is the one that matters most here.
+        await writeAuditEvent(ctx, {
+          eventType: "payment_milestone.status_changed",
+          targetEntity: "payment_milestone",
+          targetId: result.milestone_id,
+          metadata: { trip_id: tripId, status, paid_cents: result.paid_cents },
+        });
+      }
+
+      return json({
+        outcome: result.outcome,
+        milestoneId: result.milestone_id,
+        paidCents: result.paid_cents,
+      });
+    }
+
+    if (op === "payment_delete") {
+      const milestoneId = requireComponentId(payload.milestoneId);
+
+      const { data, error } = await db.rpc("agent_delete_payment_milestone", {
+        p_trip_id: tripId,
+        p_agent_id: agentId,
+        p_milestone_id: milestoneId,
+      });
+      if (error) throw new Error(`milestone delete failed: ${error.message}`);
+
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result) throw notFound("That trip is not on your board.");
+
+      // A HARD DELETE, so the audit row is the only record left that it ever existed.
+      // `payment_milestone` is not on Data-Model §20.1's soft-delete list and nothing
+      // references it — but "nothing to cascade" is not the same as "nothing to remember".
+      await writeAuditEvent(ctx, {
+        eventType: "payment_milestone.deleted",
+        targetEntity: "payment_milestone",
+        targetId: result.milestone_id,
+        metadata: { trip_id: tripId },
+      });
+
+      return json({ outcome: result.outcome, milestoneId: result.milestone_id });
     }
 
     // ── 3.4.4 Reorder ─────────────────────────────────────────────────────

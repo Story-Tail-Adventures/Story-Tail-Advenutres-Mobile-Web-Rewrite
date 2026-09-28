@@ -254,6 +254,8 @@ export type AgentTripPaymentRow = {
   paid_cents: string;
   currency: string;
   due_date: string | null;
+  /** When the money actually landed. §3.4.15's editor shows it; nothing else reads it. */
+  paid_at: string | null;
   status: string;
   order_index: number;
 };

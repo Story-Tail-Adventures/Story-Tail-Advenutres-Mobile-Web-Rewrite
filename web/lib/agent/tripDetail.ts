@@ -325,9 +325,22 @@ export type TripPaymentRow = {
   amountLabel: string;
   paidLabel: string;
   dueLabel: string | null;
+  paidOnLabel: string | null;
   status: string;
   /** For the sidebar's status dot: paid is good, an unpaid/overdue row is warn. */
   dot: "good" | "warn";
+  /**
+   * The same row unformatted, for §3.4.15's editor — the arrangement
+   * `TripComponentRow.edit` already uses, and for the same reason: one accessor, one
+   * mapping, and the editor's row is one the list already returned.
+   */
+  edit: {
+    /** Digit-strings, never numbers — PostgREST loses precision on a large bigint. */
+    amountCents: string;
+    paidCents: string;
+    /** ISO `yyyy-mm-dd`, which is what `<input type="date">` wants. */
+    dueDate: string | null;
+  };
 };
 
 async function loadPayments(tripId: string): Promise<TripPaymentRow[] | null> {
@@ -343,8 +356,17 @@ async function loadPayments(tripId: string): Promise<TripPaymentRow[] | null> {
     amountLabel: money(p.amount_cents, p.currency),
     paidLabel: money(p.paid_cents, p.currency),
     dueLabel: monthDay(p.due_date),
+    // `paid_at` is a timestamptz; only the date part is ever shown. An advisor recording a
+    // payment knows the day, not the minute, and a time here would imply a precision the
+    // figure does not have.
+    paidOnLabel: monthDay(p.paid_at ? p.paid_at.slice(0, 10) : null),
     status: p.status,
     dot: p.status === "paid" ? "good" : "warn",
+    edit: {
+      amountCents: p.amount_cents,
+      paidCents: p.paid_cents,
+      dueDate: p.due_date,
+    },
   }));
 }
 
