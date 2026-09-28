@@ -3117,6 +3117,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_archive_trip_component: {
+        Args: { p_agent_id: string; p_component_id: string; p_trip_id: string }
+        Returns: {
+          component_id: string
+          outcome: string
+        }[]
+      }
       agent_availability_self: {
         Args: never
         Returns: {
@@ -3419,6 +3426,17 @@ export type Database = {
           trip_title: string
         }[]
       }
+      agent_reorder_trip_components: {
+        Args: {
+          p_agent_id: string
+          p_component_ids: string[]
+          p_trip_id: string
+        }
+        Returns: {
+          moved: number
+          outcome: string
+        }[]
+      }
       agent_set_client_archived: {
         Args: {
           p_agent_id: string
@@ -3711,6 +3729,30 @@ export type Database = {
           p_region: string
         }
         Returns: string
+      }
+      agent_upsert_trip_component: {
+        Args: {
+          p_agent_id: string
+          p_commission_cents?: number
+          p_commission_pct?: number
+          p_component_id: string
+          p_confirmation_number?: string
+          p_cost_cents?: number
+          p_display_name: string
+          p_end_date?: string
+          p_end_time?: string
+          p_kind: Database["public"]["Enums"]["component_kind"]
+          p_location?: string
+          p_payload?: Json
+          p_start_date?: string
+          p_start_time?: string
+          p_supplier_id?: string
+          p_trip_id: string
+        }
+        Returns: {
+          component_id: string
+          outcome: string
+        }[]
       }
       agent_write_client_note: {
         Args: {

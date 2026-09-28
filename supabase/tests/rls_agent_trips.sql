@@ -438,6 +438,174 @@ SELECT pg_temp.assert(
     (SELECT in_progress_count FROM public.agent_trip_roster_summary()) >= 3,
     '... and the chip count beside it agrees');
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 7. §3.4.4 / §3.4.5–§3.4.12 component writes
+-- ─────────────────────────────────────────────────────────────────────────────
+
+SELECT pg_temp.become(:gyasi::uuid);
+
+SELECT pg_temp.expect_denied(
+    $$SELECT public.agent_upsert_trip_component(
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        NULL, 'custom'::component_kind, 'x')$$,
+    'even an AGENT cannot execute agent_upsert_trip_component — service_role only');
+
+SELECT pg_temp.expect_denied(
+    $$SELECT public.agent_reorder_trip_components(
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '00000000-0000-0000-0000-000000000002'::uuid, ARRAY[]::uuid[])$$,
+    'nor agent_reorder_trip_components');
+
+RESET ROLE;
+
+\set trip40 '''0195a2c0-1a00-7000-8000-000000000040'''
+
+CREATE TEMP TABLE comp AS
+SELECT * FROM public.agent_upsert_trip_component(
+    :trip40::uuid, :agent::uuid, NULL, 'excursion'::component_kind, 'Blue Hole tour',
+    NULL, NULL, NULL, NULL, NULL, 'Ocho Rios', 'BH-77', 38000, 12.00, 4560,
+    '{"duration_hours":5}'::jsonb);
+
+SELECT pg_temp.assert((SELECT outcome FROM comp) = 'created',
+    'a component is added');
+
+-- THE TOTALS ARE NOT THIS FUNCTION'S JOB and it must not do them: the trigger is the single
+-- writer, and a second one is how the column became a fiction the first time.
+SELECT pg_temp.assert(
+    (SELECT total_value_cents FROM public.trip WHERE id = :trip40::uuid) = 1284500 + 38000,
+    '... and the trip total follows it, via the trigger rather than this function');
+
+-- AN EDIT WITH NOTHING CHANGED IS NOT A WRITE. §3.4.4 auto-saves, so a blur on a field the
+-- advisor merely tabbed through would otherwise bump updated_at and re-run the totals
+-- trigger on every keystroke's worth of nothing.
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_upsert_trip_component(
+        :trip40::uuid, :agent::uuid, (SELECT component_id FROM comp),
+        'excursion'::component_kind, 'Blue Hole tour',
+        NULL, NULL, NULL, NULL, NULL, 'Ocho Rios', 'BH-77', 38000, 12.00, 4560,
+        '{"duration_hours":5}'::jsonb)) = 'noop',
+    'an edit that changes nothing reports noop and writes nothing');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_upsert_trip_component(
+        :trip40::uuid, :agent::uuid, (SELECT component_id FROM comp),
+        'excursion'::component_kind, 'Blue Hole tour',
+        NULL, NULL, NULL, NULL, NULL, 'Ocho Rios', 'BH-77', 45000, 12.00, 5400,
+        '{"duration_hours":5}'::jsonb)) = 'updated',
+    'a real edit reports updated');
+
+SELECT pg_temp.assert(
+    (SELECT total_value_cents FROM public.trip WHERE id = :trip40::uuid) = 1284500 + 45000,
+    '... and the total re-sums rather than adding the difference twice');
+
+-- THE COMPONENT ID IS SCOPED TO THE TRIP, not just looked up. Without that an advisor could
+-- edit any component whose id they knew by naming one of their own trips.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_upsert_trip_component(
+        '0195a2c0-1a00-7000-8000-000000000044'::uuid, :agent::uuid,
+        (SELECT component_id FROM comp), 'custom'::component_kind, 'Hijack',
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, NULL, 0, '{}'::jsonb)) = 0,
+    'naming another of your own trips does not reach a component that is not on it');
+
+SELECT pg_temp.assert(
+    (SELECT display_name FROM public.trip_component
+      WHERE id = (SELECT component_id FROM comp)) = 'Blue Hole tour',
+    '... and the original is untouched');
+
+-- It also does not quietly CREATE one under the id it was handed, which is what the first
+-- draft did — straight into a primary-key violation, because `p_component_id` was doing
+-- double duty as "edit this" and "create with this".
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.trip_component
+                 WHERE trip_id = '0195a2c0-1a00-7000-8000-000000000044'::uuid
+                   AND display_name = 'Hijack'),
+    '... and nothing was created on the trip that was named');
+
+-- Another advisor's trip is silence, the same answer as "no such trip".
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_upsert_trip_component(
+        (SELECT t.id FROM public.trip t WHERE t.agent_id <> :agent::uuid LIMIT 1),
+        :agent::uuid, NULL, 'custom'::component_kind, 'Not mine',
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, NULL, 0, '{}'::jsonb)) = 0,
+    'a component cannot be added to another advisor''s trip');
+
+-- ── Archive ───────────────────────────────────────────────────────────────
+
+-- REMOVING IS AN ARCHIVE (Data-Model §20.1). A hard delete would take the itinerary
+-- activities that link through `itinerary_activity.component_id` with it, so an advisor who
+-- removed a flight would silently lose the day it was written into.
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_archive_trip_component(
+        :trip40::uuid, :agent::uuid, (SELECT component_id FROM comp))) = 'archived',
+    'a component is removed by archiving');
+
+SELECT pg_temp.assert(
+    EXISTS (SELECT 1 FROM public.trip_component
+             WHERE id = (SELECT component_id FROM comp) AND archived_at IS NOT NULL),
+    '... the row survives, soft-deleted');
+
+SELECT pg_temp.assert(
+    (SELECT total_value_cents FROM public.trip WHERE id = :trip40::uuid) = 1284500,
+    '... and its money comes back out of the trip');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_archive_trip_component(
+        :trip40::uuid, :agent::uuid, (SELECT component_id FROM comp))) = 'noop',
+    'archiving twice is a noop, not an error');
+
+-- ── Reorder ───────────────────────────────────────────────────────────────
+
+CREATE TEMP TABLE ordered AS
+SELECT c.id, c.order_index
+  FROM public.trip_component c
+ WHERE c.trip_id = :trip40::uuid AND c.archived_at IS NULL
+ ORDER BY c.order_index;
+
+SELECT pg_temp.assert((SELECT count(*) FROM ordered) = 6,
+    'the trip has its six live components to reorder');
+
+-- THE LIST MUST BE THE WHOLE LIST. A partial order leaves the omitted components holding
+-- indexes that collide with the ones it set, and the next read interleaves them in an order
+-- nobody chose. Refusing beats a silent shuffle.
+DO $partial$
+BEGIN
+    PERFORM public.agent_reorder_trip_components(
+        '0195a2c0-1a00-7000-8000-000000000040'::uuid,
+        '0195a2c0-1a00-7000-8000-000000000001'::uuid,
+        (SELECT array_agg(id) FROM (SELECT id FROM public.trip_component
+          WHERE trip_id = '0195a2c0-1a00-7000-8000-000000000040'
+            AND archived_at IS NULL LIMIT 3) q));
+    RAISE EXCEPTION 'FAILED: a partial reorder should have been refused';
+EXCEPTION
+    WHEN raise_exception THEN
+        IF SQLERRM LIKE 'FAILED:%' THEN RAISE; END IF;
+        RAISE NOTICE '  ok    a reorder naming only some components is refused';
+END $partial$;
+
+-- Reversed, in full.
+SELECT pg_temp.assert(
+    (SELECT moved FROM public.agent_reorder_trip_components(
+        :trip40::uuid, :agent::uuid,
+        (SELECT array_agg(id ORDER BY order_index DESC) FROM ordered))) = 6,
+    'reversing the whole list moves all six');
+
+SELECT pg_temp.assert(
+    (SELECT c.id FROM public.trip_component c
+      WHERE c.trip_id = :trip40::uuid AND c.archived_at IS NULL
+      ORDER BY c.order_index LIMIT 1)
+    = (SELECT id FROM ordered ORDER BY order_index DESC LIMIT 1),
+    '... and what was last is now first');
+
+-- Re-applying the same order writes nothing: the builder saves on every drop, including one
+-- that landed back where it started.
+SELECT pg_temp.assert(
+    (SELECT moved FROM public.agent_reorder_trip_components(
+        :trip40::uuid, :agent::uuid,
+        (SELECT array_agg(c.id ORDER BY c.order_index) FROM public.trip_component c
+          WHERE c.trip_id = :trip40::uuid AND c.archived_at IS NULL))) = 0,
+    'a reorder to the order it is already in moves nothing');
+
 RESET ROLE;
 
 ROLLBACK;
