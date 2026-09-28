@@ -148,15 +148,16 @@ SELECT coalesce(sum(cv.agent_unread_count), 0)::integer AS unread,
   FROM public.conversation cv
  WHERE cv.agent_id = '0195a2c0-1a00-7000-8000-000000000001' AND cv.archived_at IS NULL;
 
+-- Derived from TRIPS, not from the commission ledger, since 20260930140000. The two were
+-- never the same number: the ledger is line-grain and covers 6 of 22 revenue trips, and
+-- sourcing a trip-grain forecast from it made the KPI disagree with screen 3.4.2 by $223.04
+-- on one trip while missing $4,819.20 on three others that have no ledger row at all.
 CREATE TEMP TABLE expected_commission AS
-SELECT coalesce(sum(c.expected_commission_cents), 0)::bigint AS raw_cents
-  FROM public.commission c
-  JOIN public.trip t ON t.id = c.trip_id
- WHERE c.agent_id = '0195a2c0-1a00-7000-8000-000000000001'
-   AND t.agent_id = '0195a2c0-1a00-7000-8000-000000000001'
+SELECT coalesce(sum(t.total_commission_cents), 0)::bigint AS raw_cents
+  FROM public.trip t
+ WHERE t.agent_id = '0195a2c0-1a00-7000-8000-000000000001'
    AND t.archived_at IS NULL
-   AND t.status IN ('inquiry','proposal','booked','in_progress')
-   AND c.status IN ('expected','invoiced');
+   AND t.status IN ('inquiry','proposal','booked','in_progress');
 
 -- `due_ever` and `due_cents` carry `t.archived_at IS NULL` because agent_payments_due() does
 -- (the agent read-surface migration, in its WHERE clause). Without that predicate the
@@ -568,20 +569,18 @@ SELECT pg_temp.assert(
     (SELECT currency FROM public.agent_kpis()) = 'USD',
     'the KPI strip names the currency its figures are denominated in');
 
--- (d) A commission row carries its own agent_id and nothing requires it to match the trip's.
+-- (d) The forecast is the agent's own open book, summed from the trips themselves.
 SELECT pg_temp.assert(
     (SELECT commission_expected_cents::bigint FROM public.agent_kpis())
         = (SELECT raw_cents FROM expected_commission),
-    'commission_expected_cents matches the owner-side figure for the agent''s OWN rows');
+    'commission_expected_cents matches the owner-side figure over the agent''s open trips');
 
--- That assertion alone cannot fail on the predicate it is named for. The fixture requires
--- `c.agent_id` AND `t.agent_id` to be the agent's, and the seed has one agent, so every
--- commission row satisfies both and the two sides pick the same set with or without
--- `JOIN span s ON c.agent_id = s.agent_id` in the comm CTE. The row that can tell them
--- apart needs a SECOND agent to exist, so it is written in the second-agent section below,
--- against this captured weighted figure. (Raw is checked against the owner-side fixture
--- above; weighted has no owner-side oracle, and it is the half that also proves the weight
--- lookup keys on the READER's agent_id.)
+-- This alone cannot fail on the property it is named for, because both sides now read the
+-- same column and would agree even if the accessor also swept in something it should not.
+-- The row that can tell them apart is written in the second-agent section below: a FOREIGN
+-- advisor's commission ledger row sitting on Gyasi's own open trip. The captured weighted
+-- figure is the oracle for the half that has no owner-side twin, and it is also the half
+-- that proves the weight lookup keys on the READER's agent_id.
 INSERT INTO captured (label, cents)
 SELECT 'commission_weighted', commission_weighted_cents::bigint FROM public.agent_kpis();
 
@@ -797,27 +796,27 @@ SELECT pg_temp.assert(
     'and their pipeline is exactly their one trip, with none of Gyasi''s commission');
 RESET ROLE;
 
--- ── Regression (d), completed: a commission row whose agent_id is NOT its trip's ──
+-- ── Regression (d), completed: the LEDGER does not reach the forecast ──
 --
--- The `JOIN span s ON c.agent_id = s.agent_id` in agent_kpis()'s comm CTE carries a comment
--- calling itself load-bearing, and until now nothing in the suite could tell whether it was
--- there. The seed has one agent, so every commission row's agent_id equals its trip's, and
--- both the function and the fixture pick the same set either way. This writes the row that
--- comment describes — the SECOND advisor's commission sitting on GYASI's open trip 41,
--- which is what a split booking or a corrected import leaves behind.
+-- This block used to prove that `JOIN span s ON c.agent_id = s.agent_id` was present in
+-- agent_kpis()'s comm CTE, guarding against a commission row whose own agent_id does not
+-- match its trip's — what a split booking or a corrected import leaves behind.
 --
--- Changing that join to `ON true` moves Gyasi's raw total by 80,000 and his weighted total
--- by 40,000 (trip 41 is a `proposal`, weight 50, looked up under GYASI's weights — which is
--- the second half of the exposure), and both halves of the first assertion fail.
+-- Since 20260930140000 the guard is gone because the hazard is: the forecast does not read
+-- `commission` at all. So the fixture stays and the assertion is re-aimed at the stronger
+-- property. The adversarial row is the same one, and it is the harshest available: a
+-- FOREIGN advisor's ledger row on GYASI's open trip 41. Under the old query it moved his
+-- raw total by 80,000 and his weighted by 40,000 (trip 41 is a proposal, weight 50, looked
+-- up under GYASI's weights). Under the new one it must move nothing at all, for any reason.
 INSERT INTO public.commission (
     id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
-    expected_commission_cents, payment_terms, status
+    expected_commission_cents, currency, payment_terms, status
 ) VALUES (
     '01a0b1c2-d300-7000-8000-0000000000f6',
     '0195a2c0-1a00-7000-8000-000000000041',
     '0195a2c0-1a00-7000-8000-0000000000e2',
     '0195a2c0-1a00-7000-8000-000000000030',
-    1000000, 8.00, 80000, '60 days after travel', 'expected');
+    1000000, 8.00, 80000, 'USD', '60 days after travel', 'expected');
 
 SELECT pg_temp.become(:gyasi::uuid);
 SELECT pg_temp.assert(
@@ -825,8 +824,8 @@ SELECT pg_temp.assert(
         = (SELECT raw_cents FROM expected_commission)
       AND (SELECT commission_weighted_cents::bigint FROM public.agent_kpis())
         = (SELECT cents FROM captured WHERE label = 'commission_weighted'),
-    'another advisor''s commission row on Gyasi''s own trip stays out of Gyasi''s forecast, '
-    'raw and weighted alike');
+    'a commission ledger row on Gyasi''s own open trip moves neither half of his forecast — '
+    'the ledger is a separate number from the forecast, on purpose');
 RESET ROLE;
 
 SELECT pg_temp.become('0195a2c0-1a00-7000-8000-0000000000e3'::uuid);
