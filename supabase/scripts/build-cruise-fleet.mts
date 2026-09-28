@@ -416,6 +416,33 @@ function verdict(e: Entity, line: Line, shipName: string, viaTitle: boolean): Ve
 interface Media { url: string; sourceUrl: string; credit: string; licence: string }
 
 /**
+ * Percent-escapes that are legal unencoded in a URL path AND whose hex digits are numeric.
+ *
+ * WHY THIS EXISTS, because it is not obvious and it WILL come back otherwise: Commons
+ * filenames routinely end in a parenthesised Flickr id, and `%28` immediately followed by
+ * eleven digits reads as a thirteen-digit run. `.github/scripts/scan_pan.py` then Luhn-checks
+ * it, and one of the 151 hulls duly came up Luhn-valid (MSC Preziosa). CI fails the PCI guard
+ * on a photograph of a cruise ship. Do not paste the offending string into a comment to
+ * explain it, either — the scanner reads comments too, and that is how this note got written
+ * twice.
+ *
+ * Suppressing the scanner would be the wrong fix; it is guarding CLAUDE.md rule 1 and it is
+ * right to be blunt. Decoding is the correct one, because the escape was never needed:
+ * parentheses are sub-delims, legal in a path, and Wikimedia serves both forms identically
+ * (verified, both 200 image/jpeg). It also makes image_url read the same way as
+ * image_source_url, which was never encoded.
+ *
+ * Space stays encoded — it is not legal bare — and everything whose hex contains a letter
+ * (%2C, %3B) already breaks a digit run on its own.
+ */
+const SAFE_IN_PATH: Readonly<Record<string, string>> = {
+  "%21": "!", "%24": "$", "%26": "&", "%27": "'", "%28": "(", "%29": ")",
+};
+
+const unescapeSafe = (url: string) =>
+  url.replace(/%2[146789]/gi, (m) => SAFE_IN_PATH[m.toUpperCase()] ?? m);
+
+/**
  * Free-licence short names, matched as prefixes against `LicenseShortName`.
  *
  * Deliberately an ALLOW-list with the unknown refused and reported, rather than a deny-list:
@@ -480,7 +507,7 @@ async function fetchMedia(files: string[]): Promise<{ media: Map<string, Media>;
         // returns. Storing that would put our own analytics tags in a visitor's image request
         // for no reason, and it makes the CHECK's job harder to read. The bare path is the
         // canonical file.
-        url: info.url.split("?")[0],
+        url: unescapeSafe(info.url.split("?")[0]),
         sourceUrl: info.descriptionurl,
         credit: artist ? `${artist} / Wikimedia Commons, ${licence}` : `Wikimedia Commons, ${licence}`,
         licence: licence!,
