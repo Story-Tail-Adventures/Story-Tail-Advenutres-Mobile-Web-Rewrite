@@ -20,9 +20,11 @@ import {
  * email. It means the id was typed or stale, which on this screen means the client left the
  * book between the page loading and the submit.
  *
- * ON SUCCESS THIS LANDS ON THE TRIP, not back on the list. Creating a trip is the first half
- * of a thought whose second half is filling it in — and §3.4.2 is where an advisor does
- * everything the builder does not yet exist to do.
+ * ON SUCCESS THIS LANDS IN THE BUILDER, not back on the list and no longer on the trip's
+ * detail screen. Creating a trip is the first half of a thought whose second half is
+ * filling it in; until §3.4.4 existed the nearest place to do that was §3.4.2, and this
+ * comment said so. §3.4.4's own Screen-Inventory entry names "Create New Trip flow" as its
+ * first entry point, and a brand-new trip has nothing on its detail screen to read.
  */
 export async function createTripAction(
   _prev: NewTripState,
@@ -63,5 +65,5 @@ export async function createTripAction(
   revalidatePath("/agent/pipeline");
   revalidatePath("/agent");
   // `redirect` throws, so nothing after it runs and the success branch never returns.
-  redirect(`/agent/trips/${tripId}`);
+  redirect(`/agent/trips/${tripId}/builder`);
 }

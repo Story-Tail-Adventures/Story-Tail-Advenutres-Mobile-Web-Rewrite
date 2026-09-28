@@ -52,25 +52,38 @@ Deno.test("every kind carries notes", () => {
   }
 });
 
+Deno.test("every payload key is snake_case, like every other jsonb here", () => {
+  // The first draft was camelCase and did not match the rows already in the table. The
+  // edit sheet rendered blank over a component that had the data, and a save would have
+  // written the empty set over it.
+  for (const kind of COMPONENT_KINDS) {
+    for (const key of payloadKeysFor(kind)) {
+      assertEquals(/^[a-z][a-z0-9_]*$/.test(key), true, `${kind}.${key} is not snake_case`);
+    }
+  }
+});
+
 Deno.test("no payload key duplicates a column", () => {
   // §23's boundary, executable: anything a QUERY needs is a column. These twelve are
   // columns on trip_component today, so a payload key by the same name would mean two
   // places holding one fact and a read picking whichever it happened to look at.
   const columns = [
     "kind",
-    "displayName",
-    "supplierId",
-    "startDate",
-    "endDate",
-    "startTime",
-    "endTime",
+    "display_name",
+    "supplier_id",
+    "start_date",
+    "end_date",
+    "start_time",
+    "end_time",
     "location",
-    "confirmationNumber",
-    "costCents",
-    "commissionPct",
-    "commissionCents",
+    "confirmation_number",
+    "cost_cents",
+    "commission_pct",
+    "commission_cents",
     "currency",
-    "orderIndex",
+    "order_index",
+    "api_source",
+    "api_reference",
   ];
   for (const kind of COMPONENT_KINDS) {
     for (const key of payloadKeysFor(kind)) {
@@ -86,7 +99,7 @@ Deno.test("no payload key duplicates a column", () => {
 Deno.test("an unknown key is refused, not dropped", () => {
   // The whole reason unknown keys throw: a dropped key saves clean and comes back empty.
   assertThrows(
-    () => readComponentPayload("flight", { flightNumber: "AA 1413", cabin2: "x" }),
+    () => readComponentPayload("flight", { flight_number: "AA 1413", cabin2: "x" }),
     HttpError,
   );
   // And a key that is real for a DIFFERENT kind is still not real for this one.
@@ -105,26 +118,26 @@ Deno.test("empty and absent both come back absent", () => {
 });
 
 Deno.test("text is trimmed, and length is capped", () => {
-  assertEquals(readComponentPayload("flight", { seats: "  14A, 14B  " }), {
-    seats: "14A, 14B",
+  assertEquals(readComponentPayload("flight", { seat: "  14A, 14B  " }), {
+    seat: "14A, 14B",
   });
   assertThrows(
-    () => readComponentPayload("flight", { seats: "A".repeat(81) }),
+    () => readComponentPayload("flight", { seat: "A".repeat(81) }),
     HttpError,
   );
 });
 
 Deno.test("a flag is true or absent — never the string \"false\"", () => {
   assertEquals(
-    readComponentPayload("cruise", { gratuitiesIncluded: true }),
-    { gratuitiesIncluded: true },
+    readComponentPayload("cruise", { gratuities_included: true }),
+    { gratuities_included: true },
   );
-  assertEquals(readComponentPayload("cruise", { gratuitiesIncluded: false }), {});
+  assertEquals(readComponentPayload("cruise", { gratuities_included: false }), {});
   // An unchecked HTML checkbox submits nothing at all; a checked one submits "on". Anything
   // that arrives as a STRING here means the form sent a raw field value instead of a
   // boolean, and "false" is truthy — which is exactly the bug this refuses.
   assertThrows(
-    () => readComponentPayload("cruise", { gratuitiesIncluded: "false" }),
+    () => readComponentPayload("cruise", { gratuities_included: "false" }),
     HttpError,
   );
 });

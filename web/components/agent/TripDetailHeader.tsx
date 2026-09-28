@@ -9,9 +9,13 @@ import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
 /**
  * Screen 3.4.2's header: breadcrumb, title, status chip, and four actions.
  *
- * ONLY ONE OF THE FOUR HAS ANYWHERE TO GO. Duplicate (§3.4.4), Client preview (§3.3.2) and
- * Send proposal (§3.5) render disabled with a reason, matching `AgentNav.tsx`'s span-not-Link
- * convention for an unbuilt destination — never a silent no-op, never a link to a 404. The
+ * "BUILD" IS THE PRIMARY ACTION AND THE REST STILL WAIT. §3.4.4's own Screen-Inventory
+ * entry names this header as one of its two entry points ("Trip Detail 'Edit components'"),
+ * so the link lives here rather than buried in the Components tab — though that tab gets
+ * one too, because that is where an advisor is standing when they decide to change
+ * something. Duplicate (§3.4.13), Client preview (§3.5.6) and Send proposal (§3.5) render
+ * disabled with a reason, matching `AgentNav.tsx`'s span-not-Link convention for an unbuilt
+ * destination — never a silent no-op, never a link to a 404. The
  * status-change control reuses `StageMenu` verbatim rather than a bespoke "Mark booked"
  * button: it already offers every stage a trip can move to, which is a superset of what a
  * single fixed-target button would do, and it is the same write §3.2.2 already ships.
@@ -53,6 +57,9 @@ export function TripDetailHeader({ overview }: { overview: TripDetailOverview })
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/agent/trips/${overview.tripId}/builder`} className="btn btn-orange btn-sm">
+            {AGENT_COPY.openBuilder}
+          </Link>
           <DisabledAction label="Duplicate" reason={AGENT_COPY.duplicateTripDeferred} />
           <DisabledAction label="Client preview" reason={AGENT_COPY.clientPreviewDeferred} />
           <DisabledAction label="Send proposal" reason={AGENT_COPY.sendProposalDeferred} />

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AtAGlanceGrid } from "@/components/agent/AtAGlanceGrid";
 import { CostCommissionCard } from "@/components/agent/CostCommissionCard";
 import { PaymentsSummaryCard } from "@/components/agent/PaymentsSummaryCard";
@@ -20,6 +22,7 @@ import {
   loadTripOverview,
   loadTripPayments,
 } from "@/lib/agent/tripDetail";
+import { AGENT_COPY } from "@/lib/agent/content";
 import { validTripTab } from "@/lib/agent/tripTabs";
 
 /**
@@ -107,7 +110,19 @@ export default async function AgentTripDetailPage({
 async function TripComponentsTab({ tripId }: { tripId: string }) {
   const components = await loadTripComponents(tripId);
   if (!components) return <ErrorState />;
-  return <TripComponentsList components={components} />;
+  return (
+    <>
+      {/* §3.4.4's second entry point, the one the Screen Inventory calls "Trip Detail
+          'Edit components'". The header carries the same link; this one is here because
+          this tab is where an advisor is standing when they decide something is wrong. */}
+      <div className="mb-2 flex justify-end">
+        <Link href={`/agent/trips/${tripId}/builder`} className="btn btn-tonal btn-sm">
+          {AGENT_COPY.editComponents}
+        </Link>
+      </div>
+      <TripComponentsList components={components} />
+    </>
+  );
 }
 
 async function TripItineraryTab({ tripId }: { tripId: string }) {

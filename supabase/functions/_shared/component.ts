@@ -51,6 +51,12 @@ type PayloadField =
  * `web/lib/agent/components.ts` holds the other copy and names this file in its own header,
  * the same two-sided arrangement `TRIP_TYPES` has had since §3.4.3.
  *
+ * SNAKE_CASE, matching every other jsonb in this schema — `audit_event.metadata`,
+ * `client.important_dates`, and the `trip_component.payload` rows that already exist. The
+ * first draft of this file used camelCase and the mismatch was silent in the worst way: the
+ * edit sheet showed blank fields over a seeded component that HAD the data, and saving
+ * would have replaced the whole payload with the empty set the form had rendered.
+ *
  * `notes` is on every kind. It is the field an advisor reaches for when the structured ones
  * do not fit, and leaving it off any one kind would push that note into `display_name`,
  * where it would show up as the row title on the proposal a client reads.
@@ -61,25 +67,23 @@ type PayloadField =
  * a comment somewhere: there is no dining entry to fall through to.
  */
 const PAYLOAD_FIELDS: Record<ComponentKind, readonly PayloadField[]> = {
-  // Route lives in `location` ("MIA → NAS") and the PNR in `confirmation_number`; both are
-  // columns, both are what the component list already renders.
   flight: [
-    { key: "flightNumber", type: "text", max: 20 },
+    { key: "flight_number", type: "text", max: 20 },
     { key: "cabin", type: "text", max: 60 },
-    { key: "seats", type: "text", max: 80 },
+    { key: "seat", type: "text", max: 80 },
     { key: "notes", type: "text", max: 2000 },
   ],
   hotel: [
-    { key: "roomType", type: "text", max: 160 },
-    { key: "board", type: "text", max: 80 },
+    { key: "room_type", type: "text", max: 160 },
+    { key: "board_basis", type: "text", max: 80 },
     { key: "notes", type: "text", max: 2000 },
   ],
   cruise: [
     { key: "ship", type: "text", max: 120 },
-    { key: "itineraryName", type: "text", max: 160 },
+    { key: "itinerary_name", type: "text", max: 160 },
     { key: "cabin", type: "text", max: 60 },
-    { key: "diningTime", type: "text", max: 60 },
-    { key: "gratuitiesIncluded", type: "flag" },
+    { key: "dining_seating", type: "text", max: 60 },
+    { key: "gratuities_included", type: "flag" },
     { key: "notes", type: "text", max: 2000 },
   ],
   transfer: [
@@ -101,6 +105,25 @@ const PAYLOAD_FIELDS: Record<ComponentKind, readonly PayloadField[]> = {
   ],
 };
 
+/**
+ * Keys this registry DELIBERATELY DOES NOT HAVE, each one because a column already holds
+ * the fact. They were all in `trip_component.payload` in the seed and in Data-Model §8.3's
+ * illustrative shapes before §3.4.4, and dropping them is the §23 boundary applied to data
+ * that predates the boundary being written down:
+ *
+ *   airline, provider          → `supplier_id`, and `display_name` for the itinerary line
+ *   origin, destination        → `location`
+ *   meeting_point              → `location`
+ *   policy_number              → `confirmation_number` (the seed held the SAME string twice)
+ *   nights                     → `start_date` to `end_date`
+ *   rate_cents_per_night       → money belongs in a column. This one had already drifted:
+ *                                144328 × 7 is 1,010,296 against a `cost_cents` of
+ *                                1,010,300, so the blob and the column disagreed by four
+ *                                cents with nothing anywhere to notice.
+ *   duration_hours / _minutes  → one `duration`, written the way an advisor says it
+ *
+ * `20260928130000_normalise_component_payload.sql` moves existing rows onto this shape.
+ */
 export function isComponentKind(value: unknown): value is ComponentKind {
   return typeof value === "string" &&
     (COMPONENT_KINDS as readonly string[]).includes(value);

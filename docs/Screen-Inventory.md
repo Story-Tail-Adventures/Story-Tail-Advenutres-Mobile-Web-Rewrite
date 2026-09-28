@@ -2238,6 +2238,64 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Create New Trip flow; Trip Detail "Edit components".
 **Related screens:** Add Trip Component, Edit Trip Component, Itinerary Editor, Proposal Builder.
 
+> **Amended 2026-09-27, as the screen was built — and §3.4.5 – §3.4.12 were built with it,
+> as one sheet.** The nine screens from here to §3.4.12 shipped together; the notes below
+> cover all of them.
+>
+> **The canvas is a flat ordered list, not the prototype's day grouping.**
+> `A344_TripBuilder` draws "Day 1 · Arrival", "Day 2 · Beach" with an "Add to Day N" under
+> each. Those days are `itinerary_day` rows and that screen is **§3.4.14**, the Itinerary
+> Editor — a separate table, a separate entry here, and a separate write. This screen's own
+> Primary elements line says "component list", and the thing being reordered is
+> `trip_component.order_index`, which has no day in it. Grouping by date would also fight
+> the reorder: the groups would order by date while the rows inside them ordered by index,
+> and moving a row between groups would be two different writes wearing one gesture.
+>
+> **Reorder is a pair of arrow buttons, not the drawn drag handle.** A drag is pointer-only,
+> so an accessible build needs these buttons alongside it anyway — and they work with
+> JavaScript off, on a screen an advisor uses all day. The drag can be added on top later;
+> it would post the same list to the same write.
+>
+> **Eight "add" buttons in the drawing, seven kinds in the schema.** The rail lists "Dining ·
+> manual" and `A3410_AddDining` draws a sheet for it; `component_kind` has no `dining` value
+> and Data-Model §23 (settled 2026-09-27) ruled that a dinner reservation is a `custom`
+> component. The fourth invented field found in §3.4, after §3.4.3's "Honeymoon" tile and
+> §3.4.2's "Booking source". "Something else" is where it lands.
+>
+> **The rail's supplier names are dropped.** The prototype labels read "Flight · Amadeus",
+> "Hotel · Hotelbeds", "Cruise · Widgety", "Tour · Viator". All four are **Phase 2**
+> integrations, none is wired, and a label naming a search the button does not do is the
+> same defect as a deferral pointing at a section that will not deliver it. The sheet says
+> what is actually coming, once, instead of four buttons each implying it.
+>
+> **§3.4.5, §3.4.6 and §3.4.8's "Search | Manual" tab pair is not drawn at all.** A disabled
+> control is honest when the thing behind it is a planned screen — that is the call §3.4.2's
+> "Account admin" tab got. Half a sheet rendered dead is not the same thing. One line names
+> Phase 2 instead.
+>
+> **§3.4.5 – §3.4.12 are one form, parametrised by kind.** §3.4.12's own entry says "Same
+> form as the corresponding Add screen, pre-filled", and the seven kinds differ only in
+> which fields they show and what those fields are called. The design prototype reached the
+> same conclusion from the other side: its `CompModal` is a single parametrised component
+> and the eight screens are calls to it. The sheet is a URL (`?add=<kind>` / `?edit=<id>`),
+> not a modal — the back button closes it, a link can point at it, and the canvas stays
+> visible while the advisor types.
+>
+> **A field label is the advisor's word, not the column's.** `location` is "Route" on a
+> flight and "Pickup" on a transfer; `confirmation_number` is "Booking reference", "Booking
+> number" and "Policy number". Nobody calls a policy number a confirmation number out loud.
+>
+> **A supplier picker was added, and it is not in the drawing.** `trip_component.supplier_id`
+> has existed since the initial migration with nothing ever writing it —
+> `trip.total_value_cents`'s exact shape, found the same week. Picking a supplier also fills
+> in their `default_commission_pct`, which is what stops `commission_cents` sitting at zero
+> on every row and §3.7 reading a book with no commission in it.
+>
+> **"Save draft" and "Preview proposal" from the Key actions line are not buttons.** There is
+> no draft state to save — every write lands immediately and the totals recompute, so a save
+> button would do nothing — and previewing a proposal is §3.5.6, which is unbuilt. Neither
+> renders rather than rendering dead.
+
 #### 3.4.5 Add Trip Component — Flight
 **Purpose:** Add a flight via Amadeus search or manual entry.
 **Primary elements:** Tab: Search (Amadeus integration) | Manual; search form (origin, destination, dates, pax, cabin); result list; manual form (airline, flight number, dates, times, confirmation, cost, commission rate); "Add to trip" CTA.

@@ -3478,7 +3478,7 @@ export type Database = {
         }[]
       }
       agent_suppliers: {
-        Args: { p_kind?: Database["public"]["Enums"]["supplier_kind"] }
+        Args: never
         Returns: {
           default_commission_pct: number
           kind: Database["public"]["Enums"]["supplier_kind"]

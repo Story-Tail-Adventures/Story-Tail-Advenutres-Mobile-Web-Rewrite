@@ -133,6 +133,38 @@ export type TripComponentRow = {
   sourceBadge: string;
   costLabel: string;
   orderIndex: number;
+  /**
+   * The same row again, unformatted, for §3.4.12's edit sheet.
+   *
+   * ON THE ROW RATHER THAN BEHIND A SECOND LOADER because it is the same accessor and the
+   * same one mapping. The builder renders the list and the pre-filled sheet from one page
+   * load, and the sheet's row is one the list already returned — a second fetch would be a
+   * round trip for a row that is in hand and a second place for the two shapes to drift.
+   *
+   * §3.4.2's Components tab ignores it. That is the cost, and it is a field it does not
+   * read rather than a query it does not need.
+   */
+  edit: TripComponentEdit;
+};
+
+/** What §3.4.12's form posts back, as it comes out of the database. */
+export type TripComponentEdit = {
+  kind: string;
+  displayName: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  location: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  /** `HH:MM`, trimmed from Postgres's `HH:MM:SS` — what `<input type="time">` wants. */
+  startTime: string | null;
+  endTime: string | null;
+  confirmationNumber: string | null;
+  /** Digit-strings, never numbers. PostgREST loses precision on a large bigint. */
+  costCents: string;
+  commissionPct: number | null;
+  commissionCents: string;
+  detail: Record<string, unknown>;
 };
 
 /**
@@ -171,6 +203,25 @@ async function loadComponents(tripId: string): Promise<TripComponentRow[] | null
       sourceBadge: c.api_source ?? "Manual",
       costLabel: money(c.cost_cents, c.currency),
       orderIndex: c.order_index,
+      edit: {
+        kind: c.kind,
+        displayName: c.display_name,
+        supplierId: c.supplier_id,
+        supplierName: c.supplier_name,
+        location: c.location,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        // `HH:MM`, because that is what `<input type="time">` renders and what Postgres
+        // hands back is `HH:MM:SS`. A value with seconds on it makes the control show an
+        // empty field in Safari, silently, on a row that has a time.
+        startTime: hhmm(c.start_time),
+        endTime: hhmm(c.end_time),
+        confirmationNumber: c.confirmation_number,
+        costCents: c.cost_cents,
+        commissionPct: c.commission_pct,
+        commissionCents: c.commission_cents,
+        detail: (c.payload ?? {}) as Record<string, unknown>,
+      },
     };
   });
 }

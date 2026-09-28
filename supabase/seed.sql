@@ -438,7 +438,11 @@ INSERT INTO public.trip_component (
      'flight', '0195a2c0-1a00-7000-8000-000000000031', 'AA 1413 · MIA → MBJ',
      current_date + 67, current_date + 67, '06:40', '09:30',
      'Miami International Airport', 'TLR8QV', 84200, 0.00, 0,
-     '{"airline":"American Airlines","flight_number":"AA 1413","origin":"MIA","destination":"MBJ","cabin":"main","seat":"14A, 14B"}'::jsonb, 0),
+     -- PAYLOAD HOLDS ONLY WHAT NO COLUMN DOES, as of 2026-09-28 and Data-Model §23.
+     -- `airline` went to `supplier_id`, `origin`/`destination` to the route already in
+     -- `display_name`. Both were a second copy of a fact a column held, and a second copy
+     -- is what an edit sheet silently picks one of.
+     '{"flight_number":"AA 1413","cabin":"main","seat":"14A, 14B"}'::jsonb, 0),
     -- THE RETURN LEG, added 2026-09-28 when trip.total_value_cents became a computed sum.
     -- Its absence was a fixture bug hiding behind a hand-set total: the components summed to
     -- $11,645 while the row claimed $12,845 and the payment milestones were balanced against
@@ -448,35 +452,48 @@ INSERT INTO public.trip_component (
      'flight', '0195a2c0-1a00-7000-8000-000000000031', 'AA 1410 · MBJ → MIA',
      current_date + 74, current_date + 74, '11:35', '14:20',
      'Sangster International Airport', 'TLR8QV', 120000, 0.00, 0,
-     '{"airline":"American Airlines","flight_number":"AA 1410","origin":"MBJ","destination":"MIA","cabin":"main","seat":"12A, 12B"}'::jsonb, 5),
+     '{"flight_number":"AA 1410","cabin":"main","seat":"12A, 12B"}'::jsonb, 5),
     ('0195a2c0-1a00-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000040',
-     'transfer', '0195a2c0-1a00-7000-8000-000000000032', 'Private transfer · Mercedes Vito',
+     -- NO SUPPLIER, deliberately. It was filed under Island Routes, which is a tour
+     -- operator rather than a transfer company — and a local Montego Bay driver who is
+     -- not on the supplier list is the ordinary case, not an edge one. It is also the
+     -- only thing keeping `agent_trip_components`' LEFT JOIN honest: with every component
+     -- naming a supplier, an INNER join would pass every test and empty the builder for
+     -- every trip built by hand.
+     'transfer', NULL, 'Private transfer · Mercedes Vito',
      current_date + 67, current_date + 67, '10:20', '11:45',
      'Montego Bay', NULL, 14000, 10.00, 1400,
-     '{"vehicle":"Mercedes Vito","duration_minutes":85}'::jsonb, 1),
+     '{"vehicle":"Mercedes Vito","duration":"85 minutes"}'::jsonb, 1),
     ('0195a2c0-1a00-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000040',
      'hotel', '0195a2c0-1a00-7000-8000-000000000030', 'Ocean-view suite · 7 nights',
      current_date + 67, current_date + 74, '15:00', '11:00',
      'Negril, Jamaica', 'SRB-220119', 1010300, 12.00, 121236,
-     '{"room_type":"Ocean-view suite","board_basis":"all-inclusive","nights":7,"rate_cents_per_night":144328}'::jsonb, 2),
+     -- `nights` and `rate_cents_per_night` are gone. The first is `start_date` to
+     -- `end_date`; the second was money outside a money column, and it had ALREADY drifted
+     -- — 144328 × 7 is 1,010,296 against the 1,010,300 beside it. Four cents, no
+     -- constraint, nothing anywhere to notice. The same shape `total_value_cents` was in.
+     '{"room_type":"Ocean-view suite","board_basis":"all-inclusive"}'::jsonb, 2),
     ('0195a2c0-1a00-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000040',
      'excursion', '0195a2c0-1a00-7000-8000-000000000032', 'Catamaran to Booby Cay',
      current_date + 69, current_date + 69, '09:00', '15:00',
-     'Negril Marina', 'IR-88214', 32000, 10.00, 3200,
-     '{"duration_hours":6,"meeting_point":"Negril Marina, pier 2","includes":["snorkel gear","lunch"]}'::jsonb, 3);
+     'Negril Marina, pier 2', 'IR-88214', 32000, 10.00, 3200,
+     '{"duration":"6 hours","notes":"Includes snorkel gear and lunch."}'::jsonb, 3);
 
 -- An insurance component and an emergency contact, so §2.2.4's Important info panel has
 -- something to show. Without these it correctly reads "Nothing filed for this trip yet",
 -- which is a true empty state but leaves the populated one untested.
 INSERT INTO public.trip_component (
-    id, trip_id, kind, display_name, start_date, end_date,
+    id, trip_id, kind, supplier_id, display_name, start_date, end_date,
     confirmation_number, cost_cents, commission_pct, commission_cents, payload, order_index
 ) VALUES (
     '0195a2c0-1a00-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000040',
-    'insurance', 'Allianz OneTrip Prime',
+    -- `provider` became `supplier_id` and `policy_number` became `confirmation_number`.
+    -- The second one is how the whole class was found: the seed held the identical string
+    -- "98-7124" in a column and in the blob beside it.
+    'insurance', '0195a2c0-1a00-7000-8000-000000000034', 'Allianz OneTrip Prime',
     current_date + 67, current_date + 74,
-    '98-7124', 24000, 0.00, 0,
-    '{"provider":"Allianz","policy_number":"98-7124","coverage":"medical, cancellation, baggage"}'::jsonb, 4
+    '98-7124', 24000, 25.00, 6000,
+    '{"coverage":"medical, cancellation, baggage"}'::jsonb, 4
 );
 
 UPDATE public.client
@@ -1485,7 +1502,7 @@ SELECT
          ELSE 0 END,
     t.total_commission_cents,
     t.currency,
-    '{"synthesized":"seed package — one line standing for a trip booked before the component builder existed"}'::jsonb,
+    '{"notes":"Seed package — one line standing for a trip booked before the component builder existed."}'::jsonb,
     0
 FROM public.trip t
 WHERE t.total_value_cents > 0

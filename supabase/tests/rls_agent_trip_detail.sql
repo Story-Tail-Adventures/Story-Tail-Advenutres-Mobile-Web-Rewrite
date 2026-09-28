@@ -167,6 +167,42 @@ SELECT (SELECT count(*) FROM public.trip_component
 
 GRANT SELECT ON expected TO authenticated;
 
+-- ── The payload registry, asserted against the DATA ──────────────────────────────
+--
+-- HERE RATHER THAN ONLY IN 20260928130000's own DO block, which is the point. A data
+-- migration can only assert about rows that exist when it runs, and `supabase db reset`
+-- applies migrations to an EMPTY table and seeds afterwards — so that block passes
+-- vacuously on every fresh database and says nothing about the seed. This file runs after
+-- the seed.
+--
+-- AS THE OWNER, before `become()`. `trip_component` has no table grant to
+-- `authenticated` at all, so this same statement one section lower is a permission error
+-- rather than a check — which is exactly what it was, until it ran.
+--
+-- What it guards: `agent_upsert_trip_component` replaces `payload` whole. A key no sheet
+-- can render is not merely ignored — the form shows a blank field for it and the next save
+-- writes the blank over it. That is silent data loss, and it is what the camelCase first
+-- draft of `_shared/component.ts` would have caused against every seeded component.
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1 FROM public.trip_component c, jsonb_object_keys(c.payload) AS k
+         WHERE k NOT IN (
+            'notes',
+            'flight_number', 'cabin', 'seat',
+            'room_type', 'board_basis',
+            'ship', 'itinerary_name', 'dining_seating', 'gratuities_included',
+            'dropoff', 'vehicle',
+            'duration',
+            'plan', 'coverage')),
+    'every trip_component.payload key is one a §3.4 sheet can render and write back');
+
+-- And the exclusion has something to exclude, so the assertion above is not passing over
+-- an empty set — the hole an archived-trip assertion had in §3.4.1.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.trip_component WHERE payload <> '{}'::jsonb) > 0,
+    '... and there are populated payloads for it to have checked');
+
+
 -- `supplier` has NO grant to `authenticated` at all (the agent-domain lockdown), so an
 -- assertion that reads it after `become()` returns zero rows and agrees with anything. It
 -- is captured here, as the owner, for the same reason `expected` is.

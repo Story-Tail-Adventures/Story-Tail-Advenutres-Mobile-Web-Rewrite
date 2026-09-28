@@ -1094,32 +1094,73 @@ data class Trip(
 > the §8.2 note above: the classification was describing an agent-only product.
 >
 > `payload` stays Internal and is **excluded from the column grant**, which is the decision
-> worth recording: the hotel shape below carries `rate_cents_per_night`, so granting the
-> blob would hand back the per-night cost immediately after `cost_cents` was withheld for
-> revealing margin. A screen that needs one key from it (seat number, room type) gets a
+> worth recording: the hotel shape below carried `rate_cents_per_night`, so granting the
+> blob would have handed back the per-night cost immediately after `cost_cents` was withheld
+> for revealing margin. A screen that needs one key from it (seat number, room type) gets a
 > server-side key allowlist, not a grant.
+>
+> **That key is gone as of 2026-09-28 and the decision is unchanged** — see the note under
+> Payload shapes. A seat number and an advisor's note are still Internal, and
+> `agent_trip_components()` is still the only door onto them; it gained `payload` when
+> §3.4.12's edit sheet needed it, which is an AGENT accessor and not a client grant.
 
 **Payload shapes:**
 
+> **Rewritten 2026-09-28, when §3.4.4 – §3.4.12 became the first thing that reads `payload`
+> back in order to EDIT it.** What was here before was illustrative and nothing enforced it;
+> what is here now is the registry the component sheets actually use, held in
+> `supabase/functions/_shared/component.ts` and mirrored in `web/lib/agent/components.ts`.
+> `supabase/tests/rls_agent_trip_detail.sql` asserts that no stored key falls outside it.
+>
+> **Why it had to become exact.** `agent_upsert_trip_component` replaces the blob whole, so
+> a key no sheet knows about is not ignored — the form renders an empty field for it and
+> the next save writes the empty over it. An aspirational shape in a doc is harmless right
+> up until something starts round-tripping the column.
+>
+> **Six keys were dropped because a column already held the fact**, which is §23's boundary
+> applied to data that predates the boundary being written down. `origin`/`destination` and
+> `meeting_point` → `location`. `policy_number` → `confirmation_number` (the seed held the
+> identical string in both, which is how the whole class was found). `airline`/`provider` →
+> `supplier_id`, with `display_name` carrying the itinerary line. `nights` → `start_date` to
+> `end_date`. And `rate_cents_per_night` → nowhere: money belongs in a `bigint` column
+> beside a currency (CLAUDE.md rule 5), and this one had **already drifted** — 144328 × 7 is
+> 1,010,296 against a `cost_cents` of 1,010,300. Four cents, no constraint, nothing anywhere
+> to notice. `20260928130000_normalise_component_payload.sql` moves existing rows.
+>
+> **Keys are `snake_case`,** like every other jsonb in this schema. The first draft of the
+> registry was camelCase and the mismatch was silent in the worst way: the edit sheet
+> rendered blank over components that had the data.
+>
+> **`display_name` is the line the client reads** — "AA 1413 · MIA → MBJ", "Allianz OneTrip
+> Prime" — not the airline or the provider. Those are `supplier_id`.
+
+Every key below is optional; an unset field is **absent**, never `""`. `notes` is on all
+seven kinds. Anything a query needs — filtered, sorted, summed, joined — is a column and
+does not appear here (§23).
+
 ```json
-// kind = flight
-{ "airline": "AA", "flight_number": "1234", "origin": "ORD", "destination": "NAS",
-  "cabin": "economy", "seat": "12B", "depart_time": "2026-06-14T10:30:00-05:00",
-  "arrive_time": "2026-06-14T14:45:00-04:00" }
+// kind = flight   · route → location, PNR → confirmation_number
+{ "flight_number": "AA 1413", "cabin": "main", "seat": "14A, 14B", "notes": "…" }
 
-// kind = hotel
-{ "address": "...", "room_type": "Junior Suite", "board_basis": "all_inclusive",
-  "nights": 7, "rate_cents_per_night": 45000 }
+// kind = hotel    · property → display_name, city → location, dates → start/end_date
+{ "room_type": "Ocean-view suite", "board_basis": "all-inclusive", "notes": "…" }
 
-// kind = cruise
-{ "ship": "Symphony of the Seas", "cabin": "Balcony 9234", "dining_seating": "early",
-  "embark_port": "MIA", "ports_of_call": ["NAS","STT","SXM"] }
+// kind = cruise   · line → supplier_id, port → location, booking → confirmation_number
+{ "ship": "Symphony of the Seas", "itinerary_name": "7-night Eastern Caribbean",
+  "cabin": "Balcony 9234", "dining_seating": "early",
+  "gratuities_included": true, "notes": "…" }
 
-// kind = excursion
-{ "duration_hours": 4, "meeting_point": "...", "guide_language": "en" }
+// kind = transfer · operator → supplier_id, pickup → location
+{ "dropoff": "Sandals Royal Bahamian", "vehicle": "Mercedes Vito", "notes": "…" }
 
-// kind = insurance
-{ "provider": "Allianz", "policy_number": "...", "coverage": { "trip_cancellation": 5000, "medical": 100000 } }
+// kind = excursion · meeting point → location
+{ "duration": "6 hours", "notes": "…" }
+
+// kind = insurance · provider → supplier_id, policy → confirmation_number
+{ "plan": "OneTrip Prime", "coverage": "medical, cancellation, baggage", "notes": "…" }
+
+// kind = custom   · the catch-all §3.4.11 and §23's home for a dining reservation
+{ "notes": "…" }
 ```
 
 **Indexes:** index on `(trip_id, order_index)`; index on `(api_reference)` where not null.

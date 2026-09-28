@@ -146,10 +146,21 @@ export const AGENT_COPY = {
   glanceNotSet: "Not set",
   glanceNoCard: "None on file",
   glanceNoActivity: "No activity yet",
+  // §3.4.4. "Build" rather than "Edit components", which is what the Screen Inventory calls
+  // the entry point: an advisor opening an empty trip is not editing anything yet, and the
+  // word that covers both is the shorter one.
+  openBuilder: "Build",
+  editComponents: "Edit components",
   // Each names what it is waiting on, matching the *Deferred convention above — these are
   // per-action, not per-section, because §3.4.2's header offers four buttons and only one
   // (Mark booked, via the existing stage-change write) has anywhere to go yet.
-  duplicateTripDeferred: "Duplicating a trip arrives with §3.4.4.",
+  // REPOINTED when §3.4.4 shipped, for exactly the reason the note under
+  // `clientPreviewDeferred` gives. This said "§3.4.4", and §3.4.4 is the builder — its
+  // Screen-Inventory entry lists add, reorder, edit, save draft and preview proposal, and
+  // not one word about duplicating. The screen that copies a trip is §3.4.13, whose entry
+  // says "create from existing trip" in as many words. A deferral aimed at the wrong
+  // section comes due and nothing arrives.
+  duplicateTripDeferred: "Duplicating a trip arrives with §3.4.13, alongside the template library it shares the mechanism with.",
   // REPOINTED when §3.3.2 shipped. This said "§3.3.2" and that section is now built —
   // and building it delivered no client preview, because previewing a TRIP as the
   // traveler sees it is §3.5.6 Itinerary Preview, not the client's CRM record. A
@@ -378,7 +389,8 @@ export const CLIENT_COPY = {
   // FOUR DEFERRALS CAME DUE WITH §3.4.3 AND ARE DELETED, not reworded: quickAddTripDeferred,
   // newTripForClientDeferred, saveAndTripDeferred and newTripDeferred all named a screen
   // that now exists, and every one of their controls is live. Same removal
-  // clientDetailDeferred got. `duplicateTripDeferred` stays — §3.4.4 really is still ahead.
+  // clientDetailDeferred got. `duplicateTripDeferred` stays, repointed at §3.4.13 — see
+  // its own note; §3.4.4 shipped without a duplicate action because it never owned one.
   saveAndTrip: "Save & create trip",
 
   archiveTitle: "Archive",
@@ -578,3 +590,170 @@ export function needsYouLine(count: number): string {
   if (count === 1) return AGENT_COPY.greetingOne;
   return AGENT_COPY.greetingMany(count);
 }
+
+/**
+ * §3.4.4 Trip Builder Workspace, and §3.4.5 – §3.4.12's sheets behind it.
+ *
+ * WEB ONLY, for the reason `TRIP_COPY` gives: §3.4 has no phone artboards, so there is no
+ * Kotlin twin and nothing for the copy-parity map to pair these with.
+ *
+ * THE FIELD LABELS ARE THE ADVISOR'S WORDS, NOT THE COLUMN'S. `location` is "Route" on a
+ * flight and "Pickup" on a transfer; `confirmation_number` is "PNR", "Booking #" and
+ * "Policy #". One column, three sheets, three names, because nobody calls a policy number
+ * a confirmation number out loud.
+ */
+export const BUILDER_COPY = {
+  title: "Trip builder",
+  backToTrip: "Back to the trip",
+
+  // ── The rail ───────────────────────────────────────────────────────────
+  addHeading: "Add to this trip",
+  kindFlight: "Flight",
+  kindHotel: "Hotel or resort",
+  kindCruise: "Cruise",
+  kindExcursion: "Tour or activity",
+  kindTransfer: "Transfer",
+  kindInsurance: "Insurance",
+  kindCustom: "Something else",
+
+  // NO SUPPLIER NAMES ON THE BUTTONS. The prototype's rail reads "Flight · Amadeus",
+  // "Hotel · Hotelbeds", "Cruise · Widgety", "Tour · Viator". All four are Phase 2
+  // integrations and none of them is wired, so every one of those labels is a promise the
+  // button cannot keep — the same thing a deferral line naming a shipped section does,
+  // pointed the other way.
+  searchDeferred: "Searching a supplier's live inventory arrives with Phase 2. Everything here is typed by hand for now.",
+  templatesDeferred: "Starting from a template arrives with §3.4.13.",
+  templatesLabel: "Templates",
+
+  // ── The canvas ─────────────────────────────────────────────────────────
+  componentsHeading: "What's in the trip",
+  emptyTitle: "Nothing in it yet",
+  // NO DIRECTION IN THIS SENTENCE. It said "from the left", which is true at `xl` and
+  // false at every width below it, where the add rail sits above the canvas rather than
+  // beside it. A pointer to somewhere the thing is not is worse than no pointer.
+  emptyBody: "Start with whatever you have. A flight, a room, a day out — in whatever order they come to you.",
+
+  moveUp: "Move up",
+  moveDown: "Move down",
+  edit: "Edit",
+  editHeading: "Edit",
+  remove: "Remove from trip",
+  removeConfirm: "Remove this from the trip? The itinerary keeps its place until you edit that too.",
+
+  totalLabel: "Trip total",
+  commissionLabel: "Your commission",
+  countLabel: "pieces",
+  countLabelOne: "piece",
+  // The total is a sum the database keeps, not one this page adds up. Saying so stops an
+  // advisor wondering why a figure they can see the parts of came out different.
+  totalHint: "Adds up every piece below. Payments and deposits live on the trip's own screen.",
+
+  // ── The sheet ──────────────────────────────────────────────────────────
+  addFlight: "Add a flight",
+  addHotel: "Add a hotel or resort",
+  addCruise: "Add a cruise",
+  addExcursion: "Add a tour or activity",
+  addTransfer: "Add a transfer",
+  addInsurance: "Add travel insurance",
+  addCustom: "Add something else",
+
+  supplierLabel: "Supplier",
+  supplierHint: "Optional. Picking one fills in their usual commission rate.",
+  // The airline, the resort, the provider — all of it is the supplier, picked above rather
+  // than typed into the name. `trip_component.supplier_id` is the column for it.
+  supplierNone: "Not on file",
+
+  // THE NAME FIELD IS THE ITINERARY LINE, not the airline or the provider. Seven labels
+  // rather than one "Name", because "Stay" and "Sailing" are the words for the thing, and
+  // one shared hint underneath says whose eyes it is for.
+  nameHint: "The line the client reads on their itinerary.",
+  flightName: "Flight",
+  flightFrom: "Departs from",
+  flightDeparts: "Departs",
+  flightArrives: "Arrives",
+  flightArrivesOn: "Arrives on",
+  flightPnr: "Booking reference",
+  flightNumber: "Flight number",
+  flightCabin: "Cabin",
+  flightSeats: "Seat",
+
+  hotelName: "Stay",
+  hotelWhere: "Where",
+  hotelCheckIn: "Check-in",
+  hotelCheckInTime: "Check-in time",
+  hotelCheckOut: "Check-out",
+  hotelCheckOutTime: "Check-out time",
+  hotelRoomType: "Room type",
+  hotelBoard: "Board basis",
+
+  cruiseName: "Sailing",
+  cruisePort: "Departs from",
+  cruiseSails: "Sails",
+  cruiseReturns: "Returns",
+  cruiseBoarding: "Boarding",
+  cruiseDisembark: "Disembark",
+  cruiseBooking: "Booking number",
+  cruiseShip: "Ship",
+  cruiseItinerary: "Itinerary",
+  cruiseCabin: "Cabin",
+  cruiseDining: "Dining seating",
+  cruiseGratuities: "Gratuities included",
+
+  transferName: "Transfer",
+  transferPickup: "Pickup",
+  transferTime: "Pickup time",
+  transferArrives: "Arrives",
+  transferDropoff: "Drop-off",
+  transferVehicle: "Vehicle",
+
+  excursionName: "Tour or activity",
+  excursionMeet: "Meeting point",
+  excursionStarts: "Starts",
+  excursionEnds: "Ends",
+  excursionEndsOn: "Ends on",
+  excursionDuration: "How long",
+
+  insuranceName: "Policy",
+  insuranceFrom: "Covered from",
+  insuranceTo: "Covered to",
+  insurancePolicy: "Policy number",
+  insurancePlan: "Plan",
+  insuranceCoverage: "Coverage",
+
+  customName: "What is it?",
+
+  fieldDate: "Date",
+  fieldTime: "Time",
+  fieldWhere: "Where",
+  fieldEndDate: "Ends",
+  fieldEndTime: "Ends at",
+  fieldConfirmation: "Confirmation number",
+  fieldNotes: "Notes",
+  fieldCost: "Cost",
+  fieldCommissionPct: "Commission rate",
+  fieldCommission: "Commission",
+  // The one rule worth stating out loud, because the field fills itself in and a number
+  // that appears on its own is unsettling if you do not know why.
+  commissionHint: "Leave this blank and the rate fills it in. Type an amount and yours wins.",
+  costHint: "What the client pays for this piece.",
+
+  save: "Save",
+  saving: "Saving…",
+  cancel: "Cancel",
+
+  nameRequired: "Give it a name — it's the line the client reads.",
+  costNotANumber: "That doesn't look like an amount.",
+  pctOutOfRange: "A rate is between 0 and 999.",
+  endBeforeStart: "That's before it starts.",
+  failed: "That didn't save. Try again in a moment.",
+  stale: "This trip changed in another tab. Reload and try again.",
+  // The Edge Function answers "no such trip", "not your trip" and "that piece isn't on this
+  // trip" identically, so ids cannot be probed. One sentence covers all three, and every
+  // one of them means the same thing to the advisor: go back and look again.
+  gone: "That's not on this trip any more. Reload and take another look.",
+
+  savedAdded: "Added.",
+  savedUpdated: "Saved.",
+  savedNoop: "Nothing to change.",
+  savedRemoved: "Removed.",
+} as const;

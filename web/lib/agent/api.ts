@@ -41,6 +41,8 @@ export type AgentRead =
   | "agent_availability_self"
   | "agent_trip_overview"
   | "agent_trip_components"
+  // §3.4.5 – §3.4.12's supplier picker. No arguments — see the function's own comment.
+  | "agent_suppliers"
   | "agent_trip_itinerary_meta"
   | "agent_trip_itinerary_days"
   | "agent_trip_payments"
@@ -183,6 +185,8 @@ export type AgentTripComponentRow = {
   component_id: string;
   kind: string;
   display_name: string;
+  supplier_id: string | null;
+  supplier_name: string | null;
   start_date: string | null;
   end_date: string | null;
   start_time: string | null;
@@ -194,7 +198,22 @@ export type AgentTripComponentRow = {
   commission_cents: string;
   currency: string;
   api_source: string | null;
+  /**
+   * §3.4.12's kind-specific detail. `jsonb` with no schema in Postgres — Data-Model §23 put
+   * the validation in `supabase/functions/_shared/component.ts` and nowhere else, so what
+   * arrives here is whatever was last written. Read defensively: a key may be absent, and
+   * the values are strings or booleans.
+   */
+  payload: Record<string, unknown> | null;
   order_index: number;
+};
+
+/** §3.4.5 – §3.4.12's supplier picker. Agency-wide, not per-advisor. */
+export type AgentSupplierRow = {
+  supplier_id: string;
+  name: string;
+  kind: string;
+  default_commission_pct: number | null;
 };
 
 export type AgentTripItineraryMetaRow = {
