@@ -1510,4 +1510,69 @@ WHERE t.total_value_cents > 0
       SELECT 1 FROM public.trip_component c WHERE c.trip_id = t.id
   );
 
+-- ============================================================
+-- Payment milestones for every trip that claims a payment
+--
+-- THE SAME SHAPE AS THE PACKAGE-COMPONENT BLOCK ABOVE, and here for the same reason.
+-- `20260929100000` made `trip.total_paid_cents` the sum of `payment_milestone.paid_cents`
+-- and backfilled the rows to prove it — but `supabase db reset` applies migrations to an
+-- EMPTY database and runs this file afterwards, so a migration cannot fix seed data. Every
+-- trip below hand-sets `total_paid_cents`; without these rows a fresh database recreates
+-- the exact inconsistency the migration exists to remove.
+--
+-- MUST STAY AT THE END, after every trip insert. The package-component block learned this
+-- the hard way: placed earlier it covered 5 of 24 trips and looked like it worked.
+--
+-- Only trips with NO schedule. The three that have one — a part-paid booking, a booked trip
+-- whose deposit has not landed, and one with an overdue final balance — are deliberate
+-- fixtures for states the UI has to render, and a generated row beside a deliberate one is
+-- how a fixture stops meaning anything.
+-- ============================================================
+
+INSERT INTO public.payment_milestone (
+    id, trip_id, kind, label, amount_cents, currency,
+    due_date, paid_at, paid_cents, status, order_index
+)
+SELECT
+    ('0195a2c0-1a00-7000-8000-0000000e' || lpad(row_number() OVER (ORDER BY t.id)::text, 4, '0'))::uuid,
+    t.id, 'deposit', 'Payment on file',
+    t.total_paid_cents, t.currency,
+    coalesce(t.start_date, current_date),
+    coalesce(t.start_date::timestamptz, t.created_at),
+    t.total_paid_cents, 'paid', 0
+FROM public.trip t
+WHERE t.total_paid_cents > 0
+  AND NOT EXISTS (
+      SELECT 1 FROM public.payment_milestone pm WHERE pm.trip_id = t.id
+  );
+
+-- Cabo's missing deposit, authored rather than generated. Its schedule holds a $2,560
+-- "Final balance" marked overdue on a $5,120 trip, which implies a deposit of the same
+-- amount was taken and never recorded — and the trip's own `total_paid_cents` said exactly
+-- that. The migration deliberately leaves trips that already have a schedule alone; here we
+-- are the author, so the gap is filled properly instead.
+INSERT INTO public.payment_milestone (
+    id, trip_id, kind, label, amount_cents, currency,
+    due_date, paid_at, paid_cents, status, order_index
+)
+SELECT
+    '0195a2c0-1a00-7000-8000-0000000e9001'::uuid,
+    t.id, 'deposit', 'Deposit',
+    256000, t.currency,
+    t.start_date - 45, (t.start_date - 45)::timestamptz, 256000, 'paid', 0
+FROM public.trip t
+WHERE t.id = '0195a2c0-1a00-7000-8000-000000000047';
+
+-- `total_paid_cents` is now whatever the milestones say, on every trip. Bimini keeps a
+-- scheduled-but-unpaid deposit and therefore drops to zero — a booked trip waiting on its
+-- deposit is a real state and nothing else in the seed covered it.
+UPDATE public.trip t
+   SET total_paid_cents = coalesce(sub.paid, 0)
+  FROM (SELECT id FROM public.trip) all_trips
+  LEFT JOIN (
+    SELECT trip_id, sum(paid_cents) AS paid FROM public.payment_milestone GROUP BY trip_id
+  ) sub ON sub.trip_id = all_trips.id
+ WHERE t.id = all_trips.id
+   AND t.total_paid_cents IS DISTINCT FROM coalesce(sub.paid, 0);
+
 COMMIT;
