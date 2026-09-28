@@ -739,6 +739,7 @@ export type Database = {
           commission_pct: number
           component_id: string | null
           created_at: string
+          currency: string
           expected_commission_cents: number
           gross_booking_cents: number
           id: string
@@ -746,6 +747,7 @@ export type Database = {
           inteletravel_reference: string | null
           notes: string | null
           payment_terms: string
+          processing_fee_cents: number
           received_at: string | null
           received_commission_cents: number
           status: Database["public"]["Enums"]["commission_status"]
@@ -758,6 +760,7 @@ export type Database = {
           commission_pct: number
           component_id?: string | null
           created_at?: string
+          currency: string
           expected_commission_cents: number
           gross_booking_cents: number
           id: string
@@ -765,6 +768,7 @@ export type Database = {
           inteletravel_reference?: string | null
           notes?: string | null
           payment_terms: string
+          processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
           status?: Database["public"]["Enums"]["commission_status"]
@@ -777,6 +781,7 @@ export type Database = {
           commission_pct?: number
           component_id?: string | null
           created_at?: string
+          currency?: string
           expected_commission_cents?: number
           gross_booking_cents?: number
           id?: string
@@ -784,6 +789,7 @@ export type Database = {
           inteletravel_reference?: string | null
           notes?: string | null
           payment_terms?: string
+          processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
           status?: Database["public"]["Enums"]["commission_status"]
@@ -3948,6 +3954,13 @@ export type Database = {
       itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sweep_dated_promises: {
+        Args: never
+        Returns: {
+          authorizations_expired: number
+          milestones_marked_overdue: number
+        }[]
+      }
     }
     Enums: {
       agent_status: "active" | "inactive" | "archived"

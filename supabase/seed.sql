@@ -1066,53 +1066,6 @@ CROSS JOIN LATERAL (
     SELECT pu.id FROM public.platform_user pu WHERE pu.role = 'agent' LIMIT 1
 ) pu;
 
--- ── Commission ───────────────────────────────────────────────────────────────────
---
--- The table had no rows at all, so "Commission expected" rendered an honest but unverifiable
--- $0. The forecast reads `expected`/`invoiced` rows on OPEN trips and weights them by
--- pipeline_weight (Data-Model §7.4), so these are chosen to make the confidence figure land
--- somewhere other than 0% or 100% — a weighted total equal to the raw one would not prove the
--- weighting is wired up at all.
---
--- The `received` row on the completed trip is deliberately outside the forecast: it is money
--- already earned, not money expected. It is here for §3.7, and so that a future change that
--- accidentally sweeps it into the forecast shows up as a number moving.
-
-INSERT INTO public.commission (
-    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
-    expected_commission_cents, received_commission_cents, payment_terms, status, received_at,
-    inteletravel_reference
-) VALUES
-    -- Booked · weight 100 · contributes in full.
-    ('01a0b1c2-d300-7000-8000-000000000070', '0195a2c0-1a00-7000-8000-000000000040',
-     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     1284500, 12.00, 154140, 0, '60 days after travel', 'expected', NULL, NULL),
-
-    -- Proposal · weight 50 · contributes half. Two of these, on the two proposal trips.
-    ('01a0b1c2-d300-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000041',
-     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     964000, 12.00, 115680, 0, '60 days after travel', 'expected', NULL, NULL),
-    ('01a0b1c2-d300-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000042',
-     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     1912000, 12.00, 229440, 0, '60 days after travel', 'expected', NULL, NULL),
-
-    -- In progress · weight 100 · and `invoiced` rather than `expected`, so both statuses the
-    -- forecast accepts are represented.
-    ('01a0b1c2-d300-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000046',
-     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     748000, 12.00, 89760, 0, '60 days after travel', 'invoiced', NULL, 'ITV-2026-0912'),
-
-    -- Booked · weight 100.
-    ('01a0b1c2-d300-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000047',
-     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000031',
-     512000, 12.00, 61440, 0, '60 days after travel', 'expected', NULL, NULL),
-
-    -- Received, on a completed trip. OUTSIDE the forecast on both counts.
-    ('01a0b1c2-d300-7000-8000-000000000075', '0195a2c0-1a00-7000-8000-000000000044',
-     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     692000, 12.00, 83040, 83040, '60 days after travel', 'received',
-     current_date - 540, 'ITV-2025-0331');
-
 -- ── Payment milestones ───────────────────────────────────────────────────────────
 --
 -- Trip 40 already carries one scheduled milestone eleven days out. What was missing is an
@@ -1576,5 +1529,84 @@ UPDATE public.trip t
   ) sub ON sub.trip_id = all_trips.id
  WHERE t.id = all_trips.id
    AND t.total_paid_cents IS DISTINCT FROM coalesce(sub.paid, 0);
+
+-- ── Commission ───────────────────────────────────────────────────────────────────
+--
+-- MUST STAY AT THE END, after every trip and component insert, for the reason the package
+-- component block above records: placed earlier it covers whatever existed at the time and
+-- looks like it worked.
+--
+-- WHAT THIS TABLE IS, SINCE 20260930140000. The reconciliation ledger, not the forecast.
+-- The forecast derives from trip.total_commission_cents, which the 20260928100000 trigger
+-- maintains as the sum of each trip's component commission. A row HERE means "invoiced to
+-- or reconciled against Inteletravel".
+--
+-- SO 16 OF 22 REVENUE TRIPS HAVE NO ROW, DELIBERATELY. A booked trip that has not been
+-- invoiced yet should have none, and the forecast sees its margin anyway through
+-- total_commission_cents. Do NOT finish the pattern the package-component and
+-- payment-milestone blocks above use. Those generate a row per trip because a TRIGGER made
+-- the parent column a computed sum and the seed had to stop contradicting it. Nothing makes
+-- commission a computed sum, and a generated row here would be inventing an invoice that
+-- was never sent.
+--
+-- These six exercise §3.7: every status the forecast accepts, a fee that explains a
+-- shortfall, and one that does not.
+
+INSERT INTO public.commission (
+    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
+    expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
+    payment_terms, status, received_at, inteletravel_reference
+) VALUES
+    -- Trip 40, Sandals' line ALONE — 1,010,300 at 12%, which is exactly what the component
+    -- records. It used to claim the whole trip value (1,284,500) at a flat 12%, which made
+    -- the ledger say $1,541.40 where screen 3.4.2 said $1,318.36: the two flights on that
+    -- trip are correctly 0% and a flat rate over the total cannot know that. The rest of
+    -- trip 40's commission (transfer 1,400, catamaran 3,200, insurance 6,000) has no row
+    -- here because it has not been invoiced.
+    ('01a0b1c2-d300-7000-8000-000000000070', '0195a2c0-1a00-7000-8000-000000000040',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     1010300, 12.00, 121236, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+
+    -- Two proposals, so `expected` appears on more than one pipeline stage.
+    ('01a0b1c2-d300-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000041',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     964000, 12.00, 115680, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+    ('01a0b1c2-d300-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000042',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     1912000, 12.00, 229440, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+
+    -- `invoiced` rather than `expected`, so both pre-payment statuses are represented.
+    ('01a0b1c2-d300-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000046',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     748000, 12.00, 89760, 0, 0, 'USD', '60 days after travel', 'invoiced', NULL,
+     'ITV-2026-0912'),
+
+    -- Trip 47 is an all-inclusive resort week. This row named supplier ...031 — AMERICAN
+    -- AIRLINES, whose default_commission_pct is 0.00 — while storing a 12% rate: a resort
+    -- booking filed against an airline that pays nothing. Both halves were wrong and
+    -- neither was checkable, because commission_pct has no relationship to
+    -- supplier.default_commission_pct in any constraint. constraints_commission.sql now
+    -- asserts no row claims commission from a supplier that pays none.
+    ('01a0b1c2-d300-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000047',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     512000, 12.00, 61440, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+
+    -- RECONCILED, WITH A FEE. Expected 83,040, Inteletravel kept 1,246, 81,794 arrived:
+    -- 83,040 - 1,246 - 81,794 = 0, so screen 3.7.6 shows this settled rather than short.
+    -- Outside the forecast on both counts (completed trip, `received` status), and it is
+    -- here so that a change which accidentally sweeps it in shows up as a number moving.
+    ('01a0b1c2-d300-7000-8000-000000000075', '0195a2c0-1a00-7000-8000-000000000044',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     692000, 12.00, 83040, 1246, 81794, 'USD', '60 days after travel', 'received',
+     current_date - 540, 'ITV-2025-0331'),
+
+    -- NOT RECONCILED, AND THE FEE DOES NOT EXPLAIN IT. Expected 82,800, fee 1,242, only
+    -- 79,000 arrived: 2,558 unaccounted for. This is the row screen 3.7.6 exists for and
+    -- the row 3.7.1's "At risk · 1 disputed" KPI counts — the seed had neither a `disputed`
+    -- nor a `lost` row before, so both that screen and that tile had nothing to render.
+    ('01a0b1c2-d300-7000-8000-000000000076', '0195a2c0-1a00-7000-8000-000000000113',
+     '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
+     690000, 12.00, 82800, 1242, 79000, 'USD', '60 days after travel', 'disputed',
+     current_date - 300, 'ITV-2025-0480');
 
 COMMIT;

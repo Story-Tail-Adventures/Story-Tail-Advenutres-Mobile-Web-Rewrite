@@ -1472,6 +1472,22 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Purpose:** A client's consent to use a stored card for a specific trip up to a spending limit. The agent cannot use a card for a trip without an active authorization. Authorizations expire automatically.
 
+> **Amended 2026-09-28 — "expire automatically" had no mechanism until now.** `expires_at` is
+> `NOT NULL` so every row carries the date, and nothing anywhere in the repository ever wrote
+> `'expired'` or `'exhausted'` to `status`. An authorization past its expiry read `active`
+> forever.
+>
+> That is worse than a stale display, because `card_auth_active_per_trip` is a UNIQUE index
+> partial on `status = 'active'`: a stale row **blocks** a new authorization for the same card
+> and trip, so the traveler is asked to authorize again and cannot. `sweep_dated_promises()`
+> (`20260930160000`) now promotes `active → expired` daily. It leaves `revoked` alone, because
+> that is somebody's decision and a sweep must not overwrite it with a weaker word.
+>
+> **`exhausted` still has no producer, deliberately.** It depends on `amount_used_cents`,
+> which depends on `card_use_event`, which has no writer at all — §3.6.5 "Log Card Use" is
+> the screen that writes it and §3.6 is unbuilt. Guessing at it here would be inventing
+> spend. See the note on `amount_used_cents` below.
+
 **Phase:** P1
 
 | Field | Type | Nullable | Sensitivity | Notes |
@@ -1480,7 +1496,7 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `payment_card_id` | `uuid` | No | Public | FK → PaymentCard |
 | `trip_id` | `uuid` | No | Public | FK → Trip |
 | `spending_limit_cents` | `bigint` | No | Internal | Max total chargeable |
-| `amount_used_cents` | `bigint` | No | Internal | Running total |
+| `amount_used_cents` | `bigint` | No | Internal | Running total. **No producer, and it is an INPUT rather than a display figure:** the traveler's remaining spend is `spending_limit_cents − amount_used_cents`. Its source, `card_use_event`, has no writer at all; §3.6.5 "Log Card Use" is the screen that writes both. Same shape as `trip.total_paid_cents` was before `20260929100000`, and it must not be given a trigger before `card_use_event` has a producer, or the trigger will compute over an empty table and report a confident full balance |
 | `expires_at` | `timestamptz` | No | Internal | Auto-expire date |
 | `status` | `card_auth_status` enum | No | Internal | `active`, `revoked`, `expired`, `exhausted` |
 | `revoked_at` | `timestamptz` | Yes | Internal | — |
@@ -1604,6 +1620,24 @@ given a control that appears to do nothing. That goes with the same ruling.
 
 **Why `status` is stored rather than derived.** `overdue` could be computed from `due_date < today`, but the agent needs to be able to suppress it — a supplier who has verbally extended a deadline should not produce a red row on the client's dashboard. `waived` exists for the same reason: suppliers do forgive milestones, and a waived one is not the same as a paid one.
 
+> **Amended 2026-09-28 — the sweep exists now, and suppression has a defined carrier.**
+> The index note below named "the agent-side overdue sweep" as the reason `(status, due_date)`
+> is indexed. The index was built; **the sweep was never written**, so a milestone whose due
+> date passed stayed `scheduled` forever and the red state never fired on its own — on the
+> client dashboard, on the agent worklist, or on §3.4.15's table, all of which already accept
+> `overdue`. The only `overdue` row anywhere was hand-typed into the seed.
+>
+> `public.sweep_dated_promises()` (`20260930160000`) runs daily at 06:10 and promotes
+> `scheduled → overdue` once `due_date < current_date`. It **only ever promotes**, and never
+> touches `paid` or `waived`.
+>
+> **Suppression is expressed by moving the due date.** That needs no new column, because
+> moving the date is literally what a verbally extended deadline is: the advisor edits the
+> milestone in §3.4.15, and the sweep then has nothing to match. A job must not argue with an
+> advisor who has already said what they mean, which is why the sweep never demotes an
+> `overdue` row either. `constraints_commission.sql` asserts all four cases: promoted,
+> waived-left-alone, due-today-is-not-late, and date-moved-is-not-promoted.
+
 **`amount_cents` is Public, unlike `trip_component.cost_cents`.** The distinction is real: `cost_cents` is what the agency paid, which reveals margin; this is what the client's trip costs them on a given date, which they are entitled to know and which the itinerary already implies.
 
 **Indexes:** index on `(trip_id, order_index)`; index on `(status, due_date)` for the agent-side overdue sweep.
@@ -1623,10 +1657,12 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `component_id` | `uuid` | Yes | Public | FK → TripComponent (if commission is per-component) |
 | `agent_id` | `uuid` | No | Public | FK → Agent |
 | `supplier_id` | `uuid` | No | Public | FK → Supplier |
-| `gross_booking_cents` | `bigint` | No | Internal | What the client/supplier transaction totalled |
-| `commission_pct` | `numeric(5,2)` | No | Internal | — |
-| `expected_commission_cents` | `bigint` | No | Internal | Computed |
-| `received_commission_cents` | `bigint` | No | Internal | What we actually got |
+| `gross_booking_cents` | `bigint` | No | Internal | What the **supplier transaction** totalled. NOT the trip total: a trip carries lines from several suppliers and lines that pay nothing |
+| `commission_pct` | `numeric(5,2)` | No | Internal | 0–100, enforced |
+| `expected_commission_cents` | `bigint` | No | Internal | **Exactly `round(gross_booking_cents × commission_pct / 100)`, enforced by CHECK since 20260930150000.** This field said "Computed" from the start and nothing computed it |
+| `processing_fee_cents` | `bigint` | No | Internal | What the host agency deducts before depositing (Gyasi, 2026-09-28). Its own column so the line above can stay exact; §3.7.6 renders `expected − fee − received`, and a non-zero remainder is the discrepancy to chase |
+| `received_commission_cents` | `bigint` | No | Internal | What actually arrived. Becomes a tax figure |
+| `currency` | `char(3)` | No | Internal | Matches its trip's. Added 20260930150000: this was the one money table with no currency column, a quiet exception to the cents-plus-currency rule that only worked while `agent_kpis()` inferred it through a join it no longer makes |
 | `payment_terms` | `text` | No | Internal | `at_booking`, `after_travel` |
 | `status` | `commission_status` enum | No | Internal | `expected`, `invoiced`, `received`, `disputed`, `lost` |
 | `received_at` | `date` | Yes | Internal | When the deposit hit |
@@ -1636,7 +1672,19 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-**Indexes:** index on `(agent_id, status, received_at)`; index on `(trip_id)`; index on `(supplier_id, status)`.
+**Indexes:** index on `(agent_id, status, received_at)`; index on `(trip_id)`; index on `(supplier_id, status)`; **partial unique index on `(agent_id, inteletravel_reference) WHERE inteletravel_reference IS NOT NULL`** — the natural key §3.7.5's CSV import reconciles on, partial because most rows never get one.
+
+**This is the reconciliation ledger, NOT the commission forecast, and they are two numbers on purpose.** Screen 3.2.1's "Commission expected" KPI derives from `trip.total_commission_cents`, which the `20260928100000` trigger maintains as the sum of each trip's component commission. This table records what was invoiced to and paid by Inteletravel.
+
+Sourcing the forecast from here was a real defect, fixed in `20260930140000`. The two grains do not match: the ledger is per supplier line, the forecast is per trip, and against the seed the ledger covered 6 of 22 revenue trips. Trip 40 disagreed with itself by $223.04 — a flat 12% over a trip total that includes two flights correctly recorded at 0% — while $4,819.20 of committed margin on three *booked* trips was invisible because they had no ledger row at all.
+
+**Do not give this table a trigger.** Screen 3.7.6 reconciles a stored claim against what was actually paid, and the prototype draws a row reading *"Expected $1,020 — Sandals applied 14% not 15%"*. A value derived from components can only ever agree with its own children: correct the component and the discrepancy evaporates, taking that screen's reason to exist with it. 3.7.4 is likewise a Save form "for trips booked outside the platform", and 3.7.6 shows money arriving with no matching trip at all.
+
+**A trip with no row here has not been invoiced yet. That is a state, not a gap** — 16 of 22 revenue trips in the seed are deliberately in it.
+
+**Producers, none of them built:** §3.7.3 (edit), §3.7.4 (manual entry), §3.7.5 (Inteletravel CSV import).
+
+**`payment_terms` is out of spec and blocks §3.7.7.** This table documents `at_booking` / `after_travel`; the seed writes free text like `'60 days after travel'`, and `supplier.commission_payment_terms` is free text too. §3.7.7's cash-in calendar needs a parsed date offset, which free text cannot give, so this wants an enum plus a lag-days integer **before** that screen is built.
 
 ### 10.2 CommissionImport
 
