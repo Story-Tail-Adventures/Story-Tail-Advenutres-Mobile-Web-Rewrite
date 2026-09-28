@@ -62,7 +62,7 @@ BEGIN
     RAISE EXCEPTION 'FAILED: % — the statement was accepted and should not have been', description;
 END $$;
 
--- From 20260930120001_cruise_fleet_catalog.sql.
+-- From 20261001130001_cruise_fleet_catalog.sql.
 \set rc_line   '''01a08376-dc00-7000-8000-000000003001'''
 \set symphony  '''01a08376-dc00-7000-8000-000000004050'''
 

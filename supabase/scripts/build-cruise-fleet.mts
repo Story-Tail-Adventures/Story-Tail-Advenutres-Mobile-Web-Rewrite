@@ -49,7 +49,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CSV = resolve(HERE, "data/cruise_ships.csv");
-const OUT = resolve(HERE, "../migrations/20260930120001_cruise_fleet_catalog.sql");
+const OUT = resolve(HERE, "../migrations/20261001130001_cruise_fleet_catalog.sql");
 
 /**
  * Wikimedia's user-agent policy rejects generic clients, and a 403 from it reads exactly like

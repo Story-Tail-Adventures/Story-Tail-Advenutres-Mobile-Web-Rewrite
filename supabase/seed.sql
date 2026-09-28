@@ -750,7 +750,7 @@ FROM public.client c WHERE c.email = 'jordan.hayes@example.com';
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Cruise sailing fixtures (P2)
 --
--- The lines and the ships are NOT here any more. 20260930120001_cruise_fleet_catalog.sql puts
+-- The lines and the ships are NOT here any more. 20261001130001_cruise_fleet_catalog.sql puts
 -- ten lines and 153 ships in by migration, because production needs them as much as a laptop
 -- does and seed.sql never reaches production. These four sailings hang off two of those
 -- catalog hulls, and they stay here because they ARE fixtures: invented departures at invented
