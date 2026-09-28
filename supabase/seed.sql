@@ -337,6 +337,19 @@ VALUES
     ('0195a2c0-1a00-7000-8000-000000000031', 'American Airlines', 'airline', 'api', 0.00, 'groups@example.com'),
     ('0195a2c0-1a00-7000-8000-000000000032', 'Island Routes Adventures', 'tour_operator', 'portal', 10.00, 'bookings@example.com');
 
+-- Three more, one per component kind that had no supplier to pick.
+--
+-- §3.4.5 – §3.4.12's sheets each offer the suppliers matching their kind, so a kind with
+-- none renders an empty picker — which looks like a broken control rather than an honest
+-- "none on file". `supplier_kind` has eight values; these three close the gap for the four
+-- sheets that had nothing, and `hotel_brand` and `other` stay empty on purpose so the
+-- empty-picker state is one an advisor can actually reach in dev.
+INSERT INTO public.supplier (id, name, kind, payment_method_kind, default_commission_pct, contact_email)
+VALUES
+    ('0195a2c0-1a00-7000-8000-000000000033', 'Royal Caribbean', 'cruise_line', 'portal', 16.00, 'agents@example.com'),
+    ('0195a2c0-1a00-7000-8000-000000000034', 'Allianz Travel', 'insurance', 'api', 25.00, 'partners@example.com'),
+    ('0195a2c0-1a00-7000-8000-000000000035', 'Nassau Airport Transfers', 'transfer', 'unknown', 8.00, 'ops@example.com');
+
 -- ── More trips for Jordan, one per renderable status ─────────────────────────
 -- 0040 (booked, +67d, part-paid) already exists above and is the dashboard hero.
 
@@ -425,35 +438,62 @@ INSERT INTO public.trip_component (
      'flight', '0195a2c0-1a00-7000-8000-000000000031', 'AA 1413 · MIA → MBJ',
      current_date + 67, current_date + 67, '06:40', '09:30',
      'Miami International Airport', 'TLR8QV', 84200, 0.00, 0,
-     '{"airline":"American Airlines","flight_number":"AA 1413","origin":"MIA","destination":"MBJ","cabin":"main","seat":"14A, 14B"}'::jsonb, 0),
+     -- PAYLOAD HOLDS ONLY WHAT NO COLUMN DOES, as of 2026-09-28 and Data-Model §23.
+     -- `airline` went to `supplier_id`, `origin`/`destination` to the route already in
+     -- `display_name`. Both were a second copy of a fact a column held, and a second copy
+     -- is what an edit sheet silently picks one of.
+     '{"flight_number":"AA 1413","cabin":"main","seat":"14A, 14B"}'::jsonb, 0),
+    -- THE RETURN LEG, added 2026-09-28 when trip.total_value_cents became a computed sum.
+    -- Its absence was a fixture bug hiding behind a hand-set total: the components summed to
+    -- $11,645 while the row claimed $12,845 and the payment milestones were balanced against
+    -- the claim. Nothing checked, because nothing computed the sum. A round trip to Jamaica
+    -- with no way home was the tell nobody read.
+    ('0195a2c0-1a00-7000-8000-00000000007f', '0195a2c0-1a00-7000-8000-000000000040',
+     'flight', '0195a2c0-1a00-7000-8000-000000000031', 'AA 1410 · MBJ → MIA',
+     current_date + 74, current_date + 74, '11:35', '14:20',
+     'Sangster International Airport', 'TLR8QV', 120000, 0.00, 0,
+     '{"flight_number":"AA 1410","cabin":"main","seat":"12A, 12B"}'::jsonb, 5),
     ('0195a2c0-1a00-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000040',
-     'transfer', '0195a2c0-1a00-7000-8000-000000000032', 'Private transfer · Mercedes Vito',
+     -- NO SUPPLIER, deliberately. It was filed under Island Routes, which is a tour
+     -- operator rather than a transfer company — and a local Montego Bay driver who is
+     -- not on the supplier list is the ordinary case, not an edge one. It is also the
+     -- only thing keeping `agent_trip_components`' LEFT JOIN honest: with every component
+     -- naming a supplier, an INNER join would pass every test and empty the builder for
+     -- every trip built by hand.
+     'transfer', NULL, 'Private transfer · Mercedes Vito',
      current_date + 67, current_date + 67, '10:20', '11:45',
      'Montego Bay', NULL, 14000, 10.00, 1400,
-     '{"vehicle":"Mercedes Vito","duration_minutes":85}'::jsonb, 1),
+     '{"vehicle":"Mercedes Vito","duration":"85 minutes"}'::jsonb, 1),
     ('0195a2c0-1a00-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000040',
      'hotel', '0195a2c0-1a00-7000-8000-000000000030', 'Ocean-view suite · 7 nights',
      current_date + 67, current_date + 74, '15:00', '11:00',
      'Negril, Jamaica', 'SRB-220119', 1010300, 12.00, 121236,
-     '{"room_type":"Ocean-view suite","board_basis":"all-inclusive","nights":7,"rate_cents_per_night":144328}'::jsonb, 2),
+     -- `nights` and `rate_cents_per_night` are gone. The first is `start_date` to
+     -- `end_date`; the second was money outside a money column, and it had ALREADY drifted
+     -- — 144328 × 7 is 1,010,296 against the 1,010,300 beside it. Four cents, no
+     -- constraint, nothing anywhere to notice. The same shape `total_value_cents` was in.
+     '{"room_type":"Ocean-view suite","board_basis":"all-inclusive"}'::jsonb, 2),
     ('0195a2c0-1a00-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000040',
      'excursion', '0195a2c0-1a00-7000-8000-000000000032', 'Catamaran to Booby Cay',
      current_date + 69, current_date + 69, '09:00', '15:00',
-     'Negril Marina', 'IR-88214', 32000, 10.00, 3200,
-     '{"duration_hours":6,"meeting_point":"Negril Marina, pier 2","includes":["snorkel gear","lunch"]}'::jsonb, 3);
+     'Negril Marina, pier 2', 'IR-88214', 32000, 10.00, 3200,
+     '{"duration":"6 hours","notes":"Includes snorkel gear and lunch."}'::jsonb, 3);
 
 -- An insurance component and an emergency contact, so §2.2.4's Important info panel has
 -- something to show. Without these it correctly reads "Nothing filed for this trip yet",
 -- which is a true empty state but leaves the populated one untested.
 INSERT INTO public.trip_component (
-    id, trip_id, kind, display_name, start_date, end_date,
+    id, trip_id, kind, supplier_id, display_name, start_date, end_date,
     confirmation_number, cost_cents, commission_pct, commission_cents, payload, order_index
 ) VALUES (
     '0195a2c0-1a00-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000040',
-    'insurance', 'Allianz OneTrip Prime',
+    -- `provider` became `supplier_id` and `policy_number` became `confirmation_number`.
+    -- The second one is how the whole class was found: the seed held the identical string
+    -- "98-7124" in a column and in the blob beside it.
+    'insurance', '0195a2c0-1a00-7000-8000-000000000034', 'Allianz OneTrip Prime',
     current_date + 67, current_date + 74,
-    '98-7124', 24000, 0.00, 0,
-    '{"provider":"Allianz","policy_number":"98-7124","coverage":"medical, cancellation, baggage"}'::jsonb, 4
+    '98-7124', 24000, 25.00, 6000,
+    '{"coverage":"medical, cancellation, baggage"}'::jsonb, 4
 );
 
 UPDATE public.client
@@ -554,7 +594,12 @@ INSERT INTO public.itinerary_day (id, itinerary_id, day_number, date, label, sum
      'Snorkelling straight off the beach, then the Sesame Street breakfast.');
 
 -- ── Payment milestones (trip 0040) ──────────────────────────────────────────
--- Sums to total_value_cents 1284500; paid sums to total_paid_cents 500000.
+-- Sums to 1284500, which is what the trip's COMPONENTS now sum to as well — see the return
+-- leg above. `trip.total_value_cents` is no longer a hand-set number to be balanced against:
+-- a trigger recomputes it from the components (20260928100000), so this comment is now a
+-- statement the database enforces rather than one a reader has to take on faith.
+-- Paid sums to total_paid_cents 500000, which IS still hand-set: money that moved is not a
+-- function of the component list.
 
 INSERT INTO public.payment_milestone (
     id, trip_id, kind, label, amount_cents, currency, due_date, paid_at, paid_cents, status, order_index
@@ -1413,6 +1458,56 @@ SELECT '0195a2c0-1a00-7000-8000-000000000533', pu.id, 'agent', 'trip.status_chan
 FROM public.trip t, public.platform_user pu
 WHERE t.title = 'Kyoto in the spring' AND pu.role = 'agent';
 
-
+-- ── One package component per trip that had none ────────────────────────────
+--
+-- THE PROBLEM THIS SOLVES, found 2026-09-28 when `trip.total_value_cents` became a computed
+-- sum. Twenty-two of the twenty-six seeded trips carried a hand-set total and NOT ONE
+-- component — $150,320 of money with nothing behind it. Every downstream fixture (payment
+-- milestones, commission rows, the worklist's pipeline KPI) was balanced against those
+-- numbers, and the Data-Model has always said the total is the sum of the components.
+--
+-- That was harmless while nothing could add a component. Screen 3.4.4 can, and the first
+-- component added to any of those trips would have recomputed its total from that ONE line —
+-- collapsing a $6,920 trip to $500 in front of the advisor who just added a transfer.
+--
+-- So each gets a single component carrying exactly what the trip already claimed. One row,
+-- not an invented itinerary: it preserves every downstream number to the cent, it makes the
+-- Data-Model's definition true for every trip rather than one, and it reads honestly —
+-- an all-inclusive package really is often booked as a single line. A trip with a real
+-- itinerary (0040) is left alone; this only fills in what was empty.
+INSERT INTO public.trip_component (
+    id, trip_id, kind, display_name, start_date, end_date,
+    cost_cents, commission_pct, commission_cents, currency, payload, order_index
+)
+SELECT
+    -- Deterministic, so a reset produces the same ids twice running.
+    ('0195a2c0-1a00-7000-8000-0000000f' || lpad(row_number() OVER (ORDER BY t.id)::text, 4, '0'))::uuid,
+    t.id,
+    CASE t.trip_type
+        WHEN 'cruise' THEN 'cruise'::public.component_kind
+        WHEN 'all_inclusive' THEN 'hotel'::public.component_kind
+        ELSE 'custom'::public.component_kind
+    END,
+    CASE t.trip_type
+        WHEN 'cruise' THEN 'Sailing · package'
+        WHEN 'all_inclusive' THEN 'Resort stay · all-inclusive package'
+        WHEN 'group' THEN 'Group package'
+        WHEN 'multi_destination' THEN 'Multi-stop package'
+        ELSE 'Trip package'
+    END,
+    t.start_date, t.end_date,
+    t.total_value_cents,
+    CASE WHEN t.total_value_cents > 0
+         THEN round((t.total_commission_cents::numeric / t.total_value_cents) * 100, 2)
+         ELSE 0 END,
+    t.total_commission_cents,
+    t.currency,
+    '{"notes":"Seed package — one line standing for a trip booked before the component builder existed."}'::jsonb,
+    0
+FROM public.trip t
+WHERE t.total_value_cents > 0
+  AND NOT EXISTS (
+      SELECT 1 FROM public.trip_component c WHERE c.trip_id = t.id
+  );
 
 COMMIT;

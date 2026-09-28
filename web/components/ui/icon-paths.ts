@@ -56,6 +56,9 @@ export const ICON_PATHS = {
   more_vert: "M12 5h.01M12 12h.01M12 19h.01",
   chevron_up: "m6 15 6-6 6 6",
   trip: "M3 13l3-6h12l3 6m-18 0v6h18v-6M3 13h18M7 17h.01M17 17h.01",
+  // §3.4.4's "remove from trip". Copied verbatim from the prototype's icons.jsx, per the
+  // note above — the glyph existed there and had simply never been needed on the web side.
+  trash: "M4 7h16M9 7V4h6v3m-7 0v13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V7",
   building: "M4 22V4h10v18M14 22V10h6v12M8 8h2M8 12h2M8 16h2M17 14h.01M17 18h.01",
   sun: "M12 4v2m0 12v2M4 12H2m20 0h-2M5.6 5.6 4 4m16 16-1.6-1.6M5.6 18.4 4 20m16-16-1.6 1.6M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
   receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6m-6 4h6m-6 4h3",
