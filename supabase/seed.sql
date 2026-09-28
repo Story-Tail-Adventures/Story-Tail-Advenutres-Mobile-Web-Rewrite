@@ -337,6 +337,19 @@ VALUES
     ('0195a2c0-1a00-7000-8000-000000000031', 'American Airlines', 'airline', 'api', 0.00, 'groups@example.com'),
     ('0195a2c0-1a00-7000-8000-000000000032', 'Island Routes Adventures', 'tour_operator', 'portal', 10.00, 'bookings@example.com');
 
+-- Three more, one per component kind that had no supplier to pick.
+--
+-- §3.4.5 – §3.4.12's sheets each offer the suppliers matching their kind, so a kind with
+-- none renders an empty picker — which looks like a broken control rather than an honest
+-- "none on file". `supplier_kind` has eight values; these three close the gap for the four
+-- sheets that had nothing, and `hotel_brand` and `other` stay empty on purpose so the
+-- empty-picker state is one an advisor can actually reach in dev.
+INSERT INTO public.supplier (id, name, kind, payment_method_kind, default_commission_pct, contact_email)
+VALUES
+    ('0195a2c0-1a00-7000-8000-000000000033', 'Royal Caribbean', 'cruise_line', 'portal', 16.00, 'agents@example.com'),
+    ('0195a2c0-1a00-7000-8000-000000000034', 'Allianz Travel', 'insurance', 'api', 25.00, 'partners@example.com'),
+    ('0195a2c0-1a00-7000-8000-000000000035', 'Nassau Airport Transfers', 'transfer', 'unknown', 8.00, 'ops@example.com');
+
 -- ── More trips for Jordan, one per renderable status ─────────────────────────
 -- 0040 (booked, +67d, part-paid) already exists above and is the dashboard hero.
 

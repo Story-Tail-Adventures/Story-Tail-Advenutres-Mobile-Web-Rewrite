@@ -3477,6 +3477,15 @@ export type Database = {
           version: number
         }[]
       }
+      agent_suppliers: {
+        Args: { p_kind?: Database["public"]["Enums"]["supplier_kind"] }
+        Returns: {
+          default_commission_pct: number
+          kind: Database["public"]["Enums"]["supplier_kind"]
+          name: string
+          supplier_id: string
+        }[]
+      }
       agent_trip_activity: {
         Args: { p_trip_id: string }
         Returns: {
@@ -3535,8 +3544,11 @@ export type Database = {
           kind: Database["public"]["Enums"]["component_kind"]
           location: string
           order_index: number
+          payload: Json
           start_date: string
           start_time: string
+          supplier_id: string
+          supplier_name: string
         }[]
       }
       agent_trip_documents: {

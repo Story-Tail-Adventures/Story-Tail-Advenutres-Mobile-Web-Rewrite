@@ -123,6 +123,14 @@ SELECT '01a0b1c2-d300-7000-8000-0000000000e2',
   FROM public.platform_user pu
  WHERE pu.agent_id = '0195a2c0-1a00-7000-8000-000000000001';
 
+-- AN ARCHIVED SUPPLIER, because the seed has none. Without this the "agent_suppliers()
+-- excludes an archived supplier" assertion below passes over an empty set and would keep
+-- passing if the predicate were deleted — the same hole an archived-trip assertion had in
+-- §3.4.1 until a fixture was added under it.
+INSERT INTO public.supplier (id, name, kind, payment_method_kind, archived_at)
+VALUES ('01a0b1c2-d300-7000-8000-0000000000f0', 'Defunct Tours Ltd', 'tour_operator',
+        'unknown', timestamptz '2025-01-01 00:00:00+00');
+
 -- ── Expectations, captured as the owner before dropping into the agent's role ────
 --
 -- Derived from the tables rather than restated as literals, so a seed edit moves both sides
@@ -154,9 +162,18 @@ SELECT (SELECT count(*) FROM public.trip_component
          WHERE trip_id = :trip::uuid AND status IN ('scheduled', 'overdue')
            AND due_date IS NOT NULL)                                               AS next_unpaid,
        (SELECT (now() AT TIME ZONE a.time_zone)::date FROM public.agent a
-         WHERE a.id = '0195a2c0-1a00-7000-8000-000000000001')                      AS today;
+         WHERE a.id = '0195a2c0-1a00-7000-8000-000000000001')                      AS today,
+       (SELECT count(*) FROM public.supplier WHERE archived_at IS NULL)            AS live_suppliers;
 
 GRANT SELECT ON expected TO authenticated;
+
+-- `supplier` has NO grant to `authenticated` at all (the agent-domain lockdown), so an
+-- assertion that reads it after `become()` returns zero rows and agrees with anything. It
+-- is captured here, as the owner, for the same reason `expected` is.
+CREATE TEMP TABLE supplier_as_owner AS
+SELECT id, name, kind, archived_at FROM public.supplier;
+
+GRANT SELECT ON supplier_as_owner TO authenticated;
 
 -- ── As the trip's own advisor ────────────────────────────────────────────────────
 
@@ -188,6 +205,81 @@ SELECT pg_temp.assert(
         = (SELECT components FROM expected)
       AND (SELECT components FROM expected) > 0,
     'agent_trip_components() returns every live component on the trip');
+
+-- ── §3.4.4 / §3.4.12 widened the signature: payload and the supplier ─────────────
+--
+-- `payload` and `supplier_id` are BOTH revoked from `authenticated`, the same as
+-- `cost_cents` above, so these are the same load-bearing pair and not a formality. An edit
+-- sheet renders a flight's seats and a cruise's cabin out of `payload`; if the accessor
+-- stopped returning it, every sheet would open blank over a component that has the data.
+
+SELECT pg_temp.expect_denied(
+    'SELECT payload FROM public.trip_component',
+    'agent is refused trip_component.payload directly');
+SELECT pg_temp.expect_denied(
+    'SELECT supplier_id FROM public.trip_component',
+    'agent is refused trip_component.supplier_id directly');
+SELECT pg_temp.expect_denied(
+    'SELECT name FROM public.supplier',
+    'agent is refused the supplier table directly — the agent domain has no client grants');
+
+SELECT pg_temp.assert(
+    (SELECT bool_and(payload IS NOT NULL) FROM public.agent_trip_components(:trip::uuid)),
+    'agent_trip_components() DOES return payload');
+
+-- THE LEFT JOIN, both ways. An INNER join would have emptied the builder for every
+-- hand-typed component, and the seed has both shapes on this trip on purpose.
+SELECT pg_temp.assert(
+    EXISTS (SELECT 1 FROM public.agent_trip_components(:trip::uuid)
+             WHERE supplier_id IS NOT NULL AND supplier_name IS NOT NULL)
+    AND EXISTS (SELECT 1 FROM public.agent_trip_components(:trip::uuid)
+                 WHERE supplier_id IS NULL AND supplier_name IS NULL),
+    'supplier_name resolves where a component names a supplier, and is null where it does not');
+
+SELECT pg_temp.assert(
+    (SELECT bool_and(c.supplier_name = s.name)
+       FROM public.agent_trip_components(:trip::uuid) c
+       JOIN supplier_as_owner s ON s.id = c.supplier_id),
+    '... and the name it resolves to is that supplier''s own');
+
+-- ── §3.4.5 – §3.4.12's supplier picker ───────────────────────────────────────────
+
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_suppliers()) = (SELECT live_suppliers FROM expected)
+      AND (SELECT live_suppliers FROM expected) > 0,
+    'agent_suppliers() returns every supplier that is not archived');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_suppliers() a
+                 JOIN supplier_as_owner s ON s.id = a.supplier_id
+                WHERE s.archived_at IS NOT NULL),
+    'agent_suppliers() excludes an archived supplier');
+
+-- THE KIND COMES BACK, because the form groups by it. There is no kind PARAMETER — see
+-- the function's own comment: filtering by `supplier_kind` makes a mis-filed supplier
+-- unpickable on the one sheet that needs it, and opens an empty picker for any kind
+-- nobody has yet. Grouping gets the scanning benefit without either.
+SELECT pg_temp.assert(
+    (SELECT count(DISTINCT kind) FROM public.agent_suppliers()) > 1,
+    'agent_suppliers() returns the kind, so the picker can group by it');
+
+SELECT pg_temp.assert(
+    (SELECT p.pronargs FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = 'agent_suppliers') = 0,
+    'agent_suppliers() takes no arguments — every supplier, every sheet');
+
+-- RETURNS TABLE IS THE COLUMN ALLOW-LIST, and this is the assertion that says so. The
+-- payment columns belong to §3.6's card flows; a component form has no business naming a
+-- supplier's portal URL, and the only thing stopping it is this signature.
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1 FROM unnest(
+            (SELECT p.proargnames FROM pg_proc p
+               JOIN pg_namespace n ON n.oid = p.pronamespace
+              WHERE n.nspname = 'public' AND p.proname = 'agent_suppliers')) AS col
+         WHERE col IN ('payment_api_endpoint', 'payment_portal_url',
+                       'contact_email', 'contact_phone', 'notes')),
+    'agent_suppliers() names no payment endpoint, portal URL or contact column');
 
 SELECT pg_temp.assert(
     (SELECT manual_component_count = (SELECT manual FROM expected)
@@ -318,6 +410,13 @@ SELECT pg_temp.assert(
     'all eight accessors return nothing to the traveler who owns the trip — including the '
     'internal note and the cost columns their own policies withhold');
 
+-- The supplier picker too. Suppliers are agency-wide rather than per-trip, so there is no
+-- trip predicate to stop a traveler here — only the ownership CTE, and this is the
+-- assertion that it is doing that job. A supplier row carries commission terms.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_suppliers()) = 0,
+    'agent_suppliers() returns nothing to a traveler');
+
 RESET ROLE;
 
 -- ── As a second advisor ──────────────────────────────────────────────────────────
@@ -370,6 +469,14 @@ SELECT pg_temp.assert(
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.agent_trip_overview(:trip::uuid)) = 0,
     'agent_trip_overview() gives the second advisor nothing of Gyasi''s trip');
+
+-- SHARED ON PURPOSE, and asserted so nobody "fixes" it into a tenancy bug in reverse.
+-- Every other accessor in this file narrows to the calling advisor's own rows; `supplier`
+-- is an agency-wide table with no agent_id on it, so the right answer for a second advisor
+-- is the same list, not an empty one. P3's multi-agent work is where that could change.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_suppliers()) = (SELECT live_suppliers FROM expected),
+    'agent_suppliers() is agency-wide — a second advisor sees the same suppliers');
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.agent_trip_components(:trip::uuid)) = 0,
     'agent_trip_components() gives them no components — including cost_cents, the margin');
@@ -442,9 +549,20 @@ RESET ROLE;
 -- unnameable, not merely unselected, so no later edit can add it back by touching only a
 -- SELECT list.
 
+-- `payload` WAS on this list until §3.4.12, and its removal is deliberate rather than an
+-- erosion. §3.4.2 only listed components, so payload was detail nothing rendered; the edit
+-- sheet renders it, and Data-Model §23 put the field validation in the Edge Function
+-- precisely because the column would be read and written by an agent surface. What has NOT
+-- changed is who can reach it: `trip_component.payload` is still revoked from
+-- `authenticated`, still unreachable except through this accessor, and the assertions
+-- against a traveler and a second advisor above still hold.
+--
+-- `api_reference` takes its place here. It is the provider's own booking handle, it is
+-- written by Phase 2's sync and by nothing an advisor types, and no §3.4 form has any
+-- business offering it as an editable field.
 SELECT pg_temp.assert(
-    pg_get_function_result('public.agent_trip_components'::regproc) NOT LIKE '%payload%',
-    'agent_trip_components() cannot name trip_component.payload');
+    pg_get_function_result('public.agent_trip_components'::regproc) NOT LIKE '%api_reference%',
+    'agent_trip_components() cannot name trip_component.api_reference');
 SELECT pg_temp.assert(
     pg_get_function_result('public.agent_trip_documents'::regproc) NOT LIKE '%storage_%'
       AND pg_get_function_result('public.agent_trip_documents'::regproc) NOT LIKE '%checksum%',
