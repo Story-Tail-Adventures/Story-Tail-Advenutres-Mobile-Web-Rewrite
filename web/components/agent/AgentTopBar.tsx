@@ -84,17 +84,27 @@ export function AgentTopBar({ initials }: { initials: string }) {
           `sm` is Tailwind's 640px here, not a phone boundary — globals.css redefines only
           `--breakpoint-web`. 640 is simply where the measurement says everything fits at
           natural size anyway. */}
-      {/* LIVE AS OF §3.3.9, and a LINK rather than a menu. It was one disabled button
-          standing for two unbuilt actions; creating a client is built now and creating a
-          trip is §3.4.3, so the honest control is the one thing it can do. When §3.4.3
-          lands this becomes a menu with two entries and the label loses its object. */}
-      <Link
-        href="/agent/clients/new"
-        className="btn-icon hidden sm:inline-flex"
-        aria-label="New client"
-      >
-        <Icon name="plus" size={18} />
-      </Link>
+      {/* THE MENU §3.3.9's NOTE PROMISED. It was a disabled button standing for two unbuilt
+          actions, then a plain link when only one of them existed, and now both do — so the
+          label loses its object and becomes "New".
+
+          `<details>` RATHER THAN A POPOVER LIBRARY: two links need no focus trap and no
+          positioning engine, and this way the menu opens with JavaScript off. Escape and
+          click-away are the two things it does not do, which is the trade for not shipping
+          a dropdown framework to hold two hrefs. */}
+      <details className="agent-quickadd relative hidden sm:block">
+        <summary className="btn-icon list-none" aria-label="New">
+          <Icon name="plus" size={18} />
+        </summary>
+        <div className="card absolute right-0 z-20 mt-1 flex w-44 flex-col gap-0.5 p-1">
+          <Link href="/agent/clients/new" className="agent-quickadd-item">
+            <Icon name="user" size={13} /> New client
+          </Link>
+          <Link href="/agent/trips/new" className="agent-quickadd-item">
+            <Icon name="trip" size={13} /> New trip
+          </Link>
+        </div>
+      </details>
 
       <button
         type="button"

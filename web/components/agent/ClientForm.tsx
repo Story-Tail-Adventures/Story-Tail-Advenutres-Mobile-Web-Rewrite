@@ -332,14 +332,17 @@ export function ClientForm({
             {saving ? CLIENT_COPY.formSaving : CLIENT_COPY.formSave}
           </button>
           {mode === "create" && (
+            // Live as of §3.4.3. A SECOND SUBMIT rather than a link: the client does not
+            // exist yet, so "and create a trip" can only mean "save this, then take me
+            // there with it already picked". Only the pressed button posts its value, so
+            // the action learns which of the two was used without any client state.
             <button
-              type="button"
-              disabled
-              title={CLIENT_COPY.saveAndTripDeferred}
-              className="btn btn-tonal opacity-50"
+              type="submit"
+              name="then"
+              value="trip"
+              className="btn btn-tonal"
             >
               {CLIENT_COPY.saveAndTrip}
-              <span className="sr-only"> — {CLIENT_COPY.saveAndTripDeferred}</span>
             </button>
           )}
         </div>

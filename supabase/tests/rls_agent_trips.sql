@@ -191,6 +191,98 @@ SELECT pg_temp.assert(
     'a whitespace-only search is no search, not a search for nothing');
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 4b. §3.4.3 Create
+-- ─────────────────────────────────────────────────────────────────────────────
+
+SELECT pg_temp.expect_denied(
+    $$SELECT public.agent_create_trip(
+        '00000000-0000-0000-0000-000000000001'::uuid,
+        '00000000-0000-0000-0000-000000000002'::uuid,
+        '00000000-0000-0000-0000-000000000003'::uuid,
+        'x', 'custom'::trip_type, 1)$$,
+    'even an AGENT cannot execute agent_create_trip — service_role only');
+
+RESET ROLE;
+
+-- A TRIP IS BORN IN `inquiry`, ALWAYS. Every other stage is a transition that owes a
+-- trip_status_history row naming what it moved from; a trip created straight into `booked`
+-- would be a booking with no record of having been proposed.
+-- Created in its own STATEMENT, then asserted. A function's INSERT is not visible to
+-- another scan inside the same statement, so folding the call into the WHERE of a SELECT
+-- over `trip` reads the snapshot from before the row existed — and the assertion fails for
+-- a reason that has nothing to do with what it is testing.
+CREATE TEMP TABLE made AS
+SELECT * FROM public.agent_create_trip(
+    :agent::uuid, gen_random_uuid(),
+    (SELECT c.id FROM public.client c WHERE c.agent_id = :agent::uuid LIMIT 1),
+    'Tobago, a first look', 'custom'::trip_type, 2);
+
+SELECT pg_temp.assert((SELECT outcome FROM made) = 'created',
+    'the create reports success');
+
+SELECT pg_temp.assert(
+    (SELECT t.status FROM public.trip t WHERE t.id = (SELECT trip_id FROM made)) = 'inquiry',
+    'a created trip starts in inquiry, and the caller is not offered a choice');
+
+SELECT pg_temp.assert(
+    (SELECT t.traveler_count FROM public.trip t WHERE t.id = (SELECT trip_id FROM made)) = 2,
+    '... and keeps the traveler count it was given');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (
+        SELECT 1 FROM public.trip_status_history h
+          JOIN public.trip t ON t.id = h.trip_id
+         WHERE t.title = 'Tobago, a first look'),
+    '... and writes no history row, because nothing transitioned');
+
+-- ANOTHER ADVISOR'S CLIENT IS `no_client`, NOT AN EXCEPTION. The picker searches the
+-- advisor's own book, so reaching this means a typed or stale id — and it is the same
+-- answer as "no such client", so an id cannot be probed for.
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_create_trip(
+        :agent::uuid, gen_random_uuid(),
+        (SELECT c.id FROM public.client c WHERE c.agent_id <> :agent::uuid LIMIT 1),
+        'Not mine', 'custom'::trip_type, 1)) = 'no_client',
+    'another advisor''s client cannot be given a trip, and says so rather than raising');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.trip WHERE title = 'Not mine'),
+    '... and no row was written');
+
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_create_trip(
+        '00000000-0000-0000-0000-0000000000ff'::uuid, gen_random_uuid(),
+        (SELECT c.id FROM public.client c WHERE c.agent_id = :agent::uuid LIMIT 1),
+        'By a stranger', 'custom'::trip_type, 1)) = 0,
+    'an unknown agent id creates nothing');
+
+-- `trip.title` is NOT NULL, and a generated "Untitled trip" would make a list of five of
+-- them — worse than a form that asked.
+DO $blank$
+BEGIN
+    PERFORM public.agent_create_trip(
+        '0195a2c0-1a00-7000-8000-000000000001'::uuid, gen_random_uuid(),
+        (SELECT c.id FROM public.client c
+          WHERE c.agent_id = '0195a2c0-1a00-7000-8000-000000000001'::uuid LIMIT 1),
+        '   ', 'custom'::trip_type, 1);
+    RAISE EXCEPTION 'FAILED: a blank title should have been refused';
+EXCEPTION
+    WHEN raise_exception THEN
+        IF SQLERRM LIKE 'FAILED:%' THEN RAISE; END IF;
+        RAISE NOTICE '  ok    a blank title is refused rather than invented';
+END $blank$;
+
+-- The new trip shows up on the screen that lists them.
+SELECT pg_temp.become(:gyasi::uuid);
+
+SELECT pg_temp.assert(
+    EXISTS (
+        SELECT 1 FROM public.agent_trip_roster(NULL, NULL, 'Tobago', 50, 0)),
+    'the created trip is on the roster, and findable by search');
+
+RESET ROLE;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 5. Bulk status change
 -- ─────────────────────────────────────────────────────────────────────────────
 

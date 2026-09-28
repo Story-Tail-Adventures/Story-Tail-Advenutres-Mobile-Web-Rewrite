@@ -2198,6 +2198,39 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Dashboard "Create trip"; Client Detail "New trip"; Lead conversion.
 **Related screens:** Trip Builder Workspace.
 
+> **Amended 2026-09-27, on shipping this screen.** Built on the web. Five controls across
+> §3.2, §3.3 and §3.4.1 were disabled waiting on it and are now live: the trip list's CTA,
+> the client detail header's "New trip", the client Trips tab's, the client form's "Save &
+> create trip", and the top bar's quick-add — which became the two-entry menu its own note
+> promised when it was one unbuilt action away from being a menu.
+>
+> **Five trip-type tiles, where the prototype draws six.** `A343_NewTripType` adds a
+> "Honeymoon" tile and `trip_type` has no such value — a honeymoon is an all-inclusive or a
+> custom trip. The third invented field found in §3.4, after the dining component sheet
+> (§3.4.10 in the drawing) and §3.4.2's "Booking source". The all-inclusive tile's hint says
+> where honeymoons live rather than pretending the tile was never drawn.
+>
+> **A trip is born in `inquiry` and the Key actions line's "continue" does not offer a
+> stage.** Every other status is a *transition*, and a transition owes a
+> `trip_status_history` row naming what it moved from; a trip created straight into `booked`
+> would be a booking with no record of having been proposed. The screen says so in a line,
+> because an advisor who expected otherwise would go looking for the stage control.
+>
+> **"Start from a template" renders disabled.** The Primary elements line names it and
+> `trip_template` has no rows — §3.4.13 is the screen that fills it. A picker that opens on
+> an empty list is worse than a control that says why it is off.
+>
+> **The client picker is a `<datalist>`, not search-as-you-type.** An advisor's book is tens,
+> not thousands, so a round trip per keystroke would filter a list the browser filters
+> itself — and it keeps the control a plain `<input>`, so the form works with JavaScript off.
+> `agent_client_roster` already takes `p_search` for the day that changes.
+>
+> **The Entry points line's "Lead conversion" cannot happen** and is superseded, for the
+> reason §3.4.2's amendment already gives: the lead domain is deferred and a quote request
+> creates a trip in `inquiry` directly (BRD §6.5, amended 2026-09-09). What reaches this
+> screen is the five controls above, three of them carrying `?client=` so the advisor is not
+> asked again for somebody the previous screen already knew.
+
 #### 3.4.4 Trip Builder Workspace
 **Purpose:** Main canvas for assembling a trip.
 **Primary elements:** Trip header (title, dates, travelers — editable inline); component list; "Add component" CTA; price total; commission projection; save state indicator.

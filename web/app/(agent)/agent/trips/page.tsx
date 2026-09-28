@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Icon } from "@/components/ui/Icon";
 import { TripBulkStatusForm } from "@/components/agent/TripBulkStatus";
 import { TripRosterFilters } from "@/components/agent/TripRosterFilters";
@@ -65,17 +67,11 @@ export default async function AgentTripsPage({
             )}
           </p>
         </div>
-        {/* §3.4.3 is a real planned screen, so this is disabled with its reason rather than
-            cut — §3.2.1's rule, the same one quick-add follows. */}
-        <button
-          type="button"
-          disabled
-          title={TRIP_COPY.newTripDeferred}
-          className="btn btn-orange btn-sm shrink-0"
-        >
+        {/* Live as of §3.4.3. It shipped disabled with its reason one commit earlier, which
+            is the shape §3.2.1 settled for a control whose screen is real but unbuilt. */}
+        <Link href="/agent/trips/new" className="btn btn-orange btn-sm shrink-0">
           <Icon name="plus" size={12} /> New trip
-          <span className="sr-only"> — {TRIP_COPY.newTripDeferred}</span>
-        </button>
+        </Link>
       </header>
 
       <TripRosterFilters query={query} counts={roster.counts} />

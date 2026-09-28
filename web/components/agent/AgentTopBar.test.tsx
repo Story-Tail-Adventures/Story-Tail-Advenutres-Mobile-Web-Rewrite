@@ -40,13 +40,26 @@ describe("AgentTopBar", () => {
   // this pins the CLASSES that carry the rule; the numbers behind it came from Chrome.
   it("hides quick-add below sm so the lockup keeps its width", () => {
     render(<AgentTopBar initials="GS" />);
-    // A link now rather than a button — see above. The RULE it carries is unchanged, and
-    // that rule is what the measurement table on the component is about.
-    const quickAdd = screen.getByRole("link", { name: "New client" });
+    // A MENU now, not a link: §3.4.3 gave quick-add its second entry, so the control that
+    // carries the responsive rule is the `<details>` wrapper rather than the anchor inside
+    // it. The RULE is unchanged, and it is what the measurement table on the component is
+    // about. `getByRole("group")` is how a `<details>` is exposed.
+    const quickAdd = screen.getByRole("group");
 
-    expect(quickAdd).toHaveClass("hidden", "sm:inline-flex");
+    expect(quickAdd).toHaveClass("hidden", "sm:block");
     // The toggle must NOT pick up the same treatment: it is the one control that works.
     expect(screen.getByRole("button", { name: "Switch to dark mode" })).not.toHaveClass("hidden");
+  });
+
+  it("offers both things an advisor can now create", () => {
+    // It was a disabled button for two unbuilt actions, then a plain link when only one of
+    // them existed. Both exist as of §3.4.3, so the menu has two entries and the label has
+    // lost its object.
+    render(<AgentTopBar initials="GS" />);
+    expect(screen.getByRole("link", { name: "New client" }))
+      .toHaveAttribute("href", "/agent/clients/new");
+    expect(screen.getByRole("link", { name: "New trip" }))
+      .toHaveAttribute("href", "/agent/trips/new");
   });
 
   /**
