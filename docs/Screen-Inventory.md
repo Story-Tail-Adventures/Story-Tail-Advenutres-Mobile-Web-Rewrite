@@ -2490,6 +2490,41 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Detail "More actions".
 **Related screens:** Trip Detail.
 
+> **Built 2026-09-28.** A §4.4 Pattern J dialog on the trip detail header, on the native
+> `<dialog>` element the way §3.3.12's archive dialog is.
+>
+> **Most of the backend was already here**, built during §3.4.1: `agent_set_trip_status`
+> makes a reason mandatory on `cancelled`, is the only writer of `trip.cancellation_reason`
+> anywhere, and refuses to cancel in bulk with a comment pointing at this screen.
+> `20261001100000` added the refund half — a four-value vocabulary on `refund_status`, and
+> a new `refund_detail` column for the specifics a state cannot carry.
+>
+> **IT IS ALSO THE EDIT DIALOG.** A refund that is `pending` on the day a trip is cancelled
+> becomes `full` or `partial` weeks later, so a write-once cancellation would rot exactly
+> the way `refund_status` already had. Re-opening it on a cancelled trip is a correction:
+> the RPC answers `reason_changed`, writes no history row, and the button reads "Save
+> details".
+>
+> **Two of the prototype's four impact lines are NOT rendered, because they are not true of
+> this system.** `agent-trip.jsx:588` draws *"Card authorization will be revoked"* — nothing
+> revokes it; there is no revoke path on the agent side at all, §3.6 owns that and is
+> unbuilt. The line is inverted into the truth: the authorization **stays**, and that is
+> something to go and deal with. *"Sandals cancellation fee · $120 per policy"* is dropped
+> outright: no column in the schema stores a supplier cancellation fee, and inventing one
+> on a cancellation screen is how an advisor comes to trust a number nobody computed. The
+> remaining lines are derived from the trip and verified against behaviour — the dialog says
+> commission will drop by $1,318 and the dashboard figure then drops by exactly that.
+>
+> **Not built: the supplier-side action checklist** named above. It needs per-supplier
+> cancellation terms, which nothing stores, and §3.7's `payment_terms` has the same gap.
+> The dialog says plainly that cancelling tells no supplier rather than drawing an
+> unbacked checklist.
+>
+> **"Archive" in the title is a separate action and is NOT this dialog.** `trip.archived_at`
+> already has a producer and the roster already excludes archived trips unconditionally;
+> cancelling and archiving are different states, and the seed carries a fixture that is
+> archived-but-completed precisely so the two exclusions cannot be confused.
+
 ---
 
 ### 3.5 Proposal & Itinerary

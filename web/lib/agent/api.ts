@@ -167,6 +167,7 @@ export type AgentTripOverviewRow = {
   currency: string;
   cancellation_reason: string | null;
   refund_status: string | null;
+  refund_detail: string | null;
   notes: string | null;
   version: number;
   card_last4: string | null;

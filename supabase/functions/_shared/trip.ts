@@ -26,6 +26,27 @@ export function isClientDocumentKind(value: unknown): value is ClientDocumentKin
   return typeof value === "string" && (CLIENT_DOCUMENT_KINDS as readonly string[]).includes(value);
 }
 
+/**
+ * Where a refund stands on a cancelled trip (§3.4.16).
+ *
+ * MIRRORS the `trip_refund_status_vocabulary` CHECK in 20261001100000, which is the
+ * authority — this list existing does not make the database accept anything. Kept in step
+ * by a pair of tests rather than by a shared definition, because SQL and TypeScript cannot
+ * share one: `constraints_trip_totals.sql` asserts the CHECK takes exactly these four and
+ * refuses a fifth, and `trip_test.ts` asserts this list is those four.
+ *
+ * NULL is not a member and is deliberately legal on the column. "Not stated" is a different
+ * fact from `none_expected`: one is an advisor who has not checked, the other is an advisor
+ * who has, and collapsing them would put a confident "no refund" on the traveler's screen
+ * for every trip cancelled before this shipped.
+ */
+export const REFUND_STATUSES = ["none_expected", "pending", "partial", "full"] as const;
+export type RefundStatus = (typeof REFUND_STATUSES)[number];
+
+export function isRefundStatus(value: unknown): value is RefundStatus {
+  return typeof value === "string" && (REFUND_STATUSES as readonly string[]).includes(value);
+}
+
 /** The mime types the `trip-documents` bucket accepts, matching its own allowed_mime_types. */
 export const ALLOWED_MIME_TYPES = [
   "application/pdf",

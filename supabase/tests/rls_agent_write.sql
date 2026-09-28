@@ -95,12 +95,33 @@ RESET ROLE;
 
 -- Asserted from the catalog too, because the three statements above would all still pass if
 -- the function were dropped. This is the assertion that fails if somebody widens the grant.
+--
+-- Resolved BY NAME out of pg_proc rather than against a hardcoded argument list.
+-- `has_function_privilege` with a signature string RAISES when no function matches it, so
+-- the previous form turned any change in arity into an ERROR here rather than a failure —
+-- which is a different and much less useful signal, and is exactly what happened when
+-- 20261001100000 added p_refund_status and p_refund_detail. This form keeps failing for the
+-- reason it exists (somebody widened the grant) and stops failing for a reason it does not
+-- care about (somebody added a parameter).
 SELECT pg_temp.assert(
-    NOT has_function_privilege('authenticated',
-        'public.agent_set_trip_status(uuid, uuid, uuid, trip_status, integer, text)', 'EXECUTE')
-    AND NOT has_function_privilege('anon',
-        'public.agent_set_trip_status(uuid, uuid, uuid, trip_status, integer, text)', 'EXECUTE'),
+    NOT EXISTS (
+        SELECT 1
+          FROM pg_proc p
+          JOIN pg_namespace ns ON ns.oid = p.pronamespace
+         CROSS JOIN unnest(ARRAY['anon', 'authenticated']) AS r(role)
+         WHERE ns.nspname = 'public'
+           AND p.proname = 'agent_set_trip_status'
+           AND has_function_privilege(r.role, p.oid, 'EXECUTE')),
     'no client role holds EXECUTE — p_agent_id is trusted input and the grant is why that is safe');
+
+-- And the function is actually there, so the assertion above is not passing over an empty
+-- set. The pair matters: "nobody can execute it" is trivially true of a function that does
+-- not exist.
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+      WHERE ns.nspname = 'public' AND p.proname = 'agent_set_trip_status') = 1,
+    'exactly one agent_set_trip_status exists — an overload would make every PostgREST call '
+    'that omits an optional argument ambiguous');
 
 -- ── Tenancy ──────────────────────────────────────────────────────────────────────
 --

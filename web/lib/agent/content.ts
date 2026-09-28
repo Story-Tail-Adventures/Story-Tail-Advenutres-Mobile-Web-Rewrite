@@ -128,6 +128,7 @@ export const AGENT_COPY = {
   glanceLastActivity: "Last activity",
   glanceCancellationReason: "Cancellation reason",
   glanceRefundStatus: "Refund status",
+  glanceRefundDetail: "Refund detail",
   glanceNotSet: "Not set",
   glanceNoCard: "None on file",
   glanceNoActivity: "No activity yet",
@@ -148,6 +149,40 @@ export const AGENT_COPY = {
   // says "create from existing trip" in as many words. A deferral aimed at the wrong
   // section comes due and nothing arrives.
   duplicateTripDeferred: "Duplicating a trip arrives with §3.4.13, alongside the template library it shares the mechanism with.",
+
+  // ── §3.4.16 Cancel trip ─────────────────────────────────────────────────
+  cancelTripOpen: "Cancel trip",
+  cancelTripEyebrow: "CANCEL TRIP",
+  cancelTripEditEyebrow: "CANCELLATION DETAILS",
+  // Says what this does and, more usefully, what it does NOT: the stage can be moved back
+  // from the board, and the phone call to the supplier cannot be un-made. An advisor who
+  // thinks this button cancels the booking will not go and cancel the booking.
+  cancelTripBody:
+    "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier, move any money, or release the card — those are still yours to do.",
+  cancelTripEditBody:
+    "Correct what the client reads. The trip stays cancelled; only these details change.",
+  // MANDATORY, and the reason is in the label rather than discovered on submit. The Edge
+  // Function refuses a cancellation with no reason because §2.2.10 renders it to the
+  // traveler, and a cancellation that cannot say why is a worse row than none.
+  cancelReasonLabel: "Reason — the client sees this",
+  cancelReasonPlaceholder: "e.g. Family schedule conflict",
+  cancelReasonRequired: "A cancelled trip needs a reason. The client's screen shows it.",
+  cancelRefundLabel: "Refund (optional)",
+  cancelRefundUnset: "Not stated yet",
+  cancelRefundDetailLabel: "Refund detail (optional)",
+  cancelRefundDetailPlaceholder: "e.g. Refunded $1,640 on Feb 12; $240 credit through Dec 2027",
+  // Why the detail box exists beside a four-option picker, said once where it is used.
+  cancelRefundDetailHelp:
+    "\u201cPartial\u201d cannot carry an amount, a date or a credit that expires. This can.",
+  cancelImpactTitle: "WHAT THIS CHANGES",
+  cancelImpactNone: "Nothing is attached to this trip yet, so nothing else changes.",
+  cancelConfirm: "Cancel trip",
+  cancelSaveDetails: "Save details",
+  cancelKeep: "Keep trip",
+  cancelSaving: "Saving\u2026",
+  cancelFailed: "That did not save. Try again in a moment.",
+  cancelStale: "This trip moved since the page loaded. Reload and try again.",
+
   // REPOINTED when §3.3.2 shipped. This said "§3.3.2" and that section is now built —
   // and building it delivered no client preview, because previewing a TRIP as the
   // traveler sees it is §3.5.6 Itinerary Preview, not the client's CRM record. A
