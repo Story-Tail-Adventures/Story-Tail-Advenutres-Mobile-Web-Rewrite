@@ -386,9 +386,22 @@ Deno.test("mapPort strips the quoting debris in the live port catalogue", () => 
   // An at-sea position is a real itinerary stop and is kept verbatim: dropping it would
   // put a hole in the port-call sequence of every sailing with a sea day.
   assertEquals(mapPort("38.6 N 19.8 E - Ionian Sea").name, "38.6 N 19.8 E - Ionian Sea");
-  // A count the vocabulary endpoint does not supply stays null, never a misleading zero.
-  assertEquals(mapPort("Nassau, Bahamas").sailing_count, null);
+  // A count the caller did not measure is ABSENT, not null — and the distinction is the
+  // whole of a live data-destruction bug.
+  //
+  // Every writer of cruise_port is an upsert on `onConflict: "name"`. Two of the three
+  // call sites have no count to give (a sailing naming a port in its itinerary, and
+  // ensurePorts creating one it needed), and while this field was written as an explicit
+  // null those two ERASED the count the /ports pass had measured. /ports runs on a 28-day
+  // cadence against weekly sailing syncs, so a measured value survived at most one week in
+  // four. An absent key is not named in the upsert, so Postgres leaves the column alone.
+  //
+  // `in` rather than a value comparison: `undefined` and "absent" compare equal with
+  // assertEquals, and it is absence the upsert reads.
+  assertEquals("sailing_count" in mapPort("Nassau, Bahamas"), false);
   assertEquals(mapPort("Nassau, Bahamas", 5401).sailing_count, 5401);
+  // Still never a misleading zero when the provider does answer but with nothing usable.
+  assertEquals(mapPort("Nassau, Bahamas", Number.NaN).sailing_count, null);
 });
 
 Deno.test("both writers of cruise_ship agree on the provenance key", () => {

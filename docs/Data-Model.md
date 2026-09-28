@@ -137,6 +137,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | CruiseSailingCabinPrice | Cruise Catalog | P2 | Per-cabin per-person fare for a sailing |
 | CruiseSyncScope | Cruise Catalog | P2 | What the cruise sync may fetch — configuration, not code |
 | CruiseSyncRun | Cruise Catalog | P2 | One invocation of the cruise sync and what it spent |
+| CruiseSyncDispatch | Cruise Catalog | P2 | Correlation key between a scheduled tick and its pg_net reply |
 | CruiseApiRequest | Cruise Catalog | P2 | Append-only ledger of every provider HTTP call (quota) |
 | AuditEvent | System | P1 | Append-only log of significant actions |
 | Integration | System | P2 | Configuration record for an external API (Amadeus, Hotelbeds, etc.) |
@@ -2538,7 +2539,7 @@ Inventory).
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | UUID v7 |
 | `name` | `text` | No | Public | Unique. Provider format is "Barcelona, Spain" |
-| `sailing_count` | `integer` | Yes | Public | Provider-reported, across all lines |
+| `sailing_count` | `integer` | Yes | Public | Provider-reported, across all lines. **Only the `/ports` pass measures it.** The two writers that do not (a sailing naming a port in its itinerary, and `ensurePorts`) OMIT the column from their upsert rather than sending NULL, so they leave a measured value alone. Until 20260930110000 they wrote NULL, which erased it: `/ports` runs on a 28-day cadence against weekly sailing syncs, so a measured count survived at most one week in four |
 | `latitude` | `numeric(9,6)` | Yes | Public | **Provider supplies none.** Manual or geocoded |
 | `longitude` | `numeric(9,6)` | Yes | Public | Same |
 | provenance columns | — | — | Internal | As §24.1 |
@@ -2730,11 +2731,44 @@ that `Tech-Recommendations.md` §7 flags.
 | `quota_limit` | `integer` | Yes | Internal | As last reported by the relay |
 | `quota_remaining` | `integer` | Yes | Internal | — |
 | `quota_reset_seconds` | `integer` | Yes | Internal | — |
-| `error_code` | `text` | Yes | Internal | — |
+| `error_code` | `text` | Yes | Internal | **The cause, not the status.** One of `budget_exhausted`, `scope_failed`, `all_scopes_failed`, `spent_but_stored_nothing`, `run_threw`, or `stranded`. Until 20260930110000 it held `status` itself, duplicating the column beside it while the real reason sat inside `error_detail`'s prose |
 | `error_detail` | `text` | Yes | Internal | Never contains the API key |
 | `created_at` / `updated_at` | `timestamptz` | No | Public | — |
 
 This is the operational record. It is deliberately *not* the audit trail: see §24.10.
+
+**`finished_at` is null while running — and a row that STAYS that way is a defect, not a
+state.** The CHECK permits it only for `status = 'running'`, which means a run abandoned
+mid-flight is unreconcilable by construction. Two things now prevent that: `runSync` closes
+the row on every exit path including a throw (it used to throw straight past `finishRun` on
+a scope-read failure), and `cruise_sync_watchdog()` sweeps anything older than 30 minutes
+that is still `running`, setting `error_code = 'stranded'`.
+
+### 24.8a CruiseSyncDispatch
+
+**Purpose:** One row per `cruise_sync_tick()` that actually dispatched an HTTP call. The
+correlation key between a tick and its reply, and nothing more.
+
+**Phase:** P2
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `request_id` | `bigint` | No | Internal | PK. The id `net.http_post` returned |
+| `dispatched_at` | `timestamptz` | No | Internal | Default `now()` |
+
+**Why it exists.** `net._http_response` carries `id, status_code, error_msg, timed_out,
+created` and **no url**, and `net.http_request_queue` holds the url only while the request
+is still pending. So after the fact there was no way to ask what the cruise-sync call came
+back with. The tick has always returned the request id and nothing ever stored it, which is
+half of why a 401 went unnoticed for weeks.
+
+**Deliberately not a verdict log.** A raise rolls its own transaction back, so anything
+`cruise_sync_watchdog()` wrote about a FAILURE would vanish — the one case worth recording.
+The cron log is the record; this table only makes the reply findable. Rows older than 90
+days are pruned on the watchdog's healthy path.
+
+**Absence is the signal.** A tick that raised on a malformed secret, or no-opped because the
+Vault is empty, writes nothing here. That gap is what the watchdog looks for first.
 
 ### 24.9 CruiseApiRequest
 

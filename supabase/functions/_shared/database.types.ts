@@ -1480,6 +1480,21 @@ export type Database = {
           },
         ]
       }
+      cruise_sync_dispatch: {
+        Row: {
+          dispatched_at: string
+          request_id: number
+        }
+        Insert: {
+          dispatched_at?: string
+          request_id: number
+        }
+        Update: {
+          dispatched_at?: string
+          request_id?: number
+        }
+        Relationships: []
+      }
       cruise_sync_run: {
         Row: {
           created_at: string
@@ -3882,6 +3897,7 @@ export type Database = {
       }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
       cruise_sync_tick: { Args: never; Returns: number }
+      cruise_sync_watchdog: { Args: { p_window?: string }; Returns: string }
       current_agent_id: { Args: never; Returns: string }
       current_client_mailing_address_id: { Args: never; Returns: string }
       current_platform_user: {
