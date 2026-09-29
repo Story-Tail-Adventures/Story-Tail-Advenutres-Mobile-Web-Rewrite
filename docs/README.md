@@ -34,10 +34,17 @@ Run a consistency review (like the one captured in `Doc-Review.md`) after any su
 The .docx files are generated from the markdown via pandoc:
 
 ```bash
-pandoc docs/BRD.md -o docs/BRD.docx --toc --toc-depth=3 \
-  --highlight-style=tango \
-  --metadata title="Story-Tail Adventures — BRD" \
+pandoc docs/Data-Model.md -o docs/Data-Model.docx --toc --toc-depth=3 \
+  --syntax-highlighting=tango \
+  --metadata title="Story-Tail Adventures" \
   --metadata author="Gyasi Story"
 ```
+
+Pass the **title and author the existing .docx already carries**, rather than inventing new
+ones — `unzip -p docs/<Doc>.docx docProps/core.xml` prints them. Otherwise a routine content
+refresh also silently retitles the document, and the diff is binary so nobody sees it.
+
+`--syntax-highlighting` was `--highlight-style` before pandoc 3.9; the old spelling still
+works and warns. Generated most recently with **pandoc 3.11** (`brew install pandoc`).
 
 The BRD's docx was originally built via a custom `docx-js` script for branded styling; subsequent updates use pandoc. Either is fine — the markdown is the source.
