@@ -754,47 +754,47 @@ SELECT '0195a2c0-1a00-7000-8000-0000000000f0', c.id,
 FROM public.client c WHERE c.email = 'jordan.hayes@example.com';
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Cruise catalog fixtures (P2)
+-- Cruise sailing fixtures (P2)
 --
--- The cruise domain shipped with its sync but no fixtures, so nothing could be developed
--- or reviewed against it without a track.cruises key and a live run — which spends a
--- 100-request monthly budget to look at a page. These four sailings are enough to build
--- and test the public Cruises mode; the sync overwrites them by `(provider, provider_key)`
--- when it runs for real.
+-- The lines and the ships are NOT here any more. 20261001130001_cruise_fleet_catalog.sql puts
+-- ten lines and 153 ships in by migration, because production needs them as much as a laptop
+-- does and seed.sql never reaches production. These four sailings hang off two of those
+-- catalog hulls, and they stay here because they ARE fixtures: invented departures at invented
+-- prices, enough to build and review the public Cruises mode without a track.cruises key and a
+-- live run that spends a 100-request monthly budget to look at a page.
 --
--- `provider` is 'seed' rather than 'track-cruises' ON PURPOSE: the sync upserts on that
--- pair, so a seeded row can never be mistaken for, or silently merged with, one the
--- provider actually returned.
+-- LEAVING THE OLD LINE ROW HERE WOULD BREAK `supabase db reset`. Migrations run before seeds,
+-- so the migration's `royal-caribbean` lands first, and the insert that used to sit here would
+-- then collide on the `cruise_line_slug` unique index — which `ON CONFLICT (id) DO NOTHING`
+-- does not catch, because the conflict is on slug and not on id. CI runs the same replay.
+--
+-- `provider` is 'seed' rather than 'track_cruises' ON PURPOSE, and for cruise_sailing the
+-- protection is real: that table's upsert key is the triple (provider, provider_key,
+-- provider_locale), so a seeded sailing can never be merged with one the provider returned.
+-- Note this does NOT generalise, and the comment that used to sit here claimed it did:
+-- cruise_line upserts on `slug` and cruise_ship on `(cruise_line_id, name)`, so a seeded row
+-- in either of those is merged into by the sync no matter what its provider says. That is
+-- exactly why the catalog rows are curated with a null provenance pair instead.
 --
 -- Departure dates are relative to now(), because a fixture with hard-coded 2026 dates
 -- becomes invisible the moment the search's "not in the past" filter passes them — the
 -- same trap the cruise sync's own `departure_within_days` comment records.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-INSERT INTO public.cruise_line (id, slug, name, display_order, is_booked, provider, provider_key)
-VALUES ('01a08376-dc00-7000-8000-000000000200', 'royal-caribbean', 'Royal Caribbean', 1, true, 'seed', 'seed:royal-caribbean')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public.cruise_ship (id, cruise_line_id, name, slug, provider, provider_key)
-VALUES
-    ('01a08376-dc00-7000-8000-000000000210', '01a08376-dc00-7000-8000-000000000200', 'Symphony of the Seas', 'symphony-of-the-seas', 'seed', 'seed:symphony'),
-    ('01a08376-dc00-7000-8000-000000000211', '01a08376-dc00-7000-8000-000000000200', 'Wonder of the Seas', 'wonder-of-the-seas', 'seed', 'seed:wonder')
-ON CONFLICT (id) DO NOTHING;
-
 INSERT INTO public.cruise_sailing
     (id, cruise_line_id, ship_id, provider, provider_key, provider_locale, title,
      departure_date, duration_nights, lead_price_cents, currency, destinations, synced_at)
 VALUES
-    ('01a08376-dc00-7000-8000-000000000220', '01a08376-dc00-7000-8000-000000000200', '01a08376-dc00-7000-8000-000000000210',
+    ('01a08376-dc00-7000-8000-000000000220', '01a08376-dc00-7000-8000-000000003001', '01a08376-dc00-7000-8000-000000004050',
      'seed', 'seed:sailing-1', 'en', '7 Night Eastern Caribbean & Perfect Day',
      (now() + interval '48 days')::date, 7, 129900, 'USD', ARRAY['Caribbean', 'Eastern Caribbean'], now()),
-    ('01a08376-dc00-7000-8000-000000000221', '01a08376-dc00-7000-8000-000000000200', '01a08376-dc00-7000-8000-000000000210',
+    ('01a08376-dc00-7000-8000-000000000221', '01a08376-dc00-7000-8000-000000003001', '01a08376-dc00-7000-8000-000000004050',
      'seed', 'seed:sailing-2', 'en', '7 Night Western Caribbean & Perfect Day',
      (now() + interval '62 days')::date, 7, 118900, 'USD', ARRAY['Caribbean', 'Western Caribbean'], now()),
-    ('01a08376-dc00-7000-8000-000000000222', '01a08376-dc00-7000-8000-000000000200', '01a08376-dc00-7000-8000-000000000211',
+    ('01a08376-dc00-7000-8000-000000000222', '01a08376-dc00-7000-8000-000000003001', '01a08376-dc00-7000-8000-000000004054',
      'seed', 'seed:sailing-3', 'en', '6 Night Southern Caribbean',
      (now() + interval '95 days')::date, 6, 149900, 'USD', ARRAY['Caribbean', 'Southern Caribbean'], now()),
-    ('01a08376-dc00-7000-8000-000000000223', '01a08376-dc00-7000-8000-000000000200', '01a08376-dc00-7000-8000-000000000211',
+    ('01a08376-dc00-7000-8000-000000000223', '01a08376-dc00-7000-8000-000000003001', '01a08376-dc00-7000-8000-000000004054',
      'seed', 'seed:sailing-4', 'en', '4 Night Bahamas & Perfect Day',
      (now() + interval '31 days')::date, 4, 79900, 'USD', ARRAY['Bahamas', 'Caribbean'], now())
 ON CONFLICT (id) DO NOTHING;

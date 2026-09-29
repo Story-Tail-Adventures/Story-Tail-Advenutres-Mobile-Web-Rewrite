@@ -1426,6 +1426,10 @@ export type Database = {
           earliest_departure: string | null
           first_seen_at: string
           id: string
+          image_credit: string | null
+          image_license: string | null
+          image_source_url: string | null
+          image_url: string | null
           last_seen_at: string | null
           latest_departure: string | null
           name: string
@@ -1445,6 +1449,10 @@ export type Database = {
           earliest_departure?: string | null
           first_seen_at?: string
           id: string
+          image_credit?: string | null
+          image_license?: string | null
+          image_source_url?: string | null
+          image_url?: string | null
           last_seen_at?: string | null
           latest_departure?: string | null
           name: string
@@ -1464,6 +1472,10 @@ export type Database = {
           earliest_departure?: string | null
           first_seen_at?: string
           id?: string
+          image_credit?: string | null
+          image_license?: string | null
+          image_source_url?: string | null
+          image_url?: string | null
           last_seen_at?: string | null
           latest_departure?: string | null
           name?: string
