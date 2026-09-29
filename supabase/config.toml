@@ -536,6 +536,19 @@ verify_jwt = true
 [functions.agent-itinerary]
 verify_jwt = true
 
+# ── §3.4.13's template library ────────────────────────────────────────────────
+# Save a trip as a pattern, rename it, retire it, and apply one to a trip.
+#
+# `apply` writes components, itinerary days and activities in a single statement, which is
+# why this is its own door rather than a fifth family of ops on agent-trip.
+#
+# AND THIS BLOCK IS THE POINT OF THE NOTE ABOVE. agent-itinerary shipped without one, CI
+# caught it, and nothing local could have: the local stack serves every directory under
+# supabase/functions/ whether or not it is declared here, so the function answers 401 and
+# the browser walkthrough passes. A function with no block is never deployed.
+[functions.agent-template]
+verify_jwt = true
+
 # ── §3.3's client writes ──────────────────────────────────────────────────────
 # Create, edit, archive and bulk-tag (§3.3.9, §3.3.10, §3.3.12, and §3.3.1's
 # checkbox column). The only door onto agent_create_client, agent_update_client,

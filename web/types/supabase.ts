@@ -3141,6 +3141,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_apply_template: {
+        Args: { p_agent_id: string; p_template_id: string; p_trip_id: string }
+        Returns: {
+          activities_added: number
+          components_added: number
+          days_added: number
+          outcome: string
+        }[]
+      }
+      agent_archive_template: {
+        Args: { p_agent_id: string; p_template_id: string }
+        Returns: {
+          outcome: string
+        }[]
+      }
       agent_archive_trip_component: {
         Args: { p_agent_id: string; p_component_id: string; p_trip_id: string }
         Returns: {
@@ -3492,6 +3507,19 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_save_trip_as_template: {
+        Args: {
+          p_agent_id: string
+          p_description?: string
+          p_name: string
+          p_trip_id: string
+        }
+        Returns: {
+          components_saved: number
+          days_saved: number
+          template_id: string
+        }[]
+      }
       agent_set_client_archived: {
         Args: {
           p_agent_id: string
@@ -3555,6 +3583,32 @@ export type Database = {
           kind: Database["public"]["Enums"]["supplier_kind"]
           name: string
           supplier_id: string
+        }[]
+      }
+      agent_template: {
+        Args: { p_template_id: string }
+        Returns: {
+          description: string
+          name: string
+          payload: Json
+          template_id: string
+          times_used: number
+          trip_type: Database["public"]["Enums"]["trip_type"]
+        }[]
+      }
+      agent_templates: {
+        Args: never
+        Returns: {
+          component_count: number
+          created_at: string
+          day_count: number
+          description: string
+          name: string
+          template_id: string
+          times_used: number
+          trip_type: Database["public"]["Enums"]["trip_type"]
+          updated_at: string
+          value_cents: string
         }[]
       }
       agent_trip_activity: {
@@ -3799,6 +3853,17 @@ export type Database = {
           changed_fields: string[]
           outcome: string
           version: number
+        }[]
+      }
+      agent_update_template: {
+        Args: {
+          p_agent_id: string
+          p_description?: string
+          p_name: string
+          p_template_id: string
+        }
+        Returns: {
+          outcome: string
         }[]
       }
       agent_upsert_client_address: {

@@ -2382,6 +2382,56 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Builder "Save as template"; Create New Trip "From template"; nav "Templates".
 **Related screens:** Trip Builder.
 
+> **Built 2026-09-28, and it gave two shipped columns their first producer.**
+> `trip_template` had eight columns, RLS, a slot in the agent-domain lockdown list and ZERO
+> rows; `trip.template_id` referenced it and had never been set. **Three deferrals came due
+> here and all three are honoured rather than deleted:** `duplicateTripDeferred` (repointed
+> at this section during §3.4.4 precisely because duplicating and templating are one
+> mechanism), `NEW_TRIP_COPY.templateDeferred` and `BUILDER_COPY.templatesDeferred`.
+>
+> **What it captures** (Gyasi, asked at approval): the bookings plus the day-by-day. The
+> payment schedule was the third option and was declined.
+>
+> **DATES BECOME OFFSETS**, which is the whole engineering problem. Every date in the
+> payload is an integer offset from the source trip's start, so a pattern saved from a
+> December trip produces March dates in March. Times are stored verbatim. Data-Model §8.6
+> carries the shape and the allow-list.
+>
+> **"Delete" in the entry above is a SOFT delete, and the word on screen is "Retire."** A
+> hard delete would fail outright on any template a trip has used — `trip.template_id`
+> references the table with no `ON DELETE` clause — and trips built from a pattern keep
+> their history either way.
+>
+> **APPLY IS NOT ON THIS SCREEN**, and the prototype's "Use" button is the one thing here
+> that is not built. Applying needs a TRIP to apply to and this screen has none; the two
+> real doors are §3.4.3's "start from a template", where the trip is about to exist, and
+> the builder's rail, where it already does. A button that cannot know its own object is
+> the control §6.4's amendment argues against. What the library has instead is rename and
+> retire, which are its own verbs.
+>
+> **Nor is the prototype's card photograph.** `trip_template` has no image column and should
+> not: the picture on the prototype's card is of the resort, which belongs to the supplier.
+> Dropped rather than invented, the same call §3.3.2 made about the drawn "surprise flag".
+>
+> **NOT on the nav rail**, despite this entry naming nav "Templates" as a door. §6.4's
+> amendment settled the prototype's seven entries as final and `nav.ts` records that
+> Templates and Settings stay off deliberately. The roster's header carries the link
+> instead.
+>
+> **Apply is additive and idempotent.** It appends components after whatever is already
+> there and creates only the itinerary days whose `day_number` is missing, so a day the
+> advisor has written cannot be overwritten — the property §3.4.14's generator has, for the
+> same reason. `trip.template_id` is the idempotency key. A trip with no `start_date` gets
+> its bookings and **no** day-by-day, because `itinerary_day.date` is NOT NULL: a day-by-day
+> is a calendar and a dateless inquiry has none.
+>
+> **A failed apply on the create path is reported, not swallowed.** `createTripAction` does
+> not fail the create when the pattern does not apply — the trip is real and losing it to
+> recover from a seeding problem is the worse trade — but the first version of that landed
+> in the builder reading "0 pieces / Nothing in it yet", which is character for character
+> what choosing "Start from scratch" produces. The outcome now rides in `?seeded=` so the
+> builder can tell the two apart.
+
 #### 3.4.14 Itinerary Editor (Agent)
 **Purpose:** Translate trip components into a presentable day-by-day itinerary.
 **Primary elements:** Day-by-day timeline; drag-to-reorder activities; per-block editor (morning/afternoon/evening) with rich text for descriptions; "Gyasi's Tip" callout editor; auto-generate from components CTA.
