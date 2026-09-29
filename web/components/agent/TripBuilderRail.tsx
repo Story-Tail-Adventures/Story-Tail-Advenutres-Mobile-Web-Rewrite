@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
 import { COMPONENT_RAIL, COMPONENT_SPECS } from "@/lib/agent/components";
-import { BUILDER_COPY } from "@/lib/agent/content";
+import { SaveAsTemplateDialog } from "@/components/agent/SaveAsTemplateDialog";
+import { BUILDER_COPY, TEMPLATE_COPY } from "@/lib/agent/content";
 
 /**
  * §3.4.4's left rail: one button per `component_kind`.
@@ -25,7 +26,14 @@ import { BUILDER_COPY } from "@/lib/agent/content";
  * same seven as a wrapping strip of chips is two lines. The prototype only ever draws the
  * 1440 case, where the column is right.
  */
-export function TripBuilderRail({ tripId }: { tripId: string }) {
+export function TripBuilderRail({
+  tripId,
+  tripTitle,
+}: {
+  tripId: string;
+  /** For the template dialog's default name — the commonest case is confirm and go. */
+  tripTitle: string;
+}) {
   return (
     <aside className="card p-3 xl:self-start">
       <p className="t-label mb-2 text-[var(--md-on-surface-variant)]">
@@ -52,18 +60,29 @@ export function TripBuilderRail({ tripId }: { tripId: string }) {
         })}
       </div>
 
-      {/* §3.4.13 is Stage 4 and `trip_template` has no rows, so the prototype's three
-          named templates have nothing behind them. Disabled with its reason rather than a
-          picker that opens on an empty list — §3.2.1's rule. */}
-      <button
-        type="button"
-        disabled
-        title={BUILDER_COPY.templatesDeferred}
-        className="btn btn-outlined btn-sm mt-3 w-full"
-      >
-        {BUILDER_COPY.templatesLabel}
-        <span className="sr-only"> — {BUILDER_COPY.templatesDeferred}</span>
-      </button>
+      {/* §3.4.13, live since 2026-09-28. This was disabled with its reason while
+          `trip_template` had no rows and no producer.
+
+          THE VERB CHANGED, and deliberately. The prototype's rail draws three named
+          templates to APPLY, and applying one belongs where a trip is being created
+          (§3.4.3's picker) rather than here — a trip already under construction has
+          bookings of its own, and the RPC refuses a second pattern on the same trip. What
+          the builder is actually good for is the other direction: an advisor looking at
+          the bookings they just assembled, saving them as the pattern. */}
+      <div className="mt-3">
+        <SaveAsTemplateDialog
+          tripId={tripId}
+          tripTitle={tripTitle}
+          label={BUILDER_COPY.saveAsTemplateLabel}
+          className="btn btn-outlined btn-sm w-full"
+        />
+        <Link
+          href="/agent/templates"
+          className="t-body-s mt-2 block text-center text-[var(--md-on-surface-variant)] hover:underline"
+        >
+          {TEMPLATE_COPY.navLabel}
+        </Link>
+      </div>
     </aside>
   );
 }

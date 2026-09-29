@@ -944,7 +944,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `total_paid_cents` | `bigint` | No | Client-visible | **Computed** — `sum(payment_milestone.paid_cents)`, maintained by a trigger since `20260929100000`. See §9.5 |
 | `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
-| `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one |
+| `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one. **Given a producer 2026-09-28 by §3.4.13, and it doubles as that apply's IDEMPOTENCY KEY**: `agent_apply_template` refuses a trip that already carries one and answers `already_applied`, so a double-click, a retried request or a second tab all write nothing. A trip seeded from a pattern was seeded from ONE |
 | `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
 | `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
 | `refund_status` | `text` | Yes | Client-visible | **One of `none_expected`, `pending`, `partial`, `full`** since `20261001100000`, enforced by the `trip_refund_status_vocabulary` CHECK. NULL means **not stated**, which is a different fact from `none_expected`: one is an advisor who has not checked, the other is one who has. Written only by `agent_set_trip_status` on a `cancelled` call (§3.4.16), and only ever SET by one — a trip moved back out of `cancelled` keeps its refund history, because the money moved and reinstating the trip does not un-move it |
@@ -1273,10 +1273,56 @@ does not appear here (§23).
 | `name` | `text` | No | Internal | "Sandals Honeymoon 7-Night" |
 | `description` | `text` | Yes | Internal | — |
 | `trip_type` | `trip_type` enum | No | Internal | — |
-| `payload` | `jsonb` | No | Internal | Template skeleton |
+| `payload` | `jsonb` | No | Internal | The snapshot. **An explicit allow-list, versioned** — see below |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
+
+**Given a producer 2026-09-28 by §3.4.13.** This table shipped in the initial migration and
+sat at zero rows with nothing reading or writing it until then.
+
+**What the payload captures** (Gyasi, 2026-09-28: the bookings plus the day-by-day, not the
+payment schedule):
+
+```
+{ version: 1, traveler_count, destinations[], intro_note, closing_note,
+  components: [{ kind, display_name, supplier_id, start_day, end_day, start_time,
+                 end_time, location, cost_cents, commission_pct, commission_cents,
+                 currency, payload, order_index }],
+  days:       [{ day_number, day_offset, label, summary,
+                 activities: [{ block, start_time, end_time, title, body, location,
+                                address, phone, gyasis_tip, order_index }] }] }
+```
+
+**EVERY DATE IS AN INTEGER OFFSET** from the source trip's `start_date` (`start_day`,
+`end_day`, `day_offset`), and apply resolves them against the destination trip's. That is
+what lets one pattern produce August dates in August and March dates in March. **Times are
+stored verbatim** — a 14:00 check-in is 14:00 in March too.
+
+**An explicit allow-list, per §23's jsonb ruling.** Deliberately NOT captured, each for its
+own reason:
+
+| Not captured | Why |
+|---|---|
+| `confirmation_number` (component and activity) | A booking reference belongs to ONE booking. Carried forward it shows a traveler a confirmation that was never issued to them |
+| `api_source` / `api_reference` | Describe this trip's own API booking |
+| `itinerary_activity.component_id` | Points at the SOURCE trip's component rows |
+| `itinerary_day.date` | Replaced by the offset |
+| `weather_forecast` | Per-trip, per-date |
+| `cover_image_url`, `published_at`, `last_published_at` | Publication state belongs to a trip, not a pattern |
+| payment milestones | Declined — the third option when the scope was chosen |
+
+The migration asserts the first three out of the function body at deploy time, because a
+jsonb column has no schema to constrain and the registry is only as real as something that
+checks it.
+
+**The payload is NOT editable.** `agent_update_template` takes a name and a description and
+nothing else. It is a snapshot of a real trip, and hand-editing a components array is how a
+template comes to describe a trip nobody ever booked — which would also break the date
+offsets. Re-shaping a pattern means saving a new one.
+
+**`archived_at` is the only delete.** A hard delete would fail outright on any template a
+trip has used: `trip.template_id` references this table with no `ON DELETE` clause.
 
 ---
 

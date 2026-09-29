@@ -35,6 +35,10 @@ export type AgentRead =
   // stage-shaped and §3.2.2 depends on that.
   | "agent_trip_roster"
   | "agent_trip_roster_summary"
+  // §3.4.13. `agent_templates` is the grid; `agent_template` is one payload, kept separate
+  // because the grid renders a dozen cards and none of them needs the whole blob.
+  | "agent_templates"
+  | "agent_template"
   | "agent_trip_board"
   | "agent_payments_due"
   | "agent_inbox"
@@ -71,6 +75,30 @@ export type AgentReadResult<T> =
  * not, and the fields that are genuinely NOT NULL in SQL (ids, counts, the digit-string
  * money columns) are left required.
  */
+/**
+ * §3.4.13's grid row.
+ *
+ * `times_used` is DERIVED in SQL from `trip.template_id`, not a stored counter — see the
+ * accessor. `value_cents` is a digit-string like every other money column on this side,
+ * because PostgREST serialises bigint as a JSON number and loses precision past 2^53.
+ *
+ * Hand-declared with `| null` where the column really is nullable: `supabase gen types`
+ * cannot infer nullability from a RETURNS TABLE signature and declares every column
+ * non-nullable, which is wrong for `description`.
+ */
+export type AgentTemplateRow = {
+  template_id: string;
+  name: string;
+  description: string | null;
+  trip_type: string;
+  component_count: number;
+  day_count: number;
+  value_cents: string;
+  times_used: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AgentKpiRow = {
   agent_id: string;
   as_of_date: string;
@@ -558,6 +586,9 @@ export type AgentFunction =
   // carries seven over 500 lines — the itinerary is a different entity graph reached
   // through a different screen, the same reasoning that split `agent-trip-status` out.
   | "agent-itinerary"
+  // §3.4.13. Its own door for the same reason, and one `apply` writes components, itinerary
+  // days and activities in a single statement — the largest write on this surface.
+  | "agent-template"
   // §3.3.7. An RPC write would let an agent POST from a browser with no audit_event,
   // which is the reason every agent write on this surface is a function.
   | "agent-client-notes"

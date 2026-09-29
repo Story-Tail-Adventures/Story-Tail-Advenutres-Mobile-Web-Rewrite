@@ -24,11 +24,33 @@ export const TRIP_TYPES = [
 
 export type TripTypeValue = (typeof TRIP_TYPES)[number]["value"];
 
+/**
+ * The human label for a stored `trip_type`, for anywhere that renders one it did not pick
+ * (§3.4.13's template cards, so far).
+ *
+ * Falls back to the raw value rather than an empty string: `trip_type` is an enum with six
+ * members and TRIP_TYPES deliberately carries five — "Honeymoon" is not a trip_type, and
+ * the prototype's sixth tile was dropped for that reason. A value outside this list is
+ * real data, so showing it beats showing nothing.
+ */
+export function tripTypeLabel(value: string): string {
+  return TRIP_TYPES.find((t) => t.value === value)?.label ?? value;
+}
+
 export type NewTripValues = {
   clientId: string;
   tripType: TripTypeValue;
   title: string;
   travelerCount: string;
+  /**
+   * §3.4.13's "start from a template". Empty string means none, never null: this rides in a
+   * FormData and a `<select>` with no selection submits "".
+   *
+   * NOT VALIDATED here. A stale or foreign id is refused by the RPC's ownership check and
+   * comes back as an outcome, and a second copy of that rule in the browser is a second
+   * place for it to drift.
+   */
+  templateId: string;
 };
 
 export type NewTripState = {
@@ -44,6 +66,7 @@ export const EMPTY_NEW_TRIP: NewTripValues = {
   tripType: "all_inclusive",
   title: "",
   travelerCount: "2",
+  templateId: "",
 };
 
 export function newTripFromFormData(form: FormData): NewTripValues {
@@ -54,6 +77,7 @@ export function newTripFromFormData(form: FormData): NewTripValues {
     tripType: (valid.includes(raw) ? raw : EMPTY_NEW_TRIP.tripType) as TripTypeValue,
     title: (form.get("title") ?? "").toString().trim(),
     travelerCount: (form.get("travelerCount") ?? "").toString().trim(),
+    templateId: (form.get("templateId") ?? "").toString().trim(),
   };
 }
 
