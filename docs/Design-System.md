@@ -476,9 +476,9 @@ The Next.js web app consumes the same tokens via CSS custom properties. Two star
 - **`tokens.css`** (copy of `design/source-prototype/styles/tokens.css`) — the canonical CSS variable definitions. Import once in the Next.js root layout so every component can reference `var(--md-primary)`, `var(--md-surface-1)`, etc.
 - **`design-tokens.ts`** — a TypeScript module that mirrors the same tokens as typed constants for use with CSS-in-JS or Tailwind. Use this when you want autocomplete and type checking on token names.
 
-Styling approach is flexible — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume the variables. The design tokens are framework-agnostic; only the typing layer changes per styling choice.
+The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **Current implementation uses Tailwind CSS v4** (see the example below), but **MUI (Material UI) is the planned target styling library** — Gyasi has decided to replace Tailwind with MUI, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. See `docs/Tech-Recommendations.md` §2.3.1 for the phased migration plan (design source updated to MUI first, then `web/` implementation) — as of this writing (2026-09-29), that migration has not started.
 
-If using Tailwind, extend `tailwind.config.ts` to pull from the same variables:
+If using Tailwind (current state), extend `tailwind.config.ts` to pull from the same variables:
 
 ```typescript
 import { tokens } from "./design/web-tokens/design-tokens";
