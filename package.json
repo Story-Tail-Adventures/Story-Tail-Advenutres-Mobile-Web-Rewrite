@@ -18,7 +18,7 @@
     "supabase:start": "set -a; [ -f supabase/.env.local ] && . ./supabase/.env.local; set +a; supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset && ./supabase/scripts/seed-storage-objects.sh",
-    "supabase:types": "mkdir -p web/types && supabase gen types typescript --local > web/types/supabase.ts && supabase gen types typescript --local > supabase/functions/_shared/database.types.ts",
+    "supabase:types": "mkdir -p web/types && npx --yes supabase@2.116.0 gen types typescript --local > web/types/supabase.ts && npx --yes supabase@2.116.0 gen types typescript --local > supabase/functions/_shared/database.types.ts",
     "supabase:seed-storage": "./supabase/scripts/seed-storage-objects.sh"
   },
   "devDependencies": {
