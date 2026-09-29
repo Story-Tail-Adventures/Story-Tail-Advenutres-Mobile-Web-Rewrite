@@ -72,6 +72,23 @@ This is the architecture the BRD now commits to in Section 15.1.
 
 **Compose-for-Web — explicitly out of scope.** As of 2026, Compose Multiplatform for Web is in Beta and not at parity with Compose for Android/iOS. Even if it reaches Stable in a future release, migrating away from Next.js + React would not be a meaningful win for this project — the public SEO surface alone justifies Next.js, the React ecosystem covers everything needed, and the hiring market is far larger. We are not waiting for or planning toward a future Compose-for-Web migration.
 
+### 2.3.1 Planned styling migration: MUI (not started)
+
+`web/` currently styles with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi has decided the target styling system for the web app is **MUI (Material UI)**, replacing Tailwind entirely. This is a forward-looking decision only — no design or code work toward it has started as of this writing (2026-09-29).
+
+This is a natural fit rather than a clash: the Design System's color tokens (§4) are already Material-3-based, so an MUI theme can consume the same token values instead of introducing a parallel design language.
+
+**Order matters — do these in sequence, not in parallel:**
+
+1. **Design source first.** Update the canonical design source (the Claude Design project linked in this doc's header and CLAUDE.md, plus its local mirror `design/source-prototype/`) so screens are built with MUI components and theming. Use the existing `sync-design-handoff` skill to pull the updated screens down once the design side is done.
+2. **Then implement in `web/`.** Only after the design source reflects MUI should the codebase migration start: introduce an MUI `ThemeProvider` driven by the existing design tokens, replace Tailwind utility classes with MUI components/`sx`/styled APIs screen by screen, and remove the `tailwindcss` / `@tailwindcss/postcss` dependencies once no Tailwind classes remain.
+
+Don't start step 2 before step 1 is done — building MUI screens in code against a Tailwind-era design source just means redoing the work once the design catches up. No version of MUI is pinned here; pick the current stable release when the migration actually begins.
+
+**Use the official MUI MCP server once the migration starts.** MUI publishes an MCP server ([mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) that connects an AI coding assistant directly to official Material UI docs and code examples, so answers quote real sources instead of hallucinating APIs or component names. It runs locally over stdio via `npx -y @mui/mcp@latest` and has a documented setup for Claude Code specifically (as well as VS Code, Cursor, Windsurf, JetBrains, Zed). **Not connected yet — this is a note for whoever does the migration**, not a step taken in this session. Add it to this project's MCP config when work on the `web/` implementation (step 2 above) actually begins, so the assistant doing that work has accurate MUI context.
+
+See Design-System.md §12.2 for the corresponding note on the "what" of this target.
+
 ### 2.4 What Option A Would Need to Become Compelling
 
 Three things would tip the recommendation toward all-KMP:

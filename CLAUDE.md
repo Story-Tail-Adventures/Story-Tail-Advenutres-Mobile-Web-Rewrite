@@ -17,7 +17,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 ## Stack
 
 - **Mobile** — Kotlin Multiplatform + Compose Multiplatform (Android + iOS)
-- **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST)
+- **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST). Currently styled with Tailwind CSS v4; **a planned migration to MUI (Material UI) is documented but not started** — see `docs/Tech-Recommendations.md` §2.3.1 and `docs/Design-System.md` §12.2 before making new Tailwind-heavy styling decisions in `web/`. When that migration begins, connect the official MUI MCP server (`npx -y @mui/mcp@latest`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) so MUI usage is checked against real docs instead of guessed — not connected yet, this is just the plan.
 - **Backend** — Supabase Edge Functions (Deno + TypeScript). NO separate Ktor service.
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments** — Stripe (SetupIntent for collection, Vault and Forward for API suppliers, audited PAN reveal for portal suppliers)
@@ -190,6 +190,7 @@ unfamiliar is staged, another session put it there — leave it alone and commit
 - Don't paste files into chat — use `@-mentions` (e.g., `@docs/BRD.md`) for cleaner tokenization and a better audit trail.
 - Don't load Google Fonts at runtime in production — bundle Poppins / Caveat / JetBrains Mono in `mobile/shared/src/commonMain/composeResources/font/` for mobile and via `next/font` for web.
 - Don't make a copy decision without checking `docs/Design-System.md` §2 first. The brand voice is load-bearing.
+- Don't start implementing MUI components in `web/` before the design source (`design/source-prototype/`) has been updated to MUI. See `docs/Tech-Recommendations.md` §2.3.1 — the migration order is design first, code second.
 
 ## How to bootstrap from here
 
