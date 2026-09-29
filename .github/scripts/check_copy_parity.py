@@ -45,7 +45,7 @@ MESSAGE_TABLES = [
         # The web module carries more than this: the pipeline and calendar strings belong to
         # screens §6.6 keeps web-only at MVP, so they have no KMP twin to compare against.
         # Listed here is exactly the set both surfaces render.
-        "label": "agent 3.2",
+        "label": "agent 3.2 + 3.4.2",
         "web_file": ROOT / "web/lib/agent/content.ts",
         "web_const": "AGENT_COPY",
         "kmp_file": AGENT_DOMAIN_DIR / "AgentCopy.kt",
@@ -66,23 +66,151 @@ MESSAGE_TABLES = [
             "messagesEmpty": "MESSAGES_EMPTY",
             "cycleTimeUnavailable": "CYCLE_TIME_UNAVAILABLE",
             # `tripDetailDeferred` / TRIP_DETAIL_DEFERRED was paired here until §3.4.2
-            # shipped on the web. It is NOT an oversight that only the Kotlin side still
-            # holds it, and re-pairing them would be wrong in both directions.
-            #
-            # The web worklist's rows are now links into /agent/trips/[tripId], so the
-            # sentence has no call site there and a deferral naming a section that has
-            # since been built is worse than no sentence. WorklistScreen.kt still renders
-            # it on three sections, and on a phone it is still TRUE — §3.4.2 is web-only
-            # at MVP, so a Compose row genuinely has nowhere to go yet.
+            # shipped on the web, then held by Kotlin alone while the Compose rows had
+            # nowhere to go. Both are gone now: §3.4.2 landed on Compose 2026-09-30, the
+            # three worklist sections and the client detail's Trips tab push
+            # AppRoute.AgentTripDetail, and the constant went with the last of its call
+            # sites. The asymmetry this comment used to explain is closed from both ends.
             #
             # This list is the set of strings that must match BYTE FOR BYTE across both
             # stacks. A string only one stack has does not belong in it — the same reason
-            # the pipeline and calendar keys were never added. Delete the Kotlin constant
-            # and its three usages when trip detail lands on Compose; nothing here needs
-            # touching then either.
+            # the pipeline and calendar keys were never added.
             "messagesDeferred": "MESSAGES_DEFERRED",
             "leadsDeferred": "LEADS_DEFERRED",
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
+
+            # §3.4.2 Trip Detail, which joined this row rather than getting one of its own
+            # because both surfaces keep its copy on the SAME const — AGENT_COPY grew the
+            # trip-detail block when the web screen shipped, and AgentCopy grew the twin
+            # when the Compose screen did.
+            #
+            # THIS IS THE FIRST §3.4 SCREEN WITH A PHONE TWIN. `TRIP_COPY` and
+            # `BUILDER_COPY` both carry a doc comment saying "§3.4 has no phone artboards,
+            # so there is no Kotlin twin" — still true of them, now false of the section,
+            # and both comments were corrected when this landed.
+            #
+            # NOT LISTED, and each for a reason the map records rather than leaves implicit:
+            #   * the eight TAB LABELS — the web reads them from `tripTabs.ts`, a const
+            #     array rather than a copy object, exactly as §3.3's six come from
+            #     `clientTabs.ts`. Nothing on that side to point at.
+            #   * `costCommissionTitle` — the phone draws the three figures with no card
+            #     heading, so it renders on one surface only.
+            #   * `glanceTravelers` / `glanceDates` — the phone header already reads
+            #     "Dec 4 – Dec 11 · 6 travelers", and repeating both in the grid below is
+            #     redundancy a 375pt screen cannot afford.
+            #   * `tripNotesPlaceholder` — a placeholder inside a textarea. The phone's
+            #     Notes tab is read-only, so it has an empty state instead
+            #     (TRIP_NOTES_EMPTY) and no box to prompt.
+            #   * `openBuilder` / `editComponents` / `editSchedule` and every other control
+            #     label — §6.6 keeps the writes on the web, so the phone draws none of them.
+            "tripComponentsEmpty": "TRIP_COMPONENTS_EMPTY",
+            "tripItineraryEmpty": "TRIP_ITINERARY_EMPTY",
+            "tripPaymentsEmpty": "TRIP_PAYMENTS_EMPTY",
+            "tripPaymentsAllSettled": "TRIP_PAYMENTS_ALL_SETTLED",
+            "tripDocumentsEmpty": "TRIP_DOCUMENTS_EMPTY",
+            "tripMessagesEmpty": "TRIP_MESSAGES_EMPTY",
+            "tripActivityEmpty": "TRIP_ACTIVITY_EMPTY",
+            "clientTotalLabel": "CLIENT_TOTAL_LABEL",
+            "paidSoFarLabel": "PAID_SO_FAR_LABEL",
+            "commissionLabel": "COMMISSION_LABEL",
+            "glanceTripType": "GLANCE_TRIP_TYPE",
+            "glanceDestination": "GLANCE_DESTINATION",
+            "glanceCardOnFile": "GLANCE_CARD_ON_FILE",
+            "glanceLastActivity": "GLANCE_LAST_ACTIVITY",
+            "glanceCancellationReason": "GLANCE_CANCELLATION_REASON",
+            "glanceRefundStatus": "GLANCE_REFUND_STATUS",
+            "glanceRefundDetail": "GLANCE_REFUND_DETAIL",
+            "glanceNotSet": "GLANCE_NOT_SET",
+            "glanceNoCard": "GLANCE_NO_CARD",
+            "glanceNoActivity": "GLANCE_NO_ACTIVITY",
+            "tripNotFoundTitle": "TRIP_NOT_FOUND_TITLE",
+            "tripNotFoundBody": "TRIP_NOT_FOUND_BODY",
+            "tripNotFoundAction": "TRIP_NOT_FOUND_ACTION",
+        },
+    },
+    {
+        # §3.4.2's three borrowed vocabularies.
+        #
+        # THREE ROWS BECAUSE THE WEB KEEPS THEM IN THREE PLACES, and each place belongs to
+        # the WRITE screen that names them: component kinds to §3.4.4's sheets, milestone
+        # statuses to §3.4.15's editor, itinerary blocks to §3.4.14's form. Every one is
+        # also read-only text on §3.4.2, which is the screen the phone has. So the split
+        # mirrors the web's rather than tidying it — a tidier Kotlin shape would be one this
+        # script could not check, since it pairs one object with one const.
+        #
+        # The Kotlin side keeps all three objects in ONE file, which works because the
+        # reader scopes to the named object and stops at its first line-leading `}`.
+        "label": "agent 3.4.2 · component kinds",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "BUILDER_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "TripDetailSections.kt",
+        "kmp_object": "TripComponentCopy",
+        "keys": {
+            "kindFlight": "KIND_FLIGHT",
+            "kindHotel": "KIND_HOTEL",
+            "kindCruise": "KIND_CRUISE",
+            "kindExcursion": "KIND_EXCURSION",
+            "kindTransfer": "KIND_TRANSFER",
+            "kindInsurance": "KIND_INSURANCE",
+            "kindCustom": "KIND_CUSTOM",
+        },
+    },
+    {
+        # `payment_milestone_status`'s four. The HINTS are not paired: they explain a choice
+        # to somebody making one, and the phone makes none.
+        "label": "agent 3.4.2 · milestone statuses",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "SCHEDULE_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "TripDetailSections.kt",
+        "kmp_object": "TripScheduleCopy",
+        "keys": {
+            "statusScheduled": "STATUS_SCHEDULED",
+            "statusPaid": "STATUS_PAID",
+            "statusOverdue": "STATUS_OVERDUE",
+            "statusWaived": "STATUS_WAIVED",
+        },
+    },
+    {
+        # `itinerary_activity.block`'s four, plus the two lines the day-by-day renders.
+        #
+        # `blockAuto` ("Work it out from the time") is deliberately absent: it is the empty
+        # option on a form's picker, an instruction rather than a label, and
+        # `itineraryBlockLabel` returns null for a null block instead of rendering it.
+        "label": "agent 3.4.2 · itinerary",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "ITINERARY_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "TripDetailSections.kt",
+        "kmp_object": "TripItineraryCopy",
+        "keys": {
+            "blockMorning": "BLOCK_MORNING",
+            "blockAfternoon": "BLOCK_AFTERNOON",
+            "blockEvening": "BLOCK_EVENING",
+            "blockAllDay": "BLOCK_ALL_DAY",
+            "dayEmpty": "DAY_EMPTY",
+            "tipLabel": "TIP_LABEL",
+        },
+    },
+    {
+        # `trip_type`'s five. `web/lib/trips/tripType.ts` was written asking for this row:
+        # "when a Kotlin twin lands, check_copy_parity.py only reads top-level string
+        # literals... There is no twin today — §3.4 is web-only at MVP." §3.4.2 on Compose
+        # is what ended that.
+        #
+        # ONE TABLE FOR BOTH SHELLS, unlike the status labels beside it which are also one
+        # table but for a different reason: a trip TYPE is a fact about the trip rather than
+        # something said to somebody, so the traveler and the advisor read the same five
+        # words. `humaniseTripType` in ui/components/client is a delegate to it now.
+        "label": "trip type",
+        "web_file": ROOT / "web/lib/trips/tripType.ts",
+        "web_const": "TRIP_TYPE_MESSAGES",
+        "kmp_file": TRIP_DOMAIN_DIR / "TripType.kt",
+        "kmp_object": "TripTypeMessages",
+        "keys": {
+            "cruise": "CRUISE",
+            "allInclusive": "ALL_INCLUSIVE",
+            "multiDestination": "MULTI_DESTINATION",
+            "group": "GROUP",
+            "custom": "CUSTOM",
         },
     },
     {

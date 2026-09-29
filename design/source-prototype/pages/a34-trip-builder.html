@@ -41,7 +41,10 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
       <button data-theme="light" class="is-on">Light</button>
       <button data-theme="dark">Dark</button>
     </div>
-
+    <div class="seg" id="view-seg" role="group" aria-label="Viewport">
+      <button data-view="web" class="is-on">Web</button>
+      <button data-view="mobile">Mobile</button>
+    </div>
     <span class="nav-div"></span>
     <a class="navlink" href="a33-crm.html" title="3.3 · Agent · Client Management (CRM)">← 3.3</a>
     <a class="navlink primary" href="index.html">All sections</a>
@@ -99,6 +102,7 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
 <script type="text/babel" src="../shared/screen-frame.jsx"></script>
 
 <script type="text/babel" src="../screens/agent-trip.jsx"></script>
+<script type="text/babel" src="../screens/agent-trip-mobile.jsx"></script>
 
 <script type="text/babel" src="../tweaks-panel.jsx"></script>
 <script type="text/babel" src="../tweaks/tweaks.jsx"></script>
@@ -165,7 +169,7 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
   function App() {
     return (
       <DesignCanvas title="Story-Tail · 3.4 · Agent · Trip Builder & Management" subtitle="From list to builder to component sheets." background="#221C1A">
-        <Section id="a34" title="3.4 · Trip Builder & Management" subtitle="From list to builder to component sheets." width={1440} height={900} screens={[{"id":"341","comp":"A341_TripList","label":"3.4.1 Trip list","h":820},{"id":"342","comp":"A342_TripDetail","label":"3.4.2 Trip detail · agent","h":900},{"id":"343","comp":"A343_NewTripType","label":"3.4.3 New trip type","w":1280,"h":820},{"id":"344","comp":"A344_TripBuilder","label":"3.4.4 Trip builder workspace","h":920},{"id":"345","comp":"A345_AddFlight","label":"3.4.5 Add flight","w":900,"h":820},{"id":"346","comp":"A346_AddHotel","label":"3.4.6 Add hotel","w":900,"h":820},{"id":"347","comp":"A347_AddCruise","label":"3.4.7 Add cruise","w":900,"h":820},{"id":"348","comp":"A348_AddTour","label":"3.4.8 Add tour","w":900,"h":820},{"id":"349","comp":"A349_AddTransfer","label":"3.4.9 Add transfer","w":900,"h":720},{"id":"3410","comp":"A3410_AddDining","label":"3.4.10 Add dining","w":900,"h":720},{"id":"3411","comp":"A3411_AddInsurance","label":"3.4.11 Add insurance","w":900,"h":720},{"id":"3412","comp":"A3412_AddOther","label":"3.4.12 Add other","w":900,"h":720},{"id":"3413","comp":"A3413_TemplateLibrary","label":"3.4.13 Template library","h":820},{"id":"3414","comp":"A3414_ItineraryEditor","label":"3.4.14 Itinerary editor","h":920},{"id":"3415","comp":"A3415_PaymentSchedule","label":"3.4.15 Payment schedule","h":760},{"id":"3416","comp":"A3416_CancelTrip","label":"3.4.16 Cancel trip","w":900,"h":760}]} mobileScreens={null}/>
+        <Section id="a34" title="3.4 · Trip Builder & Management" subtitle="From list to builder to component sheets." width={1440} height={900} screens={[{"id":"341","comp":"A341_TripList","label":"3.4.1 Trip list","h":820},{"id":"342","comp":"A342_TripDetail","label":"3.4.2 Trip detail · agent","h":900},{"id":"343","comp":"A343_NewTripType","label":"3.4.3 New trip type","w":1280,"h":820},{"id":"344","comp":"A344_TripBuilder","label":"3.4.4 Trip builder workspace","h":920},{"id":"345","comp":"A345_AddFlight","label":"3.4.5 Add flight","w":900,"h":820},{"id":"346","comp":"A346_AddHotel","label":"3.4.6 Add hotel","w":900,"h":820},{"id":"347","comp":"A347_AddCruise","label":"3.4.7 Add cruise","w":900,"h":820},{"id":"348","comp":"A348_AddTour","label":"3.4.8 Add tour","w":900,"h":820},{"id":"349","comp":"A349_AddTransfer","label":"3.4.9 Add transfer","w":900,"h":720},{"id":"3410","comp":"A3410_AddDining","label":"3.4.10 Add dining","w":900,"h":720},{"id":"3411","comp":"A3411_AddInsurance","label":"3.4.11 Add insurance","w":900,"h":720},{"id":"3412","comp":"A3412_AddOther","label":"3.4.12 Add other","w":900,"h":720},{"id":"3413","comp":"A3413_TemplateLibrary","label":"3.4.13 Template library","h":820},{"id":"3414","comp":"A3414_ItineraryEditor","label":"3.4.14 Itinerary editor","h":920},{"id":"3415","comp":"A3415_PaymentSchedule","label":"3.4.15 Payment schedule","h":760},{"id":"3416","comp":"A3416_CancelTrip","label":"3.4.16 Cancel trip","w":900,"h":760}]} mobileScreens={[{"id":"m342a","comp":"M342_TripDetail","label":"3.4m.2 Trip detail \u00b7 Overview"},{"id":"m342b","comp":"M342_TripItinerary","label":"3.4m.2 Trip detail \u00b7 Itinerary"}]}/>
       </DesignCanvas>
     );
   }

@@ -506,8 +506,14 @@ export const NEW_TRIP_COPY = {
  * §3.4.1 Trip List.
  *
  * WEB ONLY, and not by the same reasoning §3.3 used. Trips is not one of the four agent
- * tabs on the phone (§6.6), and §3.4 has no phone artboards at all — so there is no Kotlin
- * twin for these and nothing for the copy-parity map to pair them with.
+ * tabs on the phone (§6.6), so a trip is reached there from the WORKLIST's rows and this
+ * list has no phone twin to pair with.
+ *
+ * "§3.4 has no phone artboards at all" stood here until 2026-09-30 and is no longer true:
+ * `design/source-prototype/screens/agent-trip-mobile.jsx` draws §3.4.2 at two of its eight
+ * tabs and the Compose screen shipped with it. THE SECTION has a phone surface now; this
+ * SCREEN still does not, which is the narrower claim and the one that holds. Three sibling
+ * consts below carried the same sentence and are corrected the same way.
  */
 export const TRIP_COPY = {
   title: "Trips",
@@ -621,8 +627,14 @@ export function needsYouLine(count: number): string {
 /**
  * §3.4.4 Trip Builder Workspace, and §3.4.5 – §3.4.12's sheets behind it.
  *
- * WEB ONLY, for the reason `TRIP_COPY` gives: §3.4 has no phone artboards, so there is no
- * Kotlin twin and nothing for the copy-parity map to pair these with.
+ * WEB ONLY — §6.6 keeps the builder and its eight sheets in a browser, which is where an
+ * advisor assembles a trip rather than reads one. A seven-button rail over a canvas of
+ * component rows is the definition of what a phone is not for.
+ *
+ * THE SEVEN `kind*` LABELS ARE THE EXCEPTION, and they are paired as of 2026-09-30. §3.4.2
+ * on Compose renders them read-only, as the overline on each component row, so they have a
+ * twin in `TripComponentCopy` and a row in the copy-parity map. Nothing else here does, and
+ * nothing else here should.
  *
  * THE FIELD LABELS ARE THE ADVISOR'S WORDS, NOT THE COLUMN'S. `location` is "Route" on a
  * flight and "Pickup" on a transfer; `confirmation_number` is "PNR", "Booking #" and
@@ -799,8 +811,13 @@ export const BUILDER_COPY = {
 /**
  * §3.4.15 Trip Payment Schedule.
  *
- * WEB ONLY, for the reason `TRIP_COPY` gives: §3.4 has no phone artboards, so there is no
- * Kotlin twin and nothing for the copy-parity map to pair these with.
+ * WEB ONLY — the editor is a form, and §6.6 keeps forms in a browser.
+ *
+ * THE FOUR `status*` LABELS ARE THE EXCEPTION, and they are paired as of 2026-09-30:
+ * §3.4.2's Payments tab on Compose renders them read-only. The matching `*Hint` strings are
+ * NOT paired, and that is the line — a hint explains a choice to somebody making one, and
+ * the phone makes none. The three `kind*` labels are not paired either: the phone's row
+ * shows `payment_milestone.label`, which is the advisor's own words for the same thing.
  *
  * THE VOICE HERE IS CAREFUL, and Design-System §2 is the reason. These rows are what a
  * supplier expects and when — BRD §10.5 prohibits client-facing billing, so nothing on this
@@ -883,7 +900,13 @@ export const SCHEDULE_COPY = {
 /**
  * §3.4.14 Itinerary Editor.
  *
- * WEB ONLY, for the reason `TRIP_COPY` gives: §3.4 has no phone artboards.
+ * WEB ONLY — this is the screen where the advisor does the most typing.
+ *
+ * SIX STRINGS ARE THE EXCEPTION, paired as of 2026-09-30, because §3.4.2's Itinerary tab on
+ * Compose reads the same day-by-day: the four `block*` labels, `dayEmpty` and `tipLabel`.
+ * `blockAuto` is deliberately not among them — "Work it out from the time" is the empty
+ * option on this form's picker, an instruction rather than a label, and the read side
+ * renders nothing at all for a null block.
  *
  * THIS IS THE ONE SCREEN WHERE THE ADVISOR IS WRITING FOR THE CLIENT, so the labels name
  * the reader. "What the client reads" rather than "Title"; "Gyasi's Tip" verbatim, because

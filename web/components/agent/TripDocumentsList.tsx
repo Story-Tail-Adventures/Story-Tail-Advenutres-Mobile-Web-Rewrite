@@ -9,6 +9,10 @@ const KIND_LABEL: Record<string, string> = {
   supplier_confirmation: "Supplier confirmation",
   receipt: "Receipt",
   photo: "Photo",
+  // `document_kind` has TEN members and this Record had nine: a csv_import document
+  // rendered the raw enum value through the `?? d.kind` fallback. Found while writing the
+  // Compose twin, which had to enumerate the enum rather than copy this list.
+  csv_import: "CSV import",
   pdf_proposal: "Proposal PDF",
   pdf_itinerary: "Itinerary PDF",
   other: "Other",

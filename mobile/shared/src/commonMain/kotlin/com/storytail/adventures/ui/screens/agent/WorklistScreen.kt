@@ -1,6 +1,7 @@
 package com.storytail.adventures.ui.screens.agent
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -59,9 +60,12 @@ import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
  *  * NO FILTER CONTROL. It filters a five-column board, and the board is web-only.
  *  * NO QUICK-ADD. New trip is §3.4.3 and new client is §3.3.9; both are forms, which is the
  *    definition of deep work. Web has them disabled-with-a-reason because it has the room.
- *  * NO ROW TAPS. Trip detail is §3.4.2 and client detail §3.3.2, neither built. A worklist
- *    you cannot tap into is a strange first delivery, and the screen says so at the foot of
- *    each section rather than wiring rows to nothing.
+ *  * ROWS TAP THROUGH NOW, which they did not at first delivery. Trip detail (§3.4.2) and
+ *    client detail (§3.3.2) are both built on this stack, so the three trip sections push
+ *    §3.4.2 and the deferral that stood at the foot of each of them is gone. What is still
+ *    NOT tappable is a MESSAGE row: §3.10 is unbuilt, and that section keeps its sentence.
+ *    A payment row is not tappable either — it names a milestone, and §3.4.15's editor is
+ *    web-only, so the trip behind it is reached from the trip sections above.
  *
  * Every row is a NAMED PERSON, not a record — Design-System §2.6's conviction, on the side
  * of the product where it is easiest to forget.
@@ -70,6 +74,8 @@ import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
 fun WorklistScreen(
     state: Loadable<WorklistUiState>,
     onSelectTab: (String) -> Unit,
+    /** Screen 3.4.2, from the three sections whose rows are trips. */
+    onOpenTrip: (String) -> Unit,
     /**
      * THE ONLY WAY OFF THIS SURFACE until §3.12 builds More — see [AgentTopBar] for why it
      * rides the top bar rather than a tab. Required rather than defaulted: a second agent
@@ -106,13 +112,13 @@ fun WorklistScreen(
                 body = "Your account does not have access to the worklist.",
             )
             is Loadable.Empty -> WorklistMessagePanel(title = state.title, body = state.body)
-            is Loadable.Ready -> WorklistBody(state.value)
+            is Loadable.Ready -> WorklistBody(state.value, onOpenTrip)
         }
     }
 }
 
 @Composable
-private fun WorklistBody(ui: WorklistUiState) {
+private fun WorklistBody(ui: WorklistUiState, onOpenTrip: (String) -> Unit) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
 
@@ -146,17 +152,30 @@ private fun WorklistBody(ui: WorklistUiState) {
     Spacer(Modifier.height(14.dp))
     KpiRail(ui)
 
-    Section(AgentCopy.PROPOSALS_TITLE, ui.snapshot.awaitingResponse.size, AgentCopy.PROPOSALS_EMPTY, AgentCopy.TRIP_DETAIL_DEFERRED) {
-        ui.snapshot.awaitingResponse.forEachIndexed { i, trip -> TripRow(trip, first = i == 0) }
+    // THREE OF THE FIVE LOST THEIR FOOTER, and the two that kept one are the two whose
+    // rows still go nowhere. `footer` is nullable now rather than every section carrying a
+    // sentence: a section whose rows are tappable has nothing left to explain, and printing
+    // "Agent messaging arrives with §3.10." under a list of trips would be answering a
+    // question about a different screen.
+    Section(AgentCopy.PROPOSALS_TITLE, ui.snapshot.awaitingResponse.size, AgentCopy.PROPOSALS_EMPTY) {
+        ui.snapshot.awaitingResponse.forEachIndexed { i, trip ->
+            TripRow(trip, first = i == 0, onOpen = onOpenTrip)
+        }
     }
-    Section(AgentCopy.PAYMENTS_TITLE, ui.snapshot.paymentsDue.size, AgentCopy.PAYMENTS_EMPTY, AgentCopy.TRIP_DETAIL_DEFERRED) {
+    // The payment rows name a MILESTONE, not a trip, and §3.4.15's editor is web-only — so
+    // these stay untapped. The trip behind one is in the sections above and below.
+    Section(AgentCopy.PAYMENTS_TITLE, ui.snapshot.paymentsDue.size, AgentCopy.PAYMENTS_EMPTY) {
         ui.payments.forEachIndexed { i, p -> PaymentRow(p, first = i == 0) }
     }
     Section(AgentCopy.INQUIRIES_TITLE, ui.snapshot.newInquiries.size, AgentCopy.INQUIRIES_EMPTY, AgentCopy.LEADS_DEFERRED) {
-        ui.snapshot.newInquiries.forEachIndexed { i, trip -> TripRow(trip, first = i == 0) }
+        ui.snapshot.newInquiries.forEachIndexed { i, trip ->
+            TripRow(trip, first = i == 0, onOpen = onOpenTrip)
+        }
     }
-    Section(AgentCopy.DEPARTING_TITLE, ui.departing.size, AgentCopy.DEPARTING_EMPTY, AgentCopy.TRIP_DETAIL_DEFERRED) {
-        ui.departing.forEachIndexed { i, trip -> TripRow(trip, first = i == 0) }
+    Section(AgentCopy.DEPARTING_TITLE, ui.departing.size, AgentCopy.DEPARTING_EMPTY) {
+        ui.departing.forEachIndexed { i, trip ->
+            TripRow(trip, first = i == 0, onOpen = onOpenTrip)
+        }
     }
     Section(AgentCopy.MESSAGES_TITLE, ui.snapshot.recentMessages.size, AgentCopy.MESSAGES_EMPTY, AgentCopy.MESSAGES_DEFERRED) {
         ui.snapshot.recentMessages.forEachIndexed { i, m -> MessageRow(m, first = i == 0) }
@@ -238,7 +257,15 @@ private fun Section(
     title: String,
     count: Int,
     empty: String,
-    seeAll: String,
+    /**
+     * A sentence under the rows, or null when there is nothing to say.
+     *
+     * It was required and named `seeAll` until §3.4.2 landed, when three of the five
+     * sections stopped needing one — their rows became links. Nullable rather than an empty
+     * string so the divider goes with it: a rule above nothing is a rule with a gap under
+     * it, which reads as content that failed to load.
+     */
+    footer: String? = null,
     rows: @Composable () -> Unit,
 ) {
     val type = LocalStoryTailBrandTypography.current
@@ -265,19 +292,27 @@ private fun Section(
         } else {
             rows()
         }
-        HorizontalDivider(color = scheme.outlineVariant)
-        Text(seeAll, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp).alpha(0.7f))
+        if (footer != null) {
+            HorizontalDivider(color = scheme.outlineVariant)
+            Text(footer, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp).alpha(0.7f))
+        }
     }
 }
 
 @Composable
-private fun TripRow(trip: WorklistTrip, first: Boolean) {
+private fun TripRow(trip: WorklistTrip, first: Boolean, onOpen: (String) -> Unit) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
     if (!first) HorizontalDivider(color = scheme.outlineVariant)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+        // `clickable` BEFORE `padding`, so the ripple and the touch target cover the whole
+        // row including its padding. The other way round gives a 48dp-tall row whose
+        // pressable area is the text inside it, which is the commonest Compose miss.
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpen(trip.tripId) }
+            .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

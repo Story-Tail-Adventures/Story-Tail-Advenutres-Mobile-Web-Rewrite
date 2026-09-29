@@ -11,10 +11,16 @@
  * TripDocumentsList, itinerary block through TripItineraryView. A raw enum on screen is the
  * schema leaking into the product.
  *
- * FLAT OBJECT OF PLAIN STRINGS, deliberately, exactly as `TRIP_STATUS_MESSAGES` is: when a
- * Kotlin twin lands, `.github/scripts/check_copy_parity.py` only reads top-level string
- * literals, so a nested or computed shape would drift silently past the gate. There is no
- * twin today — §3.4 is web-only at MVP — so this is not yet in the gate's list.
+ * FLAT OBJECT OF PLAIN STRINGS, deliberately, exactly as `TRIP_STATUS_MESSAGES` is:
+ * `.github/scripts/check_copy_parity.py` only reads top-level string literals, so a nested
+ * or computed shape would drift silently past the gate.
+ *
+ * THE TWIN LANDED 2026-09-30 with §3.4.2 on Compose — `mobile/…/domain/trip/TripType.kt` —
+ * and the pair is in the gate as "trip type". It found one drift on arrival: the Compose
+ * helper it replaced fell back to `replace('_', ' ')` where `tripTypeLabel` below falls back
+ * to the raw value, so a sixth enum member would have read "group charter" on a phone and
+ * "group_charter" here. A fallback is invisible to the gate, which is why both sides now
+ * say what theirs is out loud.
  */
 
 /** The stored enum, verbatim from `trip_type` in the initial migration. */

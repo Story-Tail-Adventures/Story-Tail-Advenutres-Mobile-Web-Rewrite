@@ -1682,6 +1682,16 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > > above still describes `WorklistScreen.kt` exactly — §3.4.2 is web-only, so a Compose row
 > > genuinely still has nowhere to go, which is why the two stacks now hold different copy
 > > here and `check_copy_parity.py` no longer pairs that string.
+> >
+> > > **Overtaken on Compose too, 2026-09-30.** §3.4.2 shipped on the phone, so the three
+> > > trip sections push `AppRoute.AgentTripDetail` and `AgentCopy.TRIP_DETAIL_DEFERRED` is
+> > > deleted rather than re-worded. Both stacks are level again. Two sections keep a
+> > > footer and the reason differs: "New inquiries" keeps `LEADS_DEFERRED`, which explains
+> > > that a quote request creates a trip rather than a lead (BRD §6.5), and "Recent
+> > > messages" keeps `MESSAGES_DEFERRED` because §3.10 is genuinely unbuilt. **"Payments to
+> > > settle" lost its footer and gained no tap:** its rows name a `payment_milestone`, not
+> > > a trip, and §3.4.15's editor is web-only — so the trip behind one is reached from the
+> > > sections above and below it.
 >
 > **The mobile shell gains a top bar, which neither the frames nor §6.6 draw.** §6.6
 > describes the agent mobile shell as a bottom tab bar and nothing else, and the phone
@@ -2213,6 +2223,49 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > was nothing to build Compose against. §4.4 maps this screen to Pattern C and does not mark
 > it web-primary the way it does 3.4.4, 3.4.13 and 3.4.14, so a phone treatment is still owed
 > and wants artboards first, per the artboards-first rule.
+>
+> > **Closed 2026-09-30.** The artboards came first:
+> > `design/source-prototype/screens/agent-trip-mobile.jsx` draws this screen at two of its
+> > eight tabs (Overview and Itinerary — one frame cannot show a strip moving) with twelve
+> > numbered departures, and the Compose screen shipped against them. **This is the only
+> > §3.4 screen with a phone surface**, and the other fifteen are named in that file's
+> > departure 1 with the reason each is absent, so the 1:1 parity convention is tracked
+> > rather than abandoned.
+> >
+> > **All eight tabs, read-only** (Gyasi, asked at approval 2026-09-29). That reads like a
+> > contradiction of §6.6's "intentionally narrower than web" and is not: §3.3.2 already
+> > settled what narrower means on this surface, keeping every real tab and dropping only
+> > the one that was disabled on the web too. Narrower is about **writes and navigational
+> > depth**, not about how much an advisor may look at — someone standing at a gate needs to
+> > read anything about a trip; what they will not do on a phone is build one.
+> >
+> > **No write controls at all, not even disabled ones.** The web header's stage menu, "Save
+> > as template", "Cancel trip" and builder link are all absent, replaced by one sentence
+> > saying where they are. That is the opposite of the treatment three paragraphs above
+> > ("render disabled with their reasons") and the difference is room: a desk header has
+> > space for four controls and their tooltips, and a 375pt screen spends four taps finding
+> > out none of them work.
+> >
+> > **The Notes tab reads here where it writes on the web.** The write path exists —
+> > `agent_set_trip_notes` shipped with the desk screen — so this is a scope line rather
+> > than a missing capability, and the easiest one to move if Gyasi wants notes on the phone.
+> >
+> > **The phone reads an eighth accessor the desk screen's Overview tab does not.**
+> > `agent_trip_itinerary_meta` is fetched for one column, `published_at`, so the Itinerary
+> > tab can lead with **Published** or **Draft**. A draft day-by-day looks exactly like a
+> > published one, and without that line an advisor can tell a client "it is in your app"
+> > about a trip the client cannot open.
+> >
+> > **Three things the phone derives that the desk screen does not, all recorded here
+> > because they are decisions rather than translations:** the status chip folds in the next
+> > unpaid milestone (so a booked trip with a balance eleven days out reads "Final payment
+> > due", which is the thing to act on); the header carries the dates and traveler count so
+> > the at-a-glance grid drops those two rows; and the Payments tab leads with a summary
+> > line — nothing scheduled, everything settled, or what is next — which is where "Next
+> > payment" went after being drawn in the glance first. The next-due milestone is selected
+> > on `status IN ('scheduled','overdue')`, the same set `agent_trip_overview` uses for
+> > `next_unpaid_due_date`, so the summary line and the chip above it cannot contradict
+> > each other.
 
 #### 3.4.3 Create New Trip — Type Selector
 **Purpose:** Choose what kind of trip to build.
@@ -3213,7 +3266,7 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 
 #### Agent — Trip Builder & Management (3.4.x)
 - **3.4.1 Trip List** — Pattern B.
-- **3.4.2 Trip Detail (Agent View)** — Pattern C.
+- **3.4.2 Trip Detail (Agent View)** — Pattern C. Both halves are built: a tab strip beside a wide detail pane on web, and on mobile a horizontally scrolling strip where each tab is a full screen. The strip **scrolls and does not wrap** — eight labels will not fit 375pt, and two rows of chips cost the pane below them.
 - **3.4.3 Create New Trip — Type Selector** — Pattern G.
 - **3.4.4 Trip Builder Workspace** — Pattern E. **Web-primary.** Mobile shows the trip builder as a vertical component list with bottom-sheet add flow — usable for additions and edits, but full trip-building from scratch is awkward. Tablet works comfortably in landscape. Web is the intended deep-work surface.
 - **3.4.5 – 3.4.12 Component Add/Edit screens** — Pattern A within Pattern E. Search-based component adds (flight, hotel, cruise, tour) use Pattern F inside the builder.
@@ -3397,6 +3450,12 @@ The mobile experience for agents at MVP is intentionally narrower than web — d
 
 > **Amended 2026-09-23.** The shell also carries a 56dp top bar — screen title left, "Sign out" right — which this line did not anticipate. It adds no destination, so the sentence above still holds as a statement about navigational depth; it exists because Worklist is the whole agent shell in this slice and there is nowhere else to reach sign-out. The §3.2.1 amendment carries the full reasoning, and §3.12 (More) takes the control over when it lands.
 
+> **Amended 2026-09-30, and this one narrows what "narrower" means.** §3.4.2 Trip Detail is now built on the phone with all eight tabs, read-only (Gyasi, asked at approval 2026-09-29). **The bar is still four**, and Trips is still not among them: a trip is reached from the Worklist's rows and from the Clients tab's Trips tab, both of which already carry a `tripId`. So this is a third and fourth level of depth inside two existing destinations rather than a fifth destination, and the sentence above holds as written.
+>
+> What the sentence does **not** mean, and did not say clearly enough to stop the question being asked: it is not a limit on how much an advisor may read. §3.3.2 established that in practice — its mobile client detail kept every real tab — and §3.4.2 follows it. Narrower is about **writes** (every §3.4 form stays in a browser) and about **navigational depth** (no Trips tab, no Pipeline, no Calendar, no template management, which this line names outright). An advisor standing at a gate needs to read anything about a trip.
+>
+> Nothing here is "disabled with a reason", which is the web's treatment for an unbuilt control. A read-only screen with no controls says once, in a sentence, where the writes live. Four dimmed buttons on a 375pt screen cost four taps to discover the same thing.
+
 ---
 
 ## 7. Open Questions
@@ -3409,7 +3468,7 @@ These are decisions that should be settled before final design and engineering b
 
 **Client app "lite" experience.** Should there be a read-only access mode for invited co-travelers who have not created accounts (e.g., a magic-link itinerary view)? This affects screens 2.8.2 and 2.8.4.
 
-**Agent-on-mobile scope.** How deep should the agent mobile experience go? The current plan limits it to triage tasks; if agents will be building trips on mobile, several additional screens are needed.
+**Agent-on-mobile scope.** ~~How deep should the agent mobile experience go? The current plan limits it to triage tasks; if agents will be building trips on mobile, several additional screens are needed.~~ **PARTLY ANSWERED 2026-09-29.** Gyasi, asked at the §3.4.2 mobile approval: all eight tabs, read-only. So the line is drawn at **reads, not at screens** — an advisor may look at anything about a trip on a phone, and builds nothing there. That settles §3.4.2 and, by the same rule, §3.3.2 retrospectively. What is still open is whether any §3.4 *write* ever wants a phone treatment; the two nearest candidates are the Notes tab (whose write path already exists, so it is one control away) and §3.4.16 Cancel Trip, which an advisor might need on the move and which currently requires a desk. Neither is scheduled.
 
 **Whitelabeling.** If Story-Tail Adventures ever offers the platform to other independent advisors (Phase 4+), some screens will need a "brand owner" parameter throughout. Worth keeping this in mind during initial design even if not implementing.
 

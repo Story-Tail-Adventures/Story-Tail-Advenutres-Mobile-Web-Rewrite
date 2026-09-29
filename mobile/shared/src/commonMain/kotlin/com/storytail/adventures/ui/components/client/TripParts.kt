@@ -361,15 +361,19 @@ fun formatMoney(amountCents: Long, currency: String): String {
     return if (cents == 0) "$symbol$grouped" else "$symbol$grouped.${cents.toString().padStart(2, '0')}"
 }
 
-/** `all_inclusive` → "All-inclusive". The enum is not copy. */
-fun humaniseTripType(tripType: String): String = when (tripType) {
-    "cruise" -> "Cruise"
-    "all_inclusive" -> "All-inclusive"
-    "multi_destination" -> "Multi-destination"
-    "group" -> "Group trip"
-    "custom" -> "Custom"
-    else -> tripType.replace('_', ' ')
-}
+/**
+ * `all_inclusive` → "All-inclusive". The enum is not copy.
+ *
+ * A DELEGATE NOW, not a table. The five labels moved to [com.storytail.adventures.domain.trip.TripTypeMessages]
+ * when §3.4.2 landed on Compose and needed the same five: the agent's at-a-glance grid and
+ * the traveler's read the identical words, because a trip type is a fact about the trip
+ * rather than something said to somebody. Keeping a second copy here is how the two would
+ * eventually disagree, and the copy-parity gate can only watch one of them.
+ *
+ * The fallback changed with the move — see [com.storytail.adventures.domain.trip.tripTypeLabel].
+ */
+fun humaniseTripType(tripType: String): String =
+    com.storytail.adventures.domain.trip.tripTypeLabel(tripType)
 
 /** Nights between two dates, or null when either is missing or the range is degenerate. */
 fun nightsBetween(start: LocalDate?, end: LocalDate?): Int? {
