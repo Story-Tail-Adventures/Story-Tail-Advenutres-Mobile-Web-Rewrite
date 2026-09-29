@@ -323,13 +323,32 @@ class AgentWorklistTest {
 
     @Test
     fun every_deferral_names_the_section_that_builds_it() {
+        // TRIP_DETAIL_DEFERRED was the fourth entry until §3.4.2 shipped on Compose. It is
+        // gone rather than re-worded: its three worklist sections and the client detail's
+        // Trips tab all push AppRoute.AgentTripDetail now, so there was nothing left to
+        // defer and a sentence naming a built section is worse than no sentence.
         for (copy in listOf(
-            AgentCopy.TRIP_DETAIL_DEFERRED,
             AgentCopy.MESSAGES_DEFERRED,
             AgentCopy.LEADS_DEFERRED,
             AgentCopy.AVAILABILITY_DEFERRED,
         )) {
             assertTrue(Regex("§3\\.\\d").containsMatchIn(copy), "no section in: $copy")
+        }
+    }
+
+    @Test
+    fun a_web_only_note_does_not_read_as_a_deferral() {
+        // §3.4.2's two notes name a section, so the assertion above would pass them — and
+        // they are NOT deferrals. Everything they point at is built, in a browser, and §6.6
+        // keeps it there. "Arrives with" would promise a future delivery for something that
+        // already exists, which is the opposite of what an advisor holding a phone needs to
+        // be told.
+        for (copy in listOf(
+            AgentCopy.TRIP_READ_ONLY_NOTE,
+            AgentCopy.TRIP_ITINERARY_WEB_NOTE,
+        )) {
+            assertTrue(!copy.contains("arrives with"), "reads as a deferral: $copy")
+            assertTrue(copy.contains("web app"), "does not say where it lives: $copy")
         }
     }
 

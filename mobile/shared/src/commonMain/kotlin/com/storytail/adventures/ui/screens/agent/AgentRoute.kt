@@ -8,10 +8,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.api.AgentTripDetailRead
 import com.storytail.adventures.api.ClientDetailRead
 import com.storytail.adventures.api.ClientRosterRead
 import com.storytail.adventures.api.ClientRosterSnapshot
 import com.storytail.adventures.api.WorklistRead
+import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.ClientCopy
 import com.storytail.adventures.domain.agent.partOfDay
 import com.storytail.adventures.domain.trip.Loadable
@@ -30,9 +32,11 @@ import com.storytail.adventures.ui.nav.Navigator
  * and nothing in this package imports `ClientScaffold`. A client route reaching here is
  * unrepresentable: App.kt's `when` is exhaustive and never routes one this way.
  *
- * TWO SCREENS NOW. §6.6 keeps Pipeline and Calendar web-only at MVP; Messages (§3.10) and
- * More (§3.12) are still dimmed tabs rather than routes. Clients joined on 2026-09-26, which
- * is what turned [tabRoute] from a no-op guard into a real mapping.
+ * FOUR SCREENS NOW. §6.6 keeps Pipeline and Calendar web-only at MVP; Messages (§3.10) and
+ * More (§3.12) are still dimmed tabs rather than routes. Clients joined on 2026-09-26,
+ * which is what turned [tabRoute] from a no-op guard into a real mapping, and Trip detail
+ * (§3.4.2) joined on 2026-09-30 — reached from the worklist's rows and the client detail's
+ * Trips tab rather than from a tab of its own, because §6.6's bar has no Trips.
  */
 @Composable
 fun AgentRoute(
@@ -90,6 +94,9 @@ fun AgentRoute(
             WorklistScreen(
                 state = state,
                 onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
+                // §3.4.2 landing is what retired `AgentCopy.TRIP_DETAIL_DEFERRED` from the
+                // three trip sections that rendered it.
+                onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
                 onSignOut = onSignOut,
                 modifier = modifier,
             )
@@ -171,6 +178,53 @@ fun AgentRoute(
                 activeTab = tab,
                 onSelectTab = { tab = it },
                 onBack = { if (!nav.pop()) nav.selectTab(AppRoute.AgentClients) },
+                onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
+                onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
+                onSignOut = onSignOut,
+                modifier = modifier,
+            )
+        }
+
+        is AppRoute.AgentTripDetail -> {
+            var tab by remember(route.tripId) { mutableStateOf("overview") }
+            var state by remember(route.tripId) {
+                mutableStateOf<Loadable<AgentTripDetailUiState>>(Loadable.Loading)
+            }
+
+            // Keyed on the trip id alone — NOT on `tab`, the same call the client detail
+            // makes above. Eight reads land in one pass and the strip switches over what is
+            // already held, so re-running this on a tab change would re-fetch the whole
+            // trip to show data the screen already has.
+            LaunchedEffect(agent, route.tripId) {
+                state = when (val read = agent.tripDetail(route.tripId)) {
+                    is AgentTripDetailRead.Ok -> Loadable.Ready(
+                        agentTripDetailUiState(read.snapshot) { cents, currency ->
+                            formatMoney(cents, currency)
+                        },
+                    )
+                    AgentTripDetailRead.NotFound -> Loadable.Empty(
+                        title = AgentCopy.TRIP_NOT_FOUND_TITLE,
+                        body = AgentCopy.TRIP_NOT_FOUND_BODY,
+                    )
+                    AgentTripDetailRead.Forbidden -> Loadable.Unauthorized
+                    AgentTripDetailRead.Failed -> Loadable.Failed()
+                }
+            }
+
+            AgentTripDetailScreen(
+                state = state,
+                activeTab = tab,
+                onSelectTab = { tab = it },
+                // The worklist rather than the Clients tab, unlike the client detail's
+                // fallback: this screen is pushed from three worklist sections and one
+                // client tab, and an empty stack means a process death restored straight
+                // into it. Worklist is the agent shell's root and the commoner origin.
+                onBack = { if (!nav.pop()) nav.selectTab(AppRoute.Worklist) },
+                // PUSH, not a replace. An advisor who came from the worklist and taps
+                // through to the client should get back to the trip, then to the worklist —
+                // and one who came FROM that client gets a second copy of it on the stack,
+                // which is a stack two pops deep rather than a loop.
+                onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
                 onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
                 onSignOut = onSignOut,
                 modifier = modifier,

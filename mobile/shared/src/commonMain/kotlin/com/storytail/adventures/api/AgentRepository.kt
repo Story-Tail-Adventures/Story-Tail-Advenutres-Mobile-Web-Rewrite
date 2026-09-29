@@ -80,7 +80,175 @@ interface AgentRepository {
      * rows; fetching it once and switching locally is the cheaper trade.
      */
     suspend fun clientDetail(clientId: String): ClientDetailRead
+
+    /**
+     * Screen 3.4.2, all eight tabs, read-only.
+     *
+     * EVERY TAB IN ONE READ, for the reason [clientDetail] gives in full: on a phone a tab
+     * switch is a thumb moving two centimetres, and paying a round trip for it turns an
+     * instant interaction into a spinner eight times over.
+     *
+     * THERE IS NO `tripRoster` BESIDE THIS, and that is not an omission. §6.6's bottom bar
+     * is Worklist, Clients, Messages, More — Trips is not on it, where the web rail has it.
+     * A trip is reached from the worklist's rows, which already carry `tripId`, so the list
+     * this detail hangs off already exists and is §3.2.1's.
+     */
+    suspend fun tripDetail(tripId: String): AgentTripDetailRead
 }
+
+/**
+ * Three answers, for the reason [WorklistRead] gives.
+ *
+ * `AgentTrip…` PREFIXED, unlike [ClientDetailRead] beside it, because the traveler side
+ * already owns the unprefixed names: `TripRepository.kt` declares its own
+ * `TripDetailSnapshot` for §2.2's trip screen. Two surfaces legitimately have "a trip
+ * detail" and they are different shapes — this one carries `total_commission_cents`, which
+ * is withheld from the client role entirely. The compiler caught the collision on the
+ * first build; the prefix is what keeps them from being confused by a future reader as
+ * well as by the linker.
+ */
+sealed interface AgentTripDetailRead {
+    data class Ok(val snapshot: AgentTripDetailSnapshot) : AgentTripDetailRead
+    /**
+     * Zero rows from the overview accessor. "No such trip", "not this advisor's" and
+     * "archived" are ONE answer on purpose, so ids cannot be probed.
+     */
+    data object NotFound : AgentTripDetailRead
+    data object Forbidden : AgentTripDetailRead
+    data object Failed : AgentTripDetailRead
+}
+
+data class AgentTripDetailSnapshot(
+    val overview: AgentTripOverviewRow,
+    val components: List<AgentTripComponentRow>,
+    /** Already grouped. The accessor returns one row per ACTIVITY with the day repeated. */
+    val days: List<AgentTripItineraryDay>,
+    /**
+     * Whether the traveler can see the day-by-day yet.
+     *
+     * TWO STATES FROM THREE, matching the web's own collapse: an `itinerary` row that has
+     * never been published and NO itinerary row at all both mean the client is reading
+     * nothing, so both are `false`. `loadItinerary` does the same thing for the same reason.
+     *
+     * It costs an eighth accessor and it is worth one. `TripItineraryView` says "never
+     * blank; an agent must know which one they are reading" — an advisor who tells a client
+     * "it is in your app" off a draft has been misled by the screen, and there is nothing
+     * else on the surface that would tell them.
+     */
+    val itineraryPublished: Boolean,
+    val payments: List<AgentTripPaymentRow>,
+    val documents: List<AgentTripDocumentRow>,
+    val messages: List<AgentTripMessageRow>,
+    val activity: List<AgentTripActivityRow>,
+)
+
+data class AgentTripOverviewRow(
+    val tripId: String,
+    val clientId: String,
+    val clientName: String,
+    val title: String,
+    val tripType: String,
+    val status: String,
+    val startDate: String?,
+    val endDate: String?,
+    val destinations: List<String>,
+    val travelerCount: Int,
+    val totalValueCents: Long,
+    val totalPaidCents: Long,
+    /** Withheld from the client role entirely. Drawn on this screen and nowhere a traveler reaches. */
+    val totalCommissionCents: Long,
+    val currency: String,
+    val cancellationReason: String?,
+    val refundStatus: String?,
+    val refundDetail: String?,
+    /** `trip.notes`, the advisor's own prose. The Notes TAB is this one field, not a table. */
+    val notes: String?,
+    val cardLast4: String?,
+    val cardBrand: String?,
+    val cardSpendingLimitCents: Long?,
+    /**
+     * `greatest(max status change, max unarchived conversation message)`, off the accessor.
+     *
+     * NOT the newest `trip_status_history` row, which this was first derived from: that is
+     * only the last STAGE change, so a trip whose last event was a client message reported
+     * a date weeks older than the truth. The accessor's `activity` CTE is the authority and
+     * deliberately excludes archived threads — filing a thread away is the advisor's only
+     * way to put one down, and without that exclusion an archived thread kept driving this.
+     */
+    val lastActivityAt: String?,
+    val componentCount: Int,
+    val nextUnpaidDueDate: String?,
+    val asOfDate: String,
+)
+
+data class AgentTripComponentRow(
+    val componentId: String,
+    val kind: String,
+    val displayName: String,
+    val supplierName: String?,
+    val startDate: String?,
+    val endDate: String?,
+    val startTime: String?,
+    val endTime: String?,
+    val location: String?,
+    val costCents: Long,
+    val currency: String,
+)
+
+data class AgentTripItineraryDay(
+    val dayId: String,
+    val dayNumber: Int,
+    val date: String,
+    val label: String?,
+    val summary: String?,
+    val activities: List<AgentTripActivity>,
+)
+
+data class AgentTripActivity(
+    val activityId: String,
+    val block: String?,
+    val startTime: String?,
+    val title: String?,
+    val body: String?,
+    val location: String?,
+    /** Its own column and its own block on screen — never folded into [body]. */
+    val gyasisTip: String?,
+)
+
+data class AgentTripPaymentRow(
+    val milestoneId: String,
+    val label: String,
+    val amountCents: Long,
+    val paidCents: Long,
+    val currency: String,
+    val dueDate: String?,
+    val status: String,
+)
+
+data class AgentTripDocumentRow(
+    val documentId: String,
+    val kind: String,
+    val filename: String,
+    val sizeBytes: Long,
+    val isSensitive: Boolean,
+    val createdAt: String,
+)
+
+data class AgentTripMessageRow(
+    val messageId: String,
+    val senderRole: String,
+    val body: String,
+    val createdAt: String,
+    val isInternalNote: Boolean,
+)
+
+data class AgentTripActivityRow(
+    val historyId: String,
+    val fromStatus: String?,
+    val toStatus: String,
+    val changedAt: String,
+    val changedByName: String?,
+)
 
 /** Three answers, for the reason [WorklistRead] gives. */
 sealed interface ClientDetailRead {
@@ -337,6 +505,8 @@ class UnconfiguredAgentRepository : AgentRepository {
     ): ClientRosterRead = ClientRosterRead.Failed
 
     override suspend fun clientDetail(clientId: String): ClientDetailRead = ClientDetailRead.Failed
+
+    override suspend fun tripDetail(tripId: String): AgentTripDetailRead = AgentTripDetailRead.Failed
 }
 
 class SupabaseAgentRepository(private val client: SupabaseClient) : AgentRepository {
@@ -485,6 +655,77 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
         if (rest.statusCode in 401..403) ClientDetailRead.Forbidden else ClientDetailRead.Failed
     } catch (_: Exception) {
         ClientDetailRead.Failed
+    }
+
+    /**
+     * §3.4.2's eight tabs, eight accessors, one round trip's worth of latency.
+     *
+     * EIGHT CALLS AT ONCE under `coroutineScope`, the shape [clientDetail] established:
+     * none depends on another's result, and `coroutineScope` still rethrows the FIRST child
+     * failure, so the four-way answer survives the concurrency.
+     *
+     * THE OVERVIEW IS THE GATE. Zero rows from it is the only NotFound, and the other six
+     * are allowed to come back empty — a trip with no components, no itinerary and no
+     * messages is a brand-new inquiry, not a missing trip.
+     */
+    override suspend fun tripDetail(tripId: String): AgentTripDetailRead = try {
+        coroutineScope {
+            val arg = buildJsonObject { put("p_trip_id", tripId) }
+            val overviewCall = async {
+                client.postgrest.rpc("agent_trip_overview", arg).decodeList<AgentTripOverviewDto>()
+            }
+            val componentCall = async {
+                client.postgrest.rpc("agent_trip_components", arg).decodeList<AgentTripComponentDto>()
+            }
+            val dayCall = async {
+                client.postgrest.rpc("agent_trip_itinerary_days", arg)
+                    .decodeList<AgentTripDayDto>()
+            }
+            val paymentCall = async {
+                client.postgrest.rpc("agent_trip_payments", arg).decodeList<AgentTripPaymentDto>()
+            }
+            val docCall = async {
+                client.postgrest.rpc("agent_trip_documents", arg).decodeList<AgentTripDocumentDto>()
+            }
+            val messageCall = async {
+                client.postgrest.rpc("agent_trip_messages", arg).decodeList<AgentTripMessageDto>()
+            }
+            val activityCall = async {
+                client.postgrest.rpc("agent_trip_activity", arg).decodeList<AgentTripActivityDto>()
+            }
+            // The only thing read off the itinerary's own row. The cover image, intro and
+            // closing notes are §3.4.14's to edit and §2.2's to render; none of them is a
+            // fact an advisor needs standing at a gate.
+            val metaCall = async {
+                client.postgrest.rpc("agent_trip_itinerary_meta", arg)
+                    .decodeList<AgentTripItineraryMetaDto>()
+            }
+
+            val overview = overviewCall.await().firstOrNull()
+                ?: return@coroutineScope AgentTripDetailRead.NotFound
+
+            AgentTripDetailRead.Ok(
+                AgentTripDetailSnapshot(
+                    overview = overview.toDomain(),
+                    components = componentCall.await().map { it.toDomain() },
+                    days = dayCall.await().map { it.asLike() }.groupIntoDays(),
+                    // No itinerary row is `null` here, and an unpublished one is a row with
+                    // a null `published_at`. Both answer false — see the field.
+                    itineraryPublished =
+                        metaCall.await().firstOrNull()?.published_at != null,
+                    payments = paymentCall.await().map { it.toDomain() },
+                    documents = docCall.await().map { it.toDomain() },
+                    messages = messageCall.await().map { it.toDomain() },
+                    activity = activityCall.await().map { it.toDomain() },
+                ),
+            )
+        }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (rest: RestException) {
+        if (rest.statusCode in 401..403) AgentTripDetailRead.Forbidden else AgentTripDetailRead.Failed
+    } catch (_: Exception) {
+        AgentTripDetailRead.Failed
     }
 
     /**
@@ -932,3 +1173,301 @@ private data class ActivityDto(
         createdAt = created_at,
     )
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// §3.4.2's eight tabs
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// SEVEN DTOs FOR EIGHT TABS. The Notes tab is `trip.notes`, one text column on the overview
+// row rather than a table of its own — `client_note` has a table and §3.3.7 an accessor;
+// a trip's notes are a single field the advisor writes into. Data-Model §8.1.
+
+@Serializable
+private data class AgentTripOverviewDto(
+    // `client_display_name`, NOT `client_name`. The accessor's column is the longer one and
+    // a DTO field that does not match decodes to its default — so the trip header's client
+    // line, which is the ONE link off this read-only screen, rendered as an empty tappable
+    // strip. Nothing failed: `@Serializable` with a default is silent by design, the
+    // compile was green and every unit test passed, because a test builds the domain row
+    // directly and never goes through the DTO. The emulator is what found it.
+    val trip_id: String = "",
+    val client_id: String = "",
+    val client_display_name: String = "",
+    val title: String = "",
+    val trip_type: String = "",
+    val status: String = "",
+    val start_date: String? = null,
+    val end_date: String? = null,
+    val destinations: List<String>? = null,
+    val traveler_count: Int = 0,
+    // Digit-strings, every one. PostgREST serialises bigint as a JSON number and loses
+    // precision past 2^53, so the accessors return ::text and these parse it back.
+    val total_value_cents: String? = null,
+    val total_paid_cents: String? = null,
+    val total_commission_cents: String? = null,
+    val currency: String = "USD",
+    val cancellation_reason: String? = null,
+    val refund_status: String? = null,
+    val refund_detail: String? = null,
+    val notes: String? = null,
+    val card_last4: String? = null,
+    val card_brand: String? = null,
+    val card_spending_limit_cents: String? = null,
+    // `last_activity_at` is greatest(max status change, max unarchived conversation
+    // message) — see the accessor's `activity` CTE. Deriving it from the status history
+    // alone, which this did first, under-reports every trip whose last event was a client
+    // message.
+    val last_activity_at: String? = null,
+    val component_count: Int = 0,
+    val next_unpaid_due_date: String? = null,
+    val as_of_date: String = "",
+) {
+    fun toDomain() = AgentTripOverviewRow(
+        tripId = trip_id,
+        clientId = client_id,
+        clientName = client_display_name,
+        title = title,
+        tripType = trip_type,
+        status = status,
+        startDate = start_date,
+        endDate = end_date,
+        destinations = destinations.orEmpty(),
+        travelerCount = traveler_count,
+        totalValueCents = total_value_cents.cents(),
+        totalPaidCents = total_paid_cents.cents(),
+        totalCommissionCents = total_commission_cents.cents(),
+        currency = currency,
+        cancellationReason = cancellation_reason,
+        refundStatus = refund_status,
+        refundDetail = refund_detail,
+        notes = notes,
+        cardLast4 = card_last4,
+        cardBrand = card_brand,
+        // NULL rather than 0: no card on file is not a zero limit, and a confident "$0 cap"
+        // on a payment surface is the kind of figure an advisor would act on.
+        cardSpendingLimitCents = card_spending_limit_cents?.toLongOrNull(),
+        lastActivityAt = last_activity_at,
+        componentCount = component_count,
+        nextUnpaidDueDate = next_unpaid_due_date,
+        asOfDate = as_of_date,
+    )
+}
+
+@Serializable
+private data class AgentTripComponentDto(
+    val component_id: String = "",
+    val kind: String = "",
+    val display_name: String = "",
+    val supplier_name: String? = null,
+    val start_date: String? = null,
+    val end_date: String? = null,
+    val start_time: String? = null,
+    val end_time: String? = null,
+    val location: String? = null,
+    val cost_cents: String? = null,
+    val currency: String = "USD",
+) {
+    fun toDomain() = AgentTripComponentRow(
+        componentId = component_id,
+        kind = kind,
+        displayName = display_name,
+        supplierName = supplier_name,
+        startDate = start_date,
+        endDate = end_date,
+        startTime = start_time,
+        endTime = end_time,
+        location = location,
+        costCents = cost_cents.cents(),
+        currency = currency,
+    )
+}
+
+/**
+ * `agent_trip_itinerary_meta`, of which this side reads one column.
+ *
+ * The accessor returns six. `cover_image_url`, `intro_note` and `closing_note` belong to
+ * the screens that write and render the itinerary itself, and `last_published_at` has no
+ * producer at all — `itinerary_touch()` does not set it despite the name, which is correct
+ * because publishing is §3.5's. Declaring a field here that nothing reads would suggest
+ * otherwise.
+ */
+@Serializable
+private data class AgentTripItineraryMetaDto(
+    val published_at: String? = null,
+)
+
+/**
+ * ONE ROW PER ACTIVITY, with the day's own fields repeated on every one of them.
+ *
+ * `agent_trip_itinerary_days` LEFT JOINs activities onto days, so a day with three entries
+ * arrives as three rows and a day with NONE arrives as one row whose activity columns are
+ * all NULL. Both matter: the empty day is a real state — the seeded trip has two of them —
+ * and grouping has to keep it rather than filtering it out with the nulls.
+ */
+@Serializable
+private data class AgentTripDayDto(
+    val day_id: String = "",
+    val day_number: Int = 0,
+    val date: String = "",
+    val day_label: String? = null,
+    val day_summary: String? = null,
+    val activity_id: String? = null,
+    val block: String? = null,
+    val start_time: String? = null,
+    val activity_title: String? = null,
+    val activity_body: String? = null,
+    val location: String? = null,
+    val gyasis_tip: String? = null,
+)
+
+@Serializable
+private data class AgentTripPaymentDto(
+    val milestone_id: String = "",
+    val label: String = "",
+    val amount_cents: String? = null,
+    val paid_cents: String? = null,
+    val currency: String = "USD",
+    val due_date: String? = null,
+    val status: String = "",
+) {
+    fun toDomain() = AgentTripPaymentRow(
+        milestoneId = milestone_id,
+        label = label,
+        amountCents = amount_cents.cents(),
+        paidCents = paid_cents.cents(),
+        currency = currency,
+        dueDate = due_date,
+        status = status,
+    )
+}
+
+@Serializable
+private data class AgentTripDocumentDto(
+    val document_id: String = "",
+    val kind: String = "",
+    val filename: String = "",
+    val size_bytes: String? = null,
+    val is_sensitive: Boolean = false,
+    val created_at: String = "",
+) {
+    fun toDomain() = AgentTripDocumentRow(
+        documentId = document_id,
+        kind = kind,
+        filename = filename,
+        sizeBytes = size_bytes.cents(),
+        isSensitive = is_sensitive,
+        createdAt = created_at,
+    )
+}
+
+@Serializable
+private data class AgentTripMessageDto(
+    val message_id: String = "",
+    val sender_role: String = "",
+    val body: String = "",
+    val created_at: String = "",
+    val is_internal_note: Boolean = false,
+) {
+    fun toDomain() = AgentTripMessageRow(
+        messageId = message_id,
+        senderRole = sender_role,
+        body = body,
+        createdAt = created_at,
+        isInternalNote = is_internal_note,
+    )
+}
+
+@Serializable
+private data class AgentTripActivityDto(
+    val history_id: String = "",
+    val from_status: String? = null,
+    val to_status: String = "",
+    val changed_at: String = "",
+    val changed_by_name: String? = null,
+) {
+    fun toDomain() = AgentTripActivityRow(
+        historyId = history_id,
+        fromStatus = from_status,
+        toStatus = to_status,
+        changedAt = changed_at,
+        changedByName = changed_by_name,
+    )
+}
+
+/**
+ * Fold the flat join back into days.
+ *
+ * Order is preserved from the accessor rather than re-sorted: it already returns
+ * `ORDER BY d.day_number, act.order_index`, and sorting again here would be a second
+ * opinion about sequence that could disagree with the web's.
+ */
+internal fun List<AgentTripDayRowLike>.groupIntoDays(): List<AgentTripItineraryDay> {
+    val out = mutableListOf<AgentTripItineraryDay>()
+    for (row in this) {
+        val last = out.lastOrNull()
+        val day = if (last != null && last.dayId == row.dayId) {
+            out.removeAt(out.size - 1)
+            last
+        } else {
+            AgentTripItineraryDay(
+                dayId = row.dayId,
+                dayNumber = row.dayNumber,
+                date = row.date,
+                label = row.label,
+                summary = row.summary,
+                activities = emptyList(),
+            )
+        }
+        // A day with no activities arrives as ONE row with every activity column NULL.
+        // Keeping the day and dropping the phantom activity is the whole point of the fold.
+        val activities = if (row.activityId == null) {
+            day.activities
+        } else {
+            day.activities + AgentTripActivity(
+                activityId = row.activityId,
+                block = row.block,
+                startTime = row.startTime,
+                title = row.title,
+                body = row.body,
+                location = row.location,
+                gyasisTip = row.gyasisTip,
+            )
+        }
+        out.add(day.copy(activities = activities))
+    }
+    return out
+}
+
+/**
+ * The shape [groupIntoDays] needs, so the fold can be unit-tested without a DTO whose
+ * `@Serializable` machinery and private visibility both get in the way.
+ */
+internal data class AgentTripDayRowLike(
+    val dayId: String,
+    val dayNumber: Int,
+    val date: String,
+    val label: String?,
+    val summary: String?,
+    val activityId: String?,
+    val block: String?,
+    val startTime: String?,
+    val title: String?,
+    val body: String?,
+    val location: String?,
+    val gyasisTip: String?,
+)
+
+private fun AgentTripDayDto.asLike() = AgentTripDayRowLike(
+    dayId = day_id,
+    dayNumber = day_number,
+    date = date,
+    label = day_label,
+    summary = day_summary,
+    activityId = activity_id,
+    block = block,
+    startTime = start_time,
+    title = activity_title,
+    body = activity_body,
+    location = location,
+    gyasisTip = gyasis_tip,
+)
