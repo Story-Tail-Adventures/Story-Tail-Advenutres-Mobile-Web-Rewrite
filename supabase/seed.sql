@@ -357,39 +357,45 @@ INSERT INTO public.trip (
     id, client_id, agent_id, title, trip_type, status, status_changed_at,
     start_date, end_date, destinations, traveler_count,
     total_value_cents, total_paid_cents, total_commission_cents, currency,
-    cancellation_reason, refund_status, notes
+    cancellation_reason, refund_status, refund_detail, notes
 )
 SELECT v.id, c.id, '0195a2c0-1a00-7000-8000-000000000001',
        v.title, v.trip_type::public.trip_type, v.status::public.trip_status, v.changed_at,
        v.start_date, v.end_date, v.destinations, v.traveler_count,
        v.total_value_cents, v.total_paid_cents, v.total_commission_cents, 'USD',
-       v.cancellation_reason, v.refund_status, v.notes
+       v.cancellation_reason, v.refund_status, v.refund_detail, v.notes
 FROM public.client c
 CROSS JOIN (VALUES
     -- Proposal ready: what 2.2.9's status-change sheet lands on.
     ('0195a2c0-1a00-7000-8000-000000000042'::uuid, 'Family Week in Turks', 'all_inclusive', 'proposal',
      now() - interval '2 days', (current_date + 150)::date, (current_date + 157)::date,
      ARRAY['Providenciales, Turks & Caicos'], 4, 1912000::bigint, 0::bigint, 229440::bigint,
-     NULL::text, NULL::text, 'Two room-type options; they are deciding.'),
+     NULL::text, NULL::text, NULL::text, 'Two room-type options; they are deciding.'),
     -- Inquiry: no dates yet. Proves the UI survives null start_date.
     ('0195a2c0-1a00-7000-8000-000000000043'::uuid, 'Somewhere Quiet in December', 'custom', 'inquiry',
      now() - interval '9 days', NULL::date, NULL::date,
      ARRAY[]::text[], 2, 0::bigint, 0::bigint, 0::bigint,
-     NULL::text, NULL::text, 'Open-ended. Wants "not a resort".'),
+     NULL::text, NULL::text, NULL::text, 'Open-ended. Wants "not a resort".'),
     -- Completed: the 2.2.11 memory view.
     ('0195a2c0-1a00-7000-8000-000000000044'::uuid, 'Beaches Turks & Caicos', 'all_inclusive', 'completed',
      now() - interval '600 days', (current_date - 610)::date, (current_date - 603)::date,
      ARRAY['Providenciales, Turks & Caicos'], 4, 692000::bigint, 692000::bigint, 83040::bigint,
-     NULL::text, NULL::text, 'Sesame Street breakfast was the hit. Bight Reef snorkel.'),
-    -- Cancelled: 2.2.10. cancellation_reason and refund_status are client-visible per §21.
+     NULL::text, NULL::text, NULL::text, 'Sesame Street breakfast was the hit. Bight Reef snorkel.'),
+    -- Cancelled: 2.2.10. cancellation_reason, refund_status and refund_detail are all
+    -- client-visible per §21. The prose used to live in refund_status, which had no
+    -- vocabulary; 20261001100000 split it so the STATE can be filtered and the SPECIFICS
+    -- survive. 'partial' plus that sentence says strictly more than either alone: a credit
+    -- with an expiry is not a number you can total, and 'partial' cannot tell you when the
+    -- money landed.
     ('0195a2c0-1a00-7000-8000-000000000045'::uuid, 'Carnival Mardi Gras · Spring Break', 'cruise', 'cancelled',
      now() - interval '210 days', (current_date - 175)::date, (current_date - 168)::date,
      ARRAY['Port Canaveral, Florida'], 4, 318000::bigint, 176000::bigint, 0::bigint,
-     'Family schedule conflict', 'Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027',
+     'Family schedule conflict', 'partial',
+     'Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027',
      'They asked to rebook in the autumn.')
 ) AS v(id, title, trip_type, status, changed_at, start_date, end_date, destinations,
        traveler_count, total_value_cents, total_paid_cents, total_commission_cents,
-       cancellation_reason, refund_status, notes)
+       cancellation_reason, refund_status, refund_detail, notes)
 WHERE c.email = 'jordan.hayes@example.com';
 
 -- ── Trip components for the Negril trip ─────────────────────────────────────

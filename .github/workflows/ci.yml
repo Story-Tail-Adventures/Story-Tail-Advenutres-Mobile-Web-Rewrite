@@ -276,6 +276,12 @@ jobs:
           # hosted project — and it silently changes the tool that validates our migrations
           # between one green run and the next. 2.116.0 is the version these migrations have
           # actually been replayed against locally. Bump deliberately.
+          #
+          # SECOND COPY OF THIS NUMBER: supabase/scripts/gen-types.sh pins the same version,
+          # because the types it generates are committed and the step at the foot of this job
+          # diffs them. A machine whose global CLI is newer generated a file this job could not
+          # reproduce, and the failure named the generic helpers rather than anything anyone
+          # had touched. Move both together.
           version: 2.116.0
       - uses: denoland/setup-deno@v2
         with:

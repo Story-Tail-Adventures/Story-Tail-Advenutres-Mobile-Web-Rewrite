@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { CancelTripDialog } from "@/components/agent/CancelTripDialog";
+import { SaveAsTemplateDialog } from "@/components/agent/SaveAsTemplateDialog";
 import { StageMenu } from "@/components/agent/StageMenu";
 import { AGENT_COPY } from "@/lib/agent/content";
 import { PIPELINE_STAGES } from "@/lib/agent/queries";
@@ -60,9 +62,24 @@ export function TripDetailHeader({ overview }: { overview: TripDetailOverview })
           <Link href={`/agent/trips/${overview.tripId}/builder`} className="btn btn-orange btn-sm">
             {AGENT_COPY.openBuilder}
           </Link>
-          <DisabledAction label="Duplicate" reason={AGENT_COPY.duplicateTripDeferred} />
+          {/* §3.4.13 HONOURS THIS DEFERRAL RATHER THAN DELETING IT. "Duplicate" was
+              disabled reading "Duplicating a trip arrives with §3.4.13, alongside the
+              template library it shares the mechanism with" — repointed here during
+              §3.4.4 for exactly this reason. Duplicating IS save the pattern, then New
+              trip → start from a template: two real screens rather than a third verb
+              needing its own client picker and date logic. */}
+          <SaveAsTemplateDialog
+            tripId={overview.tripId}
+            tripTitle={overview.title}
+            label={AGENT_COPY.saveAsTemplateLabel}
+          />
           <DisabledAction label="Client preview" reason={AGENT_COPY.clientPreviewDeferred} />
           <DisabledAction label="Send proposal" reason={AGENT_COPY.sendProposalDeferred} />
+          {/* §3.4.16. Last in the row and outlined rather than filled: it is the one action
+              here with a consequence outside this screen, and it should not sit where the
+              eye lands first. On a trip that is already cancelled it becomes "Save details",
+              because the same dialog is how a refund that was pending becomes full. */}
+          <CancelTripDialog overview={overview} />
         </div>
       </div>
       <div className="mt-3 max-w-xs">

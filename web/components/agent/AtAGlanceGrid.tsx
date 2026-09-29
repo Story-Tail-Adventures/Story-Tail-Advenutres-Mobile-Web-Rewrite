@@ -1,4 +1,5 @@
 import { AGENT_COPY } from "@/lib/agent/content";
+import { refundStatusLabel } from "@/lib/agent/cancelTrip";
 import type { TripDetailOverview } from "@/lib/agent/tripDetail";
 import { tripTypeLabel } from "@/lib/trips/tripType";
 
@@ -50,8 +51,22 @@ export function AtAGlanceGrid({ overview }: { overview: TripDetailOverview }) {
         {overview.cancellationReason && (
           <Field label={AGENT_COPY.glanceCancellationReason} value={overview.cancellationReason} />
         )}
-        {overview.refundStatus && (
-          <Field label={AGENT_COPY.glanceRefundStatus} value={overview.refundStatus} />
+        {/* The LABEL, not the stored value. `refund_status` became a four-value vocabulary
+            in 20261001100000 and it renders "pending" raw without this. `refundStatusLabel`
+            returns null for anything outside the vocabulary rather than echoing it, so a
+            row still carrying pre-vocabulary free text falls through to the detail line
+            below instead of putting a sentence where a status belongs. */}
+        {refundStatusLabel(overview.refundStatus) && (
+          <Field
+            label={AGENT_COPY.glanceRefundStatus}
+            value={refundStatusLabel(overview.refundStatus) as string}
+          />
+        )}
+        {/* The specifics behind the state: an amount, a date, a credit with an expiry.
+            Separate from the status because "partial" cannot carry any of those, and this
+            sentence is what the traveler reads on §2.2.10. */}
+        {overview.refundDetail && (
+          <Field label={AGENT_COPY.glanceRefundDetail} value={overview.refundDetail} />
         )}
       </div>
     </div>

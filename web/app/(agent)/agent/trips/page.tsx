@@ -7,7 +7,7 @@ import { TripRosterTable } from "@/components/agent/TripRosterTable";
 import { RosterPagination } from "@/components/agent/RosterPagination";
 import { EmptyState } from "@/components/client/states";
 import { RetryState } from "@/components/client/RetryState";
-import { TRIP_COPY } from "@/lib/agent/content";
+import { TEMPLATE_COPY, TRIP_COPY } from "@/lib/agent/content";
 import { loadTripRoster } from "@/lib/agent/trips";
 import { isDefaultStages, tripQueryFromParams } from "@/lib/agent/tripStatuses";
 
@@ -69,9 +69,18 @@ export default async function AgentTripsPage({
         </div>
         {/* Live as of §3.4.3. It shipped disabled with its reason one commit earlier, which
             is the shape §3.2.1 settled for a control whose screen is real but unbuilt. */}
-        <Link href="/agent/trips/new" className="btn btn-orange btn-sm shrink-0">
-          <Icon name="plus" size={12} /> New trip
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* §3.4.13's door. The library is NOT on the nav rail — §6.4's amendment settled
+              the prototype's seven entries as final and `nav.ts` records that Templates
+              and Settings stay off it — so the roster is where it hangs, next to the
+              action that uses one. */}
+          <Link href="/agent/templates" className="btn btn-outlined btn-sm">
+            {TEMPLATE_COPY.navLabel}
+          </Link>
+          <Link href="/agent/trips/new" className="btn btn-orange btn-sm">
+            <Icon name="plus" size={12} /> New trip
+          </Link>
+        </div>
       </header>
 
       <TripRosterFilters query={query} counts={roster.counts} />

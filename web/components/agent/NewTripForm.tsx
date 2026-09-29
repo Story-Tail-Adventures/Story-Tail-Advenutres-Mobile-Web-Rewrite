@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 
 import { createTripAction } from "@/app/(agent)/agent/trips/new/actions";
 import { Icon } from "@/components/ui/Icon";
-import { NEW_TRIP_COPY } from "@/lib/agent/content";
+import { NEW_TRIP_COPY, TEMPLATE_COPY } from "@/lib/agent/content";
 import {
   EMPTY_NEW_TRIP,
   TRIP_TYPES,
@@ -27,15 +27,23 @@ import {
  *
  * FIVE TILES, NOT THE PROTOTYPE'S SIX. See `TRIP_TYPES` — "Honeymoon" is not a `trip_type`.
  *
- * "START FROM A TEMPLATE" IS DISABLED with its reason: `trip_template` has no rows and
- * §3.4.13 is the screen that fills it, so the alternative is a picker that opens on nothing.
+ * "START FROM A TEMPLATE" IS LIVE since §3.4.13 shipped, and renders only when the library
+ * has something in it — a picker that opens on nothing is the control §6.4's amendment
+ * argues against, and it was disabled for exactly that reason until there were patterns.
  */
 export function NewTripForm({
   clients,
   presetClientId,
+  templates,
 }: {
   clients: { id: string; name: string; email: string | null }[];
   presetClientId?: string;
+  /**
+   * §3.4.13's patterns. A plain array rather than a loader call, because this is a client
+   * component and `loadTemplates` reaches `lib/supabase/server.ts` — importing it here
+   * would drag `next/headers` into the browser bundle and 500 the route.
+   */
+  templates: { templateId: string; name: string; shapeLabel: string }[];
 }) {
   const [state, formAction, pending] = useActionState<NewTripState, FormData>(
     createTripAction,
@@ -176,6 +184,38 @@ export function NewTripForm({
         />
       </div>
 
+      {/* §3.4.13's "start from a template", live since 2026-09-28. A `<select>` rather than
+          the prototype's button-into-a-picker: there are a handful of patterns, the control
+          has to survive JS being off like every other field on this form, and it rides in
+          the same FormData as the rest.
+
+          RENDERED ONLY WHEN THERE IS SOMETHING TO PICK. An empty library means a picker
+          that opens on nothing, which is the control §6.4's amendment argues against — and
+          the empty state on /agent/templates says how to make the first one. */}
+      {templates.length > 0 && (
+        <div>
+          <label htmlFor="templateId" className="field-label">
+            {NEW_TRIP_COPY.templateLabel}
+          </label>
+          <select
+            id="templateId"
+            name="templateId"
+            defaultValue={values.templateId}
+            className="input h-10 w-full rounded-xl px-3"
+          >
+            <option value="">{NEW_TRIP_COPY.templateNone}</option>
+            {templates.map((t) => (
+              <option key={t.templateId} value={t.templateId}>
+                {t.name} — {t.shapeLabel}
+              </option>
+            ))}
+          </select>
+          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
+            {NEW_TRIP_COPY.templateHint}
+          </p>
+        </div>
+      )}
+
       <p className="t-body-s rounded-xl bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-on-surface-variant)]">
         <Icon name="info" size={12} /> {NEW_TRIP_COPY.startsAsInquiry}
       </p>
@@ -187,15 +227,9 @@ export function NewTripForm({
         <Link href="/agent/trips" className="btn btn-tonal">
           {NEW_TRIP_COPY.cancel}
         </Link>
-        <button
-          type="button"
-          disabled
-          title={NEW_TRIP_COPY.templateDeferred}
-          className="btn btn-text ml-auto"
-        >
-          {NEW_TRIP_COPY.templateLabel}
-          <span className="sr-only"> — {NEW_TRIP_COPY.templateDeferred}</span>
-        </button>
+        <Link href="/agent/templates" className="btn btn-text ml-auto">
+          {TEMPLATE_COPY.navLabel}
+        </Link>
       </div>
     </form>
   );

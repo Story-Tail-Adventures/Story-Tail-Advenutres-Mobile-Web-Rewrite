@@ -128,6 +128,7 @@ export const AGENT_COPY = {
   glanceLastActivity: "Last activity",
   glanceCancellationReason: "Cancellation reason",
   glanceRefundStatus: "Refund status",
+  glanceRefundDetail: "Refund detail",
   glanceNotSet: "Not set",
   glanceNoCard: "None on file",
   glanceNoActivity: "No activity yet",
@@ -147,7 +148,44 @@ export const AGENT_COPY = {
   // not one word about duplicating. The screen that copies a trip is §3.4.13, whose entry
   // says "create from existing trip" in as many words. A deferral aimed at the wrong
   // section comes due and nothing arrives.
-  duplicateTripDeferred: "Duplicating a trip arrives with §3.4.13, alongside the template library it shares the mechanism with.",
+  // RETIRED 2026-09-28 — §3.4.13 shipped, and this deferral is honoured rather than
+  // deleted. Duplicating a trip IS save-as-template then New trip → from template.
+  // Two real screens beat a third verb that would need its own client picker.
+  saveAsTemplateLabel: "Save as template",
+
+  // ── §3.4.16 Cancel trip ─────────────────────────────────────────────────
+  cancelTripOpen: "Cancel trip",
+  cancelTripEyebrow: "CANCEL TRIP",
+  cancelTripEditEyebrow: "CANCELLATION DETAILS",
+  // Says what this does and, more usefully, what it does NOT: the stage can be moved back
+  // from the board, and the phone call to the supplier cannot be un-made. An advisor who
+  // thinks this button cancels the booking will not go and cancel the booking.
+  cancelTripBody:
+    "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier, move any money, or release the card — those are still yours to do.",
+  cancelTripEditBody:
+    "Correct what the client reads. The trip stays cancelled; only these details change.",
+  // MANDATORY, and the reason is in the label rather than discovered on submit. The Edge
+  // Function refuses a cancellation with no reason because §2.2.10 renders it to the
+  // traveler, and a cancellation that cannot say why is a worse row than none.
+  cancelReasonLabel: "Reason — the client sees this",
+  cancelReasonPlaceholder: "e.g. Family schedule conflict",
+  cancelReasonRequired: "A cancelled trip needs a reason. The client's screen shows it.",
+  cancelRefundLabel: "Refund (optional)",
+  cancelRefundUnset: "Not stated yet",
+  cancelRefundDetailLabel: "Refund detail (optional)",
+  cancelRefundDetailPlaceholder: "e.g. Refunded $1,640 on Feb 12; $240 credit through Dec 2027",
+  // Why the detail box exists beside a four-option picker, said once where it is used.
+  cancelRefundDetailHelp:
+    "\u201cPartial\u201d cannot carry an amount, a date or a credit that expires. This can.",
+  cancelImpactTitle: "WHAT THIS CHANGES",
+  cancelImpactNone: "Nothing is attached to this trip yet, so nothing else changes.",
+  cancelConfirm: "Cancel trip",
+  cancelSaveDetails: "Save details",
+  cancelKeep: "Keep trip",
+  cancelSaving: "Saving\u2026",
+  cancelFailed: "That did not save. Try again in a moment.",
+  cancelStale: "This trip moved since the page loaded. Reload and try again.",
+
   // REPOINTED when §3.3.2 shipped. This said "§3.3.2" and that section is now built —
   // and building it delivered no client preview, because previewing a TRIP as the
   // traveler sees it is §3.5.6 Itinerary Preview, not the client's CRM record. A
@@ -372,8 +410,12 @@ export const CLIENT_COPY = {
   // FOUR DEFERRALS CAME DUE WITH §3.4.3 AND ARE DELETED, not reworded: quickAddTripDeferred,
   // newTripForClientDeferred, saveAndTripDeferred and newTripDeferred all named a screen
   // that now exists, and every one of their controls is live. Same removal
-  // clientDetailDeferred got. `duplicateTripDeferred` stays, repointed at §3.4.13 — see
-  // its own note; §3.4.4 shipped without a duplicate action because it never owned one.
+  // clientDetailDeferred got.
+  //
+  // AND THREE MORE CAME DUE WITH §3.4.13 on 2026-09-28: duplicateTripDeferred (repointed
+  // here during §3.4.4 precisely because duplicating and templating are one mechanism),
+  // NEW_TRIP_COPY.templateDeferred and BUILDER_COPY.templatesDeferred. All three are gone
+  // and all three controls are live.
   saveAndTrip: "Save & create trip",
 
   archiveTitle: "Archive",
@@ -448,7 +490,11 @@ export const NEW_TRIP_COPY = {
   // §3.4.13 is Stage 4 and `trip_template` has no rows, so the prototype's "12 templates"
   // counts have nothing behind them. Disabled with its reason rather than offering an empty
   // list — §3.2.1's rule.
-  templateDeferred: "Starting from a template arrives with §3.4.13.",
+  // LIVE since §3.4.13 shipped 2026-09-28. `templateDeferred` is gone; a deferral that
+  // names a shipped section is worse than no sentence at all.
+  templateNone: "Start from scratch",
+  templateHint:
+    "Its bookings and day-by-day come across. Dates are worked out from this trip's own.",
   templateLabel: "Start from a template",
 
   // A trip is born in `inquiry` and the screen says so, because an advisor who expected
@@ -603,7 +649,18 @@ export const BUILDER_COPY = {
   // button cannot keep — the same thing a deferral line naming a shipped section does,
   // pointed the other way.
   searchDeferred: "Searching a supplier's live inventory arrives with Phase 2. Everything here is typed by hand for now.",
-  templatesDeferred: "Starting from a template arrives with §3.4.13.",
+  // LIVE since §3.4.13 shipped 2026-09-28. The builder's verb is SAVE, not apply: a trip
+  // under construction already has bookings, and the RPC refuses a second pattern on one.
+  saveAsTemplateLabel: "Save as template",
+  // §3.4.13. `seedApplied` is a FUNCTION so check_copy_parity.py skips it and
+  // content.test.ts covers it instead — the arrangement every count-pluralising
+  // string on this surface has.
+  seedApplied: (n: number) =>
+    n > 0
+      ? `Seeded from a template — ${n} ${n === 1 ? "booking" : "bookings"} added. Adjust anything that does not fit.`
+      : "The template added nothing. It has no bookings saved in it.",
+  seedFailed:
+    "The template did not apply, but the trip is saved. Add its pieces below, or apply the template again from the library.",
   templatesLabel: "Templates",
 
   // ── The canvas ─────────────────────────────────────────────────────────
@@ -916,4 +973,73 @@ export const ITINERARY_COPY = {
   // §3.5.6 owns the client-facing preview and §3.5 the sending. Neither exists.
   previewDeferred: "Previewing what the client sees arrives with §3.5.6.",
   previewLabel: "Preview",
+} as const;
+
+/**
+ * §3.4.13's copy.
+ *
+ * Its own module rather than more keys on AGENT_COPY, matching SCHEDULE_COPY and
+ * BUILDER_COPY: the template library is a screen, not an action on another one.
+ *
+ * `savedReceipt` and `appliedReceipt` are FUNCTIONS, so `check_copy_parity.py` skips them
+ * and `content.test.ts` covers them instead — the same arrangement the greeting and the
+ * cancelled note have, and for the same reason.
+ */
+export const TEMPLATE_COPY = {
+  title: "Trip templates",
+  sub: "Reusable starting points for the trips you build again and again.",
+  // The prototype's header says "Web-only editing at MVP", which is a statement about the
+  // build and not about the work. §6.6 already settles that agent mobile is narrower; a
+  // screen does not need to apologise for it.
+  navLabel: "Templates",
+
+  saveTitle: "Save as a template",
+  saveEyebrow: "NEW TEMPLATE",
+  // Says what comes across, because the answer is not obvious and getting it wrong wastes
+  // an advisor's afternoon. Dates are the interesting part: a pattern is relative.
+  saveBody:
+    "Captures this trip's bookings and its day-by-day. Dates are stored as day offsets, so applying it to a March trip produces March dates.",
+  // And what does NOT, which matters more. A copied confirmation is the kind of error a
+  // client notices before the advisor does.
+  saveExcludes:
+    "Confirmation numbers and payment schedules are not captured — a booking reference belongs to one booking.",
+  saveNameLabel: "Name",
+  saveNamePlaceholder: "e.g. Sandals Negril · 7 nights",
+  saveDescriptionLabel: "What it is for (optional)",
+  saveDescriptionPlaceholder: "e.g. Ocean-view suite, transfer, catamaran, insurance",
+  saveConfirm: "Save template",
+  cancel: "Cancel",
+  saving: "Saving\u2026",
+  done: "Done",
+  saveNameRequired: "A template needs a name.",
+  savedReceipt: (components: number, days: number) =>
+    days > 0
+      ? `Saved. ${components} ${components === 1 ? "booking" : "bookings"} and ${days} ${days === 1 ? "day" : "days"} captured.`
+      : `Saved. ${components} ${components === 1 ? "booking" : "bookings"} captured.`,
+  saveFailed: "That did not save. Try again in a moment.",
+
+  applyLabel: "Use",
+  // The receipt says what landed, including the case where the day-by-day did not — which
+  // is a real outcome for a trip with no dates rather than a failure.
+  appliedReceipt: (components: number, days: number) =>
+    days > 0
+      ? `Added ${components} ${components === 1 ? "booking" : "bookings"} and ${days} ${days === 1 ? "day" : "days"}.`
+      : `Added ${components} ${components === 1 ? "booking" : "bookings"}. Give the trip dates and the day-by-day can be generated from them.`,
+  alreadyApplied: "This trip already came from a template, so nothing changed.",
+  applyFailed: "That did not apply. Try again in a moment.",
+
+  renameLabel: "Rename",
+  archiveLabel: "Retire",
+  // Retire, not delete. The word matters: trips that used it keep pointing at it.
+  archiveConfirmBody:
+    "It leaves the library. Trips already built from it are untouched and keep their history.",
+  archiveFailed: "That did not save. Try again in a moment.",
+
+  emptyTitle: "No templates yet",
+  emptyBody:
+    "Open a trip you would build again, then use Save as template. The bookings and the day-by-day come with it.",
+  // The payload is a snapshot on purpose, and an advisor who expects otherwise will edit a
+  // template and wonder why nothing moved.
+  payloadFixedNote:
+    "A template is a snapshot of a real trip. To change the shape, save a new one from a trip that has it.",
 } as const;

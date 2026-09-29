@@ -92,10 +92,10 @@ export default async function TripBuilderPage({
   searchParams,
 }: {
   params: Promise<{ tripId: string }>;
-  searchParams: Promise<{ add?: string; edit?: string }>;
+  searchParams: Promise<{ add?: string; edit?: string; seeded?: string }>;
 }) {
   const { tripId } = await params;
-  const { add, edit } = await searchParams;
+  const { add, edit, seeded } = await searchParams;
 
   const [result, components, suppliers] = await Promise.all([
     loadTripOverview(tripId),
@@ -121,6 +121,28 @@ export default async function TripBuilderPage({
 
   return (
     <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
+      {/* §3.4.13's seeding receipt.
+          A FAILED APPLY USED TO BE INVISIBLE HERE. `createTripAction` deliberately does not
+          fail the create when the pattern does not apply — the trip is real and losing it
+          to recover from a seeding problem is the worse trade — so the builder was showing
+          "0 pieces / Nothing in it yet", which is character for character what "Start from
+          scratch" produces. Two different things reading identically, one of them a
+          failure. The outcome rides in `?seeded=` so this can tell them apart. */}
+      {seeded !== undefined && (
+        <p
+          className={`t-body-s mt-5 rounded-xl px-3 py-2 ${
+            seeded === "failed"
+              ? "bg-[var(--md-error-container)] text-[var(--md-on-error-container)]"
+              : "bg-[var(--md-surface-2)] text-[var(--md-on-surface-variant)]"
+          }`}
+          role="status"
+        >
+          {seeded === "failed"
+            ? BUILDER_COPY.seedFailed
+            : BUILDER_COPY.seedApplied(Number(seeded) || 0)}
+        </p>
+      )}
+
       <header className="card mt-5 p-4">
         <p className="t-body-s text-[var(--md-on-surface-variant)]">
           <Link href={`/agent/trips/${tripId}`} className="hover:underline">
@@ -160,7 +182,7 @@ export default async function TripBuilderPage({
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[240px_1fr_360px]">
         <div className="lg:col-span-2 xl:col-span-1">
-          <TripBuilderRail tripId={tripId} />
+          <TripBuilderRail tripId={tripId} tripTitle={overview.title} />
         </div>
 
         <section>

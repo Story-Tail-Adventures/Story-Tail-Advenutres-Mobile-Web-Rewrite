@@ -4,6 +4,7 @@ import { NewTripForm } from "@/components/agent/NewTripForm";
 import { RetryState } from "@/components/client/RetryState";
 import { NEW_TRIP_COPY, TRIP_COPY } from "@/lib/agent/content";
 import { loadClientRoster } from "@/lib/agent/clients";
+import { loadTemplates } from "@/lib/agent/templates";
 
 /**
  * Screen 3.4.3 — Create New Trip.
@@ -31,12 +32,12 @@ export default async function NewTripPage({
 }) {
   const params = await searchParams;
 
-  const roster = await loadClientRoster({
-    status: "active",
-    tags: [],
-    search: "",
-    page: 1,
-  }, { pageSize: 500 });
+  // Both reads at once: they are independent, and serialising them would add a round trip
+  // to a form that already waits on the whole book.
+  const [roster, library] = await Promise.all([
+    loadClientRoster({ status: "active", tags: [], search: "", page: 1 }, { pageSize: 500 }),
+    loadTemplates(),
+  ]);
 
   if (!roster) {
     return (
@@ -50,6 +51,15 @@ export default async function NewTripPage({
     id: r.clientId,
     name: r.displayName,
     email: r.email,
+  }));
+
+  // A FAILED TEMPLATE READ IS AN EMPTY LIBRARY, not a failed page. The picker renders only
+  // when there is something in it, so an unavailable read degrades to the form this screen
+  // has always been rather than a RetryState over a field nobody was reaching for.
+  const templates = (library?.rows ?? []).map((t) => ({
+    templateId: t.templateId,
+    name: t.name,
+    shapeLabel: t.shapeLabel,
   }));
 
   return (
@@ -68,7 +78,11 @@ export default async function NewTripPage({
         </p>
       </header>
 
-      <NewTripForm clients={clients} presetClientId={params.client} />
+      <NewTripForm
+        clients={clients}
+        presetClientId={params.client}
+        templates={templates}
+      />
     </div>
   );
 }

@@ -2382,6 +2382,56 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Builder "Save as template"; Create New Trip "From template"; nav "Templates".
 **Related screens:** Trip Builder.
 
+> **Built 2026-09-28, and it gave two shipped columns their first producer.**
+> `trip_template` had eight columns, RLS, a slot in the agent-domain lockdown list and ZERO
+> rows; `trip.template_id` referenced it and had never been set. **Three deferrals came due
+> here and all three are honoured rather than deleted:** `duplicateTripDeferred` (repointed
+> at this section during §3.4.4 precisely because duplicating and templating are one
+> mechanism), `NEW_TRIP_COPY.templateDeferred` and `BUILDER_COPY.templatesDeferred`.
+>
+> **What it captures** (Gyasi, asked at approval): the bookings plus the day-by-day. The
+> payment schedule was the third option and was declined.
+>
+> **DATES BECOME OFFSETS**, which is the whole engineering problem. Every date in the
+> payload is an integer offset from the source trip's start, so a pattern saved from a
+> December trip produces March dates in March. Times are stored verbatim. Data-Model §8.6
+> carries the shape and the allow-list.
+>
+> **"Delete" in the entry above is a SOFT delete, and the word on screen is "Retire."** A
+> hard delete would fail outright on any template a trip has used — `trip.template_id`
+> references the table with no `ON DELETE` clause — and trips built from a pattern keep
+> their history either way.
+>
+> **APPLY IS NOT ON THIS SCREEN**, and the prototype's "Use" button is the one thing here
+> that is not built. Applying needs a TRIP to apply to and this screen has none; the two
+> real doors are §3.4.3's "start from a template", where the trip is about to exist, and
+> the builder's rail, where it already does. A button that cannot know its own object is
+> the control §6.4's amendment argues against. What the library has instead is rename and
+> retire, which are its own verbs.
+>
+> **Nor is the prototype's card photograph.** `trip_template` has no image column and should
+> not: the picture on the prototype's card is of the resort, which belongs to the supplier.
+> Dropped rather than invented, the same call §3.3.2 made about the drawn "surprise flag".
+>
+> **NOT on the nav rail**, despite this entry naming nav "Templates" as a door. §6.4's
+> amendment settled the prototype's seven entries as final and `nav.ts` records that
+> Templates and Settings stay off deliberately. The roster's header carries the link
+> instead.
+>
+> **Apply is additive and idempotent.** It appends components after whatever is already
+> there and creates only the itinerary days whose `day_number` is missing, so a day the
+> advisor has written cannot be overwritten — the property §3.4.14's generator has, for the
+> same reason. `trip.template_id` is the idempotency key. A trip with no `start_date` gets
+> its bookings and **no** day-by-day, because `itinerary_day.date` is NOT NULL: a day-by-day
+> is a calendar and a dateless inquiry has none.
+>
+> **A failed apply on the create path is reported, not swallowed.** `createTripAction` does
+> not fail the create when the pattern does not apply — the trip is real and losing it to
+> recover from a seeding problem is the worse trade — but the first version of that landed
+> in the builder reading "0 pieces / Nothing in it yet", which is character for character
+> what choosing "Start from scratch" produces. The outcome now rides in `?seeded=` so the
+> builder can tell the two apart.
+
 #### 3.4.14 Itinerary Editor (Agent)
 **Purpose:** Translate trip components into a presentable day-by-day itinerary.
 **Primary elements:** Day-by-day timeline; drag-to-reorder activities; per-block editor (morning/afternoon/evening) with rich text for descriptions; "Gyasi's Tip" callout editor; auto-generate from components CTA.
@@ -2489,6 +2539,41 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Cancel; archive.
 **Entry points:** Trip Detail "More actions".
 **Related screens:** Trip Detail.
+
+> **Built 2026-09-28.** A §4.4 Pattern J dialog on the trip detail header, on the native
+> `<dialog>` element the way §3.3.12's archive dialog is.
+>
+> **Most of the backend was already here**, built during §3.4.1: `agent_set_trip_status`
+> makes a reason mandatory on `cancelled`, is the only writer of `trip.cancellation_reason`
+> anywhere, and refuses to cancel in bulk with a comment pointing at this screen.
+> `20261001100000` added the refund half — a four-value vocabulary on `refund_status`, and
+> a new `refund_detail` column for the specifics a state cannot carry.
+>
+> **IT IS ALSO THE EDIT DIALOG.** A refund that is `pending` on the day a trip is cancelled
+> becomes `full` or `partial` weeks later, so a write-once cancellation would rot exactly
+> the way `refund_status` already had. Re-opening it on a cancelled trip is a correction:
+> the RPC answers `reason_changed`, writes no history row, and the button reads "Save
+> details".
+>
+> **Two of the prototype's four impact lines are NOT rendered, because they are not true of
+> this system.** `agent-trip.jsx:588` draws *"Card authorization will be revoked"* — nothing
+> revokes it; there is no revoke path on the agent side at all, §3.6 owns that and is
+> unbuilt. The line is inverted into the truth: the authorization **stays**, and that is
+> something to go and deal with. *"Sandals cancellation fee · $120 per policy"* is dropped
+> outright: no column in the schema stores a supplier cancellation fee, and inventing one
+> on a cancellation screen is how an advisor comes to trust a number nobody computed. The
+> remaining lines are derived from the trip and verified against behaviour — the dialog says
+> commission will drop by $1,318 and the dashboard figure then drops by exactly that.
+>
+> **Not built: the supplier-side action checklist** named above. It needs per-supplier
+> cancellation terms, which nothing stores, and §3.7's `payment_terms` has the same gap.
+> The dialog says plainly that cancelling tells no supplier rather than drawing an
+> unbacked checklist.
+>
+> **"Archive" in the title is a separate action and is NOT this dialog.** `trip.archived_at`
+> already has a producer and the roster already excludes archived trips unconditionally;
+> cancelling and archiving are different states, and the seed carries a fixture that is
+> archived-but-completed precisely so the two exclusions cannot be confused.
 
 ---
 
