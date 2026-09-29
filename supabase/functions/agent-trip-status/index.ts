@@ -53,7 +53,7 @@ import { writeAuditEvent, writeAuditEvents } from "../_shared/audit.ts";
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { badRequest, conflict, notFound, problem } from "../_shared/problem.ts";
 import { isUuid } from "../_shared/uuid.ts";
-import { readJson } from "../_shared/trip.ts";
+import { isRefundStatus, readJson, REFUND_STATUSES } from "../_shared/trip.ts";
 import {
   agentDb,
   requireAgentId,
@@ -214,6 +214,27 @@ Deno.serve(async (req) => {
       throw badRequest("cancellationReason must be text.");
     }
 
+    // §3.4.16's two refund fields. UNLIKE the reason, neither is mandatory: an advisor who
+    // does not yet know where the refund stands should not be blocked from recording the
+    // cancellation, and NULL means "not stated" — which the column comment is explicit is a
+    // different fact from `none_expected`.
+    const refundStatus = payload.refundStatus;
+    if (refundStatus !== undefined && !isRefundStatus(refundStatus)) {
+      throw badRequest(
+        `refundStatus must be one of ${REFUND_STATUSES.join(", ")}.`,
+      );
+    }
+    const refundDetail = payload.refundDetail;
+    if (refundDetail !== undefined && typeof refundDetail !== "string") {
+      throw badRequest("refundDetail must be text.");
+    }
+    // Refund fields are facts about a cancellation. Accepting them on a move to `booked`
+    // would write them to a trip that is not cancelled, where nothing renders them and
+    // nothing would ever clear them.
+    if (status !== "cancelled" && (refundStatus !== undefined || refundDetail !== undefined)) {
+      throw badRequest("Refund details belong to a cancellation.");
+    }
+
     const { data, error } = await db.rpc("agent_set_trip_status", {
       p_trip_id: tripId,
       p_agent_id: agentId,
@@ -222,8 +243,12 @@ Deno.serve(async (req) => {
       p_expected_version: expectedVersion,
       // `undefined`, not `null`: p_reason has a SQL DEFAULT, so the generated Args type
       // makes it optional rather than nullable. Passing null is a type error, and
-      // omitting it is what lets the function's own DEFAULT apply.
+      // omitting it is what lets the function's own DEFAULT apply. Same for the two below.
       p_reason: typeof reason === "string" ? reason.trim() : undefined,
+      p_refund_status: refundStatus,
+      p_refund_detail: typeof refundDetail === "string"
+        ? (refundDetail.trim() === "" ? undefined : refundDetail.trim())
+        : undefined,
     });
 
     if (error) throw new Error(`trip status write failed: ${error.message}`);
@@ -253,6 +278,12 @@ Deno.serve(async (req) => {
           status: result.to_status,
           version: result.version,
           cancellationReason: typeof reason === "string" ? reason.trim() : null,
+          // The event type still says `reason`, which is now narrower than the event: this
+          // outcome covers any cancellation detail moving without a transition. Left alone
+          // rather than renamed, because an audit log that calls one concept two things
+          // across a deploy boundary is worse than one whose name is a little old.
+          refundStatus: refundStatus ?? null,
+          refundDetail: typeof refundDetail === "string" ? refundDetail.trim() : null,
         },
       });
 

@@ -2866,6 +2866,7 @@ export type Database = {
           end_date: string | null
           id: string
           notes: string | null
+          refund_detail: string | null
           refund_status: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["trip_status"]
@@ -2892,6 +2893,7 @@ export type Database = {
           end_date?: string | null
           id: string
           notes?: string | null
+          refund_detail?: string | null
           refund_status?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
@@ -2918,6 +2920,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           notes?: string | null
+          refund_detail?: string | null
           refund_status?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
@@ -3533,6 +3536,8 @@ export type Database = {
           p_agent_id: string
           p_expected_version: number
           p_reason?: string
+          p_refund_detail?: string
+          p_refund_status?: string
           p_status: Database["public"]["Enums"]["trip_status"]
           p_trip_id: string
         }
@@ -3693,6 +3698,7 @@ export type Database = {
           manual_component_count: number
           next_unpaid_due_date: string
           notes: string
+          refund_detail: string
           refund_status: string
           start_date: string
           status: Database["public"]["Enums"]["trip_status"]

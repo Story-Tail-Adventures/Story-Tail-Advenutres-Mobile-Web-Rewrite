@@ -52,7 +52,10 @@ export type TripDetailOverview = {
   totalPaidLabel: string;
   totalCommissionLabel: string;
   cancellationReason: string | null;
+  /** One of REFUND_STATUSES, or null for "not stated" — a different fact from none_expected. */
   refundStatus: string | null;
+  /** The sentence behind the state: an amount, a date, a credit with an expiry. */
+  refundDetail: string | null;
   notes: string | null;
   version: number;
   cardOnFile: string | null;
@@ -102,6 +105,7 @@ async function loadOverview(tripId: string): Promise<TripOverviewResult> {
     totalCommissionLabel: money(r.total_commission_cents, r.currency),
     cancellationReason: r.cancellation_reason,
     refundStatus: r.refund_status,
+    refundDetail: r.refund_detail,
     notes: r.notes,
     version: r.version,
     cardOnFile,

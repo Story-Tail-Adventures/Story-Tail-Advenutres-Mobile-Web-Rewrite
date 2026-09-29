@@ -947,7 +947,8 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one |
 | `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
 | `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
-| `refund_status` | `text` | Yes | Client-visible | When cancelled |
+| `refund_status` | `text` | Yes | Client-visible | **One of `none_expected`, `pending`, `partial`, `full`** since `20261001100000`, enforced by the `trip_refund_status_vocabulary` CHECK. NULL means **not stated**, which is a different fact from `none_expected`: one is an advisor who has not checked, the other is one who has. Written only by `agent_set_trip_status` on a `cancelled` call (§3.4.16), and only ever SET by one — a trip moved back out of `cancelled` keeps its refund history, because the money moved and reinstating the trip does not un-move it |
+| `refund_detail` | `text` | Yes | Client-visible | The specifics behind `refund_status`, in the advisor's own words: *"Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027"*. **Added because that sentence was what `refund_status` held before it had a vocabulary** — a filterable state cannot carry an amount, a date, or a credit that expires, and flattening it to `partial` would have been a regression in what §2.2.10 tells the traveler. Neither column derives from the other |
 | `notes` | `text` | Yes | Internal | Agent notes. **Never granted to the client role** |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |

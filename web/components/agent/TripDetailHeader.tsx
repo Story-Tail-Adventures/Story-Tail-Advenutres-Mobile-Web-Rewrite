@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CancelTripDialog } from "@/components/agent/CancelTripDialog";
 import { StageMenu } from "@/components/agent/StageMenu";
 import { AGENT_COPY } from "@/lib/agent/content";
 import { PIPELINE_STAGES } from "@/lib/agent/queries";
@@ -63,6 +64,11 @@ export function TripDetailHeader({ overview }: { overview: TripDetailOverview })
           <DisabledAction label="Duplicate" reason={AGENT_COPY.duplicateTripDeferred} />
           <DisabledAction label="Client preview" reason={AGENT_COPY.clientPreviewDeferred} />
           <DisabledAction label="Send proposal" reason={AGENT_COPY.sendProposalDeferred} />
+          {/* §3.4.16. Last in the row and outlined rather than filled: it is the one action
+              here with a consequence outside this screen, and it should not sit where the
+              eye lands first. On a trip that is already cancelled it becomes "Save details",
+              because the same dialog is how a refund that was pending becomes full. */}
+          <CancelTripDialog overview={overview} />
         </div>
       </div>
       <div className="mt-3 max-w-xs">

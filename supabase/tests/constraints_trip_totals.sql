@@ -191,4 +191,54 @@ SELECT pg_temp.assert(
     (SELECT total_paid_cents FROM public.trip WHERE id = :trip::uuid) = (SELECT p FROM paid_before),
     'total_paid_cents is untouched — components are what a trip costs, not what was paid');
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 5. The refund vocabulary (§3.4.16)
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- `trip_refund_status_vocabulary` is the AUTHORITY for what refund_status may hold.
+-- `REFUND_STATUSES` in supabase/functions/_shared/trip.ts mirrors it, and `trip_test.ts`
+-- asserts that list is these four. SQL and TypeScript cannot share one definition, so the
+-- two are pinned separately and each names the other.
+
+-- THE SPECIFICS SURVIVED THE SPLIT. The seed's cancelled trip carried a client-facing
+-- sentence in refund_status: an amount, a date, and a credit with an expiry. Flattening it
+-- to 'partial' and stopping there would have been a regression in what the traveler is
+-- shown, inside a change whose purpose was to make the field more useful.
+SELECT pg_temp.assert(
+    (SELECT refund_status = 'partial' AND refund_detail LIKE '%$1,640%'
+                                      AND refund_detail LIKE '%Dec 2027%'
+       FROM public.trip WHERE id = '0195a2c0-1a00-7000-8000-000000000045'),
+    'the cancelled trip has BOTH a filterable state and the sentence behind it');
+
+-- Everything below WRITES to that row to find out what the CHECK accepts, so the assertion
+-- above has to read it first. It did not, at first: the probe left the row at whatever its
+-- last successful UPDATE set, and the fixture assertion then read NULL and failed. Order is
+-- load-bearing here, which is why it is stated rather than left to be rediscovered.
+CREATE OR REPLACE FUNCTION pg_temp.refund_accepts(v text)
+RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE public.trip SET refund_status = v
+     WHERE id = '0195a2c0-1a00-7000-8000-000000000045';
+    RETURN true;
+EXCEPTION
+    WHEN check_violation THEN RETURN false;
+END;
+$$;
+
+SELECT pg_temp.assert(
+    pg_temp.refund_accepts('none_expected') AND pg_temp.refund_accepts('pending')
+      AND pg_temp.refund_accepts('partial') AND pg_temp.refund_accepts('full'),
+    'refund_status accepts all four of the vocabulary');
+
+SELECT pg_temp.assert(
+    pg_temp.refund_accepts(NULL),
+    'refund_status accepts NULL — "not stated" is a different fact from "none_expected", '
+    'and every trip cancelled before 20261001100000 is in it');
+
+SELECT pg_temp.assert(
+    NOT pg_temp.refund_accepts('Refunded $1,640 on Feb 12')
+      AND NOT pg_temp.refund_accepts('refunded')
+      AND NOT pg_temp.refund_accepts(''),
+    'and refuses free text — which is what the column held before it had a vocabulary');
+
 ROLLBACK;
