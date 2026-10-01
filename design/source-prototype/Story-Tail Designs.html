@@ -12,8 +12,10 @@
 <body>
 <div id="root"></div>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="shared/vendor/react.js"></script>
+<script type="module" src="shared/vendor/mui/mui-core.js"></script>
+<script type="module" src="shared/vendor/mui/mui-controls.js"></script>
+<script type="module" src="shared/vendor/mui/mui-overlays.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script src="shared/images.js"></script>
@@ -22,6 +24,8 @@
 <script type="text/babel" src="shared/icons.jsx"></script>
 <script type="text/babel" src="shared/components.jsx"></script>
 <script type="text/babel" src="shared/screen-frame.jsx"></script>
+<script type="text/babel" src="shared/mui-theme.jsx"></script>
+<script type="text/babel" src="shared/mui-kit.jsx"></script>
 
 <script type="text/babel" src="artboards/brand.jsx"></script>
 
@@ -82,10 +86,10 @@
           return (
             <React.Fragment key={s.id}>
               <DCArtboard id={`${s.id}-light`} label={`${s.label} · Light`} width={w} height={h}>
-                {Comp ? <Scheme scheme="light"><Comp/></Scheme> : <Stub label={s.label}/>}
+                {Comp ? <StaMuiScheme scheme="light"><Comp/></StaMuiScheme> : <Stub label={s.label}/>}
               </DCArtboard>
               <DCArtboard id={`${s.id}-dark`} label={`${s.label} · Dark`} width={w} height={h}>
-                {Comp ? <Scheme scheme="dark"><Comp/></Scheme> : <Stub label={s.label}/>}
+                {Comp ? <StaMuiScheme scheme="dark"><Comp/></StaMuiScheme> : <Stub label={s.label}/>}
               </DCArtboard>
             </React.Fragment>
           );
@@ -102,11 +106,11 @@
         background="#221C1A"
       >
         <DCSection id="brand" title="00 · Brand & system" subtitle="Foundations — palette, typography, M3 tokens, status language.">
-          <DCArtboard id="brand-light" label="System · Light" width={1280} height={780}>
-            <Scheme scheme="light"><BrandArtboard/></Scheme>
+          <DCArtboard id="brand-light" label="System · Light" width={1280} height={1960}>
+            <StaMuiScheme scheme="light"><BrandArtboard/></StaMuiScheme>
           </DCArtboard>
-          <DCArtboard id="brand-dark" label="System · Dark" width={1280} height={780}>
-            <Scheme scheme="dark"><BrandArtboard/></Scheme>
+          <DCArtboard id="brand-dark" label="System · Dark" width={1280} height={1960}>
+            <StaMuiScheme scheme="dark"><BrandArtboard/></StaMuiScheme>
           </DCArtboard>
         </DCSection>
 
