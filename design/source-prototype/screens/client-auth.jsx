@@ -1,222 +1,235 @@
-/* global React, Icon, StoryTailMark, staImg, ScreenFrame, ScreenHeader */
-// Client · 2.1 Authentication & Onboarding — 14 screens.
+/* global React, MUI, Icon, MuiIcon, StoryTailMark, staImg, MuiScreenFrame, MuiScreenHeader */
+// Client · 2.1 Authentication & Onboarding — 14 screens. MUI v9.
 
 // Shared shell for compact form screens (the split-pane auth pattern).
 function AuthCard({ overline, title, sub, children, footer }) {
+  const { Box, Typography } = MUI;
   return (
-    <ScreenFrame chrome="split">
-      <div>
-        {overline && <div className="t-label-s" style={{ color: 'var(--brand-orange)', marginBottom: 4 }}>{overline}</div>}
-        <h1 className="t-headline" style={{ margin: 0 }}>{title}</h1>
-        {sub && <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', margin: '4px 0 0' }}>{sub}</p>}
-      </div>
+    <MuiScreenFrame chrome="split">
+      <Box>
+        {overline && <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', fontWeight: 600, lineHeight: 1.3, mb: 0.5 }}>{overline}</Typography>}
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>{title}</Typography>
+        {sub && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{sub}</Typography>}
+      </Box>
       {children}
-      {footer && <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', textAlign: 'center', marginTop: 'auto' }}>{footer}</div>}
-    </ScreenFrame>
+      {footer && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 'auto' }}>{footer}</Typography>}
+    </MuiScreenFrame>
   );
 }
 
 // 2.1.1 — Login
 function C211_Login() {
+  const { Box, Stack, Typography, Button, Divider, TextField, Link } = MUI;
   return (
     <AuthCard
       overline="WELCOME BACK"
       title="Sign in"
-      sub={<>New traveler? <a href="#" style={{ color: 'var(--md-primary)', fontWeight: 600 }}>Create your account</a>.</>}
-      footer={<>By signing in you agree to our <a href="#" style={{ color: 'var(--md-primary)' }}>terms</a> &amp; <a href="#" style={{ color: 'var(--md-primary)' }}>privacy policy</a>.</>}
+      sub={<>New traveler? <Link href="#" sx={{ fontWeight: 600 }}>Create your account</Link>.</>}
+      footer={<>By signing in you agree to our <Link href="#">terms</Link> &amp; <Link href="#">privacy policy</Link>.</>}
     >
-      <button className="btn btn-outlined btn-lg" style={{ width: '100%' }}>Continue with Google</button>
-      <button className="btn btn-outlined btn-lg" style={{ width: '100%' }}>Continue with Apple</button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <hr className="divider" style={{ flex: 1 }}/>
-        <span className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>OR</span>
-        <hr className="divider" style={{ flex: 1 }}/>
-      </div>
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <label className="field-label">Password</label>
-          <a className="field-label" href="#" style={{ color: 'var(--md-primary)' }}>Forgot?</a>
-        </div>
-        <input className="input" type="password" defaultValue="••••••••••"/>
-      </div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Continue to my trips</button>
+      <Button variant="outlined" size="large" fullWidth>Continue with Google</Button>
+      <Button variant="outlined" size="large" fullWidth>Continue with Apple</Button>
+      <Divider><Typography variant="caption" color="text.secondary">OR</Typography></Divider>
+      <TextField label="Email" size="small" fullWidth defaultValue="jordan.hayes@example.com" />
+      <Box>
+        <TextField label="Password" type="password" size="small" fullWidth defaultValue="••••••••••" />
+        <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 0.5 }}>
+          <Link href="#" variant="caption">Forgot?</Link>
+        </Stack>
+      </Box>
+      <Button variant="contained" size="large" fullWidth>Continue to my trips</Button>
     </AuthCard>
   );
 }
 
 // 2.1.2 — Registration
 function C212_Registration() {
+  const { Box, Grid, Typography, Button, Divider, TextField, Link, LinearProgress, Checkbox, FormControlLabel } = MUI;
   return (
     <AuthCard
       overline="JOIN STORY-TAIL"
       title="Create your account"
       sub="Takes about 60 seconds. No planning fees, ever."
-      footer={<>Already a member? <a href="#" style={{ color: 'var(--md-primary)' }}>Sign in</a></>}
+      footer={<>Already a member? <Link href="#">Sign in</Link></>}
     >
-      <button className="btn btn-outlined btn-lg" style={{ width: '100%' }}>Sign up with Google</button>
-      <button className="btn btn-outlined btn-lg" style={{ width: '100%' }}>Sign up with Apple</button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <hr className="divider" style={{ flex: 1 }}/><span className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>OR EMAIL</span><hr className="divider" style={{ flex: 1 }}/>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div><label className="field-label">First name</label><input className="input" defaultValue="Jordan"/></div>
-        <div><label className="field-label">Last name</label><input className="input" defaultValue="Hayes"/></div>
-      </div>
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
-      <div>
-        <label className="field-label">Password</label>
-        <input className="input" type="password" defaultValue="••••••••••••"/>
-        <div style={{ height: 4, background: 'var(--md-outline-variant)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
-          <div style={{ width: '85%', height: '100%', background: 'var(--md-success)' }}/>
-        </div>
-        <div className="t-body-s" style={{ color: 'var(--md-success)', marginTop: 4 }}>Strong · 12+ characters · uppercase · number</div>
-      </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, font: '500 12px/1.4 var(--font-sans)', color: 'var(--md-on-surface-variant)' }}>
-        <span style={{ width: 16, height: 16, borderRadius: 4, border: '1.5px solid var(--md-outline)', background: 'var(--md-primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={10} color="#FFF" stroke={2.5}/>
-        </span>
-        I agree to the <a href="#" style={{ color: 'var(--md-primary)' }}>Terms</a> &amp; <a href="#" style={{ color: 'var(--md-primary)' }}>Privacy policy</a>
-      </label>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Create account</button>
+      <Button variant="outlined" size="large" fullWidth>Sign up with Google</Button>
+      <Button variant="outlined" size="large" fullWidth>Sign up with Apple</Button>
+      <Divider><Typography variant="caption" color="text.secondary">OR EMAIL</Typography></Divider>
+      <Grid container spacing={1.25}>
+        <Grid size={6}><TextField label="First name" size="small" fullWidth defaultValue="Jordan" /></Grid>
+        <Grid size={6}><TextField label="Last name" size="small" fullWidth defaultValue="Hayes" /></Grid>
+      </Grid>
+      <TextField label="Email" size="small" fullWidth defaultValue="jordan.hayes@example.com" />
+      <Box>
+        <TextField label="Password" type="password" size="small" fullWidth defaultValue="••••••••••••" />
+        <LinearProgress variant="determinate" value={85} color="success" sx={{ mt: 0.75 }} />
+        <Typography variant="caption" sx={{ display: 'block', color: 'success.main', mt: 0.5 }}>Strong · 12+ characters · uppercase · number</Typography>
+      </Box>
+      <FormControlLabel
+        control={<Checkbox defaultChecked size="small" />}
+        label={<Typography variant="body2" color="text.secondary">I agree to the <Link href="#">Terms</Link> &amp; <Link href="#">Privacy policy</Link></Typography>}
+      />
+      <Button variant="contained" size="large" fullWidth>Create account</Button>
     </AuthCard>
   );
 }
 
 // 2.1.3 — Email Verification
 function C213_EmailVerification() {
+  const { Stack, Typography, Button, Avatar, Card, CardContent, Link } = MUI;
   return (
-    <AuthCard overline="ONE MORE STEP" title="Check your email" sub="We sent a verification link to jordan.hayes@example.com." footer={<>Need to update? <a href="#" style={{ color: 'var(--md-primary)' }}>Change email</a> · <a href="#" style={{ color: 'var(--md-primary)' }}>Resend</a></>}>
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0' }}>
-        <div style={{ width: 84, height: 84, borderRadius: 999, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="mail" size={36}/>
-        </div>
-      </div>
-      <div className="card" style={{ padding: 14, background: 'var(--md-surface-2)' }}>
-        <div className="t-title-s">Why verify?</div>
-        <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>It links any trips Gyasi has already started planning for you, so you'll see them as soon as you sign in.</div>
-      </div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Resend verification email</button>
-      <button className="btn btn-text btn-sm">Sign out</button>
+    <AuthCard overline="ONE MORE STEP" title="Check your email" sub="We sent a verification link to jordan.hayes@example.com." footer={<>Need to update? <Link href="#">Change email</Link> · <Link href="#">Resend</Link></>}>
+      <Stack direction="row" sx={{ justifyContent: 'center', py: 1.75 }}>
+        <Avatar sx={{ width: 84, height: 84, bgcolor: 'secondary.container', color: 'secondary.onContainer' }}>
+          <Icon name="mail" size={36} />
+        </Avatar>
+      </Stack>
+      <Card variant="outlined" sx={{ bgcolor: 'surface.2' }}>
+        <CardContent>
+          <Typography variant="subtitle1">Why verify?</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>It links any trips Gyasi has already started planning for you, so you'll see them as soon as you sign in.</Typography>
+        </CardContent>
+      </Card>
+      <Button variant="contained" size="large" fullWidth>Resend verification email</Button>
+      <Button variant="text" size="small" sx={{ alignSelf: 'center' }}>Sign out</Button>
     </AuthCard>
   );
 }
 
 // 2.1.4 — Forgot Password
 function C214_ForgotPassword() {
+  const { Typography, Button, TextField, Link } = MUI;
   return (
-    <AuthCard overline="PASSWORD HELP" title="Forgot your password?" sub="Tell us your email and we'll send a reset link." footer={<><a href="#" style={{ color: 'var(--md-primary)' }}>← Back to sign in</a></>}>
-      <div><label className="field-label">Email</label><input className="input" defaultValue="jordan.hayes@example.com"/></div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Send reset link</button>
-      <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>You'll receive an email within a minute. Check your spam folder if you don't see it. Links expire after 30 minutes.</div>
+    <AuthCard overline="PASSWORD HELP" title="Forgot your password?" sub="Tell us your email and we'll send a reset link." footer={<><Link href="#">← Back to sign in</Link></>}>
+      <TextField label="Email" size="small" fullWidth defaultValue="jordan.hayes@example.com" />
+      <Button variant="contained" size="large" fullWidth>Send reset link</Button>
+      <Typography variant="caption" color="text.secondary">You'll receive an email within a minute. Check your spam folder if you don't see it. Links expire after 30 minutes.</Typography>
     </AuthCard>
   );
 }
 
 // 2.1.5 — Reset Password
 function C215_ResetPassword() {
+  const { Box, Button, TextField, LinearProgress } = MUI;
   return (
     <AuthCard overline="RESET PASSWORD" title="Set a new password" sub="Use at least 12 characters with a number.">
-      <div>
-        <label className="field-label">New password</label>
-        <input className="input" type="password" defaultValue="••••••••••••"/>
-        <div style={{ height: 4, background: 'var(--md-outline-variant)', borderRadius: 2, marginTop: 6 }}>
-          <div style={{ width: '85%', height: '100%', background: 'var(--md-success)', borderRadius: 2 }}/>
-        </div>
-      </div>
-      <div><label className="field-label">Confirm new password</label><input className="input" type="password" defaultValue="••••••••••••"/></div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Update password</button>
+      <Box>
+        <TextField label="New password" type="password" size="small" fullWidth defaultValue="••••••••••••" />
+        <LinearProgress variant="determinate" value={85} color="success" sx={{ mt: 0.75 }} />
+      </Box>
+      <TextField label="Confirm new password" type="password" size="small" fullWidth defaultValue="••••••••••••" />
+      <Button variant="contained" size="large" fullWidth>Update password</Button>
     </AuthCard>
   );
 }
 
 // 2.1.6 — MFA Setup
 function C216_MFASetup() {
+  const { Box, Grid, Paper, Typography, Button, TextField } = MUI;
   return (
     <AuthCard overline="EXTRA SECURITY" title="Set up two-factor auth" sub="Recommended if you'll be storing payment cards.">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <Grid container spacing={1}>
         {[
           { i: 'sparkle', t: 'Authenticator app', s: 'Recommended', on: true },
           { i: 'phone', t: 'SMS code', s: 'Backup method' },
         ].map((m) => (
-          <div key={m.t} style={{ padding: 12, borderRadius: 12, border: `1.5px solid ${m.on ? 'var(--md-primary)' : 'var(--md-outline-variant)'}`, background: m.on ? 'var(--md-primary-container)' : 'var(--md-surface-1)' }}>
-            <Icon name={m.i} size={18} color={m.on ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)'}/>
-            <div className="t-title-s" style={{ marginTop: 6, color: m.on ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)' }}>{m.t}</div>
-            <div className="t-body-s" style={{ color: m.on ? 'var(--md-on-primary-container)' : 'var(--md-on-surface-variant)', opacity: 0.8 }}>{m.s}</div>
-          </div>
+          <Grid key={m.t} size={6}>
+            <Paper variant="outlined" sx={{
+              p: 1.5, height: '100%',
+              bgcolor: m.on ? 'primary.container' : 'background.paper',
+              color: m.on ? 'primary.onContainer' : 'text.primary',
+              borderColor: m.on ? 'primary.main' : 'divider',
+            }}>
+              <Icon name={m.i} size={18} />
+              <Typography variant="subtitle1" sx={{ mt: 0.75, color: 'inherit' }}>{m.t}</Typography>
+              <Typography variant="caption" sx={{ display: 'block', color: m.on ? 'inherit' : 'text.secondary', opacity: 0.8 }}>{m.s}</Typography>
+            </Paper>
+          </Grid>
         ))}
-      </div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--md-surface-2)', borderRadius: 12 }}>
-        <div style={{ width: 96, height: 96, background: '#FFF', borderRadius: 8, padding: 6, flexShrink: 0 }}>
+      </Grid>
+      <Paper elevation={0} sx={{ display: 'flex', gap: 1.5, alignItems: 'center', p: 1.5, bgcolor: 'surface.2' }}>
+        <Box sx={{ width: 96, height: 96, bgcolor: 'common.white', color: 'common.black', borderRadius: 1, p: 0.75, flexShrink: 0 }}>
           <svg viewBox="0 0 24 24" width="100%" height="100%" style={{ shapeRendering: 'crispEdges' }}>
             {Array.from({ length: 144 }).map((_, i) => {
               const x = i % 12, y = Math.floor(i / 12);
               const on = (x * 7 + y * 13) % 5 < 2;
-              return <rect key={i} x={x*2} y={y*2} width="2" height="2" fill={on ? '#000' : 'transparent'}/>;
+              return <rect key={i} x={x*2} y={y*2} width="2" height="2" fill={on ? 'currentColor' : 'transparent'}/>;
             })}
           </svg>
-        </div>
-        <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>Scan with Authy, 1Password, or Google Authenticator. Or paste the secret key into your authenticator app.</div>
-      </div>
-      <div><label className="field-label">Enter 6-digit code</label><input className="input" defaultValue="• • •  • • •" style={{ fontFamily: 'var(--font-mono)', letterSpacing: 8, textAlign: 'center' }}/></div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Verify &amp; turn on MFA</button>
+        </Box>
+        <Typography variant="caption" color="text.secondary">Scan with Authy, 1Password, or Google Authenticator. Or paste the secret key into your authenticator app.</Typography>
+      </Paper>
+      <TextField
+        label="Enter 6-digit code" size="small" fullWidth defaultValue="• • •  • • •"
+        slotProps={{ input: { sx: { fontFamily: (t) => t.typography.mono, letterSpacing: 8, '& input': { textAlign: 'center' } } } }}
+      />
+      <Button variant="contained" size="large" fullWidth>Verify &amp; turn on MFA</Button>
     </AuthCard>
   );
 }
 
 // 2.1.7 — MFA Challenge
 function C217_MFAChallenge() {
+  const { Stack, Paper, Button, Link } = MUI;
   return (
     <AuthCard overline="TWO-FACTOR" title="Enter your code" sub="From your authenticator app · expires in 30s">
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '4px 0 10px' }}>
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', mt: 0.5, mb: 1.25 }}>
         {['8','3','1','9','2','4'].map((d, i) => (
-          <div key={i} style={{ width: 44, height: 56, borderRadius: 10, border: `1.5px solid ${i === 5 ? 'var(--md-primary)' : 'var(--md-outline)'}`, background: 'var(--md-surface-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '700 22px/1 var(--font-mono)' }}>{d}</div>
+          <Paper key={i} variant="outlined" sx={{
+            width: 44, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderColor: i === 5 ? 'primary.main' : 'outline.main',
+            fontFamily: (t) => t.typography.mono, fontWeight: 700, fontSize: 22, lineHeight: 1,
+          }}>{d}</Paper>
         ))}
-      </div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Verify</button>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-        <a href="#" className="t-body-s" style={{ color: 'var(--md-primary)' }}>Use a backup code</a>
-        <a href="#" className="t-body-s" style={{ color: 'var(--md-primary)' }}>Resend SMS</a>
-      </div>
+      </Stack>
+      <Button variant="contained" size="large" fullWidth>Verify</Button>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', mt: 0.5 }}>
+        <Link href="#" variant="caption">Use a backup code</Link>
+        <Link href="#" variant="caption">Resend SMS</Link>
+      </Stack>
     </AuthCard>
   );
 }
 
 // 2.1.8 — Social Login / Account Linking
 function C218_LinkAccount() {
+  const { Box, Typography, Button, TextField, Avatar, Card, CardContent } = MUI;
   return (
     <AuthCard overline="ACCOUNT FOUND" title="An account with this email exists" sub="Sign in to your existing account to link Google sign-in, or use a different email.">
-      <div className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'center', background: 'var(--md-surface-2)' }}>
-        <img src={staImg('avatarC', 80, 80)} alt="" style={{ width: 40, height: 40, borderRadius: 999 }}/>
-        <div style={{ flex: 1 }}>
-          <div className="t-title-s">Jordan Hayes</div>
-          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>jordan.hayes@example.com · created Mar 2024</div>
-        </div>
-      </div>
-      <div><label className="field-label">Password for the existing account</label><input className="input" type="password" defaultValue="••••••••••••"/></div>
-      <button className="btn btn-filled btn-lg" style={{ width: '100%' }}>Sign in &amp; link Google</button>
-      <button className="btn btn-text">Use a different email</button>
+      <Card variant="outlined" sx={{ bgcolor: 'surface.2' }}>
+        <CardContent sx={{ display: 'flex', gap: 1.5, alignItems: 'center', '&:last-child': { pb: 2 } }}>
+          <Avatar src={staImg('avatarC', 80, 80)} alt="" />
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1">Jordan Hayes</Typography>
+            <Typography variant="caption" color="text.secondary">jordan.hayes@example.com · created Mar 2024</Typography>
+          </Box>
+        </CardContent>
+      </Card>
+      <TextField label="Password for the existing account" type="password" size="small" fullWidth defaultValue="••••••••••••" />
+      <Button variant="contained" size="large" fullWidth>Sign in &amp; link Google</Button>
+      <Button variant="text" sx={{ alignSelf: 'center' }}>Use a different email</Button>
     </AuthCard>
   );
 }
 
 // 2.1.9 — Welcome / First Login
 function C219_Welcome() {
+  const { Box, Stack, Grid, Typography, Button, Avatar, Card, CardContent } = MUI;
   return (
-    <ScreenFrame chrome="plain">
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
-          <img src={staImg('overwater', 1600, 400)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))' }}/>
-          <div style={{ position: 'absolute', inset: 0, padding: '32px 48px', color: '#FFF', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-            <span className="t-label-s" style={{ color: '#FFC83F' }}>WELCOME · REST WELL</span>
-            <h1 className="t-display-s" style={{ margin: '4px 0 4px', color: '#FFF' }}>So glad you're here, Jordan.</h1>
-            <p className="t-body" style={{ color: 'rgba(255,255,255,0.92)', margin: 0, fontStyle: 'italic' }}>Here's to a year of trips worth telling — and rest worth taking. — Gyasi</p>
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: '24px 48px', overflow: 'auto', background: 'var(--md-bg)' }}>
-          <div className="t-title-l" style={{ marginBottom: 12 }}>Here's what your portal will do for you:</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+    <MuiScreenFrame chrome="plain">
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+          <Box component="img" src={staImg('overwater', 1600, 400)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))' }} />
+          <Box sx={{ position: 'absolute', inset: 0, px: 6, py: 4, color: 'common.white', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+            <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.3, fontWeight: 600, color: (t) => t.palette.brandSource.gold }}>WELCOME · REST WELL</Typography>
+            <Typography variant="h3" component="h1" sx={{ my: 0.5, color: 'common.white' }}>So glad you're here, Jordan.</Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.92)', fontStyle: 'italic' }}>Here's to a year of trips worth telling — and rest worth taking. — Gyasi</Typography>
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1, px: 6, py: 3, overflow: 'auto', bgcolor: 'background.default' }}>
+          <Typography variant="h5" sx={{ mb: 1.5 }}>Here's what your portal will do for you:</Typography>
+          <Grid container spacing={1.5}>
             {[
               { i: 'plane', t: 'Your trips, always here', s: 'Real-time itinerary updates, downloadable PDFs, offline mobile access at the resort.' },
               { i: 'card', t: 'Securely authorize cards', s: 'Stripe-tokenized. We pay suppliers — never charge you a fee.' },
@@ -224,93 +237,90 @@ function C219_Welcome() {
               { i: 'search', t: 'Explore on your time', s: 'Browse trip ideas at your own pace and turn any favorite into a real proposal.' },
               { i: 'passport', t: 'Documents in one place', s: 'Passport scans, visa confirmations, insurance certificates — secure and shareable.' },
             ].map((c) => (
-              <div key={c.t} className="card" style={{ padding: 14 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={c.i} size={18}/>
-                </span>
-                <div className="t-title-s" style={{ marginTop: 8 }}>{c.t}</div>
-                <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.s}</div>
-              </div>
+              <Grid key={c.t} size={4}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Avatar variant="rounded" sx={{ width: 36, height: 36, bgcolor: 'primary.container', color: 'primary.onContainer' }}>
+                      <Icon name={c.i} size={18} />
+                    </Avatar>
+                    <Typography variant="subtitle1" sx={{ mt: 1 }}>{c.t}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{c.s}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
             ))}
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-            <button className="btn btn-text">Skip the tour</button>
-            <button className="btn btn-filled btn-lg">Get started <Icon name="arrow_right" size={14}/></button>
-          </div>
-        </div>
-      </div>
-    </ScreenFrame>
+          </Grid>
+          <Stack direction="row" spacing={1.25} sx={{ mt: 2.5, justifyContent: 'flex-end' }}>
+            <Button variant="text">Skip the tour</Button>
+            <Button variant="contained" size="large" endIcon={<MuiIcon name="arrow_right" size={14} />}>Get started</Button>
+          </Stack>
+        </Box>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // Onboarding wizard shell (used by 2.1.10–2.1.14)
 function OnboardingShell({ step, total, title, sub, children, primary = 'Save & continue', secondary = 'Skip for now' }) {
+  const { Box, Stack, Typography, Button, Stepper, Step, StepLabel } = MUI;
   return (
-    <ScreenFrame chrome="plain">
-      <div style={{ height: '100%', display: 'grid', gridTemplateColumns: '280px 1fr', background: 'var(--md-bg)' }}>
-        <aside style={{ padding: '32px 24px', background: 'var(--md-surface-1)', borderRight: '1px solid var(--md-outline-variant)' }}>
-          <div className="brand-mark" style={{ marginBottom: 28 }}>
-            <StoryTailMark size={28}/>
-            <span className="mark-script" style={{ fontSize: 22 }}>Story-Tail</span>
-          </div>
-          <div className="t-label" style={{ color: 'var(--md-on-surface-variant)', marginBottom: 14 }}>WELCOME ABOARD</div>
-          {['Welcome', 'Profile basics', 'Travel preferences', 'Travel companions', 'Link existing trips', 'All set!'].map((s, i) => {
-            const done = i < step;
-            const cur = i === step;
-            return (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
-                <span style={{ width: 22, height: 22, borderRadius: 999,
-                                background: done ? 'var(--md-success)' : cur ? 'var(--md-primary)' : 'var(--md-surface-3)',
-                                color: '#FFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                font: '700 11px/1 var(--font-sans)' }}>
-                  {done ? <Icon name="check" size={12} color="#FFF" stroke={2.5}/> : i+1}
-                </span>
-                <span style={{ font: cur ? '600 13px/1.3 var(--font-sans)' : '500 13px/1.3 var(--font-sans)',
-                                color: cur ? 'var(--md-on-surface)' : 'var(--md-on-surface-variant)' }}>{s}</span>
-              </div>
-            );
-          })}
-        </aside>
-        <main style={{ padding: '36px 48px', overflow: 'auto' }}>
-          <div className="t-label-s" style={{ color: 'var(--brand-orange)' }}>STEP {String(step+1).padStart(2,'0')} OF {String(total).padStart(2,'0')}</div>
-          <h1 className="t-headline" style={{ margin: '4px 0 4px' }}>{title}</h1>
-          {sub && <p className="t-body-l" style={{ color: 'var(--md-on-surface-variant)', margin: '0 0 20px' }}>{sub}</p>}
+    <MuiScreenFrame chrome="plain">
+      <Box sx={{ height: '100%', display: 'grid', gridTemplateColumns: '280px 1fr', bgcolor: 'background.default' }}>
+        <Box component="aside" sx={{ px: 3, py: 4, bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider' }}>
+          <Box className="brand-mark" sx={{ mb: 3.5 }}>
+            <StoryTailMark size={28} />
+            <Box component="span" className="mark-script" sx={{ fontSize: 22 }}>Story-Tail</Box>
+          </Box>
+          <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3, mb: 1.75 }}>WELCOME ABOARD</Typography>
+          <Stepper orientation="vertical" activeStep={step}>
+            {['Welcome', 'Profile basics', 'Travel preferences', 'Travel companions', 'Link existing trips', 'All set!'].map((s) => (
+              <Step key={s}><StepLabel>{s}</StepLabel></Step>
+            ))}
+          </Stepper>
+        </Box>
+        <Box component="main" sx={{ px: 6, py: 4.5, overflow: 'auto' }}>
+          <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', fontWeight: 600, lineHeight: 1.3 }}>STEP {String(step+1).padStart(2,'0')} OF {String(total).padStart(2,'0')}</Typography>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, my: 0.5 }}>{title}</Typography>
+          {sub && <Typography variant="body1" color="text.secondary" sx={{ mb: 2.5 }}>{sub}</Typography>}
           {children}
-          <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-            <button className="btn btn-text">{secondary}</button>
-            <button className="btn btn-filled btn-lg" style={{ marginLeft: 'auto' }}>{primary} <Icon name="arrow_right" size={14}/></button>
-          </div>
-        </main>
-      </div>
-    </ScreenFrame>
+          <Stack direction="row" spacing={1.25} sx={{ mt: 2.75 }}>
+            <Button variant="text">{secondary}</Button>
+            <Button variant="contained" size="large" sx={{ ml: 'auto' }} endIcon={<MuiIcon name="arrow_right" size={14} />}>{primary}</Button>
+          </Stack>
+        </Box>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // 2.1.10 — Profile Completion
 function C2110_ProfileCompletion() {
+  const { Grid, Typography, TextField } = MUI;
   return (
     <OnboardingShell step={1} total={6} title="A few quick details" sub="So I can plan with all the right info on hand. You can edit any of this later.">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div><label className="field-label">Phone</label><input className="input" defaultValue="+1 (305) 555-0184"/></div>
-        <div><label className="field-label">Date of birth</label><input className="input" defaultValue="04 / 22 / 1992"/></div>
-        <div style={{ gridColumn: 'span 2' }}><label className="field-label">Mailing address</label><input className="input" defaultValue="1240 Brickell Bay Dr, Miami, FL 33131"/></div>
-        <div><label className="field-label">Emergency contact · name</label><input className="input" defaultValue="Sam Hayes (spouse)"/></div>
-        <div><label className="field-label">Emergency contact · phone</label><input className="input" defaultValue="+1 (305) 555-0186"/></div>
-        <div style={{ gridColumn: 'span 2' }}>
-          <label className="field-label">Passport (optional but encouraged for international travel)</label>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
-            <input className="input" defaultValue="Number · A123456789"/>
-            <input className="input" defaultValue="Expires · 08/2029"/>
-            <input className="input" defaultValue="USA"/>
-          </div>
-        </div>
-      </div>
+      <Grid container spacing={1.5}>
+        <Grid size={6}><TextField label="Phone" size="small" fullWidth defaultValue="+1 (305) 555-0184" /></Grid>
+        <Grid size={6}><TextField label="Date of birth" size="small" fullWidth defaultValue="04 / 22 / 1992" /></Grid>
+        <Grid size={12}><TextField label="Mailing address" size="small" fullWidth defaultValue="1240 Brickell Bay Dr, Miami, FL 33131" /></Grid>
+        <Grid size={6}><TextField label="Emergency contact · name" size="small" fullWidth defaultValue="Sam Hayes (spouse)" /></Grid>
+        <Grid size={6}><TextField label="Emergency contact · phone" size="small" fullWidth defaultValue="+1 (305) 555-0186" /></Grid>
+        <Grid size={12}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>Passport (optional but encouraged for international travel)</Typography>
+          <Grid container spacing={1.25}>
+            <Grid size={6}><TextField size="small" fullWidth defaultValue="Number · A123456789" /></Grid>
+            <Grid size={3}><TextField size="small" fullWidth defaultValue="Expires · 08/2029" /></Grid>
+            <Grid size={3}><TextField size="small" fullWidth defaultValue="USA" /></Grid>
+          </Grid>
+        </Grid>
+      </Grid>
     </OnboardingShell>
   );
 }
 
 // 2.1.11 — Travel Preferences Capture
 function C2111_PreferencesCapture() {
+  const { Box, Stack, Typography, TextField, Chip, Slider } = MUI;
+  const noop = () => {};
   const tags = (group) => ({
     destinations: ['Caribbean ✓', 'Bahamas ✓', 'Greece', 'Mexico', 'Costa Rica', 'Italy', 'Iceland', 'Japan'],
     style: ['Resort ✓', 'Cruise ✓', 'Adventure', 'Family', 'Honeymoon ✓', 'Group'],
@@ -320,112 +330,123 @@ function C2111_PreferencesCapture() {
   return (
     <OnboardingShell step={2} total={6} title="How do you travel?" sub="Tag what's true. The more, the better. Anything missing? Tell Gyasi later.">
       {['destinations','style','diet','access'].map((g) => (
-        <div key={g} style={{ marginBottom: 14 }}>
-          <div className="t-title-s" style={{ marginBottom: 6, textTransform: 'capitalize' }}>{g === 'access' ? 'Accessibility needs' : g}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <Box key={g} sx={{ mb: 1.75 }}>
+          <Typography variant="subtitle1" sx={{ mb: 0.75, textTransform: 'capitalize' }}>{g === 'access' ? 'Accessibility needs' : g}</Typography>
+          <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
             {tags(g).map((t) => (
-              <span key={t} className={`chip ${t.includes('✓') ? 'chip-filter is-on' : ''}`}>{t}</span>
+              t.includes('✓')
+                ? <Chip key={t} label={t} color="secondary" onClick={noop} />
+                : <Chip key={t} label={t} variant="outlined" onClick={noop} />
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Box>
       ))}
-      <div>
-        <label className="field-label">Loyalty programs · frequent flyer numbers</label>
-        <input className="input" defaultValue="AAdvantage 4ZE82Q · IHG Rewards 92214"/>
-      </div>
-      <div style={{ marginTop: 10 }}>
-        <label className="field-label">Budget comfort range</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="t-body-s">$1k</span>
-          <div style={{ flex: 1, height: 4, background: 'var(--md-outline-variant)', borderRadius: 2, position: 'relative' }}>
-            <div style={{ position: 'absolute', left: '25%', right: '25%', top: 0, bottom: 0, background: 'var(--md-primary)', borderRadius: 2 }}/>
-            <div style={{ position: 'absolute', left: '25%', top: -6, width: 16, height: 16, background: 'var(--md-primary)', borderRadius: 999, transform: 'translateX(-50%)' }}/>
-            <div style={{ position: 'absolute', left: '75%', top: -6, width: 16, height: 16, background: 'var(--md-primary)', borderRadius: 999, transform: 'translateX(-50%)' }}/>
-          </div>
-          <span className="t-body-s">$10k+</span>
-        </div>
-        <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>$2,500 — $7,500 per person</div>
-      </div>
+      <TextField label="Loyalty programs · frequent flyer numbers" size="small" fullWidth defaultValue="AAdvantage 4ZE82Q · IHG Rewards 92214" />
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Budget comfort range</Typography>
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+          <Typography variant="caption">$1k</Typography>
+          <Slider defaultValue={[2500, 7500]} min={1000} max={10000} step={100} disableSwap sx={{ flex: 1 }} />
+          <Typography variant="caption">$10k+</Typography>
+        </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>$2,500 — $7,500 per person</Typography>
+      </Box>
     </OnboardingShell>
   );
 }
 
 // 2.1.12 — Travel Companions / Household
 function C2112_Companions() {
+  const { Box, Stack, Typography, Button, IconButton, Avatar, Card, CardContent } = MUI;
   return (
     <OnboardingShell step={3} total={6} title="Who often travels with you?" sub="So we can pre-fill traveler info next time. You can add or skip — totally up to you.">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Stack spacing={1} sx={{ alignItems: 'stretch' }}>
         {[
           { n: 'Sam Hayes', r: 'Spouse', d: '11/03/1990', p: 'B987654321 · 02/2031' },
           { n: 'Ava Hayes', r: 'Child', d: '06/12/2019', p: '—' },
         ].map((c) => (
-          <div key={c.n} className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div className="avatar lg" style={{ background: 'var(--md-tertiary-container)', color: 'var(--md-on-tertiary-container)', width: 44, height: 44, fontSize: 15 }}>{c.n[0]}</div>
-            <div style={{ flex: 1 }}>
-              <div className="t-title-s">{c.n}</div>
-              <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.r} · DOB {c.d} · Passport {c.p}</div>
-            </div>
-            <button className="btn-icon"><Icon name="edit" size={16}/></button>
-            <button className="btn-icon"><Icon name="trash" size={16}/></button>
-          </div>
+          <Card key={c.n}>
+            <CardContent sx={{ display: 'flex', gap: 1.5, alignItems: 'center', '&:last-child': { pb: 2 } }}>
+              <Avatar sx={{ width: 44, height: 44, fontSize: 15, bgcolor: 'tertiary.container', color: 'tertiary.onContainer' }}>{c.n[0]}</Avatar>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle1">{c.n}</Typography>
+                <Typography variant="caption" color="text.secondary">{c.r} · DOB {c.d} · Passport {c.p}</Typography>
+              </Box>
+              <IconButton size="small"><MuiIcon name="edit" size={16} /></IconButton>
+              <IconButton size="small"><MuiIcon name="trash" size={16} /></IconButton>
+            </CardContent>
+          </Card>
         ))}
-        <button className="btn btn-tonal" style={{ alignSelf: 'flex-start', marginTop: 4 }}><Icon name="plus" size={14}/> Add a traveler</button>
-      </div>
+        <Button variant="outlined" color="secondary" startIcon={<MuiIcon name="plus" size={14} />} sx={{ alignSelf: 'flex-start', mt: 0.5 }}>Add a traveler</Button>
+      </Stack>
     </OnboardingShell>
   );
 }
 
 // 2.1.13 — Connect with Agent / Invite Code
 function C2113_ConnectAgent() {
+  const { Stack, Paper, Typography, TextField, Link, Box } = MUI;
   return (
     <OnboardingShell step={4} total={6} title="Has Gyasi already started planning a trip for you?" sub="If you have an invitation code from her, paste it here to link existing trips to your account. Otherwise, skip — we'll find them automatically by email.">
-      <div className="card" style={{ padding: 16, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'flex', gap: 12, alignItems: 'center', border: 0 }}>
-        <Icon name="sparkle" size={20}/>
-        <div className="t-body">We found <b>1 trip</b> already linked to <b>jordan.hayes@example.com</b>: <b>Sandals Royal Bahamian · Aug 12, 2026</b>. We'll connect it automatically.</div>
-      </div>
-      <div><label className="field-label">Or paste an invite code (optional)</label><input className="input" placeholder="e.g. STA-7HX2J9" style={{ fontFamily: 'var(--font-mono)' }}/></div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, background: 'var(--md-surface-2)' }}>
-        <Icon name="message" size={16} color="var(--md-primary)"/>
-        <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>Don't have a code or trip yet? <a href="#" style={{ color: 'var(--md-primary)' }}>Message Gyasi</a> and she'll get you started.</div>
-      </div>
+      <Stack spacing={1.75}>
+        <Paper elevation={0} sx={{ p: 2, bgcolor: 'secondary.container', color: 'secondary.onContainer', display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          <Icon name="sparkle" size={20} />
+          <Typography variant="body2" sx={{ color: 'inherit' }}>We found <b>1 trip</b> already linked to <b>jordan.hayes@example.com</b>: <b>Sandals Royal Bahamian · Aug 12, 2026</b>. We'll connect it automatically.</Typography>
+        </Paper>
+        <TextField
+          label="Or paste an invite code (optional)" size="small" fullWidth placeholder="e.g. STA-7HX2J9"
+          slotProps={{ input: { sx: { fontFamily: (t) => t.typography.mono } } }}
+        />
+        <Paper elevation={0} sx={{ p: 1.75, bgcolor: 'surface.2', display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          <Box sx={{ color: 'primary.main', display: 'inline-flex' }}><Icon name="message" size={16} /></Box>
+          <Typography variant="caption" color="text.secondary">Don't have a code or trip yet? <Link href="#">Message Gyasi</Link> and she'll get you started.</Typography>
+        </Paper>
+      </Stack>
     </OnboardingShell>
   );
 }
 
 // 2.1.14 — Onboarding Complete
 function C2114_OnboardingComplete() {
+  const { Box, Stack, Grid, Paper, Typography, Button, Avatar } = MUI;
   return (
-    <ScreenFrame chrome="plain">
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-        <div style={{ maxWidth: 640, width: '100%' }}>
-          <div style={{ width: 96, height: 96, borderRadius: 999, background: 'var(--md-success-container)', color: 'var(--md-success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, boxShadow: 'var(--md-shadow-2)' }}>
-            <Icon name="check" size={48} stroke={2.5}/>
-          </div>
-          <span className="t-label-s" style={{ color: 'var(--brand-orange)' }}>YOU'RE ALL SET</span>
-          <h1 className="t-display-s" style={{ margin: '4px 0 6px' }}>Welcome to the portal, Jordan.</h1>
-          <p className="t-body-l" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>Your profile, preferences, household, and existing trip with Sandals are all linked up.</p>
+    <MuiScreenFrame chrome="plain">
+      <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+        <Box sx={{ maxWidth: 640, width: '100%' }}>
+          <Avatar sx={{ width: 96, height: 96, bgcolor: 'success.container', color: 'success.main', mb: 2, boxShadow: 2 }}>
+            <Icon name="check" size={48} stroke={2.5} />
+          </Avatar>
+          <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', fontWeight: 600, lineHeight: 1.3 }}>YOU'RE ALL SET</Typography>
+          <Typography variant="h3" component="h1" sx={{ mt: 0.5, mb: 0.75 }}>Welcome to the portal, Jordan.</Typography>
+          <Typography variant="body1" color="text.secondary">Your profile, preferences, household, and existing trip with Sandals are all linked up.</Typography>
 
-          <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+          <Grid container spacing={1.25} sx={{ mt: 2.5 }}>
             {[
               { i: 'plane', t: 'View your upcoming trip', s: 'Sandals · Aug 12' },
               { i: 'search', t: 'Explore the search', s: '148 Caribbean trips' },
               { i: 'message', t: 'Message Gyasi', s: 'Reply usually < 2h' },
             ].map((a, i) => (
-              <div key={a.t} className="card" style={{ padding: 14, background: i === 0 ? 'var(--md-primary-container)' : 'var(--md-surface-1)', color: i === 0 ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)', border: i === 0 ? 0 : '1px solid var(--md-outline-variant)' }}>
-                <Icon name={a.i} size={18}/>
-                <div className="t-title-s" style={{ marginTop: 8 }}>{a.t}</div>
-                <div className="t-body-s" style={{ opacity: 0.8 }}>{a.s}</div>
-              </div>
+              <Grid key={a.t} size={4}>
+                <Paper variant={i === 0 ? 'elevation' : 'outlined'} elevation={0} sx={{
+                  p: 1.75, height: '100%',
+                  bgcolor: i === 0 ? 'primary.container' : 'background.paper',
+                  color: i === 0 ? 'primary.onContainer' : 'text.primary',
+                }}>
+                  <Icon name={a.i} size={18} />
+                  <Typography variant="subtitle1" sx={{ mt: 1, color: 'inherit' }}>{a.t}</Typography>
+                  <Typography variant="caption" sx={{ display: 'block', color: 'inherit', opacity: 0.8 }}>{a.s}</Typography>
+                </Paper>
+              </Grid>
             ))}
-          </div>
+          </Grid>
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 24 }}>
-            <button className="btn btn-text">Fine-tune notifications →</button>
-            <button className="btn btn-filled btn-lg">Continue to my dashboard <Icon name="arrow_right" size={14}/></button>
-          </div>
-        </div>
-      </div>
-    </ScreenFrame>
+          <Stack direction="row" spacing={1.25} sx={{ justifyContent: 'space-between', mt: 3 }}>
+            <Button variant="text">Fine-tune notifications →</Button>
+            <Button variant="contained" size="large" endIcon={<MuiIcon name="arrow_right" size={14} />}>Continue to my dashboard</Button>
+          </Stack>
+        </Box>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 

@@ -1,140 +1,171 @@
-/* global React, Icon, staImg, ScreenFrame, ScreenHeader */
-// Agent · 3.2 Dashboard & Pipeline — 3 screens.
+/* global React, MUI, Icon, MuiIcon, staImg, MuiScreenFrame, MuiScreenHeader, MuiStaStatus */
+// Agent · 3.2 Dashboard & Pipeline — 3 screens. MUI v9.
 
 function AgentKPI({ label, value, delta, icon, accent }) {
-  const map = { primary: ['var(--md-primary-container)','var(--md-on-primary-container)'], secondary: ['var(--md-secondary-container)','var(--md-on-secondary-container)'], tertiary: ['var(--md-tertiary-container)','var(--md-on-tertiary-container)'], surface: ['var(--md-surface-2)','var(--md-on-surface)'] };
-  const [bg, fg] = map[accent] || map.surface;
+  const { Box, Stack, Card, CardContent, Typography } = MUI;
+  const known = ['primary', 'secondary', 'tertiary'];
+  const bg = known.includes(accent) ? `${accent}.container` : 'surface.2';
+  const fg = known.includes(accent) ? `${accent}.onContainer` : 'text.primary';
   return (
-    <div style={{ background: bg, color: fg, borderRadius: 16, padding: '14px 16px', minHeight: 100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="t-label" style={{ opacity: 0.85 }}>{label}</span>
-        <Icon name={icon} size={16}/>
-      </div>
-      <div className="t-display-s" style={{ margin: '6px 0 2px', fontSize: 26 }}>{value}</div>
-      {delta && <div className="t-body-s" style={{ opacity: 0.85, fontWeight: 600 }}>{delta}</div>}
-    </div>
+    <Card sx={{ bgcolor: bg, color: fg, minHeight: 100, display: 'flex' }}>
+      <CardContent sx={{ flex: 1, py: 1.75, px: 2, '&:last-child': { pb: 1.75 } }}>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="caption" sx={{ fontWeight: 500, letterSpacing: '0.4px', opacity: 0.85 }}>{label}</Typography>
+          <Box sx={{ display: 'inline-flex' }}><Icon name={icon} size={16}/></Box>
+        </Stack>
+        <Typography variant="h4" sx={{ fontWeight: 700, fontSize: 26, mt: 0.75, mb: 0.25, color: 'inherit' }}>{value}</Typography>
+        {delta && <Typography variant="caption" sx={{ display: 'block', opacity: 0.85, fontWeight: 600 }}>{delta}</Typography>}
+      </CardContent>
+    </Card>
   );
 }
 
 // 3.2.1 — Agent Dashboard / Worklist
 function A321_Worklist() {
+  const { Box, Stack, Card, CardContent, Typography, Button, Chip, Avatar, Divider, List, ListItem, ListItemAvatar, ListItemText, Paper } = MUI;
+  const mono = (t) => t.typography.mono;
   return (
-    <ScreenFrame role="agent" tab="home" padding={24} scrollable>
-      <ScreenHeader
+    <MuiScreenFrame role="agent" tab="home" padding={24} scrollable>
+      <MuiScreenHeader
         overline="THIS WEEK · MAY 12 – MAY 18"
         title="Morning, Gyasi. 3 things need you today."
         subtitle="One card to chase, two proposals in client court, one new lead from search."
-        actions={<><button className="btn btn-tonal btn-sm"><Icon name="filter" size={14}/> Filter</button><button className="btn btn-orange btn-sm"><Icon name="plus" size={14}/> New trip</button></>}
+        actions={<>
+          <Button variant="outlined" color="secondary" size="small" startIcon={<MuiIcon name="filter" size={14}/>}>Filter</Button>
+          <Button variant="contained" color="brand" size="small" startIcon={<MuiIcon name="plus" size={14}/>}>New trip</Button>
+        </>}
       />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, marginBottom: 14 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 1.25, mb: 1.75 }}>
         <AgentKPI label="Pipeline value" value="$148,720" delta="↗ +18% LM" icon="briefcase" accent="primary"/>
         <AgentKPI label="Booked · month" value="$32,440" delta="9 trips · 3 to close" icon="check" accent="secondary"/>
         <AgentKPI label="Commission expected" value="$4,310" delta="71% confidence" icon="dollar" accent="tertiary"/>
         <AgentKPI label="Inquiry → book" value="11 days" delta="−3 d vs LM" icon="clock" accent="surface"/>
         <AgentKPI label="Active clients" value="68" delta="+4 this month" icon="users" accent="surface"/>
-      </div>
+      </Box>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 12 }}>
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--md-outline-variant)', display: 'flex', alignItems: 'center' }}>
-            <div className="t-title-s">Proposals awaiting reply</div>
-            <span className="chip" style={{ marginLeft: 'auto' }}>3 · $22,080</span>
-          </div>
-          {[
-            { c: 'Maya & Daniel Carter', t: 'Sandals honeymoon · Aug 12', v: 6480, due: 'Tomorrow', a: 'avatarA' },
-            { c: 'Westbrook family (4)', t: 'Royal Caribbean Symphony · Dec 22', v: 9120, due: '3 days', a: 'avatarB' },
-            { c: 'Jordan & Sam Hayes', t: 'Sandals · bungalow upgrade', v: 6480, due: 'Booked', a: 'avatarC' },
-          ].map((p, i) => (
-            <div key={i} style={{ padding: '12px 16px', borderTop: i ? '1px solid var(--md-outline-variant)' : 0, display: 'flex', gap: 10, alignItems: 'center' }}>
-              <img src={staImg(p.a, 80, 80)} alt="" style={{ width: 36, height: 36, borderRadius: 999 }}/>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="t-title-s">{p.c}</div>
-                <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{p.t}</div>
-              </div>
-              <div style={{ font: '700 12px/1 var(--font-mono)' }}>${p.v.toLocaleString()}</div>
-              <span className={`chip-status ${p.due === 'Booked' ? 'booked' : 'proposal'}`}>{p.due}</span>
-            </div>
-          ))}
-        </div>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 1.5 }}>
+        <Card sx={{ overflow: 'hidden' }}>
+          <Stack direction="row" sx={{ px: 2, py: 1.5, alignItems: 'center' }}>
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>Proposals awaiting reply</Typography>
+            <Chip size="small" variant="outlined" label="3 · $22,080" sx={{ ml: 'auto' }}/>
+          </Stack>
+          <Divider/>
+          <List disablePadding>
+            {[
+              { c: 'Maya & Daniel Carter', t: 'Sandals honeymoon · Aug 12', v: 6480, due: 'Tomorrow', a: 'avatarA' },
+              { c: 'Westbrook family (4)', t: 'Royal Caribbean Symphony · Dec 22', v: 9120, due: '3 days', a: 'avatarB' },
+              { c: 'Jordan & Sam Hayes', t: 'Sandals · bungalow upgrade', v: 6480, due: 'Booked', a: 'avatarC' },
+            ].map((p, i, arr) => (
+              <ListItem key={i} divider={i < arr.length - 1} sx={{ px: 2, py: 1.5, gap: 1.25 }}>
+                <ListItemAvatar sx={{ minWidth: 0 }}><Avatar src={staImg(p.a, 80, 80)} sx={{ width: 36, height: 36 }}/></ListItemAvatar>
+                <ListItemText primary={p.c} secondary={p.t} slotProps={{ primary: { variant: 'subtitle2', noWrap: true }, secondary: { variant: 'caption' } }} sx={{ my: 0 }}/>
+                <Typography variant="body2" sx={{ fontFamily: mono, fontWeight: 700, fontSize: 12, flexShrink: 0 }}>${p.v.toLocaleString()}</Typography>
+                <MuiStaStatus kind={p.due === 'Booked' ? 'booked' : 'proposal'}>{p.due}</MuiStaStatus>
+              </ListItem>
+            ))}
+          </List>
+        </Card>
 
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--md-outline-variant)' }}><div className="t-title-s">Payments to settle</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>Supplier-pay due</div></div>
-          {[
-            { c: 'Jordan Hayes', s: 'Sandals · final', amt: 4180, due: 'May 28', risk: 'med' },
-            { c: 'Aisha Patel', s: 'Princess deposit', amt: 850, due: 'May 19', risk: 'low' },
-            { c: 'Reggie & Marc', s: 'St. Lucia transfer', amt: 220, due: 'May 16', risk: 'high' },
-          ].map((p, i) => (
-            <div key={i} style={{ padding: '10px 16px', borderTop: i ? '1px solid var(--md-outline-variant)' : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="dot" style={{ background: p.risk === 'high' ? 'var(--md-error)' : p.risk === 'med' ? 'var(--md-warning)' : 'var(--md-success)' }}/>
-                <div className="t-title-s" style={{ flex: 1, fontSize: 12.5 }}>{p.c}</div>
-                <div style={{ font: '700 12px/1 var(--font-mono)' }}>${p.amt.toLocaleString()}</div>
-              </div>
-              <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 2 }}>{p.s} · due {p.due}</div>
-            </div>
-          ))}
-        </div>
+        <Card sx={{ overflow: 'hidden' }}>
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>Payments to settle</Typography>
+            <Typography variant="caption" color="text.secondary">Supplier-pay due</Typography>
+          </Box>
+          <Divider/>
+          <List disablePadding>
+            {[
+              { c: 'Jordan Hayes', s: 'Sandals · final', amt: 4180, due: 'May 28', risk: 'med' },
+              { c: 'Aisha Patel', s: 'Princess deposit', amt: 850, due: 'May 19', risk: 'low' },
+              { c: 'Reggie & Marc', s: 'St. Lucia transfer', amt: 220, due: 'May 16', risk: 'high' },
+            ].map((p, i, arr) => (
+              <ListItem key={i} divider={i < arr.length - 1} sx={{ px: 2, py: 1.25, display: 'block' }}>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, bgcolor: p.risk === 'high' ? 'error.main' : p.risk === 'med' ? 'warning.main' : 'success.main' }}/>
+                  <Typography variant="subtitle2" sx={{ flex: 1, fontSize: 12.5 }}>{p.c}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: mono, fontWeight: 700, fontSize: 12 }}>${p.amt.toLocaleString()}</Typography>
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>{p.s} · due {p.due}</Typography>
+              </ListItem>
+            ))}
+          </List>
+        </Card>
 
-        <div className="card" style={{ overflow: 'hidden', background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)' }}>
-          <div style={{ padding: '12px 16px' }}>
-            <div className="t-title-s">Fresh leads · search</div>
-            <div className="t-body-s" style={{ opacity: 0.75 }}>3 new today</div>
-          </div>
-          {[
-            { n: 'Tasha Whitfield', want: 'Aruba honeymoon · Oct', age: '2h', a: 'avatarE' },
-            { n: 'Eli Park', want: 'Cruise · 4 pax · Spring', age: '14h', a: 'avatarF' },
-            { n: 'Linda Gomez', want: 'Adults-only AI', age: 'Yest', a: 'avatarA' },
-          ].map((l, i) => (
-            <div key={i} style={{ padding: '10px 16px', borderTop: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src={staImg(l.a, 64, 64)} alt="" style={{ width: 28, height: 28, borderRadius: 999 }}/>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="t-title-s" style={{ fontSize: 12.5 }}>{l.n}</div>
-                <div className="t-body-s" style={{ opacity: 0.75 }}>{l.want}</div>
-              </div>
-              <button className="btn btn-filled btn-sm" style={{ height: 28, background: 'var(--md-primary)', color: 'var(--md-on-primary)' }}>Reply</button>
-            </div>
-          ))}
-        </div>
-      </div>
+        <Card sx={{ overflow: 'hidden', bgcolor: 'secondary.container', color: 'secondary.onContainer' }}>
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>Fresh leads · search</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.75 }}>3 new today</Typography>
+          </Box>
+          <List disablePadding>
+            {[
+              { n: 'Tasha Whitfield', want: 'Aruba honeymoon · Oct', age: '2h', a: 'avatarE' },
+              { n: 'Eli Park', want: 'Cruise · 4 pax · Spring', age: '14h', a: 'avatarF' },
+              { n: 'Linda Gomez', want: 'Adults-only AI', age: 'Yest', a: 'avatarA' },
+            ].map((l, i) => (
+              <ListItem key={i} sx={{ px: 2, py: 1.25, gap: 1.25, borderTop: 1, borderColor: 'divider' }}>
+                <ListItemAvatar sx={{ minWidth: 0 }}><Avatar src={staImg(l.a, 64, 64)} sx={{ width: 28, height: 28 }}/></ListItemAvatar>
+                <ListItemText primary={l.n} secondary={l.want}
+                              slotProps={{ primary: { variant: 'subtitle2', noWrap: true, sx: { fontSize: 12.5 } }, secondary: { variant: 'caption', sx: { color: 'inherit', opacity: 0.75 } } }}
+                              sx={{ my: 0 }}/>
+                <Button variant="contained" size="small">Reply</Button>
+              </ListItem>
+            ))}
+          </List>
+        </Card>
+      </Box>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 12, marginTop: 14 }}>
-        <div className="card" style={{ padding: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}><div className="t-title-s">Travelers in next 30 days</div><span className="chip" style={{ marginLeft: 'auto' }}>5</span></div>
-          {[
-            { d: 'May 18', who: 'Reggie & Marc', t: 'St. Lucia · 5n', a: 'avatarF' },
-            { d: 'May 24', who: 'Patel family', t: 'Atlantis · 4 pax', a: 'avatarD' },
-            { d: 'Jun 02', who: 'Kim Wallace', t: 'Aruba · solo', a: 'avatarE' },
-          ].map((t, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '1px solid var(--md-outline-variant)' : 0 }}>
-              <div style={{ width: 44, padding: '4px 0', borderRadius: 8, background: 'var(--md-tertiary-container)', color: 'var(--md-on-tertiary-container)', textAlign: 'center' }}>
-                <div className="t-label-s">{t.d.split(' ')[0]}</div>
-                <div style={{ font: '800 14px/1 var(--font-sans)' }}>{t.d.split(' ')[1]}</div>
-              </div>
-              <div style={{ flex: 1 }}><div className="t-title-s">{t.who}</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{t.t}</div></div>
-              <img src={staImg(t.a, 64, 64)} alt="" style={{ width: 28, height: 28, borderRadius: 999 }}/>
-            </div>
-          ))}
-        </div>
-        <div className="card" style={{ padding: 16 }}>
-          <div className="t-title-s">Recent messages</div>
-          {[
-            { who: 'Maya Carter', m: '"Yes lock the upgrade!"', t: '2:14p' },
-            { who: 'Aisha Patel', m: '"Anything for under $3k?"', t: '11:22a' },
-            { who: 'Linda Gomez', m: '"Talk tonight at 7?"', t: 'Yest' },
-          ].map((m, i) => (
-            <div key={i} style={{ padding: '8px 0', borderTop: i ? '1px solid var(--md-outline-variant)' : 0 }}>
-              <div style={{ display: 'flex' }}><div className="t-title-s" style={{ flex: 1, fontSize: 12.5 }}>{m.who}</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{m.t}</div></div>
-              <div className="t-body-s" style={{ color: 'var(--md-on-surface)', fontStyle: 'italic' }}>{m.m}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </ScreenFrame>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 1.5, mt: 1.75 }}>
+        <Card>
+          <CardContent>
+            <Stack direction="row" sx={{ alignItems: 'center', mb: 1.25 }}>
+              <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>Travelers in next 30 days</Typography>
+              <Chip size="small" variant="outlined" label="5" sx={{ ml: 'auto' }}/>
+            </Stack>
+            {[
+              { d: 'May 18', who: 'Reggie & Marc', t: 'St. Lucia · 5n', a: 'avatarF' },
+              { d: 'May 24', who: 'Patel family', t: 'Atlantis · 4 pax', a: 'avatarD' },
+              { d: 'Jun 02', who: 'Kim Wallace', t: 'Aruba · solo', a: 'avatarE' },
+            ].map((t, i) => (
+              <Stack key={i} direction="row" spacing={1.25} sx={{ alignItems: 'center', py: 1, borderTop: i ? 1 : 0, borderColor: 'divider' }}>
+                <Paper elevation={0} sx={{ width: 44, py: 0.5, bgcolor: 'tertiary.container', color: 'tertiary.onContainer', textAlign: 'center', flexShrink: 0 }}>
+                  <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.2, fontSize: 10 }}>{t.d.split(' ')[0]}</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1 }}>{t.d.split(' ')[1]}</Typography>
+                </Paper>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle2">{t.who}</Typography>
+                  <Typography variant="caption" color="text.secondary">{t.t}</Typography>
+                </Box>
+                <Avatar src={staImg(t.a, 64, 64)} sx={{ width: 28, height: 28 }}/>
+              </Stack>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>Recent messages</Typography>
+            {[
+              { who: 'Maya Carter', m: '"Yes lock the upgrade!"', t: '2:14p' },
+              { who: 'Aisha Patel', m: '"Anything for under $3k?"', t: '11:22a' },
+              { who: 'Linda Gomez', m: '"Talk tonight at 7?"', t: 'Yest' },
+            ].map((m, i) => (
+              <Box key={i} sx={{ py: 1, borderTop: i ? 1 : 0, borderColor: 'divider' }}>
+                <Stack direction="row">
+                  <Typography variant="subtitle2" sx={{ flex: 1, fontSize: 12.5 }}>{m.who}</Typography>
+                  <Typography variant="caption" color="text.secondary">{m.t}</Typography>
+                </Stack>
+                <Typography variant="caption" sx={{ display: 'block', fontStyle: 'italic' }}>{m.m}</Typography>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // 3.2.2 — Pipeline / Funnel View
 function A322_Pipeline() {
+  const { Box, Stack, Paper, Card, CardContent, Typography, Button, Chip, Divider } = MUI;
+  const noop = () => {};
   const stages = [
     { k: 'Inquiry', tone: 'lead', count: 12, val: 24800, items: [{c:'Tasha W.',t:'Aruba honeymoon',v:3800},{c:'Eli Park',t:'Spring cruise',v:9000},{c:'Linda Gomez',t:'AI · Oct',v:5200}] },
     { k: 'Qualified', tone: 'inquiry', count: 6, val: 28600, items: [{c:'Khan family',t:'Beaches T&C',v:7200},{c:'Marin & Joe',t:'Sandals St Lucia',v:6800}] },
@@ -143,37 +174,45 @@ function A322_Pipeline() {
     { k: 'Traveling', tone: 'traveling', count: 2, val: 8900, items: [{c:'Reggie & Marc',t:'St Lucia · now',v:5800}] },
   ];
   return (
-    <ScreenFrame role="agent" tab="home" padding={20}>
-      <ScreenHeader title="Pipeline" subtitle="Drag a card to change its stage. Stage value is summed live." actions={<><span className="chip">All advisors</span><span className="chip chip-filter is-on">Gyasi</span></>} small/>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, height: 'calc(100% - 80px)', overflow: 'hidden' }}>
+    <MuiScreenFrame role="agent" tab="home" padding={20}>
+      <MuiScreenHeader title="Pipeline" subtitle="Drag a card to change its stage. Stage value is summed live."
+                       actions={<><Chip variant="outlined" label="All advisors"/><Chip color="secondary" onClick={noop} label="Gyasi"/></>} small/>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 1.25, height: 'calc(100% - 80px)', overflow: 'hidden' }}>
         {stages.map((s) => (
-          <div key={s.k} style={{ display: 'flex', flexDirection: 'column', background: 'var(--md-surface-2)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--md-outline-variant)' }}>
-              <span className={`chip-status ${s.tone}`}>{s.k}</span>
-              <div className="t-title-s" style={{ marginTop: 6, fontSize: 13 }}>{s.count} trips · <span style={{ color: 'var(--md-on-surface-variant)', fontWeight: 500 }}>${s.val.toLocaleString()}</span></div>
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Paper key={s.k} elevation={0} sx={{ display: 'flex', flexDirection: 'column', bgcolor: 'surface.2', overflow: 'hidden' }}>
+            <Box sx={{ px: 1.5, py: 1.25 }}>
+              <MuiStaStatus kind={s.tone}>{s.k}</MuiStaStatus>
+              <Typography variant="subtitle2" sx={{ mt: 0.75, fontSize: 13 }}>
+                {s.count} trips · <Typography component="span" variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500, fontSize: 13 }}>${s.val.toLocaleString()}</Typography>
+              </Typography>
+            </Box>
+            <Divider/>
+            <Stack spacing={0.75} sx={{ flex: 1, overflow: 'auto', p: 1 }}>
               {s.items.map((it, i) => (
-                <div key={i} className="card" style={{ padding: 10, cursor: 'grab' }}>
-                  <div className="t-title-s" style={{ fontSize: 12.5 }}>{it.c}</div>
-                  <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{it.t}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                    <span className="t-body-s" style={{ fontFamily: 'var(--font-mono)' }}>${it.v.toLocaleString()}</span>
-                    <span className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>·</span>
-                  </div>
-                </div>
+                <Card key={i} sx={{ cursor: 'grab' }}>
+                  <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                    <Typography variant="subtitle2" sx={{ fontSize: 12.5 }}>{it.c}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{it.t}</Typography>
+                    <Stack direction="row" sx={{ justifyContent: 'space-between', mt: 0.75 }}>
+                      <Typography variant="caption" sx={{ fontFamily: (t) => t.typography.mono }}>${it.v.toLocaleString()}</Typography>
+                      <Typography variant="caption" color="text.secondary">·</Typography>
+                    </Stack>
+                  </CardContent>
+                </Card>
               ))}
-              <button className="btn btn-text btn-sm" style={{ alignSelf: 'flex-start', padding: 0 }}>+ Add</button>
-            </div>
-          </div>
+              <Button variant="text" size="small" sx={{ alignSelf: 'flex-start' }}>+ Add</Button>
+            </Stack>
+          </Paper>
         ))}
-      </div>
-    </ScreenFrame>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // 3.2.3 — Calendar
 function A323_Calendar() {
+  const { Box, Stack, Card, CardContent, Typography, Button, IconButton, Chip } = MUI;
+  const noop = () => {};
   // Build a simple month grid for May 2026
   const days = Array.from({ length: 35 }, (_, i) => i - 3); // first row offset
   const events = {
@@ -184,42 +223,56 @@ function A323_Calendar() {
     24: { c: 'Patel family depart', t: 'travel' },
     28: { c: 'Sandals final · Hayes', t: 'due' },
   };
+  const evBg = (t) => t === 'today' ? 'primary.main' : t === 'due' ? 'error.container' : t === 'travel' ? 'tertiary.container' : 'warning.container';
+  const legend = [
+    { c: 'error.main', l: 'Payment due' },
+    { c: 'tertiary.main', l: 'Travel day' },
+    { c: 'warning.main', l: 'Proposal milestone' },
+    { c: 'primary.main', l: 'Today' },
+  ];
   return (
-    <ScreenFrame role="agent" tab="home" padding={20} scrollable>
-      <ScreenHeader title="Calendar" subtitle="Trips, payments, and availability." actions={<><span className="chip chip-filter is-on">Month</span><span className="chip">Week</span><span className="chip">Agenda</span></>} small/>
-      <div className="card" style={{ padding: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <button className="btn-icon"><Icon name="chevron_left" size={16}/></button>
-          <div className="t-title-l" style={{ margin: 0 }}>May 2026</div>
-          <button className="btn-icon"><Icon name="chevron_right" size={16}/></button>
-          <button className="btn btn-tonal btn-sm" style={{ marginLeft: 'auto' }}><Icon name="plus" size={12}/> Block availability</button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderTop: '1px solid var(--md-outline-variant)', borderLeft: '1px solid var(--md-outline-variant)' }}>
-          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
-            <div key={d} style={{ padding: 8, font: '600 11px/1 var(--font-sans)', color: 'var(--md-on-surface-variant)', borderRight: '1px solid var(--md-outline-variant)', borderBottom: '1px solid var(--md-outline-variant)', background: 'var(--md-surface-2)' }}>{d}</div>
-          ))}
-          {days.map((dayNum, i) => {
-            const inMonth = dayNum >= 1 && dayNum <= 31;
-            const ev = events[dayNum];
-            const today = dayNum === 14;
-            return (
-              <div key={i} style={{ minHeight: 88, padding: 6, borderRight: '1px solid var(--md-outline-variant)', borderBottom: '1px solid var(--md-outline-variant)', background: today ? 'var(--md-primary-container)' : 'var(--md-surface-1)', opacity: inMonth ? 1 : 0.35 }}>
-                <div style={{ font: '600 12px/1 var(--font-sans)', color: today ? 'var(--md-on-primary-container)' : 'var(--md-on-surface)' }}>{inMonth ? dayNum : ''}</div>
-                {ev && (
-                  <div style={{ marginTop: 6, padding: '3px 6px', borderRadius: 4, font: '600 10px/1.2 var(--font-sans)', background: ev.t === 'today' ? 'var(--md-primary)' : ev.t === 'due' ? 'var(--md-error-container)' : ev.t === 'travel' ? 'var(--md-tertiary-container)' : 'var(--md-warning-container)', color: ev.t === 'today' ? 'var(--md-on-primary)' : 'var(--md-on-surface)' }}>{ev.c}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 12, font: '500 12px/1 var(--font-sans)', color: 'var(--md-on-surface-variant)' }}>
-        <span><span className="dot" style={{ background: 'var(--md-error)' }}/> Payment due</span>
-        <span><span className="dot" style={{ background: 'var(--md-tertiary)' }}/> Travel day</span>
-        <span><span className="dot" style={{ background: 'var(--md-warning)' }}/> Proposal milestone</span>
-        <span><span className="dot" style={{ background: 'var(--md-primary)' }}/> Today</span>
-      </div>
-    </ScreenFrame>
+    <MuiScreenFrame role="agent" tab="home" padding={20} scrollable>
+      <MuiScreenHeader title="Calendar" subtitle="Trips, payments, and availability."
+                       actions={<><Chip color="secondary" onClick={noop} label="Month"/><Chip variant="outlined" label="Week"/><Chip variant="outlined" label="Agenda"/></>} small/>
+      <Card>
+        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.25 }}>
+            <IconButton size="small"><MuiIcon name="chevron_left" size={16}/></IconButton>
+            <Typography variant="h5">May 2026</Typography>
+            <IconButton size="small"><MuiIcon name="chevron_right" size={16}/></IconButton>
+            <Button variant="outlined" color="secondary" size="small" startIcon={<MuiIcon name="plus" size={12}/>} sx={{ ml: 'auto !important' }}>Block availability</Button>
+          </Stack>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderTop: 1, borderLeft: 1, borderColor: 'divider' }}>
+            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
+              <Typography key={d} variant="caption" color="text.secondary"
+                          sx={{ p: 1, fontWeight: 600, fontSize: 11, lineHeight: 1, borderRight: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'surface.2' }}>{d}</Typography>
+            ))}
+            {days.map((dayNum, i) => {
+              const inMonth = dayNum >= 1 && dayNum <= 31;
+              const ev = events[dayNum];
+              const today = dayNum === 14;
+              return (
+                <Box key={i} sx={{ minHeight: 88, p: 0.75, borderRight: 1, borderBottom: 1, borderColor: 'divider', bgcolor: today ? 'primary.container' : 'background.paper', opacity: inMonth ? 1 : 0.35 }}>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, fontSize: 12, lineHeight: 1, color: today ? 'primary.onContainer' : 'text.primary' }}>{inMonth ? dayNum : ''}</Typography>
+                  {ev && (
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.75, px: 0.75, py: 0.375, borderRadius: 0.5, fontWeight: 600, fontSize: 10, lineHeight: 1.2,
+                                                        bgcolor: evBg(ev.t), color: ev.t === 'today' ? 'primary.contrastText' : 'text.primary' }}>{ev.c}</Typography>
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        </CardContent>
+      </Card>
+      <Stack direction="row" spacing={1.5} sx={{ mt: 1.5 }}>
+        {legend.map((g) => (
+          <Stack key={g.l} direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: g.c }}/>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>{g.l}</Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </MuiScreenFrame>
   );
 }
 
