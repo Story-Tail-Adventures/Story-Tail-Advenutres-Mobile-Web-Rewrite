@@ -72,9 +72,9 @@ This is the architecture the BRD now commits to in Section 15.1.
 
 **Compose-for-Web — explicitly out of scope.** As of 2026, Compose Multiplatform for Web is in Beta and not at parity with Compose for Android/iOS. Even if it reaches Stable in a future release, migrating away from Next.js + React would not be a meaningful win for this project — the public SEO surface alone justifies Next.js, the React ecosystem covers everything needed, and the hiring market is far larger. We are not waiting for or planning toward a future Compose-for-Web migration.
 
-### 2.3.1 Planned styling migration: MUI (not started)
+### 2.3.1 Styling migration: MUI v9 (step 1 in progress, step 2 not started)
 
-`web/` currently styles with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi has decided the target styling system for the web app is **MUI (Material UI)**, replacing Tailwind entirely. This is a forward-looking decision only — no design or code work toward it has started as of this writing (2026-09-29).
+`web/` currently styles with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi has decided the target styling system for the web app is **MUI (Material UI) v9**, replacing Tailwind entirely. Decided 2026-09-29; step 1 (the design source) started 2026-09-30. `web/` is unchanged.
 
 This is a natural fit rather than a clash: the Design System's color tokens (§4) are already Material-3-based, so an MUI theme can consume the same token values instead of introducing a parallel design language.
 
@@ -83,7 +83,20 @@ This is a natural fit rather than a clash: the Design System's color tokens (§4
 1. **Design source first.** Update the canonical design source (the Claude Design project linked in this doc's header and CLAUDE.md, plus its local mirror `design/source-prototype/`) so screens are built with MUI components and theming. Use the existing `sync-design-handoff` skill to pull the updated screens down once the design side is done.
 2. **Then implement in `web/`.** Only after the design source reflects MUI should the codebase migration start: introduce an MUI `ThemeProvider` driven by the existing design tokens, replace Tailwind utility classes with MUI components/`sx`/styled APIs screen by screen, and remove the `tailwindcss` / `@tailwindcss/postcss` dependencies once no Tailwind classes remain.
 
-Don't start step 2 before step 1 is done — building MUI screens in code against a Tailwind-era design source just means redoing the work once the design catches up. No version of MUI is pinned here; pick the current stable release when the migration actually begins.
+Don't start step 2 before step 1 is done — building MUI screens in code against a Tailwind-era design source just means redoing the work once the design catches up.
+
+**Version: `@mui/material` 9.4.0** (v9 went stable 2026-04-07). It supports React 17–19, and `web/` is on React 19.2.4. Use the same major version in `web/` when step 2 starts.
+
+**How the design source loads MUI (step 1).** The prototype is Babel-standalone JSX loaded with plain `<script>` tags, and MUI has shipped no UMD build since v6 (React 19 has none either). So `design/mui-vendor/` is a small build-only package that bundles both with esbuild into `design/source-prototype/shared/vendor/`:
+
+- `react.js` sets `window.React` / `window.ReactDOM` (React 19.2.4, the same version as `web/`).
+- `mui/mui-core.js`, `mui-controls.js` and `mui-overlays.js` are ES-module entries that merge into `window.MUI`. They share one chunk of emotion + `@mui/system`. Two copies would mean two theme contexts and unthemed components.
+- Every output file must stay under 256 KiB, the `DesignSync get_file` cap, and `build.mjs` fails if one doesn't. Import components by deep path (`@mui/material/Button`), not from the barrel. The barrel collapses everything into one 480 KiB chunk.
+- To add a component: add it to an entry file, then `cd design/mui-vendor && npm install && npm run build`. Push the whole `shared/vendor/` folder, because chunk names are content hashes.
+
+The theme lives in `design/source-prototype/shared/mui-theme.jsx` (`StaMuiThemes`, `StaMuiScheme`). MUI versions of the app shell and shared parts live in `shared/mui-kit.jsx`. Step 2 should port that theme to `web/` rather than design a new one.
+
+**Scope of step 1:** web artboards only. Phone artboards (`screens/*-mobile.jsx`, §2.7) keep the legacy CSS-variable styling, because the Compose app implements Material 3 natively and can't use MUI.
 
 **Use the official MUI MCP server once the migration starts.** MUI publishes an MCP server ([mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) that connects an AI coding assistant directly to official Material UI docs and code examples, so answers quote real sources instead of hallucinating APIs or component names. It runs locally over stdio via `npx -y @mui/mcp@latest` and has a documented setup for Claude Code specifically (as well as VS Code, Cursor, Windsurf, JetBrains, Zed). **Not connected yet — this is a note for whoever does the migration**, not a step taken in this session. Add it to this project's MCP config when work on the `web/` implementation (step 2 above) actually begins, so the assistant doing that work has accurate MUI context.
 
