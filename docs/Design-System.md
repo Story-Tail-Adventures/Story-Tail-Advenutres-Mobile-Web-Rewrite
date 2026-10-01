@@ -268,6 +268,8 @@ These are Material-3-style names with Story-Tail's Poppins tuning. Sizes are in 
 
 ## 6. Shape Scale
 
+> **Web uses MUI defaults (decided 2026-09-30).** The scale below is the mobile (Compose) spec and the legacy prototype spec. Web artboards and `web/` take MUI v9's stock shape instead: `theme.shape.borderRadius` = 4px for buttons, inputs, cards and chips (chips stay pill-shaped by MUI default). Don't re-add these radii with `sx`. See §12.2.
+
 | Token | Value | Use |
 |---|---|---|
 | `r.xs` | 6px | Tight chip corners |
@@ -281,6 +283,8 @@ These are Material-3-style names with Story-Tail's Poppins tuning. Sizes are in 
 
 ## 7. Elevation / Shadow
 
+> **Web uses MUI defaults (decided 2026-09-30).** Web uses MUI's stock `theme.shadows` scale (`boxShadow: 1…24`, `Paper elevation`). The four tiers below map roughly to elevation 1 / 2 / 4 / 8. The tables stay the spec for mobile.
+
 M3-style elevation in 4 tiers. Light and dark each have their own shadow tunings — the dark-mode shadows are heavier because the navy background can absorb them.
 
 | Tier | Light shadow | Dark shadow |
@@ -293,6 +297,21 @@ M3-style elevation in 4 tiers. Light and dark each have their own shadow tunings
 ---
 
 ## 8. Core Component Inventory
+
+> **Web: MUI components (decided 2026-09-30).** On web, each primitive below is a stock MUI v9 component in the Story-Tail theme, not a custom class. The class names below describe the mobile spec and the legacy prototype. The mapping:
+>
+> | Legacy | MUI |
+> |---|---|
+> | `btn-filled` / `btn-tonal` / `btn-tertiary` / `btn-outlined` / `btn-text` | `Button` contained / outlined `secondary` / outlined `tertiary` / outlined / text |
+> | `btn-danger` / `btn-orange` / `btn-elevated` | `Button` contained `error` / contained `brand` / text on `background.paper` + `boxShadow: 1` |
+> | `btn-sm` / `btn-lg`, `btn-icon`, `fab` | `size="small"` / `"large"`, `IconButton`, `Fab variant="extended"` |
+> | `card` / `card-elev` / `card-flat` / `card-tonal` | `Card` / `Card elevation={2}` / `Card variant="outlined"` on `surface.2` / `Paper elevation={0}` on `surface.3` |
+> | `chip`, `chip-filter`, `chip-status` | `Chip variant="outlined"`, `Chip` (selected = `color="secondary"`), `MuiStaStatus` (colors from §4.3) |
+> | `field-label` + `input`, `<select>` | `TextField label=…`, `TextField select` |
+> | `avatar` | `Avatar` |
+> | `t-display` … `t-label-s` | `Typography` h2, h3, h4, h5, h6, subtitle1, body1, body2, caption, overline; `t-script` = custom `script` variant (Caveat) |
+>
+> Buttons are not all-caps (`typography.button.textTransform: 'none'`), because all-caps fights the warm voice in §2. That's the only component override.
 
 Every artboard in the prototype consumes these shared components. Implementations should match their visual contract before deviating.
 
@@ -340,6 +359,8 @@ FAB (Floating Action Button): 56px tall, 16px corner, `md.primaryContainer` back
 ---
 
 ## 9. App Shell Components
+
+> **Web:** the MUI versions of these live in `design/source-prototype/shared/mui-kit.jsx` (`MuiScreenFrame`, `MuiStaTopBar`, `MuiStaNavRail`, …). They have the same props and copy as the legacy shell, built from `AppBar`/`Toolbar`, `List`/`ListItemButton` and `Card`.
 
 These are not Material primitives but Story-Tail-specific layouts that appear across every authenticated screen.
 
@@ -476,7 +497,22 @@ The Next.js web app consumes the same tokens via CSS custom properties. Two star
 - **`tokens.css`** (copy of `design/source-prototype/styles/tokens.css`) — the canonical CSS variable definitions. Import once in the Next.js root layout so every component can reference `var(--md-primary)`, `var(--md-surface-1)`, etc.
 - **`design-tokens.ts`** — a TypeScript module that mirrors the same tokens as typed constants for use with CSS-in-JS or Tailwind. Use this when you want autocomplete and type checking on token names.
 
-The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **Current implementation uses Tailwind CSS v4** (see the example below), but **MUI (Material UI) is the planned target styling library** — Gyasi has decided to replace Tailwind with MUI, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. See `docs/Tech-Recommendations.md` §2.3.1 for the phased migration plan (design source updated to MUI first, then `web/` implementation) — as of this writing (2026-09-29), that migration has not started.
+The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **Current implementation uses Tailwind CSS v4** (see the example below), but **MUI (Material UI) is the planned target styling library** — Gyasi has decided to replace Tailwind with MUI, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. See `docs/Tech-Recommendations.md` §2.3.1 for the phased migration plan (design source updated to MUI first, then `web/` implementation) — step 1 of that migration (the design source) started 2026-09-30, and `web/` itself has not started.
+
+**MUI theme (the target).** The token → MUI mapping lives in `design/source-prototype/shared/mui-theme.jsx`. It builds two `createTheme` results (light, dark) with every value copied 1:1 from `tokens.css`. There are two themes rather than `colorSchemes`, because one page renders the same artboard in both schemes side by side:
+
+| MUI palette path | Token |
+|---|---|
+| `primary` / `secondary` / `error` (`.main`, `.contrastText`, `.container`, `.onContainer`) | `--md-primary`, `--md-on-primary`, `--md-primary-container`, `--md-on-primary-container`, and the same for secondary / error |
+| `tertiary` (custom), `brand` (custom, `--brand-orange`) | `--md-tertiary*`, `--brand-orange` |
+| `success`, `warning` | `--md-success*`, `--md-warning*` |
+| `background.default` / `background.paper` | `--md-bg` / `--md-surface-1` |
+| `text.primary` / `text.secondary` | `--md-on-surface` / `--md-on-surface-variant` |
+| `divider`, `outline.main` | `--md-outline-variant`, `--md-outline` |
+| `surface.main`, `surface.1`…`surface.5`, `surface.dim`, `surface.bright` | `--md-surface*` |
+| `status.<kind>.bg` / `.fg` | §4.3 |
+
+Typography uses the Poppins stack on MUI's stock variant sizes, plus a custom `script` variant (Caveat) and `theme.typography.mono` (JetBrains Mono). Shape, spacing and shadows are MUI defaults. `web/` should port this file into its `ThemeProvider` when the code migration starts.
 
 If using Tailwind (current state), extend `tailwind.config.ts` to pull from the same variables:
 
