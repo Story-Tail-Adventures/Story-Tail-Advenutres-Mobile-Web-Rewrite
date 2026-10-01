@@ -7,8 +7,8 @@
 // spacing (8px), elevation, and the stock typography ramp.
 //
 // Two separate themes (light, dark) rather than one theme with colorSchemes,
-// because `Story-Tail Designs.html` renders the same artboard in light AND
-// dark side by side on one page. The dark scheme is a full tropical rebrand
+// so any artboard can pin its own scheme (StaMuiScheme's `scheme` prop) and
+// a page can show light and dark side by side. The dark scheme is a full tropical rebrand
 // (ocean-blue primary, sunset-gold secondary, deep-navy surfaces), not an
 // inversion of light.
 //

@@ -6,7 +6,7 @@
 **Version:** 1.0 — Draft
 **Date:** May 14, 2026
 **Companion Documents:** BRD.md, Screen-Inventory.md, Data-Model.md
-**Reference Prototype:** `design/source-prototype/Story-Tail Designs.html` (in this folder)
+**Reference Prototype:** `design/source-prototype/pages/index.html` (the section hub; `Story-Tail Designs.html` now just redirects there)
 
 ---
 
