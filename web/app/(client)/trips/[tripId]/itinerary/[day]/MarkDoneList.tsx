@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 
 import { Icon } from "@/components/ui/Icon";
+import { BTN_SM } from "../../sx";
 import { ITINERARY } from "../content";
 
 /**
@@ -91,23 +94,27 @@ export function MarkDoneList({
   );
 
   return (
-    <ul className="flex flex-col gap-2.5">
+    <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1.25 }}>
       {items.map((item, index) => {
         const isDone = done.has(index);
         return (
-          <li key={index} className={isDone ? "opacity-60" : undefined}>
+          <Box component="li" key={index} sx={isDone ? { opacity: 0.6 } : undefined}>
             {item}
-            <button
-              type="button"
-              className={`btn btn-sm mt-1.5 ${isDone ? "btn-tonal" : "btn-outlined"}`}
+            {/* Outlined primary until pressed, then the tonal (outlined secondary) look —
+                the legacy .btn-outlined / .btn-tonal pair, Design-System §8. */}
+            <MuiButton
+              variant="outlined"
+              color={isDone ? "secondary" : "primary"}
+              size="small"
               onClick={() => toggle(index)}
               aria-pressed={isDone}
+              sx={{ ...BTN_SM, mt: 0.75 }}
             >
               <Icon name="check" size={13} /> {isDone ? ITINERARY.markedDone : ITINERARY.markDone}
-            </button>
-          </li>
+            </MuiButton>
+          </Box>
         );
       })}
-    </ul>
+    </Box>
   );
 }

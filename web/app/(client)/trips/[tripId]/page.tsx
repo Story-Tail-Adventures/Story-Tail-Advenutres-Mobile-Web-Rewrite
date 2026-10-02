@@ -1,19 +1,65 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
 import { EmptyState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
 import { Photo } from "@/components/public/Photo";
-import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/icon-paths";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { formatDay, formatTripDates } from "@/lib/trips/format";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
 import { formatTripMoney } from "@/lib/trips/money";
 import { loadTripDetail, type PaymentMilestoneView, type TripDetail } from "@/lib/trips/queries";
 import { TRIP_DETAIL } from "./content";
+import {
+  BACK_LINK,
+  BTN,
+  BTN_SM,
+  CARD_PAD,
+  CARD_PAD_SM,
+  HERO_SCRIM,
+  HERO_TITLE,
+  ICON_TILE,
+  OVERLINE,
+  TITLE_S,
+} from "./sx";
 
 export const metadata: Metadata = { title: "Your trip" };
+
+/** `mx-auto w-full max-w-5xl` — the overview's column, wider than the reading screens. */
+const WIDE_COL = { mx: "auto", width: "100%", maxWidth: 1024 } as const;
+
+/**
+ * The back pill over the hero photograph: brand navy at 55% behind white text, blurred. A
+ * scrim behind the label, not just white text — see TripHero.
+ */
+const BACK_PILL = {
+  ...BACK_LINK,
+  px: 1.25,
+  py: 0.5,
+  borderRadius: 999,
+  color: "common.white",
+  bgcolor: "color-mix(in srgb, var(--mui-palette-brandSource-navy) 55%, transparent)",
+  backdropFilter: "blur(4px)",
+} as const;
+
+/** A quick-access tile's clickable face: the legacy `flex items-center gap-2.5 p-3`. */
+const TILE_SX = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  gap: 1.25,
+  p: 1.5,
+} as const;
 
 /**
  * Screen 2.2.3 Trip Detail / Overview — see docs/Screen-Inventory.md §2.2.3 and §4.4
@@ -35,6 +81,10 @@ export const metadata: Metadata = { title: "Your trip" };
  *     it, not a read-only echo on a trip page.
  *   * The "Payments" tile opens §2.4.3 for this trip, which is the entry point the Screen
  *     Inventory names for that screen. It was disabled while §2.4 was unbuilt.
+ *
+ * ON MUI (migration step 2, PR 5): Server Component throughout — plain sx objects, palette
+ * paths, and `component={NextLink}` for every link. The layout (hero height, the 1fr/300px
+ * grid from `web`, the 2×2 tiles below it) is the one it had; only the visual layer moved.
  */
 export default async function TripDetailPage({
   params,
@@ -48,14 +98,14 @@ export default async function TripDetailPage({
   // see the NotFound response in contracts/openapi.yaml.
   if (!detail) {
     return (
-      <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      <Box sx={{ ...WIDE_COL, p: { xs: 2, md: 3 } }}>
         <EmptyState
           icon="warning"
           title={TRIP_DETAIL.notFoundTitle}
           body={TRIP_DETAIL.notFoundBody}
           action={{ label: TRIP_DETAIL.back, href: "/trips" }}
         />
-      </div>
+      </Box>
     );
   }
 
@@ -65,22 +115,30 @@ export default async function TripDetailPage({
   const cancelled = trip.status === "cancelled";
 
   return (
-    <div className="pb-10">
+    <Box sx={{ pb: 5 }}>
       <TripHero detail={detail} />
 
-      <div className="mx-auto grid w-full max-w-5xl gap-4 p-4 md:p-6 web:grid-cols-[1fr_300px]">
-        <div>
+      <Box
+        sx={{
+          ...WIDE_COL,
+          display: "grid",
+          gap: 2,
+          p: { xs: 2, md: 3 },
+          gridTemplateColumns: { web: "1fr 300px" },
+        }}
+      >
+        <Box>
           {cancelled ? <CancellationSummary detail={detail} /> : <QuickTiles detail={detail} />}
           <Glance detail={detail} />
           {!cancelled && <AgentNote detail={detail} />}
-        </div>
+        </Box>
 
-        <aside className="flex flex-col gap-3">
+        <Box component="aside" sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <AdvisorCard tripId={trip.id} />
           {cancelled ? <ReadyAgain /> : <PaymentTimeline milestones={detail.milestones} />}
-        </aside>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -88,39 +146,44 @@ function TripHero({ detail }: { detail: TripDetail }) {
   const { trip } = detail;
   const cancelled = trip.status === "cancelled";
   return (
-    <div className="relative h-[220px] overflow-hidden">
-      <Photo
-        image={imageKeyForTrip(trip)}
-        alt=""
-        fill
-        sizes="100vw"
-        className={`object-cover ${cancelled ? "grayscale-[0.55] brightness-[0.6]" : ""}`}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, color-mix(in srgb, var(--brand-navy) 34%, transparent) 0%, transparent 32%, color-mix(in srgb, var(--brand-navy) 78%, transparent) 100%)",
-        }}
-      />
-      <div className="absolute inset-x-0 bottom-0">
-        <div className="mx-auto flex w-full max-w-5xl items-end justify-between gap-3 p-4 text-white md:p-6">
-          <div className="min-w-0">
+    <Box
+      sx={{
+        position: "relative",
+        height: 220,
+        overflow: "hidden",
+        // 2.2.10 desaturates and dims the photograph (the artboard's C2210 filter).
+        ...(cancelled && { "& img": { filter: "grayscale(0.55) brightness(0.6)" } }),
+      }}
+    >
+      <Photo image={imageKeyForTrip(trip)} alt="" fill sizes="100vw" />
+      <Box aria-hidden="true" sx={HERO_SCRIM} />
+      <Box sx={{ position: "absolute", left: 0, right: 0, bottom: 0 }}>
+        <Box
+          sx={{
+            ...WIDE_COL,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 1.5,
+            p: { xs: 2, md: 3 },
+            color: "common.white",
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
             {/* A scrim behind the label, not just white text: the hero photograph is
                 arbitrary and half the registry is bright sand or pale rock, where white on
                 85% opacity disappears. The prototype's MTripTopBar makes the same call for
                 its over-photo controls. */}
-            <Link
-              href="/trips"
-              className="t-body-s inline-flex items-center gap-1 rounded-full bg-[rgba(13,33,55,0.55)] px-2.5 py-1 text-white backdrop-blur-sm"
-            >
+            <MuiLink component={NextLink} href="/trips" underline="hover" sx={BACK_PILL}>
               <Icon name="arrow_left" size={14} /> {TRIP_DETAIL.back}
-            </Link>
-            <div className="mt-1.5">
-              <span className={`chip-status ${trip.chip}`}>{trip.statusLabel}</span>
-            </div>
-            <h1 className="t-display-s mt-1.5 text-white">{trip.title}</h1>
-            <p className="t-body-s text-white/90">
+            </MuiLink>
+            <Box sx={{ mt: 0.75 }}>
+              <StatusChip kind={trip.chip} label={trip.statusLabel} />
+            </Box>
+            <Typography component="h1" variant="h3" sx={{ ...HERO_TITLE, mt: 0.75, color: "common.white" }}>
+              {trip.title}
+            </Typography>
+            <Typography component="p" variant="body2" sx={{ color: "common.white", opacity: 0.9 }}>
               {[
                 formatTripDates(trip.startDate, trip.endDate),
                 trip.destinations[0],
@@ -128,23 +191,26 @@ function TripHero({ detail }: { detail: TripDetail }) {
               ]
                 .filter(Boolean)
                 .join(" · ")}
-            </p>
-          </div>
+            </Typography>
+          </Box>
           {detail.itineraryReady && (
-            <Link
+            <MuiButton
+              component={NextLink}
               href={`/trips/${trip.id}/itinerary`}
-              className="btn btn-orange hidden shrink-0 md:inline-flex"
+              variant="contained"
+              color="brand"
+              sx={{ ...BTN, display: { xs: "none", md: "inline-flex" }, flexShrink: 0 }}
             >
               <Icon name="download" size={14} /> {TRIP_DETAIL.downloadPdf}
-            </Link>
+            </MuiButton>
           )}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
-/** The artboard's four quick-access tiles: 2×2 below `md:`, a row of four above. */
+/** The artboard's four quick-access tiles: 2×2 below `web`, a row of four from it. */
 function QuickTiles({ detail }: { detail: TripDetail }) {
   const { trip } = detail;
   const tiles: Array<{
@@ -192,40 +258,70 @@ function QuickTiles({ detail }: { detail: TripDetail }) {
   ];
 
   return (
-    <ul className="grid grid-cols-2 gap-2.5 web:grid-cols-4">
+    <Box
+      component="ul"
+      sx={{
+        m: 0,
+        p: 0,
+        listStyle: "none",
+        display: "grid",
+        gap: 1.25,
+        gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", web: "repeat(4, minmax(0, 1fr))" },
+      }}
+    >
       {tiles.map((tile) => {
         const body = (
           <>
-            <span
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-              style={{
-                background: `var(--md-${tile.tone}-container)`,
-                color: `var(--md-on-${tile.tone}-container)`,
-              }}
-            >
+            {/* The artboard's C22_MuiIconTile: the tone's container pair. */}
+            <Box sx={{ ...ICON_TILE, bgcolor: `${tile.tone}.container`, color: `${tile.tone}.onContainer` }}>
               <Icon name={tile.icon} size={16} />
-            </span>
-            <span className="min-w-0">
-              <span className="t-title-s block text-[13px]">{tile.label}</span>
-              <span className="t-body-s block truncate text-on-surface-variant">{tile.sub}</span>
-            </span>
+            </Box>
+            <Box component="span" sx={{ minWidth: 0 }}>
+              <Typography component="span" variant="subtitle1" sx={{ ...TITLE_S, display: "block" }}>
+                {tile.label}
+              </Typography>
+              <Typography
+                component="span"
+                variant="caption"
+                noWrap
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {tile.sub}
+              </Typography>
+            </Box>
           </>
         );
         return (
-          <li key={tile.label}>
+          <Box component="li" key={tile.label}>
             {tile.href ? (
-              <Link href={tile.href} className="card flex items-center gap-2.5 p-3">
-                {body}
-              </Link>
+              <Card>
+                <CardActionArea component={NextLink} href={tile.href} sx={TILE_SX}>
+                  {body}
+                </CardActionArea>
+              </Card>
             ) : (
-              <span className="card flex items-center gap-2.5 p-3 opacity-60" aria-disabled="true">
-                {body}
-              </span>
+              <Card aria-disabled="true" sx={{ opacity: 0.6 }}>
+                <Box sx={TILE_SX}>{body}</Box>
+              </Card>
             )}
-          </li>
+          </Box>
         );
       })}
-    </ul>
+    </Box>
+  );
+}
+
+/** Label over value — the artboard's C22_MuiKV. */
+function KeyValue({ label, value, sx }: { label: string; value: string; sx?: object }) {
+  return (
+    <Box sx={sx}>
+      <Typography component="dt" variant="overline" sx={{ ...OVERLINE, color: "text.secondary" }}>
+        {label}
+      </Typography>
+      <Typography component="dd" variant="body2" sx={{ m: 0, mt: 0.25 }}>
+        {value}
+      </Typography>
+    </Box>
   );
 }
 
@@ -245,83 +341,137 @@ function Glance({ detail }: { detail: TripDetail }) {
   ];
 
   return (
-    <Card className="mt-3 p-4">
-      <h2 className="t-title-s">{TRIP_DETAIL.glance}</h2>
-      <dl className="mt-3 grid grid-cols-2 gap-3.5 web:grid-cols-3">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt className="t-label text-on-surface-variant">{label}</dt>
-            <dd className="t-body mt-0.5">{value}</dd>
-          </div>
-        ))}
-      </dl>
+    <Card sx={{ mt: 1.5 }}>
+      <CardContent sx={CARD_PAD}>
+        <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+          {TRIP_DETAIL.glance}
+        </Typography>
+        <Box
+          component="dl"
+          sx={{
+            m: 0,
+            mt: 1.5,
+            display: "grid",
+            gap: 1.75,
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", web: "repeat(3, minmax(0, 1fr))" },
+          }}
+        >
+          {rows.map(([label, value]) => (
+            <KeyValue key={label} label={label} value={value} />
+          ))}
+        </Box>
+      </CardContent>
     </Card>
   );
 }
 
 function AgentNote({ detail }: { detail: TripDetail }) {
   return (
-    <Card className="mt-3 p-4">
-      <h2 className="t-title-s">{TRIP_DETAIL.noteHeading}</h2>
-      <p className="t-body mt-1.5 text-on-surface-variant">
-        {detail.introNote ?? TRIP_DETAIL.notePending}
-      </p>
+    <Card sx={{ mt: 1.5 }}>
+      <CardContent sx={CARD_PAD}>
+        <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+          {TRIP_DETAIL.noteHeading}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+          {detail.introNote ?? TRIP_DETAIL.notePending}
+        </Typography>
+      </CardContent>
     </Card>
   );
 }
 
 function CancellationSummary({ detail }: { detail: TripDetail }) {
   return (
-    <Card className="p-4">
-      <h2 className="t-title-s">{TRIP_DETAIL.cancelledHeading}</h2>
-      <dl className="mt-3 grid gap-3.5 md:grid-cols-2">
-        <div className="md:col-span-2">
-          <dt className="t-label text-on-surface-variant">{TRIP_DETAIL.cancelledReason}</dt>
-          <dd className="t-body mt-0.5">
-            {detail.cancellationReason ?? TRIP_DETAIL.cancelledNoReason}
-          </dd>
-        </div>
-        {detail.refundStatus && (
-          <div className="md:col-span-2">
-            <dt className="t-label text-on-surface-variant">{TRIP_DETAIL.cancelledRefund}</dt>
-            <dd className="t-body mt-0.5">{detail.refundStatus}</dd>
-          </div>
+    <Card>
+      <CardContent sx={CARD_PAD}>
+        <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+          {TRIP_DETAIL.cancelledHeading}
+        </Typography>
+        <Box
+          component="dl"
+          sx={{ m: 0, mt: 1.5, display: "grid", gap: 1.75, gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))" } }}
+        >
+          <KeyValue
+            label={TRIP_DETAIL.cancelledReason}
+            value={detail.cancellationReason ?? TRIP_DETAIL.cancelledNoReason}
+            sx={{ gridColumn: { md: "span 2" } }}
+          />
+          {detail.refundStatus && (
+            <KeyValue
+              label={TRIP_DETAIL.cancelledRefund}
+              value={detail.refundStatus}
+              sx={{ gridColumn: { md: "span 2" } }}
+            />
+          )}
+        </Box>
+        {detail.itineraryReady && (
+          <MuiButton
+            component={NextLink}
+            href={`/trips/${detail.trip.id}/itinerary`}
+            variant="outlined"
+            color="secondary"
+            sx={{ ...BTN, mt: 2 }}
+          >
+            <Icon name="passport" size={14} /> {TRIP_DETAIL.archivedItinerary}
+          </MuiButton>
         )}
-      </dl>
-      {detail.itineraryReady && (
-        <Link href={`/trips/${detail.trip.id}/itinerary`} className="btn btn-tonal mt-4">
-          <Icon name="passport" size={14} /> {TRIP_DETAIL.archivedItinerary}
-        </Link>
-      )}
+      </CardContent>
     </Card>
   );
 }
 
 function ReadyAgain() {
   return (
-    <Card className="border-0 bg-secondary-container p-4 text-on-secondary-container">
-      <h2 className="t-title-s">{TRIP_DETAIL.cancelledAgainHeading}</h2>
-      <p className="t-body-s mt-1 opacity-90">{TRIP_DETAIL.cancelledAgainBody}</p>
+    <Card sx={{ bgcolor: "secondary.container", color: "secondary.onContainer" }}>
+      <CardContent sx={CARD_PAD}>
+        <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+          {TRIP_DETAIL.cancelledAgainHeading}
+        </Typography>
+        <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.5, opacity: 0.9 }}>
+          {TRIP_DETAIL.cancelledAgainBody}
+        </Typography>
+      </CardContent>
     </Card>
   );
 }
 
 function AdvisorCard({ tripId }: { tripId: string }) {
   return (
-    <Card className="p-3.5">
-      <div className="t-label text-on-surface-variant">{TRIP_DETAIL.advisorLabel}</div>
-      <div className="mt-1.5 flex items-center gap-2.5">
-        <span className="avatar" aria-hidden="true">
-          GS
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="t-title-s">{TRIP_DETAIL.advisorName}</div>
-          <div className="t-body-s text-on-surface-variant">{TRIP_DETAIL.advisorReplyTime}</div>
-        </div>
-      </div>
-      <Link href={`/trips/${tripId}/messages`} className="btn btn-tonal btn-sm mt-2.5 w-full">
-        <Icon name="message" size={14} /> {TRIP_DETAIL.message}
-      </Link>
+    <Card>
+      <CardContent sx={CARD_PAD_SM}>
+        <Typography component="div" variant="overline" sx={{ ...OVERLINE, color: "text.secondary" }}>
+          {TRIP_DETAIL.advisorLabel}
+        </Typography>
+        <Box sx={{ mt: 0.75, display: "flex", alignItems: "center", gap: 1.25 }}>
+          {/* Initials on primary, as the top bar draws them. A photograph would be the real
+              thing, but the only asset behind the artboard's is a stock portrait. */}
+          <Avatar
+            aria-hidden="true"
+            sx={{ width: 36, height: 36, fontSize: 13, fontWeight: 600, bgcolor: "primary.main", color: "primary.contrastText" }}
+          >
+            GS
+          </Avatar>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography component="div" variant="subtitle1" sx={TITLE_S}>
+              {TRIP_DETAIL.advisorName}
+            </Typography>
+            <Typography component="div" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+              {TRIP_DETAIL.advisorReplyTime}
+            </Typography>
+          </Box>
+        </Box>
+        <MuiButton
+          component={NextLink}
+          href={`/trips/${tripId}/messages`}
+          variant="outlined"
+          color="secondary"
+          size="small"
+          fullWidth
+          sx={{ ...BTN_SM, mt: 1.25 }}
+        >
+          <Icon name="message" size={14} /> {TRIP_DETAIL.message}
+        </MuiButton>
+      </CardContent>
     </Card>
   );
 }
@@ -334,43 +484,66 @@ function AdvisorCard({ tripId }: { tripId: string }) {
 function PaymentTimeline({ milestones }: { milestones: PaymentMilestoneView[] }) {
   if (milestones.length === 0) {
     return (
-      <Card className="p-3.5">
-        <div className="t-label text-on-surface-variant">{TRIP_DETAIL.paymentTimeline}</div>
-        <p className="t-body-s mt-1.5 text-on-surface-variant">{TRIP_DETAIL.noSchedule}</p>
+      <Card>
+        <CardContent sx={CARD_PAD_SM}>
+          <Typography component="div" variant="overline" sx={{ ...OVERLINE, color: "text.secondary" }}>
+            {TRIP_DETAIL.paymentTimeline}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+            {TRIP_DETAIL.noSchedule}
+          </Typography>
+        </CardContent>
       </Card>
     );
   }
   return (
-    <Card className="p-3.5">
-      <div className="t-label text-on-surface-variant">{TRIP_DETAIL.paymentTimeline}</div>
-      <ul className="mt-2 flex flex-col gap-1.5">
-        {milestones.map((m) => {
-          const paid = m.status === "paid";
-          const waived = m.status === "waived";
-          const overdue = m.status === "overdue";
-          const dot = paid ? "var(--md-success)" : overdue ? "var(--md-error)" : "var(--md-outline)";
-          return (
-            <li
-              key={m.id}
-              className="flex items-center gap-2 text-[12.5px] font-medium leading-tight"
-              style={overdue ? { color: "var(--md-error)" } : undefined}
-            >
-              <span className="dot shrink-0" style={{ background: dot }} />
-              <span>
-                {m.label} ·{" "}
-                {waived
-                  ? TRIP_DETAIL.waived
-                  : paid
-                    ? `${TRIP_DETAIL.paid} ${formatTripMoney(m.paidCents, m.currency)}`
-                    : `${formatTripMoney(m.amountCents, m.currency)} ${
-                        overdue ? TRIP_DETAIL.overdue : TRIP_DETAIL.due
-                      }${m.dueDate ? ` ${formatDay(m.dueDate)}` : ""}`}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="t-body-s mt-2.5 text-on-surface-variant">{TRIP_DETAIL.paymentTimelineNote}</p>
+    <Card>
+      <CardContent sx={CARD_PAD_SM}>
+        <Typography component="div" variant="overline" sx={{ ...OVERLINE, color: "text.secondary" }}>
+          {TRIP_DETAIL.paymentTimeline}
+        </Typography>
+        <Box
+          component="ul"
+          sx={{ m: 0, p: 0, mt: 1, listStyle: "none", display: "flex", flexDirection: "column", gap: 0.75 }}
+        >
+          {milestones.map((m) => {
+            const paid = m.status === "paid";
+            const waived = m.status === "waived";
+            const overdue = m.status === "overdue";
+            const dot = paid ? "success.main" : overdue ? "error.main" : "outline.main";
+            return (
+              <Typography
+                component="li"
+                key={m.id}
+                variant="caption"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  fontWeight: 500,
+                  ...(overdue && { color: "error.main" }),
+                }}
+              >
+                {/* The legacy `.dot` — the artboard's C22_MuiDot. */}
+                <Box component="span" sx={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, bgcolor: dot }} />
+                <span>
+                  {m.label} ·{" "}
+                  {waived
+                    ? TRIP_DETAIL.waived
+                    : paid
+                      ? `${TRIP_DETAIL.paid} ${formatTripMoney(m.paidCents, m.currency)}`
+                      : `${formatTripMoney(m.amountCents, m.currency)} ${
+                          overdue ? TRIP_DETAIL.overdue : TRIP_DETAIL.due
+                        }${m.dueDate ? ` ${formatDay(m.dueDate)}` : ""}`}
+                </span>
+              </Typography>
+            );
+          })}
+        </Box>
+        <Typography component="p" variant="body2" sx={{ mt: 1.25, color: "text.secondary" }}>
+          {TRIP_DETAIL.paymentTimelineNote}
+        </Typography>
+      </CardContent>
     </Card>
   );
 }
