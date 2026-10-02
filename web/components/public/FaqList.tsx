@@ -1,10 +1,17 @@
+"use client";
+
+import * as React from "react";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { Icon } from "@/components/ui/Icon";
 import type { FaqItem } from "@/content/public/types";
-import { cn } from "@/lib/cn";
 
 interface FaqListProps {
   items: readonly FaqItem[];
-  /** Shared `name` makes the group an exclusive accordion in browsers that support it. */
+  /** Prefix for the summary / panel ids. (Was the shared <details name> that made the group exclusive.) */
   name?: string;
   /** Open the first item, as the artboards do. */
   defaultOpenFirst?: boolean;
@@ -14,8 +21,16 @@ interface FaqListProps {
 }
 
 /**
- * Native <details>/<summary> FAQ — no JavaScript, keyboard-operable, and the question is a
- * real heading inside the summary so the outline stays intact.
+ * FAQ on MUI's Accordion (design: the FAQ stacks on 2.0.2 and 2.0.11 — gutterless
+ * accordions, subtitle2 question, body copy answer, chevron expand icon).
+ *
+ * It is a client island because the group is EXCLUSIVE — one answer open at a time, the
+ * way the native <details name="faq"> group behaved — and that takes state. The page that
+ * renders it stays a Server Component and stays static.
+ *
+ * Each question stays a real heading: MUI puts the summary inside an <h3> (its `heading`
+ * slot, set explicitly here), so the outline is unchanged. The question text itself is a
+ * span inside that heading rather than a second heading element.
  */
 export function FaqList({
   items,
@@ -24,29 +39,39 @@ export function FaqList({
   answerSize = "s",
   className,
 }: FaqListProps) {
+  const [open, setOpen] = React.useState<number | null>(defaultOpenFirst ? 0 : null);
+
   return (
-    <div className={cn("flex flex-col gap-2 md:gap-2.5", className)}>
-      {items.map((item, index) => (
-        <details
-          key={item.q}
-          name={name}
-          open={defaultOpenFirst && index === 0}
-          className="faq card p-0"
-        >
-          <summary className="flex cursor-pointer items-center justify-between gap-3 px-3.5 py-3 md:px-4 md:py-3.5">
-            <h3 className="t-title-s text-on-surface">{item.q}</h3>
-            <Icon name="chevron_down" size={16} className="faq-chevron shrink-0 text-on-surface-variant" />
-          </summary>
-          <p
-            className={cn(
-              "px-3.5 pb-3 text-on-surface-variant md:px-4 md:pb-3.5",
-              answerSize === "m" ? "t-body" : "t-body-s",
-            )}
+    <Stack className={className} spacing={{ xs: 1, md: 1.25 }}>
+      {items.map((item, index) => {
+        const id = `${name}-${index}`;
+        return (
+          <Accordion
+            key={item.q}
+            disableGutters
+            expanded={open === index}
+            onChange={(_event, expanded) => setOpen(expanded ? index : null)}
+            slots={{ heading: "h3" }}
           >
-            {item.a}
-          </p>
-        </details>
-      ))}
-    </div>
+            <AccordionSummary
+              id={`${id}-summary`}
+              aria-controls={`${id}-panel`}
+              expandIcon={<Icon name="chevron_down" size={16} />}
+            >
+              <Typography component="span" variant="subtitle2" sx={{ color: "text.primary" }}>
+                {item.q}
+              </Typography>
+            </AccordionSummary>
+            {/* No id here: MUI puts `${id}-panel` (from the summary's aria-controls) on the region
+                that wraps this, and a second copy would duplicate it. */}
+            <AccordionDetails sx={{ pt: 0 }}>
+              <Typography component="p" variant={answerSize === "m" ? "body2" : "caption"} sx={{ display: "block", color: "text.secondary" }}>
+                {item.a}
+              </Typography>
+            </AccordionDetails>
+          </Accordion>
+        );
+      })}
+    </Stack>
   );
 }

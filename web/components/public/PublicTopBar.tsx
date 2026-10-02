@@ -5,7 +5,7 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import NextLink from "@/components/mui/NextLink";
 import { PUBLIC_NAV_LINKS } from "@/content/public/contact";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { UP_MD, UP_WEB } from "@/lib/mui/sx";
+import { MD_TO_WEB, UP_MD, UP_WEB } from "@/lib/mui/sx";
 import { cn } from "@/lib/cn";
 import { PublicAuthCluster } from "./PublicAuthCluster";
 import { PublicNav } from "./PublicNav";
@@ -13,7 +13,6 @@ import { PublicNav } from "./PublicNav";
 export type TopBarVariant = "solid" | "overlay";
 
 /** Tablet only — the old `md:max-web:` prefix. */
-const MD_TO_WEB = "@media (min-width:768px) and (max-width:1199.95px)";
 
 /**
  * The bar is a Paper with a hairline, not an elevation: `elevation={0}` plus a 1px divider,

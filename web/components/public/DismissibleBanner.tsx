@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { Icon } from "@/components/ui/Icon";
+import { TAP_TARGET } from "@/lib/mui/sx";
 
 /**
  * A tiny external store over localStorage so React reads the dismissed flag through
@@ -69,22 +70,17 @@ export function DismissibleBanner({
   return (
     <Box className={className} sx={[{ position: "relative" }, ...(Array.isArray(sx) ? sx : [sx])]}>
       {children}
-      <IconButton
-        aria-label="Dismiss"
-        onClick={() => writeDismissed(storageKey)}
-        sx={{
-          position: "absolute",
-          top: "50%",
-          right: 8,
-          transform: "translateY(-50%)",
-          width: 32,
-          height: 32,
-          color: "text.primary",
-          "@media (pointer: coarse)": { minWidth: 44, minHeight: 44 },
-        }}
-      >
-        <Icon name="close" size={16} />
-      </IconButton>
+      {/* Positioned by a wrapper: TAP_TARGET makes its element `position: relative` on touch
+          screens, which would pull an absolutely positioned button back into the flow. */}
+      <Box sx={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)" }}>
+        <IconButton
+          aria-label="Dismiss"
+          onClick={() => writeDismissed(storageKey)}
+          sx={{ width: 32, height: 32, color: "text.primary", ...TAP_TARGET }}
+        >
+          <Icon name="close" size={16} />
+        </IconButton>
+      </Box>
     </Box>
   );
 }

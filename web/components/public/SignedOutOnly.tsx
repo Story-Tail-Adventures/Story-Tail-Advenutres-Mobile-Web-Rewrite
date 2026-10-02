@@ -1,5 +1,6 @@
 "use client";
 
+import Box from "@mui/material/Box";
 import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 
 /**
@@ -14,12 +15,13 @@ import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
  * would drop a full-width band out of the page after it had been painted, reflowing
  * everything below it.
  *
- * ── IT TAKES NO className, ON PURPOSE ────────────────────────────────────────────
+ * ── IT TAKES NO className AND NO sx, ON PURPOSE ─────────────────────────────────
  *
- * Tailwind's utilities sit in a later cascade layer than styles/public.css, so a `hidden` or
- * `md:block` landing on this wrapper would beat the gate's `display: none` and the band would
- * never hide — silently, and only for signed-in visitors. Breakpoint utilities belong on the
- * child (SigninBanner passes them to DismissibleBanner).
+ * A display rule landing on this wrapper — a Tailwind `hidden` / `md:block` (utilities
+ * layer, above public.css) or a `display` in sx that something later outranks — would beat
+ * the gate's `display: none` and the band would never hide, silently, and only for
+ * signed-in visitors. Breakpoint rules belong on the child (SigninBanner passes them to
+ * DismissibleBanner). The Box here carries nothing but the gate's class and attribute.
  *
  * Separate from DismissibleBanner on purpose: that one is about a choice the visitor made,
  * this one is about who they are.
@@ -30,8 +32,8 @@ export function SignedOutOnly({ children }: { children: React.ReactNode }) {
   if (status === "in") return null;
 
   return (
-    <div className="pub-signedout-only" data-auth={status}>
+    <Box className="pub-signedout-only" data-auth={status}>
       {children}
-    </div>
+    </Box>
   );
 }

@@ -1,5 +1,9 @@
+import Box from "@mui/material/Box";
+import MuiCard from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import type { ImageKey } from "@/lib/images";
-import { cn } from "@/lib/cn";
 import { Photo } from "./Photo";
 
 interface MediaCardProps {
@@ -13,34 +17,67 @@ interface MediaCardProps {
 }
 
 /**
+ * The light tag pill over the photo. It sits on photography, so its background is the
+ * on-photo `--hero-pill-bg` (white at 92%, scheme-independent) from styles/public.css; the
+ * text is `primary.main`, as the converted C20_MuiTypeCard draws it.
+ */
+const TAG = {
+  position: "absolute",
+  bgcolor: "var(--hero-pill-bg)",
+  color: "primary.main",
+  fontWeight: 700,
+  letterSpacing: 0.5,
+} as const;
+
+/**
  * Image + light tag pill + title + body (design: the "three kinds of cruise" and
  * "three ways to honeymoon" cards on 2.0.9 / 2.0.10, and their mobile rows).
  */
 export function MediaCard({ image, tag, title, body, layout = "responsive", className }: MediaCardProps) {
   const stack = (
-    <article className={cn("card overflow-hidden", layout === "responsive" ? "hidden md:block" : "block", className)}>
-      <div className="relative h-40">
-        <Photo image={image} fill sizes="(min-width: 1200px) 400px, 50vw" alt="" className="object-cover" />
-        <span className="pill-light t-badge absolute top-2.5 left-2.5 rounded-md px-2.25 py-0.75 normal-case">{tag}</span>
-      </div>
-      <div className="p-4">
-        <h3 className="t-title-l text-on-surface">{title}</h3>
-        <p className="t-body-s mt-1 text-on-surface-variant">{body}</p>
-      </div>
-    </article>
+    <MuiCard
+      component="article"
+      className={className}
+      sx={{ display: layout === "responsive" ? { xs: "none", md: "block" } : "block", overflow: "hidden" }}
+    >
+      <Box sx={{ position: "relative", height: 160 }}>
+        <Photo image={image} fill sizes="(min-width: 1200px) 400px, 50vw" alt="" />
+        <Chip size="small" label={tag} sx={{ ...TAG, top: 10, left: 10, height: 20, fontSize: 9.5 }} />
+      </Box>
+      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+        <Typography component="h3" variant="h5" sx={{ color: "text.primary" }}>
+          {title}
+        </Typography>
+        <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.5, color: "text.secondary" }}>
+          {body}
+        </Typography>
+      </CardContent>
+    </MuiCard>
   );
 
   const row = (
-    <article className={cn("card overflow-hidden", layout === "responsive" ? "flex md:hidden" : "flex", className)}>
-      <div className="relative w-25 shrink-0">
-        <Photo image={image} fill sizes="100px" alt="" className="object-cover" />
-        <span className="pill-light t-badge-s absolute top-1.5 left-1.5 rounded px-1.5 py-0.5 normal-case">{tag}</span>
-      </div>
-      <div className="flex-1 p-3">
-        <h3 className="t-title-s text-on-surface">{title}</h3>
-        <p className="t-label-l mt-1 text-on-surface-variant">{body}</p>
-      </div>
-    </article>
+    <MuiCard
+      component="article"
+      className={className}
+      sx={{ display: layout === "responsive" ? { xs: "flex", md: "none" } : "flex", overflow: "hidden" }}
+    >
+      <Box sx={{ position: "relative", width: 100, flexShrink: 0 }}>
+        <Photo image={image} fill sizes="100px" alt="" />
+        <Chip
+          size="small"
+          label={tag}
+          sx={{ ...TAG, top: 6, left: 6, height: 18, fontSize: 8.5, letterSpacing: 0.4, "& .MuiChip-label": { px: 0.75 } }}
+        />
+      </Box>
+      <Box sx={{ flex: 1, p: 1.5 }}>
+        <Typography component="h3" variant="subtitle1" sx={{ color: "text.primary" }}>
+          {title}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 0.5, fontWeight: 500, color: "text.secondary" }}>
+          {body}
+        </Typography>
+      </Box>
+    </MuiCard>
   );
 
   if (layout === "stack") return stack;

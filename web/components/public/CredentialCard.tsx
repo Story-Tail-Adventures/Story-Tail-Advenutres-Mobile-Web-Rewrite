@@ -1,17 +1,60 @@
+import MuiAvatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiCard from "@mui/material/Card";
+import Typography from "@mui/material/Typography";
 import { Icon } from "@/components/ui/Icon";
 
-/** One credential row (design: C2011 / M2011 credentials). Values come from the claims registry. */
+/**
+ * One credential row (design: C2011 / M2011 credentials). Values come from the claims
+ * registry. From `md` the shield sits in a rounded Avatar on the secondary container and
+ * the detail line shows; below it the row is a bare 14px glyph and the title alone.
+ */
 export function CredentialCard({ title, detail }: { title: string; detail?: string }) {
   return (
-    <li className="card flex items-center gap-2.5 px-3.5 py-2.5 md:items-start md:gap-3 md:p-3.5">
-      <span className="hidden size-9 shrink-0 items-center justify-center rounded-sm bg-secondary-container text-on-secondary-container md:inline-flex">
+    <MuiCard
+      component="li"
+      sx={{
+        display: "flex",
+        alignItems: { xs: "center", md: "flex-start" },
+        gap: { xs: 1.25, md: 1.5 },
+        px: 1.75,
+        py: { xs: 1.25, md: 1.75 },
+      }}
+    >
+      <MuiAvatar
+        variant="rounded"
+        aria-hidden="true"
+        sx={{
+          display: { xs: "none", md: "flex" },
+          width: 36,
+          height: 36,
+          flexShrink: 0,
+          bgcolor: "secondary.container",
+          color: "secondary.onContainer",
+        }}
+      >
         <Icon name="shield" size={16} />
-      </span>
-      <Icon name="shield" size={14} className="shrink-0 text-secondary md:hidden" />
-      <div>
-        <p className="t-title-s text-on-surface">{title}</p>
-        {detail && <p className="t-body-s hidden text-on-surface-variant md:block">{detail}</p>}
-      </div>
-    </li>
+      </MuiAvatar>
+      <Box
+        component="span"
+        sx={{ display: { xs: "inline-flex", md: "none" }, flexShrink: 0, color: "secondary.main" }}
+      >
+        <Icon name="shield" size={14} />
+      </Box>
+      <Box>
+        <Typography component="p" variant="subtitle1" sx={{ color: "text.primary" }}>
+          {title}
+        </Typography>
+        {detail && (
+          <Typography
+            component="p"
+            variant="caption"
+            sx={{ display: { xs: "none", md: "block" }, color: "text.secondary" }}
+          >
+            {detail}
+          </Typography>
+        )}
+      </Box>
+    </MuiCard>
   );
 }
