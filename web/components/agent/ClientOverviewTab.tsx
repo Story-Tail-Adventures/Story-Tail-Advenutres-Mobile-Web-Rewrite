@@ -1,8 +1,15 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Avatar } from "@/components/public/Avatar";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientCompanion, ClientOverview } from "@/lib/agent/clientDetail";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Screens 3.3.2 and 3.3.3 — Snapshot, Preferences, the four mini-stats and the household.
@@ -18,23 +25,56 @@ import type { ClientCompanion, ClientOverview } from "@/lib/agent/clientDetail";
  * THE DIETARY NOTE SITS WITH THE CHIPS, not under them. The closed vocabulary has no slug
  * for an allergy, so a real one arrives in `dietary_notes` — "pescatarian" without
  * "shellfish is a hard no" is worse than useless to whoever books the restaurant.
+ *
+ * ON MUI (step 2 of the migration, PR 6), as the A332 artboard draws it: Cards with
+ * CardContent, caption labels over body2 values, outlined Chips for the preferences, four
+ * stat Cards in a two-up grid and the household as a list. Plain sx throughout, so this
+ * stays a Server Component.
  */
+
+/** The legacy `.btn.btn-text.btn-sm` box on an MUI Button: 32px tall, 16px sides. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** `.t-label` on MUI's caption: the field's name above its value. */
+const LABEL_SX = {
+  display: "block",
+  fontWeight: 500,
+  lineHeight: 1.3,
+  letterSpacing: "0.4px",
+  color: "text.secondary",
+} as const;
+
+/** The legacy `.card.p-4` (16px) on CardContent, with MUI's last-child rule cancelled. */
+const CARD_PAD_SX = { p: 2, "&:last-child": { pb: 2 } } as const;
+
+/** A paragraph under a hairline, the legacy `mt-3 border-t pt-2.5`. */
+const RULED_SX = { mt: 1.5, pt: 1.25, borderTop: 1, borderColor: "divider" } as const;
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="t-label text-[var(--md-on-surface-variant)]">{label}</div>
-      <div className="t-body mt-0.5">{value}</div>
+      <Typography component="div" variant="caption" sx={LABEL_SX}>
+        {label}
+      </Typography>
+      <Typography component="div" variant="body2" sx={{ mt: 0.25 }}>
+        {value}
+      </Typography>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card p-2.5">
-      <div className="t-label text-[var(--md-on-surface-variant)]">{label}</div>
-      <div className="t-title-s mt-0.5">{value}</div>
-    </div>
+    <Card>
+      <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
+        <Typography component="div" variant="caption" sx={LABEL_SX}>
+          {label}
+        </Typography>
+        <Typography component="div" variant="subtitle1" sx={{ mt: 0.25, fontWeight: 600, lineHeight: 1.3 }}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -42,9 +82,7 @@ function Chips({ items }: { items: string[] }) {
   return (
     <>
       {items.map((t) => (
-        <span key={t} className="chip">
-          {t}
-        </span>
+        <Chip key={t} variant="outlined" label={t} />
       ))}
     </>
   );
@@ -66,107 +104,131 @@ export function ClientOverviewTab({
   ];
 
   return (
-    <div className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
-      <div className="flex flex-col gap-3">
-        <section className="card p-4">
-          <div className="flex items-center">
-            <h2 className="t-title-l m-0">{CLIENT_COPY.snapshotTitle}</h2>
-            <Link
-              href={`/agent/clients/${client.clientId}/edit`}
-              className="btn btn-text btn-sm ml-auto"
+    <Box sx={{ display: "grid", gap: 1.75, gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.5fr) minmax(0, 1fr)" } }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Card component="section">
+          <CardContent sx={CARD_PAD_SX}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Typography component="h2" variant="h5" sx={{ m: 0 }}>
+                {CLIENT_COPY.snapshotTitle}
+              </Typography>
+              <MuiButton
+                component={NextLink}
+                href={`/agent/clients/${client.clientId}/edit`}
+                variant="text"
+                color="primary"
+                size="small"
+                sx={{ ...BTN_SM, ml: "auto" }}
+              >
+                Edit
+                <Box component="span" sx={VISUALLY_HIDDEN}> {client.displayName}</Box>
+              </MuiButton>
+            </Box>
+
+            <Box
+              sx={{
+                mt: 1,
+                display: "grid",
+                columnGap: 2,
+                rowGap: 1.25,
+                gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" },
+              }}
             >
-              Edit
-              <span className="sr-only"> {client.displayName}</span>
-            </Link>
-          </div>
+              <Field label={CLIENT_COPY.labelPhone} value={client.phone ?? "—"} />
+              <Field label={CLIENT_COPY.labelEmail} value={client.email ?? CLIENT_COPY.noEmail} />
+              <Field
+                label={CLIENT_COPY.labelAddress}
+                value={client.addressLine ?? CLIENT_COPY.noAddress}
+              />
+              <Field label={CLIENT_COPY.labelBirthday} value={client.dateOfBirthLabel ?? "—"} />
+              {client.importantDates.length > 0 && (
+                <Box sx={{ gridColumn: { sm: "span 2" } }}>
+                  <Typography component="div" variant="caption" sx={LABEL_SX}>
+                    {CLIENT_COPY.labelDates}
+                  </Typography>
+                  <Typography component="div" variant="body2" sx={{ mt: 0.25 }}>
+                    {client.importantDates
+                      .map((d) => (d.date ? `${d.label} · ${d.date.slice(5)}` : d.label))
+                      .join(" · ")}
+                  </Typography>
+                </Box>
+              )}
+              {client.budgetBand && (
+                <Field label={CLIENT_COPY.labelBudget} value={client.budgetBand} />
+              )}
+            </Box>
 
-          <div className="mt-2 grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
-            <Field label={CLIENT_COPY.labelPhone} value={client.phone ?? "—"} />
-            <Field label={CLIENT_COPY.labelEmail} value={client.email ?? CLIENT_COPY.noEmail} />
-            <Field
-              label={CLIENT_COPY.labelAddress}
-              value={client.addressLine ?? CLIENT_COPY.noAddress}
-            />
-            <Field label={CLIENT_COPY.labelBirthday} value={client.dateOfBirthLabel ?? "—"} />
-            {client.importantDates.length > 0 && (
-              <div className="sm:col-span-2">
-                <div className="t-label text-[var(--md-on-surface-variant)]">
-                  {CLIENT_COPY.labelDates}
-                </div>
-                <div className="t-body mt-0.5">
-                  {client.importantDates
-                    .map((d) => (d.date ? `${d.label} · ${d.date.slice(5)}` : d.label))
+            {client.snapshotNote && (
+              <Typography component="p" variant="body2" sx={{ ...RULED_SX, color: "text.secondary" }}>
+                {client.snapshotNote}
+              </Typography>
+            )}
+
+            {client.emergencyContact && (
+              <Box sx={RULED_SX}>
+                <Typography component="div" variant="caption" sx={LABEL_SX}>
+                  {CLIENT_COPY.emergencyTitle}
+                </Typography>
+                <Typography component="div" variant="body2" sx={{ mt: 0.25 }}>
+                  {[
+                    client.emergencyContact.name,
+                    client.emergencyContact.relationship,
+                    client.emergencyContact.phone,
+                  ]
+                    .filter(Boolean)
                     .join(" · ")}
-                </div>
-              </div>
+                </Typography>
+              </Box>
             )}
-            {client.budgetBand && (
-              <Field label={CLIENT_COPY.labelBudget} value={client.budgetBand} />
+          </CardContent>
+        </Card>
+
+        <Card component="section">
+          <CardContent sx={CARD_PAD_SX}>
+            <Typography component="h2" variant="h5" sx={{ m: 0, mb: 1 }}>
+              {CLIENT_COPY.preferencesTitle}
+            </Typography>
+            {prefs.length === 0 && !client.dietaryNote && !client.accessibilityNote ? (
+              <Typography component="p" variant="body2" sx={{ m: 0, color: "text.secondary" }}>
+                {CLIENT_COPY.noPreferences}
+              </Typography>
+            ) : (
+              <>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                  <Chips items={prefs} />
+                </Box>
+                {/* The half the chips cannot carry. */}
+                {(client.dietaryNote || client.accessibilityNote) && (
+                  <Box sx={{ mt: 1.25, display: "flex", flexDirection: "column", gap: 0.5 }}>
+                    {client.dietaryNote && (
+                      <Typography component="p" variant="body2" sx={{ m: 0, color: "text.secondary" }}>
+                        {client.dietaryNote}
+                      </Typography>
+                    )}
+                    {client.accessibilityNote && (
+                      <Typography component="p" variant="body2" sx={{ m: 0, color: "text.secondary" }}>
+                        {client.accessibilityNote}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+                {client.favouritePastTrips && (
+                  <Typography
+                    component="p"
+                    variant="body2"
+                    sx={{ mt: 1.25, pt: 1.25, borderTop: 1, borderColor: "divider", color: "text.secondary" }}
+                  >
+                    {client.favouritePastTrips}
+                  </Typography>
+                )}
+              </>
             )}
-          </div>
+          </CardContent>
+        </Card>
+      </Box>
 
-          {client.snapshotNote && (
-            <p className="t-body-s mt-3 border-t border-[var(--md-outline-variant)] pt-2.5 text-[var(--md-on-surface-variant)]">
-              {client.snapshotNote}
-            </p>
-          )}
-
-          {client.emergencyContact && (
-            <div className="mt-3 border-t border-[var(--md-outline-variant)] pt-2.5">
-              <div className="t-label text-[var(--md-on-surface-variant)]">
-                {CLIENT_COPY.emergencyTitle}
-              </div>
-              <div className="t-body mt-0.5">
-                {[
-                  client.emergencyContact.name,
-                  client.emergencyContact.relationship,
-                  client.emergencyContact.phone,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="card p-4">
-          <h2 className="t-title-l m-0 mb-2">{CLIENT_COPY.preferencesTitle}</h2>
-          {prefs.length === 0 && !client.dietaryNote && !client.accessibilityNote ? (
-            <p className="t-body-s m-0 text-[var(--md-on-surface-variant)]">
-              {CLIENT_COPY.noPreferences}
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                <Chips items={prefs} />
-              </div>
-              {/* The half the chips cannot carry. */}
-              {(client.dietaryNote || client.accessibilityNote) && (
-                <div className="mt-2.5 flex flex-col gap-1">
-                  {client.dietaryNote && (
-                    <p className="t-body-s m-0 text-[var(--md-on-surface-variant)]">
-                      {client.dietaryNote}
-                    </p>
-                  )}
-                  {client.accessibilityNote && (
-                    <p className="t-body-s m-0 text-[var(--md-on-surface-variant)]">
-                      {client.accessibilityNote}
-                    </p>
-                  )}
-                </div>
-              )}
-              {client.favouritePastTrips && (
-                <p className="t-body-s mt-2.5 border-t border-[var(--md-outline-variant)] pt-2.5 text-[var(--md-on-surface-variant)]">
-                  {client.favouritePastTrips}
-                </p>
-              )}
-            </>
-          )}
-        </section>
-      </div>
-
-      <aside className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-2">
+      <Box component="aside" sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <Stat
             label={CLIENT_COPY.statLifetime}
             value={client.lifetimeLabel ?? CLIENT_COPY.noLifetime}
@@ -187,43 +249,48 @@ export function ClientOverviewTab({
             label={CLIENT_COPY.statLastContact}
             value={client.lastContactLabel ?? "—"}
           />
-        </div>
+        </Box>
 
-        <section className="card p-3.5">
-          <h2 className="t-title-s m-0">{CLIENT_COPY.householdTitle}</h2>
-          {companions.length === 0 ? (
-            <p className="t-body-s mt-1.5 m-0 text-[var(--md-on-surface-variant)]">
-              {CLIENT_COPY.noHousehold}
-            </p>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-2">
-              {companions.map((c) => (
-                <li key={c.companionId} className="flex items-center gap-2.5">
-                  <Avatar initials={c.initials} size={28} />
-                  <span className="min-w-0 flex-1">
-                    <span className="t-body-s block truncate">
-                      {c.name}
-                      {c.relationship ? ` · ${c.relationship}` : ""}
-                    </span>
-                    {c.passportExpiryLabel && (
-                      <span
-                        className={
-                          c.passportExpiringSoon
-                            ? "t-body-s block text-[var(--md-warning)]"
-                            : "t-body-s block text-[var(--md-on-surface-variant)]"
-                        }
-                      >
-                        Passport {c.passportExpiryLabel}
-                        {c.passportExpiringSoon ? ` · ${CLIENT_COPY.passportExpiringSoon}` : ""}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </aside>
-    </div>
+        <Card component="section">
+          <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
+            <Typography component="h2" variant="subtitle1" sx={{ m: 0, fontWeight: 600, lineHeight: 1.3 }}>
+              {CLIENT_COPY.householdTitle}
+            </Typography>
+            {companions.length === 0 ? (
+              <Typography component="p" variant="body2" sx={{ m: 0, mt: 0.75, color: "text.secondary" }}>
+                {CLIENT_COPY.noHousehold}
+              </Typography>
+            ) : (
+              <Box
+                component="ul"
+                sx={{ m: 0, p: 0, mt: 1, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}
+              >
+                {companions.map((c) => (
+                  <Box component="li" key={c.companionId} sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                    <Avatar initials={c.initials} size={28} />
+                    <Box component="span" sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography component="span" variant="body2" noWrap sx={{ display: "block" }}>
+                        {c.name}
+                        {c.relationship ? ` · ${c.relationship}` : ""}
+                      </Typography>
+                      {c.passportExpiryLabel && (
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          sx={{ display: "block", color: c.passportExpiringSoon ? "warning.main" : "text.secondary" }}
+                        >
+                          Passport {c.passportExpiryLabel}
+                          {c.passportExpiringSoon ? ` · ${CLIENT_COPY.passportExpiringSoon}` : ""}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
+    </Box>
   );
 }

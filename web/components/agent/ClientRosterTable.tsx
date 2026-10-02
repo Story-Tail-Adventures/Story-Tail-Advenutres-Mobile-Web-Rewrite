@@ -1,7 +1,17 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
+import MuiLink from "@mui/material/Link";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
 
+import { ClientRowCheckbox, SelectAllClients } from "@/components/agent/ClientBulkTag";
+import NextLink from "@/components/mui/NextLink";
 import { Avatar } from "@/components/public/Avatar";
-import { SelectAllClients } from "@/components/agent/ClientBulkTag";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientRosterRow } from "@/lib/agent/clients";
 
@@ -31,17 +41,35 @@ import type { ClientRosterRow } from "@/lib/agent/clients";
  * the whole card, a checkbox inside an anchor is neither valid nor clickable, and tagging
  * twenty-five clients at once is not one of the "on-the-go tasks" §6.6 scopes the phone to.
  *
- * The checkboxes are plain inputs with no React state behind them — see `ClientBulkTag.tsx`
- * for why the selection lives in the browser rather than in a component.
+ * ON MUI's Table (step 2 of the migration, PR 6), drawn the way §3.4.1's `TripRosterTable`
+ * is so the two rosters read as one: stock `size="small"` cells in a Card, a
+ * `padding="checkbox"` column that holds its width before the select-all hydrates, the
+ * row's name at 600, meta in text.secondary, money in the mono face, and the artboard's
+ * 20px tag chips. `scope="col"` stays on every header cell. The phone rows are Cards that
+ * are links. Plain sx throughout, so this stays a Server Component; the checkboxes are the
+ * client islands `ClientBulkTag.tsx` exports.
  */
+
+/** A single-line cell text that clips rather than wraps, as the legacy `truncate` did. */
+const TRUNCATE = {
+  display: "block",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+} as const;
+
+/** `.chip.h-5.px-2.text-[10.5px]`: the 20px tag chip, as the A331 artboard draws it. */
+const MINI_CHIP_SX = { height: 20, fontSize: 10.5, "& .MuiChip-label": { px: 1 } } as const;
 
 function RowMeta({ row }: { row: ClientRosterRow }) {
   return (
     <>
-      <span className="t-title-s block truncate">{row.displayName}</span>
-      <span className="t-body-s block truncate text-[var(--md-on-surface-variant)]">
+      <Typography component="span" variant="body2" sx={{ ...TRUNCATE, fontWeight: 600 }}>
+        {row.displayName}
+      </Typography>
+      <Typography component="span" variant="caption" sx={{ ...TRUNCATE, color: "text.secondary" }}>
         {row.email ?? CLIENT_COPY.noEmail}
-      </span>
+      </Typography>
     </>
   );
 }
@@ -49,13 +77,11 @@ function RowMeta({ row }: { row: ClientRosterRow }) {
 function Tags({ tags }: { tags: string[] }) {
   if (tags.length === 0) return null;
   return (
-    <span className="flex flex-wrap gap-1">
+    <Box component="span" sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
       {tags.map((t) => (
-        <span key={t} className="chip h-5 px-2 text-[10.5px]">
-          {t}
-        </span>
+        <Chip key={t} size="small" variant="outlined" label={t} sx={MINI_CHIP_SX} />
       ))}
-    </span>
+    </Box>
   );
 }
 
@@ -66,19 +92,31 @@ function Tags({ tags }: { tags: string[] }) {
  */
 function Lifetime({ row }: { row: ClientRosterRow }) {
   if (!row.lifetimeLabel) {
-    return <span className="text-[var(--md-on-surface-variant)]">{CLIENT_COPY.noLifetime}</span>;
+    return (
+      <Box component="span" sx={{ color: "text.secondary" }}>
+        {CLIENT_COPY.noLifetime}
+      </Box>
+    );
   }
-  return <span className="font-mono font-bold">{row.lifetimeLabel}</span>;
+  return (
+    <Box component="span" sx={{ fontFamily: "mono", fontWeight: 700 }}>
+      {row.lifetimeLabel}
+    </Box>
+  );
 }
 
 function NextTrip({ row }: { row: ClientRosterRow }) {
   if (!row.nextTripLabel) {
-    return <span className="text-[var(--md-on-surface-variant)]">{CLIENT_COPY.noTrip}</span>;
+    return (
+      <Box component="span" sx={{ color: "text.secondary" }}>
+        {CLIENT_COPY.noTrip}
+      </Box>
+    );
   }
   return (
-    <span className={row.nextTripIsNow ? "font-semibold text-[var(--md-primary)]" : undefined}>
+    <Box component="span" sx={row.nextTripIsNow ? { fontWeight: 600, color: "primary.main" } : undefined}>
       {row.nextTripLabel}
-    </span>
+    </Box>
   );
 }
 
@@ -86,95 +124,109 @@ export function ClientRosterTable({ rows }: { rows: ClientRosterRow[] }) {
   return (
     <>
       {/* ── Phone: a list of cards (Pattern B mobile) ─────────────────────── */}
-      <ul className="flex flex-col gap-2 md:hidden">
+      <Box
+        component="ul"
+        sx={{
+          m: 0,
+          p: 0,
+          listStyle: "none",
+          display: { xs: "flex", md: "none" },
+          flexDirection: "column",
+          gap: 1,
+        }}
+      >
         {rows.map((row) => (
           <li key={row.clientId}>
-            <Link
+            <Card
+              component={NextLink}
               href={`/agent/clients/${row.clientId}`}
-              className="card flex items-center gap-3 px-3.5 py-3 hover:bg-[var(--md-surface-2)]"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                px: 1.75,
+                py: 1.5,
+                color: "inherit",
+                textDecoration: "none",
+                "&:hover": { bgcolor: "surface.2" },
+              }}
             >
-            <Avatar initials={row.initials} size={32} tone="brand" />
-            <span className="min-w-0 flex-1">
-              <RowMeta row={row} />
-              <span className="t-body-s mt-1 block truncate text-[var(--md-on-surface-variant)]">
-                {row.nextTripLabel ?? row.lastTripLabel ?? CLIENT_COPY.noTrip}
-              </span>
-            </span>
-            <span className="t-body-s shrink-0 text-right">
-              <Lifetime row={row} />
-            </span>
-            </Link>
+              <Avatar initials={row.initials} size={32} tone="brand" />
+              <Box component="span" sx={{ minWidth: 0, flex: 1 }}>
+                <RowMeta row={row} />
+                <Typography
+                  component="span"
+                  variant="caption"
+                  sx={{ ...TRUNCATE, mt: 0.5, color: "text.secondary" }}
+                >
+                  {row.nextTripLabel ?? row.lastTripLabel ?? CLIENT_COPY.noTrip}
+                </Typography>
+              </Box>
+              <Typography component="span" variant="body2" sx={{ flexShrink: 0, textAlign: "right" }}>
+                <Lifetime row={row} />
+              </Typography>
+            </Card>
           </li>
         ))}
-      </ul>
+      </Box>
 
       {/* ── Tablet and up: the data table (Pattern B web) ─────────────────── */}
-      <div className="card hidden overflow-hidden p-0 md:block">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="text-[10.5px] font-semibold uppercase tracking-[0.5px] text-[var(--md-on-surface-variant)]">
-              {/* Fixed width so the columns do not shift when the select-all appears on
-                  hydration. See SelectAllClients. */}
-              <th scope="col" className="w-10 px-3.5 py-2.5 text-left">
+      <Card sx={{ display: { xs: "none", md: "block" }, overflowX: "auto" }}>
+        <Table size="small" sx={{ width: "100%" }}>
+          <TableHead>
+            <TableRow>
+              {/* `padding="checkbox"` fixes the column's width so nothing shifts when the
+                  select-all appears on hydration. See SelectAllClients. */}
+              <TableCell scope="col" padding="checkbox">
                 <SelectAllClients />
-              </th>
-              <th scope="col" className="px-3.5 py-2.5 text-left">
-                {CLIENT_COPY.colClient}
-              </th>
-              <th scope="col" className="px-3.5 py-2.5 text-left">
-                {CLIENT_COPY.colLastTrip}
-              </th>
-              <th scope="col" className="px-3.5 py-2.5 text-left">
-                {CLIENT_COPY.colNextTrip}
-              </th>
-              <th scope="col" className="px-3.5 py-2.5 text-right">
-                {CLIENT_COPY.colLifetime}
-              </th>
-              <th scope="col" className="px-3.5 py-2.5 text-left">
-                {CLIENT_COPY.colTags}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableCell>
+              <TableCell scope="col">{CLIENT_COPY.colClient}</TableCell>
+              <TableCell scope="col">{CLIENT_COPY.colLastTrip}</TableCell>
+              <TableCell scope="col">{CLIENT_COPY.colNextTrip}</TableCell>
+              <TableCell scope="col" align="right">{CLIENT_COPY.colLifetime}</TableCell>
+              <TableCell scope="col">{CLIENT_COPY.colTags}</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {rows.map((row) => (
-              <tr key={row.clientId} className="border-t border-[var(--md-outline-variant)]">
-                <td className="px-3.5 py-2.5">
-                  <input
-                    type="checkbox"
-                    name="clientId"
+              <TableRow key={row.clientId} hover>
+                <TableCell padding="checkbox">
+                  <ClientRowCheckbox
                     value={row.clientId}
-                    aria-label={`${CLIENT_COPY.bulkSelectRow} ${row.displayName}`}
-                    className="bulk-pick size-4 cursor-pointer accent-[var(--md-primary)]"
+                    label={`${CLIENT_COPY.bulkSelectRow} ${row.displayName}`}
                   />
-                </td>
-                <td className="px-3.5 py-2.5">
-                  <span className="flex min-w-0 items-center gap-2.5">
+                </TableCell>
+                <TableCell>
+                  <Box component="span" sx={{ display: "flex", minWidth: 0, alignItems: "center", gap: 1.25 }}>
                     <Avatar initials={row.initials} size={32} tone="brand" />
-                    <Link
+                    <MuiLink
+                      component={NextLink}
                       href={`/agent/clients/${row.clientId}`}
-                      className="min-w-0 hover:underline"
+                      underline="hover"
+                      color="inherit"
+                      sx={{ display: "block", minWidth: 0 }}
                     >
                       <RowMeta row={row} />
-                    </Link>
-                  </span>
-                </td>
-                <td className="px-3.5 py-2.5 text-[12.5px] font-medium text-[var(--md-on-surface-variant)]">
+                    </MuiLink>
+                  </Box>
+                </TableCell>
+                <TableCell sx={{ fontWeight: 500, color: "text.secondary" }}>
                   {row.lastTripLabel ?? CLIENT_COPY.noTrip}
-                </td>
-                <td className="px-3.5 py-2.5 text-[12.5px] font-medium">
+                </TableCell>
+                <TableCell sx={{ fontWeight: 500 }}>
                   <NextTrip row={row} />
-                </td>
-                <td className="px-3.5 py-2.5 text-right text-[12.5px]">
+                </TableCell>
+                <TableCell align="right">
                   <Lifetime row={row} />
-                </td>
-                <td className="px-3.5 py-2.5">
+                </TableCell>
+                <TableCell>
                   <Tags tags={row.tags} />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
     </>
   );
 }
