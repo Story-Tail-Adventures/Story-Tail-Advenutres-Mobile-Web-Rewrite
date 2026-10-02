@@ -2,8 +2,10 @@
 // design/source-prototype/screens/client-public-topics.jsx (C208_Caribbean) +
 // client-public-mobile.jsx (M208_Caribbean). P2 (built ahead of phase, September 2026).
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Fragment } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import NextLink from "@/components/mui/NextLink";
 import { ClosingCta } from "@/components/public/ClosingCta";
 import { Container } from "@/components/public/Container";
 import { FeatureCard } from "@/components/public/FeatureCard";
@@ -53,6 +55,32 @@ export const metadata: Metadata = {
 };
 
 /**
+ * The legacy `.h-scroll` snap strip, in sx: bleeds into the gutters by `--gutter` (the same
+ * variable Container pads with), snaps per tile, hides its scrollbar. Here rather than on
+ * the class because `.h-scroll` sits in a cascade layer above MUI's, so an sx
+ * `display: none` at `md` could not override its `display: flex`.
+ */
+const SNAP_STRIP = {
+  display: { xs: "flex", md: "none" },
+  gap: 1,
+  overflowX: "auto",
+  scrollSnapType: "x mandatory",
+  pb: 1.25,
+  mx: "calc(-1 * var(--gutter))",
+  px: "var(--gutter)",
+  scrollbarWidth: "none",
+  "&::-webkit-scrollbar": { display: "none" },
+  "& > *": { scrollSnapAlign: "start", flexShrink: 0 },
+} as const;
+
+/** Trip grid: one column on phones, two at tablet, three on web. */
+const TRIP_GRID = {
+  display: "grid",
+  gap: { xs: 1.25, md: 1.75 },
+  gridTemplateColumns: { md: "repeat(2, 1fr)", web: "repeat(3, 1fr)" },
+} as const;
+
+/**
  * Pattern H topic page. Everything is a Server Component: the inquiry bar is display text
  * plus a link, tiles link to the detail page or the sign-up gate, and the mobile sticky bar
  * replaces the inquiry bar below `md` (Screen Inventory §4.4).
@@ -84,39 +112,45 @@ export default function CaribbeanPage() {
         action={{ label: REQUEST_QUOTE, href: quoteHref, icon: "message" }}
       />
 
-      <Container size="wide" className="pt-4.5 pb-6 md:pt-8 md:pb-14">
+      <Container size="wide" sx={{ pt: { xs: 2.25, md: 4 }, pb: { xs: 3, md: 7 } }}>
         {/* Intro band — icon-square rows on mobile (M208), bare-icon stacks from md (C208). */}
-        <div className="mb-4.5 grid gap-2.5 md:mb-9 md:grid-cols-3 md:gap-3.5">
+        <Box
+          sx={{
+            mb: { xs: 2.25, md: 4.5 },
+            display: "grid",
+            gap: { xs: 1.25, md: 1.75 },
+            gridTemplateColumns: { md: "repeat(3, 1fr)" },
+          }}
+        >
           {CARIBBEAN_INTRO.map((point) => (
             <Fragment key={point.title}>
-              <FeatureCard
-                icon={point.icon}
-                iconTone="primary"
-                iconSize={32}
-                layout="row"
-                card={false}
-                title={point.title}
-                body={point.body}
-                titleClass="t-title-s"
-                className="md:hidden"
-              />
-              <FeatureCard
-                icon={point.icon}
-                iconTone="bare"
-                layout="stack"
-                card={false}
-                title={point.title}
-                body={point.body}
-                className="max-md:hidden px-4 py-3.5"
-              />
+              <Box sx={{ display: { md: "none" } }}>
+                <FeatureCard
+                  icon={point.icon}
+                  iconTone="primary"
+                  iconSize={32}
+                  layout="row"
+                  card={false}
+                  title={point.title}
+                  body={point.body}
+                  titleClass="t-title-s"
+                />
+              </Box>
+              <Box sx={{ display: { xs: "none", md: "block" }, px: 2, py: 1.75 }}>
+                <FeatureCard
+                  icon={point.icon}
+                  iconTone="bare"
+                  layout="stack"
+                  card={false}
+                  title={point.title}
+                  body={point.body}
+                />
+              </Box>
             </Fragment>
           ))}
-        </div>
+        </Box>
 
-        {/* Islands — one row of six from web, two rows of three on tablet, a snap strip below md.
-            `md:max-web:` scopes the tablet column count to 768–1199 so it cannot outrank `web:`:
-            globals.css declares --breakpoint-web in px while md is rem, and Tailwind emits the
-            unsortable web: block before md:, so a plain `md:grid-cols-3 web:grid-cols-6` stays at 3. */}
+        {/* Islands — one row of six from web, two rows of three on tablet, a snap strip below md. */}
         <section aria-labelledby={ISLANDS_HEADING_ID}>
           <SectionLabel
             id={ISLANDS_HEADING_ID}
@@ -124,7 +158,14 @@ export default function CaribbeanPage() {
             title={CARIBBEAN_ISLANDS.title}
             sub={CARIBBEAN_ISLANDS.sub}
           />
-          <div className="mb-9 hidden gap-2.5 md:grid md:max-web:grid-cols-3 web:grid-cols-6">
+          <Box
+            sx={{
+              mb: 4.5,
+              display: { xs: "none", md: "grid" },
+              gap: 1.25,
+              gridTemplateColumns: { md: "repeat(3, 1fr)", web: "repeat(6, 1fr)" },
+            }}
+          >
             {ISLANDS.map((island) => (
               <PhotoTile
                 key={island.slug}
@@ -136,8 +177,8 @@ export default function CaribbeanPage() {
                 sizes="(min-width: 1200px) 220px, 33vw"
               />
             ))}
-          </div>
-          <div className="h-scroll mb-4.5 md:hidden">
+          </Box>
+          <Box sx={{ ...SNAP_STRIP, mb: 2.25 }}>
             {ISLANDS.map((island) => (
               <PhotoTile
                 key={island.slug}
@@ -149,7 +190,7 @@ export default function CaribbeanPage() {
                 strip
               />
             ))}
-          </div>
+          </Box>
         </section>
 
         {/* Hand-picked trips — every trip placed on this topic, in the designer's order. */}
@@ -160,16 +201,22 @@ export default function CaribbeanPage() {
             title={CARIBBEAN_TRIPS.title}
             sub={CARIBBEAN_TRIPS.sub}
           />
-          <div className="mb-3 grid gap-2.5 md:mb-6 md:max-web:grid-cols-2 md:gap-3.5 web:grid-cols-3">
+          <Box sx={{ ...TRIP_GRID, mb: { xs: 1.5, md: 3 } }}>
             {trips.map((trip) => (
               <TripTile key={trip.slug} trip={trip} topic={TOPIC} next={CARIBBEAN_PATH} />
             ))}
-          </div>
-          <div className="mb-6 flex justify-center md:mb-9">
-            <Link href={browseHref} className="btn btn-tonal w-full md:w-auto">
+          </Box>
+          <Box sx={{ mb: { xs: 3, md: 4.5 }, display: "flex", justifyContent: "center" }}>
+            <MuiButton
+              component={NextLink}
+              href={browseHref}
+              variant="outlined"
+              color="secondary"
+              sx={{ minHeight: 40, px: 3, width: { xs: "100%", md: "auto" } }}
+            >
               {caribbeanSeeAllLabel(total)}
-            </Link>
-          </div>
+            </MuiButton>
+          </Box>
         </section>
 
         <ClosingCta

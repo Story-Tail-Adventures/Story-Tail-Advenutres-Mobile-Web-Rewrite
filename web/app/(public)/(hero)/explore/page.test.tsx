@@ -9,6 +9,7 @@ import { filterTrips, resultsHref } from "@/lib/public/search";
 import { tileSearchQuery, tripCountLabel } from "./content";
 import { STACKED_SEARCH_FORM_ID } from "./SearchBar";
 import ExplorePage, { metadata } from "./page";
+import { emotionRulesFor } from "@/test/emotion-css";
 
 vi.mock("next/image", () => ({
   // eslint-disable-next-line @next/next/no-img-element
@@ -91,7 +92,11 @@ describe("2.0.3 public search landing", () => {
     expect(form).toHaveAttribute("action", "/explore/results");
     // A hidden in-card submit stays the form's default button, so Enter still submits a
     // three-input form, with or without JavaScript.
-    expect(form?.querySelector('button[type="submit"].hidden')).not.toBeNull();
+    // Hidden with sx (MUI v9 migration), so read the rule emotion generated for it.
+    const hidden = [...(form?.querySelectorAll('button[type="submit"]') ?? [])].find((b) =>
+      /display:none/.test(emotionRulesFor(b).base),
+    );
+    expect(hidden).toBeDefined();
   });
 
   it("keeps the banner link builders intact", () => {
