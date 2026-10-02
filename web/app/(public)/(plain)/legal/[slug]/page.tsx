@@ -7,8 +7,11 @@
 // notice below renders until a document's `status` flips to "reviewed".
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { Alert } from "@/components/ui/Alert";
 import { isLegalSlug, LEGAL_DOCS, LEGAL_SLUGS } from "@/content/public/legal";
+import { UP_MD } from "@/lib/mui/sx";
 import { formatLegalDate, LEGAL_PAGE, legalHref } from "./content";
 import { LegalArticle } from "./LegalArticle";
 import { LegalNav } from "./LegalNav";
@@ -36,37 +39,82 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
+/**
+ * One column below `md`; from `md` the 260px nav track beside the article, tall enough to fill
+ * the viewport under the top bar. `.legal-layout` stays on the element as the print hook —
+ * public.css collapses the grid to a single column on paper.
+ */
+const LAYOUT = {
+  flex: 1,
+  display: "grid",
+  [UP_MD]: {
+    gridTemplateColumns: "260px 1fr",
+    minHeight: "calc(100dvh - var(--public-topbar-h))",
+  },
+} as const;
+
+const OVERLINE = { display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 } as const;
+
+/** The document title's 24 / 26 / 28 ramp on MUI's h4. */
+const TITLE = { fontWeight: 700, fontSize: { xs: 24, md: 26, web: 28 } } as const;
+
 export default async function LegalPage({ params }: { params: Params }) {
   const { slug } = await params;
   if (!isLegalSlug(slug)) notFound();
   const doc = LEGAL_DOCS[slug];
 
   return (
-    <div className="legal-layout flex-1">
+    <Box className="legal-layout" sx={LAYOUT}>
       <LegalNav active={slug} />
 
-      <article className="w-full max-w-180 px-4.5 pt-1 pb-6 md:px-12 md:py-8">
-        <p className="t-label-s text-brand-orange">{LEGAL_PAGE.overline}</p>
-        <h1 className="t-headline-r my-1 text-on-surface">{doc.title}</h1>
+      <Box
+        component="article"
+        sx={{
+          width: "100%",
+          maxWidth: 720,
+          px: { xs: 2.25, md: 6 },
+          pt: { xs: 0.5, md: 4 },
+          pb: { xs: 3, md: 4 },
+        }}
+      >
+        <Typography component="p" variant="overline" sx={OVERLINE}>
+          {LEGAL_PAGE.overline}
+        </Typography>
+        <Typography component="h1" variant="h4" sx={{ ...TITLE, my: 0.5 }}>
+          {doc.title}
+        </Typography>
 
-        <div className="t-fine flex flex-wrap items-center gap-2.5 text-on-surface-variant">
+        <Typography
+          component="div"
+          variant="caption"
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 1.25,
+            fontWeight: 500,
+            color: "text.secondary",
+          }}
+        >
           <span>
             {LEGAL_PAGE.lastUpdated}{" "}
             <time dateTime={doc.lastUpdated}>{formatLegalDate(doc.lastUpdated)}</time>
           </span>
           <span aria-hidden="true">·</span>
           <PrintButton />
-        </div>
+        </Typography>
 
         {doc.status !== "reviewed" && (
-          // A static notice, not a live announcement: override Alert's role="alert".
-          <Alert tone="warning" role="note" aria-live="off" className="mt-3.5">
-            {LEGAL_PAGE.draftNotice}
-          </Alert>
+          <Box sx={{ mt: 1.75 }}>
+            {/* A static notice, not a live announcement: override Alert's role="alert". */}
+            <Alert tone="warning" role="note" aria-live="off">
+              {LEGAL_PAGE.draftNotice}
+            </Alert>
+          </Box>
         )}
 
-        <LegalArticle sections={doc.sections} className="mt-4.5" />
-      </article>
-    </div>
+        <LegalArticle sections={doc.sections} sx={{ mt: 2.25 }} />
+      </Box>
+    </Box>
   );
 }

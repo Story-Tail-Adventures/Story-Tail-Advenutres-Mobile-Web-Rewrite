@@ -2,10 +2,14 @@
 // (Pattern J, §4.4) and design/source-prototype/screens/client-public.jsx (C206_SignUpGate)
 // + client-public-mobile.jsx (M206_SignUpGate). P2.
 import type { Metadata } from "next";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import { Icon } from "@/components/ui/Icon";
 import { findTrip } from "@/content/public/trips";
 import { env } from "@/lib/env";
 import { staImg } from "@/lib/images";
+import { UP_MD } from "@/lib/mui/sx";
 import { inquiryHref } from "@/lib/public/inquiry";
 import { isJoinIntent, loginHref } from "@/lib/public/links";
 import { safeNext } from "@/lib/safe-next";
@@ -29,6 +33,52 @@ export const metadata: Metadata = {
     images: [{ url: staImg("turks", 1200, 630), width: 1200, height: 630 }],
   },
 };
+
+/**
+ * The gate's backdrop (artboard: a primary glow over the page background). The gradient is
+ * drawn from the theme's CSS variables because a gradient is not one palette colour; both
+ * switch with `.scheme-dark`. Below `md` the card is the whole screen (M206); from `md` the
+ * backdrop centres it (C206).
+ */
+const BACKDROP = {
+  display: "flex",
+  flex: 1,
+  flexDirection: "column",
+  alignItems: { md: "center" },
+  justifyContent: { md: "center" },
+  p: { md: 4 },
+  background:
+    "radial-gradient(circle at 50% 25%, rgba(var(--mui-palette-primary-mainChannel) / 0.18), transparent 60%), var(--mui-palette-background-default)",
+} as const;
+
+/**
+ * Below `md` a plain full-height column with the mobile gutters; from `md` the Pattern J card
+ * (C206: 520 wide, 28 padding, elevation 4 on surface-1).
+ */
+const GATE_CARD = {
+  display: "flex",
+  width: "100%",
+  flex: 1,
+  flexDirection: "column",
+  px: 2.25,
+  pt: 2.25,
+  pb: 2.75,
+  bgcolor: "transparent",
+  borderRadius: 0,
+  [UP_MD]: {
+    maxWidth: 520,
+    flex: "none",
+    p: 3.5,
+    bgcolor: "surface.1",
+    boxShadow: 4,
+    borderRadius: 1,
+  },
+} as const;
+
+const OVERLINE = { display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 } as const;
+
+/** The headline's 24 / 26 / 28 ramp on MUI's h4. */
+const TITLE = { fontWeight: 700, fontSize: { xs: 24, md: 26, web: 28 } } as const;
 
 /**
  * Everything in the URL is untrusted. `intent` is an allowlist, `trip` is looked up in
@@ -58,28 +108,52 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
   });
 
   return (
-    <div className="gate-backdrop flex flex-1 flex-col md:items-center md:justify-center md:p-8">
-      {/* Below `md` the gate is the whole screen (M206); from `md` it is the Pattern J
-          centred card (C206: 520 wide, 28 padding, shadow-3). `.card` is a component
-          class, so its pieces are applied as `md:` utilities here. */}
-      <div className="flex w-full flex-1 flex-col px-4.5 pt-4.5 pb-5.5 md:max-w-130 md:flex-none md:rounded-lg md:border md:border-outline-variant md:bg-surface-1 md:p-7 md:shadow-3">
-        <header>
-          <p className="t-label-s text-brand-orange">{copy.overline}</p>
-          <h1 className="t-headline-r mt-1 mb-1 text-on-surface md:mb-1.5">{copy.title}</h1>
-          <p className="t-body-s mb-3.5 text-on-surface-variant md:t-body md:mb-4">{copy.body}</p>
-        </header>
+    <Box sx={BACKDROP}>
+      <Paper elevation={0} sx={GATE_CARD}>
+        <Box component="header">
+          <Typography component="p" variant="overline" sx={OVERLINE}>
+            {copy.overline}
+          </Typography>
+          <Typography component="h1" variant="h4" sx={{ ...TITLE, mt: 0.5, mb: { xs: 0.5, md: 0.75 } }}>
+            {copy.title}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: { xs: 1.75, md: 2 }, color: "text.secondary" }}>
+            {copy.body}
+          </Typography>
+        </Box>
 
-        <ul className="mb-3.5 flex flex-col gap-1.5 md:gap-2">
+        <Box
+          component="ul"
+          sx={{
+            listStyle: "none",
+            m: 0,
+            p: 0,
+            mb: 1.75,
+            display: "flex",
+            flexDirection: "column",
+            gap: { xs: 0.75, md: 1 },
+          }}
+        >
           {JOIN_TEXT.bullets.map((bullet) => (
-            <li
+            <Typography
               key={bullet}
-              className="t-body-s flex items-center gap-2 font-medium text-on-surface md:gap-2.5"
+              component="li"
+              variant="body2"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: { xs: 1, md: 1.25 },
+                fontWeight: 500,
+                color: "text.primary",
+              }}
             >
-              <Icon name="check" size={14} strokeWidth={2.5} className="shrink-0 text-success" />
+              <Box component="span" sx={{ display: "inline-flex", flexShrink: 0, color: "success.main" }}>
+                <Icon name="check" size={14} strokeWidth={2.5} />
+              </Box>
               {bullet}
-            </li>
+            </Typography>
           ))}
-        </ul>
+        </Box>
 
         <JoinForm
           intent={intent}
@@ -90,7 +164,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
           signInHref={signInHref}
           emailHref={emailHref}
         />
-      </div>
-    </div>
+      </Paper>
+    </Box>
   );
 }
