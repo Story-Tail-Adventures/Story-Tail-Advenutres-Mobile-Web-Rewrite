@@ -133,6 +133,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # web/ and the design prototype (design/mui-vendor/) install MUI separately, and
+      # Dependabot only watches web/. Cheap, needs no npm, so it runs first.
+      - name: MUI versions match the design prototype
+        run: python3 .github/scripts/check_mui_lockstep.py
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
