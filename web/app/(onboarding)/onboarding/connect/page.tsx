@@ -12,6 +12,7 @@
 // code as the fallback. The prototype instead promises "we'll find them automatically by
 // email", which is a promise about something that has already either happened or not.
 import type { Metadata } from "next";
+import Box from "@mui/material/Box";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
 import { Alert } from "@/components/ui/Alert";
 import { env } from "@/lib/env";
@@ -45,8 +46,8 @@ export default async function ConnectPage() {
       title={CONNECT_TEXT.title}
       sub={CONNECT_TEXT.sub}
     >
-      <div className="flex flex-col gap-5">
-        <div className="md:max-w-160">
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+        <Box sx={{ maxWidth: { md: 640 } }}>
           {/* `status`, not the Alert default of `alert`. This is page content that is there
               on arrival, not something that just happened — and with a real refusal
               rendering a few lines below it, two assertive regions would compete to be the
@@ -68,18 +69,18 @@ export default async function ConnectPage() {
                 {email && (
                   <>
                     {" "}
-                    <span className="text-on-surface-variant">
+                    <Box component="span" sx={{ color: "text.secondary" }}>
                       {CONNECT_TEXT.matchedFooter(email)}
-                    </span>
+                    </Box>
                   </>
                 )}
               </>
             )}
           </Alert>
-        </div>
+        </Box>
 
         <ConnectForm />
-      </div>
+      </Box>
     </OnboardingShell>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { OnboardingActions } from "@/components/onboarding/OnboardingActions";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -56,6 +58,19 @@ const STEP_INDEX = wizardStepIndex("preferences");
 const FORM_ID = "preferences-form";
 /** Two rows to start, so the repeater reads as a list rather than a single box. */
 const INITIAL_LOYALTY_ROWS = 2;
+
+/** A fieldset that is a group and nothing else: no box, no inset, and free to shrink. */
+const FIELDSET_RESET = { m: 0, p: 0, border: 0, minWidth: 0 } as const;
+/** Two-up from `md`, one column below it (12px between cells, as before). */
+const GRID_2 = {
+  display: "grid",
+  gap: 1.5,
+  gridTemplateColumns: { md: "repeat(2, 1fr)" },
+} as const;
+/** The free-text boxes: a 384px column from `md`, full width below it. */
+const NARROW = { mt: 1.5, maxWidth: { md: 384 } } as const;
+/** The notes and favourites boxes: a 640px column from `md`. */
+const WIDE = { maxWidth: { md: 640 } } as const;
 
 interface LoyaltyRowState {
   key: number;
@@ -130,9 +145,10 @@ export function PreferencesForm({
   return (
     <>
       <form id={FORM_ID} action={formAction} noValidate>
-        <fieldset
+        <Box
+          component="fieldset"
           disabled={saving}
-          className="m-0 flex flex-col gap-6 border-0 p-0"
+          sx={{ ...FIELDSET_RESET, display: "flex", flexDirection: "column", gap: 3 }}
         >
           {state.formError && <Alert tone="error">{state.formError}</Alert>}
 
@@ -158,7 +174,7 @@ export function PreferencesForm({
                 ),
               )}
             </ChipGroup>
-            <div className="mt-3 md:max-w-96">
+            <Box sx={NARROW}>
               <Field
                 id="destinationOther"
                 name="destinationOther"
@@ -171,7 +187,7 @@ export function PreferencesForm({
                   first("destinations") ? "destinations-error" : undefined
                 }
               />
-            </div>
+            </Box>
           </Group>
 
           <Group
@@ -230,10 +246,10 @@ export function PreferencesForm({
             error={first("loyalty")}
             errorId="loyalty-error"
           >
-            <div className="flex flex-col gap-3">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               {loyaltyRows.map((row, index) => (
-                <div key={row.key} className="flex items-end gap-2">
-                  <div className="grid flex-1 gap-3 md:grid-cols-2">
+                <Box key={row.key} sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
+                  <Box sx={{ ...GRID_2, flex: 1 }}>
                     <Field
                       id={`loyaltyProgram-${row.key}`}
                       name="loyaltyProgram"
@@ -258,7 +274,7 @@ export function PreferencesForm({
                         first("loyalty") ? "loyalty-error" : undefined
                       }
                     />
-                  </div>
+                  </Box>
                   {loyaltyRows.length > 1 && (
                     <Button
                       type="button"
@@ -274,10 +290,10 @@ export function PreferencesForm({
                       {PREFERENCES_TEXT.loyaltyRemove}
                     </Button>
                   )}
-                </div>
+                </Box>
               ))}
               {loyaltyRows.length < PREFERENCE_LIMITS.loyaltyRows && (
-                <div>
+                <Box>
                   <Button
                     type="button"
                     variant="text"
@@ -295,9 +311,9 @@ export function PreferencesForm({
                   >
                     {PREFERENCES_TEXT.loyaltyAdd}
                   </Button>
-                </div>
+                </Box>
               )}
-            </div>
+            </Box>
           </Group>
 
           <Group
@@ -329,7 +345,7 @@ export function PreferencesForm({
             </ChipGroup>
           </Group>
 
-          <div className="md:max-w-160">
+          <Box sx={WIDE}>
             <TextareaField
               id="favoritePastTrips"
               name="favoritePastTrips"
@@ -339,8 +355,8 @@ export function PreferencesForm({
               defaultValue={shown.favoritePastTrips}
               error={first("favoritePastTrips")}
             />
-          </div>
-        </fieldset>
+          </Box>
+        </Box>
       </form>
 
       {footer ?? (
@@ -419,7 +435,7 @@ function SentinelGroup({
           />
         ))}
       </ChipGroup>
-      <div className="mt-3 md:max-w-160">
+      <Box sx={{ ...NARROW, ...WIDE }}>
         <Field
           id={notesId}
           name={notesId}
@@ -436,7 +452,7 @@ function SentinelGroup({
           // having to be told about it.
           disabled={selected.includes(NONE)}
         />
-      </div>
+      </Box>
     </Group>
   );
 }
@@ -462,17 +478,31 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="m-0 border-0 p-0">
-      <legend className="t-title-s mb-1 p-0 text-on-surface">{legend}</legend>
+    <Box component="fieldset" sx={FIELDSET_RESET}>
+      <Typography
+        component="legend"
+        variant="subtitle1"
+        sx={{ mb: 0.5, p: 0, color: "text.primary" }}
+      >
+        {legend}
+      </Typography>
       {hint && (
-        <p className="t-body-s mt-0 mb-3 text-on-surface-variant">{hint}</p>
+        <Typography component="p" variant="body2" sx={{ mt: 0, mb: 1.5, color: "text.secondary" }}>
+          {hint}
+        </Typography>
       )}
       {error && (
-        <p id={errorId} role="alert" className="t-body-s mt-0 mb-3 text-error">
+        <Typography
+          component="p"
+          id={errorId}
+          role="alert"
+          variant="body2"
+          sx={{ mt: 0, mb: 1.5, color: "error.main" }}
+        >
           {error}
-        </p>
+        </Typography>
       )}
       {children}
-    </fieldset>
+    </Box>
   );
 }

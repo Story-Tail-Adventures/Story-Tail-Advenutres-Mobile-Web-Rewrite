@@ -1,7 +1,11 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import Stepper from "@mui/material/Stepper";
+import Typography from "@mui/material/Typography";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { Icon } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
+import NextLink from "@/components/mui/NextLink";
 import {
   WIZARD_RAIL_HEADING,
   WIZARD_STEPS,
@@ -19,6 +23,11 @@ import {
  * instead. Both are rendered and CSS picks; they read the same [WIZARD_STEPS] list, so a
  * step added to one is added to the other.
  *
+ * ON MUI (step 2 of the migration). The rail is MUI's vertical Stepper, as the converted
+ * artboard draws it; the layout (280px grid column from `md`, the same paddings, the same
+ * mobile/desktop split) is the one this shell already had. Server Component: every prop is
+ * a plain sx object, a string, or the `NextLink` client reference.
+ *
  * The actions are NOT here. They belong inside the `<form>` that owns them — see
  * [OnboardingActions] — and a shell that rendered them would put the buttons outside it.
  */
@@ -31,6 +40,27 @@ export interface OnboardingShellProps {
   children: React.ReactNode;
 }
 
+/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
+const VISUALLY_HIDDEN = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  p: 0,
+  m: "-1px",
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;
+
+/** The brand-orange step overline, as every §2.1 artboard draws it. */
+const OVERLINE_SX = {
+  display: "block",
+  color: "brand.main",
+  fontWeight: 600,
+  lineHeight: 1.3,
+} as const;
+
 export function OnboardingShell({
   stepIndex,
   title,
@@ -38,105 +68,142 @@ export function OnboardingShell({
   children,
 }: OnboardingShellProps) {
   return (
-    <div className="flex min-h-dvh flex-1 flex-col md:grid md:grid-cols-[280px_1fr]">
+    <Box
+      sx={{
+        display: { xs: "flex", md: "grid" },
+        minHeight: "100dvh",
+        flex: 1,
+        flexDirection: "column",
+        gridTemplateColumns: { md: "280px 1fr" },
+      }}
+    >
       <StepRail stepIndex={stepIndex} />
 
-      <main className="flex flex-1 flex-col px-5 pt-5 pb-2 md:px-12 md:py-9">
+      <Box
+        component="main"
+        sx={{
+          display: "flex",
+          flex: 1,
+          flexDirection: "column",
+          px: { xs: 2.5, md: 6 },
+          pt: { xs: 2.5, md: 4.5 },
+          pb: { xs: 1, md: 4.5 },
+        }}
+      >
         {/* The rail carries the wordmark on desktop; on mobile it has to sit inline. */}
-        <div className="mb-4.5 md:hidden">
+        <Box sx={{ mb: 2.25, display: { xs: "block", md: "none" } }}>
           <BrandMark size={80} />
-        </div>
+        </Box>
 
         <StepPill stepIndex={stepIndex} />
 
-        <p className="t-label-s hidden text-brand-orange md:block">
+        <Typography
+          component="p"
+          variant="overline"
+          sx={{ ...OVERLINE_SX, display: { xs: "none", md: "block" } }}
+        >
           {stepOverline(stepIndex)}
-        </p>
-        <h1 className="t-headline mt-1 mb-1 text-on-surface">{title}</h1>
+        </Typography>
+        <Typography
+          component="h1"
+          variant="h4"
+          sx={{ my: 0.5, fontWeight: 700, color: "text.primary" }}
+        >
+          {title}
+        </Typography>
         {sub && (
-          <p className="t-body-s mt-0 mb-4 text-on-surface-variant md:t-body-l md:mb-5">
+          <Typography
+            component="p"
+            variant="body1"
+            sx={{
+              mt: 0,
+              mb: { xs: 2, md: 2.5 },
+              color: "text.secondary",
+              // body-s below md, body-l from it — the ramp the shell already had.
+              fontSize: { xs: 13, md: 16 },
+              lineHeight: { xs: 1.45, md: 1.5 },
+            }}
+          >
             {sub}
-          </p>
+          </Typography>
         )}
 
         {children}
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
 /** The desktop rail: every step named, with the ones behind you ticked off. */
 function StepRail({ stepIndex }: { stepIndex: number }) {
   return (
-    <aside className="hidden border-r border-outline-variant bg-surface-1 px-6 py-8 md:block">
-      <div className="mb-5">
+    <Box
+      component="aside"
+      sx={{
+        display: { xs: "none", md: "block" },
+        borderRight: 1,
+        borderColor: "divider",
+        bgcolor: "surface.1",
+        px: 3,
+        py: 4,
+      }}
+    >
+      <Box sx={{ mb: 2.5 }}>
         <BrandMark size={80} />
-      </div>
-      <p className="t-label mb-3.5 text-on-surface-variant">
+      </Box>
+      <Typography
+        component="p"
+        variant="overline"
+        sx={{ display: "block", mb: 1.75, lineHeight: 1.3, color: "text.secondary" }}
+      >
         {WIZARD_RAIL_HEADING}
-      </p>
+      </Typography>
 
-      <ol className="m-0 list-none p-0">
+      {/* A linear Stepper: `activeStep` marks everything before it completed and everything
+          after it disabled, which is exactly the done / current / upcoming split. The list
+          semantics stay — an <ol> of <li>, as before. */}
+      <Stepper
+        component="ol"
+        orientation="vertical"
+        activeStep={stepIndex}
+        sx={{ m: 0, p: 0, listStyle: "none" }}
+      >
         {WIZARD_STEPS.map((step, index) => {
           const done = index < stepIndex;
           const current = index === stepIndex;
-          const marker = (
-            <>
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "t-label-s inline-flex size-5.5 shrink-0 items-center justify-center",
-                  "rounded-full tracking-normal text-white",
-                  done ? "bg-success" : current ? "bg-primary" : "bg-surface-3",
-                )}
-              >
-                {done ? (
-                  <Icon name="check" size={12} strokeWidth={2.5} />
-                ) : (
-                  index + 1
-                )}
-              </span>
-              <span
-                className={cn(
-                  "t-body-s",
-                  current
-                    ? "font-semibold text-on-surface"
-                    : "font-medium text-on-surface-variant",
-                )}
-              >
-                {step.railLabel}
-              </span>
-            </>
-          );
-
           return (
-            <li key={step.route}>
+            <Step key={step.route} component="li">
               {done ? (
                 // Pattern G (§4.3): "user can jump back to completed steps". The prototype
                 // draws these as inert divs, which leaves somebody who mistyped their phone
-                // number on the previous step with no way back to it.
-                <Link
+                // number on the previous step with no way back to it. A plain link around the
+                // label, NOT StepButton: a StepButton child switches MUI's Stepper into
+                // tab-list mode (role="tablist", role="tab", tabindex -1), which would turn
+                // this ordered list of links into tabs with no panels.
+                <MuiLink
+                  component={NextLink}
                   href={step.route}
-                  className="flex items-center gap-2.5 rounded-sm py-2 hover:underline"
+                  color="inherit"
+                  underline="hover"
+                  sx={{ display: "block" }}
                 >
-                  {marker}
-                  <span className="sr-only">
-                    — completed, go back to this step
-                  </span>
-                </Link>
+                  <StepLabel>
+                    {step.railLabel}
+                    <Box component="span" sx={VISUALLY_HIDDEN}>
+                      — completed, go back to this step
+                    </Box>
+                  </StepLabel>
+                </MuiLink>
               ) : (
-                <div
-                  className="flex items-center gap-2.5 py-2"
-                  aria-current={current ? "step" : undefined}
-                >
-                  {marker}
-                </div>
+                <StepLabel aria-current={current ? "step" : undefined}>
+                  {step.railLabel}
+                </StepLabel>
               )}
-            </li>
+            </Step>
           );
         })}
-      </ol>
-    </aside>
+      </Stepper>
+    </Box>
   );
 }
 
@@ -144,28 +211,32 @@ function StepRail({ stepIndex }: { stepIndex: number }) {
 function StepPill({ stepIndex }: { stepIndex: number }) {
   const step = WIZARD_STEPS[stepIndex];
   return (
-    <div className="mb-4 md:hidden">
-      <p className="t-label-s text-brand-orange">
+    <Box sx={{ mb: 2, display: { xs: "block", md: "none" } }}>
+      <Typography component="p" variant="overline" sx={OVERLINE_SX}>
         {stepOverline(stepIndex)} · {step.pillLabel.toUpperCase()}
-      </p>
-      <div aria-hidden="true" className="mt-2 flex gap-1">
+      </Typography>
+      <Box aria-hidden="true" sx={{ mt: 1, display: "flex", gap: 0.5 }}>
         {WIZARD_STEPS.map((bar, index) => (
-          <span
+          <Box
             key={bar.route}
-            className={cn(
-              "h-1 flex-1 rounded-xs",
-              index < stepIndex
-                ? "bg-success"
-                : index === stepIndex
-                  ? "bg-primary"
-                  : "bg-surface-3",
-            )}
+            component="span"
+            sx={{
+              height: 4,
+              flex: 1,
+              borderRadius: "2px",
+              bgcolor:
+                index < stepIndex
+                  ? "success.main"
+                  : index === stepIndex
+                    ? "primary.main"
+                    : "surface.3",
+            }}
           />
         ))}
-      </div>
-      <p className="sr-only">
+      </Box>
+      <Typography component="p" sx={VISUALLY_HIDDEN}>
         Step {stepIndex + 1} of {WIZARD_TOTAL}
-      </p>
-    </div>
+      </Typography>
+    </Box>
   );
 }

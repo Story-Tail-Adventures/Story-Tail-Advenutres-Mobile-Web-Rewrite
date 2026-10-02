@@ -10,7 +10,12 @@
 // what was saved — every step was skippable, and the traveler most likely to reach this
 // screen having skipped things is exactly the one a fixed "all done!" would mislead.
 import type { Metadata } from "next";
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { TRIPS } from "@/content/public/trips";
 import { env } from "@/lib/env";
@@ -32,6 +37,21 @@ const TRIP_DATE = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
+/**
+ * The greeting's type ramp: `.t-headline` (28/700) below md, `.t-display-s` (36/700) from
+ * it — the same ramp 2.1.9 keeps for its hero, so the wizard's two bookends match. The
+ * artboard draws a stock h3.
+ */
+const TITLE_SX = {
+  mt: 0.5,
+  mb: 0.75,
+  color: "text.primary",
+  fontWeight: 700,
+  fontSize: { xs: 28, md: 36 },
+  lineHeight: { xs: 1.15, md: 1.1 },
+  letterSpacing: { xs: "-0.4px", md: "-0.6px" },
+} as const;
+
 export default async function CompletePage() {
   const summary = await currentSummary();
   const checklist = completionChecklist(summary);
@@ -43,60 +63,111 @@ export default async function CompletePage() {
     // `OnboardingShell` is deliberately not used here for that reason — this is the only
     // step that does not, and Back is not offered because the way back is the checklist's
     // own "add it any time" and the dashboard behind it.
-    <main className="flex min-h-dvh flex-1 items-center justify-center px-5 py-8 md:p-8">
-      <div className="w-full max-w-160">
-        <div
+    <Box
+      component="main"
+      sx={{
+        display: "flex",
+        minHeight: "100dvh",
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        px: { xs: 2.5, md: 4 },
+        py: 4,
+      }}
+    >
+      <Box sx={{ width: "100%", maxWidth: 640 }}>
+        {/* The success badge, as C2114 draws it: a 96px Avatar on the success container. */}
+        <Avatar
           aria-hidden="true"
-          className="mb-4 inline-flex size-24 items-center justify-center rounded-full bg-success-container text-success shadow-lg"
+          sx={{
+            width: 96,
+            height: 96,
+            mb: 2,
+            bgcolor: "success.container",
+            color: "success.main",
+            boxShadow: 2,
+          }}
         >
           <Icon name="check" size={48} strokeWidth={2.5} />
-        </div>
+        </Avatar>
 
-        <p className="t-label-s text-brand-orange">{COMPLETE_TEXT.overline}</p>
-        <h1 className="t-headline mt-1 mb-1.5 text-on-surface md:t-display-s">
+        <Typography
+          component="p"
+          variant="overline"
+          sx={{ display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 }}
+        >
+          {COMPLETE_TEXT.overline}
+        </Typography>
+        <Typography component="h1" variant="h3" sx={TITLE_SX}>
           {summary.firstName
             ? COMPLETE_TEXT.title(summary.firstName)
             : COMPLETE_TEXT.titleNoName}
-        </h1>
-        <p className="t-body m-0 text-on-surface-variant md:t-body-l">
+        </Typography>
+        <Typography
+          component="p"
+          variant="body1"
+          sx={{ m: 0, color: "text.secondary", fontSize: { xs: 14, md: 16 } }}
+        >
           {completionSubtitle(summary)}
-        </p>
+        </Typography>
 
-        <div className="mt-6 flex flex-col gap-6">
+        <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 3 }}>
           <section>
-            <h2 className="t-title-s mb-2 text-on-surface">
+            <Typography component="h2" variant="subtitle1" sx={{ mb: 1, color: "text.primary" }}>
               {COMPLETE_TEXT.checklistHeading}
-            </h2>
-            <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+            </Typography>
+            <Box
+              component="ul"
+              sx={{ m: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 0.75 }}
+            >
               {checklist.map((line) => (
-                <li key={line.label} className="flex items-center gap-2.5">
-                  <span
+                <Box
+                  component="li"
+                  key={line.label}
+                  sx={{ display: "flex", alignItems: "center", gap: 1.25 }}
+                >
+                  <Avatar
                     aria-hidden="true"
-                    className={
-                      line.done
-                        ? "inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-white"
-                        : "inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-on-surface-variant"
-                    }
+                    sx={{
+                      width: 20,
+                      height: 20,
+                      flexShrink: 0,
+                      bgcolor: line.done ? "success.main" : "surface.3",
+                      color: line.done ? "common.white" : "text.secondary",
+                    }}
                   >
                     <Icon
                       name={line.done ? "check" : "clock"}
                       size={11}
                       strokeWidth={2.5}
                     />
-                  </span>
+                  </Avatar>
                   {/* The done/not-done state is in the icon, which is decoration — so it is
                     also in the text, or a screen reader hears four identical-looking
                     items. The skipped labels say "skipped" in words. */}
-                  <span className="t-body-s text-on-surface-variant">
+                  <Typography component="span" variant="body2" sx={{ color: "text.secondary" }}>
                     {line.label}
-                  </span>
-                </li>
+                  </Typography>
+                </Box>
               ))}
-            </ul>
+            </Box>
           </section>
 
-          <ul className="grid list-none gap-3 p-0 md:grid-cols-3">
+          <Box
+            component="ul"
+            sx={{
+              display: "grid",
+              gap: 1.5,
+              gridTemplateColumns: { md: "repeat(3, 1fr)" },
+              listStyle: "none",
+              m: 0,
+              p: 0,
+            }}
+          >
+            {/* The first card is the highlighted one, as C2114 draws it: the next thing to
+                do, on the primary container. */}
             <NextAction
+              highlight
               href={summary.trip ? "/dashboard" : "/explore"}
               icon="plane"
               title={
@@ -128,14 +199,17 @@ export default async function CompletePage() {
                 external
               />
             )}
-          </ul>
+          </Box>
 
           <CompleteActions />
-        </div>
-      </div>
-    </main>
+        </Box>
+      </Box>
+    </Box>
   );
 }
+
+/** The clickable face of a next-step card: CardActionArea's own hover and focus ring. */
+const ACTION_SX = { height: "100%", p: 1.75 } as const;
 
 function NextAction({
   href,
@@ -143,6 +217,7 @@ function NextAction({
   title,
   sub,
   external = false,
+  highlight = false,
 }: {
   href: string;
   icon: "plane" | "search" | "message";
@@ -150,35 +225,48 @@ function NextAction({
   sub: string;
   /** A mailto is not a route; next/link would try to prefetch it. */
   external?: boolean;
+  /** Drawn on the primary container rather than outlined (design: C2114's first card). */
+  highlight?: boolean;
 }) {
   const body = (
     <>
-      <Icon name={icon} size={20} className="text-primary" />
-      <span className="t-title-s mt-2 block text-on-surface">{title}</span>
-      <span className="t-body-s mt-0.5 block text-on-surface-variant">
+      <Box sx={{ display: "inline-flex", color: highlight ? "inherit" : "primary.main" }}>
+        <Icon name={icon} size={20} />
+      </Box>
+      <Typography component="span" variant="subtitle1" sx={{ display: "block", mt: 1, color: "inherit" }}>
+        {title}
+      </Typography>
+      <Typography component="span" variant="caption" sx={{ display: "block", color: "inherit", opacity: 0.8 }}>
         {sub}
-      </span>
+      </Typography>
     </>
   );
-  const className =
-    "card-flat block h-full rounded-lg border border-outline-variant px-4 py-3.5 " +
-    // A focus ring in the same token the buttons and inputs use — the browser default
-    // shows something, but not the same something as the rest of the design system.
-    "hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 " +
-    "focus-visible:outline-primary";
 
   return (
-    <li>
-      {external ? (
-        <a href={href} className={className}>
-          {body}
-        </a>
-      ) : (
-        <Link href={href} className={className}>
-          {body}
-        </Link>
-      )}
-    </li>
+    <Box component="li" sx={{ minWidth: 0 }}>
+      <Card
+        variant={highlight ? "elevation" : "outlined"}
+        elevation={0}
+        sx={{
+          height: "100%",
+          bgcolor: highlight ? "primary.container" : "background.paper",
+          color: highlight ? "primary.onContainer" : "text.primary",
+        }}
+      >
+        {/* A ButtonBase over the link, so the card gets MUI's hover wash and the theme's
+            focus ring — the same ring the buttons and inputs draw. Server Component: the
+            internal link is the `NextLink` client reference, the mailto a plain <a>. */}
+        {external ? (
+          <CardActionArea component="a" href={href} sx={ACTION_SX}>
+            {body}
+          </CardActionArea>
+        ) : (
+          <CardActionArea component={NextLink} href={href} sx={ACTION_SX}>
+            {body}
+          </CardActionArea>
+        )}
+      </Card>
+    </Box>
   );
 }
 
