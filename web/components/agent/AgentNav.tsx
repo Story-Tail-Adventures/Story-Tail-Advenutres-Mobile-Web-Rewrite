@@ -16,6 +16,7 @@ import {
   isBuilt,
   type AgentDestination,
 } from "@/lib/agent/nav";
+import { VISUALLY_HIDDEN as VISUALLY_HIDDEN_SX } from "@/lib/mui/sx";
 
 /**
  * The agent app's navigation, in its two forms.
@@ -252,16 +253,3 @@ const LABEL_SX: SxProps<Theme> = {
 };
 const LABEL_ACTIVE_SX: SxProps<Theme> = { ...(LABEL_SX as object), color: "text.primary" };
 
-// Off-screen but read aloud: the same box MUI's visuallyHidden draws. Not a name — it is
-// text inside a span, so it is announced as content rather than used to label a control.
-const VISUALLY_HIDDEN_SX: SxProps<Theme> = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-};
