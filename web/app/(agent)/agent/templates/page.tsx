@@ -1,8 +1,11 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
 import { TemplateGrid } from "@/components/agent/TemplateGrid";
 import { EmptyState } from "@/components/client/states";
 import { RetryState } from "@/components/client/RetryState";
+import NextLink from "@/components/mui/NextLink";
 import { TEMPLATE_COPY } from "@/lib/agent/content";
 import { loadTemplates } from "@/lib/agent/templates";
 
@@ -24,6 +27,9 @@ import { loadTemplates } from "@/lib/agent/templates";
 
 export const metadata = { title: "Trip templates" };
 
+/** The legacy .btn-sm box (32px, 16px sides, 8px gap) on MUI's Button, so nothing reflows. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
 export default async function AgentTemplatesPage() {
   const library = await loadTemplates();
 
@@ -35,29 +41,47 @@ export default async function AgentTemplatesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-16">
-      <header className="mt-5 flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="t-headline text-[22px] leading-tight">{TEMPLATE_COPY.title}</h1>
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
+    <Box sx={{ mx: "auto", width: "100%", maxWidth: 1024, px: 2, pb: 8 }}>
+      <Box
+        component="header"
+        sx={{
+          mt: 2.5,
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 1.5,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+            {TEMPLATE_COPY.title}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
             {TEMPLATE_COPY.sub}
-          </p>
-        </div>
-        <Link href="/agent/trips" className="btn btn-outlined btn-sm">
+          </Typography>
+        </Box>
+        <MuiButton
+          component={NextLink}
+          href="/agent/trips"
+          variant="outlined"
+          size="small"
+          sx={BTN_SM}
+        >
           {/* Back to where templates are made and used. The prototype's "New template" CTA
               is NOT here: a template is saved FROM a trip, so the button belongs on the
               trip, and one here would open a form with nothing to snapshot. */}
           All trips
-        </Link>
-      </header>
+        </MuiButton>
+      </Box>
 
       {library.rows.length === 0 ? (
-        <div className="mt-6">
+        <Box sx={{ mt: 3 }}>
           <EmptyState title={TEMPLATE_COPY.emptyTitle} body={TEMPLATE_COPY.emptyBody} />
-        </div>
+        </Box>
       ) : (
         <TemplateGrid rows={library.rows} />
       )}
-    </div>
+    </Box>
   );
 }

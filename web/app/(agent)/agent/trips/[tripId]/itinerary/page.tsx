@@ -1,4 +1,10 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
 import { ItineraryDayList } from "@/components/agent/ItineraryDayList";
 import {
@@ -8,6 +14,7 @@ import {
 } from "@/components/agent/ItineraryForms";
 import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
 import { ITINERARY_COPY } from "@/lib/agent/content";
 import {
   emptyActivity,
@@ -41,6 +48,21 @@ import {
  */
 
 export const metadata = { title: "Itinerary" };
+
+/** The legacy .btn-sm box (32px, 16px sides, 8px gap) on MUI's Button, so nothing reflows. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The legacy `.kbd` tag (11px mono on surface-3, 4px corners) on MUI's Chip. */
+const KBD_CHIP = {
+  height: 20,
+  borderRadius: 1,
+  fontFamily: "mono",
+  fontSize: 11,
+  fontWeight: 500,
+  bgcolor: "surface.3",
+  color: "text.secondary",
+  "& .MuiChip-label": { px: 0.75 },
+} as const;
 
 function activityValues(a: TripItineraryActivity, dayId: string): ActivityValues {
   return {
@@ -144,51 +166,85 @@ export default async function TripItineraryPage({
   const activityCount = days.reduce((n, d) => n + d.activities.length, 0);
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8">
-      <header className="card mt-5 p-4">
-        <p className="t-body-s text-[var(--md-on-surface-variant)]">
-          <Link href={`/agent/trips/${tripId}`} className="hover:underline">
-            {ITINERARY_COPY.backToTrip}
-          </Link>{" "}
-          · {overview.clientName}
-        </p>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="t-headline text-[22px] leading-tight">{overview.title}</h1>
-          {/* Published or draft, never blank — an advisor must know whether the client can
-              already see what they are editing. `publishedLabel` is computed by the loader
-              for exactly this. */}
-          <span className="kbd">{itinerary.publishedLabel}</span>
-        </div>
-        <p className="t-body-s mt-0.5 text-[var(--md-on-surface-variant)]">
-          {days.length} {days.length === 1 ? ITINERARY_COPY.dayCountOne : ITINERARY_COPY.dayCount}
-          {" · "}
-          {activityCount}{" "}
-          {activityCount === 1 ? ITINERARY_COPY.activityCountOne : ITINERARY_COPY.activityCount}
-        </p>
+    <Box sx={{ mx: "auto", width: "100%", maxWidth: 1280, px: { xs: 2, md: 4 }, py: 3 }}>
+      <Card component="header" sx={{ mt: 2.5 }}>
+        <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+          <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+            <MuiLink
+              component={NextLink}
+              href={`/agent/trips/${tripId}`}
+              underline="hover"
+              color="inherit"
+            >
+              {ITINERARY_COPY.backToTrip}
+            </MuiLink>{" "}
+            · {overview.clientName}
+          </Typography>
+          <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+            <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+              {overview.title}
+            </Typography>
+            {/* Published or draft, never blank — an advisor must know whether the client can
+                already see what they are editing. `publishedLabel` is computed by the loader
+                for exactly this. */}
+            <Chip size="small" variant="outlined" label={itinerary.publishedLabel} sx={KBD_CHIP} />
+          </Box>
+          <Typography
+            component="p"
+            variant="caption"
+            sx={{ display: "block", mt: 0.25, color: "text.secondary" }}
+          >
+            {days.length} {days.length === 1 ? ITINERARY_COPY.dayCountOne : ITINERARY_COPY.dayCount}
+            {" · "}
+            {activityCount}{" "}
+            {activityCount === 1 ? ITINERARY_COPY.activityCountOne : ITINERARY_COPY.activityCount}
+          </Typography>
 
-        <div className="mt-3">
-          <GenerateItineraryButton tripId={tripId} />
-        </div>
-      </header>
+          <Box sx={{ mt: 1.5 }}>
+            <GenerateItineraryButton tripId={tripId} />
+          </Box>
+        </CardContent>
+      </Card>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
-        <section>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="t-title-s">{ITINERARY_COPY.title}</h2>
-            <Link
+      <Box
+        sx={{
+          mt: 2,
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", xl: "minmax(0, 1fr) 380px" },
+        }}
+      >
+        <Box component="section">
+          <Box
+            sx={{
+              mb: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {ITINERARY_COPY.title}
+            </Typography>
+            <MuiButton
+              component={NextLink}
               href={`/agent/trips/${tripId}/itinerary?addDay=1`}
-              className="btn btn-tonal btn-sm"
+              variant="outlined"
+              color="secondary"
+              size="small"
+              sx={BTN_SM}
             >
               {ITINERARY_COPY.addDay}
-            </Link>
-          </div>
+            </MuiButton>
+          </Box>
           <ItineraryDayList
             tripId={tripId}
             days={days}
             editingActivityId={openActivity?.values.activityId || null}
             editingDayId={openDay?.dayId || null}
           />
-        </section>
+        </Box>
 
         {/* The rail exists only when a form is open. An empty 380px column beside the days
             is a panel the advisor has to learn to ignore. */}
@@ -208,7 +264,7 @@ export default async function TripItineraryPage({
         {openDay && (
           <DayForm key={openDay.dayId || "new-day"} tripId={tripId} initial={openDay} />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

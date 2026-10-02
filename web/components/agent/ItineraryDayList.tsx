@@ -1,12 +1,22 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
 import {
   deleteActivityAction,
   moveActivityAction,
 } from "@/app/(agent)/agent/trips/[tripId]/itinerary/actions";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { ITINERARY_COPY } from "@/lib/agent/content";
 import type { TripItineraryDay } from "@/lib/agent/tripDetail";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * §3.4.14's day-by-day canvas — the grouping §3.4.4 deliberately does not have.
@@ -21,8 +31,27 @@ import type { TripItineraryDay } from "@/lib/agent/tripDetail";
  * so the accessible path would be these buttons anyway — and they work with JavaScript off,
  * on the screen where an advisor does the most typing. Same call the builder made.
  *
- * A SERVER COMPONENT: three plain forms and two links, none of which needs state.
+ * A SERVER COMPONENT: three plain forms and two links, none of which needs state. On MUI
+ * (step 2 of the migration): a Card per day, the artboard's outlined row card per entry,
+ * its tertiary-container "Gyasi's Tip" callout, and the links as MUI Buttons over
+ * `NextLink`.
  */
+
+/** The legacy .btn-sm box (32px, 16px sides, 8px gap) on MUI's Button, so nothing reflows. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The legacy `.kbd` tag (11px mono on surface-3, 4px corners) on MUI's Chip. */
+const KBD_CHIP = {
+  height: 20,
+  borderRadius: 1,
+  fontFamily: "mono",
+  fontSize: 11,
+  fontWeight: 500,
+  bgcolor: "surface.3",
+  color: "text.secondary",
+  "& .MuiChip-label": { px: 0.75 },
+} as const;
+
 export function ItineraryDayList({
   tripId,
   days,
@@ -36,146 +65,237 @@ export function ItineraryDayList({
 }) {
   if (days.length === 0) {
     return (
-      <div className="card px-4 py-8 text-center">
-        <p className="t-title-s">{ITINERARY_COPY.emptyTitle}</p>
-        <p className="t-body-s mx-auto mt-1 max-w-[46ch] text-[var(--md-on-surface-variant)]">
-          {ITINERARY_COPY.emptyBody}
-        </p>
-      </div>
+      <Card sx={{ textAlign: "center" }}>
+        <CardContent sx={{ px: 2, py: 4, "&:last-child": { pb: 4 } }}>
+          <Typography component="p" variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {ITINERARY_COPY.emptyTitle}
+          </Typography>
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{ mx: "auto", mt: 0.5, maxWidth: "46ch", color: "text.secondary" }}
+          >
+            {ITINERARY_COPY.emptyBody}
+          </Typography>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <Stack spacing={1.5}>
       {days.map((day) => (
-        <section
+        <Card
+          component="section"
           key={day.dayId}
-          className={`card p-3.5 ${
-            day.dayId === editingDayId
-              ? "border-[var(--md-primary)] bg-[var(--md-primary-container)]"
-              : ""
-          }`}
+          // The open day is marked in place, not only by the URL. An inset outline rather
+          // than a border, so the card keeps its box whether or not it is the one open.
+          sx={{
+            ...(day.dayId === editingDayId && {
+              bgcolor: "primary.container",
+              outline: "1px solid",
+              outlineColor: "primary.main",
+              outlineOffset: "-1px",
+            }),
+          }}
         >
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            {/* The script face on the day number, which is how the prototype draws it and
-                the one place Caveat earns its place on an agent screen. */}
-            <p className="t-script text-[26px] leading-none text-[var(--brand-burgundy)]">
-              Day {day.dayNumber}
-            </p>
-            {day.dateLabel && (
-              <p className="t-body-s text-[var(--md-on-surface-variant)]">{day.dateLabel}</p>
-            )}
-            {day.label && <p className="t-title-s">{day.label}</p>}
-            <div className="ml-auto flex items-center gap-1">
-              <Link
-                href={`/agent/trips/${tripId}/itinerary?day=${day.dayId}`}
-                className="btn btn-text btn-sm"
+          <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "baseline",
+                columnGap: 1.5,
+                rowGap: 0.5,
+              }}
+            >
+              {/* The script face on the day number, which is how the prototype draws it and
+                  the one place Caveat earns its place on an agent screen. */}
+              <Typography
+                component="p"
+                variant="script"
+                sx={{ fontSize: 26, lineHeight: 1, color: "primary.main" }}
               >
-                {ITINERARY_COPY.edit}
-                <span className="sr-only"> Day {day.dayNumber}</span>
-              </Link>
-              <Link
-                href={`/agent/trips/${tripId}/itinerary?addTo=${day.dayId}`}
-                className="btn btn-tonal btn-sm"
-              >
-                {ITINERARY_COPY.addToDay}
-                <span className="sr-only"> — Day {day.dayNumber}</span>
-              </Link>
-            </div>
-          </div>
-
-          {day.summary && (
-            <p className="t-body-s mt-1.5 text-[var(--md-on-surface-variant)]">{day.summary}</p>
-          )}
-
-          {day.activities.length === 0 ? (
-            <p className="t-body-s mt-2.5 text-[var(--md-on-surface-variant)]">
-              {ITINERARY_COPY.dayEmpty}
-            </p>
-          ) : (
-            <ol className="mt-2.5 flex list-none flex-col gap-1.5 p-0">
-              {day.activities.map((a, i) => (
-                <li
-                  key={a.activityId}
-                  className={`flex flex-wrap items-start gap-x-2.5 gap-y-1.5 rounded-xl border px-3 py-2 ${
-                    a.activityId === editingActivityId
-                      ? "border-[var(--md-primary)] bg-[var(--md-surface-2)]"
-                      : "border-[var(--md-outline-variant)]"
-                  }`}
-                  aria-current={a.activityId === editingActivityId ? "true" : undefined}
+                Day {day.dayNumber}
+              </Typography>
+              {day.dateLabel && (
+                <Typography component="p" variant="caption" sx={{ color: "text.secondary" }}>
+                  {day.dateLabel}
+                </Typography>
+              )}
+              {day.label && (
+                <Typography component="p" variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {day.label}
+                </Typography>
+              )}
+              <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 0.5 }}>
+                <MuiButton
+                  component={NextLink}
+                  href={`/agent/trips/${tripId}/itinerary?day=${day.dayId}`}
+                  variant="text"
+                  size="small"
+                  sx={BTN_SM}
                 >
-                  <div className="flex flex-col">
-                    <MoveButton
-                      tripId={tripId}
-                      dayId={day.dayId}
-                      activityId={a.activityId}
-                      direction="up"
-                      label={ITINERARY_COPY.moveUp}
-                      title={a.title}
-                      disabled={i === 0}
-                    />
-                    <MoveButton
-                      tripId={tripId}
-                      dayId={day.dayId}
-                      activityId={a.activityId}
-                      direction="down"
-                      label={ITINERARY_COPY.moveDown}
-                      title={a.title}
-                      disabled={i === day.activities.length - 1}
-                    />
-                  </div>
+                  {ITINERARY_COPY.edit}
+                  <Box component="span" sx={VISUALLY_HIDDEN}> Day {day.dayNumber}</Box>
+                </MuiButton>
+                <MuiButton
+                  component={NextLink}
+                  href={`/agent/trips/${tripId}/itinerary?addTo=${day.dayId}`}
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  sx={BTN_SM}
+                >
+                  {ITINERARY_COPY.addToDay}
+                  <Box component="span" sx={VISUALLY_HIDDEN}> — Day {day.dayNumber}</Box>
+                </MuiButton>
+              </Box>
+            </Box>
 
-                  <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-                    <p className="t-title-s text-[13px]">{a.title}</p>
-                    <p className="t-body-s text-[var(--md-on-surface-variant)]">
-                      {[a.timeLabel, a.block, a.location].filter(Boolean).join(" · ") || "—"}
-                    </p>
-                    {a.body && <p className="t-body-s mt-1">{a.body}</p>}
-                    {a.gyasisTip && (
-                      /* The named callout, styled as one. Design-System §2 makes
-                         "Gyasi's Tip" a thing rather than a generic note. */
-                      <p className="t-body-s mt-1.5 rounded-lg bg-[var(--md-tertiary-container)] px-2.5 py-1.5 text-[var(--md-on-tertiary-container)]">
-                        <span className="t-label-s">{ITINERARY_COPY.tipLabel}</span>{" "}
-                        {a.gyasisTip}
-                      </p>
-                    )}
-                  </div>
+            {day.summary && (
+              <Typography component="p" variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+                {day.summary}
+              </Typography>
+            )}
 
-                  <div className="ml-auto flex items-center gap-1.5">
-                    {a.componentId && (
-                      <span className="kbd" title={ITINERARY_COPY.fromBookingHint}>
-                        {ITINERARY_COPY.fromBooking}
-                      </span>
-                    )}
-                    <Link
-                      href={`/agent/trips/${tripId}/itinerary?activity=${a.activityId}`}
-                      className="btn btn-text btn-sm"
+            {day.activities.length === 0 ? (
+              <Typography component="p" variant="body2" sx={{ mt: 1.25, color: "text.secondary" }}>
+                {ITINERARY_COPY.dayEmpty}
+              </Typography>
+            ) : (
+              <Stack component="ol" spacing={0.75} sx={{ listStyle: "none", m: 0, p: 0, mt: 1.25 }}>
+                {day.activities.map((a, i) => (
+                  <Card
+                    component="li"
+                    variant="outlined"
+                    key={a.activityId}
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "flex-start",
+                      columnGap: 1.25,
+                      rowGap: 0.75,
+                      px: 1.5,
+                      py: 1,
+                      ...(a.activityId === editingActivityId && {
+                        borderColor: "primary.main",
+                        bgcolor: "surface.2",
+                      }),
+                    }}
+                    aria-current={a.activityId === editingActivityId ? "true" : undefined}
+                  >
+                    <Box sx={{ display: "flex", flexDirection: "column" }}>
+                      <MoveButton
+                        tripId={tripId}
+                        dayId={day.dayId}
+                        activityId={a.activityId}
+                        direction="up"
+                        label={ITINERARY_COPY.moveUp}
+                        title={a.title}
+                        disabled={i === 0}
+                      />
+                      <MoveButton
+                        tripId={tripId}
+                        dayId={day.dayId}
+                        activityId={a.activityId}
+                        direction="down"
+                        label={ITINERARY_COPY.moveDown}
+                        title={a.title}
+                        disabled={i === day.activities.length - 1}
+                      />
+                    </Box>
+
+                    <Box
+                      sx={{
+                        minWidth: 0,
+                        flexGrow: 1,
+                        flexShrink: 1,
+                        flexBasis: { xs: "100%", sm: "auto" },
+                      }}
                     >
-                      {ITINERARY_COPY.edit}
-                      <span className="sr-only"> {a.title}</span>
-                    </Link>
-                    <form action={deleteActivityAction}>
-                      <input type="hidden" name="tripId" value={tripId} />
-                      <input type="hidden" name="activityId" value={a.activityId} />
-                      <button
-                        type="submit"
-                        className="btn-icon size-7"
-                        title={ITINERARY_COPY.removeHint}
+                      <Typography component="p" variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        {a.title}
+                      </Typography>
+                      <Typography
+                        component="p"
+                        variant="caption"
+                        sx={{ display: "block", color: "text.secondary" }}
                       >
-                        <Icon name="trash" size={13} />
-                        <span className="sr-only">
-                          {ITINERARY_COPY.remove} {a.title} — {ITINERARY_COPY.removeHint}
-                        </span>
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+                        {[a.timeLabel, a.block, a.location].filter(Boolean).join(" · ") || "—"}
+                      </Typography>
+                      {a.body && (
+                        <Typography component="p" variant="body2" sx={{ mt: 0.5 }}>
+                          {a.body}
+                        </Typography>
+                      )}
+                      {a.gyasisTip && (
+                        /* The named callout, styled as one. Design-System §2 makes
+                           "Gyasi's Tip" a thing rather than a generic note. */
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            mt: 0.75,
+                            px: 1.25,
+                            py: 0.75,
+                            bgcolor: "tertiary.container",
+                            color: "tertiary.onContainer",
+                          }}
+                        >
+                          <Typography component="p" variant="body2">
+                            <Typography component="span" variant="overline" sx={{ lineHeight: 1.3 }}>
+                              {ITINERARY_COPY.tipLabel}
+                            </Typography>{" "}
+                            {a.gyasisTip}
+                          </Typography>
+                        </Paper>
+                      )}
+                    </Box>
+
+                    <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 0.75 }}>
+                      {a.componentId && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={ITINERARY_COPY.fromBooking}
+                          title={ITINERARY_COPY.fromBookingHint}
+                          sx={KBD_CHIP}
+                        />
+                      )}
+                      <MuiButton
+                        component={NextLink}
+                        href={`/agent/trips/${tripId}/itinerary?activity=${a.activityId}`}
+                        variant="text"
+                        size="small"
+                        sx={BTN_SM}
+                      >
+                        {ITINERARY_COPY.edit}
+                        <Box component="span" sx={VISUALLY_HIDDEN}> {a.title}</Box>
+                      </MuiButton>
+                      <form action={deleteActivityAction}>
+                        <input type="hidden" name="tripId" value={tripId} />
+                        <input type="hidden" name="activityId" value={a.activityId} />
+                        <IconButton
+                          type="submit"
+                          size="small"
+                          title={ITINERARY_COPY.removeHint}
+                          sx={{ width: 28, height: 28, p: 0 }}
+                        >
+                          <Icon name="trash" size={13} />
+                          <Box component="span" sx={VISUALLY_HIDDEN}>
+                            {ITINERARY_COPY.remove} {a.title} — {ITINERARY_COPY.removeHint}
+                          </Box>
+                        </IconButton>
+                      </form>
+                    </Box>
+                  </Card>
+                ))}
+              </Stack>
+            )}
+          </CardContent>
+        </Card>
       ))}
-    </div>
+    </Stack>
   );
 }
 
@@ -202,17 +322,18 @@ function MoveButton({
       <input type="hidden" name="dayId" value={dayId} />
       <input type="hidden" name="activityId" value={activityId} />
       <input type="hidden" name="direction" value={direction} />
-      <button
+      <IconButton
         type="submit"
+        size="small"
         disabled={disabled}
-        className="btn-icon size-5 disabled:opacity-25"
         title={label}
+        sx={{ width: 20, height: 20, p: 0, "&.Mui-disabled": { opacity: 0.25 } }}
       >
         <Icon name={direction === "up" ? "chevron_up" : "chevron_down"} size={11} />
-        <span className="sr-only">
+        <Box component="span" sx={VISUALLY_HIDDEN}>
           {label} — {title}
-        </span>
-      </button>
+        </Box>
+      </IconButton>
     </form>
   );
 }
