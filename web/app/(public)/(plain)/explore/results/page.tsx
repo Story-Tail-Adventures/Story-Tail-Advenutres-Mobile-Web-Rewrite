@@ -5,14 +5,21 @@
 // The URL is the only state: `parseSearchParams` reads it, `searchTrips` filters the curated
 // catalog in memory, and every control (search pill, rail, chips, sort) is a GET form or a link
 // back to this route. Phase 2 swaps `TRIPS` for the travel-API search without touching the page.
+//
+// MUI (step 3 of the Tailwind → MUI migration): same structure, breakpoints and sizes; only the
+// visual layer moved. The page stays a Server Component — the sheet and the sort menu are the
+// client islands, and both take plain data.
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { StickyCta } from "@/components/public/StickyCta";
 import { tripRating } from "@/content/public/proof";
 import { TRIPS } from "@/content/public/trips";
-import { cn } from "@/lib/cn";
 import { staImg } from "@/lib/images";
+import { TAP_TARGET, UP_MD, UP_WEB } from "@/lib/mui/sx";
 import { joinHref } from "@/lib/public/links";
 import {
   describeQuery,
@@ -30,10 +37,11 @@ import { ModeSwitch } from "./ModeSwitch";
 import { SearchUpdateBar } from "./SearchUpdateBar";
 import { EmptyResults } from "./EmptyResults";
 import { FilterRail } from "./FilterRail";
-import { FILTER_SHEET_ANCHOR, FilterSheet } from "./FilterSheet";
+import { FilterSheet } from "./FilterSheet";
 import { activeFilterCount, chipHref, chipIsOn, chipsFor } from "./filters";
 import { ResultCard } from "./ResultCard";
 import { SortMenu } from "./SortControl";
+import { FILTER_SHEET_ANCHOR, RAIL_FRAME_SX, RESULT_LIST_SX, RESULTS_COLUMN_SX } from "./sx";
 
 const SEARCH_ENTRY = "/explore";
 
@@ -58,6 +66,28 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * The quick-filter strip. This is the legacy `.h-scroll` written out in sx rather than kept as
+ * a class: `.h-scroll` sets `display: flex` from `@layer components`, which beats MUI's layer,
+ * so the `web:hidden` it needs here could not be expressed in sx beside it. It still bleeds
+ * out of the column by the gutter and snaps, exactly as before.
+ */
+const CHIP_STRIP_SX = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  overflowX: "auto",
+  scrollSnapType: "x mandatory",
+  pt: 1.25,
+  pb: 1.5,
+  mx: "calc(-1 * var(--gutter))",
+  px: "var(--gutter)",
+  scrollbarWidth: "none",
+  "&::-webkit-scrollbar": { display: "none" },
+  "& > *": { scrollSnapAlign: "start", flexShrink: 0 },
+  [UP_WEB]: { display: "none" },
+} as const;
+
 export default async function ResultsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const q = parseSearchParams(await searchParams);
   const mode = effectiveMode(q);
@@ -68,26 +98,41 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
   return (
     <>
       {/* Header band: compact inquiry pill (md+) / summary pill + quick-filter chips (below web). */}
-      <div className="border-b border-outline-variant bg-surface-1 pt-2 md:py-3.5">
-        <div className="pub-container web:px-8">
+      <Box
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+          pt: 1,
+          [UP_MD]: { py: 1.75 },
+        }}
+      >
+        <Box sx={RESULTS_COLUMN_SX}>
           {/* A real form, not a read-only pill with a link to a blank one — see the
               component. Editing happens here because this route is already dynamic. */}
           <SearchUpdateBar q={q} />
-          <div className="pt-2.5">
+          <Box sx={{ pt: 1.25 }}>
             <ModeSwitch q={q} />
-          </div>
-          <nav aria-label={RESULTS.chips.label} className="h-scroll items-center pt-2.5 pb-3 web:hidden">
+          </Box>
+          <Box component="nav" aria-label={RESULTS.chips.label} sx={CHIP_STRIP_SX}>
             {chipsFor(mode).map((chip) => {
               const on = chipIsOn(q, chip);
               return (
-                <Link
+                // `is-on` stays as a plain state marker (the page test reads it); the look is
+                // the Chip's own filled/outlined pair, as the converted search screens draw a
+                // chosen filter.
+                <Chip
                   key={chip.id}
+                  component={NextLink}
                   href={chipHref(q, chip)}
+                  clickable
+                  label={chip.label}
+                  variant={on ? "filled" : "outlined"}
+                  color={on ? "secondary" : "default"}
                   aria-current={on ? "true" : undefined}
-                  className={cn("chip chip-filter tap-44 h-8 px-3 text-on-surface", on && "is-on")}
-                >
-                  {chip.label}
-                </Link>
+                  className={on ? "is-on" : undefined}
+                  sx={TAP_TARGET}
+                />
               );
             })}
             <FilterSheet
@@ -97,24 +142,54 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
             >
               <FilterRail q={q} idPrefix="sheet" overline={false} />
             </FilterSheet>
-          </nav>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Body: filter rail (web) | results. */}
-      <div className="pub-container web:px-8 flex flex-1 gap-4 pt-3.5 pb-4.5 md:py-4">
-        <FilterRail q={q} idPrefix="rail" className="hidden w-55 shrink-0 border-r border-outline-variant pr-4 web:block" />
+      <Box
+        sx={{
+          ...RESULTS_COLUMN_SX,
+          display: "flex",
+          flex: 1,
+          gap: 2,
+          pt: 1.75,
+          pb: 2.25,
+          [UP_MD]: { py: 2 },
+        }}
+      >
+        <Box sx={{ ...RAIL_FRAME_SX, display: { xs: "none", web: "block" } }}>
+          <FilterRail q={q} idPrefix="rail" />
+        </Box>
 
-        <section className="min-w-0 flex-1" aria-labelledby="results-heading">
-          {/* M204 sets the count as a t-label line; C204 as t-title-l (fidelity spec §6.5). */}
-          <div className="mb-2.5 flex items-center justify-between gap-3 md:mb-3">
-            <h1 id="results-heading" className="t-label md:t-title-l text-on-surface-variant md:text-on-surface">
+        <Box component="section" aria-labelledby="results-heading" sx={{ minWidth: 0, flex: 1 }}>
+          {/* M204 sets the count as a small label line; C204 as the h5 title (fidelity spec §6.5). */}
+          <Box
+            sx={{
+              mb: 1.25,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1.5,
+              [UP_MD]: { mb: 1.5 },
+            }}
+          >
+            <Typography
+              id="results-heading"
+              component="h1"
+              variant="h5"
+              sx={{
+                typography: { xs: "caption", md: "h5" },
+                fontWeight: { xs: 500, md: 400 },
+                color: { xs: "text.secondary", md: "text.primary" },
+              }}
+            >
               {mode === "picks"
                 ? RESULTS.heading(results.length, describeQuery(q))
                 : `${mode === "hotels" ? RESULTS.mode.hotels : RESULTS.mode.cruises} · ${describeQuery(q)}`}
-            </h1>
+            </Typography>
             <SortMenu q={q} />
-          </div>
+          </Box>
 
           {mode === "hotels" ? (
             /* `key` on the search so a changed query shows the skeleton again rather than
@@ -128,23 +203,27 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
             </Suspense>
           ) : results.length > 0 ? (
             <>
-              {/* Stacked cards: one column below md, a 2-up grid on tablet, rows at web. The tablet
-                  rules are scoped with `md:max-web:` because Tailwind emits the px-based `web:`
-                  block BEFORE the rem-based `md:` block, so a plain `web:flex` would lose. */}
-              <ul className="flex flex-col gap-2.5 md:max-web:grid md:max-web:grid-cols-2 md:max-web:gap-3.5">
+              {/* Stacked cards: one column below md, a 2-up grid on tablet, rows at web. */}
+              <Box component="ul" sx={RESULT_LIST_SX}>
                 {results.map((trip) => (
                   <li key={trip.slug}>
                     <ResultCard trip={trip} rating={tripRating(trip.slug)} next={current} />
                   </li>
                 ))}
-              </ul>
-              <p className="t-body-s mt-2.5 text-center text-on-surface-variant md:mt-2">{RESULTS.footnote}</p>
+              </Box>
+              <Typography
+                component="p"
+                variant="caption"
+                sx={{ display: "block", mt: 1.25, textAlign: "center", color: "text.secondary", [UP_MD]: { mt: 1 } }}
+              >
+                {RESULTS.footnote}
+              </Typography>
             </>
           ) : (
             <EmptyResults />
           )}
-        </section>
-      </div>
+        </Box>
+      </Box>
 
       <StickyCta
         primary={{ label: RESULTS.sticky.primary, href: joinHref({ intent: "save", next: current }), icon: "heart" }}

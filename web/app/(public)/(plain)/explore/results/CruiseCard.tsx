@@ -1,11 +1,18 @@
 import Image from "next/image";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
+import { UP_WEB } from "@/lib/mui/sx";
 import { formatDayLong } from "@/lib/public/dates";
-import { cn } from "@/lib/cn";
 import type { PublicSailing, ShipImage } from "@/lib/public/cruises";
 import { requestQuoteHref } from "@/lib/public/links";
 import { RESULTS } from "./content";
+import { CARD_CTA_SX, TAG_SX } from "./ResultCard";
 
 /**
  * One synced sailing (design: the C204 row, and the 2.3.4 cruise card it is closest to).
@@ -47,18 +54,27 @@ export function CruiseCard({ sailing }: { sailing: PublicSailing }) {
   const rest = sailing.ports.length - shown.length;
 
   return (
-    <article
-      className={cn(
-        "card group relative grid p-0",
+    <Card
+      component="article"
+      sx={{
+        position: "relative",
+        display: "grid",
         // ONLY TWO COLUMNS WHEN THERE IS SOMETHING TO PUT IN THE FIRST ONE. Most sailings
         // have no photo: the catalog covers 151 curated hulls, but the sync mints a stub
         // `cruise_ship` for any ship name it has not seen, and a stub has no imagery. An
-        // unconditional `web:grid-cols-[180px_1fr]` left those cards with a 180px hole.
-        sailing.shipImage && "web:grid-cols-[180px_1fr]",
-      )}
+        // unconditional `180px 1fr` left those cards with a 180px hole.
+        ...(sailing.shipImage && { [UP_WEB]: { gridTemplateColumns: "180px 1fr" } }),
+      }}
     >
       {sailing.shipImage && (
-        <div className="relative aspect-video bg-surface-3 web:aspect-auto web:h-full web:min-h-30">
+        <Box
+          sx={{
+            position: "relative",
+            aspectRatio: "16 / 9",
+            bgcolor: "surface.3",
+            [UP_WEB]: { aspectRatio: "auto", height: "100%", minHeight: 120 },
+          }}
+        >
           <Image
             src={sailing.shipImage.url}
             // Decorative: the ship's name is already read out one element below, so a
@@ -69,53 +85,73 @@ export function CruiseCard({ sailing }: { sailing: PublicSailing }) {
             // Wikimedia sees the visitor's IP the moment this loads; sending the page they
             // were on as well is gratuitous. Same reasoning as the hotel photos.
             referrerPolicy="no-referrer"
-            className="object-cover"
+            style={{ objectFit: "cover" }}
           />
-        </div>
+        </Box>
       )}
-      <div className="min-w-0 px-4 py-3.5 web:px-4.5">
-        {overline && <span className="t-tag-navy">{overline}</span>}
-        <h2 className="t-title-l mt-1.5 mb-0.5 text-on-surface">
-          <Link href={quote} className="link-stretch rounded-sm group-hover:underline">
+      <Box sx={{ minWidth: 0, px: 2, py: 1.75, [UP_WEB]: { px: 2.25 } }}>
+        {overline && <Chip size="small" color="tertiary" label={overline} sx={TAG_SX} />}
+        <Typography component="h2" variant="h5" sx={{ mt: 0.75, mb: 0.25 }}>
+          {/* `.link-stretch` stays as the hook — see HotelCard for why it cannot move into sx. */}
+          <MuiLink component={NextLink} href={quote} className="link-stretch" color="inherit" underline="hover">
             {sailing.title}
-          </Link>
-        </h2>
+          </MuiLink>
+        </Typography>
 
-        <p className="t-body-s flex flex-wrap items-center gap-x-1.5 text-on-surface-variant">
-          <Icon name="ship" size={12} className="shrink-0 text-brand-orange" />
+        <Typography
+          component="p"
+          variant="caption"
+          sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 0.75, color: "text.secondary" }}
+        >
+          <Box component="span" sx={{ display: "inline-flex", flexShrink: 0, color: "brand.main" }}>
+            <Icon name="ship" size={12} />
+          </Box>
           {sailing.ship}
           <span aria-hidden="true">·</span>
           {RESULTS.cruises.sailsOn} {formatDayLong(sailing.departureDate)}
-        </p>
+        </Typography>
 
         {shown.length > 0 && (
-          <div className="mt-2.5">
-            <p className="t-label text-on-surface-variant">{RESULTS.cruises.itinerary}</p>
-            <ul className="mt-1 flex flex-wrap gap-1.5">
+          <Box sx={{ mt: 1.25 }}>
+            <Typography component="p" variant="caption" sx={{ display: "block", fontWeight: 500, color: "text.secondary" }}>
+              {RESULTS.cruises.itinerary}
+            </Typography>
+            <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
               {shown.map((port) => (
-                <li key={port} className="chip h-6 px-2 text-on-surface-variant">
-                  {port}
-                </li>
+                <Chip key={port} component="li" size="small" variant="outlined" label={port} sx={{ color: "text.secondary" }} />
               ))}
               {rest > 0 && (
-                <li className="chip h-6 px-2 text-on-surface-variant">
-                  {RESULTS.cruises.morePorts(rest)}
-                </li>
+                <Chip
+                  component="li"
+                  size="small"
+                  variant="outlined"
+                  label={RESULTS.cruises.morePorts(rest)}
+                  sx={{ color: "text.secondary" }}
+                />
               )}
-            </ul>
-          </div>
+            </Box>
+          </Box>
         )}
 
         {sailing.shipImage && <PhotoCredit image={sailing.shipImage} />}
 
-        <div className="mt-3 flex items-center justify-end">
-          {/* A span, not a link: the card already is one. */}
-          <span aria-hidden="true" className="btn btn-filled btn-sm">
+        <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+          {/* A span, not a link: the card already is one. Out of the tab order and hidden from
+              assistive tech; the stretched anchor sits above it and takes the click. */}
+          <MuiButton
+            component="span"
+            aria-hidden="true"
+            tabIndex={-1}
+            disableRipple
+            variant="contained"
+            size="small"
+            sx={CARD_CTA_SX}
+          >
             {RESULTS.cruises.quote}
-          </span>
-        </div>
-      </div>
-    </article>
+          </MuiButton>
+        </Box>
+      </Box>
+    </Card>
   );
 }
 
@@ -134,27 +170,29 @@ export function CruiseCard({ sailing }: { sailing: PublicSailing }) {
  * the middle of an author's name is not attribution. So it sits at full card width under the
  * body, where it can wrap, rather than overlaid on a 180px-wide photo where it could not.
  *
- * `relative z-2` lifts the Commons link above `.link-stretch::after`, which covers the card
- * at `z-index: 1`. Without it the anchor renders, reads correctly to a screen reader, and
- * cannot be clicked — the card swallows every press.
+ * `position: relative; zIndex: 2` lifts the Commons link above `.link-stretch::after`, which
+ * covers the card at `z-index: 1`. Without it the anchor renders, reads correctly to a screen
+ * reader, and cannot be clicked — the card swallows every press.
  */
 function PhotoCredit({ image }: { image: ShipImage }) {
   return (
-    <p className="t-fine mt-2 text-on-surface-variant">
+    <Typography component="p" variant="caption" sx={{ display: "block", mt: 1, color: "text.secondary" }}>
       {RESULTS.cruises.photoCredit}{" "}
       {image.sourceUrl ? (
-        <a
+        <MuiLink
           href={image.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="relative z-2 underline underline-offset-2 hover:text-on-surface"
+          color="inherit"
+          underline="always"
+          sx={{ position: "relative", zIndex: 2, textUnderlineOffset: 2, "&:hover": { color: "text.primary" } }}
         >
           {image.credit}
-        </a>
+        </MuiLink>
       ) : (
         image.credit
       )}
-    </p>
+    </Typography>
   );
 }
 

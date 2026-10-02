@@ -1,8 +1,11 @@
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { searchCruises } from "@/lib/public/cruises";
 import type { SearchQuery } from "@/lib/public/search";
 import { RESULTS } from "./content";
 import { CruiseCard } from "./CruiseCard";
 import { CruiseState } from "./HotelStates";
+import { RESULT_LIST_SX } from "./sx";
 
 /**
  * The Cruises mode's results. Its own component for the same reason `HotelResults` is: it is
@@ -25,18 +28,20 @@ export async function CruiseResults({ q }: { q: SearchQuery }) {
 
   return (
     <>
-      <ul className="flex flex-col gap-2.5 md:max-web:grid md:max-web:grid-cols-2 md:max-web:gap-3.5">
+      <Box component="ul" sx={RESULT_LIST_SX}>
         {result.sailings.map((sailing) => (
           <li key={sailing.id}>
             <CruiseCard sailing={sailing} />
           </li>
         ))}
-      </ul>
+      </Box>
       {/* The one line that stands in for the price column this card deliberately lacks. */}
-      <p className="t-body-s mt-2.5 text-center text-on-surface-variant">
+      <Typography component="p" variant="caption" sx={{ display: "block", mt: 1.25, textAlign: "center", color: "text.secondary" }}>
         {RESULTS.cruises.priceNote}
-      </p>
-      <p className="t-body-s mt-1 text-center text-on-surface-variant">{RESULTS.footnote}</p>
+      </Typography>
+      <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.5, textAlign: "center", color: "text.secondary" }}>
+        {RESULTS.footnote}
+      </Typography>
     </>
   );
 }

@@ -1,7 +1,15 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Photo } from "@/components/public/Photo";
 import { Icon } from "@/components/ui/Icon";
 import type { Trip } from "@/content/public/types";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { joinHref, quoteKindFor, requestQuoteHref, tripHref } from "@/lib/public/links";
 import { formatMoney } from "@/lib/public/money";
 import { RESULTS } from "./content";
@@ -14,10 +22,39 @@ interface ResultCardProps {
   next: string;
 }
 
+/** The C204 overline tag: a small tertiary Chip in 9.5px caps, 20px tall. */
+export const TAG_SX = {
+  textTransform: "uppercase",
+  fontWeight: 600,
+  fontSize: 9.5,
+  letterSpacing: 0.4,
+  height: 20,
+} as const;
+
+/** The row's right-hand column: 170px minimum, a left rule, right-aligned, actions at the foot. */
+export const PRICE_COLUMN_SX = {
+  display: "flex",
+  minWidth: 170,
+  flexDirection: "column",
+  alignItems: "flex-end",
+  borderLeft: 1,
+  borderColor: "divider",
+  px: 2,
+  py: 1.75,
+  textAlign: "right",
+} as const;
+
+/** The small contained CTA every card ends with (the legacy .btn-filled.btn-sm box). */
+export const CARD_CTA_SX = { minHeight: 32, px: "16px", whiteSpace: "nowrap" } as const;
+
 /**
  * One search result (design C204 row: 180px photo | body | price column; M204 stacked card
  * below `web`). The name links to the detail page; "Request quote" and "Save" go to the
  * sign-up gate with the trip and the return path.
+ *
+ * On MUI: the row is a Card laid out as the artboard's `180px 1fr auto` grid, the tag a small
+ * tertiary Chip, the title an h5 holding the link, the price column overline / h5 / caption.
+ * Hovering anywhere on the card underlines the name, as the old `group-hover` did.
  */
 export function ResultCard({ trip, rating, next }: ResultCardProps) {
   const detail = tripHref(trip.slug);
@@ -36,10 +73,12 @@ export function ResultCard({ trip, rating, next }: ResultCardProps) {
       {rating !== undefined && (
         <>
           {" · "}
-          <span className="inline-flex items-center gap-1 align-baseline">
-            <Icon name="star" size={11} filled className="text-brand-sunset" />
+          <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, verticalAlign: "baseline" }}>
+            <Box component="span" sx={{ display: "inline-flex", color: "brandSource.sunset" }}>
+              <Icon name="star" size={11} filled />
+            </Box>
             {rating}
-          </span>
+          </Box>
         </>
       )}
     </>
@@ -48,67 +87,110 @@ export function ResultCard({ trip, rating, next }: ResultCardProps) {
   return (
     <>
       {/* Row layout — web (≥1200). */}
-      <article className="result-row card hidden p-0 web:grid">
-        <div className="relative min-h-30">
-          <Photo image={trip.imageKey} fill sizes="180px" alt="" className="object-cover" />
-        </div>
-        <div className="min-w-0 px-4 py-3.5">
-          <span className="t-tag-navy">{trip.overline}</span>
-          <h2 className="t-title-l mt-1.5 mb-0.5 text-on-surface">
-            <Link href={detail} className="hover:underline">
+      <Card
+        component="article"
+        sx={{
+          display: { xs: "none", web: "grid" },
+          gridTemplateColumns: "180px 1fr auto",
+          "&:hover h2 a": { textDecoration: "underline" },
+        }}
+      >
+        <Box sx={{ position: "relative", minHeight: 120, "& img": { objectFit: "cover" } }}>
+          <Photo image={trip.imageKey} fill sizes="180px" alt="" />
+        </Box>
+        <Box sx={{ minWidth: 0, px: 2, py: 1.75 }}>
+          <Chip size="small" color="tertiary" label={trip.overline} sx={TAG_SX} />
+          <Typography component="h2" variant="h5" sx={{ mt: 0.75, mb: 0.25 }}>
+            <MuiLink component={NextLink} href={detail} color="inherit" underline="hover">
               {trip.name}
-            </Link>
-          </h2>
-          <p className="t-body-s text-on-surface-variant">{sub}</p>
-        </div>
-        <div className="flex min-w-42.5 flex-col items-end border-l border-outline-variant px-4 py-3.5 text-right">
-          <p className="t-label text-on-surface-variant">{RESULTS.card.from}</p>
-          <p className="t-title-l my-0.5 text-on-surface">
+            </MuiLink>
+          </Typography>
+          <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+            {sub}
+          </Typography>
+        </Box>
+        <Box sx={PRICE_COLUMN_SX}>
+          <Typography component="p" variant="overline" sx={{ display: "block", lineHeight: 1.3, color: "text.secondary" }}>
+            {RESULTS.card.from}
+          </Typography>
+          <Typography component="p" variant="h5" sx={{ my: 0.25 }}>
             {price}
-            <span className="t-fine text-on-surface-variant"> {RESULTS.card.perPerson}</span>
-          </p>
-          <Link href={quote} className="btn btn-filled btn-sm mt-auto">
+            <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+              {" "}
+              {RESULTS.card.perPerson}
+            </Typography>
+          </Typography>
+          <MuiButton component={NextLink} href={quote} variant="contained" size="small" sx={{ ...CARD_CTA_SX, mt: "auto" }}>
             {RESULTS.card.quote}
-          </Link>
-          <Link href={save} className="btn btn-text btn-sm mt-1 px-0">
+          </MuiButton>
+          <MuiButton
+            component={NextLink}
+            href={save}
+            variant="text"
+            size="small"
+            sx={{ mt: 0.5, minHeight: 32, minWidth: 0, px: 0, gap: 1, whiteSpace: "nowrap" }}
+          >
             <Icon name="heart" size={11} />
             {RESULTS.card.save}
-          </Link>
-        </div>
-      </article>
+          </MuiButton>
+        </Box>
+      </Card>
 
       {/* Stacked layout — mobile and tablet. */}
-      <article className="card web:hidden">
-        <div className="relative aspect-video">
-          <Photo image={trip.imageKey} fill sizes="(min-width: 768px) 50vw, 100vw" alt="" className="object-cover" />
-          <span className="t-tag-navy absolute top-2 left-2">{trip.overline}</span>
-          <Link
-            href={save}
-            className="btn-icon tap-44 absolute top-2 right-2 size-8 rounded-full bg-white/92 text-brand-navy"
-            aria-label={RESULTS.card.saveAria(trip.name)}
-          >
-            <Icon name="heart" size={14} />
-          </Link>
-        </div>
-        <div className="p-3">
-          <h2 className="t-title-s text-on-surface">
-            <Link href={detail}>{trip.name}</Link>
-          </h2>
-          <p className="t-body-s text-on-surface-variant">{sub}</p>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div>
-              <span className="t-label text-on-surface-variant">{RESULTS.card.from}</span>
-              <div className="t-price text-on-surface">
+      <Card component="article" sx={{ display: { web: "none" } }}>
+        <Box sx={{ position: "relative", aspectRatio: "16 / 9", "& img": { objectFit: "cover" } }}>
+          <Photo image={trip.imageKey} fill sizes="(min-width: 768px) 50vw, 100vw" alt="" />
+          <Chip size="small" color="tertiary" label={trip.overline} sx={{ ...TAG_SX, position: "absolute", top: 8, left: 8 }} />
+          {/* The wrapper is what is positioned: TAP_TARGET sets `position: relative` on its host
+              under a coarse pointer, which would pull an absolutely positioned button out of
+              the corner. */}
+          <Box sx={{ position: "absolute", top: 8, right: 8 }}>
+            <IconButton
+              component={NextLink}
+              href={save}
+              aria-label={RESULTS.card.saveAria(trip.name)}
+              size="small"
+              sx={{
+                ...TAP_TARGET,
+                width: 32,
+                height: 32,
+                bgcolor: "common.white",
+                color: "brandSource.navy",
+                "&:hover": { bgcolor: "common.white" },
+              }}
+            >
+              <Icon name="heart" size={14} />
+            </IconButton>
+          </Box>
+        </Box>
+        <Box sx={{ p: 1.5 }}>
+          <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+            <MuiLink component={NextLink} href={detail} color="inherit" underline="hover">
+              {trip.name}
+            </MuiLink>
+          </Typography>
+          <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+            {sub}
+          </Typography>
+          <Box sx={{ mt: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+            <Box>
+              <Typography component="span" variant="overline" sx={{ display: "block", lineHeight: 1.3, color: "text.secondary" }}>
+                {RESULTS.card.from}
+              </Typography>
+              <Typography component="div" variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                 {price}
-                <span className="t-fine text-on-surface-variant"> {RESULTS.card.perPerson}</span>
-              </div>
-            </div>
-            <Link href={quote} className="btn btn-filled btn-sm">
+                <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+                  {" "}
+                  {RESULTS.card.perPerson}
+                </Typography>
+              </Typography>
+            </Box>
+            <MuiButton component={NextLink} href={quote} variant="contained" size="small" sx={CARD_CTA_SX}>
               {RESULTS.card.quote}
-            </Link>
-          </div>
-        </div>
-      </article>
+            </MuiButton>
+          </Box>
+        </Box>
+      </Card>
     </>
   );
 }
