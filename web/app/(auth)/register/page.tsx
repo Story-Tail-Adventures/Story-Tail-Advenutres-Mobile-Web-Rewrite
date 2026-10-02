@@ -8,8 +8,9 @@
 // this is the plain front door that 2.1.1 links to. They share their rules through
 // lib/validation/registration.ts so they cannot drift apart again.
 import type { Metadata } from "next";
-import Link from "next/link";
+import MuiLink from "@mui/material/Link";
 import { AuthCard } from "@/components/auth/AuthCard";
+import NextLink from "@/components/mui/NextLink";
 import { env } from "@/lib/env";
 import { safeNext } from "@/lib/safe-next";
 import { single, type SearchParams } from "@/lib/search-params";
@@ -41,9 +42,9 @@ export default async function RegisterPage({
       footer={
         <>
           {REGISTER_TEXT.haveAccount}{" "}
-          <Link href="/login" className="text-primary">
+          <MuiLink component={NextLink} href="/login">
             {REGISTER_TEXT.signIn}
-          </Link>
+          </MuiLink>
         </>
       }
     >

@@ -3,6 +3,7 @@
 // `C213_EmailVerification` + client-auth-mobile.jsx `M213_EmailVerification`. P1.
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Box from "@mui/material/Box";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,10 @@ export default async function VerifyEmailPage() {
         user?.email ? (
           <>
             {VERIFY_TEXT.subKnown}
-            <b className="font-semibold text-on-surface">{user.email}</b>.
+            <Box component="b" sx={{ fontWeight: 600, color: "text.primary" }}>
+              {user.email}
+            </Box>
+            .
           </>
         ) : (
           VERIFY_TEXT.subUnknown

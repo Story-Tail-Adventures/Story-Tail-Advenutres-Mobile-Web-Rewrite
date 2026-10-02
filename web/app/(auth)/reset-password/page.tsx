@@ -2,10 +2,14 @@
 // design/source-prototype/screens/client-auth.jsx `C215_ResetPassword` +
 // client-auth-mobile.jsx `M215_ResetPassword`. P1.
 import type { Metadata } from "next";
-import Link from "next/link";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import { AuthCard } from "@/components/auth/AuthCard";
+import NextLink from "@/components/mui/NextLink";
 import { Card } from "@/components/ui/Card";
 import { env } from "@/lib/env";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { createClient } from "@/lib/supabase/server";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 import { RESET_TEXT } from "./state";
@@ -15,6 +19,9 @@ export const metadata: Metadata = {
   description: RESET_TEXT.metaDescription,
   robots: { index: false, follow: true },
 };
+
+/** A text link with a 44px hit area on touch screens, its box unchanged (the legacy `.tap-44`). */
+const TAP_LINK = { display: "inline-flex", alignItems: "center", ...TAP_TARGET } as const;
 
 /**
  * Reached from the emailed link, by way of /auth/callback which exchanges the code for a
@@ -26,6 +33,8 @@ export const metadata: Metadata = {
  * wrong because the person arriving has forgotten their password and may look signed out
  * for a moment; auth-only would be actively broken, because a recovery session IS a
  * session and the proxy would bounce them to the dashboard instead of letting them finish.
+ *
+ * Server Component: the expired-link card below passes MUI only plain sx objects.
  */
 export default async function ResetPasswordPage() {
   const signedIn = await hasSession();
@@ -39,14 +48,22 @@ export default async function ResetPasswordPage() {
       {signedIn ? (
         <ResetPasswordForm />
       ) : (
-        <Card variant="flat" className="flex flex-col p-4">
-          <p className="t-body text-on-surface-variant">{RESET_TEXT.expiredBody}</p>
-          <Link
-            href="/forgot-password"
-            className="t-label-l tap-44 mt-2.5 self-start text-primary"
+        <Card variant="flat">
+          <CardContent
+            sx={{ display: "flex", flexDirection: "column", p: 2, "&:last-child": { pb: 2 } }}
           >
-            {RESET_TEXT.expiredCta}
-          </Link>
+            <Typography variant="body2" color="text.secondary">
+              {RESET_TEXT.expiredBody}
+            </Typography>
+            <MuiLink
+              component={NextLink}
+              href="/forgot-password"
+              variant="subtitle2"
+              sx={{ ...TAP_LINK, mt: 1.25, alignSelf: "flex-start" }}
+            >
+              {RESET_TEXT.expiredCta}
+            </MuiLink>
+          </CardContent>
         </Card>
       )}
     </AuthCard>
