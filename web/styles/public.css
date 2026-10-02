@@ -235,20 +235,6 @@
     .pub-topbar-glass:hover:not(:disabled) { background: var(--md-surface-3); }
   }
 
-  /* ── Responsive headline (mobile → tablet → web). The hero ramp moved to sx in
-     HeroBleed / AdvisorHero (MUI v9 migration); this one is still used by the client
-     quote page. */
-  .t-headline-r { font: 800 24px/1.18 var(--font-sans); letter-spacing: -0.3px; }
-  @media (min-width: 768px) {
-    .t-headline-r { font-size: 26px; font-weight: 700; line-height: 1.15; }
-  }
-  @media (min-width: 1200px) {
-    .t-headline-r { font-size: 28px; letter-spacing: -0.4px; }
-  }
-
-  /* Small labels the ramp does not cover. */
-  .t-fine   { font: 500 11.5px/1 var(--font-sans); }
-
   /* ── Horizontal snap strip (islands, chips, testimonials on mobile) ── */
   .h-scroll {
     display: flex;
