@@ -72,9 +72,9 @@ This is the architecture the BRD now commits to in Section 15.1.
 
 **Compose-for-Web — explicitly out of scope.** As of 2026, Compose Multiplatform for Web is in Beta and not at parity with Compose for Android/iOS. Even if it reaches Stable in a future release, migrating away from Next.js + React would not be a meaningful win for this project — the public SEO surface alone justifies Next.js, the React ecosystem covers everything needed, and the hiring market is far larger. We are not waiting for or planning toward a future Compose-for-Web migration.
 
-### 2.3.1 Styling migration: MUI v9 (step 1 in progress, step 2 not started)
+### 2.3.1 Styling migration: MUI v9 (step 1 done, step 2 in progress)
 
-`web/` currently styles with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi has decided the target styling system for the web app is **MUI (Material UI) v9**, replacing Tailwind entirely. Decided 2026-09-29; step 1 (the design source) started 2026-09-30. `web/` is unchanged.
+`web/` currently styles with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi has decided the target styling system for the web app is **MUI (Material UI) v9**, replacing Tailwind entirely. Decided 2026-09-29. Step 1 (the design source) shipped 2026-10-01 as PR #83. Step 2 (`web/`) started 2026-10-01; see "Step 2 in `web/`" below.
 
 This is a natural fit rather than a clash: the Design System's color tokens (§4) are already Material-3-based, so an MUI theme can consume the same token values instead of introducing a parallel design language.
 
@@ -85,7 +85,7 @@ This is a natural fit rather than a clash: the Design System's color tokens (§4
 
 Don't start step 2 before step 1 is done — building MUI screens in code against a Tailwind-era design source just means redoing the work once the design catches up.
 
-**Version: `@mui/material` 9.4.0** (v9 went stable 2026-04-07). It supports React 17–19, and `web/` is on React 19.2.4. Use the same major version in `web/` when step 2 starts.
+**Version: `@mui/material` 9.4.0** (v9 went stable 2026-04-07). It supports React 17–19, and `web/` is on React 19.2.4. `web/` pins the same exact versions, and `.github/scripts/check_mui_lockstep.py` fails CI if `web/` and `design/mui-vendor/` ever differ.
 
 **How the design source loads MUI (step 1).** The prototype is Babel-standalone JSX loaded with plain `<script>` tags, and MUI has shipped no UMD build since v6 (React 19 has none either). So `design/mui-vendor/` is a small build-only package that bundles both with esbuild into `design/source-prototype/shared/vendor/`:
 
@@ -98,7 +98,17 @@ The theme lives in `design/source-prototype/shared/mui-theme.jsx` (`StaMuiThemes
 
 **Scope of step 1:** web artboards only. Phone artboards (`screens/*-mobile.jsx`, §2.7) keep the legacy CSS-variable styling, because the Compose app implements Material 3 natively and can't use MUI.
 
-**Use the official MUI MCP server once the migration starts.** MUI publishes an MCP server ([mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) that connects an AI coding assistant directly to official Material UI docs and code examples, so answers quote real sources instead of hallucinating APIs or component names. It runs locally over stdio via `npx -y @mui/mcp@latest` and has a documented setup for Claude Code specifically (as well as VS Code, Cursor, Windsurf, JetBrains, Zed). **Not connected yet — this is a note for whoever does the migration**, not a step taken in this session. Add it to this project's MCP config when work on the `web/` implementation (step 2 above) actually begins, so the assistant doing that work has accurate MUI context.
+**Step 2 in `web/` (started 2026-10-01).** Gyasi's calls: ship it as seven PRs by surface, each stacked on the last (foundation → app shells → public §2.0 → auth and onboarding §2.1 → client app → agent app → remove Tailwind), with Tailwind and MUI side by side until the last one; use MUI components everywhere, including where native `<dialog>`, `<details>` and `popover` worked without JavaScript; match the artboards' look but keep each page's existing web layout and behavior. Only screens already built are converted, and no copy changes.
+
+How the foundation (PR 1) fits MUI into this app:
+
+- **One theme, CSS variables, our class.** `web/lib/mui/theme.ts` is a single `createTheme` with `cssVariables: { colorSchemeSelector: ".scheme-%s" }` and light/dark `colorSchemes`, ported from the prototype's `mui-theme.jsx`. MUI emits light on `:root` and dark on `.scheme-dark`, so the existing pre-paint `ThemeScript` keeps owning the scheme and server HTML does not depend on it. `components/mui/MuiRegistry.tsx` turns off MUI's own storage and `<html>` class handling (`storageManager`, `storageWindow`, `colorSchemeNode` all `null`). The prototype's two-theme pattern is NOT used in `web/`, because it would pick the scheme at render time and flash.
+- **Next.js integration.** `AppRouterCacheProvider` from `@mui/material-nextjs/v16-appRouter`, with `enableCssLayer`. Every emotion rule goes into `@layer mui`, and `app/globals.css` opens with `@layer theme, base, mui, components, utilities;`, so Tailwind's preflight sits below MUI while the legacy CSS and Tailwind utilities still sit above it during the coexistence.
+- **Server Components.** All pages and layouts stay Server Components. They render MUI with serializable props only (plain `sx`, strings, `component={NextLink}`); anything needing a callback or `styled()` is a `"use client"` file. Rules in `web/AGENTS.md`.
+- **Tokens.** `web/lib/mui/tokens.ts` holds the values as pure data; `lib/mui/tokens.test.ts` parses `design/web-tokens/tokens.css`, `web/styles/tokens.css` and the `.chip-status` rules and fails on drift. Breakpoints keep Tailwind's (640 / 768 / 1024 / 1200 `web` / 1280).
+- **Icons** stay ours: `components/ui/Icon` wraps the same stroke paths in `SvgIcon`. No `@mui/icons-material` and no `@mui/x-date-pickers` (a new SDK needs a security review); eslint blocks both.
+
+**Use the official MUI MCP server once the migration starts.** MUI publishes an MCP server ([mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) that connects an AI coding assistant directly to official Material UI docs and code examples, so answers quote real sources instead of hallucinating APIs or component names. It runs locally over stdio via `npx -y @mui/mcp@latest` and has a documented setup for Claude Code specifically (as well as VS Code, Cursor, Windsurf, JetBrains, Zed). It is registered in the project's `.mcp.json` as `mui-mcp` (added with step 2's foundation PR); Claude Code asks once to enable a project-scoped server.
 
 See Design-System.md §12.2 for the corresponding note on the "what" of this target.
 
