@@ -1,14 +1,33 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { createClient } from "@/lib/supabase/server";
 
 import { AccountHeader } from "../AccountHeader";
 import { SECURITY } from "./content";
 
 export const metadata: Metadata = { title: "Security" };
+
+/** The legacy `.btn` box (40px, 24px sides) on MUI's Button, for the two link buttons. */
+const BTN_SX = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The uppercase group label SettingsGroup draws, for a section here that is not one. */
+const GROUP_LABEL_SX = {
+  display: "block",
+  mt: 3,
+  mb: 1,
+  px: 0.5,
+  lineHeight: 1.3,
+  color: "text.secondary",
+} as const;
 
 /**
  * Screen Inventory 2.5.7 — Security Settings. §4.4 Pattern A.
@@ -61,11 +80,15 @@ export default async function SecurityPage() {
     <div className="client-fill">
       <AccountHeader title={SECURITY.title} sub={SECURITY.subtitle} />
 
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
         {usesPassword ? (
-          <Card className="p-5">
-            <h2 className="t-title-s">{SECURITY.passwordTitle}</h2>
-            <p className="t-body-s mt-1 text-on-surface-variant">{SECURITY.passwordBody}</p>
+          <Card sx={{ p: 2.5 }}>
+            <Typography component="h2" variant="subtitle1">
+              {SECURITY.passwordTitle}
+            </Typography>
+            <Typography component="p" variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
+              {SECURITY.passwordBody}
+            </Typography>
             {/* NOT a link to /forgot-password. That route is in the proxy's
                 AUTH_ONLY_PREFIXES, so a signed-in visitor is bounced straight off it — the
                 control would look live and do nothing for precisely the people who can
@@ -74,36 +97,52 @@ export default async function SecurityPage() {
                 a build: `secure_password_change` is currently false in supabase/config.toml,
                 so a stolen session could change a password with no reauthentication. The
                 Screen Inventory note at 2.5.7 records it. */}
-            <button
-              type="button"
-              className="btn btn-tonal mt-4 w-full"
-              disabled
-              aria-disabled="true"
-            >
-              {SECURITY.passwordCta}
-            </button>
-            <p className="t-body-s mt-2 text-on-surface-variant">{SECURITY.passwordDeferred}</p>
+            <Box sx={{ mt: 2 }}>
+              <Button variant="tonal" fullWidth disabled aria-disabled="true">
+                {SECURITY.passwordCta}
+              </Button>
+            </Box>
+            <Typography component="p" variant="caption" sx={{ mt: 1, display: "block", color: "text.secondary" }}>
+              {SECURITY.passwordDeferred}
+            </Typography>
           </Card>
         ) : (
-          <Card className="p-5">
-            <h2 className="t-title-s">{SECURITY.noPasswordTitle}</h2>
-            <p className="t-body-s mt-1 text-on-surface-variant">
+          <Card sx={{ p: 2.5 }}>
+            <Typography component="h2" variant="subtitle1">
+              {SECURITY.noPasswordTitle}
+            </Typography>
+            <Typography component="p" variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
               {SECURITY.noPasswordBody(account?.auth_provider ?? "your provider")}
-            </p>
-            <Link href="/account/connected" className="btn btn-outlined mt-4 w-full">
+            </Typography>
+            <MuiButton
+              component={NextLink}
+              href="/account/connected"
+              variant="outlined"
+              color="primary"
+              fullWidth
+              sx={{ ...BTN_SX, mt: 2 }}
+            >
               {SECURITY.noPasswordCta}
-            </Link>
+            </MuiButton>
           </Card>
         )}
 
-        <Card className="mt-3 p-5">
-          <div className="flex items-center gap-2">
-            <h2 className="t-title-s flex-1">{SECURITY.mfaTitle}</h2>
-            <span className={mfaOn ? "chip-status booked" : "chip"}>
-              {mfaOn ? SECURITY.mfaOn : SECURITY.mfaOff}
-            </span>
-          </div>
-          <p className="t-body-s mt-1.5 text-on-surface-variant">{SECURITY.mfaBody}</p>
+        <Card sx={{ mt: 1.5, p: 2.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography component="h2" variant="subtitle1" sx={{ flex: 1 }}>
+              {SECURITY.mfaTitle}
+            </Typography>
+            {/* The legacy `.chip-status.booked` is the shared StatusChip; the "off" state was
+                the plain `.chip`, which is MUI's outlined Chip. */}
+            {mfaOn ? (
+              <StatusChip kind="booked" label={SECURITY.mfaOn} />
+            ) : (
+              <Chip size="small" variant="outlined" label={SECURITY.mfaOff} />
+            )}
+          </Box>
+          <Typography component="p" variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+            {SECURITY.mfaBody}
+          </Typography>
           {/* Enrolling works and is a real link. MANAGING an existing factor is not: 2.1.6
               redirects anyone who already has a verified factor straight back out, and its
               own comment says why — "enrolling a second one from this screen is Security
@@ -111,34 +150,46 @@ export default async function SecurityPage() {
               built, so the control says so instead of bouncing the reader off 2.1.6. */}
           {mfaOn ? (
             <>
-              <button
-                type="button"
-                className="btn btn-tonal mt-4 w-full"
-                disabled
-                aria-disabled="true"
-              >
-                {SECURITY.mfaManageCta}
-              </button>
-              <p className="t-body-s mt-2 text-on-surface-variant">{SECURITY.mfaManageDeferred}</p>
+              <Box sx={{ mt: 2 }}>
+                <Button variant="tonal" fullWidth disabled aria-disabled="true">
+                  {SECURITY.mfaManageCta}
+                </Button>
+              </Box>
+              <Typography component="p" variant="caption" sx={{ mt: 1, display: "block", color: "text.secondary" }}>
+                {SECURITY.mfaManageDeferred}
+              </Typography>
             </>
           ) : (
-            <Link href="/mfa/setup" className="btn btn-tonal mt-4 w-full">
+            <MuiButton
+              component={NextLink}
+              href="/mfa/setup"
+              variant="outlined"
+              color="secondary"
+              fullWidth
+              sx={{ ...BTN_SX, mt: 2 }}
+            >
               {SECURITY.mfaEnableCta}
-            </Link>
+            </MuiButton>
           )}
         </Card>
 
-        <h2 className="t-label mt-6 mb-2 px-1 tracking-wide text-on-surface-variant">
+        <Typography component="h2" variant="overline" sx={GROUP_LABEL_SX}>
           {SECURITY.sessionsHeading}
-        </h2>
-        <Card className="flex gap-3 p-4">
-          <Icon name="shield" size={18} className="shrink-0 text-on-surface-variant" />
-          <div>
-            <p className="t-body-s text-on-surface-variant">{SECURITY.sessionsDeferred}</p>
-            <p className="t-body-s mt-2 text-on-surface-variant">{SECURITY.sessionsAdvice}</p>
-          </div>
+        </Typography>
+        <Card sx={{ display: "flex", gap: 1.5, p: 2 }}>
+          <Box sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
+            <Icon name="shield" size={18} />
+          </Box>
+          <Box>
+            <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+              {SECURITY.sessionsDeferred}
+            </Typography>
+            <Typography component="p" variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+              {SECURITY.sessionsAdvice}
+            </Typography>
+          </Box>
         </Card>
-      </div>
+      </Box>
     </div>
   );
 }

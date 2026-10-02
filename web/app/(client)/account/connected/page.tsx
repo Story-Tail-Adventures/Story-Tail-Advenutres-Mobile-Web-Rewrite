@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
+import { Button } from "@/components/ui/Button";
 import { SettingsGroup, SettingsRow } from "@/components/ui/SettingsList";
 import { OAUTH_PROVIDERS, PROVIDER_LABEL } from "@/lib/auth/providers";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +59,7 @@ export default async function ConnectedAccountsPage() {
     <div className="client-fill">
       <AccountHeader title={CONNECTED.title} sub={CONNECTED.subtitle} />
 
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
         <SettingsGroup>
           {OAUTH_PROVIDERS.map((provider, index) => {
             const linked = signedUpWith === provider;
@@ -67,15 +70,18 @@ export default async function ConnectedAccountsPage() {
                 title={PROVIDER_LABEL[provider]}
                 sub={linked ? CONNECTED.linked : CONNECTED.notLinked}
                 trailing={
-                  <button
-                    type="button"
-                    className="btn btn-outlined btn-sm shrink-0"
+                  // components/ui/Button: when disabled WITH a title it wraps itself in a
+                  // span that carries the tooltip, since a disabled MUI button has
+                  // pointer-events: none and would never show one.
+                  <Button
+                    variant="outlined"
+                    size="sm"
                     disabled
                     aria-disabled="true"
                     title={linked ? CONNECTED.unlinkDeferred : CONNECTED.linkDeferred}
                   >
                     {linked ? CONNECTED.unlinkCta : CONNECTED.linkCta}
-                  </button>
+                  </Button>
                 }
               />
             );
@@ -83,12 +89,14 @@ export default async function ConnectedAccountsPage() {
         </SettingsGroup>
 
         {signedUpWith !== undefined && (
-          <p className="t-body-s mt-4 text-on-surface-variant">
+          <Typography component="p" variant="body2" sx={{ mt: 2, color: "text.secondary" }}>
             {signedUpWith === "email" ? CONNECTED.emailAccountNote : CONNECTED.oauthAccountNote}
-          </p>
+          </Typography>
         )}
-        <p className="t-body-s mt-3 text-on-surface-variant">{CONNECTED.safetyNote}</p>
-      </div>
+        <Typography component="p" variant="body2" sx={{ mt: 1.5, color: "text.secondary" }}>
+          {CONNECTED.safetyNote}
+        </Typography>
+      </Box>
     </div>
   );
 }

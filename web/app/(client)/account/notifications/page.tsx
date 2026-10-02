@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 
 import { AccountHeader } from "../AccountHeader";
@@ -46,19 +49,25 @@ export default function NotificationsPage() {
     <div className="client-fill">
       <AccountHeader title={NOTIFICATIONS.title} />
 
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-        <Card className="p-7 text-center">
-          <span
-            className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-surface-3 text-on-surface-variant"
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
+        <Card sx={{ p: 3.5, textAlign: "center" }}>
+          <Avatar
             aria-hidden="true"
+            sx={{ mx: "auto", mb: 1.5, width: 56, height: 56, bgcolor: "surface.3", color: "text.secondary" }}
           >
             <Icon name="bell" size={26} />
-          </span>
-          <h2 className="t-title-l">{NOTIFICATIONS.emptyTitle}</h2>
-          <p className="t-body mt-2 text-on-surface-variant">{NOTIFICATIONS.emptyBody}</p>
-          <p className="t-body-s mt-4 text-on-surface-variant">{NOTIFICATIONS.reachYou}</p>
+          </Avatar>
+          <Typography component="h2" variant="h5">
+            {NOTIFICATIONS.emptyTitle}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+            {NOTIFICATIONS.emptyBody}
+          </Typography>
+          <Typography component="p" variant="caption" sx={{ mt: 2, display: "block", color: "text.secondary" }}>
+            {NOTIFICATIONS.reachYou}
+          </Typography>
         </Card>
-      </div>
+      </Box>
     </div>
   );
 }

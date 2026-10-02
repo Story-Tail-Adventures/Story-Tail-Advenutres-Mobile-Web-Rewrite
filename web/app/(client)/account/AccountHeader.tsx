@@ -1,5 +1,8 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 
 /**
@@ -7,7 +10,12 @@ import { Icon } from "@/components/ui/Icon";
  * everything else is pushed on top of it, so each sub-screen needs a way back that is not
  * the rail — the rail's Account item is already "active" on all of them.
  *
- * A server component: it renders a Link, never a handler.
+ * ON MUI (step 2 of the migration): the kit's `MuiScreenHeader small` look — an h5 title at
+ * weight 700 over a body2 subtitle — on the bar this header already was: a strip on
+ * surface.1 with a divider under it and a 672px column inside, 16px padding (24px from md).
+ *
+ * A server component: it renders a Link, never a handler. Every prop below is a plain sx
+ * object, a string, or the NextLink client reference.
  */
 export function AccountHeader({
   title,
@@ -23,22 +31,40 @@ export function AccountHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="border-b border-outline-variant bg-surface-1">
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-        <Link
+    <Box component="header" sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "surface.1" }}>
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
+        <MuiLink
+          component={NextLink}
           href={backHref}
-          className="t-body-s inline-flex items-center gap-1 text-on-surface-variant"
+          variant="body2"
+          underline="hover"
+          sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}
         >
           <Icon name="arrow_left" size={14} /> {backLabel}
-        </Link>
-        <div className="mt-1.5 flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="t-headline">{title}</h1>
-            {sub && <p className="t-body-s text-on-surface-variant">{sub}</p>}
-          </div>
+        </MuiLink>
+        <Box
+          sx={{
+            mt: 0.75,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+              {title}
+            </Typography>
+            {sub && (
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {sub}
+              </Typography>
+            )}
+          </Box>
           {actions}
-        </div>
-      </div>
-    </header>
+        </Box>
+      </Box>
+    </Box>
   );
 }
