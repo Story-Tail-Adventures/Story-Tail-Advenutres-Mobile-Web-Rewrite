@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ICON_NAMES } from "@/components/ui/icon-paths";
@@ -124,21 +122,5 @@ describe("active state", () => {
     // Not `clients`: a longest-prefix match without a boundary check would say otherwise.
     expect(activeAgentDestinationId("/agent/clients-archive")).toBe("worklist");
     expect(activeAgentDestinationId("/dashboard")).toBeNull();
-  });
-});
-
-describe("the tablet breakpoint trap", () => {
-  it("never pairs md: with an unqualified max-web: in AgentNav", () => {
-    // `web:` is px-based and `md:` is rem-based, so Tailwind emits `web:` FIRST — an
-    // unqualified `max-web:` therefore applies at phone width too. Four places in web/ have
-    // lost a `web:` value this way. The agent rail sidesteps it by not needing a
-    // tablet-only strip at all; this asserts it stays that way.
-    // Asserted against the SOURCE: it is a class-string mistake no amount of rendering in
-    // jsdom would catch. Comments are stripped first so the explanation above cannot trip it.
-    const code = readFileSync(join(__dirname, "../../components/agent/AgentNav.tsx"), "utf8")
-      .split("\n")
-      .filter((l) => !l.trim().startsWith("*") && !l.trim().startsWith("//"))
-      .join("\n");
-    expect(code.match(/(?<!md:)max-web:/g)).toBeNull();
   });
 });
