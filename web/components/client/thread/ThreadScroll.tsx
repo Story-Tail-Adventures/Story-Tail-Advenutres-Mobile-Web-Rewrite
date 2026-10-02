@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import Box from "@mui/material/Box";
 
 /**
  * The thread's scroll region, opened at the newest message.
@@ -43,13 +44,14 @@ export function ThreadScroll({
   }, [messageCount]);
 
   return (
-    <div
+    <Box
       ref={region}
-      // `min-h-0` is what lets this shrink below its content inside the flex column instead
-      // of pushing the compose bar off the bottom. See the note in the pages that mount it.
-      className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6"
+      // `minHeight: 0` is what lets this shrink below its content inside the flex column
+      // instead of pushing the compose bar off the bottom. See the note in the pages that
+      // mount it.
+      sx={{ minHeight: 0, flex: 1, overflowY: "auto", px: { xs: 2, md: 3 }, py: 2 }}
     >
       {children}
-    </div>
+    </Box>
   );
 }

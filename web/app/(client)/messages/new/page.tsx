@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
+import {
+  BACK_LINK_SX,
+  BODY,
+  HEADLINE,
+  MAX_W_2XL,
+  pageSx,
+} from "@/components/client/client-sx";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { MESSAGES } from "@/lib/messages/content";
 import { NewMessageForm } from "./NewMessageForm";
@@ -25,16 +35,26 @@ export const metadata: Metadata = { title: MESSAGES.newTitle };
  */
 export default function NewConversationPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5 md:px-6 md:py-7">
-      <Link href="/messages" className="btn btn-text btn-sm tap-44 -ml-1 mb-1 inline-flex">
-        <Icon name="arrow_left" size={14} />
+    <Box sx={pageSx(MAX_W_2XL)}>
+      <MuiButton
+        component={NextLink}
+        href="/messages"
+        variant="text"
+        size="small"
+        startIcon={<Icon name="arrow_left" size={14} />}
+        sx={BACK_LINK_SX}
+      >
         {MESSAGES.backToMessages}
-      </Link>
+      </MuiButton>
 
-      <h1 className="t-headline">{MESSAGES.newTitle}</h1>
-      <p className="t-body mt-1 mb-4 text-on-surface-variant">{MESSAGES.newSubtitle}</p>
+      <Typography component="h1" variant="h5" sx={HEADLINE}>
+        {MESSAGES.newTitle}
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ ...BODY, mt: 0.5, mb: 2, color: "text.secondary" }}>
+        {MESSAGES.newSubtitle}
+      </Typography>
 
       <NewMessageForm />
-    </div>
+    </Box>
   );
 }

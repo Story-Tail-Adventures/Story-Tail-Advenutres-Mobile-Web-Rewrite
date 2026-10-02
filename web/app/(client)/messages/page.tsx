@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Box from "@mui/material/Box";
 
+import { INBOX_PANE_SX } from "@/components/client/client-sx";
 import { InboxList } from "@/components/client/messages/InboxList";
 import { RetryState } from "@/components/client/RetryState";
 import { EmptyState } from "@/components/client/states";
@@ -31,6 +33,11 @@ export const metadata: Metadata = { title: MESSAGES.title };
  * widening the policy would silently change what §2.2's dashboard and trip-detail queries
  * return. Archiving is the agent's filing tool for hundreds of threads. Departure 9 in the
  * mobile artboard, recorded there first.
+ *
+ * ON MUI (step 2 of the migration): `.client-fill` stays on the root as the hook
+ * web/styles/client.css gives this screen its definite height through; the pane widths are
+ * sx breakpoint objects (only `web`, as before — see ClientNav.tsx on why `md:` must never be
+ * paired with it here), on a wrapper Box so InboxList keeps its props.
  */
 export default async function MessagesInboxPage() {
   const [conversations, me] = await Promise.all([loadInbox(), currentPlatformUser()]);
@@ -43,22 +50,27 @@ export default async function MessagesInboxPage() {
   const rows = inboxRows(conversations, me.timeZone);
 
   return (
-    <div className="client-fill flex">
-      <InboxList
-        rows={rows}
-        // Only `web:` here — pairing `md:` with `web:` on one property loses the `web:` value,
-        // because `web:` is px-based and `md:` is rem-based so Tailwind emits `web:` first.
-        // ClientNav.tsx documents this at length.
-        className="w-full web:w-[340px] web:shrink-0 web:border-r web:border-outline-variant"
-      />
+    <Box className="client-fill" sx={{ display: "flex" }}>
+      <Box sx={INBOX_PANE_SX}>
+        <InboxList rows={rows} />
+      </Box>
 
-      <div className="hidden min-h-0 flex-1 items-center justify-center p-6 web:flex">
+      <Box
+        sx={{
+          display: { xs: "none", web: "flex" },
+          minHeight: 0,
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          p: 3,
+        }}
+      >
         <EmptyState
           icon="message"
           title={MESSAGES_WEB.selectTitle}
           body={MESSAGES_WEB.selectBody}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

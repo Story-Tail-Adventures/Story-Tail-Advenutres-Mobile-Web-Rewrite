@@ -1,12 +1,38 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import FormLabel from "@mui/material/FormLabel";
+import InputAdornment from "@mui/material/InputAdornment";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
+import {
+  BODY_S,
+  BTN_44,
+  HEADLINE,
+  LABEL,
+  TITLE_S,
+  VISUALLY_HIDDEN,
+  advisorAvatarSx,
+} from "@/components/client/client-sx";
 import { EmptyState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { MESSAGES } from "@/lib/messages/content";
 import { filterRows, type InboxRow } from "@/lib/messages/inbox";
+import { TAP_TARGET } from "@/lib/mui/sx";
+
+/** The list's own gutter: `px-4 md:px-5`. */
+const GUTTER = { xs: 2, md: 2.5 } as const;
 
 /**
  * Screen 2.6.1's thread list — the master pane, and the whole screen below `web:`.
@@ -35,6 +61,11 @@ import { filterRows, type InboxRow } from "@/lib/messages/inbox";
  *    Departure 5 in `client-messaging-mobile.jsx`.
  *
  *  · Gyasi's photograph, which is a stock portrait of a stranger. Initials, everywhere.
+ *
+ * ON MUI (step 2 of the migration): MUI List / ListItemButton rows (the open one `selected`,
+ * with the artboard's 3px brand rule), an OutlinedInput search with a visually hidden label,
+ * and the unread count as a brand Chip. The root fills whatever pane the page wraps it in;
+ * the pane's width and rule live on the page, so this component's props are unchanged.
  */
 export function InboxList({
   rows,
@@ -47,40 +78,60 @@ export function InboxList({
   className?: string;
 }) {
   const [query, setQuery] = useState("");
+  const searchId = useId();
   const visible = filterRows(rows, query);
 
   return (
-    <div className={`flex min-h-0 flex-col ${className}`}>
-      <div className="shrink-0 px-4 pt-4 md:px-5">
-        <h1 className="t-headline text-[22px]">{MESSAGES.title}</h1>
-        <p className="t-body-s text-on-surface-variant">{MESSAGES.subtitle}</p>
+    <Box
+      className={className || undefined}
+      sx={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1, width: "100%" }}
+    >
+      <Box sx={{ flexShrink: 0, px: GUTTER, pt: 2 }}>
+        <Typography component="h1" variant="h5" sx={HEADLINE}>
+          {MESSAGES.title}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
+          {MESSAGES.subtitle}
+        </Typography>
 
-        <Link
+        <MuiButton
+          component={NextLink}
           href="/messages/new"
-          className="btn btn-filled tap-44 mt-3 flex h-11 w-full justify-center"
+          variant="contained"
+          fullWidth
+          startIcon={<Icon name="message" size={15} />}
+          sx={{ ...BTN_44, ...TAP_TARGET, mt: 1.5 }}
         >
-          <Icon name="message" size={15} />
           {MESSAGES.newCta}
-        </Link>
+        </MuiButton>
 
         {/* Search earns its place only once there is something to search. One thread and a
             search box is furniture. */}
         {rows.length > 1 && (
-          <label className="mt-3 flex h-9 items-center gap-2 rounded-full bg-surface-3 px-3 text-on-surface-variant">
-            <Icon name="search" size={14} />
-            <span className="sr-only">{MESSAGES.searchPlaceholder}</span>
-            <input
+          <>
+            <FormLabel htmlFor={searchId} sx={VISUALLY_HIDDEN}>
+              {MESSAGES.searchPlaceholder}
+            </FormLabel>
+            <OutlinedInput
+              id={searchId}
               type="search"
+              size="small"
+              fullWidth
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={MESSAGES.searchPlaceholder}
-              className="t-body-s min-w-0 flex-1 bg-transparent text-on-surface outline-none placeholder:text-on-surface-variant"
+              startAdornment={
+                <InputAdornment position="start">
+                  <Icon name="search" size={14} />
+                </InputAdornment>
+              }
+              sx={{ mt: 1.5 }}
             />
-          </label>
+          </>
         )}
-      </div>
+      </Box>
 
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+      <Box sx={{ mt: 1, minHeight: 0, flex: 1, overflowY: "auto" }}>
         {rows.length === 0 ? (
           <EmptyState
             icon="message"
@@ -89,78 +140,127 @@ export function InboxList({
             action={{ label: MESSAGES.emptyCta, href: "/messages/new" }}
           />
         ) : visible.length === 0 ? (
-          <p className="t-body-s px-4 py-6 text-center text-on-surface-variant md:px-5">
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{ ...BODY_S, px: GUTTER, py: 3, textAlign: "center", color: "text.secondary" }}
+          >
             {MESSAGES.searchEmpty}
-          </p>
+          </Typography>
         ) : (
-          <ul>
+          <List disablePadding>
             {visible.map((row) => {
               const active = row.id === activeId;
+              const muted = active ? "inherit" : "text.secondary";
               return (
-                <li key={row.id}>
-                  <Link
+                <ListItem key={row.id} disablePadding>
+                  <ListItemButton
+                    component={NextLink}
                     href={row.href}
+                    selected={active}
                     aria-current={active ? "page" : undefined}
-                    className={`flex gap-2.5 border-l-[3px] px-4 py-3 md:px-5 ${
-                      active
-                        ? "border-brand-orange bg-secondary-container text-on-secondary-container"
-                        : "border-transparent text-on-surface hover:bg-surface-2"
-                    }`}
+                    sx={{
+                      px: GUTTER,
+                      py: 1.5,
+                      gap: 1.25,
+                      alignItems: "flex-start",
+                      borderLeft: 3,
+                      borderColor: active ? "brand.main" : "transparent",
+                      ...(active
+                        ? {
+                            bgcolor: "secondary.container",
+                            color: "secondary.onContainer",
+                            "&.Mui-selected, &.Mui-selected:hover": { bgcolor: "secondary.container" },
+                          }
+                        : undefined),
+                    }}
                   >
-                    <span
-                      aria-hidden="true"
-                      className="t-label inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-burgundy text-[11px] font-bold text-white"
-                    >
+                    <Avatar aria-hidden="true" sx={advisorAvatarSx(32, 11)}>
                       {MESSAGES.advisorInitials}
-                    </span>
+                    </Avatar>
 
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline gap-2">
-                        <span className="t-title-s min-w-0 flex-1 truncate">{row.title}</span>
-                        <span
-                          className={`t-body-s shrink-0 ${
-                            active ? "" : "text-on-surface-variant"
-                          }`}
-                        >
-                          {row.time}
-                        </span>
-                      </span>
+                    <ListItemText
+                      sx={{ my: 0, minWidth: 0 }}
+                      primary={
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+                          <Typography
+                            component="span"
+                            variant="subtitle1"
+                            noWrap
+                            sx={{ ...TITLE_S, flex: 1, minWidth: 0, color: "inherit" }}
+                          >
+                            {row.title}
+                          </Typography>
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            sx={{ ...BODY_S, flexShrink: 0, color: muted }}
+                          >
+                            {row.time}
+                          </Typography>
+                        </Stack>
+                      }
+                      secondary={
+                        <>
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            noWrap
+                            sx={{ ...BODY_S, display: "block", mt: 0.25, color: muted }}
+                          >
+                            {row.preview}
+                          </Typography>
 
-                      <span
-                        className={`t-body-s mt-0.5 block truncate ${
-                          active ? "" : "text-on-surface-variant"
-                        }`}
-                      >
-                        {row.preview}
-                      </span>
-
-                      {/* The trip kicker is dropped when the title IS the trip, which is the
-                          common case — `trip-message` copies the trip title into `subject`,
-                          and inboxTitle prefers the live trip name. Printing it twice is
-                          noise. */}
-                      {row.tripLabel && row.tripLabel !== row.title && (
-                        <span
-                          className={`t-label mt-1.5 block truncate text-[9.5px] uppercase tracking-[0.4px] ${
-                            active ? "" : "text-brand-orange"
-                          }`}
-                        >
-                          {row.tripLabel}
-                        </span>
-                      )}
-                    </span>
+                          {/* The trip kicker is dropped when the title IS the trip, which is
+                              the common case — `trip-message` copies the trip title into
+                              `subject`, and inboxTitle prefers the live trip name. Printing it
+                              twice is noise. */}
+                          {row.tripLabel && row.tripLabel !== row.title && (
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              noWrap
+                              sx={{
+                                ...LABEL,
+                                mt: 0.75,
+                                fontSize: 9.5,
+                                textTransform: "uppercase",
+                                color: active ? "inherit" : "brand.main",
+                              }}
+                            >
+                              {row.tripLabel}
+                            </Typography>
+                          )}
+                        </>
+                      }
+                      slotProps={{
+                        primary: { component: "div" },
+                        secondary: { component: "div", sx: { color: "inherit" } },
+                      }}
+                    />
 
                     {row.unreadCount > 0 && (
-                      <span className="t-label inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-orange px-1.5 text-[11px] font-bold text-white">
-                        {row.unreadCount}
-                      </span>
+                      <Chip
+                        label={row.unreadCount}
+                        size="small"
+                        color="brand"
+                        sx={{
+                          height: 20,
+                          minWidth: 20,
+                          flexShrink: 0,
+                          fontWeight: 700,
+                          fontSize: 11,
+                          "& .MuiChip-label": { px: 0.75 },
+                        }}
+                      />
                     )}
-                  </Link>
-                </li>
+                  </ListItemButton>
+                </ListItem>
               );
             })}
-          </ul>
+          </List>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

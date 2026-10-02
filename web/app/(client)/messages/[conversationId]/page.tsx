@@ -1,11 +1,27 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 
+import {
+  BODY_S,
+  BTN_SM,
+  ICON_BTN_SX,
+  INBOX_PANE_SX,
+  MAX_W_3XL,
+  THREAD_HEADER_SX,
+  THREAD_ROW_SX,
+  TITLE_S,
+  advisorAvatarSx,
+} from "@/components/client/client-sx";
 import { InboxList } from "@/components/client/messages/InboxList";
 import { Composer } from "@/components/client/thread/Composer";
 import { ThreadMessages } from "@/components/client/thread/ThreadMessages";
 import { ThreadScroll } from "@/components/client/thread/ThreadScroll";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { sendConversationMessage } from "@/lib/messages/actions";
 import { MESSAGES } from "@/lib/messages/content";
@@ -61,56 +77,67 @@ export default async function ConversationThreadPage({
   const rows = conversations ? inboxRows(conversations, me.timeZone) : [];
 
   return (
-    <div className="client-fill flex">
-      {/* Hidden below `web:` — at that width the thread IS the screen and the list is the
-          place Back returns to. Only `web:` on these, never paired with `md:`. */}
-      <InboxList
-        rows={rows}
-        activeId={thread.conversationId}
-        className="hidden web:flex web:w-[340px] web:shrink-0 web:border-r web:border-outline-variant"
-      />
+    <Box className="client-fill" sx={{ display: "flex" }}>
+      {/* Hidden below `web` — at that width the thread IS the screen and the list is the
+          place Back returns to. Only `web` on these, never paired with `md`. */}
+      <Box sx={{ ...INBOX_PANE_SX, display: { xs: "none", web: "flex" } }}>
+        <InboxList rows={rows} activeId={thread.conversationId} />
+      </Box>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="shrink-0 border-b border-outline-variant bg-surface px-4 py-3 md:px-6">
-          <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
-            {/* Back to the inbox, not to a trip. On `web:` the list is already beside this,
+      <Box sx={{ display: "flex", minHeight: 0, minWidth: 0, flex: 1, flexDirection: "column" }}>
+        <Box component="header" sx={THREAD_HEADER_SX}>
+          <Box sx={THREAD_ROW_SX}>
+            {/* Back to the inbox, not to a trip. On `web` the list is already beside this,
                 so the control is redundant there and hidden rather than made to lie about
                 where it goes. */}
-            <Link
+            <IconButton
+              component={NextLink}
               href="/messages"
-              className="btn-icon tap-44 shrink-0 web:hidden"
               aria-label={MESSAGES.backToMessages}
+              sx={{ ...ICON_BTN_SX, display: { xs: "inline-flex", web: "none" } }}
             >
               <Icon name="arrow_left" size={18} />
-            </Link>
+            </IconButton>
 
-            <span
-              aria-hidden="true"
-              className="t-label inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-burgundy text-[12px] font-bold text-white"
-            >
+            <Avatar aria-hidden="true" sx={advisorAvatarSx(36, 12)}>
               {MESSAGES.advisorInitials}
-            </span>
+            </Avatar>
 
-            <div className="min-w-0 flex-1">
-              <p className="t-title-s truncate">{thread.title}</p>
-              <p className="t-body-s text-on-surface-variant">{MESSAGES.replyWindow}</p>
-            </div>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography component="p" variant="subtitle1" noWrap sx={TITLE_S}>
+                {thread.title}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
+                {MESSAGES.replyWindow}
+              </Typography>
+            </Box>
 
             {/* Only when there is a trip to open. The general thread has none, and a
                 disabled button explaining that would be furniture. */}
             {thread.tripId && (
-              <Link href={`/trips/${thread.tripId}`} className="btn btn-tonal btn-sm shrink-0">
-                <span className="hidden md:inline">{THREAD_MESSAGES.openTrip}</span>
-                <span className="md:hidden">
+              <MuiButton
+                component={NextLink}
+                href={`/trips/${thread.tripId}`}
+                // Named for phones, where only the icon shows.
+                aria-label={THREAD_MESSAGES.openTrip}
+                variant="outlined"
+                color="secondary"
+                size="small"
+                sx={{ ...BTN_SM, flexShrink: 0 }}
+              >
+                <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+                  {THREAD_MESSAGES.openTrip}
+                </Box>
+                <Box component="span" sx={{ display: { xs: "inline-flex", md: "none" } }}>
                   <Icon name="trip" size={14} />
-                </span>
-              </Link>
+                </Box>
+              </MuiButton>
             )}
-          </div>
-        </header>
+          </Box>
+        </Box>
 
         <ThreadScroll messageCount={thread.messages.length}>
-          <div className="mx-auto w-full max-w-3xl">
+          <Box sx={{ mx: "auto", width: "100%", maxWidth: MAX_W_3XL }}>
             <ThreadMessages
               messages={thread.messages}
               timeZone={thread.timeZone}
@@ -121,7 +148,7 @@ export default async function ConversationThreadPage({
               // kind of thread that has none.
               emptyBody={thread.tripId ? undefined : MESSAGES.threadEmptyBody}
             />
-          </div>
+          </Box>
         </ThreadScroll>
 
         <Composer
@@ -129,7 +156,7 @@ export default async function ConversationThreadPage({
           attachTitle={MESSAGES.attachDeferred}
           placeholder={THREAD_MESSAGES.composePlaceholder}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
