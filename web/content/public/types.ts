@@ -8,7 +8,9 @@
  *
  * Money follows CLAUDE.md rule 5: integer cents plus a three-letter currency code.
  */
-import type { IconName } from "@/components/ui/Icon";
+// icon-paths, not Icon: this module runs under Node (scripts/export-public-content.mts
+// generates Kotlin from it), and Icon renders through MUI. eslint keeps it that way.
+import type { IconName } from "@/components/ui/icon-paths";
 import type { ImageKey } from "@/lib/images";
 
 /** Topic landing pages (2.0.8–2.0.10). */

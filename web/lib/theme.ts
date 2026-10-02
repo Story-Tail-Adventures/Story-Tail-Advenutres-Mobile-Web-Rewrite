@@ -52,6 +52,33 @@ export function applyScheme(dark: boolean): void {
 }
 
 /**
+ * Run `change` with every CSS transition switched off, so a scheme flip is one instant
+ * repaint instead of a page-wide fade.
+ *
+ * MUI components transition their background and border colors (150–250ms) for hover and
+ * focus. Those same transitions fire when `.scheme-dark` swaps every color variable at once,
+ * so without this, each MUI surface fades from the old scheme to the new one while the
+ * legacy CSS around it switches instantly. It is the same trick as MUI's own
+ * `disableTransitionOnChange`, which this app cannot use because MUI does not own the
+ * scheme here (components/mui/MuiRegistry.tsx).
+ *
+ * The style read after the change forces one style pass in which the new colors and
+ * `transition: none` apply together, so no transition starts; the timeout then removes the
+ * override. Same order as MUI's own implementation.
+ */
+function withoutTransitions(change: () => void): void {
+  const style = document.createElement("style");
+  style.textContent = "*,*::before,*::after{transition:none!important}";
+  document.head.appendChild(style);
+  try {
+    change();
+  } finally {
+    window.getComputedStyle(document.body).getPropertyValue("color");
+    window.setTimeout(() => style.remove(), 1);
+  }
+}
+
+/**
  * Flip the scheme and remember it. Returns the scheme now in force.
  *
  * The current state is read off <html>, not out of React or out of storage, because that
@@ -66,7 +93,7 @@ export function applyScheme(dark: boolean): void {
  */
 export function toggleScheme(): "light" | "dark" {
   const dark = !document.documentElement.classList.contains("scheme-dark");
-  applyScheme(dark);
+  withoutTransitions(() => applyScheme(dark));
 
   const next = dark ? "dark" : "light";
   try {
