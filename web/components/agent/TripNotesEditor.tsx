@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Box from "@mui/material/Box";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Typography from "@mui/material/Typography";
 
 import { updateTripNotes } from "@/app/(agent)/agent/trips/[tripId]/actions";
+import { Button } from "@/components/ui/Button";
 import { AGENT_COPY } from "@/lib/agent/content";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Screen 3.4.2's Notes tab. Same shape as `StageMenu.tsx`: the server action is imported
@@ -11,6 +16,7 @@ import { AGENT_COPY } from "@/lib/agent/content";
  * typechecks and throws at runtime across the RSC boundary), and a 409 is its own state
  * rather than a substring of the failure message.
  */
+
 export function TripNotesEditor({
   tripId,
   initialNotes,
@@ -48,12 +54,18 @@ export function TripNotesEditor({
 
   return (
     <div>
-      <label className="sr-only" htmlFor="trip-notes">
+      <Box component="label" htmlFor="trip-notes" sx={VISUALLY_HIDDEN}>
         Trip notes
-      </label>
-      <textarea
+      </Box>
+      {/* A plain native textarea inside MUI's outline (`inputComponent="textarea"`, as the
+          Textarea primitive does), so it keeps a fixed box and the drag handle the legacy
+          `resize-y` gave it. Five rows is the old `min-h-32`. */}
+      <OutlinedInput
         id="trip-notes"
-        className="input min-h-32 w-full resize-y p-3"
+        fullWidth
+        multiline
+        inputComponent="textarea"
+        rows={5}
         value={value}
         disabled={pending}
         onChange={(e) => {
@@ -61,31 +73,27 @@ export function TripNotesEditor({
           setSaved(false);
         }}
         placeholder={AGENT_COPY.tripNotesPlaceholder}
+        sx={{ "& textarea": { resize: "vertical" } }}
       />
-      <div className="mt-2 flex items-center gap-3">
+      <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1.5 }}>
         {/* DISABLED ONCE STALE, not just while pending. After a 409 the version in hand is
             the one the server already rejected, so a second click resubmits it and 409s
             again — a button that can only fail. The copy says to reload; this stops the
             control from offering a way to not do that. */}
-        <button
-          type="button"
-          className="btn btn-tonal btn-sm"
-          disabled={pending || stale}
-          onClick={onSave}
-        >
+        <Button type="button" variant="tonal" size="sm" disabled={pending || stale} onClick={onSave}>
           {AGENT_COPY.notesSaveLabel}
-        </button>
+        </Button>
         {saved && !error && (
-          <span className="t-body-s text-[var(--md-on-surface-variant)]">
+          <Typography component="span" variant="body2" sx={{ color: "text.secondary" }}>
             {AGENT_COPY.notesSavedLabel}
-          </span>
+          </Typography>
         )}
         {error && (
-          <p className="t-body-s text-[var(--md-error)]" role="alert">
+          <Typography component="p" variant="body2" role="alert" sx={{ color: "error.main" }}>
             {stale ? AGENT_COPY.notesStale : error}
-          </p>
+          </Typography>
         )}
-      </div>
+      </Box>
     </div>
   );
 }

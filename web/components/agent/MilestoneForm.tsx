@@ -2,8 +2,23 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
+import FormLabel from "@mui/material/FormLabel";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
 import { saveMilestoneAction } from "@/app/(agent)/agent/trips/[tripId]/payments/actions";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { DateField } from "@/components/ui/DateField";
+import { Field, fieldInputSx, fieldLabelSx } from "@/components/ui/Field";
+import { SelectField } from "@/components/ui/Select";
 import { SCHEDULE_COPY } from "@/lib/agent/content";
 import {
   MILESTONE_KINDS,
@@ -20,7 +35,16 @@ import {
  * incapable of moving `trip.total_paid_cents` — the figure a traveler is shown as their
  * outstanding balance when they authorize a card. The separation runs SQL → route → action
  * → form, and this is its last layer.
+ *
+ * ON THE FORM PRIMITIVES (step 2 of the migration, PR 6): SelectField, Field and DateField
+ * carry the label-above-input layout and the hint/error wiring, with the same ids and names
+ * the action reads. The amount is the one field drawn by hand, from the same parts, because
+ * its input is set in the mono face and the primitive takes no sx.
  */
+
+/** The legacy `.btn` box on an MUI Button: 40px tall, 24px sides, 8px icon gap. */
+const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
 export function MilestoneForm({
   tripId,
   initial,
@@ -37,114 +61,100 @@ export function MilestoneForm({
   const isEdit = values.milestoneId !== "";
   const err = (name: string) => state.fieldErrors?.[name]?.[0];
 
+  const amountError = err("amount");
+
   return (
-    <form action={formAction} className="card p-4">
-      <input type="hidden" name="tripId" value={tripId} />
-      {isEdit && <input type="hidden" name="milestoneId" value={values.milestoneId} />}
+    <Card component="form" action={formAction}>
+      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+        <input type="hidden" name="tripId" value={tripId} />
+        {isEdit && <input type="hidden" name="milestoneId" value={values.milestoneId} />}
 
-      <h2 className="t-title-l m-0 mb-3">
-        {isEdit ? SCHEDULE_COPY.editHeading : SCHEDULE_COPY.addHeading}
-      </h2>
+        <Typography component="h2" variant="h5" sx={{ m: 0, mb: 1.5 }}>
+          {isEdit ? SCHEDULE_COPY.editHeading : SCHEDULE_COPY.addHeading}
+        </Typography>
 
-      {state.formError && (
-        <p
-          role="alert"
-          className="t-body-s mb-3 rounded-xl bg-[var(--md-error-container)] px-3 py-2 text-[var(--md-on-error-container)]"
-        >
-          {state.formError}
-        </p>
-      )}
+        {state.formError && (
+          <Box sx={{ mb: 1.5 }}>
+            <Alert tone="error">{state.formError}</Alert>
+          </Box>
+        )}
 
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className="field-label" htmlFor="milestone-kind">
-            {SCHEDULE_COPY.kindLabel}
-          </label>
-          <select
+        <Stack spacing={1.5}>
+          <SelectField
             id="milestone-kind"
             name="kind"
+            label={SCHEDULE_COPY.kindLabel}
             defaultValue={values.kind}
-            className="input h-10 w-full rounded-xl px-3"
-          >
-            {MILESTONE_KINDS.map((k) => (
-              <option key={k.value} value={k.value}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            options={MILESTONE_KINDS}
+          />
 
-        <div>
-          <label className="field-label" htmlFor="milestone-label">
-            {SCHEDULE_COPY.labelLabel}
-          </label>
-          <input
+          <Field
             id="milestone-label"
             name="label"
+            label={SCHEDULE_COPY.labelLabel}
             required
             maxLength={120}
             defaultValue={values.label}
             placeholder={SCHEDULE_COPY.labelPlaceholder}
-            className="input h-10 w-full rounded-xl px-3"
-            aria-describedby={err("label") ? "milestone-label-error" : undefined}
+            error={err("label")}
           />
-          {err("label") && (
-            <p id="milestone-label-error" role="alert" className="t-body-s mt-1 text-[var(--md-error)]">
-              {err("label")}
-            </p>
-          )}
-        </div>
 
-        <div>
-          <label className="field-label" htmlFor="milestone-amount">
-            {SCHEDULE_COPY.amountLabel}
-          </label>
-          <input
-            id="milestone-amount"
-            name="amount"
-            inputMode="decimal"
-            defaultValue={values.amount}
-            placeholder="0.00"
-            className="input h-10 w-full rounded-xl px-3 font-mono"
-            aria-describedby={err("amount") ? "milestone-amount-error" : undefined}
-          />
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {SCHEDULE_COPY.amountHint}
-          </p>
-          {err("amount") && (
-            <p id="milestone-amount-error" role="alert" className="t-body-s mt-1 text-[var(--md-error)]">
-              {err("amount")}
-            </p>
-          )}
-        </div>
+          {/* Field's structure, by hand: the amount input is set in the mono face. The hint
+              shows while there is no error, the error replaces it, and `aria-describedby`
+              points at whichever one is on screen — the same contract the primitive keeps. */}
+          <FormControl fullWidth error={Boolean(amountError)}>
+            <FormLabel htmlFor="milestone-amount" sx={fieldLabelSx}>
+              {SCHEDULE_COPY.amountLabel}
+            </FormLabel>
+            <OutlinedInput
+              id="milestone-amount"
+              name="amount"
+              defaultValue={values.amount}
+              placeholder="0.00"
+              size="small"
+              sx={{ ...fieldInputSx, fontFamily: "mono" }}
+              inputProps={{
+                inputMode: "decimal",
+                "aria-invalid": amountError ? true : undefined,
+                "aria-describedby": amountError ? "milestone-amount-error" : "milestone-amount-hint",
+              }}
+            />
+            {!amountError && (
+              <FormHelperText id="milestone-amount-hint">{SCHEDULE_COPY.amountHint}</FormHelperText>
+            )}
+            {amountError && (
+              <FormHelperText id="milestone-amount-error" role="alert">
+                {amountError}
+              </FormHelperText>
+            )}
+          </FormControl>
 
-        <div>
-          <label className="field-label" htmlFor="milestone-due">
-            {SCHEDULE_COPY.dueLabel}
-          </label>
-          <input
+          <DateField
             id="milestone-due"
             name="dueDate"
-            type="date"
+            label={SCHEDULE_COPY.dueLabel}
             defaultValue={values.dueDate}
-            className="input h-10 w-full rounded-xl px-3"
+            hint={SCHEDULE_COPY.dueHint}
           />
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {SCHEDULE_COPY.dueHint}
-          </p>
-        </div>
-      </div>
+        </Stack>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending} className="btn btn-orange">
-          {pending ? SCHEDULE_COPY.saving : SCHEDULE_COPY.save}
-        </button>
-        {isEdit && (
-          <Link href={`/agent/trips/${tripId}/payments`} className="btn btn-tonal">
-            {SCHEDULE_COPY.cancel}
-          </Link>
-        )}
-      </div>
-    </form>
+        <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+          <Button type="submit" variant="orange" disabled={pending}>
+            {pending ? SCHEDULE_COPY.saving : SCHEDULE_COPY.save}
+          </Button>
+          {isEdit && (
+            <MuiButton
+              component={Link}
+              href={`/agent/trips/${tripId}/payments`}
+              variant="outlined"
+              color="secondary"
+              sx={BTN}
+            >
+              {SCHEDULE_COPY.cancel}
+            </MuiButton>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
   );
 }

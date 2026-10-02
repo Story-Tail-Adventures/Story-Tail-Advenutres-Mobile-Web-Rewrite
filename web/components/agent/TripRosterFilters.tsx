@@ -1,5 +1,9 @@
-import Form from "next/form";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import OutlinedInput from "@mui/material/OutlinedInput";
 
+import NextForm from "@/components/mui/NextForm";
+import { Button } from "@/components/ui/Button";
 import { TRIP_COPY } from "@/lib/agent/content";
 import {
   isDefaultStages,
@@ -7,6 +11,7 @@ import {
   type TripQuery,
   type TripStatusFilter,
 } from "@/lib/agent/tripStatuses";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Screen 3.4.1's search box and stage chips.
@@ -23,7 +28,30 @@ import {
  * NO `page` INPUT, deliberately. Applying a filter while on page 3 of the old result set
  * would land past the end of the new one and render an empty table over a non-zero count —
  * the trap §3.3.1's filters record.
+ *
+ * EACH CHIP IS A LABEL AROUND A HIDDEN CHECKBOX, the shape `components/ui/Chip`'s ChipInput
+ * has — drawn here rather than through it because the chip text carries a dimmed count
+ * beside the stage name, and ChipInput takes a plain string. The look is the same: outlined
+ * at rest, filled secondary once ticked, the theme's focus ring when the hidden input has
+ * keyboard focus, all through `:has()` so the GET form needs no state.
  */
+
+/** ChipInput's selected/focus/disabled styling, at the legacy 28px (`h-7`). */
+const FILTER_CHIP_SX = {
+  height: 28,
+  cursor: "pointer",
+  "&:has(input:checked)": {
+    bgcolor: "secondary.main",
+    color: "secondary.contrastText",
+    borderColor: "secondary.main",
+  },
+  "&:has(input:focus-visible)": {
+    outline: "2px solid",
+    outlineColor: "primary.main",
+    outlineOffset: "2px",
+  },
+} as const;
+
 export function TripRosterFilters({
   query,
   counts,
@@ -37,40 +65,70 @@ export function TripRosterFilters({
   const isDefault = isDefaultStages(query.statuses);
 
   return (
-    <Form action="/agent/trips" className="mb-3 flex flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="sr-only" htmlFor="trip-q">
+    <Box
+      component={NextForm}
+      action="/agent/trips"
+      sx={{ mb: 1.5, display: "flex", flexDirection: "column", gap: 1.25 }}
+    >
+      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+        <Box component="label" htmlFor="trip-q" sx={VISUALLY_HIDDEN}>
           {TRIP_COPY.searchLabel}
-        </label>
-        <input
+        </Box>
+        <OutlinedInput
           id="trip-q"
           type="search"
           name="q"
           defaultValue={query.search}
           placeholder={TRIP_COPY.searchPlaceholder}
-          className="input h-9 min-w-0 flex-1 rounded-full px-4"
+          size="small"
+          sx={{ flex: 1, minWidth: 0 }}
         />
-        <button type="submit" className="btn btn-tonal btn-sm shrink-0">
+        <Button type="submit" variant="tonal" size="sm">
           {TRIP_COPY.searchLabel}
-        </button>
-      </div>
+        </Button>
+      </Box>
 
-      <fieldset className="flex flex-wrap items-center gap-1.5">
-        <legend className="sr-only">{TRIP_COPY.colStage}</legend>
+      <Box
+        component="fieldset"
+        sx={{
+          m: 0,
+          p: 0,
+          border: 0,
+          minWidth: 0,
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 0.75,
+        }}
+      >
+        <Box component="legend" sx={VISUALLY_HIDDEN}>
+          {TRIP_COPY.colStage}
+        </Box>
         {TRIP_STATUS_FILTERS.map((f) => (
-          <label key={f.value} className="chip chip-filter h-7 cursor-pointer px-3">
-            <input
-              type="checkbox"
-              name="status"
-              value={f.value}
-              defaultChecked={!isDefault && picked.has(f.value)}
-              className="sr-only"
-            />
-            {f.label}
-            <span className="ml-1 opacity-60">{counts[f.value]}</span>
-          </label>
+          <Chip
+            key={f.value}
+            component="label"
+            variant="outlined"
+            sx={FILTER_CHIP_SX}
+            label={
+              <>
+                <Box
+                  component="input"
+                  type="checkbox"
+                  name="status"
+                  value={f.value}
+                  defaultChecked={!isDefault && picked.has(f.value)}
+                  sx={VISUALLY_HIDDEN}
+                />
+                {f.label}
+                <Box component="span" sx={{ ml: 0.5, opacity: 0.6 }}>
+                  {counts[f.value]}
+                </Box>
+              </>
+            }
+          />
         ))}
-      </fieldset>
-    </Form>
+      </Box>
+    </Box>
   );
 }

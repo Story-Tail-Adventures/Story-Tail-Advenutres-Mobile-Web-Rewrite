@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Radio from "@mui/material/Radio";
+import Typography from "@mui/material/Typography";
 
 import { createTripAction } from "@/app/(agent)/agent/trips/new/actions";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { SelectField } from "@/components/ui/Select";
 import { NEW_TRIP_COPY, TEMPLATE_COPY } from "@/lib/agent/content";
 import {
   EMPTY_NEW_TRIP,
   TRIP_TYPES,
   type NewTripState,
+  type TripTypeValue,
 } from "@/lib/agent/newTrip";
 
 /**
@@ -23,7 +33,9 @@ import {
  *
  * THE TYPE TILES ARE RADIOS, drawn as cards. The prototype draws `<button>`s, which are not
  * a group, not announced as one, and not operable with arrow keys. A `<fieldset>` of radios
- * is the same picture and the right control — the call §3.3.1's status chips made.
+ * is the same picture and the right control — the call §3.3.1's status chips made. Which
+ * tile reads as chosen is React state since the MUI pass (it was `has-[:checked]` in CSS):
+ * the radio inside is still `name="tripType"` and still what the action reads.
  *
  * FIVE TILES, NOT THE PROTOTYPE'S SIX. See `TRIP_TYPES` — "Honeymoon" is not a `trip_type`.
  *
@@ -31,6 +43,16 @@ import {
  * has something in it — a picker that opens on nothing is the control §6.4's amendment
  * argues against, and it was disabled for exactly that reason until there were patterns.
  */
+
+/** The legacy `.btn` box on an MUI Button: 40px tall, 24px sides (12px for text), 8px gap. */
+const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+const BTN_TEXT = { minHeight: 40, px: "12px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** `.t-title-s mb-1 block` — the field headings this form uses above its hint and input. */
+const FIELD_HEADING_SX = { display: "block", mb: 0.5, fontWeight: 600 } as const;
+const FIELD_HINT_SX = { mb: 0.75, color: "text.secondary" } as const;
+const FIELD_ERROR_SX = { mt: 0.5, color: "error.main" } as const;
+
 export function NewTripForm({
   clients,
   presetClientId,
@@ -55,6 +77,10 @@ export function NewTripForm({
     clientId: presetClientId ?? "",
   };
 
+  // Which tile is chosen. Starts from the posted value (after a failed submit) or the
+  // default, and from then on follows the radio the advisor picks.
+  const [tripType, setTripType] = useState<TripTypeValue>(values.tripType);
+
   // Held here only so the hidden id can follow what was typed. The form still posts without
   // JavaScript: the visible input carries a `list`, and the action reads the id field, which
   // is pre-filled when the page was opened from a client.
@@ -68,59 +94,98 @@ export function NewTripForm({
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
-      {state.formError && (
-        <p role="alert" className="t-body-s rounded-xl bg-[var(--md-error-container)] px-3 py-2 text-[var(--md-on-error-container)]">
-          {state.formError}
-        </p>
-      )}
+    <Box component="form" action={formAction} sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      {state.formError && <Alert tone="error">{state.formError}</Alert>}
 
       {/* ── Type ─────────────────────────────────────────────────────── */}
-      <fieldset className="border-0 p-0">
-        <legend className="t-title-s mb-2 p-0">{NEW_TRIP_COPY.typeLabel}</legend>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {TRIP_TYPES.map((t) => (
-            <label
-              key={t.value}
-              className="card flex cursor-pointer items-start gap-3 px-3.5 py-3 has-[:checked]:border-[var(--md-primary)] has-[:checked]:bg-[var(--md-primary-container)]"
-            >
-              <input
-                type="radio"
-                name="tripType"
-                value={t.value}
-                defaultChecked={values.tripType === t.value}
-                className="mt-1 size-4 accent-[var(--md-primary)]"
-              />
-              <span className="min-w-0">
-                <span className="t-title-s flex items-center gap-1.5">
-                  <Icon name={t.icon} size={13} /> {t.label}
-                </span>
-                <span className="t-body-s mt-0.5 block text-[var(--md-on-surface-variant)]">
-                  {t.hint}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <Box component="fieldset" sx={{ m: 0, p: 0, border: 0, minWidth: 0 }}>
+        <Typography component="legend" variant="subtitle1" sx={{ p: 0, mb: 1, fontWeight: 600 }}>
+          {NEW_TRIP_COPY.typeLabel}
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1,
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+            },
+          }}
+        >
+          {TRIP_TYPES.map((t) => {
+            const on = tripType === t.value;
+            return (
+              <Card
+                key={t.value}
+                variant="outlined"
+                sx={{
+                  borderColor: on ? "primary.main" : "divider",
+                  bgcolor: on ? "primary.container" : "background.paper",
+                }}
+              >
+                <Box
+                  component="label"
+                  sx={{
+                    display: "flex",
+                    cursor: "pointer",
+                    alignItems: "flex-start",
+                    gap: 1.5,
+                    px: 1.75,
+                    py: 1.5,
+                  }}
+                >
+                  <Radio
+                    name="tripType"
+                    value={t.value}
+                    checked={on}
+                    onChange={() => setTripType(t.value)}
+                    size="small"
+                    sx={{ p: 0, mt: 0.25 }}
+                  />
+                  <Box component="span" sx={{ minWidth: 0 }}>
+                    <Typography
+                      component="span"
+                      variant="subtitle1"
+                      sx={{ display: "flex", alignItems: "center", gap: 0.75, fontWeight: 600 }}
+                    >
+                      <Icon name={t.icon} size={13} /> {t.label}
+                    </Typography>
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      sx={{ mt: 0.25, display: "block", color: "text.secondary" }}
+                    >
+                      {t.hint}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Card>
+            );
+          })}
+        </Box>
+      </Box>
 
       {/* ── Client ───────────────────────────────────────────────────── */}
       <div>
-        <label className="t-title-s mb-1 block" htmlFor="trip-client">
+        <Typography component="label" variant="subtitle1" htmlFor="trip-client" sx={FIELD_HEADING_SX}>
           {NEW_TRIP_COPY.clientLabel}
-        </label>
-        <p className="t-body-s mb-1.5 text-[var(--md-on-surface-variant)]">
+        </Typography>
+        <Typography component="p" variant="body2" sx={FIELD_HINT_SX}>
           {NEW_TRIP_COPY.clientHint}
-        </p>
-        <input
+        </Typography>
+        <OutlinedInput
           id="trip-client"
-          list="trip-client-options"
           value={clientText}
           onChange={(e) => setClientText(e.target.value)}
           placeholder={NEW_TRIP_COPY.clientPlaceholder}
           autoComplete="off"
-          className="input h-10 w-full rounded-xl px-3"
-          aria-describedby={state.fieldErrors?.clientId ? "trip-client-error" : undefined}
+          size="small"
+          fullWidth
+          inputProps={{
+            list: "trip-client-options",
+            "aria-describedby": state.fieldErrors?.clientId ? "trip-client-error" : undefined,
+          }}
         />
         <datalist id="trip-client-options">
           {clients.map((c) => (
@@ -134,55 +199,58 @@ export function NewTripForm({
             silently — an unmatched name simply posts no id and the action says so. */}
         <input type="hidden" name="clientId" value={matched?.id ?? (clientText ? "" : values.clientId)} />
         {state.fieldErrors?.clientId && (
-          <p id="trip-client-error" role="alert" className="t-body-s mt-1 text-[var(--md-error)]">
+          <Typography component="p" id="trip-client-error" role="alert" variant="body2" sx={FIELD_ERROR_SX}>
             {state.fieldErrors.clientId[0]}
-          </p>
+          </Typography>
         )}
       </div>
 
       {/* ── Title ────────────────────────────────────────────────────── */}
       <div>
-        <label className="t-title-s mb-1 block" htmlFor="trip-title">
+        <Typography component="label" variant="subtitle1" htmlFor="trip-title" sx={FIELD_HEADING_SX}>
           {NEW_TRIP_COPY.titleLabel}
-        </label>
-        <p className="t-body-s mb-1.5 text-[var(--md-on-surface-variant)]">
+        </Typography>
+        <Typography component="p" variant="body2" sx={FIELD_HINT_SX}>
           {NEW_TRIP_COPY.titleHint}
-        </p>
-        <input
+        </Typography>
+        <OutlinedInput
           id="trip-title"
           name="title"
           required
-          maxLength={160}
           defaultValue={values.title}
           placeholder={NEW_TRIP_COPY.titlePlaceholder}
-          className="input h-10 w-full rounded-xl px-3"
-          aria-describedby={state.fieldErrors?.title ? "trip-title-error" : undefined}
+          size="small"
+          fullWidth
+          inputProps={{
+            maxLength: 160,
+            "aria-describedby": state.fieldErrors?.title ? "trip-title-error" : undefined,
+          }}
         />
         {state.fieldErrors?.title && (
-          <p id="trip-title-error" role="alert" className="t-body-s mt-1 text-[var(--md-error)]">
+          <Typography component="p" id="trip-title-error" role="alert" variant="body2" sx={FIELD_ERROR_SX}>
             {state.fieldErrors.title[0]}
-          </p>
+          </Typography>
         )}
       </div>
 
       {/* ── Travelers ────────────────────────────────────────────────── */}
-      <div className="max-w-[220px]">
-        <label className="t-title-s mb-1 block" htmlFor="trip-travelers">
+      <Box sx={{ maxWidth: 220 }}>
+        <Typography component="label" variant="subtitle1" htmlFor="trip-travelers" sx={FIELD_HEADING_SX}>
           {NEW_TRIP_COPY.travelersLabel}
-        </label>
-        <p className="t-body-s mb-1.5 text-[var(--md-on-surface-variant)]">
+        </Typography>
+        <Typography component="p" variant="body2" sx={FIELD_HINT_SX}>
           {NEW_TRIP_COPY.travelersHint}
-        </p>
-        <input
+        </Typography>
+        <OutlinedInput
           id="trip-travelers"
           name="travelerCount"
           type="number"
-          min={1}
-          max={64}
           defaultValue={values.travelerCount}
-          className="input h-10 w-full rounded-xl px-3"
+          size="small"
+          fullWidth
+          inputProps={{ min: 1, max: 64 }}
         />
-      </div>
+      </Box>
 
       {/* §3.4.13's "start from a template", live since 2026-09-28. A `<select>` rather than
           the prototype's button-into-a-picker: there are a handful of patterns, the control
@@ -193,44 +261,48 @@ export function NewTripForm({
           that opens on nothing, which is the control §6.4's amendment argues against — and
           the empty state on /agent/templates says how to make the first one. */}
       {templates.length > 0 && (
-        <div>
-          <label htmlFor="templateId" className="field-label">
-            {NEW_TRIP_COPY.templateLabel}
-          </label>
-          <select
-            id="templateId"
-            name="templateId"
-            defaultValue={values.templateId}
-            className="input h-10 w-full rounded-xl px-3"
-          >
-            <option value="">{NEW_TRIP_COPY.templateNone}</option>
-            {templates.map((t) => (
-              <option key={t.templateId} value={t.templateId}>
-                {t.name} — {t.shapeLabel}
-              </option>
-            ))}
-          </select>
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {NEW_TRIP_COPY.templateHint}
-          </p>
-        </div>
+        <SelectField
+          id="templateId"
+          name="templateId"
+          label={NEW_TRIP_COPY.templateLabel}
+          defaultValue={values.templateId}
+          placeholder={NEW_TRIP_COPY.templateNone}
+          options={templates.map((t) => ({
+            value: t.templateId,
+            label: `${t.name} — ${t.shapeLabel}`,
+          }))}
+          hint={NEW_TRIP_COPY.templateHint}
+        />
       )}
 
-      <p className="t-body-s rounded-xl bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-on-surface-variant)]">
+      <Typography
+        component="p"
+        variant="body2"
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          borderRadius: 1,
+          bgcolor: "surface.2",
+          px: 1.5,
+          py: 1,
+          color: "text.secondary",
+        }}
+      >
         <Icon name="info" size={12} /> {NEW_TRIP_COPY.startsAsInquiry}
-      </p>
+      </Typography>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={pending} className="btn btn-orange">
+      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+        <Button type="submit" variant="orange" disabled={pending}>
           {pending ? NEW_TRIP_COPY.submitting : NEW_TRIP_COPY.submit}
-        </button>
-        <Link href="/agent/trips" className="btn btn-tonal">
+        </Button>
+        <MuiButton component={Link} href="/agent/trips" variant="outlined" color="secondary" sx={BTN}>
           {NEW_TRIP_COPY.cancel}
-        </Link>
-        <Link href="/agent/templates" className="btn btn-text ml-auto">
+        </MuiButton>
+        <MuiButton component={Link} href="/agent/templates" variant="text" sx={{ ...BTN_TEXT, ml: "auto" }}>
           {TEMPLATE_COPY.navLabel}
-        </Link>
-      </div>
-    </form>
+        </MuiButton>
+      </Box>
+    </Box>
   );
 }

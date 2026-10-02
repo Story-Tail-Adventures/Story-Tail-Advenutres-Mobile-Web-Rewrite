@@ -1,6 +1,15 @@
-import Link from "next/link";
+import Card from "@mui/material/Card";
+import MuiLink from "@mui/material/Link";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
 
-import { SelectAllTrips } from "@/components/agent/TripBulkStatus";
+import NextLink from "@/components/mui/NextLink";
+import { SelectAllTrips, TripPickCheckbox } from "@/components/agent/TripBulkStatus";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { TRIP_COPY } from "@/lib/agent/content";
 import type { TripRosterRow } from "@/lib/agent/trips";
 
@@ -15,68 +24,96 @@ import type { TripRosterRow } from "@/lib/agent/trips";
  * EVERY ROW CARRIES ITS STAGE INTO THE CHECKBOX, as `tripId:fromStatus`. Setting a stage
  * overwrites, so the bulk write refuses to move a trip whose stage has changed since this
  * page rendered — and the value is where it learns what the page was showing.
+ *
+ * ON MUI's Table (step 2 of the migration, PR 6), the way the artboard draws it: stock
+ * `size="small"` cells in a Card, the row's title at 600, meta in text.secondary, money in
+ * the mono face. Still a Server Component; the two checkboxes are the client islands
+ * `TripBulkStatus.tsx` exports.
  */
+
+/** A single-line cell text that clips rather than wraps, as the legacy `truncate` did. */
+const TRUNCATE = {
+  display: "block",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+} as const;
+
 export function TripRosterTable({ rows }: { rows: TripRosterRow[] }) {
   return (
-    <div className="card overflow-x-auto p-0">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="text-[10.5px] font-semibold uppercase tracking-[0.5px] text-[var(--md-on-surface-variant)]">
-            {/* Fixed width so the columns do not shift when the select-all appears on
-                hydration. See SelectAllTrips. */}
-            <th scope="col" className="w-10 px-3.5 py-2.5 text-left">
+    <Card sx={{ overflowX: "auto" }}>
+      <Table size="small" sx={{ width: "100%" }}>
+        <TableHead>
+          <TableRow>
+            {/* `padding="checkbox"` fixes the column's width so nothing shifts when the
+                select-all appears on hydration. See SelectAllTrips. */}
+            <TableCell scope="col" padding="checkbox">
               <SelectAllTrips />
-            </th>
-            <th scope="col" className="px-3.5 py-2.5 text-left">{TRIP_COPY.colTrip}</th>
-            <th scope="col" className="px-3.5 py-2.5 text-left">{TRIP_COPY.colClient}</th>
-            <th scope="col" className="px-3.5 py-2.5 text-left">{TRIP_COPY.colTravel}</th>
-            <th scope="col" className="px-3.5 py-2.5 text-left">{TRIP_COPY.colStage}</th>
-            <th scope="col" className="px-3.5 py-2.5 text-right">{TRIP_COPY.colValue}</th>
-            <th scope="col" className="px-3.5 py-2.5 text-right">{TRIP_COPY.colCommission}</th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableCell>
+            <TableCell scope="col">{TRIP_COPY.colTrip}</TableCell>
+            <TableCell scope="col">{TRIP_COPY.colClient}</TableCell>
+            <TableCell scope="col">{TRIP_COPY.colTravel}</TableCell>
+            <TableCell scope="col">{TRIP_COPY.colStage}</TableCell>
+            <TableCell scope="col" align="right">{TRIP_COPY.colValue}</TableCell>
+            <TableCell scope="col" align="right">{TRIP_COPY.colCommission}</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {rows.map((row) => (
-            <tr key={row.tripId} className="border-t border-[var(--md-outline-variant)]">
-              <td className="px-3.5 py-2.5">
-                <input
-                  type="checkbox"
-                  name="trip"
+            <TableRow key={row.tripId} hover>
+              <TableCell padding="checkbox">
+                <TripPickCheckbox
                   value={`${row.tripId}:${row.status}`}
-                  aria-label={`${TRIP_COPY.bulkSelectRow} ${row.title}`}
-                  className="bulk-pick size-4 cursor-pointer accent-[var(--md-primary)]"
+                  label={`${TRIP_COPY.bulkSelectRow} ${row.title}`}
                 />
-              </td>
-              <td className="px-3.5 py-2.5">
-                <Link href={`/agent/trips/${row.tripId}`} className="min-w-0 hover:underline">
-                  <span className="t-title-s block truncate">{row.title}</span>
-                  <span className="t-body-s block truncate text-[var(--md-on-surface-variant)]">
+              </TableCell>
+              <TableCell>
+                <MuiLink
+                  component={NextLink}
+                  href={`/agent/trips/${row.tripId}`}
+                  underline="hover"
+                  color="inherit"
+                  sx={{ display: "block", minWidth: 0 }}
+                >
+                  <Typography component="span" variant="body2" sx={{ ...TRUNCATE, fontWeight: 600 }}>
+                    {row.title}
+                  </Typography>
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    sx={{ ...TRUNCATE, color: "text.secondary" }}
+                  >
                     {row.destinationLabel ?? TRIP_COPY.noDestination}
                     {row.componentCount > 0 && ` · ${row.componentCount}`}
-                  </span>
-                </Link>
-              </td>
-              <td className="px-3.5 py-2.5 text-[12.5px] text-[var(--md-on-surface-variant)]">
-                <Link href={`/agent/clients/${row.clientId}`} className="hover:underline">
+                  </Typography>
+                </MuiLink>
+              </TableCell>
+              <TableCell sx={{ color: "text.secondary" }}>
+                <MuiLink
+                  component={NextLink}
+                  href={`/agent/clients/${row.clientId}`}
+                  underline="hover"
+                  color="inherit"
+                >
                   {row.clientName}
-                </Link>
-              </td>
-              <td className="px-3.5 py-2.5 text-[12.5px] font-medium text-[var(--md-on-surface-variant)]">
+                </MuiLink>
+              </TableCell>
+              <TableCell sx={{ color: "text.secondary", fontWeight: 500 }}>
                 {row.travelLabel ?? TRIP_COPY.noDates}
-              </td>
-              <td className="px-3.5 py-2.5">
-                <span className={`chip-status ${row.statusChip}`}>{row.statusLabel}</span>
-              </td>
-              <td className="px-3.5 py-2.5 text-right font-mono text-[12.5px] font-bold">
+              </TableCell>
+              <TableCell>
+                <StatusChip kind={row.statusChip} label={row.statusLabel} />
+              </TableCell>
+              <TableCell align="right" sx={{ fontFamily: "mono", fontWeight: 700 }}>
                 {row.valueLabel}
-              </td>
-              <td className="px-3.5 py-2.5 text-right font-mono text-[12.5px] text-[var(--md-primary)]">
+              </TableCell>
+              <TableCell align="right" sx={{ fontFamily: "mono", color: "primary.main" }}>
                 {row.commissionLabel ?? TRIP_COPY.noCommission}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

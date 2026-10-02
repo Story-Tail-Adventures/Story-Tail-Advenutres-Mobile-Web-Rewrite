@@ -1,3 +1,11 @@
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 import { AGENT_COPY } from "@/lib/agent/content";
 import type { TripItineraryView as TripItinerary } from "@/lib/agent/tripDetail";
 
@@ -8,57 +16,89 @@ const BLOCK_LABEL: Record<string, string> = {
   all_day: "ALL DAY",
 };
 
+/**
+ * The read-only itinerary, drawn the way the artboard's itinerary editor (3.4.14) draws a
+ * day: the script "Day N" in the primary colour, time blocks as overline in the brand
+ * orange, and Gyasi's tip on a tertiary-container Paper.
+ */
 export function TripItineraryView({ itinerary }: { itinerary: TripItinerary }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="chip">{itinerary.publishedLabel}</span>
-      </div>
+      <Box sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+        <Chip size="small" variant="outlined" label={itinerary.publishedLabel} />
+      </Box>
 
       {itinerary.days.length === 0 ? (
-        <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
+        <Typography component="p" variant="body2" sx={{ px: 0.5, py: 2, color: "text.secondary" }}>
           {AGENT_COPY.tripItineraryEmpty}
-        </p>
+        </Typography>
       ) : (
         itinerary.days.map((day) => (
-          <div key={day.dayId} className="mb-4">
-            <div className="flex items-baseline gap-2">
-              <span className="t-script text-[22px] leading-none text-[var(--brand-burgundy)]">
+          <Box key={day.dayId} sx={{ mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+              <Typography variant="script" sx={{ fontSize: 22, lineHeight: 1, color: "primary.main" }}>
                 Day {day.dayNumber}
-              </span>
-              {day.label && <span className="t-title-s">{day.label}</span>}
-              {day.dateLabel && (
-                <span className="t-body-s text-[var(--md-on-surface-variant)]">{day.dateLabel}</span>
+              </Typography>
+              {day.label && (
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {day.label}
+                </Typography>
               )}
-            </div>
+              {day.dateLabel && (
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                  {day.dateLabel}
+                </Typography>
+              )}
+            </Box>
             {day.summary && (
-              <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">{day.summary}</p>
+              <Typography component="p" variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
+                {day.summary}
+              </Typography>
             )}
-            <div className="mt-2 flex flex-col gap-2">
+            <Stack spacing={1} sx={{ mt: 1 }}>
               {day.activities.map((a) => (
-                <div key={a.activityId} className="card p-3">
-                  <div className="flex items-center gap-2">
-                    {a.block && (
-                      <span className="t-label-s text-[var(--brand-orange)]">
-                        {BLOCK_LABEL[a.block] ?? a.block.toUpperCase()}
-                      </span>
+                <Card key={a.activityId}>
+                  <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {a.block && (
+                        <Typography variant="overline" sx={{ color: "brand.main", lineHeight: 1.3 }}>
+                          {BLOCK_LABEL[a.block] ?? a.block.toUpperCase()}
+                        </Typography>
+                      )}
+                      <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
+                        {a.timeLabel ? `${a.timeLabel} · ` : ""}
+                        {a.title}
+                      </Typography>
+                    </Box>
+                    {a.body && (
+                      <Typography component="p" variant="body2" sx={{ mt: 0.5 }}>
+                        {a.body}
+                      </Typography>
                     )}
-                    <span className="t-title-s flex-1 text-[13px]">
-                      {a.timeLabel ? `${a.timeLabel} · ` : ""}
-                      {a.title}
-                    </span>
-                  </div>
-                  {a.body && <p className="t-body-s mt-1">{a.body}</p>}
-                  {a.gyasisTip && (
-                    <div className="mt-2 flex items-start gap-2 rounded-[8px] bg-[var(--md-tertiary-container)] p-2 text-[var(--md-on-tertiary-container)]">
-                      <span className="t-label-s shrink-0">GYASI&apos;S TIP</span>
-                      <span className="t-body-s">{a.gyasisTip}</span>
-                    </div>
-                  )}
-                </div>
+                    {a.gyasisTip && (
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          mt: 1,
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 1,
+                          p: 1,
+                          bgcolor: "tertiary.container",
+                          color: "tertiary.onContainer",
+                        }}
+                      >
+                        <Typography variant="overline" sx={{ flexShrink: 0, lineHeight: 1.3 }}>
+                          GYASI&apos;S TIP
+                        </Typography>
+                        <Typography variant="body2">{a.gyasisTip}</Typography>
+                      </Paper>
+                    )}
+                  </CardContent>
+                </Card>
               ))}
-            </div>
-          </div>
+            </Stack>
+          </Box>
         ))
       )}
     </div>

@@ -1,3 +1,9 @@
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 import { AGENT_COPY } from "@/lib/agent/content";
 import type { TripActivityRow } from "@/lib/agent/tripDetail";
 import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
@@ -17,29 +23,35 @@ function statusLabel(status: string): string {
 export function TripActivityTimeline({ activity }: { activity: TripActivityRow[] }) {
   if (activity.length === 0) {
     return (
-      <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
+      <Typography component="p" variant="body2" sx={{ px: 0.5, py: 2, color: "text.secondary" }}>
         {AGENT_COPY.tripActivityEmpty}
-      </p>
+      </Typography>
     );
   }
 
   return (
-    <ol className="flex flex-col gap-2">
+    <Stack component="ol" spacing={1} sx={{ m: 0, p: 0, listStyle: "none" }}>
       {activity.map((h) => (
-        <li key={h.historyId} className="card flex items-center gap-3 p-3">
-          <span
-            className="size-2 shrink-0 self-stretch rounded-full bg-[var(--md-primary-container)]"
-            aria-hidden="true"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="t-title-s text-[13px]">
-              {h.fromLabel ? `${statusLabel(h.fromLabel)} → ${statusLabel(h.toLabel)}` : statusLabel(h.toLabel)}
-            </p>
-            <p className="t-body-s text-[var(--md-on-surface-variant)]">{h.changedByName}</p>
-          </div>
-          <span className="t-body-s text-[var(--md-on-surface-variant)]">{h.changedAtLabel}</span>
-        </li>
+        <Card component="li" key={h.historyId}>
+          <CardContent sx={{ p: 1.5, display: "flex", alignItems: "center", gap: 1.5, "&:last-child": { pb: 1.5 } }}>
+            <Box
+              aria-hidden="true"
+              sx={{ width: 8, flexShrink: 0, alignSelf: "stretch", borderRadius: 999, bgcolor: "primary.container" }}
+            />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                {h.fromLabel ? `${statusLabel(h.fromLabel)} → ${statusLabel(h.toLabel)}` : statusLabel(h.toLabel)}
+              </Typography>
+              <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+                {h.changedByName}
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {h.changedAtLabel}
+            </Typography>
+          </CardContent>
+        </Card>
       ))}
-    </ol>
+    </Stack>
   );
 }

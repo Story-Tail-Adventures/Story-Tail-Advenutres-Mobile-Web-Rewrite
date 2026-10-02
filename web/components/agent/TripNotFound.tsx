@@ -1,5 +1,9 @@
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { AGENT_COPY } from "@/lib/agent/content";
 
@@ -30,22 +34,43 @@ import { AGENT_COPY } from "@/lib/agent/content";
  * "another advisor's" — one answer for both is what stops trip ids being enumerated. Saying
  * more here than the database will say is how that guarantee gets talked away.
  */
+
+/** The legacy `.btn` box on an MUI Button: 40px tall, 24px sides, 8px icon gap. */
+const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
 export function TripNotFound() {
   return (
-    <div className="mx-auto w-full max-w-[600px] px-4 py-16 text-center md:px-8">
-      <span
-        className="mx-auto mb-3 inline-flex size-14 items-center justify-center rounded-full bg-[var(--md-surface-3)] text-[var(--md-on-surface-variant)]"
+    <Box
+      sx={{
+        mx: "auto",
+        width: "100%",
+        maxWidth: 600,
+        px: { xs: 2, md: 4 },
+        py: 8,
+        textAlign: "center",
+      }}
+    >
+      <Avatar
         aria-hidden="true"
+        sx={{ mx: "auto", mb: 1.5, width: 56, height: 56, bgcolor: "surface.3", color: "text.secondary" }}
       >
         <Icon name="briefcase" size={26} />
-      </span>
-      <h1 className="t-title-l">{AGENT_COPY.tripNotFoundTitle}</h1>
-      <p className="t-body mt-2 text-[var(--md-on-surface-variant)]">
+      </Avatar>
+      <Typography component="h1" variant="h5">
+        {AGENT_COPY.tripNotFoundTitle}
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
         {AGENT_COPY.tripNotFoundBody}
-      </p>
-      <Link href="/agent" className="btn btn-tonal mt-5">
+      </Typography>
+      <MuiButton
+        component={NextLink}
+        href="/agent"
+        variant="outlined"
+        color="secondary"
+        sx={{ ...BTN, mt: 2.5 }}
+      >
         {AGENT_COPY.tripNotFoundAction}
-      </Link>
-    </div>
+      </MuiButton>
+    </Box>
   );
 }

@@ -1,9 +1,15 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { MilestoneForm } from "@/components/agent/MilestoneForm";
 import { PaymentScheduleTable } from "@/components/agent/PaymentScheduleTable";
 import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { SCHEDULE_COPY } from "@/lib/agent/content";
 import {
@@ -17,6 +23,7 @@ import {
   loadTripPayments,
   type TripPaymentRow,
 } from "@/lib/agent/tripDetail";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Screen 3.4.15 — Trip Payment Schedule.
@@ -33,6 +40,18 @@ import {
  */
 
 export const metadata = { title: "Payment schedule" };
+
+/** The page column: `mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 1100,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
+/** Legacy `.card.p-4`: 16px inside the header card, MUI's last-child rule cancelled. */
+const CARD_PAD = { p: 2, "&:last-child": { pb: 2 } } as const;
 
 function editValues(row: TripPaymentRow): MilestoneValues {
   return {
@@ -76,68 +95,118 @@ export default async function TripPaymentsPage({
   const currency = "USD";
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8">
-      <header className="card mt-5 p-4">
-        <p className="t-body-s text-[var(--md-on-surface-variant)]">
-          <Link href={`/agent/trips/${tripId}`} className="hover:underline">
-            {SCHEDULE_COPY.backToTrip}
-          </Link>{" "}
-          · {overview.clientName}
-        </p>
-        <h1 className="t-headline mt-1 text-[22px] leading-tight">{overview.title}</h1>
-        <p className="t-body-s mt-0.5 text-[var(--md-on-surface-variant)]">
-          {SCHEDULE_COPY.subtitle}
-        </p>
-
-        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-          <div>
-            <dt className="t-label text-[var(--md-on-surface-variant)]">
-              {SCHEDULE_COPY.totalExpected}
-            </dt>
-            <dd className="t-title-s m-0 font-mono">
-              {formatTripMoney(expectedCents, currency, { whole: true })}
-            </dd>
-          </div>
-          <div>
-            <dt className="t-label text-[var(--md-on-surface-variant)]">
-              {SCHEDULE_COPY.totalPaid}
-            </dt>
-            <dd className="t-title-s m-0 font-mono">
-              {formatTripMoney(paidCents, currency, { whole: true })}
-            </dd>
-          </div>
-          <div>
-            <dt className="t-label text-[var(--md-on-surface-variant)]">
-              {SCHEDULE_COPY.totalTrip}
-            </dt>
-            <dd className="t-title-s m-0 font-mono">{overview.totalValueLabel}</dd>
-          </div>
-        </dl>
-        <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-          <Icon name="info" size={12} /> {SCHEDULE_COPY.totalsHint}
-        </p>
-      </header>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
-        <section>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="t-title-s">{SCHEDULE_COPY.title}</h2>
-            <button
-              type="button"
-              disabled
-              title={SCHEDULE_COPY.remindDeferred}
-              className="btn btn-outlined btn-sm"
+    <Box sx={PAGE_SX}>
+      <Card component="header" sx={{ mt: 2.5 }}>
+        <CardContent sx={CARD_PAD}>
+          <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+            <MuiLink
+              component={NextLink}
+              href={`/agent/trips/${tripId}`}
+              underline="hover"
+              color="inherit"
             >
+              {SCHEDULE_COPY.backToTrip}
+            </MuiLink>{" "}
+            · {overview.clientName}
+          </Typography>
+          <Typography component="h1" variant="h5" sx={{ mt: 0.5, fontWeight: 700 }}>
+            {overview.title}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 0.25, color: "text.secondary" }}>
+            {SCHEDULE_COPY.subtitle}
+          </Typography>
+
+          <Box
+            component="dl"
+            sx={{ m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", columnGap: 4, rowGap: 1 }}
+          >
+            <div>
+              <Typography
+                component="dt"
+                variant="caption"
+                sx={{ display: "block", fontWeight: 500, color: "text.secondary" }}
+              >
+                {SCHEDULE_COPY.totalExpected}
+              </Typography>
+              <Typography
+                component="dd"
+                variant="subtitle1"
+                sx={{ m: 0, fontWeight: 600, fontFamily: "mono" }}
+              >
+                {formatTripMoney(expectedCents, currency, { whole: true })}
+              </Typography>
+            </div>
+            <div>
+              <Typography
+                component="dt"
+                variant="caption"
+                sx={{ display: "block", fontWeight: 500, color: "text.secondary" }}
+              >
+                {SCHEDULE_COPY.totalPaid}
+              </Typography>
+              <Typography
+                component="dd"
+                variant="subtitle1"
+                sx={{ m: 0, fontWeight: 600, fontFamily: "mono" }}
+              >
+                {formatTripMoney(paidCents, currency, { whole: true })}
+              </Typography>
+            </div>
+            <div>
+              <Typography
+                component="dt"
+                variant="caption"
+                sx={{ display: "block", fontWeight: 500, color: "text.secondary" }}
+              >
+                {SCHEDULE_COPY.totalTrip}
+              </Typography>
+              <Typography
+                component="dd"
+                variant="subtitle1"
+                sx={{ m: 0, fontWeight: 600, fontFamily: "mono" }}
+              >
+                {overview.totalValueLabel}
+              </Typography>
+            </div>
+          </Box>
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{ mt: 1, display: "flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}
+          >
+            <Icon name="info" size={12} /> {SCHEDULE_COPY.totalsHint}
+          </Typography>
+        </CardContent>
+      </Card>
+
+      <Box
+        sx={{
+          mt: 2,
+          display: "grid",
+          gap: 2,
+          // minmax(0, 1fr), as Tailwind's grid-cols-1 was: a bare 1fr track cannot shrink
+          // below its content, so the schedule table pushed the page 298px past a phone.
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) 340px" },
+        }}
+      >
+        <Box component="section">
+          <Box
+            sx={{ mb: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
+          >
+            <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {SCHEDULE_COPY.title}
+            </Typography>
+            <Button type="button" variant="outlined" size="sm" disabled title={SCHEDULE_COPY.remindDeferred}>
               {SCHEDULE_COPY.remindLabel}
-              <span className="sr-only"> — {SCHEDULE_COPY.remindDeferred}</span>
-            </button>
-          </div>
+              <Box component="span" sx={VISUALLY_HIDDEN}> — {SCHEDULE_COPY.remindDeferred}</Box>
+            </Button>
+          </Box>
           <PaymentScheduleTable
             tripId={tripId}
             payments={payments}
             editingId={editingRow?.milestoneId ?? null}
           />
-        </section>
+        </Box>
 
         <MilestoneForm
           tripId={tripId}
@@ -147,7 +216,7 @@ export default async function TripPaymentsPage({
           key={editingRow?.milestoneId ?? "new"}
           initial={editingRow ? editValues(editingRow) : undefined}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

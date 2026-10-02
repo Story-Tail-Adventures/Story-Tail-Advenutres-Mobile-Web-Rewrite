@@ -1,5 +1,8 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { TripBulkStatusForm } from "@/components/agent/TripBulkStatus";
 import { TripRosterFilters } from "@/components/agent/TripRosterFilters";
@@ -19,9 +22,9 @@ import { isDefaultStages, tripQueryFromParams } from "@/lib/agent/tripStatuses";
  * calendar's events. The rail's "Trips" entry has always pointed at THIS route, and
  * `nav.test.ts` said so in a comment while the route 404'd.
  *
- * A SERVER COMPONENT, with one client island that holds no selection state — the same shape
- * §3.3.1 settled. Filters are a GET form, the paginator is a pair of links, the bulk
- * selection is the browser's own checkbox state, and everything else lives in the URL.
+ * A SERVER COMPONENT, with one client island that holds the bulk selection — the same shape
+ * §3.3.1 settled, on MUI since 2026-10-02 (step 2, PR 6). Filters are a GET form, the
+ * paginator is a pair of links, and everything else lives in the URL.
  *
  * WHAT THE PROTOTYPE DRAWS THAT IS NOT HERE. Its "Filter" button opens a sheet the chips
  * already make unnecessary at this width, and its "Sort · Departure" chip offers a sort with
@@ -31,6 +34,18 @@ import { isDefaultStages, tripQueryFromParams } from "@/lib/agent/tripStatuses";
  */
 
 export const metadata = { title: "Trips" };
+
+/** The page column: `mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 1336,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
+/** The legacy `.btn.btn-sm` box on an MUI Button: 32px tall, 16px sides, 8px icon gap. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
 
 export default async function AgentTripsPage({
   searchParams,
@@ -43,9 +58,9 @@ export default async function AgentTripsPage({
 
   if (!roster) {
     return (
-      <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
+      <Box sx={PAGE_SX}>
         <RetryState />
-      </div>
+      </Box>
     );
   }
 
@@ -53,11 +68,16 @@ export default async function AgentTripsPage({
   const defaultStages = isDefaultStages(query.statuses);
 
   return (
-    <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
-      <header className="mb-4 flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="t-title-l m-0">{TRIP_COPY.title}</h1>
-          <p className="t-body-s mt-0.5 text-[var(--md-on-surface-variant)]">
+    <Box sx={PAGE_SX}>
+      <Box
+        component="header"
+        sx={{ mb: 2, display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 1.5 }}
+      >
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography component="h1" variant="h5" sx={{ m: 0 }}>
+            {TRIP_COPY.title}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 0.25, color: "text.secondary" }}>
             {TRIP_COPY.subtitle}
             {roster.pipelineLabel && (
               <>
@@ -65,23 +85,37 @@ export default async function AgentTripsPage({
                 {TRIP_COPY.pipelinePrefix} <strong>{roster.pipelineLabel}</strong>
               </>
             )}
-          </p>
-        </div>
+          </Typography>
+        </Box>
         {/* Live as of §3.4.3. It shipped disabled with its reason one commit earlier, which
             is the shape §3.2.1 settled for a control whose screen is real but unbuilt. */}
-        <div className="flex shrink-0 items-center gap-2">
+        <Box sx={{ display: "flex", flexShrink: 0, alignItems: "center", gap: 1 }}>
           {/* §3.4.13's door. The library is NOT on the nav rail — §6.4's amendment settled
               the prototype's seven entries as final and `nav.ts` records that Templates
               and Settings stay off it — so the roster is where it hangs, next to the
               action that uses one. */}
-          <Link href="/agent/templates" className="btn btn-outlined btn-sm">
+          <MuiButton
+            component={NextLink}
+            href="/agent/templates"
+            variant="outlined"
+            color="primary"
+            size="small"
+            sx={BTN_SM}
+          >
             {TEMPLATE_COPY.navLabel}
-          </Link>
-          <Link href="/agent/trips/new" className="btn btn-orange btn-sm">
+          </MuiButton>
+          <MuiButton
+            component={NextLink}
+            href="/agent/trips/new"
+            variant="contained"
+            color="brand"
+            size="small"
+            sx={BTN_SM}
+          >
             <Icon name="plus" size={12} /> New trip
-          </Link>
-        </div>
-      </header>
+          </MuiButton>
+        </Box>
+      </Box>
 
       <TripRosterFilters query={query} counts={roster.counts} />
 
@@ -124,6 +158,6 @@ export default async function AgentTripsPage({
           pageSize={roster.pageSize}
         />
       )}
-    </div>
+    </Box>
   );
 }

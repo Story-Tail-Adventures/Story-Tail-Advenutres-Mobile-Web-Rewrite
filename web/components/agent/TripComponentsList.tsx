@@ -1,33 +1,74 @@
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 import { Icon } from "@/components/ui/Icon";
 import { AGENT_COPY } from "@/lib/agent/content";
 import type { TripComponentRow } from "@/lib/agent/tripDetail";
 
+/**
+ * The artboard's compact row card (`A34_MuiRowCard` + `A34_MuiIconTile` in agent-trip.jsx):
+ * a tinted square icon tile, title over meta, the source as a small mono chip, the cost
+ * right-aligned in the mono face.
+ */
+const ROW_SX = {
+  py: 1.25,
+  px: 1.75,
+  display: "flex",
+  gap: 1.5,
+  alignItems: "center",
+  "&:last-child": { pb: 1.25 },
+} as const;
+
 export function TripComponentsList({ components }: { components: TripComponentRow[] }) {
   if (components.length === 0) {
     return (
-      <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
+      <Typography component="p" variant="body2" sx={{ px: 0.5, py: 2, color: "text.secondary" }}>
         {AGENT_COPY.tripComponentsEmpty}
-      </p>
+      </Typography>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <Stack spacing={0.75}>
       {components.map((c) => (
-        <div key={c.componentId} className="card flex items-center gap-3 px-3.5 py-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]">
-            <Icon name={c.icon} size={16} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="t-title-s text-[13px]">{c.title}</p>
-            {c.subtitle && (
-              <p className="t-body-s text-[var(--md-on-surface-variant)]">{c.subtitle}</p>
-            )}
-          </div>
-          <span className="kbd">{c.sourceBadge}</span>
-          <div className="min-w-[70px] text-right font-mono text-xs font-bold">{c.costLabel}</div>
-        </div>
+        <Card key={c.componentId}>
+          <CardContent sx={ROW_SX}>
+            <Avatar
+              variant="rounded"
+              sx={{ width: 32, height: 32, bgcolor: "secondary.container", color: "secondary.onContainer" }}
+            >
+              <Icon name={c.icon} size={16} />
+            </Avatar>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                {c.title}
+              </Typography>
+              {c.subtitle && (
+                <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+                  {c.subtitle}
+                </Typography>
+              )}
+            </Box>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={c.sourceBadge}
+              sx={{ fontFamily: "mono", fontSize: 11, height: 20 }}
+            />
+            <Typography
+              variant="body2"
+              sx={{ fontFamily: "mono", fontWeight: 700, fontSize: 12, minWidth: 70, textAlign: "right" }}
+            >
+              {c.costLabel}
+            </Typography>
+          </CardContent>
+        </Card>
       ))}
-    </div>
+    </Stack>
   );
 }
