@@ -46,12 +46,17 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 
 6. **Build the web version (if applicable).** In the matching route group —
    `web/app/(public|auth|client|agent)/` — create the page. Prefer a Server Component with a
-   `"use client"` form/interaction child. Reuse the primitives in `web/components/ui/` and the
-   ported prototype classes in `web/styles/components.css` (`.btn`, `.input`, `.card`, `.chip`,
-   `.t-headline`, …) — the prototype JSX uses these by name, so a port stays close to a literal
-   transcription. Tailwind utilities for layout; brand tokens resolve through the `@theme inline`
-   map in `web/app/globals.css`. Dark mode is the `.scheme-dark` class, so use the `dark:`
-   variant, not `prefers-color-scheme`.
+   `"use client"` form/interaction child. **New web UI is MUI v9** (the migration is under way,
+   `docs/Tech-Recommendations.md` §2.3.1): the web artboards in `design/source-prototype/screens/`
+   are built from MUI components and `sx`, so a port stays close to a literal transcription.
+   Reuse the primitives in `web/components/ui/` (Button, Card, Chip, Field, Select, Textarea,
+   DateField, Alert, Icon). Colors are palette paths in `sx` (`"surface.2"`,
+   `"primary.container"`, `"status.booked.bg"`), defined in `web/lib/mui/theme.ts`. Follow the
+   MUI rules in `web/AGENTS.md`: a Server Component passes MUI only serializable props (plain
+   `sx` objects, the constants in `web/lib/mui/sx.ts`, `component={NextLink}`), and `styled()` or
+   `sx` callbacks need a `"use client"` file. Dark mode is the `.scheme-dark` class, which the
+   theme's CSS variables already follow; for the rare non-palette value use the `DARK` selector
+   from `lib/mui/sx.ts`, never `prefers-color-scheme` or `useColorScheme`. Don't add new Tailwind.
 
 7. **Wire up the API call.** A plain RLS-protected table read goes straight through the Supabase
    client (`web/lib/supabase/server.ts`, or the repository layer in
@@ -73,7 +78,7 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 ## What this skill never does
 
 - Skips the responsive variant mapping. Mobile gets Pattern X, tablet gets Pattern Y, web gets Pattern Z — they are not always the same layout.
-- Hardcodes brand colors. All colors come through `MaterialTheme.colorScheme.*` on mobile and CSS variables on web.
+- Hardcodes brand colors. All colors come through `MaterialTheme.colorScheme.*` on mobile and the MUI theme's palette paths on web.
 - Loads fonts from the Google Fonts CDN at runtime. They are already bundled: `next/font/google`
   in `web/app/fonts.ts` (build-time, self-hosted) and `composeResources/font/` on mobile.
 - Touches PCI scope without invoking the `audit-pci` skill afterward.
