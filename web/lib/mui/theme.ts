@@ -141,6 +141,15 @@ export const themeOptions: ThemeOptions = {
     MuiTypography: {
       defaultProps: { variantMapping: { script: "span" } },
     },
+    // Forms disable their fields while a server action is pending by wrapping them in
+    // <fieldset disabled>. The browser disables every input inside, but MUI's FormControl
+    // never hears about it, so the fields would not look disabled. Dim them the way the
+    // legacy `.input:disabled` did.
+    MuiInputBase: {
+      styleOverrides: {
+        root: { "fieldset:disabled &": { opacity: 0.6, cursor: "not-allowed" } },
+      },
+    },
   },
 };
 
