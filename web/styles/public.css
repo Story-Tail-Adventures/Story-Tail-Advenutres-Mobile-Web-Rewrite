@@ -160,17 +160,6 @@
       color-mix(in srgb, var(--brand-burgundy) 55%, transparent) 60%,
       color-mix(in srgb, var(--brand-navy) 90%, transparent) 100%);
   }
-  /* Screen 2.1.9's hero band. C219 writes it as
-     `linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))` — which is exactly
-     --brand-burgundy at 40% into --brand-navy at 80%, so it goes through the tokens like
-     every other scrim rather than as two hex literals.
-     Not `.scrim-topic`: that one flips to a 115deg side-wash at md, which reads wrong on a
-     200px band, and its stops are a different mix. */
-  .scrim-welcome {
-    background: linear-gradient(180deg,
-      color-mix(in srgb, var(--brand-burgundy) 40%, transparent),
-      color-mix(in srgb, var(--brand-navy) 80%, transparent));
-  }
   .scrim-navy {
     background: linear-gradient(180deg,
       color-mix(in srgb, var(--brand-navy) 55%, transparent),
@@ -274,34 +263,9 @@
   .h-scroll::-webkit-scrollbar { display: none; }
   .h-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
 
-  /* ── Forms ── */
-  .filter-box {
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1.5px solid var(--md-outline);
-    background: var(--md-surface-1) center / 10px no-repeat;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  /* `appearance: none` removes the browser's own focus ring along with the box, so it has
-     to be put back — this is the only way to tick the terms box from the keyboard on 2.1.2
-     and the 2.0.6 gate, and until now it gave no sign of being focused. Matches `.btn`. */
-  .filter-box:focus-visible {
-    outline: 2px solid var(--md-primary);
-    outline-offset: 2px;
-  }
-  .filter-box:checked {
-    background-color: var(--md-primary);
-    border-color: var(--md-primary);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 6'/%3E%3C/svg%3E");
-  }
-
   /* ── Legal prose ── */
   /* Screen type is in sx (LegalArticle, MUI v9 migration). `.legal-prose` and `.legal-layout`
      stay as hooks for the print rules below. */
-
 
   /* ── Focus, motion, touch ── */
   .pub-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {

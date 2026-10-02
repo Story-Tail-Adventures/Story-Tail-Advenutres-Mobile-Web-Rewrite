@@ -153,7 +153,6 @@
     border: 1px solid var(--md-outline-variant);
     overflow: hidden;
   }
-  .card-flat  { box-shadow: none; border: 1px solid var(--md-outline-variant); background: var(--md-surface-2); }
   .card-tonal { background: var(--md-surface-3); border: 0; box-shadow: none; }
   .card-elev  { box-shadow: var(--md-shadow-2); border: 0; }
 
