@@ -1,8 +1,21 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
+import {
+  BODY,
+  BODY_S,
+  LABEL,
+  MAX_W_2XL,
+  TITLE_L,
+  TITLE_S,
+  pageSx,
+} from "@/components/client/client-sx";
 import { RetryState } from "@/components/client/RetryState";
-import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { currentPlatformUser } from "@/lib/trips/queries";
 import { removeAuthorization } from "@/lib/wallet/actions";
@@ -60,40 +73,54 @@ export default async function RemoveAuthorizationPage({
   const card = cardFor(wallet, auth.cardId);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5 md:px-6 md:py-7">
-      <div className="flex items-center gap-3">
-        <span
+    <Box sx={pageSx(MAX_W_2XL)}>
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+        <Avatar
           aria-hidden="true"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-container text-on-error-container"
+          sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            bgcolor: "error.container",
+            color: "error.onContainer",
+          }}
         >
           <Icon name="warning" size={20} />
-        </span>
-        <div>
-          <p className="t-label text-error">{WALLET.removeOverline}</p>
-          <h1 className="t-title-l">
+        </Avatar>
+        <Box>
+          <Typography component="p" variant="caption" sx={{ ...LABEL, color: "error.main" }}>
+            {WALLET.removeOverline}
+          </Typography>
+          <Typography component="h1" variant="h5" sx={TITLE_L}>
             Stop using this card for {auth.tripTitle ?? "this trip"}?
-          </h1>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </Stack>
 
-      <p className="t-body mt-4 text-on-surface-variant">
+      <Typography component="p" variant="body2" sx={{ ...BODY, mt: 2, color: "text.secondary" }}>
         {WALLET.removeBodyLead} <b>{WALLET.removeBodyPast}</b>
-      </p>
+      </Typography>
 
-      <Card className="mt-4 bg-surface-2 p-4">
-        <p className="t-label text-on-surface-variant">{WALLET.removeThisAuthorization}</p>
-        <p className="t-title-s mt-1">{auth.tripTitle ?? "—"}</p>
-        <p className="t-body-s text-on-surface-variant">
+      <Paper elevation={0} sx={{ mt: 2, p: 2, bgcolor: "surface.2" }}>
+        <Typography component="p" variant="caption" sx={{ ...LABEL, color: "text.secondary" }}>
+          {WALLET.removeThisAuthorization}
+        </Typography>
+        <Typography component="p" variant="subtitle1" sx={{ ...TITLE_S, mt: 0.5 }}>
+          {auth.tripTitle ?? "—"}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
           {card ? `${cardLabel(card)} · ` : ""}
           {remainingLabel(auth)} · {WALLET.expiresLabel.toLowerCase()}{" "}
           {formatDate(auth.expiresAt, me.timeZone)}
-        </p>
-      </Card>
+        </Typography>
+      </Paper>
 
       {/* Said plainly rather than left for somebody to discover after tapping. */}
-      <p className="t-body-s mt-4 text-on-surface-variant">{WALLET.removeCardStays}</p>
+      <Typography component="p" variant="body2" sx={{ ...BODY_S, mt: 2, color: "text.secondary" }}>
+        {WALLET.removeCardStays}
+      </Typography>
 
       <RemoveForm action={removeAuthorization.bind(null, auth.id)} />
-    </div>
+    </Box>
   );
 }

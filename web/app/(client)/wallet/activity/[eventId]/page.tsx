@@ -1,16 +1,37 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import MuiAlert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
+import {
+  BACK_LINK_SX,
+  BODY,
+  BODY_S,
+  BTN_SM,
+  CARD_PAD,
+  HEADLINE,
+  MAX_W_2XL,
+  pageSx,
+} from "@/components/client/client-sx";
 import { RetryState } from "@/components/client/RetryState";
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { currentPlatformUser } from "@/lib/trips/queries";
 import { WALLET } from "@/lib/wallet/content";
 import { cardLabel, formatAmount, formatDate } from "@/lib/wallet/format";
 import { cardFor, eventFor, loadWallet } from "@/lib/wallet/queries";
 
 export const metadata: Metadata = { title: WALLET.useDetailTitle };
+
+/** The two full-width `.btn-sm.tap-44` actions. */
+const ACTION_SX = { ...BTN_SM, ...TAP_TARGET } as const;
 
 /**
  * Screen 2.4.6 Card Use Detail — docs/Screen-Inventory.md §2.4.6, §4.4 (Pattern **C**), and
@@ -75,61 +96,104 @@ export default async function CardUseDetailPage({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5 md:px-6 md:py-7">
-      <Link href="/wallet/activity" className="btn btn-text btn-sm tap-44 -ml-1 mb-1 inline-flex">
-        <Icon name="arrow_left" size={14} />
+    <Box sx={pageSx(MAX_W_2XL)}>
+      <MuiButton
+        component={NextLink}
+        href="/wallet/activity"
+        variant="text"
+        size="small"
+        startIcon={<Icon name="arrow_left" size={14} />}
+        sx={BACK_LINK_SX}
+      >
         {WALLET.activityTitle}
-      </Link>
+      </MuiButton>
 
-      <h1 className="t-headline font-mono">
+      <Typography component="h1" variant="h5" sx={{ ...HEADLINE, fontFamily: "mono" }}>
         {formatAmount(event.amountCents, event.currency)}
-      </h1>
-      <p className="t-body mt-1 text-on-surface-variant">
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ ...BODY, mt: 0.5, color: "text.secondary" }}>
         {event.supplierName} · {formatDate(event.createdAt, me.timeZone)}
-      </p>
+      </Typography>
 
-      <Card className="mt-4 border-0 bg-success-container p-4 text-success">
-        <p className="t-title-s flex items-center gap-2">
-          <Icon name="check" size={16} strokeWidth={2.5} />
-          {WALLET.chargedBySupplier}
-        </p>
-        <p className="t-body-s mt-1 opacity-90">{WALLET.chargedBySupplierBody}</p>
+      {/* MUI's success Alert, as the artboard draws it. `role="status"`: this is a standing
+          statement about a past charge, not an interruption, so it gets the polite region. */}
+      <MuiAlert
+        severity="success"
+        role="status"
+        icon={<Icon name="check" size={16} strokeWidth={2.5} />}
+        sx={{ mt: 2 }}
+      >
+        <AlertTitle>{WALLET.chargedBySupplier}</AlertTitle>
+        {WALLET.chargedBySupplierBody}
+      </MuiAlert>
+
+      <Card sx={{ mt: 1.5 }}>
+        <CardContent sx={CARD_PAD}>
+          <Box component="dl" sx={{ m: 0 }}>
+            {rows.map((row, index) => (
+              <Box
+                key={row.label}
+                sx={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 2,
+                  py: 1,
+                  ...(index > 0 ? { borderTop: 1, borderColor: "divider" } : undefined),
+                }}
+              >
+                <Typography
+                  component="dt"
+                  variant="body2"
+                  sx={{ ...BODY_S, flexShrink: 0, color: "text.secondary" }}
+                >
+                  {row.label}
+                </Typography>
+                <Typography
+                  component="dd"
+                  variant="body2"
+                  sx={{ ...BODY_S, m: 0, textAlign: "right", fontFamily: row.mono ? "mono" : undefined }}
+                >
+                  {row.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </CardContent>
       </Card>
 
-      <Card className="mt-3 p-4">
-        <dl>
-          {rows.map((row, index) => (
-            <div
-              key={row.label}
-              className={`flex items-baseline justify-between gap-4 py-2 ${
-                index === 0 ? "" : "border-t border-outline-variant"
-              }`}
-            >
-              <dt className="t-body-s shrink-0 text-on-surface-variant">{row.label}</dt>
-              <dd className={`t-body-s text-right ${row.mono ? "font-mono" : ""}`}>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </Card>
-
-      <div className="mt-4 flex flex-col gap-2">
-        <div>
-          <button
-            type="button"
-            className="btn btn-outlined btn-sm tap-44 w-full"
+      <Stack spacing={1} sx={{ mt: 2 }}>
+        <Box>
+          <MuiButton
+            variant="outlined"
+            size="small"
+            fullWidth
             disabled
             aria-disabled="true"
+            startIcon={<Icon name="warning" size={13} />}
+            sx={ACTION_SX}
           >
-            <Icon name="warning" size={13} /> {WALLET.flagUnfamiliar}
-          </button>
-          <p className="t-body-s mt-1 text-on-surface-variant">{WALLET.flagDeferred}</p>
-        </div>
+            {WALLET.flagUnfamiliar}
+          </MuiButton>
+          <Typography component="p" variant="body2" sx={{ ...BODY_S, mt: 0.5, color: "text.secondary" }}>
+            {WALLET.flagDeferred}
+          </Typography>
+        </Box>
 
         {/* Goes to §2.6, which is built — the one action on this screen that is fully real. */}
-        <Link href="/messages/new" className="btn btn-tonal btn-sm tap-44 w-full">
-          <Icon name="message" size={13} /> {WALLET.askGyasi}
-        </Link>
-      </div>
-    </div>
+        <MuiButton
+          component={NextLink}
+          href="/messages/new"
+          variant="outlined"
+          color="secondary"
+          size="small"
+          fullWidth
+          startIcon={<Icon name="message" size={13} />}
+          sx={ACTION_SX}
+        >
+          {WALLET.askGyasi}
+        </MuiButton>
+      </Stack>
+    </Box>
   );
 }

@@ -1,13 +1,22 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 
+import { BTN_44 } from "@/components/client/client-sx";
+import NextLink from "@/components/mui/NextLink";
+import { Alert } from "@/components/ui/Alert";
 import { Icon } from "@/components/ui/Icon";
+import { Spinner } from "@/components/ui/Spinner";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import type { AuthorizeState } from "@/lib/wallet/actions";
 import { WALLET } from "@/lib/wallet/content";
 
 const IDLE: AuthorizeState = { status: "idle" };
+
+/** The 44px button box with the legacy tap area. */
+const CTA_SX = { ...BTN_44, ...TAP_TARGET } as const;
 
 /**
  * Screen 2.4.7's confirmation.
@@ -28,25 +37,27 @@ export function RemoveForm({
   const [state, submit, pending] = useActionState(action, IDLE);
 
   return (
-    <form action={submit} className="mt-5">
+    <Box component="form" action={submit} sx={{ mt: 2.5 }}>
       {state.status === "error" && (
-        <p role="alert" className="t-body-s mb-2 text-error">
-          {state.message}
-        </p>
+        <Box sx={{ mb: 1 }}>
+          <Alert tone="error">{state.message}</Alert>
+        </Box>
       )}
-      <div className="flex gap-2">
-        <Link href="/wallet" className="btn btn-outlined tap-44 h-11">
+      <Box sx={{ display: "flex", gap: 1 }}>
+        <MuiButton component={NextLink} href="/wallet" variant="outlined" sx={CTA_SX}>
           {WALLET.removeCancel}
-        </Link>
-        <button
+        </MuiButton>
+        <MuiButton
           type="submit"
+          variant="contained"
+          color="error"
           disabled={pending}
-          className="btn btn-danger tap-44 ml-auto h-11"
+          startIcon={pending ? <Spinner /> : <Icon name="warning" size={14} />}
+          sx={{ ...CTA_SX, ml: "auto" }}
         >
-          <Icon name={pending ? "clock" : "warning"} size={14} />
           {WALLET.removeCta}
-        </button>
-      </div>
-    </form>
+        </MuiButton>
+      </Box>
+    </Box>
   );
 }

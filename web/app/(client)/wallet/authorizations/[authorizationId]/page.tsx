@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
+import {
+  BODY,
+  BODY_S,
+  BTN_44,
+  BTN_SM,
+  CARD_PAD,
+  HEADLINE,
+  LABEL,
+  MAX_W_2XL,
+  pageSx,
+} from "@/components/client/client-sx";
 import { RetryState } from "@/components/client/RetryState";
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { formatMoney } from "@/lib/public/money";
 import { currentPlatformUser } from "@/lib/trips/queries";
 import { WALLET } from "@/lib/wallet/content";
@@ -12,6 +30,9 @@ import { brandName, cardLabel, formatDate, remainingLabel } from "@/lib/wallet/f
 import { authorizationFor, cardFor, loadWallet } from "@/lib/wallet/queries";
 
 export const metadata: Metadata = { title: WALLET.confirmedTitle };
+
+/** The 44px CTA pair, with the legacy tap area. */
+const CTA_SX = { ...BTN_44, ...TAP_TARGET } as const;
 
 /**
  * Screen 2.4.4 Card Authorization Confirmation — docs/Screen-Inventory.md §2.4.4, §4.4
@@ -71,60 +92,95 @@ export default async function AuthorizationPage({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5 text-center md:px-6 md:py-9">
+    <Box sx={{ ...pageSx(MAX_W_2XL, 4.5), textAlign: "center" }}>
       {justAuthorized && (
-        <span
+        <Avatar
           aria-hidden="true"
-          className="mx-auto mb-3 inline-flex h-20 w-20 items-center justify-center rounded-full bg-success-container text-success"
+          sx={{
+            width: 80,
+            height: 80,
+            mx: "auto",
+            mb: 1.5,
+            bgcolor: "success.container",
+            color: "success.main",
+            boxShadow: 2,
+          }}
         >
           <Icon name="check" size={40} strokeWidth={2.5} />
-        </span>
+        </Avatar>
       )}
 
-      <p className="t-label text-brand-orange">{WALLET.confirmedOverline}</p>
-      <h1 className="t-headline mt-1">
+      <Typography component="p" variant="caption" sx={{ ...LABEL, color: "brand.main" }}>
+        {WALLET.confirmedOverline}
+      </Typography>
+      <Typography component="h1" variant="h5" sx={{ ...HEADLINE, mt: 0.5 }}>
         {card ? `Your ${brandName(card.brand)} is ready` : "Your card is ready"}
         {auth.tripTitle ? ` for ${auth.tripTitle}.` : "."}
-      </h1>
-      <p className="t-body mt-1 text-on-surface-variant">
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ ...BODY, mt: 0.5, color: "text.secondary" }}>
         Gyasi can now pay suppliers for this trip from this card, up to the limit you set.
-      </p>
+      </Typography>
 
-      <Card className="mt-5 p-4 text-left">
-        <p className="t-label text-on-surface-variant">{WALLET.confirmedSummary}</p>
-        <dl>
-          {rows.map((row) => (
-            <div
-              key={row.label}
-              className="flex items-baseline justify-between gap-4 border-t border-outline-variant py-2"
-            >
-              <dt className="t-body-s text-on-surface-variant">{row.label}</dt>
-              <dd className="t-body-s text-right">{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-        {auth.status === "active" && (
-          <p className="t-body-s mt-2 text-on-surface-variant">{remainingLabel(auth)}</p>
-        )}
+      <Card sx={{ mt: 2.5, textAlign: "left" }}>
+        <CardContent sx={CARD_PAD}>
+          <Typography component="p" variant="caption" sx={{ ...LABEL, color: "text.secondary" }}>
+            {WALLET.confirmedSummary}
+          </Typography>
+          <Box component="dl" sx={{ m: 0 }}>
+            {rows.map((row) => (
+              <Box
+                key={row.label}
+                sx={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 2,
+                  py: 1,
+                  borderTop: 1,
+                  borderColor: "divider",
+                }}
+              >
+                <Typography component="dt" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
+                  {row.label}
+                </Typography>
+                <Typography component="dd" variant="body2" sx={{ ...BODY_S, m: 0, textAlign: "right" }}>
+                  {row.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+          {auth.status === "active" && (
+            <Typography component="p" variant="body2" sx={{ ...BODY_S, mt: 1, color: "text.secondary" }}>
+              {remainingLabel(auth)}
+            </Typography>
+          )}
+        </CardContent>
       </Card>
 
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-        <Link href="/wallet/activity" className="btn btn-outlined tap-44 h-11">
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ mt: 2.5, justifyContent: { sm: "center" } }}
+      >
+        <MuiButton component={NextLink} href="/wallet/activity" variant="outlined" sx={CTA_SX}>
           {WALLET.activityTitle}
-        </Link>
-        <Link href={`/trips/${auth.tripId}`} className="btn btn-filled tap-44 h-11">
+        </MuiButton>
+        <MuiButton component={NextLink} href={`/trips/${auth.tripId}`} variant="contained" sx={CTA_SX}>
           {WALLET.confirmedBackToTrip}
-        </Link>
-      </div>
+        </MuiButton>
+      </Stack>
 
       {auth.status === "active" && (
-        <Link
+        <MuiButton
+          component={NextLink}
           href={`/wallet/authorizations/${auth.id}/remove`}
-          className="btn btn-text btn-sm tap-44 mt-3 inline-flex"
+          variant="text"
+          size="small"
+          sx={{ ...BTN_SM, ...TAP_TARGET, mt: 1.5 }}
         >
           {WALLET.removeAuthorization}
-        </Link>
+        </MuiButton>
       )}
-    </div>
+    </Box>
   );
 }
