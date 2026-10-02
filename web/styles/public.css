@@ -71,15 +71,7 @@
 }
 
 @layer components {
-  /* ── Containers (Tailwind owns `.container`, hence the prefix) ── */
-  .pub-container {
-    width: 100%;
-    margin-inline: auto;
-    padding-inline: var(--gutter);
-  }
-  .pub-container-wide   { max-width: calc(1280px + 2 * var(--gutter)); }
-  .pub-container-prose  { max-width: calc(980px + 2 * var(--gutter)); }
-  .pub-container-narrow { max-width: calc(720px + 2 * var(--gutter)); }
+  /* Containers are components/public/Container.tsx (MUI Container) since migration step 2. */
 
   /* ── Top bar ──
    * The bar itself is drawn by components/public/PublicTopBar.tsx (MUI AppBar + Toolbar,
@@ -225,34 +217,7 @@
     }
   }
 
-  /* Surface panels (these DO switch with the scheme — built from --md-*). */
-  .panel-heart {
-    background: linear-gradient(135deg, var(--md-surface-2) 0%, var(--md-primary-container) 160%);
-  }
-  @media (min-width: 768px) {
-    .panel-heart { background: linear-gradient(135deg, var(--md-surface-2) 0%, var(--md-primary-container) 140%); }
-  }
-  .glow-orange {
-    background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--brand-orange) 18%, transparent), transparent 70%);
-  }
-  .gate-backdrop {
-    background:
-      radial-gradient(circle at 50% 25%, color-mix(in srgb, var(--md-primary) 18%, transparent), transparent 60%),
-      var(--md-bg);
-  }
-  .christian-card {
-    background: linear-gradient(135deg, var(--md-primary-container) 0%, var(--md-secondary-container) 110%);
-  }
-
   /* ── On-photo controls ── */
-  .btn-glass {
-    background: var(--hero-glass-bg);
-    color: var(--hero-fg);
-    border: 1px solid var(--hero-glass-border);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-  }
-  .btn-glass:hover:not(:disabled) { background: var(--hero-glass-bg-hover); filter: none; }
   /* Glass chip for a control in the OVERLAY top bar, gated to where that bar is actually
      transparent. `.pub-topbar-overlay` floats over the hero photo below md and goes SOLID
      at 768px (see above), and light `--md-surface-1` is pure white — so an ungated
@@ -280,118 +245,20 @@
     /* .btn-icon's own hover is (0,2,0) and loses to the rule above, so restore it here. */
     .pub-topbar-glass:hover:not(:disabled) { background: var(--md-surface-3); }
   }
-  .chip-glass {
-    background: var(--hero-chip-bg);
-    color: var(--hero-fg);
-    border-color: var(--hero-chip-border);
-  }
-  .chip-glass:hover { background: var(--hero-glass-bg-hover); }
-  .btn-invert { background: var(--md-on-primary-container); color: var(--md-primary-container); }
-  .pill-light { background: var(--hero-pill-bg); color: var(--brand-burgundy); }
 
-  /* Script accents on surfaces: burgundy in light; the dark tropical scheme swaps to
-     sunset gold (burgundy on navy measures ~1.5:1). */
-  .text-script-accent { color: var(--brand-burgundy); }
-  .scheme-dark .text-script-accent { color: var(--md-secondary); }
-
-  /* ── Responsive hero type ramp (mobile → tablet → web) ── */
-  .t-hero-l  { font: 800 32px/1.05 var(--font-sans); letter-spacing: -0.6px; }
-  .t-hero    { font: 800 26px/1.08 var(--font-sans); letter-spacing: -0.4px; }
-  .t-hero-s  { font: 800 26px/1.1 var(--font-sans); letter-spacing: -0.4px; }
-  .t-page-title { font: 800 28px/1.1 var(--font-sans); letter-spacing: -0.5px; }
+  /* ── Responsive headline (mobile → tablet → web). The hero ramp moved to sx in
+     HeroBleed / AdvisorHero (MUI v9 migration); this one is still used by the client
+     quote page. */
   .t-headline-r { font: 800 24px/1.18 var(--font-sans); letter-spacing: -0.3px; }
-  .t-section { font: 700 18px/1.2 var(--font-sans); letter-spacing: -0.2px; }
   @media (min-width: 768px) {
-    .t-hero-l  { font-size: 40px; letter-spacing: -0.8px; }
-    .t-hero    { font-size: 36px; line-height: 1.06; letter-spacing: -0.6px; }
-    .t-hero-s  { font-size: 32px; font-weight: 700; }
-    .t-page-title { font-size: 32px; font-weight: 700; }
     .t-headline-r { font-size: 26px; font-weight: 700; line-height: 1.15; }
-    .t-section { font-size: 24px; line-height: 1.15; }
   }
   @media (min-width: 1200px) {
-    .t-hero-l  { font-size: 45px; letter-spacing: -1px; }
-    .t-hero    { font-size: 45px; line-height: 1.04; letter-spacing: -1px; }
-    .t-hero-s  { font-size: 36px; letter-spacing: -0.6px; }
-    .t-page-title { font-size: 36px; letter-spacing: -0.6px; }
     .t-headline-r { font-size: 28px; letter-spacing: -0.4px; }
-    .t-section { font-size: 28px; letter-spacing: -0.4px; }
-  }
-  /* Hero sub-copy: 13px on mobile artboards, 16px (t-body-l) on desktop. */
-  .t-hero-sub { font: 400 13px/1.45 var(--font-sans); }
-  @media (min-width: 768px) { .t-hero-sub { font-size: 16px; line-height: 1.5; } }
-
-  .t-hero-script    { font: 700 1.35em/1 var(--font-script); letter-spacing: 0; }
-  .t-hero-script-xl { font: 700 1.375em/1 var(--font-script); letter-spacing: 0; }
-  @media (min-width: 768px)  { .t-hero-script-xl { font-size: 1.5em; } }
-  @media (min-width: 1200px) { .t-hero-script-xl { font-size: 1.6em; } }
-
-  .t-script-quote       { font: 700 18px/1.1 var(--font-script); }
-  .t-script-quote-photo { font: italic 500 17px/1.4 var(--font-script); }
-  .t-script-sign        { font: 700 26px/1 var(--font-script); }
-  .t-quote-glyph        { font: 700 24px/0.5 var(--font-script); letter-spacing: -2px; }
-  @media (min-width: 768px) {
-    .t-script-quote       { font-size: 22px; line-height: 1; }
-    .t-script-quote-photo { font-size: 18px; }
-    .t-script-sign        { font-size: 30px; }
-    .t-quote-glyph        { font-size: 32px; line-height: 0.7; }
   }
 
   /* Small labels the ramp does not cover. */
-  .t-badge   { font: 700 9.5px/1 var(--font-sans); letter-spacing: 0.5px; text-transform: uppercase; }
-  .t-badge-s { font: 700 8.5px/1 var(--font-sans); letter-spacing: 0.4px; text-transform: uppercase; }
-  .t-tag-navy {
-    display: inline-block;
-    font: 600 9.5px/1 var(--font-sans);
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: var(--tag-dark-bg);
-    color: var(--hero-fg);
-  }
-  .t-price    { font: 700 17px/1 var(--font-sans); }
-  .t-price-lg { font: 700 20px/1 var(--font-sans); }
-  .t-price-range {
-    display: inline-flex;
-    gap: 1px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: var(--tag-dark-bg);
-    color: var(--hero-fg);
-    font: 700 10px/1 var(--font-mono);
-    letter-spacing: 0.5px;
-  }
-  .t-price-range-sm { padding: 2px 7px; border-radius: 5px; font-size: 9px; }
-  .t-tile   { font: 700 12.5px/1.2 var(--font-sans); }
-  .t-tile-s { font: 700 11px/1.15 var(--font-sans); }
-  @media (min-width: 768px) {
-    .t-tile   { font-size: 15px; }
-    .t-tile-s { font-size: 13px; line-height: 1.2; }
-  }
   .t-fine   { font: 500 11.5px/1 var(--font-sans); }
-  .t-micro  { font: 500 10.5px/1.3 var(--font-sans); }
-  .t-filter { font: 500 12.5px/1.3 var(--font-sans); }
-  .t-row-title { font: 600 13.5px/1.3 var(--font-sans); }
-
-  /* ── px-track grids from the artboards ── */
-  .result-row { display: grid; grid-template-columns: 180px 1fr auto; }
-  .detail-layout { display: grid; gap: 18px; }
-  @media (min-width: 1024px) { .detail-layout { grid-template-columns: 1fr 340px; } }
-  .legal-layout { display: grid; }
-  @media (min-width: 768px) { .legal-layout { grid-template-columns: 260px 1fr; min-height: calc(100dvh - var(--public-topbar-h)); } }
-  .advisor-hero-grid { display: grid; }
-  @media (min-width: 768px) { .advisor-hero-grid { grid-template-columns: 1.3fr 1fr; min-height: 420px; } }
-  /* M202 draws the bio as an image-left row on mobile, not a stack. 60px avatar track:
-     72px would leave ~242px for the paragraph plus the stats list at 360px. */
-  .advisor-bio-grid { display: grid; gap: 14px; grid-template-columns: 60px 1fr; align-items: center; }
-  @media (min-width: 768px) { .advisor-bio-grid { grid-template-columns: 120px 1fr; gap: 22px; align-items: center; } }
-  .advisor-note-grid { display: grid; gap: 12px; grid-template-columns: 44px 1fr; }
-  @media (min-width: 768px) { .advisor-note-grid { grid-template-columns: 56px 1fr; gap: 18px; } }
-  .bio-grid { display: grid; gap: 28px; }
-  @media (min-width: 1200px) { .bio-grid { grid-template-columns: 1.4fr 1fr; } }
-  .christian-card-grid { display: grid; gap: 28px; align-items: center; }
-  @media (min-width: 768px) { .christian-card-grid { grid-template-columns: 1fr 280px; } }
 
   /* ── Horizontal snap strip (islands, chips, testimonials on mobile) ── */
   .h-scroll {
@@ -431,24 +298,10 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5L20 6'/%3E%3C/svg%3E");
   }
 
-  /* ── FAQ (<details>) ── */
-  .faq summary { list-style: none; }
-  .faq summary::-webkit-details-marker { display: none; }
-  .faq-chevron { transition: rotate 200ms ease; }
-  .faq[open] > summary .faq-chevron { rotate: 180deg; }
-
   /* ── Legal prose ── */
-  .legal-prose { font: 400 16px/1.7 var(--font-sans); color: var(--md-on-surface); }
-  .legal-prose h2 { font: 600 19px/1.3 var(--font-sans); margin-top: 14px; }
-  .legal-prose p { margin: 4px 0 12px; color: var(--md-on-surface-variant); }
-  .legal-prose ul { margin: 4px 0 12px; padding-left: 20px; color: var(--md-on-surface-variant); list-style: disc; }
-  @media (min-width: 768px) {
-    .legal-prose { font-size: 14px; }
-    .legal-prose h2 { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.2px; margin-top: 18px; }
-    .legal-prose p, .legal-prose ul { color: var(--md-on-surface); margin: 6px 0 12px; }
-  }
+  /* Screen type is in sx (LegalArticle, MUI v9 migration). `.legal-prose` and `.legal-layout`
+     stay as hooks for the print rules below. */
 
-  .portrait-crop { object-fit: cover; object-position: center 30%; }
 
   /* ── Focus, motion, touch ── */
   .pub-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
