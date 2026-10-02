@@ -15,6 +15,7 @@ import {
   destinationsFor,
   type ClientDestination,
 } from "@/lib/client/nav";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * The client app's navigation, in its three forms.
@@ -50,19 +51,6 @@ import {
  * under it through `.client-surface:has(.client-bottom-nav) .client-main`, bounded to the
  * widths the bar renders at.
  */
-
-/** Tailwind's `sr-only`, as sx: present for assistive tech, no box on screen. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
 
 /** MUI's disabled treatment (action.disabledOpacity) on an element that is not a control. */
 const DISABLED_SX = {

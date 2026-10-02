@@ -65,7 +65,7 @@ const FIELDSET_RESET = { m: 0, p: 0, border: 0, minWidth: 0 } as const;
 const GRID_2 = {
   display: "grid",
   gap: 1.5,
-  gridTemplateColumns: { md: "repeat(2, 1fr)" },
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))" },
 } as const;
 /** The free-text boxes: a 384px column from `md`, full width below it. */
 const NARROW = { mt: 1.5, maxWidth: { md: 384 } } as const;

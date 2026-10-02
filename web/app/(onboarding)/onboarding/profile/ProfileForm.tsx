@@ -58,12 +58,12 @@ const FIELDSET_RESET = { m: 0, p: 0, border: 0, minWidth: 0 } as const;
 const GRID_2 = {
   display: "grid",
   gap: 1.5,
-  gridTemplateColumns: { md: "repeat(2, 1fr)" },
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))" },
 } as const;
 const GRID_3 = {
   display: "grid",
   gap: 1.5,
-  gridTemplateColumns: { md: "repeat(3, 1fr)" },
+  gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
 } as const;
 /** A cell that spans the whole row from `md`. */
 const SPAN_ROW = { gridColumn: { md: "1 / -1" } } as const;

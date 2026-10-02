@@ -6,6 +6,7 @@ import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { FOOTER_LEGAL_LINKS, MARKETING_SITE_URL } from "@/content/public/contact";
 import { Container } from "./Container";
+import { VISUALLY_HIDDEN as SR_ONLY } from "@/lib/mui/sx";
 
 /**
  * Footer links are the only route to the 2.0.7 legal pages on a phone, so they carry a
@@ -18,19 +19,6 @@ const FOOTER_LINK = {
   minHeight: { xs: 44, md: 0 },
   fontWeight: 500,
   "&:hover": { color: "text.primary" },
-} as const;
-
-/** Read by assistive tech only — the sr-only recipe, in sx. `1px` strings: a bare 1 is 100%. */
-const SR_ONLY = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0, 0, 0, 0)",
-  whiteSpace: "nowrap",
-  border: 0,
 } as const;
 
 /**

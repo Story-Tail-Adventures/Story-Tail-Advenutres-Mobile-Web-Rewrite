@@ -135,7 +135,7 @@ export function HotelCard({
       {/* Row layout — web (≥1200). */}
       <Card
         component="article"
-        sx={{ position: "relative", display: { xs: "none", web: "grid" }, gridTemplateColumns: "180px 1fr auto" }}
+        sx={{ position: "relative", display: { xs: "none", web: "grid" }, gridTemplateColumns: "180px minmax(0, 1fr) auto" }}
       >
         <Box sx={{ position: "relative", minHeight: 120, bgcolor: "surface.3" }}>
           {hotel.photos[0] && (

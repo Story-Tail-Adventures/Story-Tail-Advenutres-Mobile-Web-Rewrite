@@ -62,7 +62,7 @@ function MethodTiles() {
   return (
     <Box
       component="ul"
-      sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, m: 0, p: 0, listStyle: "none" }}
+      sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 1, m: 0, p: 0, listStyle: "none" }}
     >
       {methods.map((method) => (
         // Outlined Paper per tile, as the artboard draws them: the live one on the primary

@@ -76,7 +76,7 @@ const FLAT_CARD_SX = { bgcolor: "surface.2" } as const;
 const GRID_2 = {
   display: "grid",
   gap: 1.5,
-  gridTemplateColumns: { md: "repeat(2, 1fr)" },
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))" },
 } as const;
 
 export function CompanionsList({

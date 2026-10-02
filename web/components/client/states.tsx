@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/icon-paths";
 import { signOutAction } from "@/lib/auth/actions";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * The four cross-cutting states Screen Inventory §5 requires of EVERY screen, as one set
@@ -44,19 +45,6 @@ import { signOutAction } from "@/lib/auth/actions";
 
 /** The legacy .btn box (40px, 24px sides, 8px gap) on MUI's Button, so nothing reflows. */
 const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
-
-/** Tailwind's `sr-only`, as sx: present for assistive tech, no box on screen. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
 
 /** The centred 512px message card every §5 state sits in, 24px below whatever precedes it. */
 const STATE_CARD_SX = { mx: "auto", mt: 3, maxWidth: 512, textAlign: "center" } as const;
@@ -95,7 +83,7 @@ export function ScreenSkeleton({ hero = true }: { hero?: boolean }) {
           mt: 2,
           display: "grid",
           gap: 1.5,
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
         }}
       >
         <Skeleton sx={{ height: 96, width: "100%" }} />

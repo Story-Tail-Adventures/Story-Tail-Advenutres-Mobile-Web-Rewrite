@@ -129,15 +129,4 @@ export const THREAD_ROW_SX = {
   gap: 1.5,
 } as const;
 
-/** Tailwind's `sr-only`, as sx: present for assistive tech, no box on screen. */
-export const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
+export { VISUALLY_HIDDEN } from "@/lib/mui/sx";
