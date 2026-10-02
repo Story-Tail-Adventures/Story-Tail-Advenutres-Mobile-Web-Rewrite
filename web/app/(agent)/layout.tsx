@@ -14,8 +14,10 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * The advisor's shell (Screen Inventory §3.2 onward).
  *
- * Mirrors the (client) layout rather than sharing it — see web/styles/agent.css for why the
- * two shells are separate rather than one component branching on a role.
+ * Mirrors the (client) layout rather than sharing it. The two shells differ in the rail's
+ * contents (seven against six), the bar's contents, the top bar (quick-add and sign-out), the
+ * tablet behaviour and the role gate, which runs in opposite directions; one shared shell
+ * would branch on a role prop at every one of those points.
  *
  * TWO DELIBERATE DIFFERENCES FROM THE CLIENT SHELL:
  *

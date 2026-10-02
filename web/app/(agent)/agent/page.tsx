@@ -1,8 +1,16 @@
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import ListItemButton from "@mui/material/ListItemButton";
+import Typography from "@mui/material/Typography";
 
 import { AgentViews } from "@/components/agent/AgentViews";
 import { ErrorState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { AGENT_COPY, needsYouLine } from "@/lib/agent/content";
 import { loadWorklist, type AgentKpi } from "@/lib/agent/queries";
 import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
@@ -28,36 +36,54 @@ import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
  * boundary — which is also what keeps the agent's time zone correct: every date was
  * formatted in `lib/agent/queries.ts` from `as_of_date`, which the accessors computed in
  * `agent.time_zone`.
+ *
+ * ON MUI (step 2 of the migration, the agent app PR): the same column, header, KPI rail and
+ * stacked sections, drawn with MUI Card / Chip / Avatar / ListItemButton and plain sx. The
+ * KPI rail's three layouts moved from web/styles/agent.css into one sx breakpoint object
+ * (see `KPIS_SX`), so this file no longer needs the `.agent-kpis` / `.agent-kpi` rules.
  */
 
 // The root layout supplies the " · Story-Tail Adventures" suffix; repeating it here
 // produced "Worklist · Story-Tail Adventures · Story-Tail Adventures" in the tab.
 export const metadata = { title: "Worklist" };
 
-function KpiTile({ kpi }: { kpi: AgentKpi }) {
-  const tone = {
-    primary: "bg-[var(--md-primary-container)] text-[var(--md-on-primary-container)]",
-    secondary: "bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]",
-    tertiary: "bg-[var(--md-tertiary-container)] text-[var(--md-on-tertiary-container)]",
-    surface: "bg-[var(--md-surface-2)] text-[var(--md-on-surface)]",
-  }[kpi.accent];
+/** The tile's colour pair per accent — the M3 container roles, or the neutral surface. */
+const KPI_TONE: Record<AgentKpi["accent"], { bgcolor: string; color: string }> = {
+  primary: { bgcolor: "primary.container", color: "primary.onContainer" },
+  secondary: { bgcolor: "secondary.container", color: "secondary.onContainer" },
+  tertiary: { bgcolor: "tertiary.container", color: "tertiary.onContainer" },
+  surface: { bgcolor: "surface.2", color: "text.primary" },
+};
 
+function KpiTile({ kpi }: { kpi: AgentKpi }) {
   return (
-    <div className={`agent-kpi ${tone}`}>
-      <div className="flex items-center justify-between">
-        <span className="t-label opacity-85">{kpi.label}</span>
-        <Icon name={kpi.icon} size={14} />
-      </div>
-      {/* Null is not zero. A tile with nothing to report says so. */}
-      {kpi.value === null ? (
-        <p className="t-body-s mt-2 opacity-85">{kpi.unavailable}</p>
-      ) : (
-        <>
-          <div className="mt-1 font-sans text-[26px] font-extrabold leading-none">{kpi.value}</div>
-          {kpi.sub && <div className="t-body-s mt-1 opacity-85">{kpi.sub}</div>}
-        </>
-      )}
-    </div>
+    <Card sx={{ ...KPI_TONE[kpi.accent], ...KPI_TILE_SX }}>
+      <CardContent sx={KPI_PAD_SX}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography component="span" variant="caption" sx={KPI_LABEL_SX}>
+            {kpi.label}
+          </Typography>
+          <Icon name={kpi.icon} size={14} />
+        </Box>
+        {/* Null is not zero. A tile with nothing to report says so. */}
+        {kpi.value === null ? (
+          <Typography component="p" variant="body2" sx={{ mt: 1, opacity: 0.85 }}>
+            {kpi.unavailable}
+          </Typography>
+        ) : (
+          <>
+            <Typography component="div" variant="h4" sx={KPI_VALUE_SX}>
+              {kpi.value}
+            </Typography>
+            {kpi.sub && (
+              <Typography component="div" variant="caption" sx={{ display: "block", mt: 0.5, opacity: 0.85 }}>
+                {kpi.sub}
+              </Typography>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -76,43 +102,40 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="card mt-4 overflow-hidden p-0">
-      <div className="flex items-center gap-2 border-b border-[var(--md-outline-variant)] px-4 py-3">
-        <h2 className="t-title-s flex-1">{title}</h2>
-        {count > 0 && <span className="chip">{count}</span>}
-      </div>
+    <Card component="section" sx={{ mt: 2 }}>
+      <Box sx={SECTION_HEAD_SX}>
+        <Typography component="h2" variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
+          {title}
+        </Typography>
+        {count > 0 && <Chip size="small" variant="outlined" label={count} />}
+      </Box>
       {count === 0 ? (
-        <p className="t-body-s px-4 py-4 text-[var(--md-on-surface-variant)]">{empty}</p>
+        <Typography component="p" variant="body2" sx={{ px: 2, py: 2, color: "text.secondary" }}>
+          {empty}
+        </Typography>
       ) : (
         children
       )}
       {seeAll && (
-        <p className="t-body-s border-t border-[var(--md-outline-variant)] px-4 py-2 text-[var(--md-on-surface-variant)] opacity-60">
+        <Typography component="p" variant="body2" sx={SEE_ALL_SX}>
           {seeAll}
-        </p>
+        </Typography>
       )}
-    </section>
+    </Card>
   );
 }
 
 /** A row whose trip now has somewhere to go. */
 function TripRow({ tripId, children }: { tripId: string; children: React.ReactNode }) {
   return (
-    <Link
-      href={`/agent/trips/${tripId}`}
-      className="flex items-center gap-3 border-t border-[var(--md-outline-variant)] px-4 py-3 first:border-t-0 hover:bg-[var(--md-surface-2)]"
-    >
+    <ListItemButton component={NextLink} href={`/agent/trips/${tripId}`} sx={ROW_SX}>
       {children}
-    </Link>
+    </ListItemButton>
   );
 }
 
 function Row({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 border-t border-[var(--md-outline-variant)] px-4 py-3 first:border-t-0">
-      {children}
-    </div>
-  );
+  return <Box sx={ROW_SX}>{children}</Box>;
 }
 
 /**
@@ -137,7 +160,7 @@ function TripChip({ status }: { status: string }) {
     nextUnpaidDueDate: null,
     today: "",
   });
-  return <span className={`chip-status ${chip}`}>{label}</span>;
+  return <StatusChip kind={chip} label={label} />;
 }
 
 /** Initials, never a stock portrait standing in for a named client. */
@@ -149,11 +172,7 @@ function Initials({ name }: { name: string }) {
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-  return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--md-primary-container)] font-sans text-xs font-bold text-[var(--md-on-primary-container)]">
-      {letters}
-    </span>
-  );
+  return <Avatar sx={INITIALS_SX}>{letters}</Avatar>;
 }
 
 export default async function AgentWorklistPage() {
@@ -166,32 +185,32 @@ export default async function AgentWorklistPage() {
   const zero = worklist.needsYouCount === 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8">
+    <Box sx={PAGE_SX}>
       <AgentViews />
 
-      <header className="mt-5">
-        <p className="t-label tracking-[0.08em] text-[var(--md-on-surface-variant)]">
+      <Box component="header" sx={{ mt: 2.5 }}>
+        <Typography component="p" variant="overline" sx={OVERLINE_SX}>
           {worklist.periodLabel.toUpperCase()}
-        </p>
-        <h1 className="t-headline mt-1 text-[26px] leading-tight">
+        </Typography>
+        <Typography component="h1" variant="h5" sx={{ mt: 0.5, fontWeight: 700 }}>
           {worklist.partOfDay}, {worklist.greetingName}.
           <br />
           {needsYouLine(worklist.needsYouCount)}
-        </h1>
+        </Typography>
         {/* The one place the worldview earns a line on this side: when nothing is urgent,
             say so and stop. No call to action underneath it. */}
         {zero && (
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
+          <Typography component="p" variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
             {AGENT_COPY.greetingZeroSub}
-          </p>
+          </Typography>
         )}
-      </header>
+      </Box>
 
-      <div className="agent-kpis mt-4">
+      <Box sx={KPIS_SX}>
         {worklist.kpis.map((k) => (
           <KpiTile key={k.id} kpi={k} />
         ))}
-      </div>
+      </Box>
 
       <Section
         title={AGENT_COPY.proposalsTitle}
@@ -201,14 +220,24 @@ export default async function AgentWorklistPage() {
         {worklist.proposalsAwaiting.map((t) => (
           <TripRow key={t.tripId} tripId={t.tripId}>
             <Initials name={t.clientName} />
-            <div className="min-w-0 flex-1">
-              <p className="t-title-s text-[13px]">{t.clientName}</p>
-              <p className="t-body-s text-[var(--md-on-surface-variant)]">{t.title}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-mono text-xs font-bold">{t.valueLabel}</p>
-              {t.dueLabel && <span className="chip-status proposal mt-1 inline-block">{t.dueLabel}</span>}
-            </div>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography component="p" variant="subtitle2">
+                {t.clientName}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {t.title}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: "right" }}>
+              <Typography component="p" variant="caption" sx={MONEY_SX}>
+                {t.valueLabel}
+              </Typography>
+              {t.dueLabel && (
+                <Box sx={{ mt: 0.5 }}>
+                  <StatusChip kind="proposal" label={t.dueLabel} />
+                </Box>
+              )}
+            </Box>
           </TripRow>
         ))}
       </Section>
@@ -220,20 +249,28 @@ export default async function AgentWorklistPage() {
       >
         {worklist.paymentsDue.map((p) => (
           <TripRow key={p.milestoneId} tripId={p.tripId}>
-            <div className="min-w-0 flex-1">
-              <p className="t-title-s text-[13px]">{p.clientName}</p>
-              <p className="t-body-s text-[var(--md-on-surface-variant)]">{p.label}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-mono text-xs font-bold">{p.amountLabel}</p>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography component="p" variant="subtitle2">
+                {p.clientName}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {p.label}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: "right" }}>
+              <Typography component="p" variant="caption" sx={MONEY_SX}>
+                {p.amountLabel}
+              </Typography>
               {/* No risk dots. payment_milestone.status is a four-value enum with no risk
                   model; `days_until` going negative is the real signal. */}
-              <p
-                className={`t-body-s ${p.overdue ? "text-[var(--md-error)]" : "text-[var(--md-on-surface-variant)]"}`}
+              <Typography
+                component="p"
+                variant="body2"
+                sx={{ color: p.overdue ? "error.main" : "text.secondary" }}
               >
                 {p.dueLabel}
-              </p>
-            </div>
+              </Typography>
+            </Box>
           </TripRow>
         ))}
       </Section>
@@ -247,10 +284,14 @@ export default async function AgentWorklistPage() {
         {worklist.newInquiries.map((t) => (
           <TripRow key={t.tripId} tripId={t.tripId}>
             <Initials name={t.clientName} />
-            <div className="min-w-0 flex-1">
-              <p className="t-title-s text-[13px]">{t.clientName}</p>
-              <p className="t-body-s text-[var(--md-on-surface-variant)]">{t.title}</p>
-            </div>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography component="p" variant="subtitle2">
+                {t.clientName}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {t.title}
+              </Typography>
+            </Box>
             <TripChip status={t.status} />
           </TripRow>
         ))}
@@ -263,13 +304,15 @@ export default async function AgentWorklistPage() {
       >
         {worklist.departingSoon.map((t) => (
           <TripRow key={t.tripId} tripId={t.tripId}>
-            <div className="min-w-0 flex-1">
-              <p className="t-title-s text-[13px]">{t.clientName}</p>
-              <p className="t-body-s text-[var(--md-on-surface-variant)]">{t.title}</p>
-            </div>
-            {t.startLabel && (
-              <span className="chip-status traveling">{t.startLabel}</span>
-            )}
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography component="p" variant="subtitle2">
+                {t.clientName}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {t.title}
+              </Typography>
+            </Box>
+            {t.startLabel && <StatusChip kind="traveling" label={t.startLabel} />}
           </TripRow>
         ))}
       </Section>
@@ -283,17 +326,127 @@ export default async function AgentWorklistPage() {
         {worklist.recentMessages.map((m) => (
           <Row key={m.conversationId}>
             <Initials name={m.clientName} />
-            <div className="min-w-0 flex-1">
-              <div className="flex">
-                <p className="t-title-s flex-1 text-[13px]">{m.clientName}</p>
-                <p className="t-body-s text-[var(--md-on-surface-variant)]">{m.timeLabel}</p>
-              </div>
-              <p className="t-body-s italic">{m.preview}</p>
-            </div>
-            {m.unread > 0 && <span className="chip">{m.unread}</span>}
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Box sx={{ display: "flex" }}>
+                <Typography component="p" variant="subtitle2" sx={{ flex: 1 }}>
+                  {m.clientName}
+                </Typography>
+                <Typography component="p" variant="caption" sx={{ color: "text.secondary" }}>
+                  {m.timeLabel}
+                </Typography>
+              </Box>
+              <Typography component="p" variant="body2" sx={{ fontStyle: "italic" }}>
+                {m.preview}
+              </Typography>
+            </Box>
+            {m.unread > 0 && <Chip size="small" variant="outlined" label={m.unread} />}
           </Row>
         ))}
       </Section>
-    </div>
+    </Box>
   );
 }
+
+// ── Layout ─────────────────────────────────────────────────────────────────────────────
+
+/** The page column: `mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8`. */
+const PAGE_SX = { mx: "auto", width: "100%", maxWidth: 1100, px: { xs: 2, md: 4 }, py: 3 } as const;
+
+/** The kit header's overline (design/source-prototype/shared/mui-kit.jsx MuiScreenHeader). */
+const OVERLINE_SX = { display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 } as const;
+
+/**
+ * The KPI rail's three layouts, the ones web/styles/agent.css drew: a horizontal snap
+ * carousel below `md` (Pattern D: "KPI cards in a horizontal carousel near the top"), a
+ * THREE-up grid across the tablet band, and the five-up grid only at §4.2's web breakpoint.
+ *
+ * FIVE ACROSS AT 768px DOES NOT FIT. At 768 the rail takes 72 and the page column's
+ * `md:px-8` takes 64, so five `minmax(0, 1fr)` tracks with four 10px gaps are 118px each
+ * and the content box is 86px. The amount is Poppins ExtraBold at 26px with no space in
+ * it, so it cannot wrap and the track cannot grow: "$9,640" is already ~93px and paints over
+ * the next tile. Five tiles do not clear a six-figure total until roughly 935px; three
+ * across at 768 gives a 172px content box, which holds a seven-figure amount with room.
+ *
+ * MUI emits the breakpoint keys as ascending min-width queries, so the order the CSS file
+ * had to get right by hand ("the narrower min-width comes first") is handled here.
+ */
+const KPIS_SX = {
+  mt: 2,
+  display: { xs: "flex", md: "grid" },
+  gap: 1.25,
+  overflowX: { xs: "auto", md: "visible" },
+  scrollSnapType: "x mandatory",
+  pb: 0.25,
+  gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))", web: "repeat(5, minmax(0, 1fr))" },
+} as const;
+
+/**
+ * A tile: 152px wide as a carousel card, free to shrink once it is a grid cell. Deliberately
+ * NO `overflow: hidden` beyond the Card's own: clipping an amount turns "$1,284,500" into
+ * "$1,284,50", which reads as a real number and is wrong; the breakpoints above are the fix.
+ */
+const KPI_TILE_SX = { minWidth: { xs: 152, md: 0 }, flexShrink: 0, scrollSnapAlign: "start" } as const;
+
+/** The legacy 14px × 16px tile padding on CardContent, with MUI's last-child rule cancelled. */
+const KPI_PAD_SX = { px: 2, py: 1.75, "&:last-child": { pb: 1.75 } } as const;
+
+/** `.t-label` on MUI's caption, dimmed into the tile's colour. */
+const KPI_LABEL_SX = { fontWeight: 500, letterSpacing: "0.4px", opacity: 0.85 } as const;
+
+/**
+ * The amount. 26px is pinned on purpose: it is the figure the rail's breakpoint arithmetic
+ * above is computed from, not a leftover from the legacy type scale.
+ */
+const KPI_VALUE_SX = { mt: 0.5, fontSize: 26, fontWeight: 800, lineHeight: 1 } as const;
+
+/** A section's title row: `px-4 py-3` over a divider. */
+const SECTION_HEAD_SX = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  px: 2,
+  py: 1.5,
+  borderBottom: 1,
+  borderColor: "divider",
+} as const;
+
+/** The "see all" / deferral footer under a section's rows. */
+const SEE_ALL_SX = {
+  px: 2,
+  py: 1,
+  borderTop: 1,
+  borderColor: "divider",
+  color: "text.secondary",
+  opacity: 0.6,
+} as const;
+
+/**
+ * A row: `flex items-center gap-3 px-4 py-3`, with a rule between rows but not above the
+ * first. `& + &` draws the rule on a row that FOLLOWS a row, so the first one under the
+ * section header has none — without `:first-child`, which emotion flags as unsafe on the
+ * server, and without the element-type dependence of `:first-of-type` (the header and a
+ * read-only Row are both divs).
+ */
+const ROW_SX = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1.5,
+  px: 2,
+  py: 1.5,
+  borderColor: "divider",
+  "& + &": { borderTop: 1 },
+} as const;
+
+/** A monospaced amount: JetBrains Mono, bold, at MUI's caption size. */
+const MONEY_SX = { fontFamily: "mono", fontWeight: 700 } as const;
+
+/** The 36px initials disc on the primary container pair. */
+const INITIALS_SX = {
+  width: 36,
+  height: 36,
+  flexShrink: 0,
+  bgcolor: "primary.container",
+  color: "primary.onContainer",
+  fontSize: 12,
+  fontWeight: 700,
+} as const;
