@@ -1813,7 +1813,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > different default per viewport — agenda on mobile, week on tablet, month on web — and the
 > first version of this screen read `?view=` and nothing else, so a phone loaded the
 > seven-column month table at roughly 49px a day cell. Both branches now sit in the DOM and
-> `web/styles/agent.css`'s `md` breakpoint chooses between them, which gets the two defaults
+> an `md` breakpoint (in the page's `sx` since the MUI migration; first in `web/styles/agent.css`) chooses between them, which gets the two defaults
 > §4.4 asks for with no client state, no viewport sniffing and no layout shift. When
 > `?view=` is set it wins at every width, so a month link opens as a month on a phone and
 > both views stay shareable. The distinction worth recording is that unset is now a

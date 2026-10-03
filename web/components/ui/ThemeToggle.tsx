@@ -5,6 +5,7 @@ import IconButton from "@mui/material/IconButton";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { applyScheme, THEME_STORAGE_KEY, toggleScheme } from "@/lib/theme";
 
 export interface ThemeToggleProps {
@@ -85,10 +86,9 @@ export interface ThemeToggleProps {
  * flash, cannot reorder anything, and does not make the rendered output depend on browser
  * state — the property the whole design rests on still holds.
  *
- * `tap-44` buys the §4.2 touch minimum on coarse pointers. It does it with a ::after inset
- * of -8px rather than a min-height, which matters for a ROUND button: a `min-height: 44px`
- * would turn the 40px circle into a 40×44 oval. The class is defined in public.css but is
- * generic and globally available (its @layer components block is not scoped). The 40px box
+ * TAP_TARGET (lib/mui/sx.ts, the legacy `.tap-44`) buys the §4.2 touch minimum on coarse
+ * pointers. It does it with a ::after inset of -8px rather than a min-height, which matters
+ * for a ROUND button: a `min-height: 44px` would turn the 40px circle into a 40×44 oval. The 40px box
  * itself is the legacy .btn-icon size; IconButton's `flex: 0 0 auto` keeps it from squashing
  * in a cramped bar.
  */
@@ -98,7 +98,7 @@ export function ThemeToggle({
   buttonSize = 40,
   className,
 }: ThemeToggleProps) {
-  const base = cn("tap-44", overlay && "pub-topbar-glass", className);
+  const base = cn(overlay && "pub-topbar-glass", className);
   const flip = () => toggleScheme();
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export function ThemeToggle({
         aria-label="Switch to dark mode"
         title="Switch to dark mode"
         onClick={flip}
-        sx={{ width: buttonSize, height: buttonSize }}
+        sx={{ ...TAP_TARGET, width: buttonSize, height: buttonSize }}
       >
         <Icon name="moon" size={size} />
       </IconButton>
@@ -133,7 +133,7 @@ export function ThemeToggle({
         aria-label="Switch to light mode"
         title="Switch to light mode"
         onClick={flip}
-        sx={{ width: buttonSize, height: buttonSize }}
+        sx={{ ...TAP_TARGET, width: buttonSize, height: buttonSize }}
       >
         <Icon name="sun" size={size} />
       </IconButton>

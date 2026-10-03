@@ -89,7 +89,7 @@ function Art({
       decoding="async"
       fetchPriority={swap ? undefined : "high"}
       // object-fit is inert in the normal case — `width: auto` already gives the right
-      // aspect — and load-bearing in the cramped one. Tailwind's preflight sets
+      // aspect — and load-bearing in the cramped one. The element reset sets
       // `img { max-width: 100% }`, and with a definite height and auto width the box is
       // clamped to max-width WITHOUT the height being re-derived (CSS 2.1 §10.4), so the
       // default `object-fit: fill` stretches the artwork rather than scaling it. That bites

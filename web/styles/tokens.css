@@ -5,13 +5,14 @@
  * theme in design/compose-theme/, and design/web-tokens/design-tokens.ts) are one
  * source of truth and must stay in sync. See docs/Design-System.md §12.4.
  *
- * Two deliberate deltas from the source file:
+ * Three deliberate deltas from the source file:
  *   1. The `@import url("https://fonts.googleapis.com/...")` is removed. Runtime
  *      Google Fonts are forbidden in production (CLAUDE.md); web/app/fonts.ts
  *      bundles Poppins, Caveat and JetBrains Mono via next/font at build time.
- *   2. The three --font-* declarations are removed. `--font-*` is also Tailwind v4's
- *      font-family theme namespace, so declaring them here and mapping them through
- *      @theme would be a self-reference cycle. They live in web/app/globals.css.
+ *   2. The three --font-* declarations are removed. They live in web/app/globals.css,
+ *      built on the next/font variables rather than the source's literal family names.
+ *   3. The .t-* type ramp is removed. The web app sets type through MUI Typography
+ *      variants (lib/mui/theme.ts); nothing in web/ uses the classes.
  *
  * Dark mode is the `.scheme-dark` class, NOT prefers-color-scheme, and it is a full
  * tropical-dark rebrand rather than an inversion: primary goes burgundy -> ocean blue,
@@ -151,20 +152,3 @@
   --md-shadow-3: 0 4px 14px rgba(0,0,0,0.7), 0 12px 32px rgba(0,0,0,0.5);
   --md-shadow-4: 0 8px 28px rgba(0,0,0,0.75),0 22px 54px rgba(0,0,0,0.55);
 }
-
-/* Type ramp */
-@utility t-display-l { font: 800 57px/1.05 var(--font-sans); letter-spacing: -1.5px; }
-@utility t-display { font: 800 45px/1.08 var(--font-sans); letter-spacing: -1px; }
-@utility t-display-s { font: 700 36px/1.1 var(--font-sans); letter-spacing: -0.6px; }
-@utility t-headline { font: 700 28px/1.15 var(--font-sans); letter-spacing: -0.4px; }
-@utility t-title-l { font: 600 22px/1.2 var(--font-sans); letter-spacing: -0.2px; }
-@utility t-title { font: 600 18px/1.25 var(--font-sans); letter-spacing: -0.1px; }
-@utility t-title-s { font: 600 15px/1.3 var(--font-sans); }
-@utility t-body-l { font: 400 16px/1.5 var(--font-sans); }
-@utility t-body { font: 400 14px/1.5 var(--font-sans); }
-@utility t-body-s { font: 400 13px/1.45 var(--font-sans); }
-@utility t-label-l { font: 500 14px/1.3 var(--font-sans); }
-@utility t-label { font: 500 12px/1.3 var(--font-sans); letter-spacing: 0.4px; }
-@utility t-label-s { font: 600 11px/1.3 var(--font-sans); letter-spacing: 0.6px; text-transform: uppercase; }
-@utility t-script { font: 700 32px/1 var(--font-script); }
-@utility t-mono { font: 400 12px/1.4 var(--font-mono); }

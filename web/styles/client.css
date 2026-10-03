@@ -5,8 +5,8 @@
  * from web/app/globals.css after public.css.
  *
  * This is a SECTION stylesheet, not a set of primitives, and that distinction is why it
- * exists as its own file: components.css holds things any screen may use (.btn, .card,
- * .chip-status), while the app chrome below belongs to one surface. public.css set that
+ * exists as its own file: components.css holds things any screen may use (the scheme
+ * gates), while the app chrome below belongs to one surface. public.css set that
  * precedent for §2.0 and this is its counterpart. Nothing here should be reached for from
  * a public page, and `.client-surface` scopes it so it cannot be.
  *
@@ -38,7 +38,7 @@
    * BottomNavigation in components/client/ClientNav.tsx) — the element stays
    * in the DOM at every width, so `:has(.client-bottom-nav)` matched on a 1400px desktop
    * and reserved 72px under a bar that is not rendered. `not all and (min-width: 48rem)` is
-   * the exact complement of Tailwind's `md:`, so the reserve now exists on precisely the
+   * the exact complement of the theme's `md` breakpoint, so the reserve now exists on precisely the
    * widths the bar does. The `:has()` is kept inside it because a screen that passes
    * `activeTab = null` has no bar in the tree at all.
    *
@@ -60,9 +60,9 @@
    * rather than an overlay so a long thread cannot hide its own last message.
    *
    * That needs a DEFINITE height somewhere, and the shell deliberately has none — the
-   * column is `min-h-dvh` because every other client screen scrolls the document, and the
-   * itinerary's day-chip strip is `sticky top-16` against exactly that document scroll.
-   * Switching the shell to `h-dvh` with an internal scroller would fix this screen and
+   * column is `minHeight: 100dvh` because every other client screen scrolls the document,
+   * and the itinerary's day-chip strip is sticky under the top bar against exactly that
+   * document scroll. Switching the shell to `height: 100dvh` with an internal scroller would fix this screen and
    * break that one. So this is an opt-in a page puts on its own root.
    *
    * IT SUBTRACTS THE TOP BAR AND NOTHING ELSE. There were two more rules here — one
@@ -110,7 +110,7 @@
   /* ── Focus and motion ─────────────────────────────────────────────────── */
 
   /* The only general focus ring in the project was `.pub-surface`-scoped, and
-   * components.css covers `.btn` alone — so an authenticated screen had no visible focus
+   * components.css covered the old `.btn` class alone — so an authenticated screen had no visible focus
    * on a link, a summary or a bare [tabindex]. WCAG 2.1 AA (BRD §11) needs one. */
   .client-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--md-primary);

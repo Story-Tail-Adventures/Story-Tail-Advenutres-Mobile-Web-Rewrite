@@ -21,10 +21,10 @@ interface FeatureCardProps {
   footer?: React.ReactNode;
   /**
    * The legacy type-ramp name for the title; it picks the MUI variant now (see TITLE_VARIANT).
-   * Kept as the prop callers already pass. An unknown name falls back to `h5` and is also
-   * forwarded as a class, so nothing a page passes is silently lost.
+   * Kept as the prop callers already pass. Typed to the mapped names, because with Tailwind
+   * gone an unknown name has no class to fall back on.
    */
-  titleClass?: string;
+  titleClass?: keyof typeof TITLE_VARIANT;
   as?: "h3" | "h4" | "div";
   className?: string;
 }
@@ -32,11 +32,11 @@ interface FeatureCardProps {
 const GLYPH: Record<32 | 36 | 40 | 44, number> = { 32: 15, 36: 16, 40: 20, 44: 20 };
 
 /** `.t-title-l` (22/600) → h5, `.t-title` (18/600) → h6, `.t-title-s` (15/600) → subtitle1. */
-const TITLE_VARIANT: Record<string, TypographyProps["variant"]> = {
+const TITLE_VARIANT = {
   "t-title-l": "h5",
   "t-title": "h6",
   "t-title-s": "subtitle1",
-};
+} as const satisfies Record<string, TypographyProps["variant"]>;
 
 /**
  * Icon + overline + title + body (design: the step cards and pillars on 2.0.2, the intro
@@ -58,8 +58,7 @@ export function FeatureCard({
   as: Heading = "h3",
   className,
 }: FeatureCardProps) {
-  const titleVariant = TITLE_VARIANT[titleClass] ?? "h5";
-  const titleClassName = titleVariant === TITLE_VARIANT[titleClass] ? undefined : titleClass;
+  const titleVariant = TITLE_VARIANT[titleClass];
 
   const glyph =
     iconTone === "bare" ? (
@@ -98,7 +97,7 @@ export function FeatureCard({
               {overline}
             </Typography>
           )}
-          <Typography component={Heading} variant={titleVariant} className={titleClassName} sx={{ color: "text.primary" }}>
+          <Typography component={Heading} variant={titleVariant} sx={{ color: "text.primary" }}>
             {title}
           </Typography>
           {body && (
@@ -127,7 +126,6 @@ export function FeatureCard({
       <Typography
         component={Heading}
         variant={titleVariant}
-        className={titleClassName}
         sx={{ mt: 0.5, mb: 0.75, color: "text.primary" }}
       >
         {title}

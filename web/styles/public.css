@@ -13,8 +13,8 @@
  *     independent by construction (the brand tokens are :root-only); everything built
  *     from --md-* switches. That one rule decides every case below.
  *
- *  2. Prototype measurements that Tailwind cannot express without arbitrary values:
- *     px-track grids, the responsive hero type ramp, scrims, the 96px top bar.
+ *  2. Prototype measurements shared by several components, and the hooks the pre-paint
+ *     gates and print rules key off: the 96px top bar, hero sizes, scrims, the sticky CTA.
  *
  * Breakpoints follow Screen Inventory §4.1: mobile < 768, tablet 768–1199, web ≥ 1200.
  */
@@ -85,10 +85,9 @@
    * AuthChromeScript set on <html>. They apply ONLY while `data-auth="unknown"`; once the
    * store has resolved, React renders a single state and CSS stops having an opinion.
    *
-   * The layout lives in THESE classes rather than in Tailwind `flex`/`hidden` utilities on
-   * the same element, on purpose: utilities land in a later cascade layer and would beat a
-   * `display: none` written here, so the gate would silently do nothing. Wrappers with no
-   * display utility of their own have nothing to lose to.
+   * The layout lives in THESE classes rather than in sx on the same element, on purpose:
+   * this file is @layer components, above @layer mui, so a `display` set in sx would be
+   * silently overridden here. One place owns display, and it is this one.
    */
   .pub-auth-out { display: flex; align-items: center; gap: 4px; }
   @media (min-width: 1200px) {
@@ -103,8 +102,8 @@
 
   /* The mobile sticky bar's secondary control (StickyCtaSecondary). Self-scoped rather than
    * scoped by an ancestor, because .sticky-cta is rendered by a server component that cannot
-   * know the status. `inline-flex` restores .btn's own display; the class+attribute selector
-   * outranks .btn, and the class strings these carry hold no display utility. */
+   * know the status. `inline-flex` restores MuiButton's own display, and wins over MUI on layer
+   * order (components is above mui). */
   .pub-cta-in[data-auth="unknown"] { display: none; }
   html[data-sta-auth] .pub-cta-out[data-auth="unknown"] { display: none; }
   html[data-sta-auth] .pub-cta-in[data-auth="unknown"] { display: inline-flex; }
@@ -210,11 +209,10 @@
   /* Glass chip for a control in the OVERLAY top bar, gated to where that bar is actually
      transparent. `.pub-topbar-overlay` floats over the hero photo below md and goes SOLID
      at 768px (see above), and light `--md-surface-1` is pure white — so an ungated
-     `.btn-glass` up there is a white icon on a white bar from 768px to 1023px.
+     glass control up there is a white icon on a white bar from 768px to 1023px.
 
-     Do NOT pair this with a `text-white` utility. Utilities are a later cascade layer and
-     would beat the md reset below, putting the white-on-white straight back. The class
-     owns the colour. */
+     The class owns the colour. A `color` in sx on the same control would lose to it on
+     layer order anyway, so do not add one: it only misleads the next reader. */
   .pub-topbar-glass {
     background: var(--hero-glass-bg);
     color: var(--hero-fg);
@@ -231,7 +229,7 @@
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
-    /* .btn-icon's own hover is (0,2,0) and loses to the rule above, so restore it here. */
+    /* MuiIconButton's own hover loses to the rule above on layer order, so restore it here. */
     .pub-topbar-glass:hover:not(:disabled) { background: var(--md-surface-3); }
   }
 
@@ -261,10 +259,6 @@
   .on-photo :where(a, button):focus-visible {
     outline-color: var(--hero-fg);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-navy) 60%, transparent);
-  }
-  @media (pointer: coarse) {
-    .tap-44 { position: relative; }
-    .tap-44::after { content: ""; position: absolute; inset: -8px; }
   }
 
   /*

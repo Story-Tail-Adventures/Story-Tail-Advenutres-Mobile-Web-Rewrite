@@ -1,6 +1,6 @@
 ---
 name: web-reviewer
-description: Stack-aware reviewer for changes under `web/`. Use after editing Next.js, React, TypeScript, MUI, or Tailwind code in the web app, or when the user asks to review web changes. Reads the diff, runs typecheck and lint, reports findings as a structured list. Triggers on "review web changes", "review the web PR", "check my web code", or proactively after multi-file edits under `web/`.
+description: Stack-aware reviewer for changes under `web/`. Use after editing Next.js, React, TypeScript, MUI, or CSS code in the web app, or when the user asks to review web changes. Reads the diff, runs typecheck and lint, reports findings as a structured list. Triggers on "review web changes", "review the web PR", "check my web code", or proactively after multi-file edits under `web/`.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -9,11 +9,11 @@ model: sonnet
 
 ## Purpose
 
-Stack-aware code review for the Next.js + React + TypeScript web app, which is mid-migration from Tailwind 4 to MUI v9 (`docs/Tech-Recommendations.md` §2.3.1). The generic `code-review` plugin doesn't know Next.js 16's RSC-by-default model, how MUI behaves inside Server Components, how this app owns its color scheme, or the project's non-negotiables from `CLAUDE.md`. This agent does.
+Stack-aware code review for the Next.js + React + TypeScript web app, styled with MUI v9. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1). The generic `code-review` plugin doesn't know Next.js 16's RSC-by-default model, how MUI behaves inside Server Components, how this app owns its color scheme, or the project's non-negotiables from `CLAUDE.md`. This agent does.
 
 ## Hard boundary: `web/` only
 
-**All Next.js / React / TypeScript / MUI / Tailwind code lives under `web/`.** This is a project rule, not a suggestion.
+**All Next.js / React / TypeScript / MUI / CSS code lives under `web/`.** This is a project rule, not a suggestion.
 
 - I review files under `web/` only. If asked to review code outside `web/`, I decline and point at the right reviewer (`mobile-reviewer` for `mobile/`, the user for `supabase/` / `contracts/` / `docs/`).
 - **If I find React / JSX / TSX / Next.js code outside `web/` during a review, that's a hard fail.** Flag it as "misplaced — move to `web/`" before any other review.
@@ -82,10 +82,10 @@ Before reviewing anything, read in this order:
 - [ ] **Copy stays in its constants.** A conversion that moves a string out of a `content.ts` / `state.ts` constant into JSX breaks `check_copy_parity.py`.
 - [ ] **Typography uses Poppins / Caveat / JetBrains Mono** loaded via `next/font` only (the theme reads the `--font-*` variables). Flag any `<link>` to Google Fonts or runtime font imports.
 
-### Tailwind 4 (files not yet converted)
-- [ ] Until a surface's PR converts it, existing Tailwind stays as it is. Don't ask for a partial conversion inside an unrelated change.
-- [ ] **No new Tailwind in converted files**, and no new Tailwind-heavy styling anywhere: new UI is MUI.
-- [ ] In unconverted files, the old rules still hold: no literal hex or arbitrary values like `text-[#FF0000]` / `p-[13px]`; tokens only.
+### Plain CSS (`web/styles/`)
+- [ ] **No Tailwind, and no other CSS framework.** A utility class (`flex`, `sr-only`, `p-4`) matches no rule now and styles nothing. `web/test/class-allowlist.test.ts` catches it, so a failure there means a leftover class to replace with `sx`, not a CSS rule to add.
+- [ ] **New CSS only for what MUI cannot do**: pre-paint gates keyed off `.scheme-dark` or `data-auth`, and print rules. Everything else is `sx`. Colors come through `--md-*` / `--brand-*`, never literal hex outside the brand gradients.
+- [ ] `web/styles/` sits in `@layer components`, above `@layer mui`, so its rules beat MUI's. An `sx` `display` on an element a gate class also sets is silently overridden.
 
 ### TypeScript
 - [ ] **No `any`.** Flag every occurrence. Use `unknown` + narrowing, or define a proper type.
@@ -96,7 +96,7 @@ Before reviewing anything, read in this order:
 ### Accessibility (a11y)
 - [ ] **Semantic HTML first.** `<button>` for buttons, `<a>` for links, `<nav>` / `<main>` / `<header>` / `<footer>` landmarks. Flag `<div onClick>` patterns.
 - [ ] **Keyboard navigation.** Every interactive element must be focusable and operable by keyboard.
-- [ ] **Focus states visible.** MUI components get the theme's focus ring (`focusVisible`); custom interactive elements need a visible `:focus-visible` style. Tailwind `focus-visible:` utilities in unconverted files.
+- [ ] **Focus states visible.** MUI components get the theme's focus ring (`focusVisible`); custom interactive elements need a visible `:focus-visible` style.
 - [ ] **ARIA only when semantics insufficient.** `role="button"` on a `<div>` is wrong — use `<button>`.
 - [ ] **Color contrast.** Flag low-contrast token pairs (the Design System lists contrast-safe pairs in §4).
 - [ ] **Form labels.** Every `<input>` has an associated `<label>` (via `htmlFor` or wrapping).

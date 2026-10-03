@@ -1,6 +1,8 @@
 import * as React from "react";
+import Box from "@mui/material/Box";
 import MuiChip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * A chip that is really a checkbox or a radio.
@@ -45,7 +47,7 @@ export function ChipInput({
       className={className}
       label={
         <>
-          <input type={type} className="sr-only" {...props} />
+          <Box component="input" type={type} sx={VISUALLY_HIDDEN} {...props} />
           {label}
         </>
       }

@@ -15,7 +15,7 @@ overrides.
 ├── settings.json               ← permissions allowlist + hook wiring
 ├── launch.json                 ← dev-server config for the browser preview
 ├── agents/
-│   ├── web-reviewer.md         ← reviews web/       (Next.js, React, Tailwind v4)
+│   ├── web-reviewer.md         ← reviews web/       (Next.js, React, MUI v9)
 │   ├── mobile-reviewer.md      ← reviews mobile/    (KMP, Compose Multiplatform)
 │   ├── supabase-reviewer.md    ← reviews supabase/  (Edge Functions, migrations, RLS)
 │   └── brand-voice-reviewer.md ← reviews user-facing copy against Design-System §2

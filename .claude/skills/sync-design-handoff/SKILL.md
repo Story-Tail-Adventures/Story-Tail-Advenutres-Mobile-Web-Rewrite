@@ -123,6 +123,8 @@ For each approved change, copy from `$REMOTE` to the corresponding local path. U
 If `tokens.css` changed, do **not** auto-regenerate `design/compose-theme/StoryTail*.kt`. Instead, after the copy, print:
 
 > Token changes detected. The mobile theme files at `design/compose-theme/StoryTail*.kt` use these same values and need a hand-update to stay in sync. Specifically check: `StoryTailColors.kt` against the `--md-*` vars, `StoryTailTypography.kt` against `--font-*`, `StoryTailShape.kt` against `--r-*`. Run me with "sync compose theme" to do that pass.
+>
+> The web app needs the same values twice: `web/styles/tokens.css` (the CSS variables) and `web/lib/mui/tokens.ts` (what the MUI theme reads). `npm run test -w web` fails in `lib/mui/tokens.test.ts` until both match `design/web-tokens/tokens.css`.
 
 (If/when "sync compose theme" becomes its own skill, link to it here.)
 

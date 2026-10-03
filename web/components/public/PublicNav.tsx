@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { UP_WEB } from "@/lib/mui/sx";
+import { TAP_TARGET, UP_WEB } from "@/lib/mui/sx";
 import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 
 export interface NavLink {
@@ -126,7 +126,7 @@ export function PublicNav({ links, overlay = false, actions }: PublicNavProps) {
         // `.pub-topbar-glass` RATHER THAN a white colour utility: the overlay bar is only
         // transparent below `md` — it goes solid at 768px — and the class gates itself back
         // off there (styles/public.css). ThemeToggle wears the same class, so the pair match.
-        className={cn("tap-44", overlay && "pub-topbar-glass")}
+        className={cn(overlay && "pub-topbar-glass")}
         aria-haspopup="dialog"
         aria-expanded={open}
         // Only while open: the Drawer is not mounted when closed, and aria-controls must
@@ -135,8 +135,9 @@ export function PublicNav({ links, overlay = false, actions }: PublicNavProps) {
         aria-label="Open menu"
         onClick={openMenu}
         sx={{
-          // 36px, the legacy size-9, matching the theme toggle beside it. `tap-44` below
-          // grows the touch target to 44px without growing the visible chip.
+          // 36px, the legacy size-9, matching the theme toggle beside it. TAP_TARGET grows
+          // the touch target to 44px without growing the visible chip.
+          ...TAP_TARGET,
           width: 36,
           height: 36,
           // Through tablet, not just mobile: from `md` the inline links are back but the
