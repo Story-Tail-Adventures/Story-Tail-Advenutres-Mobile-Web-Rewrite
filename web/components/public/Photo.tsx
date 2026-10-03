@@ -30,6 +30,11 @@ export type PhotoProps = FillPhoto | FixedPhoto;
  * The only way public pages render photography. Reads the registry in web/lib/images.ts;
  * the Unsplash resizing happens in the global loader (web/lib/image-loader.ts, registered
  * in next.config.ts), so swapping placeholder photos for owned assets never touches a page.
+ *
+ * A `fill` photo covers its box (`object-fit: cover`, as an inline style next/image merges
+ * with its own). Every fill caller in the app asked for that with an `object-cover` utility;
+ * it is the default now so the MUI-converted components need no utility class for it. The
+ * `className` still reaches the <img> for callers that pass one.
  */
 export function Photo(props: PhotoProps) {
   const entry = STA_IMAGES[props.image];
@@ -45,6 +50,7 @@ export function Photo(props: PhotoProps) {
         loading={props.preload ? "eager" : undefined}
         quality={props.quality}
         className={props.className}
+        style={{ objectFit: "cover" }}
       />
     );
   }

@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 import { Icon } from "@/components/ui/Icon";
+import { TAP_TARGET, UP_MD } from "@/lib/mui/sx";
+import { FILTER_SHEET_ANCHOR } from "./sx";
 
 interface FilterSheetProps {
   /** Trigger chip text ("Filters" / "Filters · 2"). */
@@ -13,26 +21,31 @@ interface FilterSheetProps {
   children: ReactNode;
 }
 
-/** The mobile sticky bar's "Filter" link points here; with JS it opens the sheet, without it scrolls. */
-export const FILTER_SHEET_ANCHOR = "filters";
+/**
+ * The mobile sticky bar's "Filter" link points here; with JS it opens the sheet, without it
+ * scrolls. The value is defined in ./sx.ts and only re-exported here — a Server Component
+ * importing a string from THIS file would get a client reference, not the string (see sx.ts).
+ */
+export { FILTER_SHEET_ANCHOR };
 const HASH = `#${FILTER_SHEET_ANCHOR}`;
 
 /**
- * Below `web` the filter form lives in a native `<dialog>` (Screen Inventory §4.4 Pattern F:
- * filter drawer on tablet/mobile). `showModal()` gives the focus trap, Escape and the backdrop
- * for free; focus returns to the trigger on close. The only client code on 2.0.4.
+ * Below `web` the filter form lives in an MUI Dialog (Screen Inventory §4.4 Pattern F: filter
+ * drawer on tablet/mobile) — a bottom sheet on a phone, a 400px centred dialog from md, as
+ * the native `<dialog>` it replaced was laid out. The Modal brings the focus trap, Escape,
+ * the backdrop, and focus back to whatever opened it on close.
+ *
+ * `keepMounted` keeps the sheet's copy of the form in the DOM while closed, as the native
+ * `<dialog>` was, so `aria-controls` always points at an element that exists. The Dialog
+ * renders in a portal on document.body, so tests query it with `screen`, not `container`.
  */
 export function FilterSheet({ label, title, closeLabel, children }: FilterSheetProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
   const dialogId = useId();
   const titleId = useId();
 
-  const show = () => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
-  };
-  const hide = () => dialogRef.current?.close();
+  const show = () => setOpen(true);
+  const hide = () => setOpen(false);
 
   // Deep link: StickyCta's "Filter" is a plain `#filters` anchor, so without JS it scrolls to
   // this chip. With JS, a click on any such anchor opens the sheet in place instead (also
@@ -40,13 +53,13 @@ export function FilterSheet({ label, title, closeLabel, children }: FilterSheetP
   // arriving on the page with the hash set opens it straight away.
   useEffect(() => {
     const openFromHash = () => {
-      if (window.location.hash === HASH) show();
+      if (window.location.hash === HASH) setOpen(true);
     };
     const openFromAnchor = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target.closest(`a[href="${HASH}"]`) : null;
       if (!target || event.defaultPrevented) return;
       event.preventDefault();
-      show();
+      setOpen(true);
     };
     openFromHash();
     window.addEventListener("hashchange", openFromHash);
@@ -57,51 +70,82 @@ export function FilterSheet({ label, title, closeLabel, children }: FilterSheetP
     };
   }, []);
 
+  // Escape, the backdrop and the close button all land here. Focus return is the Modal's.
   const handleClose = () => {
+    hide();
     if (window.location.hash === HASH) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
-    triggerRef.current?.focus();
   };
 
   return (
-    <div id={FILTER_SHEET_ANCHOR} className="shrink-0 scroll-mt-[calc(var(--public-topbar-h)+16px)]">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="chip chip-filter tap-44 h-8 px-3 text-on-surface"
+    <Box id={FILTER_SHEET_ANCHOR} sx={{ flexShrink: 0, scrollMarginTop: "calc(var(--public-topbar-h) + 16px)" }}>
+      <Chip
+        component="button"
+        clickable
+        variant="outlined"
+        icon={<Icon name="filter" size={12} />}
+        label={label}
         aria-haspopup="dialog"
         aria-controls={dialogId}
+        aria-expanded={open}
         onClick={show}
-      >
-        <Icon name="filter" size={12} />
-        {label}
-      </button>
+        sx={TAP_TARGET}
+      />
 
-      <dialog
-        ref={dialogRef}
-        id={dialogId}
-        aria-labelledby={titleId}
+      <Dialog
+        open={open}
         onClose={handleClose}
-        onClick={(event) => {
-          // Only a click on the backdrop (the dialog element itself) closes it.
-          if (event.target === event.currentTarget) hide();
+        keepMounted
+        maxWidth={false}
+        aria-labelledby={titleId}
+        // A bottom sheet on a phone: the container pins the paper to the bottom edge below md.
+        sx={{ "& .MuiDialog-container": { alignItems: { xs: "flex-end", md: "center" } } }}
+        slotProps={{
+          paper: {
+            id: dialogId,
+            sx: {
+              m: 0,
+              width: "100%",
+              // Edge to edge on a phone. Dialog's `maxWidth={false}` variant caps the paper
+              // at calc(100% - 64px), which left a 32px gutter either side of the sheet.
+              maxWidth: "100%",
+              maxHeight: "100dvh",
+              borderRadius: "var(--mui-shape-borderRadius) var(--mui-shape-borderRadius) 0 0",
+              [UP_MD]: {
+                m: 4,
+                width: 400,
+                maxWidth: "calc(100% - 64px)",
+                maxHeight: "calc(100% - 64px)",
+                borderRadius: 1,
+              },
+            },
+          },
         }}
-        className="m-0 mt-auto max-h-dvh w-full max-w-none flex-col rounded-t-xl border-0 bg-surface-1 p-0 text-on-surface shadow-3 backdrop:bg-black/50 open:flex md:m-auto md:w-100 md:rounded-xl"
       >
-        <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
-          <h2 id={titleId} className="t-title-s text-on-surface">
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: 1,
+            borderColor: "divider",
+            px: 2,
+            py: 1.5,
+          }}
+        >
+          <Typography id={titleId} component="h2" variant="subtitle1">
             {title}
-          </h2>
-          <button type="button" className="btn-icon tap-44 size-8" aria-label={closeLabel} onClick={hide}>
+          </Typography>
+          <IconButton size="small" aria-label={closeLabel} onClick={handleClose} sx={{ ...TAP_TARGET, width: 32, height: 32 }}>
             <Icon name="close" size={16} />
-          </button>
-        </div>
+          </IconButton>
+        </Box>
         {/* The form's submit bubbles here; close the sheet as the results navigate. */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4" onSubmit={hide}>
+        <DialogContent onSubmit={hide} sx={{ p: 2 }}>
           {children}
-        </div>
-      </dialog>
-    </div>
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }

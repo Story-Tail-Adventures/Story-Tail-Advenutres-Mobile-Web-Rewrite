@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Container } from "@/components/public/Container";
 import { PublicTopBar } from "@/components/public/PublicTopBar";
-import { Button } from "@/components/ui/Button";
 import { SOMETHING_WENT_WRONG } from "./fallback-content";
 
 interface PublicErrorProps {
@@ -14,6 +16,12 @@ interface PublicErrorProps {
   /** Clears the boundary without re-fetching — the older API, kept as the fallback. */
   reset: () => void;
 }
+
+/** The page title's 28 / 32 / 36 ramp on MUI's h4. */
+const TITLE = { fontWeight: 700, fontSize: { xs: 28, md: 32, web: 36 } } as const;
+
+/** The legacy .btn box (40px, 24px sides) on MUI's Button; full width below `md`. */
+const CTA = { minHeight: 40, px: 3, width: { xs: "100%", md: "auto" } } as const;
 
 /**
  * Error boundary for the public surface (Screen Inventory §5 error state). A Client Component by
@@ -28,22 +36,40 @@ export default function PublicError({ error, retry, reset }: PublicErrorProps) {
   }, [error]);
 
   return (
-    <div className="flex flex-1 flex-col">
+    <Box sx={{ display: "flex", flex: 1, flexDirection: "column" }}>
       <PublicTopBar variant="solid" />
-      <main id="main" className="flex flex-1 flex-col">
-        <Container size="prose" className="py-16 text-center">
-          <h1 className="t-page-title text-on-surface">{SOMETHING_WENT_WRONG.title}</h1>
-          <p className="t-body-l mx-auto mt-3 max-w-120 text-on-surface-variant">{SOMETHING_WENT_WRONG.body}</p>
-          <div className="mt-6 flex flex-col items-center justify-center gap-2.5 md:flex-row">
-            <Button variant="filled" className="w-full md:w-auto" onClick={() => (retry ?? reset)()}>
+      <Box component="main" id="main" sx={{ display: "flex", flex: 1, flexDirection: "column" }}>
+        <Container size="prose" sx={{ py: 8, textAlign: "center" }}>
+          <Typography component="h1" variant="h4" sx={TITLE}>
+            {SOMETHING_WENT_WRONG.title}
+          </Typography>
+          <Typography variant="body1" sx={{ mx: "auto", mt: 1.5, maxWidth: 480, color: "text.secondary" }}>
+            {SOMETHING_WENT_WRONG.body}
+          </Typography>
+          <Box
+            sx={{
+              mt: 3,
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.25,
+            }}
+          >
+            <MuiButton variant="contained" sx={CTA} onClick={() => (retry ?? reset)()}>
               {SOMETHING_WENT_WRONG.retry}
-            </Button>
-            <Link href={SOMETHING_WENT_WRONG.message.href} className="btn btn-text">
+            </MuiButton>
+            <MuiButton
+              component={NextLink}
+              href={SOMETHING_WENT_WRONG.message.href}
+              variant="text"
+              sx={{ minHeight: 40, px: 1.5 }}
+            >
               {SOMETHING_WENT_WRONG.message.label}
-            </Link>
-          </div>
+            </MuiButton>
+          </Box>
         </Container>
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 }

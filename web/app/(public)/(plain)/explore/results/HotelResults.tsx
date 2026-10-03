@@ -1,10 +1,18 @@
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import { claim } from "@/content/public/proof";
 import { searchHotels } from "@/lib/public/hotels";
+import { UP_MD } from "@/lib/mui/sx";
 import { formatDayLong } from "@/lib/public/dates";
 import { RATE_BANDS, resultsHref, serpSortBy, type SearchQuery } from "@/lib/public/search";
 import { RESULTS } from "./content";
 import { HotelCard } from "./HotelCard";
 import { HotelState } from "./HotelStates";
+import { RESULT_LIST_SX } from "./sx";
+
+/** The centred caption lines under the list. */
+const NOTE_SX = { display: "block", mt: 1.25, textAlign: "center", color: "text.secondary" } as const;
 
 /**
  * The only thing on this page that awaits a network call, which is why it is its own
@@ -48,7 +56,7 @@ export async function HotelResults({ q, current }: { q: SearchQuery; current: st
 
   return (
     <>
-      <ul className="flex flex-col gap-2.5 md:max-web:grid md:max-web:grid-cols-2 md:max-web:gap-3.5">
+      <Box component="ul" sx={RESULT_LIST_SX}>
         {result.hotels.map((hotel) => (
           <li key={hotel.id}>
             <HotelCard
@@ -60,22 +68,23 @@ export async function HotelResults({ q, current }: { q: SearchQuery; current: st
             />
           </li>
         ))}
-      </ul>
+      </Box>
       {/* Screen Inventory §5's stale-data state: when we know the figures may have moved,
           say so with a timestamp rather than presenting them as live. */}
       {staleLabel && (
-        <p className="t-body-s mt-2.5 text-center text-on-surface-variant">
+        <Typography component="p" variant="caption" sx={NOTE_SX}>
           {RESULTS.hotels.staleAsOf(staleLabel)}
-        </p>
+        </Typography>
       )}
-      <p className="t-body-s mt-2.5 text-center text-on-surface-variant md:mt-2">
+      <Typography component="p" variant="caption" sx={{ ...NOTE_SX, [UP_MD]: { mt: 1 } }}>
         {claim("hotelRateBasis")}
-      </p>
-      <p className="t-body-s mt-1 text-center text-on-surface-variant">
-        <a href={resultsHref({ ...q, mode: "picks" })} className="underline">
+      </Typography>
+      <Typography component="p" variant="caption" sx={{ ...NOTE_SX, mt: 0.5 }}>
+        {/* A plain anchor, as before: a full navigation back to the curated catalog. */}
+        <MuiLink href={resultsHref({ ...q, mode: "picks" })} color="inherit" underline="always">
           {RESULTS.hotels.seePicks}
-        </a>
-      </p>
+        </MuiLink>
+      </Typography>
     </>
   );
 }

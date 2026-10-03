@@ -1,11 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormHelperText from "@mui/material/FormHelperText";
+import MuiLink from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { DividerWithLabel } from "@/components/ui/Divider";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { Field } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
 import type { JoinIntent } from "@/lib/public/links";
@@ -34,13 +42,20 @@ export interface JoinFormProps {
   emailHref: string;
 }
 
+/** A text link with a 44px hit area on touch screens, its box unchanged (the legacy `.tap-44`). */
+const TAP_LINK = {
+  display: "inline-flex",
+  alignItems: "center",
+  ...TAP_TARGET,
+} as const;
+
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="filled" size="lg" fullWidth disabled={pending}>
       {pending ? (
         <>
-          <Spinner className="size-5" />
+          <Spinner />
           {JOIN_TEXT.pending}
         </>
       ) : (
@@ -52,17 +67,27 @@ function SubmitButton({ label }: { label: string }) {
 
 function ConfirmPanel({ email, signInHref }: { email?: string; signInHref: string }) {
   return (
-    <div role="status" className="flex flex-col">
-      <h2 className="t-title-l text-on-surface">{JOIN_TEXT.confirmTitle}</h2>
-      <p className="t-body mt-1.5 text-on-surface-variant">
+    <Box role="status" sx={{ display: "flex", flexDirection: "column" }}>
+      <Typography component="h2" variant="h5">
+        {JOIN_TEXT.confirmTitle}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
         {JOIN_TEXT.confirmBefore}
-        <b className="font-semibold text-on-surface">{email}</b>
+        <Box component="b" sx={{ fontWeight: 600, color: "text.primary" }}>
+          {email}
+        </Box>
         {JOIN_TEXT.confirmAfter}
-      </p>
-      <Link href={signInHref} className="t-label-l tap-44 mt-3.5 self-start text-primary">
+      </Typography>
+      <MuiLink
+        component={NextLink}
+        href={signInHref}
+        underline="hover"
+        variant="subtitle2"
+        sx={{ ...TAP_LINK, mt: 1.75, alignSelf: "flex-start" }}
+      >
         {JOIN_TEXT.signIn}
-      </Link>
-    </div>
+      </MuiLink>
+    </Box>
   );
 }
 
@@ -84,56 +109,64 @@ export function JoinForm({
   const termsError = state.fieldErrors?.terms?.[0];
 
   return (
-    <form action={formAction} className="flex flex-col">
+    <Box component="form" action={formAction} sx={{ display: "flex", flexDirection: "column" }}>
       <input type="hidden" name="intent" value={intent ?? ""} />
       <input type="hidden" name="trip" value={trip ?? ""} />
       <input type="hidden" name="next" value={next} />
 
       {state.formError && (
-        <Alert tone="error" className="mb-3">
-          {state.formError.message}
-          {state.formError.action && (
-            <>
-              {" "}
-              <Link
-                href={state.formError.action.href}
-                className="font-semibold underline underline-offset-2"
-              >
-                {state.formError.action.label}
-              </Link>
-              .
-            </>
-          )}
-        </Alert>
+        <Box sx={{ mb: 1.5 }}>
+          <Alert tone="error">
+            {state.formError.message}
+            {state.formError.action && (
+              <>
+                {" "}
+                <MuiLink
+                  component={NextLink}
+                  href={state.formError.action.href}
+                  color="inherit"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {state.formError.action.label}
+                </MuiLink>
+                .
+              </>
+            )}
+          </Alert>
+        </Box>
       )}
 
-      <Button
-        variant="outlined"
-        size="lg"
-        fullWidth
-        className="mb-2"
-        disabled={!googleEnabled}
-        title={googleEnabled ? undefined : JOIN_TEXT.socialDisabledTitle}
-      >
-        {JOIN_TEXT.google}
-      </Button>
-      <Button
-        variant="outlined"
-        size="lg"
-        fullWidth
-        className="mb-3.5"
-        disabled={!appleEnabled}
-        title={appleEnabled ? undefined : JOIN_TEXT.socialDisabledTitle}
-      >
-        {JOIN_TEXT.apple}
-      </Button>
+      <Stack spacing={1} sx={{ mb: 1.75 }}>
+        <Button
+          variant="outlined"
+          size="lg"
+          fullWidth
+          disabled={!googleEnabled}
+          title={googleEnabled ? undefined : JOIN_TEXT.socialDisabledTitle}
+        >
+          {JOIN_TEXT.google}
+        </Button>
+        <Button
+          variant="outlined"
+          size="lg"
+          fullWidth
+          disabled={!appleEnabled}
+          title={appleEnabled ? undefined : JOIN_TEXT.socialDisabledTitle}
+        >
+          {JOIN_TEXT.apple}
+        </Button>
+      </Stack>
 
-      <div className="my-1 mb-3">
+      <Box sx={{ mt: 0.5, mb: 1.5 }}>
         <DividerWithLabel label={JOIN_TEXT.divider} />
-      </div>
+      </Box>
 
-      <fieldset disabled={isPending} className="contents">
-        <div className="grid grid-cols-2 gap-2.5">
+      <Box
+        component="fieldset"
+        disabled={isPending}
+        sx={{ display: "contents", m: 0, p: 0, border: 0, minWidth: 0 }}
+      >
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25 }}>
           <Field
             id="firstName"
             name="firstName"
@@ -152,9 +185,9 @@ export function JoinForm({
             defaultValue={state.lastName}
             error={state.fieldErrors?.lastName?.[0]}
           />
-        </div>
+        </Box>
 
-        <div className="mt-2">
+        <Box sx={{ mt: 1 }}>
           <Field
             id="email"
             name="email"
@@ -165,9 +198,9 @@ export function JoinForm({
             defaultValue={state.email}
             error={state.fieldErrors?.email?.[0]}
           />
-        </div>
+        </Box>
 
-        <div className="mt-2">
+        <Box sx={{ mt: 1 }}>
           <Field
             id="password"
             name="password"
@@ -178,54 +211,80 @@ export function JoinForm({
             hint={JOIN_TEXT.passwordHint}
             error={state.fieldErrors?.password?.[0]}
           />
-        </div>
+        </Box>
 
-        <div className="mt-3">
-          <label className="t-body-s flex items-start gap-2.5 text-on-surface-variant">
-            <input
-              id="terms"
-              type="checkbox"
-              name="terms"
-              className="filter-box mt-0.5"
-              required
-              aria-invalid={termsError ? true : undefined}
-              aria-describedby={termsError ? "terms-error" : undefined}
-            />
-            <span>
-              {JOIN_TEXT.termsBefore}
-              <Link href="/legal/terms" className="text-primary underline underline-offset-2">
-                {JOIN_TEXT.termsLink}
-              </Link>
-              {JOIN_TEXT.termsAnd}
-              <Link href="/legal/privacy" className="text-primary underline underline-offset-2">
-                {JOIN_TEXT.privacyLink}
-              </Link>
-            </span>
-          </label>
+        <Box sx={{ mt: 1.5 }}>
+          {/* A real checkbox (MUI's Checkbox wraps a native input) so the form posts `terms`
+              with no JavaScript involved; the aria wiring lands on that input. */}
+          <FormControlLabel
+            sx={{ mr: 0 }}
+            control={
+              <Checkbox
+                id="terms"
+                name="terms"
+                size="small"
+                slotProps={{
+                  input: {
+                    // On the input, not the Checkbox prop: FormControlLabel reads the prop and
+                    // would add a " *" the legacy terms row never had.
+                    required: true,
+                    "aria-invalid": termsError ? true : undefined,
+                    "aria-describedby": termsError ? "terms-error" : undefined,
+                  },
+                }}
+              />
+            }
+            label={
+              <>
+                {JOIN_TEXT.termsBefore}
+                <MuiLink component={NextLink} href="/legal/terms">
+                  {JOIN_TEXT.termsLink}
+                </MuiLink>
+                {JOIN_TEXT.termsAnd}
+                <MuiLink component={NextLink} href="/legal/privacy">
+                  {JOIN_TEXT.privacyLink}
+                </MuiLink>
+              </>
+            }
+            slotProps={{ typography: { variant: "body2", sx: { color: "text.secondary" } } }}
+          />
           {termsError && (
-            <p id="terms-error" className="t-body-s mt-1.5 text-error">
+            <FormHelperText id="terms-error" error sx={{ mx: 0, mt: 0.75 }}>
               {termsError}
-            </p>
+            </FormHelperText>
           )}
-        </div>
-      </fieldset>
+        </Box>
+      </Box>
 
-      <div className="mt-3.5">
+      <Box sx={{ mt: 1.75 }}>
         <SubmitButton label={submitLabel(intent)} />
-      </div>
+      </Box>
 
-      {/* Two long labels side by side overflow their 328px content box at 360px. `t-fine`
-          is the public surface's 11.5px step (the artboard's size); `md:t-label-l` restores
-          14px from tablet up. Order matters — t-fine is @layer components, t-label-l is a
-          tokens @utility, so the md: override wins on layer order. */}
-      <div className="t-fine md:t-label-l mt-3 flex items-center justify-between gap-3">
-        <Link href={signInHref} className="tap-44 text-primary">
+      {/* Two long labels side by side overflow their 328px content box at 360px: caption
+          (12px) below `md`, subtitle2 (14px) from tablet up. The weight sits on the links
+          themselves — a plain fontWeight here would lose to the responsive variant's own. */}
+      <Box
+        sx={{
+          mt: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+          typography: { xs: "caption", md: "subtitle2" },
+        }}
+      >
+        <MuiLink component={NextLink} href={signInHref} underline="hover" sx={{ ...TAP_LINK, fontWeight: 500 }}>
           {JOIN_TEXT.signIn}
-        </Link>
-        <a href={emailHref} className="tap-44 text-right text-on-surface-variant">
+        </MuiLink>
+        <MuiLink
+          href={emailHref}
+          underline="hover"
+          color="text.secondary"
+          sx={{ ...TAP_LINK, fontWeight: 500, textAlign: "right" }}
+        >
           {JOIN_TEXT.emailInstead}
-        </a>
-      </div>
-    </form>
+        </MuiLink>
+      </Box>
+    </Box>
   );
 }

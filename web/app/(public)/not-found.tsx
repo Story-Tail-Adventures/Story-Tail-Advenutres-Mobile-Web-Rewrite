@@ -1,3 +1,4 @@
+import Box from "@mui/material/Box";
 import { Container } from "@/components/public/Container";
 import { PublicTopBar } from "@/components/public/PublicTopBar";
 import { NotFoundBody } from "./NotFoundBody";
@@ -12,13 +13,13 @@ import { NotFoundBody } from "./NotFoundBody";
  */
 export default function PublicNotFound() {
   return (
-    <div className="flex flex-1 flex-col">
+    <Box sx={{ display: "flex", flex: 1, flexDirection: "column" }}>
       <PublicTopBar variant="solid" />
-      <main id="main" className="flex flex-1 flex-col">
-        <Container size="prose" className="py-16 text-center">
+      <Box component="main" id="main" sx={{ display: "flex", flex: 1, flexDirection: "column" }}>
+        <Container size="prose" sx={{ py: 8, textAlign: "center" }}>
           <NotFoundBody />
         </Container>
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 }

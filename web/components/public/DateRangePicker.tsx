@@ -1,9 +1,13 @@
 "use client";
 
 import * as React from "react";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import InputBase, { type InputBaseComponentProps } from "@mui/material/InputBase";
+import Popover from "@mui/material/Popover";
+import Typography from "@mui/material/Typography";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { useDatePopover, usePopoverSupported } from "@/components/ui/useDatePopover";
-import { cn } from "@/lib/cn";
 import {
   addMonths,
   buildMonth,
@@ -13,6 +17,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/public/calendar";
 import { addDays, formatDayLong, formatRange, nightsBetween, todayIso } from "@/lib/public/dates";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { MAX_BOOKING_DAYS_AHEAD, MAX_STAY_NIGHTS } from "@/lib/public/search";
 
 export interface DateRangePickerProps {
@@ -58,32 +63,80 @@ export interface DateRangePickerCopy {
   nights: string;
 }
 
+/** 36px cells, the same grid DateField draws. */
+const CELL = 36;
+
+/**
+ * InputBase types its input slot for <input> and <textarea>; a <button> works at runtime (it
+ * has `focus()` and an empty `value`, which is all InputBase asks of it). Same trick as
+ * DateField, so the trigger is a real MUI input slot and not a bare <button>.
+ */
+const BUTTON_INPUT = "button" as unknown as React.ElementType<InputBaseComponentProps>;
+
+/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
+const VISUALLY_HIDDEN = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  p: 0,
+  m: "-1px",
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;
+
+/** The brand-orange glyph beside a value, as every search cell draws it. */
+const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
+
+/** The native date inputs: borderless, 44px tall, in the cell's own type. */
+const NATIVE_INPUT = {
+  flex: 1,
+  minWidth: 0,
+  typography: "subtitle2",
+  "& .MuiInputBase-input": { height: "auto", minHeight: 44, py: 0, boxSizing: "border-box" },
+} as const;
+
+/** False on the server and during hydration, true once the client owns the tree. */
+const noopSubscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+function useHydrated(): boolean {
+  return React.useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
+}
+
 /**
  * The Dates control on 2.0.3 (design: the C203 pill cell and the M203 stacked row).
  *
  * NO-JS IS THE BASELINE, NOT A COURTESY. The search form is a plain GET `next/form` that
  * works with scripting off, so this renders a pair of native `<input type="date">` first and
- * only swaps in the calendar once mounted. That is why `mounted` exists rather than the
- * usual "render the fancy thing and hope": a server-rendered popover would ship a control
+ * only swaps in the calendar once hydrated. That is why `mounted` exists rather than the
+ * usual "render the fancy thing and hope": a server-rendered trigger would ship a control
  * nobody could operate until hydration, on the one page that is meant to be reachable by
  * anything.
  *
  * The value always lives on inputs named `in` and `out` — native ones before mount, hidden
  * ones after — so `parseSearchParams` reads the same two params either way.
  *
- * WHY `popover="auto"` AND NOT AN ABSOLUTELY-POSITIONED DIV. `HeroBleed` puts
- * `overflow-hidden` on the hero section and `.hero-compact` is 280px tall from md, while two
- * month grids are ~340px. An absolutely-positioned panel anchored under the pill is therefore
- * CLIPPED BY ITS OWN HERO — not a risk, the default outcome. The popover API promotes the
- * element to the top layer, which no ancestor `overflow`, `z-index` or transform can reach,
- * and it brings Escape, light-dismiss and focus-return for free. It also means we never have
- * to reason about the z-index inventory (top bar 40, sticky CTA 40, sort menu 20).
+ * THE PANEL IS AN MUI POPOVER (MUI everywhere, 2026-10-01), the same as DateField. It used
+ * to be the native `popover="auto"` API through useDatePopover, chosen because `HeroBleed`
+ * puts `overflow: hidden` on a 280px hero and two month grids are taller than that. Popover
+ * renders in a portal on document.body, which no ancestor overflow, z-index or transform
+ * can clip, and it brings what the hook hand-rolled: anchoring under the trigger and
+ * clamping into the viewport, Escape and light-dismiss, a focus trap, and focus RETURNED to
+ * the trigger on any close — including the programmatic one after the second date, which
+ * the native API got wrong. Tests query it with `screen`, not `container`.
  *
- * ONLY THE PILL GETS THE CALENDAR. Two months side by side is ~600px; the stacked card is
- * what renders below 768px. So the stacked variant keeps the two native `<input type="date">`
- * permanently — the OS picker beats anything hand-rolled at 360px, the value is ISO whatever
- * the locale displays, and it is the same code path as the no-JS baseline, so there is one
- * thing to get right rather than two.
+ * THE TRIGGER IS AN INPUTBASE WHOSE INPUT IS A <button>. DateField does the same with an
+ * OutlinedInput because it sits beside outlined Field inputs; here the neighbours are the
+ * borderless Destination and Travelers cells of the pill, so the trigger is the borderless
+ * InputBase and reads as one more cell. The mechanics are identical.
+ *
+ * ONLY THE PILL (AND THE COMPACT ROW) GET THE CALENDAR. Two months side by side is ~600px;
+ * the stacked card is what renders below 768px. So the stacked variant keeps the two native
+ * `<input type="date">` permanently — the OS picker beats anything hand-rolled at 360px, the
+ * value is ISO whatever the locale displays, and it is the same code path as the no-JS
+ * baseline, so there is one thing to get right rather than two.
  */
 export function DateRangePicker({
   idPrefix,
@@ -95,17 +148,17 @@ export function DateRangePicker({
   variant,
   copy,
 }: DateRangePickerProps) {
-  const popoverSupported = usePopoverSupported();
+  const hydrated = useHydrated();
   // `stacked` is the mobile card, where two months (~600px) do not fit and the OS picker is
   // better anyway — it keeps the native inputs, which are also the no-JS baseline.
-  const mounted = popoverSupported && variant !== "stacked";
+  const mounted = hydrated && variant !== "stacked";
   /**
    * `serverToday` is baked in at BUILD time — /explore is statically prerendered, so the
    * value in the HTML is the day the deploy happened and is stale by the next morning. It is
    * fine as the pre-hydration `min` (a soft guard on a native input), but the calendar must
-   * not disable real days or offer past ones, so once mounted we take the browser's day.
+   * not disable real days or offer past ones, so once hydrated we take the browser's day.
    */
-  const today = popoverSupported ? todayIso(Intl.DateTimeFormat().resolvedOptions().timeZone) : serverToday;
+  const today = hydrated ? todayIso(Intl.DateTimeFormat().resolvedOptions().timeZone) : serverToday;
   const [checkIn, setCheckIn] = React.useState(defaultCheckIn);
   const [checkOut, setCheckOut] = React.useState(defaultCheckOut);
   /** Set once check-in is picked and check-out is not — drives the hover/next-click phase. */
@@ -113,19 +166,24 @@ export function DateRangePicker({
   const [focusDay, setFocusDay] = React.useState(defaultCheckIn ?? today);
   const [cursor, setCursor] = React.useState(() => monthKey(defaultCheckIn ?? today));
 
-  const gridRef = React.useRef<HTMLDivElement>(null);
-  // Anchoring, viewport clamping, flipping, `aria-expanded` and focus-return all live in the
-  // hook, shared with DateField — see its header for why the top layer is not optional here.
-  const { open, triggerRef, panelRef, close: closePanel } = useDatePopover(mounted);
+  const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  // The grid node as STATE, not a ref: it mounts inside the Popover's portal a render after
+  // `open` flips, and an effect has to re-run when it appears.
+  const [grid, setGrid] = React.useState<HTMLDivElement | null>(null);
 
-  // Move DOM focus to the day the roving tabindex points at, but only while the grid already
-  // owns focus — otherwise opening the popover would steal it from the trigger.
+  // Put DOM focus on the roving day. On open, Popover's focus trap has just focused the
+  // dialog paper itself; moving on to the day is what makes the arrow keys work at once. As
+  // the day moves (arrows) focus follows it, but only while the grid or the paper owns
+  // focus, so a month change from the arrows does not yank focus off the arrow button.
   React.useEffect(() => {
-    if (!open) return;
-    const grid = gridRef.current;
-    if (!grid || !grid.contains(document.activeElement)) return;
+    if (!open || !grid) return;
+    const active = document.activeElement;
+    const paper = grid.closest('[role="dialog"]');
+    const parked = !active || active === document.body || active === paper;
+    if (!parked && !grid.contains(active)) return;
     grid.querySelector<HTMLElement>(`[data-iso="${focusDay}"]`)?.focus();
-  }, [focusDay, open, cursor]);
+  }, [grid, open, focusDay, cursor]);
 
   // Same constant `parseStay` validates against. It was a hardcoded 550 here against a 500
   // there, so the calendar offered 50 days the form would then silently drop.
@@ -133,6 +191,8 @@ export function DateRangePicker({
     () => addDays(today, MAX_BOOKING_DAYS_AHEAD) ?? undefined,
     [today],
   );
+
+  const closePanel = React.useCallback(() => setOpen(false), []);
 
   function selectDay(iso: string) {
     if (iso < today || (maxDate && iso > maxDate)) return;
@@ -194,204 +254,280 @@ export function DateRangePicker({
   // keyboard-operable and understood by every browser.
   if (!mounted) {
     // Two native date inputs. SearchBar already renders the visible "Dates" label for the
-    // cell, so these carry sr-only labels naming the individual controls — which is the
-    // honest model anyway: the group is "Dates", the controls are check-in and check-out.
+    // cell, so these carry visually hidden labels naming the individual controls — which is
+    // the honest model anyway: the group is "Dates", the controls are check-in and check-out.
     return (
       // Keyed so React UNMOUNTS this branch on enhancement instead of reconciling it into
-      // the one below. Both branches are <div><input>, so without a key React reuses the DOM
-      // node and an uncontrolled `defaultValue` input becomes a controlled `value` one —
-      // which it warns about in the console on every load of /explore.
-      <div key="native" className="flex min-w-0 flex-1 items-center gap-1">
-        <label htmlFor={inputId} className="sr-only">
+      // the one below. Both branches are a Box with inputs, so without a key React reuses
+      // the DOM node and an uncontrolled `defaultValue` input becomes a controlled `value`
+      // one — which it warns about in the console on every load of /explore.
+      <Box key="native" sx={{ display: "flex", minWidth: 0, flex: 1, alignItems: "center", gap: 0.5 }}>
+        <Typography component="label" htmlFor={inputId} sx={VISUALLY_HIDDEN}>
           {copy.checkInLabel}
-        </label>
-        <input
+        </Typography>
+        <InputBase
           id={inputId}
           type="date"
           name="in"
           defaultValue={defaultCheckIn}
-          min={today}
-          max={maxDate}
-          className="t-title-s min-h-11 min-w-0 flex-1 bg-transparent text-on-surface"
+          inputProps={{ min: today, max: maxDate }}
+          sx={NATIVE_INPUT}
         />
-        <span aria-hidden="true" className="t-body-s text-on-surface-variant">
+        <Typography component="span" aria-hidden="true" variant="caption" sx={{ color: "text.secondary" }}>
           –
-        </span>
-        <label htmlFor={`${idPrefix}-dates-out`} className="sr-only">
+        </Typography>
+        <Typography component="label" htmlFor={`${idPrefix}-dates-out`} sx={VISUALLY_HIDDEN}>
           {copy.checkOutLabel}
-        </label>
-        <input
+        </Typography>
+        <InputBase
           id={`${idPrefix}-dates-out`}
           type="date"
           name="out"
           defaultValue={defaultCheckOut}
-          min={defaultCheckIn ? (addDays(defaultCheckIn, 1) ?? today) : today}
-          max={maxDate}
-          className="t-title-s min-h-11 min-w-0 flex-1 bg-transparent text-on-surface"
+          inputProps={{
+            min: defaultCheckIn ? (addDays(defaultCheckIn, 1) ?? today) : today,
+            max: maxDate,
+          }}
+          sx={NATIVE_INPUT}
         />
-      </div>
+      </Box>
     );
   }
 
-  // Reached only when `mounted`, which implies variant === "pill".
+  const compact = variant === "compact";
+
+  // Reached only when `mounted`, which implies `pill` or `compact`.
   return (
-    <div key="enhanced" className="relative min-w-0">
+    <Box key="enhanced" sx={{ position: "relative", minWidth: 0 }}>
       {/* Always present, empty when no range is picked — the same contract as the Destination
           input, which also submits empty. `parseStay` drops an empty or half pair, so an
           undated search is expressed by empty values rather than by absent params. */}
       <input type="hidden" name="in" value={checkIn ?? ""} />
       <input type="hidden" name="out" value={checkOut ?? ""} />
 
-      <button
-        ref={triggerRef}
-        type="button"
+      <InputBase
         id={inputId}
-        popoverTarget={panelId}
-        onClick={() => {
-          setCursor(monthKey(checkIn ?? today));
-          setFocusDay(checkIn ?? today);
+        type="button"
+        inputComponent={BUTTON_INPUT}
+        inputRef={triggerRef}
+        fullWidth
+        sx={{
+          mt: variant === "pill" ? 0.25 : 0,
+          cursor: "pointer",
+          lineHeight: 1.2,
+          ...(compact
+            ? { typography: "body2", fontSize: 13, fontWeight: 500 }
+            : { typography: "subtitle2" }),
         }}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-label={rangeText ? `${label}: ${rangeText}` : `${label}: ${copy.pickCheckIn}`}
-        className={cn(
-          "flex w-full min-w-0 items-center gap-1.5 rounded-sm bg-transparent text-left",
-          variant === "pill" && "mt-0.5",
-        )}
-      >
-        <Icon
-          name="calendar"
-          size={variant === "compact" ? 12 : 13}
-          className="shrink-0 text-brand-orange"
-        />
-        <span
-          className={cn(
-            "truncate",
-            variant === "compact" ? "t-label-l" : "t-title-s",
-            rangeText ? "text-on-surface" : "text-on-surface-variant",
-          )}
-        >
-          {rangeText || placeholder}
-        </span>
-      </button>
-
-      {/* Always in the DOM, shown by the popover API. Conditionally RENDERING it would
-          unmount the grid on every close and lose the roving-focus position. */}
-      <div
-        ref={panelRef}
-        id={panelId}
-        popover="auto"
-        role="dialog"
-        aria-label={label}
-        className="card fixed z-50 m-0 w-max max-w-[calc(100vw-1rem)] p-3 shadow-3"
-      >
-        <p className="sr-only">{copy.keyboardHint}</p>
-        <>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setCursor(addMonths(cursor, -1))}
-              disabled={cursor <= monthKey(today)}
-              aria-label={copy.prevMonth}
-              className="btn-icon tap-44 size-8 rounded-full text-on-surface disabled:opacity-40"
-            >
-              <Icon name="chevron_left" size={16} />
-            </button>
-            <p aria-live="polite" className="t-label-l flex-1 text-center text-on-surface">
-              {checkIn && checkOut
-                ? `${rangeText} · ${nights} ${nights === 1 ? copy.night : copy.nights}`
-                : pendingStart
-                  ? copy.pickCheckOut
-                  : copy.pickCheckIn}
-            </p>
-            <button
-              type="button"
-              onClick={() => setCursor(addMonths(cursor, 1))}
-              aria-label={copy.nextMonth}
-              className="btn-icon tap-44 size-8 rounded-full text-on-surface"
-            >
-              <Icon name="chevron_right" size={16} />
-            </button>
-          </div>
-
-          <div ref={gridRef} onKeyDown={onGridKeyDown} className="flex gap-4 max-md:flex-col">
-            {months.map((month, index) => (
-              <table
-                key={month.key}
-                role="grid"
-                aria-label={month.label}
-                // The second month is decorative on mobile, where only one fits.
-                className={cn("border-separate border-spacing-0.5", index === 1 && "hidden md:table")}
+        inputProps={{
+          "aria-haspopup": "dialog",
+          "aria-expanded": open,
+          "aria-controls": open ? panelId : undefined,
+          "aria-label": rangeText ? `${label}: ${rangeText}` : `${label}: ${copy.pickCheckIn}`,
+          onClick: () => {
+            setCursor(monthKey(checkIn ?? today));
+            setFocusDay(checkIn ?? today);
+            setOpen(true);
+          },
+          sx: {
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            height: "auto",
+            p: 0,
+            textAlign: "left",
+            cursor: "pointer",
+            font: "inherit",
+          },
+          children: (
+            <>
+              <Box component="span" sx={GLYPH}>
+                <Icon name="calendar" size={compact ? 12 : 13} />
+              </Box>
+              <Box
+                component="span"
+                sx={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: rangeText ? "text.primary" : "text.secondary",
+                }}
               >
-                <caption className="t-title-s pb-1 text-on-surface">{month.label}</caption>
-                <thead>
-                  <tr>
-                    {WEEKDAY_LABELS.map((d) => (
-                      <th key={d} scope="col" className="t-label size-9 font-medium text-on-surface-variant">
-                        {d}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {month.weeks.map((week, w) => (
-                    <tr key={w}>
-                      {week.map((day) => {
-                        if (!day.inMonth) return <td key={day.iso} className="size-9" />;
-                        const disabled = day.iso < today || (maxDate ? day.iso > maxDate : false);
-                        const isStart = day.iso === checkIn;
-                        const isEnd = day.iso === checkOut;
-                        const inRange = isBetween(day.iso, checkIn, checkOut);
-                        return (
-                          // A gridcell, not a nested button: `aria-selected` is only valid
-                          // on a gridcell, and the roving tabindex makes the whole month one
-                          // tab stop. public.css's focus rule already covers `[tabindex]`,
-                          // so the brand focus ring comes for free.
-                          <td
-                            key={day.iso}
-                            role="gridcell"
-                            data-iso={day.iso}
-                            tabIndex={day.iso === focusDay ? 0 : -1}
-                            aria-selected={isStart || isEnd}
-                            aria-disabled={disabled || undefined}
-                            aria-current={day.iso === today ? "date" : undefined}
-                            aria-label={formatDayLong(day.iso)}
-                            onClick={() => !disabled && selectDay(day.iso)}
-                            onFocus={() => setFocusDay(day.iso)}
-                            className={cn(
-                              "t-body-s size-9 cursor-pointer rounded-full text-center align-middle text-on-surface",
-                              disabled && "cursor-not-allowed text-on-surface-variant opacity-35",
-                              !disabled && "hover:bg-surface-3",
-                              inRange && "bg-secondary-container text-on-secondary-container",
-                              (isStart || isEnd) && "bg-primary text-on-primary",
-                            )}
-                          >
-                            {day.day}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ))}
-          </div>
+                {rangeText || placeholder}
+              </Box>
+            </>
+          ),
+        }}
+      />
 
-          <div className="mt-2 flex items-center justify-end gap-2 border-t border-outline-variant pt-2">
-            <button type="button" onClick={clear} className="btn btn-text btn-sm">
-              {copy.clear}
-            </button>
-            <button
-              type="button"
-              onClick={closePanel}
-              className="btn btn-tonal btn-sm"
+      <Popover
+        open={open}
+        anchorEl={() => triggerRef.current}
+        onClose={closePanel}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        slotProps={{
+          paper: {
+            id: panelId,
+            role: "dialog",
+            "aria-label": label,
+            sx: { mt: 1, p: 1.5, maxWidth: "calc(100vw - 16px)" },
+          },
+        }}
+      >
+        <Typography component="p" sx={VISUALLY_HIDDEN}>
+          {copy.keyboardHint}
+        </Typography>
+
+        <Box sx={{ mb: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+          <IconButton
+            size="small"
+            onClick={() => setCursor(addMonths(cursor, -1))}
+            disabled={cursor <= monthKey(today)}
+            aria-label={copy.prevMonth}
+            sx={TAP_TARGET}
+          >
+            <Icon name="chevron_left" size={16} />
+          </IconButton>
+          <Typography
+            component="p"
+            variant="body2"
+            aria-live="polite"
+            sx={{ flex: 1, textAlign: "center", fontWeight: 500, color: "text.primary" }}
+          >
+            {checkIn && checkOut
+              ? `${rangeText} · ${nights} ${nights === 1 ? copy.night : copy.nights}`
+              : pendingStart
+                ? copy.pickCheckOut
+                : copy.pickCheckIn}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setCursor(addMonths(cursor, 1))}
+            aria-label={copy.nextMonth}
+            sx={TAP_TARGET}
+          >
+            <Icon name="chevron_right" size={16} />
+          </IconButton>
+        </Box>
+
+        <Box
+          ref={setGrid}
+          onKeyDown={onGridKeyDown}
+          sx={{ display: "flex", gap: 2, flexDirection: { xs: "column", md: "row" } }}
+        >
+          {months.map((month, index) => (
+            <Box
+              component="table"
+              key={month.key}
+              role="grid"
+              aria-label={month.label}
+              sx={{
+                borderCollapse: "separate",
+                borderSpacing: "2px",
+                // The second month is decorative on mobile, where only one fits.
+                ...(index === 1 && { display: { xs: "none", md: "table" } }),
+              }}
             >
-              {copy.done}
-            </button>
-          </div>
-        </>
-      </div>
-    </div>
+              <Typography
+                component="caption"
+                variant="subtitle2"
+                sx={{ captionSide: "top", textAlign: "left", pb: 0.5, color: "text.primary" }}
+              >
+                {month.label}
+              </Typography>
+              <thead>
+                <tr>
+                  {WEEKDAY_LABELS.map((d) => (
+                    <Typography
+                      key={d}
+                      component="th"
+                      scope="col"
+                      variant="caption"
+                      sx={{ width: CELL, height: CELL, fontWeight: 500, color: "text.secondary" }}
+                    >
+                      {d}
+                    </Typography>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {month.weeks.map((week, w) => (
+                  <tr key={w}>
+                    {week.map((day) => {
+                      if (!day.inMonth) {
+                        return <Box component="td" key={day.iso} sx={{ width: CELL, height: CELL }} />;
+                      }
+                      const disabled = day.iso < today || (maxDate ? day.iso > maxDate : false);
+                      const isStart = day.iso === checkIn;
+                      const isEnd = day.iso === checkOut;
+                      const selected = isStart || isEnd;
+                      const inRange = isBetween(day.iso, checkIn, checkOut);
+                      return (
+                        // A gridcell, not a nested button: `aria-selected` is only valid on a
+                        // gridcell, and the roving tabindex makes the whole month one tab stop.
+                        <Box
+                          component="td"
+                          key={day.iso}
+                          role="gridcell"
+                          data-iso={day.iso}
+                          tabIndex={day.iso === focusDay ? 0 : -1}
+                          aria-selected={selected}
+                          aria-disabled={disabled || undefined}
+                          aria-current={day.iso === today ? "date" : undefined}
+                          aria-label={formatDayLong(day.iso)}
+                          onClick={() => !disabled && selectDay(day.iso)}
+                          onFocus={() => setFocusDay(day.iso)}
+                          sx={{
+                            width: CELL,
+                            height: CELL,
+                            borderRadius: "50%",
+                            textAlign: "center",
+                            verticalAlign: "middle",
+                            typography: "body2",
+                            cursor: disabled ? "not-allowed" : "pointer",
+                            color: disabled ? "text.disabled" : "text.primary",
+                            ...(inRange && { bgcolor: "secondary.container", color: "secondary.onContainer" }),
+                            ...(selected && { bgcolor: "primary.main", color: "primary.contrastText" }),
+                            ...(!disabled && !selected && !inRange && { "&:hover": { bgcolor: "action.hover" } }),
+                            "&:focus-visible": {
+                              outline: "2px solid",
+                              outlineColor: "primary.main",
+                              outlineOffset: "2px",
+                            },
+                          }}
+                        >
+                          {day.day}
+                        </Box>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </Box>
+          ))}
+        </Box>
+
+        <Box
+          sx={{
+            mt: 1,
+            pt: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button variant="text" size="sm" onClick={clear}>
+            {copy.clear}
+          </Button>
+          <Button variant="tonal" size="sm" onClick={closePanel}>
+            {copy.done}
+          </Button>
+        </Box>
+      </Popover>
+    </Box>
   );
 }

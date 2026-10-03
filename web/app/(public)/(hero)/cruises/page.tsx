@@ -2,7 +2,11 @@
 // design/source-prototype/screens/client-public-topics.jsx (C209_Cruises) +
 // client-public-mobile.jsx (M209_Cruises). P2 (built ahead of phase, September 2026).
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import MuiChip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import NextLink from "@/components/mui/NextLink";
 import { ClosingCta } from "@/components/public/ClosingCta";
 import { Container } from "@/components/public/Container";
 import { HeroBleed } from "@/components/public/HeroBleed";
@@ -52,6 +56,20 @@ export const metadata: Metadata = {
   },
 };
 
+/** Three-up from `md`, a single column below it. */
+const THREE_UP = {
+  display: "grid",
+  gap: { xs: 1.25, md: 1.75 },
+  gridTemplateColumns: { md: "repeat(3, 1fr)" },
+} as const;
+
+/** Trip grid: one column on phones, two at tablet, three on web. */
+const TRIP_GRID = {
+  display: "grid",
+  gap: { xs: 1.25, md: 1.75 },
+  gridTemplateColumns: { md: "repeat(2, 1fr)", web: "repeat(3, 1fr)" },
+} as const;
+
 /**
  * Pattern H topic page (same skeleton as 2.0.8). The cruise-line chips are display text —
  * the prototype has no action on them and the catalog does not search by line yet.
@@ -87,7 +105,7 @@ export default function CruisesPage() {
         action={{ label: CRUISES_INQUIRY_CTA, href: liveSailingsHref, icon: "search" }}
       />
 
-      <Container size="wide" className="pt-4.5 pb-6 md:pt-8 md:pb-14">
+      <Container size="wide" sx={{ pt: { xs: 2.25, md: 4 }, pb: { xs: 3, md: 7 } }}>
         {/* Who it's for — three media cards; image-beside-text rows below md. */}
         <section aria-labelledby={TYPES_HEADING_ID}>
           <SectionLabel
@@ -96,11 +114,11 @@ export default function CruisesPage() {
             title={CRUISES_TYPES_SECTION.title}
             sub={CRUISES_TYPES_SECTION.sub}
           />
-          <div className="mb-4.5 grid gap-2.5 md:mb-9 md:grid-cols-3 md:gap-3.5">
+          <Box sx={{ ...THREE_UP, mb: { xs: 2.25, md: 4.5 } }}>
             {CRUISES_TYPES.map((type) => (
               <MediaCard key={type.tag} image={type.image} tag={type.tag} title={type.title} body={type.body} />
             ))}
-          </div>
+          </Box>
         </section>
 
         {/* Lines we book — display chips, in the designer's order. */}
@@ -110,34 +128,42 @@ export default function CruisesPage() {
             overline={CRUISES_LINES_SECTION.overline}
             title={CRUISES_LINES_SECTION.title}
           />
-          <ul aria-labelledby={LINES_HEADING_ID} className="mb-4.5 flex flex-wrap gap-1.5 md:mb-9 md:gap-2">
+          <Stack
+            component="ul"
+            aria-labelledby={LINES_HEADING_ID}
+            direction="row"
+            useFlexGap
+            sx={{ m: 0, p: 0, mb: { xs: 2.25, md: 4.5 }, flexWrap: "wrap", gap: { xs: 0.75, md: 1 }, listStyle: "none" }}
+          >
             {CRUISE_LINES.map((line) => (
-              <li key={line.slug} className="chip h-auto px-2.5 py-1.5 md:px-3.5 md:py-2">
-                {line.name}
-              </li>
+              <MuiChip key={line.slug} component="li" variant="outlined" label={line.name} />
             ))}
-          </ul>
+          </Stack>
         </section>
 
-        {/* Hand-picked sailings — every trip placed on this topic, in the designer's order.
-            `md:max-web:` keeps the tablet column count from outranking `web:` (globals.css declares
-            --breakpoint-web in px while md is rem, so Tailwind emits web: before md:). */}
+        {/* Hand-picked sailings — every trip placed on this topic, in the designer's order. */}
         <section aria-labelledby={SAILINGS_HEADING_ID}>
           <SectionLabel
             id={SAILINGS_HEADING_ID}
             overline={cruisesTripsOverline(trips.length)}
             title={CRUISES_TRIPS.title}
           />
-          <div className="mb-3 grid gap-2.5 md:mb-6 md:max-web:grid-cols-2 md:gap-3.5 web:grid-cols-3">
+          <Box sx={{ ...TRIP_GRID, mb: { xs: 1.5, md: 3 } }}>
             {trips.map((trip) => (
               <TripTile key={trip.slug} trip={trip} topic={TOPIC} next={CRUISES_PATH} />
             ))}
-          </div>
-          <div className="mb-6 flex justify-center md:mb-9">
-            <Link href={allSailingsHref} className="btn btn-tonal w-full md:w-auto">
+          </Box>
+          <Box sx={{ mb: { xs: 3, md: 4.5 }, display: "flex", justifyContent: "center" }}>
+            <MuiButton
+              component={NextLink}
+              href={allSailingsHref}
+              variant="outlined"
+              color="secondary"
+              sx={{ minHeight: 40, px: 3, width: { xs: "100%", md: "auto" } }}
+            >
               {cruisesSeeAllLabel(total)}
-            </Link>
-          </div>
+            </MuiButton>
+          </Box>
         </section>
 
         <ClosingCta

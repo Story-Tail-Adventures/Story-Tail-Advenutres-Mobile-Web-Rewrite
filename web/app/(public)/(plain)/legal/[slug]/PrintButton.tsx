@@ -1,7 +1,12 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
+import MuiButton from "@mui/material/Button";
 import { LEGAL_PAGE } from "./content";
+import { TAP_TARGET } from "@/lib/mui/sx";
+
+/** The legacy .btn-sm box (32px, 16px sides) on MUI's small text button; 44px tall on touch screens. */
+// 32px box like the legacy btn-sm; `tap-44` grew only the tap area on touch screens.
+const PRINT = { minHeight: 32, px: 2, ...TAP_TARGET } as const;
 
 /**
  * "Print this page" (Screen Inventory 2.0.7 "printable view"; the design's "Printable view" /
@@ -11,8 +16,15 @@ import { LEGAL_PAGE } from "./content";
  */
 export function PrintButton() {
   return (
-    <Button variant="text" size="sm" className="no-print tap-44" onClick={() => window.print()}>
+    <MuiButton
+      variant="text"
+      color="primary"
+      size="small"
+      className="no-print"
+      sx={PRINT}
+      onClick={() => window.print()}
+    >
       {LEGAL_PAGE.print}
-    </Button>
+    </MuiButton>
   );
 }

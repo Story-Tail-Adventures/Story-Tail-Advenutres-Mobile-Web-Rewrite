@@ -43,3 +43,24 @@ export const UP_LG = up("lg");
 export const UP_WEB = up("web");
 export const DOWN_MD = down("md");
 export const DOWN_WEB = down("web");
+
+/** Tablet only, 768–1199px: Tailwind's `md:max-web:`. */
+export const MD_TO_WEB = `@media (min-width:${BREAKPOINTS.md}px) and (max-width:${BREAKPOINTS.web - 0.05}px)`;
+
+/**
+ * The legacy `.tap-44`: on a touch screen, grow the TAP AREA to at least 44px without
+ * growing the visible control. An invisible ::after extends 8px past every edge, so a 28–36px
+ * button stays that size on screen and still meets the 44px touch minimum (Screen Inventory
+ * §4.2). Use this, not `minHeight: 44`, wherever the old markup had `tap-44`: a min-height
+ * changes the layout, which the migration must not do.
+ *
+ * It sets `position: relative` on touch screens (the ::after needs a containing block), so
+ * do not spread it onto an element that is itself absolutely positioned: wrap that element
+ * in a positioned Box and put TAP_TARGET on the child instead.
+ */
+export const TAP_TARGET = {
+  "@media (pointer: coarse)": {
+    position: "relative",
+    "&::after": { content: '""', position: "absolute", inset: "-8px" },
+  },
+} as const;

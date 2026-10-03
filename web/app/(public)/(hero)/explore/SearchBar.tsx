@@ -1,7 +1,13 @@
-import Form from "next/form";
+import { Fragment } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import InputBase from "@mui/material/InputBase";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import NextForm from "@/components/mui/NextForm";
 import { DateRangePicker } from "@/components/public/DateRangePicker";
 import { Icon } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
 import { todayIso } from "@/lib/public/dates";
 import { SEARCH_TIME_ZONE } from "@/lib/public/search";
 import { EXPLORE, SEARCH_FIELDS } from "./content";
@@ -17,11 +23,37 @@ interface SearchBarProps {
 /** The stacked (mobile) form's id, so the sticky bar can submit it from outside. */
 export const STACKED_SEARCH_FORM_ID = "explore-search-stacked";
 
+/** The brand-orange glyph beside a value, as every search cell draws it. */
+const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
+
+/** The artboard's pill: a Paper with the cells as flex children and Dividers between them. */
+const PILL = { display: { xs: "none", md: "flex" }, alignItems: "center", color: "text.primary" } as const;
+
+/** M203's card: the same cells stacked, one per row. */
+const STACKED = { display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 0.5, p: 1.5 } as const;
+
+/** A borderless input in the cell's own type, so the pill reads as text until you type in it. */
+const PILL_INPUT = {
+  typography: "subtitle2",
+  lineHeight: 1.2,
+  "& .MuiInputBase-input": { height: "auto", py: "2px" },
+} as const;
+const STACKED_INPUT = {
+  flex: 1,
+  minWidth: 0,
+  typography: "subtitle2",
+  "& .MuiInputBase-input": { height: "auto", minHeight: 44, py: 0, boxSizing: "border-box" },
+} as const;
+
 /**
  * The real search form on 2.0.3 (design: the C203 pill and the M203 stacked card). A GET form
  * via next/form, so it works without JavaScript and prefetches /explore/results. Field names
  * match `parseSearchParams` (dest / in / out / travelers); everything on the results page is
  * derived from the URL that this produces.
+ *
+ * The Paper IS the form (`component={NextForm}`): the cells are its flex children, so the
+ * form element has to be the flex container, and the artboard draws that container as a
+ * Paper (elevation 2 in the hero, 1 as the body card).
  *
  * M203's card has no button of its own — the sticky bottom bar *is* the Search. So the
  * stacked variant keeps a submit in the DOM (it is the form's default button, which is what
@@ -38,17 +70,15 @@ export function SearchBar({ variant, className, defaultCheckIn, defaultCheckOut 
   const today = todayIso(SEARCH_TIME_ZONE);
 
   return (
-    <Form
+    <Paper
+      component={NextForm}
       action="/explore/results"
       id={pill ? undefined : STACKED_SEARCH_FORM_ID}
       role="search"
       aria-label={EXPLORE.search.formLabel}
-      className={cn(
-        pill
-          ? "card hidden items-center rounded-full p-0 shadow-2 md:flex"
-          : "card flex flex-col gap-1 p-3 md:hidden",
-        className,
-      )}
+      className={className}
+      elevation={pill ? 2 : 1}
+      sx={pill ? PILL : STACKED}
     >
       {SEARCH_FIELDS.map((field, index) => {
         const id = `search-${variant}-${field.name}`;
@@ -67,75 +97,95 @@ export function SearchBar({ variant, className, defaultCheckIn, defaultCheckOut 
               copy={EXPLORE.dates}
             />
           ) : (
-            <input
+            <InputBase
               id={id}
               name={field.name}
               type={field.type}
-              inputMode={numeric ? "numeric" : undefined}
-              min={numeric ? 1 : undefined}
-              max={numeric ? 20 : undefined}
-              maxLength={numeric ? undefined : 60}
               placeholder={field.placeholder}
               autoComplete="off"
-              className={cn(
-                "t-title-s w-full min-w-0 rounded-sm bg-transparent text-on-surface placeholder:text-on-surface-variant",
-                pill ? "py-0.5" : "min-h-11",
-              )}
+              fullWidth
+              inputProps={{
+                inputMode: numeric ? "numeric" : undefined,
+                min: numeric ? 1 : undefined,
+                max: numeric ? 20 : undefined,
+                maxLength: numeric ? undefined : 60,
+              }}
+              sx={pill ? PILL_INPUT : STACKED_INPUT}
             />
           );
 
         // The picker renders its own icon and label association (its trigger IS the labelled
         // control), so the cell chrome differs from a plain input's.
         const isDates = field.type === "dates";
+        const labelFor = isDates ? `search-${variant}-dates` : id;
 
         if (pill) {
           return (
-            <div
-              key={field.name}
-              className={cn("min-w-0 flex-1 px-4 py-2.5", index < last && "border-r border-outline-variant")}
-            >
-              <label
-                htmlFor={isDates ? `search-${variant}-dates` : id}
-                className="t-label block text-on-surface-variant"
-              >
-                {field.label}
-              </label>
-              {isDates ? (
-                control
-              ) : (
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <Icon name={field.icon} size={13} className="shrink-0 text-brand-orange" />
-                  {control}
-                </div>
-              )}
-            </div>
+            <Fragment key={field.name}>
+              {index > 0 && <Divider orientation="vertical" flexItem />}
+              <Box sx={{ minWidth: 0, flex: 1, px: 2, py: 1.25 }}>
+                <Typography
+                  component="label"
+                  htmlFor={labelFor}
+                  variant="caption"
+                  sx={{ display: "block", lineHeight: 1.2, color: "text.secondary" }}
+                >
+                  {field.label}
+                </Typography>
+                {isDates ? (
+                  control
+                ) : (
+                  <Box sx={{ mt: 0.25, display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <Box component="span" sx={GLYPH}>
+                      <Icon name={field.icon} size={13} />
+                    </Box>
+                    {control}
+                  </Box>
+                )}
+              </Box>
+            </Fragment>
           );
         }
 
         return (
-          <div
+          <Box
             key={field.name}
-            className={cn("flex items-center gap-2.5 py-1", index < last && "border-b border-outline-variant")}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.25,
+              py: 0.5,
+              borderBottom: index < last ? 1 : 0,
+              borderColor: "divider",
+            }}
           >
-            {!isDates && <Icon name={field.icon} size={14} className="shrink-0 text-brand-orange" />}
-            <label
-              htmlFor={isDates ? `search-${variant}-dates` : id}
-              className={cn("t-label shrink-0 text-on-surface-variant", isDates ? "w-19" : "w-21.5")}
+            {!isDates && (
+              <Box component="span" sx={GLYPH}>
+                <Icon name={field.icon} size={14} />
+              </Box>
+            )}
+            <Typography
+              component="label"
+              htmlFor={labelFor}
+              variant="caption"
+              sx={{ flexShrink: 0, width: isDates ? 76 : 86, color: "text.secondary" }}
             >
               {field.label}
-            </label>
+            </Typography>
             {control}
-          </div>
+          </Box>
         );
       })}
 
-      <button
+      {/* The pill's Search; on the card it stays in the DOM, hidden, as the default button. */}
+      <MuiButton
         type="submit"
-        className={cn("btn btn-filled", pill ? "m-1 h-11 shrink-0" : "hidden")}
+        variant="contained"
+        startIcon={<Icon name="search" size={16} />}
+        sx={pill ? { m: 0.5, minHeight: 44, flexShrink: 0, whiteSpace: "nowrap" } : { display: "none" }}
       >
-        <Icon name="search" size={16} />
         {EXPLORE.search.submit}
-      </button>
-    </Form>
+      </MuiButton>
+    </Paper>
   );
 }

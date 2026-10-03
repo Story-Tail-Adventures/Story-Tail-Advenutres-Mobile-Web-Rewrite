@@ -1,6 +1,16 @@
-import Link from "next/link";
+import { Fragment } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import MuiChip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { TAP_TARGET } from "@/lib/mui/sx";
+import { Container } from "./Container";
 
 export interface InquiryField {
   label: string;
@@ -24,10 +34,41 @@ interface InquiryBarProps {
   className?: string;
 }
 
+/** The brand-orange glyph beside a value, as every search cell draws it. */
+const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
+
+/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
+const VISUALLY_HIDDEN = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  p: 0,
+  m: "-1px",
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;
+
+/**
+ * The sticky band the pill sits in on topic pages. `.sticky-under-topbar` (public.css) owns
+ * position / top / z-index and stays on the element as that hook; the paint is here.
+ */
+const STICKY_BAND = {
+  display: { xs: "none", md: "block" },
+  py: 1.75,
+  bgcolor: "surface.1",
+  borderBottom: 1,
+  borderColor: "divider",
+} as const;
+
 /**
  * The read-only inquiry pill (design: StickyInquireBar, the C203/C204 search pills and the
  * M203/M204 mobile variants). Cells are display text; the CTA is a link. The real search
  * form on 2.0.3 is a separate component built on next/form.
+ *
+ * Paper and Dividers, as the artboard draws it: elevation 1 in the sticky band, 2 when it
+ * floats on its own. No "use client": the topic pages render this with plain props.
  */
 export function InquiryBar({
   fields,
@@ -41,72 +82,139 @@ export function InquiryBar({
 }: InquiryBarProps) {
   const compact = density === "compact";
   const pill = (
-    <div className={cn("card hidden items-center rounded-full p-0 md:flex", sticky ? "shadow-1" : "shadow-2")}>
+    <Paper elevation={sticky ? 1 : 2} sx={{ display: { xs: "none", md: "flex" }, alignItems: "center" }}>
       {fields.map((field, index) => (
-        <div
-          key={field.label}
-          className={cn(
-            "flex-1 border-outline-variant",
-            compact ? "flex items-center gap-1.5 px-3.5 py-2.5" : "px-4 py-2.5",
-            index < fields.length - 1 && "border-r",
-          )}
-        >
-          {compact ? (
-            <>
-              <Icon name={field.icon} size={12} className="text-brand-orange" />
-              <span className="t-label-l text-on-surface">{field.value}</span>
-              <span className="sr-only">({field.label})</span>
-            </>
-          ) : (
-            <>
-              <div className="t-label text-on-surface-variant">{field.label}</div>
-              <div className="t-title-s mt-0.5 flex items-center gap-1.5 text-on-surface">
-                <Icon name={field.icon} size={13} className="text-brand-orange" />
-                {field.value}
-              </div>
-            </>
-          )}
-        </div>
+        <Fragment key={field.label}>
+          {index > 0 && <Divider orientation="vertical" flexItem />}
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              ...(compact
+                ? { display: "flex", alignItems: "center", gap: 0.75, px: 1.75, py: 1.25 }
+                : { px: 2, py: 1.25 }),
+            }}
+          >
+            {compact ? (
+              <>
+                <Box component="span" sx={GLYPH}>
+                  <Icon name={field.icon} size={12} />
+                </Box>
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{ fontSize: 13, fontWeight: 500, lineHeight: 1.2, color: "text.primary" }}
+                >
+                  {field.value}
+                </Typography>
+                <Box component="span" sx={VISUALLY_HIDDEN}>
+                  ({field.label})
+                </Box>
+              </>
+            ) : (
+              <>
+                <Typography variant="caption" sx={{ display: "block", lineHeight: 1.2, color: "text.secondary" }}>
+                  {field.label}
+                </Typography>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mt: 0.25 }}>
+                  <Box component="span" sx={GLYPH}>
+                    <Icon name={field.icon} size={13} />
+                  </Box>
+                  <Typography component="span" variant="subtitle2" sx={{ lineHeight: 1.2, color: "text.primary" }}>
+                    {field.value}
+                  </Typography>
+                </Stack>
+              </>
+            )}
+          </Box>
+        </Fragment>
       ))}
-      <Link href={action.href} className={cn("btn btn-filled m-1", compact ? "btn-sm" : "h-11")}>
-        {action.icon && <Icon name={action.icon} size={14} />}
+      <MuiButton
+        component={NextLink}
+        href={action.href}
+        variant="contained"
+        size={compact ? "small" : "medium"}
+        startIcon={action.icon ? <Icon name={action.icon} size={14} /> : undefined}
+        sx={{
+          m: 0.5,
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          ...(compact ? { minHeight: 32, px: 2 } : { minHeight: 44 }),
+        }}
+      >
         {action.label}
-      </Link>
-    </div>
+      </MuiButton>
+    </Paper>
   );
 
   return (
-    <div
-      className={cn(
-        sticky && "sticky-under-topbar hidden border-b border-outline-variant bg-surface-1 py-3.5 md:block",
-        className,
-      )}
-    >
-      <div className={cn(sticky && "pub-container pub-container-wide")}>{pill}</div>
+    <Box className={cn(sticky && "sticky-under-topbar", className)} sx={sticky ? STICKY_BAND : undefined}>
+      {sticky ? <Container size="wide">{pill}</Container> : pill}
 
       {mobile === "stacked" && (
-        <div className="card flex flex-col gap-2 p-3 md:hidden">
-          {fields.map((field) => (
-            <div key={field.label} className="flex items-center gap-2.5 border-b border-outline-variant py-1.5 last:border-0">
-              <Icon name={field.icon} size={14} className="text-brand-orange" />
-              <span className="t-label w-21.5 text-on-surface-variant">{field.label}</span>
-              <span className="t-title-s text-on-surface">{field.value}</span>
-            </div>
+        <Paper elevation={1} sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1, p: 1.5 }}>
+          {fields.map((field, index) => (
+            <Box
+              key={field.label}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.25,
+                py: 0.75,
+                borderBottom: index < fields.length - 1 ? 1 : 0,
+                borderColor: "divider",
+              }}
+            >
+              <Box component="span" sx={GLYPH}>
+                <Icon name={field.icon} size={14} />
+              </Box>
+              <Typography component="span" variant="caption" sx={{ width: 86, flexShrink: 0, color: "text.secondary" }}>
+                {field.label}
+              </Typography>
+              <Typography component="span" variant="subtitle2" sx={{ color: "text.primary" }}>
+                {field.value}
+              </Typography>
+            </Box>
           ))}
-        </div>
+        </Paper>
       )}
 
       {mobile === "summary" && (
-        <div className="card flex items-center gap-2 rounded-full px-3 py-1.5 md:hidden">
-          <Icon name="search" size={13} className="text-on-surface-variant" />
-          <span className="t-label-l flex-1 truncate text-on-surface-variant">{summary}</span>
+        <Paper
+          elevation={1}
+          sx={{
+            display: { xs: "flex", md: "none" },
+            alignItems: "center",
+            gap: 1,
+            borderRadius: "999px",
+            px: 1.5,
+            py: 0.75,
+          }}
+        >
+          <Box component="span" sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
+            <Icon name="search" size={13} />
+          </Box>
+          <Typography
+            component="span"
+            variant="body2"
+            noWrap
+            sx={{ flex: 1, fontSize: 13, fontWeight: 500, color: "text.secondary" }}
+          >
+            {summary}
+          </Typography>
           {editHref && (
-            <Link href={editHref} className="chip tap-44 h-6 px-2 text-on-surface">
-              Edit
-            </Link>
+            <MuiChip
+              component={NextLink}
+              href={editHref}
+              clickable
+              size="small"
+              variant="outlined"
+              label="Edit"
+              sx={{ height: 24, color: "text.primary", ...TAP_TARGET }}
+            />
           )}
-        </div>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 }

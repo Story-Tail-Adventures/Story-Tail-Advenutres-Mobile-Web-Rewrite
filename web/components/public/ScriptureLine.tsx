@@ -1,4 +1,5 @@
-import { cn } from "@/lib/cn";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 
 interface ScriptureLineProps {
   quote: string;
@@ -11,25 +12,79 @@ interface ScriptureLineProps {
 /**
  * A short quotation in the script face with a small reference label.
  * Design-System §2: the landing and About surfaces are where the voice is most explicit.
+ *
+ * The quote is a <q> with `quotes: none`: the strings carry their own quotation marks, so
+ * the element must not add a second pair. On a photo the script is the brand gold
+ * (scheme-independent); on a surface it is `primary.main`, which the converted Pillar
+ * artboard uses — burgundy in light, the ocean blue in the dark scheme.
  */
 export function ScriptureLine({ quote, reference, tone = "surface", className }: ScriptureLineProps) {
   if (tone === "on-photo") {
     return (
-      <span className={cn("inline-flex flex-wrap items-baseline gap-x-3.5 gap-y-1.5", className)}>
-        <q className="t-script-quote-photo text-brand-gold [quotes:none]">{quote}</q>
-        <span className="t-label-s text-white/80 tracking-wider">{reference}</span>
-      </span>
+      <Box
+        component="span"
+        className={className}
+        sx={{ display: "inline-flex", flexWrap: "wrap", alignItems: "baseline", columnGap: 1.75, rowGap: 0.75 }}
+      >
+        <Typography
+          component="q"
+          variant="script"
+          sx={{
+            quotes: "none",
+            fontStyle: "italic",
+            fontWeight: 500,
+            fontSize: { xs: 17, md: 18 },
+            lineHeight: 1.4,
+            color: "brandSource.gold",
+          }}
+        >
+          {quote}
+        </Typography>
+        <Typography
+          component="span"
+          variant="overline"
+          sx={{ color: "common.white", opacity: 0.8, letterSpacing: 1.2, lineHeight: 1.3, fontWeight: 600 }}
+        >
+          {reference}
+        </Typography>
+      </Box>
     );
   }
   return (
-    <div
-      className={cn(
-        "mt-3.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-t border-outline-variant pt-3",
-        className,
-      )}
+    <Box
+      className={className}
+      sx={{
+        mt: 1.75,
+        pt: 1.5,
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "baseline",
+        columnGap: 1.25,
+        rowGap: 0.5,
+        borderTop: 1,
+        borderColor: "divider",
+      }}
     >
-      <q className="t-script-quote text-script-accent [quotes:none]">{quote}</q>
-      <span className="t-label-s whitespace-nowrap text-on-surface-variant tracking-wider">{reference}</span>
-    </div>
+      <Typography
+        component="q"
+        variant="script"
+        sx={{
+          quotes: "none",
+          fontWeight: 700,
+          fontSize: { xs: 18, md: 22 },
+          lineHeight: { xs: 1.1, md: 1 },
+          color: "primary.main",
+        }}
+      >
+        {quote}
+      </Typography>
+      <Typography
+        component="span"
+        variant="overline"
+        sx={{ color: "text.secondary", whiteSpace: "nowrap", letterSpacing: 1.2, lineHeight: 1.3, fontWeight: 600 }}
+      >
+        {reference}
+      </Typography>
+    </Box>
   );
 }

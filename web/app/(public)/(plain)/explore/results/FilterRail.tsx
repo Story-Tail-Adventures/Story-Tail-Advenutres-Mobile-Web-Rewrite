@@ -1,7 +1,13 @@
-import Form from "next/form";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FormControl from "@mui/material/FormControl";
+import FormGroup from "@mui/material/FormGroup";
+import FormLabel from "@mui/material/FormLabel";
+import Typography from "@mui/material/Typography";
+import NextForm from "@/components/mui/NextForm";
+import NextLink from "@/components/mui/NextLink";
 import type { BudgetBand, TripType, Vibe } from "@/content/public/types";
-import { cn } from "@/lib/cn";
 import { BUDGET_BAND_LABELS } from "@/lib/public/money";
 import {
   BUDGET_BANDS,
@@ -36,6 +42,22 @@ interface Option<T extends string> {
   checked: boolean;
 }
 
+/** Apply / Clear: 44px tall in the sheet (a thumb target), the small 32px button on the web rail. */
+const ACTION_SX = { minHeight: { xs: 44, web: 32 }, px: "16px", whiteSpace: "nowrap" } as const;
+
+/**
+ * One checkbox group, as the C204 artboard draws it: a real `<fieldset>` (FormControl) with a
+ * real `<legend>` (FormLabel), and MUI Checkboxes carrying `name` / `value` / `defaultChecked`
+ * so the GET form submits exactly what the hand-drawn `.filter-box` inputs did.
+ *
+ * NOT FormControlLabel, though the artboard uses it. This is a Server Component, and
+ * FormControlLabel reads `control.props.disabled` off the element it is handed — an element
+ * that has crossed the server/client boundary does not expose `props` that way, and the page
+ * threw at SSR ("Cannot read properties of undefined (reading 'disabled')"). The row is the
+ * same <label> + Checkbox + body2 text FormControlLabel renders, including its 11px outdent,
+ * composed here from parts that take plain props. Rows are 44px below web for the sheet; at
+ * web the artboard's compact 4px checkbox padding.
+ */
 function FilterGroup<T extends string>({
   legend,
   name,
@@ -46,18 +68,25 @@ function FilterGroup<T extends string>({
   options: readonly Option<T>[];
 }) {
   return (
-    <fieldset className="mb-3.5 min-w-0 border-0 p-0">
-      <legend className="t-title-s mb-1.5 text-on-surface">{legend}</legend>
-      {options.map((option) => (
-        <label
-          key={option.value}
-          className="t-filter flex min-h-11 items-center gap-2 py-1 text-on-surface-variant web:min-h-0"
-        >
-          <input type="checkbox" className="filter-box" name={name} value={option.value} defaultChecked={option.checked} />
-          {option.label}
-        </label>
-      ))}
-    </fieldset>
+    <FormControl component="fieldset" fullWidth sx={{ mb: 1.75, minWidth: 0 }}>
+      <FormLabel component="legend" sx={{ mb: 0.25, typography: "subtitle1", color: "text.primary" }}>
+        {legend}
+      </FormLabel>
+      <FormGroup>
+        {options.map((option) => (
+          <Box
+            key={option.value}
+            component="label"
+            sx={{ display: "flex", alignItems: "center", ml: "-11px", minHeight: { xs: 44, web: 0 }, cursor: "pointer" }}
+          >
+            <Checkbox size="small" name={name} value={option.value} defaultChecked={option.checked} sx={{ py: 0.5 }} />
+            <Typography component="span" variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>
+              {option.label}
+            </Typography>
+          </Box>
+        ))}
+      </FormGroup>
+    </FormControl>
   );
 }
 
@@ -65,6 +94,9 @@ function FilterGroup<T extends string>({
  * Filter rail (design C204 aside; the prototype drew fake checkboxes — these are real). A GET
  * form via next/form so filters round-trip through the URL without JavaScript. Hidden inputs
  * carry the free-text search so applying a filter never drops the destination or dates.
+ *
+ * The rail's own frame (220px, right rule, hidden below web) is the caller's: the page wraps
+ * this in that Box, and the sheet gives it the dialog's padding instead.
  */
 export function FilterRail({ q, idPrefix, overline = true, className }: FilterRailProps) {
   const types: Option<TripType>[] = TRIP_TYPES.map((t) => ({
@@ -102,8 +134,8 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
   }));
 
   return (
-    <aside aria-label={RESULTS.filters.label} className={cn("min-w-0", className)}>
-      <Form action="/explore/results" className="flex flex-col">
+    <Box component="aside" aria-label={RESULTS.filters.label} className={className} sx={{ minWidth: 0 }}>
+      <Box component={NextForm} action="/explore/results" sx={{ display: "flex", flexDirection: "column" }}>
         {q.dest && <input type="hidden" name="dest" value={q.dest} />}
         {/* The stay rides through as in/out; `when` is only the pre-picker free-text fallback,
             and carrying both would let a stale label outlive the range it described. */}
@@ -119,7 +151,11 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
         {q.topic && <input type="hidden" name="topic" value={q.topic} />}
         {q.mode && <input type="hidden" name="mode" value={q.mode} />}
 
-        {overline && <p className="t-label mb-2 text-on-surface-variant">{RESULTS.filters.overline}</p>}
+        {overline && (
+          <Typography variant="overline" sx={{ display: "block", mb: 1, lineHeight: 1.3, color: "text.secondary" }}>
+            {RESULTS.filters.overline}
+          </Typography>
+        )}
 
         {/* The two vocabularies do not overlap: a "Cruise" checkbox in a hotel list is
             incoherent, and a per-person trip budget is a different axis from a nightly room
@@ -158,17 +194,18 @@ export function FilterRail({ q, idPrefix, overline = true, className }: FilterRa
         )}
         <SortControl id={`${idPrefix}-sort`} value={q.sort} mode={mode} />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="submit" className="btn btn-tonal btn-sm min-h-11 web:min-h-8">
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+          {/* Legacy .btn-tonal → outlined secondary; .btn-text → text primary (Design-System §8). */}
+          <MuiButton type="submit" variant="outlined" color="secondary" size="small" sx={ACTION_SX}>
             {RESULTS.filters.apply}
-          </button>
+          </MuiButton>
           {hasActiveFilters(q) && (
-            <Link href="/explore/results" className="btn btn-text btn-sm min-h-11 web:min-h-8">
+            <MuiButton component={NextLink} href="/explore/results" variant="text" color="primary" size="small" sx={ACTION_SX}>
               {RESULTS.filters.clear}
-            </Link>
+            </MuiButton>
           )}
-        </div>
-      </Form>
-    </aside>
+        </Box>
+      </Box>
+    </Box>
   );
 }

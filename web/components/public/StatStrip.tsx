@@ -1,3 +1,6 @@
+import MuiAvatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Container } from "./Container";
 
@@ -9,30 +12,72 @@ export interface Stat {
 
 /**
  * Four-up stats band under the About Gyasi hero (design: C2011 / M2011 stats strip).
- * Values come from the claims registry; the numbers are `text-primary` so they read in
- * the dark scheme (the prototype's burgundy on navy does not).
+ * Values come from the claims registry. Below `md` the four cells are a divided row with
+ * the number in `primary.main` (it reads in the dark scheme where the prototype's burgundy
+ * on navy did not); from `md` each stat gets the artboard's rounded Avatar glyph on the
+ * primary container and the number goes back to the text colour. Stays a <dl>, which the
+ * About page test counts by `dd`.
  */
 export function StatStrip({ stats }: { stats: readonly Stat[] }) {
   return (
-    <div className="border-b border-outline-variant bg-surface-1">
-      <Container size="wide" className="px-0 md:max-web:px-8 web:px-12">
-        <dl className="grid grid-cols-4 md:gap-6 md:py-6">
+    <Box sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+      <Container size="wide" sx={{ px: { xs: 0, md: 4, web: 6 } }}>
+        <Box
+          component="dl"
+          sx={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: { md: 3 }, py: { md: 3 }, m: 0 }}
+        >
           {stats.map((stat, index) => (
-            <div
+            <Box
               key={stat.label}
-              className={`flex flex-col items-center px-1.5 py-3.5 text-center md:flex-row md:items-center md:gap-3 md:p-0 md:text-left ${index > 0 ? "border-l border-outline-variant md:border-0" : ""}`}
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                alignItems: "center",
+                gap: { md: 1.5 },
+                px: { xs: 0.75, md: 0 },
+                py: { xs: 1.75, md: 0 },
+                textAlign: { xs: "center", md: "left" },
+                borderLeft: index > 0 ? { xs: 1, md: 0 } : 0,
+                borderColor: "divider",
+              }}
             >
-              <span className="hidden size-11 shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary-container md:inline-flex">
+              <MuiAvatar
+                variant="rounded"
+                aria-hidden="true"
+                sx={{
+                  display: { xs: "none", md: "flex" },
+                  width: 44,
+                  height: 44,
+                  flexShrink: 0,
+                  bgcolor: "primary.container",
+                  color: "primary.onContainer",
+                }}
+              >
                 <Icon name={stat.icon} size={20} />
-              </span>
-              <div>
-                <dd className="t-title md:t-headline order-first text-primary md:text-on-surface">{stat.value}</dd>
-                <dt className="t-micro md:t-body-s mt-1 text-on-surface-variant md:mt-0">{stat.label}</dt>
-              </div>
-            </div>
+              </MuiAvatar>
+              <Box>
+                <Typography
+                  component="dd"
+                  variant="h4"
+                  sx={{
+                    order: -1,
+                    m: 0,
+                    fontWeight: 700,
+                    fontSize: { xs: 18, md: 28 },
+                    lineHeight: 1.1,
+                    color: { xs: "primary.main", md: "text.primary" },
+                  }}
+                >
+                  {stat.value}
+                </Typography>
+                <Typography component="dt" variant="caption" sx={{ display: "block", mt: { xs: 0.5, md: 0 }, color: "text.secondary" }}>
+                  {stat.label}
+                </Typography>
+              </Box>
+            </Box>
           ))}
-        </dl>
+        </Box>
       </Container>
-    </div>
+    </Box>
   );
 }
