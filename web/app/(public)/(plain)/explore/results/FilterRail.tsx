@@ -75,7 +75,11 @@ function FilterGroup<T extends string>({
       <FormGroup>
         {options.map((option) => (
           <Box
-            key={option.value}
+            // The checked state is in the key on purpose. MUI's Checkbox reads `defaultChecked`
+            // once, at mount, so when the URL changes the filters (applying them, a chip link,
+            // "clear") a kept instance would show its OLD state and MUI warns about it. A new
+            // key remounts the box with the state the URL now says.
+            key={`${option.value}:${option.checked ? "on" : "off"}`}
             component="label"
             sx={{ display: "flex", alignItems: "center", ml: "-11px", minHeight: { xs: 44, web: 0 }, cursor: "pointer" }}
           >
