@@ -1,14 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import { FormError } from "@/components/auth/FormError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import NextLink from "@/components/mui/NextLink";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { signOutAction } from "@/lib/auth/actions";
 import { changeEmailAction, resendVerificationAction } from "./actions";
 import {
@@ -16,6 +22,18 @@ import {
   initialChangeEmailState,
   initialResendState,
 } from "./state";
+
+/** The screen column and the form columns: the legacy 14px gap between rows. */
+const COLUMN_SX = { display: "flex", flexDirection: "column", gap: 1.75 } as const;
+
+/** A fieldset that disables its controls while the form is pending but adds no box of its own. */
+const FIELDSET_SX = { display: "contents", m: 0, p: 0, border: 0, minWidth: 0 } as const;
+
+/** The note card's inside: the legacy 14px padding on MUI's CardContent. */
+const NOTE_SX = { p: 1.75, "&:last-child": { pb: 1.75 } } as const;
+
+/** A text link with a 44px hit area on touch screens, its box unchanged (the legacy `.tap-44`). */
+const TAP_LINK = { display: "inline-flex", alignItems: "center", ...TAP_TARGET } as const;
 
 /**
  * Screen 2.1.3 Email Verification — the interactive half (design: C213 / M213).
@@ -36,28 +54,37 @@ export function VerifyEmailPanel({ sessionEmail }: { sessionEmail: string | null
   const [changing, setChanging] = useState(false);
 
   return (
-    <div className="flex flex-col gap-3.5">
-      <div className="flex justify-center py-3.5">
-        <span className="flex size-21 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
+    <Box sx={COLUMN_SX}>
+      <Box sx={{ display: "flex", justifyContent: "center", py: 1.75 }}>
+        {/* The mail glyph on MUI's Avatar, as C213 draws it: 84px on the secondary container. */}
+        <Avatar
+          sx={{ width: 84, height: 84, bgcolor: "secondary.container", color: "secondary.onContainer" }}
+        >
           <Icon name="mail" size={36} />
-        </span>
-      </div>
+        </Avatar>
+      </Box>
 
-      <Card variant="flat" className="p-3.5">
-        <p className="t-title-s text-on-surface">{VERIFY_TEXT.whyTitle}</p>
-        <p className="t-body-s mt-1 text-on-surface-variant">{VERIFY_TEXT.whyBody}</p>
+      <Card variant="flat">
+        <CardContent sx={NOTE_SX}>
+          <Typography component="p" variant="subtitle1">
+            {VERIFY_TEXT.whyTitle}
+          </Typography>
+          <Typography component="p" variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+            {VERIFY_TEXT.whyBody}
+          </Typography>
+        </CardContent>
       </Card>
 
       {changed.outcome === "sent" ? (
         <Alert tone="success">{VERIFY_TEXT.changeEmailSent}</Alert>
       ) : (
-        <form action={resendAction} className="flex flex-col gap-3.5">
+        <Box component="form" action={resendAction} sx={COLUMN_SX}>
           <FormError error={resend.formError} />
 
           {resend.outcome === "sent" && <Alert tone="success">{VERIFY_TEXT.resendSent}</Alert>}
 
           {!sessionEmail && (
-            <fieldset disabled={resendPending} className="contents">
+            <Box component="fieldset" disabled={resendPending} sx={FIELDSET_SX}>
               <Field
                 id="email"
                 name="email"
@@ -68,24 +95,28 @@ export function VerifyEmailPanel({ sessionEmail }: { sessionEmail: string | null
                 defaultValue={resend.email}
                 error={resend.fieldErrors?.email?.[0]}
               />
-            </fieldset>
+            </Box>
           )}
 
           <SubmitButton
             label={VERIFY_TEXT.resend}
             pendingLabel={VERIFY_TEXT.resendPending}
           />
-        </form>
+        </Box>
       )}
 
       {sessionEmail ? (
         <>
           {changed.outcome !== "sent" && (
-            <div>
+            <Box>
               {changing ? (
-                <form action={changeAction} className="flex flex-col gap-2.5">
+                <Box
+                  component="form"
+                  action={changeAction}
+                  sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}
+                >
                   <FormError error={changed.formError} />
-                  <fieldset disabled={changePending} className="contents">
+                  <Box component="fieldset" disabled={changePending} sx={FIELDSET_SX}>
                     <Field
                       id="newEmail"
                       name="email"
@@ -97,18 +128,18 @@ export function VerifyEmailPanel({ sessionEmail }: { sessionEmail: string | null
                       defaultValue={changed.email}
                       error={changed.fieldErrors?.email?.[0]}
                     />
-                  </fieldset>
+                  </Box>
                   <SubmitButton
                     label={VERIFY_TEXT.changeEmailSubmit}
                     pendingLabel={VERIFY_TEXT.changeEmailPending}
                   />
-                </form>
+                </Box>
               ) : (
                 <Button variant="text" onClick={() => setChanging(true)}>
                   {VERIFY_TEXT.changeEmailToggle}
                 </Button>
               )}
-            </div>
+            </Box>
           )}
 
           {/* Its own form: a nested <form> is invalid HTML, and sign-out must not ride
@@ -120,10 +151,15 @@ export function VerifyEmailPanel({ sessionEmail }: { sessionEmail: string | null
           </form>
         </>
       ) : (
-        <Link href="/register" className="t-label-l tap-44 self-start text-primary">
+        <MuiLink
+          component={NextLink}
+          href="/register"
+          variant="subtitle2"
+          sx={{ ...TAP_LINK, alignSelf: "flex-start" }}
+        >
           {VERIFY_TEXT.useDifferent}
-        </Link>
+        </MuiLink>
       )}
-    </div>
+    </Box>
   );
 }

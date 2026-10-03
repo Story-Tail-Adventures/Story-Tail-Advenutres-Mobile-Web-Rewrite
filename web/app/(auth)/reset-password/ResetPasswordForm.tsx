@@ -1,12 +1,19 @@
 "use client";
 
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
 import { FormError } from "@/components/auth/FormError";
 import { PasswordStrengthField } from "@/components/auth/PasswordStrength";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { Field } from "@/components/ui/Field";
 import { resetPasswordAction } from "./actions";
 import { RESET_TEXT, initialResetPasswordState } from "./state";
+
+/** The form column: the legacy 14px gap between rows. */
+const FORM_SX = { display: "flex", flexDirection: "column", gap: 1.75 } as const;
+
+/** A fieldset that disables its controls while the form is pending but adds no box of its own. */
+const FIELDSET_SX = { display: "contents", m: 0, p: 0, border: 0, minWidth: 0 } as const;
 
 /** Screen 2.1.5 Reset Password — the interactive half (design: C215 / M215). */
 export function ResetPasswordForm() {
@@ -16,10 +23,10 @@ export function ResetPasswordForm() {
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-3.5">
+    <Box component="form" action={formAction} sx={FORM_SX}>
       <FormError error={state.formError} />
 
-      <fieldset disabled={isPending} className="contents">
+      <Box component="fieldset" disabled={isPending} sx={FIELDSET_SX}>
         <PasswordStrengthField
           id="password"
           name="password"
@@ -40,9 +47,9 @@ export function ResetPasswordForm() {
           required
           error={state.fieldErrors?.confirmPassword?.[0]}
         />
-      </fieldset>
+      </Box>
 
       <SubmitButton label={RESET_TEXT.submit} pendingLabel={RESET_TEXT.pending} />
-    </form>
+    </Box>
   );
 }

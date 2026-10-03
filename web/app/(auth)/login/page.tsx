@@ -1,8 +1,9 @@
 // Screen 2.1.1 Login — see docs/Screen-Inventory.md §2.1.1 and
 // design/source-prototype/screens/client-auth.jsx (C211_Login).
 import type { Metadata } from "next";
-import Link from "next/link";
+import MuiLink from "@mui/material/Link";
 import { AuthCard } from "@/components/auth/AuthCard";
+import NextLink from "@/components/mui/NextLink";
 import { authErrorFromParam } from "@/lib/auth-errors";
 import { env } from "@/lib/env";
 import { safeNext } from "@/lib/safe-next";
@@ -36,22 +37,22 @@ export default async function LoginPage({
       sub={
         <>
           New traveler?{" "}
-          <Link href="/register" className="font-semibold text-primary">
+          <MuiLink component={NextLink} href="/register" sx={{ fontWeight: 600 }}>
             Create your account
-          </Link>
+          </MuiLink>
           .
         </>
       }
       footer={
         <>
           By signing in you agree to our{" "}
-          <Link href="/legal/terms" className="text-primary">
+          <MuiLink component={NextLink} href="/legal/terms">
             terms
-          </Link>{" "}
+          </MuiLink>{" "}
           &amp;{" "}
-          <Link href="/legal/privacy" className="text-primary">
+          <MuiLink component={NextLink} href="/legal/privacy">
             privacy policy
-          </Link>
+          </MuiLink>
           .
         </>
       }

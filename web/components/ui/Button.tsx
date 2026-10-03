@@ -1,4 +1,5 @@
 import * as React from "react";
+import Box from "@mui/material/Box";
 import MuiButton, { type ButtonProps as MuiButtonProps } from "@mui/material/Button";
 
 /**
@@ -81,7 +82,7 @@ export function Button({
   // .btn-text had 12px padding at the default size; .btn-sm / .btn-lg overrode it.
   const px = variant === "text" && size === "md" ? "12px" : dims.px;
 
-  return (
+  const button = (
     <MuiButton
       variant={look.variant}
       color={look.color}
@@ -93,4 +94,21 @@ export function Button({
       {...props}
     />
   );
+
+  // A disabled MUI button has `pointer-events: none`, so its `title` (the reason it is
+  // disabled, e.g. "Social sign-in isn't switched on yet") would never show on hover. The
+  // legacy .btn had no such rule. A wrapper carries the tooltip; the button keeps its title
+  // for assistive tech.
+  if (props.disabled && props.title) {
+    return (
+      <Box
+        component="span"
+        title={props.title}
+        sx={{ display: fullWidth ? "block" : "inline-flex", cursor: "not-allowed" }}
+      >
+        {button}
+      </Box>
+    );
+  }
+  return button;
 }

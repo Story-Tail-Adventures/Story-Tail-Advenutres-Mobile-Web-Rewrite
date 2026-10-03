@@ -1,15 +1,23 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
 import type { MappedAuthError } from "@/lib/auth-errors";
 import { FormError } from "@/components/auth/FormError";
 import { SocialButtons } from "@/components/auth/SocialButtons";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import NextLink from "@/components/mui/NextLink";
 import { Field } from "@/components/ui/Field";
 import { DividerWithLabel } from "@/components/ui/Divider";
 import { signInAction } from "./actions";
 import { initialLoginState } from "./state";
+
+/** The form column: the legacy 14px gap between rows. */
+const FORM_SX = { display: "flex", flexDirection: "column", gap: 1.75 } as const;
+
+/** A fieldset that disables its controls while the form is pending but adds no box of its own. */
+const FIELDSET_SX = { display: "contents", m: 0, p: 0, border: 0, minWidth: 0 } as const;
 
 export function LoginForm({
   next,
@@ -34,7 +42,7 @@ export function LoginForm({
   const socialTitle = "Social sign-in isn't switched on yet — use your email below.";
 
   return (
-    <form action={formAction} className="flex flex-col gap-3.5">
+    <Box component="form" action={formAction} sx={FORM_SX}>
       <input type="hidden" name="next" value={next ?? ""} />
 
       <FormError error={state.formError} />
@@ -43,7 +51,7 @@ export function LoginForm({
           Inside a disabled fieldset because they are submit buttons on a form that may
           already be submitting: left live, a click during sign-up starts a second,
           concurrent submission of the same form. `contents` keeps the flex gap. */}
-      <fieldset disabled={isPending} className="contents">
+      <Box component="fieldset" disabled={isPending} sx={FIELDSET_SX}>
         <SocialButtons
           googleEnabled={googleEnabled}
           appleEnabled={appleEnabled}
@@ -51,11 +59,11 @@ export function LoginForm({
           appleLabel="Continue with Apple"
           disabledTitle={socialTitle}
         />
-      </fieldset>
+      </Box>
 
       <DividerWithLabel label="OR" />
 
-      <fieldset disabled={isPending} className="contents">
+      <Box component="fieldset" disabled={isPending} sx={FIELDSET_SX}>
         <Field
           id="email"
           name="email"
@@ -77,14 +85,19 @@ export function LoginForm({
           required
           error={state.fieldErrors?.password?.[0]}
           labelAction={
-            <Link href="/forgot-password" className="field-label text-primary">
+            <MuiLink
+              component={NextLink}
+              href="/forgot-password"
+              variant="caption"
+              sx={{ lineHeight: 1.3 }}
+            >
               Forgot?
-            </Link>
+            </MuiLink>
           }
         />
-      </fieldset>
+      </Box>
 
       <SubmitButton label="Continue to my trips" pendingLabel="Signing you in…" />
-    </form>
+    </Box>
   );
 }

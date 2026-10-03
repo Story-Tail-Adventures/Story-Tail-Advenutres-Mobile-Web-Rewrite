@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Box from "@mui/material/Box";
 import { OnboardingActions } from "@/components/onboarding/OnboardingActions";
 import { Field } from "@/components/ui/Field";
+import { FONT } from "@/lib/mui/tokens";
 import {
   WIZARD_BACK_LABEL,
   previousRoute,
@@ -34,9 +36,10 @@ export function ConnectForm() {
   return (
     <>
       <form id={FORM_ID} action={formAction} noValidate>
-        <fieldset
+        <Box
+          component="fieldset"
           disabled={connecting}
-          className="m-0 border-0 p-0 md:max-w-96"
+          sx={{ m: 0, p: 0, border: 0, minWidth: 0, maxWidth: { md: 384 } }}
         >
           <Field
             id="code"
@@ -49,6 +52,9 @@ export function ConnectForm() {
             autoComplete="off"
             spellCheck={false}
             autoCapitalize="characters"
+            // Monospace, as the artboard draws the code box: a code is read letter by
+            // letter, and a fixed pitch keeps "0" and "O" apart. Reaches the <input>.
+            style={{ fontFamily: FONT.mono }}
             defaultValue={state.code ?? ""}
             // The refusal is about THIS field — there is only one — so it marks the input
             // invalid too. The Alert above announces it once; this is what a screen-reader
@@ -56,7 +62,7 @@ export function ConnectForm() {
             error={state.formError}
             onChange={(event) => setHasCode(event.target.value.trim() !== "")}
           />
-        </fieldset>
+        </Box>
       </form>
 
       <OnboardingActions

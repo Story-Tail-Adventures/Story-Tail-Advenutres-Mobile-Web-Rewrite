@@ -99,7 +99,8 @@ export function Field({
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy =
-    [error ? errorId : null, hint ? hintId : null, groupDescribedBy ?? null]
+    // The hint is only rendered when there is no error, so only point at it then.
+    [error ? errorId : null, hint && !error ? hintId : null, groupDescribedBy ?? null]
       .filter(Boolean)
       .join(" ") || undefined;
 

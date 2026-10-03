@@ -55,7 +55,7 @@ function SubmitButton({ label }: { label: string }) {
     <Button type="submit" variant="filled" size="lg" fullWidth disabled={pending}>
       {pending ? (
         <>
-          <Spinner />
+          <Spinner size={20} />
           {JOIN_TEXT.pending}
         </>
       ) : (

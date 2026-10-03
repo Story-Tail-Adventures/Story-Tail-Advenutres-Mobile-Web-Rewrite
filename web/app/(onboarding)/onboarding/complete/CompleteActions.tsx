@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -25,36 +27,37 @@ export function CompleteActions() {
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
       {state.error && (
         <Alert tone="error">
           {state.error}{" "}
           {/* An escape hatch, because what failed is bookkeeping rather than anything they
               did. Being held on a screen that says "that's everything" is the worse
               outcome — they will simply meet the wizard again, which is the same failure
-              wearing a friendlier face. */}
-          <a
+              wearing a friendlier face. A plain <a>, as before. */}
+          <MuiLink
             href="/dashboard"
-            className="font-semibold underline underline-offset-2"
+            color="inherit"
+            underline="always"
+            sx={{ fontWeight: 600, textUnderlineOffset: 2 }}
           >
             {COMPLETE_TEXT.errorEscape}
-          </a>
+          </MuiLink>
           .
         </Alert>
       )}
 
-      <form action={formAction}>
-        <Button
-          type="submit"
-          variant="filled"
-          size="lg"
-          disabled={finishing}
-          fullWidth
-          className="md:w-auto"
-        >
+      {/* A flex column: the button stretches to full width on a phone and sits at its own
+          width from `md`, with nothing to undo at the breakpoint. */}
+      <Box
+        component="form"
+        action={formAction}
+        sx={{ display: "flex", flexDirection: "column", alignItems: { md: "flex-start" } }}
+      >
+        <Button type="submit" variant="filled" size="lg" disabled={finishing}>
           {finishing ? (
             <>
-              <Spinner className="size-4" />
+              <Spinner />
               {COMPLETE_TEXT.pending}
             </>
           ) : (
@@ -64,7 +67,7 @@ export function CompleteActions() {
             </>
           )}
         </Button>
-      </form>
-    </div>
+      </Box>
+    </Box>
   );
 }
