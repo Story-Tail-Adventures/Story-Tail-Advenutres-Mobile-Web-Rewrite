@@ -1,11 +1,22 @@
 "use client";
 
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import MuiLink from "@mui/material/Link";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import { cn } from "@/lib/cn";
+import NextLink from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brand/BrandMark";
-import { cn } from "@/lib/cn";
+import { UP_WEB } from "@/lib/mui/sx";
 import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 
 export interface NavLink {
@@ -30,71 +41,75 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** The artboard's nav link: body2 at 12.5px, text.secondary, text.primary and 600 when current. */
+const NAV_LINK = {
+  fontSize: 12.5,
+  lineHeight: 1,
+  fontWeight: 500,
+  color: "text.secondary",
+  px: "5px",
+  py: "10px",
+  borderRadius: 1,
+  whiteSpace: "nowrap",
+  "&:hover": { color: "text.primary" },
+  '&[aria-current="page"]': { color: "text.primary", fontWeight: 600 },
+  [UP_WEB]: { px: 1 },
+} as const;
+
+/** The legacy .btn-lg box (48px, 28px sides) on MUI's large button. */
+const DRAWER_BUTTON = { minHeight: 48, px: "28px" } as const;
+
 /**
- * The only client island in the public shell: desktop links need the current path for
- * `aria-current`, and the mobile menu is a native <dialog> (focus trap, Escape and the
- * backdrop come from the browser). Closes itself after navigation and hands focus back to
- * the button that opened it.
+ * The only client island in the public shell besides the auth cluster: desktop links need
+ * the current path for `aria-current`, and the mobile menu is an MUI Drawer (focus trap,
+ * Escape, backdrop and focus return are the Modal's). Closes itself after navigation.
+ *
+ * The open state is "opened on this path": the Drawer is open while the path it was opened
+ * from is still the current one, so a route change closes it with no effect and no
+ * setState-in-effect. The Modal then hands focus back to the trigger on its own.
  */
 export function PublicNav({ links, overlay = false, actions }: PublicNavProps) {
   const pathname = usePathname();
   const { status: authStatus } = useAuthChrome();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
+  const [openedOn, setOpenedOn] = useState<string | null>(null);
+  const open = openedOn === pathname;
 
-  const openMenu = () => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (typeof dialog.showModal === "function") dialog.showModal();
-    else dialog.setAttribute("open", "");
-    setOpen(true);
-  };
-
-  const closeMenu = () => {
-    const dialog = dialogRef.current;
-    if (dialog?.open) dialog.close();
-    else setOpen(false);
-  };
-
-  // Route change → close. dialog.close() fires the `close` event, whose listener below
-  // updates state, so there is no setState in this effect body.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog?.open) dialog.close();
-  }, [pathname]);
-
-  // <dialog> closes itself on Escape and via .close(); mirror that into state and return focus.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const onClose = () => {
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    dialog.addEventListener("close", onClose);
-    return () => dialog.removeEventListener("close", onClose);
-  }, []);
+  const openMenu = () => setOpenedOn(pathname);
+  const closeMenu = () => setOpenedOn(null);
 
   return (
     <>
-      <nav aria-label="Primary" className="ml-1 hidden items-center gap-0.5 md:flex web:ml-2 web:gap-1">
+      <Stack
+        component="nav"
+        aria-label="Primary"
+        direction="row"
+        sx={{
+          display: { xs: "none", md: "flex" },
+          alignItems: "center",
+          gap: 0.25,
+          ml: 0.5,
+          [UP_WEB]: { ml: 1, gap: 0.5 },
+        }}
+      >
         {links.map((link) => {
           const active = isActive(pathname, link.href);
           return (
-            <Link
+            <MuiLink
               key={link.href}
+              component={NextLink}
               href={link.href}
-              className="nav-link"
+              underline="none"
+              variant="body2"
               aria-current={active ? "page" : undefined}
+              sx={NAV_LINK}
             >
               {link.label}
-            </Link>
+            </MuiLink>
           );
         })}
-      </nav>
+      </Stack>
 
-      {/* THE ONE AUTO MARGIN IN THIS HEADER, and it is a spacer rather than an `ml-auto` on
+      {/* THE ONE AUTO MARGIN IN THIS HEADER, and it is a spacer rather than an `ml: auto` on
           whichever control happens to be visible. It used to be the latter: the trigger
           below carried one and PublicAuthCluster carried another, and exactly one of them
           was ever displayed — which mattered, because flexbox splits free space EQUALLY
@@ -103,113 +118,186 @@ export function PublicNav({ links, overlay = false, actions }: PublicNavProps) {
           has to sit left of the trigger to match the design, so the group now opens with an
           explicit spacer — the idiom ClientTopBar and AgentTopBar already use — and
           everything after it simply falls in order. */}
-      <div className="flex-1" />
+      <Box sx={{ flex: 1 }} />
 
       {actions}
 
-      <button
-        ref={triggerRef}
-        type="button"
-        className={cn(
-          // Through tablet, not just mobile: from `md` the inline links are back but the
-          // sign-in buttons are not, and the drawer is where they live.
-          "btn-icon tap-44 size-9 lg:hidden",
-          // MTopBar gives the overlay trigger a translucent chip so it stays legible on a
-          // bright hero photo.
-          //
-          // `.pub-topbar-glass` RATHER THAN `.btn-glass text-white`, which was a bug: the
-          // overlay bar is only transparent below `md` — it goes solid at 768px — but
-          // those two classes had no breakpoint gate, so from 768px to 1023px this was a
-          // white icon on a bar whose light `--md-surface-1` is pure white. The new class
-          // gates itself. Do not put `text-white` back: a utility outranks the class's own
-          // `md` reset and restores the white-on-white.
-          overlay && "pub-topbar-glass",
-        )}
+      <IconButton
+        // `.pub-topbar-glass` RATHER THAN a white colour utility: the overlay bar is only
+        // transparent below `md` — it goes solid at 768px — and the class gates itself back
+        // off there (styles/public.css). ThemeToggle wears the same class, so the pair match.
+        className={cn("tap-44", overlay && "pub-topbar-glass")}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls="pub-menu"
+        // Only while open: the Drawer is not mounted when closed, and aria-controls must
+        // not point at an id that is not in the document.
+        aria-controls={open ? "pub-menu" : undefined}
         aria-label="Open menu"
         onClick={openMenu}
-      >
-        <Icon name="menu" size={20} />
-      </button>
-
-      <dialog
-        id="pub-menu"
-        ref={dialogRef}
-        aria-label="Menu"
-        className="m-0 ml-auto h-dvh max-h-dvh w-full max-w-90 bg-surface-1 p-0 text-on-surface shadow-4 backdrop:bg-black/50"
-        onClick={(event) => {
-          // Backdrop click: the dialog element itself is the target only outside its content.
-          if (event.target === event.currentTarget) closeMenu();
+        sx={{
+          // 36px, the legacy size-9, matching the theme toggle beside it. `tap-44` below
+          // grows the touch target to 44px without growing the visible chip.
+          width: 36,
+          height: 36,
+          // Through tablet, not just mobile: from `md` the inline links are back but the
+          // sign-in buttons are not, and the drawer is where they live.
+          display: { lg: "none" },
         }}
       >
-        <div className="flex h-full flex-col p-5">
-          <div className="flex items-center justify-between">
-            <Link href="/" aria-label="Story-Tail Adventures home" onClick={closeMenu}>
-              <BrandMark size={80} alt="" />
-            </Link>
-            <button
-              type="button"
-              className="btn-icon size-11"
-              aria-label="Close menu"
-              onClick={closeMenu}
-            >
-              <Icon name="close" size={20} />
-            </button>
-          </div>
+        <Icon name="menu" size={20} />
+      </IconButton>
 
-          <nav aria-label="Primary" className="mt-6">
-            <ul className="flex flex-col">
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={closeMenu}
+        slotProps={{
+          paper: {
+            id: "pub-menu",
+            role: "dialog",
+            "aria-modal": true,
+            "aria-label": "Menu",
+            sx: { width: "100%", maxWidth: 360 },
+          },
+        }}
+      >
+        {/* Any link followed from the drawer closes it. Route changes alone are not enough:
+            the open state is "opened on this path", so without this, following a link and
+            pressing Back reopened the drawer on the page it was opened from. */}
+        <Box
+          onClick={(event) => {
+            if ((event.target as Element).closest("a")) closeMenu();
+          }}
+          sx={{ display: "flex", height: "100%", flexDirection: "column", p: 2.5 }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <Box
+              component={NextLink}
+              href="/"
+              aria-label="Story-Tail Adventures home"
+              onClick={closeMenu}
+              sx={{ display: "inline-flex" }}
+            >
+              <BrandMark size={80} alt="" />
+            </Box>
+            <IconButton aria-label="Close menu" onClick={closeMenu} sx={{ width: 44, height: 44 }}>
+              <Icon name="close" size={20} />
+            </IconButton>
+          </Box>
+
+          <Box component="nav" aria-label="Primary" sx={{ mt: 3 }}>
+            <List disablePadding>
               {links.map((link) => {
                 const active = isActive(pathname, link.href);
                 return (
-                  <li key={link.href}>
-                    <Link
+                  <ListItem key={link.href} disablePadding>
+                    <ListItemButton
+                      component={NextLink}
                       href={link.href}
+                      selected={active}
                       aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "t-title flex min-h-11 items-center rounded-sm px-2 py-2.5",
-                        active ? "bg-secondary-container text-on-secondary-container" : "text-on-surface",
-                      )}
+                      sx={{
+                        minHeight: 44,
+                        borderRadius: 1,
+                        px: 1,
+                        py: 1.25,
+                        "&.Mui-selected, &.Mui-selected:hover": {
+                          bgcolor: "secondary.container",
+                          color: "secondary.onContainer",
+                        },
+                      }}
                     >
-                      {link.label}
-                    </Link>
-                  </li>
+                      <ListItemText
+                        primary={link.label}
+                        sx={{ my: 0 }}
+                        slotProps={{
+                          primary: { variant: "subtitle1", sx: { fontWeight: 600, lineHeight: 1.25 } },
+                        }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
                 );
               })}
-            </ul>
-          </nav>
+            </List>
+          </Box>
 
-          {/* The drawer is the ONLY home for these below `lg` — PublicTopBar's cluster is
-              `hidden lg:flex` — so it has to answer to the session too, or every tablet and
-              phone visitor keeps being asked to sign in while signed in.
-              No CSS gate is needed here, unlike the top bar: opening the drawer needs
-              showModal(), so nobody can see it before the store has resolved. */}
-          <div className="mt-auto flex flex-col gap-2 pt-6">
+          {/* The drawer is the ONLY home for these below `lg` — PublicTopBar's cluster shows
+              from `lg` — so it has to answer to the session too, or every tablet and phone
+              visitor keeps being asked to sign in while signed in.
+              No CSS gate is needed here, unlike the top bar: the Drawer mounts on open,
+              so nobody can see it before the store has resolved. */}
+          <Stack spacing={1} sx={{ mt: "auto", pt: 3 }}>
             {authStatus === "in" ? (
-              <Link href="/dashboard" className="btn btn-filled btn-lg w-full" onClick={closeMenu}>
+              <MuiButton
+                component={NextLink}
+                href="/dashboard"
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={closeMenu}
+                sx={DRAWER_BUTTON}
+              >
                 Your trips
-              </Link>
+              </MuiButton>
             ) : (
               <>
-                <Link href="/join" className="btn btn-filled btn-lg w-full">
+                <MuiButton
+                  component={NextLink}
+                  href="/join"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  sx={DRAWER_BUTTON}
+                >
                   Create an account
-                </Link>
-                <Link href="/login" className="btn btn-outlined btn-lg w-full">
+                </MuiButton>
+                <MuiButton
+                  component={NextLink}
+                  href="/login"
+                  variant="outlined"
+                  size="large"
+                  fullWidth
+                  sx={DRAWER_BUTTON}
+                >
                   Sign in
-                </Link>
+                </MuiButton>
               </>
             )}
-          </div>
+          </Stack>
 
-          <ul className="t-fine mt-5 flex flex-wrap gap-x-4 gap-y-2 text-on-surface-variant">
-            <li><Link href="/how-it-works">How it works</Link></li>
-            <li><Link href="/legal/privacy">Privacy</Link></li>
-            <li><Link href="/legal/terms">Terms</Link></li>
-          </ul>
-        </div>
-      </dialog>
+          <Stack
+            component="ul"
+            direction="row"
+            useFlexGap
+            sx={{
+              flexWrap: "wrap",
+              columnGap: 2,
+              rowGap: 1,
+              m: 0,
+              mt: 2.5,
+              p: 0,
+              listStyle: "none",
+              color: "text.secondary",
+            }}
+          >
+            <li>
+              <MuiLink component={NextLink} href="/how-it-works" underline="hover" variant="caption" color="inherit" sx={{ fontWeight: 500 }}>
+                How it works
+              </MuiLink>
+            </li>
+            <li>
+              <MuiLink component={NextLink} href="/legal/privacy" underline="hover" variant="caption" color="inherit" sx={{ fontWeight: 500 }}>
+                Privacy
+              </MuiLink>
+            </li>
+            <li>
+              <MuiLink component={NextLink} href="/legal/terms" underline="hover" variant="caption" color="inherit" sx={{ fontWeight: 500 }}>
+                Terms
+              </MuiLink>
+            </li>
+          </Stack>
+        </Box>
+      </Drawer>
     </>
   );
 }

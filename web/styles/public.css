@@ -81,39 +81,10 @@
   .pub-container-prose  { max-width: calc(980px + 2 * var(--gutter)); }
   .pub-container-narrow { max-width: calc(720px + 2 * var(--gutter)); }
 
-  /* ── Top bar ── */
-  .pub-topbar {
-    height: var(--public-topbar-h);
-    background: var(--md-surface-1);
-    border-bottom: 1px solid var(--md-outline-variant);
-  }
-  .pub-topbar-overlay {
-    position: absolute;
-    inset-inline: 0;
-    top: 0;
-    z-index: 30;
-    background: transparent;
-    border-bottom: 0;
-  }
-  @media (min-width: 768px) {
-    .pub-topbar-overlay {
-      position: sticky;
-      background: var(--md-surface-1);
-      border-bottom: 1px solid var(--md-outline-variant);
-    }
-  }
-  .nav-link {
-    font: 500 12.5px/1 var(--font-sans);
-    color: var(--md-on-surface-variant);
-    padding: 10px 5px;
-    border-radius: 6px;
-    white-space: nowrap;
-  }
-  @media (min-width: 1200px) {
-    .nav-link { padding: 10px 8px; }
-  }
-  .nav-link:hover { color: var(--md-on-surface); }
-  .nav-link[aria-current="page"] { color: var(--md-on-surface); font-weight: 600; }
+  /* ── Top bar ──
+   * The bar itself is drawn by components/public/PublicTopBar.tsx (MUI AppBar + Toolbar,
+   * `--public-topbar-h` tall). `.pub-topbar` / `.pub-topbar-overlay` remain on it as the
+   * hooks the print rule below reads. */
 
   /* ── Signed-in / signed-out chrome gate ──
    *
@@ -152,26 +123,12 @@
     top: var(--public-topbar-h);
     z-index: 30;
   }
-  .sticky-cta {
-    position: fixed;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    gap: var(--sticky-cta-gap);
-    padding: var(--sticky-cta-pad) 14px var(--sticky-cta-pad-bottom);
-    background: var(--md-surface-1);
-    border-top: 1px solid var(--md-outline-variant);
-  }
+  /* The sticky bottom bar itself is drawn by components/public/StickyCta.tsx (MUI Paper,
+     fixed, hidden from `md`) from the `--sticky-cta-*` variables above; `.sticky-cta`,
+     `.sticky-cta-tall` and `.sticky-cta-row2` remain on it as the hooks the reserve below,
+     the print rule and the tests read.
 
-  /* Two-row variant (2.0.5): the artboard's price/heart/quote row, plus the guest
-     "message without an account" path §4.4 requires on mobile. Four controls will not
-     fit one 360px row, so it wraps to a second. */
-  .sticky-cta-tall { flex-wrap: wrap; }
-  .sticky-cta-tall > .sticky-cta-row2 { flex: 1 0 100%; }
-
-  /* The bar is `position: fixed`, so the page has to reserve its height — and the reserve
+     The bar is `position: fixed`, so the page has to reserve its height — and the reserve
      must land BELOW the footer. PublicFooter renders after {children} in
      (public)/layout.tsx, so a spacer inside the page tree (where StickyCta itself lives)
      reserves space *above* the footer and leaves the footer itself under the bar: at
@@ -181,9 +138,6 @@
   @media (max-width: 767px) {
     .pub-surface:has(.sticky-cta) { padding-bottom: var(--sticky-cta-h); }
     .pub-surface:has(.sticky-cta-tall) { padding-bottom: var(--sticky-cta-h-tall); }
-  }
-  @media (min-width: 768px) {
-    .sticky-cta { display: none; }
   }
 
   /* ── Heroes ── */
@@ -570,6 +524,17 @@
       --md-on-surface: #000000;
       --md-on-surface-variant: #333333;
       --md-outline-variant: #cccccc;
+      /* The same remap for the MUI theme's variables (migration step 2): the shell now
+         paints from these, and in the dark scheme they would otherwise print navy. This
+         rule is in @layer components, above @layer mui where the theme defines them. */
+      --mui-palette-background-default: #ffffff;
+      --mui-palette-background-paper: #ffffff;
+      --mui-palette-surface-main: #ffffff;
+      --mui-palette-surface-1: #ffffff;
+      --mui-palette-surface-2: #ffffff;
+      --mui-palette-text-primary: #000000;
+      --mui-palette-text-secondary: #333333;
+      --mui-palette-divider: #cccccc;
     }
     .legal-layout { display: block; min-height: 0; }
     .legal-prose { max-width: none; font-size: 12pt; color: #000; }

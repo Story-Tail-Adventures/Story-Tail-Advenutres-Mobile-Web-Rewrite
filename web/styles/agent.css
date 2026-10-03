@@ -5,145 +5,25 @@
  * Imported from web/app/globals.css after client.css.
  *
  * A SECTION stylesheet, on the precedent client.css set for §2.2 and public.css for §2.0:
- * components.css holds what any screen may use, and this holds one surface's chrome.
- * `.agent-surface` scopes it so a client page cannot reach it.
+ * components.css holds what any screen may use, and this holds one surface's own parts.
  *
- * WHY THIS IS NOT `.client-surface` WITH A MODIFIER. The two shells differ in the rail's
- * contents (seven against six), the bar's contents (§6.6's four are not §6.3's four), the
- * top bar (§6.4 adds search and quick-add), the tablet behaviour (§6.5 wants a collapsible
- * icon rail where §6.2 explicitly refuses one) and the role gate, which runs in opposite
- * directions. A shared shell would branch on a role prop at every one of those points,
- * which is what the prototype's ScreenFrame does — right for an artboard, wrong here.
+ * THE SHELL CHROME IS NOT HERE ANY MORE. The surface, the rail, the bottom bar, the top
+ * bar's quick-add menu and the nav items moved to MUI `sx` on 2026-10-01 (step 2 of the
+ * migration) and live in web/app/(agent)/layout.tsx, components/agent/AgentNav.tsx,
+ * AgentTopBar.tsx and AgentQuickAdd.tsx, at the same geometry those rules drew. What is
+ * left is the §3.2 / §3.3 page-level layout the agent screens still class onto — the view
+ * switcher, the KPI rail, the pipeline board and the bulk-tag bar — until their own PRs.
  *
- * The 72px rail width is the prototype's, matching the client rail for the same reason
- * client.css gives: Design-System §9.2 says 88px and the prototype draws 72, and the
- * 2026-09-06 call went to the prototype.
+ * WHY THE AGENT SHELL IS NOT THE CLIENT SHELL WITH A MODIFIER (still true in sx). The two
+ * differ in the rail's contents (seven against six), the bar's contents (§6.6's four are
+ * not §6.3's four), the top bar (§6.4 adds quick-add and sign-out), the tablet behaviour
+ * (§6.5 wants a collapsible icon rail where §6.2 explicitly refuses one) and the role
+ * gate, which runs in opposite directions. A shared shell would branch on a role prop at
+ * every one of those points, which is what the prototype's ScreenFrame does — right for an
+ * artboard, wrong here.
  */
 
 @layer components {
-  /* ── The surface ───────────────────────────────────────────────────────── */
-
-  .agent-surface {
-    min-height: 100dvh;
-    background: var(--md-bg);
-    color: var(--md-on-surface);
-  }
-
-  /* Reserve for the fixed bottom bar, so the last card is not under it. Mirrors
-     `.client-main`'s reserve; the bar only exists below `md`. */
-  .agent-main {
-    padding-bottom: calc(68px + max(env(safe-area-inset-bottom), 8px));
-  }
-  @media (min-width: 48rem) {
-    .agent-main {
-      padding-bottom: 0;
-    }
-  }
-
-  /* ── The rail (tablet and web) ──────────────────────────────────────────── */
-
-  .agent-rail {
-    position: sticky;
-    top: 0;
-    align-self: flex-start;
-    flex-shrink: 0;
-    width: 72px;
-    height: 100dvh;
-    padding: 14px 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    background: var(--md-surface);
-    border-right: 1px solid var(--md-outline-variant);
-  }
-
-  .agent-rail-item {
-    width: 60px;
-    padding: 6px 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    color: var(--md-on-surface-variant);
-    text-decoration: none;
-  }
-
-  .agent-rail-item .pill {
-    width: 56px;
-    height: 28px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .agent-rail-item[aria-current="page"] .pill {
-    background: var(--md-secondary-container);
-    color: var(--md-on-secondary-container);
-  }
-
-  .agent-rail-item[aria-current="page"] .agent-rail-label {
-    color: var(--md-on-surface);
-  }
-
-  .agent-rail-label {
-    font: 600 10px / 1.2 var(--font-sans);
-    text-align: center;
-  }
-
-  /* ── The bottom bar (mobile, §6.6) ──────────────────────────────────────── */
-
-  .agent-bottom-nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-around;
-    padding: 8px 6px max(env(safe-area-inset-bottom), 8px);
-    background: var(--md-surface-1);
-    border-top: 1px solid var(--md-outline-variant);
-  }
-
-  .agent-tab {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    min-width: 56px;
-    color: var(--md-on-surface-variant);
-    text-decoration: none;
-  }
-
-  .agent-tab .pill {
-    width: 56px;
-    height: 28px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .agent-tab[aria-current="page"] .pill {
-    background: var(--md-secondary-container);
-    color: var(--md-on-secondary-container);
-  }
-
-  .agent-tab-label {
-    font: 600 10px / 1.2 var(--font-sans);
-  }
-
-  /* One disabled treatment for both surfaces, at the same 0.38 alpha every other deferral
-     in this product uses. `cursor: default` rather than `not-allowed`: the destination is
-     not forbidden, it does not exist yet. */
-  .agent-nav-item-disabled {
-    opacity: 0.38;
-    cursor: default;
-  }
-
   /* ── The view switcher (§3.2's three views under one rail destination) ──── */
 
   .agent-views {
@@ -320,38 +200,15 @@
     }
   }
 
-  /* ── §3.4.3's quick-add menu ────────────────────────────────────────────
-   *
-   * A `<details>`, so it opens with JavaScript off. The marker is removed on both the
-   * standard and the WebKit pseudo-element, because Safari ignores `list-style` here and
-   * would otherwise draw a disclosure triangle inside the icon button. */
-  .agent-quickadd > summary { cursor: pointer; }
-  .agent-quickadd > summary::-webkit-details-marker { display: none; }
-  .agent-quickadd > summary::marker { content: ""; }
-
-  .agent-quickadd-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    font: 500 12.5px/1.2 var(--font-sans);
-    color: var(--md-on-surface);
-    text-decoration: none;
-  }
-  .agent-quickadd-item:hover { background: var(--md-surface-2); }
-
   /* ── Touch targets ──────────────────────────────────────────────────────── */
 
   /* Coarse pointers get the 44pt minimum §4.2 requires, on the precedent client.css set at
      its own line 255. `.agent-view-link` is 34px on its own — the view switcher and the
-     pipeline's stage-picker both use it — and `.agent-tab` computes to 43px from its 28px
-     pill, 3px gap and 12px label line box. Kept last in the file so nothing above it wins
-     on order. */
+     pipeline's stage-picker both use it. The bottom-bar tab and the sign-out button carry
+     the same rule in their own `sx` now. Kept last in the file so nothing above it wins on
+     order. */
   @media (pointer: coarse) {
-    .agent-view-link,
-    .agent-tab,
-    .agent-signout {
+    .agent-view-link {
       min-height: 44px;
     }
   }

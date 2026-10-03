@@ -16,6 +16,9 @@ import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
  * which is exactly the flash AuthChromeScript exists to prevent. The controls are the same
  * size, so nothing reflows either way — but a signed-in visitor should not watch the bar
  * change its mind.
+ *
+ * `className` is optional now that the look is CtaControl's own; whatever a caller passes
+ * still lands on the control, next to the gate's class.
  */
 export function StickyCtaSecondary({
   signedOut,
@@ -24,7 +27,7 @@ export function StickyCtaSecondary({
 }: {
   signedOut: CtaLink;
   signedIn: CtaLink;
-  className: string;
+  className?: string;
 }) {
   const { status } = useAuthChrome();
 

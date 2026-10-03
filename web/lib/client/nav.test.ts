@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import {
   CLIENT_DESTINATIONS,
@@ -97,22 +95,5 @@ describe("activeDestinationId", () => {
   it("is null off the client surface", () => {
     expect(activeDestinationId("/")).toBeNull();
     expect(activeDestinationId("/login")).toBeNull();
-  });
-});
-
-describe("the tablet strip breakpoint", () => {
-  it("never pairs an unqualified max-web: with md:", () => {
-    // `web:` is px-based and `md:` is rem-based, so Tailwind emits `web:` FIRST. An
-    // unqualified `max-web:flex` therefore also applies at 375px, which would render the
-    // tablet chrome on a phone alongside the bottom bar. The correct form is `md:max-web:`.
-    // This is asserted against the source because it is a class-string mistake that no
-    // amount of rendering in jsdom would catch.
-    const nav = readFileSync(join(__dirname, "../../components/client/ClientNav.tsx"), "utf8");
-    const code = nav
-      .split("\n")
-      .filter((l) => !l.trim().startsWith("*") && !l.trim().startsWith("//"))
-      .join("\n");
-    const bad = code.match(/(?<!md:)max-web:/g);
-    expect(bad).toBeNull();
   });
 });

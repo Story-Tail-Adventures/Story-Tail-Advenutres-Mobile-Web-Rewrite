@@ -1,3 +1,4 @@
+import Box from "@mui/material/Box";
 import { redirect } from "next/navigation";
 
 import { AdminNoAccess } from "@/components/agent/AdminNoAccess";
@@ -101,16 +102,23 @@ export default async function ClientLayout({
     }
   }
 
+  // ON MUI (step 2 of the migration): Boxes with plain sx, so this stays a Server
+  // Component. `client-surface` and `client-main` stay as CSS hooks — web/styles/client.css
+  // reserves space under the phone bar through `.client-surface:has(.client-bottom-nav)
+  // .client-main`, and app/error.tsx shares `.client-surface`.
   return (
-    <div className="client-surface flex">
+    <Box
+      className="client-surface"
+      sx={{ display: "flex", minHeight: "100dvh", bgcolor: "background.default", color: "text.primary" }}
+    >
       <ClientNavRail />
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+      <Box sx={{ display: "flex", flex: 1, minWidth: 0, minHeight: "100dvh", flexDirection: "column" }}>
         <ClientTopBar initials={initials || INITIALS_FALLBACK} />
-        <main id="main" className="client-main min-w-0 flex-1">
+        <Box component="main" id="main" className="client-main" sx={{ flex: 1, minWidth: 0 }}>
           {wrongRole ? <AdminNoAccess /> : children}
-        </main>
-      </div>
+        </Box>
+      </Box>
       <ClientBottomNav />
-    </div>
+    </Box>
   );
 }

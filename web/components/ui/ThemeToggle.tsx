@@ -16,6 +16,8 @@ export interface ThemeToggleProps {
   overlay?: boolean;
   /** Glyph size. 18 to sit with the bell in the authenticated bars, 20 with the hamburger. */
   size?: number;
+  /** Button box in px. 40 is the legacy .btn-icon; the public bar uses 36 (size-9). */
+  buttonSize?: number;
   className?: string;
 }
 
@@ -90,7 +92,12 @@ export interface ThemeToggleProps {
  * itself is the legacy .btn-icon size; IconButton's `flex: 0 0 auto` keeps it from squashing
  * in a cramped bar.
  */
-export function ThemeToggle({ overlay = false, size = 18, className }: ThemeToggleProps) {
+export function ThemeToggle({
+  overlay = false,
+  size = 18,
+  buttonSize = 40,
+  className,
+}: ThemeToggleProps) {
   const base = cn("tap-44", overlay && "pub-topbar-glass", className);
   const flip = () => toggleScheme();
 
@@ -116,7 +123,7 @@ export function ThemeToggle({ overlay = false, size = 18, className }: ThemeTogg
         aria-label="Switch to dark mode"
         title="Switch to dark mode"
         onClick={flip}
-        sx={TOGGLE_SX}
+        sx={{ width: buttonSize, height: buttonSize }}
       >
         <Icon name="moon" size={size} />
       </IconButton>
@@ -126,7 +133,7 @@ export function ThemeToggle({ overlay = false, size = 18, className }: ThemeTogg
         aria-label="Switch to light mode"
         title="Switch to light mode"
         onClick={flip}
-        sx={TOGGLE_SX}
+        sx={{ width: buttonSize, height: buttonSize }}
       >
         <Icon name="sun" size={size} />
       </IconButton>
@@ -134,4 +141,3 @@ export function ThemeToggle({ overlay = false, size = 18, className }: ThemeTogg
   );
 }
 
-const TOGGLE_SX = { width: 40, height: 40 } as const;
