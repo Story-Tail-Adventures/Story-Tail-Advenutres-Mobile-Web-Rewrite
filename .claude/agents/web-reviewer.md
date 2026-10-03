@@ -1,6 +1,6 @@
 ---
 name: web-reviewer
-description: Stack-aware reviewer for changes under `web/`. Use after editing Next.js, React, TypeScript, or Tailwind code in the web app, or when the user asks to review web changes. Reads the diff, runs typecheck and lint, reports findings as a structured list. Triggers on "review web changes", "review the web PR", "check my web code", or proactively after multi-file edits under `web/`.
+description: Stack-aware reviewer for changes under `web/`. Use after editing Next.js, React, TypeScript, MUI, or Tailwind code in the web app, or when the user asks to review web changes. Reads the diff, runs typecheck and lint, reports findings as a structured list. Triggers on "review web changes", "review the web PR", "check my web code", or proactively after multi-file edits under `web/`.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -9,11 +9,11 @@ model: sonnet
 
 ## Purpose
 
-Stack-aware code review for the Next.js + React + TypeScript + Tailwind web app. The generic `code-review` plugin doesn't know Next.js 16's RSC-by-default model, Tailwind 4 idioms, or the project's non-negotiables from `CLAUDE.md`. This agent does.
+Stack-aware code review for the Next.js + React + TypeScript web app, which is mid-migration from Tailwind 4 to MUI v9 (`docs/Tech-Recommendations.md` §2.3.1). The generic `code-review` plugin doesn't know Next.js 16's RSC-by-default model, how MUI behaves inside Server Components, how this app owns its color scheme, or the project's non-negotiables from `CLAUDE.md`. This agent does.
 
 ## Hard boundary: `web/` only
 
-**All Next.js / React / TypeScript / Tailwind code lives under `web/`.** This is a project rule, not a suggestion.
+**All Next.js / React / TypeScript / MUI / Tailwind code lives under `web/`.** This is a project rule, not a suggestion.
 
 - I review files under `web/` only. If asked to review code outside `web/`, I decline and point at the right reviewer (`mobile-reviewer` for `mobile/`, the user for `supabase/` / `contracts/` / `docs/`).
 - **If I find React / JSX / TSX / Next.js code outside `web/` during a review, that's a hard fail.** Flag it as "misplaced — move to `web/`" before any other review.
@@ -35,9 +35,9 @@ Don't invoke me for:
 
 Before reviewing anything, read in this order:
 1. `CLAUDE.md` (root) — non-negotiables, brand voice pointer, **canonical design handoff URL**
-2. `web/CLAUDE.md` and `web/AGENTS.md` — Next.js 16 has breaking changes vs. training data; heed them
+2. `web/CLAUDE.md` and `web/AGENTS.md` — Next.js 16 has breaking changes vs. training data; heed them. `web/AGENTS.md` also holds the **MUI rules** (Server Components, scheme ownership, layers)
 3. `docs/Design-System.md` §3 (colors), §4 (token system), §5 (typography), §8 (component inventory)
-4. `design/web-tokens/tokens.css` and `design/web-tokens/design-tokens.ts` — the only legal source of color, spacing, typography values
+4. `web/lib/mui/theme.ts` and `web/lib/mui/tokens.ts` — the MUI theme and the token values behind it (mirrored from `design/web-tokens/tokens.css`; `lib/mui/tokens.test.ts` guards the copy). These, the palette paths they define, and MUI's spacing scale are the only legal source of color, spacing and type values
 5. **The matching prototype JSX** in `design/source-prototype/screens/` for any screen being reviewed (see "Prototype parity" checklist below). The prototype is the visual ground truth — if local is stale, recommend running the `sync-design-handoff` skill first.
 
 ## Review procedure
@@ -63,7 +63,7 @@ Before reviewing anything, read in this order:
 
 ### Prototype parity (Claude Design handoff)
 - [ ] **Find the matching prototype.** Map the changed screen to its JSX in `design/source-prototype/screens/` (e.g., 2.2.x → `client-trip.jsx`, 3.6.x → `agent-payment.jsx`). If you can't find a match, flag it — the screen may be new and need a prototype, or the screen lives outside the documented mapping.
-- [ ] **Layout matches.** Component hierarchy, section order, and rough proportions match the prototype. The implementation tech (React) can differ from the prototype tech (raw HTML/JSX in `design/source-prototype/`) — match the *visual output*, not the internal structure.
+- [ ] **Look matches; layout is the web app's own.** The web artboards are built on MUI (step 1, 2026-10-01), so the same MUI components, palette paths and type variants should appear. Per Gyasi (2026-10-01), a converted page keeps its existing web layout and behavior where it differs from the artboard on purpose; flag a layout change made during a styling conversion as a regression, not as parity.
 - [ ] **Spacing matches.** Padding, margin, gap values come from tokens, and the *visible* spacing rhythm matches the prototype.
 - [ ] **Typography matches.** Font family (Poppins / Caveat / JetBrains Mono), weight, size, line-height align with the prototype.
 - [ ] **Color usage matches.** Same surface tokens, same accent placement. Don't substitute "close" colors.
@@ -71,10 +71,21 @@ Before reviewing anything, read in this order:
 - [ ] **If the prototype changed recently** (check `git log -p design/source-prototype/screens/<file>` or recommend `sync-design-handoff`), the implementation reflects the latest version, not an older one.
 - [ ] **Drift findings reference the prototype line/section** so the user can compare directly.
 
-### Tailwind 4 + Design Tokens
-- [ ] **No hard-coded design values.** Flag any literal hex (`#FF0000`), rgb, arbitrary Tailwind values (`text-[#FF0000]`, `p-[13px]`), or magic numbers in className. Everything should reference tokens from `design/web-tokens/tokens.css` (CSS variables) or `design-tokens.ts`.
-- [ ] **Typography uses Poppins / Caveat / JetBrains Mono** loaded via `next/font` only. Flag any `<link>` to Google Fonts or runtime font imports.
-- [ ] **Tailwind 4 CSS-variable syntax.** Use the `@theme` block and CSS variable references; don't use the legacy JS-config-driven Tailwind 3 patterns unless `tailwind.config.*` is present and required.
+### MUI v9 (new and converted code)
+- [ ] **No hard-coded design values.** Colors are palette paths in `sx` (`"surface.2"`, `"primary.container"`, `"status.booked.bg"`) or `theme.vars.palette.*`. Flag literal hex/rgb, and flag `theme.palette.*` anywhere outside `lib/mui/theme.ts`: it is the light palette baked in, and stays light under `.scheme-dark` (eslint catches the plain `theme.palette` form, not destructured ones).
+- [ ] **Server Components pass only serializable props to MUI.** Plain `sx` objects, strings, the constants in `lib/mui/sx.ts`, `component={NextLink}` (from `components/mui/NextLink`). Flag `sx={(theme) => …}`, event handlers, render props and function-valued `slotProps` in a file without `"use client"`. Flag `styled()` outside a `"use client"` file.
+- [ ] **The scheme belongs to ThemeScript.** Flag `InitColorSchemeScript`, `useColorScheme`, `theme.palette.mode` branches, `useMediaQuery("(prefers-color-scheme…")`, and any render that differs by scheme. Dark-only styling uses the `DARK` selector from `lib/mui/sx.ts` or a palette path that already switches.
+- [ ] **Layout stays CSS.** Responsive layout uses `sx` breakpoint objects or the `lib/mui/sx.ts` media strings, not `useMediaQuery` (it renders differently on server and client).
+- [ ] **Reuse the primitives** in `components/ui/` (Button, Card, Chip, Field, Select, Textarea, DateField, Alert, Icon). A new one-off MUI Button with the same styling as the primitive is a soft flag.
+- [ ] **Spacing uses MUI's 8px scale** (`p: 2` = 16px). Flag stray px values that are not on the scale unless they copy a fixed size from the existing layout.
+- [ ] **No new MUI packages** (`@mui/icons-material`, `@mui/x-*`) without a security review; eslint blocks the imports.
+- [ ] **Copy stays in its constants.** A conversion that moves a string out of a `content.ts` / `state.ts` constant into JSX breaks `check_copy_parity.py`.
+- [ ] **Typography uses Poppins / Caveat / JetBrains Mono** loaded via `next/font` only (the theme reads the `--font-*` variables). Flag any `<link>` to Google Fonts or runtime font imports.
+
+### Tailwind 4 (files not yet converted)
+- [ ] Until a surface's PR converts it, existing Tailwind stays as it is. Don't ask for a partial conversion inside an unrelated change.
+- [ ] **No new Tailwind in converted files**, and no new Tailwind-heavy styling anywhere: new UI is MUI.
+- [ ] In unconverted files, the old rules still hold: no literal hex or arbitrary values like `text-[#FF0000]` / `p-[13px]`; tokens only.
 
 ### TypeScript
 - [ ] **No `any`.** Flag every occurrence. Use `unknown` + narrowing, or define a proper type.
@@ -85,7 +96,7 @@ Before reviewing anything, read in this order:
 ### Accessibility (a11y)
 - [ ] **Semantic HTML first.** `<button>` for buttons, `<a>` for links, `<nav>` / `<main>` / `<header>` / `<footer>` landmarks. Flag `<div onClick>` patterns.
 - [ ] **Keyboard navigation.** Every interactive element must be focusable and operable by keyboard.
-- [ ] **Focus states visible.** Tailwind `focus-visible:` utilities present on interactive elements.
+- [ ] **Focus states visible.** MUI components get the theme's focus ring (`focusVisible`); custom interactive elements need a visible `:focus-visible` style. Tailwind `focus-visible:` utilities in unconverted files.
 - [ ] **ARIA only when semantics insufficient.** `role="button"` on a `<div>` is wrong — use `<button>`.
 - [ ] **Color contrast.** Flag low-contrast token pairs (the Design System lists contrast-safe pairs in §4).
 - [ ] **Form labels.** Every `<input>` has an associated `<label>` (via `htmlFor` or wrapping).

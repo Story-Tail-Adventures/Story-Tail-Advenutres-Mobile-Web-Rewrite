@@ -14,6 +14,11 @@
     "generate:brand": "vite-node --config vitest.config.ts scripts/build-brand-assets.mts"
   },
   "dependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/material": "9.4.0",
+    "@mui/material-nextjs": "9.4.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.112.4",
     "next": "^16.3.4",

@@ -497,7 +497,7 @@ The Next.js web app consumes the same tokens via CSS custom properties. Two star
 - **`tokens.css`** (copy of `design/source-prototype/styles/tokens.css`) — the canonical CSS variable definitions. Import once in the Next.js root layout so every component can reference `var(--md-primary)`, `var(--md-surface-1)`, etc.
 - **`design-tokens.ts`** — a TypeScript module that mirrors the same tokens as typed constants for use with CSS-in-JS or Tailwind. Use this when you want autocomplete and type checking on token names.
 
-The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **Current implementation uses Tailwind CSS v4** (see the example below), but **MUI (Material UI) is the planned target styling library** — Gyasi has decided to replace Tailwind with MUI, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. See `docs/Tech-Recommendations.md` §2.3.1 for the phased migration plan (design source updated to MUI first, then `web/` implementation) — step 1 of that migration (the design source) started 2026-09-30, and `web/` itself has not started.
+The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **Current implementation uses Tailwind CSS v4** (see the example below), but **MUI (Material UI) is the planned target styling library** — Gyasi has decided to replace Tailwind with MUI, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. See `docs/Tech-Recommendations.md` §2.3.1 for the phased migration plan (design source updated to MUI first, then `web/` implementation). Step 1 (the design source) shipped 2026-10-01; step 2 (`web/`) started the same day and converts one surface per PR.
 
 **MUI theme (the target).** The token → MUI mapping lives in `design/source-prototype/shared/mui-theme.jsx`. It builds two `createTheme` results (light, dark) with every value copied 1:1 from `tokens.css`. There are two themes rather than `colorSchemes`, because one page renders the same artboard in both schemes side by side:
 
@@ -512,7 +512,9 @@ The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla 
 | `surface.main`, `surface.1`…`surface.5`, `surface.dim`, `surface.bright` | `--md-surface*` |
 | `status.<kind>.bg` / `.fg` | §4.3 |
 
-Typography uses the Poppins stack on MUI's stock variant sizes, plus a custom `script` variant (Caveat) and `theme.typography.mono` (JetBrains Mono). Shape, spacing and shadows are MUI defaults. `web/` should port this file into its `ThemeProvider` when the code migration starts.
+Typography uses the Poppins stack on MUI's stock variant sizes, plus a custom `script` variant (Caveat) and `theme.typography.mono` (JetBrains Mono). Shape, spacing and shadows are MUI defaults.
+
+**In `web/`** the same palette lives in `web/lib/mui/theme.ts`, with one difference in shape: it is a single theme with CSS variables and `colorSchemes: { light, dark }`, keyed to the `.scheme-dark` class (`colorSchemeSelector: ".scheme-%s"`). The prototype needs two themes to show both schemes side by side; the app needs one, so the pre-paint script can switch schemes with no re-render and no flash. The palette paths in the table above are identical in both. The values themselves are in `web/lib/mui/tokens.ts`, which a test checks against `design/web-tokens/tokens.css`, so it joins the files listed in §12.4 that must stay in sync.
 
 If using Tailwind (current state), extend `tailwind.config.ts` to pull from the same variables:
 
@@ -535,7 +537,7 @@ Supabase Edge Functions (the backend) don't have a UI, so they don't consume the
 
 ### 12.4 Tokens Are the Contract
 
-Components reference *tokens*, not raw hex values. Any new color, font size, spacing value, or radius added to the system goes into `tokens.css` first, then into both `StoryTailColors.kt`/etc. and `design-tokens.ts` as mirror updates. Treat the three files as a single source of truth that must stay in sync — a CI check that lints for mismatched values is worth setting up early.
+Components reference *tokens*, not raw hex values. Any new color, font size, spacing value, or radius added to the system goes into `tokens.css` first, then into both `StoryTailColors.kt`/etc. and `design-tokens.ts` as mirror updates. Treat the three files as a single source of truth that must stay in sync — a CI check that lints for mismatched values is worth setting up early. With the MUI migration there is a fourth: `web/lib/mui/tokens.ts`, the values behind the web MUI theme. It is the first one with that CI check: `web/lib/mui/tokens.test.ts` parses `design/web-tokens/tokens.css` (and the web mirror and `.chip-status` rules) and fails on any mismatch.
 
 ---
 

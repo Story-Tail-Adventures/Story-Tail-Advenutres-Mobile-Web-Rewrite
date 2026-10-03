@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import IconButton from "@mui/material/IconButton";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
@@ -40,7 +41,9 @@ export interface ThemeToggleProps {
  * identical by construction: there is nothing to reconcile, so no hydration mismatch, and
  * no frame showing the wrong icon — the CSS gate resolves at the same moment ThemeScript
  * sets the class, before first paint. The click handler reads the current scheme straight
- * off <html>, which is the real source of truth.
+ * off <html>, which is the real source of truth. MUI's own scheme machinery is switched off
+ * in MuiRegistry for the same reason; the theme follows `.scheme-dark` through CSS variables,
+ * so an IconButton here renders the same bytes whatever the scheme.
  *
  * A useSyncExternalStore store (the use-auth-chrome.ts pattern) would buy nothing here.
  * `getServerSnapshot` feeds the hydration render too, so both halves would still have to
@@ -65,8 +68,9 @@ export interface ThemeToggleProps {
  * The static label also buys back a `title`, which now covers the whole 40px target
  * instead of just the glyph.
  *
- * `shrink-0` is not decoration: .btn-icon sets a width but no flex-shrink, so the button
- * squashes in a cramped bar without it.
+ * The `.sta-light-only` / `.sta-dark-only` gates live in @layer components, above MUI's
+ * layer, which is how they beat IconButton's own `display: inline-flex`. Callers must NOT add
+ * a Tailwind `hidden` / `flex` utility: utilities sit above both and would win.
  *
  * ── The one effect, and why it is not about the scheme ────────────────────────────────
  *
@@ -80,13 +84,14 @@ export interface ThemeToggleProps {
  * state — the property the whole design rests on still holds.
  *
  * `tap-44` buys the §4.2 touch minimum on coarse pointers. It does it with a ::after inset
- * of -8px rather than a min-height, which matters for a ROUND button: the `min-height:
- * 44px` the agent bar uses on .agent-signout would turn a 40px circle into a 40×44 oval.
- * The class is defined in public.css but is generic and globally available (its
- * @layer components block is not scoped), and reusing it beats a third mechanism.
+ * of -8px rather than a min-height, which matters for a ROUND button: a `min-height: 44px`
+ * would turn the 40px circle into a 40×44 oval. The class is defined in public.css but is
+ * generic and globally available (its @layer components block is not scoped). The 40px box
+ * itself is the legacy .btn-icon size; IconButton's `flex: 0 0 auto` keeps it from squashing
+ * in a cramped bar.
  */
 export function ThemeToggle({ overlay = false, size = 18, className }: ThemeToggleProps) {
-  const base = cn("btn-icon tap-44 shrink-0", overlay && "pub-topbar-glass", className);
+  const base = cn("tap-44", overlay && "pub-topbar-glass", className);
   const flip = () => toggleScheme();
 
   useEffect(() => {
@@ -106,25 +111,27 @@ export function ThemeToggle({ overlay = false, size = 18, className }: ThemeTogg
       {/* THE GLYPH IS THE SCHEME YOU ARE SWITCHING *TO*. The button shown while the page is
           light carries a moon; the one shown while it is dark carries a sun. It reads
           backwards at a glance and it is correct — the label says what pressing does. */}
-      <button
-        type="button"
+      <IconButton
         className={cn(base, "sta-light-only")}
         aria-label="Switch to dark mode"
         title="Switch to dark mode"
         onClick={flip}
+        sx={TOGGLE_SX}
       >
         <Icon name="moon" size={size} />
-      </button>
+      </IconButton>
 
-      <button
-        type="button"
+      <IconButton
         className={cn(base, "sta-dark-only")}
         aria-label="Switch to light mode"
         title="Switch to light mode"
         onClick={flip}
+        sx={TOGGLE_SX}
       >
         <Icon name="sun" size={size} />
-      </button>
+      </IconButton>
     </>
   );
 }
+
+const TOGGLE_SX = { width: 40, height: 40 } as const;

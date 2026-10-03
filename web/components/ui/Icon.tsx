@@ -1,3 +1,4 @@
+import SvgIcon from "@mui/material/SvgIcon";
 import { ICON_PATHS, type IconName } from "./icon-paths";
 
 export type { IconName };
@@ -20,11 +21,24 @@ export interface IconProps {
 }
 
 /**
- * Stroke icon set ported from design/source-prototype/shared/icons.jsx.
+ * Stroke icon set ported from design/source-prototype/shared/icons.jsx, drawn through MUI's
+ * SvgIcon so it sits in MUI slots (IconButton, InputAdornment, Button startIcon) the way the
+ * prototype's MuiIcon does.
  *
  * Colour comes only from `currentColor`, so callers use a text colour utility
- * (`className="text-brand-orange"`) where the prototype passed `color="var(--brand-orange)"`.
- * Unknown names are a type error rather than a silently empty render.
+ * (`className="text-brand-orange"`) or an sx `color` on a wrapper, where the prototype passed
+ * `color="var(--brand-orange)"`. Unknown names are a type error rather than a silently
+ * empty render.
+ *
+ * Fill and stroke are attributes on the <path>, not on the root: SvgIcon's own class sets
+ * `fill: currentColor` on the <svg>, and a CSS rule beats a presentation attribute, so a
+ * `fill="none"` on the root would be ignored. The path's own attribute wins over inheritance.
+ *
+ * `display: block` keeps the vertical behaviour the Tailwind preflight gave every <svg>
+ * (SvgIcon's default is inline-block, which adds descender space inside text).
+ *
+ * No "use client": Server Components render this directly. icon-paths.ts stays React-free
+ * because a Node script generates the Kotlin icon set from it.
  */
 export function Icon({
   name,
@@ -35,22 +49,22 @@ export function Icon({
   label,
 }: IconProps) {
   return (
-    <svg
-      width={size}
-      height={size}
+    <SvgIcon
       viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
       className={className}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-      focusable="false"
+      sx={{ display: "block", fontSize: size }}
     >
-      <path d={ICON_PATHS[name]} />
-    </svg>
+      <path
+        d={ICON_PATHS[name]}
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </SvgIcon>
   );
 }

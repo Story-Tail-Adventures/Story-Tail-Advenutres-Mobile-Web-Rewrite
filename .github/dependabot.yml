@@ -28,6 +28,19 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
     groups:
+      # MUI and emotion move together, majors included: @mui/material, @mui/material-nextjs
+      # and @mui/system are released in lockstep, and two emotion copies would mean two
+      # theme contexts. Listed BEFORE npm-minor-and-patch because a dependency joins the
+      # first group that matches it.
+      #
+      # This PR will fail CI on purpose: check_mui_lockstep.py notices that the design
+      # prototype (design/mui-vendor/, not watched by Dependabot) is now behind, and prints
+      # the command that rebuilds it. Run that on the Dependabot branch before merging.
+      mui-stack:
+        applies-to: version-updates
+        patterns:
+          - "@mui/*"
+          - "@emotion/*"
       # One PR for the safe stuff. Every PR costs a 7-job CI run, and a dozen separate
       # patch bumps is a dozen of them for no extra information.
       npm-minor-and-patch:

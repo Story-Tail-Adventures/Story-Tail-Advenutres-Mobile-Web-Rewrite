@@ -3,6 +3,21 @@
  * Import order matters: @import must come first per the CSS spec, and Tailwind v4's
  * PostCSS plugin inlines them in this order.
  */
+
+/* Cascade layer order, while Tailwind and MUI live side by side (MUI v9 migration, step 2).
+ *
+ * A layer's position is fixed by the FIRST time the browser sees its name, so this
+ * statement must stay the first rule in the file. lib/mui/layers.test.ts enforces that.
+ *   theme, base   Tailwind's tokens and preflight. Below mui, so preflight's
+ *                 `button { background: transparent }` cannot wipe out MUI's styles.
+ *   mui           every emotion rule (AppRouterCacheProvider's enableCssLayer).
+ *   components    the legacy .btn/.card/.chip CSS in web/styles/, and the
+ *                 .sta-light-only / .sta-dark-only gates, which must beat MUI's display.
+ *   utilities     Tailwind classes, so a className on an MUI component still applies.
+ * Unlayered CSS beats every layer, which is why emotion must not be left unlayered.
+ * Once Tailwind is removed this becomes `@layer base, mui, components;`. */
+@layer theme, base, mui, components, utilities;
+
 @import "tailwindcss";
 @import "../styles/tokens.css";
 @import "../styles/components.css";
