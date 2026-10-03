@@ -1,5 +1,7 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 
+import NextLink from "@/components/mui/NextLink";
 import { AtAGlanceGrid } from "@/components/agent/AtAGlanceGrid";
 import { CostCommissionCard } from "@/components/agent/CostCommissionCard";
 import { PaymentsSummaryCard } from "@/components/agent/PaymentsSummaryCard";
@@ -44,6 +46,21 @@ import { validTripTab } from "@/lib/agent/tripTabs";
 
 export const metadata = { title: "Trip" };
 
+/** The page column: `mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 1336,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
+/** The legacy `.btn.btn-sm` box on an MUI Button: 32px tall, 16px sides, 8px icon gap. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The right-aligned "Edit …" link above a read-only tab body (`mb-2 flex justify-end`). */
+const TAB_ACTION_SX = { mb: 1, display: "flex", justifyContent: "flex-end" } as const;
+
 export default async function AgentTripDetailPage({
   params,
   searchParams,
@@ -76,12 +93,19 @@ export default async function AgentTripDetailPage({
   // styled identically from the same `.agent-views` class, with no active state — and every
   // one of its links navigated the agent away from the trip they had just opened.
   return (
-    <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
+    <Box sx={PAGE_SX}>
       <TripDetailHeader overview={overview} />
       <TripDetailTabs />
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="min-w-0">
+      <Box
+        sx={{
+          mt: 2,
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) 320px" },
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
           {tab === "overview" && <AtAGlanceGrid overview={overview} />}
           {tab === "components" && <TripComponentsTab tripId={tripId} />}
           {tab === "itinerary" && <TripItineraryTab tripId={tripId} />}
@@ -91,11 +115,18 @@ export default async function AgentTripDetailPage({
                   'Payments'". The tab stays a READ — it is one of eight on a screen about
                   the whole trip — and the schedule is worked on at its own route, which is
                   the same split §3.4.4 made for components. */}
-              <div className="mb-2 flex justify-end">
-                <Link href={`/agent/trips/${tripId}/payments`} className="btn btn-tonal btn-sm">
+              <Box sx={TAB_ACTION_SX}>
+                <MuiButton
+                  component={NextLink}
+                  href={`/agent/trips/${tripId}/payments`}
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  sx={BTN_SM}
+                >
                   {AGENT_COPY.editSchedule}
-                </Link>
-              </div>
+                </MuiButton>
+              </Box>
               <PaymentsSummaryCard payments={payments} full />
             </>
           )}
@@ -109,14 +140,14 @@ export default async function AgentTripDetailPage({
             />
           )}
           {tab === "activity" && <TripActivityTab tripId={tripId} />}
-        </div>
+        </Box>
 
-        <aside className="flex flex-col gap-3">
+        <Box component="aside" sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <CostCommissionCard overview={overview} />
           <PaymentsSummaryCard payments={payments} />
-        </aside>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -128,11 +159,18 @@ async function TripComponentsTab({ tripId }: { tripId: string }) {
       {/* §3.4.4's second entry point, the one the Screen Inventory calls "Trip Detail
           'Edit components'". The header carries the same link; this one is here because
           this tab is where an advisor is standing when they decide something is wrong. */}
-      <div className="mb-2 flex justify-end">
-        <Link href={`/agent/trips/${tripId}/builder`} className="btn btn-tonal btn-sm">
+      <Box sx={TAB_ACTION_SX}>
+        <MuiButton
+          component={NextLink}
+          href={`/agent/trips/${tripId}/builder`}
+          variant="outlined"
+          color="secondary"
+          size="small"
+          sx={BTN_SM}
+        >
           {AGENT_COPY.editComponents}
-        </Link>
-      </div>
+        </MuiButton>
+      </Box>
       <TripComponentsList components={components} />
     </>
   );
@@ -147,11 +185,18 @@ async function TripItineraryTab({ tripId }: { tripId: string }) {
           Detail 'Itinerary'"; the other is the builder). This tab stays a READ — one of
           eight on a screen about the whole trip — and the writing happens at its own
           route, the same split §3.4.4 and §3.4.15 made. */}
-      <div className="mb-2 flex justify-end">
-        <Link href={`/agent/trips/${tripId}/itinerary`} className="btn btn-tonal btn-sm">
+      <Box sx={TAB_ACTION_SX}>
+        <MuiButton
+          component={NextLink}
+          href={`/agent/trips/${tripId}/itinerary`}
+          variant="outlined"
+          color="secondary"
+          size="small"
+          sx={BTN_SM}
+        >
           {AGENT_COPY.editItinerary}
-        </Link>
-      </div>
+        </MuiButton>
+      </Box>
       <TripItineraryView itinerary={itinerary} />
     </>
   );

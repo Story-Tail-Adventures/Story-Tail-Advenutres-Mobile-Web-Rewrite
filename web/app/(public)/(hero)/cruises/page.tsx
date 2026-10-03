@@ -60,14 +60,14 @@ export const metadata: Metadata = {
 const THREE_UP = {
   display: "grid",
   gap: { xs: 1.25, md: 1.75 },
-  gridTemplateColumns: { md: "repeat(3, 1fr)" },
+  gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
 } as const;
 
 /** Trip grid: one column on phones, two at tablet, three on web. */
 const TRIP_GRID = {
   display: "grid",
   gap: { xs: 1.25, md: 1.75 },
-  gridTemplateColumns: { md: "repeat(2, 1fr)", web: "repeat(3, 1fr)" },
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", web: "repeat(3, minmax(0, 1fr))" },
 } as const;
 
 /**

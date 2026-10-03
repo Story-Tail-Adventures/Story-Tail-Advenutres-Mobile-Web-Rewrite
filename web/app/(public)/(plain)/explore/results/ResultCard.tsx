@@ -91,7 +91,7 @@ export function ResultCard({ trip, rating, next }: ResultCardProps) {
         component="article"
         sx={{
           display: { xs: "none", web: "grid" },
-          gridTemplateColumns: "180px 1fr auto",
+          gridTemplateColumns: "180px minmax(0, 1fr) auto",
           "&:hover h2 a": { textDecoration: "underline" },
         }}
       >

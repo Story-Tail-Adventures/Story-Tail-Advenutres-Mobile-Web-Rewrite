@@ -1,5 +1,8 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { NewTripForm } from "@/components/agent/NewTripForm";
 import { RetryState } from "@/components/client/RetryState";
 import { NEW_TRIP_COPY, TRIP_COPY } from "@/lib/agent/content";
@@ -25,6 +28,15 @@ import { loadTemplates } from "@/lib/agent/templates";
 
 export const metadata = { title: "New trip" };
 
+/** The page column: `mx-auto w-full max-w-[760px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 760,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
 export default async function NewTripPage({
   searchParams,
 }: {
@@ -41,9 +53,9 @@ export default async function NewTripPage({
 
   if (!roster) {
     return (
-      <div className="mx-auto w-full max-w-[760px] px-4 py-6 md:px-8">
+      <Box sx={PAGE_SX}>
         <RetryState />
-      </div>
+      </Box>
     );
   }
 
@@ -63,26 +75,31 @@ export default async function NewTripPage({
   }));
 
   return (
-    <div className="mx-auto w-full max-w-[760px] px-4 py-6 md:px-8">
-      <Link
+    <Box sx={PAGE_SX}>
+      <MuiLink
+        component={NextLink}
         href="/agent/trips"
-        className="t-body-s mb-3 inline-block text-[var(--md-on-surface-variant)] hover:underline"
+        variant="body2"
+        underline="hover"
+        sx={{ display: "inline-block", mb: 1.5, color: "text.secondary" }}
       >
         ← {TRIP_COPY.title}
-      </Link>
+      </MuiLink>
 
-      <header className="mb-5">
-        <h1 className="t-title-l m-0">{NEW_TRIP_COPY.title}</h1>
-        <p className="t-body-s mt-0.5 text-[var(--md-on-surface-variant)]">
+      <Box component="header" sx={{ mb: 2.5 }}>
+        <Typography component="h1" variant="h5" sx={{ m: 0 }}>
+          {NEW_TRIP_COPY.title}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 0.25, color: "text.secondary" }}>
           {NEW_TRIP_COPY.subtitle}
-        </p>
-      </header>
+        </Typography>
+      </Box>
 
       <NewTripForm
         clients={clients}
         presetClientId={params.client}
         templates={templates}
       />
-    </div>
+    </Box>
   );
 }

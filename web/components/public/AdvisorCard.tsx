@@ -36,7 +36,7 @@ export function AdvisorCard({ variant, title, body, overline, action, className 
         className={className}
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "60px 1fr", md: "120px 1fr" },
+          gridTemplateColumns: { xs: "60px minmax(0, 1fr)", md: "120px minmax(0, 1fr)" },
           gap: { xs: 1.75, md: 2.75 },
           alignItems: "center",
           p: { xs: 2, md: 2.75 },
@@ -113,7 +113,7 @@ export function AdvisorCard({ variant, title, body, overline, action, className 
       className={className}
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "44px 1fr", md: "56px 1fr" },
+        gridTemplateColumns: { xs: "44px minmax(0, 1fr)", md: "56px minmax(0, 1fr)" },
         gap: { xs: 1.5, md: 2.25 },
         p: 1.75,
         px: { md: 3.5 },

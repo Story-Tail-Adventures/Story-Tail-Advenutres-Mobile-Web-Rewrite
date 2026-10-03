@@ -1,10 +1,17 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 
 import { TripBuilderCanvas } from "@/components/agent/TripBuilderCanvas";
 import { TripBuilderRail } from "@/components/agent/TripBuilderRail";
 import { TripComponentSheet } from "@/components/agent/TripComponentSheet";
 import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
+import { Alert } from "@/components/ui/Alert";
 import { Icon } from "@/components/ui/Icon";
 import {
   centsToDollars,
@@ -41,6 +48,9 @@ import {
  */
 
 export const metadata = { title: "Trip builder" };
+
+/** The legacy `.t-label` (12px/500) on MUI's caption, for the header's dt row. */
+const DT_SX = { fontWeight: 500, color: "text.secondary" } as const;
 
 /** The row being edited, as the form wants it. */
 function editValues(row: TripComponentRow): ComponentValues {
@@ -120,7 +130,7 @@ export default async function TripBuilderPage({
   const sheetKind = editingRow ? editValues(editingRow).kind : addKind;
 
   return (
-    <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
+    <Box sx={{ mx: "auto", width: "100%", maxWidth: 1336, px: { xs: 2, md: 4 }, py: 3 }}>
       {/* §3.4.13's seeding receipt.
           A FAILED APPLY USED TO BE INVISIBLE HERE. `createTripAction` deliberately does not
           fail the create when the pattern does not apply — the trip is real and losing it
@@ -128,71 +138,109 @@ export default async function TripBuilderPage({
           "0 pieces / Nothing in it yet", which is character for character what "Start from
           scratch" produces. Two different things reading identically, one of them a
           failure. The outcome rides in `?seeded=` so this can tell them apart. */}
-      {seeded !== undefined && (
-        <p
-          className={`t-body-s mt-5 rounded-xl px-3 py-2 ${
-            seeded === "failed"
-              ? "bg-[var(--md-error-container)] text-[var(--md-on-error-container)]"
-              : "bg-[var(--md-surface-2)] text-[var(--md-on-surface-variant)]"
-          }`}
-          role="status"
-        >
-          {seeded === "failed"
-            ? BUILDER_COPY.seedFailed
-            : BUILDER_COPY.seedApplied(Number(seeded) || 0)}
-        </p>
-      )}
+      {seeded !== undefined &&
+        (seeded === "failed" ? (
+          <Box sx={{ mt: 2.5 }}>
+            <Alert tone="error" role="status">
+              {BUILDER_COPY.seedFailed}
+            </Alert>
+          </Box>
+        ) : (
+          <Paper elevation={0} role="status" sx={{ mt: 2.5, px: 1.5, py: 1, bgcolor: "surface.2" }}>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {BUILDER_COPY.seedApplied(Number(seeded) || 0)}
+            </Typography>
+          </Paper>
+        ))}
 
-      <header className="card mt-5 p-4">
-        <p className="t-body-s text-[var(--md-on-surface-variant)]">
-          <Link href={`/agent/trips/${tripId}`} className="hover:underline">
-            {BUILDER_COPY.backToTrip}
-          </Link>{" "}
-          · {overview.clientName}
-        </p>
-        <h1 className="t-headline mt-1 text-[22px] leading-tight">{overview.title}</h1>
+      <Card component="header" sx={{ mt: 2.5 }}>
+        <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+          <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+            <MuiLink
+              component={NextLink}
+              href={`/agent/trips/${tripId}`}
+              underline="hover"
+              color="inherit"
+            >
+              {BUILDER_COPY.backToTrip}
+            </MuiLink>{" "}
+            · {overview.clientName}
+          </Typography>
+          <Typography component="h1" variant="h5" sx={{ mt: 0.5, fontWeight: 700 }}>
+            {overview.title}
+          </Typography>
 
-        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-          <div>
-            <dt className="t-label text-[var(--md-on-surface-variant)]">
-              {BUILDER_COPY.totalLabel}
-            </dt>
-            <dd className="t-title-s m-0 font-mono">{overview.totalValueLabel}</dd>
-          </div>
-          <div>
-            <dt className="t-label text-[var(--md-on-surface-variant)]">
-              {BUILDER_COPY.commissionLabel}
-            </dt>
-            <dd className="t-title-s m-0 font-mono">{overview.totalCommissionLabel}</dd>
-          </div>
-          <div>
-            <dt className="t-label text-[var(--md-on-surface-variant)]">
-              {BUILDER_COPY.componentsHeading}
-            </dt>
-            <dd className="t-title-s m-0">
-              {components.length}{" "}
-              {components.length === 1 ? BUILDER_COPY.countLabelOne : BUILDER_COPY.countLabel}
-            </dd>
-          </div>
-        </dl>
-        <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-          <Icon name="info" size={12} /> {BUILDER_COPY.totalHint}
-        </p>
-      </header>
+          <Box
+            component="dl"
+            sx={{ m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", columnGap: 4, rowGap: 1 }}
+          >
+            <div>
+              <Typography component="dt" variant="caption" sx={DT_SX}>
+                {BUILDER_COPY.totalLabel}
+              </Typography>
+              <Typography
+                component="dd"
+                variant="subtitle1"
+                sx={{ m: 0, fontWeight: 600, fontFamily: "mono" }}
+              >
+                {overview.totalValueLabel}
+              </Typography>
+            </div>
+            <div>
+              <Typography component="dt" variant="caption" sx={DT_SX}>
+                {BUILDER_COPY.commissionLabel}
+              </Typography>
+              <Typography
+                component="dd"
+                variant="subtitle1"
+                sx={{ m: 0, fontWeight: 600, fontFamily: "mono" }}
+              >
+                {overview.totalCommissionLabel}
+              </Typography>
+            </div>
+            <div>
+              <Typography component="dt" variant="caption" sx={DT_SX}>
+                {BUILDER_COPY.componentsHeading}
+              </Typography>
+              <Typography component="dd" variant="subtitle1" sx={{ m: 0, fontWeight: 600 }}>
+                {components.length}{" "}
+                {components.length === 1 ? BUILDER_COPY.countLabelOne : BUILDER_COPY.countLabel}
+              </Typography>
+            </div>
+          </Box>
+          <Typography
+            component="p"
+            variant="caption"
+            sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 1, color: "text.secondary" }}
+          >
+            <Icon name="info" size={12} />
+            {BUILDER_COPY.totalHint}
+          </Typography>
+        </CardContent>
+      </Card>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px] xl:grid-cols-[240px_1fr_360px]">
-        <div className="lg:col-span-2 xl:col-span-1">
+      <Box
+        sx={{
+          mt: 2,
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) 360px", xl: "240px minmax(0, 1fr) 360px" },
+        }}
+      >
+        <Box sx={{ gridColumn: { lg: "span 2", xl: "auto" } }}>
           <TripBuilderRail tripId={tripId} tripTitle={overview.title} />
-        </div>
+        </Box>
 
-        <section>
-          <h2 className="t-title-s mb-2">{BUILDER_COPY.componentsHeading}</h2>
+        <Box component="section">
+          <Typography component="h2" variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+            {BUILDER_COPY.componentsHeading}
+          </Typography>
           <TripBuilderCanvas
             tripId={tripId}
             components={components}
             editingId={editingRow?.componentId ?? null}
           />
-        </section>
+        </Box>
 
         {/* The third column exists only when a sheet is open. An empty 360px rail beside a
             canvas is a panel the advisor has to learn to ignore. */}
@@ -204,7 +252,7 @@ export default async function TripBuilderPage({
             initial={editingRow ? editValues(editingRow) : emptyComponent(sheetKind)}
           />
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

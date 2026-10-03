@@ -64,3 +64,24 @@ export const TAP_TARGET = {
     "&::after": { content: '""', position: "absolute", inset: "-8px" },
   },
 } as const;
+
+/**
+ * Off-screen but read aloud: MUI's `visuallyHidden`, as a plain object a Server Component can
+ * pass. Use this rather than writing your own.
+ *
+ * Note the "1px" STRINGS. In sx, a bare number from 0 to 1 for width/height is a FRACTION, so
+ * `width: 1` means 100%. Several hand-written copies said `width: 1, height: 1`, which made
+ * every "hidden" checkbox as wide as its container and pushed the trips roster 229px past a
+ * phone's edge. test/visually-hidden.test.ts fails if a local copy appears again.
+ */
+export const VISUALLY_HIDDEN = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  p: 0,
+  m: "-1px",
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;

@@ -152,7 +152,7 @@ function TripRow({ trip }: { trip: DashboardTrip }) {
       href={`/trips/${trip.id}`}
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "200px 1fr auto" },
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "200px minmax(0, 1fr) auto" },
         color: "inherit",
         textDecoration: "none",
       }}

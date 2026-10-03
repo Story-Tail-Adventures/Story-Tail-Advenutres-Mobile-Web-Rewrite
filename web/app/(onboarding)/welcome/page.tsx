@@ -133,7 +133,7 @@ export default async function WelcomePage() {
           sx={{
             display: "grid",
             gap: 1.5,
-            gridTemplateColumns: { md: "repeat(3, 1fr)" },
+            gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
             listStyle: "none",
             m: 0,
             p: 0,

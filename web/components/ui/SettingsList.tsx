@@ -185,7 +185,7 @@ export function SettingsGroup({
           sx={{
             [UP_MD]: {
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
               gap: 1.25,
               overflow: "visible",
               bgcolor: "transparent",

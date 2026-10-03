@@ -166,7 +166,7 @@ export function JoinForm({
         disabled={isPending}
         sx={{ display: "contents", m: 0, p: 0, border: 0, minWidth: 0 }}
       >
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 1.25 }}>
           <Field
             id="firstName"
             name="firstName"

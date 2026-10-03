@@ -21,7 +21,7 @@ import { Icon } from "@/components/ui/Icon";
 import { TRIP_REVIEWS } from "@/content/public/proof";
 import { findTrip, TRIP_SLUGS } from "@/content/public/trips";
 import { staImg } from "@/lib/images";
-import { UP_LG, UP_MD, UP_WEB } from "@/lib/mui/sx";
+import { UP_LG, UP_MD, UP_WEB, VISUALLY_HIDDEN } from "@/lib/mui/sx";
 import { inquiryHref } from "@/lib/public/inquiry";
 import { joinHref, tripHref } from "@/lib/public/links";
 import { advisorTitle, DETAIL, tripBadge } from "./content";
@@ -36,19 +36,6 @@ export function generateStaticParams() {
 
 type Params = Promise<{ slug: string }>;
 
-/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
-
 /**
  * The page grid public.css called `.detail-layout`: one column, and from 1024 the 340px
  * right rail. `lg` is the one public-page use of that breakpoint, because the rail splits at
@@ -60,7 +47,7 @@ const DETAIL_LAYOUT = {
   pt: 2.25,
   pb: 2.25,
   [UP_MD]: { pt: 2.5, pb: 4 },
-  [UP_LG]: { gridTemplateColumns: "1fr 340px" },
+  [UP_LG]: { gridTemplateColumns: "minmax(0, 1fr) 340px" },
 } as const;
 
 /**
@@ -203,7 +190,7 @@ export default async function TripDetailPage({ params }: { params: Params }) {
             component="ul"
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+              gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
               gap: 1,
               listStyle: "none",
               m: 0,

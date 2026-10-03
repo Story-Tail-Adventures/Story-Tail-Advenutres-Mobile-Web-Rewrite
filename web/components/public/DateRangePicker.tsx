@@ -17,7 +17,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/public/calendar";
 import { addDays, formatDayLong, formatRange, nightsBetween, todayIso } from "@/lib/public/dates";
-import { TAP_TARGET } from "@/lib/mui/sx";
+import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
 import { MAX_BOOKING_DAYS_AHEAD, MAX_STAY_NIGHTS } from "@/lib/public/search";
 
 export interface DateRangePickerProps {
@@ -72,19 +72,6 @@ const CELL = 36;
  * DateField, so the trigger is a real MUI input slot and not a bare <button>.
  */
 const BUTTON_INPUT = "button" as unknown as React.ElementType<InputBaseComponentProps>;
-
-/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
 
 /** The brand-orange glyph beside a value, as every search cell draws it. */
 const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;

@@ -1,3 +1,5 @@
+import Box from "@mui/material/Box";
+
 import { ClientActivityTab } from "@/components/agent/ClientActivityTab";
 import { ClientBackLink, ClientDetailHeader } from "@/components/agent/ClientDetailHeader";
 import { ClientDetailTabs } from "@/components/agent/ClientDetailTabs";
@@ -48,6 +50,15 @@ import {
 
 export const metadata = { title: "Client" };
 
+/** The page column: `mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 1336,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
 export default async function AgentClientDetailPage({
   params,
   searchParams,
@@ -67,20 +78,20 @@ export default async function AgentClientDetailPage({
   // into the error state renders "something went wrong on our side" over a mistyped URL.
   if (!result.ok) {
     return result.reason === "not-found" ? <ClientNotFound /> : (
-      <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
+      <Box sx={PAGE_SX}>
         <RetryState />
-      </div>
+      </Box>
     );
   }
 
   const client = result.overview;
 
   return (
-    <div className="mx-auto w-full max-w-[1336px] px-4 py-6 md:px-8">
+    <Box sx={PAGE_SX}>
       <ClientBackLink />
-      <div className="mt-2.5">
+      <Box sx={{ mt: 1.25 }}>
         <ClientDetailHeader client={client} />
-      </div>
+      </Box>
 
       <ClientDetailTabs
         counts={{
@@ -90,15 +101,15 @@ export default async function AgentClientDetailPage({
         }}
       />
 
-      <div className="mt-4">
+      <Box sx={{ mt: 2 }}>
         {tab === "overview" && <OverviewTab clientId={clientId} client={client} />}
         {tab === "trips" && <TripsTab clientId={clientId} />}
         {tab === "messages" && <MessagesTab clientId={clientId} />}
         {tab === "documents" && <DocumentsTab clientId={clientId} />}
         {tab === "notes" && <NotesTab clientId={clientId} />}
         {tab === "activity" && <ActivityTab clientId={clientId} />}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 

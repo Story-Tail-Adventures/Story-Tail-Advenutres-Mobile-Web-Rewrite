@@ -12,6 +12,7 @@ import {
   WIZARD_TOTAL,
   stepOverline,
 } from "@/lib/onboarding/steps";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * The chrome every onboarding step wears — Screen Inventory §2.1.9–§2.1.14, Pattern G.
@@ -40,19 +41,6 @@ export interface OnboardingShellProps {
   children: React.ReactNode;
 }
 
-/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
-
 /** The brand-orange step overline, as every §2.1 artboard draws it. */
 const OVERLINE_SX = {
   display: "block",
@@ -74,7 +62,7 @@ export function OnboardingShell({
         minHeight: "100dvh",
         flex: 1,
         flexDirection: "column",
-        gridTemplateColumns: { md: "280px 1fr" },
+        gridTemplateColumns: { md: "280px minmax(0, 1fr)" },
       }}
     >
       <StepRail stepIndex={stepIndex} />

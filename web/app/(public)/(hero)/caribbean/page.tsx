@@ -77,7 +77,7 @@ const SNAP_STRIP = {
 const TRIP_GRID = {
   display: "grid",
   gap: { xs: 1.25, md: 1.75 },
-  gridTemplateColumns: { md: "repeat(2, 1fr)", web: "repeat(3, 1fr)" },
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", web: "repeat(3, minmax(0, 1fr))" },
 } as const;
 
 /**
@@ -119,7 +119,7 @@ export default function CaribbeanPage() {
             mb: { xs: 2.25, md: 4.5 },
             display: "grid",
             gap: { xs: 1.25, md: 1.75 },
-            gridTemplateColumns: { md: "repeat(3, 1fr)" },
+            gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
           }}
         >
           {CARIBBEAN_INTRO.map((point) => (
@@ -163,7 +163,7 @@ export default function CaribbeanPage() {
               mb: 4.5,
               display: { xs: "none", md: "grid" },
               gap: 1.25,
-              gridTemplateColumns: { md: "repeat(3, 1fr)", web: "repeat(6, 1fr)" },
+              gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))", web: "repeat(6, minmax(0, 1fr))" },
             }}
           >
             {ISLANDS.map((island) => (

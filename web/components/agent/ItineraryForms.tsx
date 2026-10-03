@@ -1,7 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
 import {
   generateItineraryAction,
@@ -9,7 +14,14 @@ import {
   saveDayAction,
   type GenerateState,
 } from "@/app/(agent)/agent/trips/[tripId]/itinerary/actions";
+import NextLink from "@/components/mui/NextLink";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { DateField } from "@/components/ui/DateField";
+import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
+import { SelectField } from "@/components/ui/Select";
+import { TextareaField } from "@/components/ui/Textarea";
 import { ITINERARY_COPY } from "@/lib/agent/content";
 import {
   BLOCKS,
@@ -17,6 +29,7 @@ import {
   type DayValues,
   type ItineraryState,
 } from "@/lib/agent/itinerary";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * §3.4.14's three client islands: the generate button, the day form, the entry form.
@@ -24,7 +37,32 @@ import {
  * ONE FILE, THREE COMPONENTS, because all three are small `useActionState` wrappers and
  * splitting them would be three files of imports around one hook each. The page decides
  * which of the two forms is open from the URL.
+ *
+ * ON MUI (step 2 of the migration): the forms are Cards, every control is one of the
+ * shared primitives (Field / DateField / SelectField / TextareaField, label above the
+ * input), errors are the Alert primitive, and every `name` and `id` is the one the server
+ * actions read.
  */
+
+/** The legacy .btn box (40px, 24px sides, 8px gap) on MUI's Button, so nothing reflows. */
+const BTN_MD = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** Two equal columns, as the time and phone / confirmation pairs were laid out. */
+const GRID_2 = { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5 } as const;
+
+/** JetBrains Mono on the input inside a Field — the confirmation number. */
+const MONO_INPUT = { "& .MuiInputBase-input": { fontFamily: "mono" } } as const;
+
+/** The neutral note (surface-2 with an info glyph), as the artboard draws it. */
+const NOTE_SX = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  px: 1.5,
+  py: 1,
+  bgcolor: "surface.2",
+  color: "text.secondary",
+} as const;
 
 /**
  * The Key actions line's "Auto-generate".
@@ -45,41 +83,45 @@ export function GenerateItineraryButton({ tripId }: { tripId: string }) {
 
   return (
     <div>
-      <form action={formAction} className="flex flex-wrap items-center gap-2">
+      <Box
+        component="form"
+        action={formAction}
+        sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}
+      >
         <input type="hidden" name="tripId" value={tripId} />
-        <button type="submit" disabled={pending} className="btn btn-orange btn-sm">
+        <Button type="submit" variant="orange" size="sm" disabled={pending}>
           {pending ? ITINERARY_COPY.generateWorking : ITINERARY_COPY.generateLabel}
-        </button>
-        <button
-          type="button"
-          disabled
-          title={ITINERARY_COPY.previewDeferred}
-          className="btn btn-outlined btn-sm"
-        >
+        </Button>
+        <Button variant="outlined" size="sm" disabled title={ITINERARY_COPY.previewDeferred}>
           {ITINERARY_COPY.previewLabel}
-          <span className="sr-only"> — {ITINERARY_COPY.previewDeferred}</span>
-        </button>
-      </form>
+          <Box component="span" sx={VISUALLY_HIDDEN}> — {ITINERARY_COPY.previewDeferred}</Box>
+        </Button>
+      </Box>
 
-      <p className="t-body-s mt-1.5 text-[var(--md-on-surface-variant)]">
-        <Icon name="info" size={12} /> {ITINERARY_COPY.generateHint}
-      </p>
+      <Typography
+        component="p"
+        variant="caption"
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75, color: "text.secondary" }}
+      >
+        <Icon name="info" size={12} />
+        {ITINERARY_COPY.generateHint}
+      </Typography>
 
-      {state.message && (
-        <p
-          // `role="status"` rather than `alert`: two of the three outcomes are ordinary
-          // information and an assertive announcement for "already up to date" would be
-          // the screen shouting about nothing.
-          role="status"
-          className={`t-body-s mt-1.5 rounded-xl px-3 py-2 ${
-            state.kind === "error"
-              ? "bg-[var(--md-error-container)] text-[var(--md-on-error-container)]"
-              : "bg-[var(--md-surface-2)] text-[var(--md-on-surface-variant)]"
-          }`}
-        >
-          {state.message}
-        </p>
-      )}
+      {state.message &&
+        // `role="status"` rather than `alert`: two of the three outcomes are ordinary
+        // information and an assertive announcement for "already up to date" would be
+        // the screen shouting about nothing.
+        (state.kind === "error" ? (
+          <Box sx={{ mt: 0.75 }}>
+            <Alert tone="error" role="status">
+              {state.message}
+            </Alert>
+          </Box>
+        ) : (
+          <Paper elevation={0} role="status" sx={{ ...NOTE_SX, mt: 0.75 }}>
+            <Typography variant="caption">{state.message}</Typography>
+          </Paper>
+        ))}
     </div>
   );
 }
@@ -93,76 +135,52 @@ export function DayForm({ tripId, initial }: { tripId: string; initial: DayValue
   const isEdit = values.dayId !== "";
 
   return (
-    <form action={formAction} className="card p-4">
+    <Card component="form" action={formAction} sx={{ p: 2 }}>
       <input type="hidden" name="tripId" value={tripId} />
       {isEdit && <input type="hidden" name="dayId" value={values.dayId} />}
 
-      <h2 className="t-title-l m-0 mb-3">
+      <Typography component="h2" variant="h5" sx={{ m: 0, mb: 1.5 }}>
         {isEdit ? ITINERARY_COPY.editDay : ITINERARY_COPY.addDay}
-      </h2>
+      </Typography>
 
       {state.formError && (
-        <p role="alert" className="t-body-s mb-3 rounded-xl bg-[var(--md-error-container)] px-3 py-2 text-[var(--md-on-error-container)]">
-          {state.formError}
-        </p>
+        <Box sx={{ mb: 1.5 }}>
+          <Alert tone="error">{state.formError}</Alert>
+        </Box>
       )}
 
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className="field-label" htmlFor="day-date">
-            {ITINERARY_COPY.dayDateLabel}
-          </label>
-          <input
-            id="day-date"
-            name="date"
-            type="date"
-            defaultValue={values.date}
-            className="input h-10 w-full rounded-xl px-3"
-          />
-          {state.fieldErrors?.date && (
-            <p role="alert" className="t-body-s mt-1 text-[var(--md-error)]">
-              {state.fieldErrors.date[0]}
-            </p>
-          )}
-        </div>
+      <Stack spacing={1.5}>
+        <DateField
+          id="day-date"
+          name="date"
+          label={ITINERARY_COPY.dayDateLabel}
+          defaultValue={values.date}
+          error={state.fieldErrors?.date?.[0]}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="day-label">
-            {ITINERARY_COPY.dayLabelLabel}
-          </label>
-          <input
-            id="day-label"
-            name="label"
-            maxLength={120}
-            defaultValue={values.label}
-            placeholder={ITINERARY_COPY.dayLabelPlaceholder}
-            className="input h-10 w-full rounded-xl px-3"
-          />
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {ITINERARY_COPY.dayLabelHint}
-          </p>
-        </div>
+        <Field
+          id="day-label"
+          name="label"
+          label={ITINERARY_COPY.dayLabelLabel}
+          maxLength={120}
+          defaultValue={values.label}
+          placeholder={ITINERARY_COPY.dayLabelPlaceholder}
+          hint={ITINERARY_COPY.dayLabelHint}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="day-summary">
-            {ITINERARY_COPY.daySummaryLabel}
-          </label>
-          <textarea
-            id="day-summary"
-            name="summary"
-            rows={3}
-            maxLength={4000}
-            defaultValue={values.summary}
-            className="input w-full rounded-xl px-3 py-2"
-          />
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {ITINERARY_COPY.daySummaryHint}
-          </p>
-        </div>
-      </div>
+        <TextareaField
+          id="day-summary"
+          name="summary"
+          label={ITINERARY_COPY.daySummaryLabel}
+          rows={3}
+          maxLength={4000}
+          defaultValue={values.summary}
+          hint={ITINERARY_COPY.daySummaryHint}
+        />
+      </Stack>
 
       <Buttons tripId={tripId} pending={pending} />
-    </form>
+    </Card>
   );
 }
 
@@ -186,170 +204,154 @@ export function ActivityForm({
   const err = (n: string) => state.fieldErrors?.[n]?.[0];
 
   return (
-    <form action={formAction} className="card p-4">
+    <Card component="form" action={formAction} sx={{ p: 2 }}>
       <input type="hidden" name="tripId" value={tripId} />
       {isEdit && <input type="hidden" name="activityId" value={values.activityId} />}
 
-      <h2 className="t-title-l m-0 mb-3">
+      <Typography component="h2" variant="h5" sx={{ m: 0, mb: 1.5 }}>
         {isEdit ? ITINERARY_COPY.editActivity : ITINERARY_COPY.addActivity}
-      </h2>
+      </Typography>
 
       {/* An entry generated from a booking says so, because editing the prose here does
           NOT change the booking — and an advisor who assumed it did would go looking for
           the flight number they just corrected. */}
       {fromBooking && (
-        <p className="t-body-s mb-3 rounded-xl bg-[var(--md-surface-2)] px-3 py-2 text-[var(--md-on-surface-variant)]">
-          <Icon name="info" size={12} /> {ITINERARY_COPY.fromBookingHint}
-        </p>
+        <Paper elevation={0} sx={{ ...NOTE_SX, mb: 1.5 }}>
+          <Icon name="info" size={12} />
+          <Typography variant="caption">{ITINERARY_COPY.fromBookingHint}</Typography>
+        </Paper>
       )}
 
       {state.formError && (
-        <p role="alert" className="t-body-s mb-3 rounded-xl bg-[var(--md-error-container)] px-3 py-2 text-[var(--md-on-error-container)]">
-          {state.formError}
-        </p>
+        <Box sx={{ mb: 1.5 }}>
+          <Alert tone="error">{state.formError}</Alert>
+        </Box>
       )}
 
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className="field-label" htmlFor="act-day">
-            Day
-          </label>
-          <select
-            id="act-day"
-            name="dayId"
-            defaultValue={values.dayId}
-            className="input h-10 w-full rounded-xl px-3"
-          >
-            {days.map((d) => (
-              <option key={d.dayId} value={d.dayId}>
-                Day {d.dayNumber}
-                {d.dateLabel ? ` · ${d.dateLabel}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+      <Stack spacing={1.5}>
+        <SelectField
+          id="act-day"
+          name="dayId"
+          label="Day"
+          defaultValue={values.dayId}
+          options={days.map((d) => ({
+            value: d.dayId,
+            label: `Day ${d.dayNumber}${d.dateLabel ? ` · ${d.dateLabel}` : ""}`,
+          }))}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="act-title">
-            {ITINERARY_COPY.activityTitleLabel}
-          </label>
-          <input
-            id="act-title"
-            name="title"
-            required
-            maxLength={200}
-            defaultValue={values.title}
-            placeholder={ITINERARY_COPY.activityTitlePlaceholder}
-            className="input h-10 w-full rounded-xl px-3"
-            aria-describedby={err("title") ? "act-title-error" : undefined}
+        <Field
+          id="act-title"
+          name="title"
+          label={ITINERARY_COPY.activityTitleLabel}
+          required
+          maxLength={200}
+          defaultValue={values.title}
+          placeholder={ITINERARY_COPY.activityTitlePlaceholder}
+          error={err("title")}
+        />
+
+        <Box sx={GRID_2}>
+          <Field
+            id="act-start"
+            name="startTime"
+            type="time"
+            label={ITINERARY_COPY.startsLabel}
+            defaultValue={values.startTime}
           />
-          {err("title") && (
-            <p id="act-title-error" role="alert" className="t-body-s mt-1 text-[var(--md-error)]">
-              {err("title")}
-            </p>
-          )}
-        </div>
+          <Field
+            id="act-end"
+            name="endTime"
+            type="time"
+            label={ITINERARY_COPY.endsLabel}
+            defaultValue={values.endTime}
+          />
+        </Box>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="field-label" htmlFor="act-start">
-              {ITINERARY_COPY.startsLabel}
-            </label>
-            <input id="act-start" name="startTime" type="time" defaultValue={values.startTime}
-              className="input h-10 w-full rounded-xl px-3" />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="act-end">
-              {ITINERARY_COPY.endsLabel}
-            </label>
-            <input id="act-end" name="endTime" type="time" defaultValue={values.endTime}
-              className="input h-10 w-full rounded-xl px-3" />
-          </div>
-        </div>
+        <SelectField
+          id="act-block"
+          name="block"
+          label={ITINERARY_COPY.blockLabel}
+          defaultValue={values.block}
+          options={BLOCKS}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="act-block">
-            {ITINERARY_COPY.blockLabel}
-          </label>
-          <select id="act-block" name="block" defaultValue={values.block}
-            className="input h-10 w-full rounded-xl px-3">
-            {BLOCKS.map((b) => (
-              <option key={b.value} value={b.value}>{b.label}</option>
-            ))}
-          </select>
-        </div>
+        <TextareaField
+          id="act-body"
+          name="body"
+          label={ITINERARY_COPY.activityBodyLabel}
+          rows={4}
+          maxLength={4000}
+          defaultValue={values.body}
+          hint={ITINERARY_COPY.activityBodyHint}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="act-body">
-            {ITINERARY_COPY.activityBodyLabel}
-          </label>
-          <textarea id="act-body" name="body" rows={4} maxLength={4000}
-            defaultValue={values.body} className="input w-full rounded-xl px-3 py-2" />
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {ITINERARY_COPY.activityBodyHint}
-          </p>
-        </div>
+        <TextareaField
+          id="act-tip"
+          name="gyasisTip"
+          label={ITINERARY_COPY.tipLabel}
+          rows={3}
+          maxLength={2000}
+          defaultValue={values.gyasisTip}
+          hint={ITINERARY_COPY.tipHint}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="act-tip">
-            {ITINERARY_COPY.tipLabel}
-          </label>
-          <textarea id="act-tip" name="gyasisTip" rows={3} maxLength={2000}
-            defaultValue={values.gyasisTip} className="input w-full rounded-xl px-3 py-2" />
-          <p className="t-body-s mt-1 text-[var(--md-on-surface-variant)]">
-            {ITINERARY_COPY.tipHint}
-          </p>
-        </div>
+        <Field
+          id="act-where"
+          name="location"
+          label={ITINERARY_COPY.whereLabel}
+          maxLength={200}
+          defaultValue={values.location}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="act-where">
-            {ITINERARY_COPY.whereLabel}
-          </label>
-          <input id="act-where" name="location" maxLength={200} defaultValue={values.location}
-            className="input h-10 w-full rounded-xl px-3" />
-        </div>
+        <Field
+          id="act-address"
+          name="address"
+          label={ITINERARY_COPY.addressLabel}
+          maxLength={200}
+          defaultValue={values.address}
+        />
 
-        <div>
-          <label className="field-label" htmlFor="act-address">
-            {ITINERARY_COPY.addressLabel}
-          </label>
-          <input id="act-address" name="address" maxLength={200} defaultValue={values.address}
-            className="input h-10 w-full rounded-xl px-3" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="field-label" htmlFor="act-phone">
-              {ITINERARY_COPY.phoneLabel}
-            </label>
-            <input id="act-phone" name="phone" maxLength={40} defaultValue={values.phone}
-              className="input h-10 w-full rounded-xl px-3" />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="act-conf">
-              {ITINERARY_COPY.confirmationLabel}
-            </label>
-            <input id="act-conf" name="confirmationNumber" maxLength={80}
+        <Box sx={GRID_2}>
+          <Field
+            id="act-phone"
+            name="phone"
+            label={ITINERARY_COPY.phoneLabel}
+            maxLength={40}
+            defaultValue={values.phone}
+          />
+          <Box sx={MONO_INPUT}>
+            <Field
+              id="act-conf"
+              name="confirmationNumber"
+              label={ITINERARY_COPY.confirmationLabel}
+              maxLength={80}
               defaultValue={values.confirmationNumber}
-              className="input h-10 w-full rounded-xl px-3 font-mono" />
-          </div>
-        </div>
-      </div>
+            />
+          </Box>
+        </Box>
+      </Stack>
 
       <Buttons tripId={tripId} pending={pending} />
-    </form>
+    </Card>
   );
 }
 
 function Buttons({ tripId, pending }: { tripId: string; pending: boolean }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
-      <button type="submit" disabled={pending} className="btn btn-orange">
+    <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+      <Button type="submit" variant="orange" disabled={pending}>
         {pending ? ITINERARY_COPY.saving : ITINERARY_COPY.save}
-      </button>
-      <Link href={`/agent/trips/${tripId}/itinerary`} className="btn btn-tonal">
+      </Button>
+      <MuiButton
+        component={NextLink}
+        href={`/agent/trips/${tripId}/itinerary`}
+        variant="outlined"
+        color="secondary"
+        sx={BTN_MD}
+      >
         {ITINERARY_COPY.cancel}
-      </Link>
-    </div>
+      </MuiButton>
+    </Box>
   );
 }

@@ -111,7 +111,7 @@ export function RegisterForm({
       <DividerWithLabel label={REGISTER_TEXT.divider} />
 
       <Box component="fieldset" disabled={isPending} sx={FIELDSET_SX}>
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.25 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 1.25 }}>
           <Field
             id="firstName"
             name="firstName"

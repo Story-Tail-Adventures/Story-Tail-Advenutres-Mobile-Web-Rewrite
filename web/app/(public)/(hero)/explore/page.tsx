@@ -76,7 +76,7 @@ export default function ExplorePage() {
           component="ul"
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
             gap: { xs: 1, md: 1.75 },
             listStyle: "none",
             m: 0,

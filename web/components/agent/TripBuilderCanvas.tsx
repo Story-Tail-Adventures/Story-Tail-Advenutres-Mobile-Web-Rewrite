@@ -1,12 +1,21 @@
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
 import {
   moveComponentAction,
   removeComponentAction,
 } from "@/app/(agent)/agent/trips/[tripId]/builder/actions";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { BUILDER_COPY } from "@/lib/agent/content";
 import type { TripComponentRow } from "@/lib/agent/tripDetail";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * §3.4.4's canvas — the trip's pieces, in the order the advisor put them.
@@ -24,8 +33,14 @@ import type { TripComponentRow } from "@/lib/agent/tripDetail";
  * keyboard path would be these buttons anyway, and they work with JavaScript off.
  *
  * A SERVER COMPONENT. Three plain `<form>`s, no client island: every control here is a
- * write that navigates, and none of them needs state between renders.
+ * write that navigates, and none of them needs state between renders. On MUI (step 2 of the
+ * migration): each row is the artboard's outlined row card, the links are MUI Buttons over
+ * `NextLink`, and the arrows and the bin are IconButtons.
  */
+
+/** The legacy .btn-sm box (32px, 16px sides, 8px gap) on MUI's Button, so nothing reflows. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
 export function TripBuilderCanvas({
   tripId,
   components,
@@ -38,33 +53,50 @@ export function TripBuilderCanvas({
 }) {
   if (components.length === 0) {
     return (
-      <div className="card px-4 py-8 text-center">
-        <p className="t-title-s">{BUILDER_COPY.emptyTitle}</p>
-        <p className="t-body-s mx-auto mt-1 max-w-[42ch] text-[var(--md-on-surface-variant)]">
-          {BUILDER_COPY.emptyBody}
-        </p>
-      </div>
+      <Card sx={{ textAlign: "center" }}>
+        <CardContent sx={{ px: 2, py: 4, "&:last-child": { pb: 4 } }}>
+          <Typography component="p" variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {BUILDER_COPY.emptyTitle}
+          </Typography>
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{ mx: "auto", mt: 0.5, maxWidth: "42ch", color: "text.secondary" }}
+          >
+            {BUILDER_COPY.emptyBody}
+          </Typography>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <ol className="flex list-none flex-col gap-1.5 p-0">
+    <Stack component="ol" spacing={0.75} sx={{ listStyle: "none", m: 0, p: 0 }}>
       {components.map((c, i) => {
         const isEditing = c.componentId === editingId;
         return (
-          <li
+          <Card
+            component="li"
+            variant="outlined"
             key={c.componentId}
             /* WRAPS ON A PHONE. Six controls, a title and a price on one 375px line squeezes
                the title to about 90px and wraps "AA 1413 · MIA → MBJ" over four lines. The
                price and the two actions drop to a second line instead, which is the only
                part of the row that reads fine right-aligned under it. */
-            className={`card flex flex-wrap items-center gap-x-2.5 gap-y-1.5 px-3 py-2.5 ${
-              isEditing ? "border-[var(--md-primary)] bg-[var(--md-primary-container)]" : ""
-            }`}
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              columnGap: 1.25,
+              rowGap: 0.75,
+              px: 1.5,
+              py: 1.25,
+              ...(isEditing && { borderColor: "primary.main", bgcolor: "primary.container" }),
+            }}
             aria-current={isEditing ? "true" : undefined}
           >
             {/* ── Order ─────────────────────────────────────────────── */}
-            <div className="flex flex-col">
+            <Box sx={{ display: "flex", flexDirection: "column" }}>
               <MoveButton
                 tripId={tripId}
                 componentId={c.componentId}
@@ -81,56 +113,88 @@ export function TripBuilderCanvas({
                 title={c.title}
                 disabled={i === components.length - 1}
               />
-            </div>
+            </Box>
 
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]">
+            <Avatar
+              variant="rounded"
+              sx={{
+                width: 32,
+                height: 32,
+                flexShrink: 0,
+                bgcolor: "secondary.container",
+                color: "secondary.onContainer",
+              }}
+            >
               <Icon name={c.icon} size={16} />
-            </span>
+            </Avatar>
 
-            {/* `basis-full` below `sm` is what actually makes the row wrap. With `flex-1`
+            {/* A 100% basis below `sm` is what actually makes the row wrap. With `flex: 1`
                 alone the title shrinks to share the line with the price and the two
                 actions instead of dropping below them — about 90px on a phone, which is
                 where "AA 1413 · MIA → MBJ" became four lines. */}
-            <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-              <p className="t-title-s text-[13px]">{c.title}</p>
+            <Box
+              sx={{
+                minWidth: 0,
+                flexGrow: 1,
+                flexShrink: 1,
+                flexBasis: { xs: "100%", sm: "auto" },
+              }}
+            >
+              <Typography component="p" variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {c.title}
+              </Typography>
               {c.subtitle && (
-                <p className="t-body-s text-[var(--md-on-surface-variant)]">{c.subtitle}</p>
+                <Typography
+                  component="p"
+                  variant="caption"
+                  sx={{ display: "block", color: "text.secondary" }}
+                >
+                  {c.subtitle}
+                </Typography>
               )}
-            </div>
+            </Box>
 
-            <div className="ml-auto flex items-center gap-2.5">
-              <div className="min-w-[70px] text-right font-mono text-xs font-bold">
+            <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1.25 }}>
+              <Typography
+                component="div"
+                variant="caption"
+                sx={{ minWidth: 70, textAlign: "right", fontFamily: "mono", fontWeight: 700 }}
+              >
                 {c.costLabel}
-              </div>
+              </Typography>
 
-              <Link
+              <MuiButton
+                component={NextLink}
                 href={`/agent/trips/${tripId}/builder?edit=${c.componentId}`}
-                className="btn btn-text btn-sm"
+                variant="text"
+                size="small"
+                sx={BTN_SM}
               >
                 {BUILDER_COPY.edit}
                 {/* The label alone reads "Edit" seven times over to a screen reader. */}
-                <span className="sr-only"> {c.title}</span>
-              </Link>
+                <Box component="span" sx={VISUALLY_HIDDEN}> {c.title}</Box>
+              </MuiButton>
 
               <form action={removeComponentAction}>
                 <input type="hidden" name="tripId" value={tripId} />
                 <input type="hidden" name="componentId" value={c.componentId} />
-                <button
+                <IconButton
                   type="submit"
-                  className="btn-icon size-7"
+                  size="small"
                   title={BUILDER_COPY.remove}
+                  sx={{ width: 28, height: 28, p: 0 }}
                 >
                   <Icon name="trash" size={13} />
-                  <span className="sr-only">
+                  <Box component="span" sx={VISUALLY_HIDDEN}>
                     {BUILDER_COPY.remove} — {c.title}
-                  </span>
-                </button>
+                  </Box>
+                </IconButton>
               </form>
-            </div>
-          </li>
+            </Box>
+          </Card>
         );
       })}
-    </ol>
+    </Stack>
   );
 }
 
@@ -154,17 +218,18 @@ function MoveButton({
       <input type="hidden" name="tripId" value={tripId} />
       <input type="hidden" name="componentId" value={componentId} />
       <input type="hidden" name="direction" value={direction} />
-      <button
+      <IconButton
         type="submit"
+        size="small"
         disabled={disabled}
-        className="btn-icon size-5 disabled:opacity-25"
         title={label}
+        sx={{ width: 20, height: 20, p: 0, "&.Mui-disabled": { opacity: 0.25 } }}
       >
         <Icon name={direction === "up" ? "chevron_up" : "chevron_down"} size={11} />
-        <span className="sr-only">
+        <Box component="span" sx={VISUALLY_HIDDEN}>
           {label} — {title}
-        </span>
-      </button>
+        </Box>
+      </IconButton>
     </form>
   );
 }

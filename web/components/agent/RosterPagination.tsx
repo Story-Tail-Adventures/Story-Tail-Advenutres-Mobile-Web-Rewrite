@@ -1,5 +1,8 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { CLIENT_COPY } from "@/lib/agent/content";
 
 /**
@@ -18,7 +21,16 @@ import { CLIENT_COPY } from "@/lib/agent/content";
  * and would have paged the advisor off the screen they were on, silently dropping the stage
  * filter on the way. Which parameters a list uses is the list's knowledge, not this
  * component's.
+ *
+ * ON MUI (step 2 of the migration, PR 6): the two links are outlined MUI Buttons rendered
+ * as Next Links, in the legacy `.btn-sm` box. The end-of-range placeholder is the same
+ * Button disabled, still a `<span>` rather than a `<button>` as it always was — MUI gives
+ * it `aria-disabled="true"` and takes it out of the tab order, which is what the legacy
+ * `aria-disabled` span meant. Plain sx, so this stays a Server Component.
  */
+
+/** The legacy `.btn.btn-sm` box on an MUI Button: 32px tall, 16px sides, 8px icon gap. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
 
 export function RosterPagination({
   hrefFor,
@@ -42,33 +54,48 @@ export function RosterPagination({
   const last = first + shown - 1;
 
   return (
-    <nav
+    <Box
+      component="nav"
       aria-label="Roster pages"
-      className="mt-3 flex items-center justify-between gap-3"
+      sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}
     >
-      <p className="t-body-s text-[var(--md-on-surface-variant)]">
+      <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
         {first}–{last} of {total}
-      </p>
-      <span className="flex gap-2">
+      </Typography>
+      <Box component="span" sx={{ display: "flex", gap: 1 }}>
         {page > 1 ? (
-          <Link href={hrefFor(page - 1)} className="btn btn-outlined btn-sm">
+          <MuiButton
+            component={NextLink}
+            href={hrefFor(page - 1)}
+            variant="outlined"
+            color="primary"
+            size="small"
+            sx={BTN_SM}
+          >
             {CLIENT_COPY.paginationPrev}
-          </Link>
+          </MuiButton>
         ) : (
-          <span className="btn btn-outlined btn-sm opacity-40" aria-disabled>
+          <MuiButton component="span" disabled variant="outlined" color="primary" size="small" sx={BTN_SM}>
             {CLIENT_COPY.paginationPrev}
-          </span>
+          </MuiButton>
         )}
         {page < pageCount ? (
-          <Link href={hrefFor(page + 1)} className="btn btn-outlined btn-sm">
+          <MuiButton
+            component={NextLink}
+            href={hrefFor(page + 1)}
+            variant="outlined"
+            color="primary"
+            size="small"
+            sx={BTN_SM}
+          >
             {CLIENT_COPY.paginationNext}
-          </Link>
+          </MuiButton>
         ) : (
-          <span className="btn btn-outlined btn-sm opacity-40" aria-disabled>
+          <MuiButton component="span" disabled variant="outlined" color="primary" size="small" sx={BTN_SM}>
             {CLIENT_COPY.paginationNext}
-          </span>
+          </MuiButton>
         )}
-      </span>
-    </nav>
+      </Box>
+    </Box>
   );
 }

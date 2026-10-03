@@ -29,7 +29,7 @@ const LIBRARY_COL = { mx: "auto", width: "100%", maxWidth: 896 } as const;
  */
 const GROUP_GRID = {
   display: "grid",
-  gridTemplateColumns: "1fr",
+  gridTemplateColumns: "minmax(0, 1fr)",
   gap: 0,
   [UP_MD]: {
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",

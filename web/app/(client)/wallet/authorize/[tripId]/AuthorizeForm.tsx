@@ -143,7 +143,7 @@ export function AuthorizeForm({
       <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
         {WALLET.limitBody}
       </Typography>
-      <Box sx={{ mt: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+      <Box sx={{ mt: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 1 }}>
         {presets.map((preset) => {
           const selected = !custom && preset.cents === cents;
           return (

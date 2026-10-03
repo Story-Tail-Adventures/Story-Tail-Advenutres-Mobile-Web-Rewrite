@@ -16,6 +16,7 @@ import { Icon } from "@/components/ui/Icon";
 import { env } from "@/lib/env";
 import { staImg } from "@/lib/images";
 import { LANDING, landingJsonLd, serializeJsonLd } from "./content";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 export const metadata: Metadata = {
   title: { absolute: LANDING.meta.title },
@@ -55,19 +56,6 @@ const GLASS_CHIP = {
   bgcolor: "var(--hero-chip-bg)",
   "& .MuiChip-icon": { color: "inherit" },
   "&:hover": { bgcolor: "var(--hero-glass-bg-hover)" },
-} as const;
-
-/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
 } as const;
 
 export default function LandingPage() {
@@ -209,7 +197,7 @@ export default function LandingPage() {
               mt: 1.25,
               display: { xs: "flex", md: "grid" },
               flexDirection: "column",
-              gridTemplateColumns: { md: "repeat(3, 1fr)" },
+              gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
               gap: 1.25,
             }}
           >

@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
@@ -18,7 +20,10 @@ import { fieldInputSx, fieldLabelSx } from "./Field";
  * server-action form receives the value with no JavaScript involved, and tests keep native
  * semantics. The arrow is MUI's stock one, which follows currentColor into the dark scheme.
  *
- * No "use client": the onboarding and agent forms that render this are Server Components.
+ * "use client" because NativeSelect's `input` is an element it clones and reads `.props`
+ * off; built in a Server Component that element has no readable props and the page 500s
+ * during server rendering. As a client module, a Server Component can still render
+ * <SelectField> with plain props (options is an array). See components/mui/OutlinedNativeSelect.
  */
 
 export interface SelectOption {

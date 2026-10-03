@@ -63,7 +63,7 @@ export function CruiseCard({ sailing }: { sailing: PublicSailing }) {
         // have no photo: the catalog covers 151 curated hulls, but the sync mints a stub
         // `cruise_ship` for any ship name it has not seen, and a stub has no imagery. An
         // unconditional `180px 1fr` left those cards with a 180px hole.
-        ...(sailing.shipImage && { [UP_WEB]: { gridTemplateColumns: "180px 1fr" } }),
+        ...(sailing.shipImage && { [UP_WEB]: { gridTemplateColumns: "180px minmax(0, 1fr)" } }),
       }}
     >
       {sailing.shipImage && (

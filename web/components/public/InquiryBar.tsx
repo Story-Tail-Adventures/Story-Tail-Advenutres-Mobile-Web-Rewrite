@@ -9,7 +9,7 @@ import Typography from "@mui/material/Typography";
 import NextLink from "@/components/mui/NextLink";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
-import { TAP_TARGET } from "@/lib/mui/sx";
+import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
 import { Container } from "./Container";
 
 export interface InquiryField {
@@ -36,19 +36,6 @@ interface InquiryBarProps {
 
 /** The brand-orange glyph beside a value, as every search cell draws it. */
 const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
-
-/** Off-screen but read aloud — the box MUI's visuallyHidden draws. */
-const VISUALLY_HIDDEN = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
 
 /**
  * The sticky band the pill sits in on topic pages. `.sticky-under-topbar` (public.css) owns

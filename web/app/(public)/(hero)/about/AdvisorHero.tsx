@@ -77,7 +77,7 @@ export function AdvisorHero({ overline, title, script, lead, primary, secondary 
         sx={{
           display: "grid",
           minHeight: 380,
-          [UP_MD]: { gridTemplateColumns: "1.3fr 1fr", minHeight: 420 },
+          [UP_MD]: { gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)", minHeight: 420 },
         }}
       >
         <Box

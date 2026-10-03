@@ -1,11 +1,21 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import Typography from "@mui/material/Typography";
 
 import { saveAsTemplateAction } from "@/app/(agent)/agent/templates/actions";
+import { Alert } from "@/components/ui/Alert";
+import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { TEMPLATE_COPY } from "@/lib/agent/content";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * §3.4.13's "create from existing trip", reached from the trip that is being saved.
@@ -22,13 +32,26 @@ import { TEMPLATE_COPY } from "@/lib/agent/content";
  *
  * THE BODY SAYS WHAT DOES NOT COME ACROSS, which matters more than what does. An advisor
  * who assumes a confirmation number came with the pattern will read one to a client.
+ *
+ * ON MUI (step 2 of the migration, "MUI everywhere"): the native `<dialog>` is an MUI
+ * Dialog driven by React state; the Modal brings the focus trap, Escape, the backdrop and
+ * focus back to the trigger on close. The trigger is an outlined small MUI Button; `className`
+ * still reaches it for the two callers, and `fullWidth` is how the rail stretches it.
  */
+
+/** The legacy .btn-sm box (32px, 16px sides, 8px gap) on MUI's Button, so nothing reflows. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The legacy dialog box: 520px, or the viewport less a 16px gutter on a phone. */
+const DIALOG_PAPER_SX = { m: 2, width: "min(520px, calc(100vw - 2rem))", maxWidth: "none" } as const;
+
 export function SaveAsTemplateDialog({
   tripId,
   tripTitle,
   suggestedName,
   label,
-  className = "btn btn-outlined btn-sm",
+  className,
+  fullWidth = false,
 }: {
   tripId: string;
   tripTitle: string;
@@ -36,8 +59,11 @@ export function SaveAsTemplateDialog({
   suggestedName?: string;
   label: string;
   className?: string;
+  /** Stretch the trigger to its container — the builder's rail. */
+  fullWidth?: boolean;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
   const [name, setName] = useState(suggestedName ?? tripTitle);
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -45,13 +71,15 @@ export function SaveAsTemplateDialog({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  function open() {
+  function show() {
     setError(null);
     setReceipt(null);
     setName(suggestedName ?? tripTitle);
     setDescription("");
-    ref.current?.showModal();
+    setOpen(true);
   }
+
+  const close = () => setOpen(false);
 
   function submit() {
     setError(null);
@@ -75,117 +103,165 @@ export function SaveAsTemplateDialog({
 
   return (
     <>
-      <button type="button" className={className} onClick={open}>
-        {label}
-        <span className="sr-only"> — {tripTitle}</span>
-      </button>
-
-      <dialog
-        ref={ref}
-        className="card m-auto w-[min(520px,calc(100vw-2rem))] p-5 backdrop:bg-black/45"
-        aria-label={TEMPLATE_COPY.saveTitle}
+      <MuiButton
+        type="button"
+        variant="outlined"
+        size="small"
+        fullWidth={fullWidth}
+        className={className}
+        sx={BTN_SM}
+        onClick={show}
       >
-        <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]">
-            {/* `star`, not `bookmark` — icon-paths.ts has no bookmark glyph, and adding one for a
-                dialog header is a design-system change for no gain. */}
-            <Icon name="star" size={18} />
-          </span>
-          <div className="min-w-0">
-            <span className="t-label-s block text-[var(--md-on-surface-variant)]">
-              {TEMPLATE_COPY.saveEyebrow}
-            </span>
-            <h2 className="t-title-l m-0 break-words">{TEMPLATE_COPY.saveTitle}</h2>
-          </div>
-        </div>
+        {label}
+        <Box component="span" sx={VISUALLY_HIDDEN}> — {tripTitle}</Box>
+      </MuiButton>
 
-        <p className="t-body mt-2 text-[var(--md-on-surface-variant)]">
-          {TEMPLATE_COPY.saveBody}
-        </p>
-        <p className="t-body-s mt-1.5 text-[var(--md-on-surface-variant)]">
-          {TEMPLATE_COPY.saveExcludes}
-        </p>
-
-        {receipt ? (
-          <>
-            <p className="t-body mt-3 text-[var(--md-on-surface)]" role="status">
-              {receipt}
-            </p>
-            <div className="mt-3.5 flex items-center gap-2">
-              <button
-                type="button"
-                className="btn btn-tonal btn-sm ml-auto"
-                onClick={() => ref.current?.close()}
+      <Dialog
+        open={open}
+        // Like the native <dialog> this replaced: Escape closes, a stray backdrop click does
+        // not (it would throw away what was typed), and nothing closes mid-write.
+        onClose={(_event, reason) => {
+          if (reason !== "backdropClick" && !pending) close();
+        }}
+        maxWidth={false}
+        aria-labelledby={titleId}
+        slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
+      >
+        <DialogContent sx={{ p: 2.5 }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+            <Avatar
+              sx={{
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                bgcolor: "secondary.container",
+                color: "secondary.onContainer",
+              }}
+            >
+              {/* `star`, not `bookmark` — icon-paths.ts has no bookmark glyph, and adding one for a
+                  dialog header is a design-system change for no gain. */}
+              <Icon name="star" size={18} />
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                component="span"
+                variant="overline"
+                sx={{ display: "block", lineHeight: 1.3, color: "text.secondary" }}
               >
-                {TEMPLATE_COPY.done}
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="mt-3">
-              <label htmlFor="template-name" className="field-label">
-                {TEMPLATE_COPY.saveNameLabel}
-              </label>
-              <input
-                id="template-name"
-                className="input"
-                placeholder={TEMPLATE_COPY.saveNamePlaceholder}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={pending}
-                required
-              />
-            </div>
-            <div className="mt-3">
-              <label htmlFor="template-description" className="field-label">
-                {TEMPLATE_COPY.saveDescriptionLabel}
-              </label>
-              <input
-                id="template-description"
-                className="input"
-                placeholder={TEMPLATE_COPY.saveDescriptionPlaceholder}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={pending}
-              />
-            </div>
+                {TEMPLATE_COPY.saveEyebrow}
+              </Typography>
+              <Typography
+                id={titleId}
+                component="h2"
+                variant="h5"
+                sx={{ m: 0, overflowWrap: "break-word" }}
+              >
+                {TEMPLATE_COPY.saveTitle}
+              </Typography>
+            </Box>
+          </Box>
 
-            {/* A courtesy, not the enforcement: the Edge Function and the RPC both refuse a
-                blank name, and one rule in three places is one rule that drifts. */}
-            {name.trim() === "" && (
-              <p className="t-body-s mt-2 text-[var(--md-on-surface-variant)]">
-                {TEMPLATE_COPY.saveNameRequired}
-              </p>
-            )}
+          <Typography component="p" variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+            {TEMPLATE_COPY.saveBody}
+          </Typography>
+          <Typography
+            component="p"
+            variant="caption"
+            sx={{ display: "block", mt: 0.75, color: "text.secondary" }}
+          >
+            {TEMPLATE_COPY.saveExcludes}
+          </Typography>
 
-            {error && (
-              <p className="t-body-s mt-2 text-[var(--md-error)]" role="alert">
-                {error}
-              </p>
-            )}
+          {receipt ? (
+            <Typography component="p" variant="body2" role="status" sx={{ mt: 1.5 }}>
+              {receipt}
+            </Typography>
+          ) : (
+            <>
+              <Box sx={{ mt: 1.5 }}>
+                <Field
+                  id="template-name"
+                  label={TEMPLATE_COPY.saveNameLabel}
+                  placeholder={TEMPLATE_COPY.saveNamePlaceholder}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={pending}
+                  required
+                />
+              </Box>
+              <Box sx={{ mt: 1.5 }}>
+                <Field
+                  id="template-description"
+                  label={TEMPLATE_COPY.saveDescriptionLabel}
+                  placeholder={TEMPLATE_COPY.saveDescriptionPlaceholder}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={pending}
+                />
+              </Box>
 
-            <div className="mt-3.5 flex items-center gap-2">
-              <button
+              {/* A courtesy, not the enforcement: the Edge Function and the RPC both refuse a
+                  blank name, and one rule in three places is one rule that drifts. */}
+              {name.trim() === "" && (
+                <Typography
+                  component="p"
+                  variant="caption"
+                  sx={{ display: "block", mt: 1, color: "text.secondary" }}
+                >
+                  {TEMPLATE_COPY.saveNameRequired}
+                </Typography>
+              )}
+
+              {error && (
+                <Box sx={{ mt: 1 }}>
+                  <Alert tone="error">{error}</Alert>
+                </Box>
+              )}
+            </>
+          )}
+        </DialogContent>
+
+        <DialogActions
+          sx={{ px: 2.5, pb: 2.5, pt: 0, justifyContent: receipt ? "flex-end" : "space-between" }}
+        >
+          {receipt ? (
+            <MuiButton
+              type="button"
+              variant="outlined"
+              color="secondary"
+              size="small"
+              sx={BTN_SM}
+              onClick={close}
+            >
+              {TEMPLATE_COPY.done}
+            </MuiButton>
+          ) : (
+            <>
+              <MuiButton
                 type="button"
-                className="btn btn-outlined btn-sm"
+                variant="outlined"
+                size="small"
+                sx={BTN_SM}
                 disabled={pending}
-                onClick={() => ref.current?.close()}
+                onClick={close}
               >
                 {TEMPLATE_COPY.cancel}
-              </button>
-              <button
+              </MuiButton>
+              <MuiButton
                 type="button"
-                className="btn btn-tonal btn-sm ml-auto"
+                variant="outlined"
+                color="secondary"
+                size="small"
+                sx={BTN_SM}
                 disabled={pending || name.trim() === ""}
                 onClick={submit}
               >
                 {pending ? TEMPLATE_COPY.saving : TEMPLATE_COPY.saveConfirm}
-              </button>
-            </div>
-          </>
-        )}
-      </dialog>
+              </MuiButton>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

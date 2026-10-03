@@ -169,7 +169,7 @@ export default async function DashboardPage() {
             mt: 2,
             display: "grid",
             gap: 1.5,
-            gridTemplateColumns: { xs: "1fr", web: "2.1fr 1fr" },
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", web: "minmax(0, 2.1fr) minmax(0, 1fr)" },
           }}
         >
           <HeroCountdown trip={upcoming} days={days} itineraryReady={itineraryReady} />
@@ -457,7 +457,7 @@ function TripSection({
             display: "grid",
             gap: 1.5,
             gridTemplateColumns: {
-              xs: "1fr",
+              xs: "minmax(0, 1fr)",
               md: "repeat(2, minmax(0, 1fr))",
               web: "repeat(3, minmax(0, 1fr))",
             },

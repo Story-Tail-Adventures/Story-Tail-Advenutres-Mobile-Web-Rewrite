@@ -48,7 +48,7 @@ const LAYOUT = {
   flex: 1,
   display: "grid",
   [UP_MD]: {
-    gridTemplateColumns: "260px 1fr",
+    gridTemplateColumns: "260px minmax(0, 1fr)",
     minHeight: "calc(100dvh - var(--public-topbar-h))",
   },
 } as const;

@@ -34,7 +34,7 @@ export const RESULT_LIST_SX = {
   display: "flex",
   flexDirection: "column",
   gap: 1.25,
-  [MD_TO_WEB]: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.75 },
+  [MD_TO_WEB]: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 1.75 },
 } as const;
 
 /**
@@ -60,15 +60,4 @@ export const RAIL_FRAME_SX = {
   pr: 2,
 } as const;
 
-/** Tailwind's `sr-only`, as sx: visually hidden, still read by assistive technology. */
-export const VISUALLY_HIDDEN_SX = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0, 0, 0, 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-} as const;
+export { VISUALLY_HIDDEN as VISUALLY_HIDDEN_SX } from "@/lib/mui/sx";

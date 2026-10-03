@@ -60,14 +60,14 @@ const TESTIMONIAL_STRIP = {
   "& > *": { scrollSnapAlign: "start", flexShrink: 0 },
   [UP_MD]: {
     display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 1.75,
     overflow: "visible",
     mx: 0,
     px: 0,
     pb: 0,
   },
-  [UP_WEB]: { gridTemplateColumns: "repeat(3, 1fr)" },
+  [UP_WEB]: { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" },
 } as const;
 
 function Rich({ parts }: { parts: RichText }) {
@@ -108,7 +108,7 @@ export default function AboutGyasiPage() {
             ...SECTION_GAP,
             display: "grid",
             gap: 3.5,
-            [UP_WEB]: { gridTemplateColumns: "1.4fr 1fr" },
+            [UP_WEB]: { gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)" },
           }}
         >
           <section aria-labelledby="story">

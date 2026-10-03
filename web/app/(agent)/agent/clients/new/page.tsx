@@ -1,5 +1,8 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { ClientForm } from "@/components/agent/ClientForm";
 import { Icon } from "@/components/ui/Icon";
 import { CLIENT_COPY } from "@/lib/agent/content";
@@ -21,27 +24,41 @@ import { loadClientRoster } from "@/lib/agent/clients";
 
 export const metadata = { title: "New client" };
 
+/** The page column: `mx-auto w-full max-w-[860px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 860,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
 export default async function NewClientPage() {
   const roster = await loadClientRoster({ status: "active", tags: [], search: "", page: 1 });
 
   return (
-    <div className="mx-auto w-full max-w-[860px] px-4 py-6 md:px-8">
-      <Link
+    <Box sx={PAGE_SX}>
+      <MuiLink
+        component={NextLink}
         href="/agent/clients"
-        className="t-body-s inline-flex items-center gap-1 text-[var(--md-on-surface-variant)] hover:underline"
+        variant="body2"
+        underline="hover"
+        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}
       >
         <Icon name="arrow_left" size={13} />
         {CLIENT_COPY.backToRoster}
-      </Link>
+      </MuiLink>
 
-      <header className="mb-4 mt-2.5">
-        <h1 className="t-title-l m-0">{CLIENT_COPY.newClientTitle}</h1>
-        <p className="t-body-s mt-0.5 text-[var(--md-on-surface-variant)]">
+      <Box component="header" sx={{ mb: 2, mt: 1.25 }}>
+        <Typography component="h1" variant="h5" sx={{ m: 0 }}>
+          {CLIENT_COPY.newClientTitle}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 0.25, color: "text.secondary" }}>
           {CLIENT_COPY.newClientSub}
-        </p>
-      </header>
+        </Typography>
+      </Box>
 
       <ClientForm mode="create" suggestedTags={roster?.facets.map((f) => f.tag) ?? []} />
-    </div>
+    </Box>
   );
 }

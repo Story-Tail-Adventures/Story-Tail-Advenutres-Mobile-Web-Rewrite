@@ -1,3 +1,9 @@
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 import { Icon } from "@/components/ui/Icon";
 import { AGENT_COPY } from "@/lib/agent/content";
 import type { TripDocumentRow } from "@/lib/agent/tripDetail";
@@ -18,29 +24,54 @@ const KIND_LABEL: Record<string, string> = {
   other: "Other",
 };
 
+/** The artboard's compact row card (`A34_MuiRowCard` in agent-trip.jsx). */
+const ROW_SX = {
+  py: 1.25,
+  px: 1.75,
+  display: "flex",
+  gap: 1.5,
+  alignItems: "center",
+  "&:last-child": { pb: 1.25 },
+} as const;
+
 export function TripDocumentsList({ documents }: { documents: TripDocumentRow[] }) {
   if (documents.length === 0) {
     return (
-      <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
+      <Typography component="p" variant="body2" sx={{ px: 0.5, py: 2, color: "text.secondary" }}>
         {AGENT_COPY.tripDocumentsEmpty}
-      </p>
+      </Typography>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <Stack spacing={0.75}>
       {documents.map((d) => (
-        <div key={d.documentId} className="card flex items-center gap-3 px-3.5 py-2.5">
-          <Icon name="passport" size={16} className="shrink-0 text-[var(--md-on-surface-variant)]" />
-          <div className="min-w-0 flex-1">
-            <p className="t-title-s truncate text-[13px]">{d.filename}</p>
-            <p className="t-body-s text-[var(--md-on-surface-variant)]">
-              {KIND_LABEL[d.kind] ?? d.kind} · {d.sizeLabel}
-              {d.createdLabel ? ` · ${d.createdLabel}` : ""}
-            </p>
-          </div>
-        </div>
+        <Card key={d.documentId}>
+          <CardContent sx={ROW_SX}>
+            <Box sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
+              <Icon name="passport" size={16} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {d.filename}
+              </Typography>
+              <Typography variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+                {KIND_LABEL[d.kind] ?? d.kind} · {d.sizeLabel}
+                {d.createdLabel ? ` · ${d.createdLabel}` : ""}
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
       ))}
-    </div>
+    </Stack>
   );
 }

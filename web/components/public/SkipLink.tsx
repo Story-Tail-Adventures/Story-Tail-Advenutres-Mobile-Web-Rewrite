@@ -1,19 +1,12 @@
 import MuiButton from "@mui/material/Button";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Visually hidden until focused — the sr-only / focus:not-sr-only pair, written out in sx.
  * `1px` strings, not `1`: MUI's sizing props read a bare `1` as 100%.
  */
 const SKIP_LINK = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  p: 0,
-  m: "-1px",
-  overflow: "hidden",
-  clip: "rect(0, 0, 0, 0)",
-  whiteSpace: "nowrap",
-  border: 0,
+  ...VISUALLY_HIDDEN,
   "&:focus": {
     top: 8,
     left: 8,

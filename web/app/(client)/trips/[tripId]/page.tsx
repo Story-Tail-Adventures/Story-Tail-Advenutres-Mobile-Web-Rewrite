@@ -124,7 +124,7 @@ export default async function TripDetailPage({
           display: "grid",
           gap: 2,
           p: { xs: 2, md: 3 },
-          gridTemplateColumns: { web: "1fr 300px" },
+          gridTemplateColumns: { web: "minmax(0, 1fr) 300px" },
         }}
       >
         <Box>

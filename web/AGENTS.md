@@ -30,12 +30,26 @@ server actions, and client references such as `component={NextLink}` from
 handlers, render props, or function-valued `slotProps`. `styled()` lives only in `"use client"`
 files. A mistake here on a page behind auth fails at request time, not at build time.
 
+Some MUI components READ the props of an element you hand them (`NativeSelect input`,
+`FormControlLabel control`, Chip/Avatar slots that clone): written in a Server Component that
+element has no readable props, and server rendering throws. The page then **500s quietly**:
+the browser re-renders it client-side and it looks fine, so check the HTTP status, not just
+the screen. Use `components/mui/OutlinedNativeSelect` / `components/ui/Select` (both client
+modules), and keep FormControlLabel in "use client" files.
+
 **Colors** come from palette paths, never hexes: the M3 roles (`primary.container`,
 `primary.onContainer`, `tertiary.main`), `surface.main` / `surface.1`–`surface.5`,
 `outline.main` / `outline.variant`, `status.<kind>.bg` / `.fg`, `brand.main` (the orange),
 `text.primary` / `text.secondary`, `divider`. The full map is in `docs/Design-System.md`
 §12.2. Token values live in `lib/mui/tokens.ts` (pure data); `lib/mui/tokens.test.ts` fails if
 they drift from the CSS tokens.
+
+**sx traps** (each one shipped once, each now has a test in `test/`): a bare number from 0
+to 1 for width/height is a FRACTION (`width: 1` is 100%), so use `VISUALLY_HIDDEN` from
+`lib/mui/sx.ts` rather than a hand-written copy; grid tracks are `minmax(0, 1fr)`, never a bare
+`1fr` (which cannot shrink below its content); put `m: 0` / `p: 0` BEFORE `mt` / `pt` in the
+same object; `TAP_TARGET` goes on the element that is clicked, never on a wrapper or on an
+absolutely positioned element.
 
 **Type** uses MUI's variants on Poppins; `variant="script"` is the Caveat wordmark;
 `sx={{ fontFamily: "mono" }}` is JetBrains Mono. **Spacing** is MUI's 8px scale (`p: 2` is

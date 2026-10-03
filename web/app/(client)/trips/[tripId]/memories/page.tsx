@@ -196,7 +196,7 @@ export default async function MemoriesPage({
                 display: "grid",
                 gap: 1.25,
                 gridTemplateColumns: {
-                  xs: "1fr",
+                  xs: "minmax(0, 1fr)",
                   md: "repeat(3, minmax(0, 1fr))",
                   web: "repeat(4, minmax(0, 1fr))",
                 },
