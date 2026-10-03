@@ -270,7 +270,11 @@ export function TripComponentSheet({
         {spec.detail.map((field) =>
           field.kind === "flag" ? (
             <FormControlLabel
-              key={field.key}
+              // The default is in the key: MUI's Checkbox reads `defaultChecked` only at mount,
+              // and a failed save swaps `values` from the saved row to what was submitted.
+              // Remounting takes the new default instead of a MUI "changing the default
+              // checked state" warning.
+              key={`${field.key}:${values.detail[field.key] === "on" ? "on" : "off"}`}
               sx={{ m: 0, ml: -1.125 }}
               control={
                 <Checkbox
