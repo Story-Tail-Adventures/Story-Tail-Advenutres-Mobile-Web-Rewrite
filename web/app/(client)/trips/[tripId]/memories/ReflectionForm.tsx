@@ -1,10 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Typography from "@mui/material/Typography";
 
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { saveReflection, type ReflectionState } from "@/lib/trips/actions";
 import type { PastTripView } from "@/lib/trips/queries";
+import { BTN, CARD_PAD, TITLE_S } from "../sx";
 import { MEMORIES } from "./content";
 
 const IDLE: ReflectionState = { status: "idle" };
@@ -44,15 +53,32 @@ export function ReflectionForm({
 
   if (submitted) {
     return (
-      <section className="card border-0 bg-secondary-container p-4 text-on-secondary-container">
-        <h2 className="t-title-s">{MEMORIES.reflectionSubmittedHeading}</h2>
-        <p className="t-body-s mt-1 opacity-90">{MEMORIES.reflectionSubmittedBody}</p>
-        {reflection?.body && (
-          <blockquote className="t-body mt-3 border-l-2 border-current/30 pl-3 opacity-90">
-            {reflection.body}
-          </blockquote>
-        )}
-      </section>
+      <Card component="section" sx={{ bgcolor: "secondary.container", color: "secondary.onContainer" }}>
+        <CardContent sx={CARD_PAD}>
+          <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+            {MEMORIES.reflectionSubmittedHeading}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 0.5, opacity: 0.9 }}>
+            {MEMORIES.reflectionSubmittedBody}
+          </Typography>
+          {reflection?.body && (
+            <Typography
+              component="blockquote"
+              variant="body2"
+              sx={{
+                m: 0,
+                mt: 1.5,
+                pl: 1.5,
+                borderLeft: 2,
+                borderColor: "color-mix(in srgb, currentColor 30%, transparent)",
+                opacity: 0.9,
+              }}
+            >
+              {reflection.body}
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
     );
   }
 
@@ -60,63 +86,79 @@ export function ReflectionForm({
   const empty = draft.trim().length === 0;
 
   return (
-    <section className="card p-4">
-      <h2 className="t-title-s">{MEMORIES.reflectionHeading}</h2>
-      <p className="t-body-s mt-1 text-on-surface-variant">{MEMORIES.reflectionBody}</p>
+    <Card component="section">
+      <CardContent sx={CARD_PAD}>
+        <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+          {MEMORIES.reflectionHeading}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
+          {MEMORIES.reflectionBody}
+        </Typography>
 
-      {state.status === "saved" && (
-        <p role="status" className="t-body-s mt-2 text-secondary">
-          {MEMORIES.reflectionSaved}
-        </p>
-      )}
-      {state.status === "error" && (
-        <p role="alert" className="t-body-s mt-2 text-error">
-          {state.message}
-        </p>
-      )}
+        {state.status === "saved" && (
+          <Box sx={{ mt: 1 }}>
+            <Alert tone="success" role="status">
+              {MEMORIES.reflectionSaved}
+            </Alert>
+          </Box>
+        )}
+        {state.status === "error" && (
+          <Box sx={{ mt: 1 }}>
+            <Alert tone="error">{state.message}</Alert>
+          </Box>
+        )}
 
-      {!open ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="btn btn-tonal mt-3 w-full"
-        >
-          {reflection?.body ? MEMORIES.reflectionEditCta : MEMORIES.reflectionCta}
-        </button>
-      ) : (
-        <form action={action} className="mt-3" onSubmit={() => setTyped(null)}>
-          {reflection?.id && <input type="hidden" name="testimonialId" value={reflection.id} />}
-          <textarea
-            name="body"
-            rows={5}
-            value={draft}
-            onChange={(event) => setTyped(event.target.value)}
-            placeholder={MEMORIES.reflectionPlaceholder}
-            aria-label={MEMORIES.reflectionHeading}
-            className="t-body w-full resize-y rounded-xl border border-outline-variant bg-bg px-3.5 py-2.5 text-on-surface placeholder:text-on-surface-variant"
-          />
-          <div className="mt-2.5 flex flex-col gap-2 md:flex-row">
-            <button
-              type="submit"
-              name="intent"
-              value="save"
-              disabled={pending || empty}
-              className="btn btn-outlined flex-1"
-            >
-              {MEMORIES.reflectionSave}
-            </button>
-            <button
-              type="submit"
-              name="intent"
-              value="submit"
-              disabled={pending || empty}
-              className="btn btn-filled flex-1"
-            >
-              <Icon name="send" size={13} /> {MEMORIES.reflectionSubmit}
-            </button>
-          </div>
-        </form>
-      )}
-    </section>
+        {!open ? (
+          <Box sx={{ mt: 1.5 }}>
+            <Button variant="tonal" fullWidth onClick={() => setOpen(true)}>
+              {reflection?.body ? MEMORIES.reflectionEditCta : MEMORIES.reflectionCta}
+            </Button>
+          </Box>
+        ) : (
+          <Box component="form" action={action} onSubmit={() => setTyped(null)} sx={{ mt: 1.5 }}>
+            {reflection?.id && <input type="hidden" name="testimonialId" value={reflection.id} />}
+            {/* A plain native textarea inside MUI's outline (the components/ui/Textarea
+                shape, without its visible label — the heading names this box through
+                aria-label, as before). `inputComponent="textarea"` keeps the fixed `rows`
+                rather than an autosizing field. */}
+            <OutlinedInput
+              name="body"
+              multiline
+              inputComponent="textarea"
+              rows={5}
+              fullWidth
+              size="small"
+              value={draft}
+              onChange={(event) => setTyped(event.target.value)}
+              placeholder={MEMORIES.reflectionPlaceholder}
+              inputProps={{ "aria-label": MEMORIES.reflectionHeading, type: undefined }}
+              sx={{ "& textarea": { resize: "vertical" } }}
+            />
+            <Box sx={{ mt: 1.25, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 1 }}>
+              <MuiButton
+                type="submit"
+                name="intent"
+                value="save"
+                disabled={pending || empty}
+                variant="outlined"
+                sx={{ ...BTN, flex: 1 }}
+              >
+                {MEMORIES.reflectionSave}
+              </MuiButton>
+              <MuiButton
+                type="submit"
+                name="intent"
+                value="submit"
+                disabled={pending || empty}
+                variant="contained"
+                sx={{ ...BTN, flex: 1 }}
+              >
+                <Icon name="send" size={13} /> {MEMORIES.reflectionSubmit}
+              </MuiButton>
+            </Box>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
   );
 }

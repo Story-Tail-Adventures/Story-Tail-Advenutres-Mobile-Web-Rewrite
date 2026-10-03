@@ -1,13 +1,34 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import MuiLink from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 
 import { AccountHeader } from "../AccountHeader";
 import { PRIVACY } from "./content";
 
 export const metadata: Metadata = { title: "Privacy & data" };
+
+/** The legacy `.btn` box (40px, 24px sides) on MUI's Button, for the link button. */
+const BTN_SX = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The uppercase group label SettingsGroup draws, for a section here that is not one. */
+const GROUP_LABEL_SX = {
+  display: "block",
+  mt: 3,
+  mb: 1,
+  px: 0.5,
+  lineHeight: 1.3,
+  color: "text.secondary",
+} as const;
+
+const TITLE_ROW_SX = { display: "flex", alignItems: "center", gap: 1 } as const;
 
 /**
  * Screen Inventory 2.5.9 — Privacy & Data Export. §4.4 Pattern A.
@@ -36,54 +57,76 @@ export default function PrivacyPage() {
     <div className="client-fill">
       <AccountHeader title={PRIVACY.title} sub={PRIVACY.subtitle} />
 
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-        <Card className="p-5">
-          <div className="flex items-center gap-2">
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
+        <Card sx={{ p: 2.5 }}>
+          <Box sx={TITLE_ROW_SX}>
             <Icon name="download" size={18} />
-            <h2 className="t-title-s">{PRIVACY.exportTitle}</h2>
-          </div>
-          <p className="t-body-s mt-1.5 text-on-surface-variant">{PRIVACY.exportBody}</p>
-          <button
-            type="button"
-            className="btn btn-filled mt-4 w-full"
-            disabled
-            aria-disabled="true"
-            title={PRIVACY.exportDeferred}
+            <Typography component="h2" variant="subtitle1">
+              {PRIVACY.exportTitle}
+            </Typography>
+          </Box>
+          <Typography component="p" variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+            {PRIVACY.exportBody}
+          </Typography>
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="filled"
+              fullWidth
+              disabled
+              aria-disabled="true"
+              title={PRIVACY.exportDeferred}
+            >
+              {PRIVACY.exportCta}
+            </Button>
+          </Box>
+          <Typography
+            component="p"
+            variant="caption"
+            sx={{ mt: 1, display: "block", textAlign: "center", color: "text.secondary" }}
           >
-            {PRIVACY.exportCta}
-          </button>
-          <p className="t-body-s mt-2 text-center text-on-surface-variant">
             {PRIVACY.exportDeferred}
-          </p>
+          </Typography>
         </Card>
 
-        <h2 className="t-label mt-6 mb-2 px-1 tracking-wide text-on-surface-variant">
+        <Typography component="h2" variant="overline" sx={GROUP_LABEL_SX}>
           {PRIVACY.trackingHeading}
-        </h2>
-        <Card className="flex gap-3 p-4">
-          <Icon name="shield" size={18} className="shrink-0 text-on-surface-variant" />
-          <p className="t-body-s text-on-surface-variant">
+        </Typography>
+        <Card sx={{ display: "flex", gap: 1.5, p: 2 }}>
+          <Box sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
+            <Icon name="shield" size={18} />
+          </Box>
+          <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
             {PRIVACY.trackingBody}{" "}
-            <Link href="/legal/cookies" className="underline">
+            <MuiLink component={NextLink} href="/legal/cookies">
               {PRIVACY.cookiesLink}
-            </Link>
-          </p>
+            </MuiLink>
+          </Typography>
         </Card>
 
-        <Card className="mt-6 border-0 bg-error-container p-5 text-on-error-container">
-          <div className="flex items-center gap-2">
+        {/* The artboard's closure panel: a flat Paper on error.container with a contained
+            error button, in place of the legacy card's inverted on-container button. */}
+        <Paper elevation={0} sx={{ mt: 3, p: 2.5, bgcolor: "error.container", color: "error.onContainer" }}>
+          <Box sx={TITLE_ROW_SX}>
             <Icon name="warning" size={18} />
-            <h2 className="t-title-s">{PRIVACY.closeTitle}</h2>
-          </div>
-          <p className="t-body-s mt-1.5 opacity-90">{PRIVACY.closeBody}</p>
-          <Link
+            <Typography component="h2" variant="subtitle1">
+              {PRIVACY.closeTitle}
+            </Typography>
+          </Box>
+          <Typography component="p" variant="body2" sx={{ mt: 0.75, opacity: 0.9 }}>
+            {PRIVACY.closeBody}
+          </Typography>
+          <MuiButton
+            component={NextLink}
             href="/account/close"
-            className="btn mt-4 w-full bg-on-error-container text-error-container"
+            variant="contained"
+            color="error"
+            fullWidth
+            sx={{ ...BTN_SX, mt: 2 }}
           >
             {PRIVACY.closeCta}
-          </Link>
-        </Card>
-      </div>
+          </MuiButton>
+        </Paper>
+      </Box>
     </div>
   );
 }

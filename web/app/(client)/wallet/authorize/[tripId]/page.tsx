@@ -1,10 +1,24 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 
+import {
+  BACK_LINK_SX,
+  BODY_S,
+  CARD_PAD,
+  HEADLINE,
+  MAX_W_2XL,
+  TITLE_S,
+  pageSx,
+} from "@/components/client/client-sx";
 import { RetryState } from "@/components/client/RetryState";
+import { StatusChip } from "@/components/ui/StatusChip";
 import { EmptyState } from "@/components/client/states";
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { formatMoney } from "@/lib/public/money";
 import { currentPlatformUser, loadTripDetail } from "@/lib/trips/queries";
@@ -63,27 +77,51 @@ export default async function AuthorizePage({
   const expiry = defaultExpiry(trip.trip.endDate, new Date());
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5 md:px-6 md:py-7">
-      <Link href={`/trips/${tripId}`} className="btn btn-text btn-sm tap-44 -ml-1 mb-1 inline-flex">
-        <Icon name="arrow_left" size={14} />
+    <Box sx={pageSx(MAX_W_2XL)}>
+      <MuiButton
+        component={NextLink}
+        href={`/trips/${tripId}`}
+        variant="text"
+        size="small"
+        startIcon={<Icon name="arrow_left" size={14} />}
+        sx={BACK_LINK_SX}
+      >
         {trip.trip.title}
-      </Link>
+      </MuiButton>
 
-      <h1 className="t-headline">{WALLET.authorizeTitle}</h1>
+      <Typography component="h1" variant="h5" sx={HEADLINE}>
+        {WALLET.authorizeTitle}
+      </Typography>
 
-      <Card className="mt-3 p-4">
-        <span className="chip-status booked">{trip.trip.statusLabel}</span>
-        <p className="t-title-s mt-2">{trip.trip.title}</p>
-        <p className="t-body-s text-on-surface-variant">
-          {trip.trip.destinations.join(", ")}
-          {trip.trip.travelerCount ? ` · ${trip.trip.travelerCount} travelers` : ""}
-        </p>
-        <div className="mt-3 flex items-baseline justify-between border-t border-outline-variant pt-3">
-          <span className="t-body-s text-on-surface-variant">Balance due</span>
-          <span className="t-title-s font-mono">
-            {formatMoney({ amountCents: balanceDueCents, currency: "USD" })}
-          </span>
-        </div>
+      <Card sx={{ mt: 1.5 }}>
+        <CardContent sx={CARD_PAD}>
+          <StatusChip kind="booked" label={trip.trip.statusLabel} />
+          <Typography component="p" variant="subtitle1" sx={{ ...TITLE_S, mt: 1 }}>
+            {trip.trip.title}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
+            {trip.trip.destinations.join(", ")}
+            {trip.trip.travelerCount ? ` · ${trip.trip.travelerCount} travelers` : ""}
+          </Typography>
+          <Box
+            sx={{
+              mt: 1.5,
+              pt: 1.5,
+              borderTop: 1,
+              borderColor: "divider",
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography component="span" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
+              Balance due
+            </Typography>
+            <Typography component="span" variant="subtitle1" sx={{ ...TITLE_S, fontFamily: "mono" }}>
+              {formatMoney({ amountCents: balanceDueCents, currency: "USD" })}
+            </Typography>
+          </Box>
+        </CardContent>
       </Card>
 
       {usable.length === 0 ? (
@@ -105,6 +143,6 @@ export default async function AuthorizePage({
           defaultExpiryLabel={formatDate(expiry.toISOString(), me.timeZone)}
         />
       )}
-    </div>
+    </Box>
   );
 }

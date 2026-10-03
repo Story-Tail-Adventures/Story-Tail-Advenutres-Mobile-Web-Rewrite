@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import MuiLink from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
+import { FaqList } from "@/components/public/FaqList";
 import { Icon } from "@/components/ui/Icon";
 import { helpFaqs } from "@/lib/account/help-faqs";
 
@@ -9,6 +15,19 @@ import { AccountHeader } from "../AccountHeader";
 import { HELP } from "./content";
 
 export const metadata: Metadata = { title: "Help & support" };
+
+/** The legacy `.btn` box (40px, 24px sides) on MUI's Button, for the message link. */
+const BTN_SX = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/** The uppercase group label SettingsGroup draws, for a section here that is not one. */
+const GROUP_LABEL_SX = {
+  display: "block",
+  mt: 3,
+  mb: 1,
+  px: 0.5,
+  lineHeight: 1.3,
+  color: "text.secondary",
+} as const;
 
 /**
  * Screen Inventory 2.5.11 — Help & Support. §4.4 Pattern I + B (FAQ list).
@@ -43,53 +62,68 @@ export default function HelpPage() {
     <div className="client-fill">
       <AccountHeader title={HELP.title} sub={HELP.subtitle} />
 
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-        <Card className="bg-primary-container p-5 text-on-primary-container">
-          <div className="flex items-center gap-3">
-            <span
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-on-surface"
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
+        {/* The artboard's "Talk to Gyasi" panel: a flat Paper on primary.container. */}
+        <Paper elevation={0} sx={{ p: 2.5, bgcolor: "primary.container", color: "primary.onContainer" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Avatar
               aria-hidden="true"
+              sx={{ width: 40, height: 40, flexShrink: 0, bgcolor: "surface.main", color: "text.primary" }}
             >
-              <span className="t-title-s">{HELP.advisorInitials}</span>
-            </span>
-            <div className="min-w-0">
-              <p className="t-title-s">{HELP.advisorName}</p>
-              <p className="t-body-s opacity-85">{HELP.replyWindow}</p>
-            </div>
-          </div>
-          <p className="t-body-s mt-3 opacity-90">{HELP.advisorBody}</p>
-          <Link href="/messages/new" className="btn btn-filled mt-4 w-full">
+              <Typography component="span" variant="subtitle1">
+                {HELP.advisorInitials}
+              </Typography>
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography component="p" variant="subtitle1">
+                {HELP.advisorName}
+              </Typography>
+              <Typography component="p" variant="caption" sx={{ display: "block", opacity: 0.85 }}>
+                {HELP.replyWindow}
+              </Typography>
+            </Box>
+          </Box>
+          <Typography component="p" variant="body2" sx={{ mt: 1.5, opacity: 0.9 }}>
+            {HELP.advisorBody}
+          </Typography>
+          <MuiButton
+            component={NextLink}
+            href="/messages/new"
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ ...BTN_SX, mt: 2 }}
+          >
             <Icon name="message" size={14} /> {HELP.messageCta}
-          </Link>
-        </Card>
+          </MuiButton>
+        </Paper>
 
-        <h2 className="t-label mt-6 mb-2 px-1 tracking-wide text-on-surface-variant">
+        <Typography component="h2" variant="overline" sx={GROUP_LABEL_SX}>
           {HELP.faqHeading}
-        </h2>
-        <div className="flex flex-col gap-2">
-          {faqs.map((item) => (
-            <details key={item.q} className="card p-0">
-              <summary className="t-title-s flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
-                {item.q}
-                <Icon name="chevron_down" size={15} className="shrink-0 text-on-surface-variant" />
-              </summary>
-              <p className="t-body-s px-4 pb-4 text-on-surface-variant">{item.a}</p>
-            </details>
-          ))}
-        </div>
+        </Typography>
+        {/* The §2.0 FAQ accordion (a client island; the page stays a Server Component). The
+            legacy <details> list opened independently and started closed, so nothing opens
+            by default here; the island's one-at-a-time rule is the one behaviour change. */}
+        <FaqList items={faqs} name="help-faq" defaultOpenFirst={false} answerSize="m" />
 
-        <nav aria-label={HELP.legalHeading} className="mt-6 flex justify-center gap-4">
+        <Box
+          component="nav"
+          aria-label={HELP.legalHeading}
+          sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 2 }}
+        >
           {HELP.legal.map((doc) => (
-            <Link
+            <MuiLink
               key={doc.slug}
+              component={NextLink}
               href={`/legal/${doc.slug}`}
-              className="t-body-s text-on-surface-variant underline"
+              variant="body2"
+              sx={{ color: "text.secondary" }}
             >
               {doc.label}
-            </Link>
+            </MuiLink>
           ))}
-        </nav>
-      </div>
+        </Box>
+      </Box>
     </div>
   );
 }

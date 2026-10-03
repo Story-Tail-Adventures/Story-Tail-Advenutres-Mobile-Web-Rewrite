@@ -104,26 +104,8 @@
    * lived here styled nothing else and went with them. `.client-bottom-nav` survives as
    * a CLASS on the bar, not a rule: the reserve above keys on it. */
 
-  /* ── Skeletons ────────────────────────────────────────────────────────── */
-
-  /* §5 asks for "skeleton placeholders that match the screen's layout" and explicitly
-   * rules out spinner-on-blank. */
-  .client-skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--md-surface-2) 25%,
-      var(--md-surface-3) 37%,
-      var(--md-surface-2) 63%
-    );
-    background-size: 400% 100%;
-    animation: client-shimmer 1.4s ease-in-out infinite;
-    border-radius: var(--r-sm);
-  }
-
-  @keyframes client-shimmer {
-    0%   { background-position: 100% 0; }
-    100% { background-position: 0 0; }
-  }
+  /* ── Skeletons ── MUI's wave Skeleton (components/client/states.tsx) since migration
+   * step 2; the theme's reduced-motion setting stops its animation. */
 
   /* ── Focus and motion ─────────────────────────────────────────────────── */
 
@@ -137,7 +119,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .client-skeleton { animation: none; }
     .client-surface *,
     .client-surface *::before,
     .client-surface *::after {

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 
 import { PreferencesForm } from "@/app/(onboarding)/onboarding/preferences/PreferencesForm";
 import type { PreferencesFormValues } from "@/app/(onboarding)/onboarding/preferences/state";
+import NextLink from "@/components/mui/NextLink";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { readLoyalty } from "@/lib/validation/preferences-form";
@@ -12,6 +14,10 @@ import { saveAccountPreferencesAction } from "./actions";
 import { ACCOUNT_PREFERENCES } from "./content";
 
 export const metadata: Metadata = { title: "Travel preferences" };
+
+/** The legacy `.btn` (40px, 24px sides) and `.btn-text` (12px sides) boxes on MUI's Button. */
+const BTN_SX = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+const TEXT_BTN_SX = { minHeight: 40, px: "12px", gap: 1, whiteSpace: "nowrap" } as const;
 
 /**
  * Screen Inventory 2.5.3 — Travel Preferences Edit. §4.4 Pattern A, "same chip behavior as
@@ -41,22 +47,34 @@ export default async function AccountPreferencesPage() {
         title={ACCOUNT_PREFERENCES.title}
         sub={ACCOUNT_PREFERENCES.subtitle}
       />
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
         <PreferencesForm
           defaults={await currentPreferences()}
           action={saveAccountPreferencesAction}
           footer={
-            <div className="mt-6 flex gap-3">
-              <Link href="/account" className="btn btn-text">
+            <Box sx={{ mt: 3, display: "flex", gap: 1.5 }}>
+              <MuiButton
+                component={NextLink}
+                href="/account"
+                variant="text"
+                color="primary"
+                sx={TEXT_BTN_SX}
+              >
                 {ACCOUNT_PREFERENCES.cancel}
-              </Link>
-              <button type="submit" form="preferences-form" className="btn btn-filled flex-1">
+              </MuiButton>
+              <MuiButton
+                type="submit"
+                form="preferences-form"
+                variant="contained"
+                color="primary"
+                sx={{ ...BTN_SX, flex: 1 }}
+              >
                 {ACCOUNT_PREFERENCES.save}
-              </button>
-            </div>
+              </MuiButton>
+            </Box>
           }
         />
-      </div>
+      </Box>
     </div>
   );
 }

@@ -1,7 +1,12 @@
 // Screen 2.3.8 Quote Request Form — see docs/Screen-Inventory.md §2.3.8 (Pattern G, §4.4).
 // The destination a "Request a quote" CTA resolves to once the visitor is signed in. P2.
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { findTrip } from "@/content/public/trips";
 import { formatRange } from "@/lib/public/dates";
 import { formatMoney } from "@/lib/public/money";
@@ -18,6 +23,27 @@ export const metadata: Metadata = {
 };
 
 /**
+ * The page column: 640px wide, 18px sides, 24px top and bottom (32 from md). `client-fill`
+ * stays as the shell's CSS hook for a definite height (web/styles/client.css).
+ */
+const PAGE_SX = { mx: "auto", width: "100%", maxWidth: 640, px: 2.25, py: { xs: 3, md: 4 } } as const;
+
+/** The legacy .t-label-s overline, in the brand orange, on MUI's overline. */
+const OVERLINE_SX = { display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 } as const;
+
+/** The legacy .t-headline-r ramp (24 / 26 / 28) on MUI's h4 — the same call the join page makes. */
+const TITLE_SX = { fontWeight: 700, fontSize: { xs: 24, md: 26, web: 28 } } as const;
+
+/** The legacy .t-label (12/500) on caption, as a block. */
+const LABEL_SX = { display: "block", fontWeight: 500, lineHeight: 1.3, color: "text.secondary" } as const;
+
+/** The legacy .t-title-s (15/600) on subtitle1. */
+const TITLE_S_SX = { fontWeight: 600, lineHeight: 1.3 } as const;
+
+/** The legacy .btn box (40px, 24px sides) on MUI's Button. */
+const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+
+/**
  * EVERYTHING IN THE URL IS UNTRUSTED, and here that matters more than usual: this context
  * survived a round trip through the sign-up gate, so it is data the visitor's browser held
  * and could have edited. It is read defensively and — importantly — it is read for DISPLAY
@@ -28,6 +54,10 @@ export const metadata: Metadata = {
  * A curated trip is resolved from the catalog by slug, so its name and place come from our
  * own content rather than the query. A hotel has no catalog row — hotels are deliberately
  * never stored — so its fields do travel, capped and escaped by React on the way out.
+ *
+ * ON MUI (step 2 of the migration): the summary is a Card with a definition list inside, the
+ * header an overline / h4 / body2 stack, on the column this page already had. Plain sx only,
+ * so it stays a Server Component; the form below is the client island.
  */
 export default async function NewTripPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -35,12 +65,14 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
 
   if (!target) {
     return (
-      <div className="client-fill mx-auto w-full max-w-160 px-4.5 py-6">
-        <h1 className="t-headline-r text-on-surface">{QUOTE.errors.nothing}</h1>
-        <Link href="/explore" className="btn btn-filled mt-4">
+      <Box className="client-fill" sx={{ ...PAGE_SX, py: 3 }}>
+        <Typography component="h1" variant="h4" sx={{ ...TITLE_SX, color: "text.primary" }}>
+          {QUOTE.errors.nothing}
+        </Typography>
+        <MuiButton component={NextLink} href="/explore" variant="contained" sx={{ ...BTN, mt: 2 }}>
           {QUOTE.cancel}
-        </Link>
-      </div>
+        </MuiButton>
+      </Box>
     );
   }
 
@@ -59,47 +91,80 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
   ].filter(Boolean);
 
   return (
-    <div className="client-fill mx-auto w-full max-w-160 px-4.5 py-6 md:py-8">
-      <header className="mb-5">
-        <p className="t-label-s text-brand-orange">{QUOTE.overline}</p>
-        <h1 className="t-headline-r mt-1 mb-1.5 text-on-surface">{QUOTE.title}</h1>
-        <p className="t-body text-on-surface-variant">{QUOTE.body}</p>
-      </header>
+    <Box className="client-fill" sx={PAGE_SX}>
+      <Box component="header" sx={{ mb: 2.5 }}>
+        <Typography component="p" variant="overline" sx={OVERLINE_SX}>
+          {QUOTE.overline}
+        </Typography>
+        <Typography component="h1" variant="h4" sx={{ ...TITLE_SX, mt: 0.5, mb: 0.75, color: "text.primary" }}>
+          {QUOTE.title}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+          {QUOTE.body}
+        </Typography>
+      </Box>
 
-      <section aria-label={QUOTE.summary.label} className="card mb-5 p-4.5">
-        <h2 className="t-title-l text-on-surface">{target.name}</h2>
-        {descriptors.length > 0 && (
-          <p className="t-body-s mt-0.5 text-on-surface-variant">{descriptors.join(" · ")}</p>
-        )}
+      <Card component="section" aria-label={QUOTE.summary.label} sx={{ mb: 2.5 }}>
+        <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
+          <Typography component="h2" variant="h5" sx={{ color: "text.primary" }}>
+            {target.name}
+          </Typography>
+          {descriptors.length > 0 && (
+            <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.secondary" }}>
+              {descriptors.join(" · ")}
+            </Typography>
+          )}
 
-        <dl className="mt-3.5 grid grid-cols-2 gap-3.5">
-          <div>
-            <dt className="t-label text-on-surface-variant">{QUOTE.summary.dates}</dt>
-            <dd className="t-title-s mt-0.5 text-on-surface">{dates ?? QUOTE.summary.flexibleDates}</dd>
-          </div>
-          <div>
-            <dt className="t-label text-on-surface-variant">{QUOTE.summary.travelers}</dt>
-            <dd className="t-title-s mt-0.5 text-on-surface">
-              {QUOTE.summary.travelerCount(target.travelers ?? 2)}
-            </dd>
-          </div>
-        </dl>
+          <Box
+            component="dl"
+            sx={{ m: 0, mt: 1.75, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.75 }}
+          >
+            <Box>
+              <Typography component="dt" variant="caption" sx={LABEL_SX}>
+                {QUOTE.summary.dates}
+              </Typography>
+              <Typography component="dd" variant="subtitle1" sx={{ ...TITLE_S_SX, m: 0, mt: 0.25, color: "text.primary" }}>
+                {dates ?? QUOTE.summary.flexibleDates}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography component="dt" variant="caption" sx={LABEL_SX}>
+                {QUOTE.summary.travelers}
+              </Typography>
+              <Typography component="dd" variant="subtitle1" sx={{ ...TITLE_S_SX, m: 0, mt: 0.25, color: "text.primary" }}>
+                {QUOTE.summary.travelerCount(target.travelers ?? 2)}
+              </Typography>
+            </Box>
+          </Box>
 
-        {rate && (
-          <div className="mt-3.5 border-t border-outline-variant pt-3">
-            <p className="t-label text-on-surface-variant">{QUOTE.summary.indicative}</p>
-            <p className="t-title-s mt-0.5 text-on-surface">
-              {rate}
-              <span className="t-fine text-on-surface-variant"> {QUOTE.summary.perNight}</span>
-            </p>
-            {/* The one line that keeps a public rate from reading as a quote. */}
-            <p className="t-body-s mt-1 text-on-surface-variant">{QUOTE.summary.indicativeNote}</p>
-          </div>
-        )}
-      </section>
+          {rate && (
+            <Box sx={{ mt: 1.75, borderTop: 1, borderColor: "divider", pt: 1.5 }}>
+              <Typography component="p" variant="caption" sx={LABEL_SX}>
+                {QUOTE.summary.indicative}
+              </Typography>
+              <Typography component="p" variant="subtitle1" sx={{ ...TITLE_S_SX, mt: 0.25, color: "text.primary" }}>
+                {rate}
+                {/* The legacy .t-fine (11.5/500) on caption. */}
+                <Typography
+                  component="span"
+                  variant="caption"
+                  sx={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1, color: "text.secondary" }}
+                >
+                  {" "}
+                  {QUOTE.summary.perNight}
+                </Typography>
+              </Typography>
+              {/* The one line that keeps a public rate from reading as a quote. */}
+              <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.5, color: "text.secondary" }}>
+                {QUOTE.summary.indicativeNote}
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
       <QuoteForm target={target} />
-    </div>
+    </Box>
   );
 }
 
