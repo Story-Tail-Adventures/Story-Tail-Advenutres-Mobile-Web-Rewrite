@@ -46,13 +46,13 @@ export default function RootLayout({
       // ThemeScript mutates className and AuthChromeScript sets an attribute, both before
       // hydration — see components/ThemeScript.tsx and components/AuthChromeScript.tsx
       suppressHydrationWarning
-      className={`${fontVariables} h-full`}
+      className={fontVariables}
     >
       <head>
         <ThemeScript />
         <AuthChromeScript />
       </head>
-      <body className="flex min-h-full flex-col">
+      <body>
         <MuiRegistry>{children}</MuiRegistry>
       </body>
     </html>

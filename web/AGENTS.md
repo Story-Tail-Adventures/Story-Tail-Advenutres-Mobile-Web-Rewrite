@@ -4,10 +4,11 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# MUI rules (Tailwind → MUI v9 migration)
+# MUI rules
 
-`web/` is moving from Tailwind to MUI 9.4.0, one surface per PR (`docs/Tech-Recommendations.md`
-§2.3.1). New and converted UI is MUI. Unconverted files keep their Tailwind until their PR.
+`web/` is styled with MUI 9.4.0 (`docs/Tech-Recommendations.md` §2.3.1). There is no Tailwind:
+a utility class matches no rule and styles nothing, and `test/class-allowlist.test.ts` fails on
+any className that no CSS file defines.
 
 **The scheme belongs to `components/ThemeScript.tsx`, not to MUI.** ThemeScript sets
 `.scheme-dark` on `<html>` before first paint; `lib/theme.ts` flips it at runtime. The theme
@@ -53,14 +54,16 @@ absolutely positioned element.
 
 **Type** uses MUI's variants on Poppins; `variant="script"` is the Caveat wordmark;
 `sx={{ fontFamily: "mono" }}` is JetBrains Mono. **Spacing** is MUI's 8px scale (`p: 2` is
-16px; Tailwind `p-4` is `p: 2`). **Breakpoints** match the old Tailwind ones: sm 640, md 768,
+16px; the old Tailwind `p-4` is `p: 2`). **Breakpoints** match the old Tailwind ones: sm 640, md 768,
 lg 1024, web 1200, xl 1280.
 
-**CSS layers.** `app/globals.css` opens with `@layer theme, base, mui, components, utilities;`
-and emotion writes into `@layer mui`. While both systems are in use, Tailwind utilities and the
-legacy `web/styles/*.css` still beat MUI's own styles, which is what lets a `className` on an
-MUI component keep working. Keep that statement the first rule in the file
-(`lib/mui/layers.test.ts`).
+**CSS layers.** `app/globals.css` opens with `@layer base, mui, components;` and emotion writes
+into `@layer mui`. `base` is the element reset, `styles/reset.css`: Tailwind's preflight kept as
+plain CSS, because the converted screens rely on its margin, list and heading resets (MUI's
+`CssBaseline` does not do them). `components` is what is left in `web/styles/*.css`: the scheme
+gates, the pre-paint auth gates and the print hooks. Those beat MUI's own styles on layer
+order, so a `display` in `sx` on a gated element is silently overridden. Keep the layer
+statement the first rule in the file (`lib/mui/layers.test.ts`).
 
 **Pure-data modules stay pure.** `components/ui/icon-paths.ts`, `content/**`,
 `lib/mui/tokens.ts`, `lib/mui/sx.ts` and `lib/theme.ts` are imported from Node scripts (the

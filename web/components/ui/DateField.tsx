@@ -17,6 +17,7 @@ import { Icon } from "@/components/ui/Icon";
 import { addMonths, buildMonth, monthKey, moveFocus, WEEKDAY_LABELS } from "@/lib/public/calendar";
 import { formatDayLong, parseIsoDate } from "@/lib/public/dates";
 import { fieldInputSx, fieldLabelSx } from "./Field";
+import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * A single-date field with the same calendar as the public search bar.
@@ -270,13 +271,13 @@ export function DateField(props: DateFieldProps) {
           },
         }}
       >
-        <p className="sr-only">{KEYBOARD_HINT}</p>
+        <Box component="p" sx={VISUALLY_HIDDEN}>{KEYBOARD_HINT}</Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
           <IconButton
             size="small"
             aria-label={PREV_LABEL}
-            className="tap-44"
+            sx={TAP_TARGET}
             onClick={() => setCursor(addMonths(cursor, -1))}
           >
             <Icon name="chevron_left" size={16} />
@@ -306,7 +307,7 @@ export function DateField(props: DateFieldProps) {
           <IconButton
             size="small"
             aria-label={NEXT_LABEL}
-            className="tap-44"
+            sx={TAP_TARGET}
             onClick={() => setCursor(addMonths(cursor, 1))}
           >
             <Icon name="chevron_right" size={16} />

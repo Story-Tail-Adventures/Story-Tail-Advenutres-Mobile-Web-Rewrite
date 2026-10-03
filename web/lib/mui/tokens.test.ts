@@ -8,10 +8,11 @@ import { BRAND, SCHEME, STATUS, STATUS_KINDS, hexToChannel, type SchemeName } fr
  * and fails on any difference, in both directions: a token missing from either side, or a
  * value that disagrees.
  *
- * Three CSS sources, which must all agree:
- *   design/web-tokens/tokens.css   the canonical copy (docs/Design-System.md §12.4)
- *   web/styles/tokens.css          the web mirror the legacy CSS still reads
- *   web/styles/components.css      the .chip-status colors (§4.3)
+ * The CSS sources, which must all agree:
+ *   design/web-tokens/tokens.css            the canonical copy (docs/Design-System.md §12.4)
+ *   web/styles/tokens.css                   the web mirror the remaining CSS still reads
+ *   design/source-prototype/styles/app.css  the .chip-status colors (§4.3). web/'s own copy
+ *                                           went with the legacy component CSS (PR 7).
  */
 const read = (rel: string) => readFileSync(join(__dirname, rel), "utf8");
 
@@ -19,7 +20,7 @@ const SOURCES = {
   "design/web-tokens/tokens.css": read("../../../design/web-tokens/tokens.css"),
   "web/styles/tokens.css": read("../../styles/tokens.css"),
 };
-const COMPONENTS_CSS = read("../../styles/components.css");
+const PROTOTYPE_CSS = read("../../../design/source-prototype/styles/app.css");
 
 /** The declarations inside the first top-level `<selector> { … }` block. */
 function block(css: string, selector: string): Map<string, string> {
@@ -69,7 +70,7 @@ describe.each(Object.entries(SOURCES))("lib/mui/tokens.ts matches %s", (_name, c
   });
 });
 
-describe("lib/mui/tokens.ts STATUS matches .chip-status in web/styles/components.css", () => {
+describe("lib/mui/tokens.ts STATUS matches .chip-status in the prototype's app.css", () => {
   it.each<[SchemeName, string]>([
     ["light", ""],
     ["dark", ".scheme-dark "],
@@ -79,9 +80,12 @@ describe("lib/mui/tokens.ts STATUS matches .chip-status in web/styles/components
       `^\\s*${prefix.replace(".", "\\.")}\\.chip-status\\.(\\w+)\\s*\\{\\s*background:\\s*([^;]+);\\s*color:\\s*([^;]+);`,
       "gm",
     );
-    for (const m of COMPONENTS_CSS.matchAll(re)) css[m[1]] = { bg: norm(m[2]), fg: norm(m[3]) };
-    expect(Object.keys(css).sort()).toEqual([...STATUS_KINDS].sort());
-    for (const kind of STATUS_KINDS) {
+    for (const m of PROTOTYPE_CSS.matchAll(re)) css[m[1]] = { bg: norm(m[2]), fg: norm(m[3]) };
+    // `cancelled` is web-only: the prototype never drew a cancelled trip. Its colors were
+    // set in web/ and now live only in tokens.ts.
+    const drawn = STATUS_KINDS.filter((k) => k !== "cancelled");
+    expect(Object.keys(css).sort()).toEqual([...drawn].sort());
+    for (const kind of drawn) {
       expect({ kind, bg: norm(STATUS[scheme][kind].bg), fg: norm(STATUS[scheme][kind].fg) }).toEqual({
         kind,
         ...css[kind],

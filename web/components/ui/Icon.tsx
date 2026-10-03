@@ -34,8 +34,9 @@ export interface IconProps {
  * `fill: currentColor` on the <svg>, and a CSS rule beats a presentation attribute, so a
  * `fill="none"` on the root would be ignored. The path's own attribute wins over inheritance.
  *
- * `display: block` keeps the vertical behaviour the Tailwind preflight gave every <svg>
- * (SvgIcon's default is inline-block, which adds descender space inside text).
+ * `display: block` keeps the vertical behaviour the element reset (styles/reset.css) gives
+ * every <svg>. SvgIcon's own rule (inline-block, which adds descender space inside text)
+ * beats the reset on layer order, so the sx has to say it again.
  *
  * No "use client": Server Components render this directly. icon-paths.ts stays React-free
  * because a Node script generates the Kotlin icon set from it.

@@ -84,7 +84,7 @@ export default async function CloseAccountPage() {
           >
             {CLOSE.whatHappensLabel}
           </Typography>
-          {/* Tailwind's preflight strips list markers, so the disc is set back explicitly. */}
+          {/* The element reset (styles/reset.css) strips list markers, so the disc is set back explicitly. */}
           <Box
             component="ul"
             sx={{ m: 0, p: 0, mt: 0.75, pl: 2.5, listStyleType: "disc", typography: "body2", lineHeight: "28px" }}

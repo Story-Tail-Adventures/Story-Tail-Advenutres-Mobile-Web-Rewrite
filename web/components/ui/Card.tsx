@@ -25,9 +25,10 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Callers lay out the inside with utilities (`className="flex gap-3 p-4"`) and sometimes
- * recolour (`border-0 bg-error-container`); those land on the MUI root and still win, because
- * Tailwind's utilities layer sits above MUI's in app/globals.css.
+ * Callers lay out the inside and recolour through `sx`. A caller's `sx` REPLACES the
+ * variant's (it is a plain prop spread, not a merge), so `flat` / `tonal` with an `sx` must
+ * restate their `bgcolor`; no caller does that today. A className still reaches the MUI root,
+ * but it has to be a class some CSS file defines (test/class-allowlist.test.ts).
  *
  * No "use client": 24 callers are Server Components.
  */

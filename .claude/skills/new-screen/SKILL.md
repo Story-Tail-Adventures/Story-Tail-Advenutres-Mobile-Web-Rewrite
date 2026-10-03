@@ -56,7 +56,8 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
    `sx` objects, the constants in `web/lib/mui/sx.ts`, `component={NextLink}`), and `styled()` or
    `sx` callbacks need a `"use client"` file. Dark mode is the `.scheme-dark` class, which the
    theme's CSS variables already follow; for the rare non-palette value use the `DARK` selector
-   from `lib/mui/sx.ts`, never `prefers-color-scheme` or `useColorScheme`. Don't add new Tailwind.
+   from `lib/mui/sx.ts`, never `prefers-color-scheme` or `useColorScheme`. There is no Tailwind: a utility class styles
+   nothing, and `web/test/class-allowlist.test.ts` fails on it.
 
 7. **Wire up the API call.** A plain RLS-protected table read goes straight through the Supabase
    client (`web/lib/supabase/server.ts`, or the repository layer in

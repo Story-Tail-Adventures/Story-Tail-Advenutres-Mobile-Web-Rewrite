@@ -52,7 +52,7 @@ This proves the database schema works and that the type-generation pipeline is s
 
 ### Session 3 — Initialize the Next.js web app
 
-> Initialize the Next.js web app per `web/README.md`. Use TypeScript, Tailwind CSS, the App Router, and npm. After `npx create-next-app` finishes, copy `design/web-tokens/tokens.css` into `web/styles/tokens.css` and wire it into the root layout. Set up Tailwind to consume the design tokens from `design/web-tokens/design-tokens.ts`. Add the Supabase client setup in `web/lib/supabase.ts`. Stop after the dev server runs successfully (`npm run dev -w web`) and the landing page shows the brand colors.
+> Initialize the Next.js web app per `web/README.md`. Use TypeScript, the App Router, and npm, and style with MUI v9 (`web/AGENTS.md`). After `npx create-next-app` finishes, copy `design/web-tokens/tokens.css` into `web/styles/tokens.css` and wire it into the root layout. Build the MUI theme from the design tokens (`web/lib/mui/tokens.ts` and `web/lib/mui/theme.ts`). Add the Supabase client setup in `web/lib/supabase.ts`. Stop after the dev server runs successfully (`npm run dev -w web`) and the landing page shows the brand colors.
 
 This proves the design system flows through to web.
 

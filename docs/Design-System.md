@@ -495,11 +495,11 @@ Drop these into `mobile/shared/src/commonMain/kotlin/com/storytail/ui/theme/`. A
 The Next.js web app consumes the same tokens via CSS custom properties. Two starter files ship at `design/web-tokens/`:
 
 - **`tokens.css`** (copy of `design/source-prototype/styles/tokens.css`) — the canonical CSS variable definitions. Import once in the Next.js root layout so every component can reference `var(--md-primary)`, `var(--md-surface-1)`, etc.
-- **`design-tokens.ts`** — a TypeScript module that mirrors the same tokens as typed constants for use with CSS-in-JS or Tailwind. Use this when you want autocomplete and type checking on token names.
+- **`design-tokens.ts`** — a TypeScript module that mirrors the same tokens as typed constants for use with CSS-in-JS. Use this when you want autocomplete and type checking on token names.
 
-The design tokens are framework-agnostic — Tailwind CSS, CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **Current implementation uses Tailwind CSS v4** (see the example below), but **MUI (Material UI) is the planned target styling library** — Gyasi has decided to replace Tailwind with MUI, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. See `docs/Tech-Recommendations.md` §2.3.1 for the phased migration plan (design source updated to MUI first, then `web/` implementation). Step 1 (the design source) shipped 2026-10-01; step 2 (`web/`) started the same day and converts one surface per PR.
+The design tokens are framework-agnostic: CSS Modules, vanilla CSS, or any CSS-in-JS library can consume them; only the typing layer changes per styling choice. **The web app is styled with MUI (Material UI) v9**, with an MUI `ThemeProvider` consuming these same token values rather than a parallel set of design decisions. This is a natural fit since the color tokens in Section 4 are already Material-3-based. MUI replaced Tailwind CSS v4 in two steps (`docs/Tech-Recommendations.md` §2.3.1): the design source moved to MUI on 2026-10-01, then `web/` converted one surface per PR, and the last of those PRs removed Tailwind.
 
-**MUI theme (the target).** The token → MUI mapping lives in `design/source-prototype/shared/mui-theme.jsx`. It builds two `createTheme` results (light, dark) with every value copied 1:1 from `tokens.css`. There are two themes rather than `colorSchemes`, because one page renders the same artboard in both schemes side by side:
+**MUI theme.** The token → MUI mapping lives in `design/source-prototype/shared/mui-theme.jsx`. It builds two `createTheme` results (light, dark) with every value copied 1:1 from `tokens.css`. There are two themes rather than `colorSchemes`, because one page renders the same artboard in both schemes side by side:
 
 | MUI palette path | Token |
 |---|---|
@@ -516,20 +516,7 @@ Typography uses the Poppins stack on MUI's stock variant sizes, plus a custom `s
 
 **In `web/`** the same palette lives in `web/lib/mui/theme.ts`, with one difference in shape: it is a single theme with CSS variables and `colorSchemes: { light, dark }`, keyed to the `.scheme-dark` class (`colorSchemeSelector: ".scheme-%s"`). The prototype needs two themes to show both schemes side by side; the app needs one, so the pre-paint script can switch schemes with no re-render and no flash. The palette paths in the table above are identical in both. The values themselves are in `web/lib/mui/tokens.ts`, which a test checks against `design/web-tokens/tokens.css`, so it joins the files listed in §12.4 that must stay in sync.
 
-If using Tailwind (current state), extend `tailwind.config.ts` to pull from the same variables:
-
-```typescript
-import { tokens } from "./design/web-tokens/design-tokens";
-export default {
-  theme: {
-    extend: {
-      colors: tokens.colors,
-      fontFamily: tokens.fonts,
-      borderRadius: tokens.radii,
-    },
-  },
-};
-```
+**Plain CSS that remains in `web/`.** `web/styles/` keeps `tokens.css` (the `--md-*` variables), `reset.css` (Tailwind's preflight, vendored as plain CSS because every converted screen relies on its margin and list resets), and small `components.css` / `public.css` / `client.css` files for what has to work before hydration or on paper: the scheme gates, the signed-in chrome gates, and the print rules. `web/app/globals.css` orders them `@layer base, mui, components;`. `web/test/class-allowlist.test.ts` fails on any className that no CSS file defines, and on any CSS class nothing uses.
 
 ### 12.3 Backend — No Theme
 
@@ -537,7 +524,7 @@ Supabase Edge Functions (the backend) don't have a UI, so they don't consume the
 
 ### 12.4 Tokens Are the Contract
 
-Components reference *tokens*, not raw hex values. Any new color, font size, spacing value, or radius added to the system goes into `tokens.css` first, then into both `StoryTailColors.kt`/etc. and `design-tokens.ts` as mirror updates. Treat the three files as a single source of truth that must stay in sync — a CI check that lints for mismatched values is worth setting up early. With the MUI migration there is a fourth: `web/lib/mui/tokens.ts`, the values behind the web MUI theme. It is the first one with that CI check: `web/lib/mui/tokens.test.ts` parses `design/web-tokens/tokens.css` (and the web mirror and `.chip-status` rules) and fails on any mismatch.
+Components reference *tokens*, not raw hex values. Any new color, font size, spacing value, or radius added to the system goes into `tokens.css` first, then into both `StoryTailColors.kt`/etc. and `design-tokens.ts` as mirror updates. Treat the three files as a single source of truth that must stay in sync — a CI check that lints for mismatched values is worth setting up early. With the MUI migration there is a fourth: `web/lib/mui/tokens.ts`, the values behind the web MUI theme. It is the first one with that CI check: `web/lib/mui/tokens.test.ts` parses `design/web-tokens/tokens.css` (and the web mirror, and the prototype's `.chip-status` rules) and fails on any mismatch.
 
 ---
 
