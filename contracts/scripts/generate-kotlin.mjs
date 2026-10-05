@@ -20,14 +20,14 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import yaml from 'js-yaml';
+import { load as loadYaml } from 'js-yaml'; // js-yaml 5 has no default export
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SPEC = resolve(HERE, '../openapi.yaml');
 const OUT = resolve(HERE, '../kotlin/com/storytail/contracts/Types.kt');
 const PACKAGE = 'com.storytail.contracts';
 
-const spec = yaml.load(readFileSync(SPEC, 'utf8'));
+const spec = loadYaml(readFileSync(SPEC, 'utf8'));
 const schemas = spec.components?.schemas ?? {};
 
 /** Kotlin reserved words that would not survive being used as a property name bare. */
