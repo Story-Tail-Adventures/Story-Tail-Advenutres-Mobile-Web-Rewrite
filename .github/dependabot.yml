@@ -43,9 +43,17 @@ updates:
           - "@emotion/*"
       # One PR for the safe stuff. Every PR costs a 7-job CI run, and a dozen separate
       # patch bumps is a dozen of them for no extra information.
+      #
+      # @supabase/ssr is kept OUT of this group. It is 0.x, where a "minor" bump is the
+      # breaking position (0.12.0 rewrote the auth-cookie encoding), it is vi.mock'ed in the
+      # tests, and no CI job exercises a real sign-in. Inside the group it held a dozen safe
+      # updates hostage for weeks (#22, #93). On its own it gets its own PR, to be upgraded
+      # deliberately with a browser sign-in check.
       npm-minor-and-patch:
         applies-to: version-updates
         update-types: [minor, patch]
+        exclude-patterns:
+          - "@supabase/ssr"
       # No group for majors, deliberately: anything not matched by a group gets its own PR,
       # and Next, React and Tailwind majors are each their own migration in this repo rather
       # than something to review in a bundle. Adding an `npm-major` group here would do the
