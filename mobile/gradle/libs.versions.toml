@@ -12,7 +12,10 @@ androidx-testExt = "1.3.0"
 composeMultiplatform = "1.12.1"
 junit = "4.13.2"
 kotlin = "2.4.20"
-material3 = "1.13.0-alpha01"
+# JetBrains material3 versions track Compose Multiplatform: 1.12.0-alpha03 needs Compose
+# 1.12.0-beta01, which the 1.12.1 plugin satisfies. 1.13.0-alpha01 drags foundation and ui up
+# to 1.13.0-alpha01, and the Compose plugin then warns that the runtime does not match it.
+material3 = "1.12.0-alpha03"
 # Networking / async / serialization
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
@@ -21,13 +24,14 @@ ktor = "3.6.0"
 # supabase-kt — Auth (GoTrue) + PostgREST for KMP. Approved as a third-party SDK
 # per CLAUDE.md; not payment-adjacent.
 #
-# PINNED to 3.6.0, which is the last release compiled with Kotlin 2.3.21 — the exact
-# compiler this project uses. 3.7.0+ ship klibs with ABI version 2.4.0, which the
-# Kotlin/Native 2.3.21 compiler refuses:
+# PINNED to the `kotlin` version above, not to "latest". A supabase-kt release built with a
+# newer Kotlin than this compiler ships klibs with a higher ABI version, which Kotlin/Native
+# refuses:
 #   "KLIB resolver: Skipping ... incompatible ABI version '2.4.0'"
-# The JVM/Android target tolerates the mismatch, so this only fails on the iOS
-# targets — which is exactly why they stay declared. Bump this in lockstep with the
-# `kotlin` version above, never on its own.
+# (that is what 3.7.0+ did to Kotlin 2.3.21). The JVM/Android target tolerates the mismatch,
+# so this only fails on the iOS targets — which is exactly why they stay declared. Bump this in
+# lockstep with `kotlin`, never on its own, and run :shared:compileKotlinIosSimulatorArm64.
+# 3.8.0 with Kotlin 2.4.20 passed that gate with no KLIB warnings on 2026-10-05.
 supabase = "3.8.0"
 turbine = "1.2.1"
 
