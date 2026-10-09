@@ -36,10 +36,13 @@ const BTN_TEXT = { minHeight: 40, px: "12px", gap: 1, whiteSpace: "nowrap" } as 
  * so the server action receives the same FormData it always did. A failed send is the
  * approved MUI Alert tint; the confirmation is a centred Card.
  */
-export function QuoteForm({ target }: { target: QuoteRequestTarget }) {
+export function QuoteForm({ target, initialNote }: { target: QuoteRequestTarget; initialNote?: string }) {
   const action = sendQuoteRequest.bind(null, target);
+  // `initialNote` is only the textarea's starting text (a topic page's Vibe cell), so it
+  // rides in as the draft — the same slot a failed send uses to keep what was typed.
   const [state, formAction, pending] = useActionState<QuoteState, FormData>(action, {
     status: "idle",
+    draft: initialNote,
   });
 
   if (state.status === "sent") {

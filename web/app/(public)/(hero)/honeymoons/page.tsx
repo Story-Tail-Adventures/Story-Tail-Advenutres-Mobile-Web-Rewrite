@@ -32,6 +32,7 @@ import {
   HONEYMOONS_HERO,
   HONEYMOONS_HERO_IMAGE,
   HONEYMOONS_INQUIRY_FIELDS,
+  HONEYMOONS_INQUIRY_LABEL,
   HONEYMOONS_META,
   HONEYMOONS_NOTE,
   HONEYMOONS_PATH,
@@ -119,10 +120,12 @@ export default function HoneymoonsPage() {
         sub={HONEYMOONS_HERO.sub}
       />
 
+      {/* Submits to /quote, which carries what was typed into the quote request. */}
       <InquiryBar
         sticky
         fields={HONEYMOONS_INQUIRY_FIELDS}
-        action={{ label: REQUEST_QUOTE, href: quoteHref, icon: "message" }}
+        form={{ to: "quote", label: HONEYMOONS_INQUIRY_LABEL, hidden: { topic: "honeymoons" } }}
+        action={{ label: REQUEST_QUOTE, icon: "message" }}
       />
 
       <Container size="wide" sx={{ pt: { xs: 2.25, md: 4 }, pb: { xs: 3, md: 7 } }}>

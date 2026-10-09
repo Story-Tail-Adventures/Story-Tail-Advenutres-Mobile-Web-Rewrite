@@ -157,7 +157,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.8 Caribbean Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for the business's core region — a curated Caribbean front door that turns browsing into quote requests and account creation.
-**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar (destination · when · travelers · vibe → "Request a quote"); three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
+**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar, an editable form (destination · when · travelers · vibe → "Request a quote"; it submits to `/quote`, which opens 2.3.8 through the sign-up gate with those values filled in and the vibe as the note's starting text); three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
 **Key actions:** Request a quote (→ Sign-up Gate); save a trip (→ Sign-up Gate); open a trip's Public Detail; tap an island (→ Public Search Results); message Gyasi without an account.
 **Entry points:** Public nav "Caribbean"; App Subdomain Public Landing; marketing-site links.
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -165,7 +165,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.9 Cruises Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for cruising — family, adults-only and group sailings, with the lines Gyasi books.
-**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar; "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
+**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar, an editable form (destination · when · travelers → "See what's sailing", the live sailing search in Public Search Results' Cruises mode — no vibe cell, deliberately unlike the prototype, because live sailings cannot filter on it); "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
 **Key actions:** Request a quote; save; open a sailing's Public Detail; message Gyasi.
 **Entry points:** Public nav "Cruises"; inspiration tile "Family cruises".
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -173,7 +173,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.10 Honeymoons Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for honeymoons — the most personal trip Gyasi plans.
-**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar; a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
+**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar, an editable form (destination · when · travelers · vibe → "Request a quote", handed to 2.3.8 as on 2.0.8); a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
 **Key actions:** Request a quote; save; open a Public Detail; see the curated list (→ Public Search Results filtered to honeymoons); message Gyasi.
 **Entry points:** Public nav "Honeymoons"; inspiration tile "Honeymoons".
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.

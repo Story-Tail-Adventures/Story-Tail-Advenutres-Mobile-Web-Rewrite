@@ -163,10 +163,16 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
         </CardContent>
       </Card>
 
-      <QuoteForm target={target} />
+      <QuoteForm target={target} initialNote={text(single(params.note), NOTE_PREFILL_MAX) ?? undefined} />
     </Box>
   );
 }
+
+/**
+ * Cap on the note's starting text. It comes from a topic page's Vibe cell (60 chars plus a
+ * short lead-in), and it only seeds a textarea the visitor edits — it is not the target.
+ */
+const NOTE_PREFILL_MAX = 200;
 
 const KINDS = ["hotel", "cruise", "excursion", "custom"] as const;
 const TRIP_TYPES = ["cruise", "all_inclusive", "multi_destination", "group", "custom"] as const;

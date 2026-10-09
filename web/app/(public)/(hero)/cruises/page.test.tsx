@@ -6,6 +6,7 @@ import { staImg } from "@/lib/images";
 import { joinHref } from "@/lib/public/links";
 import { countByTopic, resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
+  CRUISES_INQUIRY_LABEL,
   CRUISES_LINES_SECTION,
   CRUISES_TRIPS,
   CRUISES_TYPES,
@@ -88,10 +89,28 @@ describe("2.0.9 Cruises page", () => {
     // catalog. The bar previously sent people to the sign-up gate and back here, which meant
     // a bar summarising a search led nowhere near a result.
     expect(screen.getByRole("link", { name: "All sailings" })).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
-    expect(screen.getByRole("link", { name: "See what's sailing" })).toHaveAttribute(
-      "href",
-      resultsHref({ mode: "cruises", dest: "Caribbean" }),
-    );
+  });
+
+  it("makes the inquiry bar a search form that opens the live sailings with what was typed", () => {
+    const { container } = render(<CruisesPage />);
+    const form = screen.getByRole("search", { name: CRUISES_INQUIRY_LABEL });
+    expect(form.tagName).toBe("FORM");
+    expect(form).toHaveAttribute("action", "/explore/results");
+    // `mode=cruises` is never derived, so the form has to write it.
+    expect(form.querySelector('input[type="hidden"][name="mode"]')).toHaveValue("cruises");
+
+    // Empty cells with the artboard's values as hints, so an untouched bar sends no choices.
+    const dest = within(form).getByLabelText("Destination");
+    expect(dest).toHaveAttribute("name", "dest");
+    expect(dest).toHaveValue("");
+    expect(dest).toHaveAttribute("placeholder", "Caribbean");
+    expect(within(form).getByLabelText("Travelers")).toHaveAttribute("name", "travelers");
+    expect(within(form).queryByLabelText("Vibe")).toBeNull();
+    expect(within(form).getByRole("button", { name: "See what's sailing" })).toHaveAttribute("type", "submit");
+
+    // The one bar on the page, and no longer a link anywhere.
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: "See what's sailing" })).toBeNull();
   });
 
   it("has canonical and Open Graph metadata with the hero image", () => {

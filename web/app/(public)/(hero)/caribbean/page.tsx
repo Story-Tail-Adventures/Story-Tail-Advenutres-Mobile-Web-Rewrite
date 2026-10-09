@@ -27,6 +27,7 @@ import {
   CARIBBEAN_HERO,
   CARIBBEAN_HERO_IMAGE,
   CARIBBEAN_INQUIRY_FIELDS,
+  CARIBBEAN_INQUIRY_LABEL,
   CARIBBEAN_INTRO,
   CARIBBEAN_ISLANDS,
   CARIBBEAN_META,
@@ -81,9 +82,9 @@ const TRIP_GRID = {
 } as const;
 
 /**
- * Pattern H topic page. Everything is a Server Component: the inquiry bar is display text
- * plus a link, tiles link to the detail page or the sign-up gate, and the mobile sticky bar
- * replaces the inquiry bar below `md` (Screen Inventory §4.4).
+ * Pattern H topic page. Everything is a Server Component: the inquiry bar is a GET form,
+ * tiles link to the detail page or the sign-up gate, and the mobile sticky bar replaces the
+ * inquiry bar below `md` (Screen Inventory §4.4).
  */
 export default function CaribbeanPage() {
   const trips = tripsForTopic(TRIPS, TOPIC);
@@ -106,10 +107,12 @@ export default function CaribbeanPage() {
         sub={CARIBBEAN_HERO.sub}
       />
 
+      {/* Submits to /quote, which carries what was typed into the quote request. */}
       <InquiryBar
         sticky
         fields={CARIBBEAN_INQUIRY_FIELDS}
-        action={{ label: REQUEST_QUOTE, href: quoteHref, icon: "message" }}
+        form={{ to: "quote", label: CARIBBEAN_INQUIRY_LABEL, hidden: { topic: "caribbean" } }}
+        action={{ label: REQUEST_QUOTE, icon: "message" }}
       />
 
       <Container size="wide" sx={{ pt: { xs: 2.25, md: 4 }, pb: { xs: 3, md: 7 } }}>

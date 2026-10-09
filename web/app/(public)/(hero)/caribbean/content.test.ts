@@ -39,6 +39,7 @@ describe("2.0.8 Caribbean copy module", () => {
 
   it("has the four prototype inquiry cells and three intro points", () => {
     expect(CARIBBEAN_INQUIRY_FIELDS.map((f) => f.label)).toEqual(["Destination", "When", "Travelers", "Vibe"]);
+    expect(CARIBBEAN_INQUIRY_FIELDS.map((f) => f.name)).toEqual(["dest", "dates", "travelers", "vibe"]);
     expect(CARIBBEAN_INTRO).toHaveLength(3);
   });
 

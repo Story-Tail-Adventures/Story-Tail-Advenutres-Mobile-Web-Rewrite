@@ -60,11 +60,25 @@ export const CRUISES_HERO = {
  */
 export const CRUISES_INQUIRY_CTA = "See what's sailing";
 
+/** The bar's form name, for screen readers. */
+export const CRUISES_INQUIRY_LABEL = "Find a sailing";
+
+/**
+ * The bar's cells, empty until the visitor fills them; the artboard's values are the hints.
+ * Destination's hint is "Caribbean", not the artboard's "Caribbean cruise": a hint is text
+ * people type back in, and cruise-search matches it against sailing titles and destinations,
+ * where "Caribbean cruise" finds nothing.
+ *
+ * No Vibe cell, unlike the artboard. The live sailing list narrows by destination and
+ * departure only, so a Vibe here would look like a filter and do nothing (decided
+ * 2026-10-09). And When reads "Flexible dates", not the artboard's "Flexible · 7 nights": the
+ * dates cell is a button whose label is its value, and "7 nights" would read as a stay
+ * already picked (see SEARCH_FIELDS in explore/content.ts).
+ */
 export const CRUISES_INQUIRY_FIELDS: readonly InquiryField[] = [
-  { label: "Destination", value: "Caribbean cruise", icon: "map" },
-  { label: "When", value: "Flexible · 7 nights", icon: "calendar" },
-  { label: "Travelers", value: "2 adults", icon: "user" },
-  { label: "Vibe", value: "Family · Adults · Group", icon: "palm" },
+  { name: "dest", label: "Destination", placeholder: "Caribbean", icon: "map", type: "text" },
+  { name: "dates", label: "When", placeholder: "Flexible dates", icon: "calendar", type: "dates" },
+  { name: "travelers", label: "Travelers", placeholder: "2 adults", icon: "user", type: "number" },
 ];
 
 export const CRUISES_TYPES_SECTION: SectionCopy = {

@@ -7,6 +7,7 @@ import { resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
   HONEYMOONS_CHRISTIAN_CARD,
   HONEYMOONS_FEATURED,
+  HONEYMOONS_INQUIRY_LABEL,
   HONEYMOONS_NOTE,
   HONEYMOONS_STYLES,
   honeymoonsFeaturedOverline,
@@ -80,15 +81,27 @@ describe("2.0.10 Honeymoons page", () => {
 
   it("sends every quote CTA to the gate with this page as next, and message CTAs to the inquiry email", () => {
     render(<HoneymoonsPage />);
-    // Inquiry bar, Christian-couples card, closing band, sticky bar.
+    // Christian-couples card, closing band, sticky bar. The inquiry bar's is a submit button
+    // now — see below.
     const quoteLinks = screen.getAllByRole("link", { name: "Request a quote" });
-    expect(quoteLinks).toHaveLength(4);
+    expect(quoteLinks).toHaveLength(3);
     for (const link of quoteLinks) {
       expect(link).toHaveAttribute("href", joinHref({ intent: "quote", next: PATH }));
     }
     for (const name of ["Message Gyasi first", "Message Gyasi"]) {
       expect(screen.getByRole("link", { name }).getAttribute("href")).toMatch(/^mailto:/);
     }
+  });
+
+  it("makes the inquiry bar a GET form that hands what was typed to the quote request", () => {
+    render(<HoneymoonsPage />);
+    const form = screen.getByRole("form", { name: HONEYMOONS_INQUIRY_LABEL });
+    expect(form).toHaveAttribute("action", "/quote");
+    expect(form).toHaveAttribute("method", "get");
+    expect(form.querySelector('input[type="hidden"][name="topic"]')).toHaveValue(TOPIC);
+    expect(within(form).getByLabelText("Destination")).toHaveAttribute("placeholder", "Anywhere romantic");
+    expect(within(form).getByLabelText("Vibe")).toHaveAttribute("name", "vibe");
+    expect(within(form).getByRole("button", { name: "Request a quote" })).toHaveAttribute("type", "submit");
   });
 
   it("has canonical and Open Graph metadata with the hero image", () => {

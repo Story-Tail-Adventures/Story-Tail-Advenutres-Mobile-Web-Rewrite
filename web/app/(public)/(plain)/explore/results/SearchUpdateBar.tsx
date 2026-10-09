@@ -25,9 +25,9 @@ import { inquirySummary } from "./filters";
  * and that link went to a BLANK search form. Changing one thing about a search meant retyping
  * all of it, which is the opposite of what a button called "Update" promises.
  *
- * `InquiryBar` is deliberately left alone: the three topic pages use it as a read-only sticky
- * bar and it is correct there. This is the one place the pill needs to be editable, so the
- * editable version lives here rather than growing a mode into a shared component.
+ * `InquiryBar` (the three topic pages' sticky bar) became a form too, in October 2026, but it
+ * stays a separate component: it carries nothing forward from a previous search, has no
+ * mobile variant, and on two of the three pages it submits to the quote request instead.
  *
  * EDITING HAPPENS IN PLACE rather than by navigating to /explore, for two reasons. This route
  * is already dynamic (it reads searchParams), so a form here costs nothing, while making

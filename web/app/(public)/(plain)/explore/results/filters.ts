@@ -1,4 +1,4 @@
-import type { InquiryField } from "@/components/public/InquiryBar";
+import type { IconName } from "@/components/ui/icon-paths";
 import type { TripType, Vibe } from "@/content/public/types";
 import {
   effectiveMode,
@@ -136,8 +136,15 @@ export function activeFilterCount(q: SearchQuery): number {
   return q.types.length + q.vibes.length + q.budgets.length;
 }
 
+/** One display cell of the header pill: what the search currently says, not an input. */
+export interface InquiryCell {
+  label: string;
+  value: string;
+  icon: IconName;
+}
+
 /** Header pill cells derived from the query (C204: destination / dates / travelers / type). */
-export function inquiryFields(q: SearchQuery): InquiryField[] {
+export function inquiryFields(q: SearchQuery): InquiryCell[] {
   const single = q.types.length === 1 ? q.types[0] : undefined;
   return [
     { label: RESULTS.pill.destination, value: q.dest ?? RESULTS.pill.anywhere, icon: "map" },

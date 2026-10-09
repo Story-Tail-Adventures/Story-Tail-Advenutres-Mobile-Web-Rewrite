@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isJoinIntent, joinHref, loginHref, tripHref } from "./links";
+import { isJoinIntent, joinHref, loginHref, quoteHref, tripHref } from "./links";
 
 describe("joinHref", () => {
   it("builds the gate link with intent, trip and a safe next path", () => {
@@ -34,5 +34,13 @@ describe("loginHref / tripHref / isJoinIntent", () => {
     expect(isJoinIntent("quote")).toBe(true);
     expect(isJoinIntent("hack")).toBe(false);
     expect(isJoinIntent(undefined)).toBe(false);
+  });
+});
+
+describe("quoteHref", () => {
+  it("writes the note's starting text when there is one, and nothing when there is not", () => {
+    const withNote = new URL(quoteHref({ kind: "custom", name: "Honeymoon", note: "Hoping for: quiet" }), "http://x");
+    expect(withNote.searchParams.get("note")).toBe("Hoping for: quiet");
+    expect(new URL(quoteHref({ kind: "custom", name: "Honeymoon" }), "http://x").searchParams.has("note")).toBe(false);
   });
 });
