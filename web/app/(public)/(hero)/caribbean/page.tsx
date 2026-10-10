@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Fragment } from "react";
 import Box from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
+import { topicQuoteLink } from "@/app/quote/href";
 import NextLink from "@/components/mui/NextLink";
 import { ClosingCta } from "@/components/public/ClosingCta";
 import { Container } from "@/components/public/Container";
@@ -20,7 +21,6 @@ import { TRIPS } from "@/content/public/trips";
 import type { Topic } from "@/content/public/types";
 import { staImg } from "@/lib/images";
 import { inquiryHref } from "@/lib/public/inquiry";
-import { joinHref } from "@/lib/public/links";
 import { countByTopic, resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
   CARIBBEAN_CLOSING,
@@ -42,6 +42,13 @@ import {
 const TOPIC: Topic = "caribbean";
 const ISLANDS_HEADING_ID = "islands";
 const TRIPS_HEADING_ID = "hand-picked-trips";
+
+/**
+ * Hourly, so the `today` the inquiry bar's date picker is prerendered with (its native-input
+ * floor before hydration, and with no JavaScript at all) is never more than an hour old.
+ * Built once and left, it would accept dates long past and parseStay would drop them.
+ */
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: CARIBBEAN_META.title,
@@ -89,7 +96,9 @@ const TRIP_GRID = {
 export default function CaribbeanPage() {
   const trips = tripsForTopic(TRIPS, TOPIC);
   const total = countByTopic(TRIPS, TOPIC);
-  const quoteHref = joinHref({ intent: "quote", next: CARIBBEAN_PATH });
+  // Straight to the quote form for this topic, through the gate. It used to be the gate with
+  // this page as `next`, which forwarded a signed-in visitor right back here.
+  const quoteHref = topicQuoteLink(TOPIC);
   const browseHref = resultsHref({ topic: TOPIC });
   const messageHref = inquiryHref({ source: "topic", topic: TOPIC });
 
@@ -109,7 +118,6 @@ export default function CaribbeanPage() {
 
       {/* Submits to /quote, which carries what was typed into the quote request. */}
       <InquiryBar
-        sticky
         fields={CARIBBEAN_INQUIRY_FIELDS}
         form={{ to: "quote", label: CARIBBEAN_INQUIRY_LABEL, hidden: { topic: "caribbean" } }}
         action={{ label: REQUEST_QUOTE, icon: "message" }}

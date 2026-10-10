@@ -14,7 +14,6 @@ describe("InquiryBar (topic pages' StickyInquireBar, as a form)", () => {
   it("is a GET search form to the results page when it opens a search", () => {
     renderWithTheme(
       <InquiryBar
-        sticky
         fields={FIELDS.slice(0, 3)}
         form={{ to: "results", label: "Find a sailing", hidden: { mode: "cruises" } }}
         action={{ label: "See what's sailing", icon: "search" }}
@@ -45,7 +44,6 @@ describe("InquiryBar (topic pages' StickyInquireBar, as a form)", () => {
     expect(form).toHaveAttribute("method", "get");
     expect(form).toHaveAttribute("action", "/quote");
     expect(form.querySelector('input[type="hidden"][name="topic"]')).toHaveValue("caribbean");
-    expect(form.closest(".sticky-under-topbar")).toBeNull();
   });
 
   it("starts every cell empty, with a visible label tied to its control", () => {
@@ -67,7 +65,12 @@ describe("InquiryBar (topic pages' StickyInquireBar, as a form)", () => {
     expect(travelers.type).toBe("number");
     expect(travelers.min).toBe("1");
     expect(travelers.max).toBe("20");
-    // "When" names the picker's own control rather than an input of this bar's.
-    expect(within(form).getAllByLabelText("When").length).toBeGreaterThan(0);
+
+    // The visible "When" label has to name the picker's own control. It points at
+    // `${idPrefix}-dates`, so a change to the picker's id scheme must break this.
+    const when = within(form).getByText("When", { selector: "label" });
+    const target = form.querySelector(`#${when.getAttribute("for")}`);
+    expect(target).not.toBeNull();
+    expect(target).toBe(within(form).getByRole("button", { name: /^When/ }));
   });
 });

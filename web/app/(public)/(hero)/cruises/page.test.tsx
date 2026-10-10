@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CRUISE_LINES } from "@/content/public/cruise-lines";
 import { TRIPS } from "@/content/public/trips";
 import { staImg } from "@/lib/images";
+import { topicQuoteLink } from "@/app/quote/href";
 import { joinHref } from "@/lib/public/links";
 import { countByTopic, resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
@@ -73,14 +74,14 @@ describe("2.0.9 Cruises page", () => {
     ).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
   });
 
-  it("sends every quote CTA to the gate with this page as next, and message CTAs to the inquiry email", () => {
+  it("sends every quote CTA to the quote form for this topic (not back here), and message CTAs to the inquiry email", () => {
     render(<CruisesPage />);
     // Closing band and sticky bar. The inquiry bar used to be a third and is not any more —
     // see below.
     const quoteLinks = screen.getAllByRole("link", { name: "Request a quote" });
     expect(quoteLinks).toHaveLength(2);
     for (const link of quoteLinks) {
-      expect(link).toHaveAttribute("href", joinHref({ intent: "quote", next: PATH }));
+      expect(link).toHaveAttribute("href", topicQuoteLink(TOPIC));
     }
     expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^mailto:/);
 

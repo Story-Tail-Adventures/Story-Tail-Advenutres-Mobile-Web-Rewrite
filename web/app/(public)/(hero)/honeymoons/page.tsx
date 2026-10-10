@@ -7,6 +7,7 @@ import MuiButton from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { topicQuoteLink } from "@/app/quote/href";
 import NextLink from "@/components/mui/NextLink";
 import { AdvisorCard } from "@/components/public/AdvisorCard";
 import { ClosingCta } from "@/components/public/ClosingCta";
@@ -23,7 +24,6 @@ import type { Topic } from "@/content/public/types";
 import { staImg } from "@/lib/images";
 import { UP_MD } from "@/lib/mui/sx";
 import { inquiryHref } from "@/lib/public/inquiry";
-import { joinHref } from "@/lib/public/links";
 import { resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
   HONEYMOONS_CHRISTIAN_CARD,
@@ -47,6 +47,13 @@ const TOPIC: Topic = "honeymoons";
 const STYLES_HEADING_ID = "three-ways-to-honeymoon";
 const FEATURED_HEADING_ID = "featured-packages";
 const CHRISTIAN_HEADING_ID = "for-christian-couples";
+
+/**
+ * Hourly, so the `today` the inquiry bar's date picker is prerendered with (its native-input
+ * floor before hydration, and with no JavaScript at all) is never more than an hour old.
+ * Built once and left, it would accept dates long past and parseStay would drop them.
+ */
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: HONEYMOONS_META.title,
@@ -102,7 +109,9 @@ const CHRISTIAN_CARD = {
  */
 export default function HoneymoonsPage() {
   const trips = tripsForTopic(TRIPS, TOPIC);
-  const quoteHref = joinHref({ intent: "quote", next: HONEYMOONS_PATH });
+  // Straight to the quote form for this topic, through the gate. It used to be the gate with
+  // this page as `next`, which forwarded a signed-in visitor right back here.
+  const quoteHref = topicQuoteLink(TOPIC);
   const curatedHref = resultsHref({ vibes: ["honeymoon"] });
   const messageHref = inquiryHref({ source: "topic", topic: TOPIC });
 
@@ -122,7 +131,6 @@ export default function HoneymoonsPage() {
 
       {/* Submits to /quote, which carries what was typed into the quote request. */}
       <InquiryBar
-        sticky
         fields={HONEYMOONS_INQUIRY_FIELDS}
         form={{ to: "quote", label: HONEYMOONS_INQUIRY_LABEL, hidden: { topic: "honeymoons" } }}
         action={{ label: REQUEST_QUOTE, icon: "message" }}

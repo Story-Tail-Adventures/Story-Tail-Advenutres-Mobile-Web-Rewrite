@@ -85,3 +85,29 @@ export const VISUALLY_HIDDEN = {
   whiteSpace: "nowrap",
   border: 0,
 } as const;
+
+/**
+ * The search cells' shared paint: the 2.0.3 pill and card (explore/SearchBar), the 2.0.4
+ * header (explore/results/SearchUpdateBar) and the topic pages' InquiryBar. One copy, so a fix
+ * to one search cell reaches all of them.
+ */
+
+/** The brand-orange glyph beside a value, as every search cell draws it. */
+export const SEARCH_GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
+
+/**
+ * A search cell's hint at full-opacity `text.secondary`. MUI's default is `currentColor` at
+ * 42%, under 4.5:1, and these hints carry the artboards' example values, so they have to be
+ * readable. Spread into an InputBase's sx.
+ */
+export const SEARCH_PLACEHOLDER = {
+  "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
+} as const;
+
+/** A borderless pill input in the cell's own type, so the pill reads as text until you type. */
+export const SEARCH_PILL_INPUT = {
+  typography: "subtitle2",
+  lineHeight: 1.2,
+  "& .MuiInputBase-input": { height: "auto", py: "2px" },
+  ...SEARCH_PLACEHOLDER,
+} as const;

@@ -76,6 +76,11 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
     );
   }
 
+  // A topic page's Vibe cell, as the starting text of the note. Read for display only, like
+  // everything else here: it seeds a textarea the visitor edits before anything is sent.
+  const vibe = text(single(params.vibe), VIBE_MAX);
+  const initialNote = vibe ? QUOTE.notes.vibePrefill(vibe) : undefined;
+
   const dates = target.checkIn && target.checkOut
     ? formatRange(target.checkIn, target.checkOut, SEARCH_TIME_ZONE)
     : null;
@@ -163,16 +168,18 @@ export default async function NewTripPage({ searchParams }: { searchParams: Prom
         </CardContent>
       </Card>
 
-      <QuoteForm target={target} initialNote={text(single(params.note), NOTE_PREFILL_MAX) ?? undefined} />
+      {/* Keyed on what it is for, so a soft navigation to a different request remounts it:
+          useActionState reads its initial state (the note, "idle") only once. */}
+      <QuoteForm key={JSON.stringify([target, initialNote ?? null])} target={target} initialNote={initialNote} />
     </Box>
   );
 }
 
 /**
- * Cap on the note's starting text. It comes from a topic page's Vibe cell (60 chars plus a
- * short lead-in), and it only seeds a textarea the visitor edits — it is not the target.
+ * The Vibe cell's own cap (InquiryBar, `cleanText`). The note's wording around it is ours
+ * (QUOTE.notes.vibePrefill), so a link can only ever fill in this one short blank.
  */
-const NOTE_PREFILL_MAX = 200;
+const VIBE_MAX = 60;
 
 const KINDS = ["hotel", "cruise", "excursion", "custom"] as const;
 const TRIP_TYPES = ["cruise", "all_inclusive", "multi_destination", "group", "custom"] as const;

@@ -24,6 +24,13 @@ import { SearchBar, STACKED_SEARCH_FORM_ID } from "./SearchBar";
 const HERO_IMAGE: ImageKey = "bahamas";
 const PATH = "/explore";
 
+/**
+ * Hourly, so the `today` SearchBar's date picker is prerendered with (its native-input floor
+ * before hydration, and with no JavaScript at all) is never more than an hour old. Built once
+ * and left, it would accept dates long past and parseStay would drop them.
+ */
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: EXPLORE.meta.title,
   description: EXPLORE.meta.description,

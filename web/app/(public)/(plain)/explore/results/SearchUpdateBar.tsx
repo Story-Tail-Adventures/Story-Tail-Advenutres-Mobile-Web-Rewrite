@@ -12,7 +12,7 @@ import NextForm from "@/components/mui/NextForm";
 import { DateRangePicker } from "@/components/public/DateRangePicker";
 import { Icon } from "@/components/ui/Icon";
 import { EXPLORE } from "@/app/(public)/(hero)/explore/content";
-import { TAP_TARGET } from "@/lib/mui/sx";
+import { SEARCH_GLYPH, SEARCH_PLACEHOLDER, TAP_TARGET } from "@/lib/mui/sx";
 import { todayIso } from "@/lib/public/dates";
 import { effectiveMode, resultsHref, SEARCH_TIME_ZONE, type SearchQuery } from "@/lib/public/search";
 import { RESULTS } from "./content";
@@ -60,9 +60,6 @@ const CELL_LABEL_SX = {
   color: "text.secondary",
 } as const;
 
-/** The brand-orange glyph that leads each cell. */
-const CELL_ICON_SX = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
-
 export function SearchUpdateBar({ q }: { q: SearchQuery }) {
   const today = todayIso(SEARCH_TIME_ZONE);
   const mode = effectiveMode(q);
@@ -92,13 +89,13 @@ export function SearchUpdateBar({ q }: { q: SearchQuery }) {
     // InputBase, the bare input: the cell draws the box, so the control itself has no padding
     // and takes the cell's type. Compact is body2/500 as the artboard sets its cell text.
     const inputSx = compact
-      ? { flex: 1, minWidth: 0, typography: "body2", fontWeight: 500, "& .MuiInputBase-input": { p: 0, height: "auto" } }
-      : { flex: 1, minWidth: 0, typography: "subtitle1", "& .MuiInputBase-input": { p: 0, height: "auto", minHeight: 44 } };
+      ? { flex: 1, minWidth: 0, typography: "body2", fontWeight: 500, "& .MuiInputBase-input": { p: 0, height: "auto" }, ...SEARCH_PLACEHOLDER }
+      : { flex: 1, minWidth: 0, typography: "subtitle1", "& .MuiInputBase-input": { p: 0, height: "auto", minHeight: 44 }, ...SEARCH_PLACEHOLDER };
 
     return (
       <>
         <Box sx={cellSx}>
-          <Box component="span" sx={CELL_ICON_SX}>
+          <Box component="span" sx={SEARCH_GLYPH}>
             <Icon name="map" size={compact ? 12 : 14} />
           </Box>
           {!compact && (
@@ -120,7 +117,7 @@ export function SearchUpdateBar({ q }: { q: SearchQuery }) {
 
         <Box sx={{ ...cellSx, ...(compact && { gap: 0 }) }}>
           {!compact && (
-            <Box component="span" sx={CELL_ICON_SX}>
+            <Box component="span" sx={SEARCH_GLYPH}>
               <Icon name="calendar" size={14} />
             </Box>
           )}
@@ -142,7 +139,7 @@ export function SearchUpdateBar({ q }: { q: SearchQuery }) {
         </Box>
 
         <Box sx={{ ...cellSx, borderRight: 0, borderBottom: 0 }}>
-          <Box component="span" sx={CELL_ICON_SX}>
+          <Box component="span" sx={SEARCH_GLYPH}>
             <Icon name="user" size={compact ? 12 : 14} />
           </Box>
           {!compact && (

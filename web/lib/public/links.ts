@@ -79,11 +79,12 @@ export interface QuoteTarget {
   rating?: number;
   propertyType?: string;
   /**
-   * Starting text for the form's note, from what the visitor typed on a topic page's bar.
-   * NOT part of what is being quoted: it seeds a textarea the visitor sees and edits, and it
-   * is sent as the ordinary `note` field — so nothing here is trusted that was not already.
+   * What the visitor typed in a topic page's Vibe cell, as the bare value. NOT part of what
+   * is being quoted: the quote form wraps it in its own wording to seed the note textarea,
+   * which the visitor sees and edits and which is sent as the ordinary `note` field. Only the
+   * bare value travels, so a link can fill in that one short blank and nothing else.
    */
-  note?: string;
+  vibe?: string;
 }
 
 /** `/trips/new?…` — Screen 2.3.8, the quote request form. Requires a signed-in client. */
@@ -105,7 +106,7 @@ export function quoteHref(target: QuoteTarget): string {
   if (target.hotelClass) params.set("class", String(target.hotelClass));
   if (target.rating) params.set("rating", String(target.rating));
   if (target.propertyType) params.set("type", target.propertyType);
-  if (target.note) params.set("note", target.note);
+  if (target.vibe) params.set("vibe", target.vibe);
   return `/trips/new?${params.toString()}`;
 }
 

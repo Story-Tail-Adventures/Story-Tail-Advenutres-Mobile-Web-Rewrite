@@ -38,9 +38,10 @@ describe("loginHref / tripHref / isJoinIntent", () => {
 });
 
 describe("quoteHref", () => {
-  it("writes the note's starting text when there is one, and nothing when there is not", () => {
-    const withNote = new URL(quoteHref({ kind: "custom", name: "Honeymoon", note: "Hoping for: quiet" }), "http://x");
-    expect(withNote.searchParams.get("note")).toBe("Hoping for: quiet");
-    expect(new URL(quoteHref({ kind: "custom", name: "Honeymoon" }), "http://x").searchParams.has("note")).toBe(false);
+  it("carries the bare vibe, never a ready-made note", () => {
+    const withVibe = new URL(quoteHref({ kind: "custom", name: "Honeymoon", vibe: "quiet" }), "http://x");
+    expect(withVibe.searchParams.get("vibe")).toBe("quiet");
+    expect(withVibe.searchParams.has("note")).toBe(false);
+    expect(new URL(quoteHref({ kind: "custom", name: "Honeymoon" }), "http://x").searchParams.has("vibe")).toBe(false);
   });
 });

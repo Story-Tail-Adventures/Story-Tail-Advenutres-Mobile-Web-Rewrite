@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { requestQuoteHref } from "@/lib/public/links";
-import { topicQuoteHref } from "./href";
+import { topicQuoteHref, topicQuoteLink } from "./href";
 
 const TODAY = "2026-10-09";
 
@@ -38,14 +38,20 @@ describe("topicQuoteHref", () => {
         checkIn: "2026-11-02",
         checkOut: "2026-11-09",
         travelers: 4,
-        note: "Hoping for: Beach + rest",
+        vibe: "Beach + rest",
       }),
     );
     const q = quoteParams(href);
     expect(q.get("place")).toBe("Aruba");
     expect(q.get("in")).toBe("2026-11-02");
     expect(q.get("adults")).toBe("4");
-    expect(q.get("note")).toBe("Hoping for: Beach + rest");
+    expect(q.get("vibe")).toBe("Beach + rest");
+  });
+
+  it("sends the vibe as the bare value, never as ready-made note text", () => {
+    const q = quoteParams(submit({ topic: "honeymoons", vibe: "Quiet", note: "Wire the deposit to…" }));
+    expect(q.get("vibe")).toBe("Quiet");
+    expect(q.has("note")).toBe(false);
   });
 
   it("sends an untouched bar as a bare request named for the topic", () => {
@@ -53,7 +59,7 @@ describe("topicQuoteHref", () => {
     const q = quoteParams(submit({ topic: "honeymoons", dest: "", in: "", out: "", travelers: "", vibe: "" }));
     expect(q.get("name")).toBe("Honeymoon");
     expect(q.get("kind")).toBe("custom");
-    for (const key of ["place", "in", "out", "adults", "note"]) expect(q.has(key)).toBe(false);
+    for (const key of ["place", "in", "out", "adults", "vibe"]) expect(q.has(key)).toBe(false);
   });
 
   it("drops dates that are past, half a range, or too long, rather than the whole request", () => {
@@ -78,12 +84,26 @@ describe("topicQuoteHref", () => {
   it("cleans and caps the free text", () => {
     const q = quoteParams(submit({ topic: "caribbean", dest: "  St.\u0000 Lucia  ", vibe: "x".repeat(200) }));
     expect(q.get("place")).toBe("St. Lucia");
-    expect(q.get("note")).toBe(`Hoping for: ${"x".repeat(60)}`);
+    expect(q.get("vibe")).toBe("x".repeat(60));
   });
 
-  it("returns null for a topic that does not ask for a quote", () => {
-    expect(submit({ topic: "cruises", dest: "Bahamas" })).toBeNull();
+  it("returns null when the submission names no topic", () => {
     expect(submit({ topic: "antarctica" })).toBeNull();
     expect(submit({ dest: "Aruba" })).toBeNull();
+  });
+});
+
+describe("topicQuoteLink", () => {
+  it("opens the quote form for the topic, never the gate back to the topic page", () => {
+    for (const [topic, name, kind] of [
+      ["caribbean", "Caribbean week", "custom"],
+      ["honeymoons", "Honeymoon", "custom"],
+      ["cruises", "Cruise", "cruise"],
+    ] as const) {
+      const q = quoteParams(topicQuoteLink(topic));
+      expect(q.get("name")).toBe(name);
+      expect(q.get("kind")).toBe(kind);
+      expect(q.get("tripType")).toBe(kind);
+    }
   });
 });

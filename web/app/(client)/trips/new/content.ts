@@ -29,6 +29,8 @@ export const QUOTE = {
     label: "Anything else Gyasi should know?",
     placeholder: "Room preference, occasion, flights you're already holding, budget in mind…",
     optional: "Optional",
+    /** The note's starting text when a topic page's Vibe cell was filled in. Still editable. */
+    vibePrefill: (vibe: string) => `Hoping for: ${vibe}`,
   },
   submit: "Send to Gyasi",
   submitting: "Sending…",
