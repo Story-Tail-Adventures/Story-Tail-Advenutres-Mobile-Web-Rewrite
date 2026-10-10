@@ -6,7 +6,7 @@ export const COOKIES: LegalDoc = {
   title: "Cookies",
   navLabel: "Cookies",
   description: "The small number of cookies and browser storage keys the Story-Tail portal uses, and what each one does.",
-  lastUpdated: "2026-09-02",
+  lastUpdated: "2026-10-10",
   status: "draft",
   sections: [
     {
@@ -18,6 +18,7 @@ export const COOKIES: LegalDoc = {
         "Sign-in session cookies (set by our authentication provider, Supabase) so you stay signed in between pages.",
         "A light-or-dark appearance preference, stored in your browser's local storage.",
         "A note that you dismissed the “sign in to save” banner on the search pages, stored in local storage.",
+        "Anonymous page-view counts from Vercel, our hosting provider, so we can see which pages people visit. It sets no cookies and does not follow you to other sites.",
       ],
     },
     {
