@@ -183,6 +183,16 @@ SELECT pg_temp.assert(
     'the enabled scopes bill at most ~40 requests a month once cadence is counted'
 );
 
+-- The weighting above counts a scope ONCE a week, and that is only true while every enabled
+-- scope has an interval. The Monday cron fires several ticks a few minutes apart (the
+-- cruise_sync_ahead_and_paced migration) so each run fits under the relay's per-minute
+-- limit, and a scope at min_interval_days = 0 would run on EVERY one of them: four times the
+-- spend for the same rows, invisible to the sum above.
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.cruise_sync_scope WHERE enabled AND min_interval_days < 6),
+    'every enabled scope runs at most once a week, not on each of the Monday ticks'
+);
+
 -- A slow-changing scope on every-run cadence is how the budget quietly drains: it is 4
 -- requests a month against 17 for the same data.
 SELECT pg_temp.assert(

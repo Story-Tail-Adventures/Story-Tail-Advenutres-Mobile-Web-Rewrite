@@ -218,6 +218,25 @@ SELECT pg_temp.expect_error(
     'half a provenance pair is refused — a provider with no key cannot be reconciled'
 );
 
+-- ─────────────────────────────────────────────────────────────────────────────
+\echo '== a sailing window cannot open past its own far edge =='
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- An offset at or beyond departure_within_days asks the provider for an empty range every
+-- week, and pays a request each time to hear "nothing". The CHECK makes that unstorable.
+SELECT pg_temp.expect_error(
+    'UPDATE public.cruise_sync_scope SET departure_offset_days = departure_within_days '
+    'WHERE endpoint = ''cruises'' AND departure_within_days IS NOT NULL',
+    '23514',
+    'a window that opens at its own far edge is refused'
+);
+
+SELECT pg_temp.expect_error(
+    'UPDATE public.cruise_sync_scope SET departure_offset_days = -1 WHERE endpoint = ''cruises''',
+    '23514',
+    'a window cannot open in the past'
+);
+
 \echo '== all cruise catalog constraint assertions passed =='
 
 ROLLBACK;
