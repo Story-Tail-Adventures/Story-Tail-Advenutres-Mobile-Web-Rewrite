@@ -509,6 +509,46 @@ verify_jwt = true
 [functions.agent-client-notes]
 verify_jwt = true
 
+# ── §3.4's trip writes ────────────────────────────────────────────────────────
+# Seven ops now: create (§3.4.3), the three component verbs (§3.4.4 – §3.4.12), and
+# the three payment-schedule verbs (§3.4.15). Every one of the RPCs behind them is
+# service_role only because each takes p_agent_id as trusted input.
+#
+# Separate from agent-trip-status: that one is about a trip's STAGE and takes a
+# version to refuse a stale write, neither of which any of these has. The payment
+# ops are two functions rather than one on purpose — agent_set_milestone_paid is the
+# only thing that may move trip.total_paid_cents, which sizes the balance a traveler
+# is shown when they authorize a card.
+[functions.agent-trip]
+verify_jwt = true
+
+# ── §3.4.14 itinerary writes ──────────────────────────────────────────────────
+# The day scaffold, the entries, and the auto-generate button. Its own door rather
+# than five more ops on agent-trip, which already carries seven over 500 lines — the
+# itinerary is a different entity graph (itinerary -> day -> activity) reached from a
+# different screen, the same reasoning that split agent-trip-status out.
+#
+# verify_jwt with requireAgentId behind it, as everywhere on this surface. And the
+# note above bears repeating, because this block was missed on the first push and CI
+# caught it: a function with no block here is never deployed at all. The local stack
+# serves every directory under supabase/functions/ regardless, so nothing local can
+# tell you it is missing.
+[functions.agent-itinerary]
+verify_jwt = true
+
+# ── §3.4.13's template library ────────────────────────────────────────────────
+# Save a trip as a pattern, rename it, retire it, and apply one to a trip.
+#
+# `apply` writes components, itinerary days and activities in a single statement, which is
+# why this is its own door rather than a fifth family of ops on agent-trip.
+#
+# AND THIS BLOCK IS THE POINT OF THE NOTE ABOVE. agent-itinerary shipped without one, CI
+# caught it, and nothing local could have: the local stack serves every directory under
+# supabase/functions/ whether or not it is declared here, so the function answers 401 and
+# the browser walkthrough passes. A function with no block is never deployed.
+[functions.agent-template]
+verify_jwt = true
+
 # ── §3.3's client writes ──────────────────────────────────────────────────────
 # Create, edit, archive and bulk-tag (§3.3.9, §3.3.10, §3.3.12, and §3.3.1's
 # checkbox column). The only door onto agent_create_client, agent_update_client,

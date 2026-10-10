@@ -214,7 +214,8 @@ function pickAllowed<T extends string>(values: string[], allowed: readonly T[]):
   return out;
 }
 
-function cleanText(value: string | string[] | undefined): string | undefined {
+/** One free-text query value: first of a list, control characters out, ≤ 60 chars, or undefined. */
+export function cleanText(value: string | string[] | undefined): string | undefined {
   const raw = Array.isArray(value) ? value[0] : value;
   if (typeof raw !== "string") return undefined;
   // Strip control characters and collapse whitespace; keep it short.

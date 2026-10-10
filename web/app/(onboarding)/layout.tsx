@@ -6,7 +6,9 @@
 // gate, so a wizard step inside it would be redirected to itself — a loop, not a gate. It
 // also brings the portal nav that arrives with 2.2.1, which does not belong over a wizard.
 //
-// So: no chrome at all, matching `ScreenFrame chrome="plain"` in the prototype.
+// So: no chrome at all, matching `MuiScreenFrame chrome="plain"` in the prototype: one
+// column on `background.default`, the same surface the client shell sits on.
+import Box from "@mui/material/Box";
 import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -29,5 +31,17 @@ export default async function OnboardingLayout({
     if (status && (!status.isClient || status.completedAt)) redirect("/dashboard");
   }
 
-  return <div className="flex min-h-dvh flex-1 flex-col bg-bg">{children}</div>;
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flex: 1,
+        minHeight: "100dvh",
+        flexDirection: "column",
+        bgcolor: "background.default",
+      }}
+    >
+      {children}
+    </Box>
+  );
 }

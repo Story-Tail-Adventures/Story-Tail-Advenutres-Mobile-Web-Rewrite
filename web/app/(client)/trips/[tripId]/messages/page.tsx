@@ -1,10 +1,25 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 
+import {
+  BODY_S,
+  BTN_SM,
+  ICON_BTN_SX,
+  MAX_W_3XL,
+  THREAD_HEADER_SX,
+  THREAD_ROW_SX,
+  TITLE_S,
+  advisorAvatarSx,
+} from "@/components/client/client-sx";
 import { Composer } from "@/components/client/thread/Composer";
 import { ThreadMessages } from "@/components/client/thread/ThreadMessages";
 import { ThreadScroll } from "@/components/client/thread/ThreadScroll";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { sendTripMessage } from "@/lib/trips/actions";
 import { loadTripThread } from "@/lib/trips/queries";
@@ -32,7 +47,8 @@ export const metadata: Metadata = { title: "Messages" };
  * Two things are load-bearing for that, and the screen shipped broken without the first:
  * `.client-fill` gives the root a definite height (the shell is `min-h-dvh`, so `h-full`
  * resolves against nothing and the compose bar lands below the fold — see client.css), and
- * `min-h-0` lets the middle region shrink below its content instead of growing the column.
+ * `minHeight: 0` lets the middle region shrink below its content instead of growing the
+ * column.
  *
  * TWO NAMED PRIMARY ELEMENTS ARE ABSENT, and see `web/lib/trips/thread.ts` for the full
  * reasoning: the typing indicator needs Realtime presence that nothing backs, and read
@@ -53,56 +69,65 @@ export default async function MessagesPage({
     // `.client-fill` is the shell opt-in that gives this screen a definite height — see
     // web/styles/client.css for why `h-full` alone cannot work here. With that in place the
     // header and compose bar are fixed-size flex children and the middle region scrolls.
-    <div className="client-fill flex flex-col">
-      <header className="shrink-0 border-b border-outline-variant bg-surface px-4 py-3 md:px-6">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
-          <Link
+    <Box className="client-fill" sx={{ display: "flex", flexDirection: "column" }}>
+      <Box component="header" sx={THREAD_HEADER_SX}>
+        <Box sx={THREAD_ROW_SX}>
+          <IconButton
+            component={NextLink}
             href={`/trips/${tripId}`}
-            className="btn-icon tap-44 shrink-0"
             aria-label={THREAD.back}
+            sx={ICON_BTN_SX}
           >
             <Icon name="arrow_left" size={18} />
-          </Link>
+          </IconButton>
 
           {/* The advisor's initials, matching the artboards' MAdvisorAvatar. A photograph
               would be the real thing, and there is one in the design — but the only asset
               behind it is a stock portrait, and putting a stranger's face on Gyasi is worse
               than initials. */}
-          <span
-            aria-hidden="true"
-            className="t-label inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-burgundy text-[12px] font-bold text-white"
-          >
+          <Avatar aria-hidden="true" sx={advisorAvatarSx(36, 12)}>
             GS
-          </span>
+          </Avatar>
 
-          <div className="min-w-0 flex-1">
-            <p className="t-title-s truncate">
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography component="p" variant="subtitle1" noWrap sx={TITLE_S}>
               {THREAD.advisorName} · {thread.tripTitle}
-            </p>
-            <p className="t-body-s text-on-surface-variant">
+            </Typography>
+            <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
               {thread.unreadCount > 0
                 ? THREAD.unreadLabel(thread.unreadCount)
                 : THREAD_MESSAGES.replyWindow}
-            </p>
-          </div>
+            </Typography>
+          </Box>
 
-          <Link href={`/trips/${tripId}`} className="btn btn-tonal btn-sm shrink-0">
-            <span className="hidden md:inline">{THREAD_MESSAGES.openTrip}</span>
-            <span className="md:hidden">
+          <MuiButton
+            component={NextLink}
+            href={`/trips/${tripId}`}
+            // Named for phones, where only the icon shows.
+            aria-label={THREAD_MESSAGES.openTrip}
+            variant="outlined"
+            color="secondary"
+            size="small"
+            sx={{ ...BTN_SM, flexShrink: 0 }}
+          >
+            <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+              {THREAD_MESSAGES.openTrip}
+            </Box>
+            <Box component="span" sx={{ display: { xs: "inline-flex", md: "none" } }}>
               <Icon name="trip" size={14} />
-            </span>
-          </Link>
-        </div>
-      </header>
+            </Box>
+          </MuiButton>
+        </Box>
+      </Box>
 
       <ThreadScroll messageCount={thread.messages.length}>
-        <div className="mx-auto w-full max-w-3xl">
+        <Box sx={{ mx: "auto", width: "100%", maxWidth: MAX_W_3XL }}>
           <ThreadMessages
             messages={thread.messages}
             timeZone={thread.timeZone}
             documentsHref={`/trips/${tripId}/documents`}
           />
-        </div>
+        </Box>
       </ThreadScroll>
 
       <Composer
@@ -111,6 +136,6 @@ export default async function MessagesPage({
         action={sendTripMessage.bind(null, tripId)}
         attachTitle={THREAD.attachDeferred}
       />
-    </div>
+    </Box>
   );
 }

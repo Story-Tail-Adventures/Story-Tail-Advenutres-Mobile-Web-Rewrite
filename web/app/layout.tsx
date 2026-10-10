@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
 import { AuthChromeScript } from "@/components/AuthChromeScript";
 import { ThemeScript } from "@/components/ThemeScript";
+import { VercelAnalytics } from "@/components/VercelAnalytics";
+import { MuiRegistry } from "@/components/mui/MuiRegistry";
 import { env } from "@/lib/env";
 import { THEME_COLOR_DARK, THEME_COLOR_LIGHT } from "@/lib/theme";
 import "./globals.css";
@@ -45,13 +47,16 @@ export default function RootLayout({
       // ThemeScript mutates className and AuthChromeScript sets an attribute, both before
       // hydration — see components/ThemeScript.tsx and components/AuthChromeScript.tsx
       suppressHydrationWarning
-      className={`${fontVariables} h-full`}
+      className={fontVariables}
     >
       <head>
         <ThemeScript />
         <AuthChromeScript />
       </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body>
+        <MuiRegistry>{children}</MuiRegistry>
+        <VercelAnalytics />
+      </body>
     </html>
   );
 }

@@ -112,7 +112,7 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
   // month on the free tier, and it is not a failure.
   if (budget.allowance <= 0) {
     notes.push(exhaustionReason(budget));
-    await finishRun(db, runId, "skipped", 0, 0, 0, budget, notes);
+    await finishRun(db, runId, "skipped", 0, 0, 0, budget, notes, 0, "budget_exhausted");
     return outcome(runId, "skipped", 0, 0, 0, budget, notes);
   }
 
@@ -131,21 +131,6 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     },
   });
 
-  let query = db
-    .from("cruise_sync_scope")
-    .select(
-      "id, label, endpoint, priority, company, locale, destination, " +
-        "departure_within_days, sort, min_interval_days, last_run_at, " +
-        "max_rows_per_request, max_requests_per_run, cursor, high_water_updated_at",
-    )
-    .eq("enabled", true);
-  if (options.onlyLabel) query = query.eq("label", options.onlyLabel);
-
-  const { data: scopes, error: scopeError } = await query.order("priority", {
-    ascending: true,
-  });
-  if (scopeError) throw new Error(`cruise scope read failed: ${scopeError.message}`);
-
   let scopesRun = 0;
   let requestsSpent = 0;
   let rowsUpserted = 0;
@@ -153,96 +138,152 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
   let anyFailure = false;
   let degraded = false;
 
-  for (const scope of (scopes ?? []) as unknown as ScopeRow[]) {
-    if (budget.allowance <= 0) {
-      notes.push(`stopped before ${scope.label}: ${exhaustionReason(budget)}`);
-      break;
-    }
+  // EVERY PATH OUT OF HERE CLOSES THE RUN ROW.
+  //
+  // The row was inserted as `status = 'running'` above. Before this try existed, a throw
+  // past finishRun left it there forever: the table's own CHECK permits a 'running' row
+  // with no finished_at, and the comment beside that CHECK calls such a row "a row nobody
+  // will ever reconcile". The reachable case was the scope read below, whose `throw` sat
+  // between the insert and every finishRun call.
+  //
+  // The catch re-throws after closing, because cruise-sync's own handler turns a throw into
+  // a 5xx and the caller should still learn the call failed. What changes is that the
+  // DATABASE no longer disagrees with that answer. cruise_sync_watchdog() sweeps any row
+  // that still slips through, which is belt and braces on purpose: this is the layer that
+  // knows WHY, and that one is the layer that runs even if this process died outright.
+  try {
+    let query = db
+      .from("cruise_sync_scope")
+      .select(
+        "id, label, endpoint, priority, company, locale, destination, " +
+          "departure_within_days, sort, min_interval_days, last_run_at, " +
+          "max_rows_per_request, max_requests_per_run, cursor, high_water_updated_at",
+      )
+      .eq("enabled", true);
+    if (options.onlyLabel) query = query.eq("label", options.onlyLabel);
 
-    // Cadence, checked before the budget is touched. A scope that ran inside its interval
-    // costs nothing and is not a failure — it is the reference catalogue declining to
-    // re-fetch 4,565 unchanged ports so the sailing scopes can have those requests.
-    if (!dueToRun(scope, now)) {
-      notes.push(
-        `skipped ${scope.label}: ran within ${scope.min_interval_days}d`,
-      );
-      continue;
-    }
+    const { data: scopes, error: scopeError } = await query.order("priority", {
+      ascending: true,
+    });
+    if (scopeError) throw new Error(`cruise scope read failed: ${scopeError.message}`);
 
-    try {
-      const result = await runScope({ db, client, scope, budget, now });
-      budget = result.budget;
-      rowsUpserted += result.rowsUpserted;
-      rowsArchived += result.rowsArchived;
-      scopesRun += 1;
-      if (result.note) notes.push(`${scope.label}: ${result.note}`);
-      // A scope that spent requests and stored nothing is not a success, whatever the HTTP
-      // status said. Reporting ok here is how a broken run stays broken for a month.
-      if (result.rowsUpserted === 0 && (result.droppedRows ?? 0) > 0) degraded = true;
-
-      await db
-        .from("cruise_sync_scope")
-        .update({
-          cursor: result.cursor,
-          cursor_set_at: result.cursor ? now.toISOString() : null,
-          high_water_updated_at: result.highWater ?? scope.high_water_updated_at,
-          last_run_at: now.toISOString(),
-          last_status: result.complete ? "ok" : "partial",
-          last_error: null,
-          updated_at: now.toISOString(),
-        })
-        .eq("id", scope.id);
-    } catch (err) {
-      // One scope's failure must not abandon the rest: a tier gate on sailings should not
-      // cost the reference catalogue its weekly refresh. The run reports `partial`.
-      anyFailure = true;
-      const detail = describe(err);
-      notes.push(`${scope.label}: ${detail}`);
-
-      if (err instanceof TrackCruisesError) {
-        // The failing response's own quota headers. A 429 reporting "0 remaining" is the
-        // most useful budget signal there is, and discarding it would let the scopes behind
-        // this one keep issuing requests the relay has already refused.
-        budget = applyQuota(budget, err.quota);
+    for (const scope of (scopes ?? []) as unknown as ScopeRow[]) {
+      if (budget.allowance <= 0) {
+        notes.push(`stopped before ${scope.label}: ${exhaustionReason(budget)}`);
+        break;
       }
 
-      await db
-        .from("cruise_sync_scope")
-        .update({
-          last_run_at: now.toISOString(),
-          last_status: "failed",
-          last_error: detail.slice(0, 500),
-          updated_at: now.toISOString(),
-        })
-        .eq("id", scope.id);
+      // Cadence, checked before the budget is touched. A scope that ran inside its interval
+      // costs nothing and is not a failure — it is the reference catalogue declining to
+      // re-fetch 4,565 unchanged ports so the sailing scopes can have those requests.
+      if (!dueToRun(scope, now)) {
+        notes.push(
+          `skipped ${scope.label}: ran within ${scope.min_interval_days}d`,
+        );
+        continue;
+      }
+
+      try {
+        const result = await runScope({ db, client, scope, budget, now });
+        budget = result.budget;
+        rowsUpserted += result.rowsUpserted;
+        rowsArchived += result.rowsArchived;
+        scopesRun += 1;
+        if (result.note) notes.push(`${scope.label}: ${result.note}`);
+        // A scope that spent requests and stored nothing is not a success, whatever the HTTP
+        // status said. Reporting ok here is how a broken run stays broken for a month.
+        if (result.rowsUpserted === 0 && (result.droppedRows ?? 0) > 0) degraded = true;
+
+        await db
+          .from("cruise_sync_scope")
+          .update({
+            cursor: result.cursor,
+            cursor_set_at: result.cursor ? now.toISOString() : null,
+            high_water_updated_at: result.highWater ?? scope.high_water_updated_at,
+            last_run_at: now.toISOString(),
+            last_status: result.complete ? "ok" : "partial",
+            last_error: null,
+            updated_at: now.toISOString(),
+          })
+          .eq("id", scope.id);
+      } catch (err) {
+        // One scope's failure must not abandon the rest: a tier gate on sailings should not
+        // cost the reference catalogue its weekly refresh. The run reports `partial`.
+        anyFailure = true;
+        const detail = describe(err);
+        notes.push(`${scope.label}: ${detail}`);
+
+        if (err instanceof TrackCruisesError) {
+          // The failing response's own quota headers. A 429 reporting "0 remaining" is the
+          // most useful budget signal there is, and discarding it would let the scopes behind
+          // this one keep issuing requests the relay has already refused.
+          budget = applyQuota(budget, err.quota);
+        }
+
+        await db
+          .from("cruise_sync_scope")
+          .update({
+            last_run_at: now.toISOString(),
+            last_status: "failed",
+            last_error: detail.slice(0, 500),
+            updated_at: now.toISOString(),
+          })
+          .eq("id", scope.id);
+      }
     }
+
+    const status = anyFailure
+      ? (scopesRun > 0 ? "partial" : "failed")
+      : (degraded ? "partial" : "ok");
+
+    // The cause, separately from the verdict.
+    //
+    // `spent_but_stored_nothing` is the one worth naming: a scope that bought a request and
+    // kept none of what came back. That is the shape the whole incident wore.
+    //
+    // NOT flagged, deliberately: a scope that spends a request and gets a genuinely EMPTY
+    // page. For a destination-and-date-window sailing scope that is a normal, correct
+    // answer, and a rule that fires on a normal condition is how a signal gets ignored —
+    // the same argument the tick and the watchdog both make for staying quiet when the
+    // vault is unprovisioned. What closes that gap instead is counting the drops, so an
+    // empty-LOOKING page that was really an unreadable one is no longer silent.
+    const errorCode = anyFailure
+      ? (scopesRun > 0 ? "scope_failed" : "all_scopes_failed")
+      : (degraded ? "spent_but_stored_nothing" : null);
+
+    requestsSpent = httpAttempts;
+    await finishRun(
+      db,
+      runId,
+      status,
+      scopesRun,
+      requestsSpent,
+      rowsUpserted,
+      budget,
+      notes,
+      rowsArchived,
+      errorCode,
+    );
+    return outcome(
+      runId,
+      status,
+      scopesRun,
+      requestsSpent,
+      rowsUpserted,
+      budget,
+      notes,
+      rowsArchived,
+    );
+  } catch (err) {
+    const detail = describe(err);
+    notes.push(`run aborted: ${detail}`);
+    await finishRun(
+      db, runId, "failed", scopesRun, httpAttempts, rowsUpserted, budget, notes,
+      rowsArchived, "run_threw",
+    );
+    throw err;
   }
 
-  const status = anyFailure
-    ? (scopesRun > 0 ? "partial" : "failed")
-    : (degraded ? "partial" : "ok");
-  requestsSpent = httpAttempts;
-  await finishRun(
-    db,
-    runId,
-    status,
-    scopesRun,
-    requestsSpent,
-    rowsUpserted,
-    budget,
-    notes,
-    rowsArchived,
-  );
-  return outcome(
-    runId,
-    status,
-    scopesRun,
-    requestsSpent,
-    rowsUpserted,
-    budget,
-    notes,
-    rowsArchived,
-  );
 }
 
 /**
@@ -822,6 +863,11 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
   let complete = false;
   let highWater = scope.high_water_updated_at;
   let droppedNoLine = 0;
+  // Two more ways a row can vanish, both of which used to be a bare `continue`. See the
+  // note on ScopeResult.droppedRows: an uncounted drop defeats the one guard that turns a
+  // request-that-bought-nothing into a degraded run.
+  let droppedUnmappable = 0;
+  let droppedNotUpserted = 0;
   const missingCompanies = new Set<string>();
   const stamp = now.toISOString();
 
@@ -850,7 +896,15 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
 
     for (const cruise of page.data) {
       const mapped = mapSailing(cruise);
-      if (!mapped) continue;
+      if (!mapped) {
+        // The provider sent a row this mapper could not read: a renamed field, a missing
+        // id, a malformed date. COUNTED. If the provider renames something the whole page
+        // drops here, the scope spends its four requests, stores nothing, drops nothing it
+        // counts, and reports "ok" — which is precisely the silent-success shape this
+        // migration's watchdog exists to catch one level up.
+        droppedUnmappable += 1;
+        continue;
+      }
 
       // Only meaningful when the rows are ordered by freshness. Under
       // departure_date:asc an older updated_at says nothing about what follows, so
@@ -880,7 +934,12 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
       }
 
       const sailingId = await upsertSailing(db, lineId, mapped, cruise, stamp, now);
-      if (!sailingId) continue;
+      if (!sailingId) {
+        // The upsert returned no id: a conflict target that did not match, a constraint
+        // refusal. Counted for the same reason as above.
+        droppedNotUpserted += 1;
+        continue;
+      }
       rowsUpserted += 1;
 
       await replacePortCalls(db, sailingId, cruise.ports_list, now);
@@ -910,11 +969,20 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
     cursor,
     highWater,
     complete,
-    droppedRows: droppedNoLine,
-    note: droppedNoLine > 0
-      ? `dropped ${droppedNoLine} sailing(s): no cruise_line row for ` +
-        `${[...missingCompanies].join(", ")} — the reference scopes have to run first`
-      : undefined,
+    droppedRows: droppedNoLine + droppedUnmappable + droppedNotUpserted,
+    note: [
+      droppedNoLine > 0
+        ? `dropped ${droppedNoLine} sailing(s): no cruise_line row for ` +
+          `${[...missingCompanies].join(", ")} — the reference scopes have to run first`
+        : null,
+      droppedUnmappable > 0
+        ? `dropped ${droppedUnmappable} sailing(s): the provider payload did not map — ` +
+          `a renamed or missing field is the usual cause`
+        : null,
+      droppedNotUpserted > 0
+        ? `dropped ${droppedNotUpserted} sailing(s): the upsert returned no id`
+        : null,
+    ].filter(Boolean).join("; ") || undefined,
   };
 }
 
@@ -1312,6 +1380,13 @@ async function finishRun(
   budget: Budget,
   notes: string[],
   rowsArchived = 0,
+  /**
+   * WHY, not WHAT. This used to be `status === "ok" ? null : status`, so the column held
+   * the literal string "partial" or "failed" — a restatement of the column next to it,
+   * with the actual cause buried in a 2000-char prose blob. Nothing machine-readable to
+   * group by, alert on, or grep a month of runs for.
+   */
+  errorCode: string | null = null,
 ): Promise<void> {
   await db
     .from("cruise_sync_run")
@@ -1324,7 +1399,7 @@ async function finishRun(
       rows_archived: rowsArchived,
       quota_limit: budget.quotaLimit,
       quota_remaining: budget.quotaRemaining,
-      error_code: status === "ok" ? null : status,
+      error_code: status === "ok" ? null : (errorCode ?? status),
       error_detail: notes.length > 0 ? notes.join(" | ").slice(0, 2000) : null,
       updated_at: new Date().toISOString(),
     })

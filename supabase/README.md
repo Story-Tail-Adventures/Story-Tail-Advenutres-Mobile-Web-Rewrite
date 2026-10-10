@@ -228,6 +228,32 @@ what proves the tick's request body arrived rather than the handler defaulting. 
 from the tick means Vault is missing a secret; nothing was sent and nothing was spent.
 Re-enable the scopes afterwards.
 
+**Or just ask the watchdog.** `cruise_sync_watchdog()` (20260930110000) is the one call that
+answers "did the weekly sync actually happen", and it is what runs on a schedule at 09:30
+Monday, thirteen minutes behind the tick:
+
+```sql
+select public.cruise_sync_watchdog();
+```
+
+`ok` means a call was dispatched, the gateway accepted it, and the function opened a run.
+`unprovisioned` means the Vault is empty, which is the expected answer on a laptop and is
+deliberately not an error. Anything else RAISES, with the cause named: a 401 tells you the
+key is JWT-shaped but not valid for this project, a 403 that `TRACK_CRUISES_API_KEY` is
+unset, a 404 that the function is not deployed or lost its `[functions.cruise-sync]` block.
+It reads only local tables, so it costs nothing against the 100-request month.
+
+Why it exists: **the shape guard above cannot catch a key that is well-formed and wrong.**
+For the weeks the catalog sat empty, `cron.job_run_details` was green (it measures whether
+the statement ran), the 401 sat unread in `net._http_response` until pg_net pruned it, and
+`cruise_sync_run` had zero rows — which is also exactly what a project that has never
+synced looks like. Three layers, all reporting success. The watchdog raises instead, because
+a red cron job is the only alerting channel this system has.
+
+To see it work, give the Vault a JWT-shaped key that is not this project's, run the tick,
+wait a few seconds and call the watchdog. The tick will dispatch happily; the watchdog will
+not.
+
 **Do not leave the Vault secrets in a local stack.** With them present, this laptop's cron
 spends 4–5 real requests every Monday it happens to be awake, out of 100 for the month.
 That is precisely what the no-op-without-secrets behaviour exists to prevent, so removing

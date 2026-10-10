@@ -15,6 +15,53 @@ import { env } from "@/lib/env";
  * same structural technique that keeps booking-site names off the hotel cards.
  */
 
+/**
+ * The one host we will point a visitor's browser at for a ship photo.
+ *
+ * Repeated from the database ON PURPOSE, and the reason is the same one `hotels.ts` gives
+ * for repeating the hotel list: `web/next.config.ts` registers a CUSTOM next/image loader,
+ * so `remotePatterns` is never consulted and any URL reaching `<Image src>` is fetched by
+ * the visitor's browser from whatever origin we named. There is no framework-level check to
+ * fall back on — this is it.
+ *
+ * The earlier layer here is `cruise_ship_image_host`, a CHECK on the column, rather than a
+ * mapper allow-list: ship photos are written by migration, not received from a provider. A
+ * CHECK is the stronger of the two, and it is also the one that is not in this repo's
+ * request path — a restored dump, a hotfixed row or a relaxed constraint all reach `<Image>`
+ * through here and not through it.
+ */
+const IMAGE_HOSTS = new Set(["upload.wikimedia.org"]);
+
+function isAllowedImage(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && IMAGE_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A ship photo and its attribution, which travel together or not at all.
+ *
+ * `credit` IS REQUIRED, not nullable. The photos are CC BY / CC BY-SA, so the credit is a
+ * licence condition, and a schema that let it be null would let a card render the photo
+ * bare. Postgres enforces the same pair in `cruise_ship_image_attributed`; this is the
+ * copy of it that survives a change to that constraint.
+ *
+ * The maxima are sized off the real catalog with room to spare — the longest credit in the
+ * 151 photographs is 214 characters, because Commons attribution runs to whole paragraphs
+ * ("No machine-readable author provided. NormanEinstein assumed…"). Too tight a bound here
+ * would not drop a photo, it would fail `responseSchema` and take the entire results page
+ * to "unavailable"; see the `.catch(null)` below, which is the other half of that guard.
+ */
+const shipImageSchema = z.object({
+  url: z.string().url().max(500).refine(isAllowedImage, "image host not allow-listed"),
+  credit: z.string().min(1).max(400),
+  license: z.string().max(60).nullable(),
+  sourceUrl: z.string().url().max(500).nullable(),
+});
+
 const sailingSchema = z.object({
   id: z.string().min(1).max(80),
   title: z.string().min(1).max(200),
@@ -24,11 +71,23 @@ const sailingSchema = z.object({
   nights: z.number().int().min(1).max(120).nullable(),
   destinations: z.array(z.string().max(80)).max(6),
   ports: z.array(z.string().max(120)).max(12),
+  /**
+   * `.catch(null)` DEGRADES TO NO PHOTO instead of failing the sailing.
+   *
+   * Every other field on this card is the card; the photo is decoration. A rejected host, an
+   * over-long credit or a field the Edge Function stops sending should cost one image, not
+   * the whole page — and without this, it costs the whole page, because one bad element
+   * fails `z.array` and `parseCruiseResponse` maps any failure to "unavailable".
+   *
+   * It is also what makes the `refine` above safe to be strict.
+   */
+  shipImage: shipImageSchema.nullable().catch(null),
 });
 
 const responseSchema = z.object({ results: z.array(sailingSchema) });
 
 export type PublicSailing = z.infer<typeof sailingSchema>;
+export type ShipImage = z.infer<typeof shipImageSchema>;
 
 export type CruiseSearchResult =
   | { status: "ok"; sailings: PublicSailing[] }

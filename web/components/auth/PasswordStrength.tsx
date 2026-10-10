@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import LinearProgress from "@mui/material/LinearProgress";
 import { Field, type FieldProps } from "@/components/ui/Field";
-import { cn } from "@/lib/cn";
 import { passwordStrength, strengthMessage } from "@/lib/validation/password-strength";
 
 /**
@@ -16,8 +16,11 @@ import { passwordStrength, strengthMessage } from "@/lib/validation/password-str
  * capture. The input stays uncontrolled and the server action reads it out of FormData,
  * exactly as on 2.1.1.
  *
- * The track is `aria-hidden` — it carries no information the hint text does not already
- * say, and the hint is already wired into the field's `aria-describedby`.
+ * The track is MUI's LinearProgress, as on the converted artboards, and is `aria-hidden` —
+ * it carries no information the hint text does not already say, and the hint is already
+ * wired into the field's `aria-describedby`. `color="inherit"` so the fill follows a palette
+ * path per score; MUI paints a 30% tint of that colour as the track for `inherit`, which is
+ * swapped for the flat outline-variant track the legacy meter drew.
  */
 
 export interface PasswordStrengthFieldProps extends Omit<FieldProps, "hint" | "meter"> {
@@ -26,7 +29,7 @@ export interface PasswordStrengthFieldProps extends Omit<FieldProps, "hint" | "m
 }
 
 /** Indexed by score 0–4. Nothing typed yet reads as "not there", not as "wrong". */
-const TONE = ["bg-outline", "bg-error", "bg-brand-orange", "bg-brand-orange", "bg-success"];
+const TONE = ["outline.main", "error.main", "brand.main", "brand.main", "success.main"] as const;
 
 export function PasswordStrengthField({
   idleHint,
@@ -47,15 +50,21 @@ export function PasswordStrengthField({
         onChange?.(event);
       }}
       meter={
-        <div
+        <LinearProgress
+          variant="determinate"
+          value={(score / 4) * 100}
+          color="inherit"
           aria-hidden="true"
-          className="mt-1.5 h-1 overflow-hidden rounded-xs bg-outline-variant"
-        >
-          <div
-            className={cn("h-full rounded-xs transition-[width] duration-200", TONE[score])}
-            style={{ width: `${(score / 4) * 100}%` }}
-          />
-        </div>
+          sx={{
+            mt: 0.75,
+            height: 4,
+            borderRadius: 0.5,
+            color: TONE[score],
+            bgcolor: "outline.variant",
+            "&::before": { display: "none" },
+            "& .MuiLinearProgress-bar": { borderRadius: 0.5 },
+          }}
+        />
       }
     />
   );

@@ -495,4 +495,22 @@ sealed interface AppRoute {
     data class AgentClientDetail(val clientId: String) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
+
+    /**
+     * Screen 3.4.2, pushed from the worklist's three trip sections and from the client
+     * detail's Trips tab.
+     *
+     * NO ROSTER ROUTE ABOVE IT, and that is not an omission. §6.6's bottom bar is Worklist,
+     * Clients, Messages, More — Trips is not on it, where the web rail has it. The list
+     * this detail hangs off is §3.2.1's worklist, whose rows already carry a `tripId`.
+     *
+     * The TAB is not in the route, for the reason [AgentClientDetail] gives: eight reads
+     * land in one pass and the strip switches over what is already held, so a tab is view
+     * state. In the route it would make the back gesture walk back through eight tabs
+     * before leaving the screen.
+     */
+    @Serializable
+    data class AgentTripDetail(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
 }

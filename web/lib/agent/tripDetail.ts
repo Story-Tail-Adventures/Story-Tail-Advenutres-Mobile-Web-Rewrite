@@ -52,7 +52,10 @@ export type TripDetailOverview = {
   totalPaidLabel: string;
   totalCommissionLabel: string;
   cancellationReason: string | null;
+  /** One of REFUND_STATUSES, or null for "not stated" — a different fact from none_expected. */
   refundStatus: string | null;
+  /** The sentence behind the state: an amount, a date, a credit with an expiry. */
+  refundDetail: string | null;
   notes: string | null;
   version: number;
   cardOnFile: string | null;
@@ -102,6 +105,7 @@ async function loadOverview(tripId: string): Promise<TripOverviewResult> {
     totalCommissionLabel: money(r.total_commission_cents, r.currency),
     cancellationReason: r.cancellation_reason,
     refundStatus: r.refund_status,
+    refundDetail: r.refund_detail,
     notes: r.notes,
     version: r.version,
     cardOnFile,
@@ -133,6 +137,38 @@ export type TripComponentRow = {
   sourceBadge: string;
   costLabel: string;
   orderIndex: number;
+  /**
+   * The same row again, unformatted, for §3.4.12's edit sheet.
+   *
+   * ON THE ROW RATHER THAN BEHIND A SECOND LOADER because it is the same accessor and the
+   * same one mapping. The builder renders the list and the pre-filled sheet from one page
+   * load, and the sheet's row is one the list already returned — a second fetch would be a
+   * round trip for a row that is in hand and a second place for the two shapes to drift.
+   *
+   * §3.4.2's Components tab ignores it. That is the cost, and it is a field it does not
+   * read rather than a query it does not need.
+   */
+  edit: TripComponentEdit;
+};
+
+/** What §3.4.12's form posts back, as it comes out of the database. */
+export type TripComponentEdit = {
+  kind: string;
+  displayName: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  location: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  /** `HH:MM`, trimmed from Postgres's `HH:MM:SS` — what `<input type="time">` wants. */
+  startTime: string | null;
+  endTime: string | null;
+  confirmationNumber: string | null;
+  /** Digit-strings, never numbers. PostgREST loses precision on a large bigint. */
+  costCents: string;
+  commissionPct: number | null;
+  commissionCents: string;
+  detail: Record<string, unknown>;
 };
 
 /**
@@ -171,6 +207,25 @@ async function loadComponents(tripId: string): Promise<TripComponentRow[] | null
       sourceBadge: c.api_source ?? "Manual",
       costLabel: money(c.cost_cents, c.currency),
       orderIndex: c.order_index,
+      edit: {
+        kind: c.kind,
+        displayName: c.display_name,
+        supplierId: c.supplier_id,
+        supplierName: c.supplier_name,
+        location: c.location,
+        startDate: c.start_date,
+        endDate: c.end_date,
+        // `HH:MM`, because that is what `<input type="time">` renders and what Postgres
+        // hands back is `HH:MM:SS`. A value with seconds on it makes the control show an
+        // empty field in Safari, silently, on a row that has a time.
+        startTime: hhmm(c.start_time),
+        endTime: hhmm(c.end_time),
+        confirmationNumber: c.confirmation_number,
+        costCents: c.cost_cents,
+        commissionPct: c.commission_pct,
+        commissionCents: c.commission_cents,
+        detail: (c.payload ?? {}) as Record<string, unknown>,
+      },
     };
   });
 }
@@ -185,12 +240,28 @@ export type TripItineraryActivity = {
   confirmationNumber: string | null;
   gyasisTip: string | null;
   componentId: string | null;
+  /**
+   * The fields §3.4.14's form edits that nothing renders read-only — the arrangement
+   * `TripComponentRow.edit` and `TripPaymentRow.edit` already use, and for the same reason:
+   * one accessor, one mapping, and the form's row is one the list already returned.
+   *
+   * `startTime`/`endTime` are `HH:MM` — what `<input type="time">` wants, and what Postgres
+   * does NOT hand back (it gives `HH:MM:SS`, which Safari renders as an empty field).
+   */
+  edit: {
+    startTime: string | null;
+    endTime: string | null;
+    address: string | null;
+    phone: string | null;
+  };
 };
 
 export type TripItineraryDay = {
   dayId: string;
   dayNumber: number;
   dateLabel: string | null;
+  /** ISO `yyyy-mm-dd`, for the date input and for matching a component's own start_date. */
+  date: string | null;
   label: string | null;
   summary: string | null;
   activities: TripItineraryActivity[];
@@ -235,6 +306,7 @@ async function loadItinerary(tripId: string): Promise<TripItineraryView | null> 
         dayId: row.day_id,
         dayNumber: row.day_number,
         dateLabel: monthDay(row.date),
+        date: row.date,
         label: row.day_label,
         summary: row.day_summary,
         activities: [],
@@ -253,6 +325,12 @@ async function loadItinerary(tripId: string): Promise<TripItineraryView | null> 
         confirmationNumber: row.confirmation_number,
         gyasisTip: row.gyasis_tip,
         componentId: row.component_id,
+        edit: {
+          startTime: hhmm(row.start_time),
+          endTime: hhmm(row.end_time),
+          address: row.address,
+          phone: row.phone,
+        },
       });
     }
   }
@@ -274,9 +352,22 @@ export type TripPaymentRow = {
   amountLabel: string;
   paidLabel: string;
   dueLabel: string | null;
+  paidOnLabel: string | null;
   status: string;
   /** For the sidebar's status dot: paid is good, an unpaid/overdue row is warn. */
   dot: "good" | "warn";
+  /**
+   * The same row unformatted, for §3.4.15's editor — the arrangement
+   * `TripComponentRow.edit` already uses, and for the same reason: one accessor, one
+   * mapping, and the editor's row is one the list already returned.
+   */
+  edit: {
+    /** Digit-strings, never numbers — PostgREST loses precision on a large bigint. */
+    amountCents: string;
+    paidCents: string;
+    /** ISO `yyyy-mm-dd`, which is what `<input type="date">` wants. */
+    dueDate: string | null;
+  };
 };
 
 async function loadPayments(tripId: string): Promise<TripPaymentRow[] | null> {
@@ -292,8 +383,17 @@ async function loadPayments(tripId: string): Promise<TripPaymentRow[] | null> {
     amountLabel: money(p.amount_cents, p.currency),
     paidLabel: money(p.paid_cents, p.currency),
     dueLabel: monthDay(p.due_date),
+    // `paid_at` is a timestamptz; only the date part is ever shown. An advisor recording a
+    // payment knows the day, not the minute, and a time here would imply a precision the
+    // figure does not have.
+    paidOnLabel: monthDay(p.paid_at ? p.paid_at.slice(0, 10) : null),
     status: p.status,
     dot: p.status === "paid" ? "good" : "warn",
+    edit: {
+      amountCents: p.amount_cents,
+      paidCents: p.paid_cents,
+      dueDate: p.due_date,
+    },
   }));
 }
 

@@ -1,5 +1,8 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { ClientForm } from "@/components/agent/ClientForm";
 import { ClientNotFound } from "@/components/agent/ClientNotFound";
 import { RetryState } from "@/components/client/RetryState";
@@ -25,6 +28,15 @@ import { loadClientForEdit } from "@/lib/agent/clientDetail";
 
 export const metadata = { title: "Edit client" };
 
+/** The page column: `mx-auto w-full max-w-[860px] px-4 py-6 md:px-8`. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 860,
+  px: { xs: 2, md: 4 },
+  py: 3,
+} as const;
+
 export default async function EditClientPage({
   params,
 }: {
@@ -38,32 +50,35 @@ export default async function EditClientPage({
 
   if (!result.ok) {
     return result.reason === "not-found" ? <ClientNotFound /> : (
-      <div className="mx-auto w-full max-w-[860px] px-4 py-6 md:px-8">
+      <Box sx={PAGE_SX}>
         <RetryState />
-      </div>
+      </Box>
     );
   }
 
   const c = result.values;
 
   return (
-    <div className="mx-auto w-full max-w-[860px] px-4 py-6 md:px-8">
-      <Link
+    <Box sx={PAGE_SX}>
+      <MuiLink
+        component={NextLink}
         href={`/agent/clients/${clientId}`}
-        className="t-body-s inline-flex items-center gap-1 text-[var(--md-on-surface-variant)] hover:underline"
+        variant="body2"
+        underline="hover"
+        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}
       >
         <Icon name="arrow_left" size={13} />
         {c.displayName}
-      </Link>
+      </MuiLink>
 
-      <header className="mb-4 mt-2.5">
-        <h1 className="t-title-l m-0">
+      <Box component="header" sx={{ mb: 2, mt: 1.25 }}>
+        <Typography component="h1" variant="h5" sx={{ m: 0 }}>
           {CLIENT_COPY.editClientTitle} · {c.displayName}
-        </h1>
-        <p className="t-body-s mt-0.5 text-[var(--md-on-surface-variant)]">
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 0.25, color: "text.secondary" }}>
           {CLIENT_COPY.editClientSub}
-        </p>
-      </header>
+        </Typography>
+      </Box>
 
       <ClientForm
         mode="edit"
@@ -72,6 +87,6 @@ export default async function EditClientPage({
         suggestedTags={roster?.facets.map((f) => f.tag) ?? []}
         defaults={c}
       />
-    </div>
+    </Box>
   );
 }

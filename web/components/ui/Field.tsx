@@ -1,12 +1,28 @@
 import * as React from "react";
-import { cn } from "@/lib/cn";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
+import FormLabel from "@mui/material/FormLabel";
+import OutlinedInput from "@mui/material/OutlinedInput";
 
 /**
- * A labelled text input with optional error and hint text.
+ * A labelled text input with optional error and hint text, on MUI's form primitives.
  *
  * Wires up the accessibility relationships that are easy to forget and impossible to
  * retrofit cheaply: label/input association, aria-invalid, and aria-describedby
  * pointing at whichever of hint/error is actually rendered.
+ *
+ * STRUCTURE IS THE LEGACY ONE, ON MUI PARTS. A stationary FormLabel above an OutlinedInput,
+ * then the hint or error as FormHelperText — not MUI's floating-label TextField. Two reasons:
+ * the label stays where the §2 forms were laid out around it (a floating label would change
+ * every form's height), and the control is a plain native <input>, so a server-action form
+ * receives the same FormData it always did. Colours, radius, the hover / focus / error
+ * outline and the type are MUI's; the 44px box is the legacy one.
+ *
+ * Native attributes (name, value, required, autoComplete, inputMode, pattern, …) all reach
+ * the <input>: the ones InputBase knows go in as props, everything else through inputProps.
+ *
+ * No "use client": 16 callers, most of them Server Components, render this with plain props.
  */
 
 export interface FieldProps
@@ -36,6 +52,24 @@ export interface FieldProps
   describedBy?: string;
 }
 
+/**
+ * The label and control sx shared by Field, SelectField, TextareaField and DateField, so the
+ * four line up on one form.
+ *
+ * Label: MUI's caption size (12px, the size its own shrunk labels use) at the legacy 1.3
+ * line-height and 6px gap, so the label row keeps its height. Colour follows FormControl
+ * state (text.secondary, primary when focused, error when invalid) — that part is MUI's.
+ * Control: `size="small"` is MUI's 40px input; 44px is the legacy box (and §4.2's touch
+ * minimum), so the root grows to it and the input centres inside.
+ */
+export const fieldLabelSx = {
+  display: "block",
+  mb: "6px",
+  typography: "caption",
+  lineHeight: 1.3,
+} as const;
+export const fieldInputSx = { minHeight: 44 } as const;
+
 export function Field({
   id,
   label,
@@ -45,50 +79,84 @@ export function Field({
   meter,
   describedBy: groupDescribedBy,
   className,
-  ...props
+  name,
+  type,
+  value,
+  defaultValue,
+  placeholder,
+  autoComplete,
+  autoFocus,
+  readOnly,
+  required,
+  disabled,
+  onChange,
+  onBlur,
+  onFocus,
+  onKeyDown,
+  onKeyUp,
+  ...inputAttrs
 }: FieldProps) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy =
-    [error ? errorId : null, hint ? hintId : null, groupDescribedBy ?? null]
+    // The hint is only rendered when there is no error, so only point at it then.
+    [error ? errorId : null, hint && !error ? hintId : null, groupDescribedBy ?? null]
       .filter(Boolean)
       .join(" ") || undefined;
 
+  const labelNode = (
+    <FormLabel htmlFor={id} sx={fieldLabelSx}>
+      {label}
+    </FormLabel>
+  );
+
   return (
-    <div>
+    <FormControl fullWidth error={Boolean(error)} disabled={disabled}>
       {labelAction ? (
-        <div className="flex items-baseline justify-between">
-          <label className="field-label" htmlFor={id}>
-            {label}
-          </label>
+        <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+          {labelNode}
           {labelAction}
-        </div>
+        </Box>
       ) : (
-        <label className="field-label" htmlFor={id}>
-          {label}
-        </label>
+        labelNode
       )}
 
-      <input
+      <OutlinedInput
         id={id}
-        className={cn("input", className)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...props}
+        name={name}
+        type={type}
+        value={value}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        autoFocus={autoFocus}
+        readOnly={readOnly}
+        // On the input only, not on FormControl: the legacy label drew no asterisk.
+        required={required}
+        onChange={onChange}
+        onBlur={onBlur}
+        onFocus={onFocus}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
+        size="small"
+        sx={fieldInputSx}
+        inputProps={{
+          ...inputAttrs,
+          // Legacy callers put text utilities (`font-mono tracking-[0.5em]`) on the <input>.
+          className,
+          // InputBase writes aria-invalid="false" when valid; the legacy contract is absent.
+          "aria-invalid": error ? true : undefined,
+          // Merged, not replaced: a caller's own aria-describedby (in the spread above)
+          // used to win over ours, and dropping it would silence that description.
+          "aria-describedby":
+            [describedBy, inputAttrs["aria-describedby"]].filter(Boolean).join(" ") || undefined,
+        }}
       />
 
       {meter}
 
-      {hint && !error && (
-        <p id={hintId} className="t-body-s mt-1.5 text-on-surface-variant">
-          {hint}
-        </p>
-      )}
-      {error && (
-        <p id={errorId} className="t-body-s mt-1.5 text-error">
-          {error}
-        </p>
-      )}
-    </div>
+      {hint && !error && <FormHelperText id={hintId}>{hint}</FormHelperText>}
+      {error && <FormHelperText id={errorId}>{error}</FormHelperText>}
+    </FormControl>
   );
 }

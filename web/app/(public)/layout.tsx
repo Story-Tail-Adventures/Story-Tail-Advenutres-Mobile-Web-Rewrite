@@ -1,3 +1,4 @@
+import Box from "@mui/material/Box";
 import { PlaceholderBanner } from "@/components/public/PlaceholderBanner";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { SkipLink } from "@/components/public/SkipLink";
@@ -21,16 +22,29 @@ import { SkipLink } from "@/components/public/SkipLink";
  * pick one before the first frame (styles/public.css). Nothing on this path reads a request,
  * a cookie or an env var at render time, so the pages stay static — check the route table in
  * `next build` output if you change anything here.
+ *
+ * `.pub-surface` stays: public.css hangs the focus ring, the reduced-motion rule and the
+ * sticky-bar height reserve (`.pub-surface:has(.sticky-cta)`) off it.
  */
 export default function PublicLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="pub-surface flex min-h-dvh flex-1 flex-col bg-bg text-on-bg">
+    <Box
+      className="pub-surface"
+      sx={{
+        display: "flex",
+        minHeight: "100dvh",
+        flex: 1,
+        flexDirection: "column",
+        bgcolor: "background.default",
+        color: "text.primary",
+      }}
+    >
       <SkipLink />
       <PlaceholderBanner />
       {children}
       <PublicFooter />
-    </div>
+    </Box>
   );
 }

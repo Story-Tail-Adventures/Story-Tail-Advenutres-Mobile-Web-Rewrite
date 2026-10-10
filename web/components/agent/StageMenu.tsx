@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+import NativeSelect from "@mui/material/NativeSelect";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Typography from "@mui/material/Typography";
 
 import { changeTripStage } from "@/app/(agent)/agent/pipeline/actions";
+import { fieldInputSx } from "@/components/ui/Field";
 import { AGENT_COPY } from "@/lib/agent/content";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Moving a trip between stages.
@@ -31,6 +39,12 @@ import { AGENT_COPY } from "@/lib/agent/content";
  * reference — but an import is the one a future refactor cannot turn into a closure, and a
  * plain function in a `"use client"` prop object typechecks, passes every test and throws at
  * runtime.
+ *
+ * ON MUI (step 2 of the migration): the control is the same real `<select>`, drawn the way
+ * `components/ui/Select` draws every select in the app — MUI's NativeSelect inside an
+ * OutlinedInput at the legacy 44px box (`fieldInputSx`), with MUI's stock arrow. The label
+ * stays visually hidden: a stationary label above the control would add a line to every
+ * card on the board, and the card's height is part of the layout this migration keeps.
  */
 export function StageMenu({
   tripId,
@@ -65,27 +79,30 @@ export function StageMenu({
     });
   }
 
+  const id = `stage-${tripId}`;
+
   return (
-    <div className="mt-2">
-      <label className="sr-only" htmlFor={`stage-${tripId}`}>
-        {AGENT_COPY.stageMenuLabel}
-      </label>
-      <select
-        id={`stage-${tripId}`}
-        className="input min-h-11 w-full text-sm"
-        value={status}
-        disabled={pending}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {stages.map((s) => (
-          <option key={s.status} value={s.status}>
-            {s.label}
-          </option>
-        ))}
-        {/* Reachable, but not a column. A cancellation needs a reason the traveler's §2.2.10
-            screen can show, which this control has nowhere to collect — so it is offered
-            from the trip rather than from the board. */}
-      </select>
+    <Box sx={{ mt: 1 }}>
+      <FormControl fullWidth disabled={pending}>
+        <FormLabel htmlFor={id} sx={VISUALLY_HIDDEN}>
+          {AGENT_COPY.stageMenuLabel}
+        </FormLabel>
+        <NativeSelect
+          id={id}
+          value={status}
+          onChange={(e) => onChange(e.target.value)}
+          input={<OutlinedInput size="small" sx={fieldInputSx} />}
+        >
+          {stages.map((s) => (
+            <option key={s.status} value={s.status}>
+              {s.label}
+            </option>
+          ))}
+          {/* Reachable, but not a column. A cancellation needs a reason the traveler's §2.2.10
+              screen can show, which this control has nowhere to collect — so it is offered
+              from the trip rather than from the board. */}
+        </NativeSelect>
+      </FormControl>
       {/* OUR SENTENCE ON THE ONE CONDITION WE CAN NAME. A stale write is a condition this
           surface understands on its own — the board it was rendered from is out of date and
           the remedy is a reload — so it reads from `AGENT_COPY`, the module that owns every
@@ -94,10 +111,11 @@ export function StageMenu({
           reconstruct. The two happen to be word-for-word the same today; that coincidence is
           exactly what let the old substring match look like it worked. */}
       {error && (
-        <p className="t-body-s mt-1 text-[var(--md-error)]" role="alert">
+        <Typography component="p" variant="body2" role="alert" sx={{ mt: 0.5, color: "error.main" }}>
           {stale ? AGENT_COPY.stageStale : error}
-        </p>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }
+

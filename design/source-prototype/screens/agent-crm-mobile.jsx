@@ -43,12 +43,20 @@
 //   5. NO PAGINATOR. The web build pages with Previous/Next, which is Pattern B's desk half.
 //      This appends. Paging a book of business back and forth on a phone is deep work by
 //      another name, and the count line plus search already answer "is the one I want here".
-//   6. THE MONEY COLUMN CARRIES AN ASTERISK, AND THE FOOT OF THE LIST EXPLAINS IT. §3.2
-//      settled the rule: a figure names one currency and says how many it left out. The
-//      scope here is the ROW rather than the agent, because two clients on one roster can
-//      legitimately bank in different currencies. `client.lifetime_value_cents` is NOT the
-//      source — nothing in the repository maintains that column, so the figure is derived
-//      from committed trips (see 20260926140000_agent_client_read_surface.sql).
+//   6. WITHDRAWN 2026-09-29. This departure drew an asterisk on the money column and a
+//      footnote naming the currency the figure left out, per the rule §3.2 settled. That
+//      rule is GONE: Gyasi operates in USD only (BRD §4.3), so `trip_currency_usd`
+//      (20260930100000) makes a second currency impossible to store and the accessors
+//      stopped scoping. A figure that cannot exclude anything must not carry a mark saying
+//      it did, so the asterisk, the note and the `star` flag are all removed — and Priya's
+//      lifetime is now $26,420 rather than $18,300, because all three of her committed
+//      trips sum instead of one being filtered away.
+//
+//      What survives untouched is departure 7, the dash: `lifetime_currency` is still NULL
+//      for a client with nothing committed, and that is a different rule with a different
+//      cause. `client.lifetime_value_cents` is still NOT the source — nothing maintains
+//      that column, so the figure is derived from committed trips
+//      (20260926140000_agent_client_read_surface.sql).
 //   7. A DASH, NOT "$0.00", for a client with nothing committed. The accessor returns a NULL
 //      currency for exactly that case; a labelled zero claims they have spent nothing where
 //      the truth is that nothing has been booked yet.
@@ -148,7 +156,7 @@ function M331_ClientRoster({ dark = false }) {
     { n: 'Jordan Hayes', e: 'jordan.hayes@example.com', trip: 'Anniversary Week in Negril · Aug 26', money: '$19,765' },
     { n: 'Maya Carter', e: 'maya.carter@example.com', trip: 'Now · Soufriere, Saint Lucia', money: '$16,560', now: true },
     { n: 'Belle Fitzwilliam-Castellanos', e: 'annabelle.fc@example.com', trip: 'Maldives, overwater · Apr 27', money: '$24,800' },
-    { n: 'Pri Raghunathan', e: 'priya.r@example.com', trip: 'Kyoto in the spring · Nov 26', money: '$18,300*', star: true },
+    { n: 'Pri Raghunathan', e: 'priya.r@example.com', trip: 'Kyoto in the spring · Nov 26', money: '$26,420' },
     { n: 'Linda Gomez', e: 'linda.gomez@example.com', trip: 'Somewhere warm, February-ish', money: '—' },
     { n: 'Eli Park', e: 'eli.park@example.com', trip: null, money: '—' },
     { n: 'Marcus Webb', e: 'No email on file', trip: 'Alaska, the inside passage · Feb 27', money: '—' },
@@ -187,8 +195,7 @@ function M331_ClientRoster({ dark = false }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="t-title-s" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.n}</div>
               <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.e}</div>
-              {/* Departure 3 — one line, and it prefers the trip that has not happened yet.
-                  Departure 6's asterisk rides the money, not this. */}
+              {/* Departure 3 — one line, and it prefers the trip that has not happened yet. */}
               {r.trip && (
                 <div className="t-body-s" style={{
                   marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -203,11 +210,6 @@ function M331_ClientRoster({ dark = false }) {
             </div>
           </div>
         ))}
-
-        {/* Departure 6 — the note that says which currency the figure above left out. */}
-        <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 2 }}>
-          * One client banks in more than one currency. Their lifetime figure covers their most-used one.
-        </div>
 
         {/* Departure 5 — appends, never pages. */}
         <button className="btn btn-outlined btn-sm" style={{ width: '100%', marginTop: 6, marginBottom: 12 }}>

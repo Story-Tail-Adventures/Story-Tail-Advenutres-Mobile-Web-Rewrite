@@ -29,26 +29,6 @@ fun needsYouLine(count: Int): String = when (count) {
 }
 
 /**
- * What the money figures leave out — in CURRENCIES, which is what the number actually counts.
- *
- * [otherCurrencies] is `agent_kpis().currency_count - 1`, and `currency_count` is
- * `count(DISTINCT currency)`. The old sentence rendered that as a number of TRIPS ("2 trips
- * are priced in another currency"), which is true only when every non-dominant currency holds
- * exactly one trip: with 10 USD, 4 EUR and 2 GBP it claimed two excluded trips against six.
- * The accessor returns no excluded-trip count and inventing one is a migration, so the
- * sentence names the thing the number is. Under-reporting with the exclusion named, never a
- * mixed sum.
- *
- * Byte-identical to `AGENT_COPY.currencyNote` in `web/lib/agent/content.ts`.
- */
-fun currencyNote(dominant: String, otherCurrencies: Int): String =
-    if (otherCurrencies == 1) {
-        "$dominant only. Trips priced in 1 other currency are not counted here."
-    } else {
-        "$dominant only. Trips priced in $otherCurrencies other currencies are not counted here."
-    }
-
-/**
  * A payment milestone's due-day label — the words a person would use.
  *
  * ONE TEMPLATE WITH NO SPECIAL CASES WAS THE BUG: a milestone due today read "in 0 days", one

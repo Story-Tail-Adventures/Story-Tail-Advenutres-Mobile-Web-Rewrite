@@ -1,7 +1,7 @@
 -- Assertions for the cruise catalog's access posture (Data-Model §24.10).
 --
 -- This one is the inverse of its three companions. rls_trip_graph.sql and friends assert
--- that a policy lets the right person through; there are NO policies on these nine tables,
+-- that a policy lets the right person through; there are NO policies on these ten tables,
 -- so what has to be asserted is that NOBODY gets through — not anon, not an authenticated
 -- client, not an authenticated agent.
 --
@@ -11,7 +11,7 @@
 --     and stays that way unless its migration revokes. The REVOKE is the security control,
 --     not a formality, and a migration that forgets it fails silently and looks fine.
 --   * 20260907113546_revoke_write_grants.sql already ran. Its sweep cannot cover a table
---     added afterwards, so these nine are outside the guard that protects everything else.
+--     added afterwards, so these ten are outside the guard that protects everything else.
 --   * This catalog is the first thing in the schema that WILL want anonymous reads, when
 --     cruise search ships. When someone adds that policy, this file is where they will find
 --     out whether they widened exactly what they meant to — every assertion below should
@@ -78,13 +78,16 @@ EXCEPTION
 END;
 $$;
 
--- The nine tables, in one place, so a tenth added later without a line here is obvious.
+-- The ten tables, in one place, so an eleventh added later without a line here is obvious.
+-- `cruise_sync_dispatch` (20260930110000) was the tenth, and this guard is what stopped it
+-- shipping without a REVOKE — which is exactly the failure mode the count exists for.
 CREATE OR REPLACE FUNCTION pg_temp.cruise_tables()
 RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
     SELECT ARRAY[
         'cruise_line', 'cruise_ship', 'cruise_port', 'cruise_sailing',
         'cruise_port_call', 'cruise_sailing_cabin_price',
-        'cruise_sync_scope', 'cruise_sync_run', 'cruise_api_request'
+        'cruise_sync_scope', 'cruise_sync_run', 'cruise_api_request',
+        'cruise_sync_dispatch'
     ];
 $$;
 
@@ -92,11 +95,16 @@ $$;
 \echo '== structure =='
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Catches the tenth table added without a REVOKE, which is the whole failure mode here.
+-- Catches the eleventh table added without a REVOKE, which is the whole failure mode here.
+-- Derived from the list above rather than a second hardcoded number, so the two cannot
+-- drift: the previous version of this line said 9 in two places and only one of them was
+-- the list.
 SELECT pg_temp.assert(
     (SELECT count(*) FROM pg_tables
-      WHERE schemaname = 'public' AND tablename LIKE 'cruise%') = 9,
-    'exactly nine cruise tables exist — a tenth needs its own line in this file'
+      WHERE schemaname = 'public' AND tablename LIKE 'cruise%')
+      = cardinality(pg_temp.cruise_tables()),
+    'every public cruise% table is named in pg_temp.cruise_tables() — a new one needs its '
+    'own line there, or it inherits no REVOKE and no assertion'
 );
 
 SELECT pg_temp.assert(
@@ -106,7 +114,7 @@ SELECT pg_temp.assert(
            AND tablename = ANY (pg_temp.cruise_tables())
            AND NOT rowsecurity
     ),
-    'row level security is enabled on all nine'
+    'row level security is enabled on all of them'
 );
 
 SELECT pg_temp.assert(
@@ -304,6 +312,18 @@ SELECT pg_temp.assert(
     NOT has_function_privilege('anon', 'public.cruise_sync_tick()', 'EXECUTE')
     AND NOT has_function_privilege('authenticated', 'public.cruise_sync_tick()', 'EXECUTE'),
     'neither anon nor authenticated may execute cruise_sync_tick()'
+);
+
+-- cruise_sailing_search() is SECURITY INVOKER, so a client calling it would still hit the
+-- table grants asserted above. It is revoked anyway: Supabase's default privileges hand
+-- EXECUTE on every new public function to both roles, and the invariant this file protects
+-- is "nobody but the service role reaches the catalog", not "nobody gets rows back".
+SELECT pg_temp.assert(
+    NOT has_function_privilege('anon',
+        'public.cruise_sailing_search(text, date, date, integer, integer, integer)', 'EXECUTE')
+    AND NOT has_function_privilege('authenticated',
+        'public.cruise_sailing_search(text, date, date, integer, integer, integer)', 'EXECUTE'),
+    'neither anon nor authenticated may execute cruise_sailing_search()'
 );
 
 \echo '== all cruise catalog assertions passed =='

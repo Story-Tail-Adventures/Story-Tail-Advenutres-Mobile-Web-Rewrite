@@ -133,6 +133,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # web/ and the design prototype (design/mui-vendor/) install MUI separately, and
+      # Dependabot only watches web/. Cheap, needs no npm, so it runs first.
+      - name: MUI versions match the design prototype
+        run: python3 .github/scripts/check_mui_lockstep.py
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -197,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           # 21, not 17: mobile/gradle/gradle-daemon-jvm.properties pins toolchain 21.
@@ -251,7 +255,7 @@ jobs:
   #   runs-on: macos-latest
   #   steps:
   #     - uses: actions/checkout@v7
-  #     - uses: actions/setup-java@v5
+  #     - uses: actions/setup-java@v6
   #       with:
   #         distribution: temurin
   #         java-version: "21"
@@ -276,6 +280,12 @@ jobs:
           # hosted project — and it silently changes the tool that validates our migrations
           # between one green run and the next. 2.116.0 is the version these migrations have
           # actually been replayed against locally. Bump deliberately.
+          #
+          # SECOND COPY OF THIS NUMBER: supabase/scripts/gen-types.sh pins the same version,
+          # because the types it generates are committed and the step at the foot of this job
+          # diffs them. A machine whose global CLI is newer generated a file this job could not
+          # reproduce, and the failure named the generic helpers rather than anything anyone
+          # had touched. Move both together.
           version: 2.116.0
       - uses: denoland/setup-deno@v2
         with:

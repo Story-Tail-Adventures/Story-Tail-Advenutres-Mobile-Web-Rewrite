@@ -1,11 +1,38 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Stack from "@mui/material/Stack";
 
+import { ICON_BTN_SX, MAX_W_3XL } from "@/components/client/client-sx";
+import { Alert } from "@/components/ui/Alert";
 import { Icon } from "@/components/ui/Icon";
+import { Spinner } from "@/components/ui/Spinner";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { QUICK_REPLIES, THREAD_MESSAGES, type SendMessageState } from "@/lib/trips/thread";
 
 const IDLE: SendMessageState = { status: "idle" };
+
+/** `px-4 md:px-6` — the bar's gutter. */
+const GUTTER = { xs: 2, md: 3 } as const;
+
+/**
+ * The legacy `.btn.h-11.rounded-full.px-4` send button on MUI's contained Button: 44px,
+ * 16px sides, and a 44px minimum width so the icon-only phone state stays square.
+ */
+const SEND_SX = {
+  minHeight: 44,
+  minWidth: 44,
+  px: 2,
+  gap: 1,
+  flexShrink: 0,
+  whiteSpace: "nowrap",
+  ...TAP_TARGET,
+} as const;
 
 /**
  * The compose bar: quick-reply chips, a growing textarea, attach and send.
@@ -42,6 +69,12 @@ const IDLE: SendMessageState = { status: "idle" };
  * traveler already uses follows, and getting it backwards is the kind of thing that makes
  * people write one-line messages forever. The form still submits normally without
  * JavaScript, because it is a real form with a real action.
+ *
+ * ON MUI (step 2 of the migration): the textarea is MUI's multiline OutlinedInput, which
+ * actually grows with the draft (one to five rows) where the legacy box only capped its
+ * height; the chips are outlined MUI Chips that render as real buttons; the error is the MUI
+ * Alert tint. The attach IconButton keeps its `title`, and a wrapping span carries the same
+ * title so the reason still shows on hover — a disabled MUI button has `pointer-events: none`.
  */
 export function Composer({
   action: send,
@@ -62,57 +95,70 @@ export function Composer({
   const empty = draft.trim().length === 0;
 
   return (
-    <div className="border-t border-outline-variant bg-surface">
+    <Box sx={{ borderTop: 1, borderColor: "divider", bgcolor: "surface.main" }}>
       {state.status === "error" && (
-        <p role="alert" className="t-body-s px-4 pt-2.5 text-error md:px-6">
-          {state.message}
-        </p>
+        <Box sx={{ px: GUTTER, pt: 1.25 }}>
+          <Alert tone="error">{state.message}</Alert>
+        </Box>
       )}
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-2.5 md:px-6">
-        <div className="flex gap-1.5 overflow-x-auto pb-2">
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: MAX_W_3XL, px: GUTTER, py: 1.25 }}>
+        <Stack direction="row" spacing={0.75} sx={{ overflowX: "auto", pb: 1 }}>
           {/* The same four on both screens. They are parity-pinned copy rather than data, and
               offering a traveler a different set of words depending on which list they
               reached the thread from is the drift this extraction exists to prevent. */}
           {QUICK_REPLIES.map((reply) => (
-            <button
+            <Chip
               key={reply}
+              component="button"
               type="button"
+              clickable
+              variant="outlined"
+              size="small"
+              label={reply}
               // Fills the box rather than sending, so nothing leaves for Gyasi that the
               // traveler has not seen sitting in their own compose bar first.
               onClick={() => {
                 setTyped(reply);
                 textarea.current?.focus();
               }}
-              className="chip tap-44 h-[30px] shrink-0"
-            >
-              {reply}
-            </button>
+              sx={{ height: 30, flexShrink: 0, ...TAP_TARGET }}
+            />
           ))}
-        </div>
+        </Stack>
 
-        <form
+        <Box
+          component="form"
           action={action}
           // Hand the box back to the derived fallback, so it empties the moment the request
           // starts and the error path can refill it.
           onSubmit={() => setTyped(null)}
-          className="flex items-end gap-2"
+          sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}
         >
-          <button
-            type="button"
-            className="btn-icon tap-44 shrink-0"
-            disabled
-            aria-disabled="true"
-            aria-label={THREAD_MESSAGES.attachLabel}
+          <Box
+            component="span"
             title={attachTitle}
+            sx={{ display: "inline-flex", flexShrink: 0, cursor: "not-allowed" }}
           >
-            <Icon name="attach" size={18} />
-          </button>
+            <IconButton
+              type="button"
+              disabled
+              aria-disabled="true"
+              aria-label={THREAD_MESSAGES.attachLabel}
+              title={attachTitle}
+              sx={ICON_BTN_SX}
+            >
+              <Icon name="attach" size={18} />
+            </IconButton>
+          </Box>
 
-          <textarea
-            ref={textarea}
+          <OutlinedInput
+            inputRef={textarea}
             name="body"
-            rows={1}
+            multiline
+            minRows={1}
+            maxRows={5}
+            size="small"
             value={draft}
             onChange={(event) => setTyped(event.target.value)}
             onKeyDown={(event) => {
@@ -122,20 +168,24 @@ export function Composer({
               }
             }}
             placeholder={placeholder}
-            aria-label={placeholder}
-            className="t-body max-h-32 min-h-11 flex-1 resize-none rounded-3xl border border-outline-variant bg-bg px-3.5 py-2.5 text-on-surface placeholder:text-on-surface-variant"
+            inputProps={{ "aria-label": placeholder }}
+            sx={{ flex: 1, minHeight: 44 }}
           />
 
-          <button
+          <MuiButton
             type="submit"
+            variant="contained"
             disabled={pending || empty}
-            className="btn btn-filled tap-44 h-11 shrink-0 rounded-full px-4"
+            aria-label={THREAD_MESSAGES.sendLabel}
+            sx={SEND_SX}
           >
-            <Icon name={pending ? "clock" : "send"} size={14} />
-            <span className="hidden md:inline">{THREAD_MESSAGES.sendLabel}</span>
-          </button>
-        </form>
-      </div>
-    </div>
+            {pending ? <Spinner /> : <Icon name="send" size={14} />}
+            <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+              {THREAD_MESSAGES.sendLabel}
+            </Box>
+          </MuiButton>
+        </Box>
+      </Box>
+    </Box>
   );
 }

@@ -5,7 +5,6 @@ import com.storytail.adventures.api.WorklistSnapshot
 import com.storytail.adventures.api.WorklistTrip
 import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.PartOfDay
-import com.storytail.adventures.domain.agent.currencyNote
 import com.storytail.adventures.domain.agent.departingWithin30
 import com.storytail.adventures.domain.agent.needsYouCount
 import com.storytail.adventures.domain.agent.paymentsInOrder
@@ -30,8 +29,6 @@ data class WorklistUiState(
     val snapshot: WorklistSnapshot,
     val payments: List<WorklistPayment>,
     val departing: List<WorklistTrip>,
-    /** Non-null when the money figures exclude a currency, so the screen can say so. */
-    val currencyNote: String?,
 )
 
 private val MONTHS = listOf(
@@ -62,14 +59,6 @@ fun worklistUiState(
         snapshot.awaitingResponse + snapshot.newInquiries + snapshot.departingSoon,
         today,
     ).distinctBy { it.tripId },
-    // Under-reporting with the exclusion named, never a mixed sum. The accessors scope every
-    // money figure to one currency; this is the screen saying so. `currencyCount` counts
-    // distinct CURRENCIES, so `- 1` is how many other currencies exist — never a trip count.
-    currencyNote = if (snapshot.kpis.currencyCount > 1) {
-        currencyNote(snapshot.kpis.currency, snapshot.kpis.currencyCount - 1)
-    } else {
-        null
-    },
 )
 
 /** The empty state, when the read succeeded and the book is genuinely quiet. */

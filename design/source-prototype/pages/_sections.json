@@ -3,24 +3,24 @@
     "slug": "00-brand",
     "num": "00",
     "title": "Brand & system",
-    "subtitle": "Foundations — palette, typography, M3 tokens, status language.",
+    "subtitle": "Foundations \u2014 palette, typography, M3 tokens, status language.",
     "files": [
       "artboards/brand.jsx"
     ],
-    "body": "<DCSection id=\"brand\" title=\"00 · Brand & system\" subtitle=\"Foundations — palette, typography, M3 tokens, status language.\">\n <DCArtboard id=\"brand-light\" label=\"System · Light\" width={1280} height={780}>\n <Scheme scheme=\"light\"><BrandArtboard/></Scheme>\n </DCArtboard>\n <DCArtboard id=\"brand-dark\" label=\"System · Dark\" width={1280} height={780}>\n <Scheme scheme=\"dark\"><BrandArtboard/></Scheme>\n </DCArtboard>\n </DCSection>"
+    "body": "<DCSection id=\"brand\" title=\"00 \u00b7 Brand & system\" subtitle=\"Foundations \u2014 palette, typography, M3 tokens, status language.\">\n <DCArtboard id=\"brand-light\" label=\"System \u00b7 Light\" width={1280} height={780}>\n <Scheme scheme=\"light\"><BrandArtboard/></Scheme>\n </DCArtboard>\n <DCArtboard id=\"brand-dark\" label=\"System \u00b7 Dark\" width={1280} height={780}>\n <Scheme scheme=\"dark\"><BrandArtboard/></Scheme>\n </DCArtboard>\n </DCSection>"
   },
   {
     "slug": "c20-public",
     "num": "2.0",
-    "title": "Client · Public landing pages",
-    "subtitle": "The front door — app landing, About, Caribbean, Cruises, Honeymoons, About Gyasi, search & sign-up.",
+    "title": "Client \u00b7 Public landing pages",
+    "subtitle": "The front door \u2014 app landing, About, Caribbean, Cruises, Honeymoons, About Gyasi, search & sign-up.",
     "files": [
       "screens/client-public.jsx",
       "screens/client-public-topics.jsx",
       "screens/client-public-mobile.jsx"
     ],
     "sectionId": "c20",
-    "sectionTitle": "2.0 · Public landing pages",
+    "sectionTitle": "2.0 \u00b7 Public landing pages",
     "sectionSub": "The 11 pre-auth surfaces anonymous visitors see at app.story-tail.com.",
     "width": 1440,
     "height": 900,
@@ -158,14 +158,14 @@
   {
     "slug": "c21-auth",
     "num": "2.1",
-    "title": "Client · Authentication & Onboarding",
+    "title": "Client \u00b7 Authentication & Onboarding",
     "subtitle": "Sign-in through trip linking.",
     "files": [
       "screens/client-auth.jsx",
       "screens/client-auth-mobile.jsx"
     ],
     "sectionId": "c21",
-    "sectionTitle": "2.1 · Authentication & Onboarding",
+    "sectionTitle": "2.1 \u00b7 Authentication & Onboarding",
     "sectionSub": "Sign-in through trip linking.",
     "width": 1280,
     "height": 780,
@@ -329,14 +329,14 @@
   {
     "slug": "c22-dashboard",
     "num": "2.2",
-    "title": "Client · Dashboard & Trip Experience",
+    "title": "Client \u00b7 Dashboard & Trip Experience",
     "subtitle": "Trips, itineraries, docs, messages.",
     "files": [
       "screens/client-trip.jsx",
       "screens/client-trip-mobile.jsx"
     ],
     "sectionId": "c22",
-    "sectionTitle": "2.2 · Dashboard & Trip Experience",
+    "sectionTitle": "2.2 \u00b7 Dashboard & Trip Experience",
     "sectionSub": "Trips, itineraries, docs, messages.",
     "width": 1280,
     "height": 900,
@@ -480,13 +480,13 @@
   {
     "slug": "c23-search",
     "num": "2.3",
-    "title": "Client · Self-Guided Search",
+    "title": "Client \u00b7 Self-Guided Search",
     "subtitle": "Inspiration, results, detail, quote.",
     "files": [
       "screens/client-search.jsx"
     ],
     "sectionId": "c23",
-    "sectionTitle": "2.3 · Self-Guided Search",
+    "sectionTitle": "2.3 \u00b7 Self-Guided Search",
     "sectionSub": "Inspiration, results, detail, quote.",
     "width": 1280,
     "height": 880,
@@ -556,14 +556,14 @@
   {
     "slug": "c24-payment",
     "num": "2.4",
-    "title": "Client · Payment & Card Authorization",
+    "title": "Client \u00b7 Payment & Card Authorization",
     "subtitle": "Wallet, add, authorize, audit.",
     "files": [
       "screens/client-payment.jsx",
       "screens/client-payment-mobile.jsx"
     ],
     "sectionId": "c24",
-    "sectionTitle": "2.4 · Payment & Card Authorization",
+    "sectionTitle": "2.4 \u00b7 Payment & Card Authorization",
     "sectionSub": "Wallet, add, authorize, audit.",
     "width": 1280,
     "height": 860,
@@ -653,14 +653,14 @@
   {
     "slug": "c25-account",
     "num": "2.5",
-    "title": "Client · Account & Profile",
+    "title": "Client \u00b7 Account & Profile",
     "subtitle": "Hub + 10 sub-screens.",
     "files": [
       "screens/client-account.jsx",
       "screens/client-account-mobile.jsx"
     ],
     "sectionId": "c25",
-    "sectionTitle": "2.5 · Account & Profile",
+    "sectionTitle": "2.5 \u00b7 Account & Profile",
     "sectionSub": "Hub + 10 sub-screens.",
     "width": 1280,
     "height": 820,
@@ -795,14 +795,14 @@
   {
     "slug": "c26-messaging",
     "num": "2.6",
-    "title": "Client · Messaging",
+    "title": "Client \u00b7 Messaging",
     "subtitle": "Inbox, thread, new conversation.",
     "files": [
       "screens/client-messaging.jsx",
       "screens/client-messaging-mobile.jsx"
     ],
     "sectionId": "c26",
-    "sectionTitle": "2.6 · Messaging",
+    "sectionTitle": "2.6 \u00b7 Messaging",
     "sectionSub": "Inbox, thread, new conversation.",
     "width": 1280,
     "height": 860,
@@ -847,13 +847,13 @@
   {
     "slug": "c27-mobile",
     "num": "2.7",
-    "title": "Client · Mobile-Specific",
+    "title": "Client \u00b7 Mobile-Specific",
     "subtitle": "Native-only screens.",
     "files": [
       "screens/client-mobile.jsx"
     ],
     "sectionId": "c27",
-    "sectionTitle": "2.7 · Mobile-Specific",
+    "sectionTitle": "2.7 \u00b7 Mobile-Specific",
     "sectionSub": "Native-only screens.",
     "mobile": true,
     "screens": [
@@ -902,13 +902,13 @@
   {
     "slug": "c28-group",
     "num": "2.8",
-    "title": "Client · Group Trip Coordination",
+    "title": "Client \u00b7 Group Trip Coordination",
     "subtitle": "Phase 3+ surface.",
     "files": [
       "screens/client-group.jsx"
     ],
     "sectionId": "c28",
-    "sectionTitle": "2.8 · Group Trip Coordination",
+    "sectionTitle": "2.8 \u00b7 Group Trip Coordination",
     "sectionSub": "Phase 3+ surface.",
     "width": 1280,
     "height": 840,
@@ -943,13 +943,13 @@
   {
     "slug": "a31-auth",
     "num": "3.1",
-    "title": "Agent · Authentication & Activation",
+    "title": "Agent \u00b7 Authentication & Activation",
     "subtitle": "Sign-in, MFA, and the 6-step activation wizard.",
     "files": [
       "screens/agent-auth.jsx"
     ],
     "sectionId": "a31",
-    "sectionTitle": "3.1 · Agent Authentication & Activation",
+    "sectionTitle": "3.1 \u00b7 Agent Authentication & Activation",
     "sectionSub": "Sign-in, MFA, and the 6-step activation wizard.",
     "width": 1280,
     "height": 780,
@@ -1017,14 +1017,14 @@
   {
     "slug": "a32-pipeline",
     "num": "3.2",
-    "title": "Agent · Dashboard & Pipeline",
+    "title": "Agent \u00b7 Dashboard & Pipeline",
     "subtitle": "Worklist, Kanban pipeline, calendar.",
     "files": [
       "screens/agent-dashboard.jsx",
       "screens/agent-dashboard-mobile.jsx"
     ],
     "sectionId": "a32",
-    "sectionTitle": "3.2 · Dashboard & Pipeline",
+    "sectionTitle": "3.2 \u00b7 Dashboard & Pipeline",
     "sectionSub": "Worklist, Kanban pipeline, calendar.",
     "width": 1440,
     "height": 980,
@@ -1069,14 +1069,14 @@
   {
     "slug": "a33-crm",
     "num": "3.3",
-    "title": "Agent · Client Management (CRM)",
+    "title": "Agent \u00b7 Client Management (CRM)",
     "subtitle": "Roster, detail, tabs, merge, archive.",
     "files": [
       "screens/agent-crm.jsx",
       "screens/agent-crm-mobile.jsx"
     ],
     "sectionId": "a33",
-    "sectionTitle": "3.3 · Client Management (CRM)",
+    "sectionTitle": "3.3 \u00b7 Client Management (CRM)",
     "sectionSub": "Roster, detail, tabs, merge, archive.",
     "width": 1440,
     "height": 900,
@@ -1169,13 +1169,14 @@
   {
     "slug": "a34-trip-builder",
     "num": "3.4",
-    "title": "Agent · Trip Builder & Management",
+    "title": "Agent \u00b7 Trip Builder & Management",
     "subtitle": "From list to builder to component sheets.",
     "files": [
-      "screens/agent-trip.jsx"
+      "screens/agent-trip.jsx",
+      "screens/agent-trip-mobile.jsx"
     ],
     "sectionId": "a34",
-    "sectionTitle": "3.4 · Trip Builder & Management",
+    "sectionTitle": "3.4 \u00b7 Trip Builder & Management",
     "sectionSub": "From list to builder to component sheets.",
     "width": 1440,
     "height": 900,
@@ -1189,7 +1190,7 @@
       {
         "id": "342",
         "comp": "A342_TripDetail",
-        "label": "3.4.2 Trip detail · agent",
+        "label": "3.4.2 Trip detail \u00b7 agent",
         "h": 900
       },
       {
@@ -1286,18 +1287,30 @@
         "w": 900,
         "h": 760
       }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m342a",
+        "comp": "M342_TripDetail",
+        "label": "3.4m.2 Trip detail \u00b7 Overview"
+      },
+      {
+        "id": "m342b",
+        "comp": "M342_TripItinerary",
+        "label": "3.4m.2 Trip detail \u00b7 Itinerary"
+      }
     ]
   },
   {
     "slug": "a35-proposal",
     "num": "3.5",
-    "title": "Agent · Proposal & Itinerary",
+    "title": "Agent \u00b7 Proposal & Itinerary",
     "subtitle": "Builder, preview, send, auto-generate.",
     "files": [
       "screens/agent-proposal.jsx"
     ],
     "sectionId": "a35",
-    "sectionTitle": "3.5 · Proposal & Itinerary",
+    "sectionTitle": "3.5 \u00b7 Proposal & Itinerary",
     "sectionSub": "Builder, preview, send, auto-generate.",
     "width": 1440,
     "height": 920,
@@ -1351,13 +1364,13 @@
   {
     "slug": "a36-payment",
     "num": "3.6",
-    "title": "Agent · Payment & Card Management",
+    "title": "Agent \u00b7 Payment & Card Management",
     "subtitle": "Vault, reveal-and-use, audit log.",
     "files": [
       "screens/agent-payment.jsx"
     ],
     "sectionId": "a36",
-    "sectionTitle": "3.6 · Payment & Card Management",
+    "sectionTitle": "3.6 \u00b7 Payment & Card Management",
     "sectionSub": "Vault, reveal-and-use, audit log.",
     "width": 1280,
     "height": 820,
@@ -1414,13 +1427,13 @@
   {
     "slug": "a37-commission",
     "num": "3.7",
-    "title": "Agent · Commission Tracking",
+    "title": "Agent \u00b7 Commission Tracking",
     "subtitle": "Dashboard, ledger, reconciliation, forecast.",
     "files": [
       "screens/agent-commission.jsx"
     ],
     "sectionId": "a37",
-    "sectionTitle": "3.7 · Commission Tracking",
+    "sectionTitle": "3.7 \u00b7 Commission Tracking",
     "sectionSub": "Dashboard, ledger, reconciliation, forecast.",
     "width": 1440,
     "height": 900,
@@ -1473,13 +1486,13 @@
   {
     "slug": "a38-leads",
     "num": "3.8",
-    "title": "Agent · Leads",
+    "title": "Agent \u00b7 Leads",
     "subtitle": "Inbox, detail, convert, reject, analytics.",
     "files": [
       "screens/agent-leads-support-msg.jsx"
     ],
     "sectionId": "a38",
-    "sectionTitle": "3.8 · Leads",
+    "sectionTitle": "3.8 \u00b7 Leads",
     "sectionSub": "Inbox, detail, convert, reject, analytics.",
     "width": 1440,
     "height": 860,
@@ -1521,13 +1534,13 @@
   {
     "slug": "a39-support",
     "num": "3.9",
-    "title": "Agent · Login Support / Account Admin",
+    "title": "Agent \u00b7 Login Support / Account Admin",
     "subtitle": "Help less-technical clients. All audit-logged.",
     "files": [
       "screens/agent-leads-support-msg.jsx"
     ],
     "sectionId": "a39",
-    "sectionTitle": "3.9 · Login Support / Account Admin",
+    "sectionTitle": "3.9 \u00b7 Login Support / Account Admin",
     "sectionSub": "Help less-technical clients. All audit-logged.",
     "width": 1280,
     "height": 820,
@@ -1584,13 +1597,13 @@
   {
     "slug": "a310-messaging",
     "num": "3.10",
-    "title": "Agent · Messaging & Templates",
+    "title": "Agent \u00b7 Messaging & Templates",
     "subtitle": "Agent inbox, templates, bulk send.",
     "files": [
       "screens/agent-leads-support-msg.jsx"
     ],
     "sectionId": "a310",
-    "sectionTitle": "3.10 · Messaging & Templates",
+    "sectionTitle": "3.10 \u00b7 Messaging & Templates",
     "sectionSub": "Agent inbox, templates, bulk send.",
     "width": 1440,
     "height": 880,
@@ -1637,13 +1650,13 @@
   {
     "slug": "a311-reports",
     "num": "3.11",
-    "title": "Agent · Reporting",
+    "title": "Agent \u00b7 Reporting",
     "subtitle": "Hub + 6 reports + export center.",
     "files": [
       "screens/agent-reports-settings.jsx"
     ],
     "sectionId": "a311",
-    "sectionTitle": "3.11 · Reporting",
+    "sectionTitle": "3.11 \u00b7 Reporting",
     "sectionSub": "Hub + 6 reports + export center.",
     "width": 1280,
     "height": 820,
@@ -1701,13 +1714,13 @@
   {
     "slug": "a312-settings",
     "num": "3.12",
-    "title": "Agent · Profile & Settings",
+    "title": "Agent \u00b7 Profile & Settings",
     "subtitle": "Profile, availability, notifs, signature, branding.",
     "files": [
       "screens/agent-reports-settings.jsx"
     ],
     "sectionId": "a312",
-    "sectionTitle": "3.12 · Agent Profile & Settings",
+    "sectionTitle": "3.12 \u00b7 Agent Profile & Settings",
     "sectionSub": "Profile, availability, notifs, signature, branding.",
     "width": 1280,
     "height": 820,

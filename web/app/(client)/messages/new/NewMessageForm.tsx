@@ -1,8 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 
+import { BODY_S, BTN_44, BTN_SM, advisorAvatarSx } from "@/components/client/client-sx";
+import { Alert } from "@/components/ui/Alert";
 import { Icon } from "@/components/ui/Icon";
+import { Spinner } from "@/components/ui/Spinner";
+import { TextareaField } from "@/components/ui/Textarea";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { startConversation } from "@/lib/messages/actions";
 import { MESSAGES } from "@/lib/messages/content";
 import { THREAD_MESSAGES, type SendMessageState } from "@/lib/trips/thread";
@@ -31,6 +42,9 @@ const IDLE: SendMessageState = { status: "idle" };
  * The draft survives a failure the same way 2.6.2's does, and for the same reason: this is
  * likely the longest message anybody writes in the app, and losing it would be the worst
  * moment in the section to lose one.
+ *
+ * ON MUI (step 2 of the migration): the card IS the form (`Card component="form"`), the
+ * field is the shared TextareaField, and the error is the MUI Alert tint.
  */
 export function NewMessageForm() {
   const [state, action, pending] = useActionState(startConversation, IDLE);
@@ -40,42 +54,47 @@ export function NewMessageForm() {
   const empty = draft.trim().length === 0;
 
   return (
-    <form action={action} onSubmit={() => setTyped(null)} className="card p-5 md:p-6">
+    <Card component="form" action={action} onSubmit={() => setTyped(null)} sx={{ p: { xs: 2.5, md: 3 } }}>
       {/* The advisor card the frame opens with, minus the presence dot and the "< 2h"
           promise — see the header of lib/messages/content.ts for why there is exactly one
           reply-time string in this codebase. */}
-      <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-secondary-container p-3 text-on-secondary-container">
-        <span
-          aria-hidden="true"
-          className="t-label inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-burgundy text-[12px] font-bold text-white"
-        >
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.25,
+          p: 1.5,
+          bgcolor: "secondary.container",
+          color: "secondary.onContainer",
+        }}
+      >
+        <Avatar aria-hidden="true" sx={advisorAvatarSx(36, 12)}>
           {MESSAGES.advisorInitials}
-        </span>
-        <p className="t-body-s">
+        </Avatar>
+        <Typography component="p" variant="body2" sx={BODY_S}>
           <b>{MESSAGES.advisorName}</b> · {MESSAGES.replyWindow}
-        </p>
-      </div>
+        </Typography>
+      </Paper>
 
-      <label htmlFor="body" className="field-label">
-        {MESSAGES.newBodyLabel}
-      </label>
-      <textarea
+      <TextareaField
         id="body"
         name="body"
+        label={MESSAGES.newBodyLabel}
         value={draft}
         onChange={(event) => setTyped(event.target.value)}
         placeholder={MESSAGES.newPlaceholder}
         rows={7}
-        className="t-body mt-1 w-full resize-none rounded-xl border border-outline-variant bg-bg px-3.5 py-3 text-on-surface placeholder:text-on-surface-variant"
       />
 
       {state.status === "error" && (
-        <p role="alert" className="t-body-s mt-2 text-error">
-          {state.message}
-        </p>
+        <Box sx={{ mt: 1 }}>
+          <Alert tone="error">{state.message}</Alert>
+        </Box>
       )}
 
-      <div className="mt-4 flex items-center gap-2">
+      <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
         {/* Departure 10: a thread with no trip has nothing it could attach. `trip-document`
             hard-requires a tripId and is the only insert into `document` in the repo, so the
             filter in `trip-message` would drop anything sent from here. It turns on with the
@@ -84,28 +103,36 @@ export function NewMessageForm() {
             text, rather than the reason becoming the label. A sentence-long button reads as a
             rendering fault, and a `title` tooltip alone is unreachable on a touch screen —
             which is most of this app. Same shape §2.5's disabled settings rows use. */}
-        <button
+        <MuiButton
           type="button"
-          className="btn btn-tonal btn-sm tap-44"
+          variant="outlined"
+          color="secondary"
+          size="small"
           disabled
           aria-disabled="true"
+          startIcon={<Icon name="attach" size={13} />}
+          sx={{ ...BTN_SM, ...TAP_TARGET }}
         >
-          <Icon name="attach" size={13} />
           {THREAD_MESSAGES.attachLabel}
-        </button>
-        <span className="t-body-s hidden text-on-surface-variant md:inline">
-          {MESSAGES.attachDeferred}
-        </span>
-
-        <button
-          type="submit"
-          disabled={pending || empty}
-          className="btn btn-filled tap-44 ml-auto h-11"
+        </MuiButton>
+        <Typography
+          component="span"
+          variant="body2"
+          sx={{ ...BODY_S, display: { xs: "none", md: "inline" }, color: "text.secondary" }}
         >
-          <Icon name={pending ? "clock" : "send"} size={14} />
+          {MESSAGES.attachDeferred}
+        </Typography>
+
+        <MuiButton
+          type="submit"
+          variant="contained"
+          disabled={pending || empty}
+          startIcon={pending ? <Spinner /> : <Icon name="send" size={14} />}
+          sx={{ ...BTN_44, ...TAP_TARGET, ml: "auto" }}
+        >
           {pending ? MESSAGES.newSending : MESSAGES.newSend}
-        </button>
-      </div>
-    </form>
+        </MuiButton>
+      </Box>
+    </Card>
   );
 }

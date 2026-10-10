@@ -1,7 +1,11 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import MuiCard from "@mui/material/Card";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { ADVISOR, claim } from "@/content/public/proof";
-import { cn } from "@/lib/cn";
 import { Avatar } from "./Avatar";
 
 interface AdvisorCardProps {
@@ -14,58 +18,127 @@ interface AdvisorCardProps {
   className?: string;
 }
 
+/** A stat on the bio card: glyph + text, caption weight 500, as the 2.0.2 artboard draws them. */
+const STAT = { display: "inline-flex", alignItems: "center", gap: 0.5, typography: "caption", fontWeight: 500 } as const;
+
 /**
  * Gyasi's card in its three prototype shapes. The portrait is the initials avatar until a
  * real photograph is supplied (decision 4); stats come from the claims registry.
+ *
+ * The bio and note grids keep their legacy px tracks (M202 draws the bio as an image-left
+ * row on mobile — a 60px track leaves room for the paragraph and the stats at 360px; the
+ * artboard's 120px track takes over at `md`).
  */
 export function AdvisorCard({ variant, title, body, overline, action, className }: AdvisorCardProps) {
   if (variant === "bio") {
     return (
-      <div className={cn("card advisor-bio-grid bg-surface-2 p-4 md:p-5.5", className)}>
-        <Avatar initials={ADVISOR.initials} tone="brand" size={72} className="md:size-30 md:text-4xl" label={ADVISOR.name} />
-        <div>
-          <h2 className="t-title-s md:t-title-l text-on-surface">{title ?? `Meet ${ADVISOR.name} · ${ADVISOR.title}`}</h2>
-          <p className="t-body-s md:t-body mt-1.5 text-on-surface-variant">{body ?? ADVISOR.shortBio}</p>
-          <ul className="t-label mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1 text-on-surface-variant">
-            <li className="inline-flex items-center gap-1">
-              <Icon name="star" size={12} filled className="text-brand-sunset" /> {claim("ratingValue")} · {claim("reviewCount")} reviews
-            </li>
-            <li className="inline-flex items-center gap-1">
+      <MuiCard
+        className={className}
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "60px minmax(0, 1fr)", md: "120px minmax(0, 1fr)" },
+          gap: { xs: 1.75, md: 2.75 },
+          alignItems: "center",
+          p: { xs: 2, md: 2.75 },
+          bgcolor: "surface.2",
+        }}
+      >
+        <Avatar
+          initials={ADVISOR.initials}
+          tone="brand"
+          size={72}
+          label={ADVISOR.name}
+          sx={{ width: { md: 120 }, height: { md: 120 }, fontSize: { md: 36 } }}
+        />
+        <Box>
+          <Typography component="h2" variant="h5" sx={{ fontSize: { xs: "1rem", md: "1.5rem" }, color: "text.primary" }}>
+            {title ?? `Meet ${ADVISOR.name} · ${ADVISOR.title}`}
+          </Typography>
+          <Typography component="p" variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+            {body ?? ADVISOR.shortBio}
+          </Typography>
+          <Stack
+            component="ul"
+            direction="row"
+            useFlexGap
+            sx={{ m: 0, p: 0, mt: 1.25, flexWrap: "wrap", columnGap: 1.75, rowGap: 0.5, listStyle: "none", color: "text.secondary" }}
+          >
+            <Box component="li" sx={STAT}>
+              <Box component="span" sx={{ display: "inline-flex", color: "brandSource.sunset" }}>
+                <Icon name="star" size={12} filled />
+              </Box>{" "}
+              {claim("ratingValue")} · {claim("reviewCount")} reviews
+            </Box>
+            <Box component="li" sx={STAT}>
               <Icon name="users" size={12} /> {claim("travelersServed")} travelers
-            </li>
-            <li className="inline-flex items-center gap-1">
+            </Box>
+            <Box component="li" sx={STAT}>
               <Icon name="shield" size={12} /> {claim("credClia")}
-            </li>
-          </ul>
-        </div>
-      </div>
+            </Box>
+          </Stack>
+        </Box>
+      </MuiCard>
     );
   }
 
   if (variant === "planned") {
     return (
-      <div className={cn("card flex items-center gap-2.5 p-3.5 md:p-4", className)}>
+      <MuiCard className={className} sx={{ display: "flex", alignItems: "center", gap: 1.25, p: { xs: 1.75, md: 2 } }}>
         <Avatar initials={ADVISOR.initials} tone="brand" size={36} />
-        <div className="min-w-0 flex-1">
-          <p className="t-title-s text-on-surface">{title}</p>
-          <p className="t-body-s text-on-surface-variant">{body ?? "Caribbean specialist"}</p>
-        </div>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography component="p" variant="subtitle1" sx={{ color: "text.primary" }}>
+            {title}
+          </Typography>
+          <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+            {body ?? "Caribbean specialist"}
+          </Typography>
+        </Box>
         {action && (
-          <Link href={action.href} className="btn btn-text btn-sm">
+          <MuiButton
+            component={NextLink}
+            href={action.href}
+            variant="text"
+            size="small"
+            sx={{ minHeight: 32, px: 2, flexShrink: 0, whiteSpace: "nowrap" }}
+          >
             {action.label}
-          </Link>
+          </MuiButton>
         )}
-      </div>
+      </MuiCard>
     );
   }
 
   return (
-    <div className={cn("card advisor-note-grid bg-surface-2 p-3.5 md:px-7 md:py-6", className)}>
-      <Avatar initials={ADVISOR.initials} tone="brand" size={44} className="md:size-14" />
-      <div>
-        <p className="t-label-s text-brand-orange">{overline ?? "A NOTE FROM GYASI"}</p>
-        <div className="t-body-s md:t-body-l mt-1.5 text-pretty text-on-surface">{body}</div>
-      </div>
-    </div>
+    <MuiCard
+      className={className}
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "44px minmax(0, 1fr)", md: "56px minmax(0, 1fr)" },
+        gap: { xs: 1.5, md: 2.25 },
+        p: 1.75,
+        px: { md: 3.5 },
+        py: { md: 3 },
+        bgcolor: "surface.2",
+      }}
+    >
+      <Avatar
+        initials={ADVISOR.initials}
+        tone="brand"
+        size={44}
+        sx={{ width: { md: 56 }, height: { md: 56 }, fontSize: { md: 20 } }}
+      />
+      <Box>
+        <Typography
+          component="p"
+          variant="overline"
+          sx={{ display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 }}
+        >
+          {overline ?? "A NOTE FROM GYASI"}
+        </Typography>
+        <Box sx={{ mt: 0.75, typography: { xs: "body2", md: "body1" }, textWrap: "pretty", color: "text.primary" }}>
+          {body}
+        </Box>
+      </Box>
+    </MuiCard>
   );
 }

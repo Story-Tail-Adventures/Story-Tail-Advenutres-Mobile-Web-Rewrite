@@ -31,12 +31,22 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AgentRead =
   | "agent_kpis"
+  // §3.4.1. A sibling of agent_trip_board rather than an extension of it — the board is
+  // stage-shaped and §3.2.2 depends on that.
+  | "agent_trip_roster"
+  | "agent_trip_roster_summary"
+  // §3.4.13. `agent_templates` is the grid; `agent_template` is one payload, kept separate
+  // because the grid renders a dozen cards and none of them needs the whole blob.
+  | "agent_templates"
+  | "agent_template"
   | "agent_trip_board"
   | "agent_payments_due"
   | "agent_inbox"
   | "agent_availability_self"
   | "agent_trip_overview"
   | "agent_trip_components"
+  // §3.4.5 – §3.4.12's supplier picker. No arguments — see the function's own comment.
+  | "agent_suppliers"
   | "agent_trip_itinerary_meta"
   | "agent_trip_itinerary_days"
   | "agent_trip_payments"
@@ -65,11 +75,35 @@ export type AgentReadResult<T> =
  * not, and the fields that are genuinely NOT NULL in SQL (ids, counts, the digit-string
  * money columns) are left required.
  */
+/**
+ * §3.4.13's grid row.
+ *
+ * `times_used` is DERIVED in SQL from `trip.template_id`, not a stored counter — see the
+ * accessor. `value_cents` is a digit-string like every other money column on this side,
+ * because PostgREST serialises bigint as a JSON number and loses precision past 2^53.
+ *
+ * Hand-declared with `| null` where the column really is nullable: `supabase gen types`
+ * cannot infer nullability from a RETURNS TABLE signature and declares every column
+ * non-nullable, which is wrong for `description`.
+ */
+export type AgentTemplateRow = {
+  template_id: string;
+  name: string;
+  description: string | null;
+  trip_type: string;
+  component_count: number;
+  day_count: number;
+  value_cents: string;
+  times_used: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AgentKpiRow = {
   agent_id: string;
   as_of_date: string;
-  dominant_currency: string | null;
-  currency_count: number;
+  /** NULL when the book reaches no money figure at all; 'USD' otherwise. */
+  currency: string | null;
   pipeline_value_cents: string;
   booked_month_cents: string;
   commission_expected_cents: string;
@@ -161,6 +195,7 @@ export type AgentTripOverviewRow = {
   currency: string;
   cancellation_reason: string | null;
   refund_status: string | null;
+  refund_detail: string | null;
   notes: string | null;
   version: number;
   card_last4: string | null;
@@ -179,6 +214,8 @@ export type AgentTripComponentRow = {
   component_id: string;
   kind: string;
   display_name: string;
+  supplier_id: string | null;
+  supplier_name: string | null;
   start_date: string | null;
   end_date: string | null;
   start_time: string | null;
@@ -190,7 +227,22 @@ export type AgentTripComponentRow = {
   commission_cents: string;
   currency: string;
   api_source: string | null;
+  /**
+   * §3.4.12's kind-specific detail. `jsonb` with no schema in Postgres — Data-Model §23 put
+   * the validation in `supabase/functions/_shared/component.ts` and nowhere else, so what
+   * arrives here is whatever was last written. Read defensively: a key may be absent, and
+   * the values are strings or booleans.
+   */
+  payload: Record<string, unknown> | null;
   order_index: number;
+};
+
+/** §3.4.5 – §3.4.12's supplier picker. Agency-wide, not per-advisor. */
+export type AgentSupplierRow = {
+  supplier_id: string;
+  name: string;
+  kind: string;
+  default_commission_pct: number | null;
 };
 
 export type AgentTripItineraryMetaRow = {
@@ -231,6 +283,8 @@ export type AgentTripPaymentRow = {
   paid_cents: string;
   currency: string;
   due_date: string | null;
+  /** When the money actually landed. §3.4.15's editor shows it; nothing else reads it. */
+  paid_at: string | null;
   status: string;
   order_index: number;
 };
@@ -275,6 +329,48 @@ export type AgentTripActivityRow = {
  * first is a digit-string, not a number: a bigint that crosses as JSON loses precision past
  * 2^53, and the roster sums whole books of business.
  */
+/**
+ * §3.4.1's roster row.
+ *
+ * HAND-DECLARED NULLABILITY, like every other row type in this file. `supabase gen types`
+ * cannot infer it from a `RETURNS TABLE` signature and calls every column non-nullable, so
+ * a generated type would promise a `start_date` that an inquiry has never had.
+ */
+export type AgentTripRosterRow = {
+  trip_id: string;
+  title: string;
+  client_id: string;
+  client_display_name: string;
+  trip_type: string;
+  status: string;
+  status_changed_at: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: string[] | null;
+  traveler_count: number;
+  total_value_cents: string;
+  total_paid_cents: string;
+  total_commission_cents: string;
+  currency: string;
+  component_count: number;
+  last_activity_at: string | null;
+  version: number;
+  as_of_date: string;
+  total_count: number;
+};
+
+export type AgentTripSummaryRow = {
+  inquiry_count: number;
+  proposal_count: number;
+  booked_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  cancelled_count: number;
+  total_count: number;
+  pipeline_cents: string;
+  pipeline_currency: string | null;
+};
+
 export type AgentClientRosterRow = {
   client_id: string;
   display_name: string;
@@ -286,7 +382,6 @@ export type AgentClientRosterRow = {
   tags: string[] | null;
   lifetime_value_cents: string;
   lifetime_currency: string | null;
-  lifetime_currency_count: number;
   trip_count: number;
   last_trip_title: string | null;
   last_trip_end_date: string | null;
@@ -360,7 +455,6 @@ export type AgentClientOverviewRow = {
   favorite_past_trips: string | null;
   lifetime_value_cents: string;
   lifetime_currency: string | null;
-  lifetime_currency_count: number;
   commission_cents: string;
   trip_count: number;
   active_trip_count: number;
@@ -485,7 +579,16 @@ export async function callAgentRead<T>(
 
 export type AgentFunction =
   | "agent-trip-status"
+  // §3.4.3, and §3.4.4's component writes when they land.
+  | "agent-trip"
   | "agent-trip-notes"
+  // §3.4.14. Its own door rather than five more ops on `agent-trip`, which already
+  // carries seven over 500 lines — the itinerary is a different entity graph reached
+  // through a different screen, the same reasoning that split `agent-trip-status` out.
+  | "agent-itinerary"
+  // §3.4.13. Its own door for the same reason, and one `apply` writes components, itinerary
+  // days and activities in a single statement — the largest write on this surface.
+  | "agent-template"
   // §3.3.7. An RPC write would let an agent POST from a browser with no audit_event,
   // which is the reason every agent write on this surface is a function.
   | "agent-client-notes"

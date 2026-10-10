@@ -739,6 +739,7 @@ export type Database = {
           commission_pct: number
           component_id: string | null
           created_at: string
+          currency: string
           expected_commission_cents: number
           gross_booking_cents: number
           id: string
@@ -746,6 +747,7 @@ export type Database = {
           inteletravel_reference: string | null
           notes: string | null
           payment_terms: string
+          processing_fee_cents: number
           received_at: string | null
           received_commission_cents: number
           status: Database["public"]["Enums"]["commission_status"]
@@ -758,6 +760,7 @@ export type Database = {
           commission_pct: number
           component_id?: string | null
           created_at?: string
+          currency: string
           expected_commission_cents: number
           gross_booking_cents: number
           id: string
@@ -765,6 +768,7 @@ export type Database = {
           inteletravel_reference?: string | null
           notes?: string | null
           payment_terms: string
+          processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
           status?: Database["public"]["Enums"]["commission_status"]
@@ -777,6 +781,7 @@ export type Database = {
           commission_pct?: number
           component_id?: string | null
           created_at?: string
+          currency?: string
           expected_commission_cents?: number
           gross_booking_cents?: number
           id?: string
@@ -784,6 +789,7 @@ export type Database = {
           inteletravel_reference?: string | null
           notes?: string | null
           payment_terms?: string
+          processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
           status?: Database["public"]["Enums"]["commission_status"]
@@ -1420,6 +1426,10 @@ export type Database = {
           earliest_departure: string | null
           first_seen_at: string
           id: string
+          image_credit: string | null
+          image_license: string | null
+          image_source_url: string | null
+          image_url: string | null
           last_seen_at: string | null
           latest_departure: string | null
           name: string
@@ -1439,6 +1449,10 @@ export type Database = {
           earliest_departure?: string | null
           first_seen_at?: string
           id: string
+          image_credit?: string | null
+          image_license?: string | null
+          image_source_url?: string | null
+          image_url?: string | null
           last_seen_at?: string | null
           latest_departure?: string | null
           name: string
@@ -1458,6 +1472,10 @@ export type Database = {
           earliest_departure?: string | null
           first_seen_at?: string
           id?: string
+          image_credit?: string | null
+          image_license?: string | null
+          image_source_url?: string | null
+          image_url?: string | null
           last_seen_at?: string | null
           latest_departure?: string | null
           name?: string
@@ -1479,6 +1497,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cruise_sync_dispatch: {
+        Row: {
+          dispatched_at: string
+          request_id: number
+        }
+        Insert: {
+          dispatched_at?: string
+          request_id: number
+        }
+        Update: {
+          dispatched_at?: string
+          request_id?: number
+        }
+        Relationships: []
       }
       cruise_sync_run: {
         Row: {
@@ -2845,6 +2878,7 @@ export type Database = {
           end_date: string | null
           id: string
           notes: string | null
+          refund_detail: string | null
           refund_status: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["trip_status"]
@@ -2871,6 +2905,7 @@ export type Database = {
           end_date?: string | null
           id: string
           notes?: string | null
+          refund_detail?: string | null
           refund_status?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
@@ -2897,6 +2932,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           notes?: string | null
+          refund_detail?: string | null
           refund_status?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
@@ -3117,6 +3153,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_apply_template: {
+        Args: { p_agent_id: string; p_template_id: string; p_trip_id: string }
+        Returns: {
+          activities_added: number
+          components_added: number
+          days_added: number
+          outcome: string
+        }[]
+      }
+      agent_archive_template: {
+        Args: { p_agent_id: string; p_template_id: string }
+        Returns: {
+          outcome: string
+        }[]
+      }
+      agent_archive_trip_component: {
+        Args: { p_agent_id: string; p_component_id: string; p_trip_id: string }
+        Returns: {
+          component_id: string
+          outcome: string
+        }[]
+      }
       agent_availability_self: {
         Args: never
         Returns: {
@@ -3127,6 +3185,20 @@ export type Database = {
           time_zone: string
           updated_at: string
           weekly_schedule: Json
+        }[]
+      }
+      agent_bulk_set_trip_status: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_from_statuses: Database["public"]["Enums"]["trip_status"][]
+          p_to_status: Database["public"]["Enums"]["trip_status"]
+          p_trip_ids: string[]
+        }
+        Returns: {
+          from_status: Database["public"]["Enums"]["trip_status"]
+          trip_id: string
+          version: number
         }[]
       }
       agent_bulk_tag_clients: {
@@ -3237,7 +3309,6 @@ export type Database = {
           last_contact_at: string
           last_name: string
           lifetime_currency: string
-          lifetime_currency_count: number
           lifetime_value_cents: string
           loyalty_programs: Json
           note_count: number
@@ -3273,7 +3344,6 @@ export type Database = {
           last_trip_end_date: string
           last_trip_title: string
           lifetime_currency: string
-          lifetime_currency_count: number
           lifetime_value_cents: string
           next_trip_destinations: string[]
           next_trip_start_date: string
@@ -3339,6 +3409,42 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_create_trip: {
+        Args: {
+          p_agent_id: string
+          p_client_id: string
+          p_title: string
+          p_traveler_count?: number
+          p_trip_id: string
+          p_trip_type: Database["public"]["Enums"]["trip_type"]
+        }
+        Returns: {
+          outcome: string
+          trip_id: string
+        }[]
+      }
+      agent_delete_itinerary_activity: {
+        Args: { p_activity_id: string; p_agent_id: string; p_trip_id: string }
+        Returns: {
+          activity_id: string
+          outcome: string
+        }[]
+      }
+      agent_delete_payment_milestone: {
+        Args: { p_agent_id: string; p_milestone_id: string; p_trip_id: string }
+        Returns: {
+          milestone_id: string
+          outcome: string
+        }[]
+      }
+      agent_generate_itinerary: {
+        Args: { p_agent_id: string; p_trip_id: string }
+        Returns: {
+          activities_added: number
+          days_added: number
+          outcome: string
+        }[]
+      }
       agent_inbox: {
         Args: { p_limit?: number }
         Returns: {
@@ -3364,8 +3470,7 @@ export type Database = {
           commission_confidence_pct: number
           commission_expected_cents: string
           commission_weighted_cents: string
-          currency_count: number
-          dominant_currency: string
+          currency: string
           inquiry_to_book_days: number
           inquiry_to_book_sample: number
           new_inquiry_count: number
@@ -3391,6 +3496,42 @@ export type Database = {
           trip_title: string
         }[]
       }
+      agent_reorder_itinerary_activities: {
+        Args: {
+          p_activity_ids: string[]
+          p_agent_id: string
+          p_day_id: string
+          p_trip_id: string
+        }
+        Returns: {
+          moved: number
+          outcome: string
+        }[]
+      }
+      agent_reorder_trip_components: {
+        Args: {
+          p_agent_id: string
+          p_component_ids: string[]
+          p_trip_id: string
+        }
+        Returns: {
+          moved: number
+          outcome: string
+        }[]
+      }
+      agent_save_trip_as_template: {
+        Args: {
+          p_agent_id: string
+          p_description?: string
+          p_name: string
+          p_trip_id: string
+        }
+        Returns: {
+          components_saved: number
+          days_saved: number
+          template_id: string
+        }[]
+      }
       agent_set_client_archived: {
         Args: {
           p_agent_id: string
@@ -3401,6 +3542,20 @@ export type Database = {
         Returns: {
           outcome: string
           version: number
+        }[]
+      }
+      agent_set_milestone_paid: {
+        Args: {
+          p_agent_id: string
+          p_milestone_id: string
+          p_paid_cents?: number
+          p_status: Database["public"]["Enums"]["payment_milestone_status"]
+          p_trip_id: string
+        }
+        Returns: {
+          milestone_id: string
+          outcome: string
+          paid_cents: string
         }[]
       }
       agent_set_trip_notes: {
@@ -3421,6 +3576,8 @@ export type Database = {
           p_agent_id: string
           p_expected_version: number
           p_reason?: string
+          p_refund_detail?: string
+          p_refund_status?: string
           p_status: Database["public"]["Enums"]["trip_status"]
           p_trip_id: string
         }
@@ -3429,6 +3586,41 @@ export type Database = {
           outcome: string
           to_status: Database["public"]["Enums"]["trip_status"]
           version: number
+        }[]
+      }
+      agent_suppliers: {
+        Args: never
+        Returns: {
+          default_commission_pct: number
+          kind: Database["public"]["Enums"]["supplier_kind"]
+          name: string
+          supplier_id: string
+        }[]
+      }
+      agent_template: {
+        Args: { p_template_id: string }
+        Returns: {
+          description: string
+          name: string
+          payload: Json
+          template_id: string
+          times_used: number
+          trip_type: Database["public"]["Enums"]["trip_type"]
+        }[]
+      }
+      agent_templates: {
+        Args: never
+        Returns: {
+          component_count: number
+          created_at: string
+          day_count: number
+          description: string
+          name: string
+          template_id: string
+          times_used: number
+          trip_type: Database["public"]["Enums"]["trip_type"]
+          updated_at: string
+          value_cents: string
         }[]
       }
       agent_trip_activity: {
@@ -3489,8 +3681,11 @@ export type Database = {
           kind: Database["public"]["Enums"]["component_kind"]
           location: string
           order_index: number
+          payload: Json
           start_date: string
           start_time: string
+          supplier_id: string
+          supplier_name: string
         }[]
       }
       agent_trip_documents: {
@@ -3569,6 +3764,7 @@ export type Database = {
           manual_component_count: number
           next_unpaid_due_date: string
           notes: string
+          refund_detail: string
           refund_status: string
           start_date: string
           status: Database["public"]["Enums"]["trip_status"]
@@ -3594,8 +3790,54 @@ export type Database = {
           label: string
           milestone_id: string
           order_index: number
+          paid_at: string
           paid_cents: string
           status: Database["public"]["Enums"]["payment_milestone_status"]
+        }[]
+      }
+      agent_trip_roster: {
+        Args: {
+          p_client_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: Database["public"]["Enums"]["trip_status"][]
+        }
+        Returns: {
+          as_of_date: string
+          client_display_name: string
+          client_id: string
+          component_count: number
+          currency: string
+          destinations: string[]
+          end_date: string
+          last_activity_at: string
+          start_date: string
+          status: Database["public"]["Enums"]["trip_status"]
+          status_changed_at: string
+          title: string
+          total_commission_cents: string
+          total_count: number
+          total_paid_cents: string
+          total_value_cents: string
+          traveler_count: number
+          trip_id: string
+          trip_type: Database["public"]["Enums"]["trip_type"]
+          version: number
+        }[]
+      }
+      agent_trip_roster_summary: {
+        Args: never
+        Returns: {
+          booked_count: number
+          cancelled_count: number
+          completed_count: number
+          in_progress_count: number
+          inquiry_count: number
+          pipeline_cents: string
+          pipeline_currency: string
+          proposal_count: number
+          total_count: number
         }[]
       }
       agent_update_client: {
@@ -3625,6 +3867,17 @@ export type Database = {
           version: number
         }[]
       }
+      agent_update_template: {
+        Args: {
+          p_agent_id: string
+          p_description?: string
+          p_name: string
+          p_template_id: string
+        }
+        Returns: {
+          outcome: string
+        }[]
+      }
       agent_upsert_client_address: {
         Args: {
           p_city: string
@@ -3637,6 +3890,81 @@ export type Database = {
           p_region: string
         }
         Returns: string
+      }
+      agent_upsert_itinerary_activity: {
+        Args: {
+          p_activity_id: string
+          p_address?: string
+          p_agent_id: string
+          p_block?: Database["public"]["Enums"]["block_kind"]
+          p_body?: string
+          p_confirmation_number?: string
+          p_day_id: string
+          p_end_time?: string
+          p_gyasis_tip?: string
+          p_location?: string
+          p_phone?: string
+          p_start_time?: string
+          p_title: string
+          p_trip_id: string
+        }
+        Returns: {
+          activity_id: string
+          outcome: string
+        }[]
+      }
+      agent_upsert_itinerary_day: {
+        Args: {
+          p_agent_id: string
+          p_date: string
+          p_day_id: string
+          p_label?: string
+          p_summary?: string
+          p_trip_id: string
+        }
+        Returns: {
+          day_id: string
+          outcome: string
+        }[]
+      }
+      agent_upsert_payment_milestone: {
+        Args: {
+          p_agent_id: string
+          p_amount_cents: number
+          p_due_date?: string
+          p_kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          p_label: string
+          p_milestone_id: string
+          p_trip_id: string
+        }
+        Returns: {
+          milestone_id: string
+          outcome: string
+        }[]
+      }
+      agent_upsert_trip_component: {
+        Args: {
+          p_agent_id: string
+          p_commission_cents?: number
+          p_commission_pct?: number
+          p_component_id: string
+          p_confirmation_number?: string
+          p_cost_cents?: number
+          p_display_name: string
+          p_end_date?: string
+          p_end_time?: string
+          p_kind: Database["public"]["Enums"]["component_kind"]
+          p_location?: string
+          p_payload?: Json
+          p_start_date?: string
+          p_start_time?: string
+          p_supplier_id?: string
+          p_trip_id: string
+        }
+        Returns: {
+          component_id: string
+          outcome: string
+        }[]
       }
       agent_write_client_note: {
         Args: {
@@ -3652,8 +3980,53 @@ export type Database = {
           outcome: string
         }[]
       }
+      block_for_time: {
+        Args: { p_time: string }
+        Returns: Database["public"]["Enums"]["block_kind"]
+      }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      cruise_sailing_search: {
+        Args: {
+          depart_from?: string
+          depart_to?: string
+          max_nights?: number
+          max_rows?: number
+          min_nights?: number
+          needle?: string
+        }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          cruise_line_id: string
+          currency: string | null
+          departure_date: string
+          destinations: string[]
+          duration_nights: number | null
+          first_seen_at: string
+          id: string
+          itinerary_url: string | null
+          last_seen_at: string | null
+          lead_price_cents: number | null
+          lead_price_eur_cents: number | null
+          provider: string
+          provider_key: string
+          provider_locale: string
+          provider_payload: Json | null
+          provider_updated_at: string | null
+          ship_id: string | null
+          synced_at: string | null
+          title: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "cruise_sailing"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cruise_sync_tick: { Args: never; Returns: number }
+      cruise_sync_watchdog: { Args: { p_window?: string }; Returns: string }
       current_agent_id: { Args: never; Returns: string }
       current_client_mailing_address_id: { Args: never; Returns: string }
       current_platform_user: {
@@ -3700,8 +4073,17 @@ export type Database = {
           hits: number
         }[]
       }
+      itinerary_for_trip: { Args: { p_trip_id: string }; Returns: string }
+      itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      sweep_dated_promises: {
+        Args: never
+        Returns: {
+          authorizations_expired: number
+          milestones_marked_overdue: number
+        }[]
+      }
     }
     Enums: {
       agent_status: "active" | "inactive" | "archived"

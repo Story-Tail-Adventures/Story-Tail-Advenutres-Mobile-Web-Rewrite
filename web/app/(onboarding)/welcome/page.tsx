@@ -5,9 +5,15 @@
 // The cover page of the wizard and the first authenticated screen a new traveler sees. It
 // collects nothing; its only write is "Skip the tour", which ends the wizard.
 import type { Metadata } from "next";
-import { FeatureCard } from "@/components/public/FeatureCard";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 import { Photo } from "@/components/public/Photo";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { env } from "@/lib/env";
+import { DOWN_MD, UP_MD } from "@/lib/mui/sx";
 import { createClient } from "@/lib/supabase/server";
 import { WelcomeActions } from "./WelcomeActions";
 import { WELCOME_CARDS, WELCOME_TEXT } from "./state";
@@ -18,14 +24,45 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * The hero scrim. C219 writes it as
+ * `linear-gradient(180deg, rgba(122,26,31,0.4), rgba(13,33,55,0.8))` — which is exactly the
+ * brand burgundy at 40% into the brand navy at 80%, so it reads the theme's own brand-source
+ * variables rather than two hex literals. Scheme-independent on purpose: white copy on a
+ * photo stays white in both schemes, and the source colours live on `:root` only.
+ */
+const SCRIM_SX = {
+  position: "absolute",
+  inset: 0,
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--mui-palette-brandSource-burgundy) 40%, transparent), color-mix(in srgb, var(--mui-palette-brandSource-navy) 80%, transparent))",
+} as const;
+
+/**
+ * The greeting's type ramp: `.t-headline` (28/700) below md, `.t-display-s` (36/700) from
+ * it. The artboard draws a stock h3; the band it sits in is 260px tall on a phone, which a
+ * 48px heading that wraps to three lines does not fit, so the ramp this page already had
+ * stays — the same call HeroBleed makes for the public heroes.
+ */
+const HERO_TITLE_SX = {
+  my: 0.5,
+  color: "common.white",
+  fontWeight: 700,
+  fontSize: { xs: 28, md: 36 },
+  lineHeight: { xs: 1.15, md: 1.1 },
+  letterSpacing: { xs: "-0.4px", md: "-0.6px" },
+} as const;
+
 export default async function WelcomePage() {
   const firstName = await greetableFirstName();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    // <main>: the (onboarding) layout supplies no landmark, and every other step has one
+    // (OnboardingShell, the complete page).
+    <Box component="main" sx={{ display: "flex", minHeight: "100dvh", flexDirection: "column" }}>
       {/* HERO. Taller on mobile than on desktop — the ramp inverts, which is why this is
           written out rather than reusing `.hero-compact` (220 → 280, the wrong way). */}
-      <div className="relative h-65 shrink-0 overflow-hidden md:h-50">
+      <Box sx={{ position: "relative", height: { xs: 260, md: 200 }, flexShrink: 0, overflow: "hidden" }}>
         <Photo
           image="overwater"
           fill
@@ -34,44 +71,136 @@ export default async function WelcomePage() {
           // Decorative: the heading beside it carries the meaning, so announcing the photo
           // would just be noise before the greeting.
           alt=""
-          className="object-cover"
         />
-        <div aria-hidden="true" className="scrim-welcome absolute inset-0" />
-        <div className="absolute inset-0 flex flex-col justify-end p-5 text-white md:px-12 md:py-8">
-          <p className="t-label-s text-brand-gold">{WELCOME_TEXT.overline}</p>
-          <h1 className="t-headline mt-1 mb-1 text-white md:t-display-s">
+        <Box aria-hidden="true" sx={SCRIM_SX} />
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            px: { xs: 2.5, md: 6 },
+            py: { xs: 2.5, md: 4 },
+            color: "common.white",
+          }}
+        >
+          <Typography
+            component="p"
+            variant="overline"
+            sx={{ display: "block", color: "brandSource.gold", fontWeight: 600, lineHeight: 1.3 }}
+          >
+            {WELCOME_TEXT.overline}
+          </Typography>
+          <Typography component="h1" variant="h3" sx={HERO_TITLE_SX}>
             {firstName ? WELCOME_TEXT.title(firstName) : WELCOME_TEXT.titleNoName}
-          </h1>
-          <p className="t-body-s m-0 text-white/90 italic md:t-body">{WELCOME_TEXT.sub}</p>
-        </div>
-      </div>
+          </Typography>
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{
+              m: 0,
+              color: "common.white",
+              opacity: 0.9,
+              fontStyle: "italic",
+              fontSize: { xs: 13, md: 14 },
+              lineHeight: { xs: 1.45, md: 1.5 },
+            }}
+          >
+            {WELCOME_TEXT.sub}
+          </Typography>
+        </Box>
+      </Box>
 
-      <div className="flex flex-1 flex-col gap-5 p-5 md:gap-6 md:px-12 md:py-6">
-        <h2 className="t-title-l text-on-surface">{WELCOME_TEXT.sectionHeading}</h2>
+      <Box
+        sx={{
+          display: "flex",
+          flex: 1,
+          flexDirection: "column",
+          gap: { xs: 2.5, md: 3 },
+          px: { xs: 2.5, md: 6 },
+          py: { xs: 2.5, md: 3 },
+        }}
+      >
+        <Typography component="h2" variant="h5" sx={{ color: "text.primary" }}>
+          {WELCOME_TEXT.sectionHeading}
+        </Typography>
 
         {/* Five cards from `md`, four below it: M219 drops "Explore on your time", and it
             is the least true of the five today anyway — self-guided search is Phase 2. */}
-        <ul className="grid gap-3 md:grid-cols-3">
+        <Box
+          component="ul"
+          sx={{
+            display: "grid",
+            gap: 1.5,
+            gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
+            listStyle: "none",
+            m: 0,
+            p: 0,
+          }}
+        >
           {WELCOME_CARDS.map((card) => (
-            <li key={card.title} className={card.desktopOnly ? "hidden md:block" : undefined}>
-              <FeatureCard
-                icon={card.icon}
-                iconSize={36}
-                title={card.title}
-                body={card.body}
-                titleClass="t-title-s"
-                layout="row"
-                className="h-full md:[&]:block"
-              />
-            </li>
+            <Box
+              component="li"
+              key={card.title}
+              // Hidden BELOW md rather than shown from it: the result is the same in a
+              // browser, and a max-width rule is one jsdom never applies, so the card stays
+              // a list item in the render test.
+              sx={card.desktopOnly ? { [DOWN_MD]: { display: "none" } } : undefined}
+            >
+              <WelcomeCard icon={card.icon} title={card.title} body={card.body} />
+            </Box>
           ))}
-        </ul>
+        </Box>
 
-        <div className="mt-auto">
+        <Box sx={{ mt: "auto" }}>
           <WelcomeActions />
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * One of the "what your portal will do" cards (design: C219's Card / CardContent / rounded
+ * Avatar). Icon beside the text below `md` — the mobile artboard's row — and stacked above
+ * it from `md`, which is what the desktop artboard draws.
+ */
+function WelcomeCard({ icon, title, body }: { icon: IconName; title: string; body: string }) {
+  return (
+    <Card sx={{ height: "100%" }}>
+      <CardContent
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 1.5,
+          [UP_MD]: { display: "block" },
+          "&:last-child": { pb: 2 },
+        }}
+      >
+        <Avatar
+          variant="rounded"
+          aria-hidden="true"
+          sx={{
+            width: 36,
+            height: 36,
+            flexShrink: 0,
+            bgcolor: "primary.container",
+            color: "primary.onContainer",
+          }}
+        >
+          <Icon name={icon} size={18} />
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="h3" variant="subtitle1" sx={{ mt: { md: 1 }, color: "text.primary" }}>
+            {title}
+          </Typography>
+          <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.secondary" }}>
+            {body}
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 

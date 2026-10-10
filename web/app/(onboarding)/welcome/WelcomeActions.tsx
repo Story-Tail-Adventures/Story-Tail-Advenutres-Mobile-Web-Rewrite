@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -38,7 +40,7 @@ function SkipButton() {
     >
       {pending ? (
         <>
-          <Spinner className="size-4" />
+          <Spinner />
           {WELCOME_TEXT.skipPending}
         </>
       ) : (
@@ -52,27 +54,40 @@ export function WelcomeActions() {
   const [skipState, skipAction] = useActionState(skipOnboardingAction, initialWelcomeState);
 
   return (
-    <div className="flex flex-col gap-3">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
       {skipState.error && (
         <Alert tone="error">
           {skipState.error}{" "}
           {/* An escape hatch, because the thing that failed was the bookkeeping, not
-              anything they did. Being stuck on a welcome screen is the worse outcome. */}
-          <a href="/dashboard" className="font-semibold underline underline-offset-2">
+              anything they did. Being stuck on a welcome screen is the worse outcome. A
+              plain <a>, as before: a full navigation out of the wizard. */}
+          <MuiLink
+            href="/dashboard"
+            color="inherit"
+            underline="always"
+            sx={{ fontWeight: 600, textUnderlineOffset: 2 }}
+          >
             {WELCOME_TEXT.skipErrorEscape}
-          </a>
+          </MuiLink>
           .
         </Alert>
       )}
 
-      <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end sm:gap-3">
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column-reverse", sm: "row" },
+          justifyContent: { sm: "flex-end" },
+          gap: { xs: 1.25, sm: 1.5 },
+        }}
+      >
         <form action={skipAction}>
           <SkipButton />
         </form>
         <form action={beginOnboardingAction}>
           <BeginButton />
         </form>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

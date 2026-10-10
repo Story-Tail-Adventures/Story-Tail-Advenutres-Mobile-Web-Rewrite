@@ -157,7 +157,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.8 Caribbean Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for the business's core region — a curated Caribbean front door that turns browsing into quote requests and account creation.
-**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar (destination · when · travelers · vibe → "Request a quote"); three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
+**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar, an editable form (destination · when · travelers · vibe → "Request a quote"; it submits to `/quote`, which opens 2.3.8 through the sign-up gate with those values filled in and the vibe as the note's starting text). Its cells start empty with the prototype's values as hints, except When, which reads "Flexible dates" rather than "Flexible · 7 nights" because the dates cell is a button whose label reads as a range already picked. Every other "Request a quote" on 2.0.8–2.0.10 opens 2.3.8 for the topic directly, not the gate back to this page; three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
 **Key actions:** Request a quote (→ Sign-up Gate); save a trip (→ Sign-up Gate); open a trip's Public Detail; tap an island (→ Public Search Results); message Gyasi without an account.
 **Entry points:** Public nav "Caribbean"; App Subdomain Public Landing; marketing-site links.
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -165,7 +165,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.9 Cruises Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for cruising — family, adults-only and group sailings, with the lines Gyasi books.
-**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar; "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
+**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar, an editable form (destination · when · travelers → "See what's sailing", the live sailing search in Public Search Results' Cruises mode — no vibe cell, deliberately unlike the prototype, because live sailings cannot filter on it). Two hints differ from the prototype on purpose: Destination reads "Caribbean", not "Caribbean cruise", which the sailing search matches to nothing when typed back in, and When reads "Flexible dates" as on 2.0.8; "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
 **Key actions:** Request a quote; save; open a sailing's Public Detail; message Gyasi.
 **Entry points:** Public nav "Cruises"; inspiration tile "Family cruises".
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -173,7 +173,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.10 Honeymoons Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for honeymoons — the most personal trip Gyasi plans.
-**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar; a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
+**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar, an editable form (destination · when · travelers · vibe → "Request a quote", handed to 2.3.8 as on 2.0.8); a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
 **Key actions:** Request a quote; save; open a Public Detail; see the curated list (→ Public Search Results filtered to honeymoons); message Gyasi.
 **Entry points:** Public nav "Honeymoons"; inspiration tile "Honeymoons".
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -1192,6 +1192,15 @@ gate (2.0.6) sits in front of it rather than beside it.
 > over nothing are a control that lies, and they contradicted a shipped legal page. One true
 > sentence is the stronger privacy position; the toggles return the day a tracker does.
 >
+> **Amended 2026-10-10: the website now counts page views.** Vercel Web Analytics runs on the
+> public pages and the traveler portal (never `/agent/*`). It sets no cookies, does not follow
+> anyone across sites, and `web/lib/analytics.ts` swaps record ids for `[id]` and strips query
+> strings and the hash before anything leaves the browser. The native app runs no analytics. So the statement changed
+> rather than the screen: it now says we run no advertising or cross-site trackers and that
+> the website counts page views anonymously, and `cookies.ts` says "cross-site trackers" and
+> lists the count. The toggles are still out. Whether an anonymous, cookieless count should
+> get an opt-out switch is an open question, not a settled no.
+>
 > **The export cannot include the document-access trail.** Every signature from
 > `trip-document-url` writes an `audit_event` (`document.url_signed`), but `audit_event` is
 > the agency's table and §2.2 deliberately gave clients no policy on it. Naming it in the
@@ -1619,6 +1628,19 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > strip is the agent's most-used currency alone, with `currency_count` beside it so a screen
 > showing one number can name what it left out.
 >
+> **Amended 2026-09-28 — the rule above is WITHDRAWN, and the case it guarded made
+> impossible.** Gyasi: *"I only deal in US Currency I can't operate out of North America.
+> All prices I give will be in USD."* §7's "Currency display" open question is answered by
+> that, so migration `20260930100000` adds `CHECK (currency = 'USD')` to `trip` and the
+> accessors stopped scoping. `dominant_currency` and `currency_count` are replaced by a
+> single `currency`, and the note this paragraph describes is gone from the strip.
+>
+> The order is the point: the constraint lands FIRST and the reporting comes out behind it.
+> Deleting the scoping alone would leave one non-USD trip producing a mixed sum with nothing
+> on the screen to say so. The accessor still returns NULL rather than a currency name when
+> its rows hold more than one, so lifting the constraint degrades the label to unknown
+> rather than to wrong.
+>
 > **Amended 2026-09-23, with the phone frames drawn.**
 > `design/source-prototype/screens/agent-dashboard-mobile.jsx` records fourteen numbered
 > entries, and the doc carried only some of them. Twelve are the phone frames departing
@@ -1669,6 +1691,16 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > > above still describes `WorklistScreen.kt` exactly — §3.4.2 is web-only, so a Compose row
 > > genuinely still has nowhere to go, which is why the two stacks now hold different copy
 > > here and `check_copy_parity.py` no longer pairs that string.
+> >
+> > > **Overtaken on Compose too, 2026-09-30.** §3.4.2 shipped on the phone, so the three
+> > > trip sections push `AppRoute.AgentTripDetail` and `AgentCopy.TRIP_DETAIL_DEFERRED` is
+> > > deleted rather than re-worded. Both stacks are level again. Two sections keep a
+> > > footer and the reason differs: "New inquiries" keeps `LEADS_DEFERRED`, which explains
+> > > that a quote request creates a trip rather than a lead (BRD §6.5), and "Recent
+> > > messages" keeps `MESSAGES_DEFERRED` because §3.10 is genuinely unbuilt. **"Payments to
+> > > settle" lost its footer and gained no tap:** its rows name a `payment_milestone`, not
+> > > a trip, and §3.4.15's editor is web-only — so the trip behind one is reached from the
+> > > sections above and below it.
 >
 > **The mobile shell gains a top bar, which neither the frames nor §6.6 draw.** §6.6
 > describes the agent mobile shell as a bottom tab bar and nothing else, and the phone
@@ -1790,7 +1822,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > different default per viewport — agenda on mobile, week on tablet, month on web — and the
 > first version of this screen read `?view=` and nothing else, so a phone loaded the
 > seven-column month table at roughly 49px a day cell. Both branches now sit in the DOM and
-> `web/styles/agent.css`'s `md` breakpoint chooses between them, which gets the two defaults
+> an `md` breakpoint (in the page's `sx` since the MUI migration; first in `web/styles/agent.css`) chooses between them, which gets the two defaults
 > §4.4 asks for with no client state, no viewport sniffing and no layout shift. When
 > `?view=` is set it wins at every width, so a month link opens as a month on a phone and
 > both views stay shareable. The distinction worth recording is that unset is now a
@@ -1840,6 +1872,16 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > is chosen over the very trips the figure sums, so the label is true of that figure rather
 > than merely near it, and a client with nothing committed gets a dash rather than a
 > labelled zero.
+>
+> **Amended 2026-09-28 — the per-client scoping is WITHDRAWN with §3.2.1's, but the last
+> clause above is NOT.** Story-Tail is USD only (see §3.2.1's amendment of the same date),
+> so `lifetime_currency_count` and the asterisk it drove are gone from both the roster and
+> the Overview tab. **A client with nothing committed still gets a dash rather than a
+> labelled zero**, and that is a separate rule with a separate cause: the accessor returns
+> a NULL `lifetime_currency` for a client with no committed trip, and a labelled $0.00 would
+> claim they have spent nothing where the truth is that nothing has been booked yet. It
+> survives the removal deliberately, and `rls_agent_clients.sql` asserts it on both the
+> roster and the detail so it cannot be lost as collateral.
 >
 > **The filter chips are read from the book, and the two the prototype draws disagree with
 > each other.** The page frame draws `Active · VIP · Honeymoon · Family · Lead · Archived`;
@@ -2094,6 +2136,40 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Nav "Trips".
 **Related screens:** Trip Detail.
 
+> **Amended 2026-09-27, on shipping this screen.** Built on the web; there is no phone
+> treatment and none is owed yet, because Trips is not one of §6.6's four agent tabs and
+> §3.4 has no phone artboards at all.
+>
+> **Six stage chips, where the prototype draws four.** `A341_TripList` offers All, Inquiry,
+> Proposal, Booked and Traveling; `trip_status` has six values. On the seed that is 13
+> completed trips out of 26 — half the book with no chip to reach it from the screen called
+> "Trips". Completed and Cancelled both ship. They are **checkboxes**, not §3.3.1's radios:
+> a client is active or archived and never both, but "show me proposals and booked" is an
+> ordinary ask and the accessor already took an array. The default is the four live ones, so
+> the screen still opens on work in progress rather than on a decade of history.
+>
+> **Archived is an exclusion, not a chip.** §3.4.16 archives a trip to take it off the
+> working surfaces, so a filter that could show them again would undo the point. Cancelled
+> is the opposite and *is* askable: a cancelled trip is still a record of work, and its
+> commission reversal is something an advisor looks up.
+>
+> **"Bulk actions" on the Primary elements line is now one action: bulk stage change**
+> (chosen 2026-09-27). Bulk cancel is deliberately not among them — §3.4.16 is a whole
+> screen with an impact list and a mandatory reason, and neither survives a checkbox column.
+> The write is guarded per trip by the stage the screen was showing, because setting a stage
+> overwrites where §3.3.1's bulk tag could not; a trip somebody else moved meanwhile is
+> skipped rather than clobbered, and the advisor is told so.
+>
+> **Two controls the prototype draws are absent rather than disabled.** Its "Filter" button
+> opens a sheet the chips already make unnecessary at this width, and its "Sort · Departure"
+> chip offers a sort with one option — the list is already in departure order, nulls last,
+> because a trip with no dates is an inquiry nobody has planned. "New trip" *is* drawn
+> disabled, because §3.4.3 is a real planned screen.
+>
+> **The Entry points line is now true.** It said "Nav 'Trips'", and until this screen existed
+> that entry pointed at a route that 404'd while trip *detail* was reachable only from the
+> worklist, the pipeline and the calendar.
+
 #### 3.4.2 Trip Detail (Agent View)
 **Purpose:** All the operational detail an agent needs for a trip.
 **Primary elements:** Header (client, dates, status, total, commission); tabs: Overview, Components, Itinerary, Payments, Documents, Messages, Notes, Activity; status-change menu; quick actions (message client, request card, send proposal).
@@ -2156,6 +2232,49 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > was nothing to build Compose against. §4.4 maps this screen to Pattern C and does not mark
 > it web-primary the way it does 3.4.4, 3.4.13 and 3.4.14, so a phone treatment is still owed
 > and wants artboards first, per the artboards-first rule.
+>
+> > **Closed 2026-09-30.** The artboards came first:
+> > `design/source-prototype/screens/agent-trip-mobile.jsx` draws this screen at two of its
+> > eight tabs (Overview and Itinerary — one frame cannot show a strip moving) with twelve
+> > numbered departures, and the Compose screen shipped against them. **This is the only
+> > §3.4 screen with a phone surface**, and the other fifteen are named in that file's
+> > departure 1 with the reason each is absent, so the 1:1 parity convention is tracked
+> > rather than abandoned.
+> >
+> > **All eight tabs, read-only** (Gyasi, asked at approval 2026-09-29). That reads like a
+> > contradiction of §6.6's "intentionally narrower than web" and is not: §3.3.2 already
+> > settled what narrower means on this surface, keeping every real tab and dropping only
+> > the one that was disabled on the web too. Narrower is about **writes and navigational
+> > depth**, not about how much an advisor may look at — someone standing at a gate needs to
+> > read anything about a trip; what they will not do on a phone is build one.
+> >
+> > **No write controls at all, not even disabled ones.** The web header's stage menu, "Save
+> > as template", "Cancel trip" and builder link are all absent, replaced by one sentence
+> > saying where they are. That is the opposite of the treatment three paragraphs above
+> > ("render disabled with their reasons") and the difference is room: a desk header has
+> > space for four controls and their tooltips, and a 375pt screen spends four taps finding
+> > out none of them work.
+> >
+> > **The Notes tab reads here where it writes on the web.** The write path exists —
+> > `agent_set_trip_notes` shipped with the desk screen — so this is a scope line rather
+> > than a missing capability, and the easiest one to move if Gyasi wants notes on the phone.
+> >
+> > **The phone reads an eighth accessor the desk screen's Overview tab does not.**
+> > `agent_trip_itinerary_meta` is fetched for one column, `published_at`, so the Itinerary
+> > tab can lead with **Published** or **Draft**. A draft day-by-day looks exactly like a
+> > published one, and without that line an advisor can tell a client "it is in your app"
+> > about a trip the client cannot open.
+> >
+> > **Three things the phone derives that the desk screen does not, all recorded here
+> > because they are decisions rather than translations:** the status chip folds in the next
+> > unpaid milestone (so a booked trip with a balance eleven days out reads "Final payment
+> > due", which is the thing to act on); the header carries the dates and traveler count so
+> > the at-a-glance grid drops those two rows; and the Payments tab leads with a summary
+> > line — nothing scheduled, everything settled, or what is next — which is where "Next
+> > payment" went after being drawn in the glance first. The next-due milestone is selected
+> > on `status IN ('scheduled','overdue')`, the same set `agent_trip_overview` uses for
+> > `next_unpaid_due_date`, so the summary line and the chip above it cannot contradict
+> > each other.
 
 #### 3.4.3 Create New Trip — Type Selector
 **Purpose:** Choose what kind of trip to build.
@@ -2164,12 +2283,103 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Dashboard "Create trip"; Client Detail "New trip"; Lead conversion.
 **Related screens:** Trip Builder Workspace.
 
+> **Amended 2026-09-27, on shipping this screen.** Built on the web. Five controls across
+> §3.2, §3.3 and §3.4.1 were disabled waiting on it and are now live: the trip list's CTA,
+> the client detail header's "New trip", the client Trips tab's, the client form's "Save &
+> create trip", and the top bar's quick-add — which became the two-entry menu its own note
+> promised when it was one unbuilt action away from being a menu.
+>
+> **Five trip-type tiles, where the prototype draws six.** `A343_NewTripType` adds a
+> "Honeymoon" tile and `trip_type` has no such value — a honeymoon is an all-inclusive or a
+> custom trip. The third invented field found in §3.4, after the dining component sheet
+> (§3.4.10 in the drawing) and §3.4.2's "Booking source". The all-inclusive tile's hint says
+> where honeymoons live rather than pretending the tile was never drawn.
+>
+> **A trip is born in `inquiry` and the Key actions line's "continue" does not offer a
+> stage.** Every other status is a *transition*, and a transition owes a
+> `trip_status_history` row naming what it moved from; a trip created straight into `booked`
+> would be a booking with no record of having been proposed. The screen says so in a line,
+> because an advisor who expected otherwise would go looking for the stage control.
+>
+> **"Start from a template" renders disabled.** The Primary elements line names it and
+> `trip_template` has no rows — §3.4.13 is the screen that fills it. A picker that opens on
+> an empty list is worse than a control that says why it is off.
+>
+> **The client picker is a `<datalist>`, not search-as-you-type.** An advisor's book is tens,
+> not thousands, so a round trip per keystroke would filter a list the browser filters
+> itself — and it keeps the control a plain `<input>`, so the form works with JavaScript off.
+> `agent_client_roster` already takes `p_search` for the day that changes.
+>
+> **The Entry points line's "Lead conversion" cannot happen** and is superseded, for the
+> reason §3.4.2's amendment already gives: the lead domain is deferred and a quote request
+> creates a trip in `inquiry` directly (BRD §6.5, amended 2026-09-09). What reaches this
+> screen is the five controls above, three of them carrying `?client=` so the advisor is not
+> asked again for somebody the previous screen already knew.
+
 #### 3.4.4 Trip Builder Workspace
 **Purpose:** Main canvas for assembling a trip.
 **Primary elements:** Trip header (title, dates, travelers — editable inline); component list; "Add component" CTA; price total; commission projection; save state indicator.
 **Key actions:** Add component; reorder; edit; save draft; preview proposal.
 **Entry points:** Create New Trip flow; Trip Detail "Edit components".
 **Related screens:** Add Trip Component, Edit Trip Component, Itinerary Editor, Proposal Builder.
+
+> **Amended 2026-09-27, as the screen was built — and §3.4.5 – §3.4.12 were built with it,
+> as one sheet.** The nine screens from here to §3.4.12 shipped together; the notes below
+> cover all of them.
+>
+> **The canvas is a flat ordered list, not the prototype's day grouping.**
+> `A344_TripBuilder` draws "Day 1 · Arrival", "Day 2 · Beach" with an "Add to Day N" under
+> each. Those days are `itinerary_day` rows and that screen is **§3.4.14**, the Itinerary
+> Editor — a separate table, a separate entry here, and a separate write. This screen's own
+> Primary elements line says "component list", and the thing being reordered is
+> `trip_component.order_index`, which has no day in it. Grouping by date would also fight
+> the reorder: the groups would order by date while the rows inside them ordered by index,
+> and moving a row between groups would be two different writes wearing one gesture.
+>
+> **Reorder is a pair of arrow buttons, not the drawn drag handle.** A drag is pointer-only,
+> so an accessible build needs these buttons alongside it anyway — and they work with
+> JavaScript off, on a screen an advisor uses all day. The drag can be added on top later;
+> it would post the same list to the same write.
+>
+> **Eight "add" buttons in the drawing, seven kinds in the schema.** The rail lists "Dining ·
+> manual" and `A3410_AddDining` draws a sheet for it; `component_kind` has no `dining` value
+> and Data-Model §23 (settled 2026-09-27) ruled that a dinner reservation is a `custom`
+> component. The fourth invented field found in §3.4, after §3.4.3's "Honeymoon" tile and
+> §3.4.2's "Booking source". "Something else" is where it lands.
+>
+> **The rail's supplier names are dropped.** The prototype labels read "Flight · Amadeus",
+> "Hotel · Hotelbeds", "Cruise · Widgety", "Tour · Viator". All four are **Phase 2**
+> integrations, none is wired, and a label naming a search the button does not do is the
+> same defect as a deferral pointing at a section that will not deliver it. The sheet says
+> what is actually coming, once, instead of four buttons each implying it.
+>
+> **§3.4.5, §3.4.6 and §3.4.8's "Search | Manual" tab pair is not drawn at all.** A disabled
+> control is honest when the thing behind it is a planned screen — that is the call §3.4.2's
+> "Account admin" tab got. Half a sheet rendered dead is not the same thing. One line names
+> Phase 2 instead.
+>
+> **§3.4.5 – §3.4.12 are one form, parametrised by kind.** §3.4.12's own entry says "Same
+> form as the corresponding Add screen, pre-filled", and the seven kinds differ only in
+> which fields they show and what those fields are called. The design prototype reached the
+> same conclusion from the other side: its `CompModal` is a single parametrised component
+> and the eight screens are calls to it. The sheet is a URL (`?add=<kind>` / `?edit=<id>`),
+> not a modal — the back button closes it, a link can point at it, and the canvas stays
+> visible while the advisor types.
+>
+> **A field label is the advisor's word, not the column's.** `location` is "Route" on a
+> flight and "Pickup" on a transfer; `confirmation_number` is "Booking reference", "Booking
+> number" and "Policy number". Nobody calls a policy number a confirmation number out loud.
+>
+> **A supplier picker was added, and it is not in the drawing.** `trip_component.supplier_id`
+> has existed since the initial migration with nothing ever writing it —
+> `trip.total_value_cents`'s exact shape, found the same week. Picking a supplier also fills
+> in their `default_commission_pct`, which is what stops `commission_cents` sitting at zero
+> on every row and §3.7 reading a book with no commission in it.
+>
+> **"Save draft" and "Preview proposal" from the Key actions line are not buttons.** There is
+> no draft state to save — every write lands immediately and the totals recompute, so a save
+> button would do nothing — and previewing a proposal is §3.5.6, which is unbuilt. Neither
+> renders rather than rendering dead.
 
 #### 3.4.5 Add Trip Component — Flight
 **Purpose:** Add a flight via Amadeus search or manual entry.
@@ -2234,12 +2444,107 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Builder "Save as template"; Create New Trip "From template"; nav "Templates".
 **Related screens:** Trip Builder.
 
+> **Built 2026-09-28, and it gave two shipped columns their first producer.**
+> `trip_template` had eight columns, RLS, a slot in the agent-domain lockdown list and ZERO
+> rows; `trip.template_id` referenced it and had never been set. **Three deferrals came due
+> here and all three are honoured rather than deleted:** `duplicateTripDeferred` (repointed
+> at this section during §3.4.4 precisely because duplicating and templating are one
+> mechanism), `NEW_TRIP_COPY.templateDeferred` and `BUILDER_COPY.templatesDeferred`.
+>
+> **What it captures** (Gyasi, asked at approval): the bookings plus the day-by-day. The
+> payment schedule was the third option and was declined.
+>
+> **DATES BECOME OFFSETS**, which is the whole engineering problem. Every date in the
+> payload is an integer offset from the source trip's start, so a pattern saved from a
+> December trip produces March dates in March. Times are stored verbatim. Data-Model §8.6
+> carries the shape and the allow-list.
+>
+> **"Delete" in the entry above is a SOFT delete, and the word on screen is "Retire."** A
+> hard delete would fail outright on any template a trip has used — `trip.template_id`
+> references the table with no `ON DELETE` clause — and trips built from a pattern keep
+> their history either way.
+>
+> **APPLY IS NOT ON THIS SCREEN**, and the prototype's "Use" button is the one thing here
+> that is not built. Applying needs a TRIP to apply to and this screen has none; the two
+> real doors are §3.4.3's "start from a template", where the trip is about to exist, and
+> the builder's rail, where it already does. A button that cannot know its own object is
+> the control §6.4's amendment argues against. What the library has instead is rename and
+> retire, which are its own verbs.
+>
+> **Nor is the prototype's card photograph.** `trip_template` has no image column and should
+> not: the picture on the prototype's card is of the resort, which belongs to the supplier.
+> Dropped rather than invented, the same call §3.3.2 made about the drawn "surprise flag".
+>
+> **NOT on the nav rail**, despite this entry naming nav "Templates" as a door. §6.4's
+> amendment settled the prototype's seven entries as final and `nav.ts` records that
+> Templates and Settings stay off deliberately. The roster's header carries the link
+> instead.
+>
+> **Apply is additive and idempotent.** It appends components after whatever is already
+> there and creates only the itinerary days whose `day_number` is missing, so a day the
+> advisor has written cannot be overwritten — the property §3.4.14's generator has, for the
+> same reason. `trip.template_id` is the idempotency key. A trip with no `start_date` gets
+> its bookings and **no** day-by-day, because `itinerary_day.date` is NOT NULL: a day-by-day
+> is a calendar and a dateless inquiry has none.
+>
+> **A failed apply on the create path is reported, not swallowed.** `createTripAction` does
+> not fail the create when the pattern does not apply — the trip is real and losing it to
+> recover from a seeding problem is the worse trade — but the first version of that landed
+> in the builder reading "0 pieces / Nothing in it yet", which is character for character
+> what choosing "Start from scratch" produces. The outcome now rides in `?seeded=` so the
+> builder can tell the two apart.
+
 #### 3.4.14 Itinerary Editor (Agent)
 **Purpose:** Translate trip components into a presentable day-by-day itinerary.
 **Primary elements:** Day-by-day timeline; drag-to-reorder activities; per-block editor (morning/afternoon/evening) with rich text for descriptions; "Gyasi's Tip" callout editor; auto-generate from components CTA.
 **Key actions:** Auto-generate; manually edit; reorder; add tip; save.
 **Entry points:** Trip Detail "Itinerary"; Trip Builder.
 **Related screens:** Itinerary Preview, Trip Builder.
+
+> **Amended 2026-09-28, as the screen was built.**
+>
+> **This is where the day grouping lives, and §3.4.4's amendment already said so.** The
+> design prototype draws days inside the builder; `itinerary_day` and `itinerary_activity`
+> are their own tables and this is their screen. What ties the two is
+> `itinerary_activity.component_id`, one-directional — an entry may point at a booking, a
+> booking does not know its entry.
+>
+> **"Auto-generate" is additive and idempotent, and that is the whole design.** The Key
+> actions line says "Auto-generate" and says nothing about a second press. An advisor who
+> rewrote "AA 1413 · MIA → MBJ" as "Your flight to paradise" has done the thing this screen
+> exists for, so a generator that overwrites it has destroyed the feature rather than a row.
+> It creates the days the trip's date range needs, adds one entry per component with no
+> entry pointing at it, and touches no existing entry ever. Run twice, the second run
+> answers `noop`. The button states that promise beside itself rather than in a confirmation
+> dialog an advisor would learn to dismiss.
+>
+> **It does not generate an `insurance` component.** A client's day-by-day does not include
+> "your policy is in effect" — that is a fact about the trip, not a thing that happens on a
+> morning. Every other kind does, `custom` included. An advisor who wants it there adds the
+> entry by hand and the generator then leaves it alone.
+>
+> **The fixture made the case for itself.** Trip 0040's seeded itinerary covered Dec 4–7 on
+> a Dec 4–11 trip, so half the days did not exist and the return flight added in §3.4.4 had
+> nowhere to live.
+>
+> **Reorder is arrow buttons, not the drawn drag handle** — the same call §3.4.4 made, for
+> the same reasons: a drag is pointer-only so the keyboard path would be these anyway, and
+> they work with JavaScript off on the screen with the most typing.
+>
+> **`itinerary.version` is not an optimistic lock here.** Gating a per-entry write on a
+> whole-itinerary version would make editing day 1 then day 2 a conflict with yourself. What
+> the column is for on this table is said by the two beside it, `published_at` and
+> `last_published_at`: it is bumped on every change so §3.5's publish can answer "changed
+> since the client last saw it".
+>
+> **"Rich text" from the Primary elements line is plain text.** `itinerary_activity.body` is
+> `text` with no markup contract anywhere in the schema, and inventing one here would mean
+> §2.2.4's traveler view and §3.5's proposal both had to learn to render it. A textarea, and
+> the decision recorded rather than silently downgraded.
+>
+> **Intro and closing notes are not on this screen.** `itinerary.intro_note` and
+> `closing_note` exist, but they are the proposal's covering letter and belong to §3.5, which
+> is where the Related screens line points.
 
 #### 3.4.15 Trip Payment Schedule
 **Purpose:** Manage deposit and final-payment dates and remind the client.
@@ -2248,12 +2553,89 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Trip Detail "Payments".
 **Related screens:** Card Use Log, Conversation Thread.
 
+> **Amended 2026-09-29, as the screen was built.**
+>
+> **`trip.total_paid_cents` had no producer, and this screen is what exposed it.**
+> Data-Model §9.5 said PaymentMilestone *"is what finally gives `trip.total_paid_cents` a
+> producer"*; five accessors read the column and nothing wrote it. 20 trips claimed
+> $81,390 of payments with no schedule behind them, and of the three that had a schedule,
+> two contradicted it — one showing a final balance marked `overdue` while the trip claimed
+> that exact amount as paid. It is also an input rather than a display figure:
+> `wallet/authorize/[tripId]` subtracts it from the trip value to show a traveler the
+> balance they are authorizing a card against. Fixed in `20260929100000`.
+>
+> **The schedule and the money are two writes, and stay apart at every layer.**
+> `agent_upsert_payment_milestone` says what the supplier expects and when;
+> `agent_set_milestone_paid` says whether the money moved, and only the second can reach
+> `total_paid_cents`. The Primary elements line reads "date, amount, paid Y/N, paid date"
+> as one row, and building it as one form would have let a label edit move the figure above.
+>
+> **"Paid Y/N" is a four-value select, not a checkbox.** `payment_milestone_status` has
+> `scheduled`, `paid`, `overdue` and `waived`, and a checkbox makes two of them unreachable.
+> `waived` is the one that matters: §9.5 says suppliers do forgive milestones, and a waived
+> one must not raise what the client has paid.
+>
+> **The schedule reads in due-date order.** `agent_trip_payments` ordered by `order_index`
+> alone, which Data-Model §9.5 calls "display order" with due_date as the tiebreak — and
+> that is backwards for dated payments. A deposit added after the final balance sorted below
+> it, and the Overview sidebar's "next unpaid" was the next INSERTED rather than the next
+> DUE. `order_index` keeps its job as the stable tiebreak.
+>
+> **"Trigger reminder" and the reminder cadence toggle are not built.** Both wait on §3.10,
+> where agent messaging gets built, and nothing in the schema can send on a client's behalf
+> yet. The control renders disabled with its reason — the call §3.4.2's "Account admin" tab
+> got, since §3.10 is a real planned section.
+>
+> **Removing a payment is a hard delete.** `payment_milestone` is not on Data-Model §20.1's
+> soft-delete list, has no `archived_at`, and nothing references it — unlike §3.4.4's
+> components, which `itinerary_activity.component_id` points at. The copy says so rather
+> than implying it can be undone, and the audit row is the only record left.
+>
+> **No "amount owing" anywhere in the copy.** BRD §10.5 prohibits client-facing billing, so
+> these rows describe what a *supplier* expects, never a bill from us. "Due" is the
+> supplier's date and "on file" is money we have a record of.
+
 #### 3.4.16 Cancel / Archive Trip
 **Purpose:** Mark a trip as cancelled, with reason and refund tracking.
 **Primary elements:** Cancellation reason; refund status; supplier-side action checklist; "Confirm cancellation" CTA.
 **Key actions:** Cancel; archive.
 **Entry points:** Trip Detail "More actions".
 **Related screens:** Trip Detail.
+
+> **Built 2026-09-28.** A §4.4 Pattern J dialog on the trip detail header, on the native
+> `<dialog>` element the way §3.3.12's archive dialog is.
+>
+> **Most of the backend was already here**, built during §3.4.1: `agent_set_trip_status`
+> makes a reason mandatory on `cancelled`, is the only writer of `trip.cancellation_reason`
+> anywhere, and refuses to cancel in bulk with a comment pointing at this screen.
+> `20261001100000` added the refund half — a four-value vocabulary on `refund_status`, and
+> a new `refund_detail` column for the specifics a state cannot carry.
+>
+> **IT IS ALSO THE EDIT DIALOG.** A refund that is `pending` on the day a trip is cancelled
+> becomes `full` or `partial` weeks later, so a write-once cancellation would rot exactly
+> the way `refund_status` already had. Re-opening it on a cancelled trip is a correction:
+> the RPC answers `reason_changed`, writes no history row, and the button reads "Save
+> details".
+>
+> **Two of the prototype's four impact lines are NOT rendered, because they are not true of
+> this system.** `agent-trip.jsx:588` draws *"Card authorization will be revoked"* — nothing
+> revokes it; there is no revoke path on the agent side at all, §3.6 owns that and is
+> unbuilt. The line is inverted into the truth: the authorization **stays**, and that is
+> something to go and deal with. *"Sandals cancellation fee · $120 per policy"* is dropped
+> outright: no column in the schema stores a supplier cancellation fee, and inventing one
+> on a cancellation screen is how an advisor comes to trust a number nobody computed. The
+> remaining lines are derived from the trip and verified against behaviour — the dialog says
+> commission will drop by $1,318 and the dashboard figure then drops by exactly that.
+>
+> **Not built: the supplier-side action checklist** named above. It needs per-supplier
+> cancellation terms, which nothing stores, and §3.7's `payment_terms` has the same gap.
+> The dialog says plainly that cancelling tells no supplier rather than drawing an
+> unbacked checklist.
+>
+> **"Archive" in the title is a separate action and is NOT this dialog.** `trip.archived_at`
+> already has a producer and the roster already excludes archived trips unconditionally;
+> cancelling and archiving are different states, and the seed carries a fixture that is
+> archived-but-completed precisely so the two exclusions cannot be confused.
 
 ---
 
@@ -2776,7 +3158,7 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.0.5 Public Property/Cruise/Tour Detail** — Pattern C. "Message Gyasi without an account" is a sticky bottom button on mobile, a side rail CTA on tablet/web.
 - **2.0.6 Sign-up Gate** — Pattern J. Mobile uses full-height bottom sheet; tablet/web a centered modal.
 - **2.0.7 Footer Pages** — Pattern I, simplified. Identical content across viewports; mobile uses larger type. Web implementation note: 2.0.2's FAQ ships as a single-column accordion on web too (matches the design prototype), and 2.0.6 ships as a route rather than a modal.
-- **2.0.8 Caribbean / 2.0.9 Cruises / 2.0.10 Honeymoons** — Pattern H. Web: inquire bar sticks under the top bar, 3-column trip grid, island tiles in one row. Tablet: 2-column grid, inquire bar wraps to two rows. Mobile: single column, island tiles as a horizontal snap strip, trips as image-left rows, inquire bar replaced by the sticky bottom CTA ("Request a quote").
+- **2.0.8 Caribbean / 2.0.9 Cruises / 2.0.10 Honeymoons** — Pattern H. Web: inquire bar sticks under the top bar, 3-column trip grid, island tiles in one row. Tablet: 2-column grid; the four-cell inquire bars (2.0.8, 2.0.10) wrap to two rows of two, while the three-cell Cruises bar fits one row. Mobile: single column, island tiles as a horizontal snap strip, trips as image-left rows, inquire bar replaced by the sticky bottom CTA ("Request a quote").
 - **2.0.11 About Gyasi** — Pattern H with Pattern I reading widths. Web: two-column hero (copy + portrait), 4-up stats strip, two-column story/credentials, 3-column testimonials. Tablet: hero keeps two columns, story stacks above credentials. Mobile: stacked; portrait becomes a round badge on the hero; testimonials as a horizontal snap strip; sticky bottom CTA.
 
 #### Client — Authentication & Onboarding (2.1.x)
@@ -2893,7 +3275,7 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 
 #### Agent — Trip Builder & Management (3.4.x)
 - **3.4.1 Trip List** — Pattern B.
-- **3.4.2 Trip Detail (Agent View)** — Pattern C.
+- **3.4.2 Trip Detail (Agent View)** — Pattern C. Both halves are built: a tab strip beside a wide detail pane on web, and on mobile a horizontally scrolling strip where each tab is a full screen. The strip **scrolls and does not wrap** — eight labels will not fit 375pt, and two rows of chips cost the pane below them.
 - **3.4.3 Create New Trip — Type Selector** — Pattern G.
 - **3.4.4 Trip Builder Workspace** — Pattern E. **Web-primary.** Mobile shows the trip builder as a vertical component list with bottom-sheet add flow — usable for additions and edits, but full trip-building from scratch is awkward. Tablet works comfortably in landscape. Web is the intended deep-work surface.
 - **3.4.5 – 3.4.12 Component Add/Edit screens** — Pattern A within Pattern E. Search-based component adds (flight, hotel, cruise, tour) use Pattern F inside the builder.
@@ -3077,6 +3459,12 @@ The mobile experience for agents at MVP is intentionally narrower than web — d
 
 > **Amended 2026-09-23.** The shell also carries a 56dp top bar — screen title left, "Sign out" right — which this line did not anticipate. It adds no destination, so the sentence above still holds as a statement about navigational depth; it exists because Worklist is the whole agent shell in this slice and there is nowhere else to reach sign-out. The §3.2.1 amendment carries the full reasoning, and §3.12 (More) takes the control over when it lands.
 
+> **Amended 2026-09-30, and this one narrows what "narrower" means.** §3.4.2 Trip Detail is now built on the phone with all eight tabs, read-only (Gyasi, asked at approval 2026-09-29). **The bar is still four**, and Trips is still not among them: a trip is reached from the Worklist's rows and from the Clients tab's Trips tab, both of which already carry a `tripId`. So this is a third and fourth level of depth inside two existing destinations rather than a fifth destination, and the sentence above holds as written.
+>
+> What the sentence does **not** mean, and did not say clearly enough to stop the question being asked: it is not a limit on how much an advisor may read. §3.3.2 established that in practice — its mobile client detail kept every real tab — and §3.4.2 follows it. Narrower is about **writes** (every §3.4 form stays in a browser) and about **navigational depth** (no Trips tab, no Pipeline, no Calendar, no template management, which this line names outright). An advisor standing at a gate needs to read anything about a trip.
+>
+> Nothing here is "disabled with a reason", which is the web's treatment for an unbuilt control. A read-only screen with no controls says once, in a sentence, where the writes live. Four dimmed buttons on a 375pt screen cost four taps to discover the same thing.
+
 ---
 
 ## 7. Open Questions
@@ -3085,11 +3473,11 @@ These are decisions that should be settled before final design and engineering b
 
 **Multi-language support.** Many travel clients are bilingual or international. Is Spanish a Phase 1 requirement? It affects how every screen handles text expansion and locale-specific dates/currency.
 
-**Currency display.** USD-first is the default, but suppliers in the Caribbean may quote in EUR or local currency. Should the platform display original currency, convert to USD, or both?
+**Currency display.** ~~USD-first is the default, but suppliers in the Caribbean may quote in EUR or local currency. Should the platform display original currency, convert to USD, or both?~~ **ANSWERED 2026-09-28.** Gyasi: *"I only deal in US Currency I can't operate out of North America. All prices I give will be in USD."* A supplier quoting in euros is converted when the agent enters the cost; the trip's own currency is the one presented to the client, and `trip.currency` is now pinned to `'USD'` by a CHECK constraint (`20260930100000`). §3.2's multi-currency reporting machinery was removed with it — see the amendments under §3.2.1 and §3.3.1. The per-row `currency char(3)` columns stay, because money is stored as cents plus a currency code (CLAUDE.md rule 5) and the cruise catalog genuinely is multi-currency per locale.
 
 **Client app "lite" experience.** Should there be a read-only access mode for invited co-travelers who have not created accounts (e.g., a magic-link itinerary view)? This affects screens 2.8.2 and 2.8.4.
 
-**Agent-on-mobile scope.** How deep should the agent mobile experience go? The current plan limits it to triage tasks; if agents will be building trips on mobile, several additional screens are needed.
+**Agent-on-mobile scope.** ~~How deep should the agent mobile experience go? The current plan limits it to triage tasks; if agents will be building trips on mobile, several additional screens are needed.~~ **PARTLY ANSWERED 2026-09-29.** Gyasi, asked at the §3.4.2 mobile approval: all eight tabs, read-only. So the line is drawn at **reads, not at screens** — an advisor may look at anything about a trip on a phone, and builds nothing there. That settles §3.4.2 and, by the same rule, §3.3.2 retrospectively. What is still open is whether any §3.4 *write* ever wants a phone treatment; the two nearest candidates are the Notes tab (whose write path already exists, so it is one control away) and §3.4.16 Cancel Trip, which an advisor might need on the move and which currently requires a desk. Neither is scheduled.
 
 **Whitelabeling.** If Story-Tail Adventures ever offers the platform to other independent advisors (Phase 4+), some screens will need a "brand owner" parameter throughout. Worth keeping this in mind during initial design even if not implementing.
 

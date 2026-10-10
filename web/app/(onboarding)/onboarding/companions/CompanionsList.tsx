@@ -2,6 +2,11 @@
 
 import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiCard from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 import { OnboardingActions } from "@/components/onboarding/OnboardingActions";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -45,9 +50,15 @@ import {
  * DEPARTURES FROM THE PROTOTYPE. The card subtitle prints "Passport B987654321 · 02/2031";
  * the number is gone (see state.ts). The avatar letter comes from the first name rather
  * than from the first character of a joined string, and is `aria-hidden` — it is decoration
- * beside a name that is already there. And there is no "invite them to the platform"
- * control, which the Inventory asks for and the schema cannot honour: `companion` has no
- * email column, and a client-initiated invite would write a new record into an agent's book.
+ * beside a name that is already there. Edit and Remove stay as named text buttons rather
+ * than the artboard's bare icon buttons, so the words stay on screen. And there is no
+ * "invite them to the platform" control, which the Inventory asks for and the schema cannot
+ * honour: `companion` has no email column, and a client-initiated invite would write a new
+ * record into an agent's book.
+ *
+ * ON MUI (step 2 of the migration): each traveler is a Card with a 44px Avatar on the
+ * tertiary container, as C2112 draws it; the add/edit form and the empty state are outlined
+ * cards on surface.2 (the legacy `.card-flat`).
  */
 
 const STEP_INDEX = wizardStepIndex("companions");
@@ -58,6 +69,15 @@ const COUNTRY_OPTIONS = COUNTRIES.map((country) => ({
   value: country.code,
   label: country.name,
 }));
+
+/** The legacy `.card-flat`: outlined, on surface.2. The empty state and the form wear it. */
+const FLAT_CARD_SX = { bgcolor: "surface.2" } as const;
+/** Two-up from `md`, one column below it (12px between cells, as before). */
+const GRID_2 = {
+  display: "grid",
+  gap: 1.5,
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))" },
+} as const;
 
 export function CompanionsList({
   companions,
@@ -142,7 +162,7 @@ export function CompanionsList({
 
   return (
     <>
-      <div className="flex flex-col gap-4">
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {removeState.formError && (
           <Alert tone="error">{removeState.formError}</Alert>
         )}
@@ -153,9 +173,10 @@ export function CompanionsList({
             disabled={editing === "new"}
           />
         ) : (
-          <ul
+          <Box
+            component="ul"
             aria-label={COMPANIONS_TEXT.listAriaLabel}
-            className="flex flex-col gap-2.5"
+            sx={{ display: "flex", flexDirection: "column", gap: 1.25, listStyle: "none", m: 0, p: 0 }}
           >
             {companions.map((companion) => (
               <CompanionCard
@@ -167,22 +188,23 @@ export function CompanionsList({
                 busy={editing !== null}
               />
             ))}
-          </ul>
+          </Box>
         )}
 
         {full && <Alert tone="info">{COMPANIONS_TEXT.errorMax}</Alert>}
 
         {editing === null && companions.length > 0 && !full && (
-          <div>
+          <Box>
+            {/* Outlined secondary, as C2112 draws "Add a traveler". */}
             <Button
               type="button"
-              variant="outlined"
+              variant="tonal"
               onClick={() => setEditing("new")}
             >
               <Icon name="users" size={15} />
               {COMPANIONS_TEXT.addCta}
             </Button>
-          </div>
+          </Box>
         )}
 
         {editing !== null && (
@@ -203,11 +225,11 @@ export function CompanionsList({
             onCancel={closeForm}
           />
         )}
-      </div>
+      </Box>
 
       {/* The wizard's own Continue submits this — it carries no fields because everything
           on the screen is already saved by the time somebody presses it. */}
-      <form id={CONTINUE_FORM_ID} action={continueAction} className="hidden" />
+      <Box component="form" id={CONTINUE_FORM_ID} action={continueAction} sx={{ display: "none" }} />
       {continueState.formError && (
         <Alert tone="error">{continueState.formError}</Alert>
       )}
@@ -216,9 +238,9 @@ export function CompanionsList({
           the save-token fix exists to prevent, reachable through a different button. Held
           back rather than silently swallowed, and told why. */}
       {editing !== null && (
-        <p className="t-body-s mt-4 mb-0 text-on-surface-variant">
+        <Typography component="p" variant="body2" sx={{ mt: 2, mb: 0, color: "text.secondary" }}>
           {COMPANIONS_TEXT.unfinishedForm}
-        </p>
+        </Typography>
       )}
 
       <OnboardingActions
@@ -246,13 +268,17 @@ function EmptyState({
   disabled: boolean;
 }) {
   return (
-    <div className="card-flat rounded-lg border border-outline-variant px-5 py-6 text-center">
-      <p className="t-title-s m-0 text-on-surface">
+    <MuiCard variant="outlined" sx={{ ...FLAT_CARD_SX, px: 2.5, py: 3, textAlign: "center" }}>
+      <Typography component="p" variant="subtitle1" sx={{ m: 0, color: "text.primary" }}>
         {COMPANIONS_TEXT.emptyTitle}
-      </p>
-      <p className="t-body-s mx-auto mt-1.5 mb-4 max-w-120 text-on-surface-variant">
+      </Typography>
+      <Typography
+        component="p"
+        variant="body2"
+        sx={{ mx: "auto", mt: 0.75, mb: 2, maxWidth: 480, color: "text.secondary" }}
+      >
         {COMPANIONS_TEXT.emptyBody}
-      </p>
+      </Typography>
       <Button
         type="button"
         variant="filled"
@@ -262,7 +288,7 @@ function EmptyState({
         <Icon name="users" size={15} />
         {COMPANIONS_TEXT.emptyCta}
       </Button>
-    </div>
+    </MuiCard>
   );
 }
 
@@ -301,38 +327,54 @@ function CompanionCard({
   ].filter(Boolean);
 
   return (
-    <li className="card-flat flex items-center gap-3 rounded-lg border border-outline-variant px-4 py-3">
-      {/* Decoration: the name is right beside it, so announcing a letter is noise. */}
-      <span aria-hidden="true" className="avatar shrink-0">
-        {companion.firstName.slice(0, 1).toUpperCase()}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="t-title-s m-0 text-on-surface">{name}</p>
-        <p
-          className={`t-body-s m-0 ${expiringSoon ? "text-warning" : "text-on-surface-variant"}`}
+    <MuiCard component="li">
+      <CardContent sx={{ display: "flex", alignItems: "center", gap: 1.5, "&:last-child": { pb: 2 } }}>
+        {/* Decoration: the name is right beside it, so announcing a letter is noise. */}
+        <Avatar
+          aria-hidden="true"
+          sx={{
+            width: 44,
+            height: 44,
+            fontSize: 15,
+            flexShrink: 0,
+            bgcolor: "tertiary.container",
+            color: "tertiary.onContainer",
+          }}
         >
-          {meta.join(" · ")}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button
-          type="button"
-          variant="text"
-          size="sm"
-          onClick={(event) => onEdit(event.currentTarget)}
-          disabled={editing}
-          aria-label={COMPANIONS_TEXT.editAriaLabel(name)}
-        >
-          {COMPANIONS_TEXT.editAction}
-        </Button>
-        <form action={removeAction}>
-          <input type="hidden" name="id" value={companion.id} />
-          {/* Disabled while any form is open: removing the row being edited leaves a form
-              posting a dead id, and removing a different one shifts the list under it. */}
-          <RemoveButton name={name} disabled={busy} />
-        </form>
-      </div>
-    </li>
+          {companion.firstName.slice(0, 1).toUpperCase()}
+        </Avatar>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography component="p" variant="subtitle1" sx={{ m: 0, color: "text.primary" }}>
+            {name}
+          </Typography>
+          <Typography
+            component="p"
+            variant="caption"
+            sx={{ display: "block", m: 0, color: expiringSoon ? "warning.main" : "text.secondary" }}
+          >
+            {meta.join(" · ")}
+          </Typography>
+        </Box>
+        <Box sx={{ display: "flex", flexShrink: 0, alignItems: "center", gap: 0.5 }}>
+          <Button
+            type="button"
+            variant="text"
+            size="sm"
+            onClick={(event) => onEdit(event.currentTarget)}
+            disabled={editing}
+            aria-label={COMPANIONS_TEXT.editAriaLabel(name)}
+          >
+            {COMPANIONS_TEXT.editAction}
+          </Button>
+          <form action={removeAction}>
+            <input type="hidden" name="id" value={companion.id} />
+            {/* Disabled while any form is open: removing the row being edited leaves a form
+                posting a dead id, and removing a different one shifts the list under it. */}
+            <RemoveButton name={name} disabled={busy} />
+          </form>
+        </Box>
+      </CardContent>
+    </MuiCard>
   );
 }
 
@@ -348,7 +390,7 @@ function RemoveButton({ name, disabled }: { name: string; disabled: boolean }) {
     >
       {pending ? (
         <>
-          <Spinner className="size-4" />
+          <Spinner />
           {COMPANIONS_TEXT.removePending}
         </>
       ) : (
@@ -378,25 +420,29 @@ function CompanionForm({
   const first = (key: string) => fieldErrors?.[key]?.[0];
 
   return (
-    <form
+    <MuiCard
+      component="form"
       action={action}
       noValidate
-      className="card-flat rounded-lg border border-outline-variant px-4 py-4"
+      variant="outlined"
+      sx={{ ...FLAT_CARD_SX, p: 2 }}
     >
       {editingId && <input type="hidden" name="id" value={editingId} />}
 
-      <p className="t-title-s m-0 text-on-surface">{title}</p>
-      <p className="t-body-s mt-1 mb-4 text-on-surface-variant">
+      <Typography component="p" variant="subtitle1" sx={{ m: 0, color: "text.primary" }}>
+        {title}
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ mt: 0.5, mb: 2, color: "text.secondary" }}>
         {COMPANIONS_TEXT.formSub}
-      </p>
+      </Typography>
 
       {formError && (
-        <div className="mb-3">
+        <Box sx={{ mb: 1.5 }}>
           <Alert tone="error">{formError}</Alert>
-        </div>
+        </Box>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <Box sx={GRID_2}>
         <Field
           id="companionFirstName"
           name="firstName"
@@ -460,15 +506,15 @@ function CompanionForm({
             <option key={option} value={option} />
           ))}
         </datalist>
-      </div>
+      </Box>
 
-      <div className="mt-4 flex items-center gap-2">
+      <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
         <SaveButton />
         <Button type="button" variant="text" onClick={onCancel}>
           {COMPANIONS_TEXT.formCancel}
         </Button>
-      </div>
-    </form>
+      </Box>
+    </MuiCard>
   );
 }
 
@@ -478,7 +524,7 @@ function SaveButton() {
     <Button type="submit" variant="filled" disabled={pending}>
       {pending ? (
         <>
-          <Spinner className="size-4" />
+          <Spinner />
           {COMPANIONS_TEXT.formSaving}
         </>
       ) : (

@@ -2,9 +2,10 @@
  * Copy for Screen 2.5.9 Privacy & Data. Pinned against `PrivacyMessages` by check_copy_parity.py.
  *
  * `trackingBody` must stay consistent with web/content/public/legal/cookies.ts, which says
- * "We do not use advertising cookies or third-party trackers on the app subdomain." If a
- * tracker is ever added, BOTH change in the same commit — a privacy claim that drifts from
- * the legal page is worse than no claim.
+ * "We do not use advertising cookies or cross-site trackers on the app subdomain" and lists
+ * the anonymous Vercel page-view count (web/lib/analytics.ts). If a tracker is ever added,
+ * BOTH change in the same commit — a privacy claim that drifts from the legal page is worse
+ * than no claim.
  *
  * `exportBody` names only what the client can actually read back. It deliberately does NOT
  * mention the document-access trail: that lives in `audit_event`, which is the agency's.
@@ -21,7 +22,7 @@ export const PRIVACY = {
 
   trackingHeading: "TRACKING",
   trackingBody:
-    "We don’t run analytics or advertising trackers. The only cookies here are the ones that keep you signed in, and you can clear those any time in your browser.",
+    "We don’t run advertising or cross-site trackers. The website counts page views anonymously, without cookies. The only cookies here are the ones that keep you signed in, and you can clear those any time in your browser.",
   cookiesLink: "Read the cookie policy",
 
   closeTitle: "Close your account",

@@ -17,14 +17,14 @@ When the user asks about features, screens, entities, payment workflows, design 
 ## Stack
 
 - **Mobile** — Kotlin Multiplatform + Compose Multiplatform (Android + iOS)
-- **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST)
+- **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST). Styled with **MUI v9 (9.4.0)**; the theme is `web/lib/mui/theme.ts`. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1, `docs/Design-System.md` §12.2). Follow the MUI rules in `web/AGENTS.md`. The official MUI MCP server (`mui-mcp` in `.mcp.json`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) checks MUI usage against the real docs instead of guessing.
 - **Backend** — Supabase Edge Functions (Deno + TypeScript). NO separate Ktor service.
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments** — Stripe (SetupIntent for collection, Vault and Forward for API suppliers, audited PAN reveal for portal suppliers)
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
 - **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
-**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / Tailwind) lives under `web/`. Backend code lives under `supabase/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
+**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / MUI) lives under `web/`. Backend code lives under `supabase/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
 
 ## Critical rules — these are non-negotiable
 
@@ -121,9 +121,11 @@ Things that cost real time to rediscover:
   `127.0.0.1` — that is the emulator's own loopback. Set it in `mobile/local.properties`.
 - **`supabase db reset` is the local loop; `supabase db push` targets a linked remote.**
   Don't reach for `push` locally.
-- **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`, and the
-  Tailwind colour mapping in `web/app/globals.css` must use `@theme inline`. Plain `@theme`
-  freezes the light value into `:root` and dark mode silently stops working.
+- **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`, and MUI must
+  not own it. The theme uses `colorSchemeSelector: ".scheme-%s"` and `MuiRegistry` turns off
+  MUI's storage and `<html>` handling; never add `InitColorSchemeScript` or `useColorScheme`
+  (eslint bans both). Read colours as `theme.vars.palette.*`: `theme.palette.*` bakes in the
+  light value and dark mode silently stops working.
 - **`~/.orbstack/bin` is not on the default non-interactive PATH.** Export it before
   `docker` or `supabase` commands, or they fail with "command not found".
 - **Hand-seeding `auth.users` breaks GoTrue** unless `confirmation_token`,
@@ -190,6 +192,7 @@ unfamiliar is staged, another session put it there — leave it alone and commit
 - Don't paste files into chat — use `@-mentions` (e.g., `@docs/BRD.md`) for cleaner tokenization and a better audit trail.
 - Don't load Google Fonts at runtime in production — bundle Poppins / Caveat / JetBrains Mono in `mobile/shared/src/commonMain/composeResources/font/` for mobile and via `next/font` for web.
 - Don't make a copy decision without checking `docs/Design-System.md` §2 first. The brand voice is load-bearing.
+- Don't bring Tailwind (or another CSS framework) back into `web/`. Styling is MUI `sx`; plain CSS in `web/styles/` is only for what must work before hydration or in print, and `web/test/class-allowlist.test.ts` fails on any class no CSS file defines.
 
 ## How to bootstrap from here
 

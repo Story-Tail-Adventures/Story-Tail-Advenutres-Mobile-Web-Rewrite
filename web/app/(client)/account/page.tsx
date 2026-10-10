@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { SettingsGroup, SettingsRow } from "@/components/ui/SettingsList";
 import { signOutAction } from "@/lib/auth/actions";
@@ -9,6 +14,22 @@ import { createClient } from "@/lib/supabase/server";
 import { ACCOUNT } from "./content";
 
 export const metadata: Metadata = { title: "Account" };
+
+/**
+ * The artboard's hero: a Card washed from primary.container into secondary.container. The
+ * gradient reads MUI's own palette variables rather than hexes, so it follows the scheme the
+ * way a palette path does (the same form the honeymoons page uses).
+ */
+const HERO_SX = {
+  mb: 3,
+  p: 2.5,
+  display: "flex",
+  alignItems: "center",
+  gap: 2,
+  color: "primary.onContainer",
+  background:
+    "linear-gradient(120deg, var(--mui-palette-primary-container), var(--mui-palette-secondary-container))",
+} as const;
 
 /**
  * Screen Inventory 2.5.1 — Account Overview / My Account.
@@ -78,22 +99,32 @@ export default async function AccountPage() {
 
   return (
     <div className="client-fill">
-      <div className="mx-auto w-full max-w-2xl p-4 md:max-w-3xl md:p-6">
-        <header className="mb-6 flex items-center gap-4 rounded-[20px] bg-linear-to-br from-primary-container to-secondary-container p-5 text-on-primary-container">
-          <span
-            className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-surface text-on-surface"
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: { xs: 672, md: 768 }, p: { xs: 2, md: 3 } }}>
+        <Paper component="header" sx={HERO_SX}>
+          <Avatar
             aria-hidden="true"
+            sx={{ width: 64, height: 64, flexShrink: 0, bgcolor: "surface.main", color: "text.primary" }}
           >
-            <span className="t-title-l">{initials || INITIALS_FALLBACK}</span>
-          </span>
-          <div className="min-w-0">
-            <h1 className="t-headline truncate">{displayName}</h1>
-            {client?.email && <p className="t-body-s truncate opacity-85">{client.email}</p>}
-            {memberSince && (
-              <p className="t-body-s opacity-85">{ACCOUNT.memberSince(memberSince)}</p>
+            <Typography component="span" variant="h5">
+              {initials || INITIALS_FALLBACK}
+            </Typography>
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography component="h1" variant="h5" noWrap sx={{ fontWeight: 700 }}>
+              {displayName}
+            </Typography>
+            {client?.email && (
+              <Typography component="p" variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                {client.email}
+              </Typography>
             )}
-          </div>
-        </header>
+            {memberSince && (
+              <Typography component="p" variant="body2" sx={{ fontWeight: 500 }}>
+                {ACCOUNT.memberSince(memberSince)}
+              </Typography>
+            )}
+          </Box>
+        </Paper>
 
         <SettingsGroup label={ACCOUNT.groupYou} tiles>
           <SettingsRow
@@ -177,12 +208,12 @@ export default async function AccountPage() {
         {/* A form rather than a button with an onClick: this is a server component, and a
             handler cannot cross the RSC boundary. `signOutAction` signs out THIS browser
             only — "sign out everywhere" is 2.5.7's, deliberately. */}
-        <form action={signOutAction} className="mt-6">
-          <button type="submit" className="btn btn-outlined w-full">
+        <Box component="form" action={signOutAction} sx={{ mt: 3 }}>
+          <Button type="submit" variant="outlined" fullWidth>
             <Icon name="arrow_left" size={15} /> {ACCOUNT.signOut}
-          </button>
-        </form>
-      </div>
+          </Button>
+        </Box>
+      </Box>
     </div>
   );
 }

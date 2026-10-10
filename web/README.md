@@ -1,7 +1,7 @@
 # `web/` — Next.js app
 
 The browser face of Story-Tail Adventures. Next.js App Router + React + TypeScript +
-Tailwind, talking to Supabase directly for reads and to Edge Functions for privileged writes.
+MUI v9, talking to Supabase directly for reads and to Edge Functions for privileged writes.
 
 Run it from the repo root, not from here — `web` is an npm workspace and the only lockfile is
 the root `package-lock.json`:

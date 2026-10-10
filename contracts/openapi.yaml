@@ -125,6 +125,74 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # §2.0 Public cruise search
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /cruise-search:
+    post:
+      operationId: searchCruises
+      summary: Public read of the synced cruise catalog.
+      description: |
+        Screen 2.0.4 in Cruises mode, and 2.3.4 later. Reads sailings we have already
+        synced; it calls no provider and spends nothing.
+
+        WHY A FUNCTION FOR DATA ALREADY IN OUR DATABASE. `hotel-search` exists because
+        hotels are a live third-party proxy with no table. This one exists for a narrower
+        reason: `supabase/tests/rls_cruise_catalog.sql` asserts that NOBODY — not anon, not
+        authenticated — holds any grant on any cruise table. That is a stronger invariant
+        than an `anon` SELECT policy gated on a published flag would leave behind, and
+        reading here on the service role is what keeps it.
+
+        NOT CALLED FROM A BROWSER. The caller is the Next.js server
+        (`web/lib/public/cruises.ts`), presenting the project anon key plus the server-only
+        `X-STA-Search-Token` — the same credential `hotel-search` uses, from the same
+        `HOTEL_SEARCH_CALLER_TOKEN` secret. The anon key ships in the browser bundle, so it
+        authenticates nobody; the header is what does.
+
+        THE RESPONSE CARRIES NO FARE. `cruise_sailing.lead_price_cents` exists and is
+        classified Internal (Data-Model §24.4); Free-Travel-APIs §4.7 says to launch the
+        public surface without it, because a fare re-opens §1.3.4 and §9.2 and goes stale on
+        a page nobody is watching. It is not selected, and `PublicSailing` has no field for
+        it — the structural technique `HotelRate` uses against booking-site identity.
+
+        NO BUDGET, NO LEDGER, NO RATE LIMITER, and no `degraded` state to report: one
+        indexed query against our own Postgres cannot exhaust anything. The metered call in
+        this domain is `cruise-sync`.
+
+        SHIP PHOTOGRAPHY IS CURATED, NOT SYNCED. `shipImage` comes from four editorial
+        columns on `cruise_ship` (Data-Model §24.2) written by migration from Wikimedia
+        Commons — track.cruises carries no imagery, and Free-Travel-APIs §4.8 measured the
+        provider's `/ships` scope as unaffordable. The photos are CC BY / CC BY-SA, so
+        `credit` is required rather than nullable and MUST be displayed wherever the image
+        is. See `ShipImage`.
+      parameters:
+        - name: X-STA-Search-Token
+          in: header
+          required: true
+          description: Shared secret proving the caller is our own server.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CruiseSearchRequest'
+      responses:
+        '200':
+          description: Matching sailings, soonest departure first. An empty list is normal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CruiseSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /trip-message:
     post:
       operationId: sendTripMessage
@@ -1630,6 +1698,137 @@ components:
           description: Set only when source is "stale". The page must show how old the prices are.
         query:
           $ref: '#/components/schemas/HotelSearchEcho'
+
+    CruiseSearchRequest:
+      type: object
+      description: |
+        Every field is optional. An empty body is the valid "what is sailing soon" query,
+        which is what Screen 2.0.4 issues before the visitor has typed anything.
+      properties:
+        destination:
+          type: string
+          maxLength: 60
+          description: |
+            Free text, matched against the sailing title and its destinations array. Not a
+            port name — port calls are returned but are not searched.
+        from:
+          type: string
+          format: date
+          description: Earliest departure. Defaults to today; the past is never returned.
+        to:
+          type: string
+          format: date
+          description: Latest departure. Must not be before `from`.
+        minNights:
+          type: integer
+          minimum: 1
+          maximum: 60
+        maxNights:
+          type: integer
+          minimum: 1
+          maximum: 60
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 24
+          default: 24
+          description: Out-of-range values fall back to the default rather than erroring.
+
+    ShipImage:
+      type: object
+      required: [url, credit]
+      description: |
+        A ship photo and the attribution that may not be separated from it.
+
+        ONE OBJECT RATHER THAN FOUR SIBLING FIELDS, because the credit is a licence
+        condition. Every photo is CC BY or CC BY-SA, both of which require credit wherever
+        the work appears, so `credit` is required here and the pair is enforced all the way
+        down: `cruise_ship_image_attributed` is a CHECK in Postgres, the mapper drops a
+        photo whose credit is missing, and the web client's zod twin repeats it. Nesting is
+        what makes "a URL with no credit" unspellable rather than merely discouraged.
+      properties:
+        url:
+          type: string
+          description: |
+            Always an `https://upload.wikimedia.org/` URL. Host-pinned by a CHECK on the
+            column and checked again in `web/lib/public/cruises.ts` — `web/next.config.ts`
+            registers a custom next/image loader, so `remotePatterns` is never consulted
+            and nothing else decides where a visitor's browser is sent.
+        credit:
+          type: string
+          description: |
+            Pre-rendered attribution, e.g. "Kiran891 / Wikimedia Commons, CC BY-SA 4.0".
+            MUST be displayed wherever the image is. Commons attribution runs long — 214
+            characters in the current catalog — so a client must let it wrap rather than
+            truncate it. An ellipsis through an author's name is not attribution.
+        license:
+          type: string
+          nullable: true
+          description: Commons' LicenseShortName — "CC BY-SA 4.0", "Public domain", "CC0".
+        sourceUrl:
+          type: string
+          nullable: true
+          description: The Commons file page. What the credit line should link to.
+
+    CruiseSailing:
+      type: object
+      required: [id, title, line, ship, departureDate, nights, destinations, ports, shipImage]
+      description: |
+        NO FARE FIELD, by construction. See the note on `/cruise-search`.
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Provider-supplied, e.g. "7 Night Eastern Caribbean". Falls back to "Cruise".
+        line:
+          type: string
+          nullable: true
+        ship:
+          type: string
+          nullable: true
+        departureDate:
+          type: string
+          format: date
+        nights:
+          type: integer
+          nullable: true
+        destinations:
+          type: array
+          maxItems: 6
+          items:
+            type: string
+        ports:
+          type: array
+          maxItems: 12
+          description: |
+            Port calls in sequence. Consecutive duplicates are collapsed — an overnight in
+            port is two calls at the same place, and "Nassau · Nassau · Miami" looks broken.
+          items:
+            type: string
+        shipImage:
+          allOf:
+            - $ref: '#/components/schemas/ShipImage'
+          nullable: true
+          description: |
+            Null is normal and common. Only the 151 curated hulls carry a photo; the sync
+            mints a bare `cruise_ship` stub for any ship name it has not seen, and 2025-26
+            newbuilds often have no Commons photo yet.
+
+    CruiseSearchResponse:
+      type: object
+      required: [results]
+      description: |
+        Deliberately flat. There is no `source`, `asOf` or `degraded` here as there is on
+        `HotelSearchResponse`: this reads our own table, so there is no cache tier to
+        report and no budget to exhaust.
+      properties:
+        results:
+          type: array
+          description: Soonest departure first. Archived sailings are never included.
+          items:
+            $ref: '#/components/schemas/CruiseSailing'
 
   responses:
     BadRequest:

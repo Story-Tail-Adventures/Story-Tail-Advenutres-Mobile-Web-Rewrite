@@ -1,11 +1,23 @@
 "use client";
 
 import * as React from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
+import FormLabel from "@mui/material/FormLabel";
+import IconButton from "@mui/material/IconButton";
+import NativeSelect from "@mui/material/NativeSelect";
+import type { InputBaseComponentProps } from "@mui/material/InputBase";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Popover from "@mui/material/Popover";
+import Typography from "@mui/material/Typography";
+
 import { Icon } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
 import { addMonths, buildMonth, monthKey, moveFocus, WEEKDAY_LABELS } from "@/lib/public/calendar";
 import { formatDayLong, parseIsoDate } from "@/lib/public/dates";
-import { useDatePopover, usePopoverSupported } from "./useDatePopover";
+import { fieldInputSx, fieldLabelSx } from "./Field";
+import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * A single-date field with the same calendar as the public search bar.
@@ -22,12 +34,22 @@ import { useDatePopover, usePopoverSupported } from "./useDatePopover";
  *     arrows: any date in the allowed span is two clicks away, and the keyboard still has
  *     PageUp/PageDown for months and Shift+PageUp/PageDown for years.
  *
- * The popover mechanics are shared (`useDatePopover`) precisely because that is the part
- * that would otherwise drift between the two.
+ * THE PANEL IS AN MUI POPOVER (MUI everywhere, 2026-10-01), where DateRangePicker still uses
+ * the native Popover API through useDatePopover. Popover brings what that hook hand-rolled:
+ * anchoring under the trigger and clamping into the viewport, Escape and light-dismiss, a
+ * focus trap, and focus RETURNED to the trigger on any close — including a programmatic one,
+ * which is the case the native API got wrong. It renders in a portal on document.body, so
+ * tests query it with `screen`, not `container`.
  *
- * NO-JS IS THE BASELINE. Before hydration — and forever, where the Popover API is missing —
- * this is a native `<input type="date">` carrying the same `name`, so the form submits
- * identically either way and nothing depends on the calendar existing.
+ * THE TRIGGER IS AN OUTLINEDINPUT WHOSE INPUT IS A <button>. It sits beside real Field inputs
+ * on the same form and has to look like one of them: same outline, hover, focus and error
+ * states, same 44px box — and the only way to get exactly those is to BE one. InputBase
+ * tolerates a button as its input component (no value, no dirty state), and `inputProps`
+ * carries the disclosure wiring onto it.
+ *
+ * NO-JS IS THE BASELINE. Before hydration — and forever, with JavaScript off — this is a
+ * native `<input type="date">` carrying the same `name`, so the form submits identically
+ * either way and nothing depends on the calendar existing.
  */
 
 export interface DateFieldProps {
@@ -58,43 +80,70 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+/** 36px cells, as the search bar's calendar draws them. */
+const CELL = 36;
+
+/**
+ * InputBase types its input slot for <input> and <textarea>; a <button> works at runtime (it
+ * has `focus()` and an empty `value`, which is all InputBase asks of it). See the header.
+ */
+const BUTTON_INPUT = "button" as unknown as React.ElementType<InputBaseComponentProps>;
+
+/** False on the server and during hydration, true once the client owns the tree. */
+const noopSubscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+function useHydrated(): boolean {
+  return React.useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
+}
+
 export function DateField(props: DateFieldProps) {
   const { id, name, label, min, max, hint, error, required, autoComplete, describedBy } = props;
 
-  const supported = usePopoverSupported();
-  const { open, triggerRef, panelRef, close } = useDatePopover(supported);
+  const hydrated = useHydrated();
+  const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
 
   const controlled = props.value !== undefined;
   const [internal, setInternal] = React.useState(props.defaultValue ?? "");
   const value = controlled ? (props.value ?? "") : internal;
 
+  const onChangeProp = props.onChange;
   const setValue = React.useCallback((next: string) => {
     if (!controlled) setInternal(next);
-    props.onChange?.(next);
-  }, [controlled, props]);
+    onChangeProp?.(next);
+  }, [controlled, onChangeProp]);
 
   const [cursor, setCursor] = React.useState(() => monthKey(value || max || todayish()));
   const [focusDay, setFocusDay] = React.useState(value || max || todayish());
-  const gridRef = React.useRef<HTMLTableElement>(null);
+  // The grid node as STATE, not a ref: it mounts inside the Popover's portal a render after
+  // `open` flips, and an effect has to re-run when it appears.
+  const [grid, setGrid] = React.useState<HTMLTableElement | null>(null);
 
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const panelId = `${id}-panel`;
   const described = [describedBy, hintId, errorId].filter(Boolean).join(" ") || undefined;
 
-  // Move DOM focus to the roving cell, but only while the grid already owns focus —
-  // otherwise opening the panel would steal it from the trigger.
+  // Put DOM focus on the roving day. On open, Popover's focus trap has just focused the
+  // dialog paper itself; moving on to the day is what makes the arrow keys work at once. As
+  // the day moves (arrows, PageUp/Down) focus follows it — but only while the grid or the
+  // paper owns focus, so a month change from the selects does not yank focus off the select.
   React.useEffect(() => {
-    if (!open) return;
-    const grid = gridRef.current;
-    if (!grid || !grid.contains(document.activeElement)) return;
+    if (!open || !grid) return;
+    const active = document.activeElement;
+    const paper = grid.closest('[role="dialog"]');
+    const parked = !active || active === document.body || active === paper;
+    if (!parked && !grid.contains(active)) return;
     grid.querySelector<HTMLElement>(`[data-iso="${focusDay}"]`)?.focus();
-  }, [focusDay, open, cursor]);
+  }, [grid, open, focusDay, cursor]);
 
   const disabled = React.useCallback(
     (iso: string) => Boolean((min && iso < min) || (max && iso > max)),
     [min, max],
   );
+
+  const close = React.useCallback(() => setOpen(false), []);
 
   function pick(iso: string) {
     if (disabled(iso)) return;
@@ -120,28 +169,31 @@ export function DateField(props: DateFieldProps) {
   }
 
   // Pre-hydration and no-JS: the native control, same name, same value.
-  if (!supported) {
+  if (!hydrated) {
     return (
-      <div>
-        <label className="field-label" htmlFor={id}>{label}</label>
-        <input
+      <FormControl fullWidth error={Boolean(error)}>
+        <FormLabel htmlFor={id} sx={fieldLabelSx}>{label}</FormLabel>
+        <OutlinedInput
           id={id}
           name={name}
           type="date"
-          className={cn("input", error && "border-error")}
+          size="small"
+          sx={fieldInputSx}
           defaultValue={controlled ? undefined : props.defaultValue}
           value={controlled ? props.value : undefined}
           onChange={controlled ? (e) => props.onChange?.(e.target.value) : undefined}
-          min={min}
-          max={max}
           required={required}
           autoComplete={autoComplete}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={described}
+          inputProps={{
+            min,
+            max,
+            "aria-invalid": error ? true : undefined,
+            "aria-describedby": described,
+          }}
         />
-        {hint && <p id={hintId} className="t-body-s mt-1.5 text-on-surface-variant">{hint}</p>}
-        {error && <p id={errorId} className="t-body-s mt-1.5 text-error">{error}</p>}
-      </div>
+        {hint && <FormHelperText id={hintId}>{hint}</FormHelperText>}
+        {error && <FormHelperText id={errorId}>{error}</FormHelperText>}
+      </FormControl>
     );
   }
 
@@ -149,98 +201,139 @@ export function DateField(props: DateFieldProps) {
   const years = yearRange(min, max);
 
   return (
-    <div className="relative">
-      <label className="field-label" htmlFor={id}>{label}</label>
-      <input type="hidden" name={name} value={value} />
+    <>
+      <FormControl fullWidth error={Boolean(error)}>
+        <FormLabel htmlFor={id} sx={fieldLabelSx}>{label}</FormLabel>
+        <input type="hidden" name={name} value={value} />
 
-      <button
-        ref={triggerRef}
-        type="button"
-        id={id}
-        popoverTarget={panelId}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={panelId}
-        // No `aria-invalid`: it is not supported on a button. The error reaches a screen
-        // reader through `aria-describedby` below, which points at the error paragraph.
-        aria-describedby={described}
-        onClick={() => {
-          const anchor = value || max || todayish();
-          setCursor(monthKey(anchor));
-          setFocusDay(anchor);
+        <OutlinedInput
+          id={id}
+          size="small"
+          type="button"
+          inputComponent={BUTTON_INPUT}
+          inputRef={triggerRef}
+          sx={fieldInputSx}
+          inputProps={{
+            "aria-haspopup": "dialog",
+            "aria-expanded": open,
+            "aria-controls": open ? panelId : undefined,
+            // No `aria-invalid`: it is not supported on a button, and InputBase would write
+            // "false" otherwise. The error reaches a screen reader through `aria-describedby`,
+            // which points at the error paragraph; the red outline comes from FormControl.
+            "aria-invalid": undefined,
+            "aria-describedby": described,
+            onClick: () => {
+              const anchor = value || max || todayish();
+              setCursor(monthKey(anchor));
+              setFocusDay(anchor);
+              setOpen(true);
+            },
+            sx: { display: "flex", alignItems: "center", gap: 1, textAlign: "left", cursor: "pointer" },
+            children: (
+              <>
+                <Box sx={{ display: "inline-flex", flexShrink: 0, color: "brand.main" }}>
+                  <Icon name="calendar" size={14} />
+                </Box>
+                <Box
+                  component="span"
+                  sx={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    color: value ? "text.primary" : "text.secondary",
+                  }}
+                >
+                  {value ? formatDayLong(value) : label}
+                </Box>
+              </>
+            ),
+          }}
+        />
+
+        {hint && <FormHelperText id={hintId}>{hint}</FormHelperText>}
+        {error && <FormHelperText id={errorId}>{error}</FormHelperText>}
+      </FormControl>
+
+      {/* A sibling of the FormControl, not a child: FormControl context crosses portals, and it
+          would mark the month/year selects as this field's inputs (error outline, focus state). */}
+      <Popover
+        open={open}
+        anchorEl={() => triggerRef.current}
+        onClose={close}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        slotProps={{
+          paper: {
+            id: panelId,
+            role: "dialog",
+            "aria-label": label,
+            sx: { mt: 1, p: 1.5, maxWidth: "calc(100vw - 16px)" },
+          },
         }}
-        className={cn("input flex items-center gap-2 text-left", error && "border-error")}
       >
-        <Icon name="calendar" size={14} className="shrink-0 text-brand-orange" />
-        <span className={cn("truncate", value ? "text-on-surface" : "text-on-surface-variant")}>
-          {value ? formatDayLong(value) : label}
-        </span>
-      </button>
+        <Box component="p" sx={VISUALLY_HIDDEN}>{KEYBOARD_HINT}</Box>
 
-      <div
-        ref={panelRef}
-        id={panelId}
-        popover="auto"
-        role="dialog"
-        aria-label={label}
-        className="card fixed z-50 m-0 w-max max-w-[calc(100vw-1rem)] p-3 shadow-3"
-      >
-        <p className="sr-only">{KEYBOARD_HINT}</p>
-
-        <div className="mb-2 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setCursor(addMonths(cursor, -1))}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
+          <IconButton
+            size="small"
             aria-label={PREV_LABEL}
-            className="btn-icon tap-44 size-8 shrink-0 rounded-full text-on-surface"
+            sx={TAP_TARGET}
+            onClick={() => setCursor(addMonths(cursor, -1))}
           >
             <Icon name="chevron_left" size={16} />
-          </button>
+          </IconButton>
 
           {/* Selects, not just arrows — see the header comment. */}
-          <label className="sr-only" htmlFor={`${id}-month`}>Month</label>
-          <select
-            id={`${id}-month`}
+          <NativeSelect
             value={month.month}
             onChange={(e) => setCursor(`${month.year}-${String(Number(e.target.value)).padStart(2, "0")}`)}
-            className="input t-filter h-9 min-w-0 flex-1 px-2"
+            input={<OutlinedInput size="small" />}
+            inputProps={{ id: `${id}-month`, "aria-label": "Month" }}
+            sx={{ flex: 1, minWidth: 0 }}
           >
             {MONTH_NAMES.map((n, i) => <option key={n} value={i + 1}>{n}</option>)}
-          </select>
+          </NativeSelect>
 
-          <label className="sr-only" htmlFor={`${id}-year`}>Year</label>
-          <select
-            id={`${id}-year`}
+          <NativeSelect
             value={month.year}
             onChange={(e) => setCursor(`${e.target.value}-${String(month.month).padStart(2, "0")}`)}
-            className="input t-filter h-9 w-22 px-2"
+            input={<OutlinedInput size="small" />}
+            inputProps={{ id: `${id}-year`, "aria-label": "Year" }}
+            sx={{ width: 96 }}
           >
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </NativeSelect>
 
-          <button
-            type="button"
-            onClick={() => setCursor(addMonths(cursor, 1))}
+          <IconButton
+            size="small"
             aria-label={NEXT_LABEL}
-            className="btn-icon tap-44 size-8 shrink-0 rounded-full text-on-surface"
+            sx={TAP_TARGET}
+            onClick={() => setCursor(addMonths(cursor, 1))}
           >
             <Icon name="chevron_right" size={16} />
-          </button>
-        </div>
+          </IconButton>
+        </Box>
 
-        <table
-          ref={gridRef}
+        <Box
+          component="table"
+          ref={setGrid}
           role="grid"
           aria-label={month.label}
           onKeyDown={onGridKeyDown}
-          className="border-separate border-spacing-0.5"
+          sx={{ borderCollapse: "separate", borderSpacing: "2px" }}
         >
           <thead>
             <tr>
               {WEEKDAY_LABELS.map((d) => (
-                <th key={d} scope="col" className="t-label size-9 font-medium text-on-surface-variant">
+                <Typography
+                  key={d}
+                  component="th"
+                  scope="col"
+                  variant="caption"
+                  sx={{ width: CELL, height: CELL, fontWeight: 500, color: "text.secondary" }}
+                >
                   {d}
-                </th>
+                </Typography>
               ))}
             </tr>
           </thead>
@@ -248,11 +341,14 @@ export function DateField(props: DateFieldProps) {
             {month.weeks.map((week, w) => (
               <tr key={w}>
                 {week.map((day) => {
-                  if (!day.inMonth) return <td key={day.iso} className="size-9" />;
+                  if (!day.inMonth) {
+                    return <Box component="td" key={day.iso} sx={{ width: CELL, height: CELL }} />;
+                  }
                   const off = disabled(day.iso);
                   const selected = day.iso === value;
                   return (
-                    <td
+                    <Box
+                      component="td"
                       key={day.iso}
                       role="gridcell"
                       data-iso={day.iso}
@@ -262,36 +358,49 @@ export function DateField(props: DateFieldProps) {
                       aria-label={formatDayLong(day.iso)}
                       onClick={() => pick(day.iso)}
                       onFocus={() => setFocusDay(day.iso)}
-                      className={cn(
-                        "t-body-s size-9 cursor-pointer rounded-full text-center align-middle text-on-surface",
-                        off && "cursor-not-allowed text-on-surface-variant opacity-35",
-                        !off && "hover:bg-surface-3",
-                        selected && "bg-primary text-on-primary",
-                      )}
+                      sx={{
+                        width: CELL,
+                        height: CELL,
+                        borderRadius: "50%",
+                        textAlign: "center",
+                        verticalAlign: "middle",
+                        typography: "body2",
+                        cursor: off ? "not-allowed" : "pointer",
+                        color: off ? "text.disabled" : "text.primary",
+                        ...(selected && { bgcolor: "primary.main", color: "primary.contrastText" }),
+                        ...(!off && !selected && { "&:hover": { bgcolor: "action.hover" } }),
+                        "&:focus-visible": {
+                          outline: "2px solid",
+                          outlineColor: "primary.main",
+                          outlineOffset: "2px",
+                        },
+                      }}
                     >
                       {day.day}
-                    </td>
+                    </Box>
                   );
                 })}
               </tr>
             ))}
           </tbody>
-        </table>
+        </Box>
 
-        <div className="mt-2 flex items-center justify-end gap-2 border-t border-outline-variant pt-2">
-          <button
-            type="button"
-            onClick={() => { setValue(""); close(); }}
-            className="btn btn-text btn-sm"
-          >
+        <Box
+          sx={{
+            mt: 1,
+            pt: 1,
+            display: "flex",
+            justifyContent: "flex-end",
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button variant="text" size="small" onClick={() => { setValue(""); close(); }}>
             {CLEAR_LABEL}
-          </button>
-        </div>
-      </div>
-
-      {hint && <p id={hintId} className="t-body-s mt-1.5 text-on-surface-variant">{hint}</p>}
-      {error && <p id={errorId} className="t-body-s mt-1.5 text-error">{error}</p>}
-    </div>
+          </Button>
+        </Box>
+      </Popover>
+    </>
   );
 }
 

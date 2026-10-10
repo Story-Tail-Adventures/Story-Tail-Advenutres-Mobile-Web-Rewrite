@@ -232,7 +232,23 @@ export function mapShip(ship: ProviderShip): ShipRow {
 
 export interface PortRow {
   name: string;
-  sailing_count: number | null;
+  /**
+   * OMITTED, not null, when the caller did not measure it.
+   *
+   * This is a live data-destruction fix rather than a missing producer. Every writer of
+   * `cruise_port` is an upsert on `onConflict: "name"`, and two of the three call sites
+   * (`syncSailings` naming a port it saw in an itinerary, and `ensurePorts` creating one it
+   * needed) have no count to give. While this field was `number | null` those two sent an
+   * explicit NULL, so a port carrying a real count measured by the `/ports` pass had it
+   * WIPED the next time any sailing mentioned it. The `/ports` pass runs on a 28-day
+   * cadence and sailing syncs run weekly, so the measured value survived at most one week
+   * in four.
+   *
+   * Optional means the key is absent from the object, means the upsert does not name the
+   * column, means Postgres leaves it alone. A caller that genuinely wants to clear it can
+   * still pass `null` explicitly.
+   */
+  sailing_count?: number | null;
   provider: string;
   provider_key: string;
 }
@@ -254,12 +270,15 @@ export interface PortRow {
  */
 export function mapPort(name: string, sailingCount?: number): PortRow {
   const clean = name.trim().replace(/^['"`\s]+|['"`\s]+$/g, "").trim();
-  return {
+  const row: PortRow = {
     name: clean,
-    sailing_count: toIntOrNull(sailingCount),
     provider: PROVIDER,
     provider_key: clean,
   };
+  // Only when the caller actually has one. See PortRow.sailing_count: writing NULL here is
+  // what erased counts the /ports pass had already measured.
+  if (sailingCount !== undefined) row.sailing_count = toIntOrNull(sailingCount);
+  return row;
 }
 
 export interface SailingRow {

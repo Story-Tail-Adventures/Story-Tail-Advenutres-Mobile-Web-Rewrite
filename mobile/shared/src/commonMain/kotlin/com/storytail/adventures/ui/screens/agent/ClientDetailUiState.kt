@@ -4,7 +4,6 @@ import com.storytail.adventures.api.ClientDetailSnapshot
 import com.storytail.adventures.api.ClientNoteRow
 import com.storytail.adventures.api.ClientTripRow
 import com.storytail.adventures.domain.agent.ClientCopy
-import com.storytail.adventures.domain.agent.rosterCurrencyNote
 
 /**
  * Everything Screens 3.3.2 – 3.3.8 render on a phone, already derived.
@@ -35,9 +34,6 @@ data class ClientDetailUiState(
     val preferenceNotes: List<String>,
     val snapshotNote: String?,
     val stats: List<Pair<String, String>>,
-    /** True when a money figure on this screen covers one currency out of several. */
-    val moneyExcludesACurrency: Boolean,
-    val currencyNote: String?,
     val household: List<HouseholdUi>,
     val trips: List<ClientTripUi>,
     val threads: List<ClientThreadUi>,
@@ -160,13 +156,25 @@ fun documentBadge(mimeType: String, filename: String): String = when {
     else -> "DOC"
 }
 
-/** "1.1 MB". Binary units, because a file manager's number is what people compare against. */
+/**
+ * "1.1 MB". Binary units, because a file manager's number is what people compare against.
+ *
+ * IT ROUNDS RATHER THAN TRUNCATES, and that was a cross-stack disagreement until §3.4.2
+ * needed the same label. `sizeLabel` in `web/lib/agent/tripDetail.ts` uses `.toFixed(1)` and
+ * `.toFixed(0)`, both of which round; this divided and threw the remainder away. A
+ * 1,153,433-byte supplier confirmation therefore read "1.1 MB" in a browser and "1.0 MB" on
+ * a phone — the same file, two numbers, and nothing in the copy-parity gate can see a
+ * formatter.
+ *
+ * Integer arithmetic throughout, adding half a unit before dividing. No Double appears, so
+ * there is nothing to round twice.
+ */
 fun fileSizeLabel(bytes: Long): String = when {
     bytes <= 0L -> ClientCopy.NO_TRIP
     bytes < 1024 -> "$bytes B"
-    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    bytes < 1024 * 1024 -> "${(bytes + 512) / 1024} KB"
     else -> {
-        val tenths = (bytes * 10 / (1024 * 1024))
+        val tenths = (bytes * 10 + 524_288) / (1024 * 1024)
         "${tenths / 10}.${tenths % 10} MB"
     }
 }
@@ -264,8 +272,6 @@ fun clientDetailUiState(
         preferenceNotes = listOfNotNull(o.dietaryNote, o.accessibilityNote),
         snapshotNote = o.snapshotNote,
         stats = stats,
-        moneyExcludesACurrency = o.lifetimeCurrencyCount > 1,
-        currencyNote = rosterCurrencyNote(if (o.lifetimeCurrencyCount > 1) 1 else 0),
         household = snapshot.companions.map { c ->
             HouseholdUi(
                 companionId = c.companionId,

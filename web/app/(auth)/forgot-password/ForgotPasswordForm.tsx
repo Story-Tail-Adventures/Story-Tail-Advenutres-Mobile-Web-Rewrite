@@ -1,13 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import { FormError } from "@/components/auth/FormError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import NextLink from "@/components/mui/NextLink";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { requestPasswordResetAction } from "./actions";
 import { FORGOT_TEXT, initialForgotPasswordState } from "./state";
+
+/** The form column: the legacy 14px gap between rows. */
+const FORM_SX = { display: "flex", flexDirection: "column", gap: 1.75 } as const;
+
+/** A fieldset that disables its controls while the form is pending but adds no box of its own. */
+const FIELDSET_SX = { display: "contents", m: 0, p: 0, border: 0, minWidth: 0 } as const;
+
+/** The note card's inside: the legacy 14px padding on MUI's CardContent. */
+const NOTE_SX = { p: 1.75, "&:last-child": { pb: 1.75 } } as const;
+
+/** A text link with a 44px hit area on touch screens, its box unchanged (the legacy `.tap-44`). */
+const TAP_LINK = { display: "inline-flex", alignItems: "center", ...TAP_TARGET } as const;
 
 /**
  * Screen 2.1.4 Forgot Password — the interactive half (design: C214 / M214).
@@ -23,25 +40,35 @@ export function ForgotPasswordForm() {
 
   if (state.outcome === "sent") {
     return (
-      <div role="status" className="flex flex-col">
-        <h2 className="t-title-l text-on-surface">{FORGOT_TEXT.sentTitle}</h2>
-        <p className="t-body mt-1.5 text-on-surface-variant">
+      <Box role="status" sx={{ display: "flex", flexDirection: "column" }}>
+        <Typography component="h2" variant="h5">
+          {FORGOT_TEXT.sentTitle}
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
           {FORGOT_TEXT.sentBefore}
-          <b className="font-semibold text-on-surface">{state.email}</b>
+          <Box component="b" sx={{ fontWeight: 600, color: "text.primary" }}>
+            {state.email}
+          </Box>
           {FORGOT_TEXT.sentAfter}
-        </p>
-        <Card variant="flat" className="mt-3.5 p-3.5">
-          <p className="t-body-s text-on-surface-variant">{FORGOT_TEXT.help}</p>
-        </Card>
-      </div>
+        </Typography>
+        <Box sx={{ mt: 1.75 }}>
+          <Card variant="flat">
+            <CardContent sx={NOTE_SX}>
+              <Typography component="p" variant="caption" color="text.secondary">
+                {FORGOT_TEXT.help}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
     );
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3.5">
+    <Box component="form" action={formAction} sx={FORM_SX}>
       <FormError error={state.formError} />
 
-      <fieldset disabled={isPending} className="contents">
+      <Box component="fieldset" disabled={isPending} sx={FIELDSET_SX}>
         <Field
           id="email"
           name="email"
@@ -53,15 +80,22 @@ export function ForgotPasswordForm() {
           defaultValue={state.email}
           error={state.fieldErrors?.email?.[0]}
         />
-      </fieldset>
+      </Box>
 
       <SubmitButton label={FORGOT_TEXT.submit} pendingLabel={FORGOT_TEXT.pending} />
 
-      <p className="t-body-s text-on-surface-variant">{FORGOT_TEXT.help}</p>
+      <Typography component="p" variant="caption" color="text.secondary">
+        {FORGOT_TEXT.help}
+      </Typography>
 
-      <Link href="/login" className="t-label-l tap-44 self-start text-primary">
+      <MuiLink
+        component={NextLink}
+        href="/login"
+        variant="subtitle2"
+        sx={{ ...TAP_LINK, alignSelf: "flex-start" }}
+      >
         {FORGOT_TEXT.backToSignIn}
-      </Link>
-    </form>
+      </MuiLink>
+    </Box>
   );
 }

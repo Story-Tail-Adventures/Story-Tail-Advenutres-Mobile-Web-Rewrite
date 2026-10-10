@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Spinner } from "@/components/ui/Spinner";
@@ -12,8 +14,8 @@ import { Spinner } from "@/components/ui/Spinner";
  * Two shapes, one markup. Desktop (design: `OnboardingShell`) puts the skip on the left and
  * the primary on the right of a row. Mobile (`MStickyBottom`) stacks them full-width in a
  * bar pinned to the bottom of the viewport, so the primary action stays reachable however
- * long the form gets. `flex-row-reverse` at `md` is what puts the primary — first in the
- * DOM, so first in the tab order and first for a screen reader — on the right.
+ * long the form gets. `row-reverse` at `md` is what puts the primary — first in the DOM, so
+ * first in the tab order and first for a screen reader — on the right.
  *
  * Back is a link, not an action: going back is navigation, and moving the wizard cursor
  * backwards would mean an abandoned wizard resumed at the step somebody had already left.
@@ -58,6 +60,33 @@ export interface OnboardingActionsProps {
   backLabel: string;
 }
 
+/**
+ * The bar. Below `md` it is sticky with its own surface, bleeding into the shell's 20px
+ * gutters so the form scrolls under it; from `md` it is an ordinary row at the end of the
+ * page. The column direction is what makes the primary button full width on a phone: a flex
+ * item stretches across the cross axis, so no `fullWidth` is needed and nothing has to be
+ * undone at `md`.
+ */
+const BAR_SX = {
+  display: "flex",
+  mt: 3,
+  position: { xs: "sticky", md: "static" },
+  bottom: 0,
+  mx: { xs: -2.5, md: 0 },
+  flexDirection: { xs: "column", md: "row-reverse" },
+  justifyContent: { md: "space-between" },
+  gap: { xs: 0.75, md: 1.25 },
+  borderTop: { xs: 1, md: 0 },
+  borderColor: "divider",
+  bgcolor: { xs: "surface.1", md: "transparent" },
+  px: { xs: 2.5, md: 0 },
+  pt: { xs: 1.5, md: 0 },
+  pb: { xs: 2.75, md: 0 },
+} as const;
+
+/** The legacy `.btn.btn-text` box on MUI's text button, for the Back link. */
+const TEXT_BUTTON_SX = { minHeight: 40, px: "12px", gap: 1, whiteSpace: "nowrap" } as const;
+
 export function OnboardingActions({
   formId,
   saving,
@@ -71,29 +100,20 @@ export function OnboardingActions({
   backHref,
   backLabel,
 }: OnboardingActionsProps) {
+  const held = saving || disabled;
+
   return (
-    <div
-      className={[
-        // Mobile: a sticky bar with its own surface, so the form scrolls under it.
-        "sticky bottom-0 -mx-5 mt-6 flex flex-col gap-1.5 border-t border-outline-variant",
-        "bg-surface-1 px-5 pt-3 pb-5.5",
-        // Desktop: an ordinary row at the end of the page.
-        "md:static md:mx-0 md:flex-row-reverse md:justify-between md:gap-2.5",
-        "md:border-0 md:bg-transparent md:p-0",
-      ].join(" ")}
-    >
+    <Box sx={BAR_SX}>
       <Button
         type="submit"
         form={formId}
         variant="filled"
         size="lg"
-        disabled={saving || disabled}
-        fullWidth
-        className="md:w-auto"
+        disabled={held}
       >
         {saving ? (
           <>
-            <Spinner className="size-4" />
+            <Spinner />
             {pendingLabel}
           </>
         ) : (
@@ -104,24 +124,23 @@ export function OnboardingActions({
         )}
       </Button>
 
-      <div className="flex items-center justify-between gap-2.5">
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.25 }}>
         {backHref ? (
           // Inert while a save is in flight, matching the other two controls. A `<Link>`
           // has no `disabled`, so leaving as it stands would make Back the one way to
           // navigate away mid-submit — the surprising exception rather than the rule.
-          <Link
+          <MuiButton
+            component={Link}
             href={backHref}
-            className={
-              saving || disabled
-                ? "btn btn-text pointer-events-none opacity-60"
-                : "btn btn-text"
-            }
-            aria-disabled={saving || disabled || undefined}
-            tabIndex={saving || disabled ? -1 : undefined}
+            variant="text"
+            color="primary"
+            sx={{ ...TEXT_BUTTON_SX, ...(held && { pointerEvents: "none", opacity: 0.6 }) }}
+            aria-disabled={held || undefined}
+            tabIndex={held ? -1 : undefined}
           >
             <Icon name="arrow_left" size={14} />
             {backLabel}
-          </Link>
+          </MuiButton>
         ) : (
           // Holds the row's left edge so the skip stays on the right of it either way.
           <span />
@@ -130,17 +149,17 @@ export function OnboardingActions({
         {skipAction && (
           // `contents` so the form lays nothing out and the button is a direct child of
           // this row, exactly as it would be without the wrapper.
-          <form action={skipAction} className="contents">
+          <Box component="form" action={skipAction} sx={{ display: "contents" }}>
             <SkipButton
               label={secondaryLabel}
               pendingLabel={secondaryPendingLabel}
               a11yLabel={secondaryA11yLabel}
-              disabled={saving || disabled}
+              disabled={held}
             />
-          </form>
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
@@ -165,7 +184,7 @@ function SkipButton({
     >
       {pending ? (
         <>
-          <Spinner className="size-4" />
+          <Spinner />
           {pendingLabel}
         </>
       ) : (

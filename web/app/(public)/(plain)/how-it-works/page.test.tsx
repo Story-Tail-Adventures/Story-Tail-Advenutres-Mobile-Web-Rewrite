@@ -29,7 +29,11 @@ describe("2.0.2 how it works page", () => {
 
   it("renders every desktop FAQ item and the welcome line", () => {
     const { container } = render(<HowItWorksPage />);
-    expect(container.querySelectorAll("details")).toHaveLength(HOW_IT_WORKS_FAQ.length);
+    // One disclosure per question: the FAQ is an MUI Accordion (MUI v9 migration), so each
+    // item is a heading with an expand button controlling its panel, not a <details>.
+    expect(container.querySelectorAll('h3 [aria-expanded][aria-controls$="-panel"]')).toHaveLength(
+      HOW_IT_WORKS_FAQ.length,
+    );
     expect(screen.getByText("Whatever your faith — you're welcome here.")).toBeInTheDocument();
     // The brief's correction: the heart panel must not describe Story-Tail billing.
     const heart = container.querySelector('section[aria-labelledby="our-heart"]');

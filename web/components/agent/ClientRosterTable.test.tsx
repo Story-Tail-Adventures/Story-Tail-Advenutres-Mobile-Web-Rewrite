@@ -31,7 +31,6 @@ function row(over: Partial<ClientRosterRow> = {}): ClientRosterRow {
     tags: ["vip"],
     archived: false,
     lifetimeLabel: "$12,400",
-    lifetimeCurrencyCount: 1,
     tripCount: 3,
     lastTripLabel: "Mar 2026",
     nextTripLabel: "Nov 2026",
@@ -75,8 +74,9 @@ describe("ClientRosterTable bulk-select", () => {
     // One checkbox, and it is the row's. No select-all.
     expect(html.match(/type="checkbox"/g)).toHaveLength(1);
     expect(html).not.toContain("roster-select-all");
-    // The cell itself IS there, holding the column width so nothing shifts on hydration.
-    expect(html).toContain('<th scope="col" class="w-10');
+    // The cell itself IS there, empty, holding the column width so nothing shifts on
+    // hydration. MUI's TableCell (checkbox padding) writes class before scope.
+    expect(html).toMatch(/<th class="[^"]*MuiTableCell-paddingCheckbox[^"]*" scope="col"><\/th>/);
   });
 
   it("offers the select-all once hydrated", () => {

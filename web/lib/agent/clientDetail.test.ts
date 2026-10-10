@@ -64,7 +64,6 @@ const OVERVIEW = {
   favorite_past_trips: "Turks.",
   lifetime_value_cents: "2480000",
   lifetime_currency: "USD",
-  lifetime_currency_count: 1,
   commission_cents: "297600",
   trip_count: 1,
   active_trip_count: 1,

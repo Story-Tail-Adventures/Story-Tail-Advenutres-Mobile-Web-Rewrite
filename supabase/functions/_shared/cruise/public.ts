@@ -20,6 +20,26 @@
  */
 import type { Db } from "../db.ts";
 
+/**
+ * A ship photo and the attribution that may not be separated from it.
+ *
+ * ONE OBJECT RATHER THAN FOUR FIELDS, and that is the whole point of the shape. The photos
+ * are CC BY / CC BY-SA, so the credit is a licence condition rather than a nicety, and
+ * `cruise_ship_image_attributed` already enforces the pair in Postgres. Nesting them carries
+ * that guarantee up the stack: there is no way to spell a sailing that has a `url` and no
+ * `credit`, so no JSX can render the photo bare. Same structural technique this file uses to
+ * keep the fare off the card — the type simply has nowhere to put the unlawful thing.
+ */
+export interface ShipImage {
+  url: string;
+  /** Pre-rendered, and already carries the licence: "Kiran891 / Wikimedia Commons, CC BY-SA 4.0". */
+  credit: string;
+  /** Commons' LicenseShortName, structured, for a caller that wants it apart from the credit. */
+  license: string | null;
+  /** The Commons file page. What the credit line should link to. */
+  sourceUrl: string | null;
+}
+
 /** What a public cruise card may show. No fare, by construction. */
 export interface PublicSailing {
   id: string;
@@ -31,12 +51,17 @@ export interface PublicSailing {
   destinations: string[];
   /** Ports in call order, for the itinerary line. */
   ports: string[];
+  /** The ship's curated photo, or null. Never a bare URL — see `ShipImage`. */
+  shipImage: ShipImage | null;
 }
 
 export interface SailingQuery {
-  /** Free text matched against title, line, ship and destinations. */
+  /**
+   * Free text. Every word must match the title, a destination, the line, the ship or a port
+   * of call, ignoring case and accents — see `cruise_sailing_search` for the rules.
+   */
   destination?: string;
-  /** Earliest departure, `YYYY-MM-DD`. Defaults to today. */
+  /** Earliest departure, `YYYY-MM-DD`. Defaults to today, and is never earlier than today. */
   from?: string;
   /** Latest departure. */
   to?: string;
@@ -54,33 +79,34 @@ export interface SailingQuery {
  * particular is the raw upstream body and must never be served.
  */
 const COLUMNS =
-  "id, title, departure_date, duration_nights, destinations, cruise_line:cruise_line_id (name), cruise_ship:ship_id (name)";
+  "id, title, departure_date, duration_nights, destinations, cruise_line:cruise_line_id (name), " +
+  "cruise_ship:ship_id (name, image_url, image_credit, image_license, image_source_url)";
 
 export async function searchSailings(db: Db, query: SailingQuery): Promise<PublicSailing[]> {
-  let q = db
-    .from("cruise_sailing")
+  // The filtering lives in Postgres (`cruise_sailing_search`), and the visitor's text reaches
+  // it as a bound parameter. It used to be spliced into a PostgREST `or=(...)` string here,
+  // which could not search ports, lines or ships, matched destinations case-sensitively, and
+  // answered a `"` or `\` with a 500. The function also drops archived rows (sailings the
+  // provider stopped listing, kept for referential integrity) and departed ones.
+  //
+  // `.select(COLUMNS)` still applies: the function returns whole `cruise_sailing` rows so
+  // PostgREST can embed the line and ship, and this list is what keeps the Internal columns
+  // on this side of the response.
+  const { data, error } = await db
+    // An unset field is left out of the body, and the SQL default (NULL, "no constraint")
+    // applies.
+    .rpc("cruise_sailing_search", {
+      needle: query.destination,
+      depart_from: query.from,
+      depart_to: query.to,
+      min_nights: query.minNights,
+      max_nights: query.maxNights,
+      max_rows: query.limit,
+    })
     .select(COLUMNS)
-    // Archived rows are sailings the provider stopped listing. They stay for referential
-    // integrity and must not be offered.
-    .is("archived_at", null)
-    .gte("departure_date", query.from ?? new Date().toISOString().slice(0, 10))
     .order("departure_date", { ascending: true })
+    .order("id", { ascending: true })
     .limit(query.limit);
-
-  if (query.to) q = q.lte("departure_date", query.to);
-  if (query.minNights) q = q.gte("duration_nights", query.minNights);
-  if (query.maxNights) q = q.lte("duration_nights", query.maxNights);
-
-  if (query.destination) {
-    // Matched across the sailing's own text and its destination array. The provider's
-    // `destinations` is text[], so `cs` (contains) would need an exact element; `ilike` on
-    // the title plus an array-overlap on a normalised needle is what actually finds
-    // "caribbean" in a row titled "7 Night Eastern Caribbean".
-    const needle = query.destination.replace(/[%_,]/g, " ").trim();
-    if (needle) q = q.or(`title.ilike.%${needle}%,destinations.cs.{"${needle}"}`);
-  }
-
-  const { data, error } = await q;
   if (error) throw new Error(`sailing search failed: ${error.message}`);
 
   const rows = (data ?? []) as unknown as SailingRow[];
@@ -97,7 +123,15 @@ interface SailingRow {
   duration_nights: number | null;
   destinations: string[] | null;
   cruise_line: { name: string | null } | null;
-  cruise_ship: { name: string | null } | null;
+  cruise_ship:
+    | {
+      name: string | null;
+      image_url: string | null;
+      image_credit: string | null;
+      image_license: string | null;
+      image_source_url: string | null;
+    }
+    | null;
 }
 
 /**
@@ -138,5 +172,33 @@ export function mapSailing(row: SailingRow, ports: string[]): PublicSailing {
     nights: typeof row.duration_nights === "number" ? row.duration_nights : null,
     destinations: (row.destinations ?? []).filter((d): d is string => typeof d === "string").slice(0, 6),
     ports: ports.slice(0, 12),
+    shipImage: mapShipImage(row.cruise_ship),
+  };
+}
+
+/**
+ * The photo, only if it is lawful to show.
+ *
+ * DROPS THE PHOTO WHEN THE CREDIT IS MISSING rather than serving it uncredited.
+ * `cruise_ship_image_attributed` means that pair cannot be half-set today, so on the happy
+ * path this branch is unreachable — which is the reason to write it. The constraint lives in
+ * a migration someone can relax; the licence obligation does not go away when they do, and a
+ * silently missing photo is the right failure for a breach that would otherwise be invisible.
+ *
+ * NO HOST CHECK HERE, deliberately. Hotel photography needs one at the mapper because it
+ * arrives over the wire from a provider; these arrive by migration, so the equivalent layer
+ * is `cruise_ship_image_host` on the column itself. `web/lib/public/cruises.ts` still repeats
+ * it, for the reason that file gives: the custom next/image loader means whatever reaches
+ * `<Image src>` is fetched by the visitor's browser from the origin we named.
+ */
+function mapShipImage(ship: SailingRow["cruise_ship"]): ShipImage | null {
+  const url = ship?.image_url?.trim();
+  const credit = ship?.image_credit?.trim();
+  if (!url || !credit) return null;
+  return {
+    url,
+    credit,
+    license: ship?.image_license?.trim() || null,
+    sourceUrl: ship?.image_source_url?.trim() || null,
   };
 }

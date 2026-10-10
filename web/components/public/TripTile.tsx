@@ -1,10 +1,19 @@
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import MuiCard from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import MuiLink from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import type { Topic, Trip } from "@/content/public/types";
-import { cn } from "@/lib/cn";
 import { joinHref, tripHref } from "@/lib/public/links";
 import { Photo } from "./Photo";
 import { PriceRange } from "./PriceRange";
+import { TAP_TARGET } from "@/lib/mui/sx";
 
 interface TripTileProps {
   trip: Trip;
@@ -16,6 +25,25 @@ interface TripTileProps {
   next: string;
   className?: string;
 }
+
+/** The badge chip over the photo (design: TripTile — a small secondary Chip, uppercase). */
+const BADGE = {
+  position: "absolute",
+  fontWeight: 700,
+  textTransform: "uppercase",
+} as const;
+
+/** The brand overline every tile opens with. */
+const OVERLINE = { display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 } as const;
+
+/** The legacy `.btn-sm` box on MUI's small button. */
+const SMALL = { minHeight: 32, px: 2, whiteSpace: "nowrap" } as const;
+
+/**
+ * §4.2's touch minimum, as the legacy `tap-44`: MTripTile draws a 32px small button, so the
+ * TAP AREA grows to 44px on coarse pointers and the visible controls stay 32px.
+ */
+const TAP = TAP_TARGET;
 
 /**
  * Curated trip tile (design: TripTile = card, MTripTile = mobile row). The title links to the
@@ -29,89 +57,105 @@ export function TripTile({ trip, topic, layout = "responsive", next, className }
   const detail = tripHref(trip.slug);
   const quote = joinHref({ intent: "quote", trip: trip.slug, next });
   const save = joinHref({ intent: "save", trip: trip.slug, next });
+  const saveLabel = `Save ${trip.name} for later`;
 
   const card = (
-    <article
-      className={cn(
-        "card flex-col",
-        layout === "responsive" ? "hidden md:flex" : "flex",
-        className,
-      )}
+    <MuiCard
+      component="article"
+      className={className}
+      sx={{
+        position: "relative",
+        display: layout === "responsive" ? { xs: "none", md: "flex" } : "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
     >
-      <div className="relative aspect-5/3">
-        <Photo image={trip.imageKey} fill sizes="(min-width: 1200px) 400px, 50vw" alt="" className="object-cover" />
+      <Box sx={{ position: "relative", aspectRatio: "5 / 3" }}>
+        <Photo image={trip.imageKey} fill sizes="(min-width: 1200px) 400px, 50vw" alt="" />
         {badge && (
-          <span className="t-badge absolute top-2.5 left-2.5 rounded-full bg-secondary px-2.25 py-0.75 text-on-secondary">
-            {badge}
-          </span>
+          <Chip
+            size="small"
+            color="secondary"
+            label={badge}
+            sx={{ ...BADGE, top: 10, left: 10, height: 20, fontSize: 9.5, letterSpacing: 0.5 }}
+          />
         )}
-        <PriceRange band={trip.band} className="absolute top-2.5 right-2.5" />
-      </div>
-      <div className="flex flex-1 flex-col p-3.5">
-        <p className="t-label-s text-brand-orange">{overline}</p>
-        <h3 className="t-title-s mt-0.5 text-on-surface">
-          <Link href={detail} className="hover:underline">
+        <Box component="span" sx={{ position: "absolute", top: 10, right: 10 }}>
+          <PriceRange band={trip.band} />
+        </Box>
+      </Box>
+      <CardContent sx={{ p: 1.75, flex: 1, display: "flex", flexDirection: "column", "&:last-child": { pb: 1.75 } }}>
+        <Typography component="p" variant="overline" sx={OVERLINE}>
+          {overline}
+        </Typography>
+        <Typography component="h3" variant="subtitle1" sx={{ mt: 0.25, color: "text.primary" }}>
+          <MuiLink component={NextLink} href={detail} underline="hover" color="inherit">
             {trip.name}
-          </Link>
-        </h3>
-        <p className="t-body-s text-on-surface-variant">{tagline}</p>
-        <div className="mt-auto flex gap-1.5 pt-2.5">
-          <Link href={quote} className="btn btn-filled btn-sm flex-1">
+          </MuiLink>
+        </Typography>
+        <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+          {tagline}
+        </Typography>
+        <Stack direction="row" spacing={0.75} sx={{ mt: "auto", pt: 1.25, alignItems: "center" }}>
+          <MuiButton component={NextLink} href={quote} variant="contained" size="small" sx={{ ...SMALL, flex: 1 }}>
             Request quote
-          </Link>
-          <Link
-            href={save}
-            className="btn-icon size-8 rounded-lg border border-outline-variant"
-            aria-label={`Save ${trip.name} for later`}
-          >
+          </MuiButton>
+          <IconButton component={NextLink} href={save} size="small" aria-label={saveLabel} sx={{ width: 32, height: 32 }}>
             <Icon name="heart" size={14} />
-          </Link>
-        </div>
-      </div>
-    </article>
+          </IconButton>
+        </Stack>
+      </CardContent>
+    </MuiCard>
   );
 
   const row = (
-    <article
-      className={cn(
-        "card overflow-hidden",
-        layout === "responsive" ? "flex md:hidden" : "flex",
-        className,
-      )}
+    <MuiCard
+      component="article"
+      className={className}
+      sx={{ display: layout === "responsive" ? { xs: "flex", md: "none" } : "flex", overflow: "hidden" }}
     >
-      <div className="relative w-30 shrink-0">
-        <Photo image={trip.imageKey} fill sizes="120px" alt="" className="object-cover" />
+      <Box sx={{ position: "relative", width: 120, flexShrink: 0 }}>
+        <Photo image={trip.imageKey} fill sizes="120px" alt="" />
         {badge && (
-          <span className="t-badge-s absolute top-1.5 left-1.5 rounded bg-secondary px-1.5 py-0.5 text-on-secondary">
-            {badge}
-          </span>
+          <Chip
+            size="small"
+            color="secondary"
+            label={badge}
+            sx={{ ...BADGE, top: 6, left: 6, height: 18, fontSize: 8.5, letterSpacing: 0.4, "& .MuiChip-label": { px: 0.75 } }}
+          />
         )}
-      </div>
-      <div className="flex flex-1 flex-col p-3">
-        <div className="flex items-start justify-between gap-1.5">
-          <p className="t-label-s text-brand-orange">{overline}</p>
+      </Box>
+      <Box sx={{ display: "flex", flex: 1, flexDirection: "column", p: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 0.75 }}>
+          <Typography component="p" variant="overline" sx={OVERLINE}>
+            {overline}
+          </Typography>
           <PriceRange band={trip.band} size="sm" />
-        </div>
-        <h3 className="t-row-title mt-0.5 text-on-surface">
-          <Link href={detail}>{trip.name}</Link>
-        </h3>
-        <p className="t-label-l text-on-surface-variant">{tagline}</p>
-        <div className="mt-auto flex items-center gap-1.5 pt-2">
-          {/* `tap-44`, not `min-h-11`: MTripTile draws a 32px btn-sm, so grow only the hit
-              area (the utility is gated to `pointer: coarse`). */}
-          <Link href={quote} className="btn btn-filled btn-sm tap-44">
+        </Box>
+        <Typography component="h3" variant="subtitle2" sx={{ mt: 0.25, color: "text.primary" }}>
+          <MuiLink component={NextLink} href={detail} underline="hover" color="inherit">
+            {trip.name}
+          </MuiLink>
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ fontWeight: 500, color: "text.secondary" }}>
+          {tagline}
+        </Typography>
+        <Stack direction="row" spacing={0.75} sx={{ mt: "auto", pt: 1, alignItems: "center" }}>
+          <MuiButton component={NextLink} href={quote} variant="contained" size="small" sx={{ ...SMALL, ...TAP }}>
             Request quote
-          </Link>
-          <Link
+          </MuiButton>
+          <IconButton
+            component={NextLink}
             href={save}
-            className="btn-icon tap-44 size-8 rounded-lg border border-outline-variant"
-            aria-label={`Save ${trip.name} for later`}
+            size="small"
+            aria-label={saveLabel}
+            sx={{ width: 32, height: 32, ...TAP }}
           >
             <Icon name="heart" size={14} />
-          </Link>
-        </div>
-      </div>
-    </article>
+          </IconButton>
+        </Stack>
+      </Box>
+    </MuiCard>
   );
 
   if (layout === "card") return card;

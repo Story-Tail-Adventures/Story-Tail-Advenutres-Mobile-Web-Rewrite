@@ -53,11 +53,15 @@ export const HONEYMOONS_HERO = {
   sub: HERO_SUB,
 };
 
+/** The bar's form name, for screen readers. */
+export const HONEYMOONS_INQUIRY_LABEL = "Ask Gyasi about your honeymoon";
+
+/** The bar's cells, empty until the visitor fills them; the artboard's values are the hints. */
 export const HONEYMOONS_INQUIRY_FIELDS: readonly InquiryField[] = [
-  { label: "Destination", value: "Anywhere romantic", icon: "map" },
-  { label: "When", value: "After your wedding date", icon: "calendar" },
-  { label: "Travelers", value: "2 adults", icon: "user" },
-  { label: "Vibe", value: "Quiet · Beach · Spa", icon: "palm" },
+  { name: "dest", label: "Destination", placeholder: "Anywhere romantic", icon: "map", type: "text" },
+  { name: "dates", label: "When", placeholder: "After your wedding date", icon: "calendar", type: "dates" },
+  { name: "travelers", label: "Travelers", placeholder: "2 adults", icon: "user", type: "number" },
+  { name: "vibe", label: "Vibe", placeholder: "Quiet · Beach · Spa", icon: "palm", type: "text" },
 ];
 
 /**

@@ -1,3 +1,10 @@
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 import { AGENT_COPY } from "@/lib/agent/content";
 import type { TripMessageRow } from "@/lib/agent/tripDetail";
 
@@ -9,31 +16,32 @@ import type { TripMessageRow } from "@/lib/agent/tripDetail";
 export function TripMessagesThread({ messages }: { messages: TripMessageRow[] }) {
   if (messages.length === 0) {
     return (
-      <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
+      <Typography component="p" variant="body2" sx={{ px: 0.5, py: 2, color: "text.secondary" }}>
         {AGENT_COPY.tripMessagesEmpty}
-      </p>
+      </Typography>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <Stack spacing={1}>
       {messages.map((m) => (
-        <div
-          key={m.messageId}
-          className={`card p-3 ${m.isInternalNote ? "bg-[var(--md-surface-2)]" : ""}`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="t-label-s text-[var(--md-on-surface-variant)]">
-              {m.senderRole === "agent" ? "You" : m.senderRole === "client" ? "Client" : m.senderRole}
-            </span>
-            {m.isInternalNote && <span className="chip">Internal note</span>}
-            <span className="t-body-s ml-auto text-[var(--md-on-surface-variant)]">
-              {m.createdLabel}
-            </span>
-          </div>
-          <p className="t-body-s mt-1">{m.body}</p>
-        </div>
+        <Card key={m.messageId} sx={m.isInternalNote ? { bgcolor: "surface.2" } : undefined}>
+          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="overline" sx={{ color: "text.secondary", lineHeight: 1.3 }}>
+                {m.senderRole === "agent" ? "You" : m.senderRole === "client" ? "Client" : m.senderRole}
+              </Typography>
+              {m.isInternalNote && <Chip size="small" variant="outlined" label="Internal note" />}
+              <Typography variant="caption" sx={{ ml: "auto", color: "text.secondary" }}>
+                {m.createdLabel}
+              </Typography>
+            </Box>
+            <Typography component="p" variant="body2" sx={{ mt: 0.5 }}>
+              {m.body}
+            </Typography>
+          </CardContent>
+        </Card>
       ))}
-    </div>
+    </Stack>
   );
 }

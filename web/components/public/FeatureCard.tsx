@@ -1,6 +1,9 @@
 import * as React from "react";
+import MuiAvatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiCard from "@mui/material/Card";
+import Typography, { type TypographyProps } from "@mui/material/Typography";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
 
 interface FeatureCardProps {
   icon: IconName;
@@ -16,23 +19,30 @@ interface FeatureCardProps {
   card?: boolean;
   /** Extra content under the body (e.g. a ScriptureLine). */
   footer?: React.ReactNode;
-  titleClass?: string;
+  /**
+   * The legacy type-ramp name for the title; it picks the MUI variant now (see TITLE_VARIANT).
+   * Kept as the prop callers already pass. Typed to the mapped names, because with Tailwind
+   * gone an unknown name has no class to fall back on.
+   */
+  titleClass?: keyof typeof TITLE_VARIANT;
   as?: "h3" | "h4" | "div";
   className?: string;
 }
 
-const SQUARE: Record<32 | 36 | 40 | 44, string> = {
-  32: "size-8 rounded-sm",
-  36: "size-9 rounded-sm",
-  40: "size-10 rounded-xl",
-  44: "size-11 rounded-md",
-};
-
 const GLYPH: Record<32 | 36 | 40 | 44, number> = { 32: 15, 36: 16, 40: 20, 44: 20 };
+
+/** `.t-title-l` (22/600) → h5, `.t-title` (18/600) → h6, `.t-title-s` (15/600) → subtitle1. */
+const TITLE_VARIANT = {
+  "t-title-l": "h5",
+  "t-title": "h6",
+  "t-title-s": "subtitle1",
+} as const satisfies Record<string, TypographyProps["variant"]>;
 
 /**
  * Icon + overline + title + body (design: the step cards and pillars on 2.0.2, the intro
- * band on 2.0.8, the "what you can do here" rows on mobile 2.0.1).
+ * band on 2.0.8, the "what you can do here" rows on mobile 2.0.1). The glyph is MUI's
+ * rounded Avatar on the primary or secondary container, the way the converted 2.0.2
+ * artboard draws its step cards and pillars.
  */
 export function FeatureCard({
   icon,
@@ -48,44 +58,84 @@ export function FeatureCard({
   as: Heading = "h3",
   className,
 }: FeatureCardProps) {
+  const titleVariant = TITLE_VARIANT[titleClass];
+
   const glyph =
     iconTone === "bare" ? (
-      <Icon name={icon} size={20} className="text-brand-orange" />
+      <Box component="span" sx={{ display: "inline-flex", flexShrink: 0, color: "brand.main" }}>
+        <Icon name={icon} size={20} />
+      </Box>
     ) : (
-      <span
-        className={cn(
-          "inline-flex shrink-0 items-center justify-center",
-          SQUARE[iconSize],
-          iconTone === "primary"
-            ? "bg-primary-container text-on-primary-container"
-            : "bg-secondary-container text-on-secondary-container",
-        )}
+      <MuiAvatar
+        variant="rounded"
+        aria-hidden="true"
+        sx={{
+          width: iconSize,
+          height: iconSize,
+          flexShrink: 0,
+          bgcolor: iconTone === "primary" ? "primary.container" : "secondary.container",
+          color: iconTone === "primary" ? "primary.onContainer" : "secondary.onContainer",
+        }}
       >
         <Icon name={icon} size={GLYPH[iconSize]} />
-      </span>
+      </MuiAvatar>
     );
+
+  const Root = card ? MuiCard : Box;
 
   if (layout === "row") {
     return (
-      <div className={cn(card && "card p-3.5", "flex items-start gap-3", className)}>
+      <Root className={className} sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, ...(card && { p: 1.75 }) }}>
         {glyph}
-        <div className="min-w-0">
-          {overline && <p className="t-label-s text-brand-orange">{overline}</p>}
-          <Heading className={cn(titleClass, "text-on-surface")}>{title}</Heading>
-          {body && <p className="t-body-s mt-0.5 text-on-surface-variant">{body}</p>}
+        <Box sx={{ minWidth: 0 }}>
+          {overline && (
+            <Typography
+              component="p"
+              variant="overline"
+              sx={{ display: "block", color: "brand.main", fontWeight: 600, lineHeight: 1.3 }}
+            >
+              {overline}
+            </Typography>
+          )}
+          <Typography component={Heading} variant={titleVariant} sx={{ color: "text.primary" }}>
+            {title}
+          </Typography>
+          {body && (
+            <Typography component="p" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.secondary" }}>
+              {body}
+            </Typography>
+          )}
           {footer}
-        </div>
-      </div>
+        </Box>
+      </Root>
     );
   }
 
   return (
-    <div className={cn(card && "card p-4.5", "flex flex-col", className)}>
+    <Root className={className} sx={{ display: "flex", flexDirection: "column", ...(card && { p: 2.25 }) }}>
       {glyph}
-      {overline && <p className={cn("t-label-s text-brand-orange", iconTone === "bare" ? "mt-2" : "mt-3")}>{overline}</p>}
-      <Heading className={cn(titleClass, "mt-1 mb-1.5 text-on-surface")}>{title}</Heading>
-      {body && <p className="t-body-s text-on-surface-variant">{body}</p>}
+      {overline && (
+        <Typography
+          component="p"
+          variant="overline"
+          sx={{ display: "block", mt: iconTone === "bare" ? 1 : 1.5, color: "brand.main", fontWeight: 600, lineHeight: 1.3 }}
+        >
+          {overline}
+        </Typography>
+      )}
+      <Typography
+        component={Heading}
+        variant={titleVariant}
+        sx={{ mt: 0.5, mb: 0.75, color: "text.primary" }}
+      >
+        {title}
+      </Typography>
+      {body && (
+        <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+          {body}
+        </Typography>
+      )}
       {footer}
-    </div>
+    </Root>
   );
 }

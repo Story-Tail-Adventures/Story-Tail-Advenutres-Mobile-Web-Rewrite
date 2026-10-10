@@ -3,9 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import { ISLANDS } from "@/content/public/islands";
 import { TRIPS } from "@/content/public/trips";
 import { staImg } from "@/lib/images";
+import { topicQuoteLink } from "@/app/quote/href";
 import { joinHref } from "@/lib/public/links";
 import { countByTopic, resultsHref, tripsForTopic } from "@/lib/public/search";
-import { CARIBBEAN_INTRO, CARIBBEAN_TRIPS, caribbeanSeeAllLabel, caribbeanTripsOverline } from "./content";
+import {
+  CARIBBEAN_INQUIRY_LABEL,
+  CARIBBEAN_INTRO,
+  CARIBBEAN_TRIPS,
+  caribbeanSeeAllLabel,
+  caribbeanTripsOverline,
+} from "./content";
 import CaribbeanPage, { metadata } from "./page";
 
 // next/image needs the Next runtime's loader config; a plain <img> is enough for a smoke test.
@@ -77,16 +84,36 @@ describe("2.0.8 Caribbean page", () => {
     ).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
   });
 
-  it("sends every quote CTA to the gate with this page as next, and message CTAs to the inquiry email", () => {
+  it("sends every quote CTA to the quote form for this topic (not back here), and message CTAs to the inquiry email", () => {
     render(<CaribbeanPage />);
-    // Inquiry bar, closing band, sticky bar.
+    // Closing band and sticky bar. The inquiry bar's is a submit button now — see below.
     const quoteLinks = screen.getAllByRole("link", { name: "Request a quote" });
-    expect(quoteLinks).toHaveLength(3);
+    expect(quoteLinks).toHaveLength(2);
     for (const link of quoteLinks) {
-      expect(link).toHaveAttribute("href", joinHref({ intent: "quote", next: PATH }));
+      expect(link).toHaveAttribute("href", topicQuoteLink(TOPIC));
     }
     expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^mailto:/);
     expect(screen.getByRole("link", { name: "Browse all" })).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
+  });
+
+  it("makes the inquiry bar a GET form that hands what was typed to the quote request", () => {
+    render(<CaribbeanPage />);
+    const form = screen.getByRole("form", { name: CARIBBEAN_INQUIRY_LABEL });
+    expect(form).toHaveAttribute("action", "/quote");
+    expect(form).toHaveAttribute("method", "get");
+    expect(form.querySelector('input[type="hidden"][name="topic"]')).toHaveValue(TOPIC);
+
+    for (const [label, name, hint] of [
+      ["Destination", "dest", "Anywhere Caribbean"],
+      ["Travelers", "travelers", "2 adults"],
+      ["Vibe", "vibe", "Beach + rest"],
+    ] as const) {
+      const input = within(form).getByLabelText(label);
+      expect(input).toHaveAttribute("name", name);
+      expect(input).toHaveValue(name === "travelers" ? null : "");
+      expect(input).toHaveAttribute("placeholder", hint);
+    }
+    expect(within(form).getByRole("button", { name: "Request a quote" })).toHaveAttribute("type", "submit");
   });
 
   it("has canonical and Open Graph metadata with the hero image", () => {

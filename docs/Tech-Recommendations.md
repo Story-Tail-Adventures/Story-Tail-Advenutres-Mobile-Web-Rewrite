@@ -72,6 +72,47 @@ This is the architecture the BRD now commits to in Section 15.1.
 
 **Compose-for-Web — explicitly out of scope.** As of 2026, Compose Multiplatform for Web is in Beta and not at parity with Compose for Android/iOS. Even if it reaches Stable in a future release, migrating away from Next.js + React would not be a meaningful win for this project — the public SEO surface alone justifies Next.js, the React ecosystem covers everything needed, and the hiring market is far larger. We are not waiting for or planning toward a future Compose-for-Web migration.
 
+### 2.3.1 Styling migration: MUI v9 (done)
+
+`web/` used to style with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi decided the styling system for the web app is **MUI (Material UI) v9**, replacing Tailwind entirely. Decided 2026-09-29. Step 1 (the design source) shipped 2026-10-01 as PR #83. Step 2 (`web/`) was built 2026-10-01 to 2026-10-03 as seven stacked PRs, the last of which removed Tailwind; see "Step 2 in `web/`" below.
+
+This is a natural fit rather than a clash: the Design System's color tokens (§4) are already Material-3-based, so an MUI theme can consume the same token values instead of introducing a parallel design language.
+
+**Order matters — do these in sequence, not in parallel:**
+
+1. **Design source first.** Update the canonical design source (the Claude Design project linked in this doc's header and CLAUDE.md, plus its local mirror `design/source-prototype/`) so screens are built with MUI components and theming. Use the existing `sync-design-handoff` skill to pull the updated screens down once the design side is done.
+2. **Then implement in `web/`.** Only after the design source reflects MUI should the codebase migration start: introduce an MUI `ThemeProvider` driven by the existing design tokens, replace Tailwind utility classes with MUI components/`sx`/styled APIs screen by screen, and remove the `tailwindcss` / `@tailwindcss/postcss` dependencies once no Tailwind classes remain.
+
+Don't start step 2 before step 1 is done — building MUI screens in code against a Tailwind-era design source just means redoing the work once the design catches up.
+
+**Version: `@mui/material` 9.4.0** (v9 went stable 2026-04-07). It supports React 17–19, and `web/` is on React 19.2.4. `web/` pins the same exact versions, and `.github/scripts/check_mui_lockstep.py` fails CI if `web/` and `design/mui-vendor/` ever differ.
+
+**How the design source loads MUI (step 1).** The prototype is Babel-standalone JSX loaded with plain `<script>` tags, and MUI has shipped no UMD build since v6 (React 19 has none either). So `design/mui-vendor/` is a small build-only package that bundles both with esbuild into `design/source-prototype/shared/vendor/`:
+
+- `react.js` sets `window.React` / `window.ReactDOM` (React 19.2.4, the same version as `web/`).
+- `mui/mui-core.js`, `mui-controls.js` and `mui-overlays.js` are ES-module entries that merge into `window.MUI`. They share one chunk of emotion + `@mui/system`. Two copies would mean two theme contexts and unthemed components.
+- Every output file must stay under 256 KiB, the `DesignSync get_file` cap, and `build.mjs` fails if one doesn't. Import components by deep path (`@mui/material/Button`), not from the barrel. The barrel collapses everything into one 480 KiB chunk.
+- To add a component: add it to an entry file, then `cd design/mui-vendor && npm install && npm run build`. Push the whole `shared/vendor/` folder, because chunk names are content hashes.
+
+The theme lives in `design/source-prototype/shared/mui-theme.jsx` (`StaMuiThemes`, `StaMuiScheme`). MUI versions of the app shell and shared parts live in `shared/mui-kit.jsx`. Step 2 should port that theme to `web/` rather than design a new one.
+
+**Scope of step 1:** web artboards only. Phone artboards (`screens/*-mobile.jsx`, §2.7) keep the legacy CSS-variable styling, because the Compose app implements Material 3 natively and can't use MUI.
+
+**Step 2 in `web/` (2026-10-01 to 2026-10-03).** Gyasi's calls: ship it as seven PRs by surface, each stacked on the last (foundation → app shells → public §2.0 → auth and onboarding §2.1 → client app → agent app → remove Tailwind), with Tailwind and MUI side by side until the last one; use MUI components everywhere, including where native `<dialog>`, `<details>` and `popover` worked without JavaScript; match the artboards' look but keep each page's existing web layout and behavior. Only screens already built are converted, and no copy changes.
+
+How the foundation (PR 1) fits MUI into this app:
+
+- **One theme, CSS variables, our class.** `web/lib/mui/theme.ts` is a single `createTheme` with `cssVariables: { colorSchemeSelector: ".scheme-%s" }` and light/dark `colorSchemes`, ported from the prototype's `mui-theme.jsx`. MUI emits light on `:root` and dark on `.scheme-dark`, so the existing pre-paint `ThemeScript` keeps owning the scheme and server HTML does not depend on it. `components/mui/MuiRegistry.tsx` turns off MUI's own storage and `<html>` class handling (`storageManager`, `storageWindow`, `colorSchemeNode` all `null`). The prototype's two-theme pattern is NOT used in `web/`, because it would pick the scheme at render time and flash.
+- **Next.js integration.** `AppRouterCacheProvider` from `@mui/material-nextjs/v16-appRouter`, with `enableCssLayer`. Every emotion rule goes into `@layer mui`. During the coexistence `app/globals.css` opened with `@layer theme, base, mui, components, utilities;`, so Tailwind's preflight sat below MUI while the legacy CSS and Tailwind utilities still sat above it. Since PR 7 it is `@layer base, mui, components;`: the element reset below MUI, the remaining plain CSS above it.
+- **Server Components.** All pages and layouts stay Server Components. They render MUI with serializable props only (plain `sx`, strings, `component={NextLink}`); anything needing a callback or `styled()` is a `"use client"` file. Rules in `web/AGENTS.md`.
+- **Tokens.** `web/lib/mui/tokens.ts` holds the values as pure data; `lib/mui/tokens.test.ts` parses `design/web-tokens/tokens.css`, `web/styles/tokens.css` and the prototype's `.chip-status` rules and fails on drift. Breakpoints keep Tailwind's (640 / 768 / 1024 / 1200 `web` / 1280).
+- **Removing Tailwind (PR 7).** `tailwindcss`, `@tailwindcss/postcss` and `postcss.config.mjs` are gone, and so are the `@theme` / `@custom-variant` / `@utility` blocks and the legacy `.btn` / `.card` / `.chip` / `.input` CSS. Tailwind's preflight stays, vendored as `web/styles/reset.css`, rather than swapped for MUI's `CssBaseline`: every converted screen was built on it and relies on its margin, list and heading resets, which `CssBaseline` does not do. `web/test/class-allowlist.test.ts` checks every className against the classes the remaining CSS defines, so a leftover utility fails CI instead of silently styling nothing.
+- **Icons** stay ours: `components/ui/Icon` wraps the same stroke paths in `SvgIcon`. No `@mui/icons-material` and no `@mui/x-date-pickers` (a new SDK needs a security review); eslint blocks both.
+
+**Use the official MUI MCP server once the migration starts.** MUI publishes an MCP server ([mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) that connects an AI coding assistant directly to official Material UI docs and code examples, so answers quote real sources instead of hallucinating APIs or component names. It runs locally over stdio via `npx -y @mui/mcp@latest` and has a documented setup for Claude Code specifically (as well as VS Code, Cursor, Windsurf, JetBrains, Zed). It is registered in the project's `.mcp.json` as `mui-mcp` (added with step 2's foundation PR); Claude Code asks once to enable a project-scoped server.
+
+See Design-System.md §12.2 for the corresponding note on the "what" of this target.
+
 ### 2.4 What Option A Would Need to Become Compelling
 
 Three things would tip the recommendation toward all-KMP:
@@ -366,7 +407,7 @@ For the mobile app, copy the four Kotlin files from `Web Rewrite/design/compose-
 
 Add Poppins, Caveat, and JetBrains Mono to `mobile/shared/src/commonMain/composeResources/font/`. Update `StoryTailTypography.kt` to point `PoppinsFamily`, `CaveatFamily`, `MonoFamily` at the bundled resources.
 
-For the web app, copy the three CSS files from `Web Rewrite/design/source-prototype/styles/` into `web/styles/` and import `tokens.css` from the Next.js root layout. The CSS variables become available to every component. Use Tailwind CSS or CSS Modules on top — the tokens are CSS custom properties, so any styling approach can consume them. For type-safe access, also import the parallel `design-tokens.ts` file (described in Section 6 of the Design System spec).
+For the web app, copy the three CSS files from `Web Rewrite/design/source-prototype/styles/` into `web/styles/` and import `tokens.css` from the Next.js root layout. The CSS variables become available to every component. Style with MUI v9 on top: the theme in `web/lib/mui/theme.ts` reads the same values from `web/lib/mui/tokens.ts`, and the CSS variables stay for the few plain-CSS rules that must work before hydration. For type-safe access, also import the parallel `design-tokens.ts` file (described in Section 6 of the Design System spec).
 
 #### Step 3 — Create CLAUDE.md
 

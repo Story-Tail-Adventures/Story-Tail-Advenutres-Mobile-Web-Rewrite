@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { OnboardingActions } from "@/components/onboarding/OnboardingActions";
 import { Alert } from "@/components/ui/Alert";
 import { DateField } from "@/components/ui/DateField";
@@ -50,6 +52,22 @@ const COUNTRY_OPTIONS = COUNTRIES.map((country) => ({
   label: country.name,
 }));
 
+/** A fieldset that is a group and nothing else: no box, no inset, and free to shrink. */
+const FIELDSET_RESET = { m: 0, p: 0, border: 0, minWidth: 0 } as const;
+/** Two-up from `md`, one column below it (12px between cells, as before). */
+const GRID_2 = {
+  display: "grid",
+  gap: 1.5,
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))" },
+} as const;
+const GRID_3 = {
+  display: "grid",
+  gap: 1.5,
+  gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
+} as const;
+/** A cell that spans the whole row from `md`. */
+const SPAN_ROW = { gridColumn: { md: "1 / -1" } } as const;
+
 /**
  * `action` and `footer` exist so Screen 2.5.2 can mount THIS form rather than grow a
  * second set of rules. Both default to the wizard's, so 2.1.10 is unchanged.
@@ -93,17 +111,18 @@ export function ProfileForm({
         {/* Everything inert while the save is in flight — the same guard RegisterForm and
             JoinForm use. Without it the Enter key in any of thirteen inputs fires a second
             submit, and this endpoint writes an `audit_event` on every call. */}
-        <fieldset
+        <Box
+          component="fieldset"
           disabled={saving}
-          className="m-0 flex flex-col gap-5 border-0 p-0"
+          sx={{ ...FIELDSET_RESET, display: "flex", flexDirection: "column", gap: 2.5 }}
         >
           {state.formError && <Alert tone="error">{state.formError}</Alert>}
 
-          <p className="t-body-s m-0 text-on-surface-variant">
+          <Typography component="p" variant="body2" sx={{ m: 0, color: "text.secondary" }}>
             {PROFILE_TEXT.optionalNote}
-          </p>
+          </Typography>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <Box sx={GRID_2}>
             <Field
               id="phone"
               name="phone"
@@ -125,15 +144,15 @@ export function ProfileForm({
               defaultValue={shown.dateOfBirth}
               max={todayIso()}
             />
-          </div>
+          </Box>
 
           <Group
             legend={PROFILE_TEXT.groupAddress}
             error={first("address")}
             errorId="address-error"
           >
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="md:col-span-2">
+            <Box sx={GRID_2}>
+              <Box sx={SPAN_ROW}>
                 <Field
                   id="addressLine1"
                   name="addressLine1"
@@ -146,8 +165,8 @@ export function ProfileForm({
                   error={first("addressLine1")}
                   defaultValue={shown.addressLine1}
                 />
-              </div>
-              <div className="md:col-span-2">
+              </Box>
+              <Box sx={SPAN_ROW}>
                 <Field
                   id="addressLine2"
                   name="addressLine2"
@@ -157,7 +176,7 @@ export function ProfileForm({
                   error={first("addressLine2")}
                   defaultValue={shown.addressLine2}
                 />
-              </div>
+              </Box>
               <Field
                 id="addressCity"
                 name="addressCity"
@@ -203,7 +222,7 @@ export function ProfileForm({
                 value={country}
                 onChange={(event) => setCountry(event.target.value)}
               />
-            </div>
+            </Box>
           </Group>
 
           <Group
@@ -212,7 +231,7 @@ export function ProfileForm({
             error={first("emergencyContact")}
             errorId="emergency-error"
           >
-            <div className="grid gap-3 md:grid-cols-3">
+            <Box sx={GRID_3}>
               <Field
                 id="emergencyName"
                 name="emergencyName"
@@ -252,7 +271,7 @@ export function ProfileForm({
                   <option key={option} value={option} />
                 ))}
               </datalist>
-            </div>
+            </Box>
           </Group>
 
           <Group
@@ -262,13 +281,13 @@ export function ProfileForm({
             error={first("passport")}
             errorId="passport-error"
           >
-            <div className="flex flex-col gap-3">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               {expired && (
                 <Alert tone="warning">
                   {PROFILE_TEXT.passportExpiredWarning}
                 </Alert>
               )}
-              <div className="grid gap-3 md:grid-cols-2">
+              <Box sx={GRID_2}>
                 <DateField
                   id="passportExpiry"
                   name="passportExpiry"
@@ -287,10 +306,10 @@ export function ProfileForm({
                   error={first("passportCountry")}
                   defaultValue={shown.passportCountry}
                 />
-              </div>
-            </div>
+              </Box>
+            </Box>
           </Group>
-        </fieldset>
+        </Box>
       </form>
 
       {footer ?? (
@@ -336,23 +355,40 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset
-      className="m-0 border-0 p-0"
+    <Box
+      component="fieldset"
+      sx={FIELDSET_RESET}
       aria-describedby={error ? errorId : undefined}
     >
-      <legend className="t-title-s mb-1 p-0 text-on-surface">{legend}</legend>
+      <Typography
+        component="legend"
+        variant="subtitle1"
+        sx={{ mb: 0.5, p: 0, color: "text.primary" }}
+      >
+        {legend}
+      </Typography>
       {note && (
-        <p className="t-body-s mt-0 mb-1 text-on-surface-variant">{note}</p>
+        <Typography component="p" variant="body2" sx={{ mt: 0, mb: 0.5, color: "text.secondary" }}>
+          {note}
+        </Typography>
       )}
       {hint && (
-        <p className="t-body-s mt-0 mb-3 text-on-surface-variant">{hint}</p>
+        <Typography component="p" variant="body2" sx={{ mt: 0, mb: 1.5, color: "text.secondary" }}>
+          {hint}
+        </Typography>
       )}
       {error && (
-        <p id={errorId} role="alert" className="t-body-s mt-0 mb-3 text-error">
+        <Typography
+          component="p"
+          id={errorId}
+          role="alert"
+          variant="body2"
+          sx={{ mt: 0, mb: 1.5, color: "error.main" }}
+        >
           {error}
-        </p>
+        </Typography>
       )}
       {children}
-    </fieldset>
+    </Box>
   );
 }

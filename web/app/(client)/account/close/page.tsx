@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import MuiLink from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
+import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { TextareaField } from "@/components/ui/Textarea";
@@ -14,6 +21,9 @@ export const metadata: Metadata = {
   title: "Close account",
   robots: { index: false, follow: false },
 };
+
+/** The legacy `.btn-text` box (40px, 12px sides) on MUI's Button, for the keep-account link. */
+const TEXT_BTN_SX = { minHeight: 40, px: "12px", gap: 1, whiteSpace: "nowrap" } as const;
 
 /**
  * Screen Inventory 2.5.10 — Account Closure. §4.4 Pattern J (destructive confirmation).
@@ -52,39 +62,52 @@ export default async function CloseAccountPage() {
         backLabel={CLOSE.back}
       />
 
-      <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-        <div className="mb-4 flex items-center gap-3">
-          <span
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-container text-on-error-container"
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 } }}>
+        <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar
             aria-hidden="true"
+            sx={{ width: 44, height: 44, flexShrink: 0, bgcolor: "error.container", color: "error.onContainer" }}
           >
             <Icon name="warning" size={20} />
-          </span>
-          <h2 className="t-title-l">{CLOSE.heading}</h2>
-        </div>
+          </Avatar>
+          <Typography component="h2" variant="h5">
+            {CLOSE.heading}
+          </Typography>
+        </Box>
 
-        <Card variant="flat" className="p-4">
-          <p className="t-label-s text-on-surface-variant">{CLOSE.whatHappensLabel}</p>
-          <ul className="t-body-s mt-1.5 list-disc pl-5 leading-7">
+        {/* The legacy card-flat: outlined on surface.2 (components/ui/Card). */}
+        <Card variant="outlined" sx={{ p: 2, bgcolor: "surface.2" }}>
+          <Typography
+            component="p"
+            variant="overline"
+            sx={{ display: "block", lineHeight: 1.3, color: "text.secondary" }}
+          >
+            {CLOSE.whatHappensLabel}
+          </Typography>
+          {/* The element reset (styles/reset.css) strips list markers, so the disc is set back explicitly. */}
+          <Box
+            component="ul"
+            sx={{ m: 0, p: 0, mt: 0.75, pl: 2.5, listStyleType: "disc", typography: "body2", lineHeight: "28px" }}
+          >
             {CLOSE.whatHappens.map((line) => (
               <li key={line}>{line}</li>
             ))}
-          </ul>
+          </Box>
         </Card>
 
-        <Card className="mt-3 border-0 bg-secondary-container p-4 text-on-secondary-container">
-          <p className="t-body-s">
+        <Paper elevation={0} sx={{ mt: 1.5, p: 2, bgcolor: "secondary.container", color: "secondary.onContainer" }}>
+          <Typography component="p" variant="body2">
             {CLOSE.reconsiderBody}{" "}
             {/* 2.6.3 rather than a `mailto:`. Somebody about to close their account and
                 choosing to write first should reach the thread their advisor actually reads,
                 not an email client that may not be configured on the device at all. */}
-            <Link href="/messages/new" className="font-semibold underline">
+            <MuiLink component={NextLink} href="/messages/new" color="inherit" sx={{ fontWeight: 600 }}>
               {CLOSE.reconsiderCta}
-            </Link>
-          </p>
-        </Card>
+            </MuiLink>
+          </Typography>
+        </Paper>
 
-        <div className="mt-5">
+        <Box sx={{ mt: 2.5 }}>
           <TextareaField
             id="closure-reason"
             label={CLOSE.reasonLabel}
@@ -93,9 +116,9 @@ export default async function CloseAccountPage() {
             placeholder={CLOSE.reasonPlaceholder}
             disabled
           />
-        </div>
+        </Box>
 
-        <div className="mt-3">
+        <Box sx={{ mt: 1.5 }}>
           <Field
             id="closure-confirm-email"
             label={CLOSE.confirmLabel}
@@ -105,23 +128,38 @@ export default async function CloseAccountPage() {
             hint={CLOSE.confirmHint}
             disabled
           />
-        </div>
+        </Box>
 
-        <button
-          type="button"
-          className="btn btn-danger mt-5 w-full"
-          disabled
-          aria-disabled="true"
-          title={CLOSE.deferred}
+        <Box sx={{ mt: 2.5 }}>
+          <Button
+            variant="danger"
+            fullWidth
+            disabled
+            aria-disabled="true"
+            title={CLOSE.deferred}
+          >
+            {CLOSE.confirmCta}
+          </Button>
+        </Box>
+        <Typography
+          component="p"
+          variant="caption"
+          sx={{ mt: 1, display: "block", textAlign: "center", color: "text.secondary" }}
         >
-          {CLOSE.confirmCta}
-        </button>
-        <p className="t-body-s mt-2 text-center text-on-surface-variant">{CLOSE.deferred}</p>
+          {CLOSE.deferred}
+        </Typography>
 
-        <Link href="/account" className="btn btn-text mt-2 w-full">
+        <MuiButton
+          component={NextLink}
+          href="/account"
+          variant="text"
+          color="primary"
+          fullWidth
+          sx={{ ...TEXT_BTN_SX, mt: 1 }}
+        >
           {CLOSE.keepCta}
-        </Link>
-      </div>
+        </MuiButton>
+      </Box>
     </div>
   );
 }

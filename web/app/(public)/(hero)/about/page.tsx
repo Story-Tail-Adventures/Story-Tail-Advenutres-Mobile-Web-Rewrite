@@ -3,6 +3,8 @@
 // client-public-mobile.jsx (M2011_AboutGyasi). P1-eligible.
 import type { Metadata } from "next";
 import * as React from "react";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { ClosingCta } from "@/components/public/ClosingCta";
 import { Container } from "@/components/public/Container";
 import { CredentialCard } from "@/components/public/CredentialCard";
@@ -14,6 +16,7 @@ import { TestimonialCard } from "@/components/public/TestimonialCard";
 import { GYASI_FAQ } from "@/content/public/faq/gyasi";
 import { TESTIMONIALS } from "@/content/public/proof";
 import { staImg } from "@/lib/images";
+import { DARK, UP_MD, UP_WEB } from "@/lib/mui/sx";
 import { inquiryHref } from "@/lib/public/inquiry";
 import { joinHref } from "@/lib/public/links";
 import { AdvisorHero } from "./AdvisorHero";
@@ -32,6 +35,40 @@ export const metadata: Metadata = {
     images: [{ url: staImg("sunset", 1200, 630), width: 1200, height: 630 }],
   },
 };
+
+/** Section rhythm: 32px between blocks on phones, 44px from `md`. */
+const SECTION_GAP = { mb: { xs: 4, md: 5.5 } } as const;
+
+/**
+ * The testimonials list: the legacy `.h-scroll` snap strip below `md` (bleeding into the
+ * gutters by `--gutter`, the same variable Container pads with), a 2-up grid at tablet and
+ * 3-up on web. All of it is here rather than on the class, because `.h-scroll` lives in a
+ * cascade layer above MUI's and an sx `display: grid` could not override it.
+ */
+const TESTIMONIAL_STRIP = {
+  listStyle: "none",
+  m: 0,
+  display: "flex",
+  gap: 1,
+  overflowX: "auto",
+  scrollSnapType: "x mandatory",
+  pb: 1.25,
+  mx: "calc(-1 * var(--gutter))",
+  px: "var(--gutter)",
+  scrollbarWidth: "none",
+  "&::-webkit-scrollbar": { display: "none" },
+  "& > *": { scrollSnapAlign: "start", flexShrink: 0 },
+  [UP_MD]: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 1.75,
+    overflow: "visible",
+    mx: 0,
+    px: 0,
+    pb: 0,
+  },
+  [UP_WEB]: { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" },
+} as const;
 
 function Rich({ parts }: { parts: RichText }) {
   return (
@@ -64,48 +101,72 @@ export default function AboutGyasiPage() {
 
       <StatStrip stats={ABOUT_STATS} />
 
-      <Container size="wide" className="pt-5 pb-6 md:pt-10 md:pb-14">
+      <Container size="wide" sx={{ pt: { xs: 2.5, md: 5 }, pb: { xs: 3, md: 7 } }}>
         {/* Bio + credentials */}
-        <div className="bio-grid mb-8 md:mb-11">
+        <Box
+          sx={{
+            ...SECTION_GAP,
+            display: "grid",
+            gap: 3.5,
+            [UP_WEB]: { gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)" },
+          }}
+        >
           <section aria-labelledby="story">
             <SectionLabel id="story" overline={ABOUT.story.overline} title={ABOUT.story.title} />
-            <div className="t-body-l max-w-160 text-pretty text-on-surface">
+            <Box sx={{ maxWidth: 640, textWrap: "pretty", color: "text.primary" }}>
               {ABOUT.story.paragraphs.map((paragraph, index) => (
-                <p key={index} className="mb-3.5 last:mb-0">
+                <Typography key={index} variant="body1" component="p" sx={{ mb: 1.75, "&:last-child": { mb: 0 } }}>
                   <Rich parts={paragraph} />
-                </p>
+                </Typography>
               ))}
-            </div>
-            <p className="t-script-sign text-script-accent mt-3 md:mt-4.5">{ABOUT.story.signature}</p>
+            </Box>
+            {/* Script accent: burgundy in light; the dark tropical scheme swaps to sunset
+                gold, because burgundy on navy measures ~1.5:1. */}
+            <Typography
+              variant="script"
+              component="p"
+              sx={{
+                mt: { xs: 1.5, md: 2.25 },
+                fontSize: { xs: 26, md: 30 },
+                color: "primary.main",
+                [DARK]: { color: "secondary.main" },
+              }}
+            >
+              {ABOUT.story.signature}
+            </Typography>
           </section>
 
           <section aria-labelledby="credentials">
             <SectionLabel id="credentials" overline={ABOUT.credentials.overline} title={ABOUT.credentials.title} />
-            <ul className="flex flex-col gap-1.5 md:gap-2">
+            <Box
+              component="ul"
+              sx={{ display: "flex", flexDirection: "column", gap: { xs: 0.75, md: 1 }, listStyle: "none", m: 0, p: 0 }}
+            >
               {ABOUT_CREDENTIALS.map((credential) => (
                 <CredentialCard key={credential.display} title={credential.display} detail={credential.detail} />
               ))}
-            </ul>
+            </Box>
           </section>
-        </div>
+        </Box>
 
         {/* Testimonials — snap strip below `md`, 2-up at tablet, 3-up on web. */}
-        <section aria-labelledby="testimonials" className="mb-8 md:mb-11">
+        <Box component="section" aria-labelledby="testimonials" sx={SECTION_GAP}>
           <SectionLabel id="testimonials" overline={ABOUT.testimonials.overline} title={ABOUT.testimonials.title} />
-          <ul className="h-scroll md:mx-0 md:grid md:max-web:grid-cols-2 md:gap-3.5 md:overflow-visible md:px-0 md:pb-0 web:grid-cols-3">
+          <Box component="ul" sx={TESTIMONIAL_STRIP}>
             {TESTIMONIALS.map((testimonial) => (
-              <li key={testimonial.who} className="flex w-72 md:w-auto">
-                <TestimonialCard testimonial={testimonial} className="flex-1" />
-              </li>
+              // `grid` so the one card stretches to the row's full height and width.
+              <Box component="li" key={testimonial.who} sx={{ display: "grid", width: { xs: 288, md: "auto" } }}>
+                <TestimonialCard testimonial={testimonial} />
+              </Box>
             ))}
-          </ul>
-        </section>
+          </Box>
+        </Box>
 
         {/* FAQ — the five desktop questions. */}
-        <section aria-labelledby="faq" className="mb-8 md:mb-11">
+        <Box component="section" aria-labelledby="faq" sx={SECTION_GAP}>
           <SectionLabel id="faq" overline={ABOUT.faq.overline} title={ABOUT.faq.title} />
           <FaqList items={GYASI_FAQ} answerSize="m" />
-        </section>
+        </Box>
 
         <ClosingCta
           image="sunset"

@@ -68,11 +68,18 @@ Map remote → local:
 | `project/styles/tweaks.css` | `design/source-prototype/styles/tweaks.css` |
 | `project/screens/*.jsx` | `design/source-prototype/screens/*.jsx` |
 | `project/shared/*` | `design/source-prototype/shared/*` |
+| `project/shared/vendor/**` | `design/source-prototype/shared/vendor/**` (built output; see note below) |
 | `project/brand/*` | `design/source-prototype/brand/*` |
 | `project/artboards/*` | `design/source-prototype/artboards/*` |
 | `project/tweaks/*` | `design/source-prototype/tweaks/*` |
 | `project/Story-Tail Designs.html` | `design/source-prototype/Story-Tail Designs.html` |
 | `project/pages/*` (section pages + `_sections.json`, injected blocks stripped) | `design/source-prototype/pages/*` |
+
+**`shared/vendor/` is build output.** It holds React 19 + MUI v9 bundled by `design/mui-vendor/`
+(local build source only; it is never pushed to the design project). Don't hand-merge it. If
+upstream and local differ, rebuild locally (`cd design/mui-vendor && npm install && npm run build`)
+and push the whole folder: chunk file names are content hashes, so delete remote chunks that the
+new build no longer emits. See `docs/Tech-Recommendations.md` §2.3.1.
 
 Run `diff -rq "$REMOTE" "$LOCAL"` for each pair (or one rooted diff if the trees align). Categorize the output into:
 
@@ -116,6 +123,8 @@ For each approved change, copy from `$REMOTE` to the corresponding local path. U
 If `tokens.css` changed, do **not** auto-regenerate `design/compose-theme/StoryTail*.kt`. Instead, after the copy, print:
 
 > Token changes detected. The mobile theme files at `design/compose-theme/StoryTail*.kt` use these same values and need a hand-update to stay in sync. Specifically check: `StoryTailColors.kt` against the `--md-*` vars, `StoryTailTypography.kt` against `--font-*`, `StoryTailShape.kt` against `--r-*`. Run me with "sync compose theme" to do that pass.
+>
+> The web app needs the same values twice: `web/styles/tokens.css` (the CSS variables) and `web/lib/mui/tokens.ts` (what the MUI theme reads). `npm run test -w web` fails in `lib/mui/tokens.test.ts` until both match `design/web-tokens/tokens.css`.
 
 (If/when "sync compose theme" becomes its own skill, link to it here.)
 

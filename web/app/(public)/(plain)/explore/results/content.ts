@@ -128,6 +128,13 @@ export const RESULTS = {
     itinerary: "Ports of call",
     morePorts: (n: number) => `+${n} more`,
     quote: "Request quote*",
+    /**
+     * Prefix for the ship photo's attribution line. The credit itself arrives from the
+     * database already rendered — "Kiran891 / Wikimedia Commons, CC BY-SA 4.0" — so this is
+     * only the label that makes it read as a credit and not as page copy. Required wherever
+     * the photo appears: the images are CC BY / CC BY-SA. See Data-Model §24.2.
+     */
+    photoCredit: "Photo:",
     /** Sits under the results. There is deliberately no price anywhere on this card. */
     priceNote:
       "Fares move with the cabin and the week, so Gyasi prices these himself — ask and he’ll come back with what it actually costs.",

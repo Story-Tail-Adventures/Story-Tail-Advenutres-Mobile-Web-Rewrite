@@ -48,11 +48,19 @@ export const CARIBBEAN_HERO = {
   sub: HERO_SUB,
 };
 
+/** The bar's form name, for screen readers. */
+export const CARIBBEAN_INQUIRY_LABEL = "Ask Gyasi about a Caribbean week";
+
+/**
+ * The bar's cells, empty until the visitor fills them; the artboard's values are the hints.
+ * When reads "Flexible dates", not "Flexible · 7 nights": the dates cell is a button whose
+ * label is its value, and "7 nights" would read as a stay already picked.
+ */
 export const CARIBBEAN_INQUIRY_FIELDS: readonly InquiryField[] = [
-  { label: "Destination", value: "Anywhere Caribbean", icon: "map" },
-  { label: "When", value: "Flexible · 7 nights", icon: "calendar" },
-  { label: "Travelers", value: "2 adults", icon: "user" },
-  { label: "Vibe", value: "Beach + rest", icon: "palm" },
+  { name: "dest", label: "Destination", placeholder: "Anywhere Caribbean", icon: "map", type: "text" },
+  { name: "dates", label: "When", placeholder: "Flexible dates", icon: "calendar", type: "dates" },
+  { name: "travelers", label: "Travelers", placeholder: "2 adults", icon: "user", type: "number" },
+  { name: "vibe", label: "Vibe", placeholder: "Beach + rest", icon: "palm", type: "text" },
 ];
 
 export const CARIBBEAN_INTRO: readonly IntroPoint[] = [

@@ -88,7 +88,6 @@ export type Worklist = {
   periodLabel: string;
   needsYouCount: number;
   kpis: AgentKpi[];
-  currencyNote: string | null;
   proposalsAwaiting: WorklistTrip[];
   paymentsDue: WorklistPayment[];
   newInquiries: WorklistTrip[];
@@ -193,7 +192,7 @@ function partOfDayIn(timeZone: string): Worklist["partOfDay"] {
 }
 
 function kpisFrom(k: AgentKpiRow): AgentKpi[] {
-  const cur = k.dominant_currency;
+  const cur = k.currency;
   return [
     {
       id: "pipeline",
@@ -355,12 +354,6 @@ export async function loadWorklist(): Promise<Worklist | null> {
     periodLabel,
     needsYouCount,
     kpis: kpisFrom(k),
-    // Under-reporting with the exclusion named, never a mixed sum. The accessors scope
-    // every money figure to one currency; this is the screen saying so.
-    currencyNote:
-      k.currency_count > 1
-        ? AGENT_COPY.currencyNote(k.dominant_currency ?? "USD", k.currency_count - 1)
-        : null,
     proposalsAwaiting,
     paymentsDue,
     newInquiries,
@@ -427,19 +420,14 @@ export type PipelineCard = {
 export type PipelineColumn = {
   status: string;
   label: string;
-  /** Every card in the column, whatever it is priced in. */
   count: number;
-  /** Scoped to the dominant currency. Never a sum across two of them. */
   totalLabel: string;
-  /** How many of this column's cards the total leaves out. Zero in the single-currency case. */
-  excludedCount: number;
   cards: PipelineCard[];
 };
 
 export type Pipeline = {
   columns: PipelineColumn[];
   cancelledCount: number;
-  currencyNote: string | null;
 };
 
 /**
@@ -468,26 +456,20 @@ export async function loadPipeline(): Promise<Pipeline | null> {
 
   const trips = boardRes.rows;
 
-  // A COLUMN TOTAL MUST NOT MIX CURRENCIES. The accessors scope every money figure they
-  // return to the dominant currency; this reduce used to sum the column's cards whatever
-  // each was priced in and then label the result `dominant_currency` — the exact shape the
-  // read-surface migration calls "strictly worse than scoping none of them, because the
-  // label makes a claim about figures that do not honour it".
-  //
-  // So: sum only the cards denominated in the dominant code, and hand the screen the number
-  // of cards that leaves out. Naming the exclusion is the whole rule — `count` stays the
-  // honest count of cards in the column, because a card count is not money.
-  const dominant = k.dominant_currency ?? "USD";
+  // A column total sums every card in the column. It used to sum only the cards in the
+  // agent's most-used currency and report how many it left out, because a total across
+  // currencies is not money in any of them. `trip_currency_usd` (20260930100000) settles
+  // that upstream: Story-Tail quotes in USD, so every card in every column is USD and there
+  // is nothing to leave out.
+  const currency = k.currency ?? "USD";
   const columns = PIPELINE_STAGES.map((stage) => {
     const cards = trips.filter((t) => t.status === stage.status);
-    const counted = cards.filter((t) => t.currency === dominant);
-    const total = counted.reduce((sum, t) => sum + cents(t.total_value_cents), 0);
+    const total = cards.reduce((sum, t) => sum + cents(t.total_value_cents), 0);
     return {
       status: stage.status,
       label: stage.label,
       count: cards.length,
-      totalLabel: formatTripMoney(total, dominant, { whole: true }),
-      excludedCount: cards.length - counted.length,
+      totalLabel: formatTripMoney(total, currency, { whole: true }),
       cards: cards.map((t) => ({
         tripId: t.trip_id,
         clientName: t.client_display_name,
@@ -505,11 +487,6 @@ export async function loadPipeline(): Promise<Pipeline | null> {
     // trips are excluded without becoming invisible. The board read filters archived trips,
     // not cancelled ones, so they are here to count.
     cancelledCount: trips.filter((t) => t.status === "cancelled").length,
-    // `currency_count` is now computed over the agent's whole non-archived book, not just
-    // the open trips, so a euro trip sitting in Completed reaches this note instead of
-    // sliding into a column total with nothing on the page to say so.
-    currencyNote:
-      k.currency_count > 1 ? AGENT_COPY.currencyNote(dominant, k.currency_count - 1) : null,
   };
 }
 

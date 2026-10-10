@@ -1,6 +1,6 @@
 {
   "name": "storytail-adventures",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "Story-Tail Adventures CRM platform \u2014 mobile + web + Supabase backend",
   "license": "UNLICENSED",
@@ -18,10 +18,10 @@
     "supabase:start": "set -a; [ -f supabase/.env.local ] && . ./supabase/.env.local; set +a; supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset && ./supabase/scripts/seed-storage-objects.sh",
-    "supabase:types": "mkdir -p web/types && supabase gen types typescript --local > web/types/supabase.ts && supabase gen types typescript --local > supabase/functions/_shared/database.types.ts",
+    "supabase:types": "./supabase/scripts/gen-types.sh",
     "supabase:seed-storage": "./supabase/scripts/seed-storage-objects.sh"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.11.7"
   }
 }

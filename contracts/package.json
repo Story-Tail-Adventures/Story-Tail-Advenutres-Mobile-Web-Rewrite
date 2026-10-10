@@ -1,6 +1,6 @@
 {
   "name": "@storytail/contracts",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "OpenAPI contract for the Story-Tail Adventures API, plus generated TypeScript types.",
   "scripts": {
@@ -10,8 +10,8 @@
     "generate:kotlin": "node scripts/generate-kotlin.mjs"
   },
   "devDependencies": {
+    "js-yaml": "^5.4.2",
     "openapi-typescript": "^7.13.0",
-    "typescript": "^5",
-    "js-yaml": "^4.1.0"
+    "typescript": "^7"
   }
 }

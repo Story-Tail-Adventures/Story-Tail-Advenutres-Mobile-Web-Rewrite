@@ -24,10 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.ClientCopy
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.ui.components.agent.AgentScaffold
@@ -60,6 +58,8 @@ fun ClientDetailScreen(
     activeTab: String,
     onSelectTab: (String) -> Unit,
     onBack: () -> Unit,
+    /** Screen 3.4.2, from the Trips tab's cards. */
+    onOpenTrip: (String) -> Unit,
     onSelectBarTab: (String) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -92,7 +92,7 @@ fun ClientDetailScreen(
                 body = "Your account does not have access to this client.",
             )
             is Loadable.Empty -> DetailPanel(title = state.title, body = state.body)
-            is Loadable.Ready -> DetailBody(state.value, activeTab, onSelectTab)
+            is Loadable.Ready -> DetailBody(state.value, activeTab, onSelectTab, onOpenTrip)
         }
     }
 }
@@ -118,7 +118,12 @@ private fun BackRow(onBack: () -> Unit) {
 }
 
 @Composable
-private fun DetailBody(ui: ClientDetailUiState, activeTab: String, onSelectTab: (String) -> Unit) {
+private fun DetailBody(
+    ui: ClientDetailUiState,
+    activeTab: String,
+    onSelectTab: (String) -> Unit,
+    onOpenTrip: (String) -> Unit,
+) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
 
@@ -187,7 +192,7 @@ private fun DetailBody(ui: ClientDetailUiState, activeTab: String, onSelectTab: 
     Spacer(Modifier.height(12.dp))
 
     when (activeTab) {
-        "trips" -> TripsTab(ui)
+        "trips" -> TripsTab(ui, onOpenTrip)
         "messages" -> ThreadsTab(ui)
         "documents" -> DocumentsTab(ui)
         "notes" -> NotesTab(ui)
@@ -266,14 +271,6 @@ private fun OverviewTab(ui: ClientDetailUiState) {
                 Text(value, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
             }
         }
-        ui.currencyNote?.takeIf { ui.moneyExcludesACurrency }?.let {
-            Text(
-                "* $it",
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        }
     }
 
     SectionCard(ClientCopy.HOUSEHOLD_TITLE) {
@@ -300,7 +297,7 @@ private fun OverviewTab(ui: ClientDetailUiState) {
 }
 
 @Composable
-private fun TripsTab(ui: ClientDetailUiState) {
+private fun TripsTab(ui: ClientDetailUiState, onOpenTrip: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     if (ui.trips.isEmpty()) {
         EmptyLine(ClientCopy.TRIPS_EMPTY)
@@ -309,7 +306,12 @@ private fun TripsTab(ui: ClientDetailUiState) {
     ui.trips.forEach { t ->
         Card(
             colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerLow),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            // `clickable` before `padding` so the ripple covers the card rather than the
+            // text inside it.
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenTrip(t.tripId) }
+                .padding(bottom = 8.dp),
         ) {
             Column(Modifier.padding(14.dp)) {
                 Text(t.title, style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)
@@ -323,10 +325,8 @@ private fun TripsTab(ui: ClientDetailUiState) {
             }
         }
     }
-    // These cards are a dead end until §3.4 builds trip detail on this stack, and the
-    // worklist already says so under its own trip rows. A reader who taps one here and gets
-    // nothing had no way to tell whether that was the design or a bug.
-    DeferralLine(AgentCopy.TRIP_DETAIL_DEFERRED)
+    // The deferral that stood here went with §3.4.2 landing on this stack — these cards are
+    // links now. `DeferralLine` went with it: it had exactly one call site.
 }
 
 @Composable
@@ -450,16 +450,6 @@ private fun ActivityTab(ui: ClientDetailUiState) {
         style = MaterialTheme.typography.bodySmall,
         color = scheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 10.dp),
-    )
-}
-
-@Composable
-private fun DeferralLine(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp).alpha(0.7f),
     )
 }
 

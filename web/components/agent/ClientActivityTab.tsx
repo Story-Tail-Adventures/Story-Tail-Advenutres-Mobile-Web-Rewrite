@@ -1,3 +1,10 @@
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
 import { Icon } from "@/components/ui/Icon";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientActivityEvent } from "@/lib/agent/clientDetail";
@@ -13,39 +20,50 @@ import type { ClientActivityEvent } from "@/lib/agent/clientDetail";
  * `event_type` IS NOT COPY. The slug is turned into a sentence in the view model, with an
  * unrecognised type falling back to a humanised form of itself rather than being dropped —
  * a timeline whose whole job is that nothing is missing from it cannot silently skip a row.
+ *
+ * ON MUI (step 2 of the migration, PR 6), as the A338 artboard draws it: a Card per event
+ * with the glyph in a 28px secondary-container Avatar. Plain sx, so this stays a Server
+ * Component.
  */
 export function ClientActivityTab({ events }: { events: ClientActivityEvent[] }) {
   if (events.length === 0) {
     return (
-      <p className="t-body-s px-1 py-4 text-[var(--md-on-surface-variant)]">
+      <Typography component="p" variant="body2" sx={{ px: 0.5, py: 2, color: "text.secondary" }}>
         {CLIENT_COPY.activityEmpty}
-      </p>
+      </Typography>
     );
   }
 
   return (
     <>
-      <ul className="flex flex-col gap-1.5">
+      <Stack component="ul" spacing={0.75} sx={{ m: 0, p: 0, listStyle: "none" }}>
         {events.map((e) => (
-          <li key={e.eventId} className="card flex items-center gap-2.5 px-3.5 py-2.5">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]">
-              <Icon name={e.icon} size={13} />
-            </span>
-            <span className="t-body min-w-0 flex-1 truncate">
-              {e.description}
-              {e.actorName && (
-                <span className="text-[var(--md-on-surface-variant)]"> · {e.actorName}</span>
-              )}
-            </span>
-            <span className="t-body-s shrink-0 text-[var(--md-on-surface-variant)]">
-              {e.whenLabel}
-            </span>
-          </li>
+          <Card component="li" key={e.eventId}>
+            <CardContent
+              sx={{ px: 1.75, py: 1.25, display: "flex", alignItems: "center", gap: 1.25, "&:last-child": { pb: 1.25 } }}
+            >
+              <Avatar
+                aria-hidden="true"
+                sx={{ width: 28, height: 28, flexShrink: 0, bgcolor: "secondary.container", color: "secondary.onContainer" }}
+              >
+                <Icon name={e.icon} size={13} />
+              </Avatar>
+              <Typography component="span" variant="body2" noWrap sx={{ minWidth: 0, flex: 1 }}>
+                {e.description}
+                {e.actorName && (
+                  <Box component="span" sx={{ color: "text.secondary" }}> · {e.actorName}</Box>
+                )}
+              </Typography>
+              <Typography component="span" variant="caption" sx={{ flexShrink: 0, color: "text.secondary" }}>
+                {e.whenLabel}
+              </Typography>
+            </CardContent>
+          </Card>
         ))}
-      </ul>
-      <p className="t-body-s mt-2.5 text-[var(--md-on-surface-variant)]">
+      </Stack>
+      <Typography component="p" variant="body2" sx={{ mt: 1.25, color: "text.secondary" }}>
         {CLIENT_COPY.activityNote}
-      </p>
+      </Typography>
     </>
   );
 }

@@ -1,8 +1,24 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
+import InputAdornment from "@mui/material/InputAdornment";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Paper from "@mui/material/Paper";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import Typography from "@mui/material/Typography";
 
+import { BODY, BODY_S, BTN_44, LABEL, TITLE_S } from "@/components/client/client-sx";
+import { Alert } from "@/components/ui/Alert";
+import { fieldInputSx, fieldLabelSx } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
+import { Spinner } from "@/components/ui/Spinner";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { formatMoney } from "@/lib/public/money";
 import type { AuthorizeState } from "@/lib/wallet/actions";
 import { WALLET } from "@/lib/wallet/content";
@@ -10,6 +26,15 @@ import { cardExpiry, cardLabel } from "@/lib/wallet/format";
 import type { WalletCard } from "@/lib/wallet/queries";
 
 const IDLE: AuthorizeState = { status: "idle" };
+
+/** A selectable tile, as the artboard's `selSx` draws it: primary container when chosen. */
+function tileSx(selected: boolean) {
+  return {
+    borderColor: selected ? "primary.main" : "divider",
+    bgcolor: selected ? "primary.container" : "background.paper",
+    color: selected ? "primary.onContainer" : "text.primary",
+  } as const;
+}
 
 /**
  * Screen 2.4.3's form.
@@ -28,6 +53,12 @@ const IDLE: AuthorizeState = { status: "idle" };
  * The action is bound to its trip by the server component — the same action-as-prop shape
  * §2.5's ProfileForm and §2.6's Composer use. A server action is serialisable; a plain
  * function passed the same way typechecks, passes unit tests, and throws in a browser.
+ *
+ * ON MUI (step 2 of the migration): the card choice is a RadioGroup of outlined Paper tiles,
+ * the presets are Paper tiles that are real buttons, the custom limit is an OutlinedInput
+ * with a `$` adornment, and the consent is MUI's Checkbox — all of which wrap the same native
+ * inputs, so the FormData the action receives (cardId, spendingLimitCents, expiresAt,
+ * consent) is unchanged. Only brand + last 4 + expiry are ever shown for a card.
  */
 export function AuthorizeForm({
   action,
@@ -50,120 +81,162 @@ export function AuthorizeForm({
   const custom = !presets.some((preset) => preset.cents === cents);
 
   return (
-    <form action={submit} className="mt-4">
+    <Box component="form" action={submit} sx={{ mt: 2 }}>
       <input type="hidden" name="cardId" value={cardId} />
       <input type="hidden" name="spendingLimitCents" value={cents} />
       <input type="hidden" name="expiresAt" value={defaultExpiryIso} />
 
-      <h2 className="t-title-s">{WALLET.authorizeCardHeading}</h2>
-      <div className="mt-2 flex flex-col gap-2">
+      <Typography id="authorize-card-heading" component="h2" variant="subtitle1" sx={TITLE_S}>
+        {WALLET.authorizeCardHeading}
+      </Typography>
+      {/* The action reads the hidden `cardId` above. The radios post `cardChoice` too (MUI's
+          RadioGroup always names its radios, inventing a name if given none), so it gets an
+          honest one: the same payment_card uuid, never a Stripe id. */}
+      <RadioGroup
+        name="cardChoice"
+        aria-labelledby="authorize-card-heading"
+        value={cardId}
+        onChange={(event) => setCardId(event.target.value)}
+        sx={{ mt: 1, gap: 1 }}
+      >
         {cards.map((card) => {
           const selected = card.id === cardId;
           return (
-            <label
-              key={card.id}
-              className={`tap-44 flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${
-                selected
-                  ? "border-primary bg-primary-container text-on-primary-container"
-                  : "border-outline-variant bg-surface"
-              }`}
-            >
-              <input
-                type="radio"
-                name="cardChoice"
-                checked={selected}
-                onChange={() => setCardId(card.id)}
-                className="h-4 w-4 accent-primary"
+            <Paper key={card.id} variant="outlined" sx={tileSx(selected)}>
+              {/* TAP_TARGET on the label, not the Paper: the enlarged hit area has to belong to
+                  the element that toggles, or on a touch screen it swallows the tap. */}
+              <FormControlLabel
+                value={card.id}
+                control={<Radio size="small" />}
+                sx={{ m: 0, px: 1, py: 0.75, width: "100%", gap: 0.5, ...TAP_TARGET }}
+                label={
+                  <Box component="span" sx={{ display: "block", minWidth: 0 }}>
+                    <Typography
+                      component="span"
+                      variant="subtitle1"
+                      sx={{ ...TITLE_S, display: "block", fontFamily: "mono" }}
+                    >
+                      {cardLabel(card)}
+                    </Typography>
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      sx={{ ...BODY_S, display: "block", opacity: 0.8 }}
+                    >
+                      {card.nickname ? `${card.nickname} · ` : ""}exp {cardExpiry(card)}
+                    </Typography>
+                  </Box>
+                }
               />
-              <span className="min-w-0 flex-1">
-                <span className="t-title-s block font-mono">{cardLabel(card)}</span>
-                <span className="t-body-s block opacity-80">
-                  {card.nickname ? `${card.nickname} · ` : ""}exp {cardExpiry(card)}
-                </span>
-              </span>
-            </label>
+            </Paper>
           );
         })}
-      </div>
+      </RadioGroup>
       {/* 2.4.2 is deferred, so there is no "Add new card" branch — it would dead-end. */}
-      <p className="t-body-s mt-2 text-on-surface-variant">{WALLET.authorizeNoNewCard}</p>
+      <Typography component="p" variant="body2" sx={{ ...BODY_S, mt: 1, color: "text.secondary" }}>
+        {WALLET.authorizeNoNewCard}
+      </Typography>
 
-      <h2 className="t-title-s mt-5">{WALLET.limitHeading}</h2>
-      <p className="t-body-s text-on-surface-variant">{WALLET.limitBody}</p>
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      <Typography component="h2" variant="subtitle1" sx={{ ...TITLE_S, mt: 2.5 }}>
+        {WALLET.limitHeading}
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
+        {WALLET.limitBody}
+      </Typography>
+      <Box sx={{ mt: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 1 }}>
         {presets.map((preset) => {
           const selected = !custom && preset.cents === cents;
           return (
-            <button
+            <Paper
               key={preset.label}
+              component="button"
               type="button"
+              variant="outlined"
+              // The tile's look is the only other sign of which limit is picked.
+              aria-pressed={selected}
               onClick={() => setCents(preset.cents)}
-              className={`tap-44 rounded-xl border p-3 text-left ${
-                selected
-                  ? "border-primary bg-primary-container text-on-primary-container"
-                  : "border-outline-variant bg-surface"
-              }`}
+              sx={{
+                ...tileSx(selected),
+                ...TAP_TARGET,
+                display: "block",
+                width: "100%",
+                p: 1.5,
+                textAlign: "left",
+                cursor: "pointer",
+                font: "inherit",
+              }}
             >
-              <span className="t-label block">{preset.label}</span>
-              <span className="t-title-s mt-1 block">
+              <Typography component="span" variant="caption" sx={LABEL}>
+                {preset.label}
+              </Typography>
+              <Typography component="span" variant="subtitle1" sx={{ ...TITLE_S, display: "block", mt: 0.5 }}>
                 {formatMoney({ amountCents: preset.cents, currency: "USD" })}
-              </span>
-            </button>
+              </Typography>
+            </Paper>
           );
         })}
-      </div>
+      </Box>
 
-      <label htmlFor="custom-limit" className="field-label mt-3 block">
+      <FormLabel htmlFor="custom-limit" sx={{ ...fieldLabelSx, mt: 1.5 }}>
         {WALLET.limitCustom}
-      </label>
-      <div className="flex items-center gap-2">
-        <span className="t-body text-on-surface-variant">$</span>
-        <input
-          id="custom-limit"
-          type="number"
-          min={1}
-          step="0.01"
-          value={(cents / 100).toFixed(2)}
-          onChange={(event) => {
-            // Round at the boundary, not in the action: `Math.round` here means the value in
-            // the box and the value posted are the same number, and the server's
-            // safe-integer check can never be the first place a traveler hears about it.
-            const dollars = Number(event.target.value);
-            setCents(Number.isFinite(dollars) ? Math.max(0, Math.round(dollars * 100)) : 0);
-          }}
-          className="t-body h-11 w-40 rounded-xl border border-outline-variant bg-bg px-3 text-on-surface"
-        />
-      </div>
+      </FormLabel>
+      <OutlinedInput
+        id="custom-limit"
+        type="number"
+        size="small"
+        value={(cents / 100).toFixed(2)}
+        onChange={(event) => {
+          // Round at the boundary, not in the action: `Math.round` here means the value in
+          // the box and the value posted are the same number, and the server's
+          // safe-integer check can never be the first place a traveler hears about it.
+          const dollars = Number(event.target.value);
+          setCents(Number.isFinite(dollars) ? Math.max(0, Math.round(dollars * 100)) : 0);
+        }}
+        startAdornment={<InputAdornment position="start">$</InputAdornment>}
+        inputProps={{ min: 1, step: "0.01" }}
+        sx={{ ...fieldInputSx, width: 160 }}
+      />
 
-      <p className="t-body-s mt-3 text-on-surface-variant">
+      <Typography component="p" variant="body2" sx={{ ...BODY_S, mt: 1.5, color: "text.secondary" }}>
         {WALLET.expiresLabel}: {defaultExpiryLabel}. {WALLET.expiresHint}
-      </p>
+      </Typography>
 
-      <label className="tap-44 mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 p-3">
-        <input
-          type="checkbox"
-          name="consent"
-          checked={consented}
-          onChange={(event) => setConsented(event.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-primary"
+      <Paper elevation={0} sx={{ mt: 2, p: 1.5, bgcolor: "surface.2" }}>
+        <FormControlLabel
+          sx={{ alignItems: "flex-start", mx: 0, ...TAP_TARGET }}
+          control={
+            <Checkbox
+              name="consent"
+              size="small"
+              checked={consented}
+              onChange={(event) => setConsented(event.target.checked)}
+              sx={{ py: 0.25 }}
+            />
+          }
+          label={
+            <Typography component="span" variant="body2" sx={BODY}>
+              {WALLET.consentMandate}
+            </Typography>
+          }
         />
-        <span className="t-body-s">{WALLET.consentMandate}</span>
-      </label>
+      </Paper>
 
       {state.status === "error" && (
-        <p role="alert" className="t-body-s mt-2 text-error">
-          {state.message}
-        </p>
+        <Box sx={{ mt: 1 }}>
+          <Alert tone="error">{state.message}</Alert>
+        </Box>
       )}
 
-      <button
+      <MuiButton
         type="submit"
+        variant="contained"
+        fullWidth
         disabled={pending || !consented || cents <= 0 || !cardId}
-        className="btn btn-filled tap-44 mt-4 h-11 w-full"
+        startIcon={pending ? <Spinner /> : <Icon name="check" size={14} />}
+        sx={{ ...BTN_44, ...TAP_TARGET, mt: 2 }}
       >
-        <Icon name={pending ? "clock" : "check"} size={14} />
         {WALLET.authorizeCta} {formatMoney({ amountCents: cents, currency: "USD" })}
-      </button>
-    </form>
+      </MuiButton>
+    </Box>
   );
 }

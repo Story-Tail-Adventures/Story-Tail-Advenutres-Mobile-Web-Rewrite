@@ -71,8 +71,14 @@ export async function createClientAction(
 
   revalidatePath("/agent/clients");
   // `redirect` throws, so nothing after it runs and the action's return type is never
-  // reached on success. Landing on the new client's own page is the point of creating one.
-  redirect(`/agent/clients/${clientId}`);
+  // reached on success. Landing on the new client's own page is the point of creating one —
+  // unless "Save & create trip" was the button pressed, in which case the point was the
+  // trip, and §3.4.3 takes the client it should already be for.
+  redirect(
+    form.get("then") === "trip"
+      ? `/agent/trips/new?client=${clientId}`
+      : `/agent/clients/${clientId}`,
+  );
 }
 
 export async function updateClientAction(

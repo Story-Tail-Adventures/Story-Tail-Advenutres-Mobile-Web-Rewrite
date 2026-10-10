@@ -1,126 +1,155 @@
-/* global React, Icon, StoryTailMark, staImg, staAvatar, ScreenFrame */
-// Client · 2.0 Public — Topic & advisor landing pages.
+/* global React, MUI, Icon, MuiIcon, StoryTailMark, staImg, staAvatar, MuiScreenFrame */
+// Client · 2.0 Public — Topic & advisor landing pages. MUI v9.
 // Format: Hero + sticky inquire bar + curated tile grid.
 // Voice: subtle Rest + Wonder language; no explicit scripture except the
 // one designated Christian sub-card in Honeymoons.
+//
+// Rendered inside <StaMuiScheme>. Fixed white / gold / rgba values appear only
+// in overlays drawn over photographs, where the scrim is intentional.
 
 // ──────────────────────────────────────────────────────────────────────
 // Shared building blocks
 // ──────────────────────────────────────────────────────────────────────
 
 function HeroBleed({ img, overline, title, script, sub, gradient, tall }) {
+  const { Box, Typography } = MUI;
   return (
-    <div style={{ position: 'relative', height: tall ? 420 : 360, overflow: 'hidden' }}>
-      <img src={staImg(img, 1800, 700)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-      <div style={{ position: 'absolute', inset: 0, background: gradient || 'linear-gradient(115deg, rgba(13,33,55,0.7) 0%, rgba(122,26,31,0.45) 55%, rgba(0,0,0,0.15) 100%)' }}/>
-      <div style={{ position: 'absolute', inset: 0, padding: '40px 48px', color: '#FFF', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', maxWidth: 760 }}>
-        {overline && <span className="t-label-s" style={{ color: '#FFC83F', marginBottom: 8 }}>{overline}</span>}
-        <h1 className="t-display" style={{ margin: 0, color: '#FFF', lineHeight: 1.04 }}>
-          {title} {script && <span className="t-script" style={{ color: '#FFC83F', fontSize: 64 }}>{script}</span>}
-        </h1>
-        {sub && <p className="t-body-l" style={{ marginTop: 12, color: 'rgba(255,255,255,0.92)', maxWidth: 620 }}>{sub}</p>}
-      </div>
-    </div>
+    <Box sx={{ position: 'relative', height: tall ? 420 : 360, overflow: 'hidden' }}>
+      <Box component="img" src={staImg(img, 1800, 700)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <Box sx={{ position: 'absolute', inset: 0, background: gradient || 'linear-gradient(115deg, rgba(13,33,55,0.7) 0%, rgba(122,26,31,0.45) 55%, rgba(0,0,0,0.15) 100%)' }} />
+      <Box sx={{ position: 'absolute', inset: 0, px: 6, py: 5, color: 'common.white', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', maxWidth: 760 }}>
+        {overline && <Typography variant="overline" sx={{ display: 'block', color: 'brandSource.gold', fontWeight: 600, mb: 1 }}>{overline}</Typography>}
+        <Typography variant="h2" component="h1" sx={{ color: 'common.white', fontWeight: 700, lineHeight: 1.04 }}>
+          {title} {script && <Typography variant="script" component="span" sx={{ color: 'brandSource.gold', fontSize: 64 }}>{script}</Typography>}
+        </Typography>
+        {sub && <Typography variant="body1" sx={{ mt: 1.5, color: 'rgba(255,255,255,0.92)', maxWidth: 620 }}>{sub}</Typography>}
+      </Box>
+    </Box>
   );
 }
 
 function StickyInquireBar({ destination, dates, travelers, vibe }) {
+  const { Box, Stack, Typography, Button, Paper, Divider } = MUI;
+  const fields = [
+    { l: 'Destination', v: destination, i: 'map' },
+    { l: 'When', v: dates, i: 'calendar' },
+    { l: 'Travelers', v: travelers, i: 'user' },
+    { l: 'Vibe', v: vibe, i: 'palm' },
+  ];
   return (
-    <div style={{
-      position: 'sticky', top: 56, zIndex: 5,
-      padding: '14px 48px', background: 'var(--md-surface-1)',
-      borderBottom: '1px solid var(--md-outline-variant)',
-      boxShadow: '0 1px 0 rgba(0,0,0,0.02)',
-    }}>
-      <div className="card" style={{ display: 'flex', alignItems: 'center', padding: 0, borderRadius: 999, boxShadow: 'var(--md-shadow-1)' }}>
-        {[
-          { l: 'Destination', v: destination, i: 'map' },
-          { l: 'When', v: dates, i: 'calendar' },
-          { l: 'Travelers', v: travelers, i: 'user' },
-          { l: 'Vibe', v: vibe, i: 'palm' },
-        ].map((f, i) => (
-          <div key={f.l} style={{ flex: 1, padding: '10px 16px', borderRight: i < 3 ? '1px solid var(--md-outline-variant)' : 'none' }}>
-            <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>{f.l}</div>
-            <div style={{ font: '600 13px/1.2 var(--font-sans)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--md-on-surface)' }}>
-              <Icon name={f.i} size={13} color="var(--brand-orange)"/> {f.v}
-            </div>
-          </div>
+    <Box sx={{ position: 'sticky', top: 56, zIndex: 5, px: 6, py: 1.75, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+      <Paper elevation={1} sx={{ display: 'flex', alignItems: 'center' }}>
+        {fields.map((f, i) => (
+          <React.Fragment key={f.l}>
+            {i > 0 && <Divider orientation="vertical" flexItem />}
+            <Box sx={{ flex: 1, px: 2, py: 1.25 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>{f.l}</Typography>
+              <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 0.25 }}>
+                <MuiIcon name={f.i} size={13} sx={{ color: 'brand.main' }} />
+                <Typography variant="subtitle2" sx={{ lineHeight: 1.2 }}>{f.v}</Typography>
+              </Stack>
+            </Box>
+          </React.Fragment>
         ))}
-        <button className="btn btn-filled" style={{ height: 44, margin: 4 }}>
-          <Icon name="message" size={14}/> Request a quote
-        </button>
-      </div>
-    </div>
+        <Button variant="contained" startIcon={<MuiIcon name="message" size={14} />} sx={{ height: 44, m: 0.5, flexShrink: 0 }}>
+          Request a quote
+        </Button>
+      </Paper>
+    </Box>
   );
 }
 
 const PRICE_DOTS = { '$': 1, '$$': 2, '$$$': 3 };
 function PriceRange({ range }) {
+  const { Box } = MUI;
   const filled = PRICE_DOTS[range] || 2;
   return (
-    <span style={{
-      display: 'inline-flex', gap: 1, padding: '3px 8px', borderRadius: 6,
-      background: 'rgba(13,33,55,0.85)', color: '#FFF',
-      font: '700 10px/1 var(--font-mono)', letterSpacing: 0.5,
+    <Box component="span" sx={{
+      display: 'inline-flex', gap: '1px', px: 1, py: 0.375, borderRadius: 1,
+      bgcolor: 'rgba(13,33,55,0.85)', color: 'common.white',
+      fontFamily: (t) => t.typography.mono, fontWeight: 700, fontSize: 10, lineHeight: 1, letterSpacing: 0.5,
     }}>
       {['$', '$', '$'].map((d, i) => (
-        <span key={i} style={{ opacity: i < filled ? 1 : 0.32 }}>$</span>
+        <Box component="span" key={i} sx={{ opacity: i < filled ? 1 : 0.32 }}>$</Box>
       ))}
-    </span>
+    </Box>
   );
 }
 
 function TripTile({ t, s, img, range, tag, badge }) {
+  const { Box, Stack, Typography, Button, IconButton, Card, CardMedia, CardContent, Chip } = MUI;
   return (
-    <div className="card" style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', aspectRatio: '5/3' }}>
-        <img src={staImg(img, 600, 360)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+    <Card sx={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ position: 'relative', aspectRatio: '5/3' }}>
+        <CardMedia component="img" image={staImg(img, 600, 360)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         {badge && (
-          <span style={{ position: 'absolute', top: 10, left: 10, background: 'var(--md-secondary)', color: 'var(--md-on-secondary)', padding: '3px 9px', borderRadius: 999, font: '700 9.5px/1 var(--font-sans)', letterSpacing: 0.5, textTransform: 'uppercase' }}>{badge}</span>
+          <Chip size="small" color="secondary" label={badge}
+                sx={{ position: 'absolute', top: 10, left: 10, fontWeight: 700, fontSize: 9.5, letterSpacing: 0.5, textTransform: 'uppercase', height: 20 }} />
         )}
-        <span style={{ position: 'absolute', top: 10, right: 10 }}><PriceRange range={range}/></span>
-      </div>
-      <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div className="t-label-s" style={{ color: 'var(--brand-orange)' }}>{tag}</div>
-        <div className="t-title-s" style={{ marginTop: 2 }}>{t}</div>
-        <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{s}</div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 'auto', paddingTop: 10 }}>
-          <button className="btn btn-filled btn-sm" style={{ flex: 1 }}>Request quote</button>
-          <button className="btn-icon" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--md-outline-variant)' }}>
-            <Icon name="heart" size={14}/>
-          </button>
-        </div>
-      </div>
-    </div>
+        <Box component="span" sx={{ position: 'absolute', top: 10, right: 10 }}><PriceRange range={range} /></Box>
+      </Box>
+      <CardContent sx={{ p: 1.75, flex: 1, display: 'flex', flexDirection: 'column', '&:last-child': { pb: 1.75 } }}>
+        <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', fontWeight: 600, lineHeight: 1.3 }}>{tag}</Typography>
+        <Typography variant="subtitle1" sx={{ mt: 0.25 }}>{t}</Typography>
+        <Typography variant="caption" component="p" color="text.secondary">{s}</Typography>
+        <Stack direction="row" spacing={0.75} sx={{ mt: 'auto', pt: 1.25, alignItems: 'center' }}>
+          <Button variant="contained" size="small" sx={{ flex: 1 }}>Request quote</Button>
+          <IconButton size="small"><MuiIcon name="heart" size={14} /></IconButton>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
 function SectionLabel({ overline, title, sub }) {
+  const { Box, Typography } = MUI;
   return (
-    <div style={{ marginBottom: 16 }}>
-      {overline && <span className="t-label-s" style={{ color: 'var(--brand-orange)' }}>{overline}</span>}
-      <h2 className="t-headline" style={{ margin: '4px 0 4px' }}>{title}</h2>
-      {sub && <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', margin: 0, maxWidth: 720 }}>{sub}</p>}
-    </div>
+    <Box sx={{ mb: 2 }}>
+      {overline && <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', fontWeight: 600 }}>{overline}</Typography>}
+      <Typography variant="h4" component="h2" sx={{ fontWeight: 700, mt: 0.5, mb: 0.5 }}>{title}</Typography>
+      {sub && <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>{sub}</Typography>}
+    </Box>
   );
 }
 
 function ClosingCTA({ image, title, body, primary = 'Request a quote', secondary = 'Message Gyasi first' }) {
+  const { Box, Stack, Typography, Button, Paper } = MUI;
+  const glass = { color: 'common.white', borderColor: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.5)', bgcolor: 'rgba(255,255,255,0.26)' } };
   return (
-    <div style={{ position: 'relative', borderRadius: 24, overflow: 'hidden', margin: '12px 0 0', minHeight: 220 }}>
-      <img src={staImg(image, 1600, 500)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}/>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(120deg, rgba(122,26,31,0.85), rgba(13,33,55,0.55))' }}/>
-      <div style={{ position: 'relative', padding: '32px 36px', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
-        <div style={{ maxWidth: 540 }}>
-          <h3 className="t-headline" style={{ margin: 0, color: '#FFF' }}>{title}</h3>
-          <p className="t-body" style={{ margin: '6px 0 0', color: 'rgba(255,255,255,0.9)' }}>{body}</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-orange btn-lg">{primary}</button>
-          <button className="btn btn-lg" style={{ background: 'rgba(255,255,255,0.18)', color: '#FFF', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.3)' }}>{secondary}</button>
-        </div>
-      </div>
-    </div>
+    <Paper elevation={0} sx={{ position: 'relative', overflow: 'hidden', mt: 1.5, minHeight: 220 }}>
+      <Box component="img" src={staImg(image, 1600, 500)} alt="" sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(120deg, rgba(122,26,31,0.85), rgba(13,33,55,0.55))' }} />
+      <Stack direction="row" spacing={3} useFlexGap sx={{ position: 'relative', px: 4.5, py: 4, color: 'common.white', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <Box sx={{ maxWidth: 540 }}>
+          <Typography variant="h4" component="h3" sx={{ fontWeight: 700, color: 'common.white' }}>{title}</Typography>
+          <Typography variant="body2" sx={{ mt: 0.75, color: 'rgba(255,255,255,0.9)' }}>{body}</Typography>
+        </Box>
+        <Stack direction="row" spacing={1.25}>
+          <Button variant="contained" color="brand" size="large">{primary}</Button>
+          <Button variant="outlined" size="large" sx={glass}>{secondary}</Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
+// Photo card with a small tag chip over the image and a title + blurb below.
+// Used by the Cruises "three types" and Honeymoons "three styles" rows.
+function C20_MuiTypeCard({ img, tag, title, body }) {
+  const { Box, Typography, Card, CardMedia, CardContent, Chip } = MUI;
+  return (
+    <Card sx={{ overflow: 'hidden', height: '100%' }}>
+      <Box sx={{ position: 'relative', height: 160 }}>
+        <CardMedia component="img" image={staImg(img, 600, 320)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <Chip size="small" label={tag}
+              sx={{ position: 'absolute', top: 10, left: 10, bgcolor: 'rgba(255,255,255,0.92)', color: 'primary.main', fontWeight: 700, fontSize: 9.5, letterSpacing: 0.5, height: 20 }} />
+      </Box>
+      <CardContent sx={{ p: 2 }}>
+        <Typography variant="h5">{title}</Typography>
+        <Typography variant="caption" component="p" color="text.secondary" sx={{ mt: 0.5 }}>{body}</Typography>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -129,6 +158,7 @@ function ClosingCTA({ image, title, body, primary = 'Request a quote', secondary
 // ──────────────────────────────────────────────────────────────────────
 
 function C208_Caribbean() {
+  const { Box, Stack, Grid, Typography, Button, Card, CardMedia } = MUI;
   const islands = [
     { n: 'Turks & Caicos', img: 'turks' }, { n: 'Bahamas', img: 'bahamas' },
     { n: 'St. Lucia', img: 'stlucia' }, { n: 'Jamaica', img: 'jamaica' },
@@ -145,9 +175,14 @@ function C208_Caribbean() {
     { t: 'BVI sailing charter', s: '7-night skippered catamaran', tag: 'SAILING · GROUP', img: 'bvi', range: '$$$', badge: 'Group fav' },
     { t: 'Beaches Negril', s: 'Negril · Sesame Street + 7 beaches', tag: 'ALL-INCLUSIVE · FAMILY', img: 'overwater', range: '$$' },
   ];
+  const intro = [
+    { i: 'palm', t: 'You won\'t have to think.', d: 'Transfers, dining reservations, the spa slot you didn\'t know you needed — handled before you leave Miami.' },
+    { i: 'shield', t: 'Real prices, honest takes.', d: 'I tell you which resorts are tired and which ones are quietly the best. No commission steers my picks.' },
+    { i: 'heart', t: 'A week worth returning to.', d: 'The point isn\'t the trip — it\'s the rest you bring home from it. We plan with that in mind.' },
+  ];
 
   return (
-    <ScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
+    <MuiScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
       <HeroBleed
         img="turks"
         overline="CARIBBEAN VACATIONS"
@@ -157,50 +192,50 @@ function C208_Caribbean() {
       />
       <StickyInquireBar destination="Anywhere Caribbean" dates="Flexible · 7 nights" travelers="2 adults" vibe="Beach + rest"/>
 
-      <div style={{ padding: '32px 48px 56px', maxWidth: 1280, margin: '0 auto' }}>
+      <Box sx={{ px: 6, pt: 4, pb: 7, maxWidth: 1280, mx: 'auto' }}>
         {/* Intro band */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 36 }}>
-          {[
-            { i: 'palm', t: 'You won\'t have to think.', d: 'Transfers, dining reservations, the spa slot you didn\'t know you needed — handled before you leave Miami.' },
-            { i: 'shield', t: 'Real prices, honest takes.', d: 'I tell you which resorts are tired and which ones are quietly the best. No commission steers my picks.' },
-            { i: 'heart', t: 'A week worth returning to.', d: 'The point isn\'t the trip — it\'s the rest you bring home from it. We plan with that in mind.' },
-          ].map((c) => (
-            <div key={c.t} style={{ padding: '14px 16px' }}>
-              <Icon name={c.i} size={20} color="var(--brand-orange)"/>
-              <div className="t-title-l" style={{ margin: '8px 0 4px' }}>{c.t}</div>
-              <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.d}</div>
-            </div>
+        <Grid container spacing={1.75} sx={{ mb: 4.5 }}>
+          {intro.map((c) => (
+            <Grid key={c.t} size={4}>
+              <Box sx={{ px: 2, py: 1.75 }}>
+                <MuiIcon name={c.i} size={20} sx={{ color: 'brand.main' }} />
+                <Typography variant="h5" sx={{ mt: 1, mb: 0.5 }}>{c.t}</Typography>
+                <Typography variant="caption" component="p" color="text.secondary">{c.d}</Typography>
+              </Box>
+            </Grid>
           ))}
-        </div>
+        </Grid>
 
         {/* Island chip strip */}
         <SectionLabel overline="ISLANDS" title="Where to land" sub="Tap an island to start a search, or let Gyasi suggest one based on your week."/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
+        <Grid container spacing={1.25} sx={{ mb: 4.5 }}>
           {islands.map((isl) => (
-            <div key={isl.n} className="card" style={{ position: 'relative', overflow: 'hidden', aspectRatio: '4/5', cursor: 'pointer' }}>
-              <img src={staImg(isl.img, 320, 400)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7))' }}/>
-              <div style={{ position: 'absolute', left: 10, right: 10, bottom: 10, color: '#FFF', font: '700 13px/1.2 var(--font-sans)' }}>{isl.n}</div>
-            </div>
+            <Grid key={isl.n} size={2}>
+              <Card sx={{ position: 'relative', overflow: 'hidden', aspectRatio: '4/5', cursor: 'pointer' }}>
+                <CardMedia component="img" image={staImg(isl.img, 320, 400)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7))' }} />
+                <Typography variant="subtitle2" sx={{ position: 'absolute', left: 10, right: 10, bottom: 10, color: 'common.white', fontWeight: 700, lineHeight: 1.2 }}>{isl.n}</Typography>
+              </Card>
+            </Grid>
           ))}
-        </div>
+        </Grid>
 
         {/* Trip grid */}
         <SectionLabel overline="HAND-PICKED · 9 TRIPS" title="Caribbean weeks Gyasi loves right now" sub="Updated monthly. The $ chip is a rough range — request a quote to see real prices for your dates."/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 24 }}>
-          {trips.map((t) => <TripTile key={t.t} {...t}/>)}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 36 }}>
-          <button className="btn btn-tonal">See all 28 Caribbean trips →</button>
-        </div>
+        <Grid container spacing={1.75} sx={{ mb: 3 }}>
+          {trips.map((t) => <Grid key={t.t} size={4}><TripTile {...t}/></Grid>)}
+        </Grid>
+        <Stack direction="row" sx={{ justifyContent: 'center', mb: 4.5 }}>
+          <Button variant="outlined" color="secondary">See all 28 Caribbean trips →</Button>
+        </Stack>
 
         <ClosingCTA
           image="overwater"
           title="Tell me your week. I'll come back with three good options."
           body="No account needed to message. No planning fees, ever. Just a real conversation about what you actually need."
         />
-      </div>
-    </ScreenFrame>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
@@ -209,6 +244,7 @@ function C208_Caribbean() {
 // ──────────────────────────────────────────────────────────────────────
 
 function C209_Cruises() {
+  const { Box, Stack, Grid, Button, Chip } = MUI;
   const types = [
     { t: 'Family cruises', d: 'Multi-gen sailings with waterparks, character meet-ups, and rooms that connect.', img: 'cruiseShip', tag: 'FAMILY' },
     { t: 'Adults-only', d: 'Virgin, Viking, premium Celebrity — quieter ships, real dining, no kids underfoot.', img: 'cruiseAerial', tag: 'ADULTS' },
@@ -228,7 +264,7 @@ function C209_Cruises() {
   ];
 
   return (
-    <ScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
+    <MuiScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
       <HeroBleed
         img="cruiseAerial"
         overline="CRUISING"
@@ -238,48 +274,41 @@ function C209_Cruises() {
       />
       <StickyInquireBar destination="Caribbean cruise" dates="Flexible · 7 nights" travelers="2 adults" vibe="Family · Adults · Group"/>
 
-      <div style={{ padding: '32px 48px 56px', maxWidth: 1280, margin: '0 auto' }}>
+      <Box sx={{ px: 6, pt: 4, pb: 7, maxWidth: 1280, mx: 'auto' }}>
         {/* Three types */}
         <SectionLabel overline="WHO IT'S FOR" title="Three kinds of cruise, one advisor." sub="I sail with each line at least once a year, so the recommendation isn't a brochure — it's lived."/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 36 }}>
+        <Grid container spacing={1.75} sx={{ mb: 4.5 }}>
           {types.map((tp) => (
-            <div key={tp.t} className="card" style={{ overflow: 'hidden' }}>
-              <div style={{ position: 'relative', height: 160 }}>
-                <img src={staImg(tp.img, 600, 320)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(255,255,255,0.92)', color: 'var(--brand-burgundy)', padding: '3px 9px', borderRadius: 6, font: '700 9.5px/1 var(--font-sans)', letterSpacing: 0.5 }}>{tp.tag}</span>
-              </div>
-              <div style={{ padding: 16 }}>
-                <div className="t-title-l">{tp.t}</div>
-                <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>{tp.d}</div>
-              </div>
-            </div>
+            <Grid key={tp.t} size={4}>
+              <C20_MuiTypeCard img={tp.img} tag={tp.tag} title={tp.t} body={tp.d} />
+            </Grid>
           ))}
-        </div>
+        </Grid>
 
         {/* Cruise lines */}
         <SectionLabel overline="LINES WE BOOK" title="Eight lines, picked for the trip — not the loyalty points."/>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 36 }}>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', mb: 4.5 }}>
           {lines.map((l) => (
-            <span key={l} className="chip" style={{ padding: '8px 14px', font: '500 13px/1 var(--font-sans)' }}>{l}</span>
+            <Chip key={l} variant="outlined" label={l} />
           ))}
-        </div>
+        </Stack>
 
         {/* Trip grid */}
         <SectionLabel overline="HAND-PICKED · 9 SAILINGS" title="Sailings worth booking this season"/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 24 }}>
-          {trips.map((t) => <TripTile key={t.t} {...t}/>)}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 36 }}>
-          <button className="btn btn-tonal">See all 36 sailings →</button>
-        </div>
+        <Grid container spacing={1.75} sx={{ mb: 3 }}>
+          {trips.map((t) => <Grid key={t.t} size={4}><TripTile {...t}/></Grid>)}
+        </Grid>
+        <Stack direction="row" sx={{ justifyContent: 'center', mb: 4.5 }}>
+          <Button variant="outlined" color="secondary">See all 36 sailings →</Button>
+        </Stack>
 
         <ClosingCTA
           image="cruiseShip"
           title="Tell me how many people, when, and roughly your budget."
           body="I'll come back with three sailings, on three lines, with honest notes on what each ship is actually good at."
         />
-      </div>
-    </ScreenFrame>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
@@ -288,6 +317,7 @@ function C209_Cruises() {
 // ──────────────────────────────────────────────────────────────────────
 
 function C2010_Honeymoons() {
+  const { Box, Stack, Grid, Typography, Button, Card, CardContent, Paper, Avatar } = MUI;
   const styles = [
     { t: 'Adults-only resorts', d: 'Sandals, Couples, Excellence — all-inclusive, no kids, real spas.', img: 'overwater', tag: 'ALL-INCLUSIVE' },
     { t: 'Overwater bungalows', d: 'A door to the ocean from your bed. Tahiti, Maldives, El Dorado Maroma.', img: 'overwater', tag: 'OVERWATER' },
@@ -303,7 +333,7 @@ function C2010_Honeymoons() {
   ];
 
   return (
-    <ScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
+    <MuiScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
       <HeroBleed
         img="overwater"
         overline="HONEYMOONS"
@@ -314,68 +344,66 @@ function C2010_Honeymoons() {
       />
       <StickyInquireBar destination="Anywhere romantic" dates="After your wedding date" travelers="2 adults" vibe="Quiet · Beach · Spa"/>
 
-      <div style={{ padding: '32px 48px 56px', maxWidth: 1280, margin: '0 auto' }}>
+      <Box sx={{ px: 6, pt: 4, pb: 7, maxWidth: 1280, mx: 'auto' }}>
         {/* Intro letter */}
-        <div className="card" style={{ padding: '24px 28px', background: 'var(--md-surface-2)', marginBottom: 36, display: 'grid', gridTemplateColumns: '56px 1fr', gap: 18, alignItems: 'start' }}>
-          <img src={staImg('avatarA', 120, 120)} alt="" style={{ width: 56, height: 56, borderRadius: 999 }}/>
-          <div>
-            <div className="t-label-s" style={{ color: 'var(--brand-orange)' }}>A NOTE FROM GYASI</div>
-            <p className="t-body-l" style={{ margin: '6px 0 0', color: 'var(--md-on-surface)', textWrap: 'pretty' }}>
-              Honeymoons are the most personal trip I plan. Some couples want the resort with no decisions to make. Some want two islands and a snorkel boat between them. I ask the same question first either way: <i>what kind of rest does your marriage need to begin with?</i> Then we plan from there.
-            </p>
-          </div>
-        </div>
+        <Card sx={{ bgcolor: 'surface.2', mb: 4.5 }}>
+          <CardContent sx={{ px: 3.5, py: 3, display: 'grid', gridTemplateColumns: '56px 1fr', gap: 2.25, alignItems: 'start', '&:last-child': { pb: 3 } }}>
+            <Avatar src={staImg('avatarA', 120, 120)} alt="" sx={{ width: 56, height: 56 }} />
+            <Box>
+              <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', fontWeight: 600 }}>A NOTE FROM GYASI</Typography>
+              <Typography variant="body1" sx={{ mt: 0.75, textWrap: 'pretty' }}>
+                Honeymoons are the most personal trip I plan. Some couples want the resort with no decisions to make. Some want two islands and a snorkel boat between them. I ask the same question first either way: <i>what kind of rest does your marriage need to begin with?</i> Then we plan from there.
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
 
         {/* Three styles */}
         <SectionLabel overline="THREE WAYS TO HONEYMOON" title="Pick the rhythm. We pick the rest."/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 36 }}>
+        <Grid container spacing={1.75} sx={{ mb: 4.5 }}>
           {styles.map((s) => (
-            <div key={s.t} className="card" style={{ overflow: 'hidden' }}>
-              <div style={{ position: 'relative', height: 160 }}>
-                <img src={staImg(s.img, 600, 320)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                <span style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(255,255,255,0.92)', color: 'var(--brand-burgundy)', padding: '3px 9px', borderRadius: 6, font: '700 9.5px/1 var(--font-sans)', letterSpacing: 0.5 }}>{s.tag}</span>
-              </div>
-              <div style={{ padding: 16 }}>
-                <div className="t-title-l">{s.t}</div>
-                <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 4 }}>{s.d}</div>
-              </div>
-            </div>
+            <Grid key={s.t} size={4}>
+              <C20_MuiTypeCard img={s.img} tag={s.tag} title={s.t} body={s.d} />
+            </Grid>
           ))}
-        </div>
+        </Grid>
 
         {/* Featured packages */}
         <SectionLabel overline="FEATURED · 6 PACKAGES" title="Honeymoons booked this year"/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 36 }}>
-          {trips.map((t) => <TripTile key={t.t} {...t}/>)}
-        </div>
+        <Grid container spacing={1.75} sx={{ mb: 4.5 }}>
+          {trips.map((t) => <Grid key={t.t} size={4}><TripTile {...t}/></Grid>)}
+        </Grid>
 
         {/* Christian couples sub-card — explicit framing for the audience that wants it */}
-        <div style={{ position: 'relative', borderRadius: 22, overflow: 'hidden', marginBottom: 36, background: 'linear-gradient(135deg, var(--md-primary-container) 0%, var(--md-secondary-container) 100%)', padding: '28px 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 28, alignItems: 'center' }}>
-            <div>
-              <span className="t-label-s" style={{ color: 'var(--brand-burgundy)' }}>FOR CHRISTIAN COUPLES</span>
-              <h3 className="t-headline" style={{ margin: '4px 0 8px', color: 'var(--md-on-primary-container)' }}>A honeymoon that honors what you just promised.</h3>
-              <p className="t-body" style={{ color: 'var(--md-on-primary-container)', opacity: 0.85, margin: 0, maxWidth: 540 }}>
+        <Paper elevation={0} sx={{
+          position: 'relative', overflow: 'hidden', mb: 4.5, px: 4, py: 3.5,
+          background: (t) => `linear-gradient(135deg, ${t.palette.primary.container} 0%, ${t.palette.secondary.container} 100%)`,
+        }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 3.5, alignItems: 'center' }}>
+            <Box>
+              <Typography variant="overline" sx={{ display: 'block', color: 'primary.main', fontWeight: 600 }}>FOR CHRISTIAN COUPLES</Typography>
+              <Typography variant="h4" component="h3" sx={{ fontWeight: 700, mt: 0.5, mb: 1, color: 'primary.onContainer' }}>A honeymoon that honors what you just promised.</Typography>
+              <Typography variant="body2" sx={{ color: 'primary.onContainer', opacity: 0.85, maxWidth: 540 }}>
                 If you're building a Christ-centered marriage, your first week away matters. We'll steer you toward resorts that fit — quieter properties, family-owned boutiques, an Adventist-friendly Sabbath rhythm if that matters to you. Just tell me on the inquiry form. No upcharge, no judgment, no awkward conversation.
-              </p>
-              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                <button className="btn btn-filled">Request a quote</button>
-                <button className="btn btn-text">See the curated list →</button>
-              </div>
-            </div>
-            <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden', aspectRatio: '5/4' }}>
-              <img src={staImg('candlelit', 600, 480)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-            </div>
-          </div>
-        </div>
+              </Typography>
+              <Stack direction="row" spacing={1.25} sx={{ mt: 2 }}>
+                <Button variant="contained">Request a quote</Button>
+                <Button variant="text">See the curated list →</Button>
+              </Stack>
+            </Box>
+            <Box sx={{ position: 'relative', borderRadius: 1, overflow: 'hidden', aspectRatio: '5/4' }}>
+              <Box component="img" src={staImg('candlelit', 600, 480)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </Box>
+          </Box>
+        </Paper>
 
         <ClosingCTA
           image="honeymoon"
           title="When's the wedding? I'll start there."
           body="Tell me the date, your two priorities (rest? adventure? privacy?), and a budget range. I'll send three honest options within 48 hours."
         />
-      </div>
-    </ScreenFrame>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
@@ -384,6 +412,9 @@ function C2010_Honeymoons() {
 // ──────────────────────────────────────────────────────────────────────
 
 function C2011_AboutGyasi() {
+  const { Box, Stack, Grid, Typography, Button, Card, CardContent, Avatar, Divider, Accordion, AccordionSummary, AccordionDetails } = MUI;
+  const glass = { color: 'common.white', borderColor: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)',
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.5)', bgcolor: 'rgba(255,255,255,0.26)' } };
   const stats = [
     { n: '240+', l: 'Travelers served', i: 'users' },
     { n: '4.9 ★', l: '138 reviews', i: 'star' },
@@ -413,106 +444,118 @@ function C2011_AboutGyasi() {
   ];
 
   return (
-    <ScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
-      {/* Hero — portrait + name */}
-      <div style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(120deg, #5C0F13 0%, #7A1A1F 60%, #E87722 130%)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 0, alignItems: 'stretch', minHeight: 420 }}>
-          <div style={{ padding: '52px 56px', color: '#FFF', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <span className="t-label-s" style={{ color: '#FFC83F', marginBottom: 10 }}>YOUR ADVISOR</span>
-            <h1 className="t-display" style={{ margin: 0, color: '#FFF', lineHeight: 1.04 }}>Hi, I'm <span className="t-script" style={{ color: '#FFC83F', fontSize: 72 }}>Gyasi.</span></h1>
-            <p className="t-body-l" style={{ marginTop: 14, color: 'rgba(255,255,255,0.92)', maxWidth: 540 }}>
+    <MuiScreenFrame chrome="topbar" role="public" search={false} padding={0} scrollable>
+      {/* Hero — portrait + name. Brand gradient is the same in both schemes, like the legacy screen. */}
+      <Box sx={{ position: 'relative', overflow: 'hidden',
+                 background: (t) => `linear-gradient(120deg, ${t.palette.brandSource.burgundyDark} 0%, ${t.palette.brandSource.burgundy} 60%, ${t.palette.brandSource.orange} 130%)` }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', alignItems: 'stretch', minHeight: 420 }}>
+          <Box sx={{ px: 7, py: 6.5, color: 'common.white', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Typography variant="overline" sx={{ display: 'block', color: 'brandSource.gold', fontWeight: 600, mb: 1.25 }}>YOUR ADVISOR</Typography>
+            <Typography variant="h2" component="h1" sx={{ color: 'common.white', fontWeight: 700, lineHeight: 1.04 }}>Hi, I'm <Typography variant="script" component="span" sx={{ color: 'brandSource.gold', fontSize: 72 }}>Gyasi.</Typography></Typography>
+            <Typography variant="body1" sx={{ mt: 1.75, color: 'rgba(255,255,255,0.92)', maxWidth: 540 }}>
               Caribbean specialist, mom of three, Sandals-certified, hosted by Inteletravel. I plan the kind of week that turns into a story your family tells for years — and I don't disappear after the deposit clears.
-            </p>
-            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-              <button className="btn btn-orange btn-lg">Request a quote</button>
-              <button className="btn btn-lg" style={{ background: 'rgba(255,255,255,0.18)', color: '#FFF', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                <Icon name="message" size={14}/> Message me first
-              </button>
-            </div>
-          </div>
-          <div style={{ position: 'relative', overflow: 'hidden' }}>
-            <img src={staImg('avatarA', 800, 1000)} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }}/>
-          </div>
-        </div>
-      </div>
+            </Typography>
+            <Stack direction="row" spacing={1.25} sx={{ mt: 2.75 }}>
+              <Button variant="contained" color="brand" size="large">Request a quote</Button>
+              <Button variant="outlined" size="large" startIcon={<MuiIcon name="message" size={14} />} sx={glass}>
+                Message me first
+              </Button>
+            </Stack>
+          </Box>
+          <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+            <Box component="img" src={staImg('avatarA', 800, 1000)} alt="" sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
+          </Box>
+        </Box>
+      </Box>
 
       {/* Stats strip */}
-      <div style={{ background: 'var(--md-surface-1)', borderBottom: '1px solid var(--md-outline-variant)' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 48px', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 24 }}>
+      <Box sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+        <Grid container spacing={3} sx={{ maxWidth: 1280, mx: 'auto', px: 6, py: 3 }}>
           {stats.map((s) => (
-            <div key={s.l} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={s.i} size={20}/>
-              </span>
-              <div>
-                <div className="t-display-s" style={{ margin: 0, fontSize: 28 }}>{s.n}</div>
-                <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{s.l}</div>
-              </div>
-            </div>
+            <Grid key={s.l} size={3}>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                <Avatar variant="rounded" sx={{ width: 44, height: 44, bgcolor: 'primary.container', color: 'primary.onContainer' }}>
+                  <Icon name={s.i} size={20} />
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1 }}>{s.n}</Typography>
+                  <Typography variant="caption" component="p" color="text.secondary">{s.l}</Typography>
+                </Box>
+              </Stack>
+            </Grid>
           ))}
-        </div>
-      </div>
+        </Grid>
+      </Box>
 
-      <div style={{ padding: '40px 48px 56px', maxWidth: 1280, margin: '0 auto' }}>
+      <Box sx={{ px: 6, pt: 5, pb: 7, maxWidth: 1280, mx: 'auto' }}>
         {/* Bio + credentials */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 28, marginBottom: 44 }}>
-          <div>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 3.5, mb: 5.5 }}>
+          <Box>
             <SectionLabel overline="THE STORY" title="How Story-Tail started."/>
-            <div className="t-body-l" style={{ color: 'var(--md-on-surface)', textWrap: 'pretty', maxWidth: 640 }}>
-              <p style={{ margin: '0 0 14px' }}>I started planning trips for friends in 2019 because they kept asking. I'd done enough Caribbean weeks of my own to know which resorts were worth it and which were paying for good Google ads. By 2021 the side-thing had a name — <i>Story-Tail Adventures</i> — and a backlog.</p>
-              <p style={{ margin: '0 0 14px' }}>I'm hosted by Inteletravel, which means you get my care plus an IATA-accredited host agency behind every booking. I earn commission from suppliers — never a fee from you.</p>
-              <p style={{ margin: 0 }}>My belief about all this is simple: vacation isn't an escape from your life, it's a gift. The world is good. Rest is good. My job is to remove enough friction that you can actually receive both.</p>
-              <p className="t-script" style={{ margin: '18px 0 0', color: 'var(--brand-burgundy)', fontSize: 30 }}>— Gyasi</p>
-            </div>
-          </div>
-          <div>
+            <Box sx={{ color: 'text.primary', textWrap: 'pretty', maxWidth: 640 }}>
+              <Typography variant="body1" sx={{ mb: 1.75 }}>I started planning trips for friends in 2019 because they kept asking. I'd done enough Caribbean weeks of my own to know which resorts were worth it and which were paying for good Google ads. By 2021 the side-thing had a name — <i>Story-Tail Adventures</i> — and a backlog.</Typography>
+              <Typography variant="body1" sx={{ mb: 1.75 }}>I'm hosted by Inteletravel, which means you get my care plus an IATA-accredited host agency behind every booking. I earn commission from suppliers — never a fee from you.</Typography>
+              <Typography variant="body1">My belief about all this is simple: vacation isn't an escape from your life, it's a gift. The world is good. Rest is good. My job is to remove enough friction that you can actually receive both.</Typography>
+              <Typography variant="script" component="p" sx={{ mt: 2.25, color: 'primary.main', fontSize: 30 }}>— Gyasi</Typography>
+            </Box>
+          </Box>
+          <Box>
             <SectionLabel overline="CREDENTIALS" title="Trained, certified, audited."/>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Stack spacing={1}>
               {creds.map((c) => (
-                <div key={c.t} className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon name="shield" size={16}/>
-                  </span>
-                  <div>
-                    <div className="t-title-s">{c.t}</div>
-                    <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.s}</div>
-                  </div>
-                </div>
+                <Card key={c.t}>
+                  <CardContent sx={{ p: 1.75, display: 'flex', gap: 1.5, alignItems: 'flex-start', '&:last-child': { pb: 1.75 } }}>
+                    <Avatar variant="rounded" sx={{ width: 36, height: 36, bgcolor: 'secondary.container', color: 'secondary.onContainer', flexShrink: 0 }}>
+                      <Icon name="shield" size={16} />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1">{c.t}</Typography>
+                      <Typography variant="caption" component="p" color="text.secondary">{c.s}</Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
               ))}
-            </div>
-          </div>
-        </div>
+            </Stack>
+          </Box>
+        </Box>
 
         {/* Testimonials */}
         <SectionLabel overline="WHAT TRAVELERS SAY" title="Six unedited notes."/>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 44 }}>
+        <Grid container spacing={1.75} sx={{ mb: 5.5 }}>
           {testimonials.map((t, i) => (
-            <div key={i} className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column' }}>
-              <span style={{ font: '700 32px/0.7 var(--font-script)', color: 'var(--brand-orange)', letterSpacing: -2 }}>"</span>
-              <p className="t-body" style={{ color: 'var(--md-on-surface)', margin: '4px 0 0', textWrap: 'pretty', flex: 1 }}>{t.q}</p>
-              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, paddingTop: 14, borderTop: '1px solid var(--md-outline-variant)' }}>
-                <img src={staImg(t.a, 80, 80)} alt="" style={{ width: 32, height: 32, borderRadius: 999 }}/>
-                <div>
-                  <div style={{ font: '600 12.5px/1.2 var(--font-sans)' }}>{t.who}</div>
-                  <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{t.trip}</div>
-                </div>
-              </div>
-            </div>
+            <Grid key={i} size={4}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent sx={{ p: 2.25, height: '100%', display: 'flex', flexDirection: 'column', '&:last-child': { pb: 2.25 } }}>
+                  <Typography variant="script" sx={{ fontSize: 32, lineHeight: 0.7, color: 'brand.main', letterSpacing: -2 }}>"</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, textWrap: 'pretty', flex: 1 }}>{t.q}</Typography>
+                  <Divider sx={{ mt: 1.75 }} />
+                  <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', pt: 1.75 }}>
+                    <Avatar src={staImg(t.a, 80, 80)} alt="" sx={{ width: 32, height: 32 }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ lineHeight: 1.2 }}>{t.who}</Typography>
+                      <Typography variant="caption" component="p" color="text.secondary">{t.trip}</Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </div>
+        </Grid>
 
         {/* FAQ */}
         <SectionLabel overline="QUESTIONS PEOPLE ASK" title="FAQ"/>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 44 }}>
+        <Stack spacing={1.25} sx={{ mb: 5.5 }}>
           {faq.map((f, i) => (
-            <details key={i} className="card" style={{ padding: 0 }} open={i === 0}>
-              <summary style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600 }}>
-                {f.q} <Icon name="chevron_down" size={16}/>
-              </summary>
-              <div style={{ padding: '0 18px 16px', color: 'var(--md-on-surface-variant)', font: '400 14px/1.6 var(--font-sans)' }}>{f.a}</div>
-            </details>
+            <Accordion key={i} defaultExpanded={i === 0} disableGutters>
+              <AccordionSummary expandIcon={<MuiIcon name="chevron_down" size={16} />}>
+                <Typography variant="subtitle2">{f.q}</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0 }}>
+                <Typography variant="body2" color="text.secondary">{f.a}</Typography>
+              </AccordionDetails>
+            </Accordion>
           ))}
-        </div>
+        </Stack>
 
         <ClosingCTA
           image="sunset"
@@ -521,8 +564,8 @@ function C2011_AboutGyasi() {
           primary="Request a quote"
           secondary="Message Gyasi"
         />
-      </div>
-    </ScreenFrame>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 

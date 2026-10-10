@@ -1,9 +1,16 @@
 "use client";
 
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import NextLink from "next/link";
 
 import { Avatar } from "@/components/public/Avatar";
+import { UP_WEB } from "@/lib/mui/sx";
 import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
+
+/** The legacy .btn-sm box on MUI's small button; the sides open up a notch at `web`. */
+const SIGN_IN = { minHeight: 32, px: 1.5, [UP_WEB]: { px: 2 } } as const;
+const CREATE_ACCOUNT = { minHeight: 32, px: 1.75, [UP_WEB]: { px: 2 } } as const;
 
 /**
  * The public top bar's right cluster: "Sign in" / "Create account" for a visitor, their
@@ -21,6 +28,10 @@ import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
  * The signed-out pair therefore stays in the static HTML unconditionally, which is what
  * keeps it in the crawlable page and working with JavaScript off.
  *
+ * `.pub-auth-out` / `.pub-auth-in` carry NO display of their own here — not in sx either.
+ * Their layout lives in public.css next to the gate, in the same cascade layer, which is
+ * what lets the gate's `display: none` win.
+ *
  * ── WHY THE AVATAR IS A LINK ─────────────────────────────────────────────────────
  *
  * The dashboard's own avatar is an inert span (components/client/ClientTopBar.tsx) because
@@ -31,30 +42,36 @@ import { useAuthChrome } from "@/lib/auth/use-auth-chrome";
 export function PublicAuthCluster() {
   const { status, initials } = useAuthChrome();
 
-  // No `ml-auto`. PublicNav's spacer opens the right-hand group now, so this just follows
+  // No `ml: auto`. PublicNav's spacer opens the right-hand group now, so this just follows
   // the theme toggle in document order.
   return (
-    <div className="hidden lg:flex" data-auth={status}>
+    <Box data-auth={status} sx={{ display: { xs: "none", lg: "flex" } }}>
       {status !== "in" && (
         <div className="pub-auth-out">
-          <Link href="/login" className="btn btn-text btn-sm px-3 web:px-4">
+          <MuiButton component={NextLink} href="/login" variant="text" size="small" sx={SIGN_IN}>
             Sign in
-          </Link>
-          <Link href="/join" className="btn btn-filled btn-sm px-3.5 web:px-4">
+          </MuiButton>
+          <MuiButton
+            component={NextLink}
+            href="/join"
+            variant="contained"
+            size="small"
+            sx={CREATE_ACCOUNT}
+          >
             Create account
-          </Link>
+          </MuiButton>
         </div>
       )}
 
       {status !== "out" && (
-        <Link href="/dashboard" className="pub-auth-in" aria-label="Your account">
+        <NextLink href="/dashboard" className="pub-auth-in" aria-label="Your account">
           {/* Decorative: the accessible name is the link's, exactly as BrandMark is `alt=""`
               inside its own labelled link. Empty initials mean the letters are still in
               flight, so this is a plain circle for a moment rather than a monogram that
               changes under the reader. */}
           <Avatar initials={initials} />
-        </Link>
+        </NextLink>
       )}
-    </div>
+    </Box>
   );
 }

@@ -23,7 +23,11 @@ describe("2.0.11 about Gyasi page", () => {
     expect(container.querySelectorAll("dl dd")).toHaveLength(4);
     expect(screen.getByText("Hosted by Inteletravel")).toBeInTheDocument();
     expect(container.querySelectorAll("figure")).toHaveLength(TESTIMONIALS.length);
-    expect(container.querySelectorAll("details")).toHaveLength(GYASI_FAQ.length);
+    // One disclosure per question: the FAQ is an MUI Accordion (MUI v9 migration), so each
+    // item is a heading with an expand button controlling its panel, not a <details>.
+    expect(container.querySelectorAll('h3 [aria-expanded][aria-controls$="-panel"]')).toHaveLength(
+      GYASI_FAQ.length,
+    );
     expect(screen.getByText("— Gyasi")).toBeInTheDocument();
   });
 

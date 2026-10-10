@@ -5,8 +5,12 @@
 // Statically generated for every catalog slug; unknown slugs 404 via `dynamicParams = false`.
 // "Message Gyasi without an account" is the Phase 1 prefilled email (Screen Inventory 2.0.5 note).
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Box from "@mui/material/Box";
+import MuiChip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import NextLink from "@/components/mui/NextLink";
 import { AdvisorCard } from "@/components/public/AdvisorCard";
 import { AmenityPill } from "@/components/public/AmenityPill";
 import { Container } from "@/components/public/Container";
@@ -17,6 +21,7 @@ import { Icon } from "@/components/ui/Icon";
 import { TRIP_REVIEWS } from "@/content/public/proof";
 import { findTrip, TRIP_SLUGS } from "@/content/public/trips";
 import { staImg } from "@/lib/images";
+import { UP_LG, UP_MD, UP_WEB, VISUALLY_HIDDEN } from "@/lib/mui/sx";
 import { inquiryHref } from "@/lib/public/inquiry";
 import { joinHref, tripHref } from "@/lib/public/links";
 import { advisorTitle, DETAIL, tripBadge } from "./content";
@@ -30,6 +35,39 @@ export function generateStaticParams() {
 }
 
 type Params = Promise<{ slug: string }>;
+
+/**
+ * The page grid public.css called `.detail-layout`: one column, and from 1024 the 340px
+ * right rail. `lg` is the one public-page use of that breakpoint, because the rail splits at
+ * exactly that width (fidelity spec §2.0.5).
+ */
+const DETAIL_LAYOUT = {
+  display: "grid",
+  gap: 2.25,
+  pt: 2.25,
+  pb: 2.25,
+  [UP_MD]: { pt: 2.5, pb: 4 },
+  [UP_LG]: { gridTemplateColumns: "minmax(0, 1fr) 340px" },
+} as const;
+
+/**
+ * The hero ramp public.css gave `.t-hero-s` (26 / 32 / 36px), on MUI's h3 with the artboard's
+ * 700 weight. Sizes are the current web layout's and stay; only the face moves to MUI.
+ */
+const HERO_TITLE = {
+  mt: 1,
+  mb: 0.5,
+  color: "common.white",
+  fontWeight: 700,
+  fontSize: 26,
+  lineHeight: 1.1,
+  letterSpacing: "-0.4px",
+  [UP_MD]: { mb: 0.25, fontSize: 32 },
+  [UP_WEB]: { fontSize: 36, letterSpacing: "-0.6px" },
+} as const;
+
+/** Inline icon + text pair in the hero meta row. */
+const META_ITEM = { display: "inline-flex", alignItems: "center", gap: 0.5 } as const;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
@@ -70,80 +108,140 @@ export default async function TripDetailPage({ params }: { params: Params }) {
         size="compact"
         scrim="bottom-detail"
         custom={
-          <div className="flex items-end justify-between gap-3 text-white">
-            <div className="min-w-0">
-              <span className="pill-light t-badge inline-block rounded-md px-2 py-0.75 md:rounded-lg md:px-2.5 md:py-1">
-                {tripBadge(trip)}
-              </span>
-              <h1 className="t-hero-s mt-2 mb-1 text-white md:mb-0.5">{trip.name}</h1>
+          <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 1.5, color: "common.white" }}>
+            <Box sx={{ minWidth: 0 }}>
+              {/* The light pill on the photo stays white in both schemes (`--hero-pill-bg`),
+                  so its text is the brand burgundy rather than a scheme-switching role. */}
+              <MuiChip
+                size="small"
+                label={tripBadge(trip)}
+                sx={{
+                  height: 20,
+                  bgcolor: "var(--hero-pill-bg)",
+                  color: "brandSource.burgundy",
+                  fontWeight: 700,
+                  fontSize: 10,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                }}
+              />
+              <Typography variant="h3" component="h1" sx={HERO_TITLE}>
+                {trip.name}
+              </Typography>
               {/* Meta row: 12px on M205, 13px on C205 — the nearest ramp steps. */}
-              <p className="t-label md:t-label-l flex flex-wrap items-center gap-3 text-white/92 md:gap-3.5">
-                <span className="inline-flex items-center gap-1">
+              <Typography
+                component="p"
+                variant="caption"
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: { xs: 1.5, md: 1.75 },
+                  fontWeight: 500,
+                  color: "var(--hero-fg-muted)",
+                  [UP_MD]: { fontSize: 13 },
+                }}
+              >
+                <Box component="span" sx={META_ITEM}>
                   <Icon name="pin" size={13} />
                   {trip.destination.place}
-                </span>
+                </Box>
                 {review && (
-                  <span className="inline-flex items-center gap-1">
-                    <Icon name="star" size={13} filled className="text-brand-sunset" />
+                  <Box component="span" sx={META_ITEM}>
+                    <Box component="span" sx={{ display: "inline-flex", color: "brandSource.sunset" }}>
+                      <Icon name="star" size={13} filled />
+                    </Box>
                     {review.display}
-                  </span>
+                  </Box>
                 )}
-              </p>
-            </div>
+              </Typography>
+            </Box>
             {/* Below md the heart lives in the sticky price bar (M205). */}
-            <Link
+            <IconButton
+              component={NextLink}
               href={save}
-              className="btn-icon hidden size-10 shrink-0 rounded-full bg-white/92 text-brand-navy md:inline-flex"
               aria-label={DETAIL.saveAria(trip.name)}
+              sx={{
+                display: { xs: "none", md: "inline-flex" },
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                bgcolor: "var(--hero-pill-bg)",
+                color: "brandSource.navy",
+                "&:hover": { bgcolor: "common.white" },
+              }}
             >
               <Icon name="heart" size={18} />
-            </Link>
-          </div>
+            </IconButton>
+          </Box>
         }
       />
 
-      <Container className="detail-layout pt-4.5 pb-4.5 md:pt-5 md:pb-8">
-        <div className="min-w-0">
-          <h2 className="t-title-l text-on-surface">{DETAIL.whatItIs}</h2>
-          <p className="t-body mt-1.5 mb-3.5 text-on-surface-variant">{trip.description}</p>
+      <Container sx={DETAIL_LAYOUT}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h5" component="h2" sx={{ color: "text.primary" }}>
+            {DETAIL.whatItIs}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.75, mb: 1.75, color: "text.secondary" }}>
+            {trip.description}
+          </Typography>
 
-          <ul className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <Box
+            component="ul"
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+              gap: 1,
+              listStyle: "none",
+              m: 0,
+              p: 0,
+            }}
+          >
             {trip.highlights.map((highlight) => (
               <AmenityPill key={highlight.text} icon={highlight.icon} label={highlight.text} />
             ))}
-          </ul>
+          </Box>
 
-          <h2 className="t-title-l mt-4.5 text-on-surface md:mt-3.5">{DETAIL.sampleItinerary}</h2>
-          <ol className="mt-2 flex flex-col gap-1.5 md:gap-2">
+          <Typography variant="h5" component="h2" sx={{ mt: { xs: 2.25, md: 1.75 }, color: "text.primary" }}>
+            {DETAIL.sampleItinerary}
+          </Typography>
+          <Box
+            component="ol"
+            sx={{ m: 0, p: 0, mt: 1, display: "flex", flexDirection: "column", gap: { xs: 0.75, md: 1 }, listStyle: "none" }}
+          >
             {trip.sampleItinerary.map((day, index) => (
               <NumberedRow key={day} n={index + 1} label={day} />
             ))}
-          </ol>
-        </div>
+          </Box>
+        </Box>
 
-        {/* Tablet (768–1023): first, full-width under the hero. From 1024: the 340px right rail.
-            `lg:` is the one public-page use of the 1024 breakpoint, because `.detail-layout`
-            (public.css) splits into two columns at exactly that width (fidelity spec §2.0.5). */}
-        <aside aria-labelledby="detail-aside-heading" className="flex flex-col gap-3.5 md:order-first lg:order-none">
-          <h2 id="detail-aside-heading" className="sr-only">
+        {/* Tablet (768–1023): first, full-width under the hero. From 1024: the 340px right rail. */}
+        <Box
+          component="aside"
+          aria-labelledby="detail-aside-heading"
+          sx={{ display: "flex", flexDirection: "column", gap: 1.75, order: { md: -1, lg: 0 } }}
+        >
+          <Typography component="h2" id="detail-aside-heading" sx={VISUALLY_HIDDEN}>
             {DETAIL.asideHeading}
-          </h2>
-          <PriceCard trip={trip} quoteHref={quote} saveHref={save} messageHref={message} className="hidden md:block" />
-          <div className="hidden md:block">
+          </Typography>
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
+            <PriceCard trip={trip} quoteHref={quote} saveHref={save} messageHref={message} />
+          </Box>
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
             <AdvisorCard variant="planned" title={title} />
-          </div>
-          <div className="mt-1 flex flex-col gap-3.5 md:hidden">
-            {/* PriceCard is `hidden md:block`, so below md its price note would be lost —
-                while the sticky bar still shows the price it qualifies. */}
-            <p className="t-body-s text-on-surface-variant">{trip.priceNote}</p>
-            <AdvisorCard
-              variant="planned"
-              title={title}
-              action={{ label: DETAIL.advisor.message, href: message }}
-              className="bg-surface-2"
-            />
-          </div>
-        </aside>
+          </Box>
+          <Box sx={{ mt: 0.5, display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1.75 }}>
+            {/* PriceCard is hidden below md, so its price note would be lost — while the
+                sticky bar still shows the price it qualifies. */}
+            <Typography variant="caption" component="p" sx={{ color: "text.secondary" }}>
+              {trip.priceNote}
+            </Typography>
+            {/* Tinted surface.2 on phones, where it sits straight on the page background. */}
+            <Box sx={{ "& > .MuiPaper-root": { bgcolor: "surface.2" } }}>
+              <AdvisorCard variant="planned" title={title} action={{ label: DETAIL.advisor.message, href: message }} />
+            </Box>
+          </Box>
+        </Box>
       </Container>
 
       {/* §4.4: "'Message Gyasi without an account' is a sticky bottom button on mobile, a

@@ -77,6 +77,16 @@ def main() -> int:
 
     rel = rel.replace(os.sep, "/")
 
+    # A git worktree under .claude/worktrees/<name>/ is a full checkout of the repo, so its
+    # paths are repo paths one level down. CLAUDE_PROJECT_DIR points at the main checkout
+    # even when the session works in a worktree, which made every web/*.tsx write there
+    # read as `.claude/worktrees/<name>/web/...` and fail the `web/` prefix test. Strip the
+    # worktree prefix so the rule judges the path the worktree itself would commit.
+    if rel.startswith(".claude/worktrees/"):
+        parts = rel.split("/", 3)
+        if len(parts) == 4:
+            rel = parts[3]
+
     for exts, allowed, message in RULES:
         if rel.endswith(exts) and not rel.startswith(allowed):
             print(

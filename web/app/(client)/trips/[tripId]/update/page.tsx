@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { formatTripDates } from "@/lib/trips/format";
 import { formatTripMoney } from "@/lib/trips/money";
 import { loadStatusChange } from "@/lib/trips/queries";
+import { BACK_LINK, BTN, CARD_PAD, HEADLINE, OVERLINE, TITLE_S } from "../sx";
 import { STATUS_CHANGE } from "./content";
 
 export const metadata: Metadata = { title: "Trip update" };
@@ -67,19 +75,18 @@ export default async function TripUpdatePage({
   const primary = primaryAction(trip.status, tripId, update.itineraryReady, Boolean(update.proposal));
 
   return (
-    <div className="mx-auto w-full max-w-2xl p-4 pb-10 md:p-6">
-      <Link
-        href={`/trips/${tripId}`}
-        className="t-body-s inline-flex items-center gap-1 text-on-surface-variant"
-      >
+    // `max-w-2xl`, 16px sides with 40px below on a phone, 24px all round from `md`.
+    <Box sx={{ mx: "auto", width: "100%", maxWidth: 672, p: { xs: 2, md: 3 }, pb: { xs: 5, md: 3 } }}>
+      <MuiLink component={NextLink} href={`/trips/${tripId}`} underline="hover" sx={BACK_LINK}>
         <Icon name="arrow_left" size={14} /> {STATUS_CHANGE.back}
-      </Link>
+      </MuiLink>
 
-      <header className="mt-4">
-        <span className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
+      <Box component="header" sx={{ mt: 2 }}>
+        {/* The sparkle badge C229 opens with, on the secondary container. */}
+        <Avatar sx={{ width: 54, height: 54, bgcolor: "secondary.container", color: "secondary.onContainer" }}>
           <Icon name="sparkle" size={26} />
-        </span>
-        <p className="t-label-s mt-3 text-on-surface-variant">
+        </Avatar>
+        <Typography component="p" variant="overline" sx={{ ...OVERLINE, mt: 1.5, color: "text.secondary" }}>
           {narrative.overline} ·{" "}
           {/* An ABSOLUTE date, not "2 min ago". The artboard says "STATUS UPDATED · 2 MIN
               AGO", which is true at the instant the notification fires and a confident lie
@@ -88,48 +95,75 @@ export default async function TripUpdatePage({
           {update.changedAt
             ? formatTripDates(update.changedAt.slice(0, 10), null)
             : STATUS_CHANGE.changedUnknown}
-        </p>
-        <h1 className="t-headline mt-1">{narrative.heading}</h1>
-        <p className="t-body mt-2 max-w-prose text-on-surface-variant">
+        </Typography>
+        <Typography component="h1" variant="h5" sx={{ ...HEADLINE, mt: 0.5 }}>
+          {narrative.heading}
+        </Typography>
+        <Typography component="p" variant="body2" sx={{ mt: 1, maxWidth: "65ch", color: "text.secondary" }}>
           {narrative.body}
-        </p>
-      </header>
+        </Typography>
+      </Box>
 
-      <div className="mt-5 flex flex-col gap-3">
+      <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
         {facts.length > 0 && (
-          <section className="card p-4">
-            <h2 className="t-title-s">{STATUS_CHANGE.whatChanged}</h2>
-            <ul className="t-body-s mt-1.5 flex flex-col gap-1 text-on-surface-variant">
-              {facts.map((fact) => (
-                <li key={fact}>{fact}</li>
-              ))}
-            </ul>
-          </section>
+          <Card component="section">
+            <CardContent sx={CARD_PAD}>
+              <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+                {STATUS_CHANGE.whatChanged}
+              </Typography>
+              <Typography
+                component="ul"
+                variant="body2"
+                sx={{
+                  m: 0,
+                  p: 0,
+                  mt: 0.75,
+                  listStyle: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  color: "text.secondary",
+                }}
+              >
+                {facts.map((fact) => (
+                  <li key={fact}>{fact}</li>
+                ))}
+              </Typography>
+            </CardContent>
+          </Card>
         )}
 
-        <section className="card p-4">
-          <h2 className="t-title-s">{STATUS_CHANGE.whatsNext}</h2>
-          <ol className="t-body-s mt-1.5 list-decimal pl-5 leading-relaxed text-on-surface-variant">
-            {steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </section>
+        <Card component="section">
+          <CardContent sx={CARD_PAD}>
+            <Typography component="h2" variant="subtitle1" sx={TITLE_S}>
+              {STATUS_CHANGE.whatsNext}
+            </Typography>
+            <Typography
+              component="ol"
+              variant="body2"
+              sx={{ m: 0, mt: 0.75, pl: 2.5, listStyle: "decimal", lineHeight: 1.5, color: "text.secondary" }}
+            >
+              {steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </Typography>
+          </CardContent>
+        </Card>
 
-        <Link href={primary.href} className="btn btn-filled w-full">
+        <MuiButton component={NextLink} href={primary.href} variant="contained" fullWidth sx={BTN}>
           {primary.label} <Icon name="arrow_right" size={13} />
-        </Link>
+        </MuiButton>
 
         {/* The payment CTA the artboard shows, live now that §2.4.3 exists. It rendered
             disabled under the plan's "build them visually, disabled" decision; the point of
             that decision was that the button keeps its place until the screen arrives. */}
         {update.nextPayment && (
-          <Link href={`/wallet/authorize/${tripId}`} className="btn btn-outlined w-full">
+          <MuiButton component={NextLink} href={`/wallet/authorize/${tripId}`} variant="outlined" fullWidth sx={BTN}>
             <Icon name="card" size={14} /> {STATUS_CHANGE.authorizeCard}
-          </Link>
+          </MuiButton>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 

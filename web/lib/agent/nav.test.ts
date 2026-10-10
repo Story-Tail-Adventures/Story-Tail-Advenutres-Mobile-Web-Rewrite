@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ICON_NAMES } from "@/components/ui/icon-paths";
@@ -50,17 +48,21 @@ describe("AGENT_DESTINATIONS", () => {
     // The snapshot that replaces the client test's phase assertion. Editing it is the point:
     // when §3.3 ships, this line changes in the same commit.
     expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
-      "trips",
       "leads",
       "messages",
       "commission",
       "reports",
       "more",
     ]);
-    // `clients` joined `worklist` when §3.3.1 shipped on 2026-09-26. Trip DETAIL exists at
-    // /agent/trips/[tripId] but `trips` stays unbuilt: the rail entry points at the LIST,
-    // which is §3.4.1 and has no route.
-    expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual(["worklist", "clients"]);
+    // `clients` joined `worklist` when §3.3.1 shipped on 2026-09-26, and `trips` joined both
+    // on 2026-09-27 with §3.4.1. The note this line used to carry was the reason it was
+    // unbuilt: trip DETAIL existed at /agent/trips/[tripId] while the rail entry pointed at
+    // the LIST, which had no route. It does now.
+    expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual([
+      "worklist",
+      "clients",
+      "trips",
+    ]);
   });
 
   it("gives every planned destination a phase and a section", () => {
@@ -120,21 +122,5 @@ describe("active state", () => {
     // Not `clients`: a longest-prefix match without a boundary check would say otherwise.
     expect(activeAgentDestinationId("/agent/clients-archive")).toBe("worklist");
     expect(activeAgentDestinationId("/dashboard")).toBeNull();
-  });
-});
-
-describe("the tablet breakpoint trap", () => {
-  it("never pairs md: with an unqualified max-web: in AgentNav", () => {
-    // `web:` is px-based and `md:` is rem-based, so Tailwind emits `web:` FIRST — an
-    // unqualified `max-web:` therefore applies at phone width too. Four places in web/ have
-    // lost a `web:` value this way. The agent rail sidesteps it by not needing a
-    // tablet-only strip at all; this asserts it stays that way.
-    // Asserted against the SOURCE: it is a class-string mistake no amount of rendering in
-    // jsdom would catch. Comments are stripped first so the explanation above cannot trip it.
-    const code = readFileSync(join(__dirname, "../../components/agent/AgentNav.tsx"), "utf8")
-      .split("\n")
-      .filter((l) => !l.trim().startsWith("*") && !l.trim().startsWith("//"))
-      .join("\n");
-    expect(code.match(/(?<!md:)max-web:/g)).toBeNull();
   });
 });

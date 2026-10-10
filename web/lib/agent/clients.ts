@@ -37,8 +37,6 @@ export type ClientRosterRow = {
   archived: boolean;
   /** Already formatted, or null when there is nothing committed to report. */
   lifetimeLabel: string | null;
-  /** How many currencies this row's figure left out. 0 or 1 means it left out none. */
-  lifetimeCurrencyCount: number;
   tripCount: number;
   lastTripLabel: string | null;
   nextTripLabel: string | null;
@@ -67,8 +65,6 @@ export type ClientRoster = {
     archived: number;
   };
   facets: TagFacet[];
-  /** Set when at least one row's money figure excluded a currency. Null when none did. */
-  currencyNote: string | null;
   query: RosterQuery;
 };
 
@@ -157,7 +153,15 @@ export function rosterQueryFromParams(params: {
  * `null` means a read failed. Both reads are required: a roster with no header counts would
  * render chips claiming zero of everything over a table full of rows.
  */
-export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster | null> {
+export async function loadClientRoster(
+  query: RosterQuery,
+  /**
+   * §3.4.3 loads the whole active book at once to fill a `<datalist>` the browser filters
+   * locally. Named rather than passed as a bare number so a call site cannot quietly page
+   * at 500 by accident.
+   */
+  options?: { pageSize?: number },
+): Promise<ClientRoster | null> {
   const { timeZone } = await agentIdentity();
   void timeZone;
 
@@ -166,8 +170,8 @@ export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster
       p_status: [query.status],
       p_tags: query.tags.length > 0 ? query.tags : null,
       p_search: query.search.length > 0 ? query.search : null,
-      p_limit: ROSTER_PAGE_SIZE,
-      p_offset: (query.page - 1) * ROSTER_PAGE_SIZE,
+      p_limit: options?.pageSize ?? ROSTER_PAGE_SIZE,
+      p_offset: (query.page - 1) * (options?.pageSize ?? ROSTER_PAGE_SIZE),
     }),
     callAgentRead<AgentClientSummaryRow>("agent_client_roster_summary", {}),
   ]);
@@ -198,7 +202,6 @@ export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster
       r.lifetime_currency === null || cents(r.lifetime_value_cents) === 0
         ? null
         : money(r.lifetime_value_cents, r.lifetime_currency),
-    lifetimeCurrencyCount: r.lifetime_currency_count,
     tripCount: r.trip_count,
     lastTripLabel: tripLabel(r.last_trip_title, r.last_trip_end_date),
     nextTripLabel:
@@ -208,16 +211,6 @@ export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster
     nextTripIsNow: r.next_trip_status === "in_progress",
     lastContactLabel: contactLabel(r.last_contact_at, asOf),
   }));
-
-  // The note §3.2 settled the rule for: a money figure names one currency, and where it left
-  // others out the screen says so rather than letting one column imply a total it is not.
-  const multi = rows.filter((r) => r.lifetimeCurrencyCount > 1).length;
-  const currencyNote =
-    multi > 0
-      ? multi === 1
-        ? "One client banks in more than one currency. Their lifetime figure covers their most-used one."
-        : `${multi} clients bank in more than one currency. Each lifetime figure covers that client's most-used one.`
-      : null;
 
   const selected = new Set(query.tags);
   const facets: TagFacet[] = (summaryRow?.tag_facets ?? []).map((f) => ({
@@ -239,7 +232,6 @@ export async function loadClientRoster(query: RosterQuery): Promise<ClientRoster
       archived: summaryRow?.archived_count ?? 0,
     },
     facets,
-    currencyNote,
     query,
   };
 }

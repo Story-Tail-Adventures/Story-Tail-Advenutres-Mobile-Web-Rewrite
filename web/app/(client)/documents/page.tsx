@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { EmptyState, ErrorState } from "@/components/client/states";
 import { loadAccountDocuments } from "@/lib/account/documents";
@@ -10,6 +13,9 @@ import { DocumentRow } from "../trips/[tripId]/documents/DocumentRow";
 import { DOCUMENTS_LIBRARY } from "./content";
 
 export const metadata: Metadata = { title: "Documents" };
+
+/** The 768px column (the legacy max-w-3xl) both the header and the body sit in. */
+const COLUMN_SX = { mx: "auto", width: "100%", maxWidth: 768, p: { xs: 2, md: 3 } } as const;
 
 /**
  * Screen Inventory 2.5.4 — Travel Documents, the ACCOUNT-WIDE library.
@@ -55,27 +61,39 @@ export default async function DocumentsPage() {
 
   return (
     <div className="client-fill">
-      <header className="border-b border-outline-variant bg-surface-1">
-        <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="t-headline">{DOCUMENTS_LIBRARY.title}</h1>
-              <p className="t-body-s text-on-surface-variant">{DOCUMENTS_LIBRARY.subtitle}</p>
-            </div>
-            <button
-              type="button"
-              className="btn btn-orange btn-sm shrink-0"
+      <Box component="header" sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "surface.1" }}>
+        <Box sx={COLUMN_SX}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
+            <Box>
+              <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+                {DOCUMENTS_LIBRARY.title}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {DOCUMENTS_LIBRARY.subtitle}
+              </Typography>
+            </Box>
+            <Button
+              variant="orange"
+              size="sm"
               disabled
               aria-disabled="true"
               title={DOCUMENTS_LIBRARY.uploadDeferred}
             >
               <Icon name="upload" size={14} /> {DOCUMENTS_LIBRARY.uploadCta}
-            </button>
-          </div>
-        </div>
-      </header>
+            </Button>
+          </Box>
+        </Box>
+      </Box>
 
-      <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
+      <Box sx={COLUMN_SX}>
         {groups.length === 0 ? (
           <EmptyState
             icon="passport"
@@ -86,23 +104,30 @@ export default async function DocumentsPage() {
         ) : (
           <>
             {groups.map((group) => (
-              <section key={group.id} className="mb-5">
-                <h2 className="t-title-s mb-2">{group.label}</h2>
-                <Card className="overflow-hidden p-0">
+              <Box component="section" key={group.id} sx={{ mb: 2.5 }}>
+                <Typography component="h2" variant="subtitle1" sx={{ mb: 1 }}>
+                  {group.label}
+                </Typography>
+                <Card>
                   {group.documents.map((doc, index) => (
                     <DocumentRow key={doc.id} document={doc} first={index === 0} />
                   ))}
                 </Card>
-              </section>
+              </Box>
             ))}
 
-            <Card variant="flat" className="mt-6 flex gap-3 p-4">
-              <Icon name="lock" size={17} className="shrink-0 text-on-surface-variant" />
-              <p className="t-body-s text-on-surface-variant">{DOCUMENTS_LIBRARY.privacyNote}</p>
+            {/* The legacy card-flat: outlined on surface.2 (components/ui/Card). */}
+            <Card variant="outlined" sx={{ mt: 3, display: "flex", gap: 1.5, p: 2, bgcolor: "surface.2" }}>
+              <Box sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
+                <Icon name="lock" size={17} />
+              </Box>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
+                {DOCUMENTS_LIBRARY.privacyNote}
+              </Typography>
             </Card>
           </>
         )}
-      </div>
+      </Box>
     </div>
   );
 }

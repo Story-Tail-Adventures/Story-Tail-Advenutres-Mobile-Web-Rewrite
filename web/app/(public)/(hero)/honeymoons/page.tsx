@@ -2,7 +2,13 @@
 // design/source-prototype/screens/client-public-topics.jsx (C2010_Honeymoons) +
 // client-public-mobile.jsx (M2010_Honeymoons). P2 (built ahead of phase, September 2026).
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { topicQuoteLink } from "@/app/quote/href";
+import NextLink from "@/components/mui/NextLink";
 import { AdvisorCard } from "@/components/public/AdvisorCard";
 import { ClosingCta } from "@/components/public/ClosingCta";
 import { Container } from "@/components/public/Container";
@@ -16,8 +22,8 @@ import { TripTile } from "@/components/public/TripTile";
 import { TRIPS } from "@/content/public/trips";
 import type { Topic } from "@/content/public/types";
 import { staImg } from "@/lib/images";
+import { UP_MD } from "@/lib/mui/sx";
 import { inquiryHref } from "@/lib/public/inquiry";
-import { joinHref } from "@/lib/public/links";
 import { resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
   HONEYMOONS_CHRISTIAN_CARD,
@@ -26,6 +32,7 @@ import {
   HONEYMOONS_HERO,
   HONEYMOONS_HERO_IMAGE,
   HONEYMOONS_INQUIRY_FIELDS,
+  HONEYMOONS_INQUIRY_LABEL,
   HONEYMOONS_META,
   HONEYMOONS_NOTE,
   HONEYMOONS_PATH,
@@ -41,6 +48,13 @@ const STYLES_HEADING_ID = "three-ways-to-honeymoon";
 const FEATURED_HEADING_ID = "featured-packages";
 const CHRISTIAN_HEADING_ID = "for-christian-couples";
 
+/**
+ * Hourly, so the `today` the inquiry bar's date picker is prerendered with (its native-input
+ * floor before hydration, and with no JavaScript at all) is never more than an hour old.
+ * Built once and left, it would accept dates long past and parseStay would drop them.
+ */
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   title: HONEYMOONS_META.title,
   description: HONEYMOONS_META.description,
@@ -53,6 +67,41 @@ export const metadata: Metadata = {
   },
 };
 
+/** Section rhythm: 20px between blocks on phones, 36px from `md`. */
+const SECTION_GAP = { mb: { xs: 2.5, md: 4.5 } } as const;
+
+/** Three-up from `md`, a single column below it. */
+const THREE_UP = {
+  display: "grid",
+  gap: { xs: 1.25, md: 1.75 },
+  gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))" },
+} as const;
+
+/** Trip grid: one column on phones, two at tablet, three on web. */
+const TRIP_GRID = {
+  display: "grid",
+  gap: { xs: 1.25, md: 1.75 },
+  gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", web: "repeat(3, minmax(0, 1fr))" },
+} as const;
+
+/**
+ * The Christian-couples panel (C2010): a container-role gradient, so it survives the dark
+ * tropical scheme, drawn from the theme's own variables (the ones the palette paths
+ * resolve to), and a 1fr / 280px grid from `md` with the photo on the right.
+ */
+const CHRISTIAN_CARD = {
+  ...SECTION_GAP,
+  position: "relative",
+  overflow: "hidden",
+  p: 2.25,
+  background:
+    "linear-gradient(135deg, var(--mui-palette-primary-container) 0%, var(--mui-palette-secondary-container) 110%)",
+  display: "grid",
+  gap: 3.5,
+  alignItems: "center",
+  [UP_MD]: { py: 3.5, px: 4, gridTemplateColumns: "minmax(0, 1fr) 280px" },
+} as const;
+
 /**
  * Pattern H topic page with the tall hero. The curated-list link filters results to the
  * honeymoon vibe; "Message Gyasi" is the guest inquiry (email, or the gate when no address
@@ -60,7 +109,9 @@ export const metadata: Metadata = {
  */
 export default function HoneymoonsPage() {
   const trips = tripsForTopic(TRIPS, TOPIC);
-  const quoteHref = joinHref({ intent: "quote", next: HONEYMOONS_PATH });
+  // Straight to the quote form for this topic, through the gate. It used to be the gate with
+  // this page as `next`, which forwarded a signed-in visitor right back here.
+  const quoteHref = topicQuoteLink(TOPIC);
   const curatedHref = resultsHref({ vibes: ["honeymoon"] });
   const messageHref = inquiryHref({ source: "topic", topic: TOPIC });
 
@@ -78,26 +129,28 @@ export default function HoneymoonsPage() {
         sub={HONEYMOONS_HERO.sub}
       />
 
+      {/* Submits to /quote, which carries what was typed into the quote request. */}
       <InquiryBar
-        sticky
         fields={HONEYMOONS_INQUIRY_FIELDS}
-        action={{ label: REQUEST_QUOTE, href: quoteHref, icon: "message" }}
+        form={{ to: "quote", label: HONEYMOONS_INQUIRY_LABEL, hidden: { topic: "honeymoons" } }}
+        action={{ label: REQUEST_QUOTE, icon: "message" }}
       />
 
-      <Container size="wide" className="pt-4.5 pb-6 md:pt-8 md:pb-14">
+      <Container size="wide" sx={{ pt: { xs: 2.25, md: 4 }, pb: { xs: 3, md: 7 } }}>
         {/* Gyasi's letter */}
-        <AdvisorCard
-          variant="note"
-          overline={HONEYMOONS_NOTE.overline}
-          className="mb-5 md:mb-9"
-          body={
-            <p>
-              {HONEYMOONS_NOTE.before}
-              <i>{HONEYMOONS_NOTE.question}</i>
-              {HONEYMOONS_NOTE.after}
-            </p>
-          }
-        />
+        <Box sx={SECTION_GAP}>
+          <AdvisorCard
+            variant="note"
+            overline={HONEYMOONS_NOTE.overline}
+            body={
+              <p>
+                {HONEYMOONS_NOTE.before}
+                <i>{HONEYMOONS_NOTE.question}</i>
+                {HONEYMOONS_NOTE.after}
+              </p>
+            }
+          />
+        </Box>
 
         {/* Three ways to honeymoon — media cards; image-beside-text rows below md. */}
         <section aria-labelledby={STYLES_HEADING_ID}>
@@ -106,54 +159,71 @@ export default function HoneymoonsPage() {
             overline={HONEYMOONS_STYLES_SECTION.overline}
             title={HONEYMOONS_STYLES_SECTION.title}
           />
-          <div className="mb-5 grid gap-2.5 md:mb-9 md:grid-cols-3 md:gap-3.5">
+          <Box sx={{ ...THREE_UP, ...SECTION_GAP }}>
             {HONEYMOONS_STYLES.map((style) => (
               <MediaCard key={style.tag} image={style.image} tag={style.tag} title={style.title} body={style.body} />
             ))}
-          </div>
+          </Box>
         </section>
 
-        {/* Featured packages — every trip placed on this topic, in the designer's order.
-            `md:max-web:` keeps the tablet column count from outranking `web:` (globals.css declares
-            --breakpoint-web in px while md is rem, so Tailwind emits web: before md:). */}
+        {/* Featured packages — every trip placed on this topic, in the designer's order. */}
         <section aria-labelledby={FEATURED_HEADING_ID}>
           <SectionLabel
             id={FEATURED_HEADING_ID}
             overline={honeymoonsFeaturedOverline(trips.length)}
             title={HONEYMOONS_FEATURED.title}
           />
-          <div className="mb-5 grid gap-2.5 md:mb-9 md:max-web:grid-cols-2 md:gap-3.5 web:grid-cols-3">
+          <Box sx={{ ...TRIP_GRID, ...SECTION_GAP }}>
             {trips.map((trip) => (
               <TripTile key={trip.slug} trip={trip} topic={TOPIC} next={HONEYMOONS_PATH} />
             ))}
-          </div>
+          </Box>
         </section>
 
         {/* Opt-in card for couples who want a faith-shaped rhythm to the week (Screen Inventory
             §2.0.10). Colours are container roles so the panel survives the dark tropical scheme. */}
-        <section
-          aria-labelledby={CHRISTIAN_HEADING_ID}
-          className="christian-card christian-card-grid mb-5 overflow-hidden rounded-lg p-4.5 md:mb-9 md:p-7 md:px-8"
-        >
-          <div>
-            <p className="t-label-s text-on-primary-container">{HONEYMOONS_CHRISTIAN_CARD.overline}</p>
-            <h3 id={CHRISTIAN_HEADING_ID} className="t-headline-r mt-1 mb-2 text-on-primary-container">
+        <Paper component="section" aria-labelledby={CHRISTIAN_HEADING_ID} elevation={0} sx={CHRISTIAN_CARD}>
+          <Box>
+            <Typography
+              variant="overline"
+              component="p"
+              sx={{ display: "block", color: "primary.onContainer", fontWeight: 600, lineHeight: 1.3 }}
+            >
+              {HONEYMOONS_CHRISTIAN_CARD.overline}
+            </Typography>
+            <Typography
+              variant="h4"
+              component="h3"
+              id={CHRISTIAN_HEADING_ID}
+              sx={{ mt: 0.5, mb: 1, fontWeight: 700, color: "primary.onContainer" }}
+            >
               {HONEYMOONS_CHRISTIAN_CARD.title}
-            </h3>
-            <p className="t-body max-w-135 text-on-primary-container opacity-85">{HONEYMOONS_CHRISTIAN_CARD.body}</p>
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              <Link href={quoteHref} className="btn btn-filled">
+            </Typography>
+            <Typography variant="body2" sx={{ maxWidth: 540, color: "primary.onContainer", opacity: 0.85 }}>
+              {HONEYMOONS_CHRISTIAN_CARD.body}
+            </Typography>
+            <Stack direction="row" useFlexGap sx={{ mt: 2, flexWrap: "wrap", gap: 1.25 }}>
+              <MuiButton component={NextLink} href={quoteHref} variant="contained" sx={{ minHeight: 40, px: 3 }}>
                 {HONEYMOONS_CHRISTIAN_CARD.primary}
-              </Link>
-              <Link href={curatedHref} className="btn btn-text">
+              </MuiButton>
+              <MuiButton component={NextLink} href={curatedHref} variant="text" sx={{ minHeight: 40, px: 1.5 }}>
                 {HONEYMOONS_CHRISTIAN_CARD.secondary}
-              </Link>
-            </div>
-          </div>
-          <div className="relative hidden aspect-5/4 overflow-hidden rounded-lg md:block">
-            <Photo image={HONEYMOONS_CHRISTIAN_CARD.image} fill sizes="280px" alt="" className="object-cover" />
-          </div>
-        </section>
+              </MuiButton>
+            </Stack>
+          </Box>
+          <Box
+            sx={{
+              position: "relative",
+              display: { xs: "none", md: "block" },
+              aspectRatio: "5 / 4",
+              overflow: "hidden",
+              borderRadius: 1,
+              "& img": { objectFit: "cover" },
+            }}
+          >
+            <Photo image={HONEYMOONS_CHRISTIAN_CARD.image} fill sizes="280px" alt="" />
+          </Box>
+        </Paper>
 
         <ClosingCta
           image={HONEYMOONS_CLOSING.image}

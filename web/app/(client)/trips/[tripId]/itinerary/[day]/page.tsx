@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { formatLongDay } from "@/lib/trips/format";
 import { loadItinerary } from "@/lib/trips/queries";
+import { BACK_LINK, BTN_SM, HEADER_BAND, HEADLINE, PAD, PROSE_COL } from "../../sx";
 import { ITINERARY } from "../content";
 import {
   ActivityCard,
@@ -54,36 +59,39 @@ export default async function DayDetailPage({
   const next = index < itinerary.days.length - 1 ? itinerary.days[index + 1] : null;
 
   return (
-    <div className="pb-10">
-      <header className="border-b border-outline-variant bg-surface px-4 py-4 md:px-6">
-        <div className="mx-auto w-full max-w-3xl">
-          <Link
-            href={`/trips/${tripId}/itinerary`}
-            className="t-body-s inline-flex items-center gap-1 text-on-surface-variant"
-          >
+    <Box sx={{ pb: 5 }}>
+      <Box component="header" sx={HEADER_BAND}>
+        <Box sx={PROSE_COL}>
+          <MuiLink component={NextLink} href={`/trips/${tripId}/itinerary`} underline="hover" sx={BACK_LINK}>
             <Icon name="arrow_left" size={14} /> {ITINERARY.heading}
-          </Link>
-          <div className="mt-1.5 flex items-baseline gap-3">
-            <span className="t-script text-[36px] text-brand-burgundy">
+          </MuiLink>
+          <Box sx={{ mt: 0.75, display: "flex", alignItems: "baseline", gap: 1.5 }}>
+            <Typography component="span" variant="script" sx={{ fontSize: 36, color: "primary.main" }}>
               {ITINERARY.dayLabel(day.dayNumber)}
-            </span>
-            <div className="min-w-0">
-              <h1 className="t-headline">{day.label ?? formatLongDay(day.date)}</h1>
-              <p className="t-body-s text-on-surface-variant">{formatLongDay(day.date)}</p>
-            </div>
-          </div>
-        </div>
-      </header>
+            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography component="h1" variant="h5" sx={HEADLINE}>
+                {day.label ?? formatLongDay(day.date)}
+              </Typography>
+              <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+                {formatLongDay(day.date)}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
 
-      <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
+      <Box sx={{ ...PROSE_COL, ...PAD }}>
         {day.weather && (
-          <div className="mb-4">
+          <Box sx={{ mb: 2 }}>
             <WeatherCard weather={day.weather} />
-          </div>
+          </Box>
         )}
 
         {day.summary && (
-          <p className="t-body-l mb-4 max-w-prose text-on-surface-variant">{day.summary}</p>
+          <Typography component="p" variant="body1" sx={{ mb: 2, maxWidth: "65ch", color: "text.secondary" }}>
+            {day.summary}
+          </Typography>
         )}
 
         {day.activities.length === 0 ? (
@@ -100,25 +108,37 @@ export default async function DayDetailPage({
           </MarkDoneList>
         )}
 
-        <nav className="mt-6 flex items-center justify-between gap-3">
+        <Box component="nav" sx={{ mt: 3, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
           {prev ? (
-            <Link href={`/trips/${tripId}/itinerary/${prev.dayNumber}`} className="btn btn-outlined btn-sm">
+            <MuiButton
+              component={NextLink}
+              href={`/trips/${tripId}/itinerary/${prev.dayNumber}`}
+              variant="outlined"
+              size="small"
+              sx={BTN_SM}
+            >
               <Icon name="arrow_left" size={13} /> {ITINERARY.dayShort(prev.dayNumber)}
-            </Link>
+            </MuiButton>
           ) : (
             <span />
           )}
           {next && (
-            <Link href={`/trips/${tripId}/itinerary/${next.dayNumber}`} className="btn btn-outlined btn-sm">
+            <MuiButton
+              component={NextLink}
+              href={`/trips/${tripId}/itinerary/${next.dayNumber}`}
+              variant="outlined"
+              size="small"
+              sx={BTN_SM}
+            >
               {ITINERARY.dayShort(next.dayNumber)} <Icon name="arrow_right" size={13} />
-            </Link>
+            </MuiButton>
           )}
-        </nav>
+        </Box>
 
-        <div className="mt-6">
+        <Box sx={{ mt: 3 }}>
           <ImportantInfo itinerary={itinerary} />
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 }

@@ -37,9 +37,6 @@ object ClientCopy {
     const val NO_LIFETIME = "—"
     const val TRAVELLING_NOW = "Now"
 
-    const val CURRENCY_NOTE_ONE =
-        "One client banks in more than one currency. Their lifetime figure covers their most-used one."
-
     const val EMPTY_TITLE = "No clients yet"
     const val EMPTY_BODY = "The first one arrives when you add them, or when a quote request comes in."
     const val EMPTY_FILTERED_TITLE = "Nothing matches"
@@ -116,14 +113,3 @@ fun rosterSubtitle(active: Int, inMotion: Int, toQualify: Int): String {
     return parts.joinToString(" · ") + "."
 }
 
-/**
- * The note §3.2's currency rule requires wherever one figure stands for several currencies.
- * Null when no row left one out — a note that fires on nothing trains the eye to skip it.
- */
-fun rosterCurrencyNote(rowsExcludingACurrency: Int): String? = when {
-    rowsExcludingACurrency <= 0 -> null
-    rowsExcludingACurrency == 1 -> ClientCopy.CURRENCY_NOTE_ONE
-    else ->
-        "$rowsExcludingACurrency clients bank in more than one currency. " +
-            "Each lifetime figure covers that client's most-used one."
-}

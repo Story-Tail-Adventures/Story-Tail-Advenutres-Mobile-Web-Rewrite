@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 
 import { EmptyState } from "@/components/client/states";
 import { RetryState } from "@/components/client/RetryState";
+import NextLink from "@/components/mui/NextLink";
 import { Photo } from "@/components/public/Photo";
 import { Icon } from "@/components/ui/Icon";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { TAP_TARGET, UP_MD } from "@/lib/mui/sx";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
 import { formatTripMoney } from "@/lib/trips/money";
 import { formatTripDates } from "@/lib/trips/format";
@@ -12,6 +19,21 @@ import { isTripFilter, loadTrips, type DashboardTrip, type TripFilter } from "@/
 import { TRIPS } from "./content";
 
 export const metadata: Metadata = { title: "My trips" };
+
+/** The page column: 1024px wide, 16px sides (24 from md), a 40px tail below md. */
+const PAGE_SX = {
+  mx: "auto",
+  width: "100%",
+  maxWidth: 1024,
+  p: { xs: 2, md: 3 },
+  pb: { xs: 5, md: 3 },
+} as const;
+
+/** `.t-headline` on `variant="h5"`: stock size, the weight is the legacy one. */
+const HEADLINE_SX = { fontWeight: 700 } as const;
+
+/** The legacy .btn-sm box on MUI's Button, so nothing reflows. */
+const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
 
 /**
  * Screen 2.2.2 All Trips List — see docs/Screen-Inventory.md §2.2.2 and §4.4 (Pattern B,
@@ -30,6 +52,11 @@ export const metadata: Metadata = { title: "My trips" };
  * bulk-select") is written for the AGENT surface, where a hundred rows need scanning. A
  * traveler has four trips and each one is a photograph they recognise before they read the
  * title — the artboard draws image-led cards at 1280px for that reason.
+ *
+ * ON MUI (step 2 of the migration): the filter tabs are MUI Chips that are links (filled
+ * secondary when selected, outlined otherwise, as the C222 artboard and the ChipInput
+ * primitive draw a chosen chip), and each row is a Card laid out as the artboard's
+ * `200px | 1fr | auto` grid from `md`. Plain sx throughout, so this stays a Server Component.
  */
 export default async function TripsPage({
   searchParams,
@@ -42,10 +69,10 @@ export default async function TripsPage({
 
   if (!data) {
     return (
-      <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      <Box sx={{ mx: "auto", width: "100%", maxWidth: 1024, p: { xs: 2, md: 3 } }}>
         {/* §5's ERROR state, not the empty one — see the note on the dashboard's. */}
         <RetryState title={TRIPS.errorTitle} body={TRIPS.errorBody} />
-      </div>
+      </Box>
     );
   }
 
@@ -58,25 +85,34 @@ export default async function TripsPage({
   ];
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 pb-10 md:p-6">
-      <h1 className="t-headline">{TRIPS.title}</h1>
-      <p className="t-body mt-1 max-w-prose text-on-surface-variant">{TRIPS.subtitle}</p>
+    <Box sx={PAGE_SX}>
+      <Typography component="h1" variant="h5" sx={HEADLINE_SX}>
+        {TRIPS.title}
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ mt: 0.5, maxWidth: "65ch", color: "text.secondary" }}>
+        {TRIPS.subtitle}
+      </Typography>
 
-      <nav className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filter trips">
+      <Box component="nav" aria-label="Filter trips" sx={{ mt: 2, display: "flex", gap: 1, overflowX: "auto", pb: 0.5 }}>
         {tabs.map((tab) => {
           const on = tab.id === filter;
           return (
-            <Link
+            // 28px tall, like the ChipInput primitive, so the row keeps its rhythm. The tap
+            // area still reaches 44px on touch screens through TAP_TARGET's invisible ::after.
+            <Chip
               key={tab.id}
+              component={NextLink}
               href={tab.id === "all" ? "/trips" : `/trips?filter=${tab.id}`}
-              className={`chip tap-44 shrink-0 ${on ? "chip-filter is-on" : "chip-filter"}`}
+              clickable
+              label={`${tab.label} · ${data.counts[tab.id]}`}
+              color={on ? "secondary" : "default"}
+              variant={on ? "filled" : "outlined"}
               aria-current={on ? "page" : undefined}
-            >
-              {tab.label} · {data.counts[tab.id]}
-            </Link>
+              sx={{ ...TAP_TARGET, height: 28, flexShrink: 0 }}
+            />
           );
         })}
-      </nav>
+      </Box>
 
       {data.trips.length === 0 ? (
         <EmptyState
@@ -85,15 +121,15 @@ export default async function TripsPage({
           body={filter === "all" ? TRIPS.emptyAllBody : TRIPS.emptyFilteredBody}
         />
       ) : (
-        <ul className="mt-4 flex flex-col gap-3">
+        <Box component="ul" sx={{ m: 0, p: 0, mt: 2, listStyle: "none", display: "flex", flexDirection: "column", gap: 1.5 }}>
           {data.trips.map((trip) => (
             <li key={trip.id}>
               <TripRow trip={trip} />
             </li>
           ))}
-        </ul>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -103,45 +139,91 @@ export default async function TripsPage({
  * Trip value is shown because `total_value_cents` is in the client column grant and it is
  * what the trip costs THEM — not `total_commission_cents`, which is the agency's number and
  * is withheld (BRD §10.5).
+ *
+ * The whole Card is the link, as before. The "Open" affordance at the foot is MUI's outlined
+ * secondary Button rendered as a presentational span (`tabIndex={-1}`): it is decoration
+ * inside an anchor, not a second control, so it must not be focusable or announced as a
+ * button — the legacy markup was a styled span for the same reason.
  */
 function TripRow({ trip }: { trip: DashboardTrip }) {
   return (
-    <Link
+    <Card
+      component={NextLink}
       href={`/trips/${trip.id}`}
-      className="card grid grid-cols-1 overflow-hidden p-0 md:grid-cols-[200px_1fr_auto]"
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "200px minmax(0, 1fr) auto" },
+        color: "inherit",
+        textDecoration: "none",
+      }}
     >
-      <div className="relative h-[140px] md:h-full">
+      <Box sx={{ position: "relative", height: { xs: 140, md: "100%" } }}>
         <Photo
           image={imageKeyForTrip(trip)}
           alt=""
           fill
           sizes="(min-width: 768px) 200px, 100vw"
-          className="object-cover"
         />
-        <span className={`chip-status ${trip.chip} absolute left-2.5 top-2.5 md:hidden`}>
-          {trip.statusLabel}
-        </span>
-      </div>
+        {/* The chip rides the photo below md and moves into the body from md (the legacy
+            `md:hidden` / `hidden md:inline-flex` pair), so a wrapper carries the breakpoint. */}
+        <Box sx={{ position: "absolute", top: 10, left: 10, display: { xs: "block", md: "none" } }}>
+          <StatusChip kind={trip.chip} label={trip.statusLabel} />
+        </Box>
+      </Box>
 
-      <div className="p-4">
-        <span className={`chip-status ${trip.chip} hidden md:inline-flex`}>{trip.statusLabel}</span>
-        <div className="t-title-l mt-1.5">{trip.title}</div>
-        <div className="t-body-s text-on-surface-variant">
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: { xs: "none", md: "block" } }}>
+          <StatusChip kind={trip.chip} label={trip.statusLabel} />
+        </Box>
+        <Typography component="div" variant="h5" sx={{ mt: 0.75 }}>
+          {trip.title}
+        </Typography>
+        <Typography component="div" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
           {[formatTripDates(trip.startDate, trip.endDate), trip.destinations[0], `${trip.travelerCount} travelers`]
             .filter(Boolean)
             .join(" · ")}
-        </div>
-      </div>
+        </Typography>
+      </Box>
 
-      <div className="flex items-center justify-between gap-3 border-t border-outline-variant p-4 md:min-w-[160px] md:flex-col md:items-end md:justify-start md:border-l md:border-t-0">
-        <div>
-          <div className="t-label text-on-surface-variant">{TRIPS.tripValue}</div>
-          <div className="t-title-l">{formatTripMoney(trip.totalValueCents, trip.currency)}</div>
-        </div>
-        <span className="btn btn-tonal btn-sm md:mt-auto">
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+          borderTop: 1,
+          borderColor: "divider",
+          p: 2,
+          [UP_MD]: {
+            minWidth: 160,
+            flexDirection: "column",
+            alignItems: "flex-end",
+            justifyContent: "flex-start",
+            borderTop: 0,
+            borderLeft: 1,
+          },
+        }}
+      >
+        <Box>
+          <Typography component="div" variant="caption" sx={{ display: "block", fontWeight: 500, lineHeight: 1.3, color: "text.secondary" }}>
+            {TRIPS.tripValue}
+          </Typography>
+          <Typography component="div" variant="h5">
+            {formatTripMoney(trip.totalValueCents, trip.currency)}
+          </Typography>
+        </Box>
+        <MuiButton
+          component="span"
+          role="presentation"
+          tabIndex={-1}
+          variant="outlined"
+          color="secondary"
+          size="small"
+          sx={{ ...BTN_SM, [UP_MD]: { mt: "auto" } }}
+        >
           {TRIPS.open} <Icon name="chevron_right" size={13} />
-        </span>
-      </div>
-    </Link>
+        </MuiButton>
+      </Box>
+    </Card>
   );
 }

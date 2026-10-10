@@ -94,9 +94,25 @@ SELECT pg_temp.assert(
     'trip — cannot see another client''s trip');
 
 -- ── trip_component ──────────────────────────────────────────────────────────
+-- ASSERTED AS A SCOPE, NOT A MAGIC NUMBER. This read `= 5` until 2026-09-28 and broke twice
+-- in one change: the Negril trip gained its missing return leg, and every trip that had a
+-- hand-set total with no components behind it gained a package line
+-- (see constraints_trip_totals.sql). Neither had anything to do with row-level security,
+-- which is what this file is for — and a literal count makes every seed edit look like an
+-- RLS regression.
+--
+-- What matters here is the SCOPE: this traveler sees the components of their own trips and
+-- nothing else. Both halves are asserted, so the test still fails if the policy widens.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.trip_component') = 5,
-    'trip_component — sees the five components of their own trip');
+    pg_temp.count_of('SELECT count(*) FROM public.trip_component') > 0,
+    'trip_component — sees components at all');
+
+SELECT pg_temp.assert(
+    pg_temp.count_of('SELECT count(*) FROM public.trip_component') =
+    pg_temp.count_of(
+        'SELECT count(*) FROM public.trip_component c '
+        'WHERE c.trip_id IN (SELECT t.id FROM public.trip t)'),
+    'trip_component — every visible component belongs to a trip they can see, and no other');
 
 SELECT pg_temp.expect_denied(
     'SELECT cost_cents FROM public.trip_component LIMIT 1',
@@ -112,8 +128,12 @@ SELECT pg_temp.expect_denied(
     'SELECT payload FROM public.trip_component LIMIT 1',
     'trip_component.payload — withheld (carries rate_cents_per_night)');
 
+-- The COUNT here was never the point — selecting `kind` at all is. It said `= 5` and broke
+-- for the same seed reason as the assertion above, which is a column grant test failing over
+-- fixture arithmetic. `expect_denied`'s inverse: it runs, so the grant is there.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM (SELECT kind FROM public.trip_component) q') = 5,
+    pg_temp.count_of('SELECT count(*) FROM (SELECT kind FROM public.trip_component) q')
+    = pg_temp.count_of('SELECT count(*) FROM public.trip_component'),
     'trip_component.kind — granted, against its Internal marker (icons and empty states)');
 
 -- The insurance component is what §2.2.4's Important info panel reads its policy number
@@ -255,14 +275,31 @@ SELECT pg_temp.expect_denied(
     'document.is_sensitive — withheld (internal logging flag)');
 
 -- ── payment_milestone and testimonial ───────────────────────────────────────
+-- ASSERTED AS A SCOPE, NOT A MAGIC NUMBER — the third one in this file to need it, and it
+-- broke the same way. This read `= 3` until 2026-09-29, when `trip.total_paid_cents` got
+-- the producer Data-Model §9.5 always said it had and every trip claiming a payment with
+-- no schedule behind it gained one (see constraints_trip_paid.sql). That has nothing to do
+-- with row-level security, which is what this file is for.
 SELECT pg_temp.assert(
-    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') = 3,
-    'payment_milestone — sees the full schedule for their own trip');
+    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') > 0,
+    'payment_milestone — sees a schedule at all');
 
 SELECT pg_temp.assert(
+    pg_temp.count_of('SELECT count(*) FROM public.payment_milestone') =
     pg_temp.count_of(
-      'SELECT coalesce(sum(paid_cents),0) FROM public.payment_milestone WHERE status = ''paid''') = 500000,
-    'payment_milestone — paid milestones sum to trip.total_paid_cents');
+        'SELECT count(*) FROM public.payment_milestone m '
+        'WHERE m.trip_id IN (SELECT t.id FROM public.trip t)'),
+    'payment_milestone — every visible milestone is on a trip they can see, and no other');
+
+-- DERIVED ON BOTH SIDES rather than compared to 500000. The relationship is the claim —
+-- what a traveler is told they have paid is the sum of the milestones they can see — and
+-- the literal was only ever one trip's arithmetic, restated by hand.
+SELECT pg_temp.assert(
+    pg_temp.count_of(
+        'SELECT coalesce(sum(m.paid_cents), 0) FROM public.payment_milestone m') =
+    pg_temp.count_of(
+        'SELECT coalesce(sum(t.total_paid_cents), 0) FROM public.trip t'),
+    'payment_milestone — the milestones they can see sum to what their trips say they paid');
 
 SELECT pg_temp.assert(
     pg_temp.count_of('SELECT count(*) FROM public.testimonial') = 1,

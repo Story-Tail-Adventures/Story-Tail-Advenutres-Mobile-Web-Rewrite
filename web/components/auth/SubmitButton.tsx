@@ -23,7 +23,7 @@ export function SubmitButton({
     <Button type="submit" variant="filled" size="lg" fullWidth disabled={pending}>
       {pending ? (
         <>
-          <Spinner className="size-5" />
+          <Spinner size={20} />
           {pendingLabel}
         </>
       ) : (

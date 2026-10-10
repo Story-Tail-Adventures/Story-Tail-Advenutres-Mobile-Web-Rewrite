@@ -1,9 +1,14 @@
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import Typography from "@mui/material/Typography";
 
-import { Card } from "@/components/ui/Card";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import type { IconName } from "@/components/ui/icon-paths";
-import { cn } from "@/lib/cn";
+import { UP_MD } from "@/lib/mui/sx";
 
 /**
  * The grouped settings list. Screen Inventory §2.5 is mostly this shape: 2.5.1's eight
@@ -11,17 +16,25 @@ import { cn } from "@/lib/cn";
  * same row under different headings. §3.12 Agent Settings will want it too, which is why it
  * lives in `components/ui/` rather than `components/client/`.
  *
+ * On MUI: a row is a ListItemButton (hover, ripple, focus ring) when it links somewhere and
+ * a plain Box otherwise; the leading glyph is a rounded Avatar on secondary.container, the
+ * way the converted 2.5.1 artboard draws it; the group is a Card. The row's box (16px by 12px
+ * padding, 12px gap) is the legacy one so the account screens do not reflow.
+ *
  * WHY A ROW IS A LINK, A BUTTON, OR A PLAIN DIV — and why it is never given an `onClick`.
  * These render inside async server components. A function cannot cross the RSC boundary: it
  * typechecks, it survives unit tests (which render in-process, so the boundary is never
  * crossed), and it throws at runtime. So a row takes an `href`, or it takes nothing and
- * renders inert. Anything genuinely interactive belongs in its own `"use client"` leaf.
+ * renders inert. Anything genuinely interactive belongs in its own `"use client"` leaf. The
+ * link itself is `component={NextLink}` — a client reference, which is the one kind of
+ * component a Server Component may hand to MUI.
  *
  * A DISABLED ROW KEEPS ITS PLACE. §2.5 has several destinations whose backend does not exist
  * yet, and the §2.2 rule is to render them disabled with a reason rather than hide them — a
  * list that grows an item per release moves every other item under the reader's cursor. The
  * reason replaces the subtitle rather than sitting beside it, because two lines of grey on a
- * dimmed row is unreadable.
+ * dimmed row is unreadable — which is also why the dim is 0.55 and not MUI's 0.38 for a
+ * disabled control: this row still has to be read.
  */
 
 export type SettingsRowProps = {
@@ -57,67 +70,84 @@ export function SettingsRow({
   first = false,
   tile = false,
 }: SettingsRowProps) {
+  const secondary = disabled ? reason : sub;
+
   const inner = (
     <>
       {icon && (
-        <span
-          className={cn(
-            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
-            danger
-              ? "bg-error-container text-on-error-container"
-              : "bg-secondary-container text-on-secondary-container",
-          )}
+        <Avatar
+          variant="rounded"
           aria-hidden="true"
+          sx={{
+            width: 36,
+            height: 36,
+            bgcolor: danger ? "error.container" : "secondary.container",
+            color: danger ? "error.onContainer" : "secondary.onContainer",
+          }}
         >
           <Icon name={icon} size={17} />
-        </span>
+        </Avatar>
       )}
-      <span className="min-w-0 flex-1">
-        <span className={cn("t-title-s block", danger && "text-error")}>{title}</span>
-        {(disabled ? reason : sub) && (
-          <span className="t-body-s block truncate text-on-surface-variant">
-            {disabled ? reason : sub}
-          </span>
-        )}
-      </span>
-      {trailing ?? (!disabled && href ? (
-        <Icon name="chevron_right" size={16} className="shrink-0 text-on-surface-variant" />
-      ) : null)}
+      <ListItemText
+        primary={title}
+        secondary={secondary || undefined}
+        slotProps={{
+          primary: { variant: "subtitle2", sx: danger ? { color: "error.main" } : undefined },
+          secondary: { variant: "body2", noWrap: true },
+        }}
+        sx={{ my: 0, minWidth: 0 }}
+      />
+      {trailing ??
+        (!disabled && href ? (
+          <Box sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
+            <Icon name="chevron_right" size={16} />
+          </Box>
+        ) : null)}
     </>
   );
 
-  const base = cn(
-    "flex w-full items-center gap-3 px-4 py-3 text-left",
-    // A stacked row is separated by a top rule; a tile is separated by the grid gap and
-    // carries its own outline. Only `md:` is used here — pairing it with `web:` on the same
-    // property would lose the `web:` value, because Tailwind emits px-based `web:` first.
-    // Stacked: a top rule, except on the first. Tiles: no rule at all below md (they are
-    // still a stacked card there), and from md up each carries its own outline.
-    !tile && !first && "border-t border-outline-variant",
-    tile && !first && "border-t border-outline-variant md:border-t-0",
-    tile && "md:rounded-[14px] md:border md:border-outline-variant md:bg-surface-1",
-    disabled && "opacity-55",
-  );
+  const rowSx = {
+    display: "flex",
+    alignItems: "center",
+    gap: 1.5,
+    px: 2,
+    py: 1.5,
+    width: "100%",
+    textAlign: "left",
+    // A stacked row is separated by a top rule, except the first. A tile is the same below
+    // md (still a stacked card there); from md up it carries its own outline and the grid
+    // gap separates it, so the rule goes.
+    ...(!first && { borderTop: 1, borderColor: "divider" }),
+    ...(tile && {
+      [UP_MD]: {
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 1,
+        bgcolor: "background.paper",
+      },
+    }),
+    ...(disabled && { opacity: 0.55 }),
+  } as const;
 
   if (disabled) {
     return (
       // `reason` replaces the subtitle and is therefore already announced as part of the
       // row. An additional sr-only copy would read it twice.
-      <div className={base} aria-disabled="true">
+      <Box sx={rowSx} aria-disabled="true">
         {inner}
-      </div>
+      </Box>
     );
   }
 
   if (href) {
     return (
-      <Link href={href} className={cn(base, "transition-colors hover:bg-surface-2")}>
+      <ListItemButton component={NextLink} href={href} sx={rowSx}>
         {inner}
-      </Link>
+      </ListItemButton>
     );
   }
 
-  return <div className={base}>{inner}</div>;
+  return <Box sx={rowSx}>{inner}</Box>;
 }
 
 /**
@@ -138,19 +168,37 @@ export function SettingsGroup({
   tiles?: boolean;
 }) {
   return (
-    <section className={cn("mt-5 first:mt-0", className)}>
+    <Box component="section" className={className} sx={{ mt: 2.5, "&:first-of-type": { mt: 0 } }}>
       {label && (
-        <h2 className="t-label mb-2 px-1 tracking-wide text-on-surface-variant">{label}</h2>
+        <Typography
+          component="h2"
+          variant="overline"
+          sx={{ display: "block", mb: 1, px: 0.5, lineHeight: 1.3, color: "text.secondary" }}
+        >
+          {label}
+        </Typography>
       )}
       {tiles ? (
         // Below md this is the same stacked card as a list group; from md up the card
         // dissolves and the rows become a two-column grid of tiles.
-        <div className="card overflow-hidden p-0 md:grid md:grid-cols-2 md:gap-2.5 md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <Card
+          sx={{
+            [UP_MD]: {
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+              gap: 1.25,
+              overflow: "visible",
+              bgcolor: "transparent",
+              backgroundImage: "none",
+              boxShadow: "none",
+            },
+          }}
+        >
           {children}
-        </div>
+        </Card>
       ) : (
-        <Card className="overflow-hidden p-0">{children}</Card>
+        <Card>{children}</Card>
       )}
-    </section>
+    </Box>
   );
 }

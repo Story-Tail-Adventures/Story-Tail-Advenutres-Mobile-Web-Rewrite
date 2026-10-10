@@ -85,15 +85,23 @@ describe("2.0.4 public search results", () => {
   it("keeps the search in the filter forms and reflects the URL in checkboxes and chips", async () => {
     const { container } = await renderResults({ ...SEARCH, type: "cruise" });
 
-    // The rail and the sheet each carry the same GET form.
-    const forms = container.querySelectorAll('aside[aria-label="Filters"] form');
-    expect(forms).toHaveLength(2);
+    // The rail and the sheet each carry the same GET form. The sheet is an MUI Dialog
+    // (MUI v9 migration), kept mounted but portaled to <body>, so it is found from
+    // `document`, not inside `container`.
+    const rail = container.querySelector('aside[aria-label="Filters"] form');
+    const sheet = [...document.querySelectorAll(".MuiDialog-root form")];
+    expect(rail).not.toBeNull();
+    expect(sheet).toHaveLength(1);
+    const forms = [rail!, ...sheet];
     for (const form of forms) {
       expect(form).toHaveAttribute("action", "/explore/results");
       expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="dest"]')?.value).toBe("Caribbean");
       expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="when"]')?.value).toBe("Aug 12 – 19");
       expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="travelers"]')?.value).toBe("2");
-      expect(Array.from(form.querySelectorAll("fieldset legend")).map((l) => l.textContent)).toEqual([
+      // Not the outlined input's notched-outline <fieldset>: MUI draws the sort select's
+      // border with one, aria-hidden, holding an empty legend.
+      const legends = form.querySelectorAll("fieldset:not(.MuiOutlinedInput-notchedOutline) legend");
+      expect(Array.from(legends).map((l) => l.textContent)).toEqual([
         "Trip type",
         "Vibe",
         "Budget",

@@ -1,5 +1,8 @@
 "use client";
 
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+
 import { ErrorState } from "@/components/client/states";
 
 /**
@@ -19,6 +22,10 @@ import { ErrorState } from "@/components/client/states";
  * document including <html>, so it cannot use the app's fonts or theme script and would
  * render unstyled — and it only fires for errors in the ROOT layout, which does nothing
  * but set metadata and render a theme script.
+ *
+ * ON MUI (step 2 of the migration): a Box on the scheme's background with the reference
+ * token drawn in sx. `client-surface` stays as a class: web/styles/client.css hangs the
+ * focus ring and the reduced-motion rule off it.
  */
 export default function RootError({
   error,
@@ -30,13 +37,39 @@ export default function RootError({
   // The digest is the only safe thing to surface: it correlates with the server log without
   // carrying the message, which may name a table or quote a row.
   return (
-    <div className="client-surface p-4">
+    <Box className="client-surface" sx={SURFACE_SX}>
       <ErrorState reset={reset} />
       {error.digest && (
-        <p className="t-body-s mt-4 text-center text-on-surface-variant">
-          Reference <span className="kbd">{error.digest}</span>
-        </p>
+        <Typography component="p" variant="body2" sx={{ mt: 2, textAlign: "center", color: "text.secondary" }}>
+          Reference{" "}
+          <Box component="span" sx={KBD_SX}>
+            {error.digest}
+          </Box>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }
+
+/** The legacy `.client-surface.p-4`: the whole viewport on the scheme's background. */
+const SURFACE_SX = {
+  minHeight: "100dvh",
+  p: 2,
+  bgcolor: "background.default",
+  color: "text.primary",
+} as const;
+
+/** The legacy `.kbd` token: JetBrains Mono at caption size on surface.3 with a hairline. */
+const KBD_SX = {
+  typography: "caption",
+  fontFamily: "mono",
+  fontWeight: 500,
+  lineHeight: 1,
+  px: 0.75,
+  py: 0.375,
+  borderRadius: 1,
+  bgcolor: "surface.3",
+  color: "text.secondary",
+  border: 1,
+  borderColor: "divider",
+} as const;

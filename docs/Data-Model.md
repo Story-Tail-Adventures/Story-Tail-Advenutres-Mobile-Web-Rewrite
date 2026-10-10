@@ -137,6 +137,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | CruiseSailingCabinPrice | Cruise Catalog | P2 | Per-cabin per-person fare for a sailing |
 | CruiseSyncScope | Cruise Catalog | P2 | What the cruise sync may fetch — configuration, not code |
 | CruiseSyncRun | Cruise Catalog | P2 | One invocation of the cruise sync and what it spent |
+| CruiseSyncDispatch | Cruise Catalog | P2 | Correlation key between a scheduled tick and its pg_net reply |
 | CruiseApiRequest | Cruise Catalog | P2 | Append-only ledger of every provider HTTP call (quota) |
 | AuditEvent | System | P1 | Append-only log of significant actions |
 | Integration | System | P2 | Configuration record for an external API (Amadeus, Hotelbeds, etc.) |
@@ -940,13 +941,14 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `traveler_count` | `integer` | No | Public | — |
 | `traveler_breakdown` | `jsonb` | Yes | PII | `{adults, children, infants}` |
 | `total_value_cents` | `bigint` | No | Client-visible | Sum of components — what the trip costs them |
-| `total_paid_cents` | `bigint` | No | Client-visible | Track of supplier payments via stored cards |
+| `total_paid_cents` | `bigint` | No | Client-visible | **Computed** — `sum(payment_milestone.paid_cents)`, maintained by a trigger since `20260929100000`. See §9.5 |
 | `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
-| `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one |
+| `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one. **Given a producer 2026-09-28 by §3.4.13, and it doubles as that apply's IDEMPOTENCY KEY**: `agent_apply_template` refuses a trip that already carries one and answers `already_applied`, so a double-click, a retried request or a second tab all write nothing. A trip seeded from a pattern was seeded from ONE |
 | `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
 | `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
-| `refund_status` | `text` | Yes | Client-visible | When cancelled |
+| `refund_status` | `text` | Yes | Client-visible | **One of `none_expected`, `pending`, `partial`, `full`** since `20261001100000`, enforced by the `trip_refund_status_vocabulary` CHECK. NULL means **not stated**, which is a different fact from `none_expected`: one is an advisor who has not checked, the other is one who has. Written only by `agent_set_trip_status` on a `cancelled` call (§3.4.16), and only ever SET by one — a trip moved back out of `cancelled` keeps its refund history, because the money moved and reinstating the trip does not un-move it |
+| `refund_detail` | `text` | Yes | Client-visible | The specifics behind `refund_status`, in the advisor's own words: *"Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027"*. **Added because that sentence was what `refund_status` held before it had a vocabulary** — a filterable state cannot carry an amount, a date, or a credit that expires, and flattening it to `partial` would have been a regression in what §2.2.10 tells the traveler. Neither column derives from the other |
 | `notes` | `text` | Yes | Internal | Agent notes. **Never granted to the client role** |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
@@ -1094,32 +1096,73 @@ data class Trip(
 > the §8.2 note above: the classification was describing an agent-only product.
 >
 > `payload` stays Internal and is **excluded from the column grant**, which is the decision
-> worth recording: the hotel shape below carries `rate_cents_per_night`, so granting the
-> blob would hand back the per-night cost immediately after `cost_cents` was withheld for
-> revealing margin. A screen that needs one key from it (seat number, room type) gets a
+> worth recording: the hotel shape below carried `rate_cents_per_night`, so granting the
+> blob would have handed back the per-night cost immediately after `cost_cents` was withheld
+> for revealing margin. A screen that needs one key from it (seat number, room type) gets a
 > server-side key allowlist, not a grant.
+>
+> **That key is gone as of 2026-09-28 and the decision is unchanged** — see the note under
+> Payload shapes. A seat number and an advisor's note are still Internal, and
+> `agent_trip_components()` is still the only door onto them; it gained `payload` when
+> §3.4.12's edit sheet needed it, which is an AGENT accessor and not a client grant.
 
 **Payload shapes:**
 
+> **Rewritten 2026-09-28, when §3.4.4 – §3.4.12 became the first thing that reads `payload`
+> back in order to EDIT it.** What was here before was illustrative and nothing enforced it;
+> what is here now is the registry the component sheets actually use, held in
+> `supabase/functions/_shared/component.ts` and mirrored in `web/lib/agent/components.ts`.
+> `supabase/tests/rls_agent_trip_detail.sql` asserts that no stored key falls outside it.
+>
+> **Why it had to become exact.** `agent_upsert_trip_component` replaces the blob whole, so
+> a key no sheet knows about is not ignored — the form renders an empty field for it and
+> the next save writes the empty over it. An aspirational shape in a doc is harmless right
+> up until something starts round-tripping the column.
+>
+> **Six keys were dropped because a column already held the fact**, which is §23's boundary
+> applied to data that predates the boundary being written down. `origin`/`destination` and
+> `meeting_point` → `location`. `policy_number` → `confirmation_number` (the seed held the
+> identical string in both, which is how the whole class was found). `airline`/`provider` →
+> `supplier_id`, with `display_name` carrying the itinerary line. `nights` → `start_date` to
+> `end_date`. And `rate_cents_per_night` → nowhere: money belongs in a `bigint` column
+> beside a currency (CLAUDE.md rule 5), and this one had **already drifted** — 144328 × 7 is
+> 1,010,296 against a `cost_cents` of 1,010,300. Four cents, no constraint, nothing anywhere
+> to notice. `20260928130000_normalise_component_payload.sql` moves existing rows.
+>
+> **Keys are `snake_case`,** like every other jsonb in this schema. The first draft of the
+> registry was camelCase and the mismatch was silent in the worst way: the edit sheet
+> rendered blank over components that had the data.
+>
+> **`display_name` is the line the client reads** — "AA 1413 · MIA → MBJ", "Allianz OneTrip
+> Prime" — not the airline or the provider. Those are `supplier_id`.
+
+Every key below is optional; an unset field is **absent**, never `""`. `notes` is on all
+seven kinds. Anything a query needs — filtered, sorted, summed, joined — is a column and
+does not appear here (§23).
+
 ```json
-// kind = flight
-{ "airline": "AA", "flight_number": "1234", "origin": "ORD", "destination": "NAS",
-  "cabin": "economy", "seat": "12B", "depart_time": "2026-06-14T10:30:00-05:00",
-  "arrive_time": "2026-06-14T14:45:00-04:00" }
+// kind = flight   · route → location, PNR → confirmation_number
+{ "flight_number": "AA 1413", "cabin": "main", "seat": "14A, 14B", "notes": "…" }
 
-// kind = hotel
-{ "address": "...", "room_type": "Junior Suite", "board_basis": "all_inclusive",
-  "nights": 7, "rate_cents_per_night": 45000 }
+// kind = hotel    · property → display_name, city → location, dates → start/end_date
+{ "room_type": "Ocean-view suite", "board_basis": "all-inclusive", "notes": "…" }
 
-// kind = cruise
-{ "ship": "Symphony of the Seas", "cabin": "Balcony 9234", "dining_seating": "early",
-  "embark_port": "MIA", "ports_of_call": ["NAS","STT","SXM"] }
+// kind = cruise   · line → supplier_id, port → location, booking → confirmation_number
+{ "ship": "Symphony of the Seas", "itinerary_name": "7-night Eastern Caribbean",
+  "cabin": "Balcony 9234", "dining_seating": "early",
+  "gratuities_included": true, "notes": "…" }
 
-// kind = excursion
-{ "duration_hours": 4, "meeting_point": "...", "guide_language": "en" }
+// kind = transfer · operator → supplier_id, pickup → location
+{ "dropoff": "Sandals Royal Bahamian", "vehicle": "Mercedes Vito", "notes": "…" }
 
-// kind = insurance
-{ "provider": "Allianz", "policy_number": "...", "coverage": { "trip_cancellation": 5000, "medical": 100000 } }
+// kind = excursion · meeting point → location
+{ "duration": "6 hours", "notes": "…" }
+
+// kind = insurance · provider → supplier_id, policy → confirmation_number
+{ "plan": "OneTrip Prime", "coverage": "medical, cancellation, baggage", "notes": "…" }
+
+// kind = custom   · the catch-all §3.4.11 and §23's home for a dining reservation
+{ "notes": "…" }
 ```
 
 **Indexes:** index on `(trip_id, order_index)`; index on `(api_reference)` where not null.
@@ -1230,10 +1273,56 @@ data class Trip(
 | `name` | `text` | No | Internal | "Sandals Honeymoon 7-Night" |
 | `description` | `text` | Yes | Internal | — |
 | `trip_type` | `trip_type` enum | No | Internal | — |
-| `payload` | `jsonb` | No | Internal | Template skeleton |
+| `payload` | `jsonb` | No | Internal | The snapshot. **An explicit allow-list, versioned** — see below |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
+
+**Given a producer 2026-09-28 by §3.4.13.** This table shipped in the initial migration and
+sat at zero rows with nothing reading or writing it until then.
+
+**What the payload captures** (Gyasi, 2026-09-28: the bookings plus the day-by-day, not the
+payment schedule):
+
+```
+{ version: 1, traveler_count, destinations[], intro_note, closing_note,
+  components: [{ kind, display_name, supplier_id, start_day, end_day, start_time,
+                 end_time, location, cost_cents, commission_pct, commission_cents,
+                 currency, payload, order_index }],
+  days:       [{ day_number, day_offset, label, summary,
+                 activities: [{ block, start_time, end_time, title, body, location,
+                                address, phone, gyasis_tip, order_index }] }] }
+```
+
+**EVERY DATE IS AN INTEGER OFFSET** from the source trip's `start_date` (`start_day`,
+`end_day`, `day_offset`), and apply resolves them against the destination trip's. That is
+what lets one pattern produce August dates in August and March dates in March. **Times are
+stored verbatim** — a 14:00 check-in is 14:00 in March too.
+
+**An explicit allow-list, per §23's jsonb ruling.** Deliberately NOT captured, each for its
+own reason:
+
+| Not captured | Why |
+|---|---|
+| `confirmation_number` (component and activity) | A booking reference belongs to ONE booking. Carried forward it shows a traveler a confirmation that was never issued to them |
+| `api_source` / `api_reference` | Describe this trip's own API booking |
+| `itinerary_activity.component_id` | Points at the SOURCE trip's component rows |
+| `itinerary_day.date` | Replaced by the offset |
+| `weather_forecast` | Per-trip, per-date |
+| `cover_image_url`, `published_at`, `last_published_at` | Publication state belongs to a trip, not a pattern |
+| payment milestones | Declined — the third option when the scope was chosen |
+
+The migration asserts the first three out of the function body at deploy time, because a
+jsonb column has no schema to constrain and the registry is only as real as something that
+checks it.
+
+**The payload is NOT editable.** `agent_update_template` takes a name and a description and
+nothing else. It is a snapshot of a real trip, and hand-editing a components array is how a
+template comes to describe a trip nobody ever booked — which would also break the date
+offsets. Re-shaping a pattern means saving a new one.
+
+**`archived_at` is the only delete.** A hard delete would fail outright on any template a
+trip has used: `trip.template_id` references this table with no `ON DELETE` clause.
 
 ---
 
@@ -1430,6 +1519,22 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Purpose:** A client's consent to use a stored card for a specific trip up to a spending limit. The agent cannot use a card for a trip without an active authorization. Authorizations expire automatically.
 
+> **Amended 2026-09-28 — "expire automatically" had no mechanism until now.** `expires_at` is
+> `NOT NULL` so every row carries the date, and nothing anywhere in the repository ever wrote
+> `'expired'` or `'exhausted'` to `status`. An authorization past its expiry read `active`
+> forever.
+>
+> That is worse than a stale display, because `card_auth_active_per_trip` is a UNIQUE index
+> partial on `status = 'active'`: a stale row **blocks** a new authorization for the same card
+> and trip, so the traveler is asked to authorize again and cannot. `sweep_dated_promises()`
+> (`20260930160000`) now promotes `active → expired` daily. It leaves `revoked` alone, because
+> that is somebody's decision and a sweep must not overwrite it with a weaker word.
+>
+> **`exhausted` still has no producer, deliberately.** It depends on `amount_used_cents`,
+> which depends on `card_use_event`, which has no writer at all — §3.6.5 "Log Card Use" is
+> the screen that writes it and §3.6 is unbuilt. Guessing at it here would be inventing
+> spend. See the note on `amount_used_cents` below.
+
 **Phase:** P1
 
 | Field | Type | Nullable | Sensitivity | Notes |
@@ -1438,7 +1543,7 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `payment_card_id` | `uuid` | No | Public | FK → PaymentCard |
 | `trip_id` | `uuid` | No | Public | FK → Trip |
 | `spending_limit_cents` | `bigint` | No | Internal | Max total chargeable |
-| `amount_used_cents` | `bigint` | No | Internal | Running total |
+| `amount_used_cents` | `bigint` | No | Internal | Running total. **No producer, and it is an INPUT rather than a display figure:** the traveler's remaining spend is `spending_limit_cents − amount_used_cents`. Its source, `card_use_event`, has no writer at all; §3.6.5 "Log Card Use" is the screen that writes both. Same shape as `trip.total_paid_cents` was before `20260929100000`, and it must not be given a trigger before `card_use_event` has a producer, or the trigger will compute over an empty table and report a confident full balance |
 | `expires_at` | `timestamptz` | No | Internal | Auto-expire date |
 | `status` | `card_auth_status` enum | No | Internal | `active`, `revoked`, `expired`, `exhausted` |
 | `revoked_at` | `timestamptz` | Yes | Internal | — |
@@ -1552,7 +1657,33 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
+> **`total_paid_cents` got its producer on 2026-09-29, and had none before that.** The
+> purpose line above promised one when this entity was added; five accessors read the column
+> and nothing wrote it, so 20 trips claimed $81,390 of payments with no schedule behind them
+> and two of the three that had a schedule contradicted it. `20260929100000` adds the
+> trigger and backfills. **Only `paid_cents` feeds it** — `amount_cents` is what the supplier
+> expects, and conflating the two is the error that made an overdue balance read as paid.
+> A `waived` milestone contributes nothing, which is the distinction this entity exists for.
+
 **Why `status` is stored rather than derived.** `overdue` could be computed from `due_date < today`, but the agent needs to be able to suppress it — a supplier who has verbally extended a deadline should not produce a red row on the client's dashboard. `waived` exists for the same reason: suppliers do forgive milestones, and a waived one is not the same as a paid one.
+
+> **Amended 2026-09-28 — the sweep exists now, and suppression has a defined carrier.**
+> The index note below named "the agent-side overdue sweep" as the reason `(status, due_date)`
+> is indexed. The index was built; **the sweep was never written**, so a milestone whose due
+> date passed stayed `scheduled` forever and the red state never fired on its own — on the
+> client dashboard, on the agent worklist, or on §3.4.15's table, all of which already accept
+> `overdue`. The only `overdue` row anywhere was hand-typed into the seed.
+>
+> `public.sweep_dated_promises()` (`20260930160000`) runs daily at 06:10 and promotes
+> `scheduled → overdue` once `due_date < current_date`. It **only ever promotes**, and never
+> touches `paid` or `waived`.
+>
+> **Suppression is expressed by moving the due date.** That needs no new column, because
+> moving the date is literally what a verbally extended deadline is: the advisor edits the
+> milestone in §3.4.15, and the sweep then has nothing to match. A job must not argue with an
+> advisor who has already said what they mean, which is why the sweep never demotes an
+> `overdue` row either. `constraints_commission.sql` asserts all four cases: promoted,
+> waived-left-alone, due-today-is-not-late, and date-moved-is-not-promoted.
 
 **`amount_cents` is Public, unlike `trip_component.cost_cents`.** The distinction is real: `cost_cents` is what the agency paid, which reveals margin; this is what the client's trip costs them on a given date, which they are entitled to know and which the itinerary already implies.
 
@@ -1573,10 +1704,12 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `component_id` | `uuid` | Yes | Public | FK → TripComponent (if commission is per-component) |
 | `agent_id` | `uuid` | No | Public | FK → Agent |
 | `supplier_id` | `uuid` | No | Public | FK → Supplier |
-| `gross_booking_cents` | `bigint` | No | Internal | What the client/supplier transaction totalled |
-| `commission_pct` | `numeric(5,2)` | No | Internal | — |
-| `expected_commission_cents` | `bigint` | No | Internal | Computed |
-| `received_commission_cents` | `bigint` | No | Internal | What we actually got |
+| `gross_booking_cents` | `bigint` | No | Internal | What the **supplier transaction** totalled. NOT the trip total: a trip carries lines from several suppliers and lines that pay nothing |
+| `commission_pct` | `numeric(5,2)` | No | Internal | 0–100, enforced |
+| `expected_commission_cents` | `bigint` | No | Internal | **Exactly `round(gross_booking_cents × commission_pct / 100)`, enforced by CHECK since 20260930150000.** This field said "Computed" from the start and nothing computed it |
+| `processing_fee_cents` | `bigint` | No | Internal | What the host agency deducts before depositing (Gyasi, 2026-09-28). Its own column so the line above can stay exact; §3.7.6 renders `expected − fee − received`, and a non-zero remainder is the discrepancy to chase |
+| `received_commission_cents` | `bigint` | No | Internal | What actually arrived. Becomes a tax figure |
+| `currency` | `char(3)` | No | Internal | Matches its trip's. Added 20260930150000: this was the one money table with no currency column, a quiet exception to the cents-plus-currency rule that only worked while `agent_kpis()` inferred it through a join it no longer makes |
 | `payment_terms` | `text` | No | Internal | `at_booking`, `after_travel` |
 | `status` | `commission_status` enum | No | Internal | `expected`, `invoiced`, `received`, `disputed`, `lost` |
 | `received_at` | `date` | Yes | Internal | When the deposit hit |
@@ -1586,7 +1719,19 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-**Indexes:** index on `(agent_id, status, received_at)`; index on `(trip_id)`; index on `(supplier_id, status)`.
+**Indexes:** index on `(agent_id, status, received_at)`; index on `(trip_id)`; index on `(supplier_id, status)`; **partial unique index on `(agent_id, inteletravel_reference) WHERE inteletravel_reference IS NOT NULL`** — the natural key §3.7.5's CSV import reconciles on, partial because most rows never get one.
+
+**This is the reconciliation ledger, NOT the commission forecast, and they are two numbers on purpose.** Screen 3.2.1's "Commission expected" KPI derives from `trip.total_commission_cents`, which the `20260928100000` trigger maintains as the sum of each trip's component commission. This table records what was invoiced to and paid by Inteletravel.
+
+Sourcing the forecast from here was a real defect, fixed in `20260930140000`. The two grains do not match: the ledger is per supplier line, the forecast is per trip, and against the seed the ledger covered 6 of 22 revenue trips. Trip 40 disagreed with itself by $223.04 — a flat 12% over a trip total that includes two flights correctly recorded at 0% — while $4,819.20 of committed margin on three *booked* trips was invisible because they had no ledger row at all.
+
+**Do not give this table a trigger.** Screen 3.7.6 reconciles a stored claim against what was actually paid, and the prototype draws a row reading *"Expected $1,020 — Sandals applied 14% not 15%"*. A value derived from components can only ever agree with its own children: correct the component and the discrepancy evaporates, taking that screen's reason to exist with it. 3.7.4 is likewise a Save form "for trips booked outside the platform", and 3.7.6 shows money arriving with no matching trip at all.
+
+**A trip with no row here has not been invoiced yet. That is a state, not a gap** — 16 of 22 revenue trips in the seed are deliberately in it.
+
+**Producers, none of them built:** §3.7.3 (edit), §3.7.4 (manual entry), §3.7.5 (Inteletravel CSV import).
+
+**`payment_terms` is out of spec and blocks §3.7.7.** This table documents `at_booking` / `after_travel`; the seed writes free text like `'60 days after travel'`, and `supplier.commission_payment_terms` is free text too. §3.7.7's cash-in calendar needs a parsed date offset, which free text cannot give, so this wants an enum plus a lag-days integer **before** that screen is built.
 
 ### 10.2 CommissionImport
 
@@ -2324,7 +2469,36 @@ Decisions that should be settled with the implementation team before initial mig
 
 **Address normalization.** Should we use a single Address table referenced by Client (and later by Companion if needed), or embed an address jsonb on each entity that needs one? The current model uses a separate table for clarity but the trade-off is one extra join in common queries.
 
-**Trip Component subtypes.** The `trip_component.payload` jsonb keeps subtype detail in one table; an alternative is dedicated tables (`flight_component`, `hotel_component`, ...) for stronger typing. The jsonb approach matches typical agent CRM patterns and is much simpler operationally, but loses some database-level validation. Decision deferred until a real component-add UI is designed.
+**Trip Component subtypes.** ~~Decision deferred until a real component-add UI is designed.~~ The `trip_component.payload` jsonb keeps subtype detail in one table; an alternative is dedicated tables (`flight_component`, `hotel_component`, ...) for stronger typing. The jsonb approach matches typical agent CRM patterns and is much simpler operationally, but loses some database-level validation.
+
+> **Settled 2026-09-27 — `payload` jsonb stays, and no subtype tables are added.** The
+> condition this was waiting on has arrived: Screen Inventory §3.4.4 and the seven component
+> sheets (§3.4.5–§3.4.11) are the component-add UI, and they are being built now.
+>
+> **Seven kinds, one table.** `component_kind` is
+> `flight, hotel, cruise, transfer, excursion, insurance, custom`, and the columns every kind
+> shares are already on the row and already typed — `start_date`, `end_date`, `start_time`,
+> `end_time`, `location`, `confirmation_number`, `cost_cents`, `commission_pct`,
+> `commission_cents`, `currency`, `supplier_id`, `order_index`. What `payload` carries is the
+> handful of fields one kind has and the others do not: a flight's PNR and seats, a cruise's
+> ship and cabin, a policy number. Seven tables to type those would be seven joins on a read
+> whose whole job is "list this trip's components in order", and `agent_trip_components()`
+> would become a seven-arm union.
+>
+> **What this gives up, stated plainly:** Postgres will not stop a malformed `payload`. The
+> validation lives in the Edge Function, the same place `important_dates` is validated
+> (§6.1 took this trade first, for the same reason and at a smaller scale). That is a real
+> loss and the reason this was an open question rather than an obvious call.
+>
+> **The boundary that keeps it honest:** anything a QUERY needs — filtered, sorted, summed,
+> or joined — gets a column, not a payload key. `payload` is for detail a screen renders and
+> nothing aggregates. A field that starts in `payload` and later needs filtering is a
+> migration, not a reinterpretation of the jsonb.
+>
+> **`custom` is where the prototype's eighth kind lands.** `design/source-prototype`'s
+> `A3410_AddDining` draws a dining sheet and `A344_TripBuilder` lists "Dining · manual"; there
+> is no `dining` value in `component_kind` and none is being added. A dinner reservation is a
+> `custom` component, which is what §3.4.11 Other/Custom is for.
 
 **Money representation.** The model uses `bigint` cents with an explicit `currency char(3)`. An alternative is `numeric(15,4)` for higher precision. For a USD-dominated travel business, cents are sufficient and arithmetic-safer; revisit if EUR/multi-currency volume grows.
 
@@ -2338,7 +2512,7 @@ Decisions that should be settled with the implementation team before initial mig
 
 **Soft-delete cascade behavior.** If a Client is archived, should their Trips be auto-archived too? The current model says no — trips remain queryable for reports — but the agent UI should clearly indicate "client archived" on those trips. Confirm with the agent UX.
 
-**Multi-currency on Trip.** The model has one `currency` per Trip. In practice a single trip can have suppliers quoting in different currencies (a Caribbean resort in USD plus a European insurer in EUR). The Trip's currency is the "presented to client" currency; individual TripComponents may have their own currency in the payload. Confirm this is the right modeling.
+**Multi-currency on Trip.** ~~The model has one `currency` per Trip. In practice a single trip can have suppliers quoting in different currencies (a Caribbean resort in USD plus a European insurer in EUR). The Trip's currency is the "presented to client" currency; individual TripComponents may have their own currency in the payload. Confirm this is the right modeling.~~ **ANSWERED, twice, and the answer is no.** The suggestion that components may carry their own currency was already contradicted by shipped code before this line was corrected: `trip_component_currency_matches_trip` (`20260928100000`) and `payment_milestone_currency_guard` (`20260929100000`) both REFUSE a child row whose currency differs from its trip's, because summing across currencies needs an FX rate that is nowhere in this schema and silently dropping the odd one out would make the headline total omit a cost the advisor entered. Then `20260930100000` settled the parent too: `CHECK (currency = 'USD')` on `trip`, per BRD §4.3. One trip, one currency, and that currency is USD.
 
 ---
 
@@ -2365,7 +2539,11 @@ invalidate every one of those references to buy nothing.
    `trip_component.api_source` / `api_reference` already use.
 3. **Curated content wins over synced content, as a layer rather than an edit.** Nothing the
    sync writes may clobber an editorial decision. `cruise_line.slug`, `display_order` and
-   `is_booked` are ours; the provider never sets them.
+   `is_booked` are ours, as are `cruise_ship`'s four `image_*` columns; the provider never
+   sets any of them. The mechanism is the mapper's payload rather than a grant: PostgREST
+   builds an upsert's `DO UPDATE SET` from the keys actually present, so a column the mapper
+   omits keeps its stored value on conflict. `supabase/tests/constraints_cruise_fleet.sql`
+   asserts that a sync-shaped write leaves the imagery alone, because nothing else would.
 4. **Provider vocabularies are `text`, not enums.** Company slugs, locales, cabin codes,
    destinations and port names all belong to the provider and grow without notice. Per §22.4
    these are the "frequently-evolving lookups" case — and the failure mode of an enum here is
@@ -2442,11 +2620,32 @@ null; index on `(is_booked, display_order)` for the chip row.
 | `sailing_count` | `integer` | Yes | Public | Provider-reported |
 | `earliest_departure` | `date` | Yes | Public | — |
 | `latest_departure` | `date` | Yes | Public | — |
+| `image_url` | `text` | Yes | Public | Ship photo. **Curated, never synced.** Pinned by CHECK to `https://upload.wikimedia.org/` |
+| `image_credit` | `text` | Yes | Public | Rendered attribution. Required whenever `image_url` is set, and enforced |
+| `image_license` | `text` | Yes | Public | Commons' short name — "CC BY-SA 4.0", "Public domain" |
+| `image_source_url` | `text` | Yes | Public | The Commons file page, for the credit line to link to |
 | provenance columns | — | — | Internal | As §24.1 |
 | `archived_at` / `created_at` / `updated_at` | — | — | Public | — |
 
 **Indexes:** unique on `(cruise_line_id, name)`; unique on `(provider, provider_key)` where
 `provider` is not null.
+
+**Constraints:** `image_url` must be null or match `^https://upload\.wikimedia\.org/`;
+`(image_url IS NULL) = (image_credit IS NULL)`.
+
+**Where the fleet comes from.** Not the sync — Free-Travel-APIs §4.8 measured `/ships` as
+unaffordable on the free tier, so it ships disabled and hulls otherwise appear only as stub
+rows minted when a sailing names one. The 153 ships across ten lines are curated, inserted by
+`20261001130001_cruise_fleet_catalog.sql`, and regenerated by
+`supabase/scripts/build-cruise-fleet.mts` from `supabase/scripts/data/cruise_ships.csv`. They
+carry a null provenance pair, which keeps them outside `archiveMissing()`, and the sync merges
+into them on `(cruise_line_id, name)` rather than duplicating them.
+
+**On the imagery licence.** Every photo is free-licensed and the generator refuses anything it
+cannot positively identify as such. The obligation that follows the data is attribution:
+`image_credit` must be displayed wherever the image is. For photographs, share-alike binds
+derivatives of the photo, not the page carrying it — §8's share-alike caution in
+Free-Travel-APIs is about *text*.
 
 ### 24.3 CruisePort
 
@@ -2460,7 +2659,7 @@ Inventory).
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | UUID v7 |
 | `name` | `text` | No | Public | Unique. Provider format is "Barcelona, Spain" |
-| `sailing_count` | `integer` | Yes | Public | Provider-reported, across all lines |
+| `sailing_count` | `integer` | Yes | Public | Provider-reported, across all lines. **Only the `/ports` pass measures it.** The two writers that do not (a sailing naming a port in its itinerary, and `ensurePorts`) OMIT the column from their upsert rather than sending NULL, so they leave a measured value alone. Until 20260930110000 they wrote NULL, which erased it: `/ports` runs on a 28-day cadence against weekly sailing syncs, so a measured count survived at most one week in four |
 | `latitude` | `numeric(9,6)` | Yes | Public | **Provider supplies none.** Manual or geocoded |
 | `longitude` | `numeric(9,6)` | Yes | Public | Same |
 | provenance columns | — | — | Internal | As §24.1 |
@@ -2652,11 +2851,44 @@ that `Tech-Recommendations.md` §7 flags.
 | `quota_limit` | `integer` | Yes | Internal | As last reported by the relay |
 | `quota_remaining` | `integer` | Yes | Internal | — |
 | `quota_reset_seconds` | `integer` | Yes | Internal | — |
-| `error_code` | `text` | Yes | Internal | — |
+| `error_code` | `text` | Yes | Internal | **The cause, not the status.** One of `budget_exhausted`, `scope_failed`, `all_scopes_failed`, `spent_but_stored_nothing`, `run_threw`, or `stranded`. Until 20260930110000 it held `status` itself, duplicating the column beside it while the real reason sat inside `error_detail`'s prose |
 | `error_detail` | `text` | Yes | Internal | Never contains the API key |
 | `created_at` / `updated_at` | `timestamptz` | No | Public | — |
 
 This is the operational record. It is deliberately *not* the audit trail: see §24.10.
+
+**`finished_at` is null while running — and a row that STAYS that way is a defect, not a
+state.** The CHECK permits it only for `status = 'running'`, which means a run abandoned
+mid-flight is unreconcilable by construction. Two things now prevent that: `runSync` closes
+the row on every exit path including a throw (it used to throw straight past `finishRun` on
+a scope-read failure), and `cruise_sync_watchdog()` sweeps anything older than 30 minutes
+that is still `running`, setting `error_code = 'stranded'`.
+
+### 24.8a CruiseSyncDispatch
+
+**Purpose:** One row per `cruise_sync_tick()` that actually dispatched an HTTP call. The
+correlation key between a tick and its reply, and nothing more.
+
+**Phase:** P2
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `request_id` | `bigint` | No | Internal | PK. The id `net.http_post` returned |
+| `dispatched_at` | `timestamptz` | No | Internal | Default `now()` |
+
+**Why it exists.** `net._http_response` carries `id, status_code, error_msg, timed_out,
+created` and **no url**, and `net.http_request_queue` holds the url only while the request
+is still pending. So after the fact there was no way to ask what the cruise-sync call came
+back with. The tick has always returned the request id and nothing ever stored it, which is
+half of why a 401 went unnoticed for weeks.
+
+**Deliberately not a verdict log.** A raise rolls its own transaction back, so anything
+`cruise_sync_watchdog()` wrote about a FAILURE would vanish — the one case worth recording.
+The cron log is the record; this table only makes the reply findable. Rows older than 90
+days are pruned on the watchdog's healthy path.
+
+**Absence is the signal.** A tick that raised on a malformed secret, or no-opped because the
+Vault is empty, writes nothing here. That gap is what the watchdog looks for first.
 
 ### 24.9 CruiseApiRequest
 
@@ -2720,6 +2952,19 @@ compliance review `Free-Travel-APIs.md` §10.1 wants before a synced page goes l
 service-role read from a Next.js server component, which is how `web/lib/onboarding/api.ts`
 already talks to the backend. That choice belongs with the search work, not with the sync, and
 until it is made nothing can read these tables unauthenticated.
+
+**Decided by the search work: neither.** The public read is the `cruise-search` Edge Function,
+on the service role, behind the shared caller token, so the tables keep zero anon exposure
+(`supabase/tests/rls_cruise_catalog.sql` asserts it). Its filtering is
+`public.cruise_sailing_search(needle, depart_from, depart_to, min_nights, max_nights,
+max_rows)`, a `SECURITY INVOKER` SQL function executable by `service_role` alone. Every word
+of the needle must appear, ignoring case and accents (`unaccent`, installed in the
+`extensions` schema, so "Roatan" finds "Roatán"), in the sailing's title, a destination, its
+line, its ship or a port of call; only upcoming, unarchived sailings come back, in departure
+order. It returns whole `cruise_sailing` rows so PostgREST can embed the line and ship, which
+means the Edge Function's explicit column list is still what keeps `lead_price_cents` and
+`provider_payload` off the page. Behaviour is pinned in
+`supabase/tests/search_cruise_sailings.sql`.
 
 **Audit: one row per run, not one per sailing.** CLAUDE.md rule 3 names the sensitive tables
 it governs — `payment_card`, `card_authorization`, `commission`, `client` — and none of these

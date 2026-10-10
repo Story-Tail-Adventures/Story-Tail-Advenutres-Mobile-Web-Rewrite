@@ -74,7 +74,10 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "briefcase",
     label: "Trips",
     surfaces: ["rail", "tablet"],
-    availability: { kind: "planned", phase: "P1", section: "§3.4" },
+    // Built 2026-09-27 with §3.4.1. The rail entry has always pointed at the LIST; §3.4.2
+    // shipped two days earlier and was reachable only from the worklist, the pipeline and
+    // the calendar.
+    availability: { kind: "built" },
   },
   {
     id: "leads",

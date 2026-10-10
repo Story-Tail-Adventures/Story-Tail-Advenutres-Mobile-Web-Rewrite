@@ -1,15 +1,51 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
 import { EmptyState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { UP_MD, UP_WEB } from "@/lib/mui/sx";
 import { DOCUMENT_MESSAGES, groupDocuments } from "@/lib/trips/documents";
 import { loadTripDocuments } from "@/lib/trips/queries";
+import { BACK_LINK, HEADER_BAND, HEADLINE, PAD, TITLE_S } from "../sx";
 import { DOCUMENTS } from "./content";
 import { DocumentRow } from "./DocumentRow";
 
 export const metadata: Metadata = { title: "Documents" };
+
+/** `mx-auto w-full max-w-4xl` — the library is a little wider than the reading column. */
+const LIBRARY_COL = { mx: "auto", width: "100%", maxWidth: 896 } as const;
+
+/**
+ * One card per group on mobile — the artboard's divided list — dissolving into a grid of
+ * separate cards from tablet up (two across, three from `web`). The zero gap below `md` is
+ * what keeps the rows sharing a single card edge instead of stacking boxes with air between
+ * them; from `md` the Card's own paper, shadow and clipping go so the grid shows through.
+ */
+const GROUP_GRID = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr)",
+  gap: 0,
+  [UP_MD]: {
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 1.25,
+    overflow: "visible",
+    bgcolor: "transparent",
+    backgroundImage: "none",
+    boxShadow: "none",
+  },
+  [UP_WEB]: { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" },
+} as const;
+
+/** A row's own card, which only exists from `md` up. */
+const ROW_CARD = {
+  [UP_MD]: { overflow: "hidden", borderRadius: 1, bgcolor: "background.paper", boxShadow: 1 },
+} as const;
 
 /**
  * Screen 2.2.6 Trip Document Library — docs/Screen-Inventory.md §2.2.6, §4.4 Pattern B
@@ -19,9 +55,9 @@ export const metadata: Metadata = { title: "Documents" };
  *
  * THE GRID/LIST SPLIT IS PATTERN B, and it is the reason this renders one row component at
  * both sizes rather than two components: the desktop artboard's three-up grid and the mobile
- * artboard's stacked list are the SAME card at different column counts. `md:grid-cols-2
- * web:grid-cols-3` gets there with no second implementation, and the card divider becomes a
- * card border once the rows stop being adjacent.
+ * artboard's stacked list are the SAME card at different column counts. The two-column grid
+ * from `md` and three from `web` get there with no second implementation, and the card
+ * divider becomes a card border once the rows stop being adjacent.
  *
  * TWO NAMED PRIMARY ELEMENTS ARE NOT BUILT, both deliberately:
  *
@@ -52,36 +88,44 @@ export default async function DocumentsPage({
   const groups = groupDocuments(library.documents);
 
   return (
-    <div className="pb-10">
-      <header className="border-b border-outline-variant bg-surface px-4 py-4 md:px-6">
-        <div className="mx-auto w-full max-w-4xl">
-          <Link
-            href={`/trips/${tripId}`}
-            className="t-body-s inline-flex items-center gap-1 text-on-surface-variant"
-          >
+    <Box sx={{ pb: 5 }}>
+      <Box component="header" sx={HEADER_BAND}>
+        <Box sx={LIBRARY_COL}>
+          <MuiLink component={NextLink} href={`/trips/${tripId}`} underline="hover" sx={BACK_LINK}>
             <Icon name="arrow_left" size={14} /> {DOCUMENTS.back}
-          </Link>
-          <div className="mt-1.5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="t-headline">{DOCUMENTS.title}</h1>
-              <p className="t-body-s text-on-surface-variant">
+          </MuiLink>
+          <Box
+            sx={{
+              mt: 0.75,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
+            <Box>
+              <Typography component="h1" variant="h5" sx={HEADLINE}>
+                {DOCUMENTS.title}
+              </Typography>
+              <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>
                 {DOCUMENTS.subtitle(library.tripTitle)}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn btn-orange btn-sm shrink-0"
+              </Typography>
+            </Box>
+            <Button
+              variant="orange"
+              size="sm"
               disabled
               aria-disabled="true"
               title={DOCUMENTS.uploadDeferred}
             >
               <Icon name="upload" size={14} /> {DOCUMENTS.uploadCta}
-            </button>
-          </div>
-        </div>
-      </header>
+            </Button>
+          </Box>
+        </Box>
+      </Box>
 
-      <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
+      <Box sx={{ ...LIBRARY_COL, ...PAD }}>
         {groups.length === 0 ? (
           <EmptyState
             icon="passport"
@@ -91,35 +135,30 @@ export default async function DocumentsPage({
           />
         ) : (
           <>
-            <p className="t-body-s text-on-surface-variant">
+            <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
               {DOCUMENTS.countLabel(library.documents.length)}
-            </p>
+            </Typography>
 
-            <div className="mt-4 flex flex-col gap-6">
+            <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 3 }}>
               {groups.map((group) => (
-                <section key={group.id}>
-                  <h2 className="t-title-s mb-2">{group.label}</h2>
+                <Box component="section" key={group.id}>
+                  <Typography component="h2" variant="subtitle1" sx={{ ...TITLE_S, mb: 1 }}>
+                    {group.label}
+                  </Typography>
 
-                  {/* One card per group on mobile — the artboard's divided list — becoming
-                      separate cards in a grid from tablet up. `gap-0` below md is what keeps
-                      the rows sharing a single card edge instead of stacking bordered boxes
-                      with air between them. */}
-                  <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border border-outline-variant bg-surface md:grid-cols-2 md:gap-2.5 md:border-0 md:bg-transparent web:grid-cols-3">
+                  <Card sx={GROUP_GRID}>
                     {group.documents.map((doc, index) => (
-                      <div
-                        key={doc.id}
-                        className="md:rounded-xl md:border md:border-outline-variant md:bg-surface"
-                      >
+                      <Box key={doc.id} sx={ROW_CARD}>
                         <DocumentRow document={doc} first={index === 0} />
-                      </div>
+                      </Box>
                     ))}
-                  </div>
-                </section>
+                  </Card>
+                </Box>
               ))}
-            </div>
+            </Box>
           </>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

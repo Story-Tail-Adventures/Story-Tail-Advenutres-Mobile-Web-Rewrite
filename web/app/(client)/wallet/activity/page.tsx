@@ -1,8 +1,26 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
+import {
+  BACK_LINK_SX,
+  BODY,
+  BODY_S,
+  FILTER_CHIP_SX,
+  HEADLINE,
+  MAX_W_3XL,
+  TITLE_S,
+  pageSx,
+} from "@/components/client/client-sx";
 import { RetryState } from "@/components/client/RetryState";
 import { EmptyState } from "@/components/client/states";
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { currentPlatformUser } from "@/lib/trips/queries";
 import { WALLET } from "@/lib/wallet/content";
@@ -55,33 +73,57 @@ export default async function CardActivityPage({
   if (!wallet) return <RetryState />;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-5 md:px-6 md:py-7">
-      <Link href="/wallet" className="btn btn-text btn-sm tap-44 -ml-1 mb-1 inline-flex">
-        <Icon name="arrow_left" size={14} />
+    <Box sx={pageSx(MAX_W_3XL)}>
+      <MuiButton
+        component={NextLink}
+        href="/wallet"
+        variant="text"
+        size="small"
+        startIcon={<Icon name="arrow_left" size={14} />}
+        sx={BACK_LINK_SX}
+      >
         {WALLET.title}
-      </Link>
+      </MuiButton>
 
-      <h1 className="t-headline">{WALLET.activityTitle}</h1>
-      <p className="t-body mt-1 text-on-surface-variant">{WALLET.activitySubtitle}</p>
+      <Typography component="h1" variant="h5" sx={HEADLINE}>
+        {WALLET.activityTitle}
+      </Typography>
+      <Typography component="p" variant="body2" sx={{ ...BODY, mt: 0.5, color: "text.secondary" }}>
+        {WALLET.activitySubtitle}
+      </Typography>
 
+      {/* The filter strip: the chosen card is the filled secondary chip (the §8 chip
+          mapping), the rest outlined. Each chip is a link, so the filter is a URL. */}
       {wallet.cards.length > 1 && (
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          <Link
+        <Stack direction="row" spacing={1} sx={{ mt: 2, pb: 0.5, overflowX: "auto" }}>
+          <Chip
+            component={NextLink}
             href="/wallet/activity"
-            className={`chip tap-44 h-8 shrink-0 ${cardFilter ? "" : "chip-filter is-on"}`}
-          >
-            {WALLET.filterAllCards}
-          </Link>
-          {wallet.cards.map((card) => (
-            <Link
-              key={card.id}
-              href={`/wallet/activity?card=${card.id}`}
-              className={`chip tap-44 h-8 shrink-0 ${cardFilter === card.id ? "chip-filter is-on" : ""}`}
-            >
-              {cardLabel(card)}
-            </Link>
-          ))}
-        </div>
+            clickable
+            label={WALLET.filterAllCards}
+            // The colour is not the only sign of the chosen filter.
+            aria-current={cardFilter ? undefined : "true"}
+            variant={cardFilter ? "outlined" : "filled"}
+            color={cardFilter ? "default" : "secondary"}
+            sx={FILTER_CHIP_SX}
+          />
+          {wallet.cards.map((card) => {
+            const on = cardFilter === card.id;
+            return (
+              <Chip
+                key={card.id}
+                component={NextLink}
+                href={`/wallet/activity?card=${card.id}`}
+                clickable
+                label={cardLabel(card)}
+                aria-current={on ? "true" : undefined}
+                variant={on ? "filled" : "outlined"}
+                color={on ? "secondary" : "default"}
+                sx={FILTER_CHIP_SX}
+              />
+            );
+          })}
+        </Stack>
       )}
 
       {wallet.events.length === 0 ? (
@@ -91,38 +133,69 @@ export default async function CardActivityPage({
           body={WALLET.activityEmptyBody}
         />
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
+        <Box
+          component="ul"
+          sx={{ listStyle: "none", m: 0, p: 0, mt: 2, display: "flex", flexDirection: "column", gap: 1 }}
+        >
           {wallet.events.map((event) => {
             const card = cardFor(wallet, event.cardId);
             return (
               <li key={event.id}>
-                <Link
-                  href={`/wallet/activity/${event.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface p-3 hover:bg-surface-2"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-container text-on-primary-container"
+                <Card variant="outlined">
+                  <CardActionArea
+                    component={NextLink}
+                    href={`/wallet/activity/${event.id}`}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-start",
+                      gap: 1.5,
+                      p: 1.5,
+                      textAlign: "left",
+                    }}
                   >
-                    <Icon name="card" size={16} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="t-title-s truncate">{event.supplierName}</p>
-                    <p className="t-body-s truncate text-on-surface-variant">
-                      {formatDate(event.createdAt, me.timeZone)}
-                      {event.tripTitle ? ` · ${event.tripTitle}` : ""}
-                      {card ? ` · ${cardLabel(card)}` : ""}
-                    </p>
-                  </div>
-                  <span className="t-title-s shrink-0 font-mono">
-                    {formatAmount(event.amountCents, event.currency)}
-                  </span>
-                </Link>
+                    <Avatar
+                      variant="rounded"
+                      aria-hidden="true"
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        flexShrink: 0,
+                        bgcolor: "primary.container",
+                        color: "primary.onContainer",
+                      }}
+                    >
+                      <Icon name="card" size={16} />
+                    </Avatar>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography component="p" variant="subtitle1" noWrap sx={TITLE_S}>
+                        {event.supplierName}
+                      </Typography>
+                      <Typography
+                        component="p"
+                        variant="body2"
+                        noWrap
+                        sx={{ ...BODY_S, color: "text.secondary" }}
+                      >
+                        {formatDate(event.createdAt, me.timeZone)}
+                        {event.tripTitle ? ` · ${event.tripTitle}` : ""}
+                        {card ? ` · ${cardLabel(card)}` : ""}
+                      </Typography>
+                    </Box>
+                    <Typography
+                      component="span"
+                      variant="subtitle1"
+                      sx={{ ...TITLE_S, flexShrink: 0, fontFamily: "mono" }}
+                    >
+                      {formatAmount(event.amountCents, event.currency)}
+                    </Typography>
+                  </CardActionArea>
+                </Card>
               </li>
             );
           })}
-        </ul>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }

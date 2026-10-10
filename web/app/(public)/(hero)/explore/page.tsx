@@ -2,6 +2,9 @@
 // §4.4) and design/source-prototype/screens/client-public.jsx (C203_PublicSearchLanding) +
 // client-public-mobile.jsx (M203_PublicSearchLanding). P2.
 import type { Metadata } from "next";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import { Container } from "@/components/public/Container";
 import { HeroBleed } from "@/components/public/HeroBleed";
 import { PhotoTile } from "@/components/public/PhotoTile";
@@ -12,6 +15,7 @@ import { INSPIRATION_TILES } from "@/content/public/inspiration";
 import { trustLine } from "@/content/public/proof";
 import { TRIPS } from "@/content/public/trips";
 import { staImg, type ImageKey } from "@/lib/images";
+import { UP_MD } from "@/lib/mui/sx";
 import { loginHref } from "@/lib/public/links";
 import { filterTrips, resultsHref } from "@/lib/public/search";
 import { EXPLORE, tileSearchQuery, tripCountLabel } from "./content";
@@ -19,6 +23,13 @@ import { SearchBar, STACKED_SEARCH_FORM_ID } from "./SearchBar";
 
 const HERO_IMAGE: ImageKey = "bahamas";
 const PATH = "/explore";
+
+/**
+ * Hourly, so the `today` SearchBar's date picker is prerendered with (its native-input floor
+ * before hydration, and with no JavaScript at all) is never more than an hour old. Built once
+ * and left, it would accept dates long past and parseStay would drop them.
+ */
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: EXPLORE.meta.title,
@@ -45,46 +56,83 @@ export default function ExplorePage() {
         title={EXPLORE.hero.title}
       >
         {/* C203: the pill sits inside the 760px copy column, 12px under the h1 (md+ only). */}
-        <SearchBar variant="pill" className="md:mt-3" />
+        <Box sx={{ mt: { md: 1.5 } }}>
+          <SearchBar variant="pill" />
+        </Box>
       </HeroBleed>
 
       {/* M203: below md the same form is a stacked card in the body, not in the hero. */}
-      <Container className="pt-4 md:hidden">
+      <Container sx={{ pt: 2, display: { md: "none" } }}>
         <SearchBar variant="stacked" />
       </Container>
 
       <SigninBanner next={PATH} />
 
-      <Container as="section" className="pt-5.5 pb-6 md:pt-6 md:pb-8">
-        <h2 className="t-title-l text-on-surface">{EXPLORE.inspiration.title}</h2>
-        <p className="t-body-s mt-1 mb-2.5 text-on-surface-variant md:mb-3.5">{EXPLORE.inspiration.sub}</p>
-        <ul className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3.5">
+      <Container as="section" sx={{ pt: { xs: 2.75, md: 3 }, pb: { xs: 3, md: 4 } }}>
+        <Typography variant="h5" component="h2" sx={{ color: "text.primary" }}>
+          {EXPLORE.inspiration.title}
+        </Typography>
+        <Typography
+          variant="caption"
+          component="p"
+          sx={{ mt: 0.5, mb: { xs: 1.25, md: 1.75 }, color: "text.secondary" }}
+        >
+          {EXPLORE.inspiration.sub}
+        </Typography>
+        <Box
+          component="ul"
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
+            gap: { xs: 1, md: 1.75 },
+            listStyle: "none",
+            m: 0,
+            p: 0,
+          }}
+        >
           {INSPIRATION_TILES.map((tile) => {
             const query = tileSearchQuery(tile);
             return (
-              <li key={tile.slug}>
+              // 5/4 on phones, 5/3 from `md` (the C203 tiles). PhotoTile takes one aspect, so
+              // the tablet-and-up ratio is set from the list item onto the tile's Card root.
+              <Box component="li" key={tile.slug} sx={{ "& > .MuiCard-root": { [UP_MD]: { aspectRatio: "5 / 3" } } }}>
                 <PhotoTile
                   image={tile.imageKey}
                   label={tile.title}
                   sub={tripCountLabel(filterTrips(TRIPS, query).length)}
                   href={resultsHref(query)}
                   aspect="5/4"
-                  className="md:aspect-5/3"
                   sizes="(min-width: 1200px) 400px, (min-width: 768px) 33vw, 50vw"
                 />
-              </li>
+              </Box>
             );
           })}
-        </ul>
+        </Box>
 
         {/* Trust row — every figure comes from the claims registry via trustLine(). */}
-        <div className="mt-4.5 flex items-center gap-2.5 rounded-2xl bg-surface-2 p-3.5 md:mt-5.5 md:items-start md:gap-4 md:p-4.5">
-          <Icon name="shield" size={20} className="shrink-0 text-secondary" />
-          <div className="min-w-0">
-            <h2 className="t-title-s text-on-surface">{EXPLORE.trust.title}</h2>
-            <p className="t-body-s text-on-surface-variant">{trustLine()}</p>
-          </div>
-        </div>
+        <Paper
+          elevation={0}
+          sx={{
+            display: "flex",
+            alignItems: { xs: "center", md: "flex-start" },
+            gap: { xs: 1.25, md: 2 },
+            mt: { xs: 2.25, md: 2.75 },
+            p: { xs: 1.75, md: 2.25 },
+            bgcolor: "surface.2",
+          }}
+        >
+          <Box component="span" sx={{ display: "inline-flex", flexShrink: 0, color: "secondary.main" }}>
+            <Icon name="shield" size={20} />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" component="h2" sx={{ color: "text.primary" }}>
+              {EXPLORE.trust.title}
+            </Typography>
+            <Typography variant="caption" component="p" sx={{ color: "text.secondary" }}>
+              {trustLine()}
+            </Typography>
+          </Box>
+        </Paper>
       </Container>
 
       <StickyCta

@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
 import { Icon } from "@/components/ui/Icon";
+import { TAP_TARGET, UP_MD } from "@/lib/mui/sx";
 import { signDocument } from "@/lib/trips/actions";
 import { documentBadge, formatFileSize, uploadedByLabel } from "@/lib/trips/documents";
 import type { TripDocument } from "@/lib/trips/queries";
+import { BTN_SM } from "../sx";
 
 /**
  * One row of the 2.2.6 library, with the open action.
@@ -56,41 +61,70 @@ export function DocumentRow({ document: doc, first }: { document: TripDocument; 
   return (
     // The divider belongs to the mobile card, where rows share one edge. From `md` up each
     // row is its own card in the Pattern B grid and the line would draw inside it.
-    <div className={first ? "" : "border-t border-outline-variant md:border-t-0"}>
-      <div className="flex items-center gap-3 px-3.5 py-3">
-        <span
+    <Box sx={first ? undefined : { borderTop: 1, borderColor: "divider", [UP_MD]: { borderTop: 0 } }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.75, py: 1.5 }}>
+        {/* The file-type badge, as the artboard's C226 draws it: a PDF on primary, an image
+            on the brand orange. */}
+        <Typography
+          component="span"
+          variant="caption"
           aria-hidden="true"
-          className={`t-label inline-flex h-[46px] w-[38px] shrink-0 items-center justify-center rounded text-[9px] font-extrabold text-white ${
-            badge === "PDF" ? "bg-brand-burgundy" : "bg-brand-orange"
-          }`}
+          sx={{
+            width: 38,
+            height: 46,
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 0.5,
+            fontSize: 9,
+            fontWeight: 800,
+            lineHeight: 1,
+            letterSpacing: "0.4px",
+            bgcolor: badge === "PDF" ? "primary.main" : "brand.main",
+            color: badge === "PDF" ? "primary.contrastText" : "brand.contrastText",
+          }}
         >
           {badge}
-        </span>
+        </Typography>
 
-        <div className="min-w-0 flex-1">
-          <p className="t-title-s truncate text-[13px]">{doc.filename}</p>
-          <p className="t-body-s mt-0.5 text-on-surface-variant">
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography component="p" variant="subtitle1" noWrap sx={{ m: 0, fontWeight: 600 }}>
+            {doc.filename}
+          </Typography>
+          <Typography component="p" variant="caption" sx={{ display: "block", m: 0, mt: 0.25, color: "text.secondary" }}>
             {[formatFileSize(doc.sizeBytes), uploadedByLabel(doc.mine)].join(" · ")}
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        <button
+        {/* Icon-only below `md`, so `minWidth: 0` keeps the legacy 45px box rather than
+            MUI's 64px minimum; TAP_TARGET grows the touch area to 44px without growing it. */}
+        <MuiButton
           type="button"
           onClick={open}
           disabled={pending}
-          className="btn btn-outlined btn-sm tap-44 shrink-0"
+          variant="outlined"
+          size="small"
           aria-label={`Open ${doc.filename}`}
+          sx={{ ...BTN_SM, ...TAP_TARGET, flexShrink: 0, minWidth: 0 }}
         >
           {pending ? <Icon name="clock" size={13} /> : <Icon name="external" size={13} />}
-          <span className="hidden md:inline">Open</span>
-        </button>
-      </div>
+          <Box component="span" sx={{ display: { xs: "none", md: "inline" } }}>
+            Open
+          </Box>
+        </MuiButton>
+      </Box>
 
       {error && (
-        <p role="status" className="t-body-s px-3.5 pb-3 text-error">
+        <Typography
+          component="p"
+          role="status"
+          variant="body2"
+          sx={{ m: 0, px: 1.75, pb: 1.5, color: "error.main" }}
+        >
           {error}
-        </p>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }

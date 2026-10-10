@@ -1,13 +1,25 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
 import { FormError } from "@/components/auth/FormError";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import NextLink from "@/components/mui/NextLink";
 import { Field } from "@/components/ui/Field";
 import type { OAuthProvider } from "@/lib/auth/providers";
+import { TAP_TARGET } from "@/lib/mui/sx";
 import { linkAccountAction } from "./actions";
 import { LINK_TEXT, initialLinkAccountState, linkSubmitLabel } from "./state";
+
+/** The form column: the legacy 14px gap between rows. */
+const FORM_SX = { display: "flex", flexDirection: "column", gap: 1.75 } as const;
+
+/** A fieldset that disables its controls while the form is pending but adds no box of its own. */
+const FIELDSET_SX = { display: "contents", m: 0, p: 0, border: 0, minWidth: 0 } as const;
+
+/** A text link with a 44px hit area on touch screens, its box unchanged (the legacy `.tap-44`). */
+const TAP_LINK = { display: "inline-flex", alignItems: "center", ...TAP_TARGET } as const;
 
 /**
  * Screen 2.1.8 Social Login / Account Linking — the interactive half (design: C218).
@@ -26,12 +38,12 @@ export function LinkAccountForm({ provider }: { provider: OAuthProvider }) {
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-3.5">
+    <Box component="form" action={formAction} sx={FORM_SX}>
       <input type="hidden" name="provider" value={provider} />
 
       <FormError error={state.formError} />
 
-      <fieldset disabled={isPending} className="contents">
+      <Box component="fieldset" disabled={isPending} sx={FIELDSET_SX}>
         <Field
           id="email"
           name="email"
@@ -52,18 +64,28 @@ export function LinkAccountForm({ provider }: { provider: OAuthProvider }) {
           required
           error={state.fieldErrors?.password?.[0]}
           labelAction={
-            <Link href="/forgot-password" className="field-label text-primary">
+            <MuiLink
+              component={NextLink}
+              href="/forgot-password"
+              variant="caption"
+              sx={{ lineHeight: 1.3 }}
+            >
               {LINK_TEXT.forgot}
-            </Link>
+            </MuiLink>
           }
         />
-      </fieldset>
+      </Box>
 
       <SubmitButton label={linkSubmitLabel(provider)} pendingLabel={LINK_TEXT.pending} />
 
-      <Link href="/login" className="t-label-l tap-44 self-center text-primary">
+      <MuiLink
+        component={NextLink}
+        href="/login"
+        variant="subtitle2"
+        sx={{ ...TAP_LINK, alignSelf: "center" }}
+      >
         {LINK_TEXT.useDifferent}
-      </Link>
-    </form>
+      </MuiLink>
+    </Box>
   );
 }

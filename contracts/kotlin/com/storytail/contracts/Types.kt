@@ -887,3 +887,95 @@ data class HotelSearchResponse(
     @SerialName("query")
     val query: HotelSearchEcho,
 )
+
+/** Every field is optional. An empty body is the valid "what is sailing soon" query, */
+/** which is what Screen 2.0.4 issues before the visitor has typed anything. */
+@Serializable
+data class CruiseSearchRequest(
+    // Free text, matched against the sailing title and its destinations array. Not a
+    // port name — port calls are returned but are not searched.
+    @SerialName("destination")
+    val destination: String? = null,
+    // Earliest departure. Defaults to today; the past is never returned.
+    @SerialName("from")
+    val from: String? = null,
+    // Latest departure. Must not be before `from`.
+    @SerialName("to")
+    val to: String? = null,
+    @SerialName("minNights")
+    val minNights: Int? = null,
+    @SerialName("maxNights")
+    val maxNights: Int? = null,
+    // Out-of-range values fall back to the default rather than erroring.
+    @SerialName("limit")
+    val limit: Int? = null,
+)
+
+/** A ship photo and the attribution that may not be separated from it. */
+/**  */
+/** ONE OBJECT RATHER THAN FOUR SIBLING FIELDS, because the credit is a licence */
+/** condition. Every photo is CC BY or CC BY-SA, both of which require credit wherever */
+/** the work appears, so `credit` is required here and the pair is enforced all the way */
+/** down: `cruise_ship_image_attributed` is a CHECK in Postgres, the mapper drops a */
+/** photo whose credit is missing, and the web client's zod twin repeats it. Nesting is */
+/** what makes "a URL with no credit" unspellable rather than merely discouraged. */
+@Serializable
+data class ShipImage(
+    // Always an `https://upload.wikimedia.org/` URL. Host-pinned by a CHECK on the
+    // column and checked again in `web/lib/public/cruises.ts` — `web/next.config.ts`
+    // registers a custom next/image loader, so `remotePatterns` is never consulted
+    // and nothing else decides where a visitor's browser is sent.
+    @SerialName("url")
+    val url: String,
+    // Pre-rendered attribution, e.g. "Kiran891 / Wikimedia Commons, CC BY-SA 4.0".
+    // MUST be displayed wherever the image is. Commons attribution runs long — 214
+    // characters in the current catalog — so a client must let it wrap rather than
+    // truncate it. An ellipsis through an author's name is not attribution.
+    @SerialName("credit")
+    val credit: String,
+    // Commons' LicenseShortName — "CC BY-SA 4.0", "Public domain", "CC0".
+    @SerialName("license")
+    val license: String? = null,
+    // The Commons file page. What the credit line should link to.
+    @SerialName("sourceUrl")
+    val sourceUrl: String? = null,
+)
+
+/** NO FARE FIELD, by construction. See the note on `/cruise-search`. */
+@Serializable
+data class CruiseSailing(
+    @SerialName("id")
+    val id: String,
+    // Provider-supplied, e.g. "7 Night Eastern Caribbean". Falls back to "Cruise".
+    @SerialName("title")
+    val title: String,
+    @SerialName("line")
+    val line: String,
+    @SerialName("ship")
+    val ship: String,
+    @SerialName("departureDate")
+    val departureDate: String,
+    @SerialName("nights")
+    val nights: Int,
+    @SerialName("destinations")
+    val destinations: List<String>,
+    // Port calls in sequence. Consecutive duplicates are collapsed — an overnight in
+    // port is two calls at the same place, and "Nassau · Nassau · Miami" looks broken.
+    @SerialName("ports")
+    val ports: List<String>,
+    // Null is normal and common. Only the 151 curated hulls carry a photo; the sync
+    // mints a bare `cruise_ship` stub for any ship name it has not seen, and 2025-26
+    // newbuilds often have no Commons photo yet.
+    @SerialName("shipImage")
+    val shipImage: JsonElement,
+)
+
+/** Deliberately flat. There is no `source`, `asOf` or `degraded` here as there is on */
+/** `HotelSearchResponse`: this reads our own table, so there is no cache tier to */
+/** report and no budget to exhaust. */
+@Serializable
+data class CruiseSearchResponse(
+    // Soonest departure first. Archived sailings are never included.
+    @SerialName("results")
+    val results: List<CruiseSailing>,
+)

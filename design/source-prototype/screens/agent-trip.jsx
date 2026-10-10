@@ -1,53 +1,85 @@
-/* global React, Icon, staImg, ScreenFrame, ScreenHeader */
-// Agent · 3.4 Trip Builder & Management — 16 screens.
+/* global React, MUI, Icon, MuiIcon, staImg, MuiScreenFrame, MuiScreenHeader, MuiStaStatus */
+// Agent · 3.4 Trip Builder & Management — 16 screens. MUI v9 (stock look, brand theme).
+
+// Compact horizontal row card used by itinerary/component lists in this section.
+function A34_MuiRowCard({ children, sx, contentSx, ...rest }) {
+  const { Card, CardContent } = MUI;
+  return (
+    <Card sx={sx} {...rest}>
+      <CardContent sx={{ py: 1.25, px: 1.75, display: 'flex', gap: 1.5, alignItems: 'center', '&:last-child': { pb: 1.25 }, ...contentSx }}>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Square tinted icon tile (secondary container by default).
+function A34_MuiIconTile({ name, size = 16, box = 34, bg = 'secondary.container', fg = 'secondary.onContainer', variant = 'rounded' }) {
+  const { Avatar } = MUI;
+  return (
+    <Avatar variant={variant} sx={{ width: box, height: box, bgcolor: bg, color: fg }}>
+      <Icon name={name} size={size} />
+    </Avatar>
+  );
+}
 
 function TripShell({ title, status, children, sidebar, fullbleed = false }) {
+  const { Box, Stack, Typography, Button, Breadcrumbs } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={0}>
-      <div style={{ padding: '14px 28px', background: 'var(--md-surface-1)', borderBottom: '1px solid var(--md-outline-variant)', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>Trips · Jordan & Sam Hayes · <b style={{ color: 'var(--md-on-surface)' }}>{title}</b></div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <h1 className="t-headline" style={{ margin: 0 }}>{title}</h1>
+    <MuiScreenFrame role="agent" tab="trips" padding={0}>
+      <Box sx={{ px: 3.5, py: 1.75, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Breadcrumbs separator="·" sx={{ '& .MuiBreadcrumbs-separator': { mx: 0.75 } }}>
+            <Typography variant="caption" color="text.secondary">Trips</Typography>
+            <Typography variant="caption" color="text.secondary">Jordan & Sam Hayes</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>{title}</Typography>
+          </Breadcrumbs>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }}>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>{title}</Typography>
             {status}
-          </div>
-        </div>
-        <button className="btn btn-text"><Icon name="copy" size={12}/> Duplicate</button>
-        <button className="btn btn-outlined"><Icon name="external" size={12}/> Client preview</button>
-        <button className="btn btn-tonal"><Icon name="send" size={12}/> Send proposal</button>
-        <button className="btn btn-filled"><Icon name="check" size={12}/> Mark booked</button>
-      </div>
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: sidebar ? '1fr 320px' : '1fr', overflow: 'hidden' }}>
-        <div style={{ overflow: 'auto', padding: fullbleed ? 0 : 18 }}>{children}</div>
-        {sidebar && <aside style={{ borderLeft: '1px solid var(--md-outline-variant)', padding: 16, background: 'var(--md-surface)', overflow: 'auto' }}>{sidebar}</aside>}
-      </div>
-    </ScreenFrame>
+          </Stack>
+        </Box>
+        <Button variant="text" startIcon={<MuiIcon name="copy" size={12} />}>Duplicate</Button>
+        <Button variant="outlined" startIcon={<MuiIcon name="external" size={12} />}>Client preview</Button>
+        <Button variant="outlined" color="secondary" startIcon={<MuiIcon name="send" size={12} />}>Send proposal</Button>
+        <Button variant="contained" startIcon={<MuiIcon name="check" size={12} />}>Mark booked</Button>
+      </Box>
+      <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: sidebar ? '1fr 320px' : '1fr', overflow: 'hidden' }}>
+        <Box sx={{ overflow: 'auto', p: fullbleed ? 0 : 2.25 }}>{children}</Box>
+        {sidebar && (
+          <Box component="aside" sx={{ borderLeft: 1, borderColor: 'divider', p: 2, bgcolor: 'surface.main', overflow: 'auto' }}>{sidebar}</Box>
+        )}
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.1 Trip List
 function A341_TripList() {
+  const { Box, Stack, Chip, Card, Table, TableHead, TableBody, TableRow, TableCell, IconButton, Button } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={20} scrollable>
-      <ScreenHeader title="Trips" subtitle="Every trip you own or assist with." actions={<><button className="btn btn-outlined btn-sm"><Icon name="filter" size={12}/> Filter</button><button className="btn btn-orange btn-sm"><Icon name="plus" size={12}/> New trip</button></>} small/>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        {['All · 26','Inquiry · 12','Proposal · 3','Booked · 9','Traveling · 2'].map((t, i) => <span key={t} className={`chip ${i === 0 ? 'chip-filter is-on' : 'chip-filter'}`}>{t}</span>)}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}><span className="chip">Sort · Departure ▾</span></div>
-      </div>
-      <div className="card" style={{ padding: 0 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ font: '600 10.5px/1 var(--font-sans)', letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--md-on-surface-variant)' }}>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Trip</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Client</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Travel</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Stage</th>
-              <th style={{ textAlign: 'right', padding: '10px 14px' }}>Value</th>
-              <th style={{ textAlign: 'right', padding: '10px 14px' }}>Comm</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
+    <MuiScreenFrame role="agent" tab="trips" padding={20} scrollable>
+      <MuiScreenHeader title="Trips" subtitle="Every trip you own or assist with." actions={<><Button variant="outlined" size="small" startIcon={<MuiIcon name="filter" size={12} />}>Filter</Button><Button variant="contained" color="brand" size="small" startIcon={<MuiIcon name="plus" size={12} />}>New trip</Button></>} small />
+      <Stack direction="row" spacing={0.75} sx={{ mb: 1.25, alignItems: 'center' }}>
+        {['All · 26', 'Inquiry · 12', 'Proposal · 3', 'Booked · 9', 'Traveling · 2'].map((t, i) => (
+          i === 0 ? <Chip key={t} color="secondary" label={t} onClick={() => {}} /> : <Chip key={t} variant="outlined" label={t} onClick={() => {}} />
+        ))}
+        <Box sx={{ ml: 'auto !important' }}><Chip variant="outlined" label="Sort · Departure ▾" /></Box>
+      </Stack>
+      <Card>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Trip</TableCell>
+              <TableCell>Client</TableCell>
+              <TableCell>Travel</TableCell>
+              <TableCell>Stage</TableCell>
+              <TableCell align="right">Value</TableCell>
+              <TableCell align="right">Comm</TableCell>
+              <TableCell />
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {[
               { t: 'Sandals · honeymoon', c: 'Jordan & Sam Hayes', tr: 'Aug 12 – 19, 2026', s: 'Booked', tone: 'booked', v: 6480, comm: 970 },
               { t: 'Symphony · family', c: 'Westbrook family', tr: 'Dec 22 – 29, 2026', s: 'Proposal', tone: 'proposal', v: 9120, comm: 1094 },
@@ -56,53 +88,67 @@ function A341_TripList() {
               { t: 'Negril family week', c: 'Khan family', tr: 'Aug 2 – 9, 2026', s: 'Inquiry', tone: 'lead', v: 7200, comm: 936 },
               { t: 'Aruba honeymoon', c: 'Tasha Whitfield', tr: 'Oct 12 – 19, 2026', s: 'Inquiry', tone: 'lead', v: 3800, comm: 494 },
             ].map((r, i) => (
-              <tr key={i} style={{ borderTop: '1px solid var(--md-outline-variant)' }}>
-                <td style={{ padding: '10px 14px' }}><div className="t-title-s">{r.t}</div></td>
-                <td style={{ padding: '10px 14px', color: 'var(--md-on-surface-variant)' }}>{r.c}</td>
-                <td style={{ padding: '10px 14px', color: 'var(--md-on-surface-variant)' }}>{r.tr}</td>
-                <td style={{ padding: '10px 14px' }}><span className={`chip-status ${r.tone}`}>{r.s}</span></td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>${r.v.toLocaleString()}</td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--md-primary)' }}>${r.comm.toLocaleString()}</td>
-                <td style={{ padding: '10px 14px' }}><button className="btn-icon" style={{ width: 28, height: 28 }}><Icon name="more_vert" size={14}/></button></td>
-              </tr>
+              <TableRow key={i} hover>
+                <TableCell sx={{ fontWeight: 600 }}>{r.t}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{r.c}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{r.tr}</TableCell>
+                <TableCell><MuiStaStatus kind={r.tone}>{r.s}</MuiStaStatus></TableCell>
+                <TableCell align="right" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 700 }}>${r.v.toLocaleString()}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: (t) => t.typography.mono, color: 'primary.main' }}>${r.comm.toLocaleString()}</TableCell>
+                <TableCell padding="checkbox"><IconButton size="small"><MuiIcon name="more_vert" size={14} /></IconButton></TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </ScreenFrame>
+          </TableBody>
+        </Table>
+      </Card>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.2 Trip Detail (agent view)
 function A342_TripDetail() {
+  const { Box, Stack, Typography, Card, CardContent, CardMedia, Chip, IconButton } = MUI;
   return (
     <TripShell
       title="Sandals Royal Bahamian honeymoon"
-      status={<><span className="chip-status booked">Booked</span><span className="chip-status proposal">Final balance pending</span></>}
+      status={<><MuiStaStatus kind="booked">Booked</MuiStaStatus><MuiStaStatus kind="proposal">Final balance pending</MuiStaStatus></>}
       sidebar={
         <>
-          <div className="card" style={{ padding: 14, marginBottom: 10 }}>
-            <div className="t-title-s">Cost & commission</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, font: '500 12.5px/1.4 var(--font-sans)' }}><span style={{ color: 'var(--md-on-surface-variant)' }}>Client total</span><span style={{ fontWeight: 700 }}>$6,480</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', font: '500 12.5px/1.4 var(--font-sans)' }}><span style={{ color: 'var(--md-on-surface-variant)' }}>Rate · Sandals</span><span>15%</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, font: '700 16px/1.4 var(--font-sans)', color: 'var(--md-primary)' }}><span>Commission</span><span>$970</span></div>
-          </div>
-          <div className="card" style={{ padding: 14 }}>
-            <div className="t-title-s">Payments</div>
-            {[{l:'Deposit · paid',v:'$800',t:'good'},{l:'Mid · paid',v:'$1,500',t:'good'},{l:'Final · May 28',v:'$4,180',t:'warn'}].map((s) => (
-              <div key={s.l} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0' }}>
-                <span className="dot" style={{ background: s.t === 'good' ? 'var(--md-success)' : 'var(--md-error)' }}/>
-                <div className="t-body-s" style={{ flex: 1 }}>{s.l}</div>
-                <span style={{ font: '700 12px/1 var(--font-mono)' }}>{s.v}</span>
-              </div>
-            ))}
-          </div>
+          <Card sx={{ mb: 1.25 }}>
+            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+              <Typography variant="subtitle1">Cost & commission</Typography>
+              <Stack direction="row" sx={{ justifyContent: 'space-between', mt: 1 }}>
+                <Typography variant="body2" color="text.secondary">Client total</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>$6,480</Typography>
+              </Stack>
+              <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">Rate · Sandals</Typography>
+                <Typography variant="body2">15%</Typography>
+              </Stack>
+              <Stack direction="row" sx={{ justifyContent: 'space-between', mt: 0.75, color: 'primary.main' }}>
+                <Typography variant="h6">Commission</Typography>
+                <Typography variant="h6">$970</Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+              <Typography variant="subtitle1">Payments</Typography>
+              {[{ l: 'Deposit · paid', v: '$800', t: 'good' }, { l: 'Mid · paid', v: '$1,500', t: 'good' }, { l: 'Final · May 28', v: '$4,180', t: 'warn' }].map((s) => (
+                <Stack key={s.l} direction="row" spacing={1} sx={{ alignItems: 'center', py: 0.75 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: s.t === 'good' ? 'success.main' : 'error.main', flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ flex: 1 }}>{s.l}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 700, fontSize: 12 }}>{s.v}</Typography>
+                </Stack>
+              ))}
+            </CardContent>
+          </Card>
         </>
       }
     >
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
-        <img src={staImg('overwater', 1400, 220)} alt="" style={{ width: '100%', height: 130, objectFit: 'cover' }}/>
-        <div style={{ padding: 14, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+      <Card sx={{ mb: 1.75 }}>
+        <CardMedia component="img" image={staImg('overwater', 1400, 220)} alt="" sx={{ height: 130, objectFit: 'cover' }} />
+        <CardContent sx={{ p: 1.75, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1.5, '&:last-child': { pb: 1.75 } }}>
           {[
             { l: 'Trip type', v: 'Honeymoon · 7 nights' },
             { l: 'Destination', v: 'Nassau, Bahamas' },
@@ -112,15 +158,20 @@ function A342_TripDetail() {
             { l: 'Card on file', v: 'VISA •••• 4242 · $4,598 cap' },
             { l: 'Status', v: 'Booked · final balance pending' },
             { l: 'Last activity', v: '2h ago · Jordan replied' },
-          ].map((k) => (<div key={k.l}><div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>{k.l}</div><div className="t-body" style={{ marginTop: 2 }}>{k.v}</div></div>))}
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <div className="t-title-l" style={{ margin: 0 }}>Itinerary</div>
-        <span className="chip">6 components</span>
-        <span className="chip">2 manual · 4 API</span>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          ].map((k) => (
+            <Box key={k.l}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{k.l}</Typography>
+              <Typography variant="body2" sx={{ mt: 0.25 }}>{k.v}</Typography>
+            </Box>
+          ))}
+        </CardContent>
+      </Card>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mb: 1.25 }}>
+        <Typography variant="h5">Itinerary</Typography>
+        <Chip variant="outlined" size="small" label="6 components" />
+        <Chip variant="outlined" size="small" label="2 manual · 4 API" />
+      </Stack>
+      <Stack spacing={0.75}>
         {[
           { k: 'plane', t: 'AA 1413 · MIA → NAS', s: 'Aug 12 · Direct · seats 14A 14B', src: 'Amadeus', c: 460 },
           { k: 'trip', t: 'Private transfer · Mercedes Vito', s: 'Sun & Fun · 25 min', src: 'Manual', c: 180 },
@@ -129,26 +180,30 @@ function A342_TripDetail() {
           { k: 'heart', t: 'Red Lane spa · couples', s: 'Aug 13 · 90 min · included', src: 'Manual', c: 0 },
           { k: 'plane', t: 'AA 1410 · NAS → MIA', s: 'Aug 19 · Direct', src: 'Amadeus', c: 460 },
         ].map((c, i) => (
-          <div key={i} className="card" style={{ padding: '10px 14px', display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Icon name="more_vert" size={14} color="var(--md-on-surface-variant)"/>
-            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={c.k} size={16}/></span>
-            <div style={{ flex: 1 }}><div className="t-title-s">{c.t}</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.s}</div></div>
-            <span className="kbd">{c.src}</span>
-            <div style={{ font: '700 12px/1 var(--font-mono)', minWidth: 70, textAlign: 'right' }}>${c.c.toLocaleString()}</div>
-            <button className="btn-icon"><Icon name="more_vert" size={14}/></button>
-          </div>
+          <A34_MuiRowCard key={i}>
+            <MuiIcon name="more_vert" size={14} sx={{ color: 'text.secondary' }} />
+            <A34_MuiIconTile name={c.k} size={16} box={34} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>{c.t}</Typography>
+              <Typography variant="caption" color="text.secondary">{c.s}</Typography>
+            </Box>
+            <Chip size="small" variant="outlined" label={c.src} sx={{ fontFamily: (t) => t.typography.mono, fontSize: 11, height: 20 }} />
+            <Typography variant="body2" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 700, fontSize: 12, minWidth: 70, textAlign: 'right' }}>${c.c.toLocaleString()}</Typography>
+            <IconButton size="small"><MuiIcon name="more_vert" size={14} /></IconButton>
+          </A34_MuiRowCard>
         ))}
-      </div>
+      </Stack>
     </TripShell>
   );
 }
 
 // 3.4.3 Create New Trip — Type Selector
 function A343_NewTripType() {
+  const { Stack, Grid, Typography, Card, CardContent, CardActionArea, TextField, Button } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={28} scrollable>
-      <ScreenHeader title="New trip · pick a type" subtitle="Templates speed up repeat trip types. You can always customize from there." small/>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, maxWidth: 960 }}>
+    <MuiScreenFrame role="agent" tab="trips" padding={28} scrollable>
+      <MuiScreenHeader title="New trip · pick a type" subtitle="Templates speed up repeat trip types. You can always customize from there." small />
+      <Grid container spacing={1.5} sx={{ maxWidth: 960 }}>
         {[
           { i: 'building', t: 'All-inclusive resort', s: 'Sandals, Beaches, Couples', count: '12 templates' },
           { i: 'ship', t: 'Cruise', s: 'Royal Caribbean, Princess, Carnival', count: '7 templates' },
@@ -157,151 +212,190 @@ function A343_NewTripType() {
           { i: 'heart', t: 'Honeymoon', s: 'Adults-only, surprise nods', count: '5 templates' },
           { i: 'sparkle', t: 'Custom / blank', s: 'Start from zero', count: 'Blank slate' },
         ].map((c, i) => (
-          <button key={c.t} className="card" style={{ padding: 18, textAlign: 'left', border: i === 0 ? '1.5px solid var(--md-primary)' : '1px solid var(--md-outline-variant)', cursor: 'pointer' }}>
-            <span style={{ width: 40, height: 40, borderRadius: 10, background: i === 0 ? 'var(--md-primary)' : 'var(--md-primary-container)', color: i === 0 ? 'var(--md-on-primary)' : 'var(--md-on-primary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={c.i} size={20}/></span>
-            <div className="t-title-l" style={{ margin: '12px 0 4px' }}>{c.t}</div>
-            <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.s}</div>
-            <div className="t-label" style={{ color: 'var(--brand-orange)', marginTop: 10 }}>{c.count}</div>
-          </button>
+          <Grid key={c.t} size={4}>
+            <Card variant="outlined" sx={{ height: '100%', borderColor: i === 0 ? 'primary.main' : 'divider', borderWidth: i === 0 ? 1.5 : 1 }}>
+              <CardActionArea sx={{ height: '100%' }}>
+                <CardContent sx={{ p: 2.25 }}>
+                  <A34_MuiIconTile name={c.i} size={20} box={40}
+                    bg={i === 0 ? 'primary.main' : 'primary.container'} fg={i === 0 ? 'primary.contrastText' : 'primary.onContainer'} />
+                  <Typography variant="h5" sx={{ mt: 1.5, mb: 0.5 }}>{c.t}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{c.s}</Typography>
+                  <Typography variant="caption" sx={{ display: 'block', color: 'brand.main', fontWeight: 600, mt: 1.25 }}>{c.count}</Typography>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          </Grid>
         ))}
-      </div>
-      <div className="card" style={{ marginTop: 18, padding: 16, maxWidth: 960 }}>
-        <div className="t-title-s">Or attach to a client first</div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 8, alignItems: 'center' }}>
-          <input className="input" style={{ flex: 1 }} placeholder="Search clients to attach…"/>
-          <button className="btn btn-tonal btn-sm">Pick later</button>
-          <button className="btn btn-filled">Continue <Icon name="arrow_right" size={12}/></button>
-        </div>
-      </div>
-    </ScreenFrame>
+      </Grid>
+      <Card sx={{ mt: 2.25, maxWidth: 960 }}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Typography variant="subtitle1">Or attach to a client first</Typography>
+          <Stack direction="row" spacing={1.25} sx={{ mt: 1, alignItems: 'center' }}>
+            <TextField size="small" placeholder="Search clients to attach…" sx={{ flex: 1 }} />
+            <Button variant="outlined" color="secondary" size="small">Pick later</Button>
+            <Button variant="contained" endIcon={<MuiIcon name="arrow_right" size={12} />}>Continue</Button>
+          </Stack>
+        </CardContent>
+      </Card>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.4 Trip Builder Workspace
 function A344_TripBuilder() {
+  const { Box, Stack, Grid, Typography, Button, IconButton, Card, CardContent, TextField, List, ListItemButton, ListItemAvatar, ListItemText } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={0}>
-      <div style={{ padding: '14px 28px', background: 'var(--md-surface-1)', borderBottom: '1px solid var(--md-outline-variant)', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>Trip builder · Jordan & Sam Hayes</div>
-          <h1 className="t-headline" style={{ margin: 0 }}>Sandals honeymoon · Aug 2026</h1>
-        </div>
-        <button className="btn btn-text">Auto-save · just now</button>
-        <button className="btn btn-tonal">Preview proposal</button>
-        <button className="btn btn-filled">Send to client</button>
-      </div>
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '260px 1fr 320px', overflow: 'hidden' }}>
-        <aside style={{ borderRight: '1px solid var(--md-outline-variant)', padding: 14, overflow: 'auto', background: 'var(--md-surface)' }}>
-          <div className="t-label" style={{ color: 'var(--md-on-surface-variant)', marginBottom: 6 }}>ADD COMPONENT</div>
-          {[
-            { i: 'plane', l: 'Flight · Amadeus' }, { i: 'building', l: 'Hotel · Hotelbeds' }, { i: 'ship', l: 'Cruise · Widgety' },
-            { i: 'sparkle', l: 'Tour · Viator' }, { i: 'trip', l: 'Transfer · manual' }, { i: 'utensils', l: 'Dining · manual' },
-            { i: 'shield', l: 'Insurance · Allianz' }, { i: 'receipt', l: 'Other · manual' },
-          ].map((c) => (
-            <button key={c.l} className="card" style={{ padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'center', width: '100%', marginBottom: 4, cursor: 'pointer', background: 'transparent', border: 0, boxShadow: 'none' }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={c.i} size={14}/></span>
-              <span className="t-body-s" style={{ flex: 1, textAlign: 'left' }}>{c.l}</span>
-              <Icon name="plus" size={12} color="var(--md-on-surface-variant)"/>
-            </button>
-          ))}
-          <div className="t-label" style={{ color: 'var(--md-on-surface-variant)', marginTop: 14, marginBottom: 6 }}>TEMPLATES</div>
-          {['Sandals honeymoon · 7n', 'Family cruise · 7n EC', 'Atlantis weekend'].map((t) => (
-            <div key={t} className="card" style={{ padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-              <Icon name="bookmark" size={12} color="var(--brand-orange)"/>
-              <span className="t-body-s" style={{ flex: 1 }}>{t}</span>
-              <button className="btn-icon" style={{ width: 24, height: 24 }}><Icon name="plus" size={12}/></button>
-            </div>
-          ))}
-        </aside>
-        <div style={{ overflow: 'auto', padding: 18 }}>
+    <MuiScreenFrame role="agent" tab="trips" padding={0}>
+      <Box sx={{ px: 3.5, py: 1.75, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Trip builder · Jordan & Sam Hayes</Typography>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>Sandals honeymoon · Aug 2026</Typography>
+        </Box>
+        <Button variant="text">Auto-save · just now</Button>
+        <Button variant="outlined" color="secondary">Preview proposal</Button>
+        <Button variant="contained">Send to client</Button>
+      </Box>
+      <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: '260px 1fr 320px', overflow: 'hidden' }}>
+        <Box component="aside" sx={{ borderRight: 1, borderColor: 'divider', p: 1.75, overflow: 'auto', bgcolor: 'surface.main' }}>
+          <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3, mb: 0.75 }}>ADD COMPONENT</Typography>
+          <List dense disablePadding>
+            {[
+              { i: 'plane', l: 'Flight · Amadeus' }, { i: 'building', l: 'Hotel · Hotelbeds' }, { i: 'ship', l: 'Cruise · Widgety' },
+              { i: 'sparkle', l: 'Tour · Viator' }, { i: 'trip', l: 'Transfer · manual' }, { i: 'utensils', l: 'Dining · manual' },
+              { i: 'shield', l: 'Insurance · Allianz' }, { i: 'receipt', l: 'Other · manual' },
+            ].map((c) => (
+              <ListItemButton key={c.l} sx={{ borderRadius: 1, px: 1.5, mb: 0.5 }}>
+                <ListItemAvatar sx={{ minWidth: 36 }}><A34_MuiIconTile name={c.i} size={14} box={28} /></ListItemAvatar>
+                <ListItemText primary={c.l} slotProps={{ primary: { variant: 'caption' } }} />
+                <MuiIcon name="plus" size={12} sx={{ color: 'text.secondary' }} />
+              </ListItemButton>
+            ))}
+          </List>
+          <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3, mt: 1.75, mb: 0.75 }}>TEMPLATES</Typography>
+          <Stack spacing={0.5}>
+            {['Sandals honeymoon · 7n', 'Family cruise · 7n EC', 'Atlantis weekend'].map((t) => (
+              <A34_MuiRowCard key={t} contentSx={{ py: 1, px: 1.5, gap: 1, '&:last-child': { pb: 1 } }}>
+                <MuiIcon name="bookmark" size={12} sx={{ color: 'brand.main' }} />
+                <Typography variant="caption" sx={{ flex: 1 }}>{t}</Typography>
+                <IconButton size="small" sx={{ p: 0.25 }}><MuiIcon name="plus" size={12} /></IconButton>
+              </A34_MuiRowCard>
+            ))}
+          </Stack>
+        </Box>
+        <Box sx={{ overflow: 'auto', p: 2.25 }}>
           {['Day 1 · Arrival', 'Day 2 · Beach', 'Day 3 · Cay day-trip'].map((d, di) => (
-            <div key={d} style={{ marginBottom: 16 }}>
-              <div className="t-script" style={{ color: 'var(--brand-burgundy)', fontSize: 26, lineHeight: 1, marginBottom: 4 }}>{d.split(' ·')[0]}</div>
-              <div className="t-title-s" style={{ marginBottom: 8 }}>{d.split(' ·')[1]}</div>
-              {(di === 0 ? [{ k: 'plane', t: 'AA 1413 · MIA → NAS', s: '06:40 · Direct' }, { k: 'building', t: 'Check-in · Sandals', s: 'Beachfront Walkout' }] : di === 1 ? [{ k: 'heart', t: 'Spa · couples', s: '15:30 · 90 min' }] : [{ k: 'sparkle', t: 'Rose Island Cay snorkel', s: '9:00 · 6 hrs' }]).map((c, i) => (
-                <div key={i} className="card" style={{ padding: '10px 14px', marginBottom: 6, display: 'flex', gap: 12, alignItems: 'center', border: '1px dashed var(--md-outline)' }}>
-                  <Icon name="more_vert" size={12} color="var(--md-on-surface-variant)"/>
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--md-secondary-container)', color: 'var(--md-on-secondary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={c.k} size={13}/></span>
-                  <div style={{ flex: 1 }}><div className="t-title-s" style={{ fontSize: 12.5 }}>{c.t}</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{c.s}</div></div>
-                  <button className="btn-icon" style={{ width: 24, height: 24 }}><Icon name="edit" size={12}/></button>
-                </div>
-              ))}
-              <button className="btn btn-text btn-sm" style={{ padding: 0 }}>+ Add to Day {di+1}</button>
-            </div>
+            <Box key={d} sx={{ mb: 2 }}>
+              <Typography variant="script" sx={{ display: 'block', color: 'primary.main', fontSize: 26, lineHeight: 1, mb: 0.5 }}>{d.split(' ·')[0]}</Typography>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>{d.split(' ·')[1]}</Typography>
+              <Stack spacing={0.75} sx={{ mb: 0.75 }}>
+                {(di === 0 ? [{ k: 'plane', t: 'AA 1413 · MIA → NAS', s: '06:40 · Direct' }, { k: 'building', t: 'Check-in · Sandals', s: 'Beachfront Walkout' }] : di === 1 ? [{ k: 'heart', t: 'Spa · couples', s: '15:30 · 90 min' }] : [{ k: 'sparkle', t: 'Rose Island Cay snorkel', s: '9:00 · 6 hrs' }]).map((c, i) => (
+                  <A34_MuiRowCard key={i} variant="outlined" sx={{ borderStyle: 'dashed', borderColor: 'outline.main' }}>
+                    <MuiIcon name="more_vert" size={12} sx={{ color: 'text.secondary' }} />
+                    <A34_MuiIconTile name={c.k} size={13} box={28} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="subtitle2">{c.t}</Typography>
+                      <Typography variant="caption" color="text.secondary">{c.s}</Typography>
+                    </Box>
+                    <IconButton size="small" sx={{ p: 0.25 }}><MuiIcon name="edit" size={12} /></IconButton>
+                  </A34_MuiRowCard>
+                ))}
+              </Stack>
+              <Button variant="text" size="small">+ Add to Day {di + 1}</Button>
+            </Box>
           ))}
-        </div>
-        <aside style={{ borderLeft: '1px solid var(--md-outline-variant)', padding: 14, overflow: 'auto', background: 'var(--md-surface)' }}>
-          <div className="t-label" style={{ color: 'var(--md-on-surface-variant)', marginBottom: 6 }}>SELECTED · CHECK-IN SANDALS</div>
-          <div className="card" style={{ padding: 14, marginBottom: 10 }}>
-            <div><label className="field-label">Supplier</label><input className="input" defaultValue="Sandals Royal Bahamian"/></div>
-            <div style={{ marginTop: 8 }}><label className="field-label">Room type</label><input className="input" defaultValue="Honeymoon Beachfront Walkout"/></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-              <div><label className="field-label">Check-in</label><input className="input" defaultValue="Aug 12 · 1:00p"/></div>
-              <div><label className="field-label">Check-out</label><input className="input" defaultValue="Aug 19 · 11:00a"/></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-              <div><label className="field-label">Cost</label><input className="input" defaultValue="$4,980" style={{ fontFamily: 'var(--font-mono)' }}/></div>
-              <div><label className="field-label">Comm %</label><input className="input" defaultValue="15%"/></div>
-            </div>
-            <div style={{ marginTop: 8 }}><label className="field-label">Confirmation #</label><input className="input" defaultValue="SRB-220119" style={{ fontFamily: 'var(--font-mono)' }}/></div>
-          </div>
-          <div className="card" style={{ padding: 12, background: 'var(--md-surface-2)' }}>
-            <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>SOURCE · HOTELBEDS</div>
-            <div className="t-body-s" style={{ marginTop: 4 }}>Live · last refreshed 14 min ago</div>
-          </div>
-        </aside>
-      </div>
-    </ScreenFrame>
+        </Box>
+        <Box component="aside" sx={{ borderLeft: 1, borderColor: 'divider', p: 1.75, overflow: 'auto', bgcolor: 'surface.main' }}>
+          <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3, mb: 0.75 }}>SELECTED · CHECK-IN SANDALS</Typography>
+          <Card sx={{ mb: 1.25 }}>
+            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+              <Stack spacing={1}>
+                <TextField label="Supplier" size="small" fullWidth defaultValue="Sandals Royal Bahamian" />
+                <TextField label="Room type" size="small" fullWidth defaultValue="Honeymoon Beachfront Walkout" />
+                <Grid container spacing={1}>
+                  <Grid size={6}><TextField label="Check-in" size="small" fullWidth defaultValue="Aug 12 · 1:00p" /></Grid>
+                  <Grid size={6}><TextField label="Check-out" size="small" fullWidth defaultValue="Aug 19 · 11:00a" /></Grid>
+                </Grid>
+                <Grid container spacing={1}>
+                  <Grid size={6}><TextField label="Cost" size="small" fullWidth defaultValue="$4,980" sx={{ '& .MuiInputBase-input': { fontFamily: (t) => t.typography.mono } }} /></Grid>
+                  <Grid size={6}><TextField label="Comm %" size="small" fullWidth defaultValue="15%" /></Grid>
+                </Grid>
+                <TextField label="Confirmation #" size="small" fullWidth defaultValue="SRB-220119" sx={{ '& .MuiInputBase-input': { fontFamily: (t) => t.typography.mono } }} />
+              </Stack>
+            </CardContent>
+          </Card>
+          <Card variant="outlined" sx={{ bgcolor: 'surface.2' }}>
+            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>SOURCE · HOTELBEDS</Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>Live · last refreshed 14 min ago</Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.5–3.4.10 are component add/edit screens — render as a single common pattern, parametrized.
 function CompModal({ icon, kind, fields, search }) {
+  const { Box, Stack, Grid, Typography, Card, CardContent, Button, IconButton, TextField, InputAdornment } = MUI;
   return (
-    <ScreenFrame chrome="plain">
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.35)' }}>
-        <div className="card" style={{ width: '100%', maxWidth: 720, padding: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={18}/></span>
-            <div><span className="t-label-s" style={{ color: 'var(--brand-orange)' }}>ADD COMPONENT</span><h2 className="t-title-l" style={{ margin: 0 }}>{kind}</h2></div>
-            <button className="btn-icon" style={{ marginLeft: 'auto' }}><Icon name="close" size={18}/></button>
-          </div>
-          {search && (
-            <div className="card" style={{ padding: 12, marginBottom: 12, background: 'var(--md-surface-2)' }}>
-              <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>{search.label}</div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }}>
-                <Icon name="search" size={14} color="var(--md-on-surface-variant)"/>
-                <input className="input" style={{ flex: 1, height: 36, border: 0, background: 'transparent', padding: 0 }} defaultValue={search.value}/>
-                <button className="btn btn-tonal btn-sm">Search</button>
-              </div>
-              {search.results && (
-                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {search.results.map((r, i) => (
-                    <div key={i} className="card" style={{ padding: '8px 12px', display: 'flex', gap: 10, alignItems: 'center', border: i === 0 ? '1.5px solid var(--md-primary)' : '1px solid var(--md-outline-variant)' }}>
-                      <div style={{ flex: 1 }}><div className="t-title-s" style={{ fontSize: 12.5 }}>{r.t}</div><div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{r.s}</div></div>
-                      <div style={{ font: '700 12px/1 var(--font-mono)' }}>{r.p}</div>
-                      <button className="btn btn-text btn-sm" style={{ padding: 0 }}>Add</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {fields.map((f) => (
-              <div key={f.l} style={{ gridColumn: f.full ? 'span 2' : 'auto' }}>
-                <label className="field-label">{f.l}</label>
-                <input className="input" defaultValue={f.v} style={f.mono ? { fontFamily: 'var(--font-mono)' } : {}}/>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            <button className="btn btn-text">Cancel</button>
-            <button className="btn btn-filled" style={{ marginLeft: 'auto' }}>Add to trip</button>
-          </div>
-        </div>
-      </div>
-    </ScreenFrame>
+    <MuiScreenFrame chrome="plain">
+      <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, bgcolor: 'scrim' }}>
+        <Card sx={{ width: '100%', maxWidth: 720 }}>
+          <CardContent sx={{ p: 2.75, '&:last-child': { pb: 2.75 } }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1.5 }}>
+              <A34_MuiIconTile name={icon} size={18} box={40} bg="primary.container" fg="primary.onContainer" />
+              <Box>
+                <Typography variant="overline" sx={{ display: 'block', color: 'brand.main', lineHeight: 1.3 }}>ADD COMPONENT</Typography>
+                <Typography variant="h5" component="h2">{kind}</Typography>
+              </Box>
+              <IconButton sx={{ ml: 'auto !important' }}><MuiIcon name="close" size={18} /></IconButton>
+            </Stack>
+            {search && (
+              <Card variant="outlined" sx={{ bgcolor: 'surface.2', mb: 1.5 }}>
+                <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>{search.label}</Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 0.75, alignItems: 'center' }}>
+                    <TextField
+                      size="small" fullWidth defaultValue={search.value}
+                      slotProps={{ input: { startAdornment: <InputAdornment position="start"><MuiIcon name="search" size={14} /></InputAdornment> } }}
+                      sx={{ '& .MuiInputBase-root': { bgcolor: 'background.paper' } }}
+                    />
+                    <Button variant="outlined" color="secondary" size="small" sx={{ flexShrink: 0 }}>Search</Button>
+                  </Stack>
+                  {search.results && (
+                    <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+                      {search.results.map((r, i) => (
+                        <A34_MuiRowCard key={i} variant="outlined" sx={{ borderColor: i === 0 ? 'primary.main' : 'divider', borderWidth: i === 0 ? 1.5 : 1 }} contentSx={{ py: 1, px: 1.5, gap: 1.25, '&:last-child': { pb: 1 } }}>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="subtitle2">{r.t}</Typography>
+                            <Typography variant="caption" color="text.secondary">{r.s}</Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 700, fontSize: 12 }}>{r.p}</Typography>
+                          <Button variant="text" size="small">Add</Button>
+                        </A34_MuiRowCard>
+                      ))}
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            <Grid container spacing={1.25}>
+              {fields.map((f) => (
+                <Grid key={f.l} size={f.full ? 12 : 6}>
+                  <TextField label={f.l} size="small" fullWidth defaultValue={f.v}
+                    sx={f.mono ? { '& .MuiInputBase-input': { fontFamily: (t) => t.typography.mono } } : undefined} />
+                </Grid>
+              ))}
+            </Grid>
+            <Stack direction="row" spacing={1.25} sx={{ mt: 1.75 }}>
+              <Button variant="text">Cancel</Button>
+              <Button variant="contained" sx={{ ml: 'auto !important' }}>Add to trip</Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
@@ -437,10 +531,11 @@ function A3412_AddOther() {
 
 // 3.4.13 Trip Template Library
 function A3413_TemplateLibrary() {
+  const { Stack, Grid, Typography, Card, CardMedia, CardContent, Chip, Button } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={20} scrollable>
-      <ScreenHeader title="Trip template library" subtitle="Reusable starting points for repeat trip types. Web-only editing at MVP." actions={<button className="btn btn-orange btn-sm"><Icon name="plus" size={12}/> New template</button>} small/>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+    <MuiScreenFrame role="agent" tab="trips" padding={20} scrollable>
+      <MuiScreenHeader title="Trip template library" subtitle="Reusable starting points for repeat trip types. Web-only editing at MVP." actions={<Button variant="contained" color="brand" size="small" startIcon={<MuiIcon name="plus" size={12} />}>New template</Button>} small />
+      <Grid container spacing={1.5}>
         {[
           { i: 'overwater', t: 'Sandals honeymoon · 7n', s: 'Bungalow + spa + cay day-trip', uses: 14, c: '$6,480' },
           { i: 'cruiseShip', t: 'Royal Caribbean · family 7n EC', s: 'Cabin + CocoCay + dining', uses: 9, c: '$5,240' },
@@ -449,100 +544,112 @@ function A3413_TemplateLibrary() {
           { i: 'turks', t: 'Beaches T&C · family week', s: 'Sesame · kids stay free', uses: 4, c: '$6,920' },
           { i: 'aruba', t: 'Aruba sunset · 5n', s: 'Beachfront · spa', uses: 2, c: '$2,840' },
         ].map((t) => (
-          <div key={t.t} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <img src={staImg(t.i, 400, 200)} alt="" style={{ width: '100%', height: 110, objectFit: 'cover' }}/>
-            <div style={{ padding: 12 }}>
-              <div className="t-title-s">{t.t}</div>
-              <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>{t.s}</div>
-              <div style={{ display: 'flex', alignItems: 'center', marginTop: 8, gap: 6 }}>
-                <span className="chip" style={{ height: 22, fontSize: 11 }}>{t.uses}× used</span>
-                <span className="chip" style={{ height: 22, fontSize: 11 }}>{t.c}</span>
-                <button className="btn btn-tonal btn-sm" style={{ marginLeft: 'auto', height: 28 }}>Use</button>
-              </div>
-            </div>
-          </div>
+          <Grid key={t.t} size={4}>
+            <Card>
+              <CardMedia component="img" image={staImg(t.i, 400, 200)} alt="" sx={{ height: 110, objectFit: 'cover' }} />
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="subtitle1">{t.t}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{t.s}</Typography>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 1 }}>
+                  <Chip size="small" variant="outlined" label={`${t.uses}× used`} />
+                  <Chip size="small" variant="outlined" label={t.c} />
+                  <Button variant="outlined" color="secondary" size="small" sx={{ ml: 'auto !important' }}>Use</Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
         ))}
-      </div>
-    </ScreenFrame>
+      </Grid>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.14 Itinerary Editor
 function A3414_ItineraryEditor() {
+  const { Box, Stack, Typography, Button, IconButton, Card, CardContent, Paper, TextField, List, ListItemButton, ListItemText } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={0}>
-      <div style={{ padding: '14px 28px', borderBottom: '1px solid var(--md-outline-variant)', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)' }}>Itinerary editor · Sandals · Aug 12 – 19</div>
-          <h1 className="t-headline" style={{ margin: 0 }}>Day-by-day editor</h1>
-        </div>
-        <button className="btn btn-tonal"><Icon name="sparkle" size={12}/> Auto-generate from components</button>
-        <button className="btn btn-filled">Publish update</button>
-      </div>
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '200px 1fr 320px', overflow: 'hidden' }}>
-        <aside style={{ borderRight: '1px solid var(--md-outline-variant)', padding: 10, overflow: 'auto', background: 'var(--md-surface)' }}>
-          {['Day 1 · Arrival','Day 2 · Beach','Day 3 · Cay','Day 4 · Resort','Day 5 · Spa','Day 6 · Snorkel','Day 7 · Pool','Departure'].map((d, i) => (
-            <div key={d} style={{ padding: '8px 10px', borderRadius: 8, background: i === 0 ? 'var(--md-secondary-container)' : 'transparent', color: i === 0 ? 'var(--md-on-secondary-container)' : 'var(--md-on-surface)', cursor: 'pointer', font: '600 12px/1.3 var(--font-sans)', marginBottom: 2 }}>{d}</div>
-          ))}
-        </aside>
-        <div style={{ overflow: 'auto', padding: 18 }}>
-          <div className="t-script" style={{ color: 'var(--brand-burgundy)', fontSize: 32, lineHeight: 1 }}>Day 01</div>
-          <input className="input" defaultValue="Miami → Nassau" style={{ marginTop: 4, font: '700 20px/1.2 var(--font-sans)', border: 0, padding: '4px 0', background: 'transparent', boxShadow: 'none' }}/>
-          <textarea className="input" style={{ marginTop: 4, height: 60, padding: 10, resize: 'none' }} defaultValue="Arrival & sunset welcome dinner — easy day, get oriented, drinks on the beach."/>
-          <div className="t-title-s" style={{ marginTop: 14 }}>Time blocks</div>
+    <MuiScreenFrame role="agent" tab="trips" padding={0}>
+      <Box sx={{ px: 3.5, py: 1.75, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Itinerary editor · Sandals · Aug 12 – 19</Typography>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>Day-by-day editor</Typography>
+        </Box>
+        <Button variant="outlined" color="secondary" startIcon={<MuiIcon name="sparkle" size={12} />}>Auto-generate from components</Button>
+        <Button variant="contained">Publish update</Button>
+      </Box>
+      <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: '200px 1fr 320px', overflow: 'hidden' }}>
+        <Box component="aside" sx={{ borderRight: 1, borderColor: 'divider', p: 1.25, overflow: 'auto', bgcolor: 'surface.main' }}>
+          <List dense disablePadding>
+            {['Day 1 · Arrival', 'Day 2 · Beach', 'Day 3 · Cay', 'Day 4 · Resort', 'Day 5 · Spa', 'Day 6 · Snorkel', 'Day 7 · Pool', 'Departure'].map((d, i) => (
+              <ListItemButton key={d} selected={i === 0} sx={{ borderRadius: 1, mb: 0.25, py: 0.75 }}>
+                <ListItemText primary={d} slotProps={{ primary: { variant: 'body2', sx: { fontWeight: 600, fontSize: 12 } } }} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Box>
+        <Box sx={{ overflow: 'auto', p: 2.25 }}>
+          <Typography variant="script" sx={{ display: 'block', color: 'primary.main', fontSize: 32, lineHeight: 1 }}>Day 01</Typography>
+          <TextField variant="standard" fullWidth defaultValue="Miami → Nassau" sx={{ mt: 0.5, '& .MuiInputBase-input': { fontWeight: 700, fontSize: 20, lineHeight: 1.2 } }} />
+          <TextField fullWidth multiline minRows={2} size="small" defaultValue="Arrival & sunset welcome dinner — easy day, get oriented, drinks on the beach." sx={{ mt: 1 }} />
+          <Typography variant="subtitle1" sx={{ mt: 1.75 }}>Time blocks</Typography>
           {[
             { p: 'MORNING', t: '06:40 · AA 1413 · MIA → NAS', tip: 'Group 4 boarding · arrive 5:30a' },
             { p: 'AFTERNOON', t: '13:00 · Check-in · Sandals', tip: 'Honeymoon walkout · request building 3' },
             { p: 'EVENING', t: '19:30 · Welcome dinner · Bayside', tip: 'Reserved for 2 · pescatarian flag for Sam' },
           ].map((b, i) => (
-            <div key={i} className="card" style={{ padding: 14, marginTop: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="t-label-s" style={{ color: 'var(--brand-orange)' }}>{b.p}</span>
-                <input className="input" defaultValue={b.t} style={{ flex: 1, border: 0, padding: '4px 0', font: '600 14px/1.3 var(--font-sans)', background: 'transparent', boxShadow: 'none' }}/>
-                <button className="btn-icon"><Icon name="more_vert" size={14}/></button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--md-tertiary-container)', color: 'var(--md-on-tertiary-container)' }}>
-                <span className="t-label-s" style={{ flexShrink: 0 }}>GYASI'S TIP</span>
-                <input className="input" defaultValue={b.tip} style={{ flex: 1, border: 0, padding: 0, height: 18, font: '500 12px/1.4 var(--font-sans)', background: 'transparent', boxShadow: 'none', color: 'inherit' }}/>
-              </div>
-            </div>
+            <Card key={i} sx={{ mt: 1 }}>
+              <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Typography variant="overline" sx={{ color: 'brand.main', lineHeight: 1.3, flexShrink: 0 }}>{b.p}</Typography>
+                  <TextField variant="standard" fullWidth defaultValue={b.t} sx={{ flex: 1, '& .MuiInputBase-input': { fontWeight: 600, fontSize: 14 } }} />
+                  <IconButton size="small"><MuiIcon name="more_vert" size={14} /></IconButton>
+                </Stack>
+                <Paper elevation={0} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, px: 1, py: 0.5, bgcolor: 'tertiary.container', color: 'tertiary.onContainer' }}>
+                  <Typography variant="overline" sx={{ flexShrink: 0, lineHeight: 1.3 }}>GYASI'S TIP</Typography>
+                  <TextField variant="standard" fullWidth defaultValue={b.tip}
+                    slotProps={{ input: { disableUnderline: true } }}
+                    sx={{ flex: 1, '& .MuiInputBase-input': { fontWeight: 500, fontSize: 12, color: 'inherit', py: 0.25 } }} />
+                </Paper>
+              </CardContent>
+            </Card>
           ))}
-        </div>
-        <aside style={{ borderLeft: '1px solid var(--md-outline-variant)', padding: 14, overflow: 'auto', background: 'var(--md-surface)' }}>
-          <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>VISIBLE TO CLIENT</div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center', padding: 10, borderRadius: 10, background: 'var(--md-surface-2)' }}>
-            <Icon name="info" size={14}/><div className="t-body-s">Changes publish on "Publish update" · client gets push.</div>
-          </div>
-          <div className="t-label" style={{ color: 'var(--md-on-surface-variant)', marginTop: 14 }}>SUGGESTED NEXT</div>
+        </Box>
+        <Box component="aside" sx={{ borderLeft: 1, borderColor: 'divider', p: 1.75, overflow: 'auto', bgcolor: 'surface.main' }}>
+          <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>VISIBLE TO CLIENT</Typography>
+          <Paper elevation={0} sx={{ display: 'flex', gap: 1, mt: 0.75, alignItems: 'center', p: 1.25, bgcolor: 'surface.2' }}>
+            <MuiIcon name="info" size={14} /><Typography variant="caption">Changes publish on "Publish update" · client gets push.</Typography>
+          </Paper>
+          <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3, mt: 1.75 }}>SUGGESTED NEXT</Typography>
           {['Add Day 3 snorkel from Viator', 'Confirm Bayside dinner', 'Add packing reminder for Day 2'].map((s) => (
-            <div key={s} className="card" style={{ padding: 10, marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="sparkle" size={13} color="var(--brand-orange)"/><div className="t-body-s">{s}</div>
-            </div>
+            <A34_MuiRowCard key={s} sx={{ mt: 0.75 }} contentSx={{ p: 1.25, gap: 1, '&:last-child': { pb: 1.25 } }}>
+              <MuiIcon name="sparkle" size={13} sx={{ color: 'brand.main' }} /><Typography variant="caption">{s}</Typography>
+            </A34_MuiRowCard>
           ))}
-        </aside>
-      </div>
-    </ScreenFrame>
+        </Box>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.15 Trip Payment Schedule
 function A3415_PaymentSchedule() {
+  const { Card, Table, TableHead, TableBody, TableFooter, TableRow, TableCell, Button } = MUI;
   return (
-    <ScreenFrame role="agent" tab="trips" padding={28} scrollable>
-      <ScreenHeader title="Payment schedule · Sandals · Aug 2026" subtitle="What's due when, to whom, from which card." actions={<button className="btn btn-filled btn-sm"><Icon name="plus" size={12}/> Add scheduled payment</button>} small/>
-      <div className="card" style={{ padding: 0, maxWidth: 1000 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ font: '600 10.5px/1 var(--font-sans)', letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--md-on-surface-variant)' }}>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Due</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Description</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Supplier</th>
-              <th style={{ textAlign: 'right', padding: '10px 14px' }}>Amount</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Card</th>
-              <th style={{ textAlign: 'left', padding: '10px 14px' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
+    <MuiScreenFrame role="agent" tab="trips" padding={28} scrollable>
+      <MuiScreenHeader title="Payment schedule · Sandals · Aug 2026" subtitle="What's due when, to whom, from which card." actions={<Button variant="contained" size="small" startIcon={<MuiIcon name="plus" size={12} />}>Add scheduled payment</Button>} small />
+      <Card sx={{ maxWidth: 1000 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Due</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Supplier</TableCell>
+              <TableCell align="right">Amount</TableCell>
+              <TableCell>Card</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {[
               { d: 'Mar 14', desc: 'Deposit', sup: 'Sandals', a: 800, c: 'VISA 4242', s: 'Paid', tone: 'booked' },
               { d: 'Apr 22', desc: 'Mid payment', sup: 'Sandals', a: 1500, c: 'VISA 4242', s: 'Paid', tone: 'booked' },
@@ -550,60 +657,66 @@ function A3415_PaymentSchedule() {
               { d: 'Aug 14', desc: 'Tour · Rose Island', sup: 'Viator', a: 280, c: 'VISA 4242', s: 'Scheduled', tone: 'proposal' },
               { d: 'Aug 12', desc: 'Transfer', sup: 'Sun & Fun', a: 180, c: 'VISA 4242', s: 'Scheduled', tone: 'proposal' },
             ].map((r, i) => (
-              <tr key={i} style={{ borderTop: '1px solid var(--md-outline-variant)' }}>
-                <td style={{ padding: '10px 14px', font: '600 12.5px/1 var(--font-sans)' }}>{r.d}</td>
-                <td style={{ padding: '10px 14px' }}>{r.desc}</td>
-                <td style={{ padding: '10px 14px', color: 'var(--md-on-surface-variant)' }}>{r.sup}</td>
-                <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>${r.a.toLocaleString()}</td>
-                <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{r.c}</td>
-                <td style={{ padding: '10px 14px' }}><span className={`chip-status ${r.tone}`}>{r.s}</span></td>
-              </tr>
+              <TableRow key={i} hover>
+                <TableCell sx={{ fontWeight: 600 }}>{r.d}</TableCell>
+                <TableCell>{r.desc}</TableCell>
+                <TableCell sx={{ color: 'text.secondary' }}>{r.sup}</TableCell>
+                <TableCell align="right" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 700 }}>${r.a.toLocaleString()}</TableCell>
+                <TableCell sx={{ fontFamily: (t) => t.typography.mono, fontSize: 12 }}>{r.c}</TableCell>
+                <TableCell><MuiStaStatus kind={r.tone}>{r.s}</MuiStaStatus></TableCell>
+              </TableRow>
             ))}
-          </tbody>
-          <tfoot>
-            <tr style={{ borderTop: '2px solid var(--md-outline-variant)', background: 'var(--md-surface-2)' }}>
-              <td colSpan="3" style={{ padding: '12px 14px', font: '700 13px/1 var(--font-sans)' }}>Trip total</td>
-              <td style={{ padding: '12px 14px', textAlign: 'right', font: '800 16px/1 var(--font-mono)' }}>$6,940</td>
-              <td colSpan="2"/>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </ScreenFrame>
+          </TableBody>
+          <TableFooter>
+            <TableRow sx={{ bgcolor: 'surface.2' }}>
+              <TableCell colSpan={3} sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>Trip total</TableCell>
+              <TableCell align="right" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 800, fontSize: 16, color: 'text.primary' }}>$6,940</TableCell>
+              <TableCell colSpan={2} />
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </Card>
+    </MuiScreenFrame>
   );
 }
 
 // 3.4.16 Cancel / Archive Trip
 function A3416_CancelTrip() {
+  const { Box, Stack, Typography, Card, CardContent, Button, TextField, Checkbox, FormControlLabel } = MUI;
   return (
-    <ScreenFrame chrome="plain">
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.45)' }}>
-        <div className="card" style={{ width: '100%', maxWidth: 560, padding: 22 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span style={{ width: 40, height: 40, borderRadius: 999, background: 'var(--md-error-container)', color: 'var(--md-on-error-container)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="warning" size={18}/></span>
-            <div><span className="t-label-s" style={{ color: 'var(--md-error)' }}>CANCEL TRIP</span><h2 className="t-title-l" style={{ margin: 0 }}>Cancel Sandals · Aug 12 – 19?</h2></div>
-          </div>
-          <div className="card" style={{ padding: 12, marginTop: 8, background: 'var(--md-surface-2)' }}>
-            <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>IMPACT</div>
-            <ul style={{ margin: '4px 0 0', paddingLeft: 18, font: '400 12.5px/1.6 var(--font-sans)' }}>
-              <li>Card authorization will be revoked</li>
-              <li>Allianz policy refund subject to terms (15 day window)</li>
-              <li>Sandals cancellation fee · $120 per policy</li>
-              <li>Commission expectation removed ($970)</li>
-            </ul>
-          </div>
-          <div style={{ marginTop: 10 }}><label className="field-label">Reason</label><textarea className="input" style={{ height: 60, padding: 12, resize: 'none' }} placeholder="Family conflict · medical · etc."/></div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, font: '500 12.5px/1.4 var(--font-sans)' }}>
-            <span style={{ width: 16, height: 16, borderRadius: 4, border: '1.5px solid var(--md-outline)', background: 'var(--md-primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={10} color="#FFF" stroke={2.5}/></span>
-            Notify client with cancellation template
-          </label>
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            <button className="btn btn-outlined">Keep trip</button>
-            <button className="btn btn-danger" style={{ marginLeft: 'auto' }}>Cancel trip</button>
-          </div>
-        </div>
-      </div>
-    </ScreenFrame>
+    <MuiScreenFrame chrome="plain">
+      <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, bgcolor: 'scrim' }}>
+        <Card sx={{ width: '100%', maxWidth: 560 }}>
+          <CardContent sx={{ p: 2.75, '&:last-child': { pb: 2.75 } }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1.5 }}>
+              <A34_MuiIconTile name="warning" size={18} box={40} variant="circular" bg="error.container" fg="error.onContainer" />
+              <Box>
+                <Typography variant="overline" sx={{ display: 'block', color: 'error.main', lineHeight: 1.3 }}>CANCEL TRIP</Typography>
+                <Typography variant="h5" component="h2">Cancel Sandals · Aug 12 – 19?</Typography>
+              </Box>
+            </Stack>
+            <Card variant="outlined" sx={{ bgcolor: 'surface.2', mt: 1 }}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>IMPACT</Typography>
+                <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.25, typography: 'body2', lineHeight: 1.6 }}>
+                  <li>Card authorization will be revoked</li>
+                  <li>Allianz policy refund subject to terms (15 day window)</li>
+                  <li>Sandals cancellation fee · $120 per policy</li>
+                  <li>Commission expectation removed ($970)</li>
+                </Box>
+              </CardContent>
+            </Card>
+            <TextField label="Reason" size="small" fullWidth multiline minRows={2} placeholder="Family conflict · medical · etc." sx={{ mt: 1.5 }} />
+            <FormControlLabel sx={{ mt: 0.75 }} control={<Checkbox defaultChecked size="small" />}
+              label={<Typography variant="body2">Notify client with cancellation template</Typography>} />
+            <Stack direction="row" spacing={1.25} sx={{ mt: 1.75 }}>
+              <Button variant="outlined">Keep trip</Button>
+              <Button variant="contained" color="error" sx={{ ml: 'auto !important' }}>Cancel trip</Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Box>
+    </MuiScreenFrame>
   );
 }
 

@@ -203,6 +203,7 @@ fun App() {
             AppRoute.Worklist,
             AppRoute.AgentClients,
             is AppRoute.AgentClientDetail,
+            is AppRoute.AgentTripDetail,
             -> {
                 val scope = rememberCoroutineScope()
                 val agent = agentRepository

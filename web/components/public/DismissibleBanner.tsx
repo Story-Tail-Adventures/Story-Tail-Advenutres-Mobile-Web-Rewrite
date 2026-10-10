@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { Icon } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
+import { TAP_TARGET } from "@/lib/mui/sx";
 
 /**
  * A tiny external store over localStorage so React reads the dismissed flag through
@@ -43,15 +46,21 @@ function writeDismissed(storageKey: string) {
  * Deliberately not a cookie: reading a cookie in the page would make every public route
  * dynamic. The banner renders on the server and disappears on hydration for visitors who
  * dismissed it before — a brief flash for them, static HTML for everyone.
+ *
+ * `sx` is where a caller's breakpoint gate goes (SigninBanner shows from `md`). It belongs
+ * on THIS wrapper rather than on SignedOutOnly — see that file for why a display rule on
+ * the gated element would quietly defeat the pre-paint gate.
  */
 export function DismissibleBanner({
   storageKey,
   children,
   className,
+  sx,
 }: {
   storageKey: string;
   children: React.ReactNode;
   className?: string;
+  sx?: SxProps<Theme>;
 }) {
   const getSnapshot = useCallback(() => readDismissed(storageKey), [storageKey]);
   const dismissed = useSyncExternalStore(subscribe, getSnapshot, () => false);
@@ -59,16 +68,19 @@ export function DismissibleBanner({
   if (dismissed) return null;
 
   return (
-    <div className={cn("relative", className)}>
+    <Box className={className} sx={[{ position: "relative" }, ...(Array.isArray(sx) ? sx : [sx])]}>
       {children}
-      <button
-        type="button"
-        className="btn-icon tap-44 absolute top-1/2 right-2 size-8 -translate-y-1/2 text-on-surface"
-        aria-label="Dismiss"
-        onClick={() => writeDismissed(storageKey)}
-      >
-        <Icon name="close" size={16} />
-      </button>
-    </div>
+      {/* Positioned by a wrapper: TAP_TARGET makes its element `position: relative` on touch
+          screens, which would pull an absolutely positioned button back into the flow. */}
+      <Box sx={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)" }}>
+        <IconButton
+          aria-label="Dismiss"
+          onClick={() => writeDismissed(storageKey)}
+          sx={{ width: 32, height: 32, color: "text.primary", ...TAP_TARGET }}
+        >
+          <Icon name="close" size={16} />
+        </IconButton>
+      </Box>
+    </Box>
   );
 }
