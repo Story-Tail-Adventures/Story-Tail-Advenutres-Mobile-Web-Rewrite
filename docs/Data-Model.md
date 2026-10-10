@@ -2807,6 +2807,7 @@ present-but-disabled; a tier upgrade is an `UPDATE ... SET enabled = true` and a
 | `locale` | `text` | Yes | Internal | Null means the provider default |
 | `destination` | `text` | Yes | Internal | Provider destination filter |
 | `departure_within_days` | `integer` | Yes | Internal | Rolling window from today. See below |
+| `departure_offset_days` | `integer` | No | Internal | Default 0. Where the window opens: this many days out instead of today. Sailing scopes use 90. Must be below `departure_within_days`. See below |
 | `max_rows_per_request` | `integer` | No | Internal | Default 10 — the BASIC row cap |
 | `max_requests_per_run` | `integer` | No | Internal | Default 1 |
 | `cursor` | `text` | Yes | Internal | Persisted `next_cursor`, for resume |
@@ -2821,6 +2822,25 @@ present-but-disabled; a tier upgrade is an `UPDATE ... SET enabled = true` and a
 `departure_after` / `departure_before` pair, because a scheduled job configured with absolute
 dates keeps running successfully and silently syncing nothing the moment the window falls
 into the past. A rolling window cannot expire.
+
+**Where the window opens decides how far ahead the catalog reaches.** A weekly pass of a few
+pages holds about one week of a large line's departures, sorted soonest first. Opened at
+today, that week is always *this* week: the cursor never gets ahead of the calendar, and the
+first production run (2026-10-10) stored 40 sailings that all left within seven days. So
+sailing scopes open their window `departure_offset_days` out (90). Each pass then collects
+about a week of sailings three months away, those sailings stay in the catalog as their dates
+approach, and after roughly thirteen weekly passes the catalog covers today to about three
+months ahead. The reach is the offset; reaching further on the same budget means a larger
+offset and a longer fill.
+
+**Several ticks each Monday, one run per scope.** The relay also throttles BASIC to roughly
+ten requests a *minute*, separately from the monthly cap. One run that spent its whole weekly
+allowance at once took a 429 on every scope after the eleventh request, and because scopes run
+in fixed priority order, the same scopes lost out every week. So `cruise-sync-weekly` fires at
+09:17, 09:20, 09:23 and 09:26 on Mondays, each run starts at most 8 requests
+(`MAX_REQUESTS_PER_RUN` in `_shared/cruise/sync.ts`) and leaves the rest due, and sailing
+scopes carry `min_interval_days = 6` so each runs once a week on whichever tick reaches it
+first. A 429 does not stamp `last_run_at`: the scope stays due and the next tick retries it.
 
 **`cursor` and `high_water_updated_at` are what make a budget of three requests a day
 workable.** The provider's pagination is cursor-only (`starting_after` ← `next_cursor`; there

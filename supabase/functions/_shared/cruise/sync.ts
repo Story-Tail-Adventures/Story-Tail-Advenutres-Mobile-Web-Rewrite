@@ -60,6 +60,7 @@ type ScopeRow = {
   locale: string | null;
   destination: string | null;
   departure_within_days: number | null;
+  departure_offset_days: number;
   sort: string;
   min_interval_days: number;
   last_run_at: string | null;
@@ -75,9 +76,26 @@ export interface SyncOptions {
   trigger: "cron" | "manual";
   /** Restrict the run to one scope label. Used by manual invocations. */
   onlyLabel?: string;
+  /** Overrides MAX_REQUESTS_PER_RUN. Tests only. */
+  maxRequestsPerRun?: number;
   fetchImpl?: typeof fetch;
   now?: Date;
 }
+
+/**
+ * The most provider requests one run may start, across all its scopes.
+ *
+ * THE RELAY THROTTLES PER MINUTE, NOT JUST PER MONTH. BASIC allows roughly ten requests a
+ * minute, and the first production run that reached the provider spent 11 in 16 seconds
+ * and then took a 429 on every scope after that. So a run does what fits under this cap and
+ * stops, and the Monday cron fires several ticks a few minutes apart (see the
+ * cruise_sync_ahead_and_paced migration): each one picks up the scopes the last one left
+ * due. 8 against ~10 is the headroom.
+ */
+export const MAX_REQUESTS_PER_RUN = 8;
+
+/** How recently another `running` run must have started for this one to step aside. */
+const OVERLAP_WINDOW_MS = 10 * 60_000;
 
 export interface SyncOutcome {
   runId: string;
@@ -108,6 +126,25 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     quota_remaining: budget.quotaRemaining,
   });
 
+  // ONE RUN AT A TIME. The Monday ticks are three minutes apart and a scope is only stamped
+  // when it finishes, so a run slowed by provider timeouts could still be walking a scope
+  // when the next tick starts the same one and pays for the same pages. The newer run steps
+  // aside rather than racing it. It still opens and closes its own row, which is what the
+  // watchdog checks a dispatch against. The window is short of the watchdog's 30-minute
+  // stranded sweep, so a run that died cannot block every tick after it.
+  const { data: live } = await db
+    .from("cruise_sync_run")
+    .select("id")
+    .eq("status", "running")
+    .neq("id", runId)
+    .gte("started_at", new Date(now.getTime() - OVERLAP_WINDOW_MS).toISOString())
+    .limit(1);
+  if (Array.isArray(live) && live.length > 0) {
+    notes.push("skipped: an earlier run that started in the last 10 minutes is still running");
+    await finishRun(db, runId, "skipped", 0, 0, 0, budget, notes, 0, "previous_run_running");
+    return outcome(runId, "skipped", 0, 0, 0, budget, notes);
+  }
+
   // Nothing to do, and saying so costs no requests. This is the expected outcome late in a
   // month on the free tier, and it is not a failure.
   if (budget.allowance <= 0) {
@@ -137,6 +174,8 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
   let rowsArchived = 0;
   let anyFailure = false;
   let degraded = false;
+  let throttled = false;
+  const requestCap = options.maxRequestsPerRun ?? MAX_REQUESTS_PER_RUN;
 
   // EVERY PATH OUT OF HERE CLOSES THE RUN ROW.
   //
@@ -156,7 +195,7 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
       .from("cruise_sync_scope")
       .select(
         "id, label, endpoint, priority, company, locale, destination, " +
-          "departure_within_days, sort, min_interval_days, last_run_at, " +
+          "departure_within_days, departure_offset_days, sort, min_interval_days, last_run_at, " +
           "max_rows_per_request, max_requests_per_run, cursor, high_water_updated_at",
       )
       .eq("enabled", true);
@@ -183,6 +222,19 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
         continue;
       }
 
+      // The per-minute pace, checked against this scope's whole allowance before it starts,
+      // because a scope cannot be stopped halfway without losing the cursor it was walking.
+      // Deferred is not failed: nothing is written to the scope, so it is still due, and the
+      // next Monday tick starts with it a fresh minute later. The first scope of a run always
+      // goes, so a scope configured above the cap still runs rather than waiting forever.
+      if (httpAttempts > 0 && httpAttempts + scope.max_requests_per_run > requestCap) {
+        notes.push(
+          `deferred ${scope.label} to the next tick: a run starts at most ${requestCap} ` +
+            `requests, to stay under the relay's per-minute limit`,
+        );
+        break;
+      }
+
       try {
         const result = await runScope({ db, client, scope, budget, now });
         budget = result.budget;
@@ -194,18 +246,30 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
         // status said. Reporting ok here is how a broken run stays broken for a month.
         if (result.rowsUpserted === 0 && (result.droppedRows ?? 0) > 0) degraded = true;
 
+        // Throttled partway: the pages it did get are stored and the cursor is saved, so the
+        // next tick resumes from there rather than buying the same pages twice. It is not
+        // stamped as run, for the same reason the catch below gives.
         await db
           .from("cruise_sync_scope")
           .update({
             cursor: result.cursor,
             cursor_set_at: result.cursor ? now.toISOString() : null,
             high_water_updated_at: result.highWater ?? scope.high_water_updated_at,
-            last_run_at: now.toISOString(),
+            ...(result.rateLimited ? {} : { last_run_at: now.toISOString() }),
             last_status: result.complete ? "ok" : "partial",
             last_error: null,
             updated_at: now.toISOString(),
           })
           .eq("id", scope.id);
+
+        if (result.rateLimited) {
+          throttled = true;
+          notes.push(
+            `stopped during ${scope.label}: the relay's per-minute limit; its cursor is ` +
+              `saved and it stays due for the next tick`,
+          );
+          break;
+        }
       } catch (err) {
         // One scope's failure must not abandon the rest: a tier gate on sailings should not
         // cost the reference catalogue its weekly refresh. The run reports `partial`.
@@ -220,19 +284,34 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
           budget = applyQuota(budget, err.quota);
         }
 
+        // A 429 IS "NOT YET", NOT "TRIED". Stamping last_run_at here would make a throttled
+        // sailing scope wait out its whole weekly interval having fetched nothing, and every
+        // scope behind it would take the same 429 inside the same minute. So the stamp is
+        // skipped, the run stops, and the next tick retries this scope first.
+        const rateLimited = isPerMinuteThrottle(err);
+
         await db
           .from("cruise_sync_scope")
           .update({
-            last_run_at: now.toISOString(),
+            ...(rateLimited ? {} : { last_run_at: now.toISOString() }),
             last_status: "failed",
             last_error: detail.slice(0, 500),
             updated_at: now.toISOString(),
           })
           .eq("id", scope.id);
+
+        if (rateLimited) {
+          throttled = true;
+          notes.push(
+            `stopped after ${scope.label}: the relay's per-minute limit; ` +
+              `it and the scopes after it stay due for the next tick`,
+          );
+          break;
+        }
       }
     }
 
-    const status = anyFailure
+    const status = anyFailure || throttled
       ? (scopesRun > 0 ? "partial" : "failed")
       : (degraded ? "partial" : "ok");
 
@@ -247,7 +326,12 @@ export async function runSync(options: SyncOptions): Promise<SyncOutcome> {
     // the same argument the tick and the watchdog both make for staying quiet when the
     // vault is unprovisioned. What closes that gap instead is counting the drops, so an
     // empty-LOOKING page that was really an unreadable one is no longer silent.
-    const errorCode = anyFailure
+    //
+    // `rate_limited` outranks the generic codes because it names the fix: the run was paced
+    // too tightly for the relay, which the request cap exists to prevent.
+    const errorCode = throttled
+      ? "rate_limited"
+      : anyFailure
       ? (scopesRun > 0 ? "scope_failed" : "all_scopes_failed")
       : (degraded ? "spent_but_stored_nothing" : null);
 
@@ -503,9 +587,10 @@ export async function refetchSailing(options: {
 /**
  * Has this scope's interval elapsed?
  *
- * `min_interval_days` 0 means every run, which is what sailing scopes want. Anything higher
- * is a scope that changes more slowly than the cron fires — see the column comment for why
- * that distinction is worth 9 requests a month on the free tier.
+ * `min_interval_days` 0 means every run, and since the Monday cron fires several ticks a few
+ * minutes apart, every run now means every TICK. So sailing scopes use 6 (once a week, on
+ * whichever tick reaches them first) and reference scopes 28 — see the column comment for
+ * why that distinction is worth requests on the free tier.
  *
  * A scope that has never run is always due, so a fresh deployment fills the reference
  * catalogue on its first tick rather than waiting out an interval it was never inside.
@@ -546,6 +631,23 @@ interface ScopeResult {
   droppedRows?: number;
   /** Why they were dropped, for cruise_sync_run.error_detail. */
   note?: string;
+  /**
+   * The relay's per-minute 429 arrived after at least one page was stored. The scope
+   * returns normally so the cursor it reached is saved, and the run stops there; see the
+   * caller.
+   */
+  rateLimited?: boolean;
+}
+
+/**
+ * The relay's per-minute throttle, as distinct from the monthly quota running out.
+ *
+ * Both arrive as 429. Only the first one is "come back in a minute": a 429 whose quota
+ * headers say 0 remaining is the month, and the next tick's readBudget skips the run on
+ * its own, so treating it as a throttle would only mislabel the run.
+ */
+function isPerMinuteThrottle(err: unknown): err is TrackCruisesError {
+  return err instanceof TrackCruisesError && err.status === 429 && err.quota.remaining !== 0;
 }
 
 async function runScope(ctx: ScopeContext): Promise<ScopeResult> {
@@ -877,18 +979,43 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
     ? isoDate(new Date(now.getTime() + scope.departure_within_days * 86_400_000))
     : undefined;
 
+  // WHERE THE WINDOW OPENS decides how far ahead the catalogue reaches, and today was the
+  // wrong answer. A weekly pass of a few pages holds about one week of a big line's
+  // departures, and soonest-first from today means that week is always THIS week: the
+  // cursor never gets ahead of the calendar. Opening the window `departure_offset_days`
+  // out collects sailings people can still book, and they stay in the catalogue as the
+  // calendar moves towards them. Still a rolling window, so a scope cannot quietly expire.
+  const departureAfter = isoDate(
+    new Date(now.getTime() + (scope.departure_offset_days ?? 0) * 86_400_000),
+  );
+
+  let rateLimited = false;
+
   while (requestsSpent < scope.max_requests_per_run && budget.allowance > 0) {
-    const page = await ctx.client.cruises({
-      limit: scope.max_rows_per_request,
-      startingAfter: cursor ?? undefined,
-      company: scope.company ?? undefined,
-      locale: scope.locale ?? undefined,
-      destination: scope.destination ?? undefined,
-      sort: scope.sort as CruiseSortOrder,
-      // Today forward: a rolling window, so a scheduled scope cannot quietly expire.
-      departureAfter: isoDate(now),
-      departureBefore,
-    });
+    let page: Awaited<ReturnType<typeof ctx.client.cruises>>;
+    try {
+      page = await ctx.client.cruises({
+        limit: scope.max_rows_per_request,
+        startingAfter: cursor ?? undefined,
+        company: scope.company ?? undefined,
+        locale: scope.locale ?? undefined,
+        destination: scope.destination ?? undefined,
+        sort: scope.sort as CruiseSortOrder,
+        departureAfter,
+        departureBefore,
+      });
+    } catch (err) {
+      // Throttled after pages were already stored: stop HERE and return them, so the caller
+      // saves the cursor they reached. Rethrowing would discard it, and the next tick would
+      // pay again for pages it already has. A 429 on the very first page has nothing to save
+      // and goes up as an error, which the caller handles the same way.
+      if (requestsSpent > 0 && isPerMinuteThrottle(err)) {
+        budget = applyQuota(budget, err.quota);
+        rateLimited = true;
+        break;
+      }
+      throw err;
+    }
     budget = applyQuota(budget, page.quota);
     requestsSpent += 1;
 
@@ -969,6 +1096,7 @@ async function syncCruises(ctx: ScopeContext): Promise<ScopeResult> {
     cursor,
     highWater,
     complete,
+    rateLimited,
     droppedRows: droppedNoLine + droppedUnmappable + droppedNotUpserted,
     note: [
       droppedNoLine > 0

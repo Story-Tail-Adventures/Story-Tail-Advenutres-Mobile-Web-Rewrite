@@ -1576,6 +1576,7 @@ export type Database = {
           created_at: string
           cursor: string | null
           cursor_set_at: string | null
+          departure_offset_days: number
           departure_within_days: number | null
           destination: string | null
           enabled: boolean
@@ -1599,6 +1600,7 @@ export type Database = {
           created_at?: string
           cursor?: string | null
           cursor_set_at?: string | null
+          departure_offset_days?: number
           departure_within_days?: number | null
           destination?: string | null
           enabled?: boolean
@@ -1622,6 +1624,7 @@ export type Database = {
           created_at?: string
           cursor?: string | null
           cursor_set_at?: string | null
+          departure_offset_days?: number
           departure_within_days?: number | null
           destination?: string | null
           enabled?: boolean
