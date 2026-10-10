@@ -140,6 +140,25 @@ interface SailingRow {
  * `port_name` is denormalised onto the call by the sync, so this does not need to join
  * `cruise_port` — which matters because a port row may not exist for every call.
  */
+/**
+ * Itinerary entries the provider lists as stops that are not ports.
+ *
+ * The card's heading is "Ports of call", and the first real sync (2026-10-10) showed the
+ * provider fills a sea day in as a stop: 80 sailings carried "At Sea" 83 times, "Fun Day At
+ * Sea" 57 and "Cruising" 15, so a 7-night card could spend its four chips on two ports and two
+ * days of open water. Repeated sea days also gave React duplicate keys.
+ *
+ * EXACT NAMES, NOT A PATTERN, deliberately. "Perfect Day at CocoCay" is a port with "Day" in
+ * it and "Seattle" starts with "Sea"; anything looser drops a real port. Scenic cruising
+ * entries such as "Hubbard Glacier" and "Inside Passage" are NOT here: they are not ports in
+ * the strict sense, but they are why someone books that itinerary, so they stay.
+ */
+const SEA_DAYS = new Set(["at sea", "fun day at sea", "day at sea", "sea day", "cruising"]);
+
+export function isSeaDay(name: string): boolean {
+  return SEA_DAYS.has(name.trim().toLowerCase().replace(/\s+/g, " "));
+}
+
 async function portsFor(db: Db, sailingIds: string[]): Promise<Map<string, string[]>> {
   const { data, error } = await db
     .from("cruise_port_call")
@@ -152,7 +171,7 @@ async function portsFor(db: Db, sailingIds: string[]): Promise<Map<string, strin
 
   for (const call of data) {
     const name = typeof call.port_name === "string" ? call.port_name.trim() : "";
-    if (!name) continue;
+    if (!name || isSeaDay(name)) continue;
     const list = out.get(call.sailing_id) ?? [];
     // Consecutive duplicates are a real shape in cruise itineraries — an overnight in port
     // is two calls at the same place — and reading "Nassau · Nassau · Miami" looks broken.

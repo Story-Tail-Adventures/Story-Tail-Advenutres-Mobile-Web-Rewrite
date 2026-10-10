@@ -117,8 +117,11 @@ export function CruiseCard({ sailing }: { sailing: PublicSailing }) {
               {RESULTS.cruises.itinerary}
             </Typography>
             <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-              {shown.map((port) => (
-                <Chip key={port} component="li" size="small" variant="outlined" label={port} sx={{ color: "text.secondary" }} />
+              {/* Keyed by position as well as name: a round trip starts and ends at the same
+                  port ("Miami … Miami"), so the name alone is not unique and React would
+                  drop or duplicate a chip. */}
+              {shown.map((port, index) => (
+                <Chip key={`${index}-${port}`} component="li" size="small" variant="outlined" label={port} sx={{ color: "text.secondary" }} />
               ))}
               {rest > 0 && (
                 <Chip

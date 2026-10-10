@@ -230,7 +230,9 @@ Re-enable the scopes afterwards.
 
 **Or just ask the watchdog.** `cruise_sync_watchdog()` (20260930110000) is the one call that
 answers "did the weekly sync actually happen", and it is what runs on a schedule at 09:30
-Monday, thirteen minutes behind the tick:
+Monday, four minutes behind the last of the four ticks (09:17, 09:20, 09:23 and 09:26 —
+several small runs rather than one, so each stays under the relay's per-minute limit; see
+the cruise_sync_ahead_and_paced migration):
 
 ```sql
 select public.cruise_sync_watchdog();
