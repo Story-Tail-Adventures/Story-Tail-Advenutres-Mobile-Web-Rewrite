@@ -70,7 +70,8 @@ WHERE id = '01a08500-0000-7000-8000-000000000003';
 INSERT INTO public.cruise_port_call (id, sailing_id, port_name, sequence, day)
 VALUES
     ('01a08500-0000-7000-8000-00000000c001', '01a08500-0000-7000-8000-000000000001', 'Zzgamma, Zzdelta', 1, 1),
-    ('01a08500-0000-7000-8000-00000000c002', '01a08500-0000-7000-8000-000000000001', 'Zzepsilon Harbour', 2, 3);
+    ('01a08500-0000-7000-8000-00000000c002', '01a08500-0000-7000-8000-000000000001', 'Zzepsilon Harbour', 2, 3),
+    ('01a08500-0000-7000-8000-00000000c003', '01a08500-0000-7000-8000-000000000001', 'Zzroatán, Zzhonduras', 3, 4);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 \echo '== every place a destination can live is searched =='
@@ -91,6 +92,16 @@ SELECT pg_temp.assert(pg_temp.hits('zzbeta isles') = '{0001}', 'a lowercase dest
 SELECT pg_temp.assert(pg_temp.hits('ZZEPSILON') = '{0001}', 'an uppercase port matches');
 SELECT pg_temp.assert(pg_temp.hits('Zzgamma, Zzdelta') = '{0001}', 'the port as written, comma and all');
 SELECT pg_temp.assert(pg_temp.hits('Zzgamma (Zzdelta)') = '{0001}', 'parentheses are just separators');
+
+-- ─────────────────────────────────────────────────────────────────────────────
+\echo '== accents do not matter either =='
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- The seeded catalog's "Roatán, Honduras" is why: a US keyboard types "Roatan".
+SELECT pg_temp.assert(pg_temp.hits('zzroatan') = '{0001}', 'a plain needle finds an accented port');
+SELECT pg_temp.assert(pg_temp.hits('Zzroatán') = '{0001}', 'the accented spelling still finds it');
+SELECT pg_temp.assert(pg_temp.hits('ZZROATÁN') = '{0001}', 'an accented capital folds too');
+SELECT pg_temp.assert(pg_temp.hits('Zzépsilon') = '{0001}', 'an accented needle finds a plain port');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 \echo '== every word must match somewhere, filler words aside =='
