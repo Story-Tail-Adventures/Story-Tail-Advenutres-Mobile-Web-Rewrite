@@ -58,7 +58,7 @@ export interface PublicSailing {
 export interface SailingQuery {
   /**
    * Free text. Every word must match the title, a destination, the line, the ship or a port
-   * of call, case-insensitively — see `cruise_sailing_search` for the rules.
+   * of call, ignoring case and accents — see `cruise_sailing_search` for the rules.
    */
   destination?: string;
   /** Earliest departure, `YYYY-MM-DD`. Defaults to today, and is never earlier than today. */

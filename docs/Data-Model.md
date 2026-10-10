@@ -2958,7 +2958,8 @@ on the service role, behind the shared caller token, so the tables keep zero ano
 (`supabase/tests/rls_cruise_catalog.sql` asserts it). Its filtering is
 `public.cruise_sailing_search(needle, depart_from, depart_to, min_nights, max_nights,
 max_rows)`, a `SECURITY INVOKER` SQL function executable by `service_role` alone. Every word
-of the needle must appear, case-insensitively, in the sailing's title, a destination, its
+of the needle must appear, ignoring case and accents (`unaccent`, installed in the
+`extensions` schema, so "Roatan" finds "Roatán"), in the sailing's title, a destination, its
 line, its ship or a port of call; only upcoming, unarchived sailings come back, in departure
 order. It returns whole `cruise_sailing` rows so PostgREST can embed the line and ship, which
 means the Edge Function's explicit column list is still what keeps `lead_price_cents` and
