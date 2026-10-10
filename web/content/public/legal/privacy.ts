@@ -13,14 +13,14 @@ export const PRIVACY: LegalDoc = {
   title: "Privacy policy",
   navLabel: "Privacy",
   description: "What Story-Tail Adventures collects, how payment cards are handled, and your data rights.",
-  lastUpdated: "2026-09-02",
+  lastUpdated: "2026-10-10",
   status: "draft",
   sections: [
     {
       heading: "1. What we collect",
       paragraphs: [
         "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. Payment cards are collected through Stripe and stored as tokens; we keep the card brand, last four digits and expiration so you can recognize a card, never the full number.",
-        "We do not sell your information, and we do not share it with marketing third parties. Section 3 lists everyone we do send anything to, and why.",
+        "We do not sell your information, and we do not share it with marketing third parties. When you use the portal in a web browser, we also count page views without tying them to your name. Section 3 explains who receives what, and why.",
       ],
     },
     {
@@ -43,6 +43,10 @@ export const PRIVACY: LegalDoc = {
         // If that sweep is ever unscheduled, this sentence becomes a false statement about
         // our own handling — change one and you must change the other.
         "We keep a record of each hotel search so we can stay inside the search allowance we pay for. The destination and dates are cleared from that record after 30 days; the cached results themselves expire within hours.",
+        // Added 2026-10-10 with Vercel Web Analytics. The data points are Vercel's own list
+        // (vercel.com/docs/analytics/privacy-policy, "Data point information"); the id, query
+        // string and /agent rules are web/lib/analytics.ts. Change either and this must change too.
+        "When you use the portal in a web browser, our hosting provider, Vercel, records each page view. It notes the page and the time, the site that sent you, your approximate location (country, region and city), and your device type, operating system and browser. Vercel says it sets no cookies for this, does not follow you to other sites, and does not tie a visit to your name, email or IP address. To tell visits apart for a day, it uses a code made from your browser's request and throws that code away after 24 hours. Before anything is sent, we remove ID numbers from the web address and everything after the “?”, except campaign tags that show which link brought you here. We use the counts to see which pages people visit, which links bring them here, and what to improve. You can read Vercel's own description at vercel.com/docs/analytics/privacy-policy.",
       ],
     },
     {

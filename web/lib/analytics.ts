@@ -7,17 +7,23 @@ import type { BeforeSendEvent } from "@vercel/analytics";
  *
  * - **The agent surface is dropped.** `/agent/*` is Gyasi working his own CRM. Counting it
  *   would mix one person's workday into the visitor numbers, and its URLs carry client
- *   data — the roster search puts a client's name in `?q=`.
+ *   data: the roster search puts a client's name in `?q=`.
  * - **Query strings are stripped, except `utm_*`.** Search pages and filters put free text
  *   on the URL, and nothing we read in the dashboard needs it. Campaign tags are the one
  *   exception, since telling where people came from is the point.
  * - **The hash is stripped.** An implicit-flow auth redirect would carry tokens there.
+ * - **Record ids in the path become `[id]`.** `/trips/<uuid>` names one traveler's trip, and
+ *   we can look that up even if Vercel cannot. The `<Analytics />` component reports the
+ *   route pattern (`/trips/[tripId]`) on its own, so the dashboard loses nothing. Slugs such as
+ *   `/legal/cookies` are not ids and stay.
  *
- * Path segments stay. They hold UUIDv7 ids, which name a row without saying anything about
- * the person, and the `<Analytics />` component reports the route pattern beside them.
+ * web/content/public/legal/privacy.ts describes these rules to travelers. Change one and the
+ * other must change too.
  *
  * A URL that will not parse is dropped rather than sent as-is.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function redactAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent | null {
   let url: URL;
   try {
@@ -32,6 +38,10 @@ export function redactAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent | 
     if (!key.startsWith("utm_")) url.searchParams.delete(key);
   }
   url.hash = "";
+  url.pathname = url.pathname
+    .split("/")
+    .map((segment) => (UUID.test(segment) ? "[id]" : segment))
+    .join("/");
 
   return { ...event, url: url.toString() };
 }

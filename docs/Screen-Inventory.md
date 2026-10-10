@@ -1192,6 +1192,15 @@ gate (2.0.6) sits in front of it rather than beside it.
 > over nothing are a control that lies, and they contradicted a shipped legal page. One true
 > sentence is the stronger privacy position; the toggles return the day a tracker does.
 >
+> **Amended 2026-10-10: the website now counts page views.** Vercel Web Analytics runs on the
+> public pages and the traveler portal (never `/agent/*`). It sets no cookies, does not follow
+> anyone across sites, and `web/lib/analytics.ts` swaps record ids for `[id]` and strips query
+> strings and the hash before anything leaves the browser. The native app runs no analytics. So the statement changed
+> rather than the screen: it now says we run no advertising or cross-site trackers and that
+> the website counts page views anonymously, and `cookies.ts` says "cross-site trackers" and
+> lists the count. The toggles are still out. Whether an anonymous, cookieless count should
+> get an opt-out switch is an open question, not a settled no.
+>
 > **The export cannot include the document-access trail.** Every signature from
 > `trip-document-url` writes an `audit_event` (`document.url_signed`), but `audit_event` is
 > the agency's table and §2.2 deliberately gave clients no policy on it. Naming it in the

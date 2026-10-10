@@ -30,9 +30,19 @@ describe("redactAnalyticsEvent", () => {
     expect(redactAnalyticsEvent(view("/agentic"))).toEqual(view("/agentic"));
   });
 
-  it("keeps id segments in the path", () => {
-    const path = "/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
-    expect(redactAnalyticsEvent(view(path))?.url).toBe(`${ORIGIN}${path}`);
+  it("replaces record ids in the path with [id]", () => {
+    expect(redactAnalyticsEvent(view("/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"))?.url).toBe(
+      `${ORIGIN}/trips/[id]`,
+    );
+    expect(
+      redactAnalyticsEvent(
+        view("/wallet/authorizations/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/remove?x=1"),
+      )?.url,
+    ).toBe(`${ORIGIN}/wallet/authorizations/[id]/remove`);
+  });
+
+  it("leaves slugs that are not ids alone", () => {
+    expect(redactAnalyticsEvent(view("/legal/cookies"))).toEqual(view("/legal/cookies"));
   });
 
   it("redacts custom events the same way", () => {
