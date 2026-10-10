@@ -56,9 +56,12 @@ export interface PublicSailing {
 }
 
 export interface SailingQuery {
-  /** Free text matched against title, line, ship and destinations. */
+  /**
+   * Free text. Every word must match the title, a destination, the line, the ship or a port
+   * of call, case-insensitively — see `cruise_sailing_search` for the rules.
+   */
   destination?: string;
-  /** Earliest departure, `YYYY-MM-DD`. Defaults to today. */
+  /** Earliest departure, `YYYY-MM-DD`. Defaults to today, and is never earlier than today. */
   from?: string;
   /** Latest departure. */
   to?: string;
@@ -80,30 +83,30 @@ const COLUMNS =
   "cruise_ship:ship_id (name, image_url, image_credit, image_license, image_source_url)";
 
 export async function searchSailings(db: Db, query: SailingQuery): Promise<PublicSailing[]> {
-  let q = db
-    .from("cruise_sailing")
+  // The filtering lives in Postgres (`cruise_sailing_search`), and the visitor's text reaches
+  // it as a bound parameter. It used to be spliced into a PostgREST `or=(...)` string here,
+  // which could not search ports, lines or ships, matched destinations case-sensitively, and
+  // answered a `"` or `\` with a 500. The function also drops archived rows (sailings the
+  // provider stopped listing, kept for referential integrity) and departed ones.
+  //
+  // `.select(COLUMNS)` still applies: the function returns whole `cruise_sailing` rows so
+  // PostgREST can embed the line and ship, and this list is what keeps the Internal columns
+  // on this side of the response.
+  const { data, error } = await db
+    // An unset field is left out of the body, and the SQL default (NULL, "no constraint")
+    // applies.
+    .rpc("cruise_sailing_search", {
+      needle: query.destination,
+      depart_from: query.from,
+      depart_to: query.to,
+      min_nights: query.minNights,
+      max_nights: query.maxNights,
+      max_rows: query.limit,
+    })
     .select(COLUMNS)
-    // Archived rows are sailings the provider stopped listing. They stay for referential
-    // integrity and must not be offered.
-    .is("archived_at", null)
-    .gte("departure_date", query.from ?? new Date().toISOString().slice(0, 10))
     .order("departure_date", { ascending: true })
+    .order("id", { ascending: true })
     .limit(query.limit);
-
-  if (query.to) q = q.lte("departure_date", query.to);
-  if (query.minNights) q = q.gte("duration_nights", query.minNights);
-  if (query.maxNights) q = q.lte("duration_nights", query.maxNights);
-
-  if (query.destination) {
-    // Matched across the sailing's own text and its destination array. The provider's
-    // `destinations` is text[], so `cs` (contains) would need an exact element; `ilike` on
-    // the title plus an array-overlap on a normalised needle is what actually finds
-    // "caribbean" in a row titled "7 Night Eastern Caribbean".
-    const needle = query.destination.replace(/[%_,]/g, " ").trim();
-    if (needle) q = q.or(`title.ilike.%${needle}%,destinations.cs.{"${needle}"}`);
-  }
-
-  const { data, error } = await q;
   if (error) throw new Error(`sailing search failed: ${error.message}`);
 
   const rows = (data ?? []) as unknown as SailingRow[];

@@ -2953,6 +2953,18 @@ service-role read from a Next.js server component, which is how `web/lib/onboard
 already talks to the backend. That choice belongs with the search work, not with the sync, and
 until it is made nothing can read these tables unauthenticated.
 
+**Decided by the search work: neither.** The public read is the `cruise-search` Edge Function,
+on the service role, behind the shared caller token, so the tables keep zero anon exposure
+(`supabase/tests/rls_cruise_catalog.sql` asserts it). Its filtering is
+`public.cruise_sailing_search(needle, depart_from, depart_to, min_nights, max_nights,
+max_rows)`, a `SECURITY INVOKER` SQL function executable by `service_role` alone. Every word
+of the needle must appear, case-insensitively, in the sailing's title, a destination, its
+line, its ship or a port of call; only upcoming, unarchived sailings come back, in departure
+order. It returns whole `cruise_sailing` rows so PostgREST can embed the line and ship, which
+means the Edge Function's explicit column list is still what keeps `lead_price_cents` and
+`provider_payload` off the page. Behaviour is pinned in
+`supabase/tests/search_cruise_sailings.sql`.
+
 **Audit: one row per run, not one per sailing.** CLAUDE.md rule 3 names the sensitive tables
 it governs — `payment_card`, `card_authorization`, `commission`, `client` — and none of these
 are among them; `onboarding-step` already sets the precedent of deliberately writing no audit
