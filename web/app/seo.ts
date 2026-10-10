@@ -34,10 +34,11 @@ export const STATIC_PUBLIC_PATHS = [
 
 /**
  * Auth-gated trees crawlers should not enter (web/lib/supabase/middleware.ts PROTECTED_PREFIXES
- * plus the auth callback). The noindex pages are deliberately NOT here: a crawler has to be able
- * to fetch /join and /explore/results to see their `noindex`.
+ * plus the auth callback), and /quote, which only redirects into the sign-up gate and has no
+ * page of its own. The noindex pages are deliberately NOT here: a crawler has to be able to
+ * fetch /join and /explore/results to see their `noindex`.
  */
-export const ROBOTS_DISALLOW = ["/dashboard", "/trips", "/account", "/agent", "/auth/", "/api/"] as const;
+export const ROBOTS_DISALLOW = ["/dashboard", "/trips", "/account", "/agent", "/auth/", "/api/", "/quote"] as const;
 
 /** `base` is an origin with no trailing slash (env.siteUrl); `path` starts with "/". */
 export function absoluteUrl(base: string, path: string): string {

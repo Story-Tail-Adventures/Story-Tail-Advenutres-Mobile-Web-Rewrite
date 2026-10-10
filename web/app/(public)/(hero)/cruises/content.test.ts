@@ -43,8 +43,9 @@ describe("2.0.9 Cruises copy module", () => {
     for (const field of CRUISES_INQUIRY_FIELDS) expect(ICON_NAMES).toContain(field.icon);
   });
 
-  it("has the four prototype inquiry cells and three audience cards with distinct tags", () => {
-    expect(CRUISES_INQUIRY_FIELDS.map((f) => f.label)).toEqual(["Destination", "When", "Travelers", "Vibe"]);
+  it("has three inquiry cells (no Vibe — live sailings cannot filter on it) and three audience cards", () => {
+    expect(CRUISES_INQUIRY_FIELDS.map((f) => f.label)).toEqual(["Destination", "When", "Travelers"]);
+    expect(CRUISES_INQUIRY_FIELDS.map((f) => f.name)).toEqual(["dest", "dates", "travelers"]);
     expect(CRUISES_TYPES.map((t) => t.tag)).toEqual(["FAMILY", "ADULTS", "GROUP"]);
   });
 

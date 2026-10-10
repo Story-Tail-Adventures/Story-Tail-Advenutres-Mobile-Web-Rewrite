@@ -6,6 +6,7 @@ import Box from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
 import MuiChip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
+import { topicQuoteLink } from "@/app/quote/href";
 import NextLink from "@/components/mui/NextLink";
 import { ClosingCta } from "@/components/public/ClosingCta";
 import { Container } from "@/components/public/Container";
@@ -20,7 +21,6 @@ import { TRIPS } from "@/content/public/trips";
 import type { Topic } from "@/content/public/types";
 import { staImg } from "@/lib/images";
 import { inquiryHref } from "@/lib/public/inquiry";
-import { joinHref } from "@/lib/public/links";
 import { countByTopic, resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
   CRUISES_CLOSING,
@@ -28,6 +28,7 @@ import {
   CRUISES_HERO_IMAGE,
   CRUISES_INQUIRY_CTA,
   CRUISES_INQUIRY_FIELDS,
+  CRUISES_INQUIRY_LABEL,
   CRUISES_LINES_SECTION,
   CRUISES_META,
   CRUISES_PATH,
@@ -43,6 +44,13 @@ const TOPIC: Topic = "cruises";
 const TYPES_HEADING_ID = "who-its-for";
 const LINES_HEADING_ID = "lines-we-book";
 const SAILINGS_HEADING_ID = "hand-picked-sailings";
+
+/**
+ * Hourly, so the `today` the inquiry bar's date picker is prerendered with (its native-input
+ * floor before hydration, and with no JavaScript at all) is never more than an hour old.
+ * Built once and left, it would accept dates long past and parseStay would drop them.
+ */
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: CRUISES_META.title,
@@ -77,12 +85,10 @@ const TRIP_GRID = {
 export default function CruisesPage() {
   const trips = tripsForTopic(TRIPS, TOPIC);
   const total = countByTopic(TRIPS, TOPIC);
-  const quoteHref = joinHref({ intent: "quote", next: CRUISES_PATH });
+  // Straight to the quote form for this topic, through the gate. It used to be the gate with
+  // this page as `next`, which forwarded a signed-in visitor right back here.
+  const quoteHref = topicQuoteLink(TOPIC);
   const allSailingsHref = resultsHref({ topic: TOPIC });
-  // The live catalog, not the curated nine. `dest` matches the sailing titles and their
-  // destination arrays, which is how cruise-search narrows; no dates, because a sailing is
-  // chosen by its own departure rather than by a check-in the visitor picked.
-  const liveSailingsHref = resultsHref({ mode: "cruises", dest: "Caribbean" });
   const messageHref = inquiryHref({ source: "topic", topic: TOPIC });
 
   return (
@@ -99,10 +105,13 @@ export default function CruisesPage() {
         sub={CRUISES_HERO.sub}
       />
 
+      {/* The live catalog, not the curated nine: `mode=cruises` is written explicitly because
+          it is never derived. `dest` matches the sailing titles and their destination arrays,
+          which is how cruise-search narrows, and a picked check-in becomes its "from". */}
       <InquiryBar
-        sticky
         fields={CRUISES_INQUIRY_FIELDS}
-        action={{ label: CRUISES_INQUIRY_CTA, href: liveSailingsHref, icon: "search" }}
+        form={{ to: "results", label: CRUISES_INQUIRY_LABEL, hidden: { mode: "cruises" } }}
+        action={{ label: CRUISES_INQUIRY_CTA, icon: "search" }}
       />
 
       <Container size="wide" sx={{ pt: { xs: 2.25, md: 4 }, pb: { xs: 3, md: 7 } }}>

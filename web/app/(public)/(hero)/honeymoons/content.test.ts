@@ -44,6 +44,7 @@ describe("2.0.10 Honeymoons copy module", () => {
 
   it("has the four prototype inquiry cells and three styles with distinct tags", () => {
     expect(HONEYMOONS_INQUIRY_FIELDS.map((f) => f.label)).toEqual(["Destination", "When", "Travelers", "Vibe"]);
+    expect(HONEYMOONS_INQUIRY_FIELDS.map((f) => f.name)).toEqual(["dest", "dates", "travelers", "vibe"]);
     expect(HONEYMOONS_STYLES.map((s) => s.tag)).toEqual(["ALL-INCLUSIVE", "OVERWATER", "MULTI-STOP"]);
   });
 

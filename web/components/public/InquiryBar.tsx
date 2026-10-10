@@ -1,45 +1,55 @@
 import { Fragment } from "react";
 import Box from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
-import MuiChip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
+import InputBase from "@mui/material/InputBase";
 import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import NextLink from "@/components/mui/NextLink";
+import { EXPLORE } from "@/app/(public)/(hero)/explore/content";
+import { QUOTE_PATH } from "@/app/quote/href";
+import NextForm from "@/components/mui/NextForm";
+import { DateRangePicker } from "@/components/public/DateRangePicker";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { cn } from "@/lib/cn";
-import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
+import type { Topic } from "@/content/public/types";
+import { SEARCH_GLYPH, SEARCH_PILL_INPUT } from "@/lib/mui/sx";
+import { todayIso } from "@/lib/public/dates";
+import { SEARCH_TIME_ZONE, type ResultsMode } from "@/lib/public/search";
 import { Container } from "./Container";
 
 export interface InquiryField {
+  /**
+   * The query param the cell writes. `dates` is not one: it is the slot the DateRangePicker
+   * fills, and the picker writes `in` and `out` itself. `vibe` is free text, so it belongs on
+   * a quote bar only: the results page reads `vibe` as its allow-listed filter and would
+   * silently drop anything typed.
+   */
+  name: "dest" | "dates" | "travelers" | "vibe";
   label: string;
-  value: string;
+  /**
+   * Shown while the cell is empty. The topic's example, never a pre-chosen value: a
+   * submitted bar carries only what the visitor actually typed or picked.
+   */
+  placeholder: string;
   icon: IconName;
+  type: "text" | "number" | "dates";
 }
 
 interface InquiryBarProps {
   fields: readonly InquiryField[];
-  action: { label: string; href: string; icon?: IconName };
-  /** Sticks under the top bar from `md` (topic pages). */
-  sticky?: boolean;
-  /** `compact` = the 2.0.4 header pill. */
-  density?: "default" | "compact";
-  /** Below `md`: a stacked card, a one-line summary pill, or nothing (topic pages use StickyCta). */
-  mobile?: "stacked" | "summary" | "hidden";
-  /** Text for the mobile summary pill ("Caribbean · Aug · 2 adults"). */
-  summary?: string;
-  /** Href of the mobile summary's "Edit" chip. */
-  editHref?: string;
-  className?: string;
+  /**
+   * Where the bar submits. `results` opens the search (Cruises' live sailings); `quote`
+   * hands the values to the quote request through /quote (Caribbean, Honeymoons). `hidden`
+   * rides along as hidden inputs — the mode or topic the page implies.
+   */
+  form:
+    | { to: "results"; label: string; hidden: { mode: ResultsMode } }
+    | { to: "quote"; label: string; hidden: { topic: Topic } };
+  action: { label: string; icon?: IconName };
 }
 
-/** The brand-orange glyph beside a value, as every search cell draws it. */
-const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
-
 /**
- * The sticky band the pill sits in on topic pages. `.sticky-under-topbar` (public.css) owns
- * position / top / z-index and stays on the element as that hook; the paint is here.
+ * The sticky band the pill sits in. `.sticky-under-topbar` (public.css) owns position / top /
+ * z-index and stays on the element as that hook; the paint is here.
  */
 const STICKY_BAND = {
   display: { xs: "none", md: "block" },
@@ -49,159 +59,157 @@ const STICKY_BAND = {
   borderColor: "divider",
 } as const;
 
+/** Above this many cells, the bar wraps to two rows below `web` (Screen Inventory §2.0 tablet). */
+const ONE_ROW_MAX = 3;
+
 /**
- * The read-only inquiry pill (design: StickyInquireBar, the C203/C204 search pills and the
- * M203/M204 mobile variants). Cells are display text; the CTA is a link. The real search
- * form on 2.0.3 is a separate component built on next/form.
+ * The topic pages' inquiry pill (design: StickyInquireBar on C208 / C209 / C210), as a REAL
+ * form. It used to be display text plus a link, so nothing on it could be changed and the
+ * button carried none of it.
  *
- * Paper and Dividers, as the artboard draws it: elevation 1 in the sticky band, 2 when it
- * floats on its own. No "use client": the topic pages render this with plain props.
+ * Same cells as the 2.0.3 search pill (`explore/SearchBar.tsx`, sharing its sx from
+ * lib/mui/sx): a caption label over a borderless InputBase, and the shared DateRangePicker for
+ * dates. The cells start EMPTY with the topic's example as the placeholder, so a bar left
+ * alone sends a broad search rather than one the visitor never chose.
+ *
+ * The Paper IS the form, because the cells are its children. A results bar is next/form
+ * (`component={NextForm}`, a client reference), which prefetches /explore/results. A quote
+ * bar is a plain GET form: its target is a route handler that redirects, and next/form only
+ * prefetches and soft-navigates to pages. Both work without JavaScript.
+ *
+ * FOUR CELLS DO NOT FIT ONE ROW ON A TABLET. A text input cannot wrap the way the old display
+ * text did, so at 800px "Anywhere romantic" read "Anywhere romanti" and typing scrolled the
+ * start of a Vibe out of view. So a bar with more than three cells is a two-column grid from
+ * `md` to `web` (the Screen Inventory's "inquire bar wraps to two rows"), each cell ruled off
+ * by its own borders, and turns back into the artboard's single row with Dividers from `web`.
+ * The three-cell Cruises bar fits one row at `md` and never wraps.
+ *
+ * Still a Server Component. `today` is resolved here, as SearchBar does, so the picker's
+ * first render matches the server's; the pages revalidate hourly so it stays current.
+ *
+ * Below `md` the bar is not drawn at all; topic pages use StickyCta there (§4.4).
  */
-export function InquiryBar({
-  fields,
-  action,
-  sticky = false,
-  density = "default",
-  mobile = "hidden",
-  summary,
-  editHref,
-  className,
-}: InquiryBarProps) {
-  const compact = density === "compact";
-  const pill = (
-    <Paper elevation={sticky ? 1 : 2} sx={{ display: { xs: "none", md: "flex" }, alignItems: "center" }}>
-      {fields.map((field, index) => (
-        <Fragment key={field.label}>
-          {index > 0 && <Divider orientation="vertical" flexItem />}
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              ...(compact
-                ? { display: "flex", alignItems: "center", gap: 0.75, px: 1.75, py: 1.25 }
-                : { px: 2, py: 1.25 }),
-            }}
-          >
-            {compact ? (
-              <>
-                <Box component="span" sx={GLYPH}>
-                  <Icon name={field.icon} size={12} />
-                </Box>
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{ fontSize: 13, fontWeight: 500, lineHeight: 1.2, color: "text.primary" }}
-                >
-                  {field.value}
-                </Typography>
-                <Box component="span" sx={VISUALLY_HIDDEN}>
-                  ({field.label})
-                </Box>
-              </>
-            ) : (
-              <>
-                <Typography variant="caption" sx={{ display: "block", lineHeight: 1.2, color: "text.secondary" }}>
-                  {field.label}
-                </Typography>
-                <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", mt: 0.25 }}>
-                  <Box component="span" sx={GLYPH}>
-                    <Icon name={field.icon} size={13} />
-                  </Box>
-                  <Typography component="span" variant="subtitle2" sx={{ lineHeight: 1.2, color: "text.primary" }}>
-                    {field.value}
-                  </Typography>
-                </Stack>
-              </>
-            )}
-          </Box>
-        </Fragment>
-      ))}
-      <MuiButton
-        component={NextLink}
-        href={action.href}
-        variant="contained"
-        size={compact ? "small" : "medium"}
-        startIcon={action.icon ? <Icon name={action.icon} size={14} /> : undefined}
-        sx={{
-          m: 0.5,
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-          ...(compact ? { minHeight: 32, px: 2 } : { minHeight: 44 }),
-        }}
-      >
-        {action.label}
-      </MuiButton>
-    </Paper>
-  );
+export function InquiryBar({ fields, form, action }: InquiryBarProps) {
+  const today = todayIso(SEARCH_TIME_ZONE);
+  const wraps = fields.length > ONE_ROW_MAX;
+  // In the two-column grid, an even count puts the button on a row of its own; an odd count
+  // sits it beside the last cell.
+  const buttonOwnRow = fields.length % 2 === 0;
+  const lastRow = Math.floor((fields.length - 1) / 2);
+
+  const results = form.to === "results";
 
   return (
-    <Box className={cn(sticky && "sticky-under-topbar", className)} sx={sticky ? STICKY_BAND : undefined}>
-      {sticky ? <Container size="wide">{pill}</Container> : pill}
-
-      {mobile === "stacked" && (
-        <Paper elevation={1} sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1, p: 1.5 }}>
-          {fields.map((field, index) => (
-            <Box
-              key={field.label}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.25,
-                py: 0.75,
-                borderBottom: index < fields.length - 1 ? 1 : 0,
-                borderColor: "divider",
-              }}
-            >
-              <Box component="span" sx={GLYPH}>
-                <Icon name={field.icon} size={14} />
-              </Box>
-              <Typography component="span" variant="caption" sx={{ width: 86, flexShrink: 0, color: "text.secondary" }}>
-                {field.label}
-              </Typography>
-              <Typography component="span" variant="subtitle2" sx={{ color: "text.primary" }}>
-                {field.value}
-              </Typography>
-            </Box>
-          ))}
-        </Paper>
-      )}
-
-      {mobile === "summary" && (
+    <Box className="sticky-under-topbar" sx={STICKY_BAND}>
+      <Container size="wide">
         <Paper
+          component={results ? NextForm : "form"}
+          action={results ? "/explore/results" : QUOTE_PATH}
+          method={results ? undefined : "get"}
+          // A quote bar asks for a quote, not a search; a named <form> is its own landmark.
+          role={results ? "search" : undefined}
+          aria-label={form.label}
           elevation={1}
           sx={{
-            display: { xs: "flex", md: "none" },
-            alignItems: "center",
-            gap: 1,
-            borderRadius: "999px",
-            px: 1.5,
-            py: 0.75,
+            display: { xs: "none", md: wraps ? "grid" : "flex", web: "flex" },
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            // Stretched in the grid so the cells in a row share one height and their rules meet;
+            // the picker cell is a few px taller than a text cell, which left a step otherwise.
+            alignItems: { md: wraps ? "stretch" : "center", web: "center" },
+            color: "text.primary",
           }}
         >
-          <Box component="span" sx={{ display: "inline-flex", flexShrink: 0, color: "text.secondary" }}>
-            <Icon name="search" size={13} />
-          </Box>
-          <Typography
-            component="span"
-            variant="body2"
-            noWrap
-            sx={{ flex: 1, fontSize: 13, fontWeight: 500, color: "text.secondary" }}
+          {Object.entries(form.hidden).map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))}
+          {fields.map((field, index) => {
+            const id = `inquiry-${field.name}`;
+            const numeric = field.type === "number";
+            const row = Math.floor(index / 2);
+            const hasRightNeighbour = index % 2 === 0 && index + 1 < fields.length;
+            const hasRowBelow = row < lastRow || buttonOwnRow;
+            return (
+              <Fragment key={field.name}>
+                {index > 0 && (
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    sx={wraps ? { display: { md: "none", web: "block" } } : undefined}
+                  />
+                )}
+                <Box
+                  sx={{
+                    minWidth: 0,
+                    flex: 1,
+                    px: 2,
+                    py: 1.25,
+                    ...(wraps && {
+                      borderColor: "divider",
+                      borderRight: { md: hasRightNeighbour ? 1 : 0, web: 0 },
+                      borderBottom: { md: hasRowBelow ? 1 : 0, web: 0 },
+                    }),
+                  }}
+                >
+                  {/* For dates this names the picker's trigger, whose id is `${idPrefix}-dates`. */}
+                  <Typography
+                    component="label"
+                    htmlFor={id}
+                    variant="caption"
+                    sx={{ display: "block", lineHeight: 1.2, color: "text.secondary" }}
+                  >
+                    {field.label}
+                  </Typography>
+                  {field.type === "dates" ? (
+                    <DateRangePicker
+                      idPrefix="inquiry"
+                      label={field.label}
+                      placeholder={field.placeholder}
+                      today={today}
+                      variant="pill"
+                      copy={EXPLORE.dates}
+                    />
+                  ) : (
+                    <Box sx={{ mt: 0.25, display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <Box component="span" sx={SEARCH_GLYPH}>
+                        <Icon name={field.icon} size={13} />
+                      </Box>
+                      <InputBase
+                        id={id}
+                        name={field.name}
+                        type={field.type}
+                        placeholder={field.placeholder}
+                        autoComplete="off"
+                        fullWidth
+                        inputProps={{
+                          inputMode: numeric ? "numeric" : undefined,
+                          min: numeric ? 1 : undefined,
+                          max: numeric ? 20 : undefined,
+                          maxLength: numeric ? undefined : 60,
+                        }}
+                        sx={SEARCH_PILL_INPUT}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              </Fragment>
+            );
+          })}
+          <MuiButton
+            type="submit"
+            variant="contained"
+            startIcon={action.icon ? <Icon name={action.icon} size={14} /> : undefined}
+            sx={{
+              m: 0.5,
+              minHeight: 44,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              ...(wraps && { gridColumn: buttonOwnRow ? "1 / -1" : "auto", justifySelf: "end", alignSelf: "center" }),
+            }}
           >
-            {summary}
-          </Typography>
-          {editHref && (
-            <MuiChip
-              component={NextLink}
-              href={editHref}
-              clickable
-              size="small"
-              variant="outlined"
-              label="Edit"
-              sx={{ height: 24, color: "text.primary", ...TAP_TARGET }}
-            />
-          )}
+            {action.label}
+          </MuiButton>
         </Paper>
-      )}
+      </Container>
     </Box>
   );
 }

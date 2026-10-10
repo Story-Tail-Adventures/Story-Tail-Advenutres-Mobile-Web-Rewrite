@@ -3,9 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { CRUISE_LINES } from "@/content/public/cruise-lines";
 import { TRIPS } from "@/content/public/trips";
 import { staImg } from "@/lib/images";
+import { topicQuoteLink } from "@/app/quote/href";
 import { joinHref } from "@/lib/public/links";
 import { countByTopic, resultsHref, tripsForTopic } from "@/lib/public/search";
 import {
+  CRUISES_INQUIRY_LABEL,
   CRUISES_LINES_SECTION,
   CRUISES_TRIPS,
   CRUISES_TYPES,
@@ -72,14 +74,14 @@ describe("2.0.9 Cruises page", () => {
     ).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
   });
 
-  it("sends every quote CTA to the gate with this page as next, and message CTAs to the inquiry email", () => {
+  it("sends every quote CTA to the quote form for this topic (not back here), and message CTAs to the inquiry email", () => {
     render(<CruisesPage />);
     // Closing band and sticky bar. The inquiry bar used to be a third and is not any more —
     // see below.
     const quoteLinks = screen.getAllByRole("link", { name: "Request a quote" });
     expect(quoteLinks).toHaveLength(2);
     for (const link of quoteLinks) {
-      expect(link).toHaveAttribute("href", joinHref({ intent: "quote", next: PATH }));
+      expect(link).toHaveAttribute("href", topicQuoteLink(TOPIC));
     }
     expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^mailto:/);
 
@@ -88,10 +90,28 @@ describe("2.0.9 Cruises page", () => {
     // catalog. The bar previously sent people to the sign-up gate and back here, which meant
     // a bar summarising a search led nowhere near a result.
     expect(screen.getByRole("link", { name: "All sailings" })).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
-    expect(screen.getByRole("link", { name: "See what's sailing" })).toHaveAttribute(
-      "href",
-      resultsHref({ mode: "cruises", dest: "Caribbean" }),
-    );
+  });
+
+  it("makes the inquiry bar a search form that opens the live sailings with what was typed", () => {
+    const { container } = render(<CruisesPage />);
+    const form = screen.getByRole("search", { name: CRUISES_INQUIRY_LABEL });
+    expect(form.tagName).toBe("FORM");
+    expect(form).toHaveAttribute("action", "/explore/results");
+    // `mode=cruises` is never derived, so the form has to write it.
+    expect(form.querySelector('input[type="hidden"][name="mode"]')).toHaveValue("cruises");
+
+    // Empty cells with the artboard's values as hints, so an untouched bar sends no choices.
+    const dest = within(form).getByLabelText("Destination");
+    expect(dest).toHaveAttribute("name", "dest");
+    expect(dest).toHaveValue("");
+    expect(dest).toHaveAttribute("placeholder", "Caribbean");
+    expect(within(form).getByLabelText("Travelers")).toHaveAttribute("name", "travelers");
+    expect(within(form).queryByLabelText("Vibe")).toBeNull();
+    expect(within(form).getByRole("button", { name: "See what's sailing" })).toHaveAttribute("type", "submit");
+
+    // The one bar on the page, and no longer a link anywhere.
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+    expect(screen.queryByRole("link", { name: "See what's sailing" })).toBeNull();
   });
 
   it("has canonical and Open Graph metadata with the hero image", () => {

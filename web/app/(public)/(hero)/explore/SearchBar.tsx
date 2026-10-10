@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import NextForm from "@/components/mui/NextForm";
 import { DateRangePicker } from "@/components/public/DateRangePicker";
 import { Icon } from "@/components/ui/Icon";
+import { SEARCH_GLYPH, SEARCH_PILL_INPUT, SEARCH_PLACEHOLDER } from "@/lib/mui/sx";
 import { todayIso } from "@/lib/public/dates";
 import { SEARCH_TIME_ZONE } from "@/lib/public/search";
 import { EXPLORE, SEARCH_FIELDS } from "./content";
@@ -23,26 +24,18 @@ interface SearchBarProps {
 /** The stacked (mobile) form's id, so the sticky bar can submit it from outside. */
 export const STACKED_SEARCH_FORM_ID = "explore-search-stacked";
 
-/** The brand-orange glyph beside a value, as every search cell draws it. */
-const GLYPH = { display: "inline-flex", flexShrink: 0, color: "brand.main" } as const;
-
 /** The artboard's pill: a Paper with the cells as flex children and Dividers between them. */
 const PILL = { display: { xs: "none", md: "flex" }, alignItems: "center", color: "text.primary" } as const;
 
 /** M203's card: the same cells stacked, one per row. */
 const STACKED = { display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 0.5, p: 1.5 } as const;
 
-/** A borderless input in the cell's own type, so the pill reads as text until you type in it. */
-const PILL_INPUT = {
-  typography: "subtitle2",
-  lineHeight: 1.2,
-  "& .MuiInputBase-input": { height: "auto", py: "2px" },
-} as const;
 const STACKED_INPUT = {
   flex: 1,
   minWidth: 0,
   typography: "subtitle2",
   "& .MuiInputBase-input": { height: "auto", minHeight: 44, py: 0, boxSizing: "border-box" },
+  ...SEARCH_PLACEHOLDER,
 } as const;
 
 /**
@@ -110,7 +103,7 @@ export function SearchBar({ variant, className, defaultCheckIn, defaultCheckOut 
                 max: numeric ? 20 : undefined,
                 maxLength: numeric ? undefined : 60,
               }}
-              sx={pill ? PILL_INPUT : STACKED_INPUT}
+              sx={pill ? SEARCH_PILL_INPUT : STACKED_INPUT}
             />
           );
 
@@ -136,7 +129,7 @@ export function SearchBar({ variant, className, defaultCheckIn, defaultCheckOut 
                   control
                 ) : (
                   <Box sx={{ mt: 0.25, display: "flex", alignItems: "center", gap: 0.75 }}>
-                    <Box component="span" sx={GLYPH}>
+                    <Box component="span" sx={SEARCH_GLYPH}>
                       <Icon name={field.icon} size={13} />
                     </Box>
                     {control}
@@ -160,7 +153,7 @@ export function SearchBar({ variant, className, defaultCheckIn, defaultCheckOut 
             }}
           >
             {!isDates && (
-              <Box component="span" sx={GLYPH}>
+              <Box component="span" sx={SEARCH_GLYPH}>
                 <Icon name={field.icon} size={14} />
               </Box>
             )}

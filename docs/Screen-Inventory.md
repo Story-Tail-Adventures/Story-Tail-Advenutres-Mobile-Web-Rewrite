@@ -157,7 +157,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.8 Caribbean Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for the business's core region — a curated Caribbean front door that turns browsing into quote requests and account creation.
-**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar (destination · when · travelers · vibe → "Request a quote"); three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
+**Primary elements:** Full-bleed hero ("A region built for rest."); sticky inquire bar, an editable form (destination · when · travelers · vibe → "Request a quote"; it submits to `/quote`, which opens 2.3.8 through the sign-up gate with those values filled in and the vibe as the note's starting text). Its cells start empty with the prototype's values as hints, except When, which reads "Flexible dates" rather than "Flexible · 7 nights" because the dates cell is a button whose label reads as a range already picked. Every other "Request a quote" on 2.0.8–2.0.10 opens 2.3.8 for the topic directly, not the gate back to this page; three-point intro band (handled details, honest prices, rest you bring home); island tile strip (Turks & Caicos, Bahamas, St. Lucia, Jamaica, Aruba, BVI); hand-picked trip grid with $/$$/$$$ range chips, "Request quote" and save CTAs; "See all" link into Public Search Results; closing CTA band; footer.
 **Key actions:** Request a quote (→ Sign-up Gate); save a trip (→ Sign-up Gate); open a trip's Public Detail; tap an island (→ Public Search Results); message Gyasi without an account.
 **Entry points:** Public nav "Caribbean"; App Subdomain Public Landing; marketing-site links.
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -165,7 +165,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.9 Cruises Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for cruising — family, adults-only and group sailings, with the lines Gyasi books.
-**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar; "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
+**Primary elements:** Full-bleed hero ("A floating Sabbath, every morning new."); sticky inquire bar, an editable form (destination · when · travelers → "See what's sailing", the live sailing search in Public Search Results' Cruises mode — no vibe cell, deliberately unlike the prototype, because live sailings cannot filter on it). Two hints differ from the prototype on purpose: Destination reads "Caribbean", not "Caribbean cruise", which the sailing search matches to nothing when typed back in, and When reads "Flexible dates" as on 2.0.8; "Who it's for" cards (family / adults-only / group); cruise-line chip row; hand-picked sailings grid; "See all" link; closing CTA band.
 **Key actions:** Request a quote; save; open a sailing's Public Detail; message Gyasi.
 **Entry points:** Public nav "Cruises"; inspiration tile "Family cruises".
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -173,7 +173,7 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 #### 2.0.10 Honeymoons Landing Page
 **Phase:** P2 (built ahead of phase, September 2026).
 **Purpose:** Topic landing page for honeymoons — the most personal trip Gyasi plans.
-**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar; a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
+**Primary elements:** Tall full-bleed hero ("The first rest, after the I-do's."); sticky inquire bar, an editable form (destination · when · travelers · vibe → "Request a quote", handed to 2.3.8 as on 2.0.8); a note from Gyasi; "Three ways to honeymoon" cards (adults-only resorts / overwater bungalows / multi-stop); featured packages grid; an opt-in card for couples who want a faith-shaped rhythm to the week (voice: Design System §2.2, §2.5 — offered, never assumed); closing CTA band.
 **Key actions:** Request a quote; save; open a Public Detail; see the curated list (→ Public Search Results filtered to honeymoons); message Gyasi.
 **Entry points:** Public nav "Honeymoons"; inspiration tile "Honeymoons".
 **Related screens:** Public Search Results, Public Property / Cruise / Tour Detail, Sign-up Gate.
@@ -3149,7 +3149,7 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.0.5 Public Property/Cruise/Tour Detail** — Pattern C. "Message Gyasi without an account" is a sticky bottom button on mobile, a side rail CTA on tablet/web.
 - **2.0.6 Sign-up Gate** — Pattern J. Mobile uses full-height bottom sheet; tablet/web a centered modal.
 - **2.0.7 Footer Pages** — Pattern I, simplified. Identical content across viewports; mobile uses larger type. Web implementation note: 2.0.2's FAQ ships as a single-column accordion on web too (matches the design prototype), and 2.0.6 ships as a route rather than a modal.
-- **2.0.8 Caribbean / 2.0.9 Cruises / 2.0.10 Honeymoons** — Pattern H. Web: inquire bar sticks under the top bar, 3-column trip grid, island tiles in one row. Tablet: 2-column grid, inquire bar wraps to two rows. Mobile: single column, island tiles as a horizontal snap strip, trips as image-left rows, inquire bar replaced by the sticky bottom CTA ("Request a quote").
+- **2.0.8 Caribbean / 2.0.9 Cruises / 2.0.10 Honeymoons** — Pattern H. Web: inquire bar sticks under the top bar, 3-column trip grid, island tiles in one row. Tablet: 2-column grid; the four-cell inquire bars (2.0.8, 2.0.10) wrap to two rows of two, while the three-cell Cruises bar fits one row. Mobile: single column, island tiles as a horizontal snap strip, trips as image-left rows, inquire bar replaced by the sticky bottom CTA ("Request a quote").
 - **2.0.11 About Gyasi** — Pattern H with Pattern I reading widths. Web: two-column hero (copy + portrait), 4-up stats strip, two-column story/credentials, 3-column testimonials. Tablet: hero keeps two columns, story stacks above credentials. Mobile: stacked; portrait becomes a round badge on the hero; testimonials as a horizontal snap strip; sticky bottom CTA.
 
 #### Client — Authentication & Onboarding (2.1.x)
