@@ -314,6 +314,18 @@ SELECT pg_temp.assert(
     'neither anon nor authenticated may execute cruise_sync_tick()'
 );
 
+-- cruise_sailing_search() is SECURITY INVOKER, so a client calling it would still hit the
+-- table grants asserted above. It is revoked anyway: Supabase's default privileges hand
+-- EXECUTE on every new public function to both roles, and the invariant this file protects
+-- is "nobody but the service role reaches the catalog", not "nobody gets rows back".
+SELECT pg_temp.assert(
+    NOT has_function_privilege('anon',
+        'public.cruise_sailing_search(text, date, date, integer, integer, integer)', 'EXECUTE')
+    AND NOT has_function_privilege('authenticated',
+        'public.cruise_sailing_search(text, date, date, integer, integer, integer)', 'EXECUTE'),
+    'neither anon nor authenticated may execute cruise_sailing_search()'
+);
+
 \echo '== all cruise catalog assertions passed =='
 
 ROLLBACK;

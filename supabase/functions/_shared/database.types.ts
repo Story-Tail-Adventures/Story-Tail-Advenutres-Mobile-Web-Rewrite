@@ -3985,6 +3985,46 @@ export type Database = {
         Returns: Database["public"]["Enums"]["block_kind"]
       }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      cruise_sailing_search: {
+        Args: {
+          depart_from?: string
+          depart_to?: string
+          max_nights?: number
+          max_rows?: number
+          min_nights?: number
+          needle?: string
+        }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          cruise_line_id: string
+          currency: string | null
+          departure_date: string
+          destinations: string[]
+          duration_nights: number | null
+          first_seen_at: string
+          id: string
+          itinerary_url: string | null
+          last_seen_at: string | null
+          lead_price_cents: number | null
+          lead_price_eur_cents: number | null
+          provider: string
+          provider_key: string
+          provider_locale: string
+          provider_payload: Json | null
+          provider_updated_at: string | null
+          ship_id: string | null
+          synced_at: string | null
+          title: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "cruise_sailing"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cruise_sync_tick: { Args: never; Returns: number }
       cruise_sync_watchdog: { Args: { p_window?: string }; Returns: string }
       current_agent_id: { Args: never; Returns: string }
