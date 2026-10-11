@@ -1,0 +1,140 @@
+import { assertEquals, assertThrows } from "jsr:@std/assert@^1";
+import { HttpError } from "./problem.ts";
+import {
+  centsToDecimal,
+  COMMISSION_STATUSES,
+  CREATE_STATUSES,
+  csvCell,
+  type ExportRow,
+  PAYMENT_STATUSES,
+  readDate,
+  readLagDays,
+  readLedgerFilters,
+  readNotes,
+  readRate,
+  readReference,
+  readStatus,
+  readTerms,
+  toCsv,
+} from "./commission.ts";
+
+/**
+ * The `agent-commission` route's request checks and its CSV.
+ *
+ * Every case below would otherwise reach Postgres and come back as a bodyless 500 — or, for
+ * the CSV, run as a formula on the advisor's own machine.
+ *
+ * Run: deno test --allow-env --config supabase/functions/deno.json supabase/functions/
+ */
+
+function is400(fn: () => unknown) {
+  const err = assertThrows(fn, HttpError);
+  assertEquals((err as HttpError).status, 400);
+}
+
+Deno.test("the status sets match commission_status, and new lines start unpaid", () => {
+  assertEquals([...COMMISSION_STATUSES], ["expected", "invoiced", "received", "disputed", "lost"]);
+  assertEquals([...CREATE_STATUSES], ["expected", "invoiced"]);
+  assertEquals([...PAYMENT_STATUSES], ["received", "disputed"]);
+  is400(() => readStatus("received", CREATE_STATUSES));
+  is400(() => readStatus("lost", CREATE_STATUSES));
+  assertEquals(readStatus("invoiced", CREATE_STATUSES), "invoiced");
+});
+
+Deno.test("terms are the enum, not prose", () => {
+  assertEquals(readTerms("after_travel"), "after_travel");
+  is400(() => readTerms("60 days after travel"));
+});
+
+Deno.test("a rate is 0 to 100, two decimals, and required", () => {
+  assertEquals(readRate("12.5"), 12.5);
+  assertEquals(readRate(12.505), 12.51);
+  assertEquals(readRate(0), 0);
+  assertEquals(readRate(100), 100);
+  is400(() => readRate(""));
+  is400(() => readRate(100.01));
+  is400(() => readRate(-1));
+  is400(() => readRate("twelve"));
+});
+
+Deno.test("payment days are a whole number, 0 to 365", () => {
+  assertEquals(readLagDays(60), 60);
+  assertEquals(readLagDays("0"), 0);
+  is400(() => readLagDays(366));
+  is400(() => readLagDays(30.5));
+  is400(() => readLagDays(""));
+  is400(() => readLagDays(null));
+});
+
+Deno.test("a blank reference or note is none, and long ones are refused", () => {
+  assertEquals(readReference("  ITV-1  "), "ITV-1");
+  assertEquals(readReference("   "), null);
+  assertEquals(readNotes(""), null);
+  is400(() => readReference("x".repeat(65)));
+  is400(() => readNotes("x".repeat(4001)));
+});
+
+Deno.test("a date must exist, not just look like one", () => {
+  assertEquals(readDate("2026-02-28", "Date"), "2026-02-28");
+  is400(() => readDate("2026-02-31", "Date"));
+  is400(() => readDate("0000-01-01", "Date"));
+  is400(() => readDate("Feb 3", "Date"));
+});
+
+Deno.test("ledger filters: empty status list means all; ids and dates are checked", () => {
+  assertEquals(readLedgerFilters({}).p_status, null);
+  assertEquals(readLedgerFilters({ statuses: [] }).p_status, null);
+  assertEquals(readLedgerFilters({ statuses: ["lost", "lost"] }).p_status, ["lost"]);
+  is400(() => readLedgerFilters({ statuses: ["paid"] }));
+  is400(() => readLedgerFilters({ supplierId: "sandals" }));
+  is400(() => readLedgerFilters({ travelFrom: "2026-13-01" }));
+});
+
+Deno.test("cents become an exact decimal string, through no float", () => {
+  assertEquals(centsToDecimal("0"), "0.00");
+  assertEquals(centsToDecimal("5"), "0.05");
+  assertEquals(centsToDecimal("97040"), "970.40");
+  assertEquals(centsToDecimal("123456789012345678"), "1234567890123456.78");
+  assertEquals(centsToDecimal("-2558"), "-25.58");
+});
+
+Deno.test("a cell that starts like a formula is neutralised; quoting follows RFC 4180", () => {
+  assertEquals(csvCell("=HYPERLINK(\"http://x\")"), `"'=HYPERLINK(""http://x"")"`);
+  assertEquals(csvCell("+1-555"), "'+1-555");
+  assertEquals(csvCell("-Smith"), "'-Smith");
+  assertEquals(csvCell("@sum"), "'@sum");
+  assertEquals(csvCell("Hayes, Jordan"), `"Hayes, Jordan"`);
+  assertEquals(csvCell("plain"), "plain");
+  // A NUMBER cell is left alone: a negative amount must stay a number.
+  assertEquals(csvCell("-25.58", false), "-25.58");
+  assertEquals(csvCell(null), "");
+});
+
+Deno.test("the CSV has a header, exact cents, readable terms and CRLF lines", () => {
+  const row: ExportRow = {
+    trip_title: "=cmd",
+    client_display_name: "Jordan Hayes",
+    supplier_name: "Sandals Resorts",
+    travel_start: "2026-12-17",
+    travel_end: "2026-12-23",
+    status: "received",
+    gross_booking_cents: "1010300",
+    commission_pct: 12,
+    expected_commission_cents: "121236",
+    processing_fee_cents: "1246",
+    received_commission_cents: "119990",
+    received_at: "2027-02-21",
+    payment_terms: "after_travel",
+    payment_lag_days: 60,
+    inteletravel_reference: null,
+    currency: "USD",
+  };
+  const csv = toCsv([row]);
+  const lines = csv.split("\r\n");
+  assertEquals(lines[0].startsWith("Trip,Client,Supplier,"), true);
+  assertEquals(
+    lines[1],
+    "'=cmd,Jordan Hayes,Sandals Resorts,2026-12-17,2026-12-23,received,10103.00,12,1212.36,12.46,1199.90,2027-02-21,After travel,60,,USD",
+  );
+  assertEquals(csv.endsWith("\r\n"), true);
+});
