@@ -816,7 +816,7 @@ INSERT INTO public.commission (
     '0195a2c0-1a00-7000-8000-000000000041',
     '0195a2c0-1a00-7000-8000-0000000000e2',
     '0195a2c0-1a00-7000-8000-000000000030',
-    1000000, 8.00, 80000, 'USD', '60 days after travel', 'expected');
+    1000000, 8.00, 80000, 'USD', 'after_travel', 'expected');
 
 SELECT pg_temp.become(:gyasi::uuid);
 SELECT pg_temp.assert(

@@ -186,7 +186,7 @@ WHERE email = 'sam.rivera@example.com';
 
 INSERT INTO public.supplier (
     id, name, kind, payment_method_kind, payment_portal_url,
-    default_commission_pct, commission_payment_terms, contact_email
+    default_commission_pct, commission_payment_terms, commission_payment_lag_days, contact_email
 ) VALUES (
     '0195a2c0-1a00-7000-8000-000000000030',
     'Sandals Resorts',
@@ -194,7 +194,10 @@ INSERT INTO public.supplier (
     'portal',
     'https://portal.example.com/agent-booking',
     12.00,
-    'Paid 30 days after travel completion.',
+    -- Enum + days since 20261011120000; this row used to say 'Paid 30 days after travel
+    -- completion.' in prose, which nothing could compute a date from.
+    'after_travel',
+    30,
     'agents@example.com'
 );
 
@@ -1561,7 +1564,7 @@ UPDATE public.trip t
 INSERT INTO public.commission (
     id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
     expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
-    payment_terms, status, received_at, inteletravel_reference
+    payment_terms, payment_lag_days, status, received_at, inteletravel_reference
 ) VALUES
     -- Trip 40, Sandals' line ALONE — 1,010,300 at 12%, which is exactly what the component
     -- records. It used to claim the whole trip value (1,284,500) at a flat 12%, which made
@@ -1571,20 +1574,20 @@ INSERT INTO public.commission (
     -- here because it has not been invoiced.
     ('01a0b1c2-d300-7000-8000-000000000070', '0195a2c0-1a00-7000-8000-000000000040',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     1010300, 12.00, 121236, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     1010300, 12.00, 121236, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
 
     -- Two proposals, so `expected` appears on more than one pipeline stage.
     ('01a0b1c2-d300-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000041',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     964000, 12.00, 115680, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     964000, 12.00, 115680, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
     ('01a0b1c2-d300-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000042',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     1912000, 12.00, 229440, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     1912000, 12.00, 229440, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
 
     -- `invoiced` rather than `expected`, so both pre-payment statuses are represented.
     ('01a0b1c2-d300-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000046',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     748000, 12.00, 89760, 0, 0, 'USD', '60 days after travel', 'invoiced', NULL,
+     748000, 12.00, 89760, 0, 0, 'USD', 'after_travel', 60, 'invoiced', NULL,
      'ITV-2026-0912'),
 
     -- Trip 47 is an all-inclusive resort week. This row named supplier ...031 — AMERICAN
@@ -1595,7 +1598,7 @@ INSERT INTO public.commission (
     -- asserts no row claims commission from a supplier that pays none.
     ('01a0b1c2-d300-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000047',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     512000, 12.00, 61440, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     512000, 12.00, 61440, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
 
     -- RECONCILED, WITH A FEE. Expected 83,040, Inteletravel kept 1,246, 81,794 arrived:
     -- 83,040 - 1,246 - 81,794 = 0, so screen 3.7.6 shows this settled rather than short.
@@ -1603,7 +1606,7 @@ INSERT INTO public.commission (
     -- here so that a change which accidentally sweeps it in shows up as a number moving.
     ('01a0b1c2-d300-7000-8000-000000000075', '0195a2c0-1a00-7000-8000-000000000044',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     692000, 12.00, 83040, 1246, 81794, 'USD', '60 days after travel', 'received',
+     692000, 12.00, 83040, 1246, 81794, 'USD', 'after_travel', 60, 'received',
      current_date - 540, 'ITV-2025-0331'),
 
     -- NOT RECONCILED, AND THE FEE DOES NOT EXPLAIN IT. Expected 82,800, fee 1,242, only
@@ -1612,7 +1615,7 @@ INSERT INTO public.commission (
     -- nor a `lost` row before, so both that screen and that tile had nothing to render.
     ('01a0b1c2-d300-7000-8000-000000000076', '0195a2c0-1a00-7000-8000-000000000113',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     690000, 12.00, 82800, 1242, 79000, 'USD', '60 days after travel', 'disputed',
+     690000, 12.00, 82800, 1242, 79000, 'USD', 'after_travel', 60, 'disputed',
      current_date - 300, 'ITV-2025-0480');
 
 -- §3.7.1 and §3.7.2 HAD NOTHING TO DRAW against the six rows above: nothing received this
@@ -1641,7 +1644,7 @@ INSERT INTO public.commission (
 INSERT INTO public.commission (
     id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
     expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
-    payment_terms, status, received_at, inteletravel_reference
+    payment_terms, payment_lag_days, status, received_at, inteletravel_reference
 )
 SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
        coalesce(v.gross, t.total_value_cents),
@@ -1651,61 +1654,65 @@ SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
        CASE WHEN v.status = 'received'
             THEN round(coalesce(v.gross, t.total_value_cents) * v.pct / 100.0)::bigint - v.fee
             ELSE 0 END,
-       t.currency, v.terms, v.status::commission_status,
+       -- `lag` doubles as the terms' day count and the received date's offset. The unpaid
+       -- rows leave it NULL (they have no received date), and every one of them is Sandals
+       -- at 60 days, so 60 is their terms.
+       t.currency, v.terms::commission_payment_terms, coalesce(v.lag, 60),
+       v.status::commission_status,
        CASE WHEN v.status = 'received' THEN t.end_date + v.lag END,
        v.ref
   FROM (VALUES
     -- Seven Getaway weeks, paid 60 days after travel: deposits one to four months back.
     ('01a0b1c2-d300-7000-8000-000000000077', '0195a2c0-1a00-7000-8000-000000000302',
      '0195a2c0-1a00-7000-8000-000000000030', NULL::bigint, 12.00, 0::bigint,
-     '60 days after travel', 'received', 60, 'ITV-2026-1188'),
+     'after_travel', 'received', 60, 'ITV-2026-1188'),
     ('01a0b1c2-d300-7000-8000-000000000078', '0195a2c0-1a00-7000-8000-000000000304',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 360,
-     '60 days after travel', 'received', 60, 'ITV-2026-1102'),
+     'after_travel', 'received', 60, 'ITV-2026-1102'),
     ('01a0b1c2-d300-7000-8000-000000000079', '0195a2c0-1a00-7000-8000-000000000306',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
-     '60 days after travel', 'received', 60, 'ITV-2026-1067'),
+     'after_travel', 'received', 60, 'ITV-2026-1067'),
     ('01a0b1c2-d300-7000-8000-000000000080', '0195a2c0-1a00-7000-8000-000000000308',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 432,
-     '60 days after travel', 'received', 60, 'ITV-2026-1019'),
+     'after_travel', 'received', 60, 'ITV-2026-1019'),
     ('01a0b1c2-d300-7000-8000-000000000081', '0195a2c0-1a00-7000-8000-000000000310',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
-     '60 days after travel', 'received', 60, 'ITV-2026-0974'),
+     'after_travel', 'received', 60, 'ITV-2026-0974'),
     ('01a0b1c2-d300-7000-8000-000000000082', '0195a2c0-1a00-7000-8000-000000000312',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
-     '60 days after travel', 'received', 60, 'ITV-2026-0931'),
+     'after_travel', 'received', 60, 'ITV-2026-0931'),
     ('01a0b1c2-d300-7000-8000-000000000083', '0195a2c0-1a00-7000-8000-000000000314',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 540,
-     '60 days after travel', 'received', 60, 'ITV-2026-0888'),
+     'after_travel', 'received', 60, 'ITV-2026-0888'),
     -- Invoiced months ago and never paid: overdue, and the kind of line 3.7.6 chases.
     ('01a0b1c2-d300-7000-8000-000000000084', '0195a2c0-1a00-7000-8000-000000000316',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
-     '60 days after travel', 'invoiced', NULL, 'ITV-2026-0846'),
+     'after_travel', 'invoiced', NULL, 'ITV-2026-0846'),
     -- Still `expected` long after travel: entered, never invoiced.
     ('01a0b1c2-d300-7000-8000-000000000085', '0195a2c0-1a00-7000-8000-000000000318',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
-     '60 days after travel', 'expected', NULL, NULL),
+     'after_travel', 'expected', NULL, NULL),
     -- The second supplier, so 3.7.2's supplier filter has a choice to make.
     ('01a0b1c2-d300-7000-8000-000000000086', '0195a2c0-1a00-7000-8000-000000000117',
      '0195a2c0-1a00-7000-8000-000000000034', 23000, 25.00, 0,
-     '30 days after travel', 'received', 30, 'ITV-2026-1010'),
+     'after_travel', 'received', 30, 'ITV-2026-1010'),
     -- About a year back: it gives last year's comparisons something to compare against.
     -- (Which side of the chart's twelve-month edge it lands on depends on the day of the
     -- month the seed runs; the chip's base does not depend on it, row 075 sits at -540.)
     ('01a0b1c2-d300-7000-8000-000000000087', '0195a2c0-1a00-7000-8000-000000000111',
      '0195a2c0-1a00-7000-8000-000000000034', 57400, 25.00, 0,
-     '30 days after travel', 'received', 30, 'ITV-2025-0975'),
+     'after_travel', 'received', 30, 'ITV-2025-0975'),
     -- LOST. Invoiced at booking, then the trip cancelled. No date, no money: a `lost` row
     -- may carry neither (commission_date_means_paid, commission_money_has_date).
     ('01a0b1c2-d300-7000-8000-000000000088', '0195a2c0-1a00-7000-8000-000000000115',
      '0195a2c0-1a00-7000-8000-000000000030', 540000, 12.00, 0,
-     '60 days after travel', 'lost', NULL, 'ITV-2026-0702'),
+     'after_travel', 'lost', NULL, 'ITV-2026-0702'),
     -- On the ARCHIVED trip. Its line stays in the ledger and in the totals (a commission line
     -- is a tax record) but its title is not a link, because the trip page will not open.
     -- Without this row that rule only ever ran inside a test's temporary UPDATE.
     ('01a0b1c2-d300-7000-8000-000000000089', '0195a2c0-1a00-7000-8000-0000000000af',
      '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
-     '60 days after travel', 'received', 60, 'ITV-2025-1101')
+     'after_travel', 'received', 60, 'ITV-2025-1101')
   ) AS v(id, trip_id, supplier_id, gross, pct, fee, terms, status, lag, ref)
   JOIN public.trip t ON t.id = v.trip_id::uuid;
 
