@@ -1615,4 +1615,90 @@ INSERT INTO public.commission (
      690000, 12.00, 82800, 1242, 79000, 'USD', '60 days after travel', 'disputed',
      current_date - 300, 'ITV-2025-0480');
 
+-- §3.7.1 and §3.7.2 HAD NOTHING TO DRAW against the six rows above: nothing received this
+-- calendar year, one bar on a twelve-month chart, one supplier in the ledger's supplier
+-- filter, and no `lost` row behind the chip the prototype forgot. Twelve more, every one
+-- hand-written against a COMPLETED or CANCELLED trip — money that has had time to arrive,
+-- or to be refused. This is still not the row-per-trip pattern warned against above: four
+-- completed trips stay with no line at all, which is a real state an advisor reaches by
+-- forgetting to invoice.
+--
+-- DATES COME FROM THE TRIP, NOT FROM current_date. The trips above are dated relative to
+-- the day the seed runs, so a received_at keyed off `end_date + lag` stays after the trip it
+-- pays for on any day the seed is run. A literal date would sooner or later have money
+-- arriving before the traveler left.
+--
+-- The Getaway trips are one package component each, priced at 12% of the whole trip with no
+-- supplier on the component (the nullable-supplier gap Data-Model §10.1 records). Filing
+-- them against Sandals at 12% of trip value makes expected equal the trip's own commission
+-- to the cent. The two Allianz lines are insurance the components never priced: a ledger
+-- line is a claim and is allowed to know about money the builder did not, which is what
+-- §3.7.4's "for trips booked outside the platform" form exists for.
+--
+-- Every `received` row reconciles exactly (expected − fee − received = 0), three of them
+-- with a fee. The one disputed row above stays the only disputed row:
+-- constraints_commission.sql asserts it.
+INSERT INTO public.commission (
+    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
+    expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
+    payment_terms, status, received_at, inteletravel_reference
+)
+SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
+       coalesce(v.gross, t.total_value_cents),
+       v.pct,
+       round(coalesce(v.gross, t.total_value_cents) * v.pct / 100.0)::bigint,
+       v.fee,
+       CASE WHEN v.status = 'received'
+            THEN round(coalesce(v.gross, t.total_value_cents) * v.pct / 100.0)::bigint - v.fee
+            ELSE 0 END,
+       t.currency, v.terms, v.status::commission_status,
+       CASE WHEN v.status = 'received' THEN t.end_date + v.lag END,
+       v.ref
+  FROM (VALUES
+    -- Seven Getaway weeks, paid 60 days after travel: four to five months of deposits.
+    ('01a0b1c2-d300-7000-8000-000000000077', '0195a2c0-1a00-7000-8000-000000000302',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL::bigint, 12.00, 0::bigint,
+     '60 days after travel', 'received', 60, 'ITV-2026-1188'),
+    ('01a0b1c2-d300-7000-8000-000000000078', '0195a2c0-1a00-7000-8000-000000000304',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 360,
+     '60 days after travel', 'received', 60, 'ITV-2026-1102'),
+    ('01a0b1c2-d300-7000-8000-000000000079', '0195a2c0-1a00-7000-8000-000000000306',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     '60 days after travel', 'received', 60, 'ITV-2026-1067'),
+    ('01a0b1c2-d300-7000-8000-000000000080', '0195a2c0-1a00-7000-8000-000000000308',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 432,
+     '60 days after travel', 'received', 60, 'ITV-2026-1019'),
+    ('01a0b1c2-d300-7000-8000-000000000081', '0195a2c0-1a00-7000-8000-000000000310',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     '60 days after travel', 'received', 60, 'ITV-2026-0974'),
+    ('01a0b1c2-d300-7000-8000-000000000082', '0195a2c0-1a00-7000-8000-000000000312',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     '60 days after travel', 'received', 60, 'ITV-2026-0931'),
+    ('01a0b1c2-d300-7000-8000-000000000083', '0195a2c0-1a00-7000-8000-000000000314',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 540,
+     '60 days after travel', 'received', 60, 'ITV-2026-0888'),
+    -- Invoiced months ago and never paid: overdue, and the kind of line 3.7.6 chases.
+    ('01a0b1c2-d300-7000-8000-000000000084', '0195a2c0-1a00-7000-8000-000000000316',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     '60 days after travel', 'invoiced', NULL, 'ITV-2026-0846'),
+    -- Still `expected` long after travel: entered, never invoiced.
+    ('01a0b1c2-d300-7000-8000-000000000085', '0195a2c0-1a00-7000-8000-000000000318',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     '60 days after travel', 'expected', NULL, NULL),
+    -- The second supplier, so 3.7.2's supplier filter has a choice to make.
+    ('01a0b1c2-d300-7000-8000-000000000086', '0195a2c0-1a00-7000-8000-000000000117',
+     '0195a2c0-1a00-7000-8000-000000000034', 23000, 25.00, 0,
+     '30 days after travel', 'received', 30, 'ITV-2026-1010'),
+    -- Lands in the prior twelve months, so the chart's year-on-year chip has a base.
+    ('01a0b1c2-d300-7000-8000-000000000087', '0195a2c0-1a00-7000-8000-000000000111',
+     '0195a2c0-1a00-7000-8000-000000000034', 57400, 25.00, 0,
+     '30 days after travel', 'received', 30, 'ITV-2025-0975'),
+    -- LOST. Invoiced at booking, then the trip cancelled. No date, no money: a `lost` row
+    -- may carry neither (commission_date_means_paid, commission_money_has_date).
+    ('01a0b1c2-d300-7000-8000-000000000088', '0195a2c0-1a00-7000-8000-000000000115',
+     '0195a2c0-1a00-7000-8000-000000000030', 540000, 12.00, 0,
+     '60 days after travel', 'lost', NULL, 'ITV-2026-0702')
+  ) AS v(id, trip_id, supplier_id, gross, pct, fee, terms, status, lag, ref)
+  JOIN public.trip t ON t.id = v.trip_id::uuid;
+
 COMMIT;
