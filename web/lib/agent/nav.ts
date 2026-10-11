@@ -107,7 +107,9 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "dollar",
     label: "Commission",
     surfaces: ["rail", "tablet"],
-    availability: { kind: "planned", phase: "P1", section: "§3.7" },
+    // Built 2026-10-11 with §3.7.1 and §3.7.2. Rail and tablet only, still: §6.6's phone bar
+    // is four and Commission is not one of them.
+    availability: { kind: "built" },
   },
   {
     id: "reports",
@@ -129,6 +131,21 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     availability: { kind: "planned", phase: "P1", section: "§3.12" },
   },
 ] as const;
+
+/**
+ * §3.7's views under its one rail destination — the shape §3.2 settled, for the reason
+ * nav.ts's header gives: a rail entry holds a SECTION, and the dashboard and the ledger are
+ * two views of one section's money. The prototype draws no view strip for §3.7 (its header
+ * carries Import and Export only), so this is a departure, taken because without it the
+ * ledger would be reachable only through tiles. §3.7.6 Reconciliation and §3.7.7 Forecast
+ * join this list when they ship.
+ */
+export const AGENT_COMMISSION_VIEWS = [
+  { id: "dashboard", href: "/agent/commission", label: "Dashboard" },
+  { id: "ledger", href: "/agent/commission/ledger", label: "Ledger" },
+] as const;
+
+export type AgentView = { id: string; href: string; label: string };
 
 /**
  * The three views §3.2 carries under one rail destination.
@@ -170,9 +187,15 @@ export function activeAgentDestinationId(pathname: string): string | null {
   return best?.id ?? null;
 }
 
-/** Which of the three views is showing. Null outside §3.2. */
-export function activeAgentViewId(pathname: string): string | null {
-  return AGENT_WORKLIST_VIEWS.find((v) => v.href === pathname)?.id ?? null;
+/**
+ * Which view of a list is showing. Defaults to §3.2's three; §3.7 passes its own. Exact
+ * match only, so a view's sub-route does not light it — the views have none.
+ */
+export function activeAgentViewId(
+  pathname: string,
+  views: readonly AgentView[] = AGENT_WORKLIST_VIEWS,
+): string | null {
+  return views.find((v) => v.href === pathname)?.id ?? null;
 }
 
 /**

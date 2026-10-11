@@ -1731,6 +1731,8 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 
 **Producers, none of them built:** §3.7.3 (edit), §3.7.4 (manual entry), §3.7.5 (Inteletravel CSV import).
 
+**Readers, built 2026-10-11 (§3.7 Stage 1):** `agent_commission_ledger()`, `_ledger_summary()`, `_ledger_suppliers()`, `agent_commission_dashboard()` and `agent_commission_monthly()`. SECURITY DEFINER accessors, as §3.2 to §3.4 read everything else, and **not RLS policies**: this table has been service-role-only since the payment-domain lockdown revoked every client-role privilege on it, and a policy would only work alongside a table grant that lockdown exists to prevent. Each one requires BOTH `commission.agent_id` and the trip's `agent_id` to be the caller, because nothing in the schema makes the two agree. Lines on archived trips are included — a commission line is a tax record (§18.5) — and the accessors flag them rather than drop them.
+
 **`payment_terms` is out of spec and blocks §3.7.7.** This table documents `at_booking` / `after_travel`; the seed writes free text like `'60 days after travel'`, and `supplier.commission_payment_terms` is free text too. §3.7.7's cash-in calendar needs a parsed date offset, which free text cannot give, so this wants an enum plus a lag-days integer **before** that screen is built.
 
 ### 10.2 CommissionImport

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 
-import { AGENT_WORKLIST_VIEWS, activeAgentViewId } from "@/lib/agent/nav";
+import { AGENT_WORKLIST_VIEWS, activeAgentViewId, type AgentView } from "@/lib/agent/nav";
 
 /**
  * §3.2's three views, under one rail destination.
@@ -24,13 +24,23 @@ import { AGENT_WORKLIST_VIEWS, activeAgentViewId } from "@/lib/agent/nav";
  * sides, 6px apart, a 44px minimum on coarse pointers — so the row under every §3.2 header
  * keeps its height. `aria-current` stays on the link itself.
  */
-export function AgentViews() {
+export function AgentViews({
+  views = AGENT_WORKLIST_VIEWS,
+  label = "Worklist views",
+}: {
+  /**
+   * §3.7 passes its own Dashboard / Ledger pair. Plain data, so it crosses from a Server
+   * Component; the default keeps §3.2's three pages unchanged.
+   */
+  views?: readonly AgentView[];
+  label?: string;
+} = {}) {
   const pathname = usePathname();
-  const activeId = activeAgentViewId(pathname);
+  const activeId = activeAgentViewId(pathname, views);
 
   return (
-    <Box component="nav" aria-label="Worklist views" sx={VIEWS_SX}>
-      {AGENT_WORKLIST_VIEWS.map((v) => {
+    <Box component="nav" aria-label={label} sx={VIEWS_SX}>
+      {views.map((v) => {
         const active = v.id === activeId;
         return (
           <Chip

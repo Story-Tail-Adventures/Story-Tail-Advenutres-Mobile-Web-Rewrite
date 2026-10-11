@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ICON_NAMES } from "@/components/ui/icon-paths";
 import {
+  AGENT_COMMISSION_VIEWS,
   AGENT_DESTINATIONS,
   AGENT_WORKLIST_VIEWS,
   activeAgentDestinationId,
@@ -50,7 +51,6 @@ describe("AGENT_DESTINATIONS", () => {
     expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
       "leads",
       "messages",
-      "commission",
       "reports",
       "more",
     ]);
@@ -58,10 +58,12 @@ describe("AGENT_DESTINATIONS", () => {
     // on 2026-09-27 with §3.4.1. The note this line used to carry was the reason it was
     // unbuilt: trip DETAIL existed at /agent/trips/[tripId] while the rail entry pointed at
     // the LIST, which had no route. It does now.
+    // `commission` joined on 2026-10-11 with §3.7.1 and §3.7.2.
     expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual([
       "worklist",
       "clients",
       "trips",
+      "commission",
     ]);
   });
 
@@ -114,6 +116,16 @@ describe("active state", () => {
     expect(activeAgentViewId("/agent/pipeline")).toBe("pipeline");
     expect(activeAgentViewId("/agent/calendar")).toBe("calendar");
     expect(activeAgentViewId("/agent/clients")).toBeNull();
+  });
+
+  it("folds both §3.7 views into the Commission rail item, and names which is showing", () => {
+    for (const v of AGENT_COMMISSION_VIEWS) {
+      expect(activeAgentDestinationId(v.href), v.href).toBe("commission");
+    }
+    expect(activeAgentViewId("/agent/commission", AGENT_COMMISSION_VIEWS)).toBe("dashboard");
+    expect(activeAgentViewId("/agent/commission/ledger", AGENT_COMMISSION_VIEWS)).toBe("ledger");
+    // The default list is still §3.2's: a commission path lights none of its three.
+    expect(activeAgentViewId("/agent/commission/ledger")).toBeNull();
   });
 
   it("matches on / boundaries only", () => {

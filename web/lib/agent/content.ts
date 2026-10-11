@@ -223,7 +223,8 @@ export const AGENT_COPY = {
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
   availabilityDeferred:
     "Blocking time arrives with §3.12, which is where the time-off shape gets defined.",
-  commissionDeferred: "Commission tracking arrives with §3.7.",
+  // `commissionDeferred` lived here until §3.7.1 shipped. It had no call site left by then
+  // either: the rail renders its own "Arrives with" line from nav.ts.
   reportsDeferred: "Reporting arrives with §3.11.",
 } as const;
 
@@ -1066,3 +1067,121 @@ export const TEMPLATE_COPY = {
   payloadFixedNote:
     "A template is a snapshot of a real trip. To change the shape, save a new one from a trip that has it.",
 } as const;
+
+/**
+ * §3.7.1 Commission Dashboard and §3.7.2 Commission Ledger.
+ *
+ * WEB ONLY. Commission is not one of §6.6's four phone tabs, and `a37-commission.html` draws
+ * no phone artboards (`mobileScreens={null}`), so there is no Kotlin twin and no row in the
+ * copy-parity gate.
+ *
+ * SAME REGISTER AS AGENT_COPY: terse and numerate, read at a desk. This is the advisor's own
+ * money, the most transactional surface in the product — §2.5 is explicit that a screen like
+ * this needs facts, not a verse. Plain words over the prototype's shorthand where the
+ * shorthand was jargon: "vs last year" rather than "LY", "pts" rather than "pp".
+ */
+export const COMMISSION_COPY = {
+  viewsLabel: "Commission views",
+  navDashboard: "Dashboard",
+  navLedger: "Ledger",
+
+  title: "Commissions",
+  // The prototype's subtitle, kept: it is the whole lifecycle in five words, and it names
+  // the one counterpart the numbers are checked against.
+  subtitle: "Expected → invoiced → received. Reconciled against Inteletravel.",
+
+  importLabel: "Import CSV",
+  importDeferred: "Importing an Inteletravel statement arrives with §3.7.5.",
+  exportLabel: "Export",
+  // Says WHY it waits. A download of the ledger carries every client's name, and Data-Model
+  // §18.3 audits any bulk export of client data — which needs the first commission write.
+  exportDeferred: "Export arrives with §3.7.3, where each download gets an audit record.",
+
+  tileYtd: "YTD received",
+  tileUpcoming: "Expected · 90d",
+  tileAtRisk: "At risk",
+  tileRate: "Avg rate",
+  rateUnavailable: "Nothing received yet this year.",
+  nothingDisputed: "Nothing disputed",
+  nothingUpcoming: "Nothing booked in the next 90 days",
+
+  trendTitle: "Monthly trend · 12 months",
+  trendEmpty: "Nothing has arrived in the last twelve months.",
+  trendTableCaption: "Commission received by month",
+  trendMonth: "Month",
+  trendAmount: "Received",
+
+  ledgerTitle: "Commission ledger",
+  ledgerSubtitle: "Every booking, every line.",
+  // FIVE, NOT THE PROTOTYPE'S FOUR. Its chip row has no Lost, and `commission_status` has
+  // five values; a line lost to a cancellation would have no way back onto the screen.
+  filterExpected: "Expected",
+  filterInvoiced: "Invoiced",
+  filterReceived: "Received",
+  filterDisputed: "Disputed",
+  filterLost: "Lost",
+  filterStatusLegend: "Status",
+  supplierLabel: "Supplier",
+  supplierAll: "All suppliers",
+  travelFromLabel: "Travel from",
+  travelToLabel: "Travel to",
+  applyFilters: "Apply",
+  clearFilters: "Clear filters",
+  tripFilterPrefix: "One trip:",
+  tripFilterRemove: "Show every trip",
+
+  colTrip: "Trip · client",
+  colSupplier: "Supplier",
+  colTravel: "Travel",
+  colGross: "Gross",
+  colRate: "Rate",
+  colCommission: "Comm",
+  colStatus: "Status",
+  noDates: "No dates yet",
+  archivedTrip: "Archived",
+
+  emptyTitle: "No commission lines yet",
+  emptyBody:
+    "A line shows up here once a booking is invoiced to Inteletravel. Adding one by hand arrives with §3.7.4.",
+  emptyFilteredTitle: "Nothing matches",
+  emptyFilteredBody: "Try another status, supplier or date range.",
+  emptyTripTitle: "No lines for this trip yet",
+  emptyTripBody: "This trip hasn't been invoiced to Inteletravel yet.",
+  // The rows are not clickable yet, and a reader deserves to know why rather than discover
+  // it by clicking.
+  lineDetailDeferred: "Opening a line to edit it or mark it received arrives with §3.7.3.",
+
+  // Trip Detail's cost card, the ledger's second entry point (§3.7.2).
+  tripLedgerLink: "Commission lines",
+} as const;
+
+/** "5 trips", "1 trip" — the Expected · 90d tile's second line. */
+export function commissionTripCount(count: number): string {
+  return count === 1 ? "1 trip" : `${count} trips`;
+}
+
+/** "1 disputed" — the At risk tile's second line. */
+export function commissionDisputedCount(count: number): string {
+  return count === 0 ? COMMISSION_COPY.nothingDisputed : `${count} disputed`;
+}
+
+/**
+ * "+24% vs last year", "−8% vs last year". A true minus sign, not a hyphen, so a negative
+ * reads as one at a glance in the tile's small type.
+ */
+export function commissionChangeVsLastYear(pct: number): string {
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "±";
+  return `${sign}${Math.abs(pct)}% vs last year`;
+}
+
+/** "+0.4 pts vs last year": a change in a RATE is points, never a percentage of a percentage. */
+export function commissionRateChangeVsLastYear(points: number): string {
+  const sign = points > 0 ? "+" : points < 0 ? "−" : "±";
+  return `${sign}${Math.abs(points).toFixed(1)} pts vs last year`;
+}
+
+/** The trend chip: the chart's twelve months against the twelve before them. */
+export function commissionTrendChange(pct: number): string {
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "±";
+  return `${sign}${Math.abs(pct)}% vs prior year`;
+}

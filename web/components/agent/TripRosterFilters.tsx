@@ -36,8 +36,11 @@ import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
  * keyboard focus, all through `:has()` so the GET form needs no state.
  */
 
-/** ChipInput's selected/focus/disabled styling, at the legacy 28px (`h-7`). */
-const FILTER_CHIP_SX = {
+/**
+ * ChipInput's selected/focus/disabled styling, at the legacy 28px (`h-7`). Exported for
+ * §3.7.2's status chips, which are the same label-around-a-hidden-checkbox shape.
+ */
+export const CHECKBOX_FILTER_CHIP_SX = {
   height: 28,
   cursor: "pointer",
   "&:has(input:checked)": {
@@ -109,7 +112,7 @@ export function TripRosterFilters({
             key={f.value}
             component="label"
             variant="outlined"
-            sx={FILTER_CHIP_SX}
+            sx={CHECKBOX_FILTER_CHIP_SX}
             label={
               <>
                 <Box
