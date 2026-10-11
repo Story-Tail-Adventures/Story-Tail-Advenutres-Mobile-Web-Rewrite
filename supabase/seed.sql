@@ -1617,11 +1617,11 @@ INSERT INTO public.commission (
 
 -- §3.7.1 and §3.7.2 HAD NOTHING TO DRAW against the six rows above: nothing received this
 -- calendar year, one bar on a twelve-month chart, one supplier in the ledger's supplier
--- filter, and no `lost` row behind the chip the prototype forgot. Twelve more, every one
+-- filter, and no `lost` row behind the chip the prototype forgot. Thirteen more, every one
 -- hand-written against a COMPLETED or CANCELLED trip — money that has had time to arrive,
--- or to be refused. This is still not the row-per-trip pattern warned against above: four
--- completed trips stay with no line at all, which is a real state an advisor reaches by
--- forgetting to invoice.
+-- or to be refused. This is still not the row-per-trip pattern warned against above: the
+-- open trips with no line (three booked, one proposal, two inquiries) stay that way, because
+-- a booking nobody has entered or invoiced yet is a real state.
 --
 -- DATES COME FROM THE TRIP, NOT FROM current_date. The trips above are dated relative to
 -- the day the seed runs, so a received_at keyed off `end_date + lag` stays after the trip it
@@ -1655,7 +1655,7 @@ SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
        CASE WHEN v.status = 'received' THEN t.end_date + v.lag END,
        v.ref
   FROM (VALUES
-    -- Seven Getaway weeks, paid 60 days after travel: four to five months of deposits.
+    -- Seven Getaway weeks, paid 60 days after travel: deposits one to four months back.
     ('01a0b1c2-d300-7000-8000-000000000077', '0195a2c0-1a00-7000-8000-000000000302',
      '0195a2c0-1a00-7000-8000-000000000030', NULL::bigint, 12.00, 0::bigint,
      '60 days after travel', 'received', 60, 'ITV-2026-1188'),
@@ -1689,7 +1689,9 @@ SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
     ('01a0b1c2-d300-7000-8000-000000000086', '0195a2c0-1a00-7000-8000-000000000117',
      '0195a2c0-1a00-7000-8000-000000000034', 23000, 25.00, 0,
      '30 days after travel', 'received', 30, 'ITV-2026-1010'),
-    -- Lands in the prior twelve months, so the chart's year-on-year chip has a base.
+    -- About a year back: it gives last year's comparisons something to compare against.
+    -- (Which side of the chart's twelve-month edge it lands on depends on the day of the
+    -- month the seed runs; the chip's base does not depend on it, row 075 sits at -540.)
     ('01a0b1c2-d300-7000-8000-000000000087', '0195a2c0-1a00-7000-8000-000000000111',
      '0195a2c0-1a00-7000-8000-000000000034', 57400, 25.00, 0,
      '30 days after travel', 'received', 30, 'ITV-2025-0975'),
@@ -1697,8 +1699,24 @@ SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
     -- may carry neither (commission_date_means_paid, commission_money_has_date).
     ('01a0b1c2-d300-7000-8000-000000000088', '0195a2c0-1a00-7000-8000-000000000115',
      '0195a2c0-1a00-7000-8000-000000000030', 540000, 12.00, 0,
-     '60 days after travel', 'lost', NULL, 'ITV-2026-0702')
+     '60 days after travel', 'lost', NULL, 'ITV-2026-0702'),
+    -- On the ARCHIVED trip. Its line stays in the ledger and in the totals (a commission line
+    -- is a tax record) but its title is not a link, because the trip page will not open.
+    -- Without this row that rule only ever ran inside a test's temporary UPDATE.
+    ('01a0b1c2-d300-7000-8000-000000000089', '0195a2c0-1a00-7000-8000-0000000000af',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     '60 days after travel', 'received', 60, 'ITV-2025-1101')
   ) AS v(id, trip_id, supplier_id, gross, pct, fee, terms, status, lag, ref)
   JOIN public.trip t ON t.id = v.trip_id::uuid;
+
+-- The JOIN above drops a row SILENTLY if a trip id it names ever changes. Count them.
+DO $$
+BEGIN
+    IF (SELECT count(*) FROM public.commission
+         WHERE id BETWEEN '01a0b1c2-d300-7000-8000-000000000077'
+                      AND '01a0b1c2-d300-7000-8000-000000000089') <> 13 THEN
+        RAISE EXCEPTION 'seed: expected 13 §3.7 ledger lines; a trip id they name has moved';
+    END IF;
+END $$;
 
 COMMIT;

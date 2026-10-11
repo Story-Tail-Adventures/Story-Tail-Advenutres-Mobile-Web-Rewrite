@@ -59,8 +59,10 @@ describe("CommissionLedgerTable", () => {
     const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
     expect(headers).toEqual(["Trip · client", "Supplier", "Travel", "Gross", "Rate", "Comm", "Status"]);
     const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
-    expect(cells.map((c) => c.textContent)).toEqual([
+    expect(within(screen.getAllByRole("row")[1]).getByRole("rowheader").textContent).toBe(
       "Getaway #2Noah Castillo",
+    );
+    expect(cells.map((c) => c.textContent)).toEqual([
       "Sandals Resorts",
       "Jun 29, 2026",
       "$2,700",
@@ -68,6 +70,12 @@ describe("CommissionLedgerTable", () => {
       "$324",
       "Received",
     ]);
+  });
+
+  it("names the table, and heads each row with its trip", () => {
+    renderWithTheme(<CommissionLedgerTable rows={[row()]} />);
+    expect(screen.getByRole("table", { name: "Commission lines" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader")).toHaveTextContent("Getaway #2");
   });
 
   it("says when a trip has no dates", () => {

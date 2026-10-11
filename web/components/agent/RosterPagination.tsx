@@ -39,6 +39,7 @@ export function RosterPagination({
   total,
   shown,
   pageSize = 25,
+  label = "Roster pages",
 }: {
   /** Given a 1-based page, the URL for it — filters and all. */
   hrefFor: (page: number) => string;
@@ -47,6 +48,8 @@ export function RosterPagination({
   total: number;
   shown: number;
   pageSize?: number;
+  /** The nav landmark's name. §3.7.2's ledger is not a roster and says so. */
+  label?: string;
 }) {
   if (pageCount <= 1) return null;
 
@@ -56,7 +59,7 @@ export function RosterPagination({
   return (
     <Box
       component="nav"
-      aria-label="Roster pages"
+      aria-label={label}
       sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}
     >
       <Typography component="p" variant="body2" sx={{ color: "text.secondary" }}>

@@ -78,6 +78,20 @@ SELECT count(*)                                         AS lines,
  WHERE c.agent_id = :agent::uuid
    AND t.agent_id = :agent::uuid;
 
+-- A travel range whose two ENDS are real trip start dates (the 2nd and 2nd-to-last distinct
+-- ones), and the owner's count of lines inside it, edges included.
+ALTER TABLE expected ADD COLUMN range_from date, ADD COLUMN range_to date, ADD COLUMN in_range bigint;
+UPDATE expected e SET range_from = r.lo, range_to = r.hi
+  FROM (SELECT (array_agg(d ORDER BY d))[2] AS lo, (array_agg(d ORDER BY d DESC))[2] AS hi
+          FROM (SELECT DISTINCT t.start_date AS d
+                  FROM public.commission c JOIN public.trip t ON t.id = c.trip_id
+                 WHERE c.agent_id = :agent::uuid AND t.agent_id = :agent::uuid
+                   AND t.start_date IS NOT NULL) x) r;
+UPDATE expected e SET in_range = (
+    SELECT count(*) FROM public.commission c JOIN public.trip t ON t.id = c.trip_id
+     WHERE c.agent_id = :agent::uuid AND t.agent_id = :agent::uuid
+       AND t.start_date BETWEEN e.range_from AND e.range_to);
+
 GRANT SELECT ON expected TO authenticated;
 
 -- Without these, several assertions below would pass over nothing.
@@ -92,10 +106,15 @@ SELECT pg_temp.assert((SELECT lost_n FROM expected) >= 1,
 -- 1. Grants: the accessors are the door, the table stays shut
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- The five by NAME, not "exactly five": Stage 2 adds more, and bumping a count to match
+-- would defeat the check. The two LIKE checks below cover whatever else matches.
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname LIKE 'agent\_commission\_%') = 5,
-    'exactly five agent_commission_* accessors exist, so the two checks below cover them all');
+    (SELECT count(DISTINCT p.proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname IN ('agent_commission_ledger', 'agent_commission_ledger_summary',
+                          'agent_commission_ledger_suppliers', 'agent_commission_dashboard',
+                          'agent_commission_monthly')) = 5,
+    'all five §3.7 Stage 1 accessors exist');
 
 SELECT pg_temp.assert(
     NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -173,11 +192,20 @@ SELECT pg_temp.assert(
         NULL, NULL, '0195a2c0-1a00-7000-8000-000000000040'::uuid, NULL, NULL, 500, 0)) = 1,
     'the trip filter (Trip Detail''s entry point) returns that trip''s one line');
 
+-- The range is built FROM THE DATA, both ends on real start dates: the seed dates trips
+-- relative to the day it runs, so a hardcoded year would eventually match nothing — and
+-- "no row falls outside the range" is true of an empty result.
 SELECT pg_temp.assert(
-    NOT EXISTS (SELECT 1 FROM public.agent_commission_ledger(
-        NULL, NULL, NULL, '2026-01-01', '2026-12-31', 500, 0)
-         WHERE start_date < '2026-01-01' OR start_date > '2026-12-31' OR start_date IS NULL),
-    'the travel-date range keeps only trips starting inside it');
+    (SELECT count(*) FROM public.agent_commission_ledger(
+        NULL, NULL, NULL, (SELECT range_from FROM expected), (SELECT range_to FROM expected), 500, 0))
+        = (SELECT in_range FROM expected)
+    AND (SELECT in_range FROM expected) >= 3,
+    'the travel-date range keeps exactly the lines whose trip starts inside it, both ends inclusive');
+
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_commission_ledger(
+        '{}'::commission_status[], NULL, NULL, NULL, NULL, 500, 0)) = (SELECT lines FROM expected),
+    'an EMPTY status array means every status, the same as NULL — not an empty ledger');
 
 -- Paging and the clamp. LIMIT and OFFSET raise on a negative, and this is reachable from a
 -- browser over /rpc/ with whatever numbers the caller likes.
@@ -240,9 +268,19 @@ GRANT SELECT ON gyasi_before TO authenticated;
 -- Signup must name an agent in its metadata, or handle_new_user() picks one — and the
 -- stand-in client row it creates is deleted again, as rls_agent_reads.sql does.
 
+-- THE ADVISOR'S ZONE IS CHOSEN SO ITS DATE DIFFERS FROM UTC'S RIGHT NOW. Kiritimati is
+-- UTC+14 and Pago Pago UTC-11, so at any instant at least one of them is on a different
+-- calendar day from UTC. Every boundary below is then wrong by a day if an accessor ever
+-- slips back to `current_date` — on every run, not only in the few hours a day a Chicago
+-- advisor's date and UTC's disagree.
+CREATE TEMP TABLE b_zone AS
+SELECT CASE WHEN (now() AT TIME ZONE 'Pacific/Kiritimati')::date <> (now() AT TIME ZONE 'UTC')::date
+            THEN 'Pacific/Kiritimati' ELSE 'Pacific/Pago_Pago' END AS tz;
+
 INSERT INTO public.agent (id, display_name, email, status, time_zone)
-VALUES (:b_agent::uuid, 'Commission Test Advisor', 'commission.advisor@example.com',
-        'active', 'America/Chicago');
+SELECT :b_agent::uuid, 'Commission Test Advisor', 'commission.advisor@example.com',
+       'active', tz
+  FROM b_zone;
 
 INSERT INTO auth.users (
     id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -280,9 +318,13 @@ SELECT d AS today,
        date_trunc('year', d)::date                       AS year_start,
        (date_trunc('year', d) - interval '1 year')::date AS ly_start,
        (d - interval '1 year')::date                     AS ly_today
-  FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS d) x;
+  FROM (SELECT (now() AT TIME ZONE tz)::date AS d FROM b_zone) x;
 
-GRANT SELECT ON b_day TO authenticated;
+SELECT pg_temp.assert(
+    (SELECT today FROM b_day) <> (now() AT TIME ZONE 'UTC')::date,
+    'the second advisor''s calendar day differs from UTC''s, so a UTC slip cannot hide');
+
+GRANT SELECT ON b_day, b_zone TO authenticated;
 
 -- Trips. Totals are written directly: the totals trigger fires on COMPONENT changes, and
 -- these trips have none.
@@ -340,20 +382,30 @@ SELECT v.id::uuid, '0c7a0000-0000-7000-8000-000000000010'::uuid, :b_agent::uuid,
          0, 0, 'expected', NULL::date),
         -- L8: lost.
         ('0c7a0000-0000-7000-8000-000000000108', :sandals, 40000, 10.00, 4000,
-         0, 0, 'lost', NULL::date)
+         0, 0, 'lost', NULL::date),
+        -- L9: dated TOMORROW in the advisor's zone. Nothing forbids a future received_at, and
+        -- every money figure stops at today: YTD, the chip and the chart's last bar alike.
+        ('0c7a0000-0000-7000-8000-000000000109', :sandals, 100000, 10.00, 10000,
+         0, 10000, 'received', b.today + 1)
        ) AS v(id, supplier, gross, pct, expected, fee, received, status, received_at);
 
 SELECT pg_temp.become(:b_account::uuid);
 
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0)) = 8
+    (SELECT count(*) FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0)) = 9
     AND NOT EXISTS (SELECT 1 FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0)
                      WHERE trip_id <> '0c7a0000-0000-7000-8000-000000000010'::uuid),
-    'the second advisor sees their own eight lines and none of Gyasi''s');
+    'the second advisor sees their own nine lines and none of Gyasi''s');
 
 SELECT pg_temp.assert(
-    (SELECT expected_count = 1 AND invoiced_count = 0 AND received_count = 4
-        AND disputed_count = 2 AND lost_count = 1 AND total_count = 8
+    (SELECT as_of_date FROM public.agent_commission_dashboard()) = (SELECT today FROM b_day)
+    AND (SELECT as_of_date FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 1, 0))
+        = (SELECT today FROM b_day),
+    'both the dashboard and the ledger say "today" in the advisor''s zone, not UTC''s');
+
+SELECT pg_temp.assert(
+    (SELECT expected_count = 1 AND invoiced_count = 0 AND received_count = 5
+        AND disputed_count = 2 AND lost_count = 1 AND total_count = 9
        FROM public.agent_commission_ledger_summary()),
     'their chip counts are their own');
 
@@ -364,7 +416,8 @@ SELECT pg_temp.assert(
 -- The tiles, against literals.
 SELECT pg_temp.assert(
     (SELECT ytd_received_cents FROM public.agent_commission_dashboard()) = '69000',
-    'YTD received is L1 + L2 = 10,000 + 59,000: Jan 1 is inside, last year is not');
+    'YTD received is L1 + L2 = 10,000 + 59,000: Jan 1 and today are inside; last year and '
+    'tomorrow (L9) are not');
 
 SELECT pg_temp.assert(
     (SELECT ly_received_cents FROM public.agent_commission_dashboard()) = '30000',
@@ -412,7 +465,8 @@ SELECT pg_temp.assert(
     'no month appears twice');
 SELECT pg_temp.assert(
     (SELECT sum(received_cents::bigint) FROM public.agent_commission_monthly()) = 69000,
-    'the twelve bars add up to the trend chip''s own twelve-month figure');
+    'the twelve bars add up to the trend chip''s own twelve-month figure — tomorrow''s L9 '
+    'is in neither');
 
 RESET ROLE;
 
@@ -427,9 +481,11 @@ INSERT INTO public.commission (
     id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
     expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
     payment_terms, status, received_at)
+-- Dated GYASI's today, not the second advisor's: their zone is chosen to sit on a different
+-- calendar day, and a line dated tomorrow in Chicago would leak into nothing he can see.
 SELECT v.id::uuid, v.trip::uuid, v.agent::uuid, :sandals::uuid, 7777000, 10.00, 777700,
-       0, 777700, 'USD', 'after_travel', 'received', b.today
-  FROM b_day b,
+       0, 777700, 'USD', 'after_travel', 'received', (now() AT TIME ZONE g.time_zone)::date
+  FROM public.agent g,
        (VALUES
         -- The second advisor's id on Gyasi's trip.
         ('0c7a0000-0000-7000-8000-000000000201', '0195a2c0-1a00-7000-8000-000000000302',
@@ -437,7 +493,8 @@ SELECT v.id::uuid, v.trip::uuid, v.agent::uuid, :sandals::uuid, 7777000, 10.00, 
         -- Gyasi's id on the second advisor's trip.
         ('0c7a0000-0000-7000-8000-000000000202', '0c7a0000-0000-7000-8000-000000000010',
          '0195a2c0-1a00-7000-8000-000000000001')
-       ) AS v(id, trip, agent);
+       ) AS v(id, trip, agent)
+ WHERE g.id = :agent::uuid;
 
 SELECT pg_temp.become(:gyasi::uuid);
 SELECT pg_temp.assert(
@@ -460,13 +517,23 @@ SELECT pg_temp.assert(
     (SELECT sum(received_cents::bigint) FROM public.agent_commission_monthly())
         = (SELECT trailing_12_cents::bigint FROM gyasi_before),
     '... and neither did his chart');
+SELECT pg_temp.assert(
+    (SELECT sum(line_count) FROM public.agent_commission_ledger_suppliers())
+        = (SELECT lines FROM expected),
+    '... and neither did his supplier filter''s line counts');
 RESET ROLE;
 
 SELECT pg_temp.become(:b_account::uuid);
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0)) = 8
+    (SELECT count(*) FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0)) = 9
     AND (SELECT ytd_received_cents FROM public.agent_commission_dashboard()) = '69000',
     'the second advisor''s ledger and YTD are unchanged by either mismatched line');
+-- Every accessor has its own tenancy predicate, so each gets its own cross-tenant check.
+SELECT pg_temp.assert(
+    (SELECT total_count FROM public.agent_commission_ledger_summary()) = 9
+    AND (SELECT sum(line_count) FROM public.agent_commission_ledger_suppliers()) = 9
+    AND (SELECT sum(received_cents::bigint) FROM public.agent_commission_monthly()) = 69000,
+    '... and so are their chip counts, their supplier filter and their chart');
 RESET ROLE;
 
 -- ─────────────────────────────────────────────────────────────────────────────

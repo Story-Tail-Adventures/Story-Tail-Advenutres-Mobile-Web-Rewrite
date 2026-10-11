@@ -142,13 +142,25 @@ describe("dashboardTiles", () => {
       at_risk_cents: "0",
       disputed_count: 0,
     });
-    expect(upcoming.sub).toBe("Nothing booked in the next 90 days");
+    expect(upcoming.sub).toBe("Nothing priced in the next 90 days");
     expect(risk.sub).toBe("Nothing disputed");
   });
 
   it("uses a true minus sign for a fall", () => {
     const [ytd] = dashboardTiles({ ...DASH, ytd_received_cents: "50000", ly_received_cents: "100000" });
     expect(ytd.sub).toBe("−50% vs last year");
+  });
+
+  it("says 'No change' rather than '±0%' when nothing moved", () => {
+    const [ytd, , , rate] = dashboardTiles({
+      ...DASH,
+      ytd_received_cents: "81794",
+      avg_rate_pct: 12.04,
+      ly_avg_rate_pct: 12.0,
+    });
+    expect(ytd.sub).toBe("No change vs last year");
+    // 0.04 points rounds to 0.0 — still no change, not "+0.0 pts".
+    expect(rate.sub).toBe("No change vs last year");
   });
 });
 
@@ -192,7 +204,7 @@ describe("loadCommissionDashboard", () => {
     expect(d?.tiles).toHaveLength(4);
     expect(d?.months).toHaveLength(12);
     expect(d?.anyReceived).toBe(true);
-    expect(d?.trendChange).toBe("+301% vs prior year");
+    expect(d?.trendChange).toBe("+301% vs the 12 months before");
   });
 
   it("leaves the trend chip off when the prior year had nothing", async () => {
@@ -231,6 +243,12 @@ describe("ledgerRow", () => {
     const row = ledgerRow({ ...LEDGER_ROW, trip_archived: true });
     expect(row.tripHref).toBeNull();
     expect(row.tripArchived).toBe(true);
+  });
+
+  it("shows an unknown status as itself on a colourless chip, not as another status", () => {
+    const row = ledgerRow({ ...LEDGER_ROW, status: "written_off" });
+    expect(row.statusLabel).toBe("written_off");
+    expect(row.statusChip).toBe("unknown");
   });
 
   it("draws an undated trip as undated rather than as the epoch", () => {

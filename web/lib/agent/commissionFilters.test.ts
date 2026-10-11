@@ -54,6 +54,14 @@ describe("ledgerQueryFromParams", () => {
     expect(q.travelTo).toBe("2026-12-31");
   });
 
+  it("refuses year 0000, which Postgres does not have", () => {
+    expect(ledgerQueryFromParams({ to: "0000-01-01" }).travelTo).toBeNull();
+  });
+
+  it("caps the page so the SQL offset cannot overflow an integer", () => {
+    expect(ledgerQueryFromParams({ page: "99999999999" }).page).toBe(100_000);
+  });
+
   it("treats a missing, zero or junk page as page 1", () => {
     expect(ledgerQueryFromParams({ page: "0" }).page).toBe(1);
     expect(ledgerQueryFromParams({ page: "-3" }).page).toBe(1);

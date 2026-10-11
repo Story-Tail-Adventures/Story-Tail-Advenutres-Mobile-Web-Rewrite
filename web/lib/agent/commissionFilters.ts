@@ -41,6 +41,9 @@ export type LedgerParams = {
   page?: string;
 };
 
+/** See `ledgerQueryFromParams`: the offset is a Postgres `integer`. */
+const MAX_PAGE = 100_000;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -48,7 +51,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * would refuse it, the read would fail, and the advisor would get a retry screen for a typo.
  */
 function isoDate(value: string | undefined): string | null {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  // Year 0000 is shaped right too, and Postgres has no year zero.
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000")) return null;
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value ? value : null;
 }
@@ -81,7 +85,9 @@ export function ledgerQueryFromParams(params: LedgerParams): LedgerQuery {
     tripId: params.trip && UUID.test(params.trip) ? params.trip : null,
     travelFrom,
     travelTo,
-    page: Number.isFinite(page) && page > 0 ? page : 1,
+    // Capped: the offset is a Postgres `integer`, and `?page=99999999999` would overflow it
+    // into a 400 — the retry screen, for a URL typo. 100,000 pages is 2.5 million lines.
+    page: Number.isFinite(page) && page > 0 ? Math.min(page, MAX_PAGE) : 1,
   };
 }
 

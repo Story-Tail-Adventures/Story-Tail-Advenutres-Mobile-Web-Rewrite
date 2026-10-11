@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import MuiLink from "@mui/material/Link";
@@ -73,10 +74,20 @@ export default async function CommissionLedgerPage({
     );
   }
 
-  const empty = query.tripId
-    ? { title: COMMISSION_COPY.emptyTripTitle, body: COMMISSION_COPY.emptyTripBody }
-    : isFiltered(query)
-      ? { title: COMMISSION_COPY.emptyFilteredTitle, body: COMMISSION_COPY.emptyFilteredBody }
+  // Past the last page — a bookmark or a stale tab, since the form never posts `page`. An
+  // empty page carries no `total_count` to read, so it would claim "no commission lines yet"
+  // over a ledger that has them. Start the same view from the top instead.
+  if (ledger.rows.length === 0 && query.page > 1) {
+    redirect(ledgerHref({ ...query, page: 1 }));
+  }
+
+  // Order matters. A one-trip view narrowed further (a status, a supplier, dates) that comes
+  // back empty is "nothing matches", not "this trip has no lines" — it may have several.
+  const narrowedBeyondTrip = isFiltered({ ...query, tripId: null });
+  const empty = narrowedBeyondTrip
+    ? { title: COMMISSION_COPY.emptyFilteredTitle, body: COMMISSION_COPY.emptyFilteredBody }
+    : query.tripId
+      ? { title: COMMISSION_COPY.emptyTripTitle, body: COMMISSION_COPY.emptyTripBody }
       : { title: COMMISSION_COPY.emptyTitle, body: COMMISSION_COPY.emptyBody };
 
   return (
@@ -85,9 +96,13 @@ export default async function CommissionLedgerPage({
 
       {query.tripId && (
         <Box sx={{ mb: 1.5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+          {/* The title is read off a row, so a narrowed view with no rows has none to show.
+              Rather than a dangling "One trip:", the chip then says what it filters by. */}
           <Chip
             color="secondary"
-            label={`${COMMISSION_COPY.tripFilterPrefix} ${ledger.tripTitle ?? ""}`.trim()}
+            label={ledger.tripTitle
+              ? `${COMMISSION_COPY.tripFilterPrefix} ${ledger.tripTitle}`
+              : COMMISSION_COPY.tripFilterUnnamed}
           />
           <MuiLink
             component={NextLink}
@@ -117,6 +132,7 @@ export default async function CommissionLedgerPage({
             total={ledger.total}
             shown={ledger.rows.length}
             pageSize={ledger.pageSize}
+            label={COMMISSION_COPY.ledgerPagesLabel}
           />
         </>
       )}

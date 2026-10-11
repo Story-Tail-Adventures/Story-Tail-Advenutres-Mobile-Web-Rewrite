@@ -149,9 +149,10 @@ export function dashboardTiles(d: AgentCommissionDashboardRow): KpiTileData[] {
       unavailable: null,
       accent: "surface",
       icon: "warning",
-      // The one tile whose drill is EXACT: these disputed lines are precisely what it sums.
-      // The others would land on a list that adds up to something else, which is worse than
-      // no link at all.
+      // The one tile whose drill lands on exactly the LINES it sums — the disputed ones. Not
+      // the same AMOUNTS: the tile is the unpaid gap and the ledger prints each line's full
+      // expected figure (received and fee are §3.7.3's detail). The other tiles would land
+      // on lists of different lines altogether, which is worse than no link.
       href: d.disputed_count > 0
         ? ledgerHref({ ...EMPTY_LEDGER_QUERY, statuses: ["disputed"] })
         : null,
@@ -228,7 +229,8 @@ export type LedgerRow = {
   grossLabel: string;
   rateLabel: string;
   commissionLabel: string;
-  status: CommissionStatus;
+  /** A known status, or the raw value if the schema has grown one this screen does not know. */
+  status: CommissionStatus | string;
   statusChip: string;
   statusLabel: string;
 };
@@ -253,10 +255,12 @@ const STATUS_BY_VALUE = new Map<string, (typeof COMMISSION_STATUS_FILTERS)[numbe
 );
 
 export function ledgerRow(r: AgentCommissionLedgerRow): LedgerRow {
-  // An unknown status would be a schema change this screen has not caught up with. It
-  // renders as `expected`'s chip rather than crashing the page over one row.
-  const status = (STATUS_BY_VALUE.has(r.status) ? r.status : "expected") as CommissionStatus;
-  const presentation = STATUS_BY_VALUE.get(status)!;
+  // An unknown status is a schema change this screen has not caught up with. It renders as
+  // itself on a colourless chip (StatusChip resolves an unknown kind to no colour) rather
+  // than borrowing another status's chip, which would be a claim about the line.
+  const known = STATUS_BY_VALUE.get(r.status);
+  const status = r.status;
+  const presentation = known ?? { chip: "unknown", label: r.status };
   return {
     commissionId: r.commission_id,
     tripTitle: r.trip_title,

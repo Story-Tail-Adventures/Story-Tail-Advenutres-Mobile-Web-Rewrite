@@ -10,7 +10,9 @@ import { OutlinedNativeSelect } from "@/components/mui/OutlinedNativeSelect";
 import { Button } from "@/components/ui/Button";
 import {
   COMMISSION_STATUS_FILTERS,
+  EMPTY_LEDGER_QUERY,
   isFiltered,
+  ledgerHref,
   type CommissionStatus,
   type LedgerQuery,
 } from "@/lib/agent/commissionFilters";
@@ -33,6 +35,15 @@ import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
  *
  * Status chips are checkboxes, and none ticked means every status — the ledger opens on
  * all of it, where the trip list opens on work in progress.
+ *
+ * KEYED ON THE URL. `defaultChecked` / `defaultValue` do not reset an input the advisor has
+ * touched, and Next does not remount a page when only its query string changes — so after
+ * "Clear filters" (a link, not a submit) or the back button, the Lost chip stayed ticked
+ * over an unfiltered table and the next Apply quietly re-applied it. A key that changes with
+ * the URL remounts the form, and every control re-reads the query.
+ *
+ * The chip COUNTS are the whole ledger's, whatever else is filtered — the same choice the
+ * trip list makes. They answer "how many lost lines do I have", not "how many in this view".
  */
 export function CommissionLedgerFilters({
   query,
@@ -47,6 +58,7 @@ export function CommissionLedgerFilters({
 
   return (
     <Box
+      key={ledgerHref(query)}
       component={NextForm}
       action="/agent/commission/ledger"
       sx={{ mb: 1.5, display: "flex", flexDirection: "column", gap: 1.25 }}
@@ -129,10 +141,12 @@ export function CommissionLedgerFilters({
         <Button type="submit" variant="tonal" size="sm">
           {COMMISSION_COPY.applyFilters}
         </Button>
-        {isFiltered(query) && (
+        {/* Clears what THIS form sets. The one-trip view has its own "Show every trip"
+            link, so clearing a status here keeps the advisor on that trip. */}
+        {isFiltered({ ...query, tripId: null }) && (
           <MuiButton
             component={NextLink}
-            href="/agent/commission/ledger"
+            href={ledgerHref({ ...EMPTY_LEDGER_QUERY, tripId: query.tripId })}
             variant="text"
             color="primary"
             size="small"

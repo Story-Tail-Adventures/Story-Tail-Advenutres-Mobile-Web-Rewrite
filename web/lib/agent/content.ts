@@ -1082,8 +1082,6 @@ export const TEMPLATE_COPY = {
  */
 export const COMMISSION_COPY = {
   viewsLabel: "Commission views",
-  navDashboard: "Dashboard",
-  navLedger: "Ledger",
 
   title: "Commissions",
   // The prototype's subtitle, kept: it is the whole lifecycle in five words, and it names
@@ -1103,10 +1101,12 @@ export const COMMISSION_COPY = {
   tileRate: "Avg rate",
   rateUnavailable: "Nothing received yet this year.",
   nothingDisputed: "Nothing disputed",
-  nothingUpcoming: "Nothing booked in the next 90 days",
+  // "Nothing priced", not "nothing booked": a booked trip nobody has priced adds no
+  // commission and is not counted, so "nothing booked" would be false while one sits there.
+  nothingUpcoming: "Nothing priced in the next 90 days",
 
   trendTitle: "Monthly trend · 12 months",
-  trendEmpty: "Nothing has arrived in the last twelve months.",
+  trendEmpty: "No commission received in the last 12 months.",
   trendTableCaption: "Commission received by month",
   trendMonth: "Month",
   trendAmount: "Received",
@@ -1128,6 +1128,7 @@ export const COMMISSION_COPY = {
   applyFilters: "Apply",
   clearFilters: "Clear filters",
   tripFilterPrefix: "One trip:",
+  tripFilterUnnamed: "One trip only",
   tripFilterRemove: "Show every trip",
 
   colTrip: "Trip · client",
@@ -1141,15 +1142,20 @@ export const COMMISSION_COPY = {
   archivedTrip: "Archived",
 
   emptyTitle: "No commission lines yet",
+  // Says where lines actually COME FROM. An earlier draft said a line appears "once a booking
+  // is invoiced", which is wrong twice: a line starts life as `expected`, before any invoice,
+  // and nothing creates one automatically — entry and import are the only producers.
   emptyBody:
-    "A line shows up here once a booking is invoiced to Inteletravel. Adding one by hand arrives with §3.7.4.",
+    "Lines are entered by hand (§3.7.4) or imported from an Inteletravel statement (§3.7.5). Neither is here yet.",
   emptyFilteredTitle: "Nothing matches",
   emptyFilteredBody: "Try another status, supplier or date range.",
   emptyTripTitle: "No lines for this trip yet",
-  emptyTripBody: "This trip hasn't been invoiced to Inteletravel yet.",
+  emptyTripBody: "Its forecast commission still shows on the trip's cost card.",
   // The rows are not clickable yet, and a reader deserves to know why rather than discover
   // it by clicking.
   lineDetailDeferred: "Opening a line to edit it or mark it received arrives with §3.7.3.",
+  ledgerTableLabel: "Commission lines",
+  ledgerPagesLabel: "Ledger pages",
 
   // Trip Detail's cost card, the ledger's second entry point (§3.7.2).
   tripLedgerLink: "Commission lines",
@@ -1166,22 +1172,31 @@ export function commissionDisputedCount(count: number): string {
 }
 
 /**
- * "+24% vs last year", "−8% vs last year". A true minus sign, not a hyphen, so a negative
- * reads as one at a glance in the tile's small type.
+ * A signed change with a true minus sign (not a hyphen, so a fall reads as one at a glance in
+ * small type), or "No change" when it rounds to zero. "±0%" was the first draft: a screen
+ * reader says "plus or minus zero", and nobody says that out loud.
  */
+function signedChange(value: string, isZero: boolean, isFall: boolean, against: string): string {
+  if (isZero) return `No change vs ${against}`;
+  return `${isFall ? "−" : "+"}${value} vs ${against}`;
+}
+
+/** "+24% vs last year" — the same Jan-1-to-today window a year back. */
 export function commissionChangeVsLastYear(pct: number): string {
-  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "±";
-  return `${sign}${Math.abs(pct)}% vs last year`;
+  return signedChange(`${Math.abs(pct)}%`, pct === 0, pct < 0, "last year");
 }
 
 /** "+0.4 pts vs last year": a change in a RATE is points, never a percentage of a percentage. */
 export function commissionRateChangeVsLastYear(points: number): string {
-  const sign = points > 0 ? "+" : points < 0 ? "−" : "±";
-  return `${sign}${Math.abs(points).toFixed(1)} pts vs last year`;
+  const shown = Math.abs(points).toFixed(1);
+  return signedChange(`${shown} pts`, shown === "0.0", points < 0, "last year");
 }
 
-/** The trend chip: the chart's twelve months against the twelve before them. */
+/**
+ * The trend chip: the chart's twelve months against the twelve before them. Worded apart
+ * from the tiles' "vs last year" on purpose — that is a calendar-year window, this is a
+ * rolling one, and the same words would invite comparing two different numbers.
+ */
 export function commissionTrendChange(pct: number): string {
-  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "±";
-  return `${sign}${Math.abs(pct)}% vs prior year`;
+  return signedChange(`${Math.abs(pct)}%`, pct === 0, pct < 0, "the 12 months before");
 }

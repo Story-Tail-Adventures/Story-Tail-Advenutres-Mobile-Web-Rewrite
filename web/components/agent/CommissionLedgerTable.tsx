@@ -39,7 +39,7 @@ const TRUNCATE = {
 export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
   return (
     <Card sx={{ overflowX: "auto" }}>
-      <Table size="small" sx={{ width: "100%" }}>
+      <Table size="small" aria-label={COMMISSION_COPY.ledgerTableLabel} sx={{ width: "100%" }}>
         <TableHead>
           <TableRow>
             <TableCell scope="col">{COMMISSION_COPY.colTrip}</TableCell>
@@ -54,7 +54,8 @@ export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.commissionId}>
-              <TableCell sx={{ maxWidth: 280 }}>
+              {/* The row's header, so a screen reader names each cell by its trip. */}
+              <TableCell component="th" scope="row" sx={{ maxWidth: 280 }}>
                 {row.tripHref ? (
                   <MuiLink
                     component={NextLink}
@@ -63,12 +64,22 @@ export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
                     color="inherit"
                     sx={{ display: "block", minWidth: 0 }}
                   >
-                    <Typography component="span" variant="body2" sx={{ ...TRUNCATE, fontWeight: 500 }}>
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      title={row.tripTitle}
+                      sx={{ ...TRUNCATE, fontWeight: 500 }}
+                    >
                       {row.tripTitle}
                     </Typography>
                   </MuiLink>
                 ) : (
-                  <Typography component="span" variant="body2" sx={{ ...TRUNCATE, fontWeight: 500 }}>
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    title={row.tripTitle}
+                    sx={{ ...TRUNCATE, fontWeight: 500 }}
+                  >
                     {row.tripTitle}
                   </Typography>
                 )}

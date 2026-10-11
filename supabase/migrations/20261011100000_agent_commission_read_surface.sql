@@ -120,7 +120,9 @@ AS $$
           JOIN public.trip t   ON t.id = c.trip_id AND t.agent_id = me.agent_id
           JOIN public.client cl ON cl.id = t.client_id
           JOIN public.supplier s ON s.id = c.supplier_id
-         WHERE (p_status IS NULL OR c.status = ANY (p_status))
+         -- NULL and an EMPTY array both mean every status. A caller that sends `[]` for
+         -- "no chip ticked" would otherwise see an empty ledger and read it as an empty book.
+         WHERE (p_status IS NULL OR cardinality(p_status) = 0 OR c.status = ANY (p_status))
            AND (p_supplier_id IS NULL OR c.supplier_id = p_supplier_id)
            AND (p_trip_id IS NULL OR c.trip_id = p_trip_id)
            -- The date range is TRAVEL dates, matching the column the prototype draws. A
@@ -316,14 +318,18 @@ AS $$
           FROM lines l
          WHERE l.status = 'disputed'
     ),
-    -- The trend chip compares the chart's own twelve months with the twelve before them.
+    -- The trend chip compares the chart's own span with the SAME span a year earlier. The
+    -- chart is eleven whole months plus this month so far, so the comparison is too: it ends
+    -- on this date last year, not at the end of last year's month. Against twelve whole months
+    -- the chip read low every day but the last of the month — about 8% low on the 1st — the
+    -- same error the YTD tile's same-window rule exists to avoid.
     trend AS (
         SELECT coalesce(sum(l.received_commission_cents) FILTER (
                     WHERE l.received_at >= (s.month_start - interval '11 months')::date
                       AND l.received_at <= s.today), 0)::bigint AS trailing_sum,
                coalesce(sum(l.received_commission_cents) FILTER (
                     WHERE l.received_at >= (s.month_start - interval '23 months')::date
-                      AND l.received_at <  (s.month_start - interval '11 months')::date), 0)::bigint
+                      AND l.received_at <= s.ly_today), 0)::bigint
                    AS prior_sum
           FROM lines l, span s
     )
@@ -370,6 +376,7 @@ SET search_path = public, pg_temp
 AS $$
     WITH me AS (
         SELECT a.id AS agent_id,
+               (now() AT TIME ZONE a.time_zone)::date                       AS today,
                date_trunc('month', (now() AT TIME ZONE a.time_zone))::date AS month_start
           FROM public.agent a
          WHERE a.id = public.current_agent_id()
@@ -392,6 +399,10 @@ AS $$
           JOIN me            ON c.agent_id = me.agent_id
           JOIN public.trip t ON t.id = c.trip_id AND t.agent_id = me.agent_id
          WHERE c.received_at >= (me.month_start - interval '11 months')::date
+           -- Bounded above as the dashboard is. Nothing in the schema forbids a future
+           -- received_at, and one would otherwise sit in this month's bar while the trend chip
+           -- and the YTD tile, which stop at today, leave it out.
+           AND c.received_at <= me.today
          GROUP BY 1
     )
     SELECT m.month_start, coalesce(p.cents, 0)::text, coalesce(p.n, 0)

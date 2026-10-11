@@ -34,7 +34,9 @@ export function CommissionTrendChart({
   return (
     <Card>
       <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-        <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.75 }}>
+        {/* Wraps: at 375px the chip ("+24% vs the 12 months before") and the title do not fit
+            on one line, and without wrapping the title was squeezed onto three. */}
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 1, mb: 1.75 }}>
           <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600 }}>
             {COMMISSION_COPY.trendTitle}
           </Typography>
