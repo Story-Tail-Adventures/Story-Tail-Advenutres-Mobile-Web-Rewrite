@@ -45,15 +45,25 @@ export function CostCommissionCard({ overview }: { overview: TripDetailOverview 
           <Typography variant="h6">{AGENT_COPY.commissionLabel}</Typography>
           <Typography variant="h6">{overview.totalCommissionLabel}</Typography>
         </Stack>
-        <MuiLink
-          component={NextLink}
-          href={ledgerHref({ ...EMPTY_LEDGER_QUERY, tripId: overview.tripId })}
-          underline="hover"
-          variant="body2"
-          sx={{ display: "inline-block", mt: 0.5 }}
-        >
-          {COMMISSION_COPY.tripLedgerLink}
-        </MuiLink>
+        <Stack direction="row" sx={{ mt: 0.5, flexWrap: "wrap", columnGap: 2, rowGap: 0.5 }}>
+          <MuiLink
+            component={NextLink}
+            href={ledgerHref({ ...EMPTY_LEDGER_QUERY, tripId: overview.tripId })}
+            underline="hover"
+            variant="body2"
+          >
+            {COMMISSION_COPY.tripLedgerLink}
+          </MuiLink>
+          {/* 3.7.4's other entry point, with this trip already chosen. */}
+          <MuiLink
+            component={NextLink}
+            href={`/agent/commission/ledger/new?trip=${overview.tripId}`}
+            underline="hover"
+            variant="body2"
+          >
+            {COMMISSION_COPY.tripAddLine}
+          </MuiLink>
+        </Stack>
       </CardContent>
     </Card>
   );

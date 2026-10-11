@@ -20,9 +20,8 @@ import type { LedgerRow } from "@/lib/agent/commission";
  * ONE STRUCTURE, for the reason TripRosterTable gives: Commission is not on the phone bar and
  * §3.7 has no phone artboards, so a card-list twin would be markup nobody can reach.
  *
- * NO ROW HOVER. The artboard draws `hover`, which tells a pointer the row goes somewhere; in
- * Stage 1 only the trip title does (§3.7.3's line detail is Stage 2). The page footer says
- * so in a sentence.
+ * EACH ROW OPENS ITS LINE (§3.7.3). The link is the trip title in the row header, so the
+ * row's accessible name is the trip; Trip Detail is one click further, on the line's page.
  *
  * "Comm" is the EXPECTED commission — Screen Inventory §3.7.2's column list says "expected",
  * and it is the figure the artboard prints (gross × rate). What actually arrived, and the
@@ -53,27 +52,16 @@ export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
         </TableHead>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.commissionId}>
+            <TableRow key={row.commissionId} hover>
               {/* The row's header, so a screen reader names each cell by its trip. */}
               <TableCell component="th" scope="row" sx={{ maxWidth: 280 }}>
-                {row.tripHref ? (
-                  <MuiLink
-                    component={NextLink}
-                    href={row.tripHref}
-                    underline="hover"
-                    color="inherit"
-                    sx={{ display: "block", minWidth: 0 }}
-                  >
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      title={row.tripTitle}
-                      sx={{ ...TRUNCATE, fontWeight: 500 }}
-                    >
-                      {row.tripTitle}
-                    </Typography>
-                  </MuiLink>
-                ) : (
+                <MuiLink
+                  component={NextLink}
+                  href={row.lineHref}
+                  underline="hover"
+                  color="inherit"
+                  sx={{ display: "block", minWidth: 0 }}
+                >
                   <Typography
                     component="span"
                     variant="body2"
@@ -82,7 +70,7 @@ export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
                   >
                     {row.tripTitle}
                   </Typography>
-                )}
+                </MuiLink>
                 <Typography component="span" variant="caption" sx={{ ...TRUNCATE, color: "text.secondary" }}>
                   {row.clientName}
                   {row.tripArchived && ` · ${COMMISSION_COPY.archivedTrip}`}

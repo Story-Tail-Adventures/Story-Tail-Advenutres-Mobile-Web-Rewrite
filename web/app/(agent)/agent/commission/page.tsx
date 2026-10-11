@@ -19,10 +19,9 @@ import { AGENT_COMMISSION_VIEWS } from "@/lib/agent/nav";
  * UNPAID GAP on disputed lines rather than their full expected amount. The migration that
  * built `agent_commission_dashboard()` carries the reasoning; §3.7.1 carries the amendment.
  *
- * WHAT THE PROTOTYPE DRAWS THAT IS NOT LIVE. "Import CSV" is §3.7.5 (Stage 3). "Export"
- * waits for Stage 2: a ledger download carries every client's name, Data-Model §18.3 audits
- * any bulk export of client data, and the web cannot write an audit_event without the Edge
- * Function the first commission write brings. Both render disabled with their reason.
+ * WHAT THE PROTOTYPE DRAWS THAT IS NOT LIVE. "Import CSV" is §3.7.5 (Stage 3) and renders
+ * disabled with its reason. "Export" went live with Stage 2, once each download could write
+ * its own audit row (Data-Model §18.3).
  *
  * WHAT IS HERE THAT THE PROTOTYPE DOES NOT DRAW: the Dashboard / Ledger view strip. See
  * `AGENT_COMMISSION_VIEWS` for why.
@@ -45,7 +44,8 @@ export default async function CommissionDashboardPage() {
         subtitle={COMMISSION_COPY.subtitle}
         actions={[
           { label: COMMISSION_COPY.importLabel, reason: COMMISSION_COPY.importDeferred, icon: "upload" },
-          { label: COMMISSION_COPY.exportLabel, reason: COMMISSION_COPY.exportDeferred, icon: "download" },
+          // Unfiltered from here: the dashboard has no filters to carry.
+          { label: COMMISSION_COPY.exportLabel, href: "/agent/commission/ledger/export", icon: "download", download: true },
         ]}
       />
 

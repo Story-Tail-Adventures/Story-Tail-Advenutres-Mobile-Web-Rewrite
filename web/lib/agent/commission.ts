@@ -3,10 +3,22 @@ import {
   callAgentRead,
   type AgentCommissionDashboardRow,
   type AgentCommissionLedgerRow,
+  type AgentCommissionLineRow,
   type AgentCommissionMonthRow,
   type AgentCommissionSummaryRow,
   type AgentCommissionSupplierRow,
+  type AgentTripComponentRow,
+  type AgentTripOverviewRow,
+  type AgentTripRosterRow,
 } from "@/lib/agent/api";
+import {
+  prefillBySupplier,
+  type LineValues,
+  type PaymentValues,
+  type SupplierPrefill,
+} from "@/lib/agent/commissionForm";
+import { centsToDollars } from "@/lib/agent/payments";
+import { loadSuppliers, type SupplierGroup } from "@/lib/agent/tripBuilder";
 import {
   COMMISSION_STATUS_FILTERS,
   EMPTY_LEDGER_QUERY,
@@ -18,7 +30,10 @@ import {
   COMMISSION_COPY,
   commissionChangeVsLastYear,
   commissionDisputedCount,
+  commissionExpectedOn,
+  commissionPaidLine,
   commissionRateChangeVsLastYear,
+  commissionTermsLine,
   commissionTrendChange,
   commissionTripCount,
 } from "@/lib/agent/content";
@@ -219,6 +234,8 @@ export async function loadCommissionDashboard(): Promise<CommissionDashboard | n
 
 export type LedgerRow = {
   commissionId: string;
+  /** §3.7.3, live since Stage 2: every row opens its line, archived trip or not. */
+  lineHref: string;
   tripTitle: string;
   /** Null for an archived trip: its detail page will not open, so the title is not a link. */
   tripHref: string | null;
@@ -263,6 +280,7 @@ export function ledgerRow(r: AgentCommissionLedgerRow): LedgerRow {
   const presentation = known ?? { chip: "unknown", label: r.status };
   return {
     commissionId: r.commission_id,
+    lineHref: `/agent/commission/ledger/${r.commission_id}`,
     tripTitle: r.trip_title,
     tripHref: r.trip_archived ? null : `/agent/trips/${r.trip_id}`,
     tripArchived: r.trip_archived,
@@ -320,5 +338,188 @@ export async function loadCommissionLedger(query: LedgerQuery): Promise<Commissi
     page: query.page,
     pageCount: Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE)),
     pageSize: LEDGER_PAGE_SIZE,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §3.7.3 Detail
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CommissionLineView = {
+  commissionId: string;
+  version: number;
+  tripId: string;
+  tripTitle: string;
+  /** Null for an archived trip: Trip Detail will not open it. */
+  tripHref: string | null;
+  tripArchived: boolean;
+  clientName: string;
+  supplierName: string;
+  /** The prototype's header: "Sandals Resorts · Kyoto in the spring · $1,368 expected". */
+  heading: string;
+  status: string;
+  statusChip: string;
+  statusLabel: string;
+  isPaid: boolean;
+  expectedCents: number;
+  expectedLabel: string;
+  /** "Received $1,190 on Feb 21, 2027, after a $12 fee." — only for a paid line. */
+  paidLine: string | null;
+  termsLine: string;
+  /** "Expected around Oct 18, 2026." — or why there is no date yet. */
+  expectationLine: string;
+  canRemove: boolean;
+  today: string;
+  /** The edit form's starting values. */
+  lineValues: LineValues;
+  /** The payment form's starting values: what was recorded, or expected-in-full today. */
+  paymentValues: PaymentValues;
+  currency: string;
+};
+
+export type CommissionLineResult =
+  | { ok: true; line: CommissionLineView }
+  | { ok: false; reason: "not-found" | "unavailable" };
+
+export function lineView(r: AgentCommissionLineRow): CommissionLineView {
+  const known = STATUS_BY_VALUE.get(r.status);
+  const expected = cents(r.expected_commission_cents);
+  const isPaid = r.status === "received" || r.status === "disputed";
+  const fee = cents(r.processing_fee_cents);
+
+  const expectedDate = travelDateLabel(r.expected_payment_date);
+  const expectationLine = expectedDate
+    ? commissionExpectedOn(expectedDate)
+    : r.payment_terms === "at_booking"
+      ? COMMISSION_COPY.expectationNotBooked
+      : COMMISSION_COPY.expectationNoEnd;
+
+  return {
+    commissionId: r.commission_id,
+    version: r.version,
+    tripId: r.trip_id,
+    tripTitle: r.trip_title,
+    tripHref: r.trip_archived ? null : `/agent/trips/${r.trip_id}`,
+    tripArchived: r.trip_archived,
+    clientName: r.client_display_name,
+    supplierName: r.supplier_name,
+    heading: `${r.supplier_name} · ${r.trip_title} · ${money(r.expected_commission_cents, r.currency)} expected`,
+    status: r.status,
+    statusChip: known?.chip ?? "unknown",
+    statusLabel: known?.label ?? r.status,
+    isPaid,
+    expectedCents: expected,
+    expectedLabel: money(r.expected_commission_cents, r.currency),
+    paidLine: isPaid && r.received_at
+      ? commissionPaidLine(
+          money(r.received_commission_cents, r.currency),
+          travelDateLabel(r.received_at) ?? r.received_at,
+          fee > 0 ? money(r.processing_fee_cents, r.currency) : null,
+        )
+      : null,
+    termsLine: commissionTermsLine(r.supplier_name, r.payment_terms, r.payment_lag_days),
+    expectationLine,
+    canRemove: r.can_remove,
+    today: r.as_of_date,
+    lineValues: {
+      supplierId: r.supplier_id,
+      gross: centsToDollars(r.gross_booking_cents),
+      rate: String(Number(r.commission_pct)),
+      paymentTerms: r.payment_terms,
+      paymentLagDays: String(r.payment_lag_days),
+      status: r.status,
+      inteletravelReference: r.inteletravel_reference ?? "",
+      notes: r.notes ?? "",
+    },
+    paymentValues: isPaid
+      ? {
+          status: r.status,
+          received: centsToDollars(r.received_commission_cents),
+          fee: centsToDollars(r.processing_fee_cents),
+          receivedAt: r.received_at ?? r.as_of_date,
+        }
+      // Unpaid: the common case is "it all arrived today", so that is the starting point.
+      : { status: "received", received: centsToDollars(expected), fee: "0.00", receivedAt: r.as_of_date },
+    currency: r.currency,
+  };
+}
+
+export async function loadCommissionLine(commissionId: string): Promise<CommissionLineResult> {
+  const res = await callAgentRead<AgentCommissionLineRow>("agent_commission_line", {
+    p_commission_id: commissionId,
+  });
+  if (!res.ok) return { ok: false, reason: "unavailable" };
+  // No row is "not yours", "removed", or "never existed" — deliberately indistinguishable.
+  const row = res.rows[0];
+  return row ? { ok: true, line: lineView(row) } : { ok: false, reason: "not-found" };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §3.7.4 Add
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type TripPick = {
+  tripId: string;
+  title: string;
+  clientName: string;
+  travelLabel: string | null;
+  statusLabel: string;
+};
+
+/**
+ * The trips a line can be filed against: every live trip in the book, whatever its stage —
+ * a cancelled trip can owe a `lost` line, and a completed one is where most lines land.
+ */
+export async function searchTripsForLine(search: string): Promise<TripPick[] | null> {
+  const res = await callAgentRead<AgentTripRosterRow>("agent_trip_roster", {
+    p_status: ["inquiry", "proposal", "booked", "in_progress", "completed", "cancelled"],
+    p_client_id: null,
+    p_search: search.length > 0 ? search : null,
+    p_limit: 25,
+    p_offset: 0,
+  });
+  if (!res.ok) return null;
+  return res.rows.map((r) => ({
+    tripId: r.trip_id,
+    title: r.title,
+    clientName: r.client_display_name,
+    travelLabel: travelDateLabel(r.start_date),
+    statusLabel: r.status.replace("_", " "),
+  }));
+}
+
+export type AddLineForm = {
+  trip: { tripId: string; title: string; clientName: string };
+  suppliers: SupplierGroup[];
+  /** Keyed by supplier id: what that supplier's components on this trip add up to. */
+  prefill: Record<string, SupplierPrefill>;
+};
+
+export type AddLineFormResult =
+  | { ok: true; form: AddLineForm }
+  | { ok: false; reason: "not-found" | "unavailable" };
+
+export async function loadAddLineForm(tripId: string): Promise<AddLineFormResult> {
+  const [overviewRes, componentsRes, suppliers] = await Promise.all([
+    callAgentRead<AgentTripOverviewRow>("agent_trip_overview", { p_trip_id: tripId }),
+    callAgentRead<AgentTripComponentRow>("agent_trip_components", { p_trip_id: tripId }),
+    loadSuppliers(),
+  ]);
+  if (!overviewRes.ok || !componentsRes.ok || !suppliers) return { ok: false, reason: "unavailable" };
+
+  const trip = overviewRes.rows[0];
+  if (!trip) return { ok: false, reason: "not-found" };
+
+  return {
+    ok: true,
+    form: {
+      trip: { tripId: trip.trip_id, title: trip.title, clientName: trip.client_display_name },
+      suppliers,
+      prefill: prefillBySupplier(componentsRes.rows.map((c) => ({
+        supplierId: c.supplier_id,
+        costCents: cents(c.cost_cents),
+        commissionPct: c.commission_pct === null ? null : Number(c.commission_pct),
+      }))),
+    },
   };
 }

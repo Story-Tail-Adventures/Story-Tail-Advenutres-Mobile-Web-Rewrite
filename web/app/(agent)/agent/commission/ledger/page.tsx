@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import MuiLink from "@mui/material/Link";
-import Typography from "@mui/material/Typography";
 
 import { AgentViews } from "@/components/agent/AgentViews";
 import { CommissionHeader } from "@/components/agent/CommissionHeader";
@@ -15,6 +14,7 @@ import NextLink from "@/components/mui/NextLink";
 import { loadCommissionLedger } from "@/lib/agent/commission";
 import {
   isFiltered,
+  ledgerExportHref,
   ledgerHref,
   ledgerQueryFromParams,
   type LedgerParams,
@@ -37,9 +37,9 @@ import { AGENT_COMMISSION_VIEWS } from "@/lib/agent/nav";
  * ENTRY POINTS (Screen Inventory §3.7.2): the Dashboard view strip, and Trip Detail's cost
  * card, which arrives with `?trip=` and gets a removable "One trip" chip here.
  *
- * Stage 1 is read-only. The trip title links to Trip Detail (unless the trip is archived —
- * its line stays, as a tax record, but the trip page will not open); opening a LINE is
- * §3.7.3, and the footer says so.
+ * Each row opens its LINE (§3.7.3, since Stage 2) — archived trip or not, because the line
+ * stays a tax record even when its trip page will not open. "Add line" (§3.7.4) and Export
+ * are live; Export carries the current filters.
  */
 
 export const metadata = { title: "Commission ledger" };
@@ -59,7 +59,22 @@ export default async function CommissionLedgerPage({
         title={COMMISSION_COPY.ledgerTitle}
         subtitle={COMMISSION_COPY.ledgerSubtitle}
         actions={[
-          { label: COMMISSION_COPY.exportLabel, reason: COMMISSION_COPY.exportDeferred, icon: "download" },
+          // §3.7.4 from the ledger: with the one-trip view's trip already chosen, if there is one.
+          {
+            label: COMMISSION_COPY.addLineLabel,
+            href: query.tripId
+              ? `/agent/commission/ledger/new?trip=${query.tripId}`
+              : "/agent/commission/ledger/new",
+            icon: "plus",
+            primary: true,
+          },
+          // The CURRENT filters ride along: the file is what the screen shows, all pages of it.
+          {
+            label: COMMISSION_COPY.exportLabel,
+            href: ledgerExportHref(query),
+            icon: "download",
+            download: true,
+          },
         ]}
       />
     </>
@@ -122,9 +137,6 @@ export default async function CommissionLedgerPage({
       ) : (
         <>
           <CommissionLedgerTable rows={ledger.rows} />
-          <Typography component="p" variant="body2" sx={{ mt: 1, color: "text.secondary", opacity: 0.8 }}>
-            {COMMISSION_COPY.lineDetailDeferred}
-          </Typography>
           <RosterPagination
             hrefFor={(p) => ledgerHref({ ...query, page: p })}
             page={ledger.page}

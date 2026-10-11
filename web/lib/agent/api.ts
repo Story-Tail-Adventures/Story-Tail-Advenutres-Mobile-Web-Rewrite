@@ -69,7 +69,10 @@ export type AgentRead =
   | "agent_commission_ledger_summary"
   | "agent_commission_ledger_suppliers"
   | "agent_commission_dashboard"
-  | "agent_commission_monthly";
+  | "agent_commission_monthly"
+  // §3.7.3. One line, through the same scope as the ledger, so a removed line or one whose
+  // two agent ids disagree is no row here either.
+  | "agent_commission_line";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -251,6 +254,9 @@ export type AgentSupplierRow = {
   name: string;
   kind: string;
   default_commission_pct: number | null;
+  /** §3.7.4's prefill, since 20261011120000. NULL = varies or not on file. */
+  commission_payment_terms: string | null;
+  commission_payment_lag_days: number | null;
 };
 
 export type AgentTripItineraryMetaRow = {
@@ -617,6 +623,39 @@ export type AgentCommissionDashboardRow = {
   prior_12_cents: string;
 };
 
+/** §3.7.3's one line. Money is a digit-string; `commission_pct` is a JSON number. */
+export type AgentCommissionLineRow = {
+  commission_id: string;
+  trip_id: string;
+  trip_title: string;
+  trip_status: string;
+  trip_archived: boolean;
+  trip_start_date: string | null;
+  trip_end_date: string | null;
+  booked_on: string | null;
+  client_id: string;
+  client_display_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  gross_booking_cents: string;
+  commission_pct: number;
+  expected_commission_cents: string;
+  processing_fee_cents: string;
+  received_commission_cents: string;
+  currency: string;
+  payment_terms: string;
+  payment_lag_days: number;
+  /** NULL when the anchor date is not known yet — no end date, or never booked. */
+  expected_payment_date: string | null;
+  status: string;
+  received_at: string | null;
+  inteletravel_reference: string | null;
+  notes: string | null;
+  version: number;
+  can_remove: boolean;
+  as_of_date: string;
+};
+
 export type AgentCommissionMonthRow = {
   month_start: string;
   received_cents: string;
@@ -673,7 +712,10 @@ export type AgentFunction =
   // which is the reason every agent write on this surface is a function.
   | "agent-client-notes"
   // §3.3.9 / §3.3.10 / §3.3.12 and §3.3.1's bulk tag — one function, four ops.
-  | "agent-client";
+  | "agent-client"
+  // §3.7.3 / §3.7.4 and §3.7.2's export. Each SQL write audits itself in the same
+  // transaction; the function supplies the audit id, ip and user agent.
+  | "agent-commission";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

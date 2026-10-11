@@ -4,6 +4,7 @@ import {
   COMMISSION_STATUS_FILTERS,
   EMPTY_LEDGER_QUERY,
   isFiltered,
+  ledgerExportHref,
   ledgerHref,
   ledgerQueryFromParams,
 } from "./commissionFilters";
@@ -101,6 +102,12 @@ describe("ledgerHref", () => {
         page: params.get("page") ?? undefined,
       }),
     ).toEqual({ ...query, statuses: ["received", "disputed"] });
+  });
+
+  it("exports with the same filters, and every page — no `page` in the export URL", () => {
+    expect(ledgerExportHref({ ...EMPTY_LEDGER_QUERY, statuses: ["lost"], page: 3 }))
+      .toBe("/agent/commission/ledger/export?status=lost");
+    expect(ledgerExportHref(EMPTY_LEDGER_QUERY)).toBe("/agent/commission/ledger/export");
   });
 
   it("leaves page 1 out of the URL", () => {

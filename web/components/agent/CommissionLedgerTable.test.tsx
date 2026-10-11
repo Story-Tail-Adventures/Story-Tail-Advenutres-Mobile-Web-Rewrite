@@ -18,6 +18,7 @@ import { renderWithTheme } from "@/test/render";
 function row(over: Partial<LedgerRow> = {}): LedgerRow {
   return {
     commissionId: "l1",
+    lineHref: "/agent/commission/ledger/l1",
     tripTitle: "Getaway #2",
     tripHref: "/agent/trips/t1",
     tripArchived: false,
@@ -35,22 +36,30 @@ function row(over: Partial<LedgerRow> = {}): LedgerRow {
 }
 
 describe("CommissionLedgerTable", () => {
-  it("links a live trip's title to its detail page", () => {
+  it("opens the LINE from each row (§3.7.3), not the trip", () => {
     renderWithTheme(<CommissionLedgerTable rows={[row()]} />);
     expect(screen.getByRole("link", { name: "Getaway #2" })).toHaveAttribute(
       "href",
-      "/agent/trips/t1",
+      "/agent/commission/ledger/l1",
     );
   });
 
-  it("renders an archived trip's title as text, and says it is archived", () => {
+  it("still opens the line of an archived trip, and says the trip is archived", () => {
+    // The line is a tax record and stays reachable; only Trip Detail will not open.
     renderWithTheme(
       <CommissionLedgerTable
-        rows={[row({ tripTitle: "Cabo, cancelled", tripHref: null, tripArchived: true })]}
+        rows={[row({
+          tripTitle: "Cabo, cancelled",
+          tripHref: null,
+          tripArchived: true,
+          lineHref: "/agent/commission/ledger/l9",
+        })]}
       />,
     );
-    expect(screen.queryByRole("link", { name: /Cabo/ })).toBeNull();
-    expect(screen.getByText("Cabo, cancelled")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Cabo, cancelled" })).toHaveAttribute(
+      "href",
+      "/agent/commission/ledger/l9",
+    );
     expect(screen.getByText(/Noah Castillo · Archived/)).toBeInTheDocument();
   });
 

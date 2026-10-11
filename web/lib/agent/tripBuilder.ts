@@ -20,6 +20,9 @@ export type SupplierOption = {
   kindLabel: string;
   /** Null when the supplier has no rate on file, which is different from a rate of zero. */
   defaultCommissionPct: number | null;
+  /** §3.7.4's prefill: the supplier's usual terms. Null = varies or not on file. */
+  paymentTerms: string | null;
+  paymentLagDays: number | null;
 };
 
 export type SupplierGroup = { kindLabel: string; suppliers: SupplierOption[] };
@@ -76,6 +79,8 @@ export async function loadSuppliers(): Promise<SupplierGroup[] | null> {
       name: row.name,
       kindLabel: label,
       defaultCommissionPct: row.default_commission_pct,
+      paymentTerms: row.commission_payment_terms,
+      paymentLagDays: row.commission_payment_lag_days,
     });
   }
   return groups;
