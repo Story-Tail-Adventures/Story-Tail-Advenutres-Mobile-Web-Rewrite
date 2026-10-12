@@ -119,6 +119,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final) |
 | Commission | Commission | P1 | Expected/received commission per trip per supplier |
 | CommissionImport | Commission | P1 | Batch record for an Inteletravel CSV import |
+| CommissionImportRow | Commission | P1 | One line of an imported statement, its match, and the advisor's decision (added 20261012120000) |
 | Lead | Lead | P2 | Quote request originating from public search |
 | LeadSource | Lead | P2 | Origin of a lead (search inspiration tile, ad, referral) |
 | Conversation | Communication | P1 | Threaded conversation between client and agent |
@@ -1734,7 +1735,7 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 
 **A trip with no row here has not been invoiced yet. That is a state, not a gap** — 16 of 22 revenue trips in the seed are deliberately in it.
 
-**Producers.** §3.7.3 (edit, mark received, remove) and §3.7.4 (manual entry) since 20261011120000, through `agent_create_commission`, `agent_update_commission`, `agent_record_commission_payment` and `agent_remove_commission` — service-role only, reached through the `agent-commission` Edge Function. §3.7.5 (Inteletravel CSV import) is still unbuilt.
+**Producers.** §3.7.3 (edit, mark received, remove) and §3.7.4 (manual entry) since 20261011120000, through `agent_create_commission`, `agent_update_commission`, `agent_record_commission_payment` and `agent_remove_commission` — service-role only, reached through the `agent-commission` Edge Function. §3.7.6 (reconciling an imported Inteletravel statement) since 20261012120000, through `agent_reconcile_commission_import` (see §10.2).
 
 **Every write records its `audit_event` in the same transaction** (`commission_audit()`), the first writes on the agent surface to do so: a failed audit insert takes the change with it. The edit audits before AND after for every financial field; notes are recorded only as changed or not, never their text. The export (`agent_export_commission`) writes one `commission.exported` row with its filters and row count in the same call that returns the rows (§18.3, "any bulk client list export").
 
@@ -1753,16 +1754,85 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | — |
+| `agent_id` | `uuid` | No | Public | FK → Agent. Added 20261012120000: every other §3.7 row is scoped by agent, and `imported_by_user_id` alone names a login, not a book |
 | `imported_by_user_id` | `uuid` | No | Public | FK → User (agent) |
 | `source` | `text` | No | Internal | `inteletravel_csv` (extensible) |
 | `original_filename` | `text` | No | Internal | — |
-| `document_id` | `uuid` | No | Public | FK → Document (the stored CSV) |
-| `total_rows` | `integer` | No | Internal | — |
-| `matched_rows` | `integer` | No | Internal | — |
-| `unmatched_rows` | `integer` | No | Internal | — |
-| `period_start` | `date` | Yes | Internal | The statement period |
+| `document_id` | `uuid` | No | Public | FK → Document (the stored CSV, kind `csv_import`, in the private `commission-statements` bucket). NOT NULL since 20261012120000 |
+| `checksum_sha256` | `bytea` | No | Internal | Of the file as uploaded. **Unique per agent among imports that are not discarded**, so the same statement cannot be imported twice |
+| `headers` | `text[]` | No | Internal | The CSV's header row, in order |
+| `column_map` | `jsonb` | No | Internal | Platform field → header index, e.g. `{"reference": 0, "received": 3}`. Guessed at upload (from the advisor's last statement first, then from the header names); confirmed on the mapping screen |
+| `statement_date` | `date` | Yes | Internal | The paid-on date for every row, when no column carries one |
+| `status` | `commission_import_status` enum | No | Internal | `mapping` → `review` → `reconciled`; or `discarded` |
+| `version` | `integer` | No | Public | Optimistic lock: every map, decision, reconcile and discard bumps it |
+| `total_rows` | `integer` | No | Internal | Data rows in the file, 1 to 1,000 |
+| `matched_rows` | `integer` | No | Internal | Rows tied to a ledger line (while in review: the matcher's count; once reconciled: lines paid, lines created, and rows already recorded) |
+| `unmatched_rows` | `integer` | No | Internal | The rest |
+| `period_start` | `date` | Yes | Internal | The statement period: the earliest paid-on date among its rows |
 | `period_end` | `date` | Yes | Internal | — |
+| `reconciled_at` | `timestamptz` | Yes | Public | When "Mark as reconciled" applied it |
 | `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Built 20261012120000 (§3.7 Stage 3).** Producers: the `commission-import` Edge Function, through service-role SQL functions `agent_upload_commission_statement`, `agent_map_commission_import`, `agent_resolve_commission_import_row`, `agent_reconcile_commission_import` and `agent_discard_commission_import`. Readers: `agent_commission_imports()`, `agent_commission_import()`, `agent_commission_import_rows()` and `agent_commission_import_candidates()`, SECURITY DEFINER accessors like the rest of §3.7. No client role can read or write the table.
+
+**Gyasi's rulings (2026-10-11):**
+- **CSV only.** Inteletravel gives a CSV download; no spreadsheet parser, which would need a security review.
+- **A row that matches a line already Received or Disputed never changes it.** The row is shown as already recorded, with any difference flagged for the advisor to fix by hand. This is also what keeps §18.4's MFA step-up out of scope: the step-up is required for an import that AFFECTS received commissions, and this one cannot. **If an import is ever allowed to update a paid line, the step-up comes back with it.**
+- **One statement row per booking.** A second row for a booking already matched in the same file is flagged as a duplicate, never summed.
+- **An unmatched row can become a new line**: the advisor picks the trip, and reconciling creates the line already paid, filled in from the row.
+
+**Nothing touches the ledger until "Mark as reconciled".** Upload, mapping and each decision change only these two tables. Reconcile then applies every decision in one transaction, with one `audit_event` per ledger line it pays or creates and one for the statement, through the same `commission_audit()` as Stage 2: if any audit row fails, nothing lands. Uploads and discards are audited too; mapping and the per-row decisions are not, because they change nothing outside the statement and reconcile's audit rows record the decision that took effect (the row and how it was matched).
+
+**Reconcile re-checks every decision against the ledger as it is now, under lock.** Reconciles of one advisor take turns (an advisory lock), and every line a confirmed row pays is locked before anything is read. Then:
+- a confirmed row whose line has since been **paid by hand** becomes already recorded, and the line keeps what the advisor recorded;
+- a row whose line was **removed**, or whose new line's trip or supplier is gone, goes back to needing a decision;
+- a confirmed row whose line now carries a **different reference** goes back to needing a decision (that line is another booking's);
+- a row whose reference is **already on another line** (put there by hand, or by another statement reconciled first) is pointed at that line: already recorded if it is paid, otherwise a suggestion to confirm. Two statements each creating the same booking counted its money twice before this (found in review);
+- a second row in the same statement paying or creating for the **same booking** is a duplicate again.
+
+Any of these stops the reconcile with the rows that need the advisor at the top of the screen.
+
+**What the matcher will not confirm on its own.** A reference shorter than four characters is not a key (it neither matches nor makes a duplicate). A supplier confirmation number whose row names a different supplier is only a suggestion: confirmation numbers are short and reused, and review found a $2 row from another supplier confirmed onto a $1,212 line. Amounts are capped at $99,999,999.99, the cap hand entry has. Both lookups are indexed on `commission_ref_key()` (a 1,000-row statement against a large book went from 18 seconds to under one).
+
+**A discarded statement's file is deleted from the bucket**; its `document` row stays, archived, as the record that it existed.
+
+### 10.3 CommissionImportRow
+
+**Phase:** P1. Added 20261012120000: the Data Model had nowhere to keep an imported row that matched nothing, and screen 3.7.6 lists them.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | v7, minted by the Edge Function |
+| `import_id` | `uuid` | No | Public | FK → CommissionImport |
+| `row_number` | `integer` | No | Public | 1 = the first data row under the header. Unique per import |
+| `cells` | `text[]` | No | PII | The row exactly as the file had it, aligned to `headers`. Statements carry traveler names |
+| `reference` | `text` | Yes | Internal | The booking reference, per the column map |
+| `supplier_text` | `text` | Yes | Internal | The supplier as the statement names it |
+| `traveler_text` | `text` | Yes | PII | The traveler as the statement names it |
+| `gross_cents` | `bigint` | Yes | Internal | — |
+| `received_cents` | `bigint` | Yes | Internal | What Inteletravel paid on this row. Required for a row to be readable, and more than $0 |
+| `fee_cents` | `bigint` | Yes | Internal | What the host agency kept, when the statement shows it |
+| `paid_on` | `date` | Yes | Internal | The row's own date, or the statement date; never in the advisor's future |
+| `currency` | `char(3)` | No | Internal | `USD` (BRD §2) |
+| `parse_error` | `text` | Yes | Internal | Why the row could not be read, in words the screen shows |
+| `state` | `commission_import_row_state` enum | No | Internal | See below |
+| `match_basis` | `commission_match_basis` enum | No | Internal | How the line was found: `reference` (already on a line), `confirmation` (a booking's supplier confirmation number), `supplier_and_traveler` (supplier name, traveler last name and a close amount), `manual`, or `none` |
+| `suggested_commission_id` | `uuid` | Yes | Public | FK → Commission. The matcher's pick, kept so "use the suggestion" survives a change of mind |
+| `commission_id` | `uuid` | Yes | Public | FK → Commission. The line this row pays (`confirmed`), already paid (`already_recorded`), or created (`to_create`, once reconciled) |
+| `new_trip_id` | `uuid` | Yes | Public | FK → Trip. For `to_create` |
+| `new_supplier_id` | `uuid` | Yes | Public | FK → Supplier. For `to_create` |
+| `new_gross_cents` | `bigint` | Yes | Internal | For `to_create` |
+| `new_commission_pct` | `numeric(5,2)` | Yes | Internal | For `to_create` |
+| `new_commission_id` | `uuid` | Yes | Public | The id the created line will take, minted when the advisor chose to create it |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**States.** `confirmed` (pays its line on reconcile; set by a `reference` or `confirmation` match, or by the advisor), `suggested` (a `supplier_and_traveler` match the advisor must confirm), `unmatched`, `duplicate` (a second row for a booking already matched in this file), `unreadable` (has a `parse_error`), `already_recorded` (its line is already paid; never changed), `to_create` and `ignored`. Reconcile refuses while any row is `suggested`, `unmatched`, `duplicate` or `unreadable`: every row is accounted for before money moves.
+
+**Indexes:** unique `(import_id, row_number)`; **partial unique `(import_id, commission_id) WHERE state = 'confirmed'`**, so two rows can never both pay one line.
+
+**What reconcile does to a confirmed row's line:** status `received`, or `disputed` when `expected − fee − received` is above zero; the row's amount, fee (0 when the statement has none) and paid-on date; the row's reference, when the line has none and no other line holds it; and `import_id`. A created line takes its trip, supplier, gross and rate from the advisor's choice, its terms from the supplier's defaults (`after_travel`, 0 days when the supplier has none), and its payment from the row.
 
 ---
 
@@ -2134,6 +2204,9 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `auth_request_status` | `pending`, `completed`, `expired`, `cancelled` | AuthorizationRequest |
 | `commission_status` | `expected`, `invoiced`, `received`, `disputed`, `lost` | Commission |
 | `commission_payment_terms` | `at_booking`, `after_travel` | Commission, Supplier |
+| `commission_import_status` | `mapping`, `review`, `reconciled`, `discarded` | CommissionImport |
+| `commission_import_row_state` | `confirmed`, `suggested`, `unmatched`, `duplicate`, `unreadable`, `already_recorded`, `to_create`, `ignored` | CommissionImportRow |
+| `commission_match_basis` | `reference`, `confirmation`, `supplier_and_traveler`, `manual`, `none` | CommissionImportRow |
 | `lead_status` | `new`, `contacted`, `qualified`, `converted`, `lost` | Lead |
 | `lead_source_kind` | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` | LeadSource |
 | `document_kind` | `passport`, `visa`, `insurance_cert`, `supplier_confirmation`, `receipt`, `photo`, `csv_import`, `pdf_proposal`, `pdf_itinerary`, `other` | Document |
