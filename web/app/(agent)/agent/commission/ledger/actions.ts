@@ -54,6 +54,11 @@ function lineBody(values: LineValues) {
   };
 }
 
+/** Signed out mid-form: back through sign-in to the page the advisor was on. */
+function toSignIn(path: string): never {
+  redirect(`/login?next=${encodeURIComponent(path)}`);
+}
+
 /** A 200 outcome that belongs against a field rather than at the top of the form. */
 function outcomeErrors(outcome: unknown): LineFormState["fieldErrors"] | null {
   if (outcome === "duplicate_reference") return { inteletravelReference: COMMISSION_COPY.duplicateReference };
@@ -64,9 +69,9 @@ function outcomeErrors(outcome: unknown): LineFormState["fieldErrors"] | null {
 /** 3.7.4. On success the advisor lands on the new line. */
 export async function createLineAction(_prev: LineFormState, form: FormData): Promise<LineFormState> {
   const tripId = (form.get("tripId") ?? "").toString();
-  if (!tripId) return { formError: COMMISSION_COPY.failed };
-
   const values = lineValuesFromForm(form);
+  if (!tripId) return { formError: COMMISSION_COPY.failed, values };
+
   const fieldErrors = validateLine(values);
   if (fieldErrors) return { fieldErrors, values };
 
@@ -78,6 +83,7 @@ export async function createLineAction(_prev: LineFormState, form: FormData): Pr
   });
 
   if (!call.ok) {
+    if (call.kind === "unauthenticated") toSignIn(`/agent/commission/ledger/new?trip=${tripId}`);
     return {
       formError: call.kind === "rejected" ? (call.detail ?? COMMISSION_COPY.failed) : COMMISSION_COPY.failed,
       values,
@@ -97,9 +103,9 @@ export async function updateLineAction(_prev: LineFormState, form: FormData): Pr
   const commissionId = (form.get("commissionId") ?? "").toString();
   const tripId = (form.get("tripId") ?? "").toString();
   const expectedVersion = Number.parseInt((form.get("version") ?? "").toString(), 10);
-  if (!commissionId || !Number.isFinite(expectedVersion)) return { formError: COMMISSION_COPY.failed };
-
   const values = lineValuesFromForm(form);
+  if (!commissionId || !Number.isFinite(expectedVersion)) return { formError: COMMISSION_COPY.failed, values };
+
   const fieldErrors = validateLine(values);
   if (fieldErrors) return { fieldErrors, values };
 
@@ -108,10 +114,13 @@ export async function updateLineAction(_prev: LineFormState, form: FormData): Pr
     commissionId,
     expectedVersion,
     status: values.status,
+    // Only the required checkbox sends this. The server refuses to wipe a payment without it.
+    clearPayment: form.get("clearPayment") === "true",
     ...lineBody(values),
   });
 
   if (!call.ok) {
+    if (call.kind === "unauthenticated") toSignIn(linePath(commissionId));
     if (call.conflict) return { formError: COMMISSION_COPY.stale, values };
     return {
       formError: call.kind === "rejected" ? (call.detail ?? COMMISSION_COPY.failed) : COMMISSION_COPY.failed,
@@ -121,6 +130,7 @@ export async function updateLineAction(_prev: LineFormState, form: FormData): Pr
 
   const outcomeFieldErrors = outcomeErrors(call.data.outcome);
   if (outcomeFieldErrors) return { fieldErrors: outcomeFieldErrors, values };
+  if (call.data.outcome === "payment_would_clear") return { formError: COMMISSION_COPY.clearsPayment, values };
 
   // Changed or a no-op alike: reload the line, so the form holds the server's version.
   revalidateCommission(commissionId, tripId || null);
@@ -134,12 +144,11 @@ export async function recordPaymentAction(
 ): Promise<PaymentFormState> {
   const commissionId = (form.get("commissionId") ?? "").toString();
   const tripId = (form.get("tripId") ?? "").toString();
-  const today = (form.get("today") ?? "").toString();
   const expectedVersion = Number.parseInt((form.get("version") ?? "").toString(), 10);
-  if (!commissionId || !Number.isFinite(expectedVersion)) return { formError: COMMISSION_COPY.failed };
-
   const values = paymentValuesFromForm(form);
-  const fieldErrors = validatePayment(values, today);
+  if (!commissionId || !Number.isFinite(expectedVersion)) return { formError: COMMISSION_COPY.failed, values };
+
+  const fieldErrors = validatePayment(values);
   if (fieldErrors) return { fieldErrors, values };
 
   const call = await callAgentFunction("agent-commission", {
@@ -153,6 +162,7 @@ export async function recordPaymentAction(
   });
 
   if (!call.ok) {
+    if (call.kind === "unauthenticated") toSignIn(linePath(commissionId));
     if (call.conflict) return { formError: COMMISSION_COPY.stale, values };
     return {
       formError: call.kind === "rejected" ? (call.detail ?? COMMISSION_COPY.failed) : COMMISSION_COPY.failed,
@@ -167,16 +177,18 @@ export async function recordPaymentAction(
   redirect(linePath(commissionId));
 }
 
+export type RemoveState = { formError?: string };
+
 /**
- * Remove a line entered by mistake. A PLAIN FORM POST: there is nothing to type, and a refusal
- * (`not_removable`, `stale`) leaves the line in place — the page re-renders it as it is, which
- * is the honest answer.
+ * Remove a line entered by mistake. Through `useActionState` so a refusal says so in the
+ * dialog — the first version redirected back to the same page on `stale` or
+ * `not_removable`, and the dialog closed over an unchanged line with no word of why.
  */
-export async function removeLineAction(form: FormData): Promise<void> {
+export async function removeLineAction(_prev: RemoveState, form: FormData): Promise<RemoveState> {
   const commissionId = (form.get("commissionId") ?? "").toString();
   const tripId = (form.get("tripId") ?? "").toString();
   const expectedVersion = Number.parseInt((form.get("version") ?? "").toString(), 10);
-  if (!commissionId || !Number.isFinite(expectedVersion)) return;
+  if (!commissionId || !Number.isFinite(expectedVersion)) return { formError: COMMISSION_COPY.failed };
 
   const call = await callAgentFunction("agent-commission", {
     op: "remove",
@@ -184,7 +196,10 @@ export async function removeLineAction(form: FormData): Promise<void> {
     expectedVersion,
   });
 
-  revalidateCommission(commissionId, tripId || null);
-  if (call.ok && call.data.outcome === "removed") redirect("/agent/commission/ledger");
-  redirect(linePath(commissionId));
+  if (!call.ok && call.kind === "unauthenticated") toSignIn(linePath(commissionId));
+  if (call.ok && call.data.outcome === "removed") {
+    revalidateCommission(commissionId, tripId || null);
+    redirect("/agent/commission/ledger");
+  }
+  return { formError: call.ok || call.conflict ? COMMISSION_COPY.removeRefused : COMMISSION_COPY.failed };
 }

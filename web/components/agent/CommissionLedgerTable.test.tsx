@@ -38,7 +38,8 @@ function row(over: Partial<LedgerRow> = {}): LedgerRow {
 describe("CommissionLedgerTable", () => {
   it("opens the LINE from each row (§3.7.3), not the trip", () => {
     renderWithTheme(<CommissionLedgerTable rows={[row()]} />);
-    expect(screen.getByRole("link", { name: "Getaway #2" })).toHaveAttribute(
+    // Named by trip AND supplier: two suppliers on one trip are two links.
+    expect(screen.getByRole("link", { name: "Getaway #2 · Sandals Resorts" })).toHaveAttribute(
       "href",
       "/agent/commission/ledger/l1",
     );
@@ -56,7 +57,7 @@ describe("CommissionLedgerTable", () => {
         })]}
       />,
     );
-    expect(screen.getByRole("link", { name: "Cabo, cancelled" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Cabo, cancelled/ })).toHaveAttribute(
       "href",
       "/agent/commission/ledger/l9",
     );
@@ -68,8 +69,9 @@ describe("CommissionLedgerTable", () => {
     const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
     expect(headers).toEqual(["Trip · client", "Supplier", "Travel", "Gross", "Rate", "Comm", "Status"]);
     const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    // The supplier rides in the link as visually hidden text, for the link's accessible name.
     expect(within(screen.getAllByRole("row")[1]).getByRole("rowheader").textContent).toBe(
-      "Getaway #2Noah Castillo",
+      "Getaway #2 · Sandals ResortsNoah Castillo",
     );
     expect(cells.map((c) => c.textContent)).toEqual([
       "Sandals Resorts",

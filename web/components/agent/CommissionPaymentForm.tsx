@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -32,8 +32,13 @@ import { formatTripMoney } from "@/lib/trips/money";
  * themselves, after which it stops second-guessing them. A payment can land short for a
  * reason Gyasi already knows about; the suggestion is a nudge, not a rule.
  *
- * The date defaults to the advisor's today and cannot be later: the server refuses a future
- * date too, because every money figure on the dashboard stops at today.
+ * The date defaults to the advisor's today and cannot be later — the SERVER decides that, in
+ * the advisor's zone, so a tab left open past midnight is not refused the real today.
+ *
+ * THE FORM IS NOT ALLOWED TO RESET, for the reason CommissionLineForm gives — and here it was
+ * worse: MUI's Radio takes its default from the first render, so after a refused save the
+ * DOM showed Received while state said Disputed, and the next save recorded a short payment
+ * as received in full. Submit is intercepted and dispatched in a transition instead.
  */
 export function CommissionPaymentForm({
   commissionId,
@@ -66,6 +71,12 @@ export function CommissionPaymentForm({
 
   const gap = previewGapCents(expectedCents, received, fee);
 
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startTransition(() => formAction(data));
+  }
+
   function suggest(nextReceived: string, nextFee: string) {
     if (statusChosen) return;
     const g = previewGapCents(expectedCents, nextReceived, nextFee);
@@ -73,11 +84,10 @@ export function CommissionPaymentForm({
   }
 
   return (
-    <Box component="form" action={formAction}>
+    <Box component="form" action={formAction} onSubmit={onSubmit}>
       <input type="hidden" name="commissionId" value={commissionId} />
       <input type="hidden" name="tripId" value={tripId} />
       <input type="hidden" name="version" value={version} />
-      <input type="hidden" name="today" value={today} />
 
       {state.formError && (
         <Box sx={{ mb: 1.5 }}>
@@ -104,11 +114,16 @@ export function CommissionPaymentForm({
           onChange={(v) => { setFee(v); suggest(received, v); }}
         />
 
-        {gap !== null && (
-          <Typography component="p" variant="body2" role="status" sx={{ color: gap > 0 ? "warning.main" : "text.secondary" }}>
-            {commissionGapLine(gap, formatTripMoney(Math.abs(gap), currency))}
-          </Typography>
-        )}
+        {/* The live region is always in the DOM; only its words change. A region inserted
+            with its content already in it is not reliably announced. */}
+        <Typography
+          component="p"
+          variant="body2"
+          role="status"
+          sx={{ color: "text.primary", fontWeight: gap !== null && gap > 0 ? 600 : 400, minHeight: "1.5em" }}
+        >
+          {gap === null ? "" : commissionGapLine(gap, formatTripMoney(Math.abs(gap), currency))}
+        </Typography>
 
         <DateField
           id="pay-received-at"

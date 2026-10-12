@@ -64,6 +64,16 @@ $$;
 -- `commission` is closed to every client role. An expectation read AFTER becoming the agent
 -- would be a privilege error at best and zero rows at worst — and zero equals zero.
 
+-- A REMOVED line on Gyasi's own trip (Stage 2's soft remove). It must count nowhere: not in
+-- the ledger, the chips, the supplier filter or any tile. Planted before the oracle is taken,
+-- and the oracle excludes it the way the accessors must.
+INSERT INTO public.commission (id, trip_id, agent_id, supplier_id, gross_booking_cents,
+    commission_pct, expected_commission_cents, received_commission_cents, currency, payment_terms,
+    status, received_at, archived_at)
+VALUES ('0c7a0000-0000-7000-8000-0000000000ad', '0195a2c0-1a00-7000-8000-000000000302',
+        :agent::uuid, :allianz::uuid, 999900, 10.00, 99990, 0, 'USD', 'after_travel',
+        'expected', NULL, now());
+
 CREATE TEMP TABLE expected AS
 SELECT count(*)                                         AS lines,
        count(*) FILTER (WHERE c.status = 'expected')    AS expected_n,
@@ -76,7 +86,8 @@ SELECT count(*)                                         AS lines,
   FROM public.commission c
   JOIN public.trip t ON t.id = c.trip_id
  WHERE c.agent_id = :agent::uuid
-   AND t.agent_id = :agent::uuid;
+   AND t.agent_id = :agent::uuid
+   AND c.archived_at IS NULL;
 
 -- A travel range whose two ENDS are real trip start dates (the 2nd and 2nd-to-last distinct
 -- ones), and the owner's count of lines inside it, edges included.
@@ -86,10 +97,11 @@ UPDATE expected e SET range_from = r.lo, range_to = r.hi
           FROM (SELECT DISTINCT t.start_date AS d
                   FROM public.commission c JOIN public.trip t ON t.id = c.trip_id
                  WHERE c.agent_id = :agent::uuid AND t.agent_id = :agent::uuid
-                   AND t.start_date IS NOT NULL) x) r;
+                   AND c.archived_at IS NULL AND t.start_date IS NOT NULL) x) r;
 UPDATE expected e SET in_range = (
     SELECT count(*) FROM public.commission c JOIN public.trip t ON t.id = c.trip_id
      WHERE c.agent_id = :agent::uuid AND t.agent_id = :agent::uuid
+       AND c.archived_at IS NULL
        AND t.start_date BETWEEN e.range_from AND e.range_to);
 
 GRANT SELECT ON expected TO authenticated;
@@ -150,6 +162,12 @@ SELECT pg_temp.assert(
     (SELECT total_count FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 5, 0)
       LIMIT 1) = (SELECT lines FROM expected),
     'total_count is the count BEFORE the page window');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0)
+                 WHERE commission_id = '0c7a0000-0000-7000-8000-0000000000ad')
+    AND (SELECT count(*) FROM public.agent_commission_line('0c7a0000-0000-7000-8000-0000000000ad')) = 0,
+    'a REMOVED line is in neither the ledger nor the detail read');
 
 SELECT pg_temp.assert(
     (SELECT s.expected_count = e.expected_n AND s.invoiced_count = e.invoiced_n

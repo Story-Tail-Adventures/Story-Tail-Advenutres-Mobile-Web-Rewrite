@@ -53,6 +53,11 @@ describe("validateLine", () => {
     expect(validateLine(VALID)).toBeNull();
   });
 
+  it("refuses a BLANK gross rather than saving a $0 line, but allows a typed 0", () => {
+    expect(validateLine({ ...VALID, gross: "" })).toEqual({ gross: "Enter an amount like 6480.00." });
+    expect(validateLine({ ...VALID, gross: "0" })).toBeNull();
+  });
+
   it("names each bad field", () => {
     expect(validateLine({ ...VALID, supplierId: "", gross: "6.4.8", rate: "101", paymentLagDays: "1.5" }))
       .toEqual({
@@ -118,6 +123,15 @@ describe("prefillBySupplier", () => {
     expect(out.allianz).toEqual({ grossCents: 20000, rate: null });
   });
 
+  it("offers no rate when only SOME components carry one, rather than averaging over part", () => {
+    // An average of the rated ones applied to the whole gross would assume the unrated ones
+    // earn it too, and overstate Expected.
+    expect(prefillBySupplier([
+      { supplierId: "s", costCents: 100000, commissionPct: 12 },
+      { supplierId: "s", costCents: 100000, commissionPct: null },
+    ]).s).toEqual({ grossCents: 200000, rate: null });
+  });
+
   it("ignores components that name no supplier, rather than guessing", () => {
     expect(prefillBySupplier([{ supplierId: null, costCents: 500000, commissionPct: 12 }])).toEqual({});
   });
@@ -126,10 +140,20 @@ describe("prefillBySupplier", () => {
 describe("the payment form", () => {
   const OK = { status: "received", received: "970.00", fee: "0", receivedAt: "2026-10-01" };
 
-  it("refuses a date after the advisor's today", () => {
-    expect(validatePayment({ ...OK, receivedAt: "2026-10-12" }, "2026-10-11"))
-      .toEqual({ receivedAt: "Use today or an earlier date." });
-    expect(validatePayment({ ...OK, receivedAt: "2026-10-11" }, "2026-10-11")).toBeNull();
+  it("accepts a well-formed payment, and leaves 'is it in the future' to the server", () => {
+    // The server decides in the advisor's zone; a render-time "today" went stale past midnight.
+    expect(validatePayment(OK)).toBeNull();
+    expect(validatePayment({ ...OK, receivedAt: "2099-01-01" })).toBeNull();
+    expect(validatePayment({ ...OK, receivedAt: "Oct 1" })).toEqual({ receivedAt: "Use today or an earlier date." });
+  });
+
+  it("refuses a blank amount instead of reading it as $0", () => {
+    expect(validatePayment({ ...OK, received: "" })).toEqual({ received: "Enter an amount like 970.00." });
+  });
+
+  it("refuses Received with nothing received, and allows a $0 Disputed", () => {
+    expect(validatePayment({ ...OK, received: "0" })?.received).toMatch(/^Received needs the amount/);
+    expect(validatePayment({ ...OK, status: "disputed", received: "0" })).toBeNull();
   });
 
   it("shows the gap the reconciliation will see: expected − fee − received", () => {

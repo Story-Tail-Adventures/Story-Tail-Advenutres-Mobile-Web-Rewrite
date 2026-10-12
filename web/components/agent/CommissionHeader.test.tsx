@@ -23,9 +23,11 @@ describe("CommissionHeader", () => {
       />,
     );
     expect(screen.getByRole("link", { name: "Add line" })).toHaveAttribute("href", "/agent/commission/ledger/new");
-    // `download` on the anchor: the browser saves the file instead of navigating, and no
-    // client router ever prefetches it (a prefetch would write an export audit row).
-    expect(screen.getByRole("link", { name: "Export" })).toHaveAttribute("download");
+    // No `download` attribute: the route's Content-Disposition makes it a download, and
+    // without the attribute a failure or a sign-in redirect is shown, not saved as a file.
+    const exportLink = screen.getByRole("link", { name: "Export" });
+    expect(exportLink).toHaveAttribute("href", "/agent/commission/ledger/export?status=lost");
+    expect(exportLink).not.toHaveAttribute("download");
     // The deferred one is still described by its OWN reason, though it is third in the list.
     expect(screen.getByRole("button", { name: "Import CSV" })).toHaveAccessibleDescription(
       "Importing arrives with §3.7.5.",

@@ -21,6 +21,13 @@ import { COMMISSION_COPY } from "@/lib/agent/content";
  * service key (web/ has none).
  */
 export async function GET(request: NextRequest) {
+  // A GET that writes an audit row must not be triggerable from another site: SameSite=Lax
+  // cookies ride along on a cross-site top-level navigation, so a link elsewhere could make
+  // a signed-in advisor's browser "export". Browsers say where a request came from.
+  if (request.headers.get("sec-fetch-site") === "cross-site") {
+    return new NextResponse(null, { status: 403 });
+  }
+
   const params = request.nextUrl.searchParams;
   const query = ledgerQueryFromParams({
     status: params.getAll("status"),
@@ -51,13 +58,21 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const csv = typeof call.data.csv === "string" ? call.data.csv : "";
+  // No CSV in a 200 is a function that changed shape, not an empty ledger (an empty ledger
+  // still has a header row). It is a failure, not a blank file.
+  if (typeof call.data.csv !== "string") {
+    return new NextResponse(COMMISSION_COPY.exportFailed, {
+      status: 503,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
+  const csv = call.data.csv;
   // The date in the file name is just a label for the advisor's downloads folder.
   const stamp = new Date().toISOString().slice(0, 10);
 
   // A byte-order mark first: without it Excel reads UTF-8 as Windows-1252 and "Roatán"
   // arrives as "RoatÃ¡n". Sheets and Numbers ignore it.
-  return new NextResponse(`﻿${csv}`, {
+  return new NextResponse(`\uFEFF${csv}`, {
     headers: {
       "content-type": "text/csv; charset=utf-8",
       "content-disposition": `attachment; filename="commission-ledger-${stamp}.csv"`,
@@ -65,4 +80,12 @@ export async function GET(request: NextRequest) {
       "x-content-type-options": "nosniff",
     },
   });
+}
+
+/**
+ * HEAD would otherwise be answered by running GET — an audited export with the body thrown
+ * away. Nothing needs to HEAD this.
+ */
+export function HEAD() {
+  return new NextResponse(null, { status: 405, headers: { allow: "GET" } });
 }

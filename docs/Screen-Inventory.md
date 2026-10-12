@@ -2841,8 +2841,13 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 >   the future.
 > - **"Link Inteletravel row" renders disabled with its reason** until §3.7.6. The reference
 >   itself is editable by hand.
-> - **Added: "Remove line"**, offered only while the line is Expected with no Inteletravel
->   reference (Gyasi, 2026-10-11). Removal hides the line and keeps the record; it is audited.
+> - **Added: "Remove line"**, offered only if the line was never invoiced, paid or given an
+>   Inteletravel reference (Gyasi, 2026-10-11). A set-once stamp remembers, so editing a line
+>   back to Expected does not make it removable again. Removal hides the line and keeps the
+>   record; it is audited.
+> - **Moving a Received or Disputed line back** to Expected, Invoiced or Lost clears its
+>   recorded payment, so the form shows a warning and a **required** "clear the recorded
+>   payment" checkbox; the server refuses the change without it.
 > - Trip and client are not fields: a line belongs to the trip it was entered against. Both
 >   sit in the header, with the trip one click away (unless archived).
 >

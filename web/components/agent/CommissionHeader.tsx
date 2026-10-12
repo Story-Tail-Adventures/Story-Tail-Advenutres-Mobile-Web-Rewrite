@@ -21,7 +21,9 @@ import type { IconName } from "@/components/ui/icon-paths";
  * with `aria-describedby` — named by its label, described by its reason.
  *
  * EXPORT IS A PLAIN LINK to a route handler that answers with an attachment. The browser
- * downloads it and stays on the page; no client code is involved.
+ * downloads it and stays on the page. Deliberately NO `download` attribute: with it, a 503's
+ * words were never shown and an expired session's redirect to sign-in was saved as a file.
+ * The route's own `Content-Disposition: attachment` is what makes it a download.
  */
 export type HeaderAction =
   | { label: string; icon: IconName; href: string; primary?: boolean; download?: boolean }
@@ -62,7 +64,6 @@ export function CommissionHeader({
                 // for an export nobody asked for).
                 component={a.download ? "a" : NextLink}
                 href={a.href}
-                {...(a.download ? { download: "" } : {})}
                 variant={a.primary ? "contained" : "outlined"}
                 color={a.primary ? "brand" : "secondary"}
                 size="small"

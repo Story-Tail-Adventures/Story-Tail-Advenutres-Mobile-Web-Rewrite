@@ -31,6 +31,7 @@ import {
   commissionChangeVsLastYear,
   commissionDisputedCount,
   commissionExpectedOn,
+  commissionLineHeading,
   commissionPaidLine,
   commissionRateChangeVsLastYear,
   commissionTermsLine,
@@ -38,6 +39,7 @@ import {
   commissionTripCount,
 } from "@/lib/agent/content";
 import { cents, money } from "@/lib/agent/queries";
+import { formatTripMoney } from "@/lib/trips/money";
 
 /**
  * §3.7.1 and §3.7.2's view models — siblings of `trips.ts` and `clients.ts`, built the same
@@ -403,18 +405,20 @@ export function lineView(r: AgentCommissionLineRow): CommissionLineView {
     tripArchived: r.trip_archived,
     clientName: r.client_display_name,
     supplierName: r.supplier_name,
-    heading: `${r.supplier_name} · ${r.trip_title} · ${money(r.expected_commission_cents, r.currency)} expected`,
+    heading: commissionLineHeading(r.supplier_name, r.trip_title, money(r.expected_commission_cents, r.currency)),
     status: r.status,
     statusChip: known?.chip ?? "unknown",
     statusLabel: known?.label ?? r.status,
     isPaid,
     expectedCents: expected,
     expectedLabel: money(r.expected_commission_cents, r.currency),
+    // To the cent: this is the record of what arrived, beside a form that shows cents. In
+    // whole dollars $1,189.50 read as $1,190 and a 40-cent fee as "a $0 fee".
     paidLine: isPaid && r.received_at
       ? commissionPaidLine(
-          money(r.received_commission_cents, r.currency),
+          formatTripMoney(cents(r.received_commission_cents), r.currency),
           travelDateLabel(r.received_at) ?? r.received_at,
-          fee > 0 ? money(r.processing_fee_cents, r.currency) : null,
+          fee > 0 ? formatTripMoney(fee, r.currency) : null,
         )
       : null,
     termsLine: commissionTermsLine(r.supplier_name, r.payment_terms, r.payment_lag_days),
@@ -438,8 +442,9 @@ export function lineView(r: AgentCommissionLineRow): CommissionLineView {
           fee: centsToDollars(r.processing_fee_cents),
           receivedAt: r.received_at ?? r.as_of_date,
         }
-      // Unpaid: the common case is "it all arrived today", so that is the starting point.
-      : { status: "received", received: centsToDollars(expected), fee: "0.00", receivedAt: r.as_of_date },
+      // Unpaid: the amount starts BLANK. Pre-filling expected-in-full meant Enter in any field
+      // recorded a full payment nobody had checked against the statement.
+      : { status: "received", received: "", fee: "0.00", receivedAt: r.as_of_date },
     currency: r.currency,
   };
 }
@@ -489,7 +494,7 @@ export async function searchTripsForLine(search: string): Promise<TripPick[] | n
 }
 
 export type AddLineForm = {
-  trip: { tripId: string; title: string; clientName: string };
+  trip: { tripId: string; title: string; clientName: string; currency: string };
   suppliers: SupplierGroup[];
   /** Keyed by supplier id: what that supplier's components on this trip add up to. */
   prefill: Record<string, SupplierPrefill>;
@@ -513,7 +518,12 @@ export async function loadAddLineForm(tripId: string): Promise<AddLineFormResult
   return {
     ok: true,
     form: {
-      trip: { tripId: trip.trip_id, title: trip.title, clientName: trip.client_display_name },
+      trip: {
+        tripId: trip.trip_id,
+        title: trip.title,
+        clientName: trip.client_display_name,
+        currency: trip.currency,
+      },
       suppliers,
       prefill: prefillBySupplier(componentsRes.rows.map((c) => ({
         supplierId: c.supplier_id,

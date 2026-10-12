@@ -15,6 +15,7 @@ import {
   readReference,
   readStatus,
   readTerms,
+  requireCents,
   toCsv,
 } from "./commission.ts";
 
@@ -55,6 +56,26 @@ Deno.test("a rate is 0 to 100, two decimals, and required", () => {
   is400(() => readRate(100.01));
   is400(() => readRate(-1));
   is400(() => readRate("twelve"));
+});
+
+Deno.test("loose inputs that Number() would accept are refused", () => {
+  // Number(" ") is 0 and Number([5]) is 5 — neither is a rate anyone typed.
+  is400(() => readRate(" "));
+  is400(() => readRate([5]));
+  is400(() => readLagDays(" "));
+  is400(() => readLagDays([]));
+});
+
+Deno.test("a required amount refuses blank instead of reading it as $0", () => {
+  is400(() => requireCents(undefined, "Gross"));
+  is400(() => requireCents("", "Amount received"));
+  assertEquals(requireCents(0, "Gross"), 0);
+  assertEquals(requireCents("97040", "Gross"), 97040);
+});
+
+Deno.test("text Postgres would refuse is a 400, not a 500", () => {
+  is400(() => readNotes("hello\u0000world"));
+  is400(() => readReference("ITV-\uD800"));
 });
 
 Deno.test("payment days are a whole number, 0 to 365", () => {
@@ -137,4 +158,14 @@ Deno.test("the CSV has a header, exact cents, readable terms and CRLF lines", ()
     "'=cmd,Jordan Hayes,Sandals Resorts,2026-12-17,2026-12-23,received,10103.00,12,1212.36,12.46,1199.90,2027-02-21,After travel,60,,USD",
   );
   assertEquals(csv.endsWith("\r\n"), true);
+});
+
+Deno.test("an unknown payment-terms value fails the export rather than reading as After travel", () => {
+  assertThrows(() => toCsv([{
+    trip_title: "x", client_display_name: "y", supplier_name: "z", travel_start: null,
+    travel_end: null, status: "expected", gross_booking_cents: "0", commission_pct: 0,
+    expected_commission_cents: "0", processing_fee_cents: "0", received_commission_cents: "0",
+    received_at: null, payment_terms: "on_departure", payment_lag_days: 0,
+    inteletravel_reference: null, currency: "USD",
+  }]));
 });

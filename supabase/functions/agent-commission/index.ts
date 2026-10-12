@@ -33,6 +33,7 @@ import {
   PAYMENT_STATUSES,
   readCents,
   readDate,
+  requireCents,
   readId,
   readLagDays,
   readLedgerFilters,
@@ -61,6 +62,16 @@ function requireOp(value: unknown): Op {
   return value as Op;
 }
 
+/**
+ * The outcomes each write is known to return, besides `stale` / `not_found` (turned into
+ * 409 / 404 before this). Anything else is a schema change this route has not caught up
+ * with, and it is a 500 rather than a 200 the form would read as success.
+ */
+const UPDATE_OUTCOMES = new Set([
+  "changed", "noop", "supplier_not_found", "duplicate_reference", "payment_would_clear",
+]);
+const PAYMENT_OUTCOMES = new Set(["recorded", "noop", "bad_date"]);
+
 /** The first row of an RPC that RETURNS TABLE, or null when it returned none. */
 function first<T>(data: unknown): T | null {
   const row = Array.isArray(data) ? data[0] : data;
@@ -71,7 +82,7 @@ function first<T>(data: unknown): T | null {
 function readLine(payload: Record<string, unknown>) {
   return {
     p_supplier_id: readId(payload.supplierId, "supplier"),
-    p_gross_cents: readCents(payload.grossCents, "Gross"),
+    p_gross_cents: requireCents(payload.grossCents, "Gross"),
     p_commission_pct: readRate(payload.commissionPct),
     p_payment_terms: readTerms(payload.paymentTerms),
     p_payment_lag_days: readLagDays(payload.paymentLagDays),
@@ -118,7 +129,10 @@ Deno.serve(async (req) => {
       const result = first<{ outcome: string; commission_id: string; version: number }>(data);
       if (!result) throw notFound("That advisor cannot add commission lines.");
       if (result.outcome === "trip_not_found") throw notFound("No such trip on your book.");
-      if (result.outcome !== "created") return json({ outcome: result.outcome });
+      if (result.outcome === "duplicate_reference" || result.outcome === "supplier_not_found") {
+        return json({ outcome: result.outcome });
+      }
+      if (result.outcome !== "created") throw new Error(`unknown create outcome: ${result.outcome}`);
 
       return json({ outcome: "created", commissionId, version: result.version });
     }
@@ -132,7 +146,11 @@ Deno.serve(async (req) => {
       } as never);
       if (error) throw new Error(`commission export failed: ${error.message}`);
 
-      const rows = (data ?? []) as ExportRow[];
+      // One jsonb array, not a row set — PostgREST caps row sets at max_rows (1000), and a
+      // capped export arrived short while its audit row said otherwise.
+      if (data === null) throw notFound("That advisor cannot export.");
+      if (!Array.isArray(data)) throw new Error("export did not return an array");
+      const rows = data as ExportRow[];
       return json({ outcome: "exported", rowCount: rows.length, csv: toCsv(rows) });
     }
 
@@ -147,6 +165,8 @@ Deno.serve(async (req) => {
         p_commission_id: commissionId,
         p_expected_version: expectedVersion,
         p_status: readStatus(payload.status, COMMISSION_STATUSES),
+        // An explicit yes, never a default: moving a paid line back wipes its payment.
+        p_clear_payment: payload.clearPayment === true,
         ...readLine(payload),
         ...audit,
       } as never);
@@ -161,17 +181,23 @@ Deno.serve(async (req) => {
         // The form never offers this; a hand-built request gets the reason.
         throw badRequest("Use Mark received to record money against a line.");
       }
+      if (!UPDATE_OUTCOMES.has(result.outcome)) throw new Error(`unknown update outcome: ${result.outcome}`);
       return json({ outcome: result.outcome, commissionId, version: result.version });
     }
 
     // ── 3.7.3 Mark received ───────────────────────────────────────────────
     if (op === "payment") {
+      const status = readStatus(payload.status, PAYMENT_STATUSES);
+      const receivedCents = requireCents(payload.receivedCents, "Amount received");
+      if (status === "received" && receivedCents === 0) {
+        throw badRequest("A line marked received needs the amount that arrived. Nothing arrived? Record it as disputed.");
+      }
       const { data, error } = await db.rpc("agent_record_commission_payment", {
         p_agent_id: agentId,
         p_commission_id: commissionId,
         p_expected_version: expectedVersion,
-        p_status: readStatus(payload.status, PAYMENT_STATUSES),
-        p_received_cents: readCents(payload.receivedCents, "Amount received"),
+        p_status: status,
+        p_received_cents: receivedCents,
         p_fee_cents: readCents(payload.feeCents, "Processing fee"),
         p_received_at: readDate(payload.receivedAt, "Received on"),
         ...audit,
@@ -183,6 +209,7 @@ Deno.serve(async (req) => {
       if (result.outcome === "stale") {
         throw conflict("This line changed since you opened it. Reload and try again.");
       }
+      if (!PAYMENT_OUTCOMES.has(result.outcome)) throw new Error(`unknown payment outcome: ${result.outcome}`);
       return json({
         outcome: result.outcome,
         commissionId,
@@ -192,6 +219,9 @@ Deno.serve(async (req) => {
     }
 
     // ── 3.7.3 Remove ──────────────────────────────────────────────────────
+    // Explicit, not the fall-through: a future op added to OPS without a branch must not land
+    // here and remove a line.
+    if (op !== "remove") throw new Error(`unhandled op: ${op satisfies never}`);
     const { data, error } = await db.rpc("agent_remove_commission", {
       p_agent_id: agentId,
       p_commission_id: commissionId,
@@ -204,6 +234,9 @@ Deno.serve(async (req) => {
     if (!result || result.outcome === "not_found") throw notFound("No such commission line.");
     if (result.outcome === "stale") {
       throw conflict("This line changed since you opened it. Reload and try again.");
+    }
+    if (result.outcome !== "removed" && result.outcome !== "not_removable") {
+      throw new Error(`unknown remove outcome: ${result.outcome}`);
     }
     return json({ outcome: result.outcome, commissionId, version: result.version });
   } catch (err) {

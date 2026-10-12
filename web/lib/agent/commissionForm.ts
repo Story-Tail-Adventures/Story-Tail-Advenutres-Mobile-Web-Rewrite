@@ -99,9 +99,11 @@ export function parseLagDays(input: string): number | null {
 export function validateLine(values: LineValues): LineFormState["fieldErrors"] | null {
   const errors: NonNullable<LineFormState["fieldErrors"]> = {};
   if (!values.supplierId) errors.supplierId = COMMISSION_COPY.supplierRequired;
-  // `dollarsToCents("")` is 0, which is a real gross for a zero-commission line — so a blank
-  // is allowed to mean zero, the same reading the milestone form gives an empty amount.
-  if (dollarsToCents(values.gross) === null) errors.gross = COMMISSION_COPY.grossInvalid;
+  // A BLANK gross is refused, not read as $0: `dollarsToCents("")` is 0, and a forgotten field
+  // would otherwise save a $0 line that looks deliberate. A typed 0 is still allowed.
+  if (values.gross.trim() === "" || dollarsToCents(values.gross) === null) {
+    errors.gross = COMMISSION_COPY.grossInvalid;
+  }
   if (parseRate(values.rate) === null) errors.rate = COMMISSION_COPY.rateInvalid;
   if (parseLagDays(values.paymentLagDays) === null) errors.paymentLagDays = COMMISSION_COPY.lagInvalid;
   return Object.keys(errors).length > 0 ? errors : null;
@@ -147,7 +149,9 @@ export function prefillBySupplier(
   for (const [id, s] of sums) {
     out[id] = {
       grossCents: s.gross,
-      rate: s.rated > 0 ? Math.round((s.weighted / s.rated) * 100) / 100 : null,
+      // Only when EVERY component carries a rate. An average over the rated ones applied to
+      // the whole gross would assume the unrated ones earn it too, and overstate Expected.
+      rate: s.rated === s.gross && s.rated > 0 ? Math.round((s.weighted / s.rated) * 100) / 100 : null,
     };
   }
   return out;
@@ -180,14 +184,19 @@ export function paymentValuesFromForm(form: FormData): PaymentValues {
   };
 }
 
-export function validatePayment(values: PaymentValues, today: string): PaymentFormState["fieldErrors"] | null {
+export function validatePayment(values: PaymentValues): PaymentFormState["fieldErrors"] | null {
   const errors: NonNullable<PaymentFormState["fieldErrors"]> = {};
-  if (dollarsToCents(values.received) === null) errors.received = COMMISSION_COPY.amountInvalid;
-  if (dollarsToCents(values.fee) === null) errors.fee = COMMISSION_COPY.amountInvalid;
-  // ISO dates compare as strings. The server checks against the advisor's own today too.
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(values.receivedAt) || values.receivedAt > today) {
-    errors.receivedAt = COMMISSION_COPY.badDate;
+  const received = values.received.trim() === "" ? null : dollarsToCents(values.received);
+  if (received === null) {
+    errors.received = COMMISSION_COPY.amountInvalid;
+  } else if (received === 0 && values.status !== "disputed") {
+    // Received with nothing received is a Disputed (or Lost) line wearing the wrong status.
+    errors.received = COMMISSION_COPY.receivedNeedsAmount;
   }
+  if (dollarsToCents(values.fee) === null) errors.fee = COMMISSION_COPY.amountInvalid;
+  // Shape only. Whether the date is in the future is the SERVER's call, made in the
+  // advisor's zone; a client compare against a render-time "today" goes stale past midnight.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(values.receivedAt)) errors.receivedAt = COMMISSION_COPY.badDate;
   return Object.keys(errors).length > 0 ? errors : null;
 }
 

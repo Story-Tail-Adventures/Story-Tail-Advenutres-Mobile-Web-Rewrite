@@ -26,9 +26,10 @@ export interface AuditSpec {
    * are separate round trips, so if the audit write fails the mutation has already
    * landed and only the caller learns about it. That is surfaced (the request 500s)
    * rather than prevented. Closing it properly means moving both into one transaction —
-   * a Postgres function called over RPC, or a trigger on the target table. Worth doing
-   * before the first financial mutation ships; overkill for the current read-mostly
-   * surface.
+   * a Postgres function called over RPC, or a trigger on the target table. That is now
+   * done for the first financial ledger: §3.7's commission writes call `commission_audit()`
+   * inside their own SQL transaction (migration 20261011120000) and do not use this module.
+   * Copy that shape for the next financial write; this "after" path remains for the rest.
    *
    * "before" is required for the PAN reveal (Screen Inventory 3.6.4). The point of that
    * audit row is to record that a human asked to see a card number — if the process

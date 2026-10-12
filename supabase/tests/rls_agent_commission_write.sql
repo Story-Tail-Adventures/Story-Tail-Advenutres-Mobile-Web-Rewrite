@@ -36,6 +36,9 @@ BEGIN;
 \set line_b   '''0c7b0000-0000-7000-8000-0000000000b1'''
 \set line_c   '''0c7b0000-0000-7000-8000-0000000000c1'''
 \set line_x   '''0c7b0000-0000-7000-8000-0000000000e1'''
+\set line_y   '''0c7b0000-0000-7000-8000-0000000000e2'''
+\set line_d   '''0c7b0000-0000-7000-8000-0000000000d1'''
+\set line_e   '''0c7b0000-0000-7000-8000-0000000000f1'''
 
 CREATE OR REPLACE FUNCTION pg_temp.assert(condition boolean, description text)
 RETURNS void LANGUAGE plpgsql AS $$
@@ -131,7 +134,7 @@ SELECT pg_temp.expect_denied(
     $q$SELECT public.agent_remove_commission(NULL, NULL, NULL, 1, NULL, NULL, NULL)$q$,
     'nor agent_remove_commission');
 SELECT pg_temp.expect_denied(
-    $q$SELECT * FROM public.agent_export_commission(NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    $q$SELECT public.agent_export_commission(NULL, NULL, NULL, NULL, NULL, NULL, NULL,
              NULL, NULL, NULL)$q$,
     'nor agent_export_commission');
 SELECT pg_temp.expect_denied(
@@ -373,7 +376,17 @@ SELECT pg_temp.assert(
     AND pg_temp.audits(:line_a::uuid, 'commission.payment_recorded') = 1,
     'the line carries the money, the fee and the date, with one audit row');
 
--- Moving a paid line back clears the payment, and the audit keeps what was cleared.
+-- Moving a paid line back clears the payment — but only when the caller SAYS so.
+SELECT outcome AS unflagged FROM public.agent_update_commission(:agent::uuid, :actor::uuid,
+    :line_a::uuid, 4, :allianz::uuid, 200000, 14, 'after_travel', 60, 'invoiced', 'ITV-TEST-0001',
+    'Call Sandals', pg_temp.aid(), NULL, NULL) \gset
+SELECT pg_temp.assert(
+    :'unflagged' = 'payment_would_clear'
+    AND (SELECT status = 'disputed' AND received_commission_cents = 27000 AND version = 4
+           FROM public.commission WHERE id = :line_a::uuid),
+    'without p_clear_payment the edit refuses to wipe a recorded payment, and changes nothing');
+
+-- With the flag it clears, and the audit keeps what was cleared.
 --
 -- THE WRITE AND ITS CHECK ARE SEPARATE STATEMENTS from here on. A subquery reads the
 -- snapshot its STATEMENT started with, so `(SELECT outcome FROM write(...)) AND (SELECT ...
@@ -382,7 +395,7 @@ SELECT pg_temp.assert(
 SELECT gen_random_uuid() AS clear_audit \gset
 SELECT outcome AS clear_outcome FROM public.agent_update_commission(:agent::uuid, :actor::uuid,
     :line_a::uuid, 4, :allianz::uuid, 200000, 14, 'after_travel', 60, 'invoiced', 'ITV-TEST-0001',
-    'Call Sandals', :'clear_audit'::uuid, NULL, NULL) \gset
+    'Call Sandals', :'clear_audit'::uuid, NULL, NULL, true) \gset
 SELECT pg_temp.assert(
     :'clear_outcome' = 'changed'
     AND (SELECT received_at IS NULL AND received_commission_cents = 0 AND processing_fee_cents = 0
@@ -471,6 +484,20 @@ SELECT pg_temp.assert(
         :line_x::uuid, 1, pg_temp.aid(), NULL, NULL)) = 'not_found',
     'a line whose two agent ids disagree cannot be written by either advisor');
 
+-- Payment on the mismatched line, from either advisor: same answer.
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_record_commission_payment(:agent::uuid, :actor::uuid,
+        :line_x::uuid, 1, 'received', 100, 0, current_date - 1, pg_temp.aid(), NULL, NULL)) = 'not_found'
+    AND (SELECT outcome FROM public.agent_record_commission_payment(:other_agent::uuid, :actor::uuid,
+        :line_x::uuid, 1, 'received', 100, 0, current_date - 1, pg_temp.aid(), NULL, NULL)) = 'not_found',
+    'nor can it be marked received by either');
+
+-- And the mirror image: the OTHER advisor's id on GYASI's trip.
+INSERT INTO public.commission (id, trip_id, agent_id, supplier_id, gross_booking_cents,
+    commission_pct, expected_commission_cents, currency, payment_terms, status)
+VALUES (:line_y::uuid, :kyoto::uuid, :other_agent::uuid, :sandals::uuid, 2000, 10, 200, 'USD',
+        'after_travel', 'expected');
+
 -- An archived advisor writes nothing.
 UPDATE public.agent SET status = 'archived' WHERE id = :other_agent::uuid;
 SELECT pg_temp.assert(
@@ -479,21 +506,40 @@ SELECT pg_temp.assert(
         'expected', NULL, NULL, pg_temp.aid(), NULL, NULL)) = 0,
     'an archived advisor gets no answer at all, not even trip_not_found');
 
+-- A traveler asking for one of Gyasi's lines by id gets nothing.
+SELECT pg_temp.become(:jordan::uuid);
+SELECT pg_temp.assert(
+    (SELECT count(*) FROM public.agent_commission_line(:line_a::uuid)) = 0,
+    'a traveler gets no row from agent_commission_line, even with a real line id');
+RESET ROLE;
+
 -- ─────────────────────────────────────────────────────────────────────────────
--- 9. The export
+-- 9. The export — one jsonb array, so PostgREST's max_rows cannot cut it short
 -- ─────────────────────────────────────────────────────────────────────────────
 
 SELECT pg_temp.become(:gyasi::uuid);
 SELECT count(*) AS ledger_lines FROM public.agent_commission_ledger(NULL, NULL, NULL, NULL, NULL, 500, 0) \gset
 SELECT count(*) AS ledger_lost FROM public.agent_commission_ledger(ARRAY['lost']::commission_status[], NULL, NULL, NULL, NULL, 500, 0) \gset
+SELECT count(*) AS ledger_allianz FROM public.agent_commission_ledger(NULL, :allianz::uuid, NULL, NULL, NULL, 500, 0) \gset
+SELECT count(*) AS ledger_kyoto FROM public.agent_commission_ledger(NULL, NULL, :kyoto::uuid, NULL, NULL, 500, 0) \gset
+SELECT count(*) AS ledger_dated FROM public.agent_commission_ledger(NULL, NULL, NULL, current_date - 200, current_date + 200, 500, 0) \gset
 RESET ROLE;
 
 SELECT gen_random_uuid() AS export_audit \gset
+SELECT public.agent_export_commission(:agent::uuid, :actor::uuid, NULL, NULL, NULL, NULL, NULL,
+    :'export_audit'::uuid, NULL, NULL) AS export_rows \gset
 
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.agent_export_commission(:agent::uuid, :actor::uuid, NULL, NULL,
-        NULL, NULL, NULL, :'export_audit'::uuid, NULL, NULL)) = :ledger_lines,
-    'an unfiltered export holds exactly the ledger''s lines — removed and mismatched lines excluded');
+    jsonb_typeof(:'export_rows'::jsonb) = 'array'
+    AND jsonb_array_length(:'export_rows'::jsonb) = :ledger_lines,
+    'an unfiltered export is one array holding exactly the ledger''s lines');
+
+SELECT pg_temp.assert(
+    NOT EXISTS (SELECT 1 FROM jsonb_array_elements(:'export_rows'::jsonb) e
+                 WHERE e->>'trip_title' = 'Other''s trip')
+    AND (SELECT count(*) FROM jsonb_array_elements(:'export_rows'::jsonb) e
+          WHERE e->>'trip_title' = 'Kyoto in the spring') = :ledger_kyoto,
+    'neither mismatched line is in it — not Gyasi''s id on the other trip, not the other id on Kyoto');
 
 SELECT pg_temp.assert(
     (SELECT event_type = 'commission.exported' AND target_entity = 'agent'
@@ -502,24 +548,31 @@ SELECT pg_temp.assert(
     'and writes one audit row naming the advisor and the row count');
 
 SELECT gen_random_uuid() AS export_audit_2 \gset
-SELECT count(*) AS lost_exported FROM public.agent_export_commission(:agent::uuid, :actor::uuid,
-    ARRAY['lost']::commission_status[], NULL, NULL, NULL, NULL, :'export_audit_2'::uuid, NULL, NULL) \gset
+SELECT jsonb_array_length(public.agent_export_commission(:agent::uuid, :actor::uuid,
+    ARRAY['lost']::commission_status[], NULL, NULL, NULL, NULL, :'export_audit_2'::uuid, NULL, NULL))
+    AS lost_exported \gset
 SELECT pg_temp.assert(
     :lost_exported = :ledger_lost
     AND (SELECT metadata->'filters'->'status' = '["lost"]'::jsonb
            FROM public.audit_event WHERE id = :'export_audit_2'::uuid),
-    'a filtered export applies the ledger''s filter and records it');
+    'a status-filtered export applies the ledger''s filter and records it');
+
+-- The other three filters are a second copy of the ledger's predicate. Each against the
+-- ledger's own count for the same filter.
+SELECT pg_temp.assert(
+    jsonb_array_length(public.agent_export_commission(:agent::uuid, :actor::uuid, NULL,
+        :allianz::uuid, NULL, NULL, NULL, gen_random_uuid(), NULL, NULL)) = :ledger_allianz
+    AND jsonb_array_length(public.agent_export_commission(:agent::uuid, :actor::uuid, NULL,
+        NULL, :kyoto::uuid, NULL, NULL, gen_random_uuid(), NULL, NULL)) = :ledger_kyoto
+    AND jsonb_array_length(public.agent_export_commission(:agent::uuid, :actor::uuid, NULL,
+        NULL, NULL, current_date - 200, current_date + 200, gen_random_uuid(), NULL, NULL)) = :ledger_dated
+    AND :ledger_allianz > 0 AND :ledger_kyoto > 0 AND :ledger_dated > 0,
+    'the supplier, trip and travel-date filters match the ledger''s for the same filter');
 
 SELECT pg_temp.expect_error(
-    format($q$SELECT * FROM public.agent_export_commission(%L, %L, NULL, NULL, NULL, NULL, NULL,
+    format($q$SELECT public.agent_export_commission(%L, %L, NULL, NULL, NULL, NULL, NULL,
              %L, NULL, NULL)$q$, :agent, :actor, :'export_audit'),
     'an export whose audit row cannot be written fails — no rows leave without a record');
-
-SELECT pg_temp.assert(
-    NOT EXISTS (SELECT 1 FROM public.agent_export_commission(:agent::uuid, :actor::uuid, NULL,
-        NULL, NULL, NULL, NULL, gen_random_uuid(), NULL, NULL) e
-        WHERE e.trip_title = 'Other''s trip'),
-    'the export never carries a line on another advisor''s trip');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 10. The terms shape is enforced
@@ -532,5 +585,84 @@ SELECT pg_temp.expect_error(
     $q$UPDATE public.supplier SET commission_payment_terms = NULL, commission_payment_lag_days = 30
         WHERE id = '0195a2c0-1a00-7000-8000-000000000030'$q$,
     'a supplier lag with no terms ("30 days after… something") is refused');
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 11. The remove rule is about HISTORY, and the payment write's own edges
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- The walk-around review found: invoice it, pay it, edit it back to expected with the
+-- reference blanked — then the current-state test passed and the line could be removed.
+
+SELECT outcome AS d1 FROM public.agent_create_commission(:agent::uuid, :actor::uuid, :line_d::uuid,
+    :kyoto::uuid, :sandals::uuid, 50000, 10, 'after_travel', 30, 'invoiced', 'ITV-TEST-0003', NULL,
+    pg_temp.aid(), NULL, NULL) \gset
+SELECT outcome AS d2 FROM public.agent_record_commission_payment(:agent::uuid, :actor::uuid,
+    :line_d::uuid, 1, 'received', 5000, 0, current_date - 1, pg_temp.aid(), NULL, NULL) \gset
+SELECT outcome AS d3 FROM public.agent_update_commission(:agent::uuid, :actor::uuid, :line_d::uuid,
+    2, :sandals::uuid, 50000, 10, 'after_travel', 30, 'expected', '', NULL, pg_temp.aid(), NULL, NULL,
+    true) \gset
+SELECT outcome AS d4 FROM public.agent_remove_commission(:agent::uuid, :actor::uuid, :line_d::uuid,
+    3, pg_temp.aid(), NULL, NULL) \gset
+SELECT pg_temp.assert(
+    :'d1' = 'created' AND :'d2' = 'recorded' AND :'d3' = 'changed' AND :'d4' = 'not_removable'
+    AND (SELECT status = 'expected' AND inteletravel_reference IS NULL AND on_record_at IS NOT NULL
+                AND archived_at IS NULL
+           FROM public.commission WHERE id = :line_d::uuid),
+    'a line that was ever invoiced stays unremovable, even edited back to expected with no '
+    'reference — on_record_at remembers');
+
+UPDATE public.commission SET on_record_at = NULL WHERE id = :line_d::uuid;
+SELECT pg_temp.assert(
+    (SELECT on_record_at IS NOT NULL FROM public.commission WHERE id = :line_d::uuid),
+    'and the stamp cannot be cleared by a direct UPDATE either — the trigger keeps it');
+
+SELECT pg_temp.expect_error(
+    format($q$SELECT public.agent_record_commission_payment(%L, %L, %L, 3, 'received', 0, 0,
+             current_date - 1, gen_random_uuid(), NULL, NULL)$q$, :agent, :actor, :line_d),
+    'a line recorded as RECEIVED needs an amount — $0 received is disputed or lost, not received');
+
+-- Payment and remove are atomic with their audit rows too, not only create, edit and export.
+SELECT pg_temp.expect_error(
+    format($q$SELECT public.agent_record_commission_payment(%L, %L, %L, 3, 'received', 4000, 0,
+             current_date - 1, %L, NULL, NULL)$q$, :agent, :actor, :line_d, :'used_audit_id'),
+    'a payment whose audit insert fails raises …');
+SELECT pg_temp.assert(
+    (SELECT status = 'expected' AND received_commission_cents = 0 AND version = 3
+       FROM public.commission WHERE id = :line_d::uuid),
+    '… and the line is exactly as it was');
+
+SELECT pg_temp.assert(
+    (SELECT outcome FROM public.agent_create_commission(:agent::uuid, :actor::uuid, :line_e::uuid,
+        :kyoto::uuid, :sandals::uuid, 10000, 10, 'after_travel', 30, 'expected', NULL, NULL,
+        pg_temp.aid(), NULL, NULL)) = 'created',
+    'a fresh, removable line');
+SELECT pg_temp.expect_error(
+    format($q$SELECT public.agent_remove_commission(%L, %L, %L, 1, %L, NULL, NULL)$q$,
+           :agent, :actor, :line_e, :'used_audit_id'),
+    'a remove whose audit insert fails raises …');
+SELECT pg_temp.assert(
+    (SELECT archived_at IS NULL AND version = 1 FROM public.commission WHERE id = :line_e::uuid),
+    '… and the line is still there');
+
+-- "Not in the future" is the ADVISOR's future. Give Gyasi a zone whose date differs from
+-- UTC's right now (UTC+14 or UTC-11), then test his tomorrow and his today.
+UPDATE public.agent
+   SET time_zone = CASE WHEN (now() AT TIME ZONE 'Pacific/Kiritimati')::date
+                             <> (now() AT TIME ZONE 'UTC')::date
+                        THEN 'Pacific/Kiritimati' ELSE 'Pacific/Pago_Pago' END
+ WHERE id = :agent::uuid;
+SELECT (now() AT TIME ZONE a.time_zone)::date AS local_today FROM public.agent a
+ WHERE a.id = :agent::uuid \gset
+SELECT pg_temp.assert(
+    :'local_today'::date <> (now() AT TIME ZONE 'UTC')::date,
+    'the advisor''s date now differs from UTC''s, so a UTC slip cannot hide');
+
+SELECT outcome AS tz_tomorrow FROM public.agent_record_commission_payment(:agent::uuid, :actor::uuid,
+    :line_e::uuid, 1, 'received', 1000, 0, (:'local_today'::date + 1), pg_temp.aid(), NULL, NULL) \gset
+SELECT outcome AS tz_today FROM public.agent_record_commission_payment(:agent::uuid, :actor::uuid,
+    :line_e::uuid, 1, 'received', 1000, 0, :'local_today'::date, pg_temp.aid(), NULL, NULL) \gset
+SELECT pg_temp.assert(
+    :'tz_tomorrow' = 'bad_date' AND :'tz_today' = 'recorded',
+    'the advisor''s tomorrow is refused and the advisor''s today is accepted');
 
 ROLLBACK;

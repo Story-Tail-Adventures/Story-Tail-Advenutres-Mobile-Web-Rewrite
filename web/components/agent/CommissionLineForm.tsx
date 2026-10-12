@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
 import FormLabel from "@mui/material/FormLabel";
@@ -37,10 +39,14 @@ import { formatTripMoney } from "@/lib/trips/money";
  * disagrees (`commission_expected_matches_rate`). An editable box whose value is thrown away
  * would be a lie about what saving does.
  *
- * UNCONTROLLED INPUTS, RE-SEEDED FROM STATE. React 19 resets a form after its action runs,
- * whatever the action returned; the action echoes the submitted values back and they become
- * the inputs' defaults, which is the §3.4.15 milestone form's answer to the same trap. Only
- * the preview reads the inputs live.
+ * THE FORM IS NOT ALLOWED TO RESET. React 19 resets a `<form action>` after its action runs,
+ * whatever the action returned. Echoing the values back as new `defaultValue`s — the §3.4.15
+ * milestone form's answer — works for text inputs and NOT for a `<select>`: React ignores a
+ * changed defaultValue on a select, so the reset sent supplier, terms and status back to
+ * their mount-time values after every refused save, and the corrected resubmit saved a
+ * status the advisor never chose (found in review, reproduced in jsdom). So submit is
+ * intercepted: `onSubmit` prevents the browser's submission and dispatches the action inside
+ * a transition, and nothing is reset. `action` stays on the element for the no-JS path.
  *
  * THE SUPPLIER FILLS IN WHAT IT KNOWS — on ADD only, and only into fields nobody has typed
  * in: the supplier's usual rate and terms, then, if this trip has bookings with that
@@ -84,36 +90,73 @@ export function CommissionLineForm({
   const rateRef = useRef<HTMLInputElement>(null);
   // Which fields the advisor has typed in. A prefill never overwrites one of these.
   const touched = useRef(new Set<string>());
+  // Which fields a PREVIOUS supplier filled in and nobody has typed in since. Switching
+  // supplier clears these first, so supplier B never inherits supplier A's figures.
+  const prefilled = useRef(new Set<string>());
+  const touch = (key: string) => {
+    touched.current.add(key);
+    prefilled.current.delete(key);
+  };
+
+  // Moving a paid line back to an unpaid status clears its payment (the SQL does it, and
+  // audits it). That must not happen without the advisor being told.
+  const [status, setStatus] = useState(values.status);
+  const clearsPayment = (initial.status === "received" || initial.status === "disputed") &&
+    status !== "received" && status !== "disputed";
 
   const expected = previewExpectedCents(gross, rate);
+
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startTransition(() => formAction(data));
+  }
 
   function onSupplierChange(supplierId: string) {
     if (mode.kind !== "create") return;
     const option = suppliers.flatMap((g) => g.suppliers).find((s) => s.supplierId === supplierId);
     const fromTrip = mode.prefill[supplierId];
 
-    const put = (key: string, el: HTMLInputElement | HTMLSelectElement | null, value: string, set?: (v: string) => void) => {
-      if (!el || touched.current.has(key)) return;
-      el.value = value;
-      set?.(value);
+    // Looked up by id: the Field / SelectField primitives do not forward a ref.
+    const terms = document.getElementById("line-terms") as HTMLSelectElement | null;
+    const lag = document.getElementById("line-lag") as HTMLInputElement | null;
+    const fields: Record<string, { el: HTMLInputElement | HTMLSelectElement | null; blank: string; set?: (v: string) => void }> = {
+      gross: { el: grossRef.current, blank: "", set: setGross },
+      rate: { el: rateRef.current, blank: "", set: setRate },
+      paymentTerms: { el: terms, blank: "after_travel" },
+      paymentLagDays: { el: lag, blank: "" },
+    };
+
+    // Undo the last supplier's prefill before applying this one's.
+    for (const key of prefilled.current) {
+      const f = fields[key];
+      if (f?.el) {
+        f.el.value = f.blank;
+        f.set?.(f.blank);
+      }
+    }
+    prefilled.current.clear();
+
+    const put = (key: string, value: string) => {
+      const f = fields[key];
+      if (!f?.el || touched.current.has(key)) return;
+      f.el.value = value;
+      f.set?.(value);
+      prefilled.current.add(key);
     };
 
     if (fromTrip) {
-      put("gross", grossRef.current, centsToDollars(fromTrip.grossCents), setGross);
-      if (fromTrip.rate !== null) put("rate", rateRef.current, String(fromTrip.rate), setRate);
+      put("gross", centsToDollars(fromTrip.grossCents));
+      if (fromTrip.rate !== null) put("rate", String(fromTrip.rate));
       setPrefillNote(option ? commissionPrefilledFrom(option.name) : null);
     } else {
       setPrefillNote(null);
     }
     if (option?.defaultCommissionPct != null && !(fromTrip && fromTrip.rate !== null)) {
-      put("rate", rateRef.current, String(Number(option.defaultCommissionPct)), setRate);
+      put("rate", String(Number(option.defaultCommissionPct)));
     }
-    // Looked up by id: the Field / SelectField primitives do not forward a ref, and these two
-    // are only ever written here, on a supplier change.
-    const terms = document.getElementById("line-terms") as HTMLSelectElement | null;
-    const lag = document.getElementById("line-lag") as HTMLInputElement | null;
-    if (option?.paymentTerms) put("paymentTerms", terms, option.paymentTerms);
-    if (option?.paymentLagDays != null) put("paymentLagDays", lag, String(option.paymentLagDays));
+    if (option?.paymentTerms) put("paymentTerms", option.paymentTerms);
+    if (option?.paymentLagDays != null) put("paymentLagDays", String(option.paymentLagDays));
   }
 
   const supplierError = err("supplierId");
@@ -122,7 +165,7 @@ export function CommissionLineForm({
   const noSuppliers = suppliers.every((g) => g.suppliers.length === 0);
 
   return (
-    <Box component="form" action={formAction}>
+    <Box component="form" action={formAction} onSubmit={onSubmit}>
       <input type="hidden" name="tripId" value={mode.tripId} />
       {mode.kind === "edit" && (
         <>
@@ -134,6 +177,19 @@ export function CommissionLineForm({
       {state.formError && (
         <Box sx={{ mb: 1.5 }}>
           <Alert tone="error">{state.formError}</Alert>
+        </Box>
+      )}
+      {/* Moving a paid line back wipes its payment. The server refuses unless told to
+          (`clearPayment`), and the box is REQUIRED, so the browser will not submit without
+          the advisor saying yes. */}
+      {clearsPayment && (
+        <Box sx={{ mb: 1.5 }}>
+          <Alert tone="warning">{COMMISSION_COPY.clearsPayment}</Alert>
+          <FormControlLabel
+            sx={{ mt: 0.5 }}
+            control={<Checkbox name="clearPayment" value="true" required size="small" />}
+            label={COMMISSION_COPY.clearsPaymentConfirm}
+          />
         </Box>
       )}
       {noSuppliers && (
@@ -184,7 +240,7 @@ export function CommissionLineForm({
           error={grossError}
           defaultValue={values.gross}
           inputRef={grossRef}
-          onChange={(v) => { touched.current.add("gross"); setGross(v); }}
+          onChange={(v) => { touch("gross"); setGross(v); }}
         />
 
         <FormControl fullWidth error={Boolean(rateError)}>
@@ -196,7 +252,7 @@ export function CommissionLineForm({
             inputRef={rateRef}
             size="small"
             endAdornment={<Typography component="span" variant="body2" sx={{ color: "text.secondary" }}>%</Typography>}
-            onChange={(e) => { touched.current.add("rate"); setRate(e.target.value); }}
+            onChange={(e) => { touch("rate"); setRate(e.target.value); }}
             sx={fieldInputSx}
             inputProps={{
               inputMode: "decimal",
@@ -209,14 +265,17 @@ export function CommissionLineForm({
             : <FormHelperText id="line-rate-hint">{COMMISSION_COPY.rateHint}</FormHelperText>}
         </FormControl>
 
-        {/* A read-out, not an input — see the header. `output` names its inputs for AT. */}
+        {/* A read-out, not an input — see the header. Named by its label, and NOT a live
+            region: an <output> is one by default and would re-announce on every keystroke. */}
         <Box>
-          <Typography component="span" sx={{ ...fieldLabelSx, color: "text.secondary" }}>
+          <Typography id="line-expected-label" component="span" sx={{ ...fieldLabelSx, color: "text.secondary" }}>
             {COMMISSION_COPY.expectedLabel}
           </Typography>
           <Box
             component="output"
             htmlFor="line-gross line-rate"
+            aria-labelledby="line-expected-label"
+            aria-live="off"
             sx={{ display: "flex", alignItems: "center", minHeight: 44, fontFamily: "mono", fontWeight: 700, color: "primary.main" }}
           >
             {expected === null ? "—" : formatTripMoney(expected, currency)}
@@ -235,7 +294,7 @@ export function CommissionLineForm({
             label={COMMISSION_COPY.termsLabel}
             defaultValue={values.paymentTerms}
             options={PAYMENT_TERMS_OPTIONS}
-            onChange={() => touched.current.add("paymentTerms")}
+            onChange={() => touch("paymentTerms")}
           />
           <Field
             id="line-lag"
@@ -245,7 +304,7 @@ export function CommissionLineForm({
             inputMode="numeric"
             required
             error={err("paymentLagDays")}
-            onChange={() => touched.current.add("paymentLagDays")}
+            onChange={() => touch("paymentLagDays")}
           />
         </Box>
 
@@ -253,8 +312,10 @@ export function CommissionLineForm({
           id="line-status"
           name="status"
           label={COMMISSION_COPY.statusLabel}
+          hint={COMMISSION_COPY.statusHint}
           defaultValue={values.status}
           options={statusOptions}
+          onChange={(e) => setStatus(e.target.value)}
         />
 
         <Field

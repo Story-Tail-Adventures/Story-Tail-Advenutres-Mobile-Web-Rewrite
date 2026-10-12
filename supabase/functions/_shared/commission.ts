@@ -15,6 +15,32 @@ import { readCents } from "./component.ts";
 
 export { readCents };
 
+/**
+ * A REQUIRED amount in cents. `readCents` reads absent and blank as 0, which is right for an
+ * optional fee and wrong for a gross or an amount received: a forgotten field saved a $0
+ * line, or marked a line received for nothing (found in review).
+ */
+export function requireCents(value: unknown, field: string): number {
+  if (value === undefined || value === null || value === "") throw badRequest(`${field} is required.`);
+  return readCents(value, field);
+}
+
+/** A number, or a non-blank numeric string. `Number(" ")` and `Number([5])` are not answers. */
+function strictNumber(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") return Number(value.trim());
+  return Number.NaN;
+}
+
+/**
+ * Text Postgres will accept. A NUL byte or a lone surrogate passes a length check and then
+ * fails inside Postgres ("\u0000 cannot be converted to text") as a 500.
+ */
+function cleanText(value: string, field: string): string {
+  if (value.includes("\u0000") || !value.isWellFormed()) throw badRequest(`${field}: some characters can't be saved. Remove them and try again.`);
+  return value;
+}
+
 export const COMMISSION_STATUSES = [
   "expected",
   "invoiced",
@@ -59,7 +85,7 @@ export function readRate(value: unknown): number {
   if (value === undefined || value === null || value === "") {
     throw badRequest("Commission rate is required.");
   }
-  const n = typeof value === "number" ? value : Number(String(value).trim());
+  const n = strictNumber(value);
   if (!Number.isFinite(n)) throw badRequest("Commission rate must be a number.");
   if (n < 0 || n > 100) throw badRequest("Commission rate must be between 0 and 100.");
   // Rounded, not refused: `component.ts` makes the same call for a third decimal nobody meant.
@@ -68,8 +94,8 @@ export function readRate(value: unknown): number {
 
 /** Days after booking or travel the supplier pays: a whole number, 0 to 365. */
 export function readLagDays(value: unknown): number {
-  const n = typeof value === "number" ? value : Number(String(value ?? "").trim());
-  if (value === undefined || value === null || value === "" || !Number.isInteger(n)) {
+  const n = strictNumber(value);
+  if (!Number.isInteger(n)) {
     throw badRequest("Payment days must be a whole number.");
   }
   if (n < 0 || n > 365) throw badRequest("Payment days must be between 0 and 365.");
@@ -80,7 +106,7 @@ export function readLagDays(value: unknown): number {
 export function readReference(value: unknown): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") throw badRequest("Inteletravel reference must be text.");
-  const trimmed = value.trim();
+  const trimmed = cleanText(value, "Inteletravel reference").trim();
   if (trimmed.length > MAX_REFERENCE) throw badRequest("Inteletravel reference is too long.");
   return trimmed === "" ? null : trimmed;
 }
@@ -88,7 +114,7 @@ export function readReference(value: unknown): string | null {
 export function readNotes(value: unknown): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") throw badRequest("Notes must be text.");
-  const trimmed = value.trim();
+  const trimmed = cleanText(value, "Notes").trim();
   if (trimmed.length > MAX_NOTES) throw badRequest("Notes are too long.");
   return trimmed === "" ? null : trimmed;
 }
@@ -223,6 +249,13 @@ export function csvCell(value: string | number | null | undefined, text = true):
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/** A third enum value must not be filed silently as "After travel". */
+function termsLabel(terms: string): string {
+  if (terms === "at_booking") return "At booking";
+  if (terms === "after_travel") return "After travel";
+  throw new Error(`unknown payment terms in export: ${terms}`);
+}
+
 export function toCsv(rows: ExportRow[]): string {
   const lines = [HEADER.map((h) => csvCell(h)).join(",")];
   for (const r of rows) {
@@ -239,7 +272,7 @@ export function toCsv(rows: ExportRow[]): string {
       csvCell(centsToDecimal(r.processing_fee_cents), false),
       csvCell(centsToDecimal(r.received_commission_cents), false),
       csvCell(r.received_at, false),
-      csvCell(r.payment_terms === "at_booking" ? "At booking" : "After travel"),
+      csvCell(termsLabel(r.payment_terms)),
       csvCell(r.payment_lag_days, false),
       csvCell(r.inteletravel_reference),
       csvCell(r.currency),

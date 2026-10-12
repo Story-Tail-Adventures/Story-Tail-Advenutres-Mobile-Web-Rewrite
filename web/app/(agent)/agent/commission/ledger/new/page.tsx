@@ -51,9 +51,13 @@ const EMPTY_LINE: LineValues = {
 export default async function AddCommissionLinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ trip?: string; q?: string }>;
+  searchParams: Promise<{ trip?: string | string[]; q?: string | string[] }>;
 }) {
-  const { trip, q } = await searchParams;
+  const params = await searchParams;
+  // A repeated parameter arrives as an array; `?q=a&q=b` used to 500 on `.trim()`.
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const trip = first(params.trip);
+  const q = first(params.q);
   const tripId = trip && UUID.test(trip) ? trip : null;
 
   const header = (
@@ -79,8 +83,8 @@ export default async function AddCommissionLinePage({
           {header}
           <EmptyState
             icon="trip"
-            title={COMMISSION_COPY.pickTripNone}
-            body={COMMISSION_COPY.pickTripTitle}
+            title={COMMISSION_COPY.tripNotAvailableTitle}
+            body={COMMISSION_COPY.tripNotAvailableBody}
             action={{ label: COMMISSION_COPY.pickTripChange, href: "/agent/commission/ledger/new" }}
           />
         </Box>
@@ -108,7 +112,7 @@ export default async function AddCommissionLinePage({
               suppliers={form.suppliers}
               initial={EMPTY_LINE}
               statusOptions={CREATE_STATUS_OPTIONS}
-              currency="USD"
+              currency={form.trip.currency}
               cancelHref={`/agent/commission/ledger?trip=${form.trip.tripId}`}
             />
           </CardContent>

@@ -45,17 +45,18 @@ COMMENT ON TYPE public.commission_payment_terms IS
     'Paired with a lag-days integer on the row. Data-Model §10.1 documented these two values '
     'from the start; the column held free text until 20261011120000.';
 
--- The lag is parsed out of the old text BEFORE the type changes, for any deployed rows.
--- On `db reset` this is a no-op (migrations run against an empty table; the seed writes the
--- new shape itself), and production had no rows on 2026-10-11 — it is here so the migration
--- is correct rather than merely lucky.
+-- The lag is parsed out of the old text BEFORE the type changes, for any deployed rows. It is
+-- BEST-EFFORT, and honest about it: it reads the seed's own phrasing ("60 days after travel")
+-- and clamps to 0–365, but prose like "2 weeks" or "mixed" has no faithful reading. That is
+-- acceptable only because production held NO commission or supplier rows on 2026-10-11
+-- (checked) and `db reset` runs this against an empty table — not because the parse is right.
 ALTER TABLE public.commission
     ADD COLUMN payment_lag_days integer NOT NULL DEFAULT 0,
     ADD COLUMN version          integer NOT NULL DEFAULT 1,
     ADD COLUMN archived_at      timestamptz;
 
 UPDATE public.commission
-   SET payment_lag_days = coalesce(substring(payment_terms FROM '(\d+)')::integer, 0);
+   SET payment_lag_days = least(coalesce(substring(payment_terms FROM '(\d{1,3})')::integer, 0), 365);
 
 ALTER TABLE public.commission
     ALTER COLUMN payment_terms TYPE public.commission_payment_terms
@@ -76,17 +77,60 @@ COMMENT ON COLUMN public.commission.version IS
     'Optimistic lock for screen 3.7.3 (Data-Model §20.4). Bumped by every write; a write that '
     'names a different version is refused as stale rather than overwriting.';
 COMMENT ON COLUMN public.commission.archived_at IS
-    'Soft removal of a line entered by mistake. Allowed ONLY while status = expected and no '
-    'Inteletravel reference is set (Gyasi, 2026-10-11). Removed lines leave every accessor; '
+    'Soft removal of a line entered by mistake. Allowed ONLY while the line has never been on '
+    'the record — on_record_at IS NULL (Gyasi, 2026-10-11). Removed lines leave every accessor; '
     'the row and its audit trail remain.';
+
+-- ── WHY A STAMP, AND NOT JUST "status = expected AND no reference" ──────────────────────
+--
+-- Gyasi's rule is "removable before it was ever invoiced". Testing the line's CURRENT state
+-- does not say that: review found an edit could move a received line back to expected and
+-- blank its reference, after which the state test passed and the line — and its payment —
+-- could be removed. So the rule is about HISTORY: `on_record_at` is stamped the first time a
+-- line leaves `expected` or carries an Inteletravel reference, and is never cleared or moved.
+--
+-- It is kept by a TRIGGER so every writer obeys it — these functions, the seed, §3.7.5's
+-- import to come. That is not the trigger PR #72 warned against: that one would have DERIVED
+-- expected from components and erased the disagreement §3.7.6 exists to show. This one only
+-- remembers a fact about the row's own past.
+ALTER TABLE public.commission ADD COLUMN on_record_at timestamptz;
+
+UPDATE public.commission
+   SET on_record_at = coalesce(updated_at, created_at, now())
+ WHERE status <> 'expected' OR inteletravel_reference IS NOT NULL;
+
+COMMENT ON COLUMN public.commission.on_record_at IS
+    'When the line first left `expected` or got an Inteletravel reference. Set once by the '
+    'commission_on_record trigger and never cleared; a line with one can never be removed.';
+
+CREATE OR REPLACE FUNCTION public.commission_stamp_on_record()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' AND OLD.on_record_at IS NOT NULL THEN
+        -- Set once. Nothing a later write says can clear or move it.
+        NEW.on_record_at := OLD.on_record_at;
+    ELSIF NEW.status <> 'expected' OR NEW.inteletravel_reference IS NOT NULL THEN
+        NEW.on_record_at := coalesce(NEW.on_record_at, now());
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER commission_on_record
+    BEFORE INSERT OR UPDATE ON public.commission
+    FOR EACH ROW EXECUTE FUNCTION public.commission_stamp_on_record();
 
 -- The supplier's DEFAULT terms, offered when a line is added. NULL means "varies" (the old
 -- documented `mixed`) or "not on file" — no prefill either way, and the advisor picks.
 ALTER TABLE public.supplier ADD COLUMN commission_payment_lag_days integer;
 
 UPDATE public.supplier
-   SET commission_payment_lag_days = substring(commission_payment_terms FROM '(\d+)')::integer
- WHERE commission_payment_terms ~ '\d';
+   SET commission_payment_lag_days = least(substring(commission_payment_terms FROM '(\d{1,3})')::integer, 365)
+ WHERE commission_payment_terms ~ '\d'
+   AND (commission_payment_terms ILIKE '%booking%' OR commission_payment_terms ILIKE '%travel%');
 
 ALTER TABLE public.supplier
     ALTER COLUMN commission_payment_terms TYPE public.commission_payment_terms
@@ -469,7 +513,7 @@ AS $$
            l.status, l.received_at, l.inteletravel_reference, l.notes, l.version,
            -- Gyasi's rule, computed where the write enforces it, so the button and the
            -- refusal cannot disagree.
-           (l.status = 'expected' AND l.inteletravel_reference IS NULL),
+           (l.status = 'expected' AND l.inteletravel_reference IS NULL AND l.on_record_at IS NULL),
            me.today
       FROM line l
      CROSS JOIN me
@@ -561,7 +605,9 @@ BEGIN
     -- A malformed forwarded-for value must not cost the advisor their write; it costs the
     -- audit row its ip and nothing else.
     BEGIN
-        v_ip := nullif(btrim(p_ip), '')::inet;
+        -- The FIRST hop of a forwarded-for chain is the client; "203.0.113.7, 10.0.0.1" as a
+        -- whole is not an inet, and casting it lost every proxied caller's address.
+        v_ip := nullif(btrim(split_part(p_ip, ',', 1)), '')::inet;
     EXCEPTION WHEN invalid_text_representation THEN
         v_ip := NULL;
     END;
@@ -609,6 +655,9 @@ AS $$
 DECLARE
     v_currency char(3);
     v_ref      text := nullif(btrim(p_inteletravel_reference), '');
+    -- Rounded here as the column does, so expected is computed from the rate that is STORED;
+    -- 12.505 would otherwise compute from 12.505 and store 12.51, and fail the CHECK.
+    v_pct      numeric := round(p_commission_pct, 2);
     v_expected bigint;
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM public.agent a
@@ -646,17 +695,28 @@ BEGIN
 
     -- Computed HERE, never taken from the caller. `commission_expected_matches_rate` would
     -- refuse a mismatch anyway; computing it means there is nothing to mismatch.
-    v_expected := round(p_gross_cents * p_commission_pct / 100.0);
+    v_expected := round(p_gross_cents * v_pct / 100.0);
 
-    INSERT INTO public.commission
-        (id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
-         expected_commission_cents, processing_fee_cents, received_commission_cents,
-         currency, payment_terms, payment_lag_days, status, inteletravel_reference, notes,
-         version)
-    VALUES
-        (p_commission_id, p_trip_id, p_agent_id, p_supplier_id, p_gross_cents,
-         p_commission_pct, v_expected, 0, 0, v_currency, p_payment_terms, p_payment_lag_days,
-         p_status, v_ref, nullif(btrim(p_notes), ''), 1);
+    -- The reference check above is check-then-insert; two saves racing with one reference
+    -- would leave the second to hit the unique index. That is still `duplicate_reference`,
+    -- not a 500.
+    BEGIN
+        INSERT INTO public.commission
+            (id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
+             expected_commission_cents, processing_fee_cents, received_commission_cents,
+             currency, payment_terms, payment_lag_days, status, inteletravel_reference, notes,
+             version)
+        VALUES
+            (p_commission_id, p_trip_id, p_agent_id, p_supplier_id, p_gross_cents,
+             v_pct, v_expected, 0, 0, v_currency, p_payment_terms, p_payment_lag_days,
+             p_status, v_ref, nullif(btrim(p_notes), ''), 1);
+    EXCEPTION WHEN unique_violation THEN
+        IF SQLERRM LIKE '%commission_inteletravel_ref%' THEN
+            RETURN QUERY SELECT 'duplicate_reference'::text, NULL::uuid, NULL::integer;
+            RETURN;
+        END IF;
+        RAISE;
+    END;
 
     PERFORM public.commission_audit(
         p_audit_id, p_actor_user_id, 'commission.created', 'commission', p_commission_id,
@@ -664,7 +724,7 @@ BEGIN
             'trip_id', p_trip_id,
             'supplier_id', p_supplier_id,
             'gross_booking_cents', p_gross_cents,
-            'commission_pct', p_commission_pct,
+            'commission_pct', v_pct,
             'expected_commission_cents', v_expected,
             'status', p_status,
             'payment_terms', p_payment_terms,
@@ -692,7 +752,9 @@ COMMENT ON FUNCTION public.agent_create_commission IS
 -- is a remove and an add, each audited. The status may move among expected, invoiced and
 -- lost here; received and disputed carry money and a date and arrive only through the
 -- payment write. A line that WAS received and is moved back here has its money and date
--- cleared — the constraints demand it, and the audit row keeps the before values.
+-- cleared — the constraints demand it, the audit row keeps the before values, and the caller
+-- must SAY so (`p_clear_payment`): review found the clear happened silently, beside a Mark
+-- received card still showing the money.
 
 CREATE OR REPLACE FUNCTION public.agent_update_commission(
     p_agent_id               uuid,
@@ -709,7 +771,8 @@ CREATE OR REPLACE FUNCTION public.agent_update_commission(
     p_notes                  text,
     p_audit_id               uuid,
     p_ip                     text,
-    p_user_agent             text
+    p_user_agent             text,
+    p_clear_payment          boolean DEFAULT false
 )
 RETURNS TABLE (outcome text, version integer)
 LANGUAGE plpgsql
@@ -721,6 +784,7 @@ DECLARE
     v_line     public.commission%ROWTYPE;
     v_ref      text := nullif(btrim(p_inteletravel_reference), '');
     v_notes    text := nullif(btrim(p_notes), '');
+    v_pct      numeric := round(p_commission_pct, 2);
     v_expected bigint;
     v_clear    boolean;
     v_changes  jsonb := '{}'::jsonb;
@@ -771,9 +835,14 @@ BEGIN
         RETURN;
     END IF;
 
-    v_expected := round(p_gross_cents * p_commission_pct / 100.0);
+    v_expected := round(p_gross_cents * v_pct / 100.0);
     v_clear := v_line.status IN ('received', 'disputed')
                AND p_status NOT IN ('received', 'disputed');
+
+    IF v_clear AND NOT coalesce(p_clear_payment, false) THEN
+        RETURN QUERY SELECT 'payment_would_clear'::text, v_line.version;
+        RETURN;
+    END IF;
 
     -- Before/after for every financial field that moved. These are the agency's own figures,
     -- not a client's personal data, and "what did the line say before" is the question a
@@ -786,9 +855,9 @@ BEGIN
         v_changes := v_changes || jsonb_build_object('gross_booking_cents',
             jsonb_build_object('from', v_line.gross_booking_cents, 'to', p_gross_cents));
     END IF;
-    IF p_commission_pct IS DISTINCT FROM v_line.commission_pct THEN
+    IF v_pct IS DISTINCT FROM v_line.commission_pct THEN
         v_changes := v_changes || jsonb_build_object('commission_pct',
-            jsonb_build_object('from', v_line.commission_pct, 'to', p_commission_pct));
+            jsonb_build_object('from', v_line.commission_pct, 'to', v_pct));
     END IF;
     IF v_expected IS DISTINCT FROM v_line.expected_commission_cents THEN
         v_changes := v_changes || jsonb_build_object('expected_commission_cents',
@@ -824,10 +893,11 @@ BEGIN
         RETURN;
     END IF;
 
+    BEGIN
     UPDATE public.commission c
        SET supplier_id               = p_supplier_id,
            gross_booking_cents       = p_gross_cents,
-           commission_pct            = p_commission_pct,
+           commission_pct            = v_pct,
            expected_commission_cents = v_expected,
            payment_terms             = p_payment_terms,
            payment_lag_days          = p_payment_lag_days,
@@ -840,6 +910,13 @@ BEGIN
            version                   = c.version + 1,
            updated_at                = now()
      WHERE c.id = p_commission_id;
+    EXCEPTION WHEN unique_violation THEN
+        IF SQLERRM LIKE '%commission_inteletravel_ref%' THEN
+            RETURN QUERY SELECT 'duplicate_reference'::text, v_line.version;
+            RETURN;
+        END IF;
+        RAISE;
+    END;
 
     PERFORM public.commission_audit(
         p_audit_id, p_actor_user_id, 'commission.updated', 'commission', p_commission_id,
@@ -857,7 +934,8 @@ COMMENT ON FUNCTION public.agent_update_commission IS
     'Screen 3.7.3''s edit. Optimistic lock on commission.version; the trip is fixed; status '
     'moves among expected / invoiced / lost (a received line moved back has its payment '
     'cleared, recorded in the audit). Audits before/after of every financial field in the '
-    'same transaction. Outcomes: changed | noop | stale | not_found | needs_payment | '
+    'same transaction. Moving a paid line back clears its payment only when p_clear_payment is '
+    'true. Outcomes: changed | noop | stale | not_found | needs_payment | payment_would_clear | '
     'supplier_not_found | duplicate_reference.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -890,6 +968,11 @@ DECLARE
 BEGIN
     IF p_status NOT IN ('received', 'disputed') THEN
         RAISE EXCEPTION 'a payment is recorded as received or disputed, not %', p_status;
+    END IF;
+    -- "Received" with nothing received is a disputed (or lost) line wearing the wrong status,
+    -- and it would leave the At risk tile. The Edge Function says this in English first.
+    IF p_status = 'received' AND coalesce(p_received_cents, 0) <= 0 THEN
+        RAISE EXCEPTION 'a line recorded as received needs the amount that arrived';
     END IF;
 
     SELECT (now() AT TIME ZONE a.time_zone)::date INTO v_today
@@ -1012,9 +1095,11 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Gyasi's rule (2026-10-11). Once Inteletravel has a reference for it, or it has moved
-    -- past `expected`, the line is part of the financial record: correct it, do not remove it.
-    IF v_line.status <> 'expected' OR v_line.inteletravel_reference IS NOT NULL THEN
+    -- Gyasi's rule (2026-10-11): removable only before it was ever on the record. The STAMP
+    -- is the test, not the current state — see `on_record_at`. The state checks stay beside it
+    -- as a statement of the rule, though the trigger already implies them.
+    IF v_line.status <> 'expected' OR v_line.inteletravel_reference IS NOT NULL
+       OR v_line.on_record_at IS NOT NULL THEN
         RETURN QUERY SELECT 'not_removable'::text, v_line.version;
         RETURN;
     END IF;
@@ -1041,9 +1126,9 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.agent_remove_commission IS
-    'Soft-removes a line entered by mistake: only while status = expected with no Inteletravel '
-    'reference (Gyasi, 2026-10-11). Audited in the same transaction. Outcomes: removed | '
-    'stale | not_found | not_removable.';
+    'Soft-removes a line entered by mistake: only if it was never on the record (on_record_at '
+    'IS NULL: never left expected, never had an Inteletravel reference; Gyasi, 2026-10-11). '
+    'Audited in the same transaction. Outcomes: removed | stale | not_found | not_removable.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 11. The export — rows and their audit row in one call
@@ -1067,49 +1152,44 @@ CREATE OR REPLACE FUNCTION public.agent_export_commission(
     p_ip            text,
     p_user_agent    text
 )
-RETURNS TABLE (
-    trip_title                text,
-    client_display_name       text,
-    supplier_name             text,
-    travel_start              date,
-    travel_end                date,
-    status                    commission_status,
-    gross_booking_cents       text,
-    commission_pct            numeric,
-    expected_commission_cents text,
-    processing_fee_cents      text,
-    received_commission_cents text,
-    received_at               date,
-    payment_terms             commission_payment_terms,
-    payment_lag_days          integer,
-    inteletravel_reference    text,
-    currency                  char(3)
-)
+-- ONE jsonb array, not a set of rows. PostgREST caps every RPC result set at `max_rows`
+-- (1000), so a RETURNS TABLE export of 1,200 lines arrived as 1,000 while its audit row said
+-- 1,200 — a silently short file. A single value is not a row set and is not capped.
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-#variable_conflict use_column
 DECLARE
+    v_rows  jsonb;
     v_count integer;
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM public.agent a
                     WHERE a.id = p_agent_id AND a.status <> 'archived') THEN
-        RETURN;
+        RETURN NULL;
     END IF;
 
-    -- Rows first, then the audit row with their count. Both are inside this one call: if
-    -- the audit insert fails the call fails, and PostgREST returns no rows at all — so an
-    -- export can never leave without its record, which is the property that matters.
     -- The predicate is the ledger's, spelled with p_agent_id: this runs on the service role,
     -- where current_agent_id() is NULL.
-    RETURN QUERY
-    SELECT t.title,
-           coalesce(cl.preferred_name, cl.first_name) || ' ' || cl.last_name,
-           s.name, t.start_date, t.end_date, c.status,
-           c.gross_booking_cents::text, c.commission_pct, c.expected_commission_cents::text,
-           c.processing_fee_cents::text, c.received_commission_cents::text, c.received_at,
-           c.payment_terms, c.payment_lag_days, c.inteletravel_reference, c.currency
+    SELECT coalesce(jsonb_agg(jsonb_build_object(
+               'trip_title',                t.title,
+               'client_display_name',       coalesce(cl.preferred_name, cl.first_name) || ' ' || cl.last_name,
+               'supplier_name',             s.name,
+               'travel_start',              t.start_date,
+               'travel_end',                t.end_date,
+               'status',                    c.status,
+               'gross_booking_cents',       c.gross_booking_cents::text,
+               'commission_pct',            c.commission_pct,
+               'expected_commission_cents', c.expected_commission_cents::text,
+               'processing_fee_cents',      c.processing_fee_cents::text,
+               'received_commission_cents', c.received_commission_cents::text,
+               'received_at',               c.received_at,
+               'payment_terms',             c.payment_terms,
+               'payment_lag_days',          c.payment_lag_days,
+               'inteletravel_reference',    c.inteletravel_reference,
+               'currency',                  c.currency)
+             ORDER BY t.start_date DESC NULLS LAST, c.created_at DESC, c.id), '[]'::jsonb)
+      INTO v_rows
       FROM public.commission c
       JOIN public.trip t     ON t.id = c.trip_id
       JOIN public.client cl  ON cl.id = t.client_id
@@ -1121,11 +1201,12 @@ BEGIN
        AND (p_supplier_id IS NULL OR c.supplier_id = p_supplier_id)
        AND (p_trip_id IS NULL OR c.trip_id = p_trip_id)
        AND (p_travel_from IS NULL OR t.start_date >= p_travel_from)
-       AND (p_travel_to   IS NULL OR t.start_date <= p_travel_to)
-     ORDER BY t.start_date DESC NULLS LAST, c.created_at DESC, c.id;
+       AND (p_travel_to   IS NULL OR t.start_date <= p_travel_to);
 
-    GET DIAGNOSTICS v_count = ROW_COUNT;
+    v_count := jsonb_array_length(v_rows);
 
+    -- In the same call that returns the rows: if this insert fails, the call fails and no file
+    -- leaves without its record.
     PERFORM public.commission_audit(
         p_audit_id, p_actor_user_id, 'commission.exported', 'agent', p_agent_id,
         jsonb_build_object(
@@ -1137,13 +1218,16 @@ BEGIN
                 'travel_from', p_travel_from,
                 'travel_to', p_travel_to)),
         p_ip, p_user_agent);
+
+    RETURN v_rows;
 END;
 $$;
 
 COMMENT ON FUNCTION public.agent_export_commission IS
     'The ledger CSV export (§3.7.2), deferred from Stage 1 until it could be audited. Applies '
     'the ledger''s filters for p_agent_id, writes one commission.exported audit row with the '
-    'filters and row count, then returns the rows in exact cents. Notes are not exported.';
+    'filters and row count, then returns ALL the rows as one jsonb array (not a row set, which '
+    'PostgREST would cap at max_rows). Exact cents as digit-strings. Notes are not exported.';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 12. Grants
@@ -1156,12 +1240,16 @@ GRANT  EXECUTE ON FUNCTION public.agent_commission_line(uuid) TO authenticated, 
 REVOKE EXECUTE ON FUNCTION public.agent_suppliers() FROM public, anon;
 GRANT  EXECUTE ON FUNCTION public.agent_suppliers() TO authenticated, service_role;
 
--- The two helpers: no client role, and not service_role either. They are only ever reached
--- from inside the functions above, which run as the owner.
-REVOKE EXECUTE ON FUNCTION public.commission_lines_for_current_agent() FROM public, anon, authenticated;
+-- The helpers: no client role, and not service_role either. They are only ever reached from
+-- inside the functions above, which run as the owner. (Supabase grants service_role by name,
+-- so it is named here; a REVOKE from public alone would leave that grant standing.)
+REVOKE EXECUTE ON FUNCTION public.commission_lines_for_current_agent()
+    FROM public, anon, authenticated, service_role;
 REVOKE EXECUTE ON FUNCTION
     public.commission_audit(uuid, uuid, text, text, uuid, jsonb, text, text)
-    FROM public, anon, authenticated;
+    FROM public, anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.commission_stamp_on_record()
+    FROM public, anon, authenticated, service_role;
 
 -- The writes and the export take `p_agent_id` as trusted input. A client-role grant on any
 -- of them is an act-as-any-advisor primitive. service_role only; the Edge Function is the door.
@@ -1170,7 +1258,7 @@ DECLARE f text;
 BEGIN
     FOREACH f IN ARRAY ARRAY[
         'public.agent_create_commission(uuid, uuid, uuid, uuid, uuid, bigint, numeric, commission_payment_terms, integer, commission_status, text, text, uuid, text, text)',
-        'public.agent_update_commission(uuid, uuid, uuid, integer, uuid, bigint, numeric, commission_payment_terms, integer, commission_status, text, text, uuid, text, text)',
+        'public.agent_update_commission(uuid, uuid, uuid, integer, uuid, bigint, numeric, commission_payment_terms, integer, commission_status, text, text, uuid, text, text, boolean)',
         'public.agent_record_commission_payment(uuid, uuid, uuid, integer, commission_status, bigint, bigint, date, uuid, text, text)',
         'public.agent_remove_commission(uuid, uuid, uuid, integer, uuid, text, text)',
         'public.agent_export_commission(uuid, uuid, commission_status[], uuid, uuid, date, date, uuid, text, text)'
@@ -1195,7 +1283,7 @@ BEGIN
        AND p.proname IN ('agent_create_commission', 'agent_update_commission',
                          'agent_record_commission_payment', 'agent_remove_commission',
                          'agent_export_commission', 'commission_lines_for_current_agent',
-                         'commission_audit')
+                         'commission_audit', 'commission_stamp_on_record')
        AND (has_function_privilege('authenticated', p.oid, 'EXECUTE')
             OR has_function_privilege('anon', p.oid, 'EXECUTE'));
     IF leaked IS NOT NULL THEN

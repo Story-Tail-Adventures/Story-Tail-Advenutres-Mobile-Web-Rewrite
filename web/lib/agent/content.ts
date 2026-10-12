@@ -1147,7 +1147,7 @@ export const COMMISSION_COPY = {
   // is invoiced", which is wrong twice: a line starts life as `expected`, before any invoice,
   // and nothing creates one automatically — entry and import are the only producers.
   emptyBody:
-    "Add one with Add line. Importing an Inteletravel statement arrives with §3.7.5.",
+    "Use Add line to enter one. Importing an Inteletravel statement arrives with §3.7.5.",
   emptyFilteredTitle: "Nothing matches",
   emptyFilteredBody: "Try another status, supplier or date range.",
   emptyTripTitle: "No lines for this trip yet",
@@ -1161,29 +1161,33 @@ export const COMMISSION_COPY = {
 
   // ── 3.7.4 Add ──────────────────────────────────────────────────────────────
   addTitle: "Add commission line",
-  addSubtitle: "One line per supplier on a trip. Expected is gross × rate, worked out for you.",
+  addSubtitle: "Add one line per supplier on a trip. Expected is gross × rate, worked out when you save.",
   pickTripTitle: "Which trip is it for?",
   pickTripSearch: "Search trips",
   pickTripPlaceholder: "Trip, destination, or client…",
   pickTripNone: "No trips match that.",
   pickTripChange: "Pick a different trip",
-  noSuppliers: "No suppliers are on file yet, so there is nothing to file a line against.",
+  noSuppliers: "No suppliers on file yet. A line needs one to attach to.",
+  tripNotAvailableTitle: "That trip isn't available",
+  tripNotAvailableBody: "It may have been archived, or it belongs to another advisor.",
 
   // ── The line form, shared by 3.7.3 and 3.7.4 ─────────────────────────────
   supplierPlaceholder: "Pick a supplier",
+  supplierNoLongerListed: "No longer listed",
   grossLabel: "Gross booking",
-  grossHint: "What the supplier's booking totalled.",
+  grossHint: "The booking total the rate applies to.",
   rateLabel: "Commission rate",
   rateHint: "A percent, 0 to 100.",
   expectedLabel: "Expected",
-  expectedHint: "Gross × rate. Saved as the server works it out.",
+  expectedHint: "Gross × rate. Worked out again when you save.",
   termsLabel: "Paid",
   termsAfterTravel: "After travel",
   termsAtBooking: "At booking",
   lagLabel: "Days after",
   statusLabel: "Status",
+  statusHint: "Received and Disputed are set with Mark received.",
   referenceLabel: "Inteletravel reference",
-  referenceHint: "From the statement, once there is one.",
+  referenceHint: "From the statement, once there is one. A line with one can't be removed.",
   notesLabel: "Notes",
   saveLine: "Save line",
   saving: "Saving…",
@@ -1197,6 +1201,12 @@ export const COMMISSION_COPY = {
   supplierGone: "That supplier is no longer on file. Pick another.",
   stale: "This line changed since you opened it. Reload to see what changed.",
   failed: "That didn't save. Try again in a moment.",
+  // Moving a paid line back to an unpaid status wipes the recorded payment (audited). The
+  // checkbox is required, so the advisor says yes before it happens.
+  clearsPayment: "Changing the status clears the payment recorded on this line.",
+  clearsPaymentConfirm: "Yes, clear the recorded payment",
+  receivedNeedsAmount: "Received needs the amount that arrived. If nothing came, record it as Disputed.",
+  signedOut: "You were signed out. Sign in again and retry.",
 
   // ── 3.7.3 Detail ───────────────────────────────────────────────────────────
   backToLedger: "Back to ledger",
@@ -1229,13 +1239,16 @@ export const COMMISSION_COPY = {
   removeLine: "Remove line",
   removeTitle: "Remove this line?",
   removeBody:
-    "Use this for a line entered by mistake. It leaves the ledger and your totals. The record that it existed stays.",
+    "For a line entered by mistake. It leaves the ledger and your totals, and you can't bring it back from here. A record that it existed is kept.",
   removeConfirm: "Remove",
   removeKeep: "Keep it",
   // Gyasi's rule, said as the rule rather than as one case of it: a disputed or received
   // line was never "invoiced" in the advisor's sense, and the old wording said it was.
+  // Gyasi's rule (2026-10-11), stated as history: a line that was ever invoiced, paid or
+  // given a reference stays on the record, whatever its status says now.
   removeNotAllowed:
-    "Only a line still Expected, with no Inteletravel reference, can be removed. Edit this one, or mark it Lost.",
+    "Only a line that was never invoiced or given an Inteletravel reference can be removed. You can still edit this one.",
+  removeRefused: "That line couldn't be removed. It may have changed since you opened it.",
 } as const;
 
 /** "Sandals Resorts · 60 days after travel" — the expectation card's first line. */
@@ -1243,8 +1256,13 @@ export function commissionTermsLine(supplier: string, terms: string, days: numbe
   const atBooking = terms === "at_booking";
   const span = days === 0
     ? (atBooking ? "paid at booking" : "paid when travel ends")
-    : `${days} ${days === 1 ? "day" : "days"} after ${atBooking ? "booking" : "travel"}`;
+    : `paid ${days} ${days === 1 ? "day" : "days"} after ${atBooking ? "booking" : "travel"}`;
   return `${supplier} · ${span}`;
+}
+
+/** 3.7.3's header, as A373 draws it: "Sandals Resorts · Kyoto in the spring · $1,368 expected". */
+export function commissionLineHeading(supplier: string, trip: string, expected: string): string {
+  return `${supplier} · ${trip} · ${expected} expected`;
 }
 
 /** "Expected around Oct 18, 2026." */
@@ -1263,13 +1281,13 @@ export function commissionPaidLine(amount: string, dateLabel: string, fee: strin
  */
 export function commissionGapLine(gapCents: number, gapLabel: string): string {
   if (gapCents === 0) return "Matches expected, once the fee is taken out.";
-  if (gapCents > 0) return `${gapLabel} short of expected. Record it as Disputed to chase it.`;
-  return `${gapLabel} more than expected.`;
+  if (gapCents > 0) return `${gapLabel} short of expected, after the fee. Record it as Disputed to chase it.`;
+  return `${gapLabel} more than expected, after the fee.`;
 }
 
 /** "Gross and rate filled in from this trip's Sandals Resorts bookings." */
 export function commissionPrefilledFrom(supplier: string): string {
-  return `Gross and rate filled in from this trip's ${supplier} bookings. Change them if the invoice differs.`;
+  return `Gross and rate filled in from this trip's ${supplier} bookings. Change them if the final figures differ.`;
 }
 
 /** "5 trips", "1 trip" — the Expected · 90d tile's second line. */

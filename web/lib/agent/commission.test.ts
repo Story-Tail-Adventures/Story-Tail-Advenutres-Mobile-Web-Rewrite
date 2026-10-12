@@ -389,17 +389,18 @@ describe("lineView", () => {
   it("draws the prototype's header and the expectation card", () => {
     const v = lineView(LINE_ROW);
     expect(v.heading).toBe("Sandals Resorts · Kyoto in the spring · $1,368 expected");
-    expect(v.termsLine).toBe("Sandals Resorts · 60 days after travel");
+    expect(v.termsLine).toBe("Sandals Resorts · paid 60 days after travel");
     expect(v.expectationLine).toBe("Expected around Feb 20, 2027.");
     expect(v.tripHref).toBe("/agent/trips/t1");
     expect(v.canRemove).toBe(true);
   });
 
-  it("seeds the edit form with dollars and the payment form with expected-in-full today", () => {
+  it("seeds the edit form with dollars, and the payment form with a BLANK amount dated today", () => {
     const v = lineView(LINE_ROW);
     expect(v.lineValues).toMatchObject({ gross: "11400.00", rate: "12", paymentLagDays: "60" });
+    // Blank, so Enter in any field cannot record a full payment nobody checked.
     expect(v.paymentValues).toEqual({
-      status: "received", received: "1368.00", fee: "0.00", receivedAt: "2026-10-11",
+      status: "received", received: "", fee: "0.00", receivedAt: "2026-10-11",
     });
     expect(v.paidLine).toBeNull();
   });
@@ -417,6 +418,18 @@ describe("lineView", () => {
     expect(v.paymentValues).toEqual({
       status: "disputed", received: "1300.00", fee: "12.00", receivedAt: "2027-02-21",
     });
+  });
+
+  it("keeps the cents of what arrived, unlike the ledger's whole dollars", () => {
+    // In whole dollars $1,189.50 read as $1,190 and a 40-cent fee as "a $0 fee".
+    const v = lineView({
+      ...LINE_ROW,
+      status: "received",
+      received_commission_cents: "118950",
+      processing_fee_cents: "40",
+      received_at: "2027-02-21",
+    });
+    expect(v.paidLine).toBe("Received $1,189.50 on Feb 21, 2027, after a $0.40 fee.");
   });
 
   it("says why there is no date yet, by which anchor is missing", () => {

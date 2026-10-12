@@ -1,3 +1,4 @@
+import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import MuiLink from "@mui/material/Link";
 import Table from "@mui/material/Table";
@@ -11,6 +12,7 @@ import NextLink from "@/components/mui/NextLink";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { COMMISSION_COPY } from "@/lib/agent/content";
 import type { LedgerRow } from "@/lib/agent/commission";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * §3.7.2's rows — §4.4 Pattern B, web half, as A372_CommissionList draws it: a `size="small"`
@@ -52,7 +54,7 @@ export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
         </TableHead>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.commissionId} hover>
+            <TableRow key={row.commissionId}>
               {/* The row's header, so a screen reader names each cell by its trip. */}
               <TableCell component="th" scope="row" sx={{ maxWidth: 280 }}>
                 <MuiLink
@@ -70,6 +72,9 @@ export function CommissionLedgerTable({ rows }: { rows: LedgerRow[] }) {
                   >
                     {row.tripTitle}
                   </Typography>
+                  {/* Two suppliers on one trip are two links; the supplier tells them apart
+                      for anyone who cannot see the Supplier column. */}
+                  <Box component="span" sx={VISUALLY_HIDDEN}>{` · ${row.supplierName}`}</Box>
                 </MuiLink>
                 <Typography component="span" variant="caption" sx={{ ...TRUNCATE, color: "text.secondary" }}>
                   {row.clientName}

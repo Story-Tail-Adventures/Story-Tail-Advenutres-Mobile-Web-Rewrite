@@ -75,6 +75,28 @@ export default async function CommissionLinePage({
 
   const line = result.line;
 
+  // A line filed against a supplier that has since been archived must still be editable:
+  // `agent_suppliers()` lists live suppliers only, so without this the select opened on its
+  // placeholder and `required` blocked even a notes-only save. The SQL keeps the current
+  // supplier valid on purpose.
+  const listed = suppliers.some((g) => g.suppliers.some((s) => s.supplierId === line.lineValues.supplierId));
+  const pickable = listed
+    ? suppliers
+    : [
+        ...suppliers,
+        {
+          kindLabel: COMMISSION_COPY.supplierNoLongerListed,
+          suppliers: [{
+            supplierId: line.lineValues.supplierId,
+            name: line.supplierName,
+            kindLabel: COMMISSION_COPY.supplierNoLongerListed,
+            defaultCommissionPct: null,
+            paymentTerms: null,
+            paymentLagDays: null,
+          }],
+        },
+      ];
+
   return (
     <Box sx={PAGE_SX}>
       <AgentViews views={AGENT_COMMISSION_VIEWS} label={COMMISSION_COPY.viewsLabel} />
@@ -114,7 +136,7 @@ export default async function CommissionLinePage({
           <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
             <CommissionLineForm
               mode={{ kind: "edit", tripId: line.tripId, commissionId: line.commissionId, version: line.version }}
-              suppliers={suppliers}
+              suppliers={pickable}
               initial={line.lineValues}
               statusOptions={editStatusOptions(line.status)}
               currency={line.currency}
@@ -191,7 +213,7 @@ export default async function CommissionLinePage({
 /** The ledger's column, so moving between the two does not shift the page. */
 const PAGE_SX = { mx: "auto", width: "100%", maxWidth: 1336, px: { xs: 2, md: 4 }, py: 3 } as const;
 
-/** The artboard's `1fr 300px`, stacked below `md`. */
+/** The artboard's `1fr 300px`, widened to 320px for the payment form's fields; stacked below `md`. */
 const GRID_SX = {
   display: "grid",
   gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) 320px" },

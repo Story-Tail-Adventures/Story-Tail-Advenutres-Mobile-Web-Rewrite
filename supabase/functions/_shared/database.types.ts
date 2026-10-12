@@ -747,6 +747,7 @@ export type Database = {
           import_id: string | null
           inteletravel_reference: string | null
           notes: string | null
+          on_record_at: string | null
           payment_lag_days: number
           payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents: number
@@ -771,6 +772,7 @@ export type Database = {
           import_id?: string | null
           inteletravel_reference?: string | null
           notes?: string | null
+          on_record_at?: string | null
           payment_lag_days?: number
           payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents?: number
@@ -795,6 +797,7 @@ export type Database = {
           import_id?: string | null
           inteletravel_reference?: string | null
           notes?: string | null
+          on_record_at?: string | null
           payment_lag_days?: number
           payment_terms?: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents?: number
@@ -3606,24 +3609,7 @@ export type Database = {
           p_trip_id: string
           p_user_agent: string
         }
-        Returns: {
-          client_display_name: string
-          commission_pct: number
-          currency: string
-          expected_commission_cents: string
-          gross_booking_cents: string
-          inteletravel_reference: string
-          payment_lag_days: number
-          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
-          processing_fee_cents: string
-          received_at: string
-          received_commission_cents: string
-          status: Database["public"]["Enums"]["commission_status"]
-          supplier_name: string
-          travel_end: string
-          travel_start: string
-          trip_title: string
-        }[]
+        Returns: Json
       }
       agent_generate_itinerary: {
         Args: { p_agent_id: string; p_trip_id: string }
@@ -4097,6 +4083,7 @@ export type Database = {
           p_actor_user_id: string
           p_agent_id: string
           p_audit_id: string
+          p_clear_payment?: boolean
           p_commission_id: string
           p_commission_pct: number
           p_expected_version: number
@@ -4261,6 +4248,7 @@ export type Database = {
           import_id: string | null
           inteletravel_reference: string | null
           notes: string | null
+          on_record_at: string | null
           payment_lag_days: number
           payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents: number

@@ -13,10 +13,10 @@ import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({ callAgentFunction: vi.fn() }));
 vi.mock("@/lib/agent/api", () => ({ callAgentFunction: mocks.callAgentFunction }));
 
-import { GET } from "./route";
+import { GET, HEAD } from "./route";
 
-function request(qs: string) {
-  return new NextRequest(`http://localhost:3000/agent/commission/ledger/export${qs}`);
+function request(qs: string, headers: Record<string, string> = {}) {
+  return new NextRequest(`http://localhost:3000/agent/commission/ledger/export${qs}`, { headers });
 }
 
 beforeEach(() => {
@@ -57,6 +57,21 @@ describe("GET /agent/commission/ledger/export", () => {
     const res = await GET(request(""));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/login?next=");
+  });
+
+  it("refuses a cross-site request before any export (and so any audit row) happens", async () => {
+    const res = await GET(request("", { "sec-fetch-site": "cross-site" }));
+    expect(res.status).toBe(403);
+    expect(mocks.callAgentFunction).not.toHaveBeenCalled();
+  });
+
+  it("does not answer HEAD by running an export", () => {
+    expect(HEAD().status).toBe(405);
+  });
+
+  it("treats a 200 with no CSV as a failure, not an empty file", async () => {
+    mocks.callAgentFunction.mockResolvedValue({ ok: true, data: { outcome: "exported" } });
+    expect((await GET(request(""))).status).toBe(503);
   });
 
   it("says so in words when the function fails", async () => {
