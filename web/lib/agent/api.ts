@@ -72,7 +72,13 @@ export type AgentRead =
   | "agent_commission_monthly"
   // §3.7.3. One line, through the same scope as the ledger, so a removed line or one whose
   // two agent ids disagree is no row here either.
-  | "agent_commission_line";
+  | "agent_commission_line"
+  // §3.7.5 / §3.7.6. An imported statement, its rows beside their ledger lines, and the
+  // lines one row could pay. The tables are service-role only; these are the whole view.
+  | "agent_commission_imports"
+  | "agent_commission_import"
+  | "agent_commission_import_rows"
+  | "agent_commission_import_candidates";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -656,6 +662,102 @@ export type AgentCommissionLineRow = {
   as_of_date: string;
 };
 
+/** §3.7.5's list of past statements. */
+export type AgentCommissionImportListRow = {
+  import_id: string;
+  original_filename: string;
+  status: string;
+  total_rows: number;
+  matched_rows: number;
+  unmatched_rows: number;
+  period_start: string | null;
+  period_end: string | null;
+  created_at: string;
+  /** The upload's date in the advisor's own zone. */
+  created_on: string;
+  reconciled_at: string | null;
+};
+
+/** §3.7.5 / §3.7.6's one statement. `column_map` is field → header index. */
+export type AgentCommissionImportRow = {
+  import_id: string;
+  original_filename: string;
+  status: string;
+  headers: string[];
+  column_map: Record<string, number> | null;
+  statement_date: string | null;
+  total_rows: number;
+  period_start: string | null;
+  period_end: string | null;
+  version: number;
+  created_at: string;
+  reconciled_at: string | null;
+  /** The reconcile's date in the advisor's own zone. */
+  reconciled_on: string | null;
+  confirmed_count: number;
+  suggested_count: number;
+  unmatched_count: number;
+  duplicate_count: number;
+  unreadable_count: number;
+  already_recorded_count: number;
+  to_create_count: number;
+  ignored_count: number;
+  /** The first three rows' cells, for the map screen. */
+  sample_rows: string[][] | null;
+  as_of_date: string;
+};
+
+/** §3.7.6's row: the statement line, and the ledger line beside it (all null when none). */
+export type AgentCommissionImportLineRow = {
+  row_id: string;
+  row_number: number;
+  state: string;
+  match_basis: string;
+  reference: string | null;
+  supplier_text: string | null;
+  traveler_text: string | null;
+  gross_cents: string | null;
+  received_cents: string | null;
+  fee_cents: string | null;
+  paid_on: string | null;
+  currency: string;
+  parse_error: string | null;
+  line_id: string | null;
+  line_trip_id: string | null;
+  line_trip_title: string | null;
+  line_client_name: string | null;
+  line_supplier_name: string | null;
+  line_status: string | null;
+  line_gross_cents: string | null;
+  line_commission_pct: number | null;
+  line_expected_cents: string | null;
+  line_fee_cents: string | null;
+  line_received_cents: string | null;
+  line_received_at: string | null;
+  new_trip_id: string | null;
+  new_trip_title: string | null;
+  new_supplier_id: string | null;
+  new_supplier_name: string | null;
+  new_gross_cents: string | null;
+  new_commission_pct: number | null;
+};
+
+/** §3.7.6's "match to a different line". */
+export type AgentCommissionCandidateRow = {
+  commission_id: string;
+  trip_id: string;
+  trip_title: string;
+  client_name: string;
+  supplier_name: string;
+  status: string;
+  start_date: string | null;
+  gross_booking_cents: string;
+  commission_pct: number;
+  expected_cents: string;
+  supplier_matches: boolean;
+  traveler_matches: boolean;
+};
+
 export type AgentCommissionMonthRow = {
   month_start: string;
   received_cents: string;
@@ -715,7 +817,10 @@ export type AgentFunction =
   | "agent-client"
   // §3.7.3 / §3.7.4 and §3.7.2's export. Each SQL write audits itself in the same
   // transaction; the function supplies the audit id, ip and user agent.
-  | "agent-commission";
+  | "agent-commission"
+  // §3.7.5 / §3.7.6. Upload, map, resolve, reconcile, discard. Only reconcile writes the
+  // ledger, all of it in one transaction.
+  | "commission-import";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

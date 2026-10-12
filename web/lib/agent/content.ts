@@ -1088,8 +1088,8 @@ export const COMMISSION_COPY = {
   // the one counterpart the numbers are checked against.
   subtitle: "Expected → invoiced → received. Reconciled against Inteletravel.",
 
+  // Live since §3.7 Stage 3 (§3.7.5).
   importLabel: "Import CSV",
-  importDeferred: "Importing an Inteletravel statement arrives with §3.7.5.",
   // Live since §3.7 Stage 2. Each download writes an audit record (Data-Model §18.3), in the
   // same database call that produces the rows.
   exportLabel: "Export",
@@ -1147,7 +1147,7 @@ export const COMMISSION_COPY = {
   // is invoiced", which is wrong twice: a line starts life as `expected`, before any invoice,
   // and nothing creates one automatically — entry and import are the only producers.
   emptyBody:
-    "Use Add line to enter one. Importing an Inteletravel statement arrives with §3.7.5.",
+    "Use Add line to enter one, or import a statement from Inteletravel.",
   emptyFilteredTitle: "Nothing matches",
   emptyFilteredBody: "Try another status, supplier or date range.",
   emptyTripTitle: "No lines for this trip yet",
@@ -1328,4 +1328,254 @@ export function commissionRateChangeVsLastYear(points: number): string {
  */
 export function commissionTrendChange(pct: number): string {
   return signedChange(`${Math.abs(pct)}%`, pct === 0, pct < 0, "the 12 months before");
+}
+
+/**
+ * §3.7.5 Import statement and §3.7.6 Reconcile.
+ *
+ * WEB ONLY, like the rest of §3.7: no phone artboards, no Kotlin twin, no copy-parity row.
+ * Same register as COMMISSION_COPY: facts first, read at a desk. The one promise these
+ * screens make, and so say more than once, is that NOTHING IN THE LEDGER CHANGES until the
+ * advisor marks the statement reconciled, and that a line they already marked paid never
+ * changes at all (Gyasi, 2026-10-11).
+ */
+export const STATEMENT_COPY = {
+  importTitle: "Import Inteletravel statement",
+  importSubtitle:
+    "Upload the CSV from Inteletravel. Your ledger stays the same until you mark the statement reconciled.",
+  whereFileLabel: "Where do I get this file?",
+  // Deliberately general: no real statement has been seen yet, so this names no menu that
+  // might not exist.
+  whereFileBody:
+    "Download your commission statement from Inteletravel as a CSV file. If it opens in Excel, use Save As and choose CSV.",
+
+  step1Title: "Step 1 · Upload",
+  dropTitle: "Choose your statement",
+  dropHint: "Inteletravel statement · CSV · up to 512 KB",
+  fileLabel: "Statement file",
+  uploadButton: "Upload statement",
+  uploading: "Uploading…",
+  noFile: "Choose a CSV file first.",
+  tooBig: "That file is larger than 512 KB. Check it's the statement.",
+  notCsv: "That isn't a CSV file. If it's an Excel file, save it as CSV and upload that.",
+  duplicate: "You've already imported this file.",
+  duplicateOpen: "Open that statement",
+  uploadFailed: "The upload didn't come through. Try again in a moment.",
+  useDifferentFile: "Use a different file",
+
+  step2Title: "Step 2 · Map columns",
+  step2Waiting: "Upload a statement and its columns show up here.",
+  mapIntro: "Say what each column holds. Guesses are filled in and marked Auto.",
+  mapTableLabel: "Statement columns",
+  autoChip: "Auto",
+  manualChip: "Manual",
+  ignoreColumn: "Ignore this column",
+  fieldReference: "Booking reference",
+  fieldSupplier: "Supplier",
+  fieldTraveler: "Traveler name",
+  fieldGross: "Gross booking",
+  fieldReceived: "Commission paid",
+  fieldFee: "Fee withheld",
+  fieldPaidOn: "Paid on",
+  statementDateLabel: "Paid on, for every row",
+  statementDateHint: "No column holds the paid-on date, so use the date on the statement.",
+  mapNeedsReceived: "Choose the column that holds the commission paid.",
+  mapNeedsDate: "Choose the paid-on column, or enter the date the statement paid.",
+  remapWarning: "Changing the columns clears the choices you've made on this statement.",
+  mapFailed: "That didn't save. Try again in a moment.",
+  changeColumns: "Change columns",
+
+  pastTitle: "Past statements",
+  pastEmpty: "No statements yet. Your first one will show up here.",
+  pastTableLabel: "Past statements",
+  statusMapping: "Needs columns",
+  statusReview: "Ready to review",
+  statusReconciled: "Reconciled",
+
+  colStatementRow: "Inteletravel row",
+  colMatch: "Ledger match",
+  colConfidence: "Confidence",
+  colAmount: "Amount",
+  colAction: "Action",
+  rowsTableLabel: "Statement rows",
+  confidenceHigh: "High",
+  confidenceMedium: "Medium",
+  confidenceLow: "Low",
+
+  auto: "Auto-matched",
+  matched: "Matched",
+  newLine: "New line",
+  setAside: "Set aside",
+  alreadyRecorded: "Already recorded",
+  resolve: "Resolve",
+  change: "Change",
+  noMatch: "No match found",
+  possibleNew: "Possible new booking. Create a line?",
+  duplicateRow: "Same booking as an earlier row. Only one row can pay a booking, so choose what to do with this one.",
+  checkSuggestion: "Check this match before it counts.",
+
+  markReconciled: "Mark as reconciled",
+  reconcileConfirmTitle: "Mark this statement reconciled?",
+  reconcileKeep: "Not yet",
+  reconcileFailed: "That didn't save. Nothing in your ledger changed. Try again in a moment.",
+  // When the call failed with no answer, the reconcile may have committed: say only what is known.
+  reconcileUnsure: "That didn't finish. Reload the page to see where the statement stands, then try again.",
+  rowNeedsYouAgain: "A row needs you again. It's at the top of the table.",
+  discardLabel: "Discard statement",
+  discardTitle: "Discard this statement?",
+  discardBody: "Nothing in your ledger has changed. You can upload the file again afterward.",
+  discardConfirm: "Discard",
+  discardKeep: "Keep it",
+  discardFailed: "That didn't go through. Try again in a moment.",
+  working: "Working…",
+
+  stale: "This statement changed since you opened it. Reload the page and try again.",
+  notOpen: "This statement is already reconciled or discarded, so it can't change.",
+  notFoundTitle: "Statement not found",
+  notFoundBody: "It may have been discarded. Your other statements are on the import page.",
+  backToImport: "Back to statements",
+  backToStatement: "Back to the statement",
+
+  resolveTitle: "Resolve a statement row",
+  useSuggestionTitle: "Use the suggested match",
+  useSuggestion: "Use this match",
+  matchTitle: "Match a different line",
+  matchHint: "Lines that aren't paid yet, closest first.",
+  matchButton: "Match this line",
+  candidatesEmpty: "No unpaid lines to match. Create a new line instead.",
+  createTitle: "Create a new line",
+  createHint: "The line is added when you mark the statement reconciled. It starts out paid, using this row's amount.",
+  createTripLabel: "Trip",
+  createTripSearch: "Find a trip",
+  createTripPlaceholder: "Trip or client name",
+  createTripChange: "Choose a different trip",
+  createTripNone: "No trips match that search.",
+  createSupplierLabel: "Supplier",
+  createGrossLabel: "Gross booking",
+  createRateLabel: "Commission rate (%)",
+  createButton: "Create line when reconciled",
+  ignoreTitle: "Set it aside",
+  ignoreHint: "Nothing is recorded for this row. You can still add a line by hand later.",
+  ignoreButton: "Set aside",
+  lineUnavailable: "That line can't take this payment anymore. It's been paid, or another row already matches it.",
+  tripGone: "That trip isn't available anymore. Pick another.",
+  supplierGone: "That supplier isn't available anymore. Pick another.",
+  notAllowed: "That choice isn't available for this row.",
+  resolveFailed: "That didn't save. Try again in a moment.",
+  createNeedsTrip: "Choose a trip first.",
+  createNeedsGross: "Enter the gross booking, like 6480.00.",
+  tripNotAvailable: "That trip isn't available. Find another below.",
+  createNeedsRate: "Enter a commission rate from 0 to 100.",
+} as const;
+
+/** "Uploaded: april.csv · 38 rows found". */
+export function statementUploadedLine(filename: string, rows: number): string {
+  return `Uploaded: ${filename} · ${rows.toLocaleString("en-US")} ${rows === 1 ? "row" : "rows"} found`;
+}
+
+/** "Import 38 rows". */
+export function statementImportRows(rows: number): string {
+  return `Import ${rows.toLocaleString("en-US")} ${rows === 1 ? "row" : "rows"}`;
+}
+
+/** "Example: SRB-220119" under a column, or nothing when the sample cell is blank. */
+export function statementSample(value: string): string {
+  return `Example: ${value}`;
+}
+
+/** "Fee withheld is chosen for two columns. Pick one." */
+export function statementFieldTwice(field: string): string {
+  return `${field} is chosen for two columns. Pick one.`;
+}
+
+/** "Reconcile · April 2026 statement". */
+export function statementReconcileTitle(label: string): string {
+  return `Reconcile · ${label}`;
+}
+
+/** "April 2026 statement" when every paid date is in one month. */
+export function statementMonthLabel(month: string): string {
+  return `${month} statement`;
+}
+
+/** "38 imported · 35 matched · 3 to resolve", the prototype's subtitle in plain words. */
+export function statementSummary(total: number, matched: number, toResolve: number, setAside = 0): string {
+  const parts = [`${total} imported`, `${matched} matched`];
+  if (setAside > 0) parts.push(`${setAside} set aside`);
+  parts.push(toResolve === 0 ? "nothing to resolve" : `${toResolve} to resolve`);
+  return parts.join(" · ");
+}
+
+/** "Resolve 3 more rows to reconcile." Beside a disabled Mark as reconciled: what to do. */
+export function statementStillNeedYou(count: number): string {
+  return `Resolve ${count} more ${count === 1 ? "row" : "rows"} to reconcile.`;
+}
+
+/** The reconcile confirmation: what is about to change, and what will not. */
+export function statementReconcileBody(paid: number, created: number): string {
+  const what: string[] = [];
+  if (paid > 0) what.push(`records ${paid} ${paid === 1 ? "payment" : "payments"}`);
+  if (created > 0) what.push(`adds ${created} new ${created === 1 ? "line" : "lines"}`);
+  const head = what.length ? `This ${what.join(" and ")} in your ledger.` : "Nothing in your ledger changes.";
+  return `${head} Lines you already marked paid stay as they are.`;
+}
+
+/** "Reconciled Oct 12, 2026: 35 payments recorded, 2 new lines." */
+export function statementReconciledLine(date: string, paid: number, created: number): string {
+  return `Reconciled ${date}: ${paid} ${paid === 1 ? "payment" : "payments"} recorded, ${created} new ${created === 1 ? "line" : "lines"}.`;
+}
+
+/**
+ * "Expected $1,212.36. Paid $1,100.00 plus a $50.00 fee. That's $62.36 short, so it'll be
+ * marked Disputed." The fee is named when there is one, so the three numbers add up on the
+ * page (the first draft said "after the fee" whether or not there was one, and left it out
+ * of the sum it showed). Past tense once the statement is reconciled.
+ */
+export function statementShortNote(
+  expected: string,
+  paid: string,
+  fee: string | null,
+  gap: string,
+  done = false,
+): string {
+  const paidPart = fee ? `Paid ${paid} plus a ${fee} fee.` : `Paid ${paid}.`;
+  return `Expected ${expected}. ${paidPart} That's ${gap} short, so it ${done ? "was" : "will be"} marked Disputed.`;
+}
+
+/** "$20.00 more than expected." */
+export function statementOverNote(gap: string): string {
+  return `${gap} more than expected.`;
+}
+
+/** The prototype's "Sandals applied 14% not 15%", from the amounts rather than a guess. */
+export function statementRateNote(paidPct: string, linePct: string): string {
+  return `Paid at about ${paidPct} of the booking, not ${linePct}.`;
+}
+
+/**
+ * A row matched to a line already received or disputed: what the ledger holds, and that this
+ * import will not change it (Gyasi, 2026-10-11).
+ */
+export function statementAlreadyNote(
+  status: "received" | "disputed",
+  ledgerAmount: string | null,
+  statementAmount: string | null,
+): string {
+  const marked = status === "disputed" ? "Disputed" : "Received";
+  if (ledgerAmount && statementAmount && statementAmount !== ledgerAmount) {
+    return `Your ledger says ${ledgerAmount}; this statement says ${statementAmount}. If the ledger's wrong, fix it on the line.`;
+  }
+  return ledgerAmount
+    ? `Already marked ${marked} (${ledgerAmount}). This import won't change it.`
+    : `Already marked ${marked} on your ledger. This import won't change it.`;
+}
+
+/** "Row 4" — the resolve page's heading and the row's name in the table. */
+export function statementRowName(n: number): string {
+  return `Row ${n}`;
+}
+
+/** A candidate line's second line: "Sandals Resorts · Carter · expected $614". */
+export function statementCandidateMeta(supplier: string, client: string, expected: string): string {
+  return `${supplier} · ${client} · expected ${expected}`;
 }
