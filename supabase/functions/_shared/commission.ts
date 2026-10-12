@@ -176,6 +176,40 @@ export function readLedgerFilters(value: unknown): LedgerFilters {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// §3.7.7's stage weights
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The four open stages the forecast weights (Data-Model §7.4), in pipeline order. */
+export const FORECAST_STAGES = ["inquiry", "proposal", "booked", "in_progress"] as const;
+export type ForecastStage = (typeof FORECAST_STAGES)[number];
+export type StageWeights = Record<ForecastStage, number>;
+
+/**
+ * Exactly the four open stages, each a whole number from 0 to 100. A missing stage, an extra
+ * one, "50" as text or 50.5 is a 400 here rather than a 500 from the SQL fence.
+ */
+export function readWeights(value: unknown, what = "Weights"): StageWeights {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw badRequest(`${what} must be an object.`);
+  }
+  const v = value as Record<string, unknown>;
+  const keys = Object.keys(v).sort();
+  if (keys.join() !== [...FORECAST_STAGES].sort().join()) {
+    // The screen's names, not the enum's: a 4xx detail reaches the form's alert as written.
+    throw badRequest(`${what} must cover Inquiry, Proposal, Booked and Traveling.`);
+  }
+  const out = {} as StageWeights;
+  for (const stage of FORECAST_STAGES) {
+    const n = v[stage];
+    if (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > 100) {
+      throw badRequest("Each weight must be a whole number from 0 to 100.");
+    }
+    out[stage] = n;
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // The CSV
 // ─────────────────────────────────────────────────────────────────────────────
 
