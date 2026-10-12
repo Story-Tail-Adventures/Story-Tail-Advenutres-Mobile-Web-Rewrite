@@ -882,7 +882,7 @@ mutation on the `client` blast radius and rule 3 applies in full.
 |---|---|---|---|---|---|
 | 20 | 50 | 100 | 100 | 100 | 0 |
 
-These are defaults, not constants: the rows are seeded per agent and 3.12 Agent Settings edits them. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
+These are defaults, not constants: the rows are seeded per agent and edited on 3.7.7 Commission Forecast (since 20261013120000, through `agent_set_pipeline_weights` in the `agent-commission` Edge Function: the four open stages only, refused as stale if they changed since the page loaded, and audited in the same transaction as `pipeline_weight.updated`). 3.12 Agent Settings will edit them too. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
 
 **The confidence figure** the prototype draws as "71%" is the weighted total over the unweighted one, not a stored value. It is therefore a property of the book's current shape, and it moves when trips move, which is the intended reading.
 
