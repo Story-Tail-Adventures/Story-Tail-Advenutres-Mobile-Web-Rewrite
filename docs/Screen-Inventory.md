@@ -2937,6 +2937,28 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Commission Dashboard.
 **Related screens:** Pipeline.
 
+> **Amended 2026-10-13, on shipping this screen (§3.7 Stage 4).** Built on the web at
+> `/agent/commission/forecast`, the fourth view under Commission; no phone treatment (§3.7 has
+> no phone artboards). A377_Forecast's two cards. Gyasi's rulings (2026-10-12):
+>
+> - **Every open trip** (inquiry, proposal, booked, traveling), whatever its dates. Its totals
+>   are the worklist's own (`agent_kpis`): the "Commission expected" tile shows the unweighted
+>   total and the confidence, which this screen's caption repeats under the weighted total. The
+>   artboard's "Next 12 months" chip reads "All open trips".
+> - **The stages are the four trip statuses**, weighted per Data-Model §7.4. The artboard's
+>   "Qualified" row is not a trip status and is not drawn.
+> - **"Adjust weighting" saves**, after a preview of each stage's new amount, and is audited.
+>   The same weights set the worklist's confidence, so it moves too. A save made from a page
+>   that is out of date is refused, not applied over someone else's change.
+> - **The cash-in calendar is the forecast by month**: each booking's weighted commission in
+>   the month its supplier should pay (after travel or at booking, plus the supplier's days);
+>   **60 days after the trip ends when no terms are on file**. Twelve months from the
+>   advisor's own current month, with Overdue (due before today) first and Later / No travel
+>   dates yet last when they hold money. A trip total set by hand, with no bookings behind it,
+>   is counted under No travel dates yet. Money already received on a trip's ledger lines comes
+>   off it, and the page says how much, so the calendar plus that note equals the forecast to
+>   the cent.
+
 ---
 
 ### 3.8 Leads
