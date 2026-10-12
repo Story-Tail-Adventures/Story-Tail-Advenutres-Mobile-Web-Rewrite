@@ -564,6 +564,12 @@ verify_jwt = true
 [functions.agent-commission]
 verify_jwt = true
 
+# §3.7.5 / §3.7.6: import an Inteletravel statement and reconcile it. Upload, map, resolve,
+# reconcile and discard; the ledger changes only on reconcile, inside one SQL transaction
+# that writes an audit row per line it touches.
+[functions.commission-import]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand
