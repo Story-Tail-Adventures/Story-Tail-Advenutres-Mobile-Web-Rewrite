@@ -1,0 +1,21 @@
+/* Cascade layer order. Nothing else belongs in this file.
+ *
+ * A layer's position is fixed by the FIRST time the browser sees its name. This line used to
+ * open app/globals.css, ahead of its @imports, which is right by the CSS spec, but the
+ * bundler (Turbopack, dev and build alike) emits every @import'ed file BEFORE the importing
+ * file's own rules. reset.css (`@layer base`) and components.css (`@layer components`) were
+ * seen first, `mui` came last and outranked `components`, and every gate in that layer lost
+ * to MUI's own `display`: both theme-toggle icons showed (found 2026-10-12).
+ *
+ * As its own file, @import'ed first, it is the first thing in the bundle.
+ * app/globals.css must import it before anything else (lib/mui/layers.test.ts), and
+ * .github/scripts/check_css_layer_order.py checks the BUILT CSS after `next build`.
+ *
+ *   base        the element reset (styles/reset.css) and the html/body rules in globals.css.
+ *               Below mui, so the reset's `button { background-color: transparent }`
+ *               cannot wipe out MUI's styles.
+ *   mui         every emotion rule (AppRouterCacheProvider's enableCssLayer).
+ *   components  web/styles/*.css, and the .sta-light-only / .sta-dark-only gates,
+ *               which must beat MUI's display.
+ * Unlayered CSS beats every layer, which is why emotion must not be left unlayered. */
+@layer base, mui, components;
