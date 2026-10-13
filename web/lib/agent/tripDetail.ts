@@ -7,8 +7,10 @@ import {
   type AgentTripItineraryMetaRow,
   type AgentTripMessageRow,
   type AgentTripOverviewRow,
+  type AgentTripOpenCommissionRow,
   type AgentTripPaymentRow,
 } from "@/lib/agent/api";
+import { COMMISSION_STATUS_FILTERS } from "@/lib/agent/commissionFilters";
 import { agentIdentity, cents, localDate, monthDay, money } from "@/lib/agent/queries";
 import type { IconName } from "@/components/ui/icon-paths";
 
@@ -480,7 +482,39 @@ async function loadActivity(tripId: string): Promise<TripActivityRow[] | null> {
   }));
 }
 
+/** One ledger line the cancel dialog offers to mark Lost (§3.4.16; §3.7 Stage 5). */
+export type TripOpenCommissionLine = {
+  commissionId: string;
+  /** What the close is checked against: a line edited since the dialog opened is skipped. */
+  version: number;
+  supplierName: string;
+  statusLabel: string;
+  amountLabel: string;
+};
+
+/**
+ * The trip's Expected and Invoiced ledger lines, for the cancel dialog's "Mark these as Lost".
+ *
+ * `null` means the READ failed, as everywhere in this file, and the dialog says it could not
+ * check rather than offering nothing as though there were nothing. It never fails the page:
+ * the header renders on every tab, and a trip should stay cancellable without this.
+ */
+async function loadOpenCommission(tripId: string): Promise<TripOpenCommissionLine[] | null> {
+  const res = await callAgentRead<AgentTripOpenCommissionRow>("agent_trip_open_commission", {
+    p_trip_id: tripId,
+  });
+  if (!res.ok) return null;
+  return res.rows.map((r) => ({
+    commissionId: r.commission_id,
+    version: r.version,
+    supplierName: r.supplier_name,
+    statusLabel: COMMISSION_STATUS_FILTERS.find((f) => f.value === r.status)?.label ?? r.status,
+    amountLabel: money(r.expected_commission_cents, r.currency),
+  }));
+}
+
 export const loadTripOverview = loadOverview;
+export const loadTripOpenCommission = loadOpenCommission;
 export const loadTripComponents = loadComponents;
 export const loadTripItinerary = loadItinerary;
 export const loadTripPayments = loadPayments;

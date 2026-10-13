@@ -49,7 +49,7 @@ export async function updateTripNotes(input: {
 }
 
 export type CancelTripResult =
-  | { ok: true }
+  | { ok: true; linesClosed: number; linesSkipped: number }
   | { ok: false; message: string; stale?: boolean };
 
 /**
@@ -65,6 +65,10 @@ export type CancelTripResult =
  * `trip.cancellation_reason` is inside the client column grant and §2.2.10 renders it — and
  * a second copy of that rule in the browser is a second place for it to drift. The dialog
  * disables its own button, which is a courtesy, not the enforcement.
+ *
+ * `closeCommission` is the dialog's "Mark these as Lost" (§3.7 Stage 5): the open ledger lines
+ * it listed, each at the version it listed. Empty when the box is unchecked. The answer says
+ * how many closed and how many had moved since the dialog opened and were left alone.
  */
 export async function cancelTripAction(input: {
   tripId: string;
@@ -72,6 +76,7 @@ export async function cancelTripAction(input: {
   reason: string;
   refundStatus?: string;
   refundDetail?: string;
+  closeCommission?: { id: string; version: number }[];
 }): Promise<CancelTripResult> {
   const result = await callAgentFunction("agent-trip-status", {
     tripId: input.tripId,
@@ -84,6 +89,7 @@ export async function cancelTripAction(input: {
     // that did not happen to retype it.
     ...(input.refundStatus ? { refundStatus: input.refundStatus } : {}),
     ...(input.refundDetail?.trim() ? { refundDetail: input.refundDetail.trim() } : {}),
+    ...(input.closeCommission?.length ? { closeCommission: input.closeCommission } : {}),
   });
 
   if (result.ok) {
@@ -93,7 +99,10 @@ export async function cancelTripAction(input: {
     revalidatePath("/agent/trips");
     revalidatePath("/agent/pipeline");
     revalidatePath("/agent");
-    return { ok: true };
+    const linesClosed = count(result.data.commissionLinesClosed);
+    // The ledger and the commission dashboard count lines by status.
+    if (linesClosed > 0) revalidatePath("/agent/commission", "layout");
+    return { ok: true, linesClosed, linesSkipped: count(result.data.commissionLinesSkipped) };
   }
 
   if (result.kind === "rejected") {
@@ -107,4 +116,9 @@ export async function cancelTripAction(input: {
   }
 
   return { ok: false, message: AGENT_COPY.cancelFailed };
+}
+
+/** A count off the function's answer; anything else is none, never NaN on screen. */
+function count(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : 0;
 }

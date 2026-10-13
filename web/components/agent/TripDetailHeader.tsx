@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { AGENT_COPY } from "@/lib/agent/content";
 import { PIPELINE_STAGES } from "@/lib/agent/queries";
-import type { TripDetailOverview } from "@/lib/agent/tripDetail";
+import type { TripDetailOverview, TripOpenCommissionLine } from "@/lib/agent/tripDetail";
 import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
@@ -46,7 +46,14 @@ function DisabledAction({ label, reason }: { label: string; reason: string }) {
   );
 }
 
-export function TripDetailHeader({ overview }: { overview: TripDetailOverview }) {
+export function TripDetailHeader({
+  overview,
+  openCommission,
+}: {
+  overview: TripDetailOverview;
+  /** The ledger lines the cancel dialog offers to mark Lost; null when that read failed. */
+  openCommission: TripOpenCommissionLine[] | null;
+}) {
   // THE REAL DATES, not the `null`/`""` pair the other agent surfaces pass. Worklist and
   // Pipeline render a chip for a row that carries no milestone, so they opt out of the
   // payment override deliberately. This screen HAS the milestone, and the entry points that
@@ -112,7 +119,7 @@ export function TripDetailHeader({ overview }: { overview: TripDetailOverview })
                 here with a consequence outside this screen, and it should not sit where the
                 eye lands first. On a trip that is already cancelled it becomes "Save details",
                 because the same dialog is how a refund that was pending becomes full. */}
-            <CancelTripDialog overview={overview} />
+            <CancelTripDialog overview={overview} openCommission={openCommission} />
           </Box>
         </Box>
         <Box sx={{ mt: 1.5, maxWidth: 320 }}>

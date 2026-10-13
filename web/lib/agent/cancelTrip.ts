@@ -93,7 +93,7 @@ export function cancelImpact(overview: TripDetailOverview): ImpactLine[] {
   if (overview.componentCount > 0) {
     lines.push({
       tone: "warn",
-      text: `${overview.componentCount} booked ${overview.componentCount === 1 ? "item" : "items"} stay on the trip. Cancelling here does not tell any supplier.`,
+      text: `${overview.componentCount} booked ${overview.componentCount === 1 ? "item stays" : "items stay"} on the trip. Cancelling here does not tell any supplier.`,
     });
   }
 

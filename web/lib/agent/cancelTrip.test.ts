@@ -150,3 +150,14 @@ describe("the impact list", () => {
     expect(cancelImpact({ ...BASE, totalPaidLabel: "—" })).toHaveLength(0);
   });
 });
+
+describe("the booked-items line", () => {
+  it("agrees with its count (\"1 booked item stays\", not \"1 booked item stay\")", () => {
+    expect(cancelImpact({ ...BASE, componentCount: 1 }).map((l) => l.text)).toContain(
+      "1 booked item stays on the trip. Cancelling here does not tell any supplier.",
+    );
+    expect(cancelImpact({ ...BASE, componentCount: 6 }).map((l) => l.text)).toContain(
+      "6 booked items stay on the trip. Cancelling here does not tell any supplier.",
+    );
+  });
+});

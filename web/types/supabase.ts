@@ -3388,6 +3388,29 @@ export type Database = {
           version: number
         }[]
       }
+      agent_cancel_trip: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_ids?: string[]
+          p_close_lines?: Json
+          p_expected_version: number
+          p_ip?: string
+          p_reason: string
+          p_refund_detail?: string
+          p_refund_status?: string
+          p_trip_id: string
+          p_user_agent?: string
+        }
+        Returns: {
+          from_status: Database["public"]["Enums"]["trip_status"]
+          lines_closed: number
+          lines_skipped: number
+          outcome: string
+          to_status: Database["public"]["Enums"]["trip_status"]
+          version: number
+        }[]
+      }
       agent_client_activity: {
         Args: { p_client_id: string; p_limit?: number }
         Returns: {
@@ -4306,6 +4329,17 @@ export type Database = {
           is_internal_note: boolean
           message_id: string
           sender_role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
+      agent_trip_open_commission: {
+        Args: { p_trip_id: string }
+        Returns: {
+          commission_id: string
+          currency: string
+          expected_commission_cents: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_name: string
+          version: number
         }[]
       }
       agent_trip_overview: {

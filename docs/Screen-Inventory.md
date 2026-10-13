@@ -2636,6 +2636,25 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > already has a producer and the roster already excludes archived trips unconditionally;
 > cancelling and archiving are different states, and the seed carries a fixture that is
 > archived-but-completed precisely so the two exclusions cannot be confused.
+>
+> **Amended 2026-10-12 (§3.7 Stage 5): cancelling offers to close the trip's open
+> commission.** A cancelled trip's Expected and Invoiced ledger lines used to stay open: the
+> ledger kept showing them as owed and statement matching kept offering them. The dialog now
+> lists those lines (supplier, status, amount; up to 100) under one checkbox, "Mark these 2
+> lines as Lost" ("Mark this line as Lost" for one), **checked by default when cancelling**
+> (Gyasi, 2026-10-12). Received, Disputed, Lost and removed lines are never touched. The save
+> sends each line at the version listed, and only lines still as listed are closed, in the
+> cancel's own transaction with an audit row each. When any lines were named, a receipt stays
+> on screen: it leads with "Trip cancelled." (or "Details saved."), then how many were marked
+> Lost, how many had changed since the page loaded and were left alone, and any the answer
+> did not account for, which it never claims as closed. The checkbox also appears on "Save
+> details" for a trip already cancelled, which is how a trip cancelled before this shipped is
+> cleaned up, but **unchecked** there: a line still open on a cancelled trip was most often
+> reopened on purpose, and fixing a refund note must not lose it again (review, 2026-10-12).
+> Moving a trip back out of Cancelled reopens nothing (each line is reopened from 3.7.3), and
+> a late payment still lands, because 3.7.6's Resolve offers Lost lines. This is the
+> prototype's "Commission expectation removed" made true of the ledger; the forecast line
+> above already was.
 
 ---
 
