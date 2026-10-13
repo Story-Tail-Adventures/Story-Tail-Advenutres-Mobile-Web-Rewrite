@@ -44,21 +44,34 @@
  * about where it went. True means this call wrote it, false means the stored reason already
  * read that way. See `stageWriteBody`.
  *
- * WHAT IT DOES NOT DO: it does not touch commission, payment milestones, or the proposal.
- * Marking a trip `booked` is what §3.7's commission entry hangs off, but creating that row is
- * §3.7.4's job and doing it here would mean a stage change silently minting money records.
+ * WHAT IT DOES NOT DO: it does not create commission, touch payment milestones, or touch the
+ * proposal. Marking a trip `booked` is what §3.7's commission entry hangs off, but creating
+ * that row is §3.7.4's job and doing it here would mean a stage change silently minting money
+ * records.
+ *
+ * THE ONE COMMISSION WRITE IT MAKES IS ASKED FOR, never inferred (§3.7 Stage 5; Gyasi,
+ * 2026-10-12). A cancellation may name the trip's open ledger lines the dialog listed under
+ * "Mark these as Lost", each at the version it showed. A cancellation that names lines goes
+ * through `agent_cancel_trip`, which calls `agent_set_trip_status` unchanged and then closes
+ * exactly those lines that are still Expected or Invoiced, auditing each in the same
+ * transaction (the commission rule: a change and its audit row land together). Nothing
+ * named takes the path every cancel took before, `agent_set_trip_status` itself: an
+ * unchecked box, or a caller that predates the list, cannot be broken by a function deployed
+ * ahead of its migration (found in review).
  */
 import { requireUser } from "../_shared/auth.ts";
 import { writeAuditEvent, writeAuditEvents } from "../_shared/audit.ts";
+import { readCloseLines } from "../_shared/commission.ts";
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { badRequest, conflict, notFound, problem } from "../_shared/problem.ts";
-import { isUuid } from "../_shared/uuid.ts";
+import { isUuid, uuidV7 } from "../_shared/uuid.ts";
 import { isRefundStatus, readJson, REFUND_STATUSES } from "../_shared/trip.ts";
 import {
   agentDb,
   requireAgentId,
   requireExpectedVersion,
   stageWriteBody,
+  type StageWriteResult,
 } from "../_shared/agent.ts";
 
 /**
@@ -235,28 +248,67 @@ Deno.serve(async (req) => {
       throw badRequest("Refund details belong to a cancellation.");
     }
 
-    const { data, error } = await db.rpc("agent_set_trip_status", {
-      p_trip_id: tripId,
-      p_agent_id: agentId,
-      p_actor_user_id: ctx.platformUserId,
-      p_status: status,
-      p_expected_version: expectedVersion,
-      // `undefined`, not `null`: p_reason has a SQL DEFAULT, so the generated Args type
-      // makes it optional rather than nullable. Passing null is a type error, and
-      // omitting it is what lets the function's own DEFAULT apply. Same for the two below.
-      p_reason: typeof reason === "string" ? reason.trim() : undefined,
-      p_refund_status: refundStatus,
-      p_refund_detail: typeof refundDetail === "string"
-        ? (refundDetail.trim() === "" ? undefined : refundDetail.trim())
-        : undefined,
-    });
+    // The ledger lines to mark Lost (§3.7 Stage 5). Same reasoning as the refund fields: they
+    // are facts about a cancellation, and only a cancellation may name any.
+    const closeLines = readCloseLines(payload.closeCommission);
+    if (status !== "cancelled" && closeLines.length > 0) {
+      throw badRequest("Closing commission lines belongs to a cancellation.");
+    }
 
-    if (error) throw new Error(`trip status write failed: ${error.message}`);
+    // `undefined`, not `null`: p_reason has a SQL DEFAULT, so the generated Args type
+    // makes it optional rather than nullable. Passing null is a type error, and
+    // omitting it is what lets the function's own DEFAULT apply. Same for the two below.
+    const reasonArg = typeof reason === "string" ? reason.trim() : undefined;
+    const refundDetailArg = typeof refundDetail === "string"
+      ? (refundDetail.trim() === "" ? undefined : refundDetail.trim())
+      : undefined;
+
+    let result: (StageWriteResult & { lines_closed?: number; lines_skipped?: number }) | undefined;
+    if (status === "cancelled" && closeLines.length > 0) {
+      const { data, error } = await db.rpc("agent_cancel_trip", {
+        p_trip_id: tripId,
+        p_agent_id: agentId,
+        p_actor_user_id: ctx.platformUserId,
+        p_expected_version: expectedVersion,
+        // Checked non-blank above for every `cancelled` call.
+        p_reason: reasonArg ?? "",
+        p_refund_status: refundStatus,
+        p_refund_detail: refundDetailArg,
+        p_close_lines: closeLines,
+        // One v7 per line (Data-Model §21.6): the SQL pairs them with the lines in id order.
+        p_audit_ids: closeLines.map(() => uuidV7()),
+        p_ip: ctx.ip ?? undefined,
+        p_user_agent: ctx.userAgent ?? undefined,
+      });
+      if (error) throw new Error(`trip cancel failed: ${error.message}`);
+      result = Array.isArray(data) ? data[0] : data;
+    } else {
+      const { data, error } = await db.rpc("agent_set_trip_status", {
+        p_trip_id: tripId,
+        p_agent_id: agentId,
+        p_actor_user_id: ctx.platformUserId,
+        p_status: status,
+        p_expected_version: expectedVersion,
+        p_reason: reasonArg,
+        p_refund_status: refundStatus,
+        p_refund_detail: refundDetailArg,
+      });
+      if (error) throw new Error(`trip status write failed: ${error.message}`);
+      result = Array.isArray(data) ? data[0] : data;
+    }
 
     // Zero rows is the function's answer for both "no such trip" and "not yours" — the same
     // 404 the traveler side gives, for the same reason.
-    const result = Array.isArray(data) ? data[0] : data;
     if (!result) throw notFound("No such trip.");
+
+    // What happened to the lines, on every cancellation's answer: the dialog says it out loud.
+    // `skipped` is a line that moved since the dialog opened (paid, edited, removed), left as is.
+    const commission = status === "cancelled"
+      ? {
+        commissionLinesClosed: result.lines_closed ?? 0,
+        commissionLinesSkipped: result.lines_skipped ?? 0,
+      }
+      : {};
 
     if (result.outcome === "stale") {
       throw conflict(
@@ -284,17 +336,20 @@ Deno.serve(async (req) => {
           // across a deploy boundary is worse than one whose name is a little old.
           refundStatus: refundStatus ?? null,
           refundDetail: typeof refundDetail === "string" ? refundDetail.trim() : null,
+          // The lines themselves are audited one by one, in SQL; this is the trip's view.
+          commissionLinesClosed: result.lines_closed ?? 0,
         },
       });
 
-      return json(stageWriteBody(tripId, status, result));
+      return json({ ...stageWriteBody(tripId, status, result), ...commission });
     }
 
-    // Asking for the stage it is already in, with nothing else to write. No transition, so
-    // no history row and no audit row — writing either would put a transition in the record
-    // that did not happen.
+    // Asking for the stage it is already in, with no trip detail to write. No transition, so
+    // no history row and no trip audit row — writing either would put a transition in the
+    // record that did not happen. Lines closed from an already-cancelled trip's dialog WERE
+    // written, and each has its own commission audit row from the SQL.
     if (result.outcome === "noop") {
-      return json(stageWriteBody(tripId, status, result));
+      return json({ ...stageWriteBody(tripId, status, result), ...commission });
     }
 
     // THE FALL-THROUGH IS `changed` AND NOTHING ELSE, tested before the audit row rather
@@ -321,12 +376,12 @@ Deno.serve(async (req) => {
         to: result.to_status,
         version: result.version,
         ...(status === "cancelled" && typeof reason === "string"
-          ? { cancellationReason: reason.trim() }
+          ? { cancellationReason: reason.trim(), commissionLinesClosed: result.lines_closed ?? 0 }
           : {}),
       },
     });
 
-    return json(stageWriteBody(tripId, status, result));
+    return json({ ...stageWriteBody(tripId, status, result), ...commission });
   } catch (err) {
     return problem(err);
   }

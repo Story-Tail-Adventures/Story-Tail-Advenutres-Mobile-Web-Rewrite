@@ -210,6 +210,44 @@ export function readWeights(value: unknown, what = "Weights"): StageWeights {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// §3.4.16: the lines a cancellation closes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The most lines one cancellation closes; `agent_cancel_trip` refuses more. */
+export const MAX_CLOSE_LINES = 100;
+
+export type CloseLine = { id: string; version: number };
+
+/**
+ * The cancel dialog's "Mark these as Lost": each line it showed, at the version it showed.
+ * Absent (the box unchecked) is none. A malformed list is a 400 here rather than a 500 off
+ * the SQL fence, which checks all of this again.
+ */
+export function readCloseLines(value: unknown): CloseLine[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw badRequest("closeCommission must be a list.");
+  if (value.length > MAX_CLOSE_LINES) {
+    throw badRequest("That is too many commission lines to close at once.");
+  }
+  const seen = new Set<string>();
+  return value.map((entry) => {
+    const e = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
+    if (!isUuid(e.id)) throw badRequest("That is not a commission line id.");
+    const version = e.version;
+    if (
+      typeof version !== "number" || !Number.isInteger(version) || version < 1 ||
+      version > 2147483647
+    ) {
+      throw badRequest("Each commission line needs the version the dialog showed.");
+    }
+    const key = e.id.toLowerCase();
+    if (seen.has(key)) throw badRequest("A commission line is named twice.");
+    seen.add(key);
+    return { id: e.id, version };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // The CSV
 // ─────────────────────────────────────────────────────────────────────────────
 
