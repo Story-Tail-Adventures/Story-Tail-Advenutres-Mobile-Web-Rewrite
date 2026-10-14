@@ -414,6 +414,8 @@ API-driven booking workflows (where commercial terms allow); multi-agent platfor
 
 Goal: scale the platform to support a small team of advisors and increase per-trip efficiency.
 
+**Group Trip Coordination comes first.** Gyasi scheduled it as the first feature to build after the P1 release (2026-10-14), ahead of the rest of Phase 3. The design has since grown past the one-line summary above: agent-created groups, an unlisted public sign-up page, group leaders who see only non-private details, and a waitlist with time-limited offers. The full spec is `docs/Data-Model.md` §16, and the 33 settled rulings are in `design/briefs/group-trips.md`.
+
 ### 13.4 Phase 4+ — Future
 
 AI-assisted trip planning, broader social/community features (forums, public reviews), loyalty program, deeper supplier integrations (direct cruise line APIs as agency relationships mature), expanded insurance integration, marketplace for advisor-curated trip ideas.
