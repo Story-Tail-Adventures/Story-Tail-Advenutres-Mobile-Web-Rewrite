@@ -209,3 +209,5 @@ When something contradicts, the documents are the source of truth in this order:
 5. Tech Recommendations — implementation guidance
 
 If code conflicts with a doc, update the doc first if the change is intentional, otherwise fix the code.
+
+After a grilling session (`/grill-me`), write each settled ruling into the doc that governs it before building. The skill keeps no record, so a ruling left only in the chat is lost when the session ends.
