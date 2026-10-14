@@ -2242,6 +2242,7 @@ rather than looking like an omission.
 | `offer_window_hours` | `integer` | No | Internal | Default `72` (rule 12) |
 | `invite_hold_days` | `integer` | No | Internal | Default `7` (rule 19) |
 | `master_trip_id` | `uuid` | No | Internal | FK → Trip, unique. The shared itinerary (rule 1) |
+| `featured_leader_id` | `uuid` | Yes | Internal | FK → GroupLeader. Whose welcome note leads the public page. NULL means the earliest claimed leader (§16.2, settled 2026-10-14) |
 | `currency` | `char(3)` | No | Public | Always `USD` today |
 | `opened_at` | `timestamptz` | Yes | Internal | Set on `draft → open` |
 | `closed_at` | `timestamptz` | Yes | Internal |  |
@@ -2284,6 +2285,7 @@ CREATE TABLE trip_group (
     offer_window_hours  integer NOT NULL DEFAULT 72 CHECK (offer_window_hours > 0),
     invite_hold_days    integer NOT NULL DEFAULT 7 CHECK (invite_hold_days > 0),
     master_trip_id      uuid NOT NULL UNIQUE REFERENCES trip(id),
+    featured_leader_id  uuid,  -- FK → group_leader, added after that table exists (§16.2)
     currency            char(3) NOT NULL DEFAULT 'USD',
     opened_at           timestamptz,
     closed_at           timestamptz,
@@ -2316,6 +2318,7 @@ data class TripGroup(
     val offerWindowHours: Int = 72,
     val inviteHoldDays: Int = 7,
     val masterTripId: Uuid,
+    val featuredLeaderId: Uuid? = null,
     val currency: String = "USD",
     val openedAt: Instant? = null,
     val closedAt: Instant? = null,
@@ -2357,8 +2360,12 @@ agent adds the leader's email, before any account does (rule 15).
 - **Leaders are not a new `user_role`.** A leader is an ordinary `client` account that has
   a live `group_leader` row. Leadership is per group, so a role on the account would be
   wrong for every other group that person joins.
-- **The public page shows the first claimed leader's note.** If two leaders both write one,
-  the earliest `claimed_at` wins. The agent can reorder this later if it matters (see §23).
+- **Whose note leads the public page** (settled 2026-10-14, §23). If
+  `trip_group.featured_leader_id` is set and that leader is live and claimed, their note
+  and photo lead. Otherwise the earliest `claimed_at` among live leaders wins, which covers
+  the common one-leader group with nothing to set. The agent sets or clears it from the
+  Leaders panel. Removing the featured leader does not need to clear the column: the read
+  function skips a removed or unclaimed leader and falls back to the earliest claim.
 
 ```sql
 CREATE TABLE group_leader (
@@ -2380,6 +2387,12 @@ CREATE TABLE group_leader (
 );
 CREATE UNIQUE INDEX group_leader_live_user  ON group_leader (group_id, user_id) WHERE removed_at IS NULL AND user_id IS NOT NULL;
 CREATE UNIQUE INDEX group_leader_live_email ON group_leader (group_id, invite_email) WHERE removed_at IS NULL;
+
+-- trip_group is created first, so its featured-leader FK is added here.
+-- The composite key stops a group from featuring another group's leader.
+ALTER TABLE group_leader ADD CONSTRAINT group_leader_id_group UNIQUE (id, group_id);
+ALTER TABLE trip_group ADD CONSTRAINT trip_group_featured_leader
+    FOREIGN KEY (featured_leader_id, id) REFERENCES group_leader (id, group_id);
 ```
 
 ```kotlin
@@ -2514,7 +2527,7 @@ and where it stands. This replaces the old one-row-per-person `group_member`.
 | `waitlisted` | No | No | Signed up while the group or option was full (rule 11) |
 | `offered` | Yes, until `offer_expires_at` | No | A spot opened and the agent's offer went out (rule 12) |
 | `declined` | No | No | Turned the offer down ("take me off the list") |
-| `expired` | No | No | An invite or an offer ran out of time |
+| `expired` | No | No | An invite ran out of time. **An offer that runs out does not land here** (see Notes) |
 | `cancelled` | No | Kept, `cancelled` | Only the party or the agent can cancel (rules 20 and 26) |
 
 **Notes:**
@@ -2529,6 +2542,12 @@ and where it stands. This replaces the old one-row-per-person `group_member`.
 - **Held headcount** is the sum of `party_size` over `invited`, `requested`, `confirmed`
   and `offered`. **Units used** on an option is the count of those same rows. Both are
   computed, never stored.
+- **An offer that runs out sends the party to the back of the line** (settled 2026-10-14,
+  §23). The party goes from `offered` back to `waitlisted`, `offer_expires_at` is cleared,
+  and `waitlist_position` becomes one past the last position on that option's line. The
+  party owner gets a short note saying so, with a way to leave the list. Keeping its old
+  place would hand the next offer straight back to a party that did not answer, and stall
+  the line by another full offer window each time. The agent can still move it up by hand.
 - **Who can cancel** is enforced in the Edge Function, not here: the party owner or the
   agent. A leader can only flag (rule 20, §16.6).
 - **Changing a party's option** is agent-only (rule 32). It rewrites `option_id` and the
@@ -2625,7 +2644,13 @@ their ID, and adult or child (brief §2.5, settled in grilling round 3).
 **Notes:**
 - **This table exists because nothing else holds a trip's travelers by name.** Trip has
   `traveler_count` and a `traveler_breakdown` jsonb, and Companion is per client, not per
-  trip. If a general `trip_traveler` table lands first, this becomes a view over it (see §23).
+  trip.
+- **It hangs off the party, not the trip, on purpose** (settled 2026-10-14, §23). A
+  waitlisted party typed its names into the sign-up form but has no Trip yet, so a
+  trip-keyed table has nowhere to put them. That also rules out the earlier idea of making
+  this a view over a general `trip_traveler`. No `trip_traveler` is built now. If ordinary
+  trips later need named travelers, build it then, and copy a party's names into it when
+  the party gets its Trip.
 - **A party's traveler rows can be fewer than `party_size`** while it is `invited`, because
   a leader enters a count, not names. The agent cannot move a party to `confirmed` until the
   counts match.
@@ -2719,6 +2744,11 @@ data class GroupMemberFlag(
 | `is_group_master` | **Add**, `boolean NOT NULL DEFAULT false` | True only for a group's master trip |
 | `client_id` | **Relax to nullable**, with `CHECK (client_id IS NOT NULL OR is_group_master)` | A master trip belongs to no client (rule 1) |
 
+**The master is a Trip, not a TripTemplate** (settled 2026-10-14, §23). Rule 2 needs edits
+to reach every party, and a template cannot do that: trips are not linked back to the
+template they came from, and §8.6 makes a template's payload read-only. The exclusion work
+below is the price, paid knowingly.
+
 Every client-facing policy on Trip keys on `client_id`, so a master trip is invisible to
 clients by construction. **Every agent-side aggregate must exclude it**: the worklist, the
 pipeline, commission forecasts and reports all read Trip, and a master trip with a cruise
@@ -2755,7 +2785,7 @@ can let a leader see a party's row, but not half of that row.
 
 | Function | Caller | Returns | Never returns |
 |---|---|---|---|
-| `group_public_page(slug)` | `anon`, `authenticated` | Group name, dates, destination, description, hero, public options with a Full flag, day-level itinerary from the master trip, deadline, spots left **only when 10 or fewer** (rule 28), the first claimed leader's name, note and photo, the agent's contact card, and the caller's own party if signed in (rule 5) | Hidden options, any party, headcount above 10, any email |
+| `group_public_page(slug)` | `anon`, `authenticated` | Group name, dates, destination, description, hero, public options with a Full flag, day-level itinerary from the master trip, deadline, spots left **only when 10 or fewer** (rule 28), the featured leader's name, note and photo (or the earliest claimed leader's, §16.2), the agent's contact card, and the caller's own party if signed in (rule 5) | Hidden options, any party, headcount above 10, any email |
 | `group_leader_roster(group_id)` | a live, claimed leader of that group | Per party: traveler names, `party_size`, option name or "Arranged by Gyasi", `signed_up_at`, status with the derived payment milestone, whether a flag is open, and "Added by" with the hold time. The waitlist: position, names, size, option. Status counts | Email, phone, address, birth dates, documents, dietary or accessibility notes, card data, **any amount**, commission, flag text (rule 18) |
 | `group_member_card(group_id)` | the owner of an active party in that group | Group name, leader name and photo, "32 of 40 spots filled", and the caller's own waitlist position or offer deadline | Any other party (rule 25) |
 
@@ -2769,9 +2799,11 @@ agent send offer, and the master-component push.
 and amounts, so it is never offered through the leader surface.
 
 **Timers.** A pg_cron tick moves `invited` past `hold_expires_at` to `expired`, and
-`offered` past `offer_expires_at` to `expired`, then offers the freed spot to the next
-`waitlisted` party on the same option. Each move is audited. Nobody is moved into a spot
-without accepting it (rule 12).
+`offered` past `offer_expires_at` back to `waitlisted` at the end of that option's line
+(§16.4), then offers the freed spot to the next `waitlisted` party on the same option. That
+is never the party whose offer just ran out: if it is the only one waiting, the spot stays
+open and the agent decides. Each move is audited. Nobody is moved into a spot without
+accepting it (rule 12).
 
 **Sign-up abuse.** The public sign-up function takes anonymous traffic and creates an
 account, so it needs rate limiting and bot protection before launch. It must also answer a
@@ -3208,20 +3240,22 @@ Decisions that should be settled with the implementation team before initial mig
 
 
 **Group trips: open questions for the build (§16, added 2026-10-14).** Settle these before
-the §16 migration is written.
+the §16 migration is written. The first four were settled with Gyasi the same day.
 
-- **Master trip as a Trip, or as a TripTemplate?** §16.7 makes `trip.client_id` nullable
-  so the master can reuse the Trip Builder as is. The cost is that every agent aggregate
-  must exclude `is_group_master`. A template would avoid that, but templates are not
-  live-linked, and rule 2 needs edits to reach every party.
-- **A general `trip_traveler` table?** §16.5 adds `group_traveler` because nothing holds a
-  trip's travelers by name. If ordinary trips need the same thing, build `trip_traveler`
-  first and make `group_traveler` a view over it.
-- **Which leader's note leads the page** when two leaders write one? §16.2 uses the
-  earliest claim. A per-group choice may be wanted.
-- **Where an expired offer sends the party.** The brief says the spot moves on, but not
-  whether the party keeps its place in line or goes to the back. §16.4 keeps it
-  `expired`, off the list, until that is decided.
+- ~~**Master trip as a Trip, or as a TripTemplate?**~~ **Settled 2026-10-14: a Trip.**
+  §16.7 makes `trip.client_id` nullable and every agent aggregate excludes
+  `is_group_master`, with a test per surface. A template cannot carry rule 2, because
+  templates are not live-linked and their payload is read-only (§8.6).
+- ~~**A general `trip_traveler` table?**~~ **Settled 2026-10-14: no, keep
+  `group_traveler`.** It stays keyed to the party, because a waitlisted party has names but
+  no Trip. Build `trip_traveler` only when ordinary trips need named travelers, and copy a
+  party's names into it when the party gets its Trip (§16.5).
+- ~~**Which leader's note leads the page?**~~ **Settled 2026-10-14: the agent can pick.**
+  New nullable `trip_group.featured_leader_id`. When it is empty or points at a removed
+  leader, the earliest claimed leader leads (§16.1, §16.2).
+- ~~**Where an expired offer sends the party.**~~ **Settled 2026-10-14: the back of the
+  line.** The party returns to `waitlisted`, last on its option's line, and is told it can
+  leave the list. The agent can move it up by hand (§16.4, §16.8 Timers).
 - **The reply-time and confirmation-time promises** on the public page. None is shown
   today, on purpose. If one is added, it needs a number someone measured.
 
