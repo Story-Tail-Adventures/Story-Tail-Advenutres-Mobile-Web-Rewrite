@@ -19,11 +19,10 @@ import { AGENT_COMMISSION_VIEWS } from "@/lib/agent/nav";
  * UNPAID GAP on disputed lines rather than their full expected amount. The migration that
  * built `agent_commission_dashboard()` carries the reasoning; §3.7.1 carries the amendment.
  *
- * WHAT THE PROTOTYPE DRAWS THAT IS NOT LIVE. "Import CSV" is §3.7.5 (Stage 3) and renders
- * disabled with its reason. "Export" went live with Stage 2, once each download could write
- * its own audit row (Data-Model §18.3).
+ * EVERY ACTION THE PROTOTYPE DRAWS IS LIVE. "Export" since Stage 2, once each download could
+ * write its own audit row (Data-Model §18.3); "Import CSV" since Stage 3 (§3.7.5).
  *
- * WHAT IS HERE THAT THE PROTOTYPE DOES NOT DRAW: the Dashboard / Ledger view strip. See
+ * WHAT IS HERE THAT THE PROTOTYPE DOES NOT DRAW: the Dashboard / Ledger / Statements view strip. See
  * `AGENT_COMMISSION_VIEWS` for why.
  *
  * A Server Component throughout. Every figure arrives formatted from `lib/agent/commission.ts`,
@@ -43,7 +42,7 @@ export default async function CommissionDashboardPage() {
         title={COMMISSION_COPY.title}
         subtitle={COMMISSION_COPY.subtitle}
         actions={[
-          { label: COMMISSION_COPY.importLabel, reason: COMMISSION_COPY.importDeferred, icon: "upload" },
+          { label: COMMISSION_COPY.importLabel, href: "/agent/commission/import", icon: "upload" },
           // Unfiltered from here: the dashboard has no filters to carry.
           { label: COMMISSION_COPY.exportLabel, href: "/agent/commission/ledger/export", icon: "download", download: true },
         ]}

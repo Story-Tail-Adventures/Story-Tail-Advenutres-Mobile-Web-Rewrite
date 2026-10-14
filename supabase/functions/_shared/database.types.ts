@@ -849,45 +849,79 @@ export type Database = {
       }
       commission_import: {
         Row: {
+          agent_id: string
+          checksum_sha256: string
+          column_map: Json
           created_at: string
-          document_id: string | null
+          document_id: string
+          headers: string[]
           id: string
           imported_by_user_id: string
           matched_rows: number
           original_filename: string
           period_end: string | null
           period_start: string | null
+          reconciled_at: string | null
           source: string
+          statement_date: string | null
+          status: Database["public"]["Enums"]["commission_import_status"]
           total_rows: number
           unmatched_rows: number
+          updated_at: string
+          version: number
         }
         Insert: {
+          agent_id: string
+          checksum_sha256: string
+          column_map?: Json
           created_at?: string
-          document_id?: string | null
+          document_id: string
+          headers?: string[]
           id: string
           imported_by_user_id: string
           matched_rows?: number
           original_filename: string
           period_end?: string | null
           period_start?: string | null
+          reconciled_at?: string | null
           source?: string
+          statement_date?: string | null
+          status?: Database["public"]["Enums"]["commission_import_status"]
           total_rows?: number
           unmatched_rows?: number
+          updated_at?: string
+          version?: number
         }
         Update: {
+          agent_id?: string
+          checksum_sha256?: string
+          column_map?: Json
           created_at?: string
-          document_id?: string | null
+          document_id?: string
+          headers?: string[]
           id?: string
           imported_by_user_id?: string
           matched_rows?: number
           original_filename?: string
           period_end?: string | null
           period_start?: string | null
+          reconciled_at?: string | null
           source?: string
+          statement_date?: string | null
+          status?: Database["public"]["Enums"]["commission_import_status"]
           total_rows?: number
           unmatched_rows?: number
+          updated_at?: string
+          version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "commission_import_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "commission_import_document_fk"
             columns: ["document_id"]
@@ -900,6 +934,123 @@ export type Database = {
             columns: ["imported_by_user_id"]
             isOneToOne: false
             referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_import_row: {
+        Row: {
+          cells: string[]
+          commission_id: string | null
+          created_at: string
+          currency: string
+          fee_cents: number | null
+          gross_cents: number | null
+          id: string
+          import_id: string
+          match_basis: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_id: string | null
+          new_commission_pct: number | null
+          new_gross_cents: number | null
+          new_supplier_id: string | null
+          new_trip_id: string | null
+          paid_on: string | null
+          parse_error: string | null
+          received_cents: number | null
+          reference: string | null
+          row_number: number
+          state: Database["public"]["Enums"]["commission_import_row_state"]
+          suggested_commission_id: string | null
+          supplier_text: string | null
+          traveler_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          cells: string[]
+          commission_id?: string | null
+          created_at?: string
+          currency?: string
+          fee_cents?: number | null
+          gross_cents?: number | null
+          id: string
+          import_id: string
+          match_basis?: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_id?: string | null
+          new_commission_pct?: number | null
+          new_gross_cents?: number | null
+          new_supplier_id?: string | null
+          new_trip_id?: string | null
+          paid_on?: string | null
+          parse_error?: string | null
+          received_cents?: number | null
+          reference?: string | null
+          row_number: number
+          state?: Database["public"]["Enums"]["commission_import_row_state"]
+          suggested_commission_id?: string | null
+          supplier_text?: string | null
+          traveler_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cells?: string[]
+          commission_id?: string | null
+          created_at?: string
+          currency?: string
+          fee_cents?: number | null
+          gross_cents?: number | null
+          id?: string
+          import_id?: string
+          match_basis?: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_id?: string | null
+          new_commission_pct?: number | null
+          new_gross_cents?: number | null
+          new_supplier_id?: string | null
+          new_trip_id?: string | null
+          paid_on?: string | null
+          parse_error?: string | null
+          received_cents?: number | null
+          reference?: string | null
+          row_number?: number
+          state?: Database["public"]["Enums"]["commission_import_row_state"]
+          suggested_commission_id?: string | null
+          supplier_text?: string | null
+          traveler_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_import_row_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "commission"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "commission_import"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_new_supplier_id_fkey"
+            columns: ["new_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_new_trip_id_fkey"
+            columns: ["new_trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_suggested_commission_id_fkey"
+            columns: ["suggested_commission_id"]
+            isOneToOne: false
+            referencedRelation: "commission"
             referencedColumns: ["id"]
           },
         ]
@@ -3425,6 +3576,103 @@ export type Database = {
           ytd_received_cents: string
         }[]
       }
+      agent_commission_import: {
+        Args: { p_import_id: string }
+        Returns: {
+          already_recorded_count: number
+          as_of_date: string
+          column_map: Json
+          confirmed_count: number
+          created_at: string
+          duplicate_count: number
+          headers: string[]
+          ignored_count: number
+          import_id: string
+          original_filename: string
+          period_end: string
+          period_start: string
+          reconciled_at: string
+          reconciled_on: string
+          sample_rows: Json
+          statement_date: string
+          status: Database["public"]["Enums"]["commission_import_status"]
+          suggested_count: number
+          to_create_count: number
+          total_rows: number
+          unmatched_count: number
+          unreadable_count: number
+          version: number
+        }[]
+      }
+      agent_commission_import_candidates: {
+        Args: { p_import_id: string; p_row_id: string }
+        Returns: {
+          client_name: string
+          commission_id: string
+          commission_pct: number
+          expected_cents: string
+          gross_booking_cents: string
+          start_date: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_matches: boolean
+          supplier_name: string
+          traveler_matches: boolean
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_commission_import_rows: {
+        Args: { p_import_id: string }
+        Returns: {
+          currency: string
+          fee_cents: string
+          gross_cents: string
+          line_client_name: string
+          line_commission_pct: number
+          line_expected_cents: string
+          line_fee_cents: string
+          line_gross_cents: string
+          line_id: string
+          line_received_at: string
+          line_received_cents: string
+          line_status: Database["public"]["Enums"]["commission_status"]
+          line_supplier_name: string
+          line_trip_id: string
+          line_trip_title: string
+          match_basis: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_pct: number
+          new_gross_cents: string
+          new_supplier_id: string
+          new_supplier_name: string
+          new_trip_id: string
+          new_trip_title: string
+          paid_on: string
+          parse_error: string
+          received_cents: string
+          reference: string
+          row_id: string
+          row_number: number
+          state: Database["public"]["Enums"]["commission_import_row_state"]
+          supplier_text: string
+          traveler_text: string
+        }[]
+      }
+      agent_commission_imports: {
+        Args: never
+        Returns: {
+          created_at: string
+          created_on: string
+          import_id: string
+          matched_rows: number
+          original_filename: string
+          period_end: string
+          period_start: string
+          reconciled_at: string
+          status: Database["public"]["Enums"]["commission_import_status"]
+          total_rows: number
+          unmatched_rows: number
+        }[]
+      }
       agent_commission_ledger: {
         Args: {
           p_limit?: number
@@ -3596,6 +3844,21 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_discard_commission_import: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_expected_version: number
+          p_import_id: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
       agent_export_commission: {
         Args: {
           p_actor_user_id: string
@@ -3652,6 +3915,20 @@ export type Database = {
           unread_message_count: number
         }[]
       }
+      agent_map_commission_import: {
+        Args: {
+          p_agent_id: string
+          p_column_map: Json
+          p_expected_version: number
+          p_import_id: string
+          p_rows: Json
+          p_statement_date: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
       agent_payments_due: {
         Args: { p_within_days?: number }
         Returns: {
@@ -3668,6 +3945,25 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_reconcile_commission_import: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_ids: string[]
+          p_expected_version: number
+          p_import_id: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          already_count: number
+          blocking_count: number
+          created_count: number
+          outcome: string
+          paid_count: number
+          version: number
         }[]
       }
       agent_record_commission_payment: {
@@ -3726,6 +4022,25 @@ export type Database = {
         Returns: {
           moved: number
           outcome: string
+        }[]
+      }
+      agent_resolve_commission_import_row: {
+        Args: {
+          p_action: string
+          p_agent_id: string
+          p_commission_id?: string
+          p_commission_pct?: number
+          p_expected_version: number
+          p_gross_cents?: number
+          p_import_id: string
+          p_new_commission_id?: string
+          p_row_id: string
+          p_supplier_id?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          outcome: string
+          version: number
         }[]
       }
       agent_save_trip_as_template: {
@@ -4113,6 +4428,29 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_upload_commission_statement: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_checksum: string
+          p_column_map: Json
+          p_document_id: string
+          p_filename: string
+          p_headers: string[]
+          p_import_id: string
+          p_ip: string
+          p_rows: Json
+          p_size_bytes: number
+          p_storage_key: string
+          p_user_agent: string
+        }
+        Returns: {
+          import_id: string
+          outcome: string
+          uploaded_at: string
+        }[]
+      }
       agent_upsert_client_address: {
         Args: {
           p_city: string
@@ -4233,6 +4571,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      commission_fold: { Args: { p_text: string }; Returns: string }
+      commission_import_match: {
+        Args: { p_agent_id: string; p_import_id: string }
+        Returns: undefined
+      }
       commission_lines_for_current_agent: {
         Args: never
         Returns: {
@@ -4267,6 +4610,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      commission_ref_key: { Args: { p_text: string }; Returns: string }
       cruise_sailing_search: {
         Args: {
           depart_from?: string
@@ -4387,6 +4731,26 @@ export type Database = {
       card_auth_status: "active" | "revoked" | "expired" | "exhausted"
       card_status: "active" | "revoked" | "expired" | "failed"
       client_status: "active" | "archived" | "merged_into"
+      commission_import_row_state:
+        | "confirmed"
+        | "suggested"
+        | "unmatched"
+        | "duplicate"
+        | "unreadable"
+        | "already_recorded"
+        | "to_create"
+        | "ignored"
+      commission_import_status:
+        | "mapping"
+        | "review"
+        | "reconciled"
+        | "discarded"
+      commission_match_basis:
+        | "reference"
+        | "confirmation"
+        | "supplier_and_traveler"
+        | "manual"
+        | "none"
       commission_payment_terms: "at_booking" | "after_travel"
       commission_status:
         | "expected"
@@ -4625,6 +4989,29 @@ export const Constants = {
       card_auth_status: ["active", "revoked", "expired", "exhausted"],
       card_status: ["active", "revoked", "expired", "failed"],
       client_status: ["active", "archived", "merged_into"],
+      commission_import_row_state: [
+        "confirmed",
+        "suggested",
+        "unmatched",
+        "duplicate",
+        "unreadable",
+        "already_recorded",
+        "to_create",
+        "ignored",
+      ],
+      commission_import_status: [
+        "mapping",
+        "review",
+        "reconciled",
+        "discarded",
+      ],
+      commission_match_basis: [
+        "reference",
+        "confirmation",
+        "supplier_and_traveler",
+        "manual",
+        "none",
+      ],
       commission_payment_terms: ["at_booking", "after_travel"],
       commission_status: [
         "expected",

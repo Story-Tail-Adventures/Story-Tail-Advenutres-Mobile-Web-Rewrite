@@ -2878,12 +2878,57 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Commission Dashboard; Reconciliation View.
 **Related screens:** Reconciliation View.
 
+> **Amended 2026-10-12, on shipping this screen (§3.7 Stage 3).** Built on the web at
+> `/agent/commission/import`; no phone treatment (§3.7 has no phone artboards).
+>
+> - **CSV only** (Gyasi, 2026-10-11): Inteletravel gives a CSV download. The prototype's
+>   "CSV / XLSX · ≤ 10 MB" becomes CSV up to 512 KB, and an Excel workbook is named as one and
+>   refused with how to save it as CSV. Windows-1252 files (Excel's "CSV") read correctly.
+> - **The two cards are two steps.** Upload stores the file and its rows; the statement then
+>   has its own page, where both cards show and the column map is filled in from the
+>   advisor's last statement first, then from the header names. Each column shows a sample
+>   value, and an Auto or Manual chip as the artboard draws.
+> - **A "paid on, for every row" date** appears when no column holds the paid-on date.
+> - **Added: a list of past statements** under the cards (not in the artboard), the way back
+>   to one left in review. The same file cannot be imported twice; discarding a statement
+>   frees it.
+> - **Nothing in the ledger changes at this step.** "Import 38 rows" reads the rows and runs
+>   the matcher; the ledger changes only when the statement is marked reconciled (3.7.6).
+
 #### 3.7.6 Reconciliation View
 **Purpose:** Match imported Inteletravel rows against expected commissions in the platform.
 **Primary elements:** Side-by-side list (Inteletravel row | platform match | confidence); auto-match indicator; manual-match action; unmatched rows section.
 **Key actions:** Confirm match; manually match; flag discrepancy.
 **Entry points:** Post-import; Commission Dashboard.
 **Related screens:** Commission Detail.
+
+> **Amended 2026-10-12, on shipping this screen (§3.7 Stage 3).** Built on the web at
+> `/agent/commission/import/<id>`, as A376_Reconciliation draws it: one table (Inteletravel
+> row | ledger match | confidence | amount | action), the rows that need a decision first.
+>
+> - **Matching, strongest first:** the row's reference is already on a line (high); it is a
+>   booking's supplier confirmation number and that trip has one line for the supplier
+>   (high); the supplier, the traveler's last name and an amount within a quarter of
+>   expected all agree (medium, a suggestion the advisor must confirm). A ledger line can be
+>   paid by one row only; a second row for the same booking is flagged as a duplicate (Gyasi,
+>   2026-10-11: one row per booking).
+> - **A row matching a line already Received or Disputed never changes it** (Gyasi,
+>   2026-10-11). It shows as already recorded, with any difference named. This is also why
+>   there is no MFA step-up here: Data-Model §18.4 asks for one only when an import changes a
+>   paid line.
+> - **The warning line is computed, not asserted:** the shortfall (expected − fee − received)
+>   and, against the line's booked gross, the rate the payment works out to: the artboard's
+>   "Sandals applied 14% not 15%".
+> - **Resolve is its own page** (the artboard draws the button only): use the suggestion,
+>   match a different unpaid line, create a new line on a trip the advisor picks (already
+>   paid from the row; Gyasi, 2026-10-11), or set the row aside.
+> - **"Mark as reconciled" is disabled, with its reason, while any row needs a decision.** It
+>   asks for confirmation, says how many payments it records and lines it adds, and applies
+>   everything in one transaction with an audit record per line. A line paid by hand since
+>   it was matched is left as the advisor recorded it. "Flag discrepancy" is the disputed
+>   status a short payment lands in.
+> - **Change columns** reopens the map on a statement in review (clearing its decisions);
+>   **Discard statement** throws it away before reconciling.
 
 #### 3.7.7 Commission Forecast / Pipeline View
 **Purpose:** Project commission revenue from pipeline.

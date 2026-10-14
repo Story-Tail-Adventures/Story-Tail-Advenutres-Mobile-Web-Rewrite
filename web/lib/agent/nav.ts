@@ -137,12 +137,14 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
  * nav.ts's header gives: a rail entry holds a SECTION, and the dashboard and the ledger are
  * two views of one section's money. The prototype draws no view strip for §3.7 (its header
  * carries Import and Export only), so this is a departure, taken because without it the
- * ledger would be reachable only through tiles. §3.7.6 Reconciliation and §3.7.7 Forecast
- * join this list when they ship.
+ * ledger would be reachable only through tiles. Statements (§3.7.5 import and §3.7.6
+ * reconciliation, one list of uploaded statements) joined with Stage 3; §3.7.7 Forecast
+ * joins when it ships.
  */
 export const AGENT_COMMISSION_VIEWS = [
   { id: "dashboard", href: "/agent/commission", label: "Dashboard" },
   { id: "ledger", href: "/agent/commission/ledger", label: "Ledger" },
+  { id: "statements", href: "/agent/commission/import", label: "Statements" },
 ] as const;
 
 export type AgentView = { id: string; href: string; label: string };
