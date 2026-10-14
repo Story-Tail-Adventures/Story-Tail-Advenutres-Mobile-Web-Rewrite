@@ -565,6 +565,12 @@ verify_jwt = true
 [functions.agent-commission]
 verify_jwt = true
 
+# §3.10 Stage 1: the advisor's messaging. Send (a reply or an internal note, into a thread or a
+# new one for a client), mark a thread read, archive from the inbox. Writes go through SQL
+# functions callable only by service_role (20261015120000_agent_messaging.sql).
+[functions.agent-message]
+verify_jwt = true
+
 # §3.7.5 / §3.7.6: import an Inteletravel statement and reconcile it. Upload, map, resolve,
 # reconcile and discard; the ledger changes only on reconcile, inside one SQL transaction
 # that writes an audit row per line it touches.

@@ -99,14 +99,12 @@ Deno.serve(async (req) => {
     const db = tripDb();
 
     let conversationId: string | undefined;
-    let agentUnread = 0;
 
     if (typeof conversationIdIn === "string") {
       // §2.6.2. The thread already exists and was named directly; ownership is checked
       // against the conversation rather than a trip, because it may not have one.
       const conversation = await requireOwnedConversation(db, clientId, conversationIdIn);
       conversationId = conversation.id;
-      agentUnread = conversation.agentUnread;
     } else {
       const trip = typeof tripId === "string"
         ? await requireOwnedTrip(db, clientId, tripId)
@@ -119,18 +117,19 @@ Deno.serve(async (req) => {
       // never found, so every §2.6.3 message would mint a fresh conversation and the
       // traveler's own history would fragment into one-message threads. `.is()` is the only
       // correct operator here, and this is the one line in the file where it matters.
-      let find = db
-        .from("conversation")
-        .select("id, agent_unread_count")
-        .eq("client_id", clientId)
-        .is("archived_at", null);
-      find = trip ? find.eq("trip_id", trip.id) : find.is("trip_id", null);
+      const findLive = async (): Promise<string | undefined> => {
+        let find = db
+          .from("conversation")
+          .select("id")
+          .eq("client_id", clientId)
+          .is("archived_at", null);
+        find = trip ? find.eq("trip_id", trip.id) : find.is("trip_id", null);
+        const { data: existing, error: findError } = await find.maybeSingle();
+        if (findError) throw new Error(`conversation lookup failed: ${findError.message}`);
+        return existing?.id;
+      };
 
-      const { data: existing, error: findError } = await find.maybeSingle();
-      if (findError) throw new Error(`conversation lookup failed: ${findError.message}`);
-
-      conversationId = existing?.id;
-      agentUnread = existing?.agent_unread_count ?? 0;
+      conversationId = await findLive();
 
       if (!conversationId) {
         // `conversation.agent_id` is NOT NULL. The trip path already has the agent; the
@@ -138,9 +137,9 @@ Deno.serve(async (req) => {
         // every client caller by the platform_user CHECK.
         const agentId = trip ? trip.agentId : await requireClientAgentId(db, clientId);
 
-        conversationId = uuidV7();
+        const newId = uuidV7();
         const { error } = await db.from("conversation").insert({
-          id: conversationId,
+          id: newId,
           client_id: clientId,
           agent_id: agentId,
           trip_id: trip ? trip.id : null,
@@ -156,13 +155,22 @@ Deno.serve(async (req) => {
           // job and a second intake queue is what BRD §6.5 consolidated away. So the inbox
           // falls back on its own for a null subject rather than inventing one here.
           subject: trip ? trip.title : null,
-          last_message_at: new Date().toISOString(),
+          // last_message_at is left to the column default (the database's clock), so the
+          // message inserted next is never older than the thread it starts.
           last_message_preview: preview(body),
           client_unread_count: 0,
           agent_unread_count: 0,
         });
-        if (error) throw new Error(`conversation insert failed: ${error.message}`);
-        agentUnread = 0;
+        if (error && error.code === "23505" && /conversation_one_live/.test(error.message)) {
+          // The advisor started this thread a moment ago (one live thread per trip, and per
+          // client with no trip, is a unique index since §3.10). Write in theirs.
+          conversationId = await findLive();
+          if (!conversationId) throw new Error("conversation vanished after a unique clash");
+        } else if (error) {
+          throw new Error(`conversation insert failed: ${error.message}`);
+        } else {
+          conversationId = newId;
+        }
       }
     }
 
@@ -210,19 +218,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { error: bumpError } = await db
-      .from("conversation")
-      .update({
-        last_message_at: inserted.created_at,
-        last_message_preview: preview(body),
-        // The agent has one more thing to read. The CLIENT's own count is untouched:
-        // sending a message does not make it unread to the person who sent it.
-        agent_unread_count: agentUnread + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", conversationId);
-
+    // The thread's time, preview and the advisor's count, in ONE statement: the advisor has one
+    // more thing to read. It used to be a read here and `+ 1` in TypeScript, which undid any
+    // clear the advisor made in between (§3.10). The CLIENT's own count is untouched: sending a
+    // message does not make it unread to the person who sent it.
+    const { data: bumped, error: bumpError } = await db.rpc("conversation_record_client_message", {
+      p_message_id: messageId,
+    });
     if (bumpError) throw new Error(`conversation update failed: ${bumpError.message}`);
+    if (bumped !== true) throw new Error("conversation update matched no thread");
 
     await writeAuditEvent(ctx, {
       eventType: "message.created",
