@@ -161,6 +161,12 @@ jobs:
       # makes them per-request, and the build says nothing about it.
       - run: python3 .github/scripts/check_public_prerender.py
 
+      # The cascade layer order has to reach the browser first. The source can be right and
+      # the bundle wrong (it was: the bundler put @import'ed files ahead of globals.css's
+      # order line, MUI outranked the CSS gates, and both theme icons showed). This reads
+      # the built CSS, which is the only place that shows.
+      - run: python3 .github/scripts/check_css_layer_order.py
+
   contracts:
     name: Contracts codegen is current
     runs-on: ubuntu-latest
