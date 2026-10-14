@@ -318,7 +318,7 @@ function C284_CoTravelerView() {
             <Icon name="message" size={20} />
             <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle1" sx={{ color: 'inherit' }}>Questions for the advisor?</Typography>
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'inherit', opacity: 0.85 }}>Gyasi is across this group trip — message her without an account.</Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, color: 'inherit', opacity: 0.85 }}>Gyasi is across this group trip — message him without an account.</Typography>
             </Box>
             <Button variant="contained" size="small" sx={{ bgcolor: 'primary.onContainer', color: 'primary.container', flexShrink: 0 }}>Message Gyasi</Button>
           </Paper>

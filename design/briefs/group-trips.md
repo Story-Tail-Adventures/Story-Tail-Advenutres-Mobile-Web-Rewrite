@@ -112,7 +112,7 @@ commission all run through the flows that already exist.
 
 ### 2.6 The public page
 
-27. **Unlisted.** Reachable only by a slug link like `/groups/grace-community-2027`,
+27. **Unlisted.** Reachable only by a slug link like `story-tail.com/groups/grace-community-2027`,
     with a `noindex` tag. It isn't listed anywhere on the public site.
 28. "**Spots left**" appears only when 10 or fewer remain. Above that, show nothing.
 
@@ -120,6 +120,19 @@ commission all run through the flows that already exist.
 
 29. Agent screens: **web only**. Public page: **web**. Leader and member screens:
     **web and mobile**.
+
+### 2.8 Added after the design pass (2026-10-14)
+
+Gyasi approved these four after the artboards were drawn. They came from the design, not
+the grilling session.
+
+30. **Hidden options read "Arranged by Gyasi" to leaders.** A leader sees that a party
+    exists and its status, but never the name of a hidden option (ruling 8).
+31. **Leaders can invite again.** After an invite expires, the leader can send a new one,
+    which starts a new 7-day hold (ruling 19).
+32. **The agent can change a party's option and export the roster.** Both are agent-only.
+    The export holds contact details and amounts, so it never reaches a leader.
+33. **The public link lives on `story-tail.com/groups/<slug>`,** not the app subdomain.
 
 ---
 
@@ -299,6 +312,15 @@ option, status, and links back to the dashboard. Everything else is the normal
 Trip Detail.
 
 ---
+
+## 3a. Where the artboards are
+
+Drawn in Claude Design (project `13e01bd3-e9c2-422b-ac1e-d77305eac447`) and mirrored on
+2026-10-14 into `design/source-prototype/`: `pages/c28-group.html` (2.8.5 to 2.8.9, with the
+older 2.8 artboards kept below them) and `pages/a313-groups.html` (3.13.1 to 3.13.4). The
+desktop screens were ported to MUI on the way in. The phone screens stay class-style like
+every other `*-mobile.jsx`. The local changes are listed in the sync-design-handoff skill,
+under delta 8.
 
 ## 4. What happens to the existing 2.8 artboards
 

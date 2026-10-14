@@ -902,17 +902,154 @@
   {
     "slug": "c28-group",
     "num": "2.8",
-    "title": "Client \u00b7 Group Trip Coordination",
-    "subtitle": "Phase 3+ surface.",
+    "title": "Client \u00b7 Group Trips",
+    "subtitle": "Public sign-up, waitlist, leaders, members.",
     "files": [
-      "screens/client-group.jsx"
+      "screens/client-group.jsx",
+      "screens/group-shared.jsx",
+      "screens/group-public.jsx",
+      "screens/group-leader.jsx",
+      "screens/group-mobile.jsx"
     ],
     "sectionId": "c28",
-    "sectionTitle": "2.8 \u00b7 Group Trip Coordination",
-    "sectionSub": "Phase 3+ surface.",
+    "sectionTitle": "2.8 \u00b7 Group Trips",
+    "sectionSub": "Public sign-up, waitlist, leaders, members. Brief 2026-10-14.",
     "width": 1280,
     "height": 840,
     "screens": [
+      {
+        "id": "2851",
+        "comp": "C285_PublicOpen",
+        "label": "2.8.5a Open \u00b7 sign-up step 2",
+        "w": 1440,
+        "h": 2420
+      },
+      {
+        "id": "2852",
+        "comp": "C285_PublicReview",
+        "label": "2.8.5b Review and send",
+        "w": 1440,
+        "h": 2460
+      },
+      {
+        "id": "2853",
+        "comp": "C285_PublicOptionFull",
+        "label": "2.8.5c One option full",
+        "w": 1440,
+        "h": 2420
+      },
+      {
+        "id": "2854",
+        "comp": "C285_PublicGroupFull",
+        "label": "2.8.5d Group full \u00b7 waitlist",
+        "w": 1440,
+        "h": 2500
+      },
+      {
+        "id": "2855",
+        "comp": "C285_PublicClosed",
+        "label": "2.8.5e Closed",
+        "w": 1440,
+        "h": 1820
+      },
+      {
+        "id": "2856",
+        "comp": "C285_PublicAlready",
+        "label": "2.8.5f Already signed up",
+        "w": 1440,
+        "h": 1820
+      },
+      {
+        "id": "2857",
+        "comp": "C285_PublicSent",
+        "label": "2.8.5g Sent \u00b7 thank you",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2861",
+        "comp": "C286_OfferOpen",
+        "label": "2.8.6a Open offer",
+        "w": 1280,
+        "h": 860
+      },
+      {
+        "id": "2862",
+        "comp": "C286_OfferAccepted",
+        "label": "2.8.6b Accepted",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2863",
+        "comp": "C286_OfferExpired",
+        "label": "2.8.6c Expired",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2864",
+        "comp": "C286_OfferDeclined",
+        "label": "2.8.6d Declined",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2871",
+        "comp": "C287_RosterOpen",
+        "label": "2.8.7a Open \u00b7 invited party (3 days)",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2872",
+        "comp": "C287_RosterAdd",
+        "label": "2.8.7b Add someone to the trip",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2873",
+        "comp": "C287_RosterFlag",
+        "label": "2.8.7c Flag for Gyasi",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2874",
+        "comp": "C287_RosterExpired",
+        "label": "2.8.7d Invite expired",
+        "w": 1440,
+        "h": 1240
+      },
+      {
+        "id": "2875",
+        "comp": "C287_RosterDeparted",
+        "label": "2.8.7e Departed \u00b7 read-only",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2881",
+        "comp": "C288_WelcomeNote",
+        "label": "2.8.8 Edit welcome note",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2891",
+        "comp": "C289_MemberTripWithCard",
+        "label": "2.8.9a On the trip view",
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "2892",
+        "comp": "C289_CardStates",
+        "label": "2.8.9b Card states",
+        "w": 1280,
+        "h": 620
+      },
       {
         "id": "281",
         "comp": "C281_GroupOverview",
@@ -937,6 +1074,38 @@
         "comp": "C284_CoTravelerView",
         "label": "2.8.4 Limited view",
         "h": 820
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m2851",
+        "comp": "M285_PublicOpen",
+        "label": "2.8.5m Phone \u00b7 open"
+      },
+      {
+        "id": "m2852",
+        "comp": "M285_SignupStep",
+        "label": "2.8.5m Phone \u00b7 who's coming"
+      },
+      {
+        "id": "m2861",
+        "comp": "M286_Offer",
+        "label": "2.8.6m Phone \u00b7 open offer"
+      },
+      {
+        "id": "m2871",
+        "comp": "M287_Roster",
+        "label": "2.8.7m Phone \u00b7 party cards"
+      },
+      {
+        "id": "m2881",
+        "comp": "M288_WelcomeNote",
+        "label": "2.8.8m Phone"
+      },
+      {
+        "id": "m2891",
+        "comp": "M289_MemberCard",
+        "label": "2.8.9m Phone"
       }
     ]
   },
@@ -1754,6 +1923,86 @@
         "comp": "A3125_Branding",
         "label": "3.12.5 Branding (future)",
         "h": 760
+      }
+    ]
+  },
+  {
+    "slug": "a313-groups",
+    "num": "3.13",
+    "title": "Agent \u00b7 Groups",
+    "subtitle": "Group list, setup wizard, dashboard, party detail.",
+    "files": [
+      "screens/group-shared.jsx",
+      "screens/agent-groups.jsx"
+    ],
+    "sectionId": "a313",
+    "sectionTitle": "3.13 \u00b7 Groups",
+    "sectionSub": "Group list, setup wizard, dashboard, party detail. Web only.",
+    "width": 1440,
+    "height": 900,
+    "screens": [
+      {
+        "id": "31311",
+        "comp": "A3131_GroupsList",
+        "label": "3.13.1 Groups list",
+        "w": 1440,
+        "h": 760
+      },
+      {
+        "id": "31321",
+        "comp": "A3132_Step1",
+        "label": "3.13.2 Step 1 \u00b7 Details",
+        "w": 1280,
+        "h": 1000
+      },
+      {
+        "id": "31322",
+        "comp": "A3132_Step2",
+        "label": "3.13.2 Step 2 \u00b7 Master trip",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31323",
+        "comp": "A3132_Step3",
+        "label": "3.13.2 Step 3 \u00b7 Options",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31324",
+        "comp": "A3132_Step4",
+        "label": "3.13.2 Step 4 \u00b7 Public page",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31325",
+        "comp": "A3132_Step5",
+        "label": "3.13.2 Step 5 \u00b7 Leaders",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31326",
+        "comp": "A3132_Step6",
+        "label": "3.13.2 Step 6 \u00b7 Review and open",
+        "w": 1280,
+        "h": 860
+      },
+      {
+        "id": "31331",
+        "comp": "A3133_GroupDashboard",
+        "label": "3.13.3 Group dashboard",
+        "w": 1600,
+        "h": 1380
+      },
+      {
+        "id": "31341",
+        "comp": "A3134_PartyDetail",
+        "label": "3.13.4 Party detail",
+        "w": 1440,
+        "h": 820
       }
     ]
   }

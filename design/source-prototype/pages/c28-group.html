@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>Story-Tail · 2.8 Client · Group Trip Coordination</title>
+<title>Story-Tail · 2.8 Client · Group Trips</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet" href="../styles/tokens.css"/>
 <link rel="stylesheet" href="../styles/app.css"/>
@@ -33,8 +33,8 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
 <nav class="section-nav">
   <div class="crumb">
     <span class="num">2.8</span>
-    <span class="title">Client · Group Trip Coordination</span>
-    <span class="sub">· Phase 3+ surface.</span>
+    <span class="title">Client · Group Trips</span>
+    <span class="sub">· Public sign-up, waitlist, leaders, members. Brief 2026-10-14.</span>
   </div>
   <div class="nav-right">
     <div class="seg" id="theme-seg" role="group" aria-label="Theme">
@@ -103,6 +103,10 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
 <script type="text/babel" src="../shared/mui-kit.jsx"></script>
 
 <script type="text/babel" src="../screens/client-group.jsx"></script>
+<script type="text/babel" src="../screens/group-shared.jsx"></script>
+<script type="text/babel" src="../screens/group-public.jsx"></script>
+<script type="text/babel" src="../screens/group-leader.jsx"></script>
+<script type="text/babel" src="../screens/group-mobile.jsx"></script>
 
 <script type="text/babel" src="../tweaks-panel.jsx"></script>
 <script type="text/babel" src="../tweaks/tweaks.jsx"></script>
@@ -168,8 +172,13 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
   }
   function App() {
     return (
-      <DesignCanvas title="Story-Tail · 2.8 · Client · Group Trip Coordination" subtitle="Phase 3+ surface." background="#221C1A">
-        <Section id="c28" title="2.8 · Group Trip Coordination" subtitle="Phase 3+ surface." width={1280} height={840} screens={[{"id":"281","comp":"C281_GroupOverview","label":"2.8.1 Group overview","w":1440,"h":900},{"id":"282","comp":"C282_CoTravelerInvite","label":"2.8.2 Co-traveler invite","h":820},{"id":"283","comp":"C283_GroupChat","label":"2.8.3 Group chat","h":880},{"id":"284","comp":"C284_CoTravelerView","label":"2.8.4 Limited view","h":820}]} mobileScreens={null}/>
+      <DesignCanvas title="Story-Tail · 2.8 · Client · Group Trips" subtitle="Public sign-up, waitlist, leaders, members. Brief 2026-10-14." background="#221C1A">
+        <Section id="c285" title="2.8.5 · Public group sign-up (proposed)" subtitle="Unlisted slug page · web desktop + phone · no card taken" width={1280} height={840} screens={[{"id":"2851","comp":"C285_PublicOpen","label":"2.8.5a Open · sign-up step 2","w":1440,"h":2420},{"id":"2852","comp":"C285_PublicReview","label":"2.8.5b Review and send","w":1440,"h":2460},{"id":"2853","comp":"C285_PublicOptionFull","label":"2.8.5c One option full","w":1440,"h":2420},{"id":"2854","comp":"C285_PublicGroupFull","label":"2.8.5d Group full · waitlist","w":1440,"h":2500},{"id":"2855","comp":"C285_PublicClosed","label":"2.8.5e Closed","w":1440,"h":1820},{"id":"2856","comp":"C285_PublicAlready","label":"2.8.5f Already signed up","w":1440,"h":1820},{"id":"2857","comp":"C285_PublicSent","label":"2.8.5g Sent · thank you","w":1280,"h":820},{"id":"m2851","comp":"M285_PublicOpen","label":"2.8.5m Phone · open","mobile":true},{"id":"m2852","comp":"M285_SignupStep","label":"2.8.5m Phone · who's coming","mobile":true}]} mobileScreens={null}/>
+        <Section id="c286" title="2.8.6 · Waitlist offer (proposed)" subtitle="From the offer email · signed in · 72-hour hold, plain-text time" width={1280} height={840} screens={[{"id":"2861","comp":"C286_OfferOpen","label":"2.8.6a Open offer","w":1280,"h":860},{"id":"2862","comp":"C286_OfferAccepted","label":"2.8.6b Accepted","w":1280,"h":820},{"id":"2863","comp":"C286_OfferExpired","label":"2.8.6c Expired","w":1280,"h":820},{"id":"2864","comp":"C286_OfferDeclined","label":"2.8.6d Declined","w":1280,"h":820},{"id":"m2861","comp":"M286_Offer","label":"2.8.6m Phone · open offer","mobile":true}]} mobileScreens={null}/>
+        <Section id="c287" title="2.8.7 · Leader roster (proposed)" subtitle="Replaces 2.8.1 for leaders · no contact or money columns" width={1280} height={840} screens={[{"id":"2871","comp":"C287_RosterOpen","label":"2.8.7a Open · invited party (3 days)","w":1440,"h":1180},{"id":"2872","comp":"C287_RosterAdd","label":"2.8.7b Add someone to the trip","w":1440,"h":1180},{"id":"2873","comp":"C287_RosterFlag","label":"2.8.7c Flag for Gyasi","w":1440,"h":1180},{"id":"2874","comp":"C287_RosterExpired","label":"2.8.7d Invite expired","w":1440,"h":1240},{"id":"2875","comp":"C287_RosterDeparted","label":"2.8.7e Departed · read-only","w":1440,"h":1180},{"id":"m2871","comp":"M287_Roster","label":"2.8.7m Phone · party cards","mobile":true}]} mobileScreens={null}/>
+        <Section id="c288" title="2.8.8 · Edit welcome note (proposed)" subtitle="Photo + note + live preview. Save is the only control." width={1280} height={840} screens={[{"id":"2881","comp":"C288_WelcomeNote","label":"2.8.8 Edit welcome note","w":1280,"h":820},{"id":"m2881","comp":"M288_WelcomeNote","label":"2.8.8m Phone","mobile":true}]} mobileScreens={null}/>
+        <Section id="c289" title="2.8.9 · Member group card (proposed)" subtitle="Lives on the member's own trip view · no roster" width={1280} height={840} screens={[{"id":"2891","comp":"C289_MemberTripWithCard","label":"2.8.9a On the trip view","w":1440,"h":900},{"id":"2892","comp":"C289_CardStates","label":"2.8.9b Card states","w":1280,"h":620},{"id":"m2891","comp":"M289_MemberCard","label":"2.8.9m Phone","mobile":true}]} mobileScreens={null}/>
+        <Section id="c28" title="2.8 · Earlier group artboards" subtitle="2.8.1 superseded by 2.8.7 + 2.8.9 · 2.8.3 not in this design · 2.8.2 / 2.8.4 unchanged" width={1280} height={840} screens={[{"id":"281","comp":"C281_GroupOverview","label":"2.8.1 Group overview · SUPERSEDED (members can't see the roster)","w":1440,"h":900},{"id":"282","comp":"C282_CoTravelerInvite","label":"2.8.2 Co-traveler invite","h":820},{"id":"283","comp":"C283_GroupChat","label":"2.8.3 Group chat · NOT IN THIS DESIGN","h":880},{"id":"284","comp":"C284_CoTravelerView","label":"2.8.4 Limited view","h":820}]} mobileScreens={null}/>
       </DesignCanvas>
     );
   }
