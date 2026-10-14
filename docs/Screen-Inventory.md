@@ -2586,6 +2586,17 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > yet. The control renders disabled with its reason — the call §3.4.2's "Account admin" tab
 > got, since §3.10 is a real planned section.
 >
+> > **Amended 2026-10-14 (§3.10 Stage 2 grilling, Gyasi).** "Remind the client" goes live.
+> > The schedule draws ONE button in its header, not one per row, so it reminds about the
+> > **next unpaid milestone in due-date order**, the one the Overview sidebar calls "next":
+> > it opens that trip's thread (or starts it) with the template picker open on Payment
+> > reminder, and `{{payment.label}}`, `{{payment.amount}}` and `{{payment.dueDate}}` fill
+> > from that milestone. `payment.amount` is what is still OWED on it (amount less paid), the
+> > number a reminder is about. With nothing left unpaid the button stays off and says so.
+> > The money is paid to the supplier, never to Story-Tail (BRD §10.5), and the starter copy
+> > says so. **The reminder cadence toggle stays off**: automatic reminders need a scheduler
+> > that sends on the advisor's behalf, and they matter most once email exists (Stage 4).
+>
 > **Removing a payment is a hard delete.** `payment_milestone` is not on Data-Model §20.1's
 > soft-delete list, has no `archived_at`, and nothing references it — unlike §3.4.4's
 > components, which `itinerary_activity.component_id` points at. The copy says so rather
@@ -3111,7 +3122,9 @@ These tools let the agent help less-technical clients with login issues.
 >   brings it back to the inbox. `conversation.archived_at` would have removed it for them.
 > - **Doors that went live:** the rail's Messages, the worklist's "Recent messages" rows,
 >   Client Detail's Message button and its threads tab, and Trip Detail's Messages tab ("Open
->   in Messages"). "Send a reminder" waits for templates (Stage 2).
+>   in Messages"). "Send a reminder" waits for templates (Stage 2). **Since Stage 2** the
+>   inbox header also links to the template library (§3.10.4), and Trip Detail's Payments
+>   "Remind the client" is live (§3.4's payments note).
 > - **No phone treatment yet**: Messages is one of §6.6's four agent tabs, and Stage 3 builds
 >   it (read and reply, internal notes too; Gyasi, 2026-10-13), artboards first.
 
@@ -3133,7 +3146,9 @@ These tools let the agent help less-technical clients with login issues.
 > - **"Message client"** (`/agent/messages/new`) goes straight to the client's live thread for
 >   that trip (or their general thread) when there is one, and otherwise starts it on send. A
 >   thread cannot start with an internal note: the client would see a thread with nothing in it.
-> - **Not yet:** the template picker (Stage 2), attaching a file from the advisor's side, and
+> - **Since Stage 2 (2026-10-14):** "Insert template" opens the picker (§3.10.3) from the reply
+>   box, in reply and note modes, and Send refuses a message that still holds a merge field.
+> - **Not yet:** attaching a file from the advisor's side, and
 >   opening the client's attachments, which are listed by name (nothing on the advisor's side
 >   can open a document yet). When the client has no login, the reply box says they will see it
 >   once they do.
@@ -3145,6 +3160,29 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Conversation Thread "Insert template"; Send Proposal.
 **Related screens:** Template Library.
 
+> **Settled 2026-10-14 (§3.10 Stage 2 grilling, Gyasi), web only.** A dialog over the reply
+> box, as A3103 draws it: the list on the left, the preview on the right, merged with the
+> REAL client and trip of the thread it was opened from.
+>
+> - **Entry points:** the reply box's "Insert template", in reply mode AND internal-note mode;
+>   and Trip Detail's Payments tab "Remind the client" (see §3.4's payments note), which opens
+>   that trip's thread with the picker already open on Payment reminder. **Send Proposal is
+>   not an entry point yet**: proposals are §3.5's, and nothing there sends through a template.
+> - **The list** is grouped by category, A to Z inside each group, with one search box over
+>   names, tags and body text. A "Manage templates" link goes to the library.
+> - **Merge fields are a fixed set** (Data-Model §12.4). When one has no value (a general
+>   thread has no trip, an inquiry may have no dates, `payment.*` only fills from the Payments
+>   door), the preview names what is missing and **"Insert as-is" is off**. "Insert & edit"
+>   still works and leaves the raw `{{token}}` in the reply box, and **Send refuses while any
+>   token is left**, on the web and again in `agent-message`. A client never reads "your trip
+>   on ." or a raw token.
+> - **Inserting never replaces what was typed.** An empty box gets the template; a box with a
+>   draft gets it at the cursor.
+> - **No picker on the phone** (Stage 3): the phone's Messages tab replies and adds notes,
+>   and templates stay web-only.
+> - **What is sent is plain text.** The message stores the merged words only, with no link
+>   back to the template, so editing a template never changes a message already sent.
+
 #### 3.10.4 Template Library
 **Purpose:** Manage reusable email/message templates.
 **Primary elements:** Template list grouped by stage (Lead Response, Proposal, Booking, Pre-Trip, Post-Trip, Payment Reminder); "Create new template" CTA.
@@ -3152,12 +3190,53 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Nav "Templates" (under Settings).
 **Related screens:** Template Editor.
 
+> **Settled 2026-10-14 (§3.10 Stage 2 grilling, Gyasi), web only.**
+> `/agent/messages/templates`, not `/agent/templates`, which is §3.4.13's trip templates. The
+> artboard draws it under the Messages tab, and the nav rail does not change (§6.4). The
+> doors are a "Templates" link in the inbox header and the picker's "Manage templates".
+>
+> - **Grouped by the seven categories** in Data-Model §12.4 (Lead response, Proposal,
+>   Booking confirmation, Pre-trip, Post-trip, Payment reminder, Other), with empty groups
+>   hidden. The artboard's merged "Pre / post" group is two groups.
+> - **Cards show "Last edited", not "Used 42×".** An honest count would need each message to
+>   store the template it came from, and messages store only their words.
+> - **Archive, never delete**, with an Archived view and Restore. The artboard's copy icon is
+>   **Duplicate**, which makes "Copy of …" in the same category.
+> - **Seven starters** arrive by migration for every advisor who exists when it deploys: lead
+>   response, proposal, booking confirmation, pre-trip 14 day, pre-trip 7 day, post-trip
+>   (a "welcome home" note; there is no survey) and payment reminder (paying the SUPPLIER,
+>   never us, BRD §10.5). Copying starters to an advisor added later waits for P3.
+
 #### 3.10.5 Template Editor
 **Purpose:** Compose or edit a template.
 **Primary elements:** Subject; body (rich text with merge fields); preview with sample data; tags.
 **Key actions:** Save; preview; archive.
 **Entry points:** Template Library.
 **Related screens:** Template Library.
+
+> **Settled 2026-10-14 (§3.10 Stage 2 grilling, Gyasi), web only.**
+> `/agent/messages/templates/new` and `/agent/messages/templates/[templateId]`, A3105's two
+> panes: the form on the left, a live preview on the right.
+>
+> - **Plain text, not rich text.** The artboard's body is a plain textarea and a chat bubble
+>   shows plain text. The column keeps its `body_markdown` name; rich text is decided with
+>   email in Stage 4.
+> - **No subject field until email.** In-app messages have no subject line. The column stays.
+> - **A category dropdown** beside the name: the artboard shows the category only in the
+>   breadcrumb, and something has to set it.
+> - **Merge fields are chips** that insert at the cursor. **An unknown token blocks Save** and
+>   is named (`{{client.firstname}}`, lowercase n, would never match anything).
+> - **The preview uses a fixed sample** (Jordan Hayes, Nassau, Aug 12 – 19), never a real
+>   client: writing copy is no reason to put a real traveler's name on screen. The picker is
+>   where real data merges.
+> - **Tags are free-form**, suggesting tags already used. There is no tag filter; search
+>   covers tags.
+> - **Explicit Save, no auto-save.** Auto-save would change what the picker inserts while a
+>   template is half-written. Leaving with unsaved changes asks first.
+> - **Limits:** a name of 1 to 80 characters; a body no longer than one message (8,000), so a
+>   template can never be too long to send.
+> - **No audit rows.** Templates hold no client data, so they are outside Rule 3's sensitive
+>   tables; the messages they produce are recorded the usual way.
 
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").
