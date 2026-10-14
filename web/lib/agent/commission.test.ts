@@ -27,9 +27,13 @@ import {
   dashboardMonths,
   dashboardTiles,
   ledgerRow,
+  lineView,
+  loadAddLineForm,
   loadCommissionDashboard,
   loadCommissionLedger,
+  loadCommissionLine,
   rateLabel,
+  searchTripsForLine,
   travelDateLabel,
 } from "./commission";
 import { EMPTY_LEDGER_QUERY } from "./commissionFilters";
@@ -224,6 +228,7 @@ describe("ledgerRow", () => {
   it("formats a line", () => {
     expect(ledgerRow(LEDGER_ROW)).toEqual({
       commissionId: LEDGER_ROW.commission_id,
+      lineHref: `/agent/commission/ledger/${LEDGER_ROW.commission_id}`,
       tripTitle: "Getaway #2",
       tripHref: `/agent/trips/${LEDGER_ROW.trip_id}`,
       tripArchived: false,
@@ -342,5 +347,148 @@ describe("loadCommissionLedger", () => {
     arrange([LEDGER_ROW], [SUMMARY], SUPPLIERS);
     const ledger = await loadCommissionLedger(EMPTY_LEDGER_QUERY);
     expect(JSON.parse(JSON.stringify(ledger))).toEqual(ledger);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §3.7.3 / §3.7.4
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LINE_ROW = {
+  commission_id: "c1",
+  trip_id: "t1",
+  trip_title: "Kyoto in the spring",
+  trip_status: "booked",
+  trip_archived: false,
+  trip_start_date: "2026-12-10",
+  trip_end_date: "2026-12-22",
+  booked_on: "2026-08-01",
+  client_id: "cl1",
+  client_display_name: "Maya Carter",
+  supplier_id: "s1",
+  supplier_name: "Sandals Resorts",
+  gross_booking_cents: "1140000",
+  commission_pct: 12,
+  expected_commission_cents: "136800",
+  processing_fee_cents: "0",
+  received_commission_cents: "0",
+  currency: "USD",
+  payment_terms: "after_travel",
+  payment_lag_days: 60,
+  expected_payment_date: "2027-02-20",
+  status: "expected",
+  received_at: null,
+  inteletravel_reference: null,
+  notes: null,
+  version: 3,
+  can_remove: true,
+  as_of_date: "2026-10-11",
+};
+
+describe("lineView", () => {
+  it("draws the prototype's header and the expectation card", () => {
+    const v = lineView(LINE_ROW);
+    expect(v.heading).toBe("Sandals Resorts · Kyoto in the spring · $1,368 expected");
+    expect(v.termsLine).toBe("Sandals Resorts · paid 60 days after travel");
+    expect(v.expectationLine).toBe("Expected around Feb 20, 2027.");
+    expect(v.tripHref).toBe("/agent/trips/t1");
+    expect(v.canRemove).toBe(true);
+  });
+
+  it("seeds the edit form with dollars, and the payment form with a BLANK amount dated today", () => {
+    const v = lineView(LINE_ROW);
+    expect(v.lineValues).toMatchObject({ gross: "11400.00", rate: "12", paymentLagDays: "60" });
+    // Blank, so Enter in any field cannot record a full payment nobody checked.
+    expect(v.paymentValues).toEqual({
+      status: "received", received: "", fee: "0.00", receivedAt: "2026-10-11",
+    });
+    expect(v.paidLine).toBeNull();
+  });
+
+  it("a paid line shows what arrived, and the payment form starts from it", () => {
+    const v = lineView({
+      ...LINE_ROW,
+      status: "disputed",
+      received_commission_cents: "130000",
+      processing_fee_cents: "1200",
+      received_at: "2027-02-21",
+      can_remove: false,
+    });
+    expect(v.paidLine).toBe("Received $1,300 on Feb 21, 2027, after a $12 fee.");
+    expect(v.paymentValues).toEqual({
+      status: "disputed", received: "1300.00", fee: "12.00", receivedAt: "2027-02-21",
+    });
+  });
+
+  it("keeps the cents of what arrived, unlike the ledger's whole dollars", () => {
+    // In whole dollars $1,189.50 read as $1,190 and a 40-cent fee as "a $0 fee".
+    const v = lineView({
+      ...LINE_ROW,
+      status: "received",
+      received_commission_cents: "118950",
+      processing_fee_cents: "40",
+      received_at: "2027-02-21",
+    });
+    expect(v.paidLine).toBe("Received $1,189.50 on Feb 21, 2027, after a $0.40 fee.");
+  });
+
+  it("says why there is no date yet, by which anchor is missing", () => {
+    expect(lineView({ ...LINE_ROW, expected_payment_date: null }).expectationLine)
+      .toBe("No date yet: the trip has no end date.");
+    expect(lineView({ ...LINE_ROW, payment_terms: "at_booking", expected_payment_date: null }).expectationLine)
+      .toBe("No date yet: the trip has not been booked.");
+  });
+
+  it("does not link an archived trip", () => {
+    expect(lineView({ ...LINE_ROW, trip_archived: true }).tripHref).toBeNull();
+  });
+});
+
+describe("loadCommissionLine", () => {
+  it("tells not-found from a failed read", async () => {
+    mocks.callAgentRead.mockResolvedValueOnce({ ok: true, rows: [] });
+    expect(await loadCommissionLine("c1")).toEqual({ ok: false, reason: "not-found" });
+    mocks.callAgentRead.mockResolvedValueOnce({ ok: false, kind: "unavailable" });
+    expect(await loadCommissionLine("c1")).toEqual({ ok: false, reason: "unavailable" });
+  });
+});
+
+describe("searchTripsForLine", () => {
+  it("searches every live stage — a cancelled trip can owe a lost line", async () => {
+    mocks.callAgentRead.mockResolvedValueOnce({ ok: true, rows: [] });
+    await searchTripsForLine("kyoto");
+    expect(mocks.callAgentRead).toHaveBeenCalledWith("agent_trip_roster", expect.objectContaining({
+      p_status: ["inquiry", "proposal", "booked", "in_progress", "completed", "cancelled"],
+      p_search: "kyoto",
+    }));
+  });
+});
+
+describe("loadAddLineForm", () => {
+  it("builds the prefill from the trip's components, by supplier", async () => {
+    mocks.callAgentRead.mockImplementation((read: string) => Promise.resolve({
+      ok: true,
+      rows: read === "agent_trip_overview"
+        ? [{ trip_id: "t1", title: "Kyoto", client_display_name: "Maya Carter" }]
+        : read === "agent_trip_components"
+          ? [
+              { supplier_id: "s1", cost_cents: "100000", commission_pct: 12 },
+              { supplier_id: null, cost_cents: "900000", commission_pct: 10 },
+            ]
+          : [{ supplier_id: "s1", name: "Sandals Resorts", kind: "resort", default_commission_pct: 12,
+               commission_payment_terms: "after_travel", commission_payment_lag_days: 30 }],
+    }));
+    const result = await loadAddLineForm("t1");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.form.prefill).toEqual({ s1: { grossCents: 100000, rate: 12 } });
+    expect(result.form.suppliers[0].suppliers[0]).toMatchObject({
+      paymentTerms: "after_travel", paymentLagDays: 30,
+    });
+  });
+
+  it("is not-found for a trip the overview does not return", async () => {
+    mocks.callAgentRead.mockImplementation(() => Promise.resolve({ ok: true, rows: [] }));
+    expect(await loadAddLineForm("nope")).toEqual({ ok: false, reason: "not-found" });
   });
 });

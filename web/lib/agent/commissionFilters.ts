@@ -102,15 +102,27 @@ export function isFiltered(query: LedgerQuery): boolean {
  * trip" link and Trip Detail's entry point, so none of them can drop a filter the others keep.
  */
 export function ledgerHref(query: LedgerQuery): string {
+  return withFilters("/agent/commission/ledger", query, true);
+}
+
+/**
+ * The CSV export for the same filters — every page of them, so no `page`. One builder with
+ * `ledgerHref` so the file can never be filtered differently from the screen it came from.
+ */
+export function ledgerExportHref(query: LedgerQuery): string {
+  return withFilters("/agent/commission/ledger/export", query, false);
+}
+
+function withFilters(path: string, query: LedgerQuery, withPage: boolean): string {
   const params = new URLSearchParams();
   for (const s of query.statuses) params.append("status", s);
   if (query.supplierId) params.set("supplier", query.supplierId);
   if (query.tripId) params.set("trip", query.tripId);
   if (query.travelFrom) params.set("from", query.travelFrom);
   if (query.travelTo) params.set("to", query.travelTo);
-  if (query.page > 1) params.set("page", String(query.page));
+  if (withPage && query.page > 1) params.set("page", String(query.page));
   const qs = params.toString();
-  return qs ? `/agent/commission/ledger?${qs}` : "/agent/commission/ledger";
+  return qs ? `${path}?${qs}` : path;
 }
 
 /** The empty query, for links that start from nothing (a tile, Trip Detail). */

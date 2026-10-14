@@ -736,6 +736,7 @@ export type Database = {
       commission: {
         Row: {
           agent_id: string
+          archived_at: string | null
           commission_pct: number
           component_id: string | null
           created_at: string
@@ -746,7 +747,9 @@ export type Database = {
           import_id: string | null
           inteletravel_reference: string | null
           notes: string | null
-          payment_terms: string
+          on_record_at: string | null
+          payment_lag_days: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents: number
           received_at: string | null
           received_commission_cents: number
@@ -754,9 +757,11 @@ export type Database = {
           supplier_id: string
           trip_id: string
           updated_at: string
+          version: number
         }
         Insert: {
           agent_id: string
+          archived_at?: string | null
           commission_pct: number
           component_id?: string | null
           created_at?: string
@@ -767,7 +772,9 @@ export type Database = {
           import_id?: string | null
           inteletravel_reference?: string | null
           notes?: string | null
-          payment_terms: string
+          on_record_at?: string | null
+          payment_lag_days?: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
@@ -775,9 +782,11 @@ export type Database = {
           supplier_id: string
           trip_id: string
           updated_at?: string
+          version?: number
         }
         Update: {
           agent_id?: string
+          archived_at?: string | null
           commission_pct?: number
           component_id?: string | null
           created_at?: string
@@ -788,7 +797,9 @@ export type Database = {
           import_id?: string | null
           inteletravel_reference?: string | null
           notes?: string | null
-          payment_terms?: string
+          on_record_at?: string | null
+          payment_lag_days?: number
+          payment_terms?: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
@@ -796,6 +807,7 @@ export type Database = {
           supplier_id?: string
           trip_id?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -2618,7 +2630,10 @@ export type Database = {
       supplier: {
         Row: {
           archived_at: string | null
-          commission_payment_terms: string | null
+          commission_payment_lag_days: number | null
+          commission_payment_terms:
+            | Database["public"]["Enums"]["commission_payment_terms"]
+            | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -2634,7 +2649,10 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
-          commission_payment_terms?: string | null
+          commission_payment_lag_days?: number | null
+          commission_payment_terms?:
+            | Database["public"]["Enums"]["commission_payment_terms"]
+            | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -2650,7 +2668,10 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
-          commission_payment_terms?: string | null
+          commission_payment_lag_days?: number | null
+          commission_payment_terms?:
+            | Database["public"]["Enums"]["commission_payment_terms"]
+            | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -3457,6 +3478,39 @@ export type Database = {
           supplier_name: string
         }[]
       }
+      agent_commission_line: {
+        Args: { p_commission_id: string }
+        Returns: {
+          as_of_date: string
+          booked_on: string
+          can_remove: boolean
+          client_display_name: string
+          client_id: string
+          commission_id: string
+          commission_pct: number
+          currency: string
+          expected_commission_cents: string
+          expected_payment_date: string
+          gross_booking_cents: string
+          inteletravel_reference: string
+          notes: string
+          payment_lag_days: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          processing_fee_cents: string
+          received_at: string
+          received_commission_cents: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_id: string
+          supplier_name: string
+          trip_archived: boolean
+          trip_end_date: string
+          trip_id: string
+          trip_start_date: string
+          trip_status: Database["public"]["Enums"]["trip_status"]
+          trip_title: string
+          version: number
+        }[]
+      }
       agent_commission_monthly: {
         Args: never
         Returns: {
@@ -3490,6 +3544,30 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_create_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_commission_id: string
+          p_commission_pct: number
+          p_gross_cents: number
+          p_inteletravel_reference: string
+          p_ip: string
+          p_notes: string
+          p_payment_lag_days: number
+          p_payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          p_status: Database["public"]["Enums"]["commission_status"]
+          p_supplier_id: string
+          p_trip_id: string
+          p_user_agent: string
+        }
+        Returns: {
+          commission_id: string
+          outcome: string
+          version: number
+        }[]
+      }
       agent_create_trip: {
         Args: {
           p_agent_id: string
@@ -3517,6 +3595,21 @@ export type Database = {
           milestone_id: string
           outcome: string
         }[]
+      }
+      agent_export_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ip: string
+          p_status: Database["public"]["Enums"]["commission_status"][]
+          p_supplier_id: string
+          p_travel_from: string
+          p_travel_to: string
+          p_trip_id: string
+          p_user_agent: string
+        }
+        Returns: Json
       }
       agent_generate_itinerary: {
         Args: { p_agent_id: string; p_trip_id: string }
@@ -3575,6 +3668,41 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_record_commission_payment: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_commission_id: string
+          p_expected_version: number
+          p_fee_cents: number
+          p_ip: string
+          p_received_at: string
+          p_received_cents: number
+          p_status: Database["public"]["Enums"]["commission_status"]
+          p_user_agent: string
+        }
+        Returns: {
+          gap_cents: string
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_remove_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_commission_id: string
+          p_expected_version: number
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          version: number
         }[]
       }
       agent_reorder_itinerary_activities: {
@@ -3672,6 +3800,8 @@ export type Database = {
       agent_suppliers: {
         Args: never
         Returns: {
+          commission_payment_lag_days: number
+          commission_payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           default_commission_pct: number
           kind: Database["public"]["Enums"]["supplier_kind"]
           name: string
@@ -3948,6 +4078,30 @@ export type Database = {
           version: number
         }[]
       }
+      agent_update_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_clear_payment?: boolean
+          p_commission_id: string
+          p_commission_pct: number
+          p_expected_version: number
+          p_gross_cents: number
+          p_inteletravel_reference: string
+          p_ip: string
+          p_notes: string
+          p_payment_lag_days: number
+          p_payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          p_status: Database["public"]["Enums"]["commission_status"]
+          p_supplier_id: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
       agent_update_template: {
         Args: {
           p_agent_id: string
@@ -4066,6 +4220,53 @@ export type Database = {
         Returns: Database["public"]["Enums"]["block_kind"]
       }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      commission_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_audit_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_target_entity: string
+          p_target_id: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      commission_lines_for_current_agent: {
+        Args: never
+        Returns: {
+          agent_id: string
+          archived_at: string | null
+          commission_pct: number
+          component_id: string | null
+          created_at: string
+          currency: string
+          expected_commission_cents: number
+          gross_booking_cents: number
+          id: string
+          import_id: string | null
+          inteletravel_reference: string | null
+          notes: string | null
+          on_record_at: string | null
+          payment_lag_days: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          processing_fee_cents: number
+          received_at: string | null
+          received_commission_cents: number
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_id: string
+          trip_id: string
+          updated_at: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "commission"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       cruise_sailing_search: {
         Args: {
           depart_from?: string
@@ -4186,6 +4387,7 @@ export type Database = {
       card_auth_status: "active" | "revoked" | "expired" | "exhausted"
       card_status: "active" | "revoked" | "expired" | "failed"
       client_status: "active" | "archived" | "merged_into"
+      commission_payment_terms: "at_booking" | "after_travel"
       commission_status:
         | "expected"
         | "invoiced"
@@ -4423,6 +4625,7 @@ export const Constants = {
       card_auth_status: ["active", "revoked", "expired", "exhausted"],
       card_status: ["active", "revoked", "expired", "failed"],
       client_status: ["active", "archived", "merged_into"],
+      commission_payment_terms: ["at_booking", "after_travel"],
       commission_status: [
         "expected",
         "invoiced",

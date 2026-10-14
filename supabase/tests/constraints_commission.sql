@@ -264,7 +264,7 @@ INSERT INTO public.commission (
     expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
     payment_terms, status, received_at, inteletravel_reference
 ) VALUES ('01a0b1c2-d300-7000-8000-00000000ff02', :trip40, :gyasi, :sandals,
-          99999900, 50.00, 49999950, 0, 0, 'USD', 'absurd', 'expected', NULL, NULL);
+          99999900, 50.00, 49999950, 0, 0, 'USD', 'after_travel', 'expected', NULL, NULL);
 
 SELECT pg_temp.become('0195a2c0-1a00-7000-8000-000000000010'::uuid);
 SELECT pg_temp.assert(

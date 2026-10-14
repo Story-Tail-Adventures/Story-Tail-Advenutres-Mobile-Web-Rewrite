@@ -1090,10 +1090,11 @@ export const COMMISSION_COPY = {
 
   importLabel: "Import CSV",
   importDeferred: "Importing an Inteletravel statement arrives with §3.7.5.",
+  // Live since §3.7 Stage 2. Each download writes an audit record (Data-Model §18.3), in the
+  // same database call that produces the rows.
   exportLabel: "Export",
-  // Says WHY it waits. A download of the ledger carries every client's name, and Data-Model
-  // §18.3 audits any bulk export of client data — which needs the first commission write.
-  exportDeferred: "Export arrives with §3.7.3, where each download gets an audit record.",
+  exportFailed: "The export didn't come through. Go back and try again in a moment.",
+  addLineLabel: "Add line",
 
   tileYtd: "YTD received",
   tileUpcoming: "Expected · 90d",
@@ -1146,20 +1147,148 @@ export const COMMISSION_COPY = {
   // is invoiced", which is wrong twice: a line starts life as `expected`, before any invoice,
   // and nothing creates one automatically — entry and import are the only producers.
   emptyBody:
-    "Lines are entered by hand (§3.7.4) or imported from an Inteletravel statement (§3.7.5). Neither is here yet.",
+    "Use Add line to enter one. Importing an Inteletravel statement arrives with §3.7.5.",
   emptyFilteredTitle: "Nothing matches",
   emptyFilteredBody: "Try another status, supplier or date range.",
   emptyTripTitle: "No lines for this trip yet",
   emptyTripBody: "Its forecast commission still shows on the trip's cost card.",
-  // The rows are not clickable yet, and a reader deserves to know why rather than discover
-  // it by clicking.
-  lineDetailDeferred: "Opening a line to edit it or mark it received arrives with §3.7.3.",
   ledgerTableLabel: "Commission lines",
   ledgerPagesLabel: "Ledger pages",
 
-  // Trip Detail's cost card, the ledger's second entry point (§3.7.2).
+  // Trip Detail's cost card, the ledger's second entry point (§3.7.2), and 3.7.4's.
   tripLedgerLink: "Commission lines",
+  tripAddLine: "Add commission line",
+
+  // ── 3.7.4 Add ──────────────────────────────────────────────────────────────
+  addTitle: "Add commission line",
+  addSubtitle: "Add one line per supplier on a trip. Expected is gross × rate, worked out when you save.",
+  pickTripTitle: "Which trip is it for?",
+  pickTripSearch: "Search trips",
+  pickTripPlaceholder: "Trip, destination, or client…",
+  pickTripNone: "No trips match that.",
+  pickTripChange: "Pick a different trip",
+  noSuppliers: "No suppliers on file yet. A line needs one to attach to.",
+  tripNotAvailableTitle: "That trip isn't available",
+  tripNotAvailableBody: "It may have been archived, or it belongs to another advisor.",
+
+  // ── The line form, shared by 3.7.3 and 3.7.4 ─────────────────────────────
+  supplierPlaceholder: "Pick a supplier",
+  supplierNoLongerListed: "No longer listed",
+  grossLabel: "Gross booking",
+  grossHint: "The booking total the rate applies to.",
+  rateLabel: "Commission rate",
+  rateHint: "A percent, 0 to 100.",
+  expectedLabel: "Expected",
+  expectedHint: "Gross × rate. Worked out again when you save.",
+  termsLabel: "Paid",
+  termsAfterTravel: "After travel",
+  termsAtBooking: "At booking",
+  lagLabel: "Days after",
+  statusLabel: "Status",
+  statusHint: "Received and Disputed are set with Mark received.",
+  referenceLabel: "Inteletravel reference",
+  referenceHint: "From the statement, once there is one. A line with one can't be removed.",
+  notesLabel: "Notes",
+  saveLine: "Save line",
+  saving: "Saving…",
+  cancel: "Cancel",
+
+  supplierRequired: "Pick a supplier.",
+  grossInvalid: "Enter an amount like 6480.00.",
+  rateInvalid: "Enter a rate from 0 to 100.",
+  lagInvalid: "Enter whole days, 0 to 365.",
+  duplicateReference: "That reference is already on another line.",
+  supplierGone: "That supplier is no longer on file. Pick another.",
+  stale: "This line changed since you opened it. Reload to see what changed.",
+  failed: "That didn't save. Try again in a moment.",
+  // Moving a paid line back to an unpaid status wipes the recorded payment (audited). The
+  // checkbox is required, so the advisor says yes before it happens.
+  clearsPayment: "Changing the status clears the payment recorded on this line.",
+  clearsPaymentConfirm: "Yes, clear the recorded payment",
+  receivedNeedsAmount: "Received needs the amount that arrived. If nothing came, record it as Disputed.",
+  signedOut: "You were signed out. Sign in again and retry.",
+
+  // ── 3.7.3 Detail ───────────────────────────────────────────────────────────
+  backToLedger: "Back to ledger",
+  lineNotFoundTitle: "That line isn't on your ledger",
+  lineNotFoundBody: "It may have been removed, or the link is to a line that isn't yours.",
+  // The prototype's subtitle, less the Inteletravel link, which waits for §3.7.6.
+  detailSubtitle: "Edit terms, mark received, and keep notes for the statement.",
+  openTrip: "Open trip",
+  archivedTripNote: "This trip is archived. Its commission line stays on the record.",
+
+  markReceived: "Mark received",
+  receivedAmountLabel: "Amount received",
+  feeLabel: "Processing fee",
+  feeHint: "What Inteletravel kept, if anything.",
+  receivedOnLabel: "Received on",
+  recordAsLabel: "Record as",
+  recordReceived: "Received",
+  recordDisputed: "Disputed",
+  savePayment: "Save payment",
+  badDate: "Use today or an earlier date.",
+  amountInvalid: "Enter an amount like 970.00.",
+
+  linkInteletravel: "Link Inteletravel row",
+  linkDeferred: "Matching a line to a statement row arrives with §3.7.6.",
+
+  expectationTitle: "Payment expectation",
+  expectationNoEnd: "No date yet: the trip has no end date.",
+  expectationNotBooked: "No date yet: the trip has not been booked.",
+
+  removeLine: "Remove line",
+  removeTitle: "Remove this line?",
+  removeBody:
+    "For a line entered by mistake. It leaves the ledger and your totals, and you can't bring it back from here. A record that it existed is kept.",
+  removeConfirm: "Remove",
+  removeKeep: "Keep it",
+  // Gyasi's rule, said as the rule rather than as one case of it: a disputed or received
+  // line was never "invoiced" in the advisor's sense, and the old wording said it was.
+  // Gyasi's rule (2026-10-11), stated as history: a line that was ever invoiced, paid or
+  // given a reference stays on the record, whatever its status says now.
+  removeNotAllowed:
+    "Only a line that was never invoiced or given an Inteletravel reference can be removed. You can still edit this one.",
+  removeRefused: "That line couldn't be removed. It may have changed since you opened it.",
 } as const;
+
+/** "Sandals Resorts · 60 days after travel" — the expectation card's first line. */
+export function commissionTermsLine(supplier: string, terms: string, days: number): string {
+  const atBooking = terms === "at_booking";
+  const span = days === 0
+    ? (atBooking ? "paid at booking" : "paid when travel ends")
+    : `paid ${days} ${days === 1 ? "day" : "days"} after ${atBooking ? "booking" : "travel"}`;
+  return `${supplier} · ${span}`;
+}
+
+/** 3.7.3's header, as A373 draws it: "Sandals Resorts · Kyoto in the spring · $1,368 expected". */
+export function commissionLineHeading(supplier: string, trip: string, expected: string): string {
+  return `${supplier} · ${trip} · ${expected} expected`;
+}
+
+/** "Expected around Oct 18, 2026." */
+export function commissionExpectedOn(dateLabel: string): string {
+  return `Expected around ${dateLabel}.`;
+}
+
+/** "Received $1,190 on Feb 21, 2027, after a $12 fee." */
+export function commissionPaidLine(amount: string, dateLabel: string, fee: string | null): string {
+  return fee ? `Received ${amount} on ${dateLabel}, after a ${fee} fee.` : `Received ${amount} on ${dateLabel}.`;
+}
+
+/**
+ * What the payment form says about expected − fee − received, live. Zero is reconciled;
+ * a shortfall is the thing §3.7.6 exists to chase; more than expected is worth a look too.
+ */
+export function commissionGapLine(gapCents: number, gapLabel: string): string {
+  if (gapCents === 0) return "Matches expected, once the fee is taken out.";
+  if (gapCents > 0) return `${gapLabel} short of expected, after the fee. Record it as Disputed to chase it.`;
+  return `${gapLabel} more than expected, after the fee.`;
+}
+
+/** "Gross and rate filled in from this trip's Sandals Resorts bookings." */
+export function commissionPrefilledFrom(supplier: string): string {
+  return `Gross and rate filled in from this trip's ${supplier} bookings. Change them if the final figures differ.`;
+}
 
 /** "5 trips", "1 trip" — the Expected · 90d tile's second line. */
 export function commissionTripCount(count: number): string {

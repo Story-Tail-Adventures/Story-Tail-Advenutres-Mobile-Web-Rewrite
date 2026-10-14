@@ -188,14 +188,23 @@ export function activeAgentDestinationId(pathname: string): string | null {
 }
 
 /**
- * Which view of a list is showing. Defaults to §3.2's three; §3.7 passes its own. Exact
- * match only, so a view's sub-route does not light it — the views have none.
+ * Which view of a list is showing. Defaults to §3.2's three; §3.7 passes its own.
+ *
+ * Exact match first; then a view's SUB-route lights it (the ledger's `/ledger/new` and
+ * `/ledger/<id>` are the ledger) — but never the list's first view, which is its root: every
+ * path under `/agent` would otherwise light Worklist.
  */
 export function activeAgentViewId(
   pathname: string,
   views: readonly AgentView[] = AGENT_WORKLIST_VIEWS,
 ): string | null {
-  return views.find((v) => v.href === pathname)?.id ?? null;
+  const exact = views.find((v) => v.href === pathname);
+  if (exact) return exact.id;
+  const nested = views
+    .slice(1)
+    .filter((v) => pathname.startsWith(`${v.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  return nested?.id ?? null;
 }
 
 /**

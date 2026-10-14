@@ -908,7 +908,8 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `payment_api_endpoint` | `text` | Yes | Internal | When `payment_method_kind = 'api'`, the URL Stripe Vault and Forward posts to (e.g., Expedia's `api.ean.com/v3/itineraries`) |
 | `payment_portal_url` | `text` | Yes | Internal | When `payment_method_kind = 'portal'`, the supplier's TA portal URL (e.g., Sandals' `taportal.sandals.com`) — informational only |
 | `default_commission_pct` | `numeric(5,2)` | Yes | Internal | Default for new bookings; can be overridden per trip |
-| `commission_payment_terms` | `text` | Yes | Internal | `at_booking`, `after_travel`, `mixed` |
+| `commission_payment_terms` | `commission_payment_terms` enum | Yes | Internal | `at_booking`, `after_travel`. **NULL means varies or unknown** (what the old `mixed` meant): no prefill, the advisor picks. Free text until 20261011120000 |
+| `commission_payment_lag_days` | `integer` | Yes | Internal | Default days after booking / after travel, 0–365. NULL whenever the terms are NULL (CHECK) |
 | `contact_email` | `text` | Yes | Internal | — |
 | `contact_phone` | `text` | Yes | Internal | — |
 | `notes` | `text` | Yes | Internal | — |
@@ -1710,7 +1711,11 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `processing_fee_cents` | `bigint` | No | Internal | What the host agency deducts before depositing (Gyasi, 2026-09-28). Its own column so the line above can stay exact; §3.7.6 renders `expected − fee − received`, and a non-zero remainder is the discrepancy to chase |
 | `received_commission_cents` | `bigint` | No | Internal | What actually arrived. Becomes a tax figure |
 | `currency` | `char(3)` | No | Internal | Matches its trip's. Added 20260930150000: this was the one money table with no currency column, a quiet exception to the cents-plus-currency rule that only worked while `agent_kpis()` inferred it through a join it no longer makes |
-| `payment_terms` | `text` | No | Internal | `at_booking`, `after_travel` |
+| `payment_terms` | `commission_payment_terms` enum | No | Internal | `at_booking`, `after_travel`. An enum since 20261011120000; free text before that, which no date could be computed from |
+| `payment_lag_days` | `integer` | No | Internal | Days after the booking (`at_booking`) or after travel ends (`after_travel`) that the supplier pays. 0–365. Dates 3.7.3's "expected payment" and §3.7.7's cash-in calendar |
+| `version` | `integer` | No | Public | Optimistic lock (§20.4). Every write bumps it; a write naming a different version is refused as stale |
+| `archived_at` | `timestamptz` | Yes | Public | Soft removal of a line entered by mistake, **only if the line was never on the record** (`on_record_at IS NULL`; Gyasi, 2026-10-11). Removed lines leave every reader; the row and its audit trail stay |
+| `on_record_at` | `timestamptz` | Yes | Public | When the line first left `expected` or got an `inteletravel_reference`. **Set once by the `commission_on_record` trigger and never cleared**, so the remove rule tests HISTORY, not the current state. Review found a received line could otherwise be edited back to expected, its reference blanked, and removed. A guard on the row's own past, not the derive-from-components trigger this section warns against |
 | `status` | `commission_status` enum | No | Internal | `expected`, `invoiced`, `received`, `disputed`, `lost` |
 | `received_at` | `date` | Yes | Internal | When the deposit hit |
 | `inteletravel_reference` | `text` | Yes | Internal | Matching ID from Inteletravel report |
@@ -1729,11 +1734,17 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 
 **A trip with no row here has not been invoiced yet. That is a state, not a gap** — 16 of 22 revenue trips in the seed are deliberately in it.
 
-**Producers, none of them built:** §3.7.3 (edit), §3.7.4 (manual entry), §3.7.5 (Inteletravel CSV import).
+**Producers.** §3.7.3 (edit, mark received, remove) and §3.7.4 (manual entry) since 20261011120000, through `agent_create_commission`, `agent_update_commission`, `agent_record_commission_payment` and `agent_remove_commission` — service-role only, reached through the `agent-commission` Edge Function. §3.7.5 (Inteletravel CSV import) is still unbuilt.
 
-**Readers, built 2026-10-11 (§3.7 Stage 1):** `agent_commission_ledger()`, `_ledger_summary()`, `_ledger_suppliers()`, `agent_commission_dashboard()` and `agent_commission_monthly()`. SECURITY DEFINER accessors, as §3.2 to §3.4 read everything else, and **not RLS policies**: this table has been service-role-only since the payment-domain lockdown revoked every client-role privilege on it, and a policy would only work alongside a table grant that lockdown exists to prevent. Each one requires BOTH `commission.agent_id` and the trip's `agent_id` to be the caller, because nothing in the schema makes the two agree. Lines on archived trips are included — a commission line is a tax record (§18.5) — and the accessors flag them rather than drop them.
+**Every write records its `audit_event` in the same transaction** (`commission_audit()`), the first writes on the agent surface to do so: a failed audit insert takes the change with it. The edit audits before AND after for every financial field; notes are recorded only as changed or not, never their text. The export (`agent_export_commission`) writes one `commission.exported` row with its filters and row count in the same call that returns the rows (§18.3, "any bulk client list export").
 
-**`payment_terms` is out of spec and blocks §3.7.7.** This table documents `at_booking` / `after_travel`; the seed writes free text like `'60 days after travel'`, and `supplier.commission_payment_terms` is free text too. §3.7.7's cash-in calendar needs a parsed date offset, which free text cannot give, so this wants an enum plus a lag-days integer **before** that screen is built.
+**Status moves.** Create starts at `expected` or `invoiced`. The edit moves among `expected`, `invoiced` and `lost`; `received` and `disputed` are reached only through the payment write, which takes the amount, the fee and a date that is not in the future (in the advisor's zone), and refuses `received` for $0. A paid line moved back by the edit has its payment cleared **only when the caller passes `p_clear_payment`** (the screen's required "clear the recorded payment" checkbox); otherwise the outcome is `payment_would_clear` and nothing changes. The audit keeps what was cleared.
+
+**The export returns one `jsonb` array**, not a row set: PostgREST caps every RPC row set at `max_rows` (1,000), and a capped export arrived short while its audit row counted every line.
+
+**Readers, built 2026-10-11 (§3.7 Stage 1):** `agent_commission_ledger()`, `_ledger_summary()`, `_ledger_suppliers()`, `agent_commission_dashboard()` and `agent_commission_monthly()`. SECURITY DEFINER accessors, as §3.2 to §3.4 read everything else, and **not RLS policies**: this table has been service-role-only since the payment-domain lockdown revoked every client-role privilege on it, and a policy would only work alongside a table grant that lockdown exists to prevent. Each one requires BOTH `commission.agent_id` and the trip's `agent_id` to be the caller, because nothing in the schema makes the two agree. Lines on archived trips are included — a commission line is a tax record (§18.5) — and the accessors flag them rather than drop them. Since 20261011120000 all of them, plus 3.7.3's `agent_commission_line()`, read through one scope function, `commission_lines_for_current_agent()`, which holds the two-agent-id test and excludes removed lines in one place.
+
+**`payment_terms` was out of spec until 20261011120000** — free text such as `'60 days after travel'` against the documented pair. It is now the enum plus `payment_lag_days`, which is what §3.7.7's cash-in calendar needed. Production held no rows when it changed.
 
 ### 10.2 CommissionImport
 
@@ -2122,6 +2133,7 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `card_auth_status` | `active`, `revoked`, `expired`, `exhausted` | CardAuthorization |
 | `auth_request_status` | `pending`, `completed`, `expired`, `cancelled` | AuthorizationRequest |
 | `commission_status` | `expected`, `invoiced`, `received`, `disputed`, `lost` | Commission |
+| `commission_payment_terms` | `at_booking`, `after_travel` | Commission, Supplier |
 | `lead_status` | `new`, `contacted`, `qualified`, `converted`, `lost` | Lead |
 | `lead_source_kind` | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` | LeadSource |
 | `document_kind` | `passport`, `visa`, `insurance_cert`, `supplier_confirmation`, `receipt`, `photo`, `csv_import`, `pdf_proposal`, `pdf_itinerary`, `other` | Document |

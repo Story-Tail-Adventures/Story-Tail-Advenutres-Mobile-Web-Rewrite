@@ -124,8 +124,13 @@ describe("active state", () => {
     }
     expect(activeAgentViewId("/agent/commission", AGENT_COMMISSION_VIEWS)).toBe("dashboard");
     expect(activeAgentViewId("/agent/commission/ledger", AGENT_COMMISSION_VIEWS)).toBe("ledger");
-    // The default list is still §3.2's: a commission path lights none of its three.
+    // A line's page and the add page are the LEDGER view; the dashboard is exact-only.
+    expect(activeAgentViewId("/agent/commission/ledger/abc", AGENT_COMMISSION_VIEWS)).toBe("ledger");
+    expect(activeAgentViewId("/agent/commission/ledger/new", AGENT_COMMISSION_VIEWS)).toBe("ledger");
+    // The default list is still §3.2's: a commission path lights none of its three, and the
+    // root view never lights by prefix (or every /agent page would be "Worklist").
     expect(activeAgentViewId("/agent/commission/ledger")).toBeNull();
+    expect(activeAgentViewId("/agent/clients/abc")).toBeNull();
   });
 
   it("matches on / boundaries only", () => {

@@ -2812,6 +2812,13 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > **Stage 1 is read-only.** "Tap entry" is §3.7.3 (Stage 2) and the page says so under the
 > table. **Export renders disabled with its reason**, for the audit reason §3.7.1's note
 > gives, and ships with §3.7.3.
+>
+> **Amended 2026-10-11, Stage 2.** Each row now opens its line (3.7.3), archived trip or not.
+> **Export is live**: it downloads exactly the filtered ledger, every page of it, in exact
+> cents (the screens stay whole dollars), and each download writes one audit record with its
+> filters and row count in the same database call that returns the rows (Data-Model §18.3).
+> Notes are not exported. Cells that start like a spreadsheet formula are neutralised.
+> **"Add line"** (3.7.4) sits beside it.
 
 #### 3.7.3 Commission Detail / Edit
 **Purpose:** View and edit a single commission record.
@@ -2820,12 +2827,49 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Commission List.
 **Related screens:** Trip Detail.
 
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 2).** Built on the web, from
+> `A373_CommissionDetail`. Departures, each on purpose:
+>
+> - **Expected is a read-out, not an input.** It is always gross × rate, computed by the
+>   server; an editable box whose value is discarded would misstate what Save does.
+> - **Payment terms are a choice plus a number of days** (Gyasi, 2026-10-11): after travel
+>   or at booking, and how many days. The aside's "Expected hit" date comes from them — the
+>   trip's end date or first booking, plus the days — and says why when there is no date yet.
+> - **Mark received is its own form** (amount, processing fee, date, received or disputed)
+>   and the only way a line reaches received or disputed. It shows expected − fee − received
+>   as it is typed and suggests Disputed when that leaves a shortfall. The date cannot be in
+>   the future.
+> - **"Link Inteletravel row" renders disabled with its reason** until §3.7.6. The reference
+>   itself is editable by hand.
+> - **Added: "Remove line"**, offered only if the line was never invoiced, paid or given an
+>   Inteletravel reference (Gyasi, 2026-10-11). A set-once stamp remembers, so editing a line
+>   back to Expected does not make it removable again. Removal hides the line and keeps the
+>   record; it is audited.
+> - **Moving a Received or Disputed line back** to Expected, Invoiced or Lost clears its
+>   recorded payment, so the form shows a warning and a **required** "clear the recorded
+>   payment" checkbox; the server refuses the change without it.
+> - Trip and client are not fields: a line belongs to the trip it was entered against. Both
+>   sit in the header, with the trip one click away (unless archived).
+>
+> Every write records its audit entry in the same database transaction as the change.
+
 #### 3.7.4 Add Commission Entry
 **Purpose:** Manually add a commission expectation (e.g., for trips entered without API source).
 **Primary elements:** Same fields as Commission Detail.
 **Key actions:** Save.
 **Entry points:** Commission List "Add"; Trip Detail.
 **Related screens:** Commission Detail.
+
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 2).** A **page**, where
+> `A374_AddCommission` draws a modal — the precedent 3.4.3 New Trip set. Its first field,
+> "Linked trip", is a trip search that lands on `?trip=`; Trip Detail's cost card links
+> straight there. With the trip fixed, **picking a supplier fills in what it knows**, into
+> fields not yet typed in: the supplier's usual rate and terms, then — if the trip has
+> bookings that name that supplier — their summed cost as gross and their rate. A new line
+> starts Expected or Invoiced; it is never created as paid.
+>
+> **Production has no suppliers yet**, and no screen creates one. Gyasi's list loads by
+> migration (decided 2026-10-11); until then the form says there is nothing to file against.
 
 #### 3.7.5 Inteletravel CSV Import
 **Purpose:** Bulk-import the periodic commission statement from Inteletravel.
