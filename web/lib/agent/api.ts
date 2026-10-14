@@ -78,7 +78,11 @@ export type AgentRead =
   | "agent_commission_imports"
   | "agent_commission_import"
   | "agent_commission_import_rows"
-  | "agent_commission_import_candidates";
+  | "agent_commission_import_candidates"
+  // §3.7.7. Trip grain, the worklist's own weighted figure by stage, and that forecast spread
+  // over the months each booking's supplier should pay.
+  | "agent_commission_forecast"
+  | "agent_commission_cash_in";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -756,6 +760,27 @@ export type AgentCommissionCandidateRow = {
   expected_cents: string;
   supplier_matches: boolean;
   traveler_matches: boolean;
+};
+
+/** §3.7.7's stage row. The totals repeat on every row, rounded once as agent_kpis rounds. */
+export type AgentCommissionForecastRow = {
+  status: string;
+  weight_pct: number;
+  trip_count: number;
+  raw_cents: string;
+  weighted_cents: string;
+  total_raw_cents: string;
+  total_weighted_cents: string;
+  as_of_date: string;
+};
+
+/** §3.7.7's calendar row: overdue, twelve months, later, undated — every one, zero or not. */
+export type AgentCommissionCashInRow = {
+  bucket: string;
+  month_start: string | null;
+  cents: string;
+  trip_count: number;
+  received_cents: string;
 };
 
 export type AgentCommissionMonthRow = {

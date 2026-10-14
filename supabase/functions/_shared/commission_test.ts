@@ -15,6 +15,7 @@ import {
   readReference,
   readStatus,
   readTerms,
+  readWeights,
   requireCents,
   toCsv,
 } from "./commission.ts";
@@ -168,4 +169,16 @@ Deno.test("an unknown payment-terms value fails the export rather than reading a
     received_at: null, payment_terms: "on_departure", payment_lag_days: 0,
     inteletravel_reference: null, currency: "USD",
   }]));
+});
+
+Deno.test("readWeights: exactly the four open stages, whole numbers 0 to 100", () => {
+  const ok = { inquiry: 20, proposal: 50, booked: 100, in_progress: 100 };
+  assertEquals(readWeights(ok), ok);
+  assertEquals(readWeights({ ...ok, inquiry: 0 }).inquiry, 0);
+  assertThrows(() => readWeights({ ...ok, proposal: 101 }), HttpError);
+  assertThrows(() => readWeights({ ...ok, proposal: 50.5 }), HttpError);
+  assertThrows(() => readWeights({ ...ok, proposal: "50" }), HttpError);
+  assertThrows(() => readWeights({ inquiry: 20, proposal: 50, booked: 100 }), HttpError);
+  assertThrows(() => readWeights({ ...ok, completed: 100 }), HttpError);
+  assertThrows(() => readWeights([20, 50, 100, 100]), HttpError);
 });

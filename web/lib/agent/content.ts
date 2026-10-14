@@ -1579,3 +1579,64 @@ export function statementRowName(n: number): string {
 export function statementCandidateMeta(supplier: string, client: string, expected: string): string {
   return `${supplier} · ${client} · expected ${expected}`;
 }
+
+/**
+ * §3.7.7 Commission Forecast.
+ *
+ * WEB ONLY, like the rest of §3.7. Facts first: this is a projection, and it says so plainly
+ * (weights are a guess until there is history, Data-Model §7.4) without hedging every number.
+ */
+export const FORECAST_COPY = {
+  title: "Commission forecast",
+  subtitle: "Expected commission by stage, each counted at a percent you can adjust.",
+  scopeChip: "All open trips",
+
+  weightedTitle: "Weighted forecast",
+  stagesLabel: "Forecast by stage",
+  stageInquiry: "Inquiry",
+  stageProposal: "Proposal",
+  stageBooked: "Booked",
+  stageTraveling: "Traveling",
+  adjust: "Adjust weights",
+  save: "Save weights",
+  cancel: "Cancel",
+  saving: "Saving…",
+  weightLabel: "Weight (%)",
+  weightsHint: "Saving also changes the confidence on your worklist's Commission expected.",
+  weightsInvalid: "Each weight is a whole number from 0 to 100.",
+  stale: "These weights were changed somewhere else, so yours weren't saved. Reload the page and try again.",
+  saveFailed: "That didn't save. Try again in a moment.",
+  nothingYet: "No open trips have commission yet. It shows up here once you add a booking that earns commission.",
+
+  calendarTitle: "Cash-in calendar",
+  calendarLabel: "Expected commission by month",
+  overdue: "Overdue",
+  later: "Later",
+  undated: "No travel dates yet",
+  noTermsNote: "Bookings with no payment terms on file are expected 60 days after the trip ends.",
+} as const;
+
+/**
+ * "Of $11,101 across 11 open trips · 94% confidence": the worklist's "Commission expected"
+ * tile, in its own words. That tile shows the unweighted total and this confidence; the big
+ * number here is the weighted one, and this line is how the two screens are seen to agree.
+ */
+export function forecastAcross(rawTotal: string, trips: number, confidencePct: number | null): string {
+  const head = `Of ${rawTotal} across ${trips.toLocaleString("en-US")} open ${trips === 1 ? "trip" : "trips"}`;
+  return confidencePct === null ? head : `${head} · ${confidencePct}% confidence`;
+}
+
+/** "3 trips" under a stage. */
+export function forecastTripCount(n: number): string {
+  return `${n.toLocaleString("en-US")} ${n === 1 ? "trip" : "trips"}`;
+}
+
+/** "$200 of the forecast is already received, so the calendar leaves it out." */
+export function forecastReceivedNote(amount: string): string {
+  return `${amount} of the forecast is already received, so the calendar leaves it out.`;
+}
+
+/** While editing: "New total: $10,411 · 94% confidence". */
+export function forecastNewTotal(total: string, confidencePct: number | null): string {
+  return confidencePct === null ? `New total: ${total}` : `New total: ${total} · ${confidencePct}% confidence`;
+}

@@ -225,8 +225,10 @@ function kpisFrom(k: AgentKpiRow): AgentKpi[] {
       accent: "tertiary",
       icon: "dollar",
       // Screen Inventory §3.7.1 names the Agent Dashboard as an entry point. This figure is
-      // the WEIGHTED forecast over open trips, which §3.7.1 does not repeat; the dashboard is
-      // where the ledger side of the same money lives.
+      // every open trip's commission UNWEIGHTED; the stage weights show only as the confidence
+      // line under it. §3.7.7 Forecast leads with the weighted figure (that same confidence
+      // times this) and repeats this one in its caption. The dashboard is where the ledger side
+      // of the same money lives.
       href: "/agent/commission",
     },
     {

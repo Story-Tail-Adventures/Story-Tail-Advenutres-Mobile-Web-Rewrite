@@ -559,8 +559,9 @@ verify_jwt = true
 [functions.agent-client]
 verify_jwt = true
 
-# §3.7.3 / §3.7.4 commission writes and §3.7.2's export. Each SQL write audits itself in the
-# same transaction; this function supplies the audit id and the caller's ip and user agent.
+# §3.7.3 / §3.7.4 commission writes, §3.7.2's export and §3.7.7's stage weights. Each SQL
+# write audits itself in the same transaction; this function supplies the audit id and the
+# caller's ip and user agent.
 [functions.agent-commission]
 verify_jwt = true
 

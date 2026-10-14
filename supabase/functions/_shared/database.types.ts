@@ -3559,6 +3559,16 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
         }[]
       }
+      agent_commission_cash_in: {
+        Args: never
+        Returns: {
+          bucket: string
+          cents: string
+          month_start: string
+          received_cents: string
+          trip_count: number
+        }[]
+      }
       agent_commission_dashboard: {
         Args: never
         Returns: {
@@ -3574,6 +3584,19 @@ export type Database = {
           upcoming_commission_cents: string
           upcoming_trip_count: number
           ytd_received_cents: string
+        }[]
+      }
+      agent_commission_forecast: {
+        Args: never
+        Returns: {
+          as_of_date: string
+          raw_cents: string
+          status: Database["public"]["Enums"]["trip_status"]
+          total_raw_cents: string
+          total_weighted_cents: string
+          trip_count: number
+          weight_pct: number
+          weighted_cents: string
         }[]
       }
       agent_commission_import: {
@@ -4080,6 +4103,20 @@ export type Database = {
           milestone_id: string
           outcome: string
           paid_cents: string
+        }[]
+      }
+      agent_set_pipeline_weights: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_expected: Json
+          p_ip: string
+          p_user_agent: string
+          p_weights: Json
+        }
+        Returns: {
+          outcome: string
         }[]
       }
       agent_set_trip_notes: {

@@ -131,6 +131,7 @@ describe("active state", () => {
     expect(activeAgentViewId("/agent/commission/import", AGENT_COMMISSION_VIEWS)).toBe("statements");
     expect(activeAgentViewId("/agent/commission/import/abc", AGENT_COMMISSION_VIEWS)).toBe("statements");
     expect(activeAgentViewId("/agent/commission/import/abc/rows/def", AGENT_COMMISSION_VIEWS)).toBe("statements");
+    expect(activeAgentViewId("/agent/commission/forecast", AGENT_COMMISSION_VIEWS)).toBe("forecast");
     // The default list is still §3.2's: a commission path lights none of its three, and the
     // root view never lights by prefix (or every /agent page would be "Worklist").
     expect(activeAgentViewId("/agent/commission/ledger")).toBeNull();

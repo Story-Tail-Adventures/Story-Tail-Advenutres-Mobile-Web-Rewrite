@@ -1,6 +1,6 @@
 /**
  * The commission ledger's write door. Screens 3.7.3 (edit, mark received, remove), 3.7.4
- * (add) and §3.7.2's export.
+ * (add), §3.7.2's export, and 3.7.7's stage weights (`weights`).
  *
  * ── THE AUDIT ROW IS NOT WRITTEN HERE ──────────────────────────────────────────
  *
@@ -42,10 +42,11 @@ import {
   readReference,
   readStatus,
   readTerms,
+  readWeights,
   toCsv,
 } from "../_shared/commission.ts";
 
-const OPS = ["create", "update", "payment", "remove", "export"] as const;
+const OPS = ["create", "update", "payment", "remove", "export", "weights"] as const;
 type Op = (typeof OPS)[number];
 
 function json(body: unknown, status = 200): Response {
@@ -152,6 +153,30 @@ Deno.serve(async (req) => {
       if (!Array.isArray(data)) throw new Error("export did not return an array");
       const rows = data as ExportRow[];
       return json({ outcome: "exported", rowCount: rows.length, csv: toCsv(rows) });
+    }
+
+    // ── 3.7.7 Adjust weighting ────────────────────────────────────────────
+    // `expected` is the weights the screen showed: if the stored ones differ, someone changed
+    // them since, and the save is a 409 rather than a silent overwrite.
+    if (op === "weights") {
+      const { data, error } = await db.rpc("agent_set_pipeline_weights", {
+        p_agent_id: agentId,
+        p_expected: readWeights(payload.expected, "Expected weights"),
+        p_weights: readWeights(payload.weights),
+        ...audit,
+      } as never);
+      if (error) throw new Error(`pipeline weights failed: ${error.message}`);
+
+      const result = first<{ outcome: string }>(data);
+      if (!result) throw notFound("Your forecast weights couldn't be found.");
+      if (result.outcome === "stale") {
+        // The web's own sentence (FORECAST_COPY.stale), so any client reads the same words.
+        throw conflict("These weights were changed somewhere else, so yours weren't saved. Reload the page and try again.");
+      }
+      if (result.outcome !== "saved" && result.outcome !== "noop") {
+        throw new Error(`unknown weights outcome: ${result.outcome}`);
+      }
+      return json({ outcome: result.outcome });
     }
 
     // Everything below names one existing line at the version the screen rendered.
