@@ -132,10 +132,16 @@ SELECT pg_temp.assert(
 
 -- The fee is what separates a settled row from one to chase. Both shapes are in the seed
 -- on purpose, and this is the expression screen 3.7.6 renders.
+--
+-- Over EVERY received row, not one: §3.7's seed block added a year of deposits, three of them
+-- with a fee. The count guard keeps bool_and from passing over zero rows, where it is NULL.
 SELECT pg_temp.assert(
-    (SELECT expected_commission_cents - processing_fee_cents - received_commission_cents
-       FROM public.commission WHERE status = 'received') = 0,
-    'the received row reconciles exactly once its processing fee is allowed for');
+    (SELECT count(*) FROM public.commission
+      WHERE status = 'received' AND processing_fee_cents > 0) >= 2
+    AND (SELECT bool_and(expected_commission_cents - processing_fee_cents
+                         - received_commission_cents = 0)
+           FROM public.commission WHERE status = 'received'),
+    'every received row reconciles exactly once its processing fee is allowed for');
 
 SELECT pg_temp.assert(
     (SELECT expected_commission_cents - processing_fee_cents - received_commission_cents

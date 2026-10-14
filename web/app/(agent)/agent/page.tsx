@@ -1,18 +1,17 @@
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import ListItemButton from "@mui/material/ListItemButton";
 import Typography from "@mui/material/Typography";
 
 import { AgentViews } from "@/components/agent/AgentViews";
+import { KpiTile } from "@/components/agent/KpiTile";
 import { ErrorState } from "@/components/client/states";
 import NextLink from "@/components/mui/NextLink";
-import { Icon } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { AGENT_COPY, needsYouLine } from "@/lib/agent/content";
-import { loadWorklist, type AgentKpi } from "@/lib/agent/queries";
+import { loadWorklist } from "@/lib/agent/queries";
 import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
 
 /**
@@ -47,45 +46,7 @@ import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
 // produced "Worklist · Story-Tail Adventures · Story-Tail Adventures" in the tab.
 export const metadata = { title: "Worklist" };
 
-/** The tile's colour pair per accent — the M3 container roles, or the neutral surface. */
-const KPI_TONE: Record<AgentKpi["accent"], { bgcolor: string; color: string }> = {
-  primary: { bgcolor: "primary.container", color: "primary.onContainer" },
-  secondary: { bgcolor: "secondary.container", color: "secondary.onContainer" },
-  tertiary: { bgcolor: "tertiary.container", color: "tertiary.onContainer" },
-  surface: { bgcolor: "surface.2", color: "text.primary" },
-};
-
-function KpiTile({ kpi }: { kpi: AgentKpi }) {
-  return (
-    <Card sx={{ ...KPI_TONE[kpi.accent], ...KPI_TILE_SX }}>
-      <CardContent sx={KPI_PAD_SX}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography component="span" variant="caption" sx={KPI_LABEL_SX}>
-            {kpi.label}
-          </Typography>
-          <Icon name={kpi.icon} size={14} />
-        </Box>
-        {/* Null is not zero. A tile with nothing to report says so. */}
-        {kpi.value === null ? (
-          <Typography component="p" variant="body2" sx={{ mt: 1, opacity: 0.85 }}>
-            {kpi.unavailable}
-          </Typography>
-        ) : (
-          <>
-            <Typography component="div" variant="h4" sx={KPI_VALUE_SX}>
-              {kpi.value}
-            </Typography>
-            {kpi.sub && (
-              <Typography component="div" variant="caption" sx={{ display: "block", mt: 0.5, opacity: 0.85 }}>
-                {kpi.sub}
-              </Typography>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+// The KPI tile lives in components/agent/KpiTile.tsx since §3.7.1 drew the same one.
 
 function Section({
   title,
@@ -379,25 +340,6 @@ const KPIS_SX = {
   pb: 0.25,
   gridTemplateColumns: { md: "repeat(3, minmax(0, 1fr))", web: "repeat(5, minmax(0, 1fr))" },
 } as const;
-
-/**
- * A tile: 152px wide as a carousel card, free to shrink once it is a grid cell. Deliberately
- * NO `overflow: hidden` beyond the Card's own: clipping an amount turns "$1,284,500" into
- * "$1,284,50", which reads as a real number and is wrong; the breakpoints above are the fix.
- */
-const KPI_TILE_SX = { minWidth: { xs: 152, md: 0 }, flexShrink: 0, scrollSnapAlign: "start" } as const;
-
-/** The legacy 14px × 16px tile padding on CardContent, with MUI's last-child rule cancelled. */
-const KPI_PAD_SX = { px: 2, py: 1.75, "&:last-child": { pb: 1.75 } } as const;
-
-/** `.t-label` on MUI's caption, dimmed into the tile's colour. */
-const KPI_LABEL_SX = { fontWeight: 500, letterSpacing: "0.4px", opacity: 0.85 } as const;
-
-/**
- * The amount. 26px is pinned on purpose: it is the figure the rail's breakpoint arithmetic
- * above is computed from, not a leftover from the legacy type scale.
- */
-const KPI_VALUE_SX = { mt: 0.5, fontSize: 26, fontWeight: 800, lineHeight: 1 } as const;
 
 /** A section's title row: `px-4 py-3` over a divider. */
 const SECTION_HEAD_SX = {

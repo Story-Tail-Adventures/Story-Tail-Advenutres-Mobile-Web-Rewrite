@@ -2754,12 +2754,64 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Nav "Commissions"; Agent Dashboard.
 **Related screens:** Commission List.
 
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 1).** Built on the web. No phone
+> treatment: Commission is not one of §6.6's four agent tabs and the design has no phone
+> artboards for §3.7 (`mobileScreens={null}`).
+>
+> **The four tiles are the prototype's, not the list above** (Gyasi, 2026-10-11).
+> `A371_CommissionDashboard` draws YTD received, Expected · 90d, At risk and Avg rate; the
+> line above names this month earned, this month received, YTD and pipeline forecast. The
+> prototype won, and the two tiles that could be read two ways were settled before any code:
+>
+> - **YTD received** is money that ARRIVED this calendar year in the agent's time zone,
+>   compared with the same window a year earlier (Jan 1 to today's date last year, not the
+>   whole of last year). Ledger grain.
+> - **Expected · 90d** is TRIP grain, from `trip.total_commission_cents`: booked trips
+>   starting in the next 90 days plus every trip in progress. Not ledger lines — most booked
+>   trips have no line yet, because they have not been invoiced.
+> - **At risk** is the UNPAID GAP on disputed lines, `expected − fee − received`, never below
+>   zero. Not their full expected amount: money that already arrived is not at risk.
+> - **Avg rate** is expected over gross, weighted by gross, across the same lines YTD sums.
+>
+> So this screen reads both numbers Data-Model §10.1 keeps apart — the trip-grain forecast
+> and the line-grain ledger — and the tile labels say which is which. **Only At risk is a
+> link** (to the ledger filtered to Disputed), because it is the one drill that lands on
+> exactly the lines it sums. "Status breakdown" is not a separate element: the ledger's five
+> chip counts are it.
+>
+> **Import CSV and Export render disabled with their reason.** Import is §3.7.5. Export waits
+> for §3.7.3: a ledger download carries every client's name, Data-Model §18.3 audits any bulk
+> export of client data, and the audit record needs the Edge Function the first commission
+> write brings. **Added, not drawn:** a Dashboard / Ledger view strip, the shape §3.2 uses for
+> several views under one rail destination; §3.7.6 and §3.7.7 join it when they ship.
+
 #### 3.7.2 Commission List
 **Purpose:** All commission entries.
 **Primary elements:** Filters (supplier, status, trip, date range); columns (trip, client, supplier, gross, rate, expected, status); export.
 **Key actions:** Filter; export; tap entry.
 **Entry points:** Commission Dashboard; Trip Detail.
 **Related screens:** Commission Detail.
+
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 1).** Built on the web as the
+> **ledger**, the name the artboard (`A372_CommissionList`, "Commission ledger") and the
+> schema use. One row per commission LINE, not per trip.
+>
+> **Five status chips, where the prototype draws four.** It has no Lost, and
+> `commission_status` has five values; a line lost to a cancellation would have no way back
+> onto the screen. Checkboxes, and none ticked means every status — the ledger opens on all
+> of it. **Filters** are status, supplier (only suppliers that appear in the agent's own
+> ledger) and travel dates on the trip's start date; "trip" is not a control but a URL
+> parameter, set by **Trip Detail's cost card**, which links here and shows a removable
+> "One trip" chip.
+>
+> **Lines on archived trips stay.** A commission line is a tax record (Data-Model §18.5
+> keeps it even through erasure), so archiving a trip does not remove it from the ledger or
+> the dashboard's totals; its title is plain text rather than a link, because the trip page
+> will not open.
+>
+> **Stage 1 is read-only.** "Tap entry" is §3.7.3 (Stage 2) and the page says so under the
+> table. **Export renders disabled with its reason**, for the audit reason §3.7.1's note
+> gives, and ships with §3.7.3.
 
 #### 3.7.3 Commission Detail / Edit
 **Purpose:** View and edit a single commission record.

@@ -61,7 +61,15 @@ export type AgentRead =
   | "agent_client_conversations"
   | "agent_client_documents"
   | "agent_client_notes"
-  | "agent_client_activity";
+  | "agent_client_activity"
+  // §3.7.1 / §3.7.2. The ledger is service-role-only at the table, so these five definer
+  // accessors are the agent's whole view of it. Two numbers on purpose: the dashboard's
+  // "Expected · 90d" reads trip totals, everything else reads ledger lines.
+  | "agent_commission_ledger"
+  | "agent_commission_ledger_summary"
+  | "agent_commission_ledger_suppliers"
+  | "agent_commission_dashboard"
+  | "agent_commission_monthly";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -541,6 +549,78 @@ export type AgentClientSummaryRow = {
   inquiry_count: number;
   archived_count: number;
   tag_facets: { tag: string; count: number }[] | null;
+};
+
+/**
+ * §3.7.2's ledger row. One per commission LINE, not per trip: a trip can carry several
+ * suppliers' lines, and most trips carry none yet.
+ *
+ * `commission_pct` is Postgres `numeric`, which PostgREST sends as a JSON number. It is a
+ * rate between 0 and 100 with two decimals, so a number is safe here where money is not.
+ */
+export type AgentCommissionLedgerRow = {
+  commission_id: string;
+  trip_id: string;
+  trip_title: string;
+  /** Lines on archived trips stay (a commission line is a tax record); the trip page does not. */
+  trip_archived: boolean;
+  client_id: string;
+  client_display_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  gross_booking_cents: string;
+  commission_pct: number;
+  expected_commission_cents: string;
+  processing_fee_cents: string;
+  received_commission_cents: string;
+  currency: string;
+  status: string;
+  received_at: string | null;
+  inteletravel_reference: string | null;
+  as_of_date: string;
+  total_count: number;
+};
+
+export type AgentCommissionSummaryRow = {
+  expected_count: number;
+  invoiced_count: number;
+  received_count: number;
+  disputed_count: number;
+  lost_count: number;
+  total_count: number;
+};
+
+export type AgentCommissionSupplierRow = {
+  supplier_id: string;
+  supplier_name: string;
+  line_count: number;
+};
+
+/**
+ * §3.7.1's tiles. The two rates are NULL when nothing arrived in that window — not 0%, which
+ * would be a claim about a rate nobody was paid at.
+ */
+export type AgentCommissionDashboardRow = {
+  as_of_date: string;
+  currency: string | null;
+  ytd_received_cents: string;
+  ly_received_cents: string;
+  avg_rate_pct: number | null;
+  ly_avg_rate_pct: number | null;
+  upcoming_commission_cents: string;
+  upcoming_trip_count: number;
+  at_risk_cents: string;
+  disputed_count: number;
+  trailing_12_cents: string;
+  prior_12_cents: string;
+};
+
+export type AgentCommissionMonthRow = {
+  month_start: string;
+  received_cents: string;
+  line_count: number;
 };
 
 /**

@@ -51,6 +51,8 @@ export type AgentKpi = {
   unavailable: string | null;
   accent: "primary" | "secondary" | "tertiary" | "surface";
   icon: "briefcase" | "check" | "dollar" | "clock" | "users";
+  /** Where the tile drills to, when somewhere exists. Only commission does, since §3.7.1. */
+  href?: string | null;
 };
 
 export type WorklistTrip = {
@@ -222,6 +224,10 @@ function kpisFrom(k: AgentKpiRow): AgentKpi[] {
       unavailable: null,
       accent: "tertiary",
       icon: "dollar",
+      // Screen Inventory §3.7.1 names the Agent Dashboard as an entry point. This figure is
+      // the WEIGHTED forecast over open trips, which §3.7.1 does not repeat; the dashboard is
+      // where the ledger side of the same money lives.
+      href: "/agent/commission",
     },
     {
       id: "cycle",

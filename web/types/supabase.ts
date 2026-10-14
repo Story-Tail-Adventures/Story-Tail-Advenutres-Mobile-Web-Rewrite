@@ -3387,6 +3387,84 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
         }[]
       }
+      agent_commission_dashboard: {
+        Args: never
+        Returns: {
+          as_of_date: string
+          at_risk_cents: string
+          avg_rate_pct: number
+          currency: string
+          disputed_count: number
+          ly_avg_rate_pct: number
+          ly_received_cents: string
+          prior_12_cents: string
+          trailing_12_cents: string
+          upcoming_commission_cents: string
+          upcoming_trip_count: number
+          ytd_received_cents: string
+        }[]
+      }
+      agent_commission_ledger: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_status?: Database["public"]["Enums"]["commission_status"][]
+          p_supplier_id?: string
+          p_travel_from?: string
+          p_travel_to?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          as_of_date: string
+          client_display_name: string
+          client_id: string
+          commission_id: string
+          commission_pct: number
+          currency: string
+          end_date: string
+          expected_commission_cents: string
+          gross_booking_cents: string
+          inteletravel_reference: string
+          processing_fee_cents: string
+          received_at: string
+          received_commission_cents: string
+          start_date: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_id: string
+          supplier_name: string
+          total_count: number
+          trip_archived: boolean
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_commission_ledger_summary: {
+        Args: never
+        Returns: {
+          disputed_count: number
+          expected_count: number
+          invoiced_count: number
+          lost_count: number
+          received_count: number
+          total_count: number
+        }[]
+      }
+      agent_commission_ledger_suppliers: {
+        Args: never
+        Returns: {
+          line_count: number
+          supplier_id: string
+          supplier_name: string
+        }[]
+      }
+      agent_commission_monthly: {
+        Args: never
+        Returns: {
+          line_count: number
+          month_start: string
+          received_cents: string
+        }[]
+      }
       agent_create_client: {
         Args: {
           p_agent_id: string
