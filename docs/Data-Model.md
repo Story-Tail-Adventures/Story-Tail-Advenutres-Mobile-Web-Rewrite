@@ -143,8 +143,12 @@ The final section is **Open Questions** — areas where the model is intentional
 | AuditEvent | System | P1 | Append-only log of significant actions |
 | Integration | System | P2 | Configuration record for an external API (Amadeus, Hotelbeds, etc.) |
 | FeatureFlag | System | P1 | Optional — toggles for partial rollouts |
-| TripGroup | Group Trip | P3 | A group trip linking multiple clients |
-| GroupMember | Group Trip | P3 | Co-traveler participating in a group trip |
+| TripGroup | Group Trip | P3 | A group trip: public sign-up link, capacity, deadline, master trip. Designed 2026-10-14, next after P1 release |
+| GroupLeader | Group Trip | P3 | A leader the agent assigned, before and after they claim an account |
+| GroupOption | Group Trip | P3 | One thing a party can sign up for, with its price and deposit |
+| GroupMember | Group Trip | P3 | One party in a group, its status, size, place in line, and its Trip |
+| GroupTraveler | Group Trip | P3 | One person in a party, by the name on their ID |
+| GroupMemberFlag | Group Trip | P3 | A leader's note to the agent about one party |
 
 ---
 
@@ -926,7 +930,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 
 **Phase:** P1
 
-**Note on `trip_type = 'group'` vs. Group Trip Coordination (Section 16):** A Trip with `trip_type = 'group'` is a single-trip designation (one client, the agent records this trip as a group event such as a family reunion) and is available from MVP. This is **not** the Group Trip Coordination feature in Section 16, which lets multiple clients with their own accounts share an itinerary, exchange messages in a group chat, and invite co-travelers — that's Phase 3.
+**Note on `trip_type = 'group'` vs. Group Trip Coordination (Section 16):** A Trip with `trip_type = 'group'` is a single-trip designation (one client, the agent records this trip as a group event such as a family reunion) and is available from MVP. This is **not** the Group Trip Coordination feature in Section 16, which lets many parties sign up for one agent-built trip through a public page, each with their own Trip. That is Phase 3, designed 2026-10-14 and next after the P1 release; §16.7 lists the three changes it makes to this table (`group_id`, `is_group_master`, and a nullable `client_id` for the master trip).
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
@@ -947,7 +951,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
 | `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one. **Given a producer 2026-09-28 by §3.4.13, and it doubles as that apply's IDEMPOTENCY KEY**: `agent_apply_template` refuses a trip that already carries one and answers `already_applied`, so a double-click, a retried request or a second tab all write nothing. A trip seeded from a pattern was seeded from ONE |
-| `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
+| `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3). **Not in the database yet**: the initial migration left it commented out. Added with the rest of §16 |
 | `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
 | `refund_status` | `text` | Yes | Client-visible | **One of `none_expected`, `pending`, `partial`, `full`** since `20261001100000`, enforced by the `trip_refund_status_vocabulary` CHECK. NULL means **not stated**, which is a different fact from `none_expected`: one is an advisor who has not checked, the other is one who has. Written only by `agent_set_trip_status` on a `cancelled` call (§3.4.16), and only ever SET by one — a trip moved back out of `cancelled` keeps its refund history, because the money moved and reinstating the trip does not un-move it |
 | `refund_detail` | `text` | Yes | Client-visible | The specifics behind `refund_status`, in the advisor's own words: *"Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027"*. **Added because that sentence was what `refund_status` held before it had a vocabulary** — a filterable state cannot carry an amount, a date, or a credit that expires, and flattening it to `partial` would have been a regression in what §2.2.10 tells the traveler. Neither column derives from the other |
@@ -2176,35 +2180,603 @@ rather than looking like an omission.
 
 ## 16. Group Trip Domain (Phase 3)
 
+> **Designed, not built.** Nothing in this section exists in a migration yet. It was
+> settled with Gyasi on 2026-10-14 in a grilling session, and he has named it **the next
+> feature after the P1 release**. The rulings it rests on, numbered 1 to 33, live in
+> `design/briefs/group-trips.md`; the artboards are Screen Inventory §2.8.5 to §2.8.9 and
+> §3.13 (proposed), mirrored in `design/source-prototype/pages/c28-group.html` and
+> `a313-groups.html`. Rule numbers below ("rule 17") point into that brief.
+>
+> **This replaces the earlier §16 sketch.** That draft had two tables, `trip_group` and
+> `group_member`, with one `coordinator_user_id`, a stored `total_pax`, and magic-link
+> co-traveler access. The settled design needs co-leaders, a public sign-up page, agent-set
+> options and a waitlist, so the sketch could not carry it. `total_pax` is gone on purpose:
+> a headcount that is stored rather than counted is a sum with no producer, and it drifts
+> the first time a party changes size.
+
+### 16.0 How the pieces fit
+
+- **A group owns one master trip.** The agent builds the shared itinerary on it once
+  (rule 1). The master trip has no client and is never shown to one.
+- **Every party is one `group_member` row, and gets its own Trip** once it holds a spot
+  (rules 1 and 3). Deposits, card authorizations, documents and commission then run through
+  the existing P1 flows on that Trip, untouched.
+- **Shared components stay linked.** A party's copy of a shared component points back at
+  the master component, so an edit to the master can be pushed to every copy (rule 2).
+- **Options are what people sign up for** (rules 6 to 10), and the agent marks each one
+  public or hidden.
+- **Leaders read through one function and nothing else** (rules 17 and 18). They get no
+  table grants at all.
+
+| Entity | Purpose |
+|---|---|
+| TripGroup | The group: name, dates, link, capacity, deadline, lifecycle |
+| GroupLeader | A leader the agent assigned, before and after they claim an account |
+| GroupOption | One thing a party can sign up for, with its price and deposit |
+| GroupMember | One party: its option, status, size, place in line, and its Trip |
+| GroupTraveler | One person in a party, by the name on their ID |
+| GroupMemberFlag | A leader's note to the agent about one party |
+| (columns on Trip and TripComponent) | The master trip marker and the master-component link |
+
 ### 16.1 TripGroup
 
-**Phase:** P3
+**Purpose:** One group trip. Holds what the public page shows and what the agent controls.
+
+**Phase:** P3 (next after the P1 release)
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
-| `id` | `uuid` | No | Public | — |
+| `id` | `uuid` | No | Public |  |
 | `agent_id` | `uuid` | No | Public | FK → Agent |
-| `name` | `text` | No | PII | "Smith Family Reunion 2027" |
-| `start_date` | `date` | Yes | PII | — |
-| `end_date` | `date` | Yes | PII | — |
-| `coordinator_user_id` | `uuid` | Yes | Public | The lead participant |
-| `total_pax` | `integer` | No | Internal | Sum across members |
-| `created_at` | `timestamptz` | No | Public | — |
-| `updated_at` | `timestamptz` | No | Public | — |
-| `archived_at` | `timestamptz` | Yes | Public | — |
+| `name` | `text` | No | Public | "Grace Community Caribbean Cruise". Public because the page is |
+| `slug` | `citext` | No | Public | Unique. Lowercase letters, digits and hyphens. The page lives at `story-tail.com/groups/<slug>` (rule 33) |
+| `status` | `group_status` enum | No | Public | `draft`, `open`, `closed`, `departed`, `archived`. **"Full" is not stored** (see Notes) |
+| `destination` | `text` | Yes | Public | Free text for the page header |
+| `description` | `text` | Yes | Public | The agent's copy for the page |
+| `hero_document_id` | `uuid` | Yes | Public | FK → Document (`photo`) |
+| `start_date` | `date` | Yes | Public |  |
+| `end_date` | `date` | Yes | Public |  |
+| `cap_people` | `integer` | Yes | Internal | Headcount cap, counted in **people**, not parties (rule 11). NULL means no cap |
+| `signup_deadline` | `timestamptz` | Yes | Public | NULL means no deadline |
+| `waitlist_enabled` | `boolean` | No | Internal | Default `true` (rule 11) |
+| `offer_window_hours` | `integer` | No | Internal | Default `72` (rule 12) |
+| `invite_hold_days` | `integer` | No | Internal | Default `7` (rule 19) |
+| `master_trip_id` | `uuid` | No | Internal | FK → Trip, unique. The shared itinerary (rule 1) |
+| `currency` | `char(3)` | No | Public | Always `USD` today |
+| `opened_at` | `timestamptz` | Yes | Internal | Set on `draft → open` |
+| `closed_at` | `timestamptz` | Yes | Internal |  |
+| `departed_at` | `timestamptz` | Yes | Internal | Turns the leader roster read-only (rule 23) |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `archived_at` | `timestamptz` | Yes | Public | Ends leader access (rule 23) |
+| `version` | `integer` | No | Internal | Optimistic concurrency |
 
-### 16.2 GroupMember
+**Notes:**
+- **"Full" is derived.** The artboards show a Full status, but the group is full when the
+  people holding spots reach `cap_people`, and that changes every time a party joins,
+  shrinks or cancels. Storing it would need a trigger on every `group_member` write to keep
+  it true. The read functions compute it instead: `status = 'open'` and the held headcount
+  is at the cap.
+- **Sign-ups are accepted only while** `status = 'open'`, the deadline has not passed, and
+  the group is not full. A full group or option sends the visitor to the waitlist if
+  `waitlist_enabled` (rule 13).
+- **`draft` and `archived` groups have no public page.** The public function returns
+  nothing for them, the same as for a slug that does not exist, so a draft cannot be found
+  by guessing.
+
+```sql
+CREATE TYPE group_status AS ENUM ('draft','open','closed','departed','archived');
+
+CREATE TABLE trip_group (
+    id                  uuid PRIMARY KEY,
+    agent_id            uuid NOT NULL REFERENCES agent(id),
+    name                text NOT NULL,
+    slug                citext NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+    status              group_status NOT NULL DEFAULT 'draft',
+    destination         text,
+    description         text,
+    hero_document_id    uuid REFERENCES document(id),
+    start_date          date,
+    end_date            date,
+    cap_people          integer CHECK (cap_people IS NULL OR cap_people > 0),
+    signup_deadline     timestamptz,
+    waitlist_enabled    boolean NOT NULL DEFAULT true,
+    offer_window_hours  integer NOT NULL DEFAULT 72 CHECK (offer_window_hours > 0),
+    invite_hold_days    integer NOT NULL DEFAULT 7 CHECK (invite_hold_days > 0),
+    master_trip_id      uuid NOT NULL UNIQUE REFERENCES trip(id),
+    currency            char(3) NOT NULL DEFAULT 'USD',
+    opened_at           timestamptz,
+    closed_at           timestamptz,
+    departed_at         timestamptz,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    archived_at         timestamptz,
+    version             integer NOT NULL DEFAULT 1,
+    CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
+);
+CREATE INDEX trip_group_agent_status ON trip_group (agent_id, status);
+```
+
+```kotlin
+@Serializable
+data class TripGroup(
+    val id: Uuid,
+    val agentId: Uuid,
+    val name: String,
+    val slug: String,
+    val status: GroupStatus,
+    val destination: String? = null,
+    val description: String? = null,
+    val heroDocumentId: Uuid? = null,
+    val startDate: LocalDate? = null,
+    val endDate: LocalDate? = null,
+    val capPeople: Int? = null,
+    val signupDeadline: Instant? = null,
+    val waitlistEnabled: Boolean = true,
+    val offerWindowHours: Int = 72,
+    val inviteHoldDays: Int = 7,
+    val masterTripId: Uuid,
+    val currency: String = "USD",
+    val openedAt: Instant? = null,
+    val closedAt: Instant? = null,
+    val departedAt: Instant? = null,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val archivedAt: Instant? = null,
+    val version: Int = 1
+)
+
+@Serializable enum class GroupStatus { DRAFT, OPEN, CLOSED, DEPARTED, ARCHIVED }
+```
+
+### 16.2 GroupLeader
+
+**Purpose:** A leader the agent assigned to a group. A row exists from the moment the
+agent adds the leader's email, before any account does (rule 15).
 
 **Phase:** P3
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
-| `id` | `uuid` | No | Public | — |
+| `id` | `uuid` | No | Public |  |
 | `group_id` | `uuid` | No | Public | FK → TripGroup |
-| `trip_id` | `uuid` | No | Public | FK → Trip (each group member has their own trip) |
-| `role` | `text` | No | Internal | `coordinator`, `traveler`, `co_traveler_no_account` |
-| `magic_link_token_hash` | `text` | Yes | Tokenized | For account-less co-traveler access |
-| `magic_link_expires_at` | `timestamptz` | Yes | Internal | — |
+| `user_id` | `uuid` | Yes | Public | FK → PlatformUser. NULL until the invite is claimed |
+| `invite_email` | `citext` | No | PII | Where the claim invite went. Agent-only |
+| `invite_token_hash` | `text` | Yes | Tokenized | Hash of the single-use claim token. Cleared on claim |
+| `invited_at` | `timestamptz` | No | Internal |  |
+| `claimed_at` | `timestamptz` | Yes | Internal | Until set, the page leaves out the note and photo (rule 15) |
+| `is_traveling` | `boolean` | No | Internal | A leader does not have to travel (rule 14). A traveling leader also has a `group_member` row like anyone else (rule 16) |
+| `welcome_note` | `text` | Yes | Public | Shown on the public page. Max 600 characters. The only page copy a leader can edit (rule 24) |
+| `photo_document_id` | `uuid` | Yes | Public | FK → Document (`photo`) |
+| `digest_enabled` | `boolean` | No | Internal | Daily sign-up email, default `false` (rule 22) |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `removed_at` | `timestamptz` | Yes | Internal | Soft removal by the agent. Access ends at once |
+
+**Notes:**
+- **Leaders are not a new `user_role`.** A leader is an ordinary `client` account that has
+  a live `group_leader` row. Leadership is per group, so a role on the account would be
+  wrong for every other group that person joins.
+- **The public page shows the first claimed leader's note.** If two leaders both write one,
+  the earliest `claimed_at` wins. The agent can reorder this later if it matters (see §23).
+
+```sql
+CREATE TABLE group_leader (
+    id                 uuid PRIMARY KEY,
+    group_id           uuid NOT NULL REFERENCES trip_group(id),
+    user_id            uuid REFERENCES platform_user(id),
+    invite_email       citext NOT NULL,
+    invite_token_hash  text,
+    invited_at         timestamptz NOT NULL DEFAULT now(),
+    claimed_at         timestamptz,
+    is_traveling       boolean NOT NULL DEFAULT false,
+    welcome_note       text CHECK (welcome_note IS NULL OR char_length(welcome_note) <= 600),
+    photo_document_id  uuid REFERENCES document(id),
+    digest_enabled     boolean NOT NULL DEFAULT false,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    removed_at         timestamptz,
+    CHECK ((claimed_at IS NULL) = (user_id IS NULL))
+);
+CREATE UNIQUE INDEX group_leader_live_user  ON group_leader (group_id, user_id) WHERE removed_at IS NULL AND user_id IS NOT NULL;
+CREATE UNIQUE INDEX group_leader_live_email ON group_leader (group_id, invite_email) WHERE removed_at IS NULL;
+```
+
+```kotlin
+@Serializable
+data class GroupLeader(
+    val id: Uuid,
+    val groupId: Uuid,
+    val userId: Uuid? = null,
+    val inviteEmail: String,          // agent-only; never in a leader- or member-facing DTO
+    val invitedAt: Instant,
+    val claimedAt: Instant? = null,
+    val isTraveling: Boolean = false,
+    val welcomeNote: String? = null,
+    val photoDocumentId: Uuid? = null,
+    val digestEnabled: Boolean = false,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val removedAt: Instant? = null
+)
+```
+
+### 16.3 GroupOption
+
+**Purpose:** One thing a party can sign up for: a cabin type, a land package, day-trip
+only, a cabin plus airfare (rule 6).
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `group_id` | `uuid` | No | Public | FK → TripGroup |
+| `name` | `text` | No | Public | "Balcony" |
+| `description` | `text` | Yes | Public |  |
+| `price_per_person_cents` | `bigint` | No | Public | Fixed, agent-entered (rule 7). Not a live supplier rate |
+| `deposit_per_person_cents` | `bigint` | No | Public |  |
+| `currency` | `char(3)` | No | Public | Matches the group |
+| `max_occupancy` | `integer` | No | Public | People per unit ("sleeps up to 4") |
+| `unit_limit` | `integer` | Yes | Internal | How many **units** (cabins, packages) the agent holds. Counted in parties, because one party takes one unit. NULL means no limit (rule 10) |
+| `is_public` | `boolean` | No | Internal | Visitors and leaders see only public options (rule 8) |
+| `order_index` | `integer` | No | Public | Display order |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `archived_at` | `timestamptz` | Yes | Public | An option with parties on it is archived, never deleted |
+
+**Notes:**
+- **A hidden option's name never reaches a leader.** The leader read model prints
+  "Arranged by Gyasi" in its place (rule 30). The agent's name is read from the group's
+  agent row, not hard-coded.
+- **The two capacities count different things on purpose.** `trip_group.cap_people` counts
+  heads, because the ship and the venue fill by headcount. `unit_limit` counts parties,
+  because the agent holds eight cabins, not sixteen people.
+
+```sql
+CREATE TABLE group_option (
+    id                        uuid PRIMARY KEY,
+    group_id                  uuid NOT NULL REFERENCES trip_group(id),
+    name                      text NOT NULL,
+    description               text,
+    price_per_person_cents    bigint NOT NULL CHECK (price_per_person_cents >= 0),
+    deposit_per_person_cents  bigint NOT NULL CHECK (deposit_per_person_cents >= 0),
+    currency                  char(3) NOT NULL DEFAULT 'USD',
+    max_occupancy             integer NOT NULL CHECK (max_occupancy > 0),
+    unit_limit                integer CHECK (unit_limit IS NULL OR unit_limit > 0),
+    is_public                 boolean NOT NULL DEFAULT true,
+    order_index               integer NOT NULL DEFAULT 0,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now(),
+    archived_at               timestamptz,
+    CHECK (deposit_per_person_cents <= price_per_person_cents)
+);
+CREATE INDEX group_option_group_order ON group_option (group_id, order_index);
+```
+
+```kotlin
+@Serializable
+data class GroupOption(
+    val id: Uuid,
+    val groupId: Uuid,
+    val name: String,
+    val description: String? = null,
+    val pricePerPersonCents: Long,
+    val depositPerPersonCents: Long,
+    val currency: String = "USD",
+    val maxOccupancy: Int,
+    val unitLimit: Int? = null,
+    val isPublic: Boolean = true,
+    val orderIndex: Int = 0,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val archivedAt: Instant? = null
+)
+```
+
+### 16.4 GroupMember (one party)
+
+**Purpose:** One party in a group: who owns it, which option it chose, how many people,
+and where it stands. This replaces the old one-row-per-person `group_member`.
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `group_id` | `uuid` | No | Public | FK → TripGroup |
+| `option_id` | `uuid` | No | Public | FK → GroupOption. For a waitlisted party, the option it is waiting for (rule 10) |
+| `client_id` | `uuid` | Yes | Public | FK → Client, the party owner. NULL only while `invited` and not yet claimed |
+| `trip_id` | `uuid` | Yes | Public | FK → Trip, unique. Set when the party first **holds a spot** (see Notes) |
+| `status` | `group_member_status` enum | No | Public | See the lifecycle below |
+| `source` | `group_member_source` enum | No | Internal | `public_page`, `leader`, `agent` |
+| `party_size` | `integer` | No | Public | People in the party. What capacity counts |
+| `invite_email` | `citext` | Yes | PII | Only for a leader-added or agent-added party before it is claimed. Agent-only, **never shown to the leader who typed it** (rule 18) |
+| `invite_token_hash` | `text` | Yes | Tokenized | Single-use claim token, cleared on claim |
+| `invited_by_leader_id` | `uuid` | Yes | Internal | FK → GroupLeader, for "Added by Marcus Webb" |
+| `hold_expires_at` | `timestamptz` | Yes | Internal | When an unclaimed invite releases its spots (rule 19) |
+| `waitlist_position` | `integer` | Yes | Internal | Set only while `waitlisted` or `offered`. Lower goes first |
+| `offer_expires_at` | `timestamptz` | Yes | Internal | Set only while `offered` (rule 12) |
+| `signed_up_at` | `timestamptz` | No | Public | Shown to the leader as "Signed up" |
+| `confirmed_at` | `timestamptz` | Yes | Internal |  |
+| `cancelled_at` | `timestamptz` | Yes | Internal |  |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `version` | `integer` | No | Internal | Optimistic concurrency |
+
+**Lifecycle (`group_member_status`):**
+
+| Status | Holds spots? | Has a Trip? | How it gets here |
+|---|---|---|---|
+| `invited` | Yes, until `hold_expires_at` | No | A leader or the agent added the party (rule 19) |
+| `requested` | Yes | Yes, in `inquiry` | Signed up on the page, or claimed an invite (rule 4) |
+| `confirmed` | Yes | Yes | The agent confirmed the spot |
+| `waitlisted` | No | No | Signed up while the group or option was full (rule 11) |
+| `offered` | Yes, until `offer_expires_at` | No | A spot opened and the agent's offer went out (rule 12) |
+| `declined` | No | No | Turned the offer down ("take me off the list") |
+| `expired` | No | No | An invite or an offer ran out of time |
+| `cancelled` | No | Kept, `cancelled` | Only the party or the agent can cancel (rules 20 and 26) |
+
+**Notes:**
+- **A party gets a Trip when it first holds a spot it has accepted,** which is `requested`.
+  A waitlisted party has nothing to book yet, and a Trip in `inquiry` for every hopeful
+  would flood the agent's worklist. An `offered` party that says yes moves to `requested`
+  and gets its Trip then. An unclaimed invite has no client yet, and Trip needs one.
+- **Deposit received and paid in full are not statuses.** They are read off the party
+  Trip's `payment_milestone` rows: a paid `deposit` milestone, then every milestone paid
+  or waived. Storing them here would be a second copy of §9.5 that nothing keeps in step.
+  The leader read model derives them (rule 17).
+- **Held headcount** is the sum of `party_size` over `invited`, `requested`, `confirmed`
+  and `offered`. **Units used** on an option is the count of those same rows. Both are
+  computed, never stored.
+- **Who can cancel** is enforced in the Edge Function, not here: the party owner or the
+  agent. A leader can only flag (rule 20, §16.6).
+- **Changing a party's option** is agent-only (rule 32). It rewrites `option_id` and the
+  party Trip's price and milestones in one audited call.
+
+```sql
+CREATE TYPE group_member_status AS ENUM
+  ('invited','requested','confirmed','waitlisted','offered','declined','expired','cancelled');
+CREATE TYPE group_member_source AS ENUM ('public_page','leader','agent');
+
+CREATE TABLE group_member (
+    id                    uuid PRIMARY KEY,
+    group_id              uuid NOT NULL REFERENCES trip_group(id),
+    option_id             uuid NOT NULL REFERENCES group_option(id),
+    client_id             uuid REFERENCES client(id),
+    trip_id               uuid UNIQUE REFERENCES trip(id),
+    status                group_member_status NOT NULL,
+    source                group_member_source NOT NULL,
+    party_size            integer NOT NULL CHECK (party_size > 0),
+    invite_email          citext,
+    invite_token_hash     text,
+    invited_by_leader_id  uuid REFERENCES group_leader(id),
+    hold_expires_at       timestamptz,
+    waitlist_position     integer,
+    offer_expires_at      timestamptz,
+    signed_up_at          timestamptz NOT NULL DEFAULT now(),
+    confirmed_at          timestamptz,
+    cancelled_at          timestamptz,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now(),
+    version               integer NOT NULL DEFAULT 1,
+    CHECK (client_id IS NOT NULL OR status IN ('invited','expired','cancelled')),
+    CHECK (status <> 'offered' OR offer_expires_at IS NOT NULL),
+    CHECK ((status IN ('waitlisted','offered')) = (waitlist_position IS NOT NULL)),
+    CHECK (status <> 'invited' OR hold_expires_at IS NOT NULL)
+);
+-- Rule 5: one active party per account per group.
+CREATE UNIQUE INDEX group_member_one_active_party ON group_member (group_id, client_id)
+    WHERE client_id IS NOT NULL AND status NOT IN ('declined','expired','cancelled');
+CREATE INDEX group_member_group_status ON group_member (group_id, status);
+CREATE INDEX group_member_waitlist     ON group_member (group_id, option_id, waitlist_position)
+    WHERE waitlist_position IS NOT NULL;
+CREATE INDEX group_member_timers       ON group_member (hold_expires_at, offer_expires_at)
+    WHERE status IN ('invited','offered');
+```
+
+```kotlin
+@Serializable
+data class GroupMember(
+    val id: Uuid,
+    val groupId: Uuid,
+    val optionId: Uuid,
+    val clientId: Uuid? = null,
+    val tripId: Uuid? = null,
+    val status: GroupMemberStatus,
+    val source: GroupMemberSource,
+    val partySize: Int,
+    val invitedByLeaderId: Uuid? = null,
+    val holdExpiresAt: Instant? = null,
+    val waitlistPosition: Int? = null,
+    val offerExpiresAt: Instant? = null,
+    val signedUpAt: Instant,
+    val confirmedAt: Instant? = null,
+    val cancelledAt: Instant? = null,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val version: Int = 1
+    // invite_email and invite_token_hash are server-only and have no field here (§21.2)
+)
+
+@Serializable enum class GroupMemberStatus { INVITED, REQUESTED, CONFIRMED, WAITLISTED, OFFERED, DECLINED, EXPIRED, CANCELLED }
+@Serializable enum class GroupMemberSource { PUBLIC_PAGE, LEADER, AGENT }
+```
+
+### 16.5 GroupTraveler
+
+**Purpose:** One person in a party, as the sign-up form collects them: the full name on
+their ID, and adult or child (brief §2.5, settled in grilling round 3).
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `member_id` | `uuid` | No | Public | FK → GroupMember |
+| `full_name` | `text` | No | PII | As it appears on their ID. **The leader sees it** (rule 17, "names of the people in the party") |
+| `age_band` | `traveler_age_band` enum | No | PII | `adult`, `child`. Not a birth date: birth dates are collected later, privately, through §6.4 |
+| `is_owner` | `boolean` | No | Internal | True for the person who signed up |
+| `companion_id` | `uuid` | Yes | PII | FK → Companion, when the owner later links this person to a saved companion |
+| `order_index` | `integer` | No | Public |  |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+
+**Notes:**
+- **This table exists because nothing else holds a trip's travelers by name.** Trip has
+  `traveler_count` and a `traveler_breakdown` jsonb, and Companion is per client, not per
+  trip. If a general `trip_traveler` table lands first, this becomes a view over it (see §23).
+- **A party's traveler rows can be fewer than `party_size`** while it is `invited`, because
+  a leader enters a count, not names. The agent cannot move a party to `confirmed` until the
+  counts match.
+
+```sql
+CREATE TYPE traveler_age_band AS ENUM ('adult','child');
+
+CREATE TABLE group_traveler (
+    id            uuid PRIMARY KEY,
+    member_id     uuid NOT NULL REFERENCES group_member(id),
+    full_name     text NOT NULL,
+    age_band      traveler_age_band NOT NULL,
+    is_owner      boolean NOT NULL DEFAULT false,
+    companion_id  uuid REFERENCES companion(id),
+    order_index   integer NOT NULL DEFAULT 0,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX group_traveler_one_owner ON group_traveler (member_id) WHERE is_owner;
+```
+
+```kotlin
+@Serializable
+data class GroupTraveler(
+    val id: Uuid,
+    val memberId: Uuid,
+    val fullName: String,
+    val ageBand: TravelerAgeBand,
+    val isOwner: Boolean = false,
+    val companionId: Uuid? = null,
+    val orderIndex: Int = 0,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+@Serializable enum class TravelerAgeBand { ADULT, CHILD }
+```
+
+### 16.6 GroupMemberFlag
+
+**Purpose:** A leader's note to the agent about one party: "Ana says they can't make it in
+March after all." This is how a leader asks for a cancellation without being able to
+cancel (rule 20).
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `member_id` | `uuid` | No | Public | FK → GroupMember |
+| `leader_id` | `uuid` | No | Public | FK → GroupLeader |
+| `note` | `text` | No | PII | Only the agent reads it. The leader sees only that a flag is open |
+| `created_at` | `timestamptz` | No | Public |  |
+| `resolved_at` | `timestamptz` | Yes | Internal |  |
+| `resolved_by_agent_id` | `uuid` | Yes | Internal | FK → Agent |
+
+```sql
+CREATE TABLE group_member_flag (
+    id                    uuid PRIMARY KEY,
+    member_id             uuid NOT NULL REFERENCES group_member(id),
+    leader_id             uuid NOT NULL REFERENCES group_leader(id),
+    note                  text NOT NULL CHECK (char_length(note) BETWEEN 1 AND 1000),
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    resolved_at           timestamptz,
+    resolved_by_agent_id  uuid REFERENCES agent(id),
+    CHECK ((resolved_at IS NULL) = (resolved_by_agent_id IS NULL))
+);
+CREATE INDEX group_member_flag_open ON group_member_flag (member_id) WHERE resolved_at IS NULL;
+```
+
+```kotlin
+@Serializable
+data class GroupMemberFlag(
+    val id: Uuid,
+    val memberId: Uuid,
+    val leaderId: Uuid,
+    val note: String,                 // agent-facing only
+    val createdAt: Instant,
+    val resolvedAt: Instant? = null,
+    val resolvedByAgentId: Uuid? = null
+)
+```
+
+### 16.7 Changes to Trip and TripComponent
+
+**Trip.** Three changes, all new columns or relaxed constraints, so no existing row moves:
+
+| Field | Change | Notes |
+|---|---|---|
+| `group_id` | **Add for real** | Listed in §8.2 since the first draft, but the initial migration (`20260514120000`) left it commented out. FK → TripGroup |
+| `is_group_master` | **Add**, `boolean NOT NULL DEFAULT false` | True only for a group's master trip |
+| `client_id` | **Relax to nullable**, with `CHECK (client_id IS NOT NULL OR is_group_master)` | A master trip belongs to no client (rule 1) |
+
+Every client-facing policy on Trip keys on `client_id`, so a master trip is invisible to
+clients by construction. **Every agent-side aggregate must exclude it**: the worklist, the
+pipeline, commission forecasts and reports all read Trip, and a master trip with a cruise
+on it would otherwise count as one more booking. Add `AND NOT is_group_master` to each, and
+a test per surface that seeds a master trip and checks the totals do not move.
+
+**TripComponent.** One new column:
+
+| Field | Change | Notes |
+|---|---|---|
+| `master_component_id` | **Add**, `uuid REFERENCES trip_component(id)` | On a party's copy, the master component it came from. NULL on the master itself and on anything added to one party only (rule 2, "This party only") |
+
+An edit to a master component is pushed by one Edge Function that updates every row whose
+`master_component_id` points at it, bumps each party Trip's `version`, and writes one
+`audit_event` per party Trip plus a notice to the party owner.
+
+```sql
+ALTER TABLE trip ADD COLUMN group_id uuid REFERENCES trip_group(id);
+ALTER TABLE trip ADD COLUMN is_group_master boolean NOT NULL DEFAULT false;
+ALTER TABLE trip ALTER COLUMN client_id DROP NOT NULL;
+ALTER TABLE trip ADD CONSTRAINT trip_client_or_master CHECK (client_id IS NOT NULL OR is_group_master);
+CREATE INDEX trip_group_id ON trip (group_id) WHERE group_id IS NOT NULL;
+
+ALTER TABLE trip_component ADD COLUMN master_component_id uuid REFERENCES trip_component(id);
+CREATE INDEX trip_component_master ON trip_component (master_component_id) WHERE master_component_id IS NOT NULL;
+```
+
+### 16.8 Read models and access
+
+Nobody but the agent reads these tables directly. Three SECURITY DEFINER functions are the
+only doors, each with an explicit column list, the same shape as §3.2's agent read surface.
+**The leader rule is about columns, not rows,** so RLS alone cannot express it: a policy
+can let a leader see a party's row, but not half of that row.
+
+| Function | Caller | Returns | Never returns |
+|---|---|---|---|
+| `group_public_page(slug)` | `anon`, `authenticated` | Group name, dates, destination, description, hero, public options with a Full flag, day-level itinerary from the master trip, deadline, spots left **only when 10 or fewer** (rule 28), the first claimed leader's name, note and photo, the agent's contact card, and the caller's own party if signed in (rule 5) | Hidden options, any party, headcount above 10, any email |
+| `group_leader_roster(group_id)` | a live, claimed leader of that group | Per party: traveler names, `party_size`, option name or "Arranged by Gyasi", `signed_up_at`, status with the derived payment milestone, whether a flag is open, and "Added by" with the hold time. The waitlist: position, names, size, option. Status counts | Email, phone, address, birth dates, documents, dietary or accessibility notes, card data, **any amount**, commission, flag text (rule 18) |
+| `group_member_card(group_id)` | the owner of an active party in that group | Group name, leader name and photo, "32 of 40 spots filled", and the caller's own waitlist position or offer deadline | Any other party (rule 25) |
+
+**Writes all go through Edge Functions,** each of which writes an `audit_event`
+(CLAUDE.md rule 3): sign up, join waitlist, accept or decline an offer, leader add-party,
+leader invite-again (rule 31, a new 7-day hold), leader flag, leader note and photo, agent
+confirm, agent cancel, agent change option (rule 32), agent reorder or skip the waitlist,
+agent send offer, and the master-component push.
+
+**The roster export** (rule 32) is an agent-only Edge Function. It carries contact details
+and amounts, so it is never offered through the leader surface.
+
+**Timers.** A pg_cron tick moves `invited` past `hold_expires_at` to `expired`, and
+`offered` past `offer_expires_at` to `expired`, then offers the freed spot to the next
+`waitlisted` party on the same option. Each move is audited. Nobody is moved into a spot
+without accepting it (rule 12).
+
+**Sign-up abuse.** The public sign-up function takes anonymous traffic and creates an
+account, so it needs rate limiting and bot protection before launch. It must also answer a
+duplicate email with the same response as a new one, so the page does not reveal who has
+already signed up.
 
 ---
 
@@ -2244,6 +2816,10 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `cruise_sync_endpoint` | `cruise_lines`, `filter_options`, `coverage`, `ships`, `ports`, `cruises`, `cruise_detail` | CruiseSyncScope, CruiseApiRequest |
 | `cruise_sync_status` | `running`, `ok`, `partial`, `skipped`, `failed` | CruiseSyncRun, CruiseSyncScope |
 | `cruise_sync_trigger` | `cron`, `manual` | CruiseSyncRun |
+| `group_status` | `draft`, `open`, `closed`, `departed`, `archived` | TripGroup (P3). "Full" is derived, not stored |
+| `group_member_status` | `invited`, `requested`, `confirmed`, `waitlisted`, `offered`, `declined`, `expired`, `cancelled` | GroupMember (P3) |
+| `group_member_source` | `public_page`, `leader`, `agent` | GroupMember (P3) |
+| `traveler_age_band` | `adult`, `child` | GroupTraveler (P3) |
 
 ---
 
@@ -2560,7 +3136,8 @@ Phase 2 migrations add:
 - Lead, LeadSource, SavedSearch, Favorite, Integration.
 
 Phase 3 migrations add:
-- TripGroup, GroupMember, AgentInvitation, ClientShare (if pursued).
+- TripGroup, GroupLeader, GroupOption, GroupMember, GroupTraveler, GroupMemberFlag, and the §16.7 columns on Trip and TripComponent. **Scheduled as the first feature after the P1 release** (Gyasi, 2026-10-14), ahead of the rest of Phase 3.
+- AgentInvitation, ClientShare (if pursued).
 
 Each entity in this document is tagged with its phase; the implementation team can sequence migrations accordingly.
 
@@ -2628,6 +3205,25 @@ Decisions that should be settled with the implementation team before initial mig
 **Soft-delete cascade behavior.** If a Client is archived, should their Trips be auto-archived too? The current model says no — trips remain queryable for reports — but the agent UI should clearly indicate "client archived" on those trips. Confirm with the agent UX.
 
 **Multi-currency on Trip.** ~~The model has one `currency` per Trip. In practice a single trip can have suppliers quoting in different currencies (a Caribbean resort in USD plus a European insurer in EUR). The Trip's currency is the "presented to client" currency; individual TripComponents may have their own currency in the payload. Confirm this is the right modeling.~~ **ANSWERED, twice, and the answer is no.** The suggestion that components may carry their own currency was already contradicted by shipped code before this line was corrected: `trip_component_currency_matches_trip` (`20260928100000`) and `payment_milestone_currency_guard` (`20260929100000`) both REFUSE a child row whose currency differs from its trip's, because summing across currencies needs an FX rate that is nowhere in this schema and silently dropping the odd one out would make the headline total omit a cost the advisor entered. Then `20260930100000` settled the parent too: `CHECK (currency = 'USD')` on `trip`, per BRD §4.3. One trip, one currency, and that currency is USD.
+
+
+**Group trips: open questions for the build (§16, added 2026-10-14).** Settle these before
+the §16 migration is written.
+
+- **Master trip as a Trip, or as a TripTemplate?** §16.7 makes `trip.client_id` nullable
+  so the master can reuse the Trip Builder as is. The cost is that every agent aggregate
+  must exclude `is_group_master`. A template would avoid that, but templates are not
+  live-linked, and rule 2 needs edits to reach every party.
+- **A general `trip_traveler` table?** §16.5 adds `group_traveler` because nothing holds a
+  trip's travelers by name. If ordinary trips need the same thing, build `trip_traveler`
+  first and make `group_traveler` a view over it.
+- **Which leader's note leads the page** when two leaders write one? §16.2 uses the
+  earliest claim. A per-group choice may be wanted.
+- **Where an expired offer sends the party.** The brief says the spot moves on, but not
+  whether the party keeps its place in line or goes to the back. §16.4 keeps it
+  `expired`, off the list, until that is decided.
+- **The reply-time and confirmation-time promises** on the public page. None is shown
+  today, on purpose. If one is added, it needs a number someone measured.
 
 ---
 

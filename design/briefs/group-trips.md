@@ -353,6 +353,10 @@ under delta 8.
 
 ## 6. Data notes for the eventual build (not now)
 
+> **Superseded by `docs/Data-Model.md` §16 (2026-10-14).** The notes below were the first
+> sketch. §16 has the full tables, enums, read functions and the open questions, and it
+> wins where the two differ (for example, "full" is derived there, not stored).
+
 These come out of the rulings. They are recorded here so they aren't lost, and they
 get written into Data-Model §16 when building starts.
 
