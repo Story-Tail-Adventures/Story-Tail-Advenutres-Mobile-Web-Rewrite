@@ -488,3 +488,34 @@ because every one of them renders fine and would have shipped:
 **Still owed after this push** — `docs/Screen-Inventory.md` §2.5.5, §2.5.6 and §2.6.1 have not
 been amended, and several departures deviate from the spec rather than from the artboard.
 CLAUDE.md's hierarchy says the doc moves first. Do that before the built screens land.
+
+### 8. Group trips artboards (2026-10-14), from a second design project
+
+The §2.8.5–2.8.9 and §3.13 artboards were drawn in a **separate** Claude Design project,
+`13e01bd3-e9c2-422b-ac1e-d77305eac447`, not the canonical one. That project is an older,
+pre-MUI snapshot: no `shared/mui-kit.jsx`, no `shared/vendor/`, most `*-mobile.jsx` missing,
+and its pages load React 18 from unpkg. **Never sync anything else from it.** It would undo
+the MUI migration. Only these files came across:
+
+- `screens/group-mobile.jsx`: verbatim.
+- `screens/group-shared.jsx`: verbatim plus three local changes: the waitlist order is
+  swapped so the open offer in 2.8.6 goes to #1 in line (brief rule 12); `leaderOpt` and a
+  class-style `GMemberCard` moved in from the desktop files so the phone artboards still
+  work; and a `GMuiStatus` twin was added that uses the real `cancelled` chip kind.
+- `screens/group-public.jsx`, `screens/group-leader.jsx`, `screens/agent-groups.jsx`:
+  **ported to MUI v9**, so the drawn class-style versions differ wholesale. Diff by
+  behavior, not by text. Three copy changes ride along: the thank-you screen drops
+  "Usually within two business days" (nothing backs the number, same as delta 6), the
+  expired offer stops stating a queue position, and the leader-flag example no longer
+  carries another traveler's health detail.
+- `pages/c28-group.html` and `pages/a313-groups.html`: **regenerated** on the local MUI
+  script stack (c28 from itself, a313 from `a312-settings.html`). The remote copies don't
+  load MUI and would break 2.8.1–2.8.4. `a312-settings.html` now links forward to 3.13,
+  and `index.html` and `_sections.json` both have the new section.
+
+Also fixed in place in `screens/client-group.jsx` (2.8.4): "message **her**" became
+"message **him**". It's the same he/him correction as delta 6, and it's still wrong in both
+design projects.
+
+Raise these upstream when the group screens move into the canonical project: the pronoun,
+the waitlist order, the two copy changes, and the MUI port itself.
