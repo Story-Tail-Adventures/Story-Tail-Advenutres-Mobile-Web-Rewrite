@@ -30,6 +30,7 @@ import { badRequest, notFound, problem } from "../_shared/problem.ts";
 import { isUuid, uuidV7 } from "../_shared/uuid.ts";
 import { readJson } from "../_shared/trip.ts";
 import { agentDb, requireAgentId } from "../_shared/agent.ts";
+import { refuseUnfilledFields } from "../_shared/messageTemplate.ts";
 import {
   readConversationIds,
   readInternalNote,
@@ -70,6 +71,9 @@ Deno.serve(async (req) => {
       case "send": {
         const address = readThreadAddress(payload);
         const body = readMessageBody(payload.body);
+        // A template inserted with "Insert & edit" can leave a raw {{token}} in the box. The
+        // reply box refuses it too; this is the check a client cannot get around.
+        refuseUnfilledFields(body);
         const internalNote = readInternalNote(payload.internalNote);
         const messageId = readMessageId(payload.messageId);
         // Optional: "new message" has nothing on screen yet.

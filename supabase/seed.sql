@@ -1726,4 +1726,8 @@ BEGIN
     END IF;
 END $$;
 
+-- §3.10 Stage 2's seven starter message templates for the local advisor. The migration that
+-- defines them runs BEFORE this file, when no agent exists yet, so it seeds nothing locally.
+SELECT public.seed_starter_message_templates('0195a2c0-1a00-7000-8000-000000000001');
+
 COMMIT;
