@@ -50,7 +50,6 @@ describe("AGENT_DESTINATIONS", () => {
     // when §3.3 ships, this line changes in the same commit.
     expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
       "leads",
-      "messages",
       "reports",
       "more",
     ]);
@@ -58,11 +57,14 @@ describe("AGENT_DESTINATIONS", () => {
     // on 2026-09-27 with §3.4.1. The note this line used to carry was the reason it was
     // unbuilt: trip DETAIL existed at /agent/trips/[tripId] while the rail entry pointed at
     // the LIST, which had no route. It does now.
-    // `commission` joined on 2026-10-11 with §3.7.1 and §3.7.2.
+    // `commission` joined on 2026-10-11 with §3.7.1 and §3.7.2, and `messages` on 2026-10-13
+    // with §3.10 Stage 1 (the inbox and thread). The phone app's own Messages tab is still
+    // unbuilt (Stage 3); that is the Kotlin bar, not this one.
     expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual([
       "worklist",
       "clients",
       "trips",
+      "messages",
       "commission",
     ]);
   });

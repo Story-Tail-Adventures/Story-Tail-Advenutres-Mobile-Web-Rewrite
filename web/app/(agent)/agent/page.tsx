@@ -9,6 +9,7 @@ import { AgentViews } from "@/components/agent/AgentViews";
 import { KpiTile } from "@/components/agent/KpiTile";
 import { ErrorState } from "@/components/client/states";
 import NextLink from "@/components/mui/NextLink";
+import { threadHref } from "@/lib/agent/messageQuery";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { AGENT_COPY, needsYouLine } from "@/lib/agent/content";
 import { loadWorklist } from "@/lib/agent/queries";
@@ -28,8 +29,8 @@ import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
  *
  * TRIP ROWS ARE NOW LIVE LINKS. §3.4.2 shipped after this screen did; the four sections
  * whose rows carry a `tripId` (proposals, payments, inquiries, departures) now route to
- * `/agent/trips/[tripId]`. Client detail (§3.3.2) and messaging (§3.10) are still unbuilt, so
- * the "Recent messages" section stays read-only and keeps its `messagesDeferred` footer.
+ * `/agent/trips/[tripId]`. Since §3.10 Stage 1 the "Recent messages" rows open their thread
+ * in the advisor's inbox, so that section lost its "arrives with §3.10" footer.
  *
  * A server component throughout. Nothing here needs state, so nothing crosses a client
  * boundary — which is also what keeps the agent's time zone correct: every date was
@@ -93,10 +94,6 @@ function TripRow({ tripId, children }: { tripId: string; children: React.ReactNo
       {children}
     </ListItemButton>
   );
-}
-
-function Row({ children }: { children: React.ReactNode }) {
-  return <Box sx={ROW_SX}>{children}</Box>;
 }
 
 /**
@@ -282,10 +279,9 @@ export default async function AgentWorklistPage() {
         title={AGENT_COPY.messagesTitle}
         count={worklist.recentMessages.length}
         empty={AGENT_COPY.messagesEmpty}
-        seeAll={AGENT_COPY.messagesDeferred}
       >
         {worklist.recentMessages.map((m) => (
-          <Row key={m.conversationId}>
+          <ListItemButton key={m.conversationId} component={NextLink} href={threadHref(m.conversationId)} sx={ROW_SX}>
             <Initials name={m.clientName} />
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Box sx={{ display: "flex" }}>
@@ -301,7 +297,7 @@ export default async function AgentWorklistPage() {
               </Typography>
             </Box>
             {m.unread > 0 && <Chip size="small" variant="outlined" label={m.unread} />}
-          </Row>
+          </ListItemButton>
         ))}
       </Section>
     </Box>
@@ -366,8 +362,8 @@ const SEE_ALL_SX = {
  * A row: `flex items-center gap-3 px-4 py-3`, with a rule between rows but not above the
  * first. `& + &` draws the rule on a row that FOLLOWS a row, so the first one under the
  * section header has none — without `:first-child`, which emotion flags as unsafe on the
- * server, and without the element-type dependence of `:first-of-type` (the header and a
- * read-only Row are both divs).
+ * server, and without the element-type dependence of `:first-of-type` (the header is a div
+ * and the rows are links).
  */
 const ROW_SX = {
   display: "flex",

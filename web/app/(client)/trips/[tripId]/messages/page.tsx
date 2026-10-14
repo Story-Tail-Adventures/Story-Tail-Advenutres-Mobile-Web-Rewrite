@@ -18,6 +18,7 @@ import {
 } from "@/components/client/client-sx";
 import { Composer } from "@/components/client/thread/Composer";
 import { ThreadMessages } from "@/components/client/thread/ThreadMessages";
+import { MarkConversationRead } from "@/components/client/thread/MarkConversationRead";
 import { ThreadScroll } from "@/components/client/thread/ThreadScroll";
 import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
@@ -119,6 +120,14 @@ export default async function MessagesPage({
           </MuiButton>
         </Box>
       </Box>
+
+      {thread.conversationId && (
+        <MarkConversationRead
+          conversationId={thread.conversationId}
+          unreadCount={thread.unreadCount}
+          seenUpTo={thread.messages.at(-1)?.createdAt ?? null}
+        />
+      )}
 
       <ThreadScroll messageCount={thread.messages.length}>
         <Box sx={{ mx: "auto", width: "100%", maxWidth: MAX_W_3XL }}>

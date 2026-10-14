@@ -374,8 +374,6 @@ export const CLIENT_COPY = {
 
   // Per-action deferrals on the detail surface.
   accountAdminDeferred: "Account admin arrives with §3.9.",
-  messageClientDeferred: "Agent messaging arrives with §3.10.",
-  openThreadDeferred: "Opening a thread arrives with §3.10.2.",
   documentDownloadDeferred: "Downloading a document arrives with §3.3.6's upload path.",
 
   // ── §3.3.9 / §3.3.10 / §3.3.12, the write path ─────────────────────────
@@ -1696,4 +1694,113 @@ export function forecastReceivedNote(amount: string): string {
 /** While editing: "New total: $10,411 · 94% confidence". */
 export function forecastNewTotal(total: string, confidencePct: number | null): string {
   return confidencePct === null ? `New total: ${total}` : `New total: ${total} · ${confidencePct}% confidence`;
+}
+
+// ── §3.10 Messaging (Stage 1: inbox and thread) ─────────────────────────────
+// The advisor's own tool, so plain and quick. "Overdue" is Gyasi's rule (2026-10-13): one
+// business day, Sundays never count, so a day of rest never reads as late.
+export const AGENT_MESSAGES_COPY = {
+  title: "Messages",
+  inboxLabel: "Message threads",
+  caughtUp: "All caught up",
+  filterUnread: "Unread",
+  filterOverdue: "Overdue",
+  viewArchived: "Archived",
+  viewInbox: "Inbox",
+  searchLabel: "Search messages",
+  searchPlaceholder: "Name, trip or message",
+  searchSubmit: "Search",
+  oneClient: "This client",
+  oneTrip: "This trip",
+  clearFilter: "Show all",
+  emptyInbox: "No messages yet. When a client writes to you, it shows up here.",
+  emptyNarrowed: "No threads match these filters.",
+  emptyArchived: "Nothing archived.",
+  pickThread: "Pick a thread to read it here.",
+  generalThread: "General",
+  youPrefix: "You: ",
+  overdue: "Overdue",
+  unreadLabel: "unread",
+  pagesLabel: "Inbox pages",
+  newer: "Newer",
+  older: "Older",
+  selectLabel: "Select",
+  selectedLabel: "Selected threads",
+  archiveSelected: "Archive",
+  restoreSelected: "Move to inbox",
+  archiveFailed: "That didn't save. Try again in a moment.",
+  // Thread
+  backToInbox: "All messages",
+  openTrip: "Open trip",
+  openClient: "Open client",
+  openInMessages: "Open in Messages",
+  archiveThread: "Archive",
+  restoreThread: "Move to inbox",
+  archivedTag: "Archived",
+  archivedDone: "Archived",
+  restoredDone: "Moved to inbox",
+  internalNoteTag: "Internal note · only you can see this",
+  senderYou: "You",
+  truncated: "Showing the latest 500 messages.",
+  emptyThread: "No messages in this thread yet.",
+  // Reply
+  replyLabel: "Reply",
+  replyPlaceholder: "Write a reply…",
+  messageLabel: "Message",
+  messagePlaceholder: "Write a message…",
+  notePlaceholder: "Write a note only you can see…",
+  noteSwitch: "Internal note",
+  noteHint: "Only you can see this note.",
+  send: "Send",
+  addNote: "Add note",
+  sending: "Sending…",
+  sent: "Sent",
+  noteAdded: "Note added",
+  sendFailed: "That didn't send. Try again in a moment.",
+  // New message (from Client Detail / Trip Detail)
+  newTitle: "New message",
+  notFound: "That client isn't one of yours, or they've been archived.",
+} as const;
+
+/** "3 unread · 1 overdue", or "All caught up". */
+export function messagesHeadline(unreadThreads: number, overdueThreads: number): string {
+  const parts: string[] = [];
+  if (unreadThreads > 0) parts.push(`${unreadThreads.toLocaleString("en-US")} unread`);
+  if (overdueThreads > 0) parts.push(`${overdueThreads.toLocaleString("en-US")} overdue`);
+  return parts.length > 0 ? parts.join(" · ") : AGENT_MESSAGES_COPY.caughtUp;
+}
+
+/** "Reply by end of Mon": the day a reply falls due, before it is overdue (the thread header). */
+export function messagesReplyBy(day: string): string {
+  return `Reply by end of ${day}`;
+}
+
+/** "Reply by Mon": the same, short enough for an inbox row. */
+export function messagesReplyByShort(day: string): string {
+  return `Reply by ${day}`;
+}
+
+/** Under the reply box when the client has no login yet. */
+export function messagesNoLogin(firstName: string): string {
+  return `${firstName} hasn't set up a login yet. This will be waiting for them.`;
+}
+
+/** What a bulk archive (or bring-back) did, for the list's status line. */
+export function messagesMoved(n: number, archived: boolean): string {
+  return `${n.toLocaleString("en-US")} ${archived ? "archived" : "moved to inbox"}`;
+}
+
+/** "Message Kai", Client Detail's header button. */
+export function messageClientLabel(firstName: string): string {
+  return `Message ${firstName}`;
+}
+
+/** "Message Maya", the new-thread page's heading. */
+export function messagesNewTo(firstName: string): string {
+  return `Message ${firstName}`;
+}
+
+/** "2 selected" in the inbox's bulk bar. */
+export function messagesSelected(n: number): string {
+  return `${n.toLocaleString("en-US")} selected`;
 }
