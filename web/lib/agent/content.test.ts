@@ -13,6 +13,7 @@ import {
   messagesReplyByShort,
   messagesReplyBy,
   needsYouLine,
+  templateMissing,
 } from "./content";
 
 /**
@@ -242,5 +243,19 @@ describe("the inbox's own strings (§3.10 Stage 1)", () => {
     expect(messagesMoved(1, true)).toBe("1 archived");
     expect(messagesMoved(2, false)).toBe("2 moved to inbox");
     expect(messageClientLabel("Kai Traveler")).toBe("Message Kai Traveler");
+  });
+});
+
+describe("message template copy (§3.10 Stage 2)", () => {
+  it("says what a template needs in plain words, once each", () => {
+    expect(templateMissing(["payment.label", "payment.amount", "payment.dueDate"])).toBe(
+      "This one needs a payment, which this thread doesn't have. Use Insert & edit to fill it in yourself.",
+    );
+    expect(templateMissing(["trip.dates"])).toBe(
+      "This one needs trip dates, which this thread doesn't have. Use Insert & edit to fill them in yourself.",
+    );
+    expect(templateMissing(["trip.name", "trip.dates", "payment.amount"])).toBe(
+      "This one needs a trip, trip dates and a payment, which this thread doesn't have. Use Insert & edit to fill them in yourself.",
+    );
   });
 });

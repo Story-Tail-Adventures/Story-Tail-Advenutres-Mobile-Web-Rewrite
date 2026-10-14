@@ -6,6 +6,7 @@ import {
   inboxQueryFromParams,
   isNarrowed,
   newMessageHref,
+  remindThreadHref,
   threadHref,
 } from "./messageQuery";
 
@@ -39,6 +40,8 @@ describe("the inbox's filters as a URL (§3.10.1)", () => {
   it("addresses a new message to a client, and optionally a trip", () => {
     expect(newMessageHref(C)).toBe(`/agent/messages/new?client=${C}`);
     expect(newMessageHref(C, T)).toBe(`/agent/messages/new?client=${C}&trip=${T}`);
+    expect(newMessageHref(C, T, "m1")).toBe(`/agent/messages/new?client=${C}&trip=${T}&remind=m1`);
+    expect(remindThreadHref("c1", "m1")).toBe("/agent/messages/c1?remind=m1");
   });
 
   it("knows a narrowed list from an empty inbox", () => {

@@ -14,6 +14,7 @@ import { Icon } from "@/components/ui/Icon";
 import { AGENT_MESSAGES_COPY } from "@/lib/agent/content";
 import { inboxHref, type InboxQuery } from "@/lib/agent/messageQuery";
 import type { ThreadMessageView, ThreadView } from "@/lib/agent/messages";
+import type { PickerData } from "@/lib/agent/templateLibrary";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 import { formatMessageTime, groupMessagesByDay } from "@/lib/trips/thread";
 
@@ -37,7 +38,15 @@ import { formatMessageTime, groupMessagesByDay } from "@/lib/trips/thread";
  * and the reply box, which sits under the messages rather than over them, so the newest
  * message is never behind it.
  */
-export function AgentThreadView({ thread, query }: { thread: ThreadView; query: InboxQuery }) {
+export function AgentThreadView({
+  thread,
+  query,
+  picker = null,
+}: {
+  thread: ThreadView;
+  query: InboxQuery;
+  picker?: PickerData | null;
+}) {
   const { header, messages } = thread;
   const days = groupMessagesByDay(messages, thread.timeZone);
   const last = messages[messages.length - 1] ?? null;
@@ -120,6 +129,7 @@ export function AgentThreadView({ thread, query }: { thread: ThreadView; query: 
           seenUpTo={thread.seenUpTo}
           clientFirstName={header.clientFirstName}
           clientCanSignIn={header.clientCanSignIn}
+          picker={picker}
         />
       </Box>
       <ThreadOpened conversationId={header.conversationId} lastMessageId={last?.id ?? null} seenUpTo={thread.seenUpTo} />

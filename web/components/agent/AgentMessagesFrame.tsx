@@ -16,6 +16,8 @@ import Box from "@mui/material/Box";
  * and on a phone nothing hides behind the bottom bar (the shell's `main` already reserves its
  * height; this subtracts it too, as `.client-fill` does for the traveler's thread).
  *
+ * TEMPLATES ARE THE EXCEPTION: under /agent/messages/templates the page has the whole width.
+ *
  * Below `lg` one pane shows at a time: the list on /agent/messages, the other pane anywhere
  * below it (a thread, or a new message). The segment is known on the server too, so the
  * right pane is in the first HTML rather than swapped in after hydration.
@@ -31,8 +33,17 @@ const FULL_HEIGHT = {
 const PANE_SX = { position: "relative", minHeight: 0, minWidth: 0, overflowY: "auto" } as const;
 
 export function AgentMessagesFrame({ list, children }: { list: ReactNode; children: ReactNode }) {
-  // null on /agent/messages itself; a thread id, or "new", one level below.
-  const showList = useSelectedLayoutSegment() === null;
+  // null on /agent/messages itself; a thread id, "new", or "templates" one level below.
+  const segment = useSelectedLayoutSegment();
+  const showList = segment === null;
+
+  // §3.10 Stage 2's library and editor (A3104, A3105) are full-width screens on the Messages
+  // tab, not a pane beside the inbox. The `@list` slot has no page there (its default is
+  // null), and after a client-side navigation it would still hold the inbox, so it is left
+  // out here rather than hidden.
+  if (segment === "templates") {
+    return <Box sx={{ ...PANE_SX, height: FULL_HEIGHT }}>{children}</Box>;
+  }
 
   return (
     <Box

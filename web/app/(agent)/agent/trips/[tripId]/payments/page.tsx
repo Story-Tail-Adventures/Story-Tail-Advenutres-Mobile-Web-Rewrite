@@ -1,4 +1,5 @@
 import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import MuiLink from "@mui/material/Link";
@@ -12,9 +13,11 @@ import { ErrorState } from "@/components/client/states";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { SCHEDULE_COPY } from "@/lib/agent/content";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import {
   centsToDollars,
   isMilestoneKind,
+  nextUnpaidMilestone,
   type MilestoneValues,
 } from "@/lib/agent/payments";
 import { formatTripMoney } from "@/lib/trips/money";
@@ -33,10 +36,11 @@ import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
  * trip — and this is where the schedule is worked on. `?edit=<id>` opens a row in the form,
  * the same URL-as-state shape `?tab=` and `?add=` already use.
  *
- * "TRIGGER REMINDER" AND THE CADENCE TOGGLE FROM THE INVENTORY ARE NOT BUILT. §3.10 is
- * agent messaging and nothing in the schema can send on the client's behalf yet. The button
- * renders disabled with its reason, which is the call §3.4.2's "Account admin" tab got —
- * §3.10 is a real planned section, so a disabled control is an honest promise.
+ * "REMIND THE CLIENT" (the inventory's "trigger reminder", §3.10 Stage 2) is ONE button for
+ * the schedule, about the next unpaid milestone: it opens the trip's thread with the template
+ * picker on Payment reminder, filled from that milestone. With nothing left to pay it stays
+ * off and says why. The cadence toggle is still not built: automatic reminders need a
+ * scheduler that sends on the advisor's behalf, and email (Stage 4).
  */
 
 export const metadata = { title: "Payment schedule" };
@@ -93,6 +97,7 @@ export default async function TripPaymentsPage({
   const expectedCents = payments.reduce((sum, p) => sum + Number(p.edit.amountCents || 0), 0);
   const paidCents = payments.reduce((sum, p) => sum + Number(p.edit.paidCents || 0), 0);
   const currency = "USD";
+  const remindAbout = nextUnpaidMilestone(payments);
 
   return (
     <Box sx={PAGE_SX}>
@@ -196,10 +201,22 @@ export default async function TripPaymentsPage({
             <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600 }}>
               {SCHEDULE_COPY.title}
             </Typography>
-            <Button type="button" variant="outlined" size="sm" disabled title={SCHEDULE_COPY.remindDeferred}>
-              {SCHEDULE_COPY.remindLabel}
-              <Box component="span" sx={VISUALLY_HIDDEN}> — {SCHEDULE_COPY.remindDeferred}</Box>
-            </Button>
+            {remindAbout ? (
+              <MuiButton
+                component={NextLink}
+                href={newMessageHref(overview.clientId, tripId, remindAbout.milestoneId)}
+                variant="outlined"
+                size="small"
+                sx={{ minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" }}
+              >
+                <Icon name="send" size={12} /> {SCHEDULE_COPY.remindLabel}
+              </MuiButton>
+            ) : (
+              <Button type="button" variant="outlined" size="sm" disabled title={SCHEDULE_COPY.remindNothing}>
+                {SCHEDULE_COPY.remindLabel}
+                <Box component="span" sx={VISUALLY_HIDDEN}>. {SCHEDULE_COPY.remindNothing}</Box>
+              </Button>
+            )}
           </Box>
           <PaymentScheduleTable
             tripId={tripId}

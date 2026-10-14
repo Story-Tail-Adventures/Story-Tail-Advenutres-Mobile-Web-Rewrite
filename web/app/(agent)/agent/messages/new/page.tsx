@@ -7,8 +7,9 @@ import { AgentReplyBox } from "@/components/agent/AgentReplyBox";
 import { RetryState } from "@/components/client/RetryState";
 import NextLink from "@/components/mui/NextLink";
 import { AGENT_MESSAGES_COPY, messagesNewTo } from "@/lib/agent/content";
-import { isUuid, threadHref } from "@/lib/agent/messageQuery";
+import { isUuid, remindThreadHref, threadHref } from "@/lib/agent/messageQuery";
 import { loadMessageTarget } from "@/lib/agent/messages";
+import { loadPickerData } from "@/lib/agent/messageTemplates";
 
 /**
  * "Message client", from Client Detail (a general thread) and Trip Detail (that trip's thread).
@@ -23,10 +24,12 @@ export const metadata = { title: "New message" };
 export default async function NewAgentMessagePage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; trip?: string }>;
+  searchParams: Promise<{ client?: string; trip?: string; remind?: string }>;
 }) {
-  const { client, trip } = await searchParams;
+  const { client, trip, remind } = await searchParams;
   if (!isUuid(client) || (trip !== undefined && !isUuid(trip))) notFound();
+  // Trip Detail's "Remind the client" names a milestone; it only means something on a trip.
+  const remindId = trip && isUuid(remind) ? remind : null;
 
   const result = await loadMessageTarget(client, trip ?? null);
   if (!result.ok && result.reason === "not-found") {
@@ -41,7 +44,10 @@ export default async function NewAgentMessagePage({
   if (!result.ok) return <RetryState />;
 
   const { target } = result;
-  if (target.conversationId) redirect(threadHref(target.conversationId));
+  if (target.conversationId) {
+    redirect(remindId ? remindThreadHref(target.conversationId, remindId) : threadHref(target.conversationId));
+  }
+  const picker = await loadPickerData(target.clientId, target.tripId, remindId);
 
   return (
     <Box sx={{ mx: "auto", width: "100%", maxWidth: 760, px: { xs: 2, md: 4 }, py: 3 }}>
@@ -66,6 +72,7 @@ export default async function NewAgentMessagePage({
           tripId={target.tripId}
           clientFirstName={target.clientFirstName}
           clientCanSignIn={target.clientCanSignIn}
+          picker={picker}
         />
       </Box>
     </Box>

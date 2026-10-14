@@ -45,6 +45,20 @@ describe("AgentMessagesFrame", () => {
     expect(pane.base).toMatch(/display:block/);
   });
 
+  it("under templates (A3104, A3105), the page has the whole width and the inbox list is left out", () => {
+    mocks.segment = "templates";
+    const r = renderWithTheme(
+      <AgentMessagesFrame list={<span>LIST</span>}>
+        <span>PANE</span>
+      </AgentMessagesFrame>,
+    );
+    expect(screen.queryByText("LIST")).toBeNull();
+    const pane = emotionRulesFor(screen.getByText("PANE").parentElement!);
+    expect(pane.base).toMatch(/overflow-y:auto/);
+    expect(pane.base).not.toMatch(/display:none/);
+    r.unmount();
+  });
+
   it("each pane scrolls on its own, in the viewport less the top bar and, on a phone, the bottom bar", () => {
     const { list, pane, grid } = frame(null);
     expect(list.base).toMatch(/overflow-y:auto/);
