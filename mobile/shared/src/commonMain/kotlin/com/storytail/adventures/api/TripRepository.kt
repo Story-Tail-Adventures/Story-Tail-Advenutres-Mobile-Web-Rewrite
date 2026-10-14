@@ -112,6 +112,18 @@ interface TripRepository {
     suspend fun sendToConversation(conversationId: String, body: String): SendMessageOutcome
 
     /**
+     * Opening a thread reads it: clears the traveler's own unread count (§3.10 Stage 1).
+     *
+     * Nothing raised `client_unread_count` until the advisor could reply, so nothing cleared it
+     * either; the two arrived together. `client_mark_conversation_read` checks the thread is the
+     * caller's own. [seenUpTo] is the `created_at` of the newest message on screen, exactly as
+     * the server sent it (microseconds and all): a reply that landed after it stays unread
+     * rather than being cleared unseen. True when the count moved; false
+     * otherwise, including on any failure, which must never cost the traveler the thread.
+     */
+    suspend fun markConversationRead(conversationId: String, seenUpTo: String): Boolean
+
+    /**
      * Start — or continue — the general thread, for 2.6.3.
      *
      * SENDS NEITHER ID, which is what tells `trip-message` to find-or-create against
@@ -415,6 +427,7 @@ class UnconfiguredTripRepository : TripRepository {
     override suspend fun conversationThread(conversationId: String): ConversationThreadSnapshot? = null
     override suspend fun sendToConversation(conversationId: String, body: String): SendMessageOutcome =
         SendMessageOutcome.Failed(null)
+    override suspend fun markConversationRead(conversationId: String, seenUpTo: String): Boolean = false
     override suspend fun startConversation(body: String): StartConversationOutcome =
         StartConversationOutcome.Failed(null)
     override suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome =
@@ -885,6 +898,19 @@ class SupabaseTripRepository(
             documents = rows.map { it.toView(myUserId) },
         )
     }
+
+    override suspend fun markConversationRead(conversationId: String, seenUpTo: String): Boolean =
+        read {
+            client.postgrest
+                .rpc(
+                    "client_mark_conversation_read",
+                    buildJsonObject {
+                        put("p_conversation_id", conversationId)
+                        put("p_seen_up_to", seenUpTo)
+                    },
+                )
+                .decodeAs<Boolean>()
+        } ?: false
 
     override suspend fun tripThread(tripId: String): TripThreadSnapshot? {
         val trip = read {

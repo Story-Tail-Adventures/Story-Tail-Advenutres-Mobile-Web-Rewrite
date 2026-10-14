@@ -48,6 +48,8 @@ fun MessagesRoute(
             }
             val state by viewModel.state.collectAsState()
             val tripId by viewModel.tripId.collectAsState()
+            // Re-read on entry (and so clear a newer reply): the view model outlives the screen.
+            LaunchedEffect(Unit) { viewModel.refresh() }
             val draft by viewModel.draft.collectAsState()
             val sending by viewModel.sending.collectAsState()
             val sendError by viewModel.sendError.collectAsState()

@@ -87,11 +87,26 @@ class TripDetailViewModel(
 
     fun load() {
         _state.value = Loadable.Loading
+        read()
+    }
+
+    /**
+     * Re-read on entry, keeping what is on screen. The view model outlives the screen (it is
+     * app-scoped), so without this the "2 unread" tile would still say 2 after the traveler
+     * read the thread it opens (§3.10 Stage 1). A failed re-read keeps the last good view.
+     */
+    fun refresh() {
+        if (_state.value !is Loadable.Ready) _state.value = Loadable.Loading
+        read()
+    }
+
+    private fun read() {
         viewModelScope.launch {
             val result = trips.tripDetail(tripId, today)
             // A null here means either "no such trip" or "not yours" — RLS makes those the
             // same answer, deliberately, and the screen says so without guessing which.
-            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+            if (result != null) _state.value = Loadable.Ready(result)
+            else if (_state.value !is Loadable.Ready) _state.value = Loadable.Failed()
         }
     }
 }
@@ -231,10 +246,39 @@ class ThreadViewModel(
 
     fun load() {
         _state.value = Loadable.Loading
+        read()
+    }
+
+    /**
+     * Re-read on entry, keeping what is on screen. The view model outlives the screen (it is
+     * app-scoped, which is what keeps a draft), so `init` runs once a session: without this a
+     * reopened thread showed the messages from its first open and never cleared a newer reply
+     * (§3.10 Stage 1, mobile review).
+     */
+    fun refresh() {
+        if (_state.value !is Loadable.Ready) _state.value = Loadable.Loading
+        read()
+    }
+
+    private fun read() {
         viewModelScope.launch {
             val result = trips.tripThread(tripId)
-            _state.value = result?.let { Loadable.Ready(it.toSurface()) } ?: Loadable.Failed()
+            if (result != null) _state.value = Loadable.Ready(result.toSurface())
+            else if (_state.value !is Loadable.Ready) _state.value = Loadable.Failed()
+            markReadIfUnread(result)
         }
+    }
+
+    /**
+     * Opening the thread reads it, AFTER it is on screen and only when there is something to
+     * clear, naming the newest message shown so a reply that landed since stays unread.
+     */
+    private suspend fun markReadIfUnread(snapshot: TripThreadSnapshot?) {
+        val conversationId = snapshot?.conversationId ?: return
+        if (snapshot.unreadCount <= 0) return
+        // Nothing on screen, nothing read: the server needs the newest message the traveler saw.
+        val seenUpTo = snapshot.messages.lastOrNull()?.createdAt ?: return
+        trips.markConversationRead(conversationId, seenUpTo)
     }
 
     fun changeDraft(next: String) {
@@ -259,6 +303,8 @@ class ThreadViewModel(
                     // not have the id, timestamp or ordering the server gave it.
                     val refreshed = trips.tripThread(tripId)
                     if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface())
+                    // The reload can show the advisor's reply that came in while they typed.
+                    markReadIfUnread(refreshed)
                 }
 
                 is SendMessageOutcome.Failed ->
