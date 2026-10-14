@@ -162,8 +162,9 @@ export const AGENT_COPY = {
   // thinks this button cancels the booking will not go and cancel the booking.
   cancelTripBody:
     "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier, move any money, or release the card — those are still yours to do.",
-  cancelTripEditBody:
-    "Correct what the client reads. The trip stays cancelled; only these details change.",
+  // Not "only these details change": since §3.7 Stage 5 this dialog can also mark open
+  // commission lines Lost, so the promise would be false whenever it lists any.
+  cancelTripEditBody: "Correct what the client reads. The trip stays cancelled.",
   // MANDATORY, and the reason is in the label rather than discovered on submit. The Edge
   // Function refuses a cancellation with no reason because §2.2.10 renders it to the
   // traveler, and a cancellation that cannot say why is a worse row than none.
@@ -185,6 +186,17 @@ export const AGENT_COPY = {
   cancelSaving: "Saving\u2026",
   cancelFailed: "That did not save. Try again in a moment.",
   cancelStale: "This trip moved since the page loaded. Reload and try again.",
+  // §3.7 Stage 5: the trip's open ledger lines, offered to mark Lost (Gyasi, 2026-10-12:
+  // offered, on by default). "Lost" is the ledger's own word for money that will not come,
+  // and the help says the one way back, since a supplier sometimes pays on a cancellation.
+  cancelLinesTitle: "COMMISSION STILL OPEN",
+  // "Left alone", not "never change": a Received line can still be edited in the ledger; this
+  // is about what a cancellation does. "A supplier", because the list can name several.
+  cancelLinesHelp:
+    "Received and Disputed lines are left alone. If a supplier pays after all, you can reopen the line in the ledger.",
+  cancelDone: "Done",
+  cancelLinesUnavailable:
+    "We couldn't check this trip's commission lines just now, so any open ones stay open. You can mark them Lost from the ledger.",
 
   // REPOINTED when §3.3.2 shipped. This said "§3.3.2" and that section is now built —
   // and building it delivered no client preview, because previewing a TRIP as the
@@ -1615,6 +1627,51 @@ export const FORECAST_COPY = {
   undated: "No travel dates yet",
   noTermsNote: "Bookings with no payment terms on file are expected 60 days after the trip ends.",
 } as const;
+
+/** The cancel dialog's checkbox: "Mark this line as Lost" / "Mark these 2 lines as Lost". */
+export function cancelLinesCheckbox(n: number): string {
+  return n === 1 ? "Mark this line as Lost" : `Mark these ${n.toLocaleString("en-US")} lines as Lost`;
+}
+
+/**
+ * The receipt a save leaves on screen when it named any commission lines; null when it named
+ * none, and the dialog then closes as it always has. It leads with the trip, because the
+ * receipt replaces the whole form and is the only thing left to read.
+ *
+ *  - `skipped`: moved since the page loaded (paid, edited, removed) and left alone.
+ *  - Named but in neither count (an Edge Function too old to know the list, say) is said as
+ *    unconfirmed, never as closed: the box was ticked, so silence would read as done.
+ */
+export function cancelReceipt(r: {
+  /** This save cancelled the trip, rather than correcting one already cancelled. */
+  cancelled: boolean;
+  named: number;
+  closed: number;
+  skipped: number;
+}): string | null {
+  if (r.named <= 0) return null;
+  const n = (k: number) => k.toLocaleString("en-US");
+  const parts = [r.cancelled ? "Trip cancelled." : "Details saved."];
+  if (r.closed > 0) {
+    parts.push(`${n(r.closed)} commission ${r.closed === 1 ? "line" : "lines"} marked Lost.`);
+  }
+  if (r.skipped > 0) {
+    parts.push(
+      r.skipped === 1
+        ? "1 line changed since the page loaded, so it was left alone."
+        : `${n(r.skipped)} lines changed since the page loaded, so they were left alone.`,
+    );
+  }
+  const unconfirmed = r.named - r.closed - r.skipped;
+  if (unconfirmed > 0) {
+    parts.push(
+      unconfirmed === 1
+        ? "We couldn't confirm 1 line was marked Lost. Check it in the ledger."
+        : `We couldn't confirm ${n(unconfirmed)} lines were marked Lost. Check them in the ledger.`,
+    );
+  }
+  return parts.join(" ");
+}
 
 /**
  * "Of $11,101 across 11 open trips · 94% confidence": the worklist's "Commission expected"

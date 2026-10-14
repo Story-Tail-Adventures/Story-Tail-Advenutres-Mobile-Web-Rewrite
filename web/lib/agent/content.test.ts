@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENT_COPY, bulkTagResult, CLIENT_COPY, needsYouLine } from "./content";
+import {
+  AGENT_COPY,
+  bulkTagResult,
+  cancelLinesCheckbox,
+  cancelReceipt,
+  CLIENT_COPY,
+  needsYouLine,
+} from "./content";
 
 /**
  * The agent copy.
@@ -169,5 +176,44 @@ describe("the bulk-tag bar's own strings", () => {
     }
     // §3.9 has not, so this one stays.
     expect(CLIENT_COPY.mergeDeferred).toMatch(/§3\.9/);
+  });
+});
+
+describe("the cancel dialog's commission lines (§3.7 Stage 5)", () => {
+  it("names how many lines the checkbox marks Lost", () => {
+    expect(cancelLinesCheckbox(1)).toBe("Mark this line as Lost");
+    expect(cancelLinesCheckbox(2)).toBe("Mark these 2 lines as Lost");
+    expect(cancelLinesCheckbox(1200)).toBe("Mark these 1,200 lines as Lost");
+  });
+
+  it("is only a receipt when lines were named, and leads with what happened to the trip", () => {
+    expect(cancelReceipt({ cancelled: true, named: 0, closed: 0, skipped: 0 })).toBeNull();
+    expect(cancelReceipt({ cancelled: true, named: 1, closed: 1, skipped: 0 })).toBe(
+      "Trip cancelled. 1 commission line marked Lost.",
+    );
+    expect(cancelReceipt({ cancelled: false, named: 3, closed: 3, skipped: 0 })).toBe(
+      "Details saved. 3 commission lines marked Lost.",
+    );
+  });
+
+  it("says which lines moved since the page loaded and were left alone", () => {
+    expect(cancelReceipt({ cancelled: true, named: 3, closed: 2, skipped: 1 })).toBe(
+      "Trip cancelled. 2 commission lines marked Lost. 1 line changed since the page loaded, so it was left alone.",
+    );
+    // Every line moved: the trip still cancelled, and the receipt says so first.
+    expect(cancelReceipt({ cancelled: true, named: 2, closed: 0, skipped: 2 })).toBe(
+      "Trip cancelled. 2 lines changed since the page loaded, so they were left alone.",
+    );
+  });
+
+  it("never claims a line it cannot account for", () => {
+    // An answer with no counts (an Edge Function that predates the list): the box was ticked,
+    // so silence would read as done.
+    expect(cancelReceipt({ cancelled: true, named: 2, closed: 0, skipped: 0 })).toBe(
+      "Trip cancelled. We couldn't confirm 2 lines were marked Lost. Check them in the ledger.",
+    );
+    expect(cancelReceipt({ cancelled: true, named: 2, closed: 1, skipped: 0 })).toBe(
+      "Trip cancelled. 1 commission line marked Lost. We couldn't confirm 1 line was marked Lost. Check it in the ledger.",
+    );
   });
 });

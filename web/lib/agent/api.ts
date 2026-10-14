@@ -82,7 +82,10 @@ export type AgentRead =
   // §3.7.7. Trip grain, the worklist's own weighted figure by stage, and that forecast spread
   // over the months each booking's supplier should pay.
   | "agent_commission_forecast"
-  | "agent_commission_cash_in";
+  | "agent_commission_cash_in"
+  // §3.4.16 (§3.7 Stage 5). The trip's Expected and Invoiced lines, which the cancel dialog
+  // offers to mark Lost, each with the version the close is checked against.
+  | "agent_trip_open_commission";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -781,6 +784,15 @@ export type AgentCommissionCashInRow = {
   cents: string;
   trip_count: number;
   received_cents: string;
+};
+
+export type AgentTripOpenCommissionRow = {
+  commission_id: string;
+  supplier_name: string;
+  status: string;
+  expected_commission_cents: string;
+  currency: string;
+  version: number;
 };
 
 export type AgentCommissionMonthRow = {

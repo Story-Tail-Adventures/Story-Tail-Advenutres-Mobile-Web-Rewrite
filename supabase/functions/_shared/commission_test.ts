@@ -6,7 +6,9 @@ import {
   CREATE_STATUSES,
   csvCell,
   type ExportRow,
+  MAX_CLOSE_LINES,
   PAYMENT_STATUSES,
+  readCloseLines,
   readDate,
   readLagDays,
   readLedgerFilters,
@@ -181,4 +183,31 @@ Deno.test("readWeights: exactly the four open stages, whole numbers 0 to 100", (
   assertThrows(() => readWeights({ inquiry: 20, proposal: 50, booked: 100 }), HttpError);
   assertThrows(() => readWeights({ ...ok, completed: 100 }), HttpError);
   assertThrows(() => readWeights([20, 50, 100, 100]), HttpError);
+});
+
+Deno.test("readCloseLines: absent is none; each line an id and the version the dialog showed", () => {
+  const a = "0195a2c0-1a00-7000-8000-000000000201";
+  const b = "0195a2c0-1a00-7000-8000-000000000202";
+  assertEquals(readCloseLines(undefined), []);
+  assertEquals(readCloseLines(null), []);
+  assertEquals(readCloseLines([]), []);
+  assertEquals(readCloseLines([{ id: a, version: 1 }, { id: b, version: 3 }]), [
+    { id: a, version: 1 },
+    { id: b, version: 3 },
+  ]);
+  assertThrows(() => readCloseLines({ id: a, version: 1 }), HttpError);
+  assertThrows(() => readCloseLines([{ id: "not-a-line", version: 1 }]), HttpError);
+  assertThrows(() => readCloseLines([{ id: a }]), HttpError);
+  assertThrows(() => readCloseLines([{ id: a, version: 0 }]), HttpError);
+  assertThrows(() => readCloseLines([{ id: a, version: 1.5 }]), HttpError);
+  assertThrows(() => readCloseLines([{ id: a, version: "1" }]), HttpError);
+  assertThrows(() => readCloseLines([null]), HttpError);
+  // The same line twice, even in another case, is a request nobody's dialog sends.
+  assertThrows(() => readCloseLines([{ id: a, version: 1 }, { id: a.toUpperCase(), version: 1 }]), HttpError);
+  const tooMany = Array.from({ length: MAX_CLOSE_LINES + 1 }, (_, i) => ({
+    id: `0195a2c0-1a00-7000-8000-${String(i).padStart(12, "0")}`,
+    version: 1,
+  }));
+  assertThrows(() => readCloseLines(tooMany), HttpError);
+  assertEquals(readCloseLines(tooMany.slice(0, MAX_CLOSE_LINES)).length, MAX_CLOSE_LINES);
 });

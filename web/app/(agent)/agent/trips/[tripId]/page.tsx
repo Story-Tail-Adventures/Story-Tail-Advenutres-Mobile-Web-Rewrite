@@ -21,6 +21,7 @@ import {
   loadTripDocuments,
   loadTripItinerary,
   loadTripMessages,
+  loadTripOpenCommission,
   loadTripOverview,
   loadTripPayments,
 } from "@/lib/agent/tripDetail";
@@ -75,7 +76,13 @@ export default async function AgentTripDetailPage({
   // Overview and payments back the header and the persistent sidebar on every tab; the rest
   // are fetched only for the tab actually being rendered — the same "fetch what this render
   // needs" discipline `loadWorklist`/`loadPipeline`/`loadCalendar` already follow.
-  const [result, payments] = await Promise.all([loadTripOverview(tripId), loadTripPayments(tripId)]);
+  // The open ledger lines ride along for the cancel dialog in the header. A failed read is
+  // `null` and only that dialog says so; it never turns the page into an error.
+  const [result, payments, openCommission] = await Promise.all([
+    loadTripOverview(tripId),
+    loadTripPayments(tripId),
+    loadTripOpenCommission(tripId),
+  ]);
 
   // A TRIP THAT IS NOT THERE IS NOT AN ERROR. `agent_trip_overview` answers zero rows for
   // "no such trip" and "not yours" alike; both mean this URL has no page, and neither is a
@@ -94,7 +101,7 @@ export default async function AgentTripDetailPage({
   // one of its links navigated the agent away from the trip they had just opened.
   return (
     <Box sx={PAGE_SX}>
-      <TripDetailHeader overview={overview} />
+      <TripDetailHeader overview={overview} openCommission={openCommission} />
       <TripDetailTabs />
 
       <Box
