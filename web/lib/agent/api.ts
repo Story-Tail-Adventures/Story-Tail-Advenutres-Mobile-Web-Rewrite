@@ -85,7 +85,14 @@ export type AgentRead =
   | "agent_commission_cash_in"
   // §3.4.16 (§3.7 Stage 5). The trip's Expected and Invoiced lines, which the cancel dialog
   // offers to mark Lost, each with the version the close is checked against.
-  | "agent_trip_open_commission";
+  | "agent_trip_open_commission"
+  // §3.10 Stage 1. The advisor's threads (filtered, paged), the inbox header's counts, one
+  // thread's header and messages (internal notes included), and who a new message is for.
+  | "agent_message_threads"
+  | "agent_message_summary"
+  | "agent_conversation"
+  | "agent_conversation_messages"
+  | "agent_message_target";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -795,6 +802,68 @@ export type AgentTripOpenCommissionRow = {
   version: number;
 };
 
+export type AgentMessageThreadRow = {
+  conversation_id: string;
+  client_id: string;
+  client_display_name: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  subject: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  /** Who wrote the last message the client can see: "client" or "agent". Null in an empty thread. */
+  last_sender_role: string | null;
+  agent_unread_count: number;
+  reply_due_at: string | null;
+  overdue: boolean;
+  archived: boolean;
+  total_count: number;
+};
+
+export type AgentMessageSummaryRow = {
+  open_threads: number;
+  unread_threads: number;
+  unread_messages: number;
+  overdue_threads: number;
+  archived_threads: number;
+};
+
+export type AgentConversationRow = {
+  conversation_id: string;
+  client_id: string;
+  client_display_name: string;
+  client_first_name: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  subject: string | null;
+  agent_unread_count: number;
+  reply_due_at: string | null;
+  overdue: boolean;
+  archived: boolean;
+  client_can_sign_in: boolean;
+};
+
+export type AgentConversationMessageRow = {
+  message_id: string;
+  sender_role: string;
+  body: string;
+  is_internal_note: boolean;
+  created_at: string;
+  attachments: { document_id: string; filename: string; kind: string }[];
+  /** Every message in the thread; the read returns the newest 500 of them. */
+  total_messages: number;
+};
+
+export type AgentMessageTargetRow = {
+  client_id: string;
+  client_display_name: string;
+  client_first_name: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  conversation_id: string | null;
+  client_can_sign_in: boolean;
+};
+
 export type AgentCommissionMonthRow = {
   month_start: string;
   received_cents: string;
@@ -857,7 +926,10 @@ export type AgentFunction =
   | "agent-commission"
   // §3.7.5 / §3.7.6. Upload, map, resolve, reconcile, discard. Only reconcile writes the
   // ledger, all of it in one transaction.
-  | "commission-import";
+  | "commission-import"
+  // §3.10. Send (a reply or an internal note), mark a thread read, archive from the inbox.
+  // The send is one SQL transaction so a note can never move what the client reads.
+  | "agent-message";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

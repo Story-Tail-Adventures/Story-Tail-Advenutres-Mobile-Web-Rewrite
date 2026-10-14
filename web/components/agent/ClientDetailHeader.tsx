@@ -11,8 +11,9 @@ import { ClientArchiveDialog } from "@/components/agent/ClientArchiveDialog";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { CLIENT_COPY } from "@/lib/agent/content";
+import { CLIENT_COPY, messageClientLabel } from "@/lib/agent/content";
 import type { ClientOverview } from "@/lib/agent/clientDetail";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
@@ -108,10 +109,18 @@ export function ClientDetailHeader({ client }: { client: ClientOverview }) {
         </Box>
 
         <Box sx={{ display: "flex", flexShrink: 0, flexWrap: "wrap", gap: 0.75 }}>
-          <Button type="button" variant="tonal" size="sm" disabled title={CLIENT_COPY.messageClientDeferred}>
+          {/* §3.10: their general thread, or a new one. */}
+          <MuiButton
+            component={NextLink}
+            href={newMessageHref(client.clientId)}
+            variant="outlined"
+            color="secondary"
+            size="small"
+            sx={BTN_SM}
+          >
             <Icon name="message" size={12} />
-            <Box component="span" sx={VISUALLY_HIDDEN}>{CLIENT_COPY.messageClientDeferred}</Box>
-          </Button>
+            <Box component="span" sx={VISUALLY_HIDDEN}>{messageClientLabel(client.displayName)}</Box>
+          </MuiButton>
           {/* Not disabled: a tel: link needs no section behind it. */}
           {client.phone ? (
             <MuiButton

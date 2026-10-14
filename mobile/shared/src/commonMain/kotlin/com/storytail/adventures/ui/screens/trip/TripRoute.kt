@@ -76,6 +76,9 @@ fun TripRoute(
                 TripDetailViewModel(trips, route.tripId, today)
             }
             val state by viewModel.state.collectAsState()
+            // Re-read on entry: the view model outlives the screen, and coming Back from the
+            // thread must not show its "2 unread" tile after the traveler read it.
+            LaunchedEffect(Unit) { viewModel.refresh() }
 
             // A COMPLETED trip belongs on 2.2.11, not here. The web twin does this as a
             // server-side redirect in `/trips/[tripId]/page.tsx`; native has to wait for the
@@ -163,6 +166,8 @@ fun TripRoute(
                 ThreadViewModel(trips, route.tripId)
             }
             val state by viewModel.state.collectAsState()
+            // Re-read on entry (and so clear a newer reply): the view model outlives the screen.
+            LaunchedEffect(Unit) { viewModel.refresh() }
             val draft by viewModel.draft.collectAsState()
             val sending by viewModel.sending.collectAsState()
             val sendError by viewModel.sendError.collectAsState()

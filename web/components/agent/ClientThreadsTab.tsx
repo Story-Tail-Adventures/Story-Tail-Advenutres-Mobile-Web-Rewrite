@@ -1,20 +1,23 @@
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
+import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { CLIENT_COPY } from "@/lib/agent/content";
 import type { ClientThread } from "@/lib/agent/clientDetail";
+import { threadHref } from "@/lib/agent/messageQuery";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
  * Screen 3.3.5 — every conversation with this client.
  *
- * THREAD LIST ONLY. The thread BODY is §3.10.2 and is not built, so rows are not links:
- * §3.2.1's rule, that a row wired to nothing is worse than a row that is plainly a list
+ * EACH THREAD OPENS IN THE ADVISOR'S INBOX (§3.10.2) since §3.10 Stage 1; until then rows
+ * were not links, by §3.2.1's rule that a row wired to nothing is worse than a plain list
  * item. The unread badge is real — `conversation.agent_unread_count` is outside the client
  * grant, which is part of why this tab needs an accessor at all.
  *
@@ -44,6 +47,7 @@ export function ClientThreadsTab({ threads }: { threads: ClientThread[] }) {
     <Stack component="ul" spacing={1} sx={{ m: 0, p: 0, listStyle: "none" }}>
       {threads.map((t) => (
         <Card component="li" key={t.conversationId}>
+          <CardActionArea component={NextLink} href={threadHref(t.conversationId)}>
           <CardContent
             sx={{ px: 1.75, py: 1.5, display: "flex", alignItems: "center", gap: 1.5, "&:last-child": { pb: 1.5 } }}
           >
@@ -75,6 +79,7 @@ export function ClientThreadsTab({ threads }: { threads: ClientThread[] }) {
               />
             )}
           </CardContent>
+          </CardActionArea>
         </Card>
       ))}
     </Stack>

@@ -1126,6 +1126,7 @@ export type Database = {
       }
       conversation: {
         Row: {
+          agent_archived_at: string | null
           agent_id: string
           agent_unread_count: number
           archived_at: string | null
@@ -1140,6 +1141,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_archived_at?: string | null
           agent_id: string
           agent_unread_count?: number
           archived_at?: string | null
@@ -1154,6 +1156,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_archived_at?: string | null
           agent_id?: string
           agent_unread_count?: number
           archived_at?: string | null
@@ -3813,6 +3816,35 @@ export type Database = {
           received_cents: string
         }[]
       }
+      agent_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          agent_unread_count: number
+          archived: boolean
+          client_can_sign_in: boolean
+          client_display_name: string
+          client_first_name: string
+          client_id: string
+          conversation_id: string
+          overdue: boolean
+          reply_due_at: string
+          subject: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_conversation_messages: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          attachments: Json
+          body: string
+          created_at: string
+          is_internal_note: boolean
+          message_id: string
+          sender_role: string
+          total_messages: number
+        }[]
+      }
       agent_create_client: {
         Args: {
           p_agent_id: string
@@ -3975,6 +4007,64 @@ export type Database = {
           version: number
         }[]
       }
+      agent_mark_conversation_read: {
+        Args: {
+          p_agent_id: string
+          p_conversation_id: string
+          p_seen_up_to: string
+        }
+        Returns: boolean
+      }
+      agent_message_summary: {
+        Args: never
+        Returns: {
+          archived_threads: number
+          open_threads: number
+          overdue_threads: number
+          unread_messages: number
+          unread_threads: number
+        }[]
+      }
+      agent_message_target: {
+        Args: { p_client_id: string; p_trip_id?: string }
+        Returns: {
+          client_can_sign_in: boolean
+          client_display_name: string
+          client_first_name: string
+          client_id: string
+          conversation_id: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_message_threads: {
+        Args: {
+          p_archived?: boolean
+          p_client_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_overdue?: boolean
+          p_search?: string
+          p_trip_id?: string
+          p_unread?: boolean
+        }
+        Returns: {
+          agent_unread_count: number
+          archived: boolean
+          client_display_name: string
+          client_id: string
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          last_sender_role: string
+          overdue: boolean
+          reply_due_at: string
+          subject: string
+          total_count: number
+          trip_id: string
+          trip_title: string
+        }[]
+      }
       agent_payments_due: {
         Args: { p_within_days?: number }
         Returns: {
@@ -4102,6 +4192,25 @@ export type Database = {
           template_id: string
         }[]
       }
+      agent_send_message: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_body: string
+          p_client_id?: string
+          p_conversation_id?: string
+          p_is_internal_note: boolean
+          p_message_id: string
+          p_new_conversation_id?: string
+          p_seen_up_to?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          conversation_id: string
+          created_at: string
+          outcome: string
+        }[]
+      }
       agent_set_client_archived: {
         Args: {
           p_agent_id: string
@@ -4113,6 +4222,14 @@ export type Database = {
           outcome: string
           version: number
         }[]
+      }
+      agent_set_conversations_archived: {
+        Args: {
+          p_agent_id: string
+          p_archived: boolean
+          p_conversation_ids: string[]
+        }
+        Returns: number
       }
       agent_set_milestone_paid: {
         Args: {
@@ -4207,6 +4324,27 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
           updated_at: string
           value_cents: string
+        }[]
+      }
+      agent_threads_for_current_agent: {
+        Args: never
+        Returns: {
+          agent_unread_count: number
+          archived: boolean
+          as_of: string
+          awaiting_since: string
+          client_display_name: string
+          client_first_name: string
+          client_id: string
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          last_sender_role: string
+          overdue: boolean
+          reply_due_at: string
+          subject: string
+          trip_id: string
+          trip_title: string
         }[]
       }
       agent_trip_activity: {
@@ -4629,6 +4767,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["block_kind"]
       }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      client_mark_conversation_read: {
+        Args: { p_conversation_id: string; p_seen_up_to: string }
+        Returns: boolean
+      }
       commission_audit: {
         Args: {
           p_actor_user_id: string
@@ -4682,6 +4824,14 @@ export type Database = {
         }
       }
       commission_ref_key: { Args: { p_text: string }; Returns: string }
+      conversation_record_client_message: {
+        Args: { p_message_id: string }
+        Returns: boolean
+      }
+      conversation_reply_due_at: {
+        Args: { p_since: string; p_time_zone: string }
+        Returns: string
+      }
       cruise_sailing_search: {
         Args: {
           depart_from?: string
@@ -4772,6 +4922,7 @@ export type Database = {
       }
       itinerary_for_trip: { Args: { p_trip_id: string }; Returns: string }
       itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
+      message_preview: { Args: { p_body: string }; Returns: string }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sweep_dated_promises: {

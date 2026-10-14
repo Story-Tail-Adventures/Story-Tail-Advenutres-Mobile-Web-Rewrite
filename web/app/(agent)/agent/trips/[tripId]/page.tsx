@@ -12,6 +12,7 @@ import { TripDetailTabs } from "@/components/agent/TripDetailTabs";
 import { TripDocumentsList } from "@/components/agent/TripDocumentsList";
 import { TripItineraryView } from "@/components/agent/TripItineraryView";
 import { TripMessagesThread } from "@/components/agent/TripMessagesThread";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import { TripNotesEditor } from "@/components/agent/TripNotesEditor";
 import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
@@ -138,7 +139,7 @@ export default async function AgentTripDetailPage({
             </>
           )}
           {tab === "documents" && <TripDocumentsTab tripId={tripId} />}
-          {tab === "messages" && <TripMessagesTab tripId={tripId} />}
+          {tab === "messages" && <TripMessagesTab tripId={tripId} clientId={overview.clientId} />}
           {tab === "notes" && (
             <TripNotesEditor
               tripId={tripId}
@@ -215,10 +216,11 @@ async function TripDocumentsTab({ tripId }: { tripId: string }) {
   return <TripDocumentsList documents={documents} />;
 }
 
-async function TripMessagesTab({ tripId }: { tripId: string }) {
+async function TripMessagesTab({ tripId, clientId }: { tripId: string; clientId: string }) {
   const messages = await loadTripMessages(tripId);
   if (!messages) return <ErrorState />;
-  return <TripMessagesThread messages={messages} />;
+  // §3.10: replying happens in the thread itself, which this opens (or starts).
+  return <TripMessagesThread messages={messages} replyHref={newMessageHref(clientId, tripId)} />;
 }
 
 async function TripActivityTab({ tripId }: { tripId: string }) {

@@ -3,6 +3,7 @@
 import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { createClient } from "@/lib/supabase/server";
 import { callTripFunction } from "@/lib/trips/api";
 import type { SendMessageState } from "@/lib/trips/thread";
 import { uuidV7 } from "@/lib/uuid";
@@ -126,3 +127,25 @@ export async function startConversation(
  */
 const MESSAGES_SEND_FAILED =
   "That didn't send — your words are still here. Try again in a moment.";
+
+/**
+ * Opening a thread reads it: clears the TRAVELER's own unread count (§3.10 Stage 1).
+ *
+ * Nothing raised that count until the advisor could reply, so nothing cleared it either; the
+ * two arrived together. A direct RPC on the traveler's own session rather than an Edge
+ * Function: `client_mark_conversation_read` is SECURITY DEFINER, checks the thread is theirs,
+ * and changes one counter on their own row, with nothing to audit. Answers whether it moved.
+ */
+export async function markConversationRead(conversationId: string, seenUpTo: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("client_mark_conversation_read", {
+    p_conversation_id: conversationId,
+    // Up to the newest message the screen showed, passed through as Postgres wrote it.
+    p_seen_up_to: seenUpTo,
+  });
+  if (error || data !== true) return false;
+  revalidatePath("/messages", "layout");
+  revalidatePath("/trips/[tripId]/messages", "page");
+  revalidatePath("/dashboard");
+  return true;
+}

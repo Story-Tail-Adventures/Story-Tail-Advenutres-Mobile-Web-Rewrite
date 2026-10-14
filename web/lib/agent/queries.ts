@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import {
   callAgentRead,
   type AgentInboxRow,
@@ -270,7 +272,9 @@ function kpisFrom(k: AgentKpiRow): AgentKpi[] {
  * `platform_user.time_zone` is inside the client column grant, so this needs no new read
  * surface. It defaults to America/Chicago.
  */
-export async function agentIdentity(): Promise<{ displayName: string; timeZone: string }> {
+// cache(): the inbox slot and the thread page both ask for it in one render, and it is one
+// row that cannot change mid-request.
+export const agentIdentity = cache(async (): Promise<{ displayName: string; timeZone: string }> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_user")
@@ -280,7 +284,7 @@ export async function agentIdentity(): Promise<{ displayName: string; timeZone: 
     displayName: data?.display_name ?? "",
     timeZone: data?.time_zone || "America/Chicago",
   };
-}
+});
 
 export async function loadWorklist(): Promise<Worklist | null> {
   // One call per accessor, in parallel. Not one combined RPC: each answers a different

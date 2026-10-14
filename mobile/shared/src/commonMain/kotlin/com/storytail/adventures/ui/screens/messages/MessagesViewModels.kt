@@ -139,13 +139,36 @@ class ConversationThreadViewModel(
 
     fun load() {
         _state.value = Loadable.Loading
+        read()
+    }
+
+    /** Re-read on entry, keeping what is on screen; see `ThreadViewModel.refresh` for why. */
+    fun refresh() {
+        if (_state.value !is Loadable.Ready) _state.value = Loadable.Loading
+        read()
+    }
+
+    private fun read() {
         viewModelScope.launch {
             val result = trips.conversationThread(conversationId)
             // Null covers no such row, not yours, and archived alike — the policy makes all
             // three invisible, so none of them can be told apart.
-            _state.value = result?.let { Loadable.Ready(it.toSurface()) } ?: Loadable.Failed()
-            _tripId.value = result?.tripId
+            if (result != null) {
+                _state.value = Loadable.Ready(result.toSurface())
+                _tripId.value = result.tripId
+            } else if (_state.value !is Loadable.Ready) {
+                _state.value = Loadable.Failed()
+            }
+            markReadIfUnread(result)
         }
+    }
+
+    /** Opening the thread reads it (§3.10 Stage 1), as on 2.2.7: after it is on screen. */
+    private suspend fun markReadIfUnread(snapshot: ConversationThreadSnapshot?) {
+        if (snapshot == null || snapshot.unreadCount <= 0) return
+        // Nothing on screen, nothing read: the server needs the newest message the traveler saw.
+        val seenUpTo = snapshot.messages.lastOrNull()?.createdAt ?: return
+        trips.markConversationRead(conversationId, seenUpTo)
     }
 
     fun changeDraft(next: String) {
@@ -168,6 +191,8 @@ class ConversationThreadViewModel(
                     // the id, timestamp or ordering the server gave it.
                     val refreshed = trips.conversationThread(conversationId)
                     if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface())
+                    // The reload can show the advisor's reply that came in while they typed.
+                    markReadIfUnread(refreshed)
                 }
 
                 is SendMessageOutcome.Failed ->

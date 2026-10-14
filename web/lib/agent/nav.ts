@@ -99,7 +99,7 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "message",
     label: "Messages",
     surfaces: ["rail", "bar", "tablet"],
-    availability: { kind: "planned", phase: "P1", section: "§3.10" },
+    availability: { kind: "built" },
   },
   {
     id: "commission",

@@ -3094,12 +3094,49 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Nav "Messages".
 **Related screens:** Conversation Thread (Agent View).
 
+> **Built 2026-10-13 (§3.10 Stage 1), on the web.** `/agent/messages`, master-detail from
+> `lg` as A3101_AgentInbox draws it: the list beside the open thread, one pane at a time below
+> `lg`. Gyasi's rulings (2026-10-13): **in-app first** (email is Stage 4, nothing here sends
+> one), and the artboard's "past SLA" is **Overdue: one business day, Sundays never count**,
+> so a day of rest never reads as late. A thread is overdue when the client spoke last and it
+> is past the end of the next business day after their first unanswered message, in the
+> advisor's zone. An internal note does not answer anyone.
+>
+> - **Filters are links**, so a filtered inbox is a URL: Unread, Overdue, an Archived view,
+>   and a search over names, trips and every message body (notes included). The artboard's
+>   "By client" / "By trip" chips arrive as the filters Client Detail and Trip Detail link in
+>   with, shown as removable chips.
+> - **Bulk-archive** is a checkbox per row and one bar. The archive is the **advisor's own**
+>   (`conversation.agent_archived_at`): the client keeps the thread, and their next message
+>   brings it back to the inbox. `conversation.archived_at` would have removed it for them.
+> - **Doors that went live:** the rail's Messages, the worklist's "Recent messages" rows,
+>   Client Detail's Message button and its threads tab, and Trip Detail's Messages tab ("Open
+>   in Messages"). "Send a reminder" waits for templates (Stage 2).
+> - **No phone treatment yet**: Messages is one of §6.6's four agent tabs, and Stage 3 builds
+>   it (read and reply, internal notes too; Gyasi, 2026-10-13), artboards first.
+
 #### 3.10.2 Conversation Thread (Agent View)
 **Purpose:** Threaded message view from the agent side.
 **Primary elements:** Thread header (client, trip link); message bubbles; templated-reply picker; attachment; internal-note toggle (only agent sees); send.
 **Key actions:** Send; attach; insert template; add internal note.
 **Entry points:** Agent Inbox; Client Detail; Trip Detail.
 **Related screens:** Template Picker.
+
+> **Built 2026-10-13 (§3.10 Stage 1), on the web.** `/agent/messages/[id]`, A3101's right pane.
+> Bubbles swap sides from the traveler's view: the advisor's on the right. **An internal note
+> is a dashed, tinted card labelled "only you can see this"** every time, and it moves nothing
+> the client can read: not their inbox preview, not the time, not their unread count. A reply
+> moves all three. Opening a thread reads it (the advisor's unread count clears), and the
+> traveler's own count now clears when THEY open it, on web and mobile; until the advisor could
+> reply nothing raised that count, so nothing cleared it.
+>
+> - **"Message client"** (`/agent/messages/new`) goes straight to the client's live thread for
+>   that trip (or their general thread) when there is one, and otherwise starts it on send. A
+>   thread cannot start with an internal note: the client would see a thread with nothing in it.
+> - **Not yet:** the template picker (Stage 2), attaching a file from the advisor's side, and
+>   opening the client's attachments, which are listed by name (nothing on the advisor's side
+>   can open a document yet). When the client has no login, the reply box says they will see it
+>   once they do.
 
 #### 3.10.3 Template Picker
 **Purpose:** Insert a templated message into a conversation or as a new email.

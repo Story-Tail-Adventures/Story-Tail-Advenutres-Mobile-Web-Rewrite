@@ -6,6 +6,12 @@ import {
   cancelLinesCheckbox,
   cancelReceipt,
   CLIENT_COPY,
+  messagesHeadline,
+  messageClientLabel,
+  messagesMoved,
+  messagesNoLogin,
+  messagesReplyByShort,
+  messagesReplyBy,
   needsYouLine,
 } from "./content";
 
@@ -215,5 +221,26 @@ describe("the cancel dialog's commission lines (§3.7 Stage 5)", () => {
     expect(cancelReceipt({ cancelled: true, named: 2, closed: 1, skipped: 0 })).toBe(
       "Trip cancelled. 1 commission line marked Lost. We couldn't confirm 1 line was marked Lost. Check it in the ledger.",
     );
+  });
+});
+
+describe("the inbox's own strings (§3.10 Stage 1)", () => {
+  it("counts what needs attention, or says there is none", () => {
+    expect(messagesHeadline(0, 0)).toBe("All caught up");
+    expect(messagesHeadline(3, 0)).toBe("3 unread");
+    expect(messagesHeadline(0, 1)).toBe("1 overdue");
+    expect(messagesHeadline(5, 2)).toBe("5 unread · 2 overdue");
+  });
+
+  it("names the due day and the client with no login", () => {
+    expect(messagesReplyBy("Tue")).toBe("Reply by end of Tue");
+    expect(messagesReplyByShort("Tue")).toBe("Reply by Tue");
+    expect(messagesNoLogin("Nora")).toBe("Nora hasn't set up a login yet. This will be waiting for them.");
+  });
+
+  it("says what a bulk move did, and names the client a button messages", () => {
+    expect(messagesMoved(1, true)).toBe("1 archived");
+    expect(messagesMoved(2, false)).toBe("2 moved to inbox");
+    expect(messageClientLabel("Kai Traveler")).toBe("Message Kai Traveler");
   });
 });

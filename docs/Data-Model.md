@@ -1914,11 +1914,12 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 | `last_message_preview` | `text` | Yes | PII | Denormalized |
 | `client_unread_count` | `integer` | No | Internal | — |
 | `agent_unread_count` | `integer` | No | Internal | — |
-| `archived_at` | `timestamptz` | Yes | Public | — |
+| `archived_at` | `timestamptz` | Yes | Public | The thread is gone **for the client**: their read policy and `trip-message`'s find-or-create both skip it. Not the advisor's inbox archive, which is the next field |
+| `agent_archived_at` | `timestamptz` | Yes | Internal | Since 20261015120000. Archived from the **advisor's** inbox (Screen 3.10.1): the `last_message_at` the advisor archived through. The thread counts as archived only while nothing client-visible has been written since (`agent_archived_at >= last_message_at`), so a client's next message brings it back. Archiving also sets `agent_unread_count` to 0. Withheld from the client grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-**Indexes:** index on `(agent_id, last_message_at desc)`; index on `(client_id, last_message_at desc)`; index on `(trip_id)`.
+**Indexes:** index on `(agent_id, last_message_at desc)`; index on `(client_id, last_message_at desc)`; index on `(trip_id)`. Since 20261015120000, **one live thread per trip and one live general thread per client**: unique on `(client_id, trip_id) WHERE archived_at IS NULL AND trip_id IS NOT NULL` and on `(client_id) WHERE archived_at IS NULL AND trip_id IS NULL`. Both writers find-or-create, and the client and the advisor could otherwise each create the same thread at the same moment.
 
 > **Reclassified September 2026, when `trip_read_policies` shipped.**
 > `client_unread_count` is granted to `authenticated`. It is the *client's own* unread count
@@ -1926,6 +1927,33 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 > `agent_unread_count` reads like an artefact of the two being added as a pair.
 > `agent_unread_count` stays Internal and excluded — how far behind the agent is on their
 > inbox is not something a client should be able to poll.
+
+> **Writers, since 20261015120000 (§3.10 Stage 1).** The client posts through `trip-message`
+> (§2.2.7, §2.6). The advisor posts through the `agent-message` Edge Function and
+> `agent_send_message`, which does the whole send in one transaction: find-or-create the
+> thread, insert the message, and update this row. **An internal note touches nothing here a
+> client can read**: `last_message_at` and `last_message_preview` are in the client grant, so
+> only a client-visible reply moves them and raises `client_unread_count`.
+>
+> **Reading clears only what was on screen.** Sending, opening a thread
+> (`agent_mark_conversation_read`) and the client's own open (`client_mark_conversation_read`,
+> on web and mobile) each name the `created_at` of the newest message the screen showed, and
+> the count drops to the messages newer than that, never rising. A message that lands while
+> the page is open stays unread. Before §3.10 nothing raised or cleared `client_unread_count`.
+>
+> `trip-message`'s update of this row is one statement since 20261015120000
+> (`conversation_record_client_message`): `agent_unread_count + 1` in SQL rather than a read
+> and a write from TypeScript, which undid an advisor's clear that landed in between, and
+> `last_message_at` only moves forward. A thread of an archived client or trip can still be
+> answered; a NEW thread needs a live client and trip; a client merged into another drops out
+> of the advisor's inbox.
+>
+> **Overdue (Screen 3.10.1's "past SLA"; Gyasi, 2026-10-13: one business day, Sundays never
+> count).** A thread is awaiting a reply when its last client-visible message is the client's.
+> It is due at the end of the next business day after the FIRST client message since the
+> advisor's last reply, in the advisor's time zone, Monday to Saturday: a message on Saturday
+> or Sunday is due at the end of Monday. Computed by `conversation_reply_due_at()`; nothing is
+> stored.
 
 ### 12.2 Message
 
