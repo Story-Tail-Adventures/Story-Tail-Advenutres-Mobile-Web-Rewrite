@@ -1,5 +1,11 @@
 package com.storytail.adventures.ui.screens.agent
 
+import com.storytail.adventures.domain.agent.AgentMessagesCopy
+import com.storytail.adventures.ui.components.StoryTailMark
+import com.storytail.adventures.ui.components.StoryTailGlyph
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -71,6 +77,8 @@ fun AgentTripDetailScreen(
     onBack: () -> Unit,
     /** The client whose trip this is, for the one link out of a read-only screen. */
     onOpenClient: (String) -> Unit,
+    /** "Open in Messages": this trip's thread, or a new one (§3.10 Stage 3). */
+    onOpenMessages: (clientId: String, tripId: String) -> Unit,
     onSelectBarTab: (String) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -110,7 +118,7 @@ fun AgentTripDetailScreen(
                 action = AgentCopy.TRIP_NOT_FOUND_ACTION,
                 onAction = onBack,
             )
-            is Loadable.Ready -> TripBody(state.value, activeTab, onSelectTab, onOpenClient)
+            is Loadable.Ready -> TripBody(state.value, activeTab, onSelectTab, onOpenClient, onOpenMessages)
         }
     }
 }
@@ -137,6 +145,7 @@ private fun TripBody(
     activeTab: String,
     onSelectTab: (String) -> Unit,
     onOpenClient: (String) -> Unit,
+    onOpenMessages: (clientId: String, tripId: String) -> Unit,
 ) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
@@ -222,7 +231,7 @@ private fun TripBody(
         "itinerary" -> ItineraryTab(ui)
         "payments" -> PaymentsTab(ui)
         "documents" -> DocumentsTab(ui)
-        "messages" -> MessagesTab(ui)
+        "messages" -> MessagesTab(ui, onOpenMessages)
         "notes" -> NotesTab(ui)
         "activity" -> ActivityTab(ui)
         else -> OverviewTab(ui)
@@ -464,9 +473,19 @@ private fun DocumentsTab(ui: AgentTripDetailUiState) {
 }
 
 @Composable
-private fun MessagesTab(ui: AgentTripDetailUiState) {
+private fun MessagesTab(ui: AgentTripDetailUiState, onOpenMessages: (String, String) -> Unit) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
+    // §3.10 Stage 3: the reply lives in the thread, so the tab reads and points there. The
+    // thread is found or started by client and trip, so an empty tab gets the button too.
+    FilledTonalButton(
+        onClick = { onOpenMessages(ui.clientId, ui.tripId) },
+        modifier = Modifier.padding(bottom = 10.dp).heightIn(min = 44.dp),
+    ) {
+        StoryTailGlyph(StoryTailMark.MESSAGE, 14.dp, scheme.onSecondaryContainer)
+        Spacer(Modifier.width(8.dp))
+        Text(AgentMessagesCopy.OPEN_IN_MESSAGES)
+    }
     if (ui.messages.isEmpty()) {
         EmptyLine(AgentCopy.TRIP_MESSAGES_EMPTY)
         return
@@ -501,7 +520,6 @@ private fun MessagesTab(ui: AgentTripDetailUiState) {
             }
         }
     }
-    NoteLine(AgentCopy.MESSAGES_DEFERRED)
 }
 
 @Composable

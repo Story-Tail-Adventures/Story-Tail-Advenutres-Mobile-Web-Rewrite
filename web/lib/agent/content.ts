@@ -229,7 +229,6 @@ export const AGENT_COPY = {
   // straight into the client, so the string had no call site left — and a deferral naming a
   // section which has since been built is worse than no sentence at all. Same removal
   // `tripDetailDeferred` got when §3.4.2 landed.
-  messagesDeferred: "Agent messaging arrives with §3.10.",
   // The one that is not "not yet". It explains where the thing actually is.
   leadsDeferred:
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",

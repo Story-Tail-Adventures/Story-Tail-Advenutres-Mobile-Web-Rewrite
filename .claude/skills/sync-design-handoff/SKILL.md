@@ -519,3 +519,19 @@ design projects.
 
 Raise these upstream when the group screens move into the canonical project: the pronoun,
 the waitlist order, the two copy changes, and the MUI port itself.
+
+### 9. §3.10 phone Messages and notification artboards (2026-10-15), LOCAL ONLY
+
+Gyasi, 2026-10-15: **the canonical design project is out of sync; local artboards are the
+source.** The brief `design/briefs/agent-messages-phone.md` was pasted into Claude Design, but the
+frames never reached the canonical project, so they were drawn here:
+
+- `screens/agent-messages-mobile.jsx`: M3101_Inbox, M3102_ThreadReply, M3102_ThreadNote,
+  M3103_NewMessage, M3104_DeskOnly.
+- `screens/agent-notifications.jsx`: A3107_WebNotifications (web) and M3105 to M3108 (phone),
+  Stage 3b's notifications. Loads after agent-messages-mobile.jsx and reuses its shell.
+- `pages/a310-messaging.html` gains the `#view-seg` Web/Mobile toggle, both script tags and the
+  `mobileScreens` array; `pages/_sections.json` matches.
+
+**None of this is upstream.** A sync will report the two screens files as local-only and the page
+and index as modified. Keep the local copies. Push them upstream only when Gyasi asks.

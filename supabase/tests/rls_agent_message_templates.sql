@@ -342,12 +342,18 @@ SELECT pg_temp.assert(
 -- 6. Merge data
 -- ─────────────────────────────────────────────────────────────────────────────
 
+SELECT start_date AS maya_start, end_date AS maya_end FROM public.trip WHERE id = :maya_trip::uuid \gset
+\set maya_start '''':maya_start''''
+\set maya_end '''':maya_end''''
+
 SELECT pg_temp.become(:gyasi::uuid);
 SELECT pg_temp.assert(
     (SELECT client_first_name = 'Maya' AND agent_first_name = 'Gyasi'
             AND trip_title = 'Saint Lucia · Between Semesters'
             AND trip_destinations = ARRAY['Soufriere, Saint Lucia']
-            AND trip_start_date = '2026-10-12' AND trip_end_date = '2026-10-19'
+            -- The seed dates this trip off current_date, so compare with the row (read as owner,
+            -- above), never a literal: a literal only held on the day it was written.
+            AND trip_start_date = :maya_start::date AND trip_end_date = :maya_end::date
             AND payment_label = 'Final balance' AND payment_owed_cents = '200000'
             AND payment_currency = 'USD' AND payment_due_date = '2026-11-02'
        FROM public.agent_message_merge_context(:maya::uuid, :maya_trip::uuid, :pm::uuid)),

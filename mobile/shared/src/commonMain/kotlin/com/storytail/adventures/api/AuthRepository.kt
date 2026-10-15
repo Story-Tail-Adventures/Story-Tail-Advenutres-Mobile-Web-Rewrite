@@ -330,6 +330,7 @@ object SupabaseClientProvider {
     private var cachedAccount: AccountRepository? = null
     private var cachedWallet: WalletRepository? = null
     private var cachedAgent: AgentRepository? = null
+    private var cachedAgentMessages: AgentMessagesRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -407,6 +408,15 @@ object SupabaseClientProvider {
             }
         }
 
+    /** §3.10's messaging (Stage 3), on the SAME client: one session, one refresh loop. */
+    suspend fun agentMessagesRepository(): AgentMessagesRepository =
+        withContext(Dispatchers.Default) {
+            cachedAgentMessages ?: run {
+                build()
+                cachedAgentMessages!!
+            }
+        }
+
     /**
      * The §2.5 account reads, on the SAME client again.
      *
@@ -431,6 +441,7 @@ object SupabaseClientProvider {
             cachedAccount = UnconfiguredAccountRepository()
             cachedWallet = UnconfiguredWalletRepository()
             cachedAgent = UnconfiguredAgentRepository()
+            cachedAgentMessages = UnconfiguredAgentMessagesRepository()
             return
         }
         val client = createSupabaseClient(
@@ -447,5 +458,6 @@ object SupabaseClientProvider {
         cachedAccount = SupabaseAccountRepository(client)
         cachedWallet = SupabaseWalletRepository(client)
         cachedAgent = SupabaseAgentRepository(client)
+        cachedAgentMessages = SupabaseAgentMessagesRepository(client)
     }
 }

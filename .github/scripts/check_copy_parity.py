@@ -35,6 +35,53 @@ AGENT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adv
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
     {
+        # §3.10's advisor messaging, built on the web in Stages 1 and 2 and on the phone in
+        # Stage 3. The template strings (MESSAGE_TEMPLATE_COPY) are web-only by ruling and
+        # have no twin; the phone-only strings in AgentMessagesCopy (the Reply / Note toggle,
+        # load more, the pushed screens' empty and failed states) have none on the web.
+        "label": "agent 3.10",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "AGENT_MESSAGES_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "AgentMessages.kt",
+        "kmp_object": "AgentMessagesCopy",
+        "keys": {
+            "title": "TITLE",
+            "filterUnread": "FILTER_UNREAD",
+            "filterOverdue": "FILTER_OVERDUE",
+            "viewArchived": "VIEW_ARCHIVED",
+            "viewInbox": "VIEW_INBOX",
+            "searchPlaceholder": "SEARCH_PLACEHOLDER",
+            "caughtUp": "CAUGHT_UP",
+            "emptyInbox": "EMPTY_INBOX",
+            "emptyNarrowed": "EMPTY_NARROWED",
+            "emptyArchived": "EMPTY_ARCHIVED",
+            "generalThread": "GENERAL_THREAD",
+            "youPrefix": "YOU_PREFIX",
+            "overdue": "OVERDUE",
+            "openTrip": "OPEN_TRIP",
+            "openClient": "OPEN_CLIENT",
+            "archiveThread": "ARCHIVE_THREAD",
+            "restoreThread": "RESTORE_THREAD",
+            "archivedTag": "ARCHIVED_TAG",
+            "archivedDone": "ARCHIVED_DONE",
+            "restoredDone": "RESTORED_DONE",
+            "archiveFailed": "ARCHIVE_FAILED",
+            "internalNoteTag": "INTERNAL_NOTE_TAG",
+            "emptyThread": "EMPTY_THREAD",
+            "replyLabel": "REPLY_LABEL",
+            "replyPlaceholder": "REPLY_PLACEHOLDER",
+            "messagePlaceholder": "MESSAGE_PLACEHOLDER",
+            "notePlaceholder": "NOTE_PLACEHOLDER",
+            "noteSwitch": "NOTE_SWITCH",
+            "noteHint": "NOTE_HINT",
+            "send": "SEND",
+            "addNote": "ADD_NOTE",
+            "sendFailed": "SEND_FAILED",
+            "notFound": "NOT_FOUND",
+            "openInMessages": "OPEN_IN_MESSAGES",
+        },
+    },
+    {
         # §3.2's copy. The web side's greeting line and cancelled note are FUNCTIONS —
         # each takes a count and pluralises — and web_messages skips anything that is not a
         # string literal, so those two are covered by the paired unit tests
@@ -75,7 +122,6 @@ MESSAGE_TABLES = [
             # This list is the set of strings that must match BYTE FOR BYTE across both
             # stacks. A string only one stack has does not belong in it — the same reason
             # the pipeline and calendar keys were never added.
-            "messagesDeferred": "MESSAGES_DEFERRED",
             "leadsDeferred": "LEADS_DEFERRED",
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
 

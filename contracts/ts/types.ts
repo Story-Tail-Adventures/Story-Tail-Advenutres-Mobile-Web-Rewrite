@@ -405,6 +405,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's messaging writes. Send, mark read, archive.
+         * @description Screens 3.10.1 and 3.10.2 (§3.10 Stage 1 on the web; Stage 3 on the phone). ONE
+         *     endpoint with three ops, chosen by `op`, each its own request and response shape.
+         *
+         *     `send` writes a reply or an internal note (`internalNote` is REQUIRED, never
+         *     defaulted: a missing flag read as "public" would send a private note to the client).
+         *     Address an existing thread by `conversationId`, OR a client (and optionally one of
+         *     their trips) by `clientId` / `tripId`, which finds their live thread or starts one.
+         *     Never both. A thread cannot START with a note. A body that still holds a known
+         *     `{{merge.field}}` from a template is refused. One SQL transaction, so a note never
+         *     moves the client's preview, time or unread count.
+         *
+         *     `read` clears the advisor's unread count up to `seenUpTo`, the `created_at` of the
+         *     newest message on screen, passed as the raw string (microseconds intact).
+         *
+         *     `archive` files threads in the ADVISOR's inbox only; the client keeps the thread, and
+         *     their next message brings it back.
+         */
+        post: operations["agentMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding-step": {
         parameters: {
             query?: never;
@@ -843,6 +878,73 @@ export interface components {
             version: number;
             /** @description False when the submitted notes matched what was already stored. */
             changed: boolean;
+        };
+        AgentSendMessageRequest: {
+            /** @enum {string} */
+            op: "send";
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7, minted once per draft so a double send or a retry
+             *     lands once (the repeat is a 400, "already sent"). Validated as recent.
+             */
+            messageId: string;
+            /**
+             * Format: uuid
+             * @description An existing thread. Mutually exclusive with `clientId` / `tripId`.
+             */
+            conversationId?: string;
+            /**
+             * Format: uuid
+             * @description Starts or finds this client's live thread. Mutually exclusive with `conversationId`.
+             */
+            clientId?: string;
+            /**
+             * Format: uuid
+             * @description With `clientId`, that trip's thread; without it, the general thread.
+             */
+            tripId?: string;
+            body: string;
+            /** @description REQUIRED. True writes a note only the advisor sees. */
+            internalNote: boolean;
+            /**
+             * @description `created_at` of the newest message on screen, EXACTLY as PostgREST wrote it.
+             *     Writing in a thread reads it only up to here. Omitted on a new message.
+             */
+            seenUpTo?: string;
+        };
+        AgentSendMessageResponse: {
+            /** Format: uuid */
+            messageId: string;
+            /**
+             * Format: uuid
+             * @description The thread written to, which a new message may have just started.
+             */
+            conversationId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AgentMarkThreadReadRequest: {
+            /** @enum {string} */
+            op: "read";
+            /** Format: uuid */
+            conversationId: string;
+            /** @description `created_at` of the newest message on screen, as PostgREST wrote it. */
+            seenUpTo: string;
+        };
+        AgentMarkThreadReadResponse: {
+            /** @description False when nothing was unread, or the thread is not the caller's (one answer). */
+            changed: boolean;
+        };
+        AgentArchiveThreadsRequest: {
+            /** @enum {string} */
+            op: "archive";
+            conversationIds: string[];
+            /** @description True archives from the advisor's inbox; false brings back. */
+            archived: boolean;
+        };
+        AgentArchiveThreadsResponse: {
+            moved: number;
+            requested: number;
         };
         OnboardingStepRequest: {
             /**
@@ -1529,6 +1631,43 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    agentMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSendMessageRequest"] | components["schemas"]["AgentMarkThreadReadRequest"] | components["schemas"]["AgentArchiveThreadsRequest"];
+            };
+        };
+        responses: {
+            /** @description `read`: whether the count moved. `archive`: how many threads moved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMarkThreadReadResponse"] | components["schemas"]["AgentArchiveThreadsResponse"];
+                };
+            };
+            /** @description `send`: the message was written. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSendMessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     setOnboardingStep: {

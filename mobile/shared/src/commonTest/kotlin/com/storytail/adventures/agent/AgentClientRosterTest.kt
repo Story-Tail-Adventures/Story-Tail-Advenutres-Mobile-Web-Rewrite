@@ -245,6 +245,6 @@ class AgentClientRosterTest {
         assertTrue(clients.built)
         assertNull(clients.phase)
         assertEquals("Clients", clients.label)
-        assertEquals(listOf("worklist", "clients"), AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id })
+        assertEquals(listOf("worklist", "clients", "messages"), AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id })
     }
 }

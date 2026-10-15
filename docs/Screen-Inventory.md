@@ -3127,6 +3127,25 @@ These tools let the agent help less-technical clients with login issues.
 >   "Remind the client" is live (§3.4's payments note).
 > - **No phone treatment yet**: Messages is one of §6.6's four agent tabs, and Stage 3 builds
 >   it (read and reply, internal notes too; Gyasi, 2026-10-13), artboards first.
+>
+> > **Stage 3 settled 2026-10-14 (grilling, Gyasi).** The phone's Messages tab: an inbox with
+> > visible search, Unread and Overdue chips, an Archived link and no bulk select; more threads
+> > load on scroll; pull to refresh and a reload on return (no live feed). The thread header
+> > carries the client, trip, an Overdue or "Reply by" chip, Open trip (or Open client) and
+> > Archive, which is the only archive on the phone (no swipe). A Reply / Note toggle sits above
+> > the box, with the web's dashed note look. No template picker. Client attachments by name
+> > only. The tab shows a badge of unread threads, and the Worklist, Client Detail and Trip
+> > Detail doors go live. `agent-message` joins `contracts/openapi.yaml`. The frames to draw
+> > are specified in `design/briefs/agent-messages-phone.md`.
+>
+> > **Built on the phone 2026-10-15 (§3.10 Stage 3).** Messages is the third live tab, with a
+> > badge of unread threads. Inbox (3.10m.1), thread (3.10m.2, Reply / Note) and new message
+> > (3.10m.3) follow `design/source-prototype/screens/agent-messages-mobile.jsx`, drawn locally
+> > from A3101/A3102. The Worklist's "Recent messages" rows, Client Detail's threads tab and its
+> > new "Message Kai" button, and Trip Detail's "Open in Messages" all open the thread (or a new
+> > one). The phone reads the same SQL as the web and writes through `agent-message`, whose
+> > three ops are now in `contracts/openapi.yaml` with generated Kotlin types. The traveler's
+> > and advisor's threads share one bubble and day separator (`ui/components/ChatParts.kt`).
 
 #### 3.10.2 Conversation Thread (Agent View)
 **Purpose:** Threaded message view from the agent side.
@@ -3237,6 +3256,37 @@ These tools let the agent help less-technical clients with login issues.
 >   template can never be too long to send.
 > - **No audit rows.** Templates hold no client data, so they are outside Rule 3's sensitive
 >   tables; the messages they produce are recorded the usual way.
+
+#### 3.10.7 Message Notifications (proposed, §3.10 Stage 3b)
+**Purpose:** Tell the advisor a client has written, on the web and the phone, and let them answer
+from the phone's notification.
+**Primary elements:** System notification (client, trip, first line); Reply and Mark read on the
+phone; a "Get notified when clients write" card in the inbox.
+**Key actions:** Reply (phone); open the thread; mark read; turn notifications on.
+**Entry points:** A new client message.
+**Related screens:** Agent Inbox; Conversation Thread (Agent View); Agent Notification
+Preferences (3.12.3).
+
+> **Settled 2026-10-15 (grilling, Gyasi). Built as Stage 3b, after the phone Messages tab.**
+> Frames: A3107 (web) and 3.10m.5 to 3.10m.8 (phone) in `design/source-prototype/screens/
+> agent-notifications.jsx`, drawn locally (the canonical design project is out of sync).
+>
+> - **Only a new client message notifies**, to its advisor. Never an internal note, never the
+>   advisor's own reply. Other events, and travelers' push, reuse the plumbing later.
+> - **Locked screen: the client's name only.** Unlocked: the trip and the first line.
+> - **Phone: Reply in the notification, plus Mark read.** A notification reply is always a reply,
+>   never a note. **Web:** browsers do not reliably offer a reply box in a notification, so a
+>   click opens the thread with the reply box ready; Mark read where the browser draws buttons.
+> - **A failed reply** reads "Didn't send. Tap to try again", and the words wait as a draft in
+>   that thread.
+> - **One notification per thread**, updated by the next message; reading the thread on any
+>   device clears it on every device. Signing out stops that device's notifications at once.
+> - **Rest hours:** silent 9pm to 7am in the advisor's zone and all of Sunday, then one 7am
+>   summary. The setting to change it arrives with §3.12.3.
+> - **Permission is asked from an inbox card**, never on launch.
+> - **Services:** Firebase Cloud Messaging for Android (a new SDK: security review first), the
+>   browsers' standard Web Push with our own keys for the web, Apple's push service directly for
+>   iOS. **Android and web first; iOS once Xcode is installed.**
 
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").
@@ -3762,6 +3812,11 @@ The mobile experience for agents at MVP is intentionally narrower than web — d
 > What the sentence does **not** mean, and did not say clearly enough to stop the question being asked: it is not a limit on how much an advisor may read. §3.3.2 established that in practice — its mobile client detail kept every real tab — and §3.4.2 follows it. Narrower is about **writes** (every §3.4 form stays in a browser) and about **navigational depth** (no Trips tab, no Pipeline, no Calendar, no template management, which this line names outright). An advisor standing at a gate needs to read anything about a trip.
 >
 > Nothing here is "disabled with a reason", which is the web's treatment for an unbuilt control. A read-only screen with no controls says once, in a sentence, where the writes live. Four dimmed buttons on a 375pt screen cost four taps to discover the same thing.
+
+> **Amended 2026-10-15 (§3.10 Stage 3).** Messages is built: three of the four tabs are live,
+> and only More (§3.12) is still dimmed. It reads and replies, with internal notes; templates,
+> bulk send and bulk archive stay on the web, as this section's first line says of template
+> management.
 
 ---
 

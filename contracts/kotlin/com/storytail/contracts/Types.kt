@@ -132,6 +132,24 @@ enum class OnboardingStepRequestStep {
 }
 
 @Serializable
+enum class AgentArchiveThreadsRequestOp {
+    @SerialName("archive")
+    ARCHIVE,
+}
+
+@Serializable
+enum class AgentMarkThreadReadRequestOp {
+    @SerialName("read")
+    READ,
+}
+
+@Serializable
+enum class AgentSendMessageRequestOp {
+    @SerialName("send")
+    SEND,
+}
+
+@Serializable
 enum class AgentTripStatusResponsePreviousStatus {
     @SerialName("inquiry")
     INQUIRY,
@@ -560,6 +578,82 @@ data class AgentTripNotesResponse(
     // False when the submitted notes matched what was already stored.
     @SerialName("changed")
     val changed: Boolean,
+)
+
+@Serializable
+data class AgentSendMessageRequest(
+    @SerialName("op")
+    val op: AgentSendMessageRequestOp,
+    // Client-generated UUID v7, minted once per draft so a double send or a retry
+    // lands once (the repeat is a 400, "already sent"). Validated as recent.
+    @SerialName("messageId")
+    val messageId: String,
+    // An existing thread. Mutually exclusive with `clientId` / `tripId`.
+    @SerialName("conversationId")
+    val conversationId: String? = null,
+    // Starts or finds this client's live thread. Mutually exclusive with `conversationId`.
+    @SerialName("clientId")
+    val clientId: String? = null,
+    // With `clientId`, that trip's thread; without it, the general thread.
+    @SerialName("tripId")
+    val tripId: String? = null,
+    @SerialName("body")
+    val body: String,
+    // REQUIRED. True writes a note only the advisor sees.
+    @SerialName("internalNote")
+    val internalNote: Boolean,
+    // `created_at` of the newest message on screen, EXACTLY as PostgREST wrote it.
+    // Writing in a thread reads it only up to here. Omitted on a new message.
+    @SerialName("seenUpTo")
+    val seenUpTo: String? = null,
+)
+
+@Serializable
+data class AgentSendMessageResponse(
+    @SerialName("messageId")
+    val messageId: String,
+    // The thread written to, which a new message may have just started.
+    @SerialName("conversationId")
+    val conversationId: String,
+    @SerialName("createdAt")
+    val createdAt: String,
+)
+
+@Serializable
+data class AgentMarkThreadReadRequest(
+    @SerialName("op")
+    val op: AgentMarkThreadReadRequestOp,
+    @SerialName("conversationId")
+    val conversationId: String,
+    // `created_at` of the newest message on screen, as PostgREST wrote it.
+    @SerialName("seenUpTo")
+    val seenUpTo: String,
+)
+
+@Serializable
+data class AgentMarkThreadReadResponse(
+    // False when nothing was unread, or the thread is not the caller's (one answer).
+    @SerialName("changed")
+    val changed: Boolean,
+)
+
+@Serializable
+data class AgentArchiveThreadsRequest(
+    @SerialName("op")
+    val op: AgentArchiveThreadsRequestOp,
+    @SerialName("conversationIds")
+    val conversationIds: List<String>,
+    // True archives from the advisor's inbox; false brings back.
+    @SerialName("archived")
+    val archived: Boolean,
+)
+
+@Serializable
+data class AgentArchiveThreadsResponse(
+    @SerialName("moved")
+    val moved: Int,
+    @SerialName("requested")
+    val requested: Int,
 )
 
 @Serializable

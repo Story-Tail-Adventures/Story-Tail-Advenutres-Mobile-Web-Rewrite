@@ -621,6 +621,56 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  /agent-message:
+    post:
+      operationId: agentMessage
+      summary: The advisor's messaging writes. Send, mark read, archive.
+      description: |
+        Screens 3.10.1 and 3.10.2 (§3.10 Stage 1 on the web; Stage 3 on the phone). ONE
+        endpoint with three ops, chosen by `op`, each its own request and response shape.
+
+        `send` writes a reply or an internal note (`internalNote` is REQUIRED, never
+        defaulted: a missing flag read as "public" would send a private note to the client).
+        Address an existing thread by `conversationId`, OR a client (and optionally one of
+        their trips) by `clientId` / `tripId`, which finds their live thread or starts one.
+        Never both. A thread cannot START with a note. A body that still holds a known
+        `{{merge.field}}` from a template is refused. One SQL transaction, so a note never
+        moves the client's preview, time or unread count.
+
+        `read` clears the advisor's unread count up to `seenUpTo`, the `created_at` of the
+        newest message on screen, passed as the raw string (microseconds intact).
+
+        `archive` files threads in the ADVISOR's inbox only; the client keeps the thread, and
+        their next message brings it back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AgentSendMessageRequest'
+                - $ref: '#/components/schemas/AgentMarkThreadReadRequest'
+                - $ref: '#/components/schemas/AgentArchiveThreadsRequest'
+      responses:
+        '200':
+          description: "`read`: whether the count moved. `archive`: how many threads moved."
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AgentMarkThreadReadResponse'
+                  - $ref: '#/components/schemas/AgentArchiveThreadsResponse'
+        '201':
+          description: "`send`: the message was written."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSendMessageResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /onboarding-step:
     post:
       operationId: setOnboardingStep
@@ -1237,6 +1287,100 @@ components:
         changed:
           type: boolean
           description: False when the submitted notes matched what was already stored.
+
+    # ── §3.10 Agent messaging ──────────────────────────────────────────────
+
+    AgentSendMessageRequest:
+      type: object
+      required: [op, messageId, body, internalNote]
+      properties:
+        op:
+          type: string
+          enum: [send]
+        messageId:
+          type: string
+          format: uuid
+          description: |
+            Client-generated UUID v7, minted once per draft so a double send or a retry
+            lands once (the repeat is a 400, "already sent"). Validated as recent.
+        conversationId:
+          type: string
+          format: uuid
+          description: An existing thread. Mutually exclusive with `clientId` / `tripId`.
+        clientId:
+          type: string
+          format: uuid
+          description: Starts or finds this client's live thread. Mutually exclusive with `conversationId`.
+        tripId:
+          type: string
+          format: uuid
+          description: With `clientId`, that trip's thread; without it, the general thread.
+        body:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        internalNote:
+          type: boolean
+          description: REQUIRED. True writes a note only the advisor sees.
+        seenUpTo:
+          type: string
+          description: |
+            `created_at` of the newest message on screen, EXACTLY as PostgREST wrote it.
+            Writing in a thread reads it only up to here. Omitted on a new message.
+
+    AgentSendMessageResponse:
+      type: object
+      required: [messageId, conversationId, createdAt]
+      properties:
+        messageId: { type: string, format: uuid }
+        conversationId:
+          type: string
+          format: uuid
+          description: The thread written to, which a new message may have just started.
+        createdAt: { type: string, format: date-time }
+
+    AgentMarkThreadReadRequest:
+      type: object
+      required: [op, conversationId, seenUpTo]
+      properties:
+        op:
+          type: string
+          enum: [read]
+        conversationId: { type: string, format: uuid }
+        seenUpTo:
+          type: string
+          description: "`created_at` of the newest message on screen, as PostgREST wrote it."
+
+    AgentMarkThreadReadResponse:
+      type: object
+      required: [changed]
+      properties:
+        changed:
+          type: boolean
+          description: False when nothing was unread, or the thread is not the caller's (one answer).
+
+    AgentArchiveThreadsRequest:
+      type: object
+      required: [op, conversationIds, archived]
+      properties:
+        op:
+          type: string
+          enum: [archive]
+        conversationIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string, format: uuid }
+        archived:
+          type: boolean
+          description: True archives from the advisor's inbox; false brings back.
+
+    AgentArchiveThreadsResponse:
+      type: object
+      required: [moved, requested]
+      properties:
+        moved: { type: integer }
+        requested: { type: integer }
 
     # ── §2.1 Onboarding ────────────────────────────────────────────────────
     #

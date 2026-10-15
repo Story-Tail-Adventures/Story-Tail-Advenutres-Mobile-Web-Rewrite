@@ -41,7 +41,10 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
       <button data-theme="light" class="is-on">Light</button>
       <button data-theme="dark">Dark</button>
     </div>
-    
+    <div class="seg" id="view-seg" role="group" aria-label="Viewport">
+      <button data-view="web" class="is-on">Web</button>
+      <button data-view="mobile">Mobile</button>
+    </div>
     <span class="nav-div"></span>
     <a class="navlink" href="a39-support.html" title="3.9 · Agent · Login Support / Account Admin">← 3.9</a>
     <a class="navlink primary" href="index.html">All sections</a>
@@ -103,6 +106,8 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
 <script type="text/babel" src="../shared/mui-kit.jsx"></script>
 
 <script type="text/babel" src="../screens/agent-leads-support-msg.jsx"></script>
+<script type="text/babel" src="../screens/agent-messages-mobile.jsx"></script>
+<script type="text/babel" src="../screens/agent-notifications.jsx"></script>
 
 <script type="text/babel" src="../tweaks-panel.jsx"></script>
 <script type="text/babel" src="../tweaks/tweaks.jsx"></script>
@@ -169,7 +174,7 @@ html,body,#root{height:100%}body{background:#2A2422;margin:0}
   function App() {
     return (
       <DesignCanvas title="Story-Tail · 3.10 · Agent · Messaging & Templates" subtitle="Agent inbox, templates, bulk send." background="#221C1A">
-        <Section id="a310" title="3.10 · Messaging & Templates" subtitle="Agent inbox, templates, bulk send." width={1440} height={880} screens={[{"id":"3101","comp":"A3101_AgentInbox","label":"3.10.1 Agent inbox","h":860},{"id":"3102","comp":"A3102_AgentThread","label":"3.10.2 Thread","h":860},{"id":"3103","comp":"A3103_TemplatePicker","label":"3.10.3 Template picker","w":1100,"h":720},{"id":"3104","comp":"A3104_TemplateLibrary","label":"3.10.4 Template library","h":820},{"id":"3105","comp":"A3105_TemplateEditor","label":"3.10.5 Template editor","h":820},{"id":"3106","comp":"A3106_BulkSend","label":"3.10.6 Bulk send","h":820}]} mobileScreens={null}/>
+        <Section id="a310" title="3.10 · Messaging & Templates" subtitle="Agent inbox, templates, bulk send." width={1440} height={880} screens={[{"id":"3101","comp":"A3101_AgentInbox","label":"3.10.1 Agent inbox","h":860},{"id":"3102","comp":"A3102_AgentThread","label":"3.10.2 Thread","h":860},{"id":"3103","comp":"A3103_TemplatePicker","label":"3.10.3 Template picker","w":1100,"h":720},{"id":"3104","comp":"A3104_TemplateLibrary","label":"3.10.4 Template library","h":820},{"id":"3105","comp":"A3105_TemplateEditor","label":"3.10.5 Template editor","h":820},{"id":"3106","comp":"A3106_BulkSend","label":"3.10.6 Bulk send","h":820},{"id":"3107","comp":"A3107_WebNotifications","label":"3.10.7 Notifications (proposed, Stage 3b)","h":620}]} mobileScreens={[{"id":"m3101","comp":"M3101_Inbox","label":"3.10m.1 Inbox"},{"id":"m3102a","comp":"M3102_ThreadReply","label":"3.10m.2 Thread \u00b7 reply"},{"id":"m3102b","comp":"M3102_ThreadNote","label":"3.10m.2 Thread \u00b7 note"},{"id":"m3103","comp":"M3103_NewMessage","label":"3.10m.3 New message"},{"id":"m3104","comp":"M3104_DeskOnly","label":"3.10m.4 On the web (deferred)"},{"id":"m3105","comp":"M3105_NotifyLocked","label":"3.10m.5 Notification · locked"},{"id":"m3106","comp":"M3106_NotifyReply","label":"3.10m.6 Notification · reply"},{"id":"m3107","comp":"M3107_NotifyStates","label":"3.10m.7 Notification · failed & summary"},{"id":"m3108","comp":"M3108_InboxTurnOn","label":"3.10m.8 Turn on notifications"}]}/>
       </DesignCanvas>
     );
   }

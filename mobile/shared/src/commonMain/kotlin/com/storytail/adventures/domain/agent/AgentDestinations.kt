@@ -36,7 +36,8 @@ data class AgentDestination(
 val AGENT_BAR_DESTINATIONS: List<AgentDestination> = listOf(
     AgentDestination("worklist", "Worklist", built = true, phase = null, section = "§3.2"),
     AgentDestination("clients", "Clients", built = true, phase = null, section = "§3.3"),
-    AgentDestination("messages", "Messages", built = false, phase = "P1", section = "§3.10"),
+    // Built 2026-10-15 (§3.10 Stage 3): read, reply and internal notes. Templates stay on the web.
+    AgentDestination("messages", "Messages", built = true, phase = null, section = "§3.10"),
     // Not a rail destination on web. It is the eventual home of sign-out; until §3.12
     // builds it, sign-out rides the worklist's top bar (see `AgentTopBar`) rather than
     // waiting here, because Worklist is the whole agent shell and nothing else can reach it.
