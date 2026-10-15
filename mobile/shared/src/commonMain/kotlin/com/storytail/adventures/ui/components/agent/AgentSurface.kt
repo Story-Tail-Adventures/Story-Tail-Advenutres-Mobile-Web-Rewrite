@@ -27,10 +27,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -99,8 +102,8 @@ fun AgentScaffold(
  * The advisor's top bar, and the only way off this surface.
  *
  * WHY SIGN-OUT LIVES HERE RATHER THAN BEHIND "MORE". Worklist is the whole agent shell in
- * this slice: `nav.resetTo` clears the stack so system back is disabled, and Clients,
- * Messages and More are all `built = false`, which [AgentTab] draws dimmed and unpressable.
+ * this slice: `nav.resetTo` clears the stack so system back is disabled, and More is
+ * still `built = false`, which [AgentTab] draws dimmed and unpressable.
  * Until §3.12 builds More there is no other screen to put this on, and before §3.2 an agent
  * signing in on a phone landed in the CLIENT shell, whose Account tab has one — so shipping
  * without it would REMOVE the only sign-out an agent had rather than merely not add one.
@@ -157,6 +160,13 @@ fun AgentTopBar(
         HorizontalDivider(color = scheme.outlineVariant)
     }
 }
+
+/**
+ * Unread THREADS for the Messages tab's badge (§3.10 Stage 3). Provided once by `AgentRoute`,
+ * which re-reads `agent_message_summary` when the app opens and on every route change (there is
+ * no live feed), so every agent screen's bar draws the same number without each fetching it.
+ */
+val LocalAgentUnreadThreads = compositionLocalOf { 0 }
 
 @Composable
 fun AgentBottomNav(
@@ -236,6 +246,26 @@ private fun AgentTab(
                 size = 19.dp,
                 color = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
             )
+            val unread = LocalAgentUnreadThreads.current
+            if (destination.id == "messages" && unread > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 8.dp)
+                        .widthIn(min = 16.dp)
+                        .heightIn(min = 16.dp)
+                        .background(scheme.error, PillShape)
+                        .padding(horizontal = 4.dp)
+                        .clearAndSetSemantics { contentDescription = "$unread unread" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (unread > 99) "99+" else "$unread",
+                        style = LocalStoryTailBrandTypography.current.labelXS,
+                        color = scheme.onError,
+                    )
+                }
+            }
         }
         Text(
             text = destination.label,

@@ -77,7 +77,8 @@ object AgentCopy {
     // pair was broken rather than re-made. That asymmetry is now closed from the other end.
     //
     // CLIENT_DETAIL_DEFERRED lived here until §3.3.2 shipped, and never had a call site.
-    const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
+    // MESSAGES_DEFERRED lived here until §3.10 Stage 3 put Messages on the phone (2026-10-15):
+    // the worklist's message rows and Trip Detail's Messages tab both open the thread now.
     // QUICK_ADD_TRIP_DEFERRED lived here until §3.4.3 shipped, and followed
     // QUICK_ADD_CLIENT_DEFERRED out for the same reason: §3.2.1 on Compose has no quick-add
     // at all, by decision, so neither ever had a render site on this side. The web control

@@ -62,10 +62,10 @@ import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
  *    definition of deep work. Web has them disabled-with-a-reason because it has the room.
  *  * ROWS TAP THROUGH NOW, which they did not at first delivery. Trip detail (§3.4.2) and
  *    client detail (§3.3.2) are both built on this stack, so the three trip sections push
- *    §3.4.2 and the deferral that stood at the foot of each of them is gone. What is still
- *    NOT tappable is a MESSAGE row: §3.10 is unbuilt, and that section keeps its sentence.
- *    A payment row is not tappable either — it names a milestone, and §3.4.15's editor is
- *    web-only, so the trip behind it is reached from the trip sections above.
+ *    §3.4.2 and the deferral that stood at the foot of each of them is gone. Message rows
+ *    open their thread since §3.10 Stage 3. What is still NOT tappable is a payment row: it
+ *    names a milestone, and §3.4.15's editor is web-only, so the trip behind it is reached
+ *    from the trip sections above.
  *
  * Every row is a NAMED PERSON, not a record — Design-System §2.6's conviction, on the side
  * of the product where it is easiest to forget.
@@ -76,6 +76,8 @@ fun WorklistScreen(
     onSelectTab: (String) -> Unit,
     /** Screen 3.4.2, from the three sections whose rows are trips. */
     onOpenTrip: (String) -> Unit,
+    /** Screen 3.10.2, from "Recent messages" (§3.10 Stage 3). */
+    onOpenThread: (String) -> Unit,
     /**
      * THE ONLY WAY OFF THIS SURFACE until §3.12 builds More — see [AgentTopBar] for why it
      * rides the top bar rather than a tab. Required rather than defaulted: a second agent
@@ -112,13 +114,13 @@ fun WorklistScreen(
                 body = "Your account does not have access to the worklist.",
             )
             is Loadable.Empty -> WorklistMessagePanel(title = state.title, body = state.body)
-            is Loadable.Ready -> WorklistBody(state.value, onOpenTrip)
+            is Loadable.Ready -> WorklistBody(state.value, onOpenTrip, onOpenThread)
         }
     }
 }
 
 @Composable
-private fun WorklistBody(ui: WorklistUiState, onOpenTrip: (String) -> Unit) {
+private fun WorklistBody(ui: WorklistUiState, onOpenTrip: (String) -> Unit, onOpenThread: (String) -> Unit) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
 
@@ -177,8 +179,9 @@ private fun WorklistBody(ui: WorklistUiState, onOpenTrip: (String) -> Unit) {
             TripRow(trip, first = i == 0, onOpen = onOpenTrip)
         }
     }
-    Section(AgentCopy.MESSAGES_TITLE, ui.snapshot.recentMessages.size, AgentCopy.MESSAGES_EMPTY, AgentCopy.MESSAGES_DEFERRED) {
-        ui.snapshot.recentMessages.forEachIndexed { i, m -> MessageRow(m, first = i == 0) }
+    // Since §3.10 Stage 3 these rows open their thread, so the section lost its footer too.
+    Section(AgentCopy.MESSAGES_TITLE, ui.snapshot.recentMessages.size, AgentCopy.MESSAGES_EMPTY) {
+        ui.snapshot.recentMessages.forEachIndexed { i, m -> MessageRow(m, first = i == 0, onOpen = onOpenThread) }
     }
     Spacer(Modifier.height(12.dp))
 }
@@ -357,11 +360,15 @@ private fun PaymentRow(payment: WorklistPayment, first: Boolean) {
 }
 
 @Composable
-private fun MessageRow(message: WorklistMessage, first: Boolean) {
-    val type = LocalStoryTailBrandTypography.current
+private fun MessageRow(message: WorklistMessage, first: Boolean, onOpen: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     if (!first) HorizontalDivider(color = scheme.outlineVariant)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onOpen(message.conversationId) }
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+    ) {
         Text(message.clientName, style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)
         Text(message.preview, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
     }

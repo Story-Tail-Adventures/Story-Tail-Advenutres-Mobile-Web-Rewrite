@@ -1,12 +1,15 @@
 package com.storytail.adventures.ui.screens.agent
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.storytail.adventures.api.AgentMessagesRepository
 import com.storytail.adventures.api.AgentRepository
 import com.storytail.adventures.api.AgentTripDetailRead
 import com.storytail.adventures.api.ClientDetailRead
@@ -21,6 +24,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import com.storytail.adventures.ui.components.client.formatMoney
+import com.storytail.adventures.ui.components.agent.LocalAgentUnreadThreads
 import com.storytail.adventures.ui.nav.AppRoute
 import com.storytail.adventures.ui.nav.Navigator
 
@@ -32,8 +36,9 @@ import com.storytail.adventures.ui.nav.Navigator
  * and nothing in this package imports `ClientScaffold`. A client route reaching here is
  * unrepresentable: App.kt's `when` is exhaustive and never routes one this way.
  *
- * FOUR SCREENS NOW. §6.6 keeps Pipeline and Calendar web-only at MVP; Messages (§3.10) and
- * More (§3.12) are still dimmed tabs rather than routes. Clients joined on 2026-09-26,
+ * SEVEN SCREENS NOW. §6.6 keeps Pipeline and Calendar web-only at MVP; More (§3.12) is still a
+ * dimmed tab rather than a route. Messages (§3.10) joined on 2026-10-15 (Stage 3): the inbox,
+ * a thread, and a new message, in AgentMessagesRoutes.kt. Clients joined on 2026-09-26,
  * which is what turned [tabRoute] from a no-op guard into a real mapping, and Trip detail
  * (§3.4.2) joined on 2026-09-30 — reached from the worklist's rows and the client detail's
  * Trips tab rather than from a tab of its own, because §6.6's bar has no Trips.
@@ -43,6 +48,8 @@ fun AgentRoute(
     route: AppRoute,
     nav: Navigator,
     agent: AgentRepository,
+    /** §3.10's messaging (Stage 3): the Messages tab, threads, and the tab's unread badge. */
+    messages: AgentMessagesRepository,
     displayName: String,
     /** `platform_user.time_zone`. The greeting is derived from it, never from the handset. */
     timeZone: String,
@@ -57,181 +64,223 @@ fun AgentRoute(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    when (route) {
-        AppRoute.Worklist -> {
-            var state by remember { mutableStateOf<Loadable<WorklistUiState>>(Loadable.Loading) }
+    // The Messages tab's badge: unread THREADS, re-read on every route change and after
+    // anything that can move it. No live feed (Gyasi, 2026-10-14), so this is the refresh.
+    var unreadThreads by remember { mutableIntStateOf(0) }
+    var badgeTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(messages, route, badgeTick) {
+        messages.unreadThreads()?.let { unreadThreads = it }
+    }
+    val refreshBadge: () -> Unit = { badgeTick++ }
 
-            LaunchedEffect(agent, timeZone) {
-                state = when (val read = agent.worklist()) {
-                    // Three answers preserved all the way to the screen. `Unauthorized` is
-                    // consumed by thirteen §2.2 screens and produced by none of them,
-                    // because TripRepository collapses "threw" and "decoded nothing" into
-                    // one null. New code should not inherit that.
-                    is WorklistRead.Ok -> Loadable.Ready(
-                        worklistUiState(
-                            snapshot = read.snapshot,
-                            displayName = displayName,
-                            // The hour in the AGENT's zone. `Intl`'s equivalent on the web
-                            // side; an unrecognised IANA name falls back to UTC rather than
-                            // throwing inside a composition.
-                            partOfDay = partOfDay(
-                                Clock.System.now()
-                                    .toLocalDateTime(
-                                        runCatching { TimeZone.of(timeZone) }
-                                            .getOrDefault(TimeZone.UTC),
-                                    )
-                                    .hour,
+    CompositionLocalProvider(LocalAgentUnreadThreads provides unreadThreads) {
+        when (route) {
+            AppRoute.Worklist -> {
+                var state by remember { mutableStateOf<Loadable<WorklistUiState>>(Loadable.Loading) }
+
+                LaunchedEffect(agent, timeZone) {
+                    state = when (val read = agent.worklist()) {
+                        // Three answers preserved all the way to the screen. `Unauthorized` is
+                        // consumed by thirteen §2.2 screens and produced by none of them,
+                        // because TripRepository collapses "threw" and "decoded nothing" into
+                        // one null. New code should not inherit that.
+                        is WorklistRead.Ok -> Loadable.Ready(
+                            worklistUiState(
+                                snapshot = read.snapshot,
+                                displayName = displayName,
+                                // The hour in the AGENT's zone. `Intl`'s equivalent on the web
+                                // side; an unrecognised IANA name falls back to UTC rather than
+                                // throwing inside a composition.
+                                partOfDay = partOfDay(
+                                    Clock.System.now()
+                                        .toLocalDateTime(
+                                            runCatching { TimeZone.of(timeZone) }
+                                                .getOrDefault(TimeZone.UTC),
+                                        )
+                                        .hour,
+                                ),
+                                // The agent's own date, off the accessor — never the handset's.
+                                today = read.snapshot.asOfDate,
                             ),
-                            // The agent's own date, off the accessor — never the handset's.
-                            today = read.snapshot.asOfDate,
-                        ),
-                    )
-                    WorklistRead.Forbidden -> Loadable.Unauthorized
-                    WorklistRead.Failed -> Loadable.Failed()
+                        )
+                        WorklistRead.Forbidden -> Loadable.Unauthorized
+                        WorklistRead.Failed -> Loadable.Failed()
+                    }
                 }
+
+                WorklistScreen(
+                    state = state,
+                    onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
+                    // §3.4.2 landing is what retired `AgentCopy.TRIP_DETAIL_DEFERRED` from the
+                    // three trip sections that rendered it.
+                    onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
+                    onOpenThread = { nav.push(AppRoute.AgentThread(it)) },
+                    onSignOut = onSignOut,
+                    modifier = modifier,
+                )
             }
 
-            WorklistScreen(
-                state = state,
+            AppRoute.AgentClients -> {
+                var status by remember { mutableStateOf("active") }
+                var search by remember { mutableStateOf("") }
+                // The window, not a page number: §6.6 makes this screen APPEND rather than
+                // paginate, so "load more" widens the same read instead of moving it.
+                var limit by remember { mutableStateOf(PAGE) }
+                var state by remember { mutableStateOf<Loadable<ClientRosterUiState>>(Loadable.Loading) }
+
+                // Re-reads on every keystroke's settled value, on a status change, and on a
+                // widened window. `search` is a key rather than a debounce because the accessor
+                // is one indexed round trip and a debounce here would need a scope of its own.
+                LaunchedEffect(agent, status, search, limit) {
+                    state = when (val read = agent.clientRoster(status, search, limit, 0)) {
+                        is ClientRosterRead.Ok -> Loadable.Ready(
+                            clientRosterUiState(read.snapshot) { cents, currency ->
+                                formatMoney(cents, currency)
+                            },
+                        )
+                        ClientRosterRead.Forbidden -> Loadable.Unauthorized
+                        ClientRosterRead.Failed -> Loadable.Failed()
+                    }
+                }
+
+                ClientRosterScreen(
+                    state = state,
+                    onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
+                    search = search,
+                    onSearchChange = {
+                        search = it
+                        // A new search is a new result set; keeping a widened window would ask
+                        // for rows 1..75 of a list with four in it and read as a stuck spinner
+                        // on the slowest connection this screen is designed for.
+                        limit = PAGE
+                    },
+                    status = status,
+                    onStatusChange = {
+                        status = it
+                        limit = PAGE
+                    },
+                    onLoadMore = { limit += PAGE },
+                    onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
+                    onSignOut = onSignOut,
+                    modifier = modifier,
+                )
+            }
+
+            is AppRoute.AgentClientDetail -> {
+                var tab by remember(route.clientId) { mutableStateOf("overview") }
+                var state by remember(route.clientId) {
+                    mutableStateOf<Loadable<ClientDetailUiState>>(Loadable.Loading)
+                }
+
+                // Keyed on the client id alone — NOT on `tab`. All seven reads land in one pass
+                // and the strip switches over what is already held, so re-running this on a tab
+                // change would re-fetch the whole detail to show data the screen already has.
+                LaunchedEffect(agent, route.clientId) {
+                    state = when (val read = agent.clientDetail(route.clientId)) {
+                        is ClientDetailRead.Ok -> Loadable.Ready(
+                            clientDetailUiState(read.snapshot) { cents, currency ->
+                                formatMoney(cents, currency)
+                            },
+                        )
+                        ClientDetailRead.NotFound -> Loadable.Empty(
+                            title = ClientCopy.NOT_FOUND_TITLE,
+                            body = ClientCopy.NOT_FOUND_BODY,
+                        )
+                        ClientDetailRead.Forbidden -> Loadable.Unauthorized
+                        ClientDetailRead.Failed -> Loadable.Failed()
+                    }
+                }
+
+                ClientDetailScreen(
+                    state = state,
+                    activeTab = tab,
+                    onSelectTab = { tab = it },
+                    onBack = { if (!nav.pop()) nav.selectTab(AppRoute.AgentClients) },
+                    onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
+                    onOpenThread = { nav.push(AppRoute.AgentThread(it)) },
+                    onMessageClient = { nav.push(AppRoute.AgentNewMessage(it)) },
+                    onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
+                    onSignOut = onSignOut,
+                    modifier = modifier,
+                )
+            }
+
+            is AppRoute.AgentTripDetail -> {
+                var tab by remember(route.tripId) { mutableStateOf("overview") }
+                var state by remember(route.tripId) {
+                    mutableStateOf<Loadable<AgentTripDetailUiState>>(Loadable.Loading)
+                }
+
+                // Keyed on the trip id alone — NOT on `tab`, the same call the client detail
+                // makes above. Eight reads land in one pass and the strip switches over what is
+                // already held, so re-running this on a tab change would re-fetch the whole
+                // trip to show data the screen already has.
+                LaunchedEffect(agent, route.tripId) {
+                    state = when (val read = agent.tripDetail(route.tripId)) {
+                        is AgentTripDetailRead.Ok -> Loadable.Ready(
+                            agentTripDetailUiState(read.snapshot) { cents, currency ->
+                                formatMoney(cents, currency)
+                            },
+                        )
+                        AgentTripDetailRead.NotFound -> Loadable.Empty(
+                            title = AgentCopy.TRIP_NOT_FOUND_TITLE,
+                            body = AgentCopy.TRIP_NOT_FOUND_BODY,
+                        )
+                        AgentTripDetailRead.Forbidden -> Loadable.Unauthorized
+                        AgentTripDetailRead.Failed -> Loadable.Failed()
+                    }
+                }
+
+                AgentTripDetailScreen(
+                    state = state,
+                    activeTab = tab,
+                    onSelectTab = { tab = it },
+                    // The worklist rather than the Clients tab, unlike the client detail's
+                    // fallback: this screen is pushed from three worklist sections and one
+                    // client tab, and an empty stack means a process death restored straight
+                    // into it. Worklist is the agent shell's root and the commoner origin.
+                    onBack = { if (!nav.pop()) nav.selectTab(AppRoute.Worklist) },
+                    // PUSH, not a replace. An advisor who came from the worklist and taps
+                    // through to the client should get back to the trip, then to the worklist —
+                    // and one who came FROM that client gets a second copy of it on the stack,
+                    // which is a stack two pops deep rather than a loop.
+                    onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
+                    onOpenMessages = { clientId, tripId -> nav.push(AppRoute.AgentNewMessage(clientId, tripId)) },
+                    onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
+                    onSignOut = onSignOut,
+                    modifier = modifier,
+                )
+            }
+
+            AppRoute.AgentMessages -> AgentInboxRoute(
+                messages = messages,
+                nav = nav,
+                timeZone = timeZone,
                 onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
-                // §3.4.2 landing is what retired `AgentCopy.TRIP_DETAIL_DEFERRED` from the
-                // three trip sections that rendered it.
-                onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
                 onSignOut = onSignOut,
                 modifier = modifier,
             )
-        }
 
-        AppRoute.AgentClients -> {
-            var status by remember { mutableStateOf("active") }
-            var search by remember { mutableStateOf("") }
-            // The window, not a page number: §6.6 makes this screen APPEND rather than
-            // paginate, so "load more" widens the same read instead of moving it.
-            var limit by remember { mutableStateOf(PAGE) }
-            var state by remember { mutableStateOf<Loadable<ClientRosterUiState>>(Loadable.Loading) }
-
-            // Re-reads on every keystroke's settled value, on a status change, and on a
-            // widened window. `search` is a key rather than a debounce because the accessor
-            // is one indexed round trip and a debounce here would need a scope of its own.
-            LaunchedEffect(agent, status, search, limit) {
-                state = when (val read = agent.clientRoster(status, search, limit, 0)) {
-                    is ClientRosterRead.Ok -> Loadable.Ready(
-                        clientRosterUiState(read.snapshot) { cents, currency ->
-                            formatMoney(cents, currency)
-                        },
-                    )
-                    ClientRosterRead.Forbidden -> Loadable.Unauthorized
-                    ClientRosterRead.Failed -> Loadable.Failed()
-                }
-            }
-
-            ClientRosterScreen(
-                state = state,
-                onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
-                search = search,
-                onSearchChange = {
-                    search = it
-                    // A new search is a new result set; keeping a widened window would ask
-                    // for rows 1..75 of a list with four in it and read as a stuck spinner
-                    // on the slowest connection this screen is designed for.
-                    limit = PAGE
-                },
-                status = status,
-                onStatusChange = {
-                    status = it
-                    limit = PAGE
-                },
-                onLoadMore = { limit += PAGE },
-                onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
-                onSignOut = onSignOut,
+            is AppRoute.AgentThread -> AgentThreadRoute(
+                conversationId = route.conversationId,
+                messages = messages,
+                nav = nav,
+                timeZone = timeZone,
+                onMessagesChanged = refreshBadge,
                 modifier = modifier,
             )
-        }
 
-        is AppRoute.AgentClientDetail -> {
-            var tab by remember(route.clientId) { mutableStateOf("overview") }
-            var state by remember(route.clientId) {
-                mutableStateOf<Loadable<ClientDetailUiState>>(Loadable.Loading)
-            }
-
-            // Keyed on the client id alone — NOT on `tab`. All seven reads land in one pass
-            // and the strip switches over what is already held, so re-running this on a tab
-            // change would re-fetch the whole detail to show data the screen already has.
-            LaunchedEffect(agent, route.clientId) {
-                state = when (val read = agent.clientDetail(route.clientId)) {
-                    is ClientDetailRead.Ok -> Loadable.Ready(
-                        clientDetailUiState(read.snapshot) { cents, currency ->
-                            formatMoney(cents, currency)
-                        },
-                    )
-                    ClientDetailRead.NotFound -> Loadable.Empty(
-                        title = ClientCopy.NOT_FOUND_TITLE,
-                        body = ClientCopy.NOT_FOUND_BODY,
-                    )
-                    ClientDetailRead.Forbidden -> Loadable.Unauthorized
-                    ClientDetailRead.Failed -> Loadable.Failed()
-                }
-            }
-
-            ClientDetailScreen(
-                state = state,
-                activeTab = tab,
-                onSelectTab = { tab = it },
-                onBack = { if (!nav.pop()) nav.selectTab(AppRoute.AgentClients) },
-                onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
-                onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
-                onSignOut = onSignOut,
+            is AppRoute.AgentNewMessage -> AgentNewMessageRoute(
+                clientId = route.clientId,
+                tripId = route.tripId,
+                messages = messages,
+                nav = nav,
+                onMessagesChanged = refreshBadge,
                 modifier = modifier,
             )
+
+            else -> Unit
         }
-
-        is AppRoute.AgentTripDetail -> {
-            var tab by remember(route.tripId) { mutableStateOf("overview") }
-            var state by remember(route.tripId) {
-                mutableStateOf<Loadable<AgentTripDetailUiState>>(Loadable.Loading)
-            }
-
-            // Keyed on the trip id alone — NOT on `tab`, the same call the client detail
-            // makes above. Eight reads land in one pass and the strip switches over what is
-            // already held, so re-running this on a tab change would re-fetch the whole
-            // trip to show data the screen already has.
-            LaunchedEffect(agent, route.tripId) {
-                state = when (val read = agent.tripDetail(route.tripId)) {
-                    is AgentTripDetailRead.Ok -> Loadable.Ready(
-                        agentTripDetailUiState(read.snapshot) { cents, currency ->
-                            formatMoney(cents, currency)
-                        },
-                    )
-                    AgentTripDetailRead.NotFound -> Loadable.Empty(
-                        title = AgentCopy.TRIP_NOT_FOUND_TITLE,
-                        body = AgentCopy.TRIP_NOT_FOUND_BODY,
-                    )
-                    AgentTripDetailRead.Forbidden -> Loadable.Unauthorized
-                    AgentTripDetailRead.Failed -> Loadable.Failed()
-                }
-            }
-
-            AgentTripDetailScreen(
-                state = state,
-                activeTab = tab,
-                onSelectTab = { tab = it },
-                // The worklist rather than the Clients tab, unlike the client detail's
-                // fallback: this screen is pushed from three worklist sections and one
-                // client tab, and an empty stack means a process death restored straight
-                // into it. Worklist is the agent shell's root and the commoner origin.
-                onBack = { if (!nav.pop()) nav.selectTab(AppRoute.Worklist) },
-                // PUSH, not a replace. An advisor who came from the worklist and taps
-                // through to the client should get back to the trip, then to the worklist —
-                // and one who came FROM that client gets a second copy of it on the stack,
-                // which is a stack two pops deep rather than a loop.
-                onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
-                onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
-                onSignOut = onSignOut,
-                modifier = modifier,
-            )
-        }
-
-        else -> Unit
     }
 }
 
@@ -248,5 +297,6 @@ private const val PAGE = 25
 private fun tabRoute(id: String): AppRoute? = when (id) {
     "worklist" -> AppRoute.Worklist
     "clients" -> AppRoute.AgentClients
+    "messages" -> AppRoute.AgentMessages
     else -> null
 }

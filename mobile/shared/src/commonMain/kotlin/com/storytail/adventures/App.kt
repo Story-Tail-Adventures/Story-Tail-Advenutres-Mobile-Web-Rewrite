@@ -20,6 +20,7 @@ import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.AgentMessagesRepository
 import com.storytail.adventures.api.AgentRepository
 import com.storytail.adventures.ui.screens.agent.AgentRoute
 import com.storytail.adventures.api.WalletRepository
@@ -75,6 +76,7 @@ fun App() {
         var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
         var walletRepository by remember { mutableStateOf<WalletRepository?>(null) }
         var agentRepository by remember { mutableStateOf<AgentRepository?>(null) }
+        var agentMessagesRepository by remember { mutableStateOf<AgentMessagesRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
@@ -82,6 +84,7 @@ fun App() {
             accountRepository = SupabaseClientProvider.accountRepository()
             walletRepository = SupabaseClientProvider.walletRepository()
             agentRepository = SupabaseClientProvider.agentRepository()
+            agentMessagesRepository = SupabaseClientProvider.agentMessagesRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -204,15 +207,20 @@ fun App() {
             AppRoute.AgentClients,
             is AppRoute.AgentClientDetail,
             is AppRoute.AgentTripDetail,
+            AppRoute.AgentMessages,
+            is AppRoute.AgentThread,
+            is AppRoute.AgentNewMessage,
             -> {
                 val scope = rememberCoroutineScope()
                 val agent = agentRepository
-                if (agent == null) {
+                val messages = agentMessagesRepository
+                if (agent == null || messages == null) {
                     SplashScreen()
                 } else {
                     AgentSectionHost(
                         route = route,
                         agent = agent,
+                        messages = messages,
                         status = onboardingStatus,
                         nav = nav,
                         // The same call the client shell's Account tab makes. §3.12 has not
@@ -627,6 +635,7 @@ fun destinationFor(status: OnboardingStatus?): AppRoute = when {
 private fun AgentSectionHost(
     route: AppRoute,
     agent: AgentRepository,
+    messages: AgentMessagesRepository,
     status: OnboardingStatus?,
     nav: Navigator,
     onSignOut: () -> Unit,
@@ -635,6 +644,7 @@ private fun AgentSectionHost(
         route = route,
         nav = nav,
         agent = agent,
+        messages = messages,
         displayName = status?.displayName.orEmpty(),
         timeZone = status?.timeZone ?: "America/Chicago",
         onSignOut = onSignOut,

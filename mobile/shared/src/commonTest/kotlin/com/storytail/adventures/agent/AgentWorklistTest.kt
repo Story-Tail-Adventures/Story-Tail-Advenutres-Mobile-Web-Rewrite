@@ -78,11 +78,12 @@ class AgentWorklistTest {
     }
 
     @Test
-    fun two_tabs_are_built_and_every_other_one_names_its_section() {
-        // `clients` joined `worklist` on 2026-09-26 with §3.3.1. The order matters: this is
-        // §6.6's bar, and the built pair are its first two.
+    fun three_tabs_are_built_and_every_other_one_names_its_section() {
+        // `clients` joined `worklist` on 2026-09-26 with §3.3.1, and `messages` on 2026-10-15
+        // with §3.10 Stage 3. The order matters: this is §6.6's bar, and the built three are
+        // its first three.
         assertEquals(
-            listOf("worklist", "clients"),
+            listOf("worklist", "clients", "messages"),
             AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id },
         )
         for (d in AGENT_BAR_DESTINATIONS.filterNot { it.built }) {
@@ -328,7 +329,6 @@ class AgentWorklistTest {
         // Trips tab all push AppRoute.AgentTripDetail now, so there was nothing left to
         // defer and a sentence naming a built section is worse than no sentence.
         for (copy in listOf(
-            AgentCopy.MESSAGES_DEFERRED,
             AgentCopy.LEADS_DEFERRED,
             AgentCopy.AVAILABILITY_DEFERRED,
         )) {

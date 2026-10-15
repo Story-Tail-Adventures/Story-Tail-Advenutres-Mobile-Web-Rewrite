@@ -48,6 +48,8 @@ import com.storytail.adventures.domain.trip.documentBadge
 import com.storytail.adventures.domain.trip.formatFileSize
 import com.storytail.adventures.domain.trip.formatMessageTime
 import com.storytail.adventures.domain.trip.groupMessagesByDay
+import com.storytail.adventures.ui.components.ChatBubble
+import com.storytail.adventures.ui.components.ChatDaySeparator
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
 import com.storytail.adventures.ui.theme.PillShape
@@ -279,30 +281,13 @@ private fun ThreadList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         for (day in days) {
-            item(key = "day-${day.key}") { DaySeparator(day.label) }
+            item(key = "day-${day.key}") { ChatDaySeparator(day.label) }
             items(
                 count = day.messages.size,
                 key = { index -> day.messages[index].id },
             ) { index ->
                 MessageBubble(day.messages[index])
             }
-        }
-    }
-}
-
-@Composable
-private fun DaySeparator(label: String) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh, PillShape)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
-        ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -328,26 +313,9 @@ private fun MessageBubble(message: ThreadMessageView) {
         // 78% rather than the desktop twin's 70%: on a 375pt frame a 70% cap breaks a
         // two-clause sentence onto four lines. The artboard uses 78% for the same reason.
         Column(Modifier.fillMaxWidth(0.78f)) {
-            Box(
-                Modifier
-                    .background(
-                        if (mine) scheme.primary else scheme.surfaceContainer,
-                        // The tail corner sits on the sender's side, matching the artboards.
-                        if (mine) {
-                            RoundedCornerShape(18.dp, 18.dp, 4.dp, 18.dp)
-                        } else {
-                            RoundedCornerShape(18.dp, 18.dp, 18.dp, 4.dp)
-                        },
-                    )
-                    .padding(horizontal = 13.dp, vertical = 10.dp),
-            ) {
-                Text(
-                    message.body,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 14.sp,
-                    color = if (mine) scheme.onPrimary else scheme.onSurface,
-                )
-            }
+            // The shared shapes (ChatParts.kt): the advisor's thread draws the same bubble with
+            // the sides swapped, and the two must not drift.
+            ChatBubble(body = message.body, mine = mine)
 
             for (attachment in message.attachments) {
                 Spacer(Modifier.height(6.dp))

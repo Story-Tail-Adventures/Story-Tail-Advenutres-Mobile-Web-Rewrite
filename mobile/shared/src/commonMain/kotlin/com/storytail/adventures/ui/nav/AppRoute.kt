@@ -468,8 +468,8 @@ sealed interface AppRoute {
     // and AccountRoute, and no composable under ui/screens/agent/ imports ClientScaffold.
     //
     // Screen-Inventory §6.6 keeps the agent's phone deliberately narrow: Worklist, Clients,
-    // Messages, More. The first two have screens; Messages (§3.10) and More (§3.12) are
-    // drawn dimmed, which is why they are not routes yet.
+    // Messages, More. The first three have screens since §3.10 Stage 3; More (§3.12) is
+    // drawn dimmed, which is why it is not a route yet.
 
     /** Screen 3.2.1, and the root of the Worklist tab. */
     @Serializable
@@ -511,6 +511,33 @@ sealed interface AppRoute {
      */
     @Serializable
     data class AgentTripDetail(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── §3.10 · Messages, the third tab (Stage 3, 2026-10-15) ───────────────────
+
+    /** Screen 3.10.1 on the phone (3.10m.1), and the root of the Messages tab. */
+    @Serializable
+    data object AgentMessages : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 3.10.2 (3.10m.2), pushed from the inbox, the worklist's "Recent messages", Client
+     * Detail's threads tab and Trip Detail's Messages tab.
+     */
+    @Serializable
+    data class AgentThread(val conversationId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * A message to a client (and optionally one trip) with no live thread yet (3.10m.3).
+     * Client Detail's "Message" and Trip Detail's Messages tab push this; when a thread exists
+     * it REPLACES itself with [AgentThread], so Back never lands on an empty composer.
+     */
+    @Serializable
+    data class AgentNewMessage(val clientId: String, val tripId: String? = null) : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }
