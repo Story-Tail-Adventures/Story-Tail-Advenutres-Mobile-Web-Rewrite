@@ -3127,6 +3127,16 @@ These tools let the agent help less-technical clients with login issues.
 >   "Remind the client" is live (§3.4's payments note).
 > - **No phone treatment yet**: Messages is one of §6.6's four agent tabs, and Stage 3 builds
 >   it (read and reply, internal notes too; Gyasi, 2026-10-13), artboards first.
+>
+> > **Stage 3 settled 2026-10-14 (grilling, Gyasi).** The phone's Messages tab: an inbox with
+> > visible search, Unread and Overdue chips, an Archived link and no bulk select; more threads
+> > load on scroll; pull to refresh and a reload on return (no live feed). The thread header
+> > carries the client, trip, an Overdue or "Reply by" chip, Open trip (or Open client) and
+> > Archive, which is the only archive on the phone (no swipe). A Reply / Note toggle sits above
+> > the box, with the web's dashed note look. No template picker. Client attachments by name
+> > only. The tab shows a badge of unread threads, and the Worklist, Client Detail and Trip
+> > Detail doors go live. `agent-message` joins `contracts/openapi.yaml`. The frames to draw
+> > are specified in `design/briefs/agent-messages-phone.md`.
 
 #### 3.10.2 Conversation Thread (Agent View)
 **Purpose:** Threaded message view from the agent side.
