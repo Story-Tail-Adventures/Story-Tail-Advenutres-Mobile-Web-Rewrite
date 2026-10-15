@@ -3257,7 +3257,7 @@ These tools let the agent help less-technical clients with login issues.
 > - **No audit rows.** Templates hold no client data, so they are outside Rule 3's sensitive
 >   tables; the messages they produce are recorded the usual way.
 
-#### 3.10.7 Message Notifications (proposed, §3.10 Stage 3b)
+#### 3.10.7 Message Notifications (§3.10 Stage 3b: web built; phone next)
 **Purpose:** Tell the advisor a client has written, on the web and the phone, and let them answer
 from the phone's notification.
 **Primary elements:** System notification (client, trip, first line); Reply and Mark read on the
@@ -3287,6 +3287,27 @@ Preferences (3.12.3).
 > - **Services:** Firebase Cloud Messaging for Android (a new SDK: security review first), the
 >   browsers' standard Web Push with our own keys for the web, Apple's push service directly for
 >   iOS. **Android and web first; iOS once Xcode is installed.**
+>
+> **Built (web, Stage 3b PR 1, 2026-10-15).** The queue is `push_outbox` (Data-Model §12.7),
+> filled by a trigger on the advisor's unread count, so none of Stage 1's audited writes changed.
+> `push-dispatch` runs every minute from pg_cron; `push-device` turns a browser on and off.
+> Choices made in the build, within the rulings above:
+>
+> - **Locked screen on the web is the system's call.** A browser cannot tell whether the screen
+>   is locked, so the web notification carries the trip and first line, and the operating
+>   system's own lock-screen privacy setting decides what shows. The phone (PR 2) applies the
+>   name-only rule itself.
+> - **"Not now" is per browser**, like the permission. A browser that was refused permission
+>   before never sees the card again, because the browser will not ask twice.
+> - **"Mark read" reads up to the message the notification named**, never further, so a newer
+>   message stays unread.
+> - **Reading clears the phone, not other browsers.** Browsers expect every push to show
+>   something, and Safari can revoke a subscription that sends silent ones, so no dismiss is
+>   sent to the web. A web notification already answered elsewhere is the advisor's to swipe.
+> - **An archived advisor is told nothing**, as they can read nothing.
+> - **A card number a client types** shows in a notification as "•••• 4242" only.
+> - **Only the browsers' own push services** may be a device's address (Google, Mozilla,
+>   Microsoft, Apple). Anything else is refused at registration and again at send.
 
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").

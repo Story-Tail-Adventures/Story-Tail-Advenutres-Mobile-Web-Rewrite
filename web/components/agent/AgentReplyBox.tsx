@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -67,6 +67,7 @@ export function AgentReplyBox({
   clientFirstName,
   clientCanSignIn,
   picker = null,
+  focusOnOpen = false,
 }: {
   conversationId?: string;
   clientId?: string;
@@ -76,6 +77,8 @@ export function AgentReplyBox({
   clientCanSignIn: boolean;
   /** The templates and this thread's merge values; null offers no picker (the read failed). */
   picker?: PickerData | null;
+  /** Put the cursor in the box on first render (a notification's click opened this thread). */
+  focusOnOpen?: boolean;
 }) {
   const [body, setBody] = useState("");
   const [note, setNote] = useState(false);
@@ -85,6 +88,10 @@ export function AgentReplyBox({
   const draft = useRef<Draft | null>(null);
   const router = useRouter();
   const fieldId = useId();
+
+  useEffect(() => {
+    if (focusOnOpen) document.getElementById(fieldId)?.focus();
+  }, [focusOnOpen, fieldId]);
   const noLoginId = useId();
   const noteHintId = useId();
   const inThread = Boolean(conversationId);

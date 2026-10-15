@@ -7,12 +7,12 @@ import Toolbar from "@mui/material/Toolbar";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 import { AgentQuickAdd, type QuickAddItem } from "@/components/agent/AgentQuickAdd";
+import { AgentSignOutForm } from "@/components/agent/AgentSignOutForm";
 import { BrandMark } from "@/components/brand/BrandMark";
 import NextLink from "@/components/mui/NextLink";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { signOutAction } from "@/lib/auth/actions";
 
 /**
  * The agent top bar. Screen-Inventory §6.4: "search, quick-add, notifications, profile menu".
@@ -133,14 +133,14 @@ export function AgentTopBar({ initials }: { initials: string }) {
 
             The §4.2 touch minimum rides on the form rather than the button, because the
             shared Button carries the legacy 32px box and exposes no `sx` of its own. */}
-        <Box component="form" action={signOutAction} sx={SIGN_OUT_FORM_SX}>
+        <AgentSignOutForm sx={SIGN_OUT_FORM_SX}>
           <Button variant="outlined" size="sm" type="submit" aria-label="Sign out" title="Sign out">
             <Icon name="lock" size={15} />
             <Box component="span" sx={SIGN_OUT_LABEL_SX}>
               Sign out
             </Box>
           </Button>
-        </Box>
+        </AgentSignOutForm>
       </Toolbar>
     </AppBar>
   );

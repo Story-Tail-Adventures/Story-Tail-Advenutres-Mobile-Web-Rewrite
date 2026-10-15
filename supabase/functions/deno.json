@@ -1,10 +1,13 @@
 {
   "imports": {
-    "@supabase/supabase-js": "jsr:@supabase/supabase-js@^2"
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@^2",
+    "web-push": "npm:web-push@3.6.7"
   },
   "lint": {
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     }
   },
   "fmt": {

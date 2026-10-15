@@ -42,10 +42,13 @@ export function AgentThreadView({
   thread,
   query,
   picker = null,
+  replyReady = false,
 }: {
   thread: ThreadView;
   query: InboxQuery;
   picker?: PickerData | null;
+  /** Focus the reply box on open: the thread was opened from a notification. */
+  replyReady?: boolean;
 }) {
   const { header, messages } = thread;
   const days = groupMessagesByDay(messages, thread.timeZone);
@@ -130,6 +133,7 @@ export function AgentThreadView({
           clientFirstName={header.clientFirstName}
           clientCanSignIn={header.clientCanSignIn}
           picker={picker}
+          focusOnOpen={replyReady}
         />
       </Box>
       <ThreadOpened conversationId={header.conversationId} lastMessageId={last?.id ?? null} seenUpTo={thread.seenUpTo} />

@@ -275,6 +275,55 @@ HTTP attempt, month-to-date is the budget), `cruise_sync_run` is one row per inv
 `cruise_sync_scope` is what the sync is allowed to fetch. Widening the sync is an `UPDATE` on
 that last table, not a deploy.
 
+## Notification secrets (§3.10 Stage 3b)
+
+Advisors' web notifications (`functions/push-device`, `functions/push-dispatch`, migration
+`20261017120000`) need one key pair and one vault secret. None belongs in git.
+
+**The Web Push (VAPID) keys.** Generate a pair once per environment and never reuse the local
+one in production:
+
+```bash
+deno eval 'import w from "npm:web-push@3.6.7"; console.log(w.generateVAPIDKeys())'
+supabase secrets set VAPID_PUBLIC_KEY=<public> VAPID_PRIVATE_KEY=<private> \
+  VAPID_SUBJECT=mailto:<an inbox the push services can reach> --project-ref <prod-ref>
+```
+
+The PUBLIC key also goes to the web app as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (Vercel env, and
+`web/.env.local` locally). It is public by design. The two must be the same pair: a browser
+subscribed with one public key cannot receive pushes signed with another key's private half.
+Changing the pair later silently orphans every existing subscription, so pick it once.
+
+Without the keys `push-dispatch` answers 500 BEFORE claiming anything, so nothing is lost; rows
+wait as `pending` until the keys exist.
+
+**The tick.** `push_dispatch_tick()` runs every minute from pg_cron and posts to the function
+only when something is due. It reuses `cruise_sync_service_role_key` (above) for its key, so the
+one extra secret is the URL:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/push-dispatch',
+  'push_dispatch_function_url');
+-- LOCAL: 'http://kong:8000/functions/v1/push-dispatch', as for the cruise sync.
+```
+
+With either secret missing the tick returns `unprovisioned` and does nothing.
+
+**Locally:** add the three `VAPID_*` lines to `supabase/.env.local` and restart with
+`npm run supabase:start` (or `supabase functions serve --env-file supabase/.env.local`).
+Firing the dispatcher by hand:
+
+```bash
+curl -X POST http://127.0.0.1:54321/functions/v1/push-dispatch \
+  -H "Authorization: Bearer $(supabase status -o json | jq -r .SERVICE_ROLE_KEY)"
+```
+
+Answers `{"sent","retried","dismissed","gone"}`. Any user token is 403.
+
+**Android (PR 2)** will add `FCM_SERVICE_ACCOUNT_JSON`. See
+`../docs/Push-Notifications-Security-Review.md`.
+
 ## Critical PCI rules for this directory
 
 1. **Never store PANs in migrations or Edge Function code.** Only Stripe tokens (`PaymentMethod` IDs) and Stripe-returned metadata (brand, last 4, expiration). See `../docs/Data-Model.md` §18.

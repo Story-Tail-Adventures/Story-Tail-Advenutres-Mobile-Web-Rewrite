@@ -18,7 +18,7 @@ export default async function AgentThreadPage({
   searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
-  searchParams: Promise<InboxParams & { remind?: string }>;
+  searchParams: Promise<InboxParams & { remind?: string; reply?: string }>;
 }) {
   const { conversationId } = await params;
   if (!isUuid(conversationId)) notFound();
@@ -36,5 +36,6 @@ export default async function AgentThreadPage({
   const { header } = result.thread;
   const picker = await loadPickerData(header.clientId, header.tripId, isUuid(search.remind) ? search.remind : null);
 
-  return <AgentThreadView thread={result.thread} query={query} picker={picker} />;
+  // `?reply=1` is a web notification's click (§3.10.7, ruling 3): the reply box is ready.
+  return <AgentThreadView thread={result.thread} query={query} picker={picker} replyReady={search.reply === "1"} />;
 }
