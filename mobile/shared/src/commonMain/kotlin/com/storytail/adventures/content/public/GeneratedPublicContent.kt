@@ -940,7 +940,7 @@ internal object PublicCatalog {
             title = "Privacy policy",
             navLabel = "Privacy",
             description = "What Story-Tail Adventures collects, how payment cards are handled, and your data rights.",
-            lastUpdated = "2026-10-10",
+            lastUpdated = "2026-10-15",
             status = "draft",
             sections = listOf(
             LegalSection(
@@ -967,6 +967,7 @@ internal object PublicCatalog {
                     "Hotel photographs on the results page are loaded directly from Google's image servers. That means Google receives your IP address and browser details when a photo loads, as it would for any image on the web. We ask your browser not to tell Google which page you were on.",
                     "We keep a record of each hotel search so we can stay inside the search allowance we pay for. The destination and dates are cleared from that record after 30 days; the cached results themselves expire within hours.",
                     "When you use the portal in a web browser, our hosting provider, Vercel, records each page view. It notes the page and the time, the site that sent you, your approximate location (country, region and city), and your device type, operating system and browser. Vercel says it sets no cookies for this, does not follow you to other sites, and does not tie a visit to your name, email or IP address. To tell visits apart for a day, it uses a code made from your browser's request and throws that code away after 24 hours. Before anything is sent, we remove ID numbers from the web address and everything after the “?”, except campaign tags that show which link brought you here. We use the counts to see which pages people visit, which links bring them here, and what to improve. You can read Vercel's own description at vercel.com/docs/analytics/privacy-policy.",
+                    "If you say yes, the website also counts your visit with Google Analytics, a Google service we reach through Firebase. Nothing is sent to Google until you agree, and you can say no and still use everything. Google Analytics sets its own cookies to tell one visit from another, and it records the page, the site that sent you, your approximate location, and your device and browser. It gets the same cleaned-up web address Vercel does, with ID numbers removed and everything after the “?” dropped except campaign tags, and it never sees the advisor's own pages. We turn off Google's ad features and do not give Google your name or email. You can change your answer any time on the Privacy & data page in your account, or by clearing your browser's site data; turning it off deletes Google's cookies. You can read how Google handles this data at policies.google.com/privacy.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1050,19 +1051,20 @@ internal object PublicCatalog {
             title = "Cookies",
             navLabel = "Cookies",
             description = "The small number of cookies and browser storage keys the Story-Tail portal uses, and what each one does.",
-            lastUpdated = "2026-10-10",
+            lastUpdated = "2026-10-15",
             status = "draft",
             sections = listOf(
             LegalSection(
                 heading = "1. What we use",
                 paragraphs = listOf(
-                    "The portal uses cookies only to keep you signed in and to remember a few preferences. We do not use advertising cookies or cross-site trackers on the app subdomain.",
+                    "The portal uses cookies to keep you signed in and to remember a few preferences. If you allow it, Google Analytics sets a few more to count visits. We do not use advertising cookies.",
                 ),
                 bullets = listOf(
                     "Sign-in session cookies (set by our authentication provider, Supabase) so you stay signed in between pages.",
                     "A light-or-dark appearance preference, stored in your browser's local storage.",
                     "A note that you dismissed the “sign in to save” banner on the search pages, stored in local storage.",
                     "Page-view counts from Vercel, our hosting provider, so we can see which pages people visit and what to improve. Vercel sets no cookies for this and does not follow you to other sites. Our privacy policy describes what it records.",
+                    "Google Analytics cookies (named _ga and _ga_ followed by a code), only if you say yes when the site asks or on the Privacy & data page in your account. They let Google tell one visit from another. Google's ad features are off. Your answer is kept in your browser's local storage, and turning Google Analytics off deletes these cookies.",
                 ),
             ),
             LegalSection(
