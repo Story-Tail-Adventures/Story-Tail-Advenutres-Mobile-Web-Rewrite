@@ -3137,6 +3137,15 @@ These tools let the agent help less-technical clients with login issues.
 > > only. The tab shows a badge of unread threads, and the Worklist, Client Detail and Trip
 > > Detail doors go live. `agent-message` joins `contracts/openapi.yaml`. The frames to draw
 > > are specified in `design/briefs/agent-messages-phone.md`.
+>
+> > **Built on the phone 2026-10-15 (§3.10 Stage 3).** Messages is the third live tab, with a
+> > badge of unread threads. Inbox (3.10m.1), thread (3.10m.2, Reply / Note) and new message
+> > (3.10m.3) follow `design/source-prototype/screens/agent-messages-mobile.jsx`, drawn locally
+> > from A3101/A3102. The Worklist's "Recent messages" rows, Client Detail's threads tab and its
+> > new "Message Kai" button, and Trip Detail's "Open in Messages" all open the thread (or a new
+> > one). The phone reads the same SQL as the web and writes through `agent-message`, whose
+> > three ops are now in `contracts/openapi.yaml` with generated Kotlin types. The traveler's
+> > and advisor's threads share one bubble and day separator (`ui/components/ChatParts.kt`).
 
 #### 3.10.2 Conversation Thread (Agent View)
 **Purpose:** Threaded message view from the agent side.
@@ -3803,6 +3812,11 @@ The mobile experience for agents at MVP is intentionally narrower than web — d
 > What the sentence does **not** mean, and did not say clearly enough to stop the question being asked: it is not a limit on how much an advisor may read. §3.3.2 established that in practice — its mobile client detail kept every real tab — and §3.4.2 follows it. Narrower is about **writes** (every §3.4 form stays in a browser) and about **navigational depth** (no Trips tab, no Pipeline, no Calendar, no template management, which this line names outright). An advisor standing at a gate needs to read anything about a trip.
 >
 > Nothing here is "disabled with a reason", which is the web's treatment for an unbuilt control. A read-only screen with no controls says once, in a sentence, where the writes live. Four dimmed buttons on a 375pt screen cost four taps to discover the same thing.
+
+> **Amended 2026-10-15 (§3.10 Stage 3).** Messages is built: three of the four tabs are live,
+> and only More (§3.12) is still dimmed. It reads and replies, with internal notes; templates,
+> bulk send and bulk archive stay on the web, as this section's first line says of template
+> management.
 
 ---
 
