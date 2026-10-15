@@ -428,6 +428,11 @@ HOTEL_SEARCH_CALLER_TOKEN = "env(HOTEL_SEARCH_CALLER_TOKEN)"
 HOTEL_SEARCH_IP_PEPPER = "env(HOTEL_SEARCH_IP_PEPPER)"
 SERPAPI_API_KEY = "env(SERPAPI_API_KEY)"
 TRACK_CRUISES_API_KEY = "env(TRACK_CRUISES_API_KEY)"
+# §3.10 Stage 3b: Web Push signing (push-dispatch). The private key is a secret; the public one
+# also ships in the web app as NEXT_PUBLIC_VAPID_PUBLIC_KEY.
+VAPID_PUBLIC_KEY = "env(VAPID_PUBLIC_KEY)"
+VAPID_PRIVATE_KEY = "env(VAPID_PRIVATE_KEY)"
+VAPID_SUBJECT = "env(VAPID_SUBJECT)"
 
 # Declared explicitly, one block per function, because Supabase's GitHub integration deploys
 # the Edge Functions "declared in config.toml" — an undeclared directory may simply never
@@ -654,3 +659,14 @@ enabled = true
 # declarative_schema_path = "./schemas"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# ── §3.10 Stage 3b: notifications ────────────────────────────────────────────
+[functions.push-device]
+# An advisor turning notifications on or off for this browser. Resolves the caller from the
+# token; device addresses are never returned.
+verify_jwt = true
+
+[functions.push-dispatch]
+# No human caller: pg_cron's push_dispatch_tick() posts here with the service-role key, and the
+# function refuses any other role (requireServiceRole), as cruise-sync does.
+verify_jwt = true

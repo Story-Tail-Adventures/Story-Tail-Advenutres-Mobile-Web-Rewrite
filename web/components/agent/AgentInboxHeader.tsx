@@ -4,6 +4,7 @@ import Chip from "@mui/material/Chip";
 import MuiLink from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 
+import { AgentNotifyCard } from "@/components/agent/AgentNotifyCard";
 import NextLink from "@/components/mui/NextLink";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -66,6 +67,8 @@ export function AgentInboxHeader({
           {headline}
         </Typography>
       )}
+      {/* §3.10.7, ruling 7: the opt-in lives in the inbox, until it is answered. */}
+      {!query.archived && <AgentNotifyCard />}
 
       <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mt: 1 }}>
         {toggles.map((t) => (

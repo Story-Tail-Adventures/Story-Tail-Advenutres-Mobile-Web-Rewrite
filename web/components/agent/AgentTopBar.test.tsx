@@ -6,6 +6,8 @@ import { renderWithTheme } from "@/test/render";
 // The real module is "use server" and pulls in @/lib/env and @/lib/supabase/server, neither
 // of which is configured in a unit run. The bar only needs something to hand <form action>.
 vi.mock("@/lib/auth/actions", () => ({ signOutAction: vi.fn() }));
+// The same for §3.10.7's notification actions, which sign-out calls first.
+vi.mock("@/lib/agent/pushActions", () => ({ registerPushDeviceAction: vi.fn(), unregisterPushDeviceAction: vi.fn() }));
 
 import { AgentTopBar } from "./AgentTopBar";
 

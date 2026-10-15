@@ -1759,6 +1759,15 @@ export const AGENT_MESSAGES_COPY = {
   // New message (from Client Detail / Trip Detail)
   newTitle: "New message",
   notFound: "That client isn't one of yours, or they've been archived.",
+  // §3.10.7 notifications (A3107). The phone's twins arrive with Stage 3b PR 2.
+  notifyTitle: "Get notified when clients write",
+  notifyBody: "Quiet overnight and on Sundays, with one summary in the morning.",
+  notifyTurnOn: "Turn on",
+  notifyNotNow: "Not now",
+  notifyTurningOn: "Turning on…",
+  notifyBlocked: "This browser is blocking notifications from us. You can allow them in its site settings.",
+  notifyFailed: "Notifications didn't turn on. Try again in a moment.",
+  notifyOn: "Notifications are on for this browser.",
 } as const;
 
 /** "3 unread · 1 overdue", or "All caught up". */

@@ -146,3 +146,20 @@ export function requireRecentMfa(ctx: AuthContext, maxAgeSeconds = 900): void {
     );
   }
 }
+
+/**
+ * For a function with no human caller (a pg_cron tick): the already-verified token's `role`
+ * claim must be `service_role`. `verify_jwt = true` in config.toml checks the signature before
+ * the function runs; this reads the claim afterwards, as `requireUser` reads `aal`. Any user
+ * token, however valid, is 403. cruise-sync keeps its own copy of this for now.
+ */
+export function requireServiceRole(req: Request, what: string): void {
+  const authorization = req.headers.get("Authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    throw unauthorized("Missing bearer token.");
+  }
+  const claims = decodeClaims(authorization.slice("Bearer ".length));
+  if (claims.role !== "service_role") {
+    throw forbidden(`${what} runs as the service role, not as a user.`);
+  }
+}

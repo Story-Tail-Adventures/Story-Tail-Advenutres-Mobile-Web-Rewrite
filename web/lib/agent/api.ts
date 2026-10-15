@@ -961,7 +961,10 @@ export type AgentFunction =
   | "agent-message"
   // §3.10 Stage 2. Create, edit, duplicate, archive and restore a message template. Not
   // `agent-template`, which is §3.4.13's trip templates.
-  | "agent-message-template";
+  | "agent-message-template"
+  // §3.10 Stage 3b. This browser's notifications on (register) or off (sign-out). Never
+  // returns a device address.
+  | "push-device";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

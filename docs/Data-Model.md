@@ -127,6 +127,8 @@ The final section is **Open Questions** — areas where the model is intentional
 | MessageAttachment | Communication | P1 | File attached to a message |
 | MessageTemplate | Communication | P1 | Reusable email/message template |
 | NotificationPreference | Communication | P1 | Per-user notification channel matrix |
+| PushDevice | Communication | P1 | A signed-in device that has turned notifications on (§3.10 Stage 3b) |
+| PushOutbox | Communication | P1 | One pending notification per thread, held through rest hours (§3.10 Stage 3b) |
 | Document | Document | P1 | Generic file/asset (uploaded or generated) |
 | SavedSearch | Search | P2 | Persisted search criteria for a client |
 | Favorite | Search | P2 | Bookmarked search result |
@@ -2066,12 +2068,67 @@ Copying them to an advisor created later waits for P3's multi-agent work.
 | `quiet_hours_end` | `time` | Yes | Internal | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-> **Push needs a device table (§3.10 Stage 3b, settled 2026-10-15).** Message notifications go to
-> every device an advisor is signed in on, so Stage 3b adds an entity for each device's push
-> address (FCM token for Android, Web Push subscription for the web, APNs token for iOS later),
-> removed on sign-out and when the service reports it dead. It is specified here, doc first,
-> when 3b starts. Rest hours default to 9pm to 7am and all of Sunday until §3.12.3 exposes
-> `quiet_hours_start` / `quiet_hours_end`.
+> **Rest hours default to 9pm to 7am and all of Sunday** (§3.10 Stage 3b, Gyasi 2026-10-15)
+> until §3.12.3 exposes `quiet_hours_start` / `quiet_hours_end` for editing. Sunday is not a
+> column: rest is not lateness, the same reason the overdue clock skips it (§3.10 Stage 1).
+
+### 12.6 PushDevice
+
+**Phase:** P1 (§3.10 Stage 3b). One row per signed-in device that has turned notifications on.
+Service-role only: no client or agent grant, never returned by an accessor. Written by the
+`push-device` Edge Function (register on "Turn on", remove on sign-out) and pruned by the sender
+when a push service reports the address gone. Security review: `docs/Push-Notifications-Security-Review.md`.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | v7, minted by the device |
+| `platform_user_id` | `uuid` | No | Public | FK → PlatformUser. Advisors only in 3b |
+| `platform` | `push_platform` enum | No | Internal | `android`, `web`, `ios` |
+| `fcm_token` | `text` | Yes | Internal | Android (and iOS through APNs later: `apns_token`). Set iff `platform = 'android'` |
+| `web_endpoint` | `text` | Yes | Internal | Web Push subscription URL. Set iff `platform = 'web'` |
+| `web_p256dh` | `text` | Yes | Internal | The browser's public key for RFC 8291 |
+| `web_auth` | `text` | Yes | Internal | The browser's auth secret for RFC 8291 |
+| `label` | `text` | Yes | Internal | "Pixel 9 · Android", "Chrome · macOS", for a future device list |
+| `created_at` | `timestamptz` | No | Public | — |
+| `last_seen_at` | `timestamptz` | No | Public | Bumped on each register; a device unseen for 60 days is dropped |
+
+Unique: `fcm_token` where not null, `web_endpoint` where not null (a token belongs to one
+device, so re-registering moves it to the signed-in user rather than duplicating it).
+
+### 12.7 PushOutbox
+
+**Phase:** P1 (§3.10 Stage 3b). **One row per thread with something to tell the advisor**, so a
+second message updates the row instead of queueing a second notification (ruling: one
+notification per thread). Written by a trigger on `conversation.agent_unread_count` (rises: queue; reaches zero: clear),
+so every path that records or reads a message drives it without being rewritten. Sent by the
+`push-dispatch` Edge Function, which a one-minute `pg_cron` tick calls only when there is work.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()`: no client ever writes a row |
+| `agent_id` | `uuid` | No | Public | FK → Agent. Whose devices it goes to |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation. Unique while `state = 'pending'` (a message during a send gets its own row) |
+| `latest_message_id` | `uuid` | No | Public | FK → Message. The newest client message it is about |
+| `message_count` | `integer` | No | Public | Client messages since the last notification |
+| `due_at` | `timestamptz` | No | Public | Now, or 7am after the rest hours it landed in |
+| `held` | `boolean` | No | Public | True when it fell in rest hours: it joins the 7am SUMMARY instead of its own notification |
+| `state` | `text` | No | Public | `pending`, `sending` (claimed by a dispatcher run), `sent`, `cleared` (read before it went), `failed` |
+| `attempts` | `integer` | No | Public | Retries on a transient error, at most 3 |
+| `claimed_at` | `timestamptz` | Yes | Public | When a run claimed it; a claim older than 5 minutes counts as a failed try and is retried |
+| `sent_at` | `timestamptz` | Yes | Public | — |
+| `needs_dismiss` | `boolean` | No | Public | Read after (or while) it was sent: a silent dismiss is owed to the phones, claimed once `sent` |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**What a push carries:** on Android, only the thread id and a count (Google can read FCM
+payloads; the app fetches the preview over its own session). On the web, the client's first
+name, the trip and the first line (Web Push is end-to-end encrypted to the browser). The locked
+screen shows the name only on the phone; on the web the system's own lock-screen setting
+decides. **Never card data, never an internal note**, and a card number a client typed is masked
+to its last four. An archived advisor is sent nothing. Finished rows are deleted after 30 days.
+
+**Clearing:** reading a thread (either surface) marks its pending row `cleared`, and a sent one
+owes a silent "dismiss" to the advisor's PHONES, so a notification read on the laptop disappears
+on the phone. Browsers get no dismiss: a push that shows nothing is a policy problem there.
 
 ---
 

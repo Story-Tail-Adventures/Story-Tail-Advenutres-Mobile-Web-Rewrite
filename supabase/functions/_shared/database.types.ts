@@ -2734,6 +2734,123 @@ export type Database = {
           },
         ]
       }
+      push_device: {
+        Row: {
+          created_at: string
+          fcm_token: string | null
+          id: string
+          label: string | null
+          last_seen_at: string
+          platform: Database["public"]["Enums"]["push_platform"]
+          platform_user_id: string
+          web_auth: string | null
+          web_endpoint: string | null
+          web_p256dh: string | null
+        }
+        Insert: {
+          created_at?: string
+          fcm_token?: string | null
+          id: string
+          label?: string | null
+          last_seen_at?: string
+          platform: Database["public"]["Enums"]["push_platform"]
+          platform_user_id: string
+          web_auth?: string | null
+          web_endpoint?: string | null
+          web_p256dh?: string | null
+        }
+        Update: {
+          created_at?: string
+          fcm_token?: string | null
+          id?: string
+          label?: string | null
+          last_seen_at?: string
+          platform?: Database["public"]["Enums"]["push_platform"]
+          platform_user_id?: string
+          web_auth?: string | null
+          web_endpoint?: string | null
+          web_p256dh?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_device_platform_user_id_fkey"
+            columns: ["platform_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_outbox: {
+        Row: {
+          agent_id: string
+          attempts: number
+          claimed_at: string | null
+          conversation_id: string
+          created_at: string
+          due_at: string
+          held: boolean
+          id: string
+          latest_message_id: string
+          message_count: number
+          needs_dismiss: boolean
+          sent_at: string | null
+          state: string
+        }
+        Insert: {
+          agent_id: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id: string
+          created_at?: string
+          due_at: string
+          held: boolean
+          id?: string
+          latest_message_id: string
+          message_count: number
+          needs_dismiss?: boolean
+          sent_at?: string | null
+          state?: string
+        }
+        Update: {
+          agent_id?: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string
+          created_at?: string
+          due_at?: string
+          held?: boolean
+          id?: string
+          latest_message_id?: string
+          message_count?: number
+          needs_dismiss?: boolean
+          sent_at?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_outbox_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_latest_message_id_fkey"
+            columns: ["latest_message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session: {
         Row: {
           account_id: string
@@ -5022,6 +5139,69 @@ export type Database = {
         Args: { p_body: string }
         Returns: string[]
       }
+      push_claim_dismissals: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_id: string
+          conversation_id: string
+        }[]
+      }
+      push_claim_due: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_id: string
+          client_name: string
+          conversation_id: string
+          held: boolean
+          latest_created_at: string
+          message_count: number
+          outbox_id: string
+          preview: string
+          trip_title: string
+        }[]
+      }
+      push_device_gone: { Args: { p_device_id: string }; Returns: undefined }
+      push_devices_for_agent: {
+        Args: { p_agent_id: string }
+        Returns: {
+          device_id: string
+          fcm_token: string
+          platform: Database["public"]["Enums"]["push_platform"]
+          web_auth: string
+          web_endpoint: string
+          web_p256dh: string
+        }[]
+      }
+      push_dispatch_tick: { Args: never; Returns: string }
+      push_due_at: {
+        Args: { p_at: string; p_time_zone: string }
+        Returns: string
+      }
+      push_finish: {
+        Args: { p_ok: boolean; p_outbox_id: string }
+        Returns: string
+      }
+      push_register_device: {
+        Args: {
+          p_device_id: string
+          p_fcm_token?: string
+          p_label?: string
+          p_platform: Database["public"]["Enums"]["push_platform"]
+          p_user_id: string
+          p_web_auth?: string
+          p_web_endpoint?: string
+          p_web_p256dh?: string
+        }
+        Returns: string
+      }
+      push_unregister_device: {
+        Args: {
+          p_fcm_token?: string
+          p_user_id: string
+          p_web_endpoint?: string
+        }
+        Returns: number
+      }
       seed_starter_message_templates: {
         Args: { p_agent_id: string }
         Returns: number
@@ -5126,6 +5306,7 @@ export type Database = {
       mfa_kind: "totp" | "sms" | "backup_codes"
       payment_milestone_kind: "deposit" | "interim" | "final"
       payment_milestone_status: "scheduled" | "paid" | "waived" | "overdue"
+      push_platform: "android" | "web" | "ios"
       supplier_kind:
         | "airline"
         | "hotel_brand"
@@ -5392,6 +5573,7 @@ export const Constants = {
       mfa_kind: ["totp", "sms", "backup_codes"],
       payment_milestone_kind: ["deposit", "interim", "final"],
       payment_milestone_status: ["scheduled", "paid", "waived", "overdue"],
+      push_platform: ["android", "web", "ios"],
       supplier_kind: [
         "airline",
         "hotel_brand",
