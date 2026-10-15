@@ -2066,6 +2066,13 @@ Copying them to an advisor created later waits for P3's multi-agent work.
 | `quiet_hours_end` | `time` | Yes | Internal | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
+> **Push needs a device table (§3.10 Stage 3b, settled 2026-10-15).** Message notifications go to
+> every device an advisor is signed in on, so Stage 3b adds an entity for each device's push
+> address (FCM token for Android, Web Push subscription for the web, APNs token for iOS later),
+> removed on sign-out and when the service reports it dead. It is specified here, doc first,
+> when 3b starts. Rest hours default to 9pm to 7am and all of Sunday until §3.12.3 exposes
+> `quiet_hours_start` / `quiet_hours_end`.
+
 ---
 
 ## 13. Document Domain

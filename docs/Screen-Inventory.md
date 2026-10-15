@@ -3248,6 +3248,37 @@ These tools let the agent help less-technical clients with login issues.
 > - **No audit rows.** Templates hold no client data, so they are outside Rule 3's sensitive
 >   tables; the messages they produce are recorded the usual way.
 
+#### 3.10.7 Message Notifications (proposed, §3.10 Stage 3b)
+**Purpose:** Tell the advisor a client has written, on the web and the phone, and let them answer
+from the phone's notification.
+**Primary elements:** System notification (client, trip, first line); Reply and Mark read on the
+phone; a "Get notified when clients write" card in the inbox.
+**Key actions:** Reply (phone); open the thread; mark read; turn notifications on.
+**Entry points:** A new client message.
+**Related screens:** Agent Inbox; Conversation Thread (Agent View); Agent Notification
+Preferences (3.12.3).
+
+> **Settled 2026-10-15 (grilling, Gyasi). Built as Stage 3b, after the phone Messages tab.**
+> Frames: A3107 (web) and 3.10m.5 to 3.10m.8 (phone) in `design/source-prototype/screens/
+> agent-notifications.jsx`, drawn locally (the canonical design project is out of sync).
+>
+> - **Only a new client message notifies**, to its advisor. Never an internal note, never the
+>   advisor's own reply. Other events, and travelers' push, reuse the plumbing later.
+> - **Locked screen: the client's name only.** Unlocked: the trip and the first line.
+> - **Phone: Reply in the notification, plus Mark read.** A notification reply is always a reply,
+>   never a note. **Web:** browsers do not reliably offer a reply box in a notification, so a
+>   click opens the thread with the reply box ready; Mark read where the browser draws buttons.
+> - **A failed reply** reads "Didn't send. Tap to try again", and the words wait as a draft in
+>   that thread.
+> - **One notification per thread**, updated by the next message; reading the thread on any
+>   device clears it on every device. Signing out stops that device's notifications at once.
+> - **Rest hours:** silent 9pm to 7am in the advisor's zone and all of Sunday, then one 7am
+>   summary. The setting to change it arrives with §3.12.3.
+> - **Permission is asked from an inbox card**, never on launch.
+> - **Services:** Firebase Cloud Messaging for Android (a new SDK: security review first), the
+>   browsers' standard Web Push with our own keys for the web, Apple's push service directly for
+>   iOS. **Android and web first; iOS once Xcode is installed.**
+
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").
 **Primary elements:** Recipient segment builder; template picker; preview; send.

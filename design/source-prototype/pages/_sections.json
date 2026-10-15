@@ -1769,7 +1769,9 @@
     "title": "Agent \u00b7 Messaging & Templates",
     "subtitle": "Agent inbox, templates, bulk send.",
     "files": [
-      "screens/agent-leads-support-msg.jsx"
+      "screens/agent-leads-support-msg.jsx",
+      "screens/agent-messages-mobile.jsx",
+      "screens/agent-notifications.jsx"
     ],
     "sectionId": "a310",
     "sectionTitle": "3.10 \u00b7 Messaging & Templates",
@@ -1813,6 +1815,59 @@
         "comp": "A3106_BulkSend",
         "label": "3.10.6 Bulk send",
         "h": 820
+      },
+      {
+        "id": "3107",
+        "comp": "A3107_WebNotifications",
+        "label": "3.10.7 Notifications (proposed, Stage 3b)",
+        "h": 620
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m3101",
+        "comp": "M3101_Inbox",
+        "label": "3.10m.1 Inbox"
+      },
+      {
+        "id": "m3102a",
+        "comp": "M3102_ThreadReply",
+        "label": "3.10m.2 Thread \u00b7 reply"
+      },
+      {
+        "id": "m3102b",
+        "comp": "M3102_ThreadNote",
+        "label": "3.10m.2 Thread \u00b7 note"
+      },
+      {
+        "id": "m3103",
+        "comp": "M3103_NewMessage",
+        "label": "3.10m.3 New message"
+      },
+      {
+        "id": "m3104",
+        "comp": "M3104_DeskOnly",
+        "label": "3.10m.4 On the web (deferred)"
+      },
+      {
+        "id": "m3105",
+        "comp": "M3105_NotifyLocked",
+        "label": "3.10m.5 Notification \u00b7 locked"
+      },
+      {
+        "id": "m3106",
+        "comp": "M3106_NotifyReply",
+        "label": "3.10m.6 Notification \u00b7 reply"
+      },
+      {
+        "id": "m3107",
+        "comp": "M3107_NotifyStates",
+        "label": "3.10m.7 Notification \u00b7 failed & summary"
+      },
+      {
+        "id": "m3108",
+        "comp": "M3108_InboxTurnOn",
+        "label": "3.10m.8 Turn on notifications"
       }
     ]
   },

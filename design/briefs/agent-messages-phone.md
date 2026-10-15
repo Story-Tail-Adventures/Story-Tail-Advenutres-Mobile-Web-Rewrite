@@ -8,6 +8,11 @@ brief asks for the phone frames; the Kotlin build follows once they are synced.
 (`https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3`) to draw the artboards. Then
 run the `sync-design-handoff` skill to pull them into `design/source-prototype/`.
 
+**Update 2026-10-15:** the frames never landed in the canonical design project, which is out of
+sync, so they were drawn LOCALLY (`screens/agent-messages-mobile.jsx`, wired into
+`pages/a310-messaging.html`). Local artboards are the source; do not sync over them. Gyasi also
+asked for notifications on web and phone, with reply from the phone's notification: see §6.
+
 **Where the frames go:** a new file, `screens/agent-messages-mobile.jsx`, beside
 `agent-dashboard-mobile.jsx` (3.2m) and `agent-crm-mobile.jsx` (3.3m). Add a `3.10m` group to
 `pages/_sections.json` with the five entries in §4. Every frame comes in light AND dark: the
@@ -152,3 +157,15 @@ Not part of the drawing, recorded so nothing is rediscovered:
   expected.
 - `client.functions.invoke` throws on a non-2xx: catch `RestException` and read `rest.error`
   for the Edge Function's sentence (CLAUDE.md, "Local development gotchas").
+
+---
+
+## 6. Notifications (§3.10.7 proposed, Stage 3b; settled 2026-10-15)
+
+Drawn in `screens/agent-notifications.jsx`: A3107 (web), 3.10m.5 locked, 3.10m.6 reply,
+3.10m.7 failed and morning summary, 3.10m.8 the inbox's "Turn on" card. The rulings are in
+Screen Inventory §3.10.7; in short: client messages only, name-only when locked, reply and Mark
+read on the phone, click-to-open on the web, a failed reply kept as a draft, one notification
+per thread cleared everywhere, silent 9pm to 7am and Sundays with a 7am summary, permission
+asked from an inbox card, Firebase for Android, standard Web Push for the web, Apple direct for
+iOS once Xcode is in. Built after the Messages tab (Stage 3), Android and web first.
