@@ -20,7 +20,7 @@ export const COOKIES: LegalDoc = {
         "A note that you dismissed the “sign in to save” banner on the search pages, stored in local storage.",
         "Page-view counts from Vercel, our hosting provider, so we can see which pages people visit and what to improve. Vercel sets no cookies for this and does not follow you to other sites. Our privacy policy describes what it records.",
         // components/FirebaseAnalytics.tsx and lib/analytics-consent.ts make this true.
-        "Google Analytics cookies (named _ga and _ga_ followed by a code), only if you say yes when the site asks or on the Privacy & data page in your account. They let Google tell one visit from another. Google's ad features are off. Your answer is kept in your browser's local storage, and turning Google Analytics off deletes these cookies.",
+        "Google Analytics cookies (named _ga and _ga_ followed by a code), only if you say yes when the site asks or on the Privacy & data page in your account. They let Google tell one visit from another. Google's ad features are off. Firebase also keeps a visitor code for Google Analytics in your browser's storage. Your answer is kept in your browser's local storage, and turning Google Analytics off deletes these cookies and that code.",
       ],
     },
     {

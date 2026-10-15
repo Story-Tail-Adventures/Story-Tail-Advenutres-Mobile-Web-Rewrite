@@ -21,10 +21,21 @@ import { firebaseWebConfig } from "@/lib/firebase";
  *   (scroll, outbound click) carries the redacted page too, not `document.location`.
  *   `page_title` is the redacted path because a document title can name a trip.
  * - The referrer is cut to its origin: which site sent someone, not which page.
- * - `/agent/*` switches collection off while it is open, and the SDK is never started there.
+ * - `/agent/*` and the card pages under `/wallet/*` switch collection off while they are
+ *   open, and the SDK is never started there. The wallet is excluded so Google's script is
+ *   never pulled into a payment page (PCI DSS 4.0 §6.4.3 wants every script on one inventoried
+ *   and justified); Vercel's cookieless count still covers it through redactAnalyticsUrl.
  * - Google signals and ad personalization are off, and we never call setUserId.
  *
- * Turning it off later stops collection and deletes the `_ga` cookies Google set.
+ * Turning it off later stops collection, deletes the `_ga` cookies Google set, and deletes
+ * the IndexedDB stores where Firebase keeps its installation id (sent to Google with every
+ * event as `firebase_id`).
+ *
+ * WHAT THIS FILE CANNOT CONTROL: GA4's enhanced measurement (outbound clicks, file downloads,
+ * form interactions, site search, history-based page views) is a setting on the GA data
+ * stream, not in code, and an outbound click reports the link's full URL — the itinerary's
+ * Google Maps link carries an activity's street address. Those switches must stay OFF in GA
+ * Admin → Data streams → Enhanced measurement (scrolls may stay on). See PR #131's review.
  *
  * web/content/public/legal/privacy.ts and cookies.ts describe all of this. Change one and
  * the others must change too.
@@ -40,7 +51,7 @@ export function FirebaseAnalytics() {
       return;
     }
     const page = redactAnalyticsUrl(window.location.href);
-    if (page === null) {
+    if (page === null || isCardPage(window.location.pathname)) {
       void pause();
       return;
     }
@@ -77,6 +88,7 @@ function start() {
 }
 
 async function track(page: string) {
+  storageCleared = false;
   // Defaults first, so nothing the SDK sends on start-up carries the raw location.
   const { setDefaultEventParameters } = await import("firebase/analytics");
   setDefaultEventParameters({
@@ -93,17 +105,41 @@ async function track(page: string) {
   });
 }
 
-/** On /agent: collection off if it ever started, and never started from here. */
+/** The client wallet: card picking and authorization (§2.4). No Google script on it. */
+function isCardPage(pathname: string) {
+  return pathname === "/wallet" || pathname.startsWith("/wallet/");
+}
+
+/** On /agent or /wallet: collection off if it ever started, and never started from here. */
 async function pause() {
   if (!started) return;
   const ready = await started;
   if (ready) ready.sdk.setAnalyticsCollectionEnabled(ready.analytics, false);
 }
 
-/** Consent withdrawn (or never given): collection off and Google's cookies gone. */
+/** Consent withdrawn (or never given): collection off, Google's cookies and Firebase's ids gone. */
 async function stop() {
   await pause();
   clearGoogleAnalyticsCookies();
+  clearFirebaseStorage();
+}
+
+/**
+ * Firebase keeps its installation id and a heartbeat log in IndexedDB. Deleting a store that
+ * does not exist is a no-op; deleting one the SDK still holds open completes once the page
+ * closes, which is the next time it could be read anyway.
+ */
+const FIREBASE_DATABASES = ["firebase-installations-database", "firebase-heartbeat-database"];
+let storageCleared = false;
+
+function clearFirebaseStorage() {
+  if (storageCleared) return;
+  storageCleared = true;
+  try {
+    for (const name of FIREBASE_DATABASES) window.indexedDB?.deleteDatabase(name);
+  } catch {
+    // IndexedDB can throw in a locked-down private window; there is nothing stored then.
+  }
 }
 
 function referrerOrigin(): string {
