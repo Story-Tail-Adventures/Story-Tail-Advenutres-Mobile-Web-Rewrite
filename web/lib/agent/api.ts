@@ -92,7 +92,12 @@ export type AgentRead =
   | "agent_message_summary"
   | "agent_conversation"
   | "agent_conversation_messages"
-  | "agent_message_target";
+  | "agent_message_target"
+  // §3.10 Stage 2. The templates (live, or archived), one for the editor, and the picker's
+  // merge data for one client, trip and milestone.
+  | "agent_message_templates"
+  | "agent_message_template"
+  | "agent_message_merge_context";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -864,6 +869,30 @@ export type AgentMessageTargetRow = {
   client_can_sign_in: boolean;
 };
 
+export type AgentMessageTemplateRow = {
+  template_id: string;
+  category: string;
+  name: string;
+  body: string;
+  tags: string[];
+  archived: boolean;
+  updated_at: string;
+};
+
+export type AgentMessageMergeContextRow = {
+  client_first_name: string | null;
+  agent_first_name: string | null;
+  trip_title: string | null;
+  trip_destinations: string[] | null;
+  trip_start_date: string | null;
+  trip_end_date: string | null;
+  payment_label: string | null;
+  /** What is still owed on the milestone, a digit string. */
+  payment_owed_cents: string | null;
+  payment_currency: string | null;
+  payment_due_date: string | null;
+};
+
 export type AgentCommissionMonthRow = {
   month_start: string;
   received_cents: string;
@@ -929,7 +958,10 @@ export type AgentFunction =
   | "commission-import"
   // §3.10. Send (a reply or an internal note), mark a thread read, archive from the inbox.
   // The send is one SQL transaction so a note can never move what the client reads.
-  | "agent-message";
+  | "agent-message"
+  // §3.10 Stage 2. Create, edit, duplicate, archive and restore a message template. Not
+  // `agent-template`, which is §3.4.13's trip templates.
+  | "agent-message-template";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

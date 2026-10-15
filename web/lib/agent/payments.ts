@@ -131,3 +131,12 @@ export function validateMilestone(
 
   return Object.keys(errors).length > 0 ? errors : null;
 }
+
+/**
+ * The milestone "Remind the client" is about (§3.10 Stage 2): the first one still owed, in the
+ * order the schedule reads (due date first, which `agent_trip_payments` already sorts by). Paid
+ * and waived ones are not owed. Null when nothing is left to pay.
+ */
+export function nextUnpaidMilestone<T extends { milestoneId: string; status: string }>(rows: readonly T[]): T | null {
+  return rows.find((r) => r.status === "scheduled" || r.status === "overdue") ?? null;
+}

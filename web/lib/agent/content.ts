@@ -901,11 +901,11 @@ export const SCHEDULE_COPY = {
   failed: "That didn't save. Try again in a moment.",
   gone: "That's not on this trip any more. Reload and take another look.",
 
-  // §3.10 is agent messaging and nothing exists to send on. The Screen Inventory's
-  // "trigger reminder" and "reminder cadence toggle" both wait on it — a button that
-  // silently sends nothing would be worse than one that says why it is off.
+  // §3.10 Stage 2: "Remind the client" opens the trip's thread with the template picker on
+  // Payment reminder, filled from the next unpaid milestone. The cadence toggle stays unbuilt
+  // (automatic reminders need a scheduler, and email; Stage 4).
   remindLabel: "Remind the client",
-  remindDeferred: "Sending a reminder arrives with §3.10, where agent messaging gets built.",
+  remindNothing: "Nothing is still owed on this trip, so there's nothing to remind the client about.",
 } as const;
 
 /**
@@ -1803,4 +1803,123 @@ export function messagesNewTo(firstName: string): string {
 /** "2 selected" in the inbox's bulk bar. */
 export function messagesSelected(n: number): string {
   return `${n.toLocaleString("en-US")} selected`;
+}
+
+/**
+ * §3.10 Stage 2: message templates (Screens 3.10.3 Picker, 3.10.4 Library, 3.10.5 Editor).
+ * WEB ONLY (Gyasi, 2026-10-14): the phone's Messages tab replies without a picker, so none of
+ * this has a Kotlin twin and the copy-parity gate does not list it.
+ */
+export const MESSAGE_TEMPLATE_COPY = {
+  // Library (3.10.4)
+  title: "Templates",
+  subtitle: "Messages you send often, grouped by stage. Make each one your own before it goes.",
+  newTemplate: "New template",
+  viewArchived: "Archived",
+  viewLive: "All templates",
+  archivedTitle: "Archived templates",
+  backToMessages: "Messages",
+  emptyLibrary: "No templates yet. Start one, and it'll be ready whenever you write to a client.",
+  emptyArchived: "Nothing archived.",
+  emptyArchivedBody: "Templates you archive wait here, ready to restore.",
+  edit: "Edit",
+  duplicate: "Duplicate",
+  duplicated: "Copy made",
+  archive: "Archive",
+  restore: "Restore",
+  archivedDone: "Archived",
+  restoredDone: "Restored",
+  actionFailed: "That didn't save. Try again in a moment.",
+  // Editor (3.10.5)
+  newTitle: "New template",
+  backToLibrary: "Templates",
+  nameLabel: "Name",
+  categoryLabel: "Category",
+  bodyLabel: "Message",
+  bodyHint: "Add a field from the list below. It goes in where your cursor is.",
+  fieldsLabel: "Merge fields",
+  tagsLabel: "Tags",
+  tagsHint: "Separate tags with commas.",
+  previewHeading: "Preview · with sample data",
+  save: "Save",
+  saving: "Saving…",
+  saved: "Saved",
+  nothingChanged: "No changes to save.",
+  unsaved: "Unsaved changes",
+  leaveUnsaved: "You have changes that aren't saved. Leave without saving?",
+  nameRequired: "Give this template a name.",
+  bodyRequired: "Write the message this template starts from.",
+  saveFailed: "That didn't save. Try again in a moment.",
+  notFound: "That template isn't in your library.",
+  // Picker (3.10.3)
+  insertTemplate: "Insert template",
+  pickerTitle: "Insert a template",
+  searchLabel: "Search templates",
+  searchPlaceholder: "Name, tag or words",
+  noMatch: "No templates match.",
+  pickerEmpty: "No templates yet.",
+  manage: "Manage templates",
+  pickOne: "Pick a template to see it here.",
+  insertAsIs: "Insert as-is",
+  insertAndEdit: "Insert & edit",
+  cancel: "Cancel",
+  close: "Close",
+  inserted: "Template added. Read it over, then send.",
+} as const;
+
+/** Each category's group heading and dropdown label, in the order the library shows them. */
+export const MESSAGE_TEMPLATE_CATEGORY_LABELS = {
+  lead_response: "Lead response",
+  proposal: "Proposal",
+  booking_confirmation: "Booking confirmation",
+  pre_trip: "Pre-trip",
+  post_trip: "Post-trip",
+  payment_reminder: "Payment reminder",
+  other: "Other",
+} as const;
+
+/** "Last edited Oct 14". */
+export function templateLastEdited(day: string): string {
+  return `Last edited ${day}`;
+}
+
+/** The picker's preview heading: "Preview · for Maya". */
+export function templatePreviewFor(firstName: string): string {
+  return `Preview · for ${firstName}`;
+}
+
+/**
+ * Why "Insert as-is" is off: what the template needs that this thread does not have, in plain
+ * words rather than token names. "This one needs trip dates and a payment, which this thread
+ * doesn't have. Use Insert & edit to fill them in yourself."
+ */
+export function templateMissing(fields: readonly string[]): string {
+  const words: Record<string, string> = {
+    "client.firstName": "a first name",
+    "trip.name": "a trip",
+    "trip.destination": "a destination",
+    "trip.dates": "trip dates",
+    "agent.firstName": "your first name",
+    "payment.label": "a payment",
+    "payment.amount": "a payment",
+    "payment.dueDate": "a payment",
+  };
+  const needs = [...new Set(fields.map((f) => words[f] ?? f))];
+  const list = needs.length <= 2 ? needs.join(" and ") : `${needs.slice(0, -1).join(", ")} and ${needs[needs.length - 1]}`;
+  const them = needs.length === 1 && !needs[0].endsWith("dates") ? "it" : "them";
+  return `This one needs ${list}, which this thread doesn't have. Use Insert & edit to fill ${them} in yourself.`;
+}
+
+/** The editor's refusal, naming each unknown token. */
+export function templateUnknownFields(tokens: readonly string[]): string {
+  const named = tokens.map((t) => `{{${t}}}`).join(", ");
+  return `${named} ${tokens.length === 1 ? "isn't a merge field" : "aren't merge fields"}. Pick from the list under the message.`;
+}
+
+/** The reply box's refusal, naming each field still in the message. */
+export function templateUnfilled(fields: readonly string[]): string {
+  const named = fields.map((f) => `{{${f}}}`).join(", ");
+  return fields.length === 1
+    ? `${named} is still in your message, and this thread has no value for it. Fill it in before you send.`
+    : `${named} are still in your message, and this thread has no values for them. Fill them in before you send.`;
 }

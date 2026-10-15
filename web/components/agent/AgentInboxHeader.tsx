@@ -7,7 +7,7 @@ import Typography from "@mui/material/Typography";
 import NextLink from "@/components/mui/NextLink";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
-import { AGENT_MESSAGES_COPY } from "@/lib/agent/content";
+import { AGENT_MESSAGES_COPY, MESSAGE_TEMPLATE_COPY } from "@/lib/agent/content";
 import { EMPTY_INBOX_QUERY, inboxHref, threadHref, type InboxQuery } from "@/lib/agent/messageQuery";
 import { TAP_TARGET } from "@/lib/mui/sx";
 
@@ -55,6 +55,10 @@ export function AgentInboxHeader({
           {query.archived
             ? AGENT_MESSAGES_COPY.viewInbox
             : `${AGENT_MESSAGES_COPY.viewArchived}${archivedCount > 0 ? ` (${archivedCount.toLocaleString("en-US")})` : ""}`}
+        </MuiLink>
+        {/* §3.10.4's door. The library lives under Messages, and the nav rail does not change. */}
+        <MuiLink component={NextLink} href="/agent/messages/templates" underline="hover" variant="body2">
+          {MESSAGE_TEMPLATE_COPY.title}
         </MuiLink>
       </Box>
       {!query.archived && (

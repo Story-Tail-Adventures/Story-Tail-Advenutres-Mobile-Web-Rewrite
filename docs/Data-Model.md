@@ -2012,14 +2012,47 @@ rather than looking like an omission.
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | — |
 | `agent_id` | `uuid` | No | Public | FK → Agent (owner) |
-| `category` | `text` | No | Internal | `lead_response`, `proposal`, `booking_confirmation`, `pre_trip`, `post_trip`, `payment_reminder`, `other` |
-| `name` | `text` | No | Internal | — |
-| `subject` | `text` | Yes | Internal | — |
-| `body_markdown` | `text` | No | Internal | With `{{merge_fields}}` |
-| `tags` | `text[]` | No | Internal | — |
-| `archived_at` | `timestamptz` | Yes | Public | — |
+| `category` | `text` | No | Internal | `lead_response`, `proposal`, `booking_confirmation`, `pre_trip`, `post_trip`, `payment_reminder`, `other`. CHECKed since §3.10 Stage 2 |
+| `name` | `text` | No | Internal | 1 to 80 characters, trimmed (CHECKed since §3.10 Stage 2) |
+| `subject` | `text` | Yes | Internal | Unused until email (§3.10 Stage 4); the editor does not show it |
+| `body_markdown` | `text` | No | Internal | With `{{merge_fields}}` from the fixed set below. PLAIN TEXT until Stage 4 despite the name; at most 8,000 characters, one message's ceiling |
+| `tags` | `text[]` | No | Internal | Free-form |
+| `archived_at` | `timestamptz` | Yes | Public | The only delete (§20.1); Restore clears it |
 | `created_at` | `timestamptz` | No | Public | — |
-| `updated_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | Shown on the library card as "Last edited" |
+
+**Given a producer by §3.10 Stage 2 (settled 2026-10-14, Gyasi).** The table existed from the
+initial migration with no write path and no rows. Writes go through the `agent-message-template`
+Edge Function to service-role SQL, the way every agent write on this surface does; reads are a
+definer accessor scoped by `current_agent_id()`. **No `audit_event` rows**: a template holds no
+client data, so it is outside Rule 3's sensitive tables, and the messages it produces are
+recorded the usual way.
+
+**The merge fields are a fixed set**, checked on save (an unknown token is refused, named):
+
+| Token | Filled from |
+|---|---|
+| `{{client.firstName}}` | `client.preferred_name`, else `first_name` |
+| `{{trip.name}}` | `trip.title` |
+| `{{trip.destination}}` | `trip.destinations`, joined "A", "A and B", "A, B and C" |
+| `{{trip.dates}}` | `trip.start_date` / `end_date`, the app's date-range format |
+| `{{agent.firstName}}` | the first word of `agent.display_name` |
+| `{{payment.label}}` | `payment_milestone.label` |
+| `{{payment.amount}}` | what is still owed on it: `amount_cents - paid_cents` |
+| `{{payment.dueDate}}` | `payment_milestone.due_date` |
+
+The `payment.*` three fill only when the picker is opened from a milestone (Trip Detail's
+"Remind the client"). A field with no value is never filled with blank space: the picker turns
+"Insert as-is" off and Send refuses while any token remains (Screen Inventory §3.10.3).
+
+**Nothing links a message to its template.** A message stores only its merged words, so
+editing a template never changes one already sent, and there is no "used N times" count.
+
+**Starter templates.** A migration gives every agent that exists when it runs the seven
+starters (lead response, proposal, booking confirmation, pre-trip 14 day, pre-trip 7 day,
+post-trip, payment reminder) through `seed_starter_message_templates(agent_id)`, which writes
+nothing for an agent who already has a template. The local seed calls it for its advisor.
+Copying them to an advisor created later waits for P3's multi-agent work.
 
 ### 12.5 NotificationPreference
 

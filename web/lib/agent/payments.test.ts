@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MILESTONE_KINDS,
+  nextUnpaidMilestone,
   MILESTONE_STATUSES,
   centsToDollars,
   dollarsToCents,
@@ -130,5 +131,18 @@ describe("milestoneFromFormData", () => {
   it("trims every field", () => {
     const values = milestoneFromFormData(form({ kind: "deposit", label: "  Deposit  " }));
     expect(values.label).toBe("Deposit");
+  });
+});
+
+describe("nextUnpaidMilestone", () => {
+  it("is the first row still owed, in the schedule's order; paid and waived are not owed", () => {
+    const rows = [
+      { milestoneId: "a", status: "paid" },
+      { milestoneId: "b", status: "waived" },
+      { milestoneId: "c", status: "overdue" },
+      { milestoneId: "d", status: "scheduled" },
+    ];
+    expect(nextUnpaidMilestone(rows)?.milestoneId).toBe("c");
+    expect(nextUnpaidMilestone(rows.slice(0, 2))).toBeNull();
   });
 });

@@ -90,11 +90,21 @@ export function threadHref(conversationId: string, query: InboxQuery = EMPTY_INB
   return `/agent/messages/${conversationId}${inboxSearch(query)}`;
 }
 
-/** "Message client" from Client Detail or Trip Detail. */
-export function newMessageHref(clientId: string, tripId?: string | null): string {
+/**
+ * "Message client" from Client Detail or Trip Detail. With `remindMilestoneId` it is Trip
+ * Detail's "Remind the client": the thread opens with the template picker on Payment reminder,
+ * that milestone's payment fields filled.
+ */
+export function newMessageHref(clientId: string, tripId?: string | null, remindMilestoneId?: string | null): string {
   const p = new URLSearchParams({ client: clientId });
   if (tripId) p.set("trip", tripId);
+  if (remindMilestoneId) p.set("remind", remindMilestoneId);
   return `/agent/messages/new?${p.toString()}`;
+}
+
+/** A thread opened to send a payment reminder (see `newMessageHref`). */
+export function remindThreadHref(conversationId: string, milestoneId: string): string {
+  return `${threadHref(conversationId)}?remind=${encodeURIComponent(milestoneId)}`;
 }
 
 /** Whether anything narrows the list, for the "no threads match" vs "inbox is empty" copy. */

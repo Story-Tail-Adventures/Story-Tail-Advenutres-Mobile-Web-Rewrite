@@ -4,6 +4,7 @@ import { AgentThreadView } from "@/components/agent/AgentThreadView";
 import { RetryState } from "@/components/client/RetryState";
 import { inboxQueryFromParams, isUuid, type InboxParams } from "@/lib/agent/messageQuery";
 import { loadThread } from "@/lib/agent/messages";
+import { loadPickerData } from "@/lib/agent/messageTemplates";
 
 /**
  * Screen 3.10.2 — Conversation Thread (Agent View). §4.4 Pattern C, chat-style; the artboard
@@ -17,16 +18,23 @@ export default async function AgentThreadPage({
   searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
-  searchParams: Promise<InboxParams>;
+  searchParams: Promise<InboxParams & { remind?: string }>;
 }) {
   const { conversationId } = await params;
   if (!isUuid(conversationId)) notFound();
-  const query = inboxQueryFromParams(await searchParams);
+  const search = await searchParams;
+  const query = inboxQueryFromParams(search);
 
   const result = await loadThread(conversationId);
   // "Not yours" and "not there" are one answer, so ids cannot be probed.
   if (!result.ok && result.reason === "not-found") notFound();
   if (!result.ok) return <RetryState />;
 
-  return <AgentThreadView thread={result.thread} query={query} />;
+  // The template picker (§3.10.3) merges this thread's client and trip, and, from Trip
+  // Detail's "Remind the client", one payment milestone. A failed read offers no picker; the
+  // thread itself still works.
+  const { header } = result.thread;
+  const picker = await loadPickerData(header.clientId, header.tripId, isUuid(search.remind) ? search.remind : null);
+
+  return <AgentThreadView thread={result.thread} query={query} picker={picker} />;
 }

@@ -571,6 +571,12 @@ verify_jwt = true
 [functions.agent-message]
 verify_jwt = true
 
+# §3.10 Stage 2: the advisor's message templates. Create, edit, duplicate, archive and restore,
+# through SQL functions callable only by service_role. No audit rows: a template holds no client
+# data (Gyasi, 2026-10-14).
+[functions.agent-message-template]
+verify_jwt = true
+
 # §3.7.5 / §3.7.6: import an Inteletravel statement and reconcile it. Upload, map, resolve,
 # reconcile and discard; the ledger changes only on reconcile, inside one SQL transaction
 # that writes an audit row per line it touches.

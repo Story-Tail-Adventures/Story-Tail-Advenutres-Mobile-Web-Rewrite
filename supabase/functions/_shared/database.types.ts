@@ -3894,6 +3894,19 @@ export type Database = {
           version: number
         }[]
       }
+      agent_create_message_template: {
+        Args: {
+          p_agent_id: string
+          p_body: string
+          p_category: string
+          p_name: string
+          p_tags: string[]
+          p_template_id: string
+        }
+        Returns: {
+          outcome: string
+        }[]
+      }
       agent_create_trip: {
         Args: {
           p_agent_id: string
@@ -3935,6 +3948,12 @@ export type Database = {
         Returns: {
           outcome: string
           version: number
+        }[]
+      }
+      agent_duplicate_message_template: {
+        Args: { p_agent_id: string; p_new_id: string; p_source_id: string }
+        Returns: {
+          outcome: string
         }[]
       }
       agent_export_commission: {
@@ -4015,6 +4034,25 @@ export type Database = {
         }
         Returns: boolean
       }
+      agent_message_merge_context: {
+        Args: {
+          p_client_id: string
+          p_milestone_id?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          agent_first_name: string
+          client_first_name: string
+          payment_currency: string
+          payment_due_date: string
+          payment_label: string
+          payment_owed_cents: string
+          trip_destinations: string[]
+          trip_end_date: string
+          trip_start_date: string
+          trip_title: string
+        }[]
+      }
       agent_message_summary: {
         Args: never
         Returns: {
@@ -4035,6 +4073,30 @@ export type Database = {
           conversation_id: string
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_message_template: {
+        Args: { p_template_id: string }
+        Returns: {
+          archived: boolean
+          body: string
+          category: string
+          name: string
+          tags: string[]
+          template_id: string
+          updated_at: string
+        }[]
+      }
+      agent_message_templates: {
+        Args: { p_archived?: boolean }
+        Returns: {
+          archived: boolean
+          body: string
+          category: string
+          name: string
+          tags: string[]
+          template_id: string
+          updated_at: string
         }[]
       }
       agent_message_threads: {
@@ -4230,6 +4292,12 @@ export type Database = {
           p_conversation_ids: string[]
         }
         Returns: number
+      }
+      agent_set_message_template_archived: {
+        Args: { p_agent_id: string; p_archived: boolean; p_template_id: string }
+        Returns: {
+          outcome: string
+        }[]
       }
       agent_set_milestone_paid: {
         Args: {
@@ -4626,6 +4694,19 @@ export type Database = {
           version: number
         }[]
       }
+      agent_update_message_template: {
+        Args: {
+          p_agent_id: string
+          p_body: string
+          p_category: string
+          p_name: string
+          p_tags: string[]
+          p_template_id: string
+        }
+        Returns: {
+          outcome: string
+        }[]
+      }
       agent_update_template: {
         Args: {
           p_agent_id: string
@@ -4923,6 +5004,28 @@ export type Database = {
       itinerary_for_trip: { Args: { p_trip_id: string }; Returns: string }
       itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
       message_preview: { Args: { p_body: string }; Returns: string }
+      message_template_check: {
+        Args: {
+          p_body: string
+          p_category: string
+          p_name: string
+          p_tags: string[]
+        }
+        Returns: undefined
+      }
+      message_template_clean_tags: {
+        Args: { p_tags: string[] }
+        Returns: string[]
+      }
+      message_template_fields: { Args: never; Returns: string[] }
+      message_template_unknown_tokens: {
+        Args: { p_body: string }
+        Returns: string[]
+      }
+      seed_starter_message_templates: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sweep_dated_promises: {
@@ -4932,6 +5035,7 @@ export type Database = {
           milestones_marked_overdue: number
         }[]
       }
+      uuid_v7: { Args: never; Returns: string }
     }
     Enums: {
       agent_status: "active" | "inactive" | "archived"

@@ -120,4 +120,69 @@ describe("AgentReplyBox", () => {
     await user.type(screen.getByRole("textbox", { name: "Reply" }), "   ");
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
   });
+
+  describe("with templates (§3.10 Stage 2)", () => {
+    const tpl = (id: string, category: string, name: string, body: string) => ({
+      id,
+      category: category as never,
+      name,
+      body,
+      tags: [],
+      archived: false,
+      lastEditedLabel: "Last edited Oct 14",
+    });
+    const picker = {
+      templates: [
+        tpl("t1", "lead_response", "Lead response", "Hi {{client.firstName}}!"),
+        tpl("t2", "payment_reminder", "Payment reminder", "{{payment.label}} due {{payment.dueDate}}"),
+      ],
+      values: { "client.firstName": "Maya" },
+      startOn: null,
+    };
+
+    it("inserts a template at the cursor without replacing the draft", async () => {
+      const user = userEvent.setup();
+      renderWithTheme(<AgentReplyBox conversationId="c1" clientFirstName="Maya" clientCanSignIn picker={picker} />);
+      const box = screen.getByRole("textbox", { name: "Reply" });
+      await user.type(box, "P.S. ");
+      await user.click(screen.getByRole("button", { name: "Insert template" }));
+      await user.click(screen.getByRole("button", { name: "Insert as-is" }));
+      await waitFor(() => expect(box).toHaveValue("P.S. Hi Maya!"));
+      expect(screen.getByRole("status")).toHaveTextContent("Template added. Read it over, then send.");
+    });
+
+    it("refuses to send while a merge field is left, naming it, and keeps the words", async () => {
+      const user = userEvent.setup();
+      renderWithTheme(<AgentReplyBox conversationId="c1" clientFirstName="Maya" clientCanSignIn picker={picker} />);
+      await user.click(screen.getByRole("button", { name: "Insert template" }));
+      await user.click(screen.getByRole("button", { name: "Payment reminder" }));
+      await user.click(screen.getByRole("button", { name: "Insert & edit" }));
+      const box = screen.getByRole("textbox", { name: "Reply" });
+      await waitFor(() => expect(box).toHaveValue("{{payment.label}} due {{payment.dueDate}}"));
+      await user.click(screen.getByRole("button", { name: "Send" }));
+      expect(mocks.send).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "{{payment.label}}, {{payment.dueDate}} are still in your message, and this thread has no values for them. Fill them in before you send.",
+      );
+      expect(box).toHaveValue("{{payment.label}} due {{payment.dueDate}}");
+    });
+
+    it("opened from the reminder door, starts open on Payment reminder", () => {
+      renderWithTheme(
+        <AgentReplyBox
+          conversationId="c1"
+          clientFirstName="Maya"
+          clientCanSignIn
+          picker={{ ...picker, startOn: "payment_reminder" }}
+        />,
+      );
+      expect(screen.getByRole("dialog", { name: "Insert a template" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Payment reminder" })).toHaveAttribute("aria-current", "true");
+    });
+
+    it("offers no picker when the templates could not be read", () => {
+      renderWithTheme(<AgentReplyBox conversationId="c1" clientFirstName="Maya" clientCanSignIn picker={null} />);
+      expect(screen.queryByRole("button", { name: "Insert template" })).toBeNull();
+    });
+  });
 });
