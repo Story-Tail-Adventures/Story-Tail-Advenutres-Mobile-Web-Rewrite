@@ -36,6 +36,12 @@ import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { badRequest, conflict, notFound, problem } from "../_shared/problem.ts";
 import { isUuid, uuidV7 } from "../_shared/uuid.ts";
 import { readJson } from "../_shared/trip.ts";
+import {
+  readPaidNote,
+  readPaidOn,
+  readPaidReference,
+  readPayUrl,
+} from "../_shared/payLink.ts";
 import { agentDb, requireAgentId } from "../_shared/agent.ts";
 import {
   readCents,
@@ -53,11 +59,13 @@ const OPS = [
   "component_reorder",
   // §3.4.15. `payment_paid` is separate from `payment_upsert` for the reason the migration
   // gives: `paid_cents`, `paid_at` and `status` move together and they are the only thing
-  // that may touch `trip.total_paid_cents`, which sizes the balance a traveler is shown
-  // when they authorize a card. A label edit must not be able to reach it.
+  // that may touch `trip.total_paid_cents`, the figure a traveler's balance is worked out
+  // from. A label edit must not be able to reach it.
   "payment_upsert",
   "payment_paid",
   "payment_delete",
+  // §3.6.1. The milestone's pay link: set, change or remove (null). Audited in SQL.
+  "payment_link",
 ] as const;
 type Op = (typeof OPS)[number];
 
@@ -101,6 +109,10 @@ const MAX_MILESTONE_LABEL = 120;
 
 /** Postgres's SQLSTATE for a bare `RAISE EXCEPTION`. */
 const RAISE_EXCEPTION = "P0001";
+/** A CHECK refused the row. The payLink.ts checks run first, so reaching this is rare. */
+const CHECK_VIOLATION = "23514";
+/** `agent_set_milestone_paid` raises this for a date paid after the advisor's today. */
+const INVALID_PARAMETER = "22023";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -404,36 +416,77 @@ Deno.serve(async (req) => {
         ? null
         : readCents(payload.paidCents, "Amount paid");
 
+      // §3.6.5 Mark Paid. Absent keeps what is stored, "" clears it (see payLink.ts), so
+      // §3.4.15's status toggle, which sends neither, cannot wipe a confirmation number.
       const { data, error } = await db.rpc("agent_set_milestone_paid", {
         p_trip_id: tripId,
         p_agent_id: agentId,
         p_milestone_id: milestoneId,
         p_status: status,
         p_paid_cents: paidCents,
+        p_paid_reference: readPaidReference(payload.paidReference),
+        p_paid_note: readPaidNote(payload.paidNote),
+        p_paid_on: readPaidOn(payload.paidOn),
+        p_actor_user_id: ctx.platformUserId,
+        p_ip: ctx.ip,
+        p_user_agent: ctx.userAgent,
       } as never);
-      if (error) throw new Error(`milestone paid failed: ${error.message}`);
+      if (error) {
+        if (error.code === INVALID_PARAMETER) {
+          throw badRequest("The date paid can't be in the future.");
+        }
+        if (error.code === CHECK_VIOLATION) {
+          throw badRequest("That confirmation number or note can't be saved.");
+        }
+        throw new Error(`milestone paid failed: ${error.message}`);
+      }
 
       const result = Array.isArray(data) ? data[0] : data;
       if (!result) throw notFound("That trip is not on your board.");
 
-      if (result.outcome !== "noop") {
-        // MONEY MOVING IS THE AUDITABLE EVENT ON THIS TABLE. `trip.total_paid_cents` is
-        // recomputed by a trigger from this write, and that figure is subtracted from the
-        // trip value to show a traveler their outstanding balance — so the row recording
-        // who changed it, and to what, is the one that matters most here.
-        await writeAuditEvent(ctx, {
-          eventType: "payment_milestone.status_changed",
-          targetEntity: "payment_milestone",
-          targetId: result.milestone_id,
-          metadata: { trip_id: tripId, status, paid_cents: result.paid_cents },
-        });
-      }
+      // NO writeAuditEvent HERE, on purpose. Since 20261021120000 the SQL function writes
+      // its own audit row (marked_paid / marked_waived / payment_cleared / status_changed)
+      // in the same transaction as the change, so there is exactly one row per change and
+      // the money cannot move without its record.
 
       return json({
         outcome: result.outcome,
         milestoneId: result.milestone_id,
         paidCents: result.paid_cents,
       });
+    }
+
+    // ── 3.6.1 The pay link ────────────────────────────────────────────────
+    if (op === "payment_link") {
+      const milestoneId = requireComponentId(payload.milestoneId);
+      // Refuses anything not https, a user:password part, a card number, or > 2,048
+      // characters, and returns the parsed href so what is stored is what was checked.
+      // null / "" / absent removes the link.
+      const payUrl = readPayUrl(payload.payUrl);
+
+      const { data, error } = await db.rpc("agent_set_milestone_pay_url", {
+        p_trip_id: tripId,
+        p_agent_id: agentId,
+        p_milestone_id: milestoneId,
+        p_pay_url: payUrl,
+        p_actor_user_id: ctx.platformUserId,
+        p_ip: ctx.ip,
+        p_user_agent: ctx.userAgent,
+      } as never);
+      if (error) {
+        if (error.code === CHECK_VIOLATION) {
+          throw badRequest("That link can't be saved. Pay links must start with https://");
+        }
+        throw new Error(`milestone pay link failed: ${error.message}`);
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result) throw notFound("That trip is not on your board.");
+
+      // Audited in SQL (link_set / link_changed / link_removed), in the same transaction as
+      // the write; a no-op writes nothing. A link swapped without a trace could send a
+      // client's money to the wrong place.
+      return json({ outcome: result.outcome, milestoneId: result.milestone_id, payUrl });
     }
 
     if (op === "payment_delete") {

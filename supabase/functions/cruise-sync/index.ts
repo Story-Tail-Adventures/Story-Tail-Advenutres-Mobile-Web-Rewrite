@@ -107,8 +107,8 @@ Deno.serve(async (req: Request) => {
     const outcome = await runSync({ db, apiKey, trigger, onlyLabel: scope });
 
     // One audit row per RUN, with counts in metadata — never one per sailing. The cruise
-    // tables are not on CLAUDE.md rule 3's sensitive list (payment_card,
-    // card_authorization, commission, client), onboarding-step already sets the precedent
+    // tables are not on CLAUDE.md rule 3's sensitive list (payment_milestone, commission,
+    // client), onboarding-step already sets the precedent
     // for saying so out loud, and a per-row trail would push thousands of inserts through
     // the non-atomic path _shared/audit.ts documents. cruise_sync_run holds the detail.
     await writeSystemAuditEvent(db, {

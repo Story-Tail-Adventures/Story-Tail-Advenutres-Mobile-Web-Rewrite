@@ -298,247 +298,6 @@ export type Database = {
           },
         ]
       }
-      authorization_request: {
-        Row: {
-          client_id: string
-          completed_at: string | null
-          completed_card_authorization_id: string | null
-          expires_at: string
-          id: string
-          personal_note: string | null
-          proposed_expiry: string
-          proposed_limit_cents: number
-          requesting_agent_id: string
-          sent_at: string
-          status: Database["public"]["Enums"]["auth_request_status"]
-          token_hash: string
-          trip_id: string
-        }
-        Insert: {
-          client_id: string
-          completed_at?: string | null
-          completed_card_authorization_id?: string | null
-          expires_at: string
-          id: string
-          personal_note?: string | null
-          proposed_expiry: string
-          proposed_limit_cents: number
-          requesting_agent_id: string
-          sent_at?: string
-          status?: Database["public"]["Enums"]["auth_request_status"]
-          token_hash: string
-          trip_id: string
-        }
-        Update: {
-          client_id?: string
-          completed_at?: string | null
-          completed_card_authorization_id?: string | null
-          expires_at?: string
-          id?: string
-          personal_note?: string | null
-          proposed_expiry?: string
-          proposed_limit_cents?: number
-          requesting_agent_id?: string
-          sent_at?: string
-          status?: Database["public"]["Enums"]["auth_request_status"]
-          token_hash?: string
-          trip_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "authorization_request_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "authorization_request_completed_card_authorization_id_fkey"
-            columns: ["completed_card_authorization_id"]
-            isOneToOne: false
-            referencedRelation: "card_authorization"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "authorization_request_requesting_agent_id_fkey"
-            columns: ["requesting_agent_id"]
-            isOneToOne: false
-            referencedRelation: "agent"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "authorization_request_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trip"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      card_authorization: {
-        Row: {
-          amount_used_cents: number
-          consent_payload: Json
-          created_at: string
-          expires_at: string
-          id: string
-          payment_card_id: string
-          revoked_at: string | null
-          revoked_by_user_id: string | null
-          spending_limit_cents: number
-          status: Database["public"]["Enums"]["card_auth_status"]
-          trip_id: string
-          updated_at: string
-        }
-        Insert: {
-          amount_used_cents?: number
-          consent_payload: Json
-          created_at?: string
-          expires_at: string
-          id: string
-          payment_card_id: string
-          revoked_at?: string | null
-          revoked_by_user_id?: string | null
-          spending_limit_cents: number
-          status?: Database["public"]["Enums"]["card_auth_status"]
-          trip_id: string
-          updated_at?: string
-        }
-        Update: {
-          amount_used_cents?: number
-          consent_payload?: Json
-          created_at?: string
-          expires_at?: string
-          id?: string
-          payment_card_id?: string
-          revoked_at?: string | null
-          revoked_by_user_id?: string | null
-          spending_limit_cents?: number
-          status?: Database["public"]["Enums"]["card_auth_status"]
-          trip_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "card_authorization_payment_card_id_fkey"
-            columns: ["payment_card_id"]
-            isOneToOne: false
-            referencedRelation: "payment_card"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_authorization_revoked_by_user_id_fkey"
-            columns: ["revoked_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "platform_user"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_authorization_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trip"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      card_use_event: {
-        Row: {
-          agent_user_id: string
-          amount_cents: number
-          card_authorization_id: string
-          client_flag_status: string
-          client_flagged_at: string | null
-          created_at: string
-          currency: string
-          id: string
-          justification: string
-          payment_card_id: string
-          receipt_document_id: string | null
-          reference_number: string | null
-          supplier_id: string | null
-          supplier_name_snapshot: string
-          trip_id: string
-        }
-        Insert: {
-          agent_user_id: string
-          amount_cents: number
-          card_authorization_id: string
-          client_flag_status?: string
-          client_flagged_at?: string | null
-          created_at?: string
-          currency?: string
-          id: string
-          justification: string
-          payment_card_id: string
-          receipt_document_id?: string | null
-          reference_number?: string | null
-          supplier_id?: string | null
-          supplier_name_snapshot: string
-          trip_id: string
-        }
-        Update: {
-          agent_user_id?: string
-          amount_cents?: number
-          card_authorization_id?: string
-          client_flag_status?: string
-          client_flagged_at?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          justification?: string
-          payment_card_id?: string
-          receipt_document_id?: string | null
-          reference_number?: string | null
-          supplier_id?: string | null
-          supplier_name_snapshot?: string
-          trip_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "card_use_event_agent_user_id_fkey"
-            columns: ["agent_user_id"]
-            isOneToOne: false
-            referencedRelation: "platform_user"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_card_authorization_id_fkey"
-            columns: ["card_authorization_id"]
-            isOneToOne: false
-            referencedRelation: "card_authorization"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_payment_card_id_fkey"
-            columns: ["payment_card_id"]
-            isOneToOne: false
-            referencedRelation: "payment_card"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_receipt_fk"
-            columns: ["receipt_document_id"]
-            isOneToOne: false
-            referencedRelation: "document"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trip"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client: {
         Row: {
           agent_id: string
@@ -2624,68 +2383,6 @@ export type Database = {
           },
         ]
       }
-      payment_card: {
-        Row: {
-          brand: string
-          client_id: string
-          consent_recorded_at: string
-          created_at: string
-          exp_month: number
-          exp_year: number
-          id: string
-          last4: string
-          nickname: string | null
-          revoked_at: string | null
-          revoked_reason: string | null
-          status: Database["public"]["Enums"]["card_status"]
-          stripe_customer_id: string
-          stripe_payment_method_id: string
-          updated_at: string
-        }
-        Insert: {
-          brand: string
-          client_id: string
-          consent_recorded_at: string
-          created_at?: string
-          exp_month: number
-          exp_year: number
-          id: string
-          last4: string
-          nickname?: string | null
-          revoked_at?: string | null
-          revoked_reason?: string | null
-          status?: Database["public"]["Enums"]["card_status"]
-          stripe_customer_id: string
-          stripe_payment_method_id: string
-          updated_at?: string
-        }
-        Update: {
-          brand?: string
-          client_id?: string
-          consent_recorded_at?: string
-          created_at?: string
-          exp_month?: number
-          exp_year?: number
-          id?: string
-          last4?: string
-          nickname?: string | null
-          revoked_at?: string | null
-          revoked_reason?: string | null
-          status?: Database["public"]["Enums"]["card_status"]
-          stripe_customer_id?: string
-          stripe_payment_method_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_card_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payment_milestone: {
         Row: {
           amount_cents: number
@@ -2698,6 +2395,9 @@ export type Database = {
           order_index: number
           paid_at: string | null
           paid_cents: number
+          paid_note: string | null
+          paid_reference: string | null
+          pay_url: string | null
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           updated_at: string
@@ -2713,6 +2413,9 @@ export type Database = {
           order_index?: number
           paid_at?: string | null
           paid_cents?: number
+          paid_note?: string | null
+          paid_reference?: string | null
+          pay_url?: string | null
           status?: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           updated_at?: string
@@ -2728,6 +2431,9 @@ export type Database = {
           order_index?: number
           paid_at?: string | null
           paid_cents?: number
+          paid_note?: string | null
+          paid_reference?: string | null
+          pay_url?: string | null
           status?: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id?: string
           updated_at?: string
@@ -4331,6 +4037,7 @@ export type Database = {
           payment_currency: string
           payment_due_date: string
           payment_label: string
+          payment_link: string
           payment_owed_cents: string
           trip_destinations: string[]
           trip_end_date: string
@@ -4586,16 +4293,37 @@ export type Database = {
       }
       agent_set_milestone_paid: {
         Args: {
+          p_actor_user_id?: string
           p_agent_id: string
+          p_ip?: string
           p_milestone_id: string
           p_paid_cents?: number
+          p_paid_note?: string
+          p_paid_on?: string
+          p_paid_reference?: string
           p_status: Database["public"]["Enums"]["payment_milestone_status"]
           p_trip_id: string
+          p_user_agent?: string
         }
         Returns: {
           milestone_id: string
           outcome: string
           paid_cents: string
+        }[]
+      }
+      agent_set_milestone_pay_url: {
+        Args: {
+          p_actor_user_id?: string
+          p_agent_id: string
+          p_ip?: string
+          p_milestone_id: string
+          p_pay_url: string
+          p_trip_id: string
+          p_user_agent?: string
+        }
+        Returns: {
+          milestone_id: string
+          outcome: string
         }[]
       }
       agent_set_pipeline_weights: {
@@ -4839,9 +4567,6 @@ export type Database = {
           api_component_count: number
           as_of_date: string
           cancellation_reason: string
-          card_brand: string
-          card_last4: string
-          card_spending_limit_cents: string
           client_display_name: string
           client_id: string
           component_count: number
@@ -4868,6 +4593,18 @@ export type Database = {
           version: number
         }[]
       }
+      agent_trip_payment_history: {
+        Args: { p_trip_id: string }
+        Returns: {
+          actor_name: string
+          event_id: string
+          event_type: string
+          metadata: Json
+          milestone_id: string
+          milestone_label: string
+          occurred_at: string
+        }[]
+      }
       agent_trip_payments: {
         Args: { p_trip_id: string }
         Returns: {
@@ -4880,6 +4617,9 @@ export type Database = {
           order_index: number
           paid_at: string
           paid_cents: string
+          paid_note: string
+          paid_reference: string
+          pay_url: string
           status: Database["public"]["Enums"]["payment_milestone_status"]
         }[]
       }
@@ -5372,6 +5112,19 @@ export type Database = {
         Args: { p_body: string }
         Returns: string[]
       }
+      pay_url_host: { Args: { p_url: string }; Returns: string }
+      payment_milestone_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_milestone_id: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
       push_claim_dismissals: {
         Args: { p_limit?: number }
         Returns: {
@@ -5445,10 +5198,10 @@ export type Database = {
       sweep_dated_promises: {
         Args: never
         Returns: {
-          authorizations_expired: number
           milestones_marked_overdue: number
         }[]
       }
+      text_has_card_digits: { Args: { p_text: string }; Returns: boolean }
       uuid_v7: { Args: never; Returns: string }
     }
     Enums: {
@@ -5466,10 +5219,7 @@ export type Database = {
         | "account_unlocked"
         | "session_revoked"
       auth_provider: "email" | "google" | "apple"
-      auth_request_status: "pending" | "completed" | "expired" | "cancelled"
       block_kind: "morning" | "afternoon" | "evening" | "all_day"
-      card_auth_status: "active" | "revoked" | "expired" | "exhausted"
-      card_status: "active" | "revoked" | "expired" | "failed"
       client_status: "active" | "archived" | "merged_into"
       commission_import_row_state:
         | "confirmed"
@@ -5725,10 +5475,7 @@ export const Constants = {
         "session_revoked",
       ],
       auth_provider: ["email", "google", "apple"],
-      auth_request_status: ["pending", "completed", "expired", "cancelled"],
       block_kind: ["morning", "afternoon", "evening", "all_day"],
-      card_auth_status: ["active", "revoked", "expired", "exhausted"],
-      card_status: ["active", "revoked", "expired", "failed"],
       client_status: ["active", "archived", "merged_into"],
       commission_import_row_state: [
         "confirmed",

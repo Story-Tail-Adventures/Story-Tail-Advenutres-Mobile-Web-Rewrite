@@ -38,7 +38,8 @@ export function userClient(req: Request): Db {
  * A client that BYPASSES RLS entirely.
  *
  * Legitimate uses are narrow: writing `audit_event` (which has no insert policy by
- * design), and handling Stripe tokens. Everything else should use `userClient`.
+ * design), and calling the service-role-only SECURITY DEFINER writes. Everything else
+ * should use `userClient`.
  *
  * Every call site needs a comment saying why the caller's own permissions are not
  * enough — `supabase-reviewer` flags the ones that don't have it.

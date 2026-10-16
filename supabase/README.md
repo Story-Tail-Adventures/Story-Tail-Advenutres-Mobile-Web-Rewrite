@@ -20,8 +20,8 @@ Seeded logins, all with password `DevPassword!234`:
 **RLS is enabled on all 34 tables and only three policies exist** — the self-read
 policies on `account`, `platform_user` and `client` that Login needs. Everything else is
 service-role-only until the full RLS pass lands. That is safe by default, but it also
-means CLAUDE.md rule 4 (Stripe `PaymentMethod` IDs are server-only) is currently enforced
-by convention rather than by the database. Use the `rls-policy` skill for the rest; it
+means server-only columns are protected by GRANTs and service-role-only functions, not by
+policies. Use the `rls-policy` skill for the rest; it
 tests each policy under a forged JWT rather than just writing it.
 
 ## Initialize
@@ -51,16 +51,12 @@ supabase/
 │   ├── _shared/             # Shared utilities across functions
 │   │   ├── audit.ts         # Audit event helper
 │   │   ├── auth.ts          # JWT verification, MFA step-up
-│   │   └── stripe.ts        # Stripe SDK wrapper
-│   ├── stripe-setup-intent/
-│   ├── stripe-vault-forward/
-│   ├── stripe-reveal-pan/
+│   │   └── payLink.ts       # Pay-link checks (https only, no card numbers)
 │   ├── commission-import/
 │   ├── travel-api-proxy-amadeus/
 │   ├── travel-api-proxy-hotelbeds/
 │   ├── travel-api-proxy-viator/
-│   ├── travel-api-proxy-widgety/
-│   └── webhooks-stripe/
+│   └── travel-api-proxy-widgety/
 ├── seed.sql                 # Optional seed data for local dev
 └── tests/                   # Optional pgTAP database tests
 ```
@@ -141,7 +137,7 @@ supabase secrets set ALLOWED_ORIGIN=<the production origin> --project-ref <prod-
 
 The cruise catalog sync (`functions/cruise-sync`, migrations `20260909001124` and
 `20260909001125`) needs one secret to work and two more for the schedule to fire. All three
-are set out of band, the same way `ALLOWED_ORIGIN` and the Stripe key are — none of them
+are set out of band, the same way `ALLOWED_ORIGIN` is — none of them
 belongs in git.
 
 **The API key.** track.cruises relays through RapidAPI; the free BASIC plan is 100
@@ -420,10 +416,10 @@ service-role key); a waiting row is due five minutes after the reply.
 
 ## Critical PCI rules for this directory
 
-1. **Never store PANs in migrations or Edge Function code.** Only Stripe tokens (`PaymentMethod` IDs) and Stripe-returned metadata (brand, last 4, expiration). See `../docs/Data-Model.md` §18.
+1. **No cardholder data, anywhere (since 2026-10-16).** No card tables, tokens, Stripe or card SDK. Free-text payment fields (`payment_milestone.pay_url`, `paid_reference`, `paid_note`) refuse card numbers by CHECK and in `_shared/payLink.ts`. See `../docs/Data-Model.md` §9.5 and §18.
 2. **Every mutating Edge Function calls `_shared/audit.ts`** to write an `audit_event` row. See `../docs/Data-Model.md` §20.3.
-3. **MFA step-up is enforced via `_shared/auth.ts`** for PAN reveals, card merges, and Inteletravel CSV imports that touch already-received commissions. See `../docs/Data-Model.md` §18.4.
-4. **Stripe secret key never leaves the backend.** Store it in Supabase environment variables (`stripe-secret`), not in client code or git. The web app uses only the publishable key.
+3. **MFA step-up is enforced via `_shared/auth.ts`** for Inteletravel CSV imports that touch already-received commissions. See `../docs/Data-Model.md` §18.4.
+4. **Pay links are advisor-only and audited.** `https://` only; written through `agent_set_milestone_pay_url` (service role), which writes an `audit_event` for every add, change and removal. Clients read `pay_url` and `paid_reference`, never `paid_note`.
 
 ## First migration
 

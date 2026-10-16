@@ -375,38 +375,12 @@ SELECT pg_temp.assert(
 
 DELETE FROM public.payment_milestone WHERE id::text LIKE '01a0b1c2-d300-7000-8000-00000000fa0%';
 
--- The other dated promise. Data-Model §9.2 says authorizations expire automatically and
--- nothing anywhere wrote 'expired'. This one is on a payment surface and it BLOCKS: the
--- card_auth_active_per_trip unique index is partial on status='active', so a stale row that
--- never expires stops a new authorization for the same card and trip being created at all.
-CREATE TEMP TABLE auth_probe AS
-SELECT id, payment_card_id, trip_id FROM public.card_authorization LIMIT 1;
-
+-- The sweep used to expire card authorizations too. The card tables were dropped on
+-- 2026-10-16 (§3.6), and the sweep now returns only the milestone count.
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM auth_probe) = 1,
-    'the seed has a card_authorization to bite on');
-
-UPDATE public.card_authorization
-   SET status = 'active', expires_at = now() - interval '2 days'
- WHERE id = (SELECT id FROM auth_probe);
-
-SELECT public.sweep_dated_promises();
-
-SELECT pg_temp.assert(
-    (SELECT status FROM public.card_authorization WHERE id = (SELECT id FROM auth_probe))
-        = 'expired',
-    'an authorization past expires_at is expired — and until now nothing in the repository '
-    'ever wrote that value');
-
--- `revoked` is somebody's decision and a sweep must not overwrite it with a weaker word.
-UPDATE public.card_authorization
-   SET status = 'revoked', expires_at = now() - interval '2 days'
- WHERE id = (SELECT id FROM auth_probe);
-SELECT public.sweep_dated_promises();
-SELECT pg_temp.assert(
-    (SELECT status FROM public.card_authorization WHERE id = (SELECT id FROM auth_probe))
-        = 'revoked',
-    'a REVOKED authorization past its expiry stays revoked');
+    pg_get_function_result('public.sweep_dated_promises()'::regprocedure)
+        = 'TABLE(milestones_marked_overdue integer)',
+    'sweep_dated_promises() lost its card branch and returns the milestone count alone');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 6. One forward guard, LABELLED as vacuous today
