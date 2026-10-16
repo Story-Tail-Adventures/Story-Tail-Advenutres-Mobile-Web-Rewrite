@@ -7,7 +7,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advi
 The five documents in `docs/` are the canonical source of truth for this project:
 
 - `@docs/BRD.md` — business requirements, scope, phases
-- `@docs/Screen-Inventory.md` — every screen (172 of them) with mobile/tablet/web variants
+- `@docs/Screen-Inventory.md` — every screen (~162 of them) with mobile/tablet/web variants
 - `@docs/Data-Model.md` — every entity, every field, with Postgres DDL and Kotlin data classes
 - `@docs/Design-System.md` — colors, typography, components, **brand voice and worldview** (§2)
 - `@docs/Tech-Recommendations.md` — stack choices and Claude Code bootstrap walkthrough

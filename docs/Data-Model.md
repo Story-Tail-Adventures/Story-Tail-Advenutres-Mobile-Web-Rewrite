@@ -1868,6 +1868,24 @@ message is the record that it was sent; there is no separate "request" row.
 
 **Indexes:** index on `(trip_id, order_index)`; index on `(status, due_date)` for the agent-side overdue sweep.
 
+> **Amended 2026-10-16, as built (migration `20261021120000_supplier_pay_links.sql`).**
+> Three details the spec above left open:
+>
+> - **Date paid.** `agent_set_milestone_paid` also takes `p_paid_on date` (Mark Paid has a
+>   "Date paid" field). A future date is refused. Both writes also take the actor, IP and user
+>   agent so the audit row names who did it.
+> - **Keeping a reference.** On `paid` or `waived`, a NULL `p_paid_reference` / `p_paid_note`
+>   keeps what is stored and an empty string clears it, so the §3.4.15 status toggle cannot
+>   wipe a confirmation number. Both clear when the milestone returns to `scheduled` or
+>   `overdue`. A `scheduled` and `overdue` swap (no money moves) keeps the existing
+>   `payment_milestone.status_changed` event.
+> - **Payment History read.** `agent_trip_payment_history(p_trip_id)` returns the trip's
+>   `payment_milestone.*` audit rows newest first. Like `agent_client_activity` it is granted
+>   to `authenticated` and checks the advisor with `current_agent_id()` (the web app has no
+>   service-role key); a client gets zero rows. Each audit row stores the milestone's label, so
+>   a deleted milestone still reads by name. The note text is never copied into audit
+>   metadata, only whether one exists.
+
 ---
 
 ## 10. Commission Domain

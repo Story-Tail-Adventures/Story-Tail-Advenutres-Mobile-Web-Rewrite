@@ -28,10 +28,11 @@ comment:
 
 1. **Which role(s) may call this?** `client`, `agent`, `admin`, or a combination. There is
    no "anyone" — if it is genuinely public, say so out loud and justify it.
-2. **Does it mutate `payment_card`, `card_authorization`, `commission`, or `client`?** If
+2. **Does it mutate `payment_milestone`, `commission`, or `client`?** If
    yes, the mutation goes inside `withAudit`. Not beside it, inside it.
-3. **Does it reach cardholder data?** If yes it needs `requireRecentMfa()`, and the audit
-   row is written *before* the sensitive action, not after — so a crash mid-operation still
+3. **Does it accept or return a card number?** It must not: the app holds no cardholder
+   data since 2026-10-16 (BRD §10). If a design seems to need one, stop and raise it. Older
+   guidance said the audit row is written *before* a sensitive action, not after — so a crash mid-operation still
    leaves a trail.
 
 ## Procedure
@@ -85,15 +86,16 @@ comment:
 
 3. **Default to `userClient`.** It forwards the caller's Authorization header, so RLS
    applies. `serviceClient()` bypasses RLS entirely — use it only where the function
-   legitimately must (writing `audit_event`, handling a Stripe token), and leave a comment
+   legitimately must (writing `audit_event`, calling a service-role-only SQL function), and leave a comment
    saying why. `supabase-reviewer` flags every unexplained use.
 
 4. **Money is a string.** Transport `bigint` cents as a JSON string and parse to `bigint`.
    A JS `number` silently loses precision above 2^53, and the bug shows up months later as a
    reconciliation mismatch nobody can trace.
 
-5. **Rule 4.** Do not return `stripe_payment_method_id` in any response body reachable by a
-   client role. Check the shape you actually return, not just the row you queried.
+5. **Rule 4.** Pay links are `https://` only, normalised with `new URL()`, written only by the
+   advisor, and audited. Never return `payment_milestone.paid_note` to a client role. Check the
+   shape you actually return, not just the row you queried.
 
 6. **Describe it in the contract.** Add the path to `contracts/openapi.yaml` — request body,
    response, and the error responses — then `npm run generate -w contracts`. The contract is
@@ -106,8 +108,8 @@ comment:
    supabase functions serve <name>    # then curl it with a real JWT
    ```
 
-8. **Review.** Run `supabase-reviewer`. If the name matches `stripe-*` or the function
-   touches `payment_card` / `card_authorization`, run `audit-pci` as well.
+8. **Review.** Run `supabase-reviewer`. If the function touches pay links or
+   `payment_milestone`, run `audit-pci` as well.
 
 ## What this skill never does
 

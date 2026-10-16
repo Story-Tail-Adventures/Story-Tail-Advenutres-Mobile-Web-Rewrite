@@ -12,8 +12,8 @@ Write and *verify* RLS policies for a table.
 This matters more than it sounds. `supabase/migrations/20260514120000_initial.sql` enables
 RLS on all 34 tables and adds **zero policies**, with a `TODO`. So today every table is
 service-role-only, and — more importantly — RLS is the only enforcement mechanism
-`docs/Data-Model.md` §21.2 names for keeping `stripe_payment_method_id`,
-`mfa_device.secret_encrypted`, and `authorization_request.token_hash` away from client
+`docs/Data-Model.md` §21.2 names for keeping server-only columns such as
+`mfa_device.secret_encrypted` and `payment_milestone.paid_note` away from client
 roles. Until the policies exist, **CLAUDE.md rule 4 is enforced by convention alone**.
 
 Getting a policy wrong is a silent data-exposure bug. No typecheck, lint, or reviewer
@@ -35,9 +35,10 @@ catches it. Only executing the query as the wrong user catches it. Hence step 5.
      agent sees them too.
    - **child** — no direct owner column; ownership is inherited through a parent FK
      (`itinerary_day` through `itinerary` through `trip`).
-   - **append-only** — `audit_event`, `auth_event`, `card_use_event`. SELECT for admins,
+   - **append-only** — `audit_event`, `auth_event`. SELECT for admins,
      INSERT by service role, and **no UPDATE or DELETE policy at all**.
-   - **service-role-only** — `payment_card`, `card_authorization`, `authorization_request`.
+   - **service-role-only** — `commission` and the agent domain (the card tables were retired
+     2026-10-16 and dropped).
      No `authenticated` policy whatsoever; these are reachable only through audited Edge
      Functions.
 
@@ -76,8 +77,8 @@ catches it. Only executing the query as the wrong user catches it. Hence step 5.
    a caller move a row to another owner.
 
 4. **Exclude server-only columns explicitly.** RLS is row-level, not column-level. If a
-   table has a column no client role may ever read (`stripe_payment_method_id`,
-   `secret_encrypted`, `token_hash`), the row-level policy is not enough — either withhold
+   table has a column no client role may ever read (`secret_encrypted`,
+   `payment_milestone.paid_note`), the row-level policy is not enough — either withhold
    the table from client roles entirely and serve it through an Edge Function, or expose a
    view with the column omitted and grant on the view. Say which you chose and why.
 
@@ -110,5 +111,5 @@ catches it. Only executing the query as the wrong user catches it. Hence step 5.
   table is service-role-only and wants no `authenticated` policy at all.
 - Adds UPDATE or DELETE policies to an append-only table.
 - Claims a policy works without having executed step 5.
-- Grants a client role any access to `payment_card`, `card_authorization`, or
-  `authorization_request`.
+- Grants a client role write access to `payment_milestone` (pay links are advisor-only and
+  audited), or read access to `payment_milestone.paid_note`.

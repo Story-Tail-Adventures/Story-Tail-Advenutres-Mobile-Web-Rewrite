@@ -55,20 +55,19 @@ rather than reporting a false pass.
 
 ## Edge Function checklist
 
-- **Audit (rule 3).** Every mutating handler that touches `payment_card`,
-  `card_authorization`, `commission` or `client` calls `_shared/audit.ts`. Missing audit on
+- **Audit (rule 3).** Every mutating handler that touches `payment_milestone`,
+  `commission` or `client` writes an `audit_event` (via `_shared/audit.ts`, or inside the SQL
+  function for the pay-link and paid writes). Missing audit on
   a sensitive mutation is a hard fail, not a nit — it is the difference between an
-  auditable platform and an unauditable one. Note the ordering rule: normal mutations audit
-  *after* success, but the PAN-reveal flow audits *before* the reveal so a crash still
-  leaves a trail.
+  auditable platform and an unauditable one.
 - **Audit failures must fail the request.** A swallowed audit-write error is exactly the
   compliance gap rule 3 exists to prevent.
 - **Auth.** `requireUser()` runs before any DB access. `requireRole()` where the endpoint is
-  role-scoped. `requireRecentMfa()` on anything reaching cardholder data.
+  role-scoped. There is no cardholder data anywhere (2026-10-16); flag any handler that accepts one.
 - **RLS bypass.** `serviceClient()` bypasses RLS. Every use needs a comment saying why
   `userClient()` would not do. Default is `userClient`.
-- **Rule 4.** No `stripe_payment_method_id` in any response body reachable by a client role.
-  Grep the return shape, not just the query.
+- **Rule 4.** Pay links are `https://` only, written only by the advisor, and audited on every
+  change; `paid_note` never reaches a client role. Grep the return shape, not just the query.
 - **Rule 5 — the realistic failure.** Money must never cross JSON as a JavaScript `number`.
   Cents above 2^53 lose precision silently, and the bug surfaces as an off-by-a-few-cents
   reconciliation mismatch months later. Transport as a string; parse to `bigint`.
@@ -78,7 +77,7 @@ rather than reporting a false pass.
   must not leak internal detail (SQL text, stack traces, row counts) to a client role.
 - **CORS.** Preflight handled via `_shared/cors.ts`. Allowed origin from env, never `*` in a
   deployed function.
-- **Secrets.** No literal keys. `SUPABASE_SERVICE_ROLE_KEY` / `STRIPE_SECRET_KEY` come from
+- **Secrets.** No literal keys. `SUPABASE_SERVICE_ROLE_KEY` and other keys come from
   the environment, and never appear in a log line.
 
 ## Migration checklist
@@ -91,7 +90,7 @@ rather than reporting a false pass.
 - Timestamps are `timestamptz`, never `timestamp`.
 - Soft delete is `archived_at`, matching the existing schema. Not `deleted_at`.
 - **No `card_number` / `pan` / `cvv` / `cvc` column, ever, under any name.** Rule 1.
-- Append-only tables (`audit_event`, `auth_event`, `card_use_event`) get a
+- Append-only tables (`audit_event`, `auth_event`) get a
   `COMMENT ON TABLE` saying so, and no UPDATE/DELETE policy.
 - Migrations are forward-only and additive on the main branch (Data-Model §22.1). A
   destructive change to an already-applied migration file is a hard fail — write a new one.
@@ -112,8 +111,8 @@ rather than reporting a false pass.
 
 ## Delegation
 
-- Anything under `supabase/functions/stripe-*`, or touching `payment_card` /
-  `card_authorization` → say "Delegate to `audit-pci` skill" and stop. Don't do the PCI
+- Anything touching `payment_milestone` pay links or paid fields, or reintroducing card
+  storage of any kind → say "Delegate to `audit-pci` skill" and stop. Don't do the PCI
   review yourself.
 - User-facing strings in email templates, notification copy, or error messages a client will
   read → "Delegate to `brand-voice-reviewer`".
@@ -133,7 +132,7 @@ rather than reporting a false pass.
 - `supabase/migrations/2026..._bar.sql:18` — <one-line description with suggestion>
 
 ### Delegated
-- Stripe code in `supabase/functions/stripe-vault/index.ts` → run `audit-pci`
+- Pay-link code in `supabase/functions/agent-trip/index.ts` → run `audit-pci`
 
 ### Looks good
 - <one line if there are notable things done well>
