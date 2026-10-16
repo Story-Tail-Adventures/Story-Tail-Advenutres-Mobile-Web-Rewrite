@@ -25,6 +25,6 @@ export const GYASI_FAQ: readonly FaqItem[] = [
   },
   {
     q: "How does payment work?",
-    a: "You pay each supplier directly, on their own secure site. I add a pay link to each payment on your trip, and I mark it paid once the supplier confirms. I never see your card number, and I never charge you a service fee.",
+    a: "You pay each supplier directly, on their own secure site. I add a pay link to each payment as it comes due, and I mark it paid once the supplier confirms. I never see your card number, and I never charge you a service fee.",
   },
 ];

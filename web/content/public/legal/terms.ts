@@ -6,13 +6,13 @@ export const TERMS: LegalDoc = {
   title: "Terms of service",
   navLabel: "Terms",
   description: "How the Story-Tail Adventures portal works, what we do and don't charge for, and what you agree to when you use it.",
-  lastUpdated: "2026-09-02",
+  lastUpdated: "2026-10-16",
   status: "draft",
   sections: [
     {
       heading: "1. Who we are",
       paragraphs: [
-        "Story-Tail Adventures is an independent travel advisory business hosted by Inteletravel. Your bookings are issued through Inteletravel and fulfilled by the travel suppliers named on your itinerary. This portal is where you view trips, message your advisor, and authorize payment cards for those suppliers.",
+        "Story-Tail Adventures is an independent travel advisory business hosted by Inteletravel. Your bookings are issued through Inteletravel and fulfilled by the travel suppliers named on your itinerary. This portal is where you view your trips, message your advisor, and find the link to pay each supplier.",
       ],
     },
     {
@@ -24,7 +24,7 @@ export const TERMS: LegalDoc = {
     {
       heading: "3. Paying suppliers",
       paragraphs: [
-        "You pay each supplier directly, through the pay link your advisor adds to each payment on your trip. The link opens the supplier's own payment page, or a Travefy invoice that passes along supplier costs only. Story-Tail never collects or stores card numbers and never charges you a fee. Each payment is governed by that supplier's terms. Your advisor marks a payment as paid once the supplier confirms it.",
+        "You pay each supplier directly, through the pay link your advisor adds to each payment on your trip. The link opens the supplier's own payment page, or a Travefy invoice that passes along supplier costs only. Story-Tail never collects or stores card numbers and never charges you a planning or service fee. Each payment is governed by that supplier's terms. Your advisor marks a payment as paid once the supplier confirms it.",
       ],
     },
     {

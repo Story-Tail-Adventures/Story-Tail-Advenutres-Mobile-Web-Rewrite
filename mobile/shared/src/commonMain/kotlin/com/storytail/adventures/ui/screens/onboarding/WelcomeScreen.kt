@@ -46,7 +46,7 @@ private val WELCOME_CARDS = listOf(
         // Rewritten 2026-10-16 (§3.6 ruling): the app never holds a card. BRD §10.5: the
         // agency is contractually barred from charging planning fees, and this is the thing
         // travelers most need to hear. Matches web/app/(onboarding)/welcome/state.ts.
-        "Each payment goes straight to the resort or cruise line, on its own secure site. " +
+        "Each payment goes straight to the resort, cruise line or tour company, on its own secure site. " +
             "We never see your card, and there's never a planning fee from us.",
     ),
     WelcomeCard(

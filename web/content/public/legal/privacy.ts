@@ -19,7 +19,7 @@ export const PRIVACY: LegalDoc = {
     {
       heading: "1. What we collect",
       paragraphs: [
-        "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. We never collect or store card numbers.",
+        "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. The portal has no place to enter a card number, so please don't type one into a message.",
         "We do not sell your information, and we do not share it with marketing third parties. When you use the portal in a web browser, we also count page views without tying them to your name. Section 3 explains who receives what, and why.",
       ],
     },
@@ -27,7 +27,7 @@ export const PRIVACY: LegalDoc = {
       heading: "2. How you pay for your trip",
       paragraphs: [
         "You pay each supplier directly, on their own secure site. Your advisor adds a pay link to each payment on your trip: the supplier's own payment page, or a Travefy invoice when the supplier doesn't have one. A Travefy invoice passes along supplier costs only. Story-Tail never charges you a planning, consultation or service fee.",
-        "Story-Tail never asks for, collects, stores or sees your card number. The portal keeps only the pay link, and a record of each payment your advisor marks as paid (the amount, the date, any confirmation number, and your advisor's own note). Only your advisor can add or change a pay link, and every change is recorded.",
+        "Story-Tail never asks for your card number, and the portal has nowhere to keep one. For each payment it keeps the amount, the due date and the pay link, and once your advisor marks it paid, the date, any confirmation number and your advisor's own note. Only your advisor can add or change a pay link, and every change is recorded.",
       ],
     },
     {

@@ -42,12 +42,17 @@ class DashboardViewModel(
 
     /** Also the retry, which is why it resets to Loading rather than holding the old error. */
     fun load() {
+        // "I've paid" belongs to ONE payment. Remember which, so a refresh that brings a
+        // different next payment (the last one was marked paid, or the trip changed) does not
+        // keep showing the thanks line in place of the new payment's button.
+        val before = (_state.value.snapshot as? Loadable.Ready)?.value?.nextPayment
         _state.update { it.copy(snapshot = Loadable.Loading) }
         viewModelScope.launch {
             val name = trips.greetableFirstName()
             val snapshot = trips.dashboard(today)
             _state.update {
                 it.copy(
+                    ivePaid = if (snapshot?.nextPayment == before) it.ivePaid else IvePaidState.IDLE,
                     firstName = name,
                     // FAILS CLOSED. A null snapshot is a failed read, and showing the empty
                     // state instead would tell a traveler they have no trips — a lie that

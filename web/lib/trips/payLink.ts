@@ -58,10 +58,11 @@ export function paidNoteBody(label: string, amountText: string): string {
 }
 
 /**
- * The same card-shaped run `maskCardNumbers` in supabase/functions/_shared/push.ts uses:
- * 13 to 19 digits, optionally split by spaces, dots or dashes.
+ * The same digit runs supabase/functions/_shared/payLink.ts and public.text_has_card_digits
+ * read: ASCII digit groups joined by up to three spaces, dots, dashes or no-break / thin
+ * spaces. Letters and other punctuation end a run but never hide one.
  */
-const CARD_LIKE = /\b\d(?:[ . -]?\d){12,18}\b/g;
+const DIGIT_RUN = /[0-9]+(?:[ .\u00a0\u2009\u202f-]{1,3}[0-9]+)*/g;
 
 function passesLuhn(digits: string): boolean {
   let sum = 0;
@@ -85,10 +86,25 @@ function passesLuhn(digits: string): boolean {
  * thing; this is the first of three checks, so the advisor hears why before a round trip.
  */
 export function looksLikeCardNumber(text: string): boolean {
-  for (const match of text.matchAll(CARD_LIKE)) {
-    if (passesLuhn(match[0].replace(/\D/g, ""))) return true;
+  for (const match of text.matchAll(DIGIT_RUN)) {
+    const groups = match[0].split(/[^0-9]+/);
+    for (let i = 0; i < groups.length; i++) {
+      let digits = "";
+      for (let j = i; j < groups.length; j++) {
+        digits += groups[j];
+        if (digits.length > 19) break;
+        if (digits.length >= 13 && passesLuhn(digits)) return true;
+      }
+    }
   }
   return false;
+}
+
+/** A dotted host name: not an IP literal, not `localhost`, not a bare word. */
+export function isNamedHost(hostname: string): boolean {
+  if (hostname.startsWith("[")) return false;
+  if (/^[0-9.]+$/.test(hostname)) return false;
+  return hostname.includes(".") && !hostname.endsWith(".localhost");
 }
 
 export type PayUrlCheck =
@@ -113,7 +129,7 @@ export function checkPayUrl(raw: string): PayUrlCheck {
   } catch {
     return { ok: false, reason: "https" };
   }
-  if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password) {
+  if (parsed.protocol !== "https:" || !parsed.hostname || parsed.username || parsed.password || !isNamedHost(parsed.hostname)) {
     return { ok: false, reason: "https" };
   }
   const href = parsed.href;

@@ -41,7 +41,7 @@ export const LANDING = {
       // Brief correction: "offline at the resort" → "always in your pocket" (offline is P3).
       { icon: "plane", title: "View your trips", body: "Itinerary, day-by-day, always in your pocket." },
       // Retired 2026-10-16 with §2.4: the app never holds a card. Clients pay suppliers directly.
-      { icon: "lock", title: "Pay suppliers directly", body: "On their own secure site. We never see your card or charge fees." },
+      { icon: "lock", title: "Pay suppliers directly", body: "On their own secure site. We never see your card, and we never add a planning fee." },
       // The reply-time figure comes from the claims registry, never typed here.
       { icon: "message", title: "Message Gyasi", body: `Threaded by trip. Reply usually ${claim("avgReplyTime")}.` },
     ] satisfies readonly LandingFeature[],

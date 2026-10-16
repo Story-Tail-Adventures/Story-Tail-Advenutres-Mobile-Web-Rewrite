@@ -209,6 +209,53 @@ SELECT pg_temp.expect_check(
         || ' per Jordan'),
     'a paid_note holding a 13-digit card number with dashes is refused');
 
+-- Review findings 2026-10-16: the old guard took ONE greedy match from the first digit, so a
+-- short number in front swallowed the card, and \y never fired between a letter and a digit.
+SELECT pg_temp.assert(
+    public.text_has_card_digits('Paid 12 ' || pg_temp.luhn_complete('411111111111111')),
+    'a short number in front of a card does not hide it');
+SELECT pg_temp.assert(
+    public.text_has_card_digits('ref' || pg_temp.luhn_complete('411111111111111')),
+    'letters touching the front of a card do not hide it');
+SELECT pg_temp.assert(
+    public.text_has_card_digits('x_' || pg_temp.luhn_complete('411111111111111') || 'x'),
+    'an underscore and a trailing letter do not hide it');
+SELECT pg_temp.assert(
+    public.text_has_card_digits(regexp_replace(pg_temp.luhn_complete('411111111111111'), '(\d{4})(?=\d)', '\1  ', 'g')),
+    'double spaces between groups do not hide it');
+SELECT pg_temp.assert(
+    public.text_has_card_digits(regexp_replace(pg_temp.luhn_complete('411111111111111'), '(\d{4})(?=\d)', '\1 - ', 'g')),
+    'a spaced dash between groups does not hide it');
+SELECT pg_temp.assert(
+    NOT public.text_has_card_digits(translate(pg_temp.luhn_complete('411111111111111'), '0123456789', '０１２３４５６７８９')),
+    'fullwidth digits are not read as a card, and do not raise on the ::int cast');
+SELECT pg_temp.assert(
+    NOT public.text_has_card_digits('Invoice 2026 10 16 booking 4471'),
+    'unrelated short numbers in a sentence pass');
+SELECT pg_temp.expect_check(
+    format($q$UPDATE public.payment_milestone SET paid_note = %L
+        WHERE id = '0195a2c0-1a00-7000-8000-0000000000a1'$q$,
+        'Paid 12 ' || pg_temp.luhn_complete('411111111111111')),
+    'the CHECK refuses a note with a short number in front of a card');
+
+-- A named host only: the client is shown the host as the trust signal.
+SELECT pg_temp.expect_check(
+    $q$UPDATE public.payment_milestone SET pay_url = 'https://203.0.113.9/pay'
+        WHERE id = '0195a2c0-1a00-7000-8000-0000000000a0'$q$,
+    'a pay link to an IP address is refused');
+SELECT pg_temp.expect_check(
+    $q$UPDATE public.payment_milestone SET pay_url = 'https://[::1]/pay'
+        WHERE id = '0195a2c0-1a00-7000-8000-0000000000a0'$q$,
+    'a pay link to an IPv6 literal is refused');
+SELECT pg_temp.expect_check(
+    $q$UPDATE public.payment_milestone SET pay_url = 'https://good.com\@evil.com/'
+        WHERE id = '0195a2c0-1a00-7000-8000-0000000000a0'$q$,
+    'a backslash in the host is refused');
+SELECT pg_temp.expect_check(
+    $q$UPDATE public.payment_milestone SET pay_url = 'https://intranet/pay'
+        WHERE id = '0195a2c0-1a00-7000-8000-0000000000a0'$q$,
+    'a bare-word host is refused');
+
 UPDATE public.payment_milestone SET paid_reference = pg_temp.luhn_wrong('411111111111111')
  WHERE id = :second::uuid;
 SELECT pg_temp.assert(

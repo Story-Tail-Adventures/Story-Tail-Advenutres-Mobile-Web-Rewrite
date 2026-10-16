@@ -86,6 +86,8 @@ export function PayLinkBlock({
             sx={{ px: 0.5, minWidth: 0, textTransform: "none" }}
           >
             {TRIP_DETAIL.iPaid}
+            {/* Several blocks can share a page; name the payment for a screen reader. */}
+            <Box component="span" sx={VISUALLY_HIDDEN}>{` (${label})`}</Box>
           </MuiButton>
           {state.status === "error" && (
             <Typography component="p" variant="caption" role="alert" sx={{ display: "block", color: "error.main" }}>

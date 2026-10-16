@@ -12,7 +12,7 @@ export const HOW_IT_WORKS_FAQ: readonly FaqItem[] = [
   },
   {
     q: "How do I pay for my trip?",
-    a: "You pay each supplier directly, on their own secure site. Gyasi adds a pay link to each payment on your trip, and you pay whenever it suits you before the due date. Story-Tail never sees your card number and never charges a service fee.",
+    a: "You pay each supplier directly, on their own secure site. When a supplier has no payment page, Gyasi may send a Travefy invoice instead, carrying the supplier's cost only. Gyasi adds a pay link to each payment as it comes due, and you pay whenever it suits you before the due date. Story-Tail never sees your card number and never charges a service fee.",
   },
   {
     q: "Can I plan without an account?",

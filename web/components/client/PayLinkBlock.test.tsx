@@ -40,7 +40,7 @@ describe("PayLinkBlock", () => {
     renderWithTheme(
       <PayLinkBlock tripId="t1" milestoneId="m1" label="Deposit" payUrl="https://sandals.com/pay" />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "I've paid" }));
+    await userEvent.click(screen.getByRole("button", { name: /^I've paid \(/ }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Thanks. Gyasi will check and mark it paid."));
     expect(mocks.sendPaidNote).toHaveBeenCalledWith("t1", "m1", { status: "idle" }, expect.anything());
   });
@@ -50,7 +50,7 @@ describe("PayLinkBlock", () => {
     renderWithTheme(
       <PayLinkBlock tripId="t1" milestoneId="m1" label="Deposit" payUrl="https://sandals.com/pay" />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "I've paid" }));
+    await userEvent.click(screen.getByRole("button", { name: /^I've paid \(/ }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("That didn't send."));
   });
 });

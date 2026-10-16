@@ -947,7 +947,7 @@ export const PAYMENTS_COPY = {
   linkSaving: "Saving…",
   linkNotHttps: "Use a full link that starts with https://",
   linkTooLong: "That link is too long. Links can be up to 2,048 characters.",
-  linkCard: "That looks like it has a card number in it. Pay links never carry card numbers.",
+  linkCard: "That looks like a card number. Card numbers never go in the app.",
 
   // 3.6.5 Mark paid
   paidTitle: (label: string) => `Mark ${label.charAt(0).toLowerCase()}${label.slice(1)} paid`,
@@ -964,7 +964,7 @@ export const PAYMENTS_COPY = {
   paidDateInvalid: "Pick the date the money landed. It can't be in the future.",
   paidReferenceTooLong: "Keep the confirmation number to 100 characters.",
   paidNoteTooLong: "Keep the note to 1,000 characters.",
-  paidCardLike: "That looks like a card number. Never record card numbers here.",
+  paidCardLike: "That looks like a card number. Card numbers never go in the app.",
 
   cancel: "Cancel",
   failed: "That didn't save. Try again in a moment.",

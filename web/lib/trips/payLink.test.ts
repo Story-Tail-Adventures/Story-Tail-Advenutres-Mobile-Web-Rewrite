@@ -115,6 +115,21 @@ describe("checkPayUrl", () => {
     expect(looksLikeCardNumber(`card ${spaced}`)).toBe(true);
   });
 
+  it("finds a card a short number, letters or odd spacing used to hide", () => {
+    const pan = luhnValid("4", 16);
+    expect(looksLikeCardNumber(`Paid 12 ${pan}`)).toBe(true);
+    expect(looksLikeCardNumber(`ref${pan}`)).toBe(true);
+    expect(looksLikeCardNumber(`x_${pan}x`)).toBe(true);
+    expect(looksLikeCardNumber(pan.replace(/(\d{4})(?=\d)/g, "$1  "))).toBe(true);
+    expect(looksLikeCardNumber("Invoice 2026 10 16 booking 4471")).toBe(false);
+  });
+
+  it("refuses a pay link whose host is not a dotted name", () => {
+    expect(checkPayUrl("https://203.0.113.9/pay")).toEqual({ ok: false, reason: "https" });
+    expect(checkPayUrl("https://[::1]/pay")).toEqual({ ok: false, reason: "https" });
+    expect(checkPayUrl("https://intranet/pay")).toEqual({ ok: false, reason: "https" });
+  });
+
   it("lets a long reference through when it fails the Luhn check", () => {
     const pan = luhnValid("4", 16);
     const notLuhn = pan.slice(0, -1) + String((Number(pan.at(-1)) + 1) % 10);

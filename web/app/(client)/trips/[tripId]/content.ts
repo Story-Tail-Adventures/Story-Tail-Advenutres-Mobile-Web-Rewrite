@@ -57,6 +57,7 @@ export const TRIP_DETAIL = {
   // "I've paid" only posts a message for Gyasi to check. It never marks anything paid.
   iPaid: "I've paid",
   iPaidThanks: "Thanks. Gyasi will check and mark it paid.",
+  iPaidAlreadyDone: "This one looks taken care of already. Message Gyasi if that's not right.",
   iPaidFailed: "That didn't send. Try again in a moment, or message Gyasi.",
 
   cancelledHeading: "Cancellation summary",

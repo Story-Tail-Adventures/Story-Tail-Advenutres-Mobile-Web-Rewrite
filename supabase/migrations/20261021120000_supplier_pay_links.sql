@@ -139,29 +139,62 @@ END $$;
 -- 4. Helpers: the card-number guard, and the host a client is shown
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- True when the text holds a card-shaped run of 13 to 19 digits (spaces, dots, dashes or a
--- no-break space allowed between digits, the same CARD_LIKE shape `_shared/push.ts` masks)
--- THAT ALSO PASSES LUHN. The Luhn step lets a long supplier reference through when it is not
--- a card number. `_shared/payLink.ts` carries the same rule for the Edge Function.
+-- True when the text holds a card number: any span of whole digit groups that joins to 13 to
+-- 19 digits AND passes Luhn. A run is ASCII digit groups joined by up to three spaces, dots,
+-- dashes or no-break / thin spaces (the ways people write a card). Every starting group is
+-- tried, so a short number in front ("Paid 12 4111...") cannot swallow the card, and letters
+-- or underscores touching the digits end a run without hiding one. [0-9], never \d: a
+-- fullwidth digit must not reach the ::int cast. `_shared/payLink.ts` and web
+-- `lib/trips/payLink.ts` carry the same rule. The Luhn step lets a long supplier reference
+-- through when it is not a card number; a mistyped card that fails Luhn is not caught.
 CREATE OR REPLACE FUNCTION public.text_has_card_digits(p_text text)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 IMMUTABLE
 PARALLEL SAFE
 SET search_path = public, pg_temp
 AS $$
-    SELECT coalesce(bool_or(luhn.ok), false)
-      FROM regexp_matches(coalesce(p_text, ''), '\y\d(?:[ . -]?\d){12,18}\y', 'g') AS m(run)
-     CROSS JOIN LATERAL (SELECT regexp_replace(m.run[1], '\D', '', 'g') AS digits) d
-     CROSS JOIN LATERAL (
-         SELECT length(d.digits) BETWEEN 13 AND 19
-                AND sum(CASE WHEN pos % 2 = 0
-                             THEN (substr(reverse(d.digits), pos, 1)::int * 2)
-                                  - CASE WHEN substr(reverse(d.digits), pos, 1)::int >= 5 THEN 9 ELSE 0 END
-                             ELSE substr(reverse(d.digits), pos, 1)::int
-                        END) % 10 = 0 AS ok
-           FROM generate_series(1, length(d.digits)) AS pos
-     ) luhn;
+DECLARE
+    v_run    text[];
+    v_groups text[];
+    v_digits text;
+    v_sum    int;
+    v_d      int;
+    i        int;
+    j        int;
+    k        int;
+BEGIN
+    IF p_text IS NULL THEN
+        RETURN false;
+    END IF;
+    FOR v_run IN
+        SELECT regexp_matches(p_text, '[0-9]+(?:[ .\u00a0\u2009\u202f-]{1,3}[0-9]+)*', 'g')
+    LOOP
+        v_groups := regexp_split_to_array(v_run[1], '[^0-9]+');
+        FOR i IN 1 .. array_length(v_groups, 1) LOOP
+            v_digits := '';
+            FOR j IN i .. array_length(v_groups, 1) LOOP
+                v_digits := v_digits || v_groups[j];
+                EXIT WHEN length(v_digits) > 19;
+                IF length(v_digits) >= 13 THEN
+                    v_sum := 0;
+                    FOR k IN 1 .. length(v_digits) LOOP
+                        v_d := substr(v_digits, length(v_digits) - k + 1, 1)::int;
+                        IF k % 2 = 0 THEN
+                            v_d := v_d * 2;
+                            IF v_d > 9 THEN v_d := v_d - 9; END IF;
+                        END IF;
+                        v_sum := v_sum + v_d;
+                    END LOOP;
+                    IF v_sum % 10 = 0 THEN
+                        RETURN true;
+                    END IF;
+                END IF;
+            END LOOP;
+        END LOOP;
+    END LOOP;
+    RETURN false;
+END;
 $$;
 
 COMMENT ON FUNCTION public.text_has_card_digits(text) IS
@@ -200,6 +233,11 @@ ALTER TABLE public.payment_milestone
             char_length(pay_url) <= 2048
             AND pay_url ~ '^https://[^/?#@[:space:]]+([/?#].*)?$'
             AND pay_url !~ '[[:space:][:cntrl:]]'
+            -- A named host: the client is shown the host as the trust signal, so no IP
+            -- literal, no bare word, no localhost.
+            AND public.pay_url_host(pay_url) ~ '^[a-z0-9-]+(\.[a-z0-9-]+)+$'
+            AND public.pay_url_host(pay_url) !~ '^[0-9.]+$'
+            AND public.pay_url_host(pay_url) !~ '\.localhost$'
         )
     ),
     ADD CONSTRAINT payment_milestone_paid_reference_shape CHECK (

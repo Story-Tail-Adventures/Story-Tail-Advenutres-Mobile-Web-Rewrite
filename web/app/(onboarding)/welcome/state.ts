@@ -68,7 +68,7 @@ export const WELCOME_CARDS: readonly WelcomeCard[] = [
     // "never charge you a fee" stays in substance because it is true and it is the thing
     // travelers most need to hear (BRD §10.5).
     body:
-      "Each payment goes straight to the resort or cruise line, on its own secure site. " +
+      "Each payment goes straight to the resort, cruise line or tour company, on its own secure site. " +
       "We never see your card, and there's never a planning fee from us.",
   },
   {

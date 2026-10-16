@@ -9,6 +9,7 @@ import { uuidV7 } from "@/lib/uuid";
 import { absoluteStorageUrl, callTripFunction } from "./api";
 import { formatTripMoney } from "./money";
 import { isOpenMilestone, paidNoteBody } from "./payLink";
+import { TRIP_DETAIL } from "@/app/(client)/trips/[tripId]/content";
 
 /**
  * Server actions for screens 2.2.6 and 2.2.7.
@@ -202,7 +203,9 @@ export async function sendPaidNote(
     .eq("trip_id", tripId)
     .maybeSingle();
 
-  if (!milestone || !isOpenMilestone(milestone.status)) return { status: "error", message: null };
+  if (!milestone) return { status: "error", message: null };
+  // Paid or waived since the page loaded: retrying would not help, so say so.
+  if (!isOpenMilestone(milestone.status)) return { status: "error", message: TRIP_DETAIL.iPaidAlreadyDone };
 
   const amount = Number(milestone.amount_cents);
   const open = amount - Number(milestone.paid_cents ?? 0);

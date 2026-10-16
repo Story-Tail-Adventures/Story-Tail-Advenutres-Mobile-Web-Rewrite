@@ -6,7 +6,7 @@ export const COOKIES: LegalDoc = {
   title: "Cookies",
   navLabel: "Cookies",
   description: "The small number of cookies and browser storage keys the Story-Tail portal uses, and what each one does.",
-  lastUpdated: "2026-10-15",
+  lastUpdated: "2026-10-16",
   status: "draft",
   sections: [
     {

@@ -922,7 +922,7 @@ internal object PublicCatalog {
     val HOW_IT_WORKS_FAQ: List<FaqItem> = listOf(
         FaqItem(q = "Do I pay a planning fee?", a = "No. Inteletravel host-agency policy prohibits it. Gyasi earns commission from suppliers — you pay them, never us."),
         FaqItem(q = "What does Inteletravel mean for me?", a = "It's the host agency that issues bookings. You'll see them on supplier invoices. It does not change how you work with Story-Tail."),
-        FaqItem(q = "How do I pay for my trip?", a = "You pay each supplier directly, on their own secure site. Gyasi adds a pay link to each payment on your trip, and you pay whenever it suits you before the due date. Story-Tail never sees your card number and never charges a service fee."),
+        FaqItem(q = "How do I pay for my trip?", a = "You pay each supplier directly, on their own secure site. When a supplier has no payment page, Gyasi may send a Travefy invoice instead, carrying the supplier's cost only. Gyasi adds a pay link to each payment as it comes due, and you pay whenever it suits you before the due date. Story-Tail never sees your card number and never charges a service fee."),
         FaqItem(q = "Can I plan without an account?", a = "You can browse and inquire as a guest. To save searches, view a real proposal, or see your payment links, you'll create an account."),
     )
 
@@ -931,7 +931,7 @@ internal object PublicCatalog {
         FaqItem(q = "What if I just want to message you, no commitment?", a = "Please do. Most relationships start with a casual question. Use the \"Message Gyasi\" link on any page — no account needed."),
         FaqItem(q = "Why the Caribbean specifically?", a = "I lived in the islands. I know which Sandals has the best Red Lane spa (Grande St. Lucian). I know which Royal Caribbean ship to put a multi-gen family on (Wonder, hands down). When you know one region well, you serve people better."),
         FaqItem(q = "Do you book non-Caribbean trips?", a = "Yes — Mexico, Europe, cruises anywhere, group trips, all-inclusives worldwide. The Caribbean is my deepest specialty, not my only one."),
-        FaqItem(q = "How does payment work?", a = "You pay each supplier directly, on their own secure site. I add a pay link to each payment on your trip, and I mark it paid once the supplier confirms. I never see your card number, and I never charge you a service fee."),
+        FaqItem(q = "How does payment work?", a = "You pay each supplier directly, on their own secure site. I add a pay link to each payment as it comes due, and I mark it paid once the supplier confirms. I never see your card number, and I never charge you a service fee."),
     )
 
     val LEGAL_DOCS: List<LegalDoc> = listOf(
@@ -946,7 +946,7 @@ internal object PublicCatalog {
             LegalSection(
                 heading = "1. What we collect",
                 paragraphs = listOf(
-                    "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. We never collect or store card numbers.",
+                    "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. The portal has no place to enter a card number, so please don't type one into a message.",
                     "We do not sell your information, and we do not share it with marketing third parties. When you use the portal in a web browser, we also count page views without tying them to your name. Section 3 explains who receives what, and why.",
                 ),
                 bullets = emptyList(),
@@ -955,7 +955,7 @@ internal object PublicCatalog {
                 heading = "2. How you pay for your trip",
                 paragraphs = listOf(
                     "You pay each supplier directly, on their own secure site. Your advisor adds a pay link to each payment on your trip: the supplier's own payment page, or a Travefy invoice when the supplier doesn't have one. A Travefy invoice passes along supplier costs only. Story-Tail never charges you a planning, consultation or service fee.",
-                    "Story-Tail never asks for, collects, stores or sees your card number. The portal keeps only the pay link, and a record of each payment your advisor marks as paid (the amount, the date, any confirmation number, and your advisor's own note). Only your advisor can add or change a pay link, and every change is recorded.",
+                    "Story-Tail never asks for your card number, and the portal has nowhere to keep one. For each payment it keeps the amount, the due date and the pay link, and once your advisor marks it paid, the date, any confirmation number and your advisor's own note. Only your advisor can add or change a pay link, and every change is recorded.",
                 ),
                 bullets = emptyList(),
             ),
@@ -999,13 +999,13 @@ internal object PublicCatalog {
             title = "Terms of service",
             navLabel = "Terms",
             description = "How the Story-Tail Adventures portal works, what we do and don't charge for, and what you agree to when you use it.",
-            lastUpdated = "2026-09-02",
+            lastUpdated = "2026-10-16",
             status = "draft",
             sections = listOf(
             LegalSection(
                 heading = "1. Who we are",
                 paragraphs = listOf(
-                    "Story-Tail Adventures is an independent travel advisory business hosted by Inteletravel. Your bookings are issued through Inteletravel and fulfilled by the travel suppliers named on your itinerary. This portal is where you view trips, message your advisor, and authorize payment cards for those suppliers.",
+                    "Story-Tail Adventures is an independent travel advisory business hosted by Inteletravel. Your bookings are issued through Inteletravel and fulfilled by the travel suppliers named on your itinerary. This portal is where you view your trips, message your advisor, and find the link to pay each supplier.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1019,7 +1019,7 @@ internal object PublicCatalog {
             LegalSection(
                 heading = "3. Paying suppliers",
                 paragraphs = listOf(
-                    "You pay each supplier directly, through the pay link your advisor adds to each payment on your trip. The link opens the supplier's own payment page, or a Travefy invoice that passes along supplier costs only. Story-Tail never collects or stores card numbers and never charges you a fee. Each payment is governed by that supplier's terms. Your advisor marks a payment as paid once the supplier confirms it.",
+                    "You pay each supplier directly, through the pay link your advisor adds to each payment on your trip. The link opens the supplier's own payment page, or a Travefy invoice that passes along supplier costs only. Story-Tail never collects or stores card numbers and never charges you a planning or service fee. Each payment is governed by that supplier's terms. Your advisor marks a payment as paid once the supplier confirms it.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1051,7 +1051,7 @@ internal object PublicCatalog {
             title = "Cookies",
             navLabel = "Cookies",
             description = "The small number of cookies and browser storage keys the Story-Tail portal uses, and what each one does.",
-            lastUpdated = "2026-10-15",
+            lastUpdated = "2026-10-16",
             status = "draft",
             sections = listOf(
             LegalSection(

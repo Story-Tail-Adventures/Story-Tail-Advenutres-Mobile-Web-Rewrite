@@ -15,10 +15,12 @@ export const MAX_PAID_REFERENCE = 100;
 export const MAX_PAID_NOTE = 1000;
 
 /**
- * The same card-shaped run `push.ts`'s CARD_LIKE masks: a digit, then 12 to 18 more, each
- * optionally after one space, dot, dash or no-break space.
+ * ASCII digit groups joined by up to three spaces, dots, dashes or no-break / thin spaces:
+ * the ways people write a card number. Letters, underscores and other punctuation end a run
+ * but never hide one, so `ref4111…` and `x_4111…` are still found. ASCII only, like the SQL
+ * twin `public.text_has_card_digits`, so the two can never disagree.
  */
-const CARD_LIKE = /\b\d(?:[ . -]?\d){12,18}\b/g;
+const DIGIT_RUN = /[0-9]+(?:[ .\u00a0\u2009\u202f-]{1,3}[0-9]+)*/g;
 
 export function luhnValid(digits: string): boolean {
   let total = 0;
@@ -35,13 +37,31 @@ export function luhnValid(digits: string): boolean {
   return total % 10 === 0;
 }
 
-/** True when the text holds a 13 to 19 digit card-shaped run that passes Luhn. */
+/**
+ * True when any span of whole digit groups in a run joins to 13 to 19 digits that pass
+ * Luhn. Every starting group is tried, so a short number in front ("Paid 12 4111…") cannot
+ * swallow the card the way one greedy match did.
+ */
 export function hasCardNumber(text: string): boolean {
-  for (const match of text.matchAll(CARD_LIKE)) {
-    const digits = match[0].replace(/\D/g, "");
-    if (digits.length >= 13 && digits.length <= 19 && luhnValid(digits)) return true;
+  for (const match of text.matchAll(DIGIT_RUN)) {
+    const groups = match[0].split(/[^0-9]+/);
+    for (let i = 0; i < groups.length; i++) {
+      let digits = "";
+      for (let j = i; j < groups.length; j++) {
+        digits += groups[j];
+        if (digits.length > 19) break;
+        if (digits.length >= 13 && luhnValid(digits)) return true;
+      }
+    }
   }
   return false;
+}
+
+/** A dotted host name: not an IP literal, not `localhost`, not a bare word. */
+export function isNamedHost(hostname: string): boolean {
+  if (hostname.startsWith("[")) return false;
+  if (/^[0-9.]+$/.test(hostname)) return false;
+  return hostname.includes(".") && !hostname.endsWith(".localhost");
 }
 
 const CARD_REFUSAL = "That looks like a card number. Card numbers never go in the app.";
@@ -77,6 +97,10 @@ export function readPayUrl(value: unknown): string | null {
     throw badRequest("A pay link can't carry a user name or password.");
   }
   if (url.hostname === "") throw badRequest("That link has no site in it.");
+  // The host is what the client is shown as the trust signal, so it has to be a real name.
+  if (!isNamedHost(url.hostname)) {
+    throw badRequest("Use the supplier's web address, not a number or a local address.");
+  }
 
   const href = url.href;
   if (href.length > MAX_PAY_URL) throw badRequest("That link is too long.");
@@ -113,11 +137,11 @@ export function readPaidNote(value: unknown): string | null {
 export function readPaidOn(value: unknown, now: Date = new Date()): string | null {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw badRequest("Date paid must be a date.");
+    throw badRequest("Pick a real date for when this was paid.");
   }
   const parsed = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
-    throw badRequest("Date paid must be a date.");
+    throw badRequest("Pick a real date for when this was paid.");
   }
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(
     0,

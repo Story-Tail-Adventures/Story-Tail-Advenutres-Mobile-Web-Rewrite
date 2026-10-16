@@ -16,6 +16,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { PAYMENTS_COPY } from "@/lib/agent/content";
+import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 import type { PayLinkState } from "@/lib/agent/payments";
 import { payButtonLabel, paySiteName } from "@/lib/trips/payLink";
 
@@ -141,6 +142,18 @@ export function PayLinkDialog({
           </Typography>
 
           <Box sx={{ mt: 1.75, display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
+            {/* Enter in the URL field submits the form's FIRST submit button. Without this,
+                that is Remove, and fixing a typo then pressing Enter would delete the link. */}
+            <Box
+              component="button"
+              type="submit"
+              name="intent"
+              value="save"
+              tabIndex={-1}
+              aria-hidden="true"
+              disabled={pending}
+              sx={VISUALLY_HIDDEN}
+            />
             {currentUrl && (
               <MuiButton
                 type="submit"

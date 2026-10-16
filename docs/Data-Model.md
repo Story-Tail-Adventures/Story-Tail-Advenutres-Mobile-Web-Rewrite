@@ -1885,6 +1885,15 @@ message is the record that it was sent; there is no separate "request" row.
 >   service-role key); a client gets zero rows. Each audit row stores the milestone's label, so
 >   a deleted milestone still reads by name. The note text is never copied into audit
 >   metadata, only whether one exists.
+>
+> - **The card-number guard (after review).** A run is ASCII digit groups joined by up to
+>   three spaces, dots, dashes or no-break / thin spaces; every span of whole groups that joins
+>   to 13 to 19 digits is Luhn-checked, so a short number in front or letters touching the
+>   digits cannot hide a card. The same rule lives in `text_has_card_digits`,
+>   `_shared/payLink.ts` and web `lib/trips/payLink.ts`. It is a guard, not a full filter: a
+>   card typed with a wrong digit fails Luhn and is not caught.
+> - **Named hosts only.** `pay_url`'s host must be a dotted name (no IP literal, bare word or
+>   `localhost`), because the client is shown the host as the reason to trust the link.
 
 ---
 

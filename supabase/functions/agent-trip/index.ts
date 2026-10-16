@@ -475,7 +475,7 @@ Deno.serve(async (req) => {
       } as never);
       if (error) {
         if (error.code === CHECK_VIOLATION) {
-          throw badRequest("That link can't be saved. Pay links must start with https://");
+          throw badRequest("That link can't be saved. Check it is the supplier's own https:// address.");
         }
         throw new Error(`milestone pay link failed: ${error.message}`);
       }

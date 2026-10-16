@@ -205,10 +205,15 @@ export function validateMarkPaid(
 ): Partial<Record<keyof MarkPaidValues, string>> | null {
   const errors: Partial<Record<keyof MarkPaidValues, string>> = {};
 
-  if (values.amount !== "" && dollarsToCents(values.amount) === null) {
-    errors.amount = PAYMENTS_COPY.paidAmountInvalid;
+  // "0" and a bare "$" both parse to zero cents; marking a payment paid for nothing would
+  // hide the client's pay button while nothing was paid.
+  if (values.amount !== "") {
+    const cents = dollarsToCents(values.amount);
+    if (cents === null || cents <= 0) errors.amount = PAYMENTS_COPY.paidAmountInvalid;
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(values.paidOn) || Number.isNaN(Date.parse(`${values.paidOn}T00:00:00Z`)) || values.paidOn > today) {
+  // A round trip catches 2026-02-31, which Date.parse quietly rolls over to March.
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(values.paidOn) ? new Date(`${values.paidOn}T00:00:00Z`) : null;
+  if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== values.paidOn || values.paidOn > today) {
     errors.paidOn = PAYMENTS_COPY.paidDateInvalid;
   }
   if (values.reference.length > PAID_REFERENCE_MAX) errors.reference = PAYMENTS_COPY.paidReferenceTooLong;

@@ -2,6 +2,7 @@ import { assert, assertEquals, assertThrows } from "jsr:@std/assert@^1";
 import { HttpError } from "./problem.ts";
 import {
   hasCardNumber,
+  isNamedHost,
   luhnValid,
   MAX_PAY_URL,
   readPaidNote,
@@ -48,6 +49,26 @@ Deno.test("hasCardNumber: references that are not card numbers pass", () => {
   assert(!hasCardNumber(wrongCheckDigit("4" + "1".repeat(14))), "fails Luhn");
   assert(!hasCardNumber("123456789012"), "12 digits is too short");
   assert(!hasCardNumber(""));
+});
+
+Deno.test("hasCardNumber: what one greedy match used to miss", () => {
+  const pan = card16();
+  assert(hasCardNumber(`Paid 12 ${pan}`), "a short number in front");
+  assert(hasCardNumber(`ref${pan}`), "letters touching the front");
+  assert(hasCardNumber(`x_${pan}x`), "an underscore and a trailing letter");
+  assert(hasCardNumber(`https://a.com/pay?x=ref${pan}`), "inside a query value");
+  assert(hasCardNumber(pan.replace(/(\d{4})(?=\d)/g, "$1  ")), "double spaces");
+  assert(hasCardNumber(pan.replace(/(\d{4})(?=\d)/g, "$1 - ")), "a spaced dash");
+  assert(!hasCardNumber("Invoice 2026 10 16 booking 4471"), "short numbers pass");
+});
+
+Deno.test("isNamedHost: only a dotted name", () => {
+  assert(isNamedHost("sandals.com"));
+  assert(isNamedHost("xn--sndals-3nf.com"));
+  assert(!isNamedHost("203.0.113.9"));
+  assert(!isNamedHost("[::1]"));
+  assert(!isNamedHost("intranet"));
+  assert(!isNamedHost("pay.localhost"));
 });
 
 Deno.test("readPayUrl: null, undefined and blank remove the link", () => {
