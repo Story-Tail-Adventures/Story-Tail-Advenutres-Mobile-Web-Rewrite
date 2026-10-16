@@ -1884,6 +1884,131 @@ export type Database = {
           },
         ]
       }
+      email_outbox: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          client_user_id: string
+          conversation_id: string
+          created_at: string
+          due_at: string
+          first_message_at: string
+          id: string
+          last_error: string | null
+          latest_message_id: string
+          sent_at: string | null
+          skip_reason: string | null
+          state: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          client_user_id: string
+          conversation_id: string
+          created_at?: string
+          due_at: string
+          first_message_at: string
+          id?: string
+          last_error?: string | null
+          latest_message_id: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          state?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          client_user_id?: string
+          conversation_id?: string
+          created_at?: string
+          due_at?: string
+          first_message_at?: string
+          id?: string
+          last_error?: string | null
+          latest_message_id?: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_outbox_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_outbox_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_outbox_latest_message_id_fkey"
+            columns: ["latest_message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_token: {
+        Row: {
+          client_user_id: string
+          conversation_id: string
+          created_at: string
+          expires_at: string
+          outbox_id: string | null
+          purpose: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          client_user_id: string
+          conversation_id: string
+          created_at?: string
+          expires_at: string
+          outbox_id?: string | null
+          purpose: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          client_user_id?: string
+          conversation_id?: string
+          created_at?: string
+          expires_at?: string
+          outbox_id?: string | null
+          purpose?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_token_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_token_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_token_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "email_outbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flag: {
         Row: {
           description: string | null
@@ -2091,6 +2216,41 @@ export type Database = {
         }
         Relationships: []
       }
+      inbound_email: {
+        Row: {
+          files_dropped: number
+          id: string
+          message_id: string | null
+          outcome: string
+          provider_email_id: string
+          received_at: string
+        }
+        Insert: {
+          files_dropped?: number
+          id?: string
+          message_id?: string | null
+          outcome: string
+          provider_email_id: string
+          received_at?: string
+        }
+        Update: {
+          files_dropped?: number
+          id?: string
+          message_id?: string | null
+          outcome?: string
+          provider_email_id?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_email_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itinerary: {
         Row: {
           closing_note: string | null
@@ -2252,8 +2412,10 @@ export type Database = {
         Row: {
           archived_at: string | null
           body: string
+          channel: string
           conversation_id: string
           created_at: string
+          emailed_at: string | null
           id: string
           is_internal_note: boolean
           read_by_other_at: string | null
@@ -2263,8 +2425,10 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           body: string
+          channel?: string
           conversation_id: string
           created_at?: string
+          emailed_at?: string | null
           id: string
           is_internal_note?: boolean
           read_by_other_at?: string | null
@@ -2274,8 +2438,10 @@ export type Database = {
         Update: {
           archived_at?: string | null
           body?: string
+          channel?: string
           conversation_id?: string
           created_at?: string
+          emailed_at?: string | null
           id?: string
           is_internal_note?: boolean
           read_by_other_at?: string | null
@@ -3955,7 +4121,9 @@ export type Database = {
         Returns: {
           attachments: Json
           body: string
+          channel: string
           created_at: string
+          emailed_at: string
           is_internal_note: boolean
           message_id: string
           sender_role: string
@@ -5097,6 +5265,68 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      email_claim_due: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_first_name: string
+          client_first_name: string
+          conversation_id: string
+          messages: Json
+          outbox_id: string
+          previous_outbox_id: string
+          recipient: string
+          trip_title: string
+        }[]
+      }
+      email_client_user: { Args: { p_client_id: string }; Returns: string }
+      email_dispatch_tick: { Args: never; Returns: string }
+      email_finish: {
+        Args: {
+          p_error?: string
+          p_ok: boolean
+          p_outbox_id: string
+          p_permanent?: boolean
+        }
+        Returns: string
+      }
+      email_inbound_record: {
+        Args: {
+          p_auto_reply?: boolean
+          p_body: string
+          p_files: number
+          p_from: string
+          p_message_id: string
+          p_provider_email_id: string
+          p_sender_verified: boolean
+          p_token_hash: string
+        }
+        Returns: {
+          duplicate: boolean
+          message_id: string
+          outcome: string
+          reply_to: string
+        }[]
+      }
+      email_messages_opted_out: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      email_record_tokens: {
+        Args: {
+          p_outbox_id: string
+          p_reply_hash: string
+          p_unsub_hash: string
+        }
+        Returns: undefined
+      }
+      email_set_messages_email: {
+        Args: { p_on: boolean; p_token_hash: string }
+        Returns: string
+      }
+      email_unsubscribe_status: {
+        Args: { p_token_hash: string }
+        Returns: string
       }
       hotel_search_gc: {
         Args: never

@@ -2164,7 +2164,7 @@ row is due. Service-role only: no client or agent grant. Rulings and review:
 | `latest_message_id` | `uuid` | No | Public | FK → Message. The newest reply it carries |
 | `due_at` | `timestamptz` | No | Public | Newest reply + 5 minutes (each reply pushes it out, so a burst sends once), then moved to 7am if it lands in the client's rest hours |
 | `state` | `text` | No | Public | `pending`, `sending` (claimed), `sent`, `cleared` (read in the app first), `skipped` (see below), `failed` |
-| `skip_reason` | `text` | Yes | Public | `opted_out`, `no_account`, `no_email`, `client_archived`. Set iff `state = 'skipped'` |
+| `skip_reason` | `text` | Yes | Public | `opted_out`, `no_email`, `client_archived`. Set iff `state = 'skipped'` |
 | `attempts` | `integer` | No | Public | Transient SMTP errors (4xx, timeouts) retry, at most 3; a 5xx fails at once |
 | `claimed_at` | `timestamptz` | Yes | Public | A claim older than 5 minutes counts as a failed try and is retried |
 | `sent_at` | `timestamptz` | Yes | Public | — |
@@ -2179,7 +2179,10 @@ sits in this table.
 **Who gets an email.** Only a client who can sign in (a `platform_user` with role `client`),
 sent to that account's **verified** email, never the advisor-typed `client.email`: an email
 whose link needs a session and whose reply needs a sender is no use to someone with no account,
-and an unverified address could be anyone's. Otherwise the row ends `skipped`. Settled
+and an unverified address could be anyone's. A client with no account gets **no row at all**
+(as push queues nothing for an advisor with no device); one whose email is missing or
+unverified ends `skipped` with `no_email`. Skips are decided when the row falls due, so an
+opt-out made in the five minutes is honoured. Settled
 2026-10-16: such clients are skipped and the advisor is warned in the thread (§23).
 
 **What an email carries:** the advisor's replies in order, card numbers masked to the last four
@@ -2206,7 +2209,7 @@ exists in the email and nowhere else, so a database read cannot forge a reply.
 |---|---|---|---|---|
 | `token_hash` | `bytea` | No | Internal | PK. SHA-256 of the token: 128 random bits, lowercase base32 (26 characters, safe in an email local part) |
 | `purpose` | `text` | No | Internal | `reply` or `unsubscribe` |
-| `outbox_id` | `uuid` | No | Public | FK → EmailOutbox. Which email carried it |
+| `outbox_id` | `uuid` | Yes | Public | FK → EmailOutbox. Which email carried it; nulled when that row is retired after 30 days, since the token outlives it |
 | `conversation_id` | `uuid` | No | Public | FK → Conversation. Where a reply lands |
 | `client_user_id` | `uuid` | No | Public | FK → PlatformUser. Who may use it: a reply must come FROM this account's email; an unsubscribe turns off this user's email |
 | `expires_at` | `timestamptz` | No | Public | Reply: sent + 1 year. Unsubscribe: sent + 2 years |
@@ -2236,7 +2239,7 @@ the message over Resend's API (the webhook is a doorbell, the way §12.7's Andro
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | Server default `uuid_v7()` |
 | `provider_email_id` | `text` | No | Internal | Resend's id. Unique: a repeat webhook is a no-op |
-| `outcome` | `text` | No | Public | `accepted`, `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`, `too_long` |
+| `outcome` | `text` | No | Public | `accepted`, `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`, `too_long`, `auto_reply` (an out-of-office or other automatic answer, by its RFC 3834 headers: never a client message) |
 | `message_id` | `uuid` | Yes | Public | FK → Message. Set iff `accepted` |
 | `files_dropped` | `integer` | No | Public | Attachments left off (Stage 4 keeps names only; none are fetched) |
 | `received_at` | `timestamptz` | No | Public | — |
@@ -3483,7 +3486,7 @@ the §16 migration is written. The first four were settled with Gyasi the same d
 **Email (§12.8 to §12.10, added 2026-10-16).** Settle before the Stage 4 migration is written.
 
 - ~~**Clients with no account.**~~ **Settled 2026-10-16 (Gyasi): skipped, with a warning.**
-  A client who cannot sign in gets no email (`skip_reason = 'no_account'`): the link needs a
+  A client who cannot sign in gets no email (no row is queued): the link needs a
   session and a reply needs a `message.sender_user_id`. The advisor's thread says so above the
   reply box ("Kai can't sign in yet, so replies won't reach them by email"). The fix is inviting
   them (§6.7), never emailing an unverified address.
