@@ -340,6 +340,65 @@ keys after any change. The phone side
 needs the four `firebase.*` values in `mobile/local.properties` (see its `.example`).
 See `../docs/Push-Notifications-Security-Review.md`.
 
+## Email secrets (§3.10 Stage 4)
+
+Client email (`functions/email-dispatch`, `email-inbound`, `email-unsubscribe`, migration
+`20261019120000`). Rulings: `../docs/Email-Provider-Review.md` §6; the library rules:
+`../docs/SMTP-Library-Security-Review.md` §5. None of these belongs in git.
+
+**Sending: the app-only IONOS mailbox, over SMTP on port 465.** Supabase blocks 25 and 587, and
+`emailConfigFromEnv` refuses any other port for a real server.
+
+```bash
+supabase secrets set --project-ref <prod-ref> \
+  EMAIL_SMTP_HOST=smtp.ionos.com EMAIL_SMTP_PORT=465 \
+  EMAIL_SMTP_USER=<the app mailbox address> EMAIL_SMTP_PASSWORD=<its password> \
+  EMAIL_FROM_ADDRESS=<the same address> \
+  EMAIL_REPLY_DOMAIN=reply.story-tail.com \
+  EMAIL_SITE_URL=https://app.story-tail.com \
+  EMAIL_UNSUBSCRIBE_URL=https://<prod-ref>.supabase.co/functions/v1/email-unsubscribe
+```
+
+IONOS sends only From an address on the mailbox's own domain, so `EMAIL_FROM_ADDRESS` is the
+mailbox itself. Without these `email-dispatch` answers 500 BEFORE claiming, so rows wait.
+
+**The tick.** `email_dispatch_tick()` runs every minute and reuses `cruise_sync_service_role_key`:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/email-dispatch',
+  'email_dispatch_function_url');
+-- LOCAL: 'http://kong:8000/functions/v1/email-dispatch'.
+```
+
+**Receiving: Resend, for `reply.story-tail.com` only.** Add the domain in Resend (receiving),
+point its MX record where Resend says, add a webhook for `email.received` to
+`https://<prod-ref>.supabase.co/functions/v1/email-inbound`, then:
+
+```bash
+supabase secrets set --project-ref <prod-ref> \
+  RESEND_WEBHOOK_SECRET=<whsec_… from the webhook> RESEND_API_KEY=<a key that can read received mail>
+```
+
+The main domain's MX stays at IONOS. `email-inbound` refuses anything unsigned with a 401.
+
+**Locally: Mailpit is the mail server.** The local stack runs one (web UI on :54324). Put this in
+`supabase/.env.local` and restart with `npm run supabase:start`:
+
+```bash
+EMAIL_SMTP_HOST=inbucket
+EMAIL_SMTP_PORT=1025
+EMAIL_FROM_ADDRESS=gyasi.messages@adventures.story-tail.com
+EMAIL_REPLY_DOMAIN=reply.story-tail.com
+EMAIL_SITE_URL=http://localhost:3000
+EMAIL_UNSUBSCRIBE_URL=http://127.0.0.1:54321/functions/v1/email-unsubscribe
+```
+
+`inbucket` is Mailpit's name on the stack's Docker network (its container name does not
+resolve from the edge runtime). No user or password locally: plain SMTP is allowed only to the catcher, and only with no
+credentials. Fire the dispatcher by hand as for push (`.../functions/v1/email-dispatch` with the
+service-role key); a waiting row is due five minutes after the reply.
+
 ## Critical PCI rules for this directory
 
 1. **Never store PANs in migrations or Edge Function code.** Only Stripe tokens (`PaymentMethod` IDs) and Stripe-returned metadata (brand, last 4, expiration). See `../docs/Data-Model.md` §18.

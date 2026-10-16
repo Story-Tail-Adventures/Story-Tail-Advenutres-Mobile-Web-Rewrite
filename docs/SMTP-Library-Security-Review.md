@@ -106,6 +106,12 @@ Why not the others:
 
 ## 7. Not yet verified
 
+- **That Gyasi's IONOS plan sends.** Gyasi described the mailbox as POP/IMAP (2026-10-16). IONOS
+  documents SMTP (`smtp.ionos.com:465`, SSL/TLS, the full address and the mailbox's own password)
+  for Mail Basic and Mail Business alongside IMAP 993 and POP3 995, and since 2024-01-29 it refuses
+  a From on another domain; we send From the mailbox itself. The first credentialed `verify()`
+  settles it for his plan.
+
 - **A real login and send.** The probe stopped before AUTH; it needs the app mailbox, which
   doesn't exist yet. First check on the build: `verify()` with credentials, then one email to
   Gyasi.
@@ -120,3 +126,4 @@ Why not the others:
 - nodemailer advisories: https://github.com/advisories?query=nodemailer
 - Upyo: https://jsr.io/@upyo/smtp and https://hackers.pub/@hongminhee/2026/sending-emails-nodejs-deno-bun
 - Supabase Edge Functions limits: https://supabase.com/docs/guides/functions/limits
+- IONOS mail server details: https://www.ionos.com/help/email/general-topics/ionos-mail-server-details-for-imap-pop3-and-smtp/
