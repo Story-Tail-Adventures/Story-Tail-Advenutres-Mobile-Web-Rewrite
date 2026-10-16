@@ -355,10 +355,13 @@ supabase secrets set --project-ref <prod-ref> \
   EMAIL_SMTP_USER=<the app mailbox address> EMAIL_SMTP_PASSWORD=<its password> \
   EMAIL_FROM_ADDRESS=<the same address> \
   EMAIL_REPLY_DOMAIN=reply.story-tail.com \
-  EMAIL_SITE_URL=https://app.story-tail.com \
+  EMAIL_SITE_URL=https://storytailadventures.vercel.app \
   EMAIL_UNSUBSCRIBE_URL=https://<prod-ref>.supabase.co/functions/v1/email-unsubscribe
 ```
 
+`EMAIL_SITE_URL` is production's web origin, the one `.github/workflows/deploy.yml` names: the
+Vercel alias today, `https://adventures.story-tail.com` once the brand domain moves there (change it
+then, or every email's links point at the old address). `app.story-tail.com` is not being created.
 IONOS sends only From an address on the mailbox's own domain, so `EMAIL_FROM_ADDRESS` is the
 mailbox itself. Production uses `info@adventures.story-tail.com`, the mailbox Supabase Auth's SMTP
 settings already use (Auth's settings are not readable by functions, so set the login here too;

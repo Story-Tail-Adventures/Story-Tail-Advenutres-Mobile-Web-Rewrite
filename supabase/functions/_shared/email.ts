@@ -86,7 +86,7 @@ export function emailConfigFromEnv(env: (name: string) => string | undefined): E
   if (!ADDRESS.test(fromAddress)) throw new Error("EMAIL_FROM_ADDRESS must be an email address.");
   if (!DOMAIN.test(replyDomain)) throw new Error("EMAIL_REPLY_DOMAIN must be a domain, e.g. reply.story-tail.com.");
   if (!/^https?:\/\/[^\s/]+$/.test(siteUrl) || (!local && !siteUrl.startsWith("https://"))) {
-    throw new Error("EMAIL_SITE_URL must be the app's origin, e.g. https://app.story-tail.com.");
+    throw new Error("EMAIL_SITE_URL must be the app's origin, e.g. https://storytailadventures.vercel.app.");
   }
   if (!/^https?:\/\/\S+$/.test(unsubscribeUrl) || (!local && !unsubscribeUrl.startsWith("https://"))) {
     throw new Error("EMAIL_UNSUBSCRIBE_URL must be the email-unsubscribe function's URL.");
