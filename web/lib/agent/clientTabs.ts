@@ -5,12 +5,9 @@
  * `?stage=` and Calendar's `?view=`: shareable, back-button-correct, server-rendered
  * `<Link>`s, no client state.
  *
- * SIX TABS, WHERE THE PROTOTYPE DRAWS SEVEN. `CRMShell` renders a seventh called "Account
- * admin" and there is no artboard behind it — those screens are §3.9 (Login Support /
- * Account Administration), which is unbuilt. It is rendered here DISABLED with its reason
- * rather than cut, and the distinction is the one §3.2.1 settled: a disabled control
- * promises a thing that will exist, and §3.9 is a real planned section. Bulk-select on the
- * roster was cut instead, because nothing will ever consume it there.
+ * SEVEN TABS, as `CRMShell` draws them. The seventh, "Account admin", was rendered disabled
+ * until §3.9 (Login Support) was built on 2026-10-16; it is A391 plus 3.9.6's sign-ins,
+ * behind an MFA gate the database enforces (`agent_client_account_admin`).
  */
 
 export const CLIENT_DETAIL_TABS = [
@@ -20,6 +17,7 @@ export const CLIENT_DETAIL_TABS = [
   { id: "documents", label: "Documents" },
   { id: "notes", label: "Notes" },
   { id: "activity", label: "Activity" },
+  { id: "account", label: "Account admin" },
 ] as const;
 
 export type ClientDetailTabId = (typeof CLIENT_DETAIL_TABS)[number]["id"];

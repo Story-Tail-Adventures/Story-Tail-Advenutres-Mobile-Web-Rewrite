@@ -366,11 +366,10 @@ export const CLIENT_COPY = {
 
   // Activity
   activityEmpty: "Nothing recorded yet.",
-  activityNote:
-    "Sign-ins are on the account's own activity screen, which arrives with §3.9.6.",
+  // §3.9.6 is built (web only, 2026-10-16). The phone shows the same line, so it says where.
+  activityNote: "Sign-ins are on the Account admin tab in the web app.",
 
   // Per-action deferrals on the detail surface.
-  accountAdminDeferred: "Account admin arrives with §3.9.",
   documentDownloadDeferred: "Downloading a document arrives with §3.3.6's upload path.",
 
   // ── §3.3.9 / §3.3.10 / §3.3.12, the write path ─────────────────────────
@@ -408,12 +407,10 @@ export const CLIENT_COPY = {
   newTagPlaceholder: "New tag",
   hintNotes: "Only you see this. It shows on their Snapshot card.",
 
-  // The prototype draws a live "Send a portal invitation with welcome template?" toggle.
-  // Nothing in the repository creates a client_invite row and no email provider is wired,
-  // and issuing a portal invitation is handing out a bearer credential — it wants its own
-  // expiry, revocation and rate-limit thinking rather than a checkbox on a create form.
-  inviteDeferred:
-    "Sending a portal invitation arrives with §3.9.3, where emailing a client a one-time link gets built.",
+  // The prototype draws a live "Send a portal invitation with welcome template?" toggle. The
+  // invite is built now (§3.9, 2026-10-16) but lives on the Account admin tab, behind the
+  // MFA gate and the per-client email cap, rather than as a checkbox on a create form.
+  inviteDeferred: "Save them first, then send it from their Account admin tab.",
   inviteLabel: "Send a portal invitation",
   // FOUR DEFERRALS CAME DUE WITH §3.4.3 AND ARE DELETED, not reworded: quickAddTripDeferred,
   // newTripForClientDeferred, saveAndTripDeferred and newTripDeferred all named a screen
@@ -438,6 +435,137 @@ export const CLIENT_COPY = {
   restoreBody: "Puts them back on the active roster. Nothing else about the record changes.",
   restoreConfirm: "Restore",
   moreActions: "More actions",
+} as const;
+
+/**
+ * §3.9 Login Support: the Account admin tab (Screens 3.9.1 to 3.9.6 and the invite).
+ * Rulings: docs/Screen-Inventory.md §3.9 (2026-10-16). A desk tool, so the voice is the
+ * friend who's done this 100 times: plain, calm, and honest about what each button does to
+ * the client. Nothing here is shown to the client.
+ */
+export const ACCOUNT_ADMIN_COPY = {
+  tab: "Account admin",
+  sub: "Help a client get back in. Everything you do here is kept in their history.",
+
+  // The MFA gate.
+  gateTitle: "Two-step sign-in first",
+  gateBodyNoFactor:
+    "These tools can sign a client in or lock them out, so they need two-step sign-in on your account. It takes about a minute.",
+  gateBodyVerify: "These tools need a fresh two-step check. Verify with your authenticator app to carry on.",
+  gateSetUp: "Set up two-step sign-in",
+  gateVerify: "Verify now",
+
+  // Status panel (A391).
+  statusHeading: "Status",
+  statusAccount: "Account",
+  statusActive: "Active",
+  statusLocked: "Locked",
+  statusInviteSent: "Invite sent",
+  statusEmail: "Email",
+  statusVerified: "Verified",
+  statusNotVerified: "Not verified",
+  statusMfa: "Two-step sign-in",
+  statusOn: "On",
+  statusOff: "Off",
+  statusLastSignIn: "Last sign-in",
+  statusNever: "Not yet",
+  lockedSince: (since: string) => `Locked ${since}.`,
+  lockedReason: (reason: string) => `Your reason: ${reason}`,
+  invitePending: "Invite sent. They haven't opened it yet.",
+
+  // Quick actions.
+  actionsHeading: "Quick actions",
+  actionReset: "Send password reset",
+  actionMagic: "Send a sign-in link",
+  actionInvite: "Send an invite",
+  actionInviteAgain: "Send the invite again",
+  actionVerify: "Verify email manually",
+  actionMerge: "Merge duplicate records",
+  actionLock: "Lock account",
+  actionUnlock: "Unlock account",
+  actionSignOut: "Sign out everywhere",
+  socialOnly: (provider: string) => `Signs in with ${provider}, so there's no password to reset.`,
+  sendsLeft: (n: number) =>
+    n === 0
+      ? "That's 3 sign-in emails this hour. Give it a little while before sending another."
+      : n === 1
+        ? "1 more sign-in email this hour."
+        : `${n} more sign-in emails this hour.`,
+  duplicate: "Another client record has this email. Merge them first.",
+  duplicateLink: "Open the other record",
+  lockedFirst: "Unlock the account first.",
+  alreadyVerified: "Already verified.",
+
+  // No sign-in yet.
+  noSignInTitle: "Hasn't signed in yet",
+  noSignInBody: (name: string) =>
+    `${name} doesn't have a sign-in yet. Send an invite and they'll get a link that opens their trips.`,
+  noEmail: "Add an email address to their record first.",
+  archivedFirst: "Restore this client before inviting them.",
+
+  // Dialogs (A392 to A395). The audit line is the same everywhere.
+  auditNotice: "This is kept in the client's history.",
+  cancel: "Cancel",
+  working: "Working…",
+  resetTitle: (name: string) => `Send a password reset to ${name}?`,
+  resetBody: (email: string) =>
+    `An email goes to ${email} with a link that works for 1 hour. You won't see their password, and the email says you sent it.`,
+  resetConfirm: "Send reset link",
+  magicTitle: (name: string) => `Send ${name} a sign-in link?`,
+  magicBody: (email: string) =>
+    `A one-time link that works for 1 hour, sent only to ${email}. It signs them straight in. The email says you sent it, and you never see the link.`,
+  magicConfirm: "Send link",
+  inviteTitle: (name: string) => `Invite ${name}?`,
+  inviteBody: (email: string) =>
+    `An email goes to ${email} with a link that opens their trips. It works for 1 hour, and you can send another if it runs out.`,
+  inviteConfirm: "Send invite",
+  verifyTitle: (email: string) => `Mark ${email} as verified?`,
+  verifyBody:
+    "Only do this after you've confirmed it another way, like a phone call. It skips the usual email check.",
+  verifyNoteLabel: "How you confirmed it",
+  verifyNotePlaceholder: "Called on 10/16 and they read back the address",
+  verifyNoteHint: "At least 20 characters. It's kept with the record.",
+  verifyConfirm: "Mark verified",
+  lockTitle: (name: string) => `Lock ${name}'s account?`,
+  lockBody:
+    "Signs them out on every device and stops new sign-ins until you unlock it. They won't get an email. If they try to sign in, they'll see their account is on hold.",
+  lockReasonLabel: "Reason",
+  lockReasonPlaceholder: "A sign-in from a device they don't own",
+  lockConfirm: "Lock account",
+  unlockTitle: (name: string) => `Unlock ${name}'s account?`,
+  unlockBody: "They can sign in again right away.",
+  unlockReasonPlaceholder: "Confirmed by phone that it was them",
+  unlockConfirm: "Unlock",
+  signOutTitle: (name: string) => `Sign ${name} out everywhere?`,
+  signOutBody:
+    "Ends their sessions on every device. Their account stays open, so they can sign right back in. Good for a lost phone.",
+  signOutConfirm: "Sign out everywhere",
+  reasonRequired: "Add a short reason.",
+  noteTooShort: "Say a little more about how you confirmed it.",
+
+  // Results.
+  sent: (email: string) => `Sent. It's on its way to ${email}.`,
+  capped: "That's 3 sign-in emails this hour. Give it a little while before sending another.",
+  sendFailed: "That email didn't go out. Try again in a moment.",
+  changed: "Done.",
+  noop: "Nothing to change. It was already done.",
+  failed: "That didn't go through. Try again in a moment.",
+  mfaStale: "Verify your two-step sign-in again, then try once more.",
+
+  // Devices and sign-ins (3.9.6).
+  devicesHeading: "Signed in on",
+  devicesEmpty: "Not signed in anywhere right now.",
+  deviceLastActive: (when: string) => `Active ${when}`,
+  activityHeading: "Sign-ins",
+  activitySub: "The last 90 days. Flag anything that looks off.",
+  activityEmpty: "No sign-ins in the last 90 days.",
+  colWhen: "When",
+  colDevice: "Device",
+  colIp: "IP address",
+  ipUnknown: "Not recorded",
+  flag: "Flag",
+  unflag: "Clear flag",
+  flagged: "Flagged",
 } as const;
 
 /** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */

@@ -199,7 +199,8 @@ BEGIN
         'duplicateEmail',         v_dup_any,
         'duplicateEmailClientId', v_dup_id,
         'signInEmailsLastHour',   v_sends,
-        'hasSignIn',              v_account IS NOT NULL
+        'hasSignIn',              v_account IS NOT NULL,
+        'agentTimeZone',          (SELECT a.time_zone FROM public.agent a WHERE a.id = p_agent_id)
     );
 
     IF v_account IS NULL THEN

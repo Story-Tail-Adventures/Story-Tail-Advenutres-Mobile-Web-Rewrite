@@ -1,5 +1,6 @@
 import Box from "@mui/material/Box";
 
+import { ClientAccountAdminTab } from "@/components/agent/ClientAccountAdminTab";
 import { ClientActivityTab } from "@/components/agent/ClientActivityTab";
 import { ClientBackLink, ClientDetailHeader } from "@/components/agent/ClientDetailHeader";
 import { ClientDetailTabs } from "@/components/agent/ClientDetailTabs";
@@ -10,6 +11,7 @@ import { ClientOverviewTab } from "@/components/agent/ClientOverviewTab";
 import { ClientThreadsTab } from "@/components/agent/ClientThreadsTab";
 import { ClientTripsTab } from "@/components/agent/ClientTripsTab";
 import { RetryState } from "@/components/client/RetryState";
+import { loadAccountAdmin } from "@/lib/agent/accountAdmin";
 import { validClientTab } from "@/lib/agent/clientTabs";
 import type { ClientOverview } from "@/lib/agent/clientDetail";
 import {
@@ -108,6 +110,7 @@ export default async function AgentClientDetailPage({
         {tab === "documents" && <DocumentsTab clientId={clientId} />}
         {tab === "notes" && <NotesTab clientId={clientId} />}
         {tab === "activity" && <ActivityTab clientId={clientId} />}
+        {tab === "account" && <AccountTab clientId={clientId} />}
       </Box>
     </Box>
   );
@@ -155,4 +158,16 @@ async function ActivityTab({ clientId }: { clientId: string }) {
   const events = await loadClientActivity(clientId);
   if (!events) return <RetryState />;
   return <ClientActivityTab events={events} />;
+}
+
+async function AccountTab({ clientId }: { clientId: string }) {
+  const result = await loadAccountAdmin(clientId);
+  if (!result.ok) return result.reason === "not-found" ? <ClientNotFound /> : <RetryState />;
+  return (
+    <ClientAccountAdminTab
+      clientId={clientId}
+      view={result.view}
+      mfaReturnTo={`/agent/clients/${clientId}?tab=account`}
+    />
+  );
 }

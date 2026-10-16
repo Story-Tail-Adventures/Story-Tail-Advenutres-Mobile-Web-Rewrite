@@ -85,8 +85,8 @@ object ClientCopy {
         "No notes yet. This is where you keep what you'd otherwise try to remember."
     const val NOTE_EDITED_MARKER = "edited"
     const val ACTIVITY_EMPTY = "Nothing recorded yet."
-    const val ACTIVITY_NOTE =
-        "Sign-ins are on the account's own activity screen, which arrives with §3.9.6."
+    // §3.9.6 is built on the web only (2026-10-16); the phone points there.
+    const val ACTIVITY_NOTE = "Sign-ins are on the Account admin tab in the web app."
 
     /**
      * The six tab labels. Phone-only strings — the web build gets these from its own tab
