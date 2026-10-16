@@ -67,8 +67,15 @@ by the BROWSER, not by us. We do not pick it and need no account with it.
 - **Secret:** the Firebase service account key (JSON), stored as a Supabase Edge Function
   secret. It can send notifications to our app and nothing else; it is not committed anywhere.
 - **`google-services.json`** (the app's Firebase config) is not a secret by Google's own
-  design, but it names our project, so it stays out of the public repo on the same footing as
-  `local.properties` (the build reads it from a gitignored path, and CI gets it as a secret).
+  design, but it names our project, so it stays out of the repo. **As built (PR 2):** the app
+  does not use the file or Google's Gradle plugin at all. Its four public values live in the
+  gitignored `mobile/local.properties` and Firebase is configured by hand at startup
+  (`PushSetup`), so CI needs no Firebase file or secret, and a build without the values simply
+  offers no notifications. `google-services.json` is gitignored in case Android Studio's
+  Firebase Assistant drops one.
+- **Built as reviewed:** only `firebase-messaging` (BoM 34.19.0); Analytics collection off and
+  messaging auto-init off in the manifest until "Turn on"; Firebase's startup provider removed.
+  The server's FCM payload is pinned by a test to carry no name, trip or message text.
 
 ### 3.1 The one real privacy question: what Google can read
 

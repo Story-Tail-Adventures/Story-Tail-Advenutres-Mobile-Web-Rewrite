@@ -440,6 +440,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/push-device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn this device's message notifications on or off.
+         * @description Screen 3.10.7 (§3.10 Stage 3b). `register` is the inbox card's "Turn on": a browser
+         *     sends its Web Push subscription, an Android phone its FCM token. Advisors only; an
+         *     archived advisor is refused. The device is keyed on its address, so registering again
+         *     refreshes the row, and an address another user held moves to the caller.
+         *
+         *     `unregister` is sign-out: only the caller's own row for that address goes. It needs a
+         *     signed-in caller, not an active advisor.
+         *
+         *     Device addresses are identifiers and are never returned.
+         */
+        post: operations["pushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/onboarding-step": {
         parameters: {
             query?: never;
@@ -922,6 +950,41 @@ export interface components {
             conversationId: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        PushRegisterRequest: {
+            /** @enum {string} */
+            op: "register";
+            /** @enum {string} */
+            platform: "web" | "android";
+            /**
+             * Format: uuid
+             * @description A fresh client-minted v7. An address already registered keeps its own id.
+             */
+            deviceId: string;
+            /** @description `android` only, and required there: the Firebase registration token. */
+            fcmToken?: string;
+            /** @description `web` only, and required there: `PushSubscription.toJSON()`. */
+            subscription?: {
+                [key: string]: unknown;
+            };
+            /** @description "Chrome · macOS" or the phone model, for a later device list. Optional. */
+            label?: string;
+        };
+        /** @description At least one of `fcmToken` (a phone) or `endpoint` (a browser); neither is a 400. */
+        PushUnregisterRequest: {
+            /** @enum {string} */
+            op: "unregister";
+            fcmToken?: string;
+            endpoint?: string;
+        } | unknown | unknown;
+        PushDeviceResponse: {
+            /** @enum {string} */
+            outcome: "registered" | "unregistered" | "not_found";
+            /**
+             * Format: uuid
+             * @description `register` only: the device's row id.
+             */
+            deviceId?: string;
         };
         AgentMarkThreadReadRequest: {
             /** @enum {string} */
@@ -1668,6 +1731,33 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    pushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushRegisterRequest"] | components["schemas"]["PushUnregisterRequest"];
+            };
+        };
+        responses: {
+            /** @description What happened. Never an address. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     setOnboardingStep: {

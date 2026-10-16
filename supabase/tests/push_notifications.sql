@@ -241,6 +241,18 @@ SELECT pg_temp.assert((SELECT attempts FROM public.push_outbox WHERE id = (SELEC
 UPDATE public.push_outbox SET state = 'sent' WHERE state IN ('pending', 'sending');
 UPDATE public.conversation SET agent_unread_count = 0 WHERE id = :conv::uuid;
 
+-- A dismiss owed for a thread that is unread again is stale: dropped, never sent (found on the
+-- phone, where it cancelled the newer notification sharing its tag; 20261018120000).
+UPDATE public.conversation SET agent_unread_count = 0 WHERE id = :conv::uuid;
+UPDATE public.push_outbox SET needs_dismiss = true, state = 'sent', sent_at = now() WHERE id = (SELECT outbox_id FROM claim5);
+SELECT pg_temp.client_says(gen_random_uuid(), 'Wrote again before the next pass', :jordan_user::uuid);
+SELECT pg_temp.assert((SELECT count(*) FROM public.push_claim_dismissals(10)) = 0,
+    'a dismiss for a thread that is unread again is not sent');
+SELECT pg_temp.assert(NOT (SELECT needs_dismiss FROM public.push_outbox WHERE id = (SELECT outbox_id FROM claim5)),
+    'and is dropped, not left waiting');
+UPDATE public.push_outbox SET state = 'sent' WHERE state IN ('pending', 'sending');
+UPDATE public.conversation SET agent_unread_count = 0 WHERE id = :conv::uuid;
+
 -- An archived advisor is told nothing.
 UPDATE public.agent SET status = 'archived' WHERE id = :agent::uuid;
 SELECT pg_temp.client_says(gen_random_uuid(), 'Hello?', :jordan_user::uuid);

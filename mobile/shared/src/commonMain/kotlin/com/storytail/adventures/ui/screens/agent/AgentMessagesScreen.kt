@@ -113,6 +113,8 @@ fun AgentMessagesScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp),
             ) {
+                // §3.10.7, ruling 7: the opt-in sits at the top of the inbox until answered.
+                if (!archived) item(key = "notify") { AgentNotifyCard() }
                 item(key = "controls") {
                     InboxControls(
                         search = search,

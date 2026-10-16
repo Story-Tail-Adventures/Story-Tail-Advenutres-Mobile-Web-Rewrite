@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- §3.10.7: this phone's notification state (its FCM address, and any reply that failed to send)
+     belongs to this phone and this sign-in. It never goes into a backup or a device transfer. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="storytail.push.xml" />
+</full-backup-content>

@@ -321,8 +321,24 @@ curl -X POST http://127.0.0.1:54321/functions/v1/push-dispatch \
 
 Answers `{"sent","retried","dismissed","gone"}`. Any user token is 403.
 
-**Android (PR 2)** will add `FCM_SERVICE_ACCOUNT_JSON`. See
-`../docs/Push-Notifications-Security-Review.md`.
+**Android: the Firebase service-account key.** Firebase console → Project settings → Service
+accounts → Generate new private key. The whole JSON file, as ONE line:
+
+```bash
+supabase secrets set FCM_SERVICE_ACCOUNT_JSON="$(jq -c . < service-account.json)" --project-ref <prod-ref>
+```
+
+Locally it goes in `supabase/.env.local` the same way, single-quoted:
+`FCM_SERVICE_ACCOUNT_JSON='{"type":"service_account",…}'`. A pasted multi-line file does not
+parse. Delete the downloaded file afterwards; it can send to our app and nothing else.
+
+With only one of VAPID or FCM set, that platform's devices answer "error". For an advisor
+whose devices are ALL on that platform, the row retries and ends `failed`, visible in
+`push_outbox`. For an advisor with devices on both, the other platform delivers and the row is
+`sent`: the missing key then shows only in the function log ("push: … send failed"). Check both
+keys after any change. The phone side
+needs the four `firebase.*` values in `mobile/local.properties` (see its `.example`).
+See `../docs/Push-Notifications-Security-Review.md`.
 
 ## Critical PCI rules for this directory
 

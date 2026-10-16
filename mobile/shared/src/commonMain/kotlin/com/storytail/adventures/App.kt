@@ -60,6 +60,7 @@ import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
 import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
+import com.storytail.adventures.push.LocalAgentPush
 import com.storytail.adventures.ui.theme.StoryTailTheme
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
@@ -193,6 +194,28 @@ fun App() {
             }
         }
 
+        /**
+         * A tapped notification (§3.10.7) opens its thread, once the session and the advisor's
+         * role are known. Until then it waits: a cold start from a notification goes through
+         * the splash and the gate first, and the thread is pushed on top of the Worklist the
+         * gate lands on, so back goes where it would have.
+         */
+        val push = LocalAgentPush.current
+        val pendingThread by push.openThread.collectAsState()
+        LaunchedEffect(pendingThread, sessionStatus, onboardingStatus) {
+            val id = pendingThread ?: return@LaunchedEffect
+            if (sessionStatus !is SessionStatus.Authenticated) return@LaunchedEffect
+            val role = onboardingStatus?.role ?: return@LaunchedEffect
+            // Only an advisor's notification can name a thread; anyone else drops the request
+            // rather than carrying it into a later sign-in.
+            if (role != "agent") {
+                push.threadOpened()
+                return@LaunchedEffect
+            }
+            if (nav.current != AppRoute.AgentThread(id)) nav.push(AppRoute.AgentThread(id))
+            push.threadOpened()
+        }
+
         // Android's system back. Disabled at the root of the stack so it falls through to
         // leaving the app rather than being swallowed.
         PlatformBackHandler(enabled = nav.canGoBack) { nav.pop() }
@@ -227,7 +250,14 @@ fun App() {
                         // built More, so the top bar is still the only way out of the agent
                         // shell — and before §3.2 an agent signing in on a phone landed in
                         // the client shell, which has one.
-                        onSignOut = { scope.launch { repo.signOut() } },
+                        // This phone's notifications stop first (§3.10.7), while the session
+                        // that registered them can still say so.
+                        onSignOut = {
+                            scope.launch {
+                                push.turnOffHere()
+                                repo.signOut()
+                            }
+                        },
                     )
                 }
             }

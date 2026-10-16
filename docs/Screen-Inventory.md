@@ -3270,7 +3270,7 @@ These tools let the agent help less-technical clients with login issues.
 > - **No audit rows.** Templates hold no client data, so they are outside Rule 3's sensitive
 >   tables; the messages they produce are recorded the usual way.
 
-#### 3.10.7 Message Notifications (§3.10 Stage 3b: web built; phone next)
+#### 3.10.7 Message Notifications (§3.10 Stage 3b: web and Android built; iOS after Xcode)
 **Purpose:** Tell the advisor a client has written, on the web and the phone, and let them answer
 from the phone's notification.
 **Primary elements:** System notification (client, trip, first line); Reply and Mark read on the
@@ -3319,6 +3319,19 @@ Preferences (3.12.3).
 >   sent to the web. A web notification already answered elsewhere is the advisor's to swipe.
 > - **An archived advisor is told nothing**, as they can read nothing.
 > - **A card number a client types** shows in a notification as "•••• 4242" only.
+>
+> **Built (Android, Stage 3b PR 2).** FCM carries only the thread id and a count; the phone
+> reads the name, trip and first line over its own session (fetch on receipt), and falls back
+> to "New message" if that read fails. Locked: "New message from Jordan Hayes · Unlock to read
+> it." Reply sends a reply (never a note) up to the message the notification showed; a failed
+> one says "Didn't send. Tap to try again" and its words wait as the thread's draft. Mark read
+> reads up to that message. Reading anywhere dismisses it on the phone, and the 7am summary
+> goes once nothing is unread. The summary on the phone says "…wrote while you rested": it
+> cannot tell when the messages came, so it never claims "overnight". The card's "Turn on" asks
+> Android 13+'s permission only then; after two refusals the card offers "Open settings"
+> instead. A failed reply's draft stays saved until a send succeeds and keeps its message id, so
+> resending it can never reach the client twice. Notification state is excluded from backups,
+> and sign-out clears it.
 > - **Only the browsers' own push services** may be a device's address (Google, Mozilla,
 >   Microsoft, Apple). Anything else is refused at registration and again at send.
 

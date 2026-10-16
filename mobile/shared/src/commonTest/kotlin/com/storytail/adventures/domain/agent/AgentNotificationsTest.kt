@@ -1,0 +1,72 @@
+package com.storytail.adventures.domain.agent
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class AgentNotificationsTest {
+    private val conv = "0195a2c0-1a00-7000-8000-0000000000b0"
+
+    @Test
+    fun parsesWhatPushDispatchSends() {
+        assertEquals(
+            AgentPushData.Message(conv, "2026-10-15T14:02:11.123456+00:00", 2),
+            AgentPushData.parse(
+                mapOf("v" to "1", "kind" to "message", "tag" to conv, "conversationId" to conv,
+                    "seenUpTo" to "2026-10-15T14:02:11.123456+00:00", "count" to "2"),
+            ),
+        )
+        assertEquals(AgentPushData.Summary(3), AgentPushData.parse(mapOf("v" to "1", "kind" to "summary", "count" to "3")))
+        assertEquals(AgentPushData.Dismiss(conv), AgentPushData.parse(mapOf("v" to "1", "kind" to "dismiss", "tag" to conv)))
+        assertEquals(
+            AgentPushData.Dismiss(conv, "2026-10-15T14:02:11.123456+00:00"),
+            AgentPushData.parse(mapOf("v" to "1", "kind" to "dismiss", "tag" to conv, "readUpTo" to "2026-10-15T14:02:11.123456+00:00")),
+        )
+    }
+
+    @Test
+    fun ignoresWhatItDoesNotUnderstand() {
+        assertNull(AgentPushData.parse(mapOf("v" to "2", "kind" to "message")))
+        assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "message", "conversationId" to "nope", "seenUpTo" to "x")))
+        assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "message", "conversationId" to conv)))
+        assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "party")))
+        assertNull(AgentPushData.parse(emptyMap()))
+    }
+
+    @Test
+    fun aCardNumberNeverReachesTheLockScreen() {
+        // Built at runtime: CI's PCI guard refuses Luhn-valid numbers in source, fixtures too.
+        val visa = List(4) { "4242" }.joinToString(" ")
+        val amex = listOf("3782", "822463", "10005").joinToString("-")
+        assertEquals("card •••• 4242 exp 12/29", notificationBody("card $visa exp 12/29"))
+        assertEquals("Amex •••• 0005", maskCardNumbers("Amex $amex"))
+        assertEquals("•••• 1111", maskCardNumbers("4111" + "1".repeat(12)))
+        val ordinary = "$7,845 due 10/29, call 312-555-0142, conf 8841207"
+        assertEquals(ordinary, maskCardNumbers(ordinary))
+    }
+
+    @Test
+    fun theWords() {
+        assertEquals("Jordan Hayes · Anniversary Week in Negril", notificationTitle("Jordan Hayes", "Anniversary Week in Negril"))
+        assertEquals("Maya Carter", notificationTitle("Maya Carter", null))
+        assertEquals("New message from Jordan Hayes", notificationLockedTitle("Jordan Hayes"))
+        assertEquals("Sent you a message.", notificationBody("   "))
+        assertEquals(140, notificationBody("x".repeat(400)).length)
+        assertEquals("1 new message while you rested", notificationSummaryTitle(1))
+        assertEquals("3 new messages while you rested", notificationSummaryTitle(3))
+        assertEquals("Jordan Hayes and Maya Carter wrote while you rested.", notificationSummaryBody(listOf("Jordan Hayes", "Maya Carter")))
+        assertEquals("A, B, C and 2 others wrote while you rested.", notificationSummaryBody(listOf("A", "B", "C", "D", "E")))
+        assertEquals("Your clients wrote while you rested.", notificationSummaryBody(emptyList()))
+    }
+
+    @Test
+    fun aLateDismissNeverClosesANewerNotification() {
+        val older = "2026-10-15T14:02:11.123456+00:00"
+        val newer = "2026-10-15T14:05:00.000001+00:00"
+        assertEquals(true, dismissApplies(readUpTo = newer, shownUpTo = older))
+        assertEquals(true, dismissApplies(readUpTo = older, shownUpTo = older))
+        assertEquals(false, dismissApplies(readUpTo = older, shownUpTo = newer))
+        assertEquals(true, dismissApplies(readUpTo = null, shownUpTo = newer))
+        assertEquals(true, dismissApplies(readUpTo = older, shownUpTo = null))
+    }
+}

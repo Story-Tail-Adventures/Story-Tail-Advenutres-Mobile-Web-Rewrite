@@ -50,6 +50,31 @@ object AgentMessagesCopy {
     const val ADD_NOTE = "Add note"
     const val SEND_FAILED = "That didn't send. Try again in a moment."
     const val NOT_FOUND = "That client isn't one of yours, or they've been archived."
+
+    // §3.10.7 notifications. The card's words are the web's (copy parity); the rest is the
+    // phone's own notification (M3105 to M3108).
+    const val NOTIFY_TITLE = "Get notified when clients write"
+    const val NOTIFY_BODY = "Quiet overnight and on Sundays, with one summary in the morning."
+    const val NOTIFY_TURN_ON = "Turn on"
+    const val NOTIFY_NOT_NOW = "Not now"
+    const val NOTIFY_TURNING_ON = "Turning on…"
+    const val NOTIFY_FAILED = "Notifications didn't turn on. Try again in a moment."
+    const val NOTIFY_ON = "Notifications are on for this phone."
+    const val NOTIFY_BLOCKED_PHONE = "Notifications are off for Story-Tail in this phone's settings. You can turn them on there."
+    const val NOTIFY_CHANNEL = "Client messages"
+    const val NOTIFY_CHANNEL_DESCRIPTION = "When a client writes to you. Quiet overnight and on Sundays."
+    const val NOTIFY_LOCKED_BODY = "Unlock to read it."
+    const val NOTIFY_NEW_MESSAGE = "New message"
+    const val NOTIFY_ACTION_REPLY = "Reply"
+    const val NOTIFY_ACTION_MARK_READ = "Mark read"
+    const val NOTIFY_REPLY_HINT = "Write a reply…"
+    const val NOTIFY_REPLY_FAILED = "Didn't send. Tap to try again."
+    const val NOTIFY_REPLY_DRAFT = "Your reply is saved as a draft in this thread."
+    const val NOTIFY_REPLY_SENT = "Sent"
+    const val NOTIFY_OPEN_SETTINGS = "Open settings"
+    const val NOTIFY_A_CLIENT = "A client"
+    const val NOTIFY_NO_TEXT = "Sent you a message."
+    const val NOTIFY_YOUR_CLIENTS = "Your clients"
     const val OPEN_IN_MESSAGES = "Open in Messages"
 
     // Phone-only. The web has no tab bar and a two-pane layout, so these have no twin.

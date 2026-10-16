@@ -19,6 +19,7 @@ import com.storytail.adventures.api.AgentSendOutcome
 import com.storytail.adventures.api.AgentSendRequest
 import com.storytail.adventures.api.AgentThreadRead
 import com.storytail.adventures.domain.agent.AgentMessagesCopy
+import com.storytail.adventures.push.LocalAgentPush
 import com.storytail.adventures.domain.agent.agentInboxRow
 import com.storytail.adventures.domain.agent.initialsOf
 import com.storytail.adventures.domain.agent.messagesHeadline
@@ -142,6 +143,7 @@ internal fun AgentThreadRoute(
     var reload by remember(conversationId) { mutableIntStateOf(0) }
     var refreshing by remember(conversationId) { mutableStateOf(false) }
     var read by remember(conversationId) { mutableStateOf<AgentThreadRead?>(null) }
+    val push = LocalAgentPush.current
     var draft by remember(conversationId) { mutableStateOf("") }
     var noteMode by remember(conversationId) { mutableStateOf(false) }
     var sending by remember(conversationId) { mutableStateOf(false) }
@@ -150,6 +152,16 @@ internal fun AgentThreadRoute(
     var status by remember(conversationId) { mutableStateOf<String?>(null) }
     var statusIsError by remember(conversationId) { mutableStateOf(false) }
     var draftId by remember(conversationId) { mutableStateOf<DraftId?>(null) }
+
+    // A reply that failed from a notification waits here as the draft (§3.10.7, ruling 4), with
+    // the id it was first sent under: sending the same words again is the same message.
+    LaunchedEffect(push, conversationId) {
+        val pending = push.draftFor(conversationId) ?: return@LaunchedEffect
+        if (draft.isEmpty()) {
+            draft = pending.text
+            draftId = DraftId(pending.messageId, pending.text, false)
+        }
+    }
 
     LaunchedEffect(messages, conversationId, reload) {
         val result = messages.thread(conversationId)
@@ -250,6 +262,7 @@ internal fun AgentThreadRoute(
                         draft = ""
                         draftId = null
                         noteMode = false
+                        push.clearDraft(conversationId)
                         reload++
                         onMessagesChanged()
                     }

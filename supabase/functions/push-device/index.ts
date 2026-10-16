@@ -2,7 +2,7 @@
  * §3.10 Stage 3b: turn a device's notifications on or off (Screen Inventory §3.10.7, Data-Model
  * §12.6).
  *
- * `register` is the inbox card's "Turn on": the browser (or, from PR 2, the phone) hands over
+ * `register` is the inbox card's "Turn on": the browser or the phone hands over
  * where it can be reached. Advisors only in 3b, and an archived advisor is refused, as every
  * agent write is (`requireAgentId`). The SQL keys the device on its address, so the same
  * browser registering again refreshes its row, and a browser someone else signed out of moves
@@ -25,7 +25,7 @@ import { assertRecentUuidV7 } from "../_shared/uuid.ts";
 import { readJson } from "../_shared/trip.ts";
 import { agentDb, requireAgentId } from "../_shared/agent.ts";
 import { serviceClient } from "../_shared/db.ts";
-import { readDeviceLabel, readWebSubscription } from "../_shared/push.ts";
+import { readDeviceLabel, readFcmToken, readWebSubscription } from "../_shared/push.ts";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -60,19 +60,32 @@ Deno.serve(async (req) => {
         await requireAgentId(ctx, db);
         const deviceId = requireNewId(payload.deviceId);
 
-        // Web only until PR 2 brings the Android app's Firebase token.
-        if (payload.platform !== "web") throw badRequest("Only a browser can turn this on yet.");
-        const sub = readWebSubscription(payload.subscription);
-
-        const { data, error } = await db.rpc("push_register_device", {
-          p_user_id: ctx.platformUserId,
-          p_device_id: deviceId,
-          p_platform: "web",
-          p_web_endpoint: sub.endpoint,
-          p_web_p256dh: sub.p256dh,
-          p_web_auth: sub.auth,
-          p_label: readDeviceLabel(payload.label) ?? undefined,
-        });
+        const label = readDeviceLabel(payload.label) ?? undefined;
+        let call;
+        if (payload.platform === "web") {
+          const sub = readWebSubscription(payload.subscription);
+          call = db.rpc("push_register_device", {
+            p_user_id: ctx.platformUserId,
+            p_device_id: deviceId,
+            p_platform: "web",
+            p_web_endpoint: sub.endpoint,
+            p_web_p256dh: sub.p256dh,
+            p_web_auth: sub.auth,
+            p_label: label,
+          });
+        } else if (payload.platform === "android") {
+          call = db.rpc("push_register_device", {
+            p_user_id: ctx.platformUserId,
+            p_device_id: deviceId,
+            p_platform: "android",
+            p_fcm_token: readFcmToken(payload.fcmToken),
+            p_label: label,
+          });
+        } else {
+          // iOS arrives once Xcode is installed.
+          throw badRequest("Send a platform of web or android.");
+        }
+        const { data, error } = await call;
         if (error?.message.includes("already in use")) {
           throw badRequest("That page is out of date. Reload it and try again.");
         }
@@ -81,13 +94,17 @@ Deno.serve(async (req) => {
       }
 
       case "unregister": {
+        // A browser names its endpoint; a phone its FCM token. Only the caller's own row goes.
         const endpoint = payload.endpoint;
-        if (typeof endpoint !== "string" || endpoint.length === 0 || endpoint.length > 1024) {
+        const fcmToken = payload.fcmToken;
+        const bounded = (v: unknown) => typeof v === "string" && v.length > 0 && v.length <= 4096;
+        if (!bounded(endpoint) && !bounded(fcmToken)) {
           throw badRequest("Send the address to turn off.");
         }
         const { data, error } = await serviceClient().rpc("push_unregister_device", {
           p_user_id: ctx.platformUserId,
-          p_web_endpoint: endpoint,
+          ...(bounded(endpoint) ? { p_web_endpoint: endpoint as string } : {}),
+          ...(bounded(fcmToken) ? { p_fcm_token: fcmToken as string } : {}),
         });
         if (error) throw new Error(`push unregister failed: ${error.message}`);
         return json({ outcome: data ? "unregistered" : "not_found" });

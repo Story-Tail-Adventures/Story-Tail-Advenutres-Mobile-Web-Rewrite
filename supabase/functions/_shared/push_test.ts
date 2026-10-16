@@ -13,6 +13,7 @@ import {
   outcomeForStatus,
   planForAgent,
   readDeviceLabel,
+  readFcmToken,
   readWebSubscription,
   type PushDevice,
   summaryPayload,
@@ -180,4 +181,12 @@ Deno.test("a card number a client typed never reaches a lock screen", () => {
   // Ordinary numbers stay: prices, dates, phone numbers, confirmation codes.
   assertEquals(maskCardNumbers("$7,845 due 10/29, call 312-555-0142, conf 8841207"), "$7,845 due 10/29, call 312-555-0142, conf 8841207");
   assertEquals(messagePayload(row({ preview: `card ${mc}` })).body, "card •••• 4444");
+});
+
+Deno.test("readFcmToken: an opaque token of sane size, or a 400", () => {
+  const tok = "dXJ8:APA91b" + "x".repeat(140);
+  assertEquals(readFcmToken(tok), tok);
+  assertThrows(() => readFcmToken("short"), HttpError);
+  assertThrows(() => readFcmToken("has spaces " + "x".repeat(40)), HttpError);
+  assertThrows(() => readFcmToken(undefined), HttpError);
 });

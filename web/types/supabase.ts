@@ -5144,6 +5144,7 @@ export type Database = {
         Returns: {
           agent_id: string
           conversation_id: string
+          read_up_to: string
         }[]
       }
       push_claim_due: {

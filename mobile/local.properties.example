@@ -11,3 +11,11 @@ sdk.dir=/Users/<you>/Library/Android/sdk
 
 supabase.url=http://10.0.2.2:54321
 supabase.anonKey=<ANON_KEY from `supabase status`>
+
+# §3.10.7 notifications (optional). From the Firebase console: Project settings → Your apps →
+# the Android app com.storytail.adventures. Leave them out and the app simply offers no
+# notifications. These identify the project; they are not secrets, but they stay out of git.
+# firebase.projectId=<project id>
+# firebase.appId=1:<sender id>:android:<hash>
+# firebase.apiKey=<the Android API key>
+# firebase.senderId=<project number>

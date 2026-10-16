@@ -671,6 +671,39 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /push-device:
+    post:
+      operationId: pushDevice
+      summary: Turn this device's message notifications on or off.
+      description: |
+        Screen 3.10.7 (§3.10 Stage 3b). `register` is the inbox card's "Turn on": a browser
+        sends its Web Push subscription, an Android phone its FCM token. Advisors only; an
+        archived advisor is refused. The device is keyed on its address, so registering again
+        refreshes the row, and an address another user held moves to the caller.
+
+        `unregister` is sign-out: only the caller's own row for that address goes. It needs a
+        signed-in caller, not an active advisor.
+
+        Device addresses are identifiers and are never returned.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PushRegisterRequest'
+                - $ref: '#/components/schemas/PushUnregisterRequest'
+      responses:
+        '200':
+          description: What happened. Never an address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushDeviceResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
   /onboarding-step:
     post:
       operationId: setOnboardingStep
@@ -1338,6 +1371,59 @@ components:
           format: uuid
           description: The thread written to, which a new message may have just started.
         createdAt: { type: string, format: date-time }
+
+    PushRegisterRequest:
+      type: object
+      required: [op, platform, deviceId]
+      properties:
+        op:
+          type: string
+          enum: [register]
+        platform:
+          type: string
+          enum: [web, android]
+        deviceId:
+          type: string
+          format: uuid
+          description: A fresh client-minted v7. An address already registered keeps its own id.
+        fcmToken:
+          type: string
+          minLength: 20
+          maxLength: 4096
+          description: "`android` only, and required there: the Firebase registration token."
+        subscription:
+          type: object
+          description: "`web` only, and required there: `PushSubscription.toJSON()`."
+          additionalProperties: true
+        label:
+          type: string
+          description: '"Chrome · macOS" or the phone model, for a later device list. Optional.'
+
+    PushUnregisterRequest:
+      type: object
+      required: [op]
+      description: At least one of `fcmToken` (a phone) or `endpoint` (a browser); neither is a 400.
+      anyOf:
+        - required: [fcmToken]
+        - required: [endpoint]
+      properties:
+        op:
+          type: string
+          enum: [unregister]
+        fcmToken: { type: string }
+        endpoint: { type: string }
+
+    PushDeviceResponse:
+      type: object
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [registered, unregistered, not_found]
+        deviceId:
+          type: string
+          format: uuid
+          description: "`register` only: the device's row id."
 
     AgentMarkThreadReadRequest:
       type: object

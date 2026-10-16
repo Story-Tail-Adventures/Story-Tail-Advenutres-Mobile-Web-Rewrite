@@ -17,9 +17,9 @@
  *      background" notice, and Safari can revoke a subscription that does it repeatedly. A web
  *      notification the advisor already answered elsewhere is theirs to swipe.
  *
- * A pass returns 200 with what it did. VAPID keys missing is a 500 BEFORE anything is
+ * A pass returns 200 with what it did. No keys at all is a 500 BEFORE anything is
  * claimed, so a misconfigured project leaves rows pending rather than burning their retries.
- * Android devices are skipped until PR 2 adds the FCM sender.
+ * Android goes through FCM (`_shared/fcm.ts`) with no words in the payload; iOS is skipped.
  */
 import { requireServiceRole } from "../_shared/auth.ts";
 import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
@@ -35,6 +35,7 @@ import {
   type PushDevice,
 } from "../_shared/push.ts";
 import { vapidFromEnv, webPushSender } from "../_shared/webPush.ts";
+import { fcmSender, serviceAccountFromEnv } from "../_shared/fcm.ts";
 
 const BATCH = 50;
 
@@ -46,15 +47,27 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") return problem(forbidden("Use POST to run the dispatcher."));
     requireServiceRole(req, "The notification dispatcher");
 
+    // One sender per platform, each only if its keys are set. With neither there is nothing to
+    // do, and this refuses BEFORE claiming, so rows wait as pending rather than burning tries.
+    // A platform without keys answers "error" for its devices: a row whose advisor has only
+    // that kind of device retries and then fails, visibly, rather than being marked sent.
     const vapid = vapidFromEnv();
-    if (!vapid) {
+    const sa = serviceAccountFromEnv();
+    if (!vapid && !sa) {
       throw new Error(
-        "VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT must be set. See supabase/README.md.",
+        "Set VAPID_* (web) and/or FCM_SERVICE_ACCOUNT_JSON (Android). See supabase/README.md.",
       );
     }
-    const web = webPushSender(vapid);
-    // One sender for every platform: web through Web Push; Android and iOS not yet.
-    const send: DeviceSender = (d, p) => (d.platform === "web" ? web(d, p) : Promise.resolve("skipped"));
+    const senders: Partial<Record<PushDevice["platform"], DeviceSender>> = {
+      ...(vapid ? { web: webPushSender(vapid) } : {}),
+      ...(sa ? { android: fcmSender(sa) } : {}),
+    };
+    const send: DeviceSender = (d, p) => {
+      const sender = senders[d.platform];
+      if (sender) return sender(d, p);
+      // iOS is not built yet; a missing key is a misconfiguration worth seeing.
+      return Promise.resolve(d.platform === "ios" ? "skipped" : "error");
+    };
 
     const db = serviceClient();
     const now = new Date();
@@ -69,6 +82,23 @@ Deno.serve(async (req) => {
       return list;
     };
     const gone = new Set<string>();
+
+    // 5 (run FIRST). Dismissals, phones only (see above). Before the new messages, so a dismiss
+    // for a thread can never follow, and cancel, a fresh notification for it in the same pass.
+    // Best effort: a missed one is a notification to swipe.
+    const { data: owed, error: dismissError } = await db.rpc("push_claim_dismissals", { p_limit: BATCH });
+    if (dismissError) throw new Error(`dismiss claim failed: ${dismissError.message}`);
+    let dismissed = 0;
+    for (const d of (owed ?? []) as { agent_id: string; conversation_id: string; read_up_to: string | null }[]) {
+      const devices = await loadDevices(d.agent_id);
+      const result = await deliver(
+        devices.filter((x) => x.platform !== "web" && !gone.has(x.device_id)),
+        dismissPayload(d.conversation_id, d.read_up_to),
+        send,
+      );
+      result.goneDeviceIds.forEach((id) => gone.add(id));
+      dismissed += 1;
+    }
 
     // 1–3. Due notifications.
     const { data: claimed, error: claimError } = await db.rpc("push_claim_due", { p_limit: BATCH });
@@ -103,21 +133,6 @@ Deno.serve(async (req) => {
           await finish(outboxId, false).catch(() => undefined);
         }
       }
-    }
-
-    // 5. Dismissals, phones only (see above). Best effort: a missed one is a notification to swipe.
-    const { data: owed, error: dismissError } = await db.rpc("push_claim_dismissals", { p_limit: BATCH });
-    if (dismissError) throw new Error(`dismiss claim failed: ${dismissError.message}`);
-    let dismissed = 0;
-    for (const d of (owed ?? []) as { agent_id: string; conversation_id: string }[]) {
-      const devices = await loadDevices(d.agent_id);
-      const result = await deliver(
-        devices.filter((x) => x.platform !== "web" && !gone.has(x.device_id)),
-        dismissPayload(d.conversation_id),
-        send,
-      );
-      result.goneDeviceIds.forEach((id) => gone.add(id));
-      dismissed += 1;
     }
 
     // 4. Forget dead devices.
