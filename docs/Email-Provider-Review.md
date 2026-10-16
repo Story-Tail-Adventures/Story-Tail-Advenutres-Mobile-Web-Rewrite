@@ -166,8 +166,11 @@ Second round, same day:
   **`reply.story-tail.com`** (my call, not his): it is a separate name, so pointing its MX at
   Resend cannot touch the IONOS domain's mail.
 
-Owed before building: a Data-Model spec for the email queue and the per-client opt-out
-(doc first, CLAUDE.md), the SMTP library's security review, and DNS from Gyasi (SPF and DKIM for
+Owed before building: ~~a Data-Model spec for the email queue and the per-client opt-out~~
+(written 2026-10-16: Data-Model §12.8 EmailOutbox, §12.9 EmailToken, §12.10 InboundEmail,
+`message.channel`, and §12.5's first writer; two open questions in §23), ~~the SMTP library's
+security review~~ (written 2026-10-16: `docs/SMTP-Library-Security-Review.md`, nodemailer
+10.0.14, awaiting Gyasi's approval), and DNS from Gyasi (SPF and DKIM for
 IONOS on `adventures.story-tail.com` if not already there, DMARC, and the `reply.story-tail.com`
 MX).
 
