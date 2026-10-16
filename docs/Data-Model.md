@@ -1788,9 +1788,8 @@ refuses anything whose protocol is not `https:`, that has a user name or passwor
 has no host, and it stores the parsed `href` so what is saved is what was checked.
 
 **No card numbers, ever.** `pay_url`, `paid_reference` and `paid_note` are refused (not
-masked) if they hold a card-shaped run of 13 to 19 digits (the `CARD_LIKE` pattern that
-`maskCardNumbers` in `supabase/functions/_shared/push.ts` uses for §12.7 and §12.8) **that
-also passes the Luhn check**. The Luhn step lets a long supplier reference through when it is
+masked) if they hold a card-shaped run of 13 to 19 digits (the rule in §18.1a, which the
+§12.7 and §12.8 maskers share) **that also passes the Luhn check**. The Luhn step lets a long supplier reference through when it is
 not a card number. Here the advisor is typing, so the right answer is to say no and say why,
 rather than quietly mask.
 
@@ -1890,7 +1889,7 @@ message is the record that it was sent; there is no separate "request" row.
 >   three spaces, dots, dashes or no-break / thin spaces; every span of whole groups that joins
 >   to 13 to 19 digits is Luhn-checked, so a short number in front or letters touching the
 >   digits cannot hide a card. The same rule lives in `text_has_card_digits`,
->   `_shared/payLink.ts` and web `lib/trips/payLink.ts`. It is a guard, not a full filter: a
+>   `_shared/cardDigits.ts` and web `lib/trips/payLink.ts`, and the maskers share it (§18.1a). It is a guard, not a full filter: a
 >   card typed with a wrong digit fails Luhn and is not caught.
 > - **Named hosts only.** `pay_url`'s host must be a dotted name (no IP literal, bare word or
 >   `localhost`), because the client is shown the host as the reason to trust the link.
@@ -3355,6 +3354,32 @@ The "never in our database" rule for the PAN is the single most important archit
 > **Amended 2026-10-16.** The rule is now wider and simpler: the PAN is never in this app at
 > all, not in our database and not passing through our servers. Nothing above about Stripe
 > tables, tokens or keys applies.
+
+### 18.1a One rule finds a card number: the guard refuses, the maskers mask
+
+*Added 2026-10-16, after the §3.6 review.* The guard on `payment_milestone` (§9.5) and every
+masker that copies a client's words out of a thread find a card number the same way:
+
+- A **run** is ASCII digit groups (`0-9` only) joined by up to three spaces, dots, dashes or
+  no-break / thin spaces. Letters, underscores and other punctuation end a run but never hide
+  one, so `ref4111…` and `x_4111…` are still found. Fullwidth and other non-ASCII digits are not
+  digits here, in any twin, so the twins cannot disagree.
+- **Every span of whole groups** in a run is tried, from every starting group. A span that
+  joins to 13 to 19 digits and passes Luhn is a card number. So a short number in front
+  ("Paid 12 4111…") cannot swallow the card the way one greedy match used to.
+- The **guard** refuses the text (the advisor is typing; say no and say why). The **maskers**
+  replace each span with `•••• ` and its last four digits, keeping the text around it. From each
+  start the longest valid span is masked, and the search goes on after it.
+
+| Where | Refuses or masks | Code |
+|---|---|---|
+| `payment_milestone` pay link, confirmation, note | Refuses | SQL `public.text_has_card_digits`; Edge `hasCardNumber` (`_shared/cardDigits.ts`, via `payLink.ts`); web `looksLikeCardNumber` (`lib/trips/payLink.ts`) |
+| Web push and FCM message body (§12.7) | Masks | `maskCardNumbers` in `_shared/cardDigits.ts`, re-exported by `push.ts` |
+| Email outbox body and subject, inbound reply text (§12.8) | Masks | the same `maskCardNumbers` (`email.ts`, `email-inbox`) |
+| Phone notification text | Masks | `maskCardNumbers` in mobile `domain/agent/AgentNotifications.kt` |
+
+A number that fails Luhn (a long supplier reference, or a card typed with a wrong digit) is
+neither refused nor masked. That is the price of letting real references through.
 
 ### 18.2 Encryption at Rest
 

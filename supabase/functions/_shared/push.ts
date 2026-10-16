@@ -20,6 +20,7 @@
  * and a dismiss names the same tag to clear it. The morning summary has its own tag.
  */
 
+import { maskCardNumbers } from "./cardDigits.ts";
 import { badRequest } from "./problem.ts";
 
 export type PushPlatform = "android" | "web" | "ios";
@@ -108,18 +109,13 @@ export function messageTitle(clientName: string | null, tripTitle: string | null
 }
 
 /**
- * A run of 13 to 19 digits, optionally split by spaces or dashes: the shape of a card number.
- * Clients sometimes paste one into a message. The thread already holds it, but a notification
- * would copy it onto a lock screen and into the system's notification history, so the
- * notification shows the last four only. Errs toward masking: a long reference number loses its
- * middle too, which costs nothing (the thread is one tap away).
+ * Clients sometimes paste a card number into a message. The thread already holds it, but a
+ * notification would copy it onto a lock screen and into the system's notification history,
+ * so the notification shows the last four only. The rule that finds it is the guard's
+ * (cardDigits.ts, Data-Model §18): any span of whole digit groups that joins to 13 to 19
+ * digits and passes Luhn.
  */
-// Separators: space, dash, dot and the no-break space mail apps insert (review, 2026-10-16).
-const CARD_LIKE = /\b\d(?:[ .\u00a0-]?\d){12,18}\b/g;
-
-export function maskCardNumbers(text: string): string {
-  return text.replace(CARD_LIKE, (run) => `•••• ${run.replace(/\D/g, "").slice(-4)}`);
-}
+export { maskCardNumbers } from "./cardDigits.ts";
 
 export function messagePayload(row: ClaimedRow): MessagePayload {
   return {

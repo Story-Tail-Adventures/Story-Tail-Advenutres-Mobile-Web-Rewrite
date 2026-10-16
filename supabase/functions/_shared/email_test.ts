@@ -166,6 +166,14 @@ Deno.test("email: card numbers split by dots or no-break spaces are masked too (
   assertEquals((e.text.match(/•••• 4242/g) ?? []).length, 2);
 });
 
+Deno.test("email: a short number in front or letters touching cannot hide a card", () => {
+  // The guard's rule (cardDigits.ts): every span of whole digit groups is tried.
+  const visa = Array(4).fill("4242").join(" ");
+  const e = buildEmail(row({ messages: said(`Paid 12 ${visa}, ref${visa.replaceAll(" ", "")}`) }), TOKENS, cfg);
+  assert(e.text.includes("Paid 12 •••• 4242, ref•••• 4242"));
+  assert(!e.html.includes(visa));
+});
+
 Deno.test("email: the advisor's words are escaped, never HTML", () => {
   const e = buildEmail(row({ messages: said("<script>alert(1)</script> & <b>hi</b>") }), TOKENS, cfg);
   assert(!e.html.includes("<script>"));

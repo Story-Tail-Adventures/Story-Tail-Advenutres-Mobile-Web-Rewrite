@@ -45,6 +45,39 @@ class AgentNotificationsTest {
         assertEquals(ordinary, maskCardNumbers(ordinary))
     }
 
+    /** Built at runtime: the PCI guard refuses Luhn-valid literals in source. */
+    private fun withCheckDigit(body: String): String =
+        (0..9).map { body + it }.first { luhnValid(it) }
+
+    private val pan = withCheckDigit("4" + "1".repeat(14))
+    private val last4 = pan.takeLast(4)
+    private fun joined(sep: String) = pan.chunked(4).joinToString(sep)
+
+    @Test
+    fun theGuardsRuleFindsWhatOneGreedyMatchMissed() {
+        assertEquals("Paid 12 •••• $last4", maskCardNumbers("Paid 12 ${joined(" ")}"), "a short number in front")
+        assertEquals("Paid 12 •••• $last4", maskCardNumbers("Paid 12 $pan"))
+        assertEquals("ref•••• $last4", maskCardNumbers("ref$pan"), "letters touching")
+        assertEquals("x_•••• ${last4}x", maskCardNumbers("x_${pan}x"), "an underscore touching")
+        assertEquals("a •••• $last4 b", maskCardNumbers("a ${joined("  ")} b"), "double spaces")
+        assertEquals("a •••• $last4 b", maskCardNumbers("a ${joined(" - ")} b"), "a spaced dash")
+        assertEquals("a •••• $last4 b", maskCardNumbers("a ${joined("\u00a0")} b"), "no-break spaces")
+        assertEquals("•••• $last4 or •••• $last4?", maskCardNumbers("$pan or ${joined(".")}?"))
+        assertEquals("Paid 12 •••• $last4", notificationBody("Paid 12 ${joined("  ")}"))
+    }
+
+    @Test
+    fun fullwidthDigitsAndShortNumbersAreLeftAlone() {
+        val wide = pan.map { (0xFF10 + (it - '0')).toChar() }.joinToString("")
+        assertEquals("card $wide", maskCardNumbers("card $wide"))
+        val plain = "Invoice 2026 10 16 booking 4471, 123456789012"
+        assertEquals(plain, maskCardNumbers(plain))
+        // A long number that fails Luhn is a reference, not a card: the guard lets it through too.
+        val notCard = pan.dropLast(1) + ((pan.last() - '0' + 1) % 10)
+        assertEquals("ref $notCard", maskCardNumbers("ref $notCard"))
+        assertEquals("", maskCardNumbers(""))
+    }
+
     @Test
     fun theWords() {
         assertEquals("Jordan Hayes · Anniversary Week in Negril", notificationTitle("Jordan Hayes", "Anniversary Week in Negril"))
