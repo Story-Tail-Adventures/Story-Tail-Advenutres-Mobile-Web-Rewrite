@@ -5298,6 +5298,7 @@ export type Database = {
           p_from: string
           p_message_id: string
           p_provider_email_id: string
+          p_reply_outbox_id?: string
           p_sender_verified: boolean
           p_token_hash: string
         }
@@ -5308,6 +5309,7 @@ export type Database = {
           reply_to: string
         }[]
       }
+      email_inbox_tick: { Args: never; Returns: string }
       email_messages_opted_out: {
         Args: { p_user_id: string }
         Returns: boolean

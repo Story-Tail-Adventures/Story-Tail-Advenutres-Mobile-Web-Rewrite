@@ -436,19 +436,20 @@ VAPID_SUBJECT = "env(VAPID_SUBJECT)"
 # §3.10 Stage 3b PR 2: Android delivery (push-dispatch). The Firebase service-account key file,
 # as one JSON string.
 FCM_SERVICE_ACCOUNT_JSON = "env(FCM_SERVICE_ACCOUNT_JSON)"
-# §3.10 Stage 4: client email (email-dispatch, email-inbound, email-unsubscribe). Port 465 only;
+# §3.10 Stage 4: client email (email-dispatch, email-inbox, email-unsubscribe). Port 465 only;
 # the local Mailpit is the one plain exception (see supabase/README.md "Email secrets").
 EMAIL_SMTP_HOST = "env(EMAIL_SMTP_HOST)"
 EMAIL_SMTP_PORT = "env(EMAIL_SMTP_PORT)"
 EMAIL_SMTP_USER = "env(EMAIL_SMTP_USER)"
 EMAIL_SMTP_PASSWORD = "env(EMAIL_SMTP_PASSWORD)"
 EMAIL_FROM_ADDRESS = "env(EMAIL_FROM_ADDRESS)"
-EMAIL_REPLY_DOMAIN = "env(EMAIL_REPLY_DOMAIN)"
 EMAIL_SITE_URL = "env(EMAIL_SITE_URL)"
 EMAIL_UNSUBSCRIBE_URL = "env(EMAIL_UNSUBSCRIBE_URL)"
-RESEND_WEBHOOK_SECRET = "env(RESEND_WEBHOOK_SECRET)"
-RESEND_API_KEY = "env(RESEND_API_KEY)"
-RESEND_API_BASE = "env(RESEND_API_BASE)"
+# Replies are read from the same mailbox over IMAP (email-inbox); 993 unless a local test server.
+EMAIL_IMAP_HOST = "env(EMAIL_IMAP_HOST)"
+EMAIL_IMAP_PORT = "env(EMAIL_IMAP_PORT)"
+EMAIL_IMAP_USER = "env(EMAIL_IMAP_USER)"
+EMAIL_IMAP_PASSWORD = "env(EMAIL_IMAP_PASSWORD)"
 
 # Declared explicitly, one block per function, because Supabase's GitHub integration deploys
 # the Edge Functions "declared in config.toml" — an undeclared directory may simply never
@@ -693,10 +694,11 @@ verify_jwt = true
 # function refuses any other role (requireServiceRole), as push-dispatch does.
 verify_jwt = true
 
-[functions.email-inbound]
-# Called by Resend's webhook, which carries no Supabase token, so the gateway check is OFF. The
-# Svix signature (RESEND_WEBHOOK_SECRET) is the gate: anything unsigned is a 401 before it is read.
-verify_jwt = false
+[functions.email-inbox]
+# No human caller: pg_cron's email_inbox_tick() posts here every two minutes with the service-role
+# key, and the function refuses any other role (requireServiceRole). It reads the app's own IONOS
+# mailbox over IMAP; replies by email are no longer received through Resend (2026-10-16).
+verify_jwt = true
 
 [functions.email-unsubscribe]
 # Opened from an email by someone who may not be signed in, and POSTed by mail apps for RFC 8058

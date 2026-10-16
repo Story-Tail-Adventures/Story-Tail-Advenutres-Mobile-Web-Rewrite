@@ -6,7 +6,7 @@ app's own IONOS mailbox, `info@adventures.story-tail.com`, over IMAP, **instead 
 `docs/SMTP-Library-Security-Review.md` did for sending. CLAUDE.md requires the review before the
 dependency is added.
 
-Status: **recommendation, for Gyasi's approval.** Nothing is built.
+Status: **approved by Gyasi 2026-10-16: imapflow 2.2.1.** §3 and §3a bind the build.
 
 ## 1. What changes, and what the library is trusted with
 
@@ -64,6 +64,29 @@ the alternative to all of this and was ruled out for an extra vendor, a DNS reco
   verdict that the From domain authenticated; Resend gave one, IONOS may add an
   `Authentication-Results` header. Until a real reply shows what IONOS adds, a reply whose sender
   cannot be verified is rejected (fail closed).
+
+## 3a. Build decisions (2026-10-16)
+
+- **The reply address is the mailbox's own plus address:** `info+<token>@adventures.story-tail.com`,
+  built from `EMAIL_FROM_ADDRESS`. `EMAIL_REPLY_DOMAIN` is retired.
+- **Fallback when plus addressing is lost** (IONOS rewrites it, or a mail app replies to From): our
+  `Message-ID` is `<outbox-id@adventures.story-tail.com>`, so the reply's `In-Reply-To` /
+  `References` names the email it answers, and the SQL finds that email's reply token by
+  `email_token.outbox_id`. This works while the outbox row exists (30 days); plus addressing works for
+  the token's full year. Both paths still need the verified sender.
+- **Which `Authentication-Results` counts:** only the TOPMOST one, the header IONOS adds on receipt.
+  Any lower one was written by whoever sent the mail and is ignored (RFC 8601 §5). Pass is
+  `dmarc=pass`, or `spf=pass` and `dkim=pass`; anything else fails closed.
+- **Dedupe key:** the message's own `Message-ID` (`mid:<…>`), else `imap:<UIDVALIDITY>:<UID>`.
+  First written as the UID only, because the sender chooses the Message-ID; local testing showed one
+  reply delivered twice then posted twice, since a re-delivery gets a new UID. Abusing a chosen
+  Message-ID would mean guessing a real reply's ID before it is sent, and nothing is accepted
+  without a live reply token anyway.
+- **Folders:** handled mail moves to `Processed` (accepted) or `Rejected` (everything else: spam,
+  auto-replies, unknown tokens, oversize). The function creates both if missing. Nothing is deleted.
+- **Pace:** every two minutes from pg_cron (`email_inbox_tick`), one IMAP login per run.
+- **The Resend webhook function (`email-inbound`) and its Svix code are removed**, with their
+  `config.toml` block and `RESEND_*` secrets. Its parsing helpers stay and are reused.
 
 ## 4. Open questions for the build
 

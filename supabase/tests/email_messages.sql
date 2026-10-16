@@ -37,6 +37,7 @@ BEGIN;
 \set n1             '''0e8f0000-0000-7000-8000-0000000000b1'''
 \set in1            '''0e8f0000-0000-7000-8000-0000000000c1'''
 \set in2            '''0e8f0000-0000-7000-8000-0000000000c2'''
+\set in3            '''0e8f0000-0000-7000-8000-0000000000c3'''
 \set n_client       '''0e8f0000-0000-7000-8000-0000000000d1'''
 \set n_conv         '''0e8f0000-0000-7000-8000-0000000000d2'''
 \set nr1            '''0e8f0000-0000-7000-8000-0000000000d3'''
@@ -383,6 +384,28 @@ SELECT pg_temp.assert(
         'rs-9', decode(repeat('a1', 32), 'hex'), :jordan_email, true, 'Hello again', 0, :in2::uuid)),
     'a reply to a thread the client deleted is rejected');
 UPDATE public.conversation SET archived_at = NULL WHERE id = :conv::uuid;
+
+-- IMAP (2026-10-16): the reply's plus address was lost (the mail app answered From, or the server
+-- dropped it), so no token hash matches. Its In-Reply-To names our email, and that email's reply
+-- token is found by outbox id. Every other check still applies.
+SELECT pg_temp.assert(
+    (SELECT outcome = 'accepted' AND message_id = :in3::uuid FROM public.email_inbound_record(
+        'imap:1:30', decode(repeat('ee', 32), 'hex'), :jordan_email, true,
+        'Answered from the original email.', 0, :in3::uuid, false, :ob1::uuid)),
+    'a reply matched by the email it answers is accepted');
+SELECT pg_temp.assert(
+    EXISTS (SELECT 1 FROM public.audit_event WHERE target_id = :in3::uuid AND metadata ->> 'matchedBy' = 'thread'),
+    'and the audit row says how it was matched');
+SELECT pg_temp.assert(
+    (SELECT outcome = 'sender_mismatch' FROM public.email_inbound_record(
+        'imap:1:31', decode(repeat('ee', 32), 'hex'), 'someone.else@example.com', true,
+        'Hi', 0, :in2::uuid, false, :ob1::uuid)),
+    'the fallback still needs the right, verified sender');
+SELECT pg_temp.assert(
+    (SELECT outcome = 'unknown_token' FROM public.email_inbound_record(
+        'imap:1:32', decode(repeat('ee', 32), 'hex'), :jordan_email, true,
+        'Hi', 0, :in2::uuid, false, gen_random_uuid())),
+    'an In-Reply-To naming no email of ours matches nothing');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 7. Privileges, and the advisor's view

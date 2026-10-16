@@ -1,7 +1,7 @@
 /**
  * §3.10 Stage 4: the one way this codebase opens an SMTP connection. nodemailer 10.0.14,
  * configured exactly as docs/SMTP-Library-Security-Review.md §5 requires, so `email-dispatch`
- * and `email-inbound` (its files-dropped note) cannot drift apart on a safety setting.
+ * and `email-inbox` (its files-dropped note) cannot drift apart on a safety setting.
  */
 import nodemailer from "nodemailer";
 import type { EmailConfig } from "./email.ts";
