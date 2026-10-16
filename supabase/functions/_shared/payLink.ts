@@ -8,54 +8,15 @@
  * digit run that passes Luhn is REFUSED, not masked: the advisor is typing, so the right
  * answer is to say no and say why. `public.text_has_card_digits` is the SQL twin.
  */
+import { hasCardNumber } from "./cardDigits.ts";
 import { badRequest } from "./problem.ts";
+
+// The rule lives in cardDigits.ts, shared with the maskers (Data-Model §18).
+export { hasCardNumber, luhnValid } from "./cardDigits.ts";
 
 export const MAX_PAY_URL = 2048;
 export const MAX_PAID_REFERENCE = 100;
 export const MAX_PAID_NOTE = 1000;
-
-/**
- * ASCII digit groups joined by up to three spaces, dots, dashes or no-break / thin spaces:
- * the ways people write a card number. Letters, underscores and other punctuation end a run
- * but never hide one, so `ref4111…` and `x_4111…` are still found. ASCII only, like the SQL
- * twin `public.text_has_card_digits`, so the two can never disagree.
- */
-const DIGIT_RUN = /[0-9]+(?:[ .\u00a0\u2009\u202f-]{1,3}[0-9]+)*/g;
-
-export function luhnValid(digits: string): boolean {
-  let total = 0;
-  let double = false;
-  for (let i = digits.length - 1; i >= 0; i--) {
-    let d = digits.charCodeAt(i) - 48;
-    if (double) {
-      d *= 2;
-      if (d > 9) d -= 9;
-    }
-    total += d;
-    double = !double;
-  }
-  return total % 10 === 0;
-}
-
-/**
- * True when any span of whole digit groups in a run joins to 13 to 19 digits that pass
- * Luhn. Every starting group is tried, so a short number in front ("Paid 12 4111…") cannot
- * swallow the card the way one greedy match did.
- */
-export function hasCardNumber(text: string): boolean {
-  for (const match of text.matchAll(DIGIT_RUN)) {
-    const groups = match[0].split(/[^0-9]+/);
-    for (let i = 0; i < groups.length; i++) {
-      let digits = "";
-      for (let j = i; j < groups.length; j++) {
-        digits += groups[j];
-        if (digits.length > 19) break;
-        if (digits.length >= 13 && luhnValid(digits)) return true;
-      }
-    }
-  }
-  return false;
-}
 
 /** A dotted host name: not an IP literal, not `localhost`, not a bare word. */
 export function isNamedHost(hostname: string): boolean {

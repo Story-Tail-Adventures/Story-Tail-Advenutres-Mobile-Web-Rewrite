@@ -44,14 +44,63 @@ sealed interface AgentPushData {
 const val AGENT_PUSH_SUMMARY_TAG = "summary"
 
 /**
- * A run of 13 to 19 digits, optionally split by spaces or dashes: the shape of a card number.
- * The same rule as `maskCardNumbers` in supabase/functions/_shared/push.ts. A client who pastes
- * one into a message must not see it copied onto a lock screen.
+ * A card number a client pastes into a message must not be copied onto a lock screen. Found by
+ * the guard's rule (Data-Model §18), the same as `maskCardNumbers` in
+ * supabase/functions/_shared/cardDigits.ts: ASCII digit groups joined by up to three spaces,
+ * dots, dashes or no-break / thin spaces; every span of whole groups that joins to 13 to 19
+ * digits and passes Luhn is shown as its last four. Every starting group is tried, so a short
+ * number in front ("Paid 12 4111…") or letters touching the digits cannot hide the card. From
+ * each start the longest such span wins, and the search goes on after it.
  */
-private val CARD_LIKE = Regex("""\b\d(?:[ -]?\d){12,18}\b""")
+// A normal string, not a raw one: Kotlin turns the \u escapes into the characters themselves,
+// so the pattern means the same on the JVM and on Kotlin/Native.
+private val DIGIT_RUN = Regex("[0-9]+(?:[ .\u00a0\u2009\u202f-]{1,3}[0-9]+)*")
+private val DIGIT_GROUP = Regex("[0-9]+")
 
-fun maskCardNumbers(text: String): String =
-    CARD_LIKE.replace(text) { m -> "•••• " + m.value.filter(Char::isDigit).takeLast(4) }
+internal fun luhnValid(digits: String): Boolean {
+    var total = 0
+    var double = false
+    for (i in digits.indices.reversed()) {
+        var d = digits[i] - '0'
+        if (double) {
+            d *= 2
+            if (d > 9) d -= 9
+        }
+        total += d
+        double = !double
+    }
+    return total % 10 == 0
+}
+
+fun maskCardNumbers(text: String): String {
+    val out = StringBuilder()
+    var at = 0
+    for (run in DIGIT_RUN.findAll(text)) {
+        val groups = DIGIT_GROUP.findAll(run.value).map { it.range.first + run.range.first..it.range.last + run.range.first }.toList()
+        var i = 0
+        while (i < groups.size) {
+            var digits = ""
+            var best = -1
+            var bestDigits = ""
+            for (j in i until groups.size) {
+                digits += text.substring(groups[j])
+                if (digits.length > 19) break
+                if (digits.length >= 13 && luhnValid(digits)) {
+                    best = j
+                    bestDigits = digits
+                }
+            }
+            if (best < 0) {
+                i++
+                continue
+            }
+            out.appendRange(text, at, groups[i].first).append("•••• ").append(bestDigits.takeLast(4))
+            at = groups[best].last + 1
+            i = best + 1
+        }
+    }
+    return out.appendRange(text, at, text.length).toString()
+}
 
 /** "Jordan Hayes · Anniversary Week in Negril", or the name alone for a thread with no trip. */
 fun notificationTitle(clientName: String, tripTitle: String?): String {
