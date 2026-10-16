@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 
 import { AccountHeader } from "../AccountHeader";
+import { AnalyticsSwitch } from "./AnalyticsSwitch";
 import { PRIVACY } from "./content";
 
 export const metadata: Metadata = { title: "Privacy & data" };
@@ -38,11 +39,10 @@ const TITLE_ROW_SX = { display: "flex", alignItems: "center", gap: 1 } as const;
  * is disabled with a reason.
  *
  * DEPARTURES, per the Screen Inventory note at 2.5.9:
- *  · The Analytics / Marketing tracking toggles are GONE, replaced by a statement. There is
- *    no analytics script, tag manager or advertising pixel anywhere in web/, and
- *    web/content/public/legal/cookies.ts already tells people in writing that we run none.
- *    Switches over nothing are a control that lies, and they contradicted a shipped legal
- *    page. They come back the day a tracker does.
+ *  · Of the artboard's three tracking toggles, only Analytics is drawn (AnalyticsSwitch),
+ *    and only when Firebase is configured: it switches Google Analytics, the one tracker
+ *    that needs a yes. Essential cookies are not a choice, and there is no Marketing tracker.
+ *    The statement above it stays, because the cookieless Vercel count has no switch.
  *  · The export does NOT claim to include the document-access trail. Every signature from
  *    trip-document-url writes an `audit_event`, but that is the agency's table and §2.2
  *    deliberately gave clients no policy on it — naming it here would promise data the
@@ -102,6 +102,7 @@ export default function PrivacyPage() {
             </MuiLink>
           </Typography>
         </Card>
+        <AnalyticsSwitch />
 
         {/* The artboard's closure panel: a flat Paper on error.container with a contained
             error button, in place of the legacy card's inverted on-container button. */}

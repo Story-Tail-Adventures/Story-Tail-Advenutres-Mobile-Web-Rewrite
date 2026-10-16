@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
 import { AuthChromeScript } from "@/components/AuthChromeScript";
 import { ThemeScript } from "@/components/ThemeScript";
+import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";
+import { FirebaseAnalytics } from "@/components/FirebaseAnalytics";
 import { VercelAnalytics } from "@/components/VercelAnalytics";
 import { MuiRegistry } from "@/components/mui/MuiRegistry";
 import { env } from "@/lib/env";
@@ -54,8 +56,12 @@ export default function RootLayout({
         <AuthChromeScript />
       </head>
       <body>
-        <MuiRegistry>{children}</MuiRegistry>
+        <MuiRegistry>
+          {children}
+          <AnalyticsConsentBanner />
+        </MuiRegistry>
         <VercelAnalytics />
+        <FirebaseAnalytics />
       </body>
     </html>
   );
