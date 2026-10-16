@@ -180,6 +180,27 @@ Functions cannot read Auth's SMTP settings, so the same login is set again as `E
 secrets, on port 465. Two consequences: a password change must be made in BOTH places, and if
 `info@` ever becomes a public contact address, the app moves to a mailbox of its own first.
 
+**DNS as found, 2026-10-16** (`dig`). `adventures.story-tail.com` already has IONOS SPF
+(`v=spf1 include:_spf-us.ionos.com ~all`), both IONOS DKIM keys (`s1-ionos` / `s2-ionos._domainkey`
+CNAMEs) and IONOS MX; DMARC comes from `_dmarc.story-tail.com` (`p=none`), which covers the
+subdomain. So §4.4's sending records are done. Still missing: the MX for `reply.story-tail.com`
+(Resend). The links in each email point at production's web origin
+(`storytailadventures.vercel.app` until the brand domain `adventures.story-tail.com` moves there;
+`app.story-tail.com` is not being created, see `.github/workflows/deploy.yml`).
+
+**Fourth, same day: replies are read from `info@` over IMAP, NOT Resend (Gyasi, 2026-10-16).**
+Asked why the mailbox's own POP/IMAP could not do it. It can, and the reason to avoid it was gone:
+the app already holds the `info@` password to send, so reading with it adds no exposure, and nobody
+else uses that mailbox. So Resend, the `reply.story-tail.com` MX and the webhook are dropped. The
+app checks `info@` once a minute over IMAP (port 993) and runs every check `email_inbound_record`
+runs today. The library needs its own review first: `docs/IMAP-Library-Security-Review.md`
+(imapflow 2.2.1, awaiting approval). Until that is built, the shipped `email-inbound` function
+(Resend webhook) stays dormant: it refuses everything without `RESEND_*` secrets, and none will be set.
+**Release gate:** `email-dispatch` as merged sets `Reply-To: reply+<token>@reply.story-tail.com`, a
+domain that now will never get an MX record, so a client's reply would bounce. The IMAP build (which
+changes the reply address to `info+<token>@adventures.story-tail.com`) must ship in the SAME
+production release as sending, or that release holds email back (leave the vault URL unset).
+
 What this changes in §2 to §4: Resend's 100 a day and 3,000 a month now count only inbound
 replies. Sending over SMTP from Deno needs an **SMTP library**, a new third-party dependency, so
 it gets its own security review before it is added (CLAUDE.md: no new SDK without one). Two

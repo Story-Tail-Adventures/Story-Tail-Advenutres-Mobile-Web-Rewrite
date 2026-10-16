@@ -2189,7 +2189,8 @@ opt-out made in the five minutes is honoured. Settled
 exactly as §12.7's notifications do, attachment **names only**, an "Open the conversation" link
 to the thread (a plain link; it carries no token and signs no one in), a "Stop emailing me about
 messages" link and RFC 8058 `List-Unsubscribe` / `List-Unsubscribe-Post` headers (§12.9), and
-`Reply-To: reply+<token>@reply.story-tail.com` (§12.9). Branded HTML with a plain-text part. From
+`Reply-To: info+<token>@adventures.story-tail.com`, the sending mailbox's own plus address (§12.9,
+§12.10). Branded HTML with a plain-text part. From
 "Gyasi at Story-Tail Adventures" at the app-only IONOS mailbox. `In-Reply-To` / `References` name
 the thread's previous email so mail apps keep one conversation. **No open or click tracking.**
 Finished rows are deleted after 30 days.
@@ -2237,16 +2238,20 @@ unsubscribe anyone.
 
 ### 12.10 InboundEmail
 
-**Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** One row per email Resend
-reports at `reply.story-tail.com`, kept so a retried webhook is handled once and so a rejection
-can be counted without keeping the mail. Service-role only. Written by an `email-inbound` Edge
-Function, which checks the webhook signature (Svix headers) before reading anything and fetches
-the message over Resend's API (the webhook is a doorbell, the way §12.7's Android push is).
+**Phase:** P1 (§3.10 Stage 4). **Built 2026-10-16, over IMAP** (Gyasi, 2026-10-16: replies are read
+from the app's own mailbox, `info@adventures.story-tail.com`, not through Resend; library review
+`docs/IMAP-Library-Security-Review.md`, imapflow 2.2.1). One row per message read from that
+mailbox's INBOX, kept so a re-delivered message is handled once and so a rejection can be counted
+without keeping the mail. Service-role only. Written by the `email-inbox` Edge Function, which
+pg_cron's `email_inbox_tick()` calls every two minutes; it logs in with the sending login, records
+each message, then moves it to `Processed`, `Rejected` or (unreadable) `Failed`; mail in those
+folders is deleted after 30 days, since a reply may hold an unmasked card number. The sender verdict
+counts only from the receiving server named by `EMAIL_AUTHSERV_ID`; see the review §3a.
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | Server default `uuid_v7()` |
-| `provider_email_id` | `text` | No | Internal | Resend's id. Unique: a repeat webhook is a no-op |
+| `provider_email_id` | `text` | No | Internal | `mid:<Message-ID>` of the delivered message, or `imap:<UIDVALIDITY>:<UID>` when it has none. Unique: a re-delivery is a no-op (a re-delivered copy gets a new UID but keeps its Message-ID) |
 | `outcome` | `text` | No | Public | `accepted`, `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`, `too_long`, `auto_reply` (an out-of-office or other automatic answer, by its RFC 3834 headers: never a client message) |
 | `message_id` | `uuid` | Yes | Public | FK → Message. Set iff `accepted` |
 | `files_dropped` | `integer` | No | Public | Attachments left off (Stage 4 keeps names only; none are fetched) |
@@ -2255,10 +2260,12 @@ the message over Resend's API (the webhook is a doorbell, the way §12.7's Andro
 **Nothing about a rejected email is kept**: no From address, subject or body. Rows are deleted
 after 90 days.
 
-**Accepting a reply** needs every one of: a `reply+<token>` recipient whose hash is a live
-`reply` row; a From header naming exactly one address, equal (case-insensitive) to that token's
-account email, which must be verified, and the provider's DMARC (or SPF and DKIM) verdict passing
-for it; a thread still open to the client. Then the new text
+**Accepting a reply** needs every one of: a live `reply` token, found by the hash of the token in an
+`info+<token>@` recipient or, when that was lost, as the reply token of OUR email named in the
+reply's `In-Reply-To` / `References` (our Message-IDs are `<outbox-id@…>`; this works while the
+outbox row exists, 30 days); a From header naming exactly one address, equal (case-insensitive) to that token's
+account email, which must be verified, and the receiving server's DMARC (or SPF and DKIM) verdict
+passing for it, read from the TOPMOST `Authentication-Results` only (a lower one came with the mail); a thread still open to the client. Then the new text
 only (quoted history and signature stripped, no HTML rendered, card numbers masked to the last
 four before anything is stored, at most 8,000 characters) becomes
 a client message with `channel = 'email'`, written through the **same path as `trip-message`**

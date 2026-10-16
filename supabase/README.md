@@ -354,11 +354,13 @@ supabase secrets set --project-ref <prod-ref> \
   EMAIL_SMTP_HOST=smtp.ionos.com EMAIL_SMTP_PORT=465 \
   EMAIL_SMTP_USER=<the app mailbox address> EMAIL_SMTP_PASSWORD=<its password> \
   EMAIL_FROM_ADDRESS=<the same address> \
-  EMAIL_REPLY_DOMAIN=reply.story-tail.com \
-  EMAIL_SITE_URL=https://app.story-tail.com \
+  EMAIL_SITE_URL=https://storytailadventures.vercel.app \
   EMAIL_UNSUBSCRIBE_URL=https://<prod-ref>.supabase.co/functions/v1/email-unsubscribe
 ```
 
+`EMAIL_SITE_URL` is production's web origin, the one `.github/workflows/deploy.yml` names: the
+Vercel alias today, `https://adventures.story-tail.com` once the brand domain moves there (change it
+then, or every email's links point at the old address). `app.story-tail.com` is not being created.
 IONOS sends only From an address on the mailbox's own domain, so `EMAIL_FROM_ADDRESS` is the
 mailbox itself. Production uses `info@adventures.story-tail.com`, the mailbox Supabase Auth's SMTP
 settings already use (Auth's settings are not readable by functions, so set the login here too;
@@ -373,16 +375,32 @@ select vault.create_secret(
 -- LOCAL: 'http://kong:8000/functions/v1/email-dispatch'.
 ```
 
-**Receiving: Resend, for `reply.story-tail.com` only.** Add the domain in Resend (receiving),
-point its MX record where Resend says, add a webhook for `email.received` to
-`https://<prod-ref>.supabase.co/functions/v1/email-inbound`, then:
+**Receiving: the same `info@` mailbox, over IMAP** (`functions/email-inbox`, migration
+`20261020120000`; Gyasi, 2026-10-16; `../docs/IMAP-Library-Security-Review.md`). Replies come
+back to `info+<token>@adventures.story-tail.com`; every two minutes `email_inbox_tick()` posts to
+`email-inbox`, which logs in with the SAME `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` on
+`imap.ionos.com:993`, records each message and moves it to `Processed` or `Rejected`. Nothing new
+to set beyond the tick's URL:
 
-```bash
-supabase secrets set --project-ref <prod-ref> \
-  RESEND_WEBHOOK_SECRET=<whsec_… from the webhook> RESEND_API_KEY=<a key that can read received mail>
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/email-inbox',
+  'email_inbox_function_url');
 ```
 
-The main domain's MX stays at IONOS. `email-inbound` refuses anything unsigned with a 401.
+`EMAIL_IMAP_HOST` / `EMAIL_IMAP_PORT` default to IONOS on 993; `EMAIL_IMAP_USER` /
+`EMAIL_IMAP_PASSWORD` exist only for a local test server. No Resend, no MX record, no webhook.
+
+**One more setting, read off the first real reply: `EMAIL_AUTHSERV_ID`.** Replies are trusted only
+when the receiving server vouched for the sender, and only the verdict header IONOS itself writes
+counts. Until this is set, every reply goes to `Rejected` (nothing is lost; the mail is still in the
+mailbox for 30 days). After the first real reply arrives, open it in IONOS webmail (Rejected folder),
+view its source, and copy the first word after the topmost `Authentication-Results:` (a host name,
+such as `mx.ionos.com`; the exact value is unknown until then):
+
+```bash
+supabase secrets set --project-ref <prod-ref> EMAIL_AUTHSERV_ID=<that host name>
+```
 
 **Locally: Mailpit is the mail server.** The local stack runs one (web UI on :54324). Put this in
 `supabase/.env.local` and restart with `npm run supabase:start`:
@@ -391,7 +409,6 @@ The main domain's MX stays at IONOS. `email-inbound` refuses anything unsigned w
 EMAIL_SMTP_HOST=inbucket
 EMAIL_SMTP_PORT=1025
 EMAIL_FROM_ADDRESS=gyasi.messages@adventures.story-tail.com
-EMAIL_REPLY_DOMAIN=reply.story-tail.com
 EMAIL_SITE_URL=http://localhost:3000
 EMAIL_UNSUBSCRIBE_URL=http://127.0.0.1:54321/functions/v1/email-unsubscribe
 ```

@@ -5,6 +5,7 @@ import {
   classifySmtpError,
   type EmailConfig,
   emailConfigFromEnv,
+  inboxConfigFromEnv,
   isToken,
   newToken,
   tokenHashParam,
@@ -15,7 +16,6 @@ const prodEnv: Record<string, string> = {
   EMAIL_SMTP_USER: "gyasi.messages@adventures.story-tail.com",
   EMAIL_SMTP_PASSWORD: "secret",
   EMAIL_FROM_ADDRESS: "gyasi.messages@adventures.story-tail.com",
-  EMAIL_REPLY_DOMAIN: "reply.story-tail.com",
   EMAIL_SITE_URL: "https://app.story-tail.com/",
   EMAIL_UNSUBSCRIBE_URL: "https://x.supabase.co/functions/v1/email-unsubscribe",
 };
@@ -87,7 +87,15 @@ Deno.test("config: a real server without a login, half a login, or an http link 
   assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SMTP_USER: undefined, EMAIL_SMTP_PASSWORD: undefined })), Error, "needs");
   assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SMTP_PASSWORD: undefined })), Error, "both");
   assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SITE_URL: "http://app.story-tail.com" })), Error, "EMAIL_SITE_URL");
-  assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_REPLY_DOMAIN: "reply" })), Error, "EMAIL_REPLY_DOMAIN");
+});
+
+Deno.test("inbox config: the sending login, port 993 with TLS, and nothing without a login", () => {
+  const c = inboxConfigFromEnv(envOf())!;
+  assertEquals([c.host, c.port, c.secure, c.mailbox], ["imap.ionos.com", 993, true, "gyasi.messages@adventures.story-tail.com"]);
+  assertEquals(inboxConfigFromEnv(envOf({ EMAIL_SMTP_PASSWORD: undefined })), null);
+  assertThrows(() => inboxConfigFromEnv(envOf({ EMAIL_IMAP_PORT: "143" })), Error, "993 only");
+  const local = inboxConfigFromEnv(envOf({ EMAIL_IMAP_HOST: "host.docker.internal", EMAIL_IMAP_PORT: "3143" }))!;
+  assertEquals(local.secure, false);
 });
 
 // ── Tokens ──────────────────────────────────────────────────────────────────
@@ -113,7 +121,8 @@ Deno.test("email: from the advisor at Story-Tail, to the bare address, replies t
   const e = buildEmail(row(), TOKENS, cfg);
   assertEquals(e.from, { name: "Gyasi at Story-Tail Adventures", address: cfg.fromAddress });
   assertEquals(e.to, "jordan.hayes@example.com");
-  assertEquals(e.replyTo, `reply+${T1}@reply.story-tail.com`);
+  // Replies come back to the mailbox itself, matched by the token in the plus address.
+  assertEquals(e.replyTo, `gyasi.messages+${T1}@adventures.story-tail.com`);
   assertEquals(e.subject, "Gyasi wrote about Bahamas Anniversary");
   assertEquals(buildEmail(row({ trip_title: null }), TOKENS, cfg).subject, "A note from Gyasi");
 });
@@ -147,6 +156,14 @@ Deno.test("email: card numbers are masked in both parts", () => {
   const e = buildEmail(row({ messages: said(`Card ${visa} is on file.`) }), TOKENS, cfg);
   assert(!e.text.includes(visa) && e.text.includes("•••• 4242"));
   assert(!e.html.includes(visa) && e.html.includes("•••• 4242"));
+});
+
+Deno.test("email: card numbers split by dots or no-break spaces are masked too (review)", () => {
+  const dotted = Array(4).fill("4242").join(".");
+  const nbsp = Array(4).fill("4242").join("\u00a0");
+  const e = buildEmail(row({ messages: said(`A ${dotted} and B ${nbsp}.`) }), TOKENS, cfg);
+  assert(!e.text.includes(dotted) && !e.text.includes(nbsp));
+  assertEquals((e.text.match(/•••• 4242/g) ?? []).length, 2);
 });
 
 Deno.test("email: the advisor's words are escaped, never HTML", () => {

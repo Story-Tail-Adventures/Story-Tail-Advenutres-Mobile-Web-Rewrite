@@ -15,6 +15,7 @@
  */
 
 import { maskCardNumbers } from "./push.ts";
+import { plusAddress } from "./emailInbound.ts";
 
 /** A row `email_claim_due` hands out. */
 export interface ClaimedEmail {
@@ -37,8 +38,6 @@ export interface EmailConfig {
   password: string | null;
   /** The app-only mailbox, e.g. gyasi.messages@adventures.story-tail.com. */
   fromAddress: string;
-  /** Where replies go: reply+<token>@<replyDomain>. */
-  replyDomain: string;
   /** The web app's origin, for "Open the conversation" and the opt-out page. */
   siteUrl: string;
   /** The `email-unsubscribe` function's URL, for the one-click header. */
@@ -46,10 +45,9 @@ export interface EmailConfig {
 }
 
 /** Hosts that may be reached without TLS: the local stack's Mailpit, never anything real. */
-const LOCAL_CATCHER = /^(localhost|127\.0\.0\.1|host\.docker\.internal|supabase_inbucket_[a-z0-9_-]+|inbucket|mailpit)$/i;
+const LOCAL_CATCHER = /^(localhost|127\.0\.0\.1|host\.docker\.internal|supabase_inbucket_[a-z0-9_-]+|inbucket|mailpit|greenmail)$/i;
 
 const ADDRESS = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const DOMAIN = /^(?=.{1,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/i;
 
 /**
  * The SMTP settings, or null when email is not set up (the dispatcher then refuses before
@@ -64,7 +62,6 @@ export function emailConfigFromEnv(env: (name: string) => string | undefined): E
   const port = Number(env("EMAIL_SMTP_PORT")?.trim() || "465");
   const user = env("EMAIL_SMTP_USER")?.trim() || null;
   const password = env("EMAIL_SMTP_PASSWORD") || null;
-  const replyDomain = (env("EMAIL_REPLY_DOMAIN")?.trim() || "").toLowerCase();
   const siteUrl = (env("EMAIL_SITE_URL")?.trim() || "").replace(/\/+$/, "");
   const unsubscribeUrl = env("EMAIL_UNSUBSCRIBE_URL")?.trim() || "";
 
@@ -84,14 +81,53 @@ export function emailConfigFromEnv(env: (name: string) => string | undefined): E
     throw new Error("A real SMTP server needs EMAIL_SMTP_USER and EMAIL_SMTP_PASSWORD.");
   }
   if (!ADDRESS.test(fromAddress)) throw new Error("EMAIL_FROM_ADDRESS must be an email address.");
-  if (!DOMAIN.test(replyDomain)) throw new Error("EMAIL_REPLY_DOMAIN must be a domain, e.g. reply.story-tail.com.");
   if (!/^https?:\/\/[^\s/]+$/.test(siteUrl) || (!local && !siteUrl.startsWith("https://"))) {
-    throw new Error("EMAIL_SITE_URL must be the app's origin, e.g. https://app.story-tail.com.");
+    throw new Error("EMAIL_SITE_URL must be the app's origin, e.g. https://storytailadventures.vercel.app.");
   }
   if (!/^https?:\/\/\S+$/.test(unsubscribeUrl) || (!local && !unsubscribeUrl.startsWith("https://"))) {
     throw new Error("EMAIL_UNSUBSCRIBE_URL must be the email-unsubscribe function's URL.");
   }
-  return { host, port, secure: port === 465, user, password, fromAddress, replyDomain, siteUrl, unsubscribeUrl };
+  return { host, port, secure: port === 465, user, password, fromAddress, siteUrl, unsubscribeUrl };
+}
+
+// ── Reading replies (IMAP) ─────────────────────────────────────────────────────
+
+export interface InboxConfig {
+  host: string;
+  port: number;
+  /** TLS from the first byte (993). False only for a local test server. */
+  secure: boolean;
+  user: string;
+  password: string;
+  /** The mailbox replies come back to; its plus addresses carry the reply tokens. */
+  mailbox: string;
+}
+
+/**
+ * The IMAP settings for `email-inbox`, or null when replies are not set up. The login is the
+ * sending mailbox's own (`EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD`): it is the same mailbox, and
+ * docs/IMAP-Library-Security-Review.md §1 explains why that adds no exposure. Port 993 with TLS
+ * only, except a local test server (which, unlike SMTP's catcher, needs a throwaway login).
+ */
+export function inboxConfigFromEnv(env: (name: string) => string | undefined): InboxConfig | null {
+  const host = (env("EMAIL_IMAP_HOST")?.trim() || "imap.ionos.com");
+  // Optional overrides, for a local test server whose login differs from the (credential-free)
+  // local SMTP catcher. Production leaves them unset and reuses the sending login.
+  const user = env("EMAIL_IMAP_USER")?.trim() || env("EMAIL_SMTP_USER")?.trim() || "";
+  const password = env("EMAIL_IMAP_PASSWORD") || env("EMAIL_SMTP_PASSWORD") || "";
+  const mailbox = (env("EMAIL_FROM_ADDRESS")?.trim() || "").toLowerCase();
+  if (!user || !password || !mailbox) return null;
+
+  const port = Number(env("EMAIL_IMAP_PORT")?.trim() || "993");
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error("EMAIL_IMAP_PORT must be a port number.");
+  }
+  const local = LOCAL_CATCHER.test(host);
+  if (port !== 993 && !local) {
+    throw new Error("Replies are read on port 993 only (a local test server is the one exception).");
+  }
+  if (!ADDRESS.test(mailbox)) throw new Error("EMAIL_FROM_ADDRESS must be an email address.");
+  return { host, port, secure: port === 993, user, password, mailbox };
 }
 
 // ── Tokens ─────────────────────────────────────────────────────────────────────
@@ -223,7 +259,9 @@ export function buildEmail(
 
   const subject = headerSafe(trip ? `${sentenceStart(agent)} wrote about ${trip}` : `A note from ${agent}`, "subject");
   const fromName = headerSafe(`${sentenceStart(agent)} at Story-Tail Adventures`, "sender name");
-  const replyTo = headerSafe(`reply+${tokens.reply}@${cfg.replyDomain}`, "reply address");
+  // The mailbox's own plus address (docs/IMAP-Library-Security-Review.md §3a): `email-inbox`
+  // reads replies out of that mailbox and matches them by this token.
+  const replyTo = headerSafe(plusAddress(cfg.fromAddress, tokens.reply), "reply address");
   const link = threadUrl(cfg, row.conversation_id);
   const unsub = unsubscribeLinks(cfg, tokens.unsubscribe);
 
