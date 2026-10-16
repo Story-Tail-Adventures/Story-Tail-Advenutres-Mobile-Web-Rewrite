@@ -31,7 +31,13 @@ import {
 } from "../_shared/email.ts";
 import { smtpTransport } from "../_shared/smtp.ts";
 
-const BATCH = 25;
+const BATCH = 10;
+/**
+ * Stop starting new sends after this long. Rows left over go back to waiting with no try counted
+ * (`email_release`), so a slow SMTP server can never make one run outlast the 15-minute stale
+ * window and be re-claimed under itself (found in review: that would email a client twice).
+ */
+const TIME_BUDGET_MS = 90_000;
 
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
@@ -68,8 +74,16 @@ Deno.serve(async (req) => {
       else retried += 1;
     };
 
+    const started = Date.now();
+    let released = 0;
     try {
       for (const row of (claimed ?? []) as ClaimedEmail[]) {
+        if (Date.now() - started > TIME_BUDGET_MS) {
+          const { error: releaseError } = await db.rpc("email_release", { p_outbox_id: row.outbox_id });
+          if (releaseError) console.error("email-dispatch: release failed", releaseError.message);
+          released += 1;
+          continue;
+        }
         // One row's trouble is its own: it is finished as a failure and the next is still sent,
         // rather than the pass dying with every claimed row stuck 'sending'.
         try {
@@ -108,7 +122,7 @@ Deno.serve(async (req) => {
       transport.close();
     }
 
-    return new Response(JSON.stringify({ sent, retried, failed }), {
+    return new Response(JSON.stringify({ sent, retried, failed, released }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
   } catch (err) {

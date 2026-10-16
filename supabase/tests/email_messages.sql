@@ -31,6 +31,9 @@ BEGIN;
 \set r3             '''0e8f0000-0000-7000-8000-0000000000a3'''
 \set r4             '''0e8f0000-0000-7000-8000-0000000000a4'''
 \set r5             '''0e8f0000-0000-7000-8000-0000000000a5'''
+\set r6             '''0e8f0000-0000-7000-8000-0000000000a6'''
+\set r7             '''0e8f0000-0000-7000-8000-0000000000a7'''
+\set r8             '''0e8f0000-0000-7000-8000-0000000000a8'''
 \set n1             '''0e8f0000-0000-7000-8000-0000000000b1'''
 \set in1            '''0e8f0000-0000-7000-8000-0000000000c1'''
 \set in2            '''0e8f0000-0000-7000-8000-0000000000c2'''
@@ -205,6 +208,57 @@ SELECT pg_temp.assert(
     'and the stored error is cut to 200 characters');
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 4b. No reply is ever lost from email; partial reads; the 30-minute cap
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Found in review (2026-10-16): reply A is being sent, reply B queues its own row, A's send
+-- fails. A's row is cleared in favour of B's, so B's row must carry A too.
+SELECT pg_temp.advisor_says(:conv::uuid, :r6::uuid, 'Reply A: the boat leaves at 9.', false);
+UPDATE public.email_outbox SET due_at = now() - interval '1 minute' WHERE state = 'pending';
+SELECT outbox_id AS oba FROM public.email_claim_due() \gset
+\set oba '''':oba''''
+SELECT pg_temp.advisor_says(:conv::uuid, :r7::uuid, 'Reply B: bring a hat.', false);
+SELECT pg_temp.assert(public.email_finish(:oba::uuid, false, false, '421 busy') = 'cleared',
+    'a failed send with a newer email waiting is cleared');
+SELECT pg_temp.assert(
+    (SELECT first_message_at = (SELECT created_at FROM public.message WHERE id = :r6::uuid)
+       FROM public.email_outbox WHERE state = 'pending'),
+    'and the waiting email now starts at the failed one''s first reply');
+UPDATE public.email_outbox SET due_at = now() - interval '1 minute' WHERE state = 'pending';
+CREATE TEMP TABLE claim3 AS SELECT * FROM public.email_claim_due();
+SELECT pg_temp.assert(
+    (SELECT jsonb_array_length(messages) = 2
+            AND messages -> 0 ->> 'message_id' = :r6 AND messages -> 1 ->> 'message_id' = :r7 FROM claim3),
+    'so the next email carries both replies, oldest first');
+
+SELECT outbox_id AS obb FROM claim3 \gset
+\set obb '''':obb''''
+SELECT pg_temp.assert(public.email_release(:obb::uuid) = 'pending',
+    'a row the run had no time for goes back to waiting');
+SELECT pg_temp.assert(
+    (SELECT state = 'pending' AND attempts = 0 AND claimed_at IS NULL FROM public.email_outbox WHERE id = :obb::uuid),
+    'with no try counted');
+
+-- Reading part of it in the app: the client saw reply A, not B.
+SELECT created_at AS r6_at FROM public.message WHERE id = :r6::uuid \gset
+SELECT pg_temp.become(:jordan_account::uuid);
+SELECT public.client_mark_conversation_read(:conv::uuid, :'r6_at'::timestamptz);
+RESET role;
+SELECT pg_temp.assert(
+    (SELECT first_message_at = (SELECT created_at FROM public.message WHERE id = :r7::uuid)
+       FROM public.email_outbox WHERE id = :obb::uuid),
+    'a partial read moves the email past what the client already saw');
+
+-- Each reply pushes the send out, but never past 30 minutes after the first one waiting.
+UPDATE public.email_outbox SET first_message_at = now() - interval '1 hour', due_at = now() + interval '1 day'
+ WHERE id = :obb::uuid;
+SELECT pg_temp.advisor_says(:conv::uuid, :r8::uuid, 'Reply C: and sunscreen.', false);
+SELECT pg_temp.assert(
+    (SELECT due_at <= now() FROM public.email_outbox WHERE id = :obb::uuid),
+    'a long back-and-forth cannot keep deferring the email');
+UPDATE public.email_outbox SET state = 'cleared' WHERE state = 'pending';
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 5. The opt-out
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -279,6 +333,13 @@ SELECT pg_temp.assert(
     NOT EXISTS (SELECT 1 FROM public.message WHERE id = :in1::uuid)
     AND (SELECT count(*) FROM public.inbound_email WHERE outcome <> 'accepted') = 7,
     'no rejection writes a message, and each is counted once');
+
+UPDATE public.account SET email_verified_at = NULL WHERE id = :jordan_account::uuid;
+SELECT pg_temp.assert(
+    (SELECT outcome = 'sender_mismatch' FROM public.email_inbound_record(
+        'rs-6c', decode(repeat('a1', 32), 'hex'), :jordan_email, true, 'Thanks!', 0, :in1::uuid)),
+    'a reply from an address the account never verified is rejected');
+UPDATE public.account SET email_verified_at = now() WHERE id = :jordan_account::uuid;
 
 SELECT pg_temp.assert(
     (SELECT outcome = 'accepted' AND message_id = :in1::uuid AND NOT duplicate AND reply_to = :jordan_email

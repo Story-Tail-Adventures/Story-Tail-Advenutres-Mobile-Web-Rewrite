@@ -70,6 +70,9 @@ CREATE UNIQUE INDEX email_outbox_one_pending ON public.email_outbox (conversatio
 CREATE INDEX email_outbox_due ON public.email_outbox (due_at) WHERE state = 'pending';
 CREATE INDEX email_outbox_thread_sent ON public.email_outbox (conversation_id, sent_at DESC)
     WHERE state = 'sent';
+-- Retention (email_dispatch_tick deletes finished rows after 30 days).
+CREATE INDEX email_outbox_finished ON public.email_outbox (created_at)
+    WHERE state IN ('sent', 'cleared', 'skipped', 'failed');
 
 CREATE TABLE public.email_token (
     token_hash      bytea PRIMARY KEY CHECK (octet_length(token_hash) = 32),
@@ -84,6 +87,7 @@ CREATE TABLE public.email_token (
     created_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX email_token_outbox ON public.email_token (outbox_id);
+CREATE INDEX email_token_expiry ON public.email_token (expires_at);
 
 CREATE TABLE public.inbound_email (
     id                uuid PRIMARY KEY DEFAULT public.uuid_v7(),
@@ -99,6 +103,8 @@ CREATE TABLE public.inbound_email (
 
 -- Service role only. RLS on with no policy: nobody but the service role and the definer
 -- functions below sees a row.
+CREATE INDEX inbound_email_received ON public.inbound_email (received_at);
+
 ALTER TABLE public.email_outbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_token ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inbound_email ENABLE ROW LEVEL SECURITY;
@@ -189,13 +195,34 @@ BEGIN
                                          latest_message_id, due_at)
         VALUES (NEW.id, v_user, v_at, v_latest, v_due)
         ON CONFLICT (conversation_id) WHERE state = 'pending'
+        -- Each reply pushes the send out, but never past 30 minutes after the first one waiting,
+        -- so a long back-and-forth cannot defer the email for ever.
         DO UPDATE SET latest_message_id = EXCLUDED.latest_message_id,
-                      due_at            = EXCLUDED.due_at;
+                      due_at = public.push_due_at(
+                          least(now() + interval '5 minutes',
+                                email_outbox.first_message_at + interval '30 minutes'),
+                          v_tz);
 
     ELSIF NEW.client_unread_count = 0 AND OLD.client_unread_count > 0 THEN
         -- Read in the app before it went: no email. A sent one is not un-sent.
         UPDATE public.email_outbox SET state = 'cleared'
          WHERE conversation_id = NEW.id AND state = 'pending';
+
+    ELSIF NEW.client_unread_count < OLD.client_unread_count THEN
+        -- Read PART of it in the app: the waiting email starts at the first reply still unread
+        -- (the count is the newest N client-visible advisor replies), so it never repeats what
+        -- they have already seen.
+        SELECT m.created_at INTO v_at
+          FROM public.message m
+         WHERE m.conversation_id = NEW.id AND m.sender_role <> 'client'
+           AND NOT m.is_internal_note AND m.archived_at IS NULL
+         ORDER BY m.created_at DESC, m.id DESC
+         OFFSET NEW.client_unread_count - 1
+         LIMIT 1;
+        IF v_at IS NOT NULL THEN
+            UPDATE public.email_outbox SET first_message_at = greatest(first_message_at, v_at)
+             WHERE conversation_id = NEW.id AND state = 'pending';
+        END IF;
     END IF;
     RETURN NEW;
 END;
@@ -231,14 +258,22 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
+    -- A run that died mid-send left rows 'sending'. After 15 minutes (well past one run's time
+    -- budget, so a slow run is never re-claimed under itself) each counts as a failed try. When
+    -- a newer pending row exists, it takes over the stale row's replies (first_message_at moves
+    -- back) and the stale row is cleared: otherwise those replies would never be emailed.
+    UPDATE public.email_outbox p SET first_message_at = least(p.first_message_at, o.first_message_at)
+      FROM public.email_outbox o
+     WHERE o.state = 'sending' AND o.claimed_at < now() - interval '15 minutes'
+       AND p.conversation_id = o.conversation_id AND p.state = 'pending';
     UPDATE public.email_outbox o SET state = 'cleared'
-     WHERE o.state = 'sending' AND o.claimed_at < now() - interval '5 minutes'
+     WHERE o.state = 'sending' AND o.claimed_at < now() - interval '15 minutes'
        AND EXISTS (SELECT 1 FROM public.email_outbox p
                     WHERE p.conversation_id = o.conversation_id AND p.state = 'pending');
     UPDATE public.email_outbox o
        SET state = CASE WHEN o.attempts + 1 >= 3 THEN 'failed' ELSE 'pending' END,
            attempts = o.attempts + 1
-     WHERE o.state = 'sending' AND o.claimed_at < now() - interval '5 minutes';
+     WHERE o.state = 'sending' AND o.claimed_at < now() - interval '15 minutes';
 
     UPDATE public.email_outbox o SET state = 'cleared'
       FROM public.conversation cv
@@ -369,6 +404,13 @@ BEGIN
     END IF;
     v_state := o.state;
 
+    -- Cleared because a newer row is waiting: that row must carry THIS row's replies too, or
+    -- they are never emailed (it was queued starting at its own, later, first reply).
+    IF v_state = 'cleared' THEN
+        UPDATE public.email_outbox p SET first_message_at = least(p.first_message_at, o.first_message_at)
+         WHERE p.conversation_id = o.conversation_id AND p.state = 'pending';
+    END IF;
+
     IF p_ok THEN
         UPDATE public.message m SET emailed_at = now()
           FROM public.message lm
@@ -379,6 +421,33 @@ BEGIN
            AND m.emailed_at IS NULL;
     END IF;
     RETURN v_state;
+END;
+$$;
+
+-- A claimed row the run had no time left to send: back to waiting, no try counted. When a newer
+-- row is already waiting, this one's replies move into it instead.
+CREATE OR REPLACE FUNCTION public.email_release(p_outbox_id uuid)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    o public.email_outbox%ROWTYPE;
+BEGIN
+    SELECT * INTO o FROM public.email_outbox WHERE id = p_outbox_id AND state = 'sending' FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN 'not_claimed';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.email_outbox p
+                WHERE p.conversation_id = o.conversation_id AND p.state = 'pending') THEN
+        UPDATE public.email_outbox p SET first_message_at = least(p.first_message_at, o.first_message_at)
+         WHERE p.conversation_id = o.conversation_id AND p.state = 'pending';
+        UPDATE public.email_outbox SET state = 'cleared' WHERE id = o.id;
+        RETURN 'cleared';
+    END IF;
+    UPDATE public.email_outbox SET state = 'pending', claimed_at = NULL WHERE id = o.id;
+    RETURN 'pending';
 END;
 $$;
 
@@ -432,7 +501,8 @@ BEGIN
     ELSE
         SELECT a.email, pu.client_id INTO v_email, v_client
           FROM public.platform_user pu JOIN public.account a ON a.id = pu.account_id
-         WHERE pu.id = v_tok.client_user_id AND pu.role = 'client' AND a.archived_at IS NULL;
+         WHERE pu.id = v_tok.client_user_id AND pu.role = 'client' AND a.archived_at IS NULL
+           AND a.email_verified_at IS NOT NULL;
         IF v_email IS NULL OR NOT coalesce(p_sender_verified, false)
            OR lower(btrim(coalesce(p_from, ''))) <> lower(v_email::text) THEN
             v_outcome := 'sender_mismatch';
@@ -610,7 +680,7 @@ BEGIN
     DELETE FROM public.inbound_email WHERE received_at < now() - interval '90 days';
 
     IF NOT EXISTS (SELECT 1 FROM public.email_outbox WHERE state = 'pending' AND due_at <= now())
-       AND NOT EXISTS (SELECT 1 FROM public.email_outbox WHERE state = 'sending' AND claimed_at < now() - interval '5 minutes')
+       AND NOT EXISTS (SELECT 1 FROM public.email_outbox WHERE state = 'sending' AND claimed_at < now() - interval '15 minutes')
     THEN
         RETURN 'idle';
     END IF;
@@ -653,6 +723,7 @@ BEGIN
         'public.email_claim_due(integer)',
         'public.email_record_tokens(uuid, bytea, bytea)',
         'public.email_finish(uuid, boolean, boolean, text)',
+        'public.email_release(uuid)',
         'public.email_inbound_record(text, bytea, text, boolean, text, integer, uuid, boolean)',
         'public.email_unsubscribe_status(bytea)',
         'public.email_set_messages_email(bytea, boolean)',

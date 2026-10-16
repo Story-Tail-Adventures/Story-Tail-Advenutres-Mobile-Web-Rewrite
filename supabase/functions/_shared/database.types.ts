@@ -5320,6 +5320,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      email_release: { Args: { p_outbox_id: string }; Returns: string }
       email_set_messages_email: {
         Args: { p_on: boolean; p_token_hash: string }
         Returns: string

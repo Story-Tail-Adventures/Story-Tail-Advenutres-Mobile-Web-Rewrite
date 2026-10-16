@@ -5,13 +5,14 @@ export const UNSUBSCRIBE_COPY = {
   onBody:
     "Every message from your advisor will still be waiting in the app, and you'll still get notifications there. This only stops the emails.",
   stop: "Stop these emails",
-  offTitle: "Done. No more message emails.",
+  offTitle: "Done. We've stopped the message emails.",
   offBody: "Your conversation is still in the app whenever you want it. Changed your mind?",
   turnBackOn: "Turn them back on",
   backOnTitle: "You're all set. Message emails are back on.",
-  invalidTitle: "This link has expired",
+  invalidTitle: "This link doesn't work anymore",
   invalidBody: "Sign in to see your messages. You can reply there any time.",
   signIn: "Sign in",
   unavailableTitle: "We couldn't reach your settings just now",
   unavailableBody: "Please try the link again in a moment.",
+  failed: "That didn't go through. Please try again in a moment.",
 } as const;

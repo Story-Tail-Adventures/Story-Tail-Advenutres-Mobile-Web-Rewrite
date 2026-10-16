@@ -405,11 +405,12 @@ private data class ConversationDto(
 }
 
 @Serializable
-private data class AttachmentDto(val filename: String)
+internal data class AttachmentDto(val filename: String)
 
 @Suppress("PropertyName")
 @Serializable
-private data class ConversationMessageDto(
+// internal, not private, so AgentEmailMarkTest can pin the decode contract.
+internal data class ConversationMessageDto(
     val message_id: String,
     val sender_role: String,
     val body: String,

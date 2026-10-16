@@ -27,6 +27,7 @@ import { problem } from "../_shared/problem.ts";
 import { serviceClient } from "../_shared/db.ts";
 import { uuidV7 } from "../_shared/uuid.ts";
 import { emailConfigFromEnv, tokenHashParam } from "../_shared/email.ts";
+import { maskCardNumbers } from "../_shared/push.ts";
 import {
   bareAddress,
   countFiles,
@@ -53,6 +54,9 @@ Deno.serve(async (req) => {
       throw new Error("Set RESEND_WEBHOOK_SECRET, RESEND_API_KEY and EMAIL_REPLY_DOMAIN. See supabase/README.md.");
     }
 
+    // The size cap BEFORE reading: a signed webhook is metadata only and small.
+    const declared = Number(req.headers.get("content-length") ?? "0");
+    if (declared > 256_000) return json({ error: "Too large." }, 413);
     const raw = await req.text();
     if (raw.length > 256_000) return json({ error: "Too large." }, 413);
     const signed = await verifySvix(secret, {
@@ -104,7 +108,9 @@ Deno.serve(async (req) => {
       await tokenHashParam(token),
       from,
       senderVerified(mail.authentication),
-      newWordsOnly(text, html),
+      // Card numbers masked before the words are stored (CLAUDE.md rule 1): a client pasting
+      // one into an email reply must not leave it in message.body.
+      maskCardNumbers(newWordsOnly(text, html)),
       files,
       isAutoReply(mail.headers, mail.subject),
     );
@@ -171,8 +177,8 @@ async function filesNote(to: string, mail: Record<string, unknown>): Promise<voi
       subject,
       ...(inReplyTo ? { inReplyTo, references: inReplyTo } : {}),
       text: "Thanks for your reply. It's in your conversation now.\n\n" +
-        "Files don't come through email, so the ones you attached didn't make it. " +
-        `You can add them in the app here: ${cfg.siteUrl}/messages`,
+        "Your attachments couldn't come along by email. " +
+        `You can add them in the app whenever you're ready: ${cfg.siteUrl}/messages`,
       headers: { "Auto-Submitted": "auto-replied" },
       disableFileAccess: true,
       disableUrlAccess: true,

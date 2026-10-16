@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
     loader: "custom",
     loaderFile: "./lib/image-loader.ts",
   },
+  async headers() {
+    return [
+      {
+        // §3.10 Stage 4: the opt-out link carries a per-person token in its URL. The page's meta
+        // tag already says no-referrer; the header covers anything that loads before it.
+        source: "/email/unsubscribe",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

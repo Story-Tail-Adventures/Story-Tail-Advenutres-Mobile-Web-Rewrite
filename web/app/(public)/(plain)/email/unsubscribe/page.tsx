@@ -7,6 +7,7 @@ import Box from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
+import { Alert } from "@/components/ui/Alert";
 import NextLink from "@/components/mui/NextLink";
 import { Button } from "@/components/ui/Button";
 import { isEmailToken, unsubscribeStatus } from "@/lib/email/unsubscribe";
@@ -53,6 +54,11 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   return (
     <Box sx={{ display: "flex", flex: 1, justifyContent: "center", px: 2, py: { xs: 4, md: 8 } }}>
       <Paper variant="outlined" sx={{ width: "100%", maxWidth: 520, p: { xs: 3, md: 4 }, alignSelf: "flex-start" }}>
+        {done === "error" && action && (
+          <Box sx={{ mb: 2 }}>
+            <Alert>{C.failed}</Alert>
+          </Box>
+        )}
         <Typography component="h1" variant="h5" sx={{ m: 0 }}>
           {title}
         </Typography>

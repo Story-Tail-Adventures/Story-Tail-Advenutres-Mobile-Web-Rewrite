@@ -29,15 +29,22 @@ describe("email unsubscribe page (§3.10 Stage 4)", () => {
   it("once off, says so and offers to turn them back on", async () => {
     mocks.status.mockResolvedValue("off");
     await render({ t: TOKEN, done: "off" });
-    expect(screen.getByRole("heading", { name: "Done. No more message emails." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Done. We've stopped the message emails." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Turn them back on" })).toBeInTheDocument();
   });
 
   it("a malformed token is never sent anywhere", async () => {
     await render({ t: "../../etc" });
     expect(mocks.status).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "This link has expired" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "This link doesn't work anymore" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  });
+
+  it("a press that failed says so above the same question", async () => {
+    mocks.status.mockResolvedValue("on");
+    await render({ t: TOKEN, done: "error" });
+    expect(screen.getByRole("alert")).toHaveTextContent("That didn't go through. Please try again in a moment.");
+    expect(screen.getByRole("button", { name: "Stop these emails" })).toBeInTheDocument();
   });
 
   it("a failed read says so instead of guessing", async () => {

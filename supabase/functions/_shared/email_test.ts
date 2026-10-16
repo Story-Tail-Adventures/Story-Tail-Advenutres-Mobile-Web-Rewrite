@@ -118,6 +118,19 @@ Deno.test("email: from the advisor at Story-Tail, to the bare address, replies t
   assertEquals(buildEmail(row({ trip_title: null }), TOKENS, cfg).subject, "A note from Gyasi");
 });
 
+Deno.test("email: with no advisor name, it says 'your advisor', capitalised only to start a sentence", () => {
+  const e = buildEmail(row({ agent_first_name: null, trip_title: null, messages: said("Hello", ["a.pdf"]) }), TOKENS, cfg);
+  assertEquals(e.subject, "A note from your advisor");
+  assertEquals(e.from.name, "Your advisor at Story-Tail Adventures");
+  assert(e.text.includes("Your advisor shared a file with you: a.pdf."));
+  assert(e.text.includes("Reply to this email and your advisor will see it"));
+});
+
+Deno.test("email: a card number in a trip title is masked in the subject", () => {
+  const visa = Array(4).fill("4242").join(" ");
+  assertEquals(buildEmail(row({ trip_title: `Card ${visa}` }), TOKENS, cfg).subject, "Gyasi wrote about Card •••• 4242");
+});
+
 Deno.test("email: carries the words, the thread link and both opt-out paths", () => {
   const e = buildEmail(row(), TOKENS, cfg);
   assert(e.text.includes("Your ferry is booked for 9am."));
@@ -162,7 +175,10 @@ Deno.test("email: threads under the previous email so mail apps keep one convers
 });
 
 Deno.test("email: anything that would break a header, or reach two people, is refused", () => {
-  assertThrows(() => buildEmail(row({ trip_title: "Bahamas\r\nBcc: evil@example.com" }), TOKENS, cfg), Error, "header");
+  // A line break in a trip title is cleaned into a space, never a second header (found in review:
+  // it used to fail the email for good).
+  const odd = buildEmail(row({ trip_title: "Bahamas\r\nBcc: evil@example.com" }), TOKENS, cfg);
+  assertEquals(odd.subject, "Gyasi wrote about Bahamas Bcc: evil@example.com");
   // A name is cut to its first word, so a line break in it never reaches the From header.
   assertEquals(buildEmail(row({ agent_first_name: "Gyasi\nX-Evil: 1" }), TOKENS, cfg).from.name, "Gyasi at Story-Tail Adventures");
   assertThrows(() => buildEmail(row({ recipient: "a@example.com, b@example.com" }), TOKENS, cfg), Error, "single");

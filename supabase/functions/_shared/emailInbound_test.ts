@@ -63,6 +63,12 @@ Deno.test("addresses: a bare address out of the usual shapes", () => {
   assertEquals(bareAddress(42), null);
 });
 
+Deno.test("addresses: a display name cannot spoof the sender (found in review)", () => {
+  assertEquals(bareAddress('"<jordan.hayes@example.com>" <attacker@evil.com>'), null);
+  assertEquals(bareAddress("jordan.hayes@example.com <attacker@evil.com>"), null);
+  assertEquals(bareAddress("a@example.com, b@example.com"), null);
+});
+
 Deno.test("token: found only in reply+<token>@ our reply domain", () => {
   const t = "abcdefghijklmnopqrstuvwxyz";
   assertEquals(replyTokenFrom(["someone@example.com", `Gyasi <reply+${t}@reply.story-tail.com>`], "reply.story-tail.com"), t);

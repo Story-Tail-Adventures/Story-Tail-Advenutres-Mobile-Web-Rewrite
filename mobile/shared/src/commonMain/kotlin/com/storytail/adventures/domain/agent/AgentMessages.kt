@@ -119,7 +119,7 @@ fun messagesNewTo(firstName: String): String = "Message $firstName"
 
 /** Under the reply box when the client has no login yet. The web's `messagesNoLogin`. */
 fun messagesNoLogin(firstName: String): String =
-    "$firstName can't sign in yet, so replies won't reach them by email. This will be waiting for them."
+    "$firstName hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in."
 
 private val WEEKDAYS = mapOf(
     DayOfWeek.MONDAY to "Mon",

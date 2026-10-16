@@ -1793,7 +1793,7 @@ export function messagesReplyByShort(day: string): string {
 
 /** Under the reply box when the client has no login yet. */
 export function messagesNoLogin(firstName: string): string {
-  return `${firstName} can't sign in yet, so replies won't reach them by email. This will be waiting for them.`;
+  return `${firstName} hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.`;
 }
 
 /** What a bulk archive (or bring-back) did, for the list's status line. */

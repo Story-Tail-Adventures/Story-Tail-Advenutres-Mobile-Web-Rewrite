@@ -12,6 +12,7 @@ export async function changeMessagesEmail(formData: FormData): Promise<void> {
   const on = formData.get("on") === "true";
   if (!isEmailToken(token)) redirect("/email/unsubscribe");
   const status = await setMessagesEmail(token, on);
-  const done = status === "on" || status === "off" ? `&done=${status}` : "";
+  // A failed press says so on the page, rather than landing back on the same question.
+  const done = status === "on" || status === "off" ? `&done=${status}` : "&done=error";
   redirect(`/email/unsubscribe?t=${encodeURIComponent(token)}${done}`);
 }

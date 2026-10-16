@@ -164,6 +164,20 @@ function firstName(value: string | null, fallback: string): string {
   return name || fallback;
 }
 
+/** For the start of a sentence: "your advisor" becomes "Your advisor"; a name is unchanged. */
+function sentenceStart(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * A trip title as it may appear in a subject: control characters (a pasted line break) become
+ * spaces rather than failing the email, and a card number in it is masked like the body.
+ */
+function cleanTitle(value: string | null): string | null {
+  const title = value?.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  return title ? maskCardNumbers(title) : null;
+}
+
 /** The thread on the web app. A plain link: it carries no token and signs no one in. */
 export function threadUrl(cfg: EmailConfig, conversationId: string): string {
   return `${cfg.siteUrl}/messages/${encodeURIComponent(conversationId)}`;
@@ -198,11 +212,12 @@ export function buildEmail(
   if (row.messages.length === 0) throw new Error("no replies left to send");
   if (!isToken(tokens.reply) || !isToken(tokens.unsubscribe)) throw new Error("bad token");
 
-  const agent = firstName(row.agent_first_name, "Your advisor");
-  const trip = row.trip_title?.trim() || null;
+  // Lowercase unless it starts a sentence (brand review): "A note from your advisor".
+  const agent = firstName(row.agent_first_name, "your advisor");
+  const trip = cleanTitle(row.trip_title);
 
-  const subject = headerSafe(trip ? `${agent} wrote about ${trip}` : `A note from ${agent}`, "subject");
-  const fromName = headerSafe(`${agent} at Story-Tail Adventures`, "sender name");
+  const subject = headerSafe(trip ? `${sentenceStart(agent)} wrote about ${trip}` : `A note from ${agent}`, "subject");
+  const fromName = headerSafe(`${sentenceStart(agent)} at Story-Tail Adventures`, "sender name");
   const replyTo = headerSafe(`reply+${tokens.reply}@${cfg.replyDomain}`, "reply address");
   const link = threadUrl(cfg, row.conversation_id);
   const unsub = unsubscribeLinks(cfg, tokens.unsubscribe);
@@ -215,8 +230,8 @@ export function buildEmail(
   const fileLine = files.length === 0
     ? null
     : files.length === 1
-    ? `${agent} shared a file with you: ${files[0]}. You'll find it in the conversation.`
-    : `${agent} shared ${files.length} files with you: ${files.join(", ")}. You'll find them in the conversation.`;
+    ? `${sentenceStart(agent)} shared a file with you: ${files[0]}. You'll find it in the conversation.`
+    : `${sentenceStart(agent)} shared ${files.length} files with you: ${files.join(", ")}. You'll find them in the conversation.`;
   const replyLine = `Reply to this email and ${agent} will see it in your conversation. Files are best added in the app.`;
 
   // No greeting of ours: the advisor's own words open the email, and they usually greet already.

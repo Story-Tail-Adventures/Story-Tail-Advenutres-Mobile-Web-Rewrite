@@ -83,7 +83,7 @@ data class AgentThreadSurface(
     val emptyBody: String,
     /** A new thread cannot START with a note: the client would see a thread with nothing in it. */
     val allowNote: Boolean,
-    /** "Pri can't sign in yet…", under the box in Reply mode; null when they can sign in. */
+    /** "Pri hasn't set up a login yet…", under the box in Reply mode; null when they can sign in. */
     val noLoginLine: String?,
 ) {
     enum class HeaderAction { OPEN_TRIP, OPEN_CLIENT }

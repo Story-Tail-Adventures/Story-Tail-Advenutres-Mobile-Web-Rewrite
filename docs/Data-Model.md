@@ -2162,7 +2162,7 @@ row is due. Service-role only: no client or agent grant. Rulings and review:
 | `client_user_id` | `uuid` | No | Public | FK → PlatformUser (role `client`). Whose verified account email it goes to |
 | `first_message_at` | `timestamptz` | No | Public | `created_at` of the oldest reply this email carries; with the thread's newer replies it bounds what is sent |
 | `latest_message_id` | `uuid` | No | Public | FK → Message. The newest reply it carries |
-| `due_at` | `timestamptz` | No | Public | Newest reply + 5 minutes (each reply pushes it out, so a burst sends once), then moved to 7am if it lands in the client's rest hours |
+| `due_at` | `timestamptz` | No | Public | Newest reply + 5 minutes (each reply pushes it out, so a burst sends once), but never later than the first waiting reply + 30 minutes; then moved to 7am if it lands in the client's rest hours |
 | `state` | `text` | No | Public | `pending`, `sending` (claimed), `sent`, `cleared` (read in the app first), `skipped` (see below), `failed` |
 | `skip_reason` | `text` | Yes | Public | `opted_out`, `no_email`, `client_archived`. Set iff `state = 'skipped'` |
 | `attempts` | `integer` | No | Public | Transient SMTP errors (4xx, timeouts) retry, at most 3; a 5xx fails at once |
@@ -2195,8 +2195,16 @@ the thread's previous email so mail apps keep one conversation. **No open or cli
 Finished rows are deleted after 30 days.
 
 **Clearing:** the client reading the thread in the app before `due_at` marks the pending row
-`cleared`, so a client who is already looking gets no email. There is no "un-send": once
-`sent`, reading changes nothing.
+`cleared`, so a client who is already looking gets no email; reading PART of it moves
+`first_message_at` past what they saw. There is no "un-send": once `sent`, reading changes
+nothing.
+
+**No reply is ever dropped (found in review, 2026-10-16).** A row that fails, goes stale or is
+released while a newer row waits is `cleared`, and the waiting row's `first_message_at` moves back
+to cover its replies. A run stops starting sends after 90 seconds and releases the rest
+(`email_release`, no try counted); a `sending` row is only treated as stale after 15 minutes, so a
+slow run is never re-claimed under itself. Delivery is at least once: a crash after IONOS accepts
+but before the row is finished sends that email again.
 
 ### 12.9 EmailToken
 
@@ -2248,9 +2256,11 @@ the message over Resend's API (the webhook is a doorbell, the way §12.7's Andro
 after 90 days.
 
 **Accepting a reply** needs every one of: a `reply+<token>` recipient whose hash is a live
-`reply` row; the From address equal (case-insensitive) to that token's account email, and the
-provider's SPF/DKIM verdict passing for it; a thread still open to the client. Then the new text
-only (quoted history and signature stripped, no HTML rendered, at most 8,000 characters) becomes
+`reply` row; a From header naming exactly one address, equal (case-insensitive) to that token's
+account email, which must be verified, and the provider's DMARC (or SPF and DKIM) verdict passing
+for it; a thread still open to the client. Then the new text
+only (quoted history and signature stripped, no HTML rendered, card numbers masked to the last
+four before anything is stored, at most 8,000 characters) becomes
 a client message with `channel = 'email'`, written through the **same path as `trip-message`**
 (`conversation_record_client_message`), so unread counts, push (§12.7), the overdue clock and
 audit all behave as for an in-app message. **A rejected email gets no reply** (answering a

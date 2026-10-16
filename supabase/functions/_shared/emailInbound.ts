@@ -69,12 +69,18 @@ export async function verifySvix(
 
 // ── The token in the address ────────────────────────────────────────────────
 
-/** A bare address out of `Name <addr>` or `addr`, lowercased; null when there is none. */
+/**
+ * A bare address out of `Name <addr>` or `addr`, lowercased; null when there is none, or when
+ * the header names more than one address. Found in review (2026-10-16): taking the FIRST `<…>`
+ * let a display name spoof the sender (`"<jordan@…>" <attacker@…>` read as Jordan). A From with
+ * two `@`s is refused outright; a real client's From has one.
+ */
 export function bareAddress(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const angle = value.match(/<([^<>\s]+@[^<>\s]+)>/);
-  const addr = (angle ? angle[1] : value).trim().toLowerCase();
-  return /^[^\s@<>]+@[^\s@<>]+\.[a-z]{2,}$/.test(addr) ? addr : null;
+  if ((value.match(/@/g) ?? []).length !== 1) return null;
+  const angles = [...value.matchAll(/<([^<>\s]+@[^<>\s]+)>/g)];
+  const addr = (angles.length > 0 ? angles[angles.length - 1][1] : value).trim().toLowerCase();
+  return /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/.test(addr) ? addr : null;
 }
 
 /**
