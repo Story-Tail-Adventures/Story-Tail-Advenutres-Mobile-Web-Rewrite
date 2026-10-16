@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
 import { env } from "@/lib/env";
@@ -17,6 +17,7 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(env.supabaseUrl, env.supabaseAnonKey, {
+    global: { headers: await callerHeaders() },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -33,4 +34,30 @@ export async function createClient() {
       },
     },
   });
+}
+
+/**
+ * The browser's user agent and address, passed on to Supabase (§3.9.6, 2026-10-16).
+ *
+ * Web sign-ins run HERE, on the server (`signInWithPassword` in a Server Action, `verifyOtp` in
+ * `/auth/confirm`), so without this GoTrue records the server's own address and Node's user
+ * agent on every web session, and the advisor's Login activity shows every traveler signing in
+ * from the same machine. GoTrue takes the first `X-Forwarded-For` entry as the client.
+ *
+ * Only the FIRST forwarded hop, which Vercel sets from the real connection (a value a browser
+ * sends is replaced, not trusted). Both are informational: nothing decides access on them.
+ * Outside a request (a build, a script) there are no headers and nothing is added.
+ */
+async function callerHeaders(): Promise<Record<string, string>> {
+  try {
+    const h = await headers();
+    const out: Record<string, string> = {};
+    const ua = h.get("user-agent");
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (ua) out["user-agent"] = ua.slice(0, 500);
+    if (ip) out["x-forwarded-for"] = ip;
+    return out;
+  } catch {
+    return {};
+  }
 }
