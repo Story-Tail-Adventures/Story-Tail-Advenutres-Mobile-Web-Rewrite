@@ -33,6 +33,12 @@ ktor = "3.6.0"
 # lockstep with `kotlin`, never on its own, and run :shared:compileKotlinIosSimulatorArm64.
 # 3.8.0 with Kotlin 2.4.20 passed that gate with no KLIB warnings on 2026-10-05.
 supabase = "3.8.0"
+# §3.10 Stage 3b: Android notifications. firebase-messaging ONLY, through the BoM
+# (docs/Push-Notifications-Security-Review.md §3, approved 2026-10-15). No Analytics, no
+# Crashlytics, and no google-services plugin: the app is configured from local.properties at
+# runtime (androidApp/build.gradle.kts). 34.19.0 rather than 35.0.x, a major line one day old
+# when this was added.
+firebase-bom = "34.19.0"
 turbine = "1.2.1"
 
 [libraries]
@@ -40,6 +46,8 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 androidx-testExt-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-testExt" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-espresso" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }

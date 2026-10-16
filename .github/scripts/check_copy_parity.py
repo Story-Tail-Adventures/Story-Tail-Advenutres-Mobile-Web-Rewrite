@@ -73,6 +73,16 @@ MESSAGE_TABLES = [
             "messagePlaceholder": "MESSAGE_PLACEHOLDER",
             "notePlaceholder": "NOTE_PLACEHOLDER",
             "noteSwitch": "NOTE_SWITCH",
+            # §3.10.7's opt-in card. "notifyOn" and "notifyBlocked" name the browser, so the
+            # phone has its own wording for those two.
+            "notifyTitle": "NOTIFY_TITLE",
+            "notifyBody": "NOTIFY_BODY",
+            "notifyTurnOn": "NOTIFY_TURN_ON",
+            "notifyNotNow": "NOTIFY_NOT_NOW",
+            "notifyTurningOn": "NOTIFY_TURNING_ON",
+            "notifyFailed": "NOTIFY_FAILED",
+            # The phone's quiet "Sent" after a reply from a notification is the web's "Sent".
+            "sent": "NOTIFY_REPLY_SENT",
             "noteHint": "NOTE_HINT",
             "send": "SEND",
             "addNote": "ADD_NOTE",

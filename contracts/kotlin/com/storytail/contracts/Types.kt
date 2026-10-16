@@ -144,6 +144,36 @@ enum class AgentMarkThreadReadRequestOp {
 }
 
 @Serializable
+enum class PushDeviceResponseOutcome {
+    @SerialName("registered")
+    REGISTERED,
+    @SerialName("unregistered")
+    UNREGISTERED,
+    @SerialName("not_found")
+    NOT_FOUND,
+}
+
+@Serializable
+enum class PushUnregisterRequestOp {
+    @SerialName("unregister")
+    UNREGISTER,
+}
+
+@Serializable
+enum class PushRegisterRequestPlatform {
+    @SerialName("web")
+    WEB,
+    @SerialName("android")
+    ANDROID,
+}
+
+@Serializable
+enum class PushRegisterRequestOp {
+    @SerialName("register")
+    REGISTER,
+}
+
+@Serializable
 enum class AgentSendMessageRequestOp {
     @SerialName("send")
     SEND,
@@ -617,6 +647,46 @@ data class AgentSendMessageResponse(
     val conversationId: String,
     @SerialName("createdAt")
     val createdAt: String,
+)
+
+@Serializable
+data class PushRegisterRequest(
+    @SerialName("op")
+    val op: PushRegisterRequestOp,
+    @SerialName("platform")
+    val platform: PushRegisterRequestPlatform,
+    // A fresh client-minted v7. An address already registered keeps its own id.
+    @SerialName("deviceId")
+    val deviceId: String,
+    // `android` only, and required there: the Firebase registration token.
+    @SerialName("fcmToken")
+    val fcmToken: String? = null,
+    // `web` only, and required there: `PushSubscription.toJSON()`.
+    @SerialName("subscription")
+    val subscription: JsonElement? = null,
+    // "Chrome · macOS" or the phone model, for a later device list. Optional.
+    @SerialName("label")
+    val label: String? = null,
+)
+
+/** At least one of `fcmToken` (a phone) or `endpoint` (a browser); neither is a 400. */
+@Serializable
+data class PushUnregisterRequest(
+    @SerialName("op")
+    val op: PushUnregisterRequestOp,
+    @SerialName("fcmToken")
+    val fcmToken: String? = null,
+    @SerialName("endpoint")
+    val endpoint: String? = null,
+)
+
+@Serializable
+data class PushDeviceResponse(
+    @SerialName("outcome")
+    val outcome: PushDeviceResponseOutcome,
+    // `register` only: the device's row id.
+    @SerialName("deviceId")
+    val deviceId: String? = null,
 )
 
 @Serializable

@@ -10,7 +10,7 @@
  *
  * A web payload is end-to-end encrypted to the advisor's browser (RFC 8291), so it carries
  * the words: the client's name, the trip and the first line. An Android payload goes through
- * Google readable, so (PR 2) it carries the thread id and a count only, and the app fetches
+ * Google readable, so it carries the thread id and a count only (`_shared/fcm.ts`), and the app fetches
  * the words itself. See docs/Push-Notifications-Security-Review.md §3.1. Neither ever holds
  * card data.
  *
@@ -68,6 +68,8 @@ export interface SummaryPayload {
   v: 1;
   kind: "summary";
   tag: typeof SUMMARY_TAG;
+  /** Messages it covers. The phone builds its own words from this (no names through Google). */
+  count: number;
   title: string;
   body: string;
   url: string;
@@ -77,6 +79,12 @@ export interface DismissPayload {
   v: 1;
   kind: "dismiss";
   tag: string;
+  /**
+   * The created_at (as text) of the newest message the dismissed notification was about. A phone
+   * ignores a dismiss older than the notification it is showing, so a dismiss that arrives late
+   * (FCM does not promise order) cannot cancel a newer message for the same thread.
+   */
+  readUpTo: string | null;
 }
 
 export type PushPayload = MessagePayload | SummaryPayload | DismissPayload;
@@ -156,14 +164,15 @@ export function summaryPayload(rows: ClaimedRow[], now: Date): SummaryPayload {
     v: 1,
     kind: "summary",
     tag: SUMMARY_TAG,
+    count,
     title: `${count} new ${count === 1 ? "message" : "messages"} while you rested`,
     body: `${names} wrote ${overnight ? "overnight" : "while you rested"}.`,
     url: INBOX_URL,
   };
 }
 
-export function dismissPayload(conversationId: string): DismissPayload {
-  return { v: 1, kind: "dismiss", tag: conversationId };
+export function dismissPayload(conversationId: string, readUpTo: string | null = null): DismissPayload {
+  return { v: 1, kind: "dismiss", tag: conversationId, readUpTo };
 }
 
 /** What one claimed batch sends for one advisor: each live row alone, the held ones as one. */
@@ -258,6 +267,16 @@ export function readWebSubscription(value: unknown): WebSubscription {
   return { endpoint, p256dh, auth };
 }
 
+/** An FCM registration token: opaque, URL-safe-ish, bounded. Never echoed back. */
+const FCM_TOKEN_PATTERN = /^[A-Za-z0-9_:\-]{20,4096}$/;
+
+export function readFcmToken(value: unknown): string {
+  if (typeof value !== "string" || !FCM_TOKEN_PATTERN.test(value)) {
+    throw badRequest("This phone's notification token is missing.");
+  }
+  return value;
+}
+
 export const MAX_LABEL_LENGTH = 80;
 
 /** "Chrome · macOS": shown later in §3.12.3's device list. Optional, trimmed, bounded. */
@@ -275,7 +294,7 @@ export function readDeviceLabel(value: unknown): string | null {
 /**
  * What one device said. `gone` is the push service telling us the subscription is dead (404 or
  * 410): the device is forgotten, and that is not a failure of the send. `skipped` is a
- * platform this build cannot reach yet (Android until PR 2, iOS until Xcode).
+ * platform this build cannot reach yet (iOS until Xcode).
  */
 export type DeviceOutcome = "ok" | "gone" | "error" | "skipped";
 
@@ -302,7 +321,9 @@ export async function deliver(
     devices.map(async (d) => {
       try {
         return { d, o: await send(d, payload) };
-      } catch {
+      } catch (err) {
+        // The sender's own message only (a status, never a token, key or body).
+        console.error(`push: ${d.platform} send failed:`, err instanceof Error ? err.message : "unknown");
         return { d, o: "error" as const };
       }
     }),

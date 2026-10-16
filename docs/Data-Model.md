@@ -2128,7 +2128,10 @@ to its last four. An archived advisor is sent nothing. Finished rows are deleted
 
 **Clearing:** reading a thread (either surface) marks its pending row `cleared`, and a sent one
 owes a silent "dismiss" to the advisor's PHONES, so a notification read on the laptop disappears
-on the phone. Browsers get no dismiss: a push that shows nothing is a policy problem there.
+on the phone. Browsers get no dismiss: a push that shows nothing is a policy problem there. A
+dismiss is sent only while the thread is still read: if the client writes again first, the owed
+dismiss is dropped (it would cancel the newer notification, which shares its tag), and the
+dispatcher sends dismissals before new messages in each pass.
 
 ---
 
