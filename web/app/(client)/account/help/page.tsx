@@ -41,8 +41,8 @@ const GROUP_LABEL_SX = {
  *    the app configures exactly one outbound address, `env.inquiryEmail`, deliberately null
  *    when unset so nothing invents one. Story-Tail is one advisor, and a second tier that
  *    routes somewhere other than Gyasi would promise a queue nobody staffs.
- *  · The card-authorization questions are held until §2.4 ships. An FAQ that explains an
- *    unreachable screen is worse than no FAQ.
+ *  · The card questions stay off this list (see `helpFaqs`). §2.4 was retired 2026-10-16:
+ *    the app never holds a card, and clients pay suppliers through links.
  *  · "Message Gyasi" now goes to /messages/new. It was a `mailto:` while §2.6.3 could not
  *    send, on the rule that a CTA which looks like a way to reach him and is not one is worse
  *    than a plain email link. §2.6 landed, so it repoints — which is what that note said it

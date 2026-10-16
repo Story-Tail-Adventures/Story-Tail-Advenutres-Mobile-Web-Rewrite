@@ -36,9 +36,9 @@ describe("redactAnalyticsEvent", () => {
     );
     expect(
       redactAnalyticsEvent(
-        view("/wallet/authorizations/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/remove?x=1"),
+        view("/trips/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/update?x=1"),
       )?.url,
-    ).toBe(`${ORIGIN}/wallet/authorizations/[id]/remove`);
+    ).toBe(`${ORIGIN}/trips/[id]/update`);
   });
 
   it("leaves slugs that are not ids alone", () => {

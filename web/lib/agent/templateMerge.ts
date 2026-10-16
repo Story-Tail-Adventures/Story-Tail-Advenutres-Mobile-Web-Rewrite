@@ -23,6 +23,9 @@ export const MERGE_FIELDS = [
   "payment.label",
   "payment.amount",
   "payment.dueDate",
+  // Added 2026-10-16 (§3.6.2, Data-Model §12.4): the milestone's pay link, as stored. A
+  // milestone with no link leaves it missing, so Send refuses until the advisor adds one.
+  "payment.link",
 ] as const;
 export type MergeField = (typeof MERGE_FIELDS)[number];
 
@@ -115,6 +118,8 @@ export type MergeContext = {
   paymentOwedCents: string | null;
   paymentCurrency: string | null;
   paymentDueDate: string | null;
+  /** The milestone's `pay_url`, the full https link. Null when it has none. */
+  paymentLink: string | null;
 };
 
 /**
@@ -137,6 +142,7 @@ export function mergeValues(ctx: MergeContext): MergeValues {
     set("payment.amount", formatTripMoney(Number(ctx.paymentOwedCents), ctx.paymentCurrency ?? "USD"));
   }
   if (ctx.paymentDueDate) set("payment.dueDate", formatTripDates(ctx.paymentDueDate, null));
+  set("payment.link", ctx.paymentLink);
   return values;
 }
 
@@ -155,6 +161,7 @@ export const SAMPLE_CONTEXT: MergeContext = {
   paymentOwedCents: "120000",
   paymentCurrency: "USD",
   paymentDueDate: "2026-06-12",
+  paymentLink: "https://www.sandals.com/pay/SRB-220119",
 };
 
 /** Insert `text` at the cursor, never replacing a draft (§3.10.3). Returns the new caret too. */

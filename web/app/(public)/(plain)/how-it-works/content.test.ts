@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { HOW_IT_WORKS } from "./content";
 
 describe("how-it-works copy", () => {
-  it("uses the corrected card-limit sentence, not billing language", () => {
-    expect(HOW_IT_WORKS.heart.intro).toContain("up to the limit you set — not a penny more");
+  it("says the money goes to suppliers, not billing language", () => {
+    // Was the card-limit sentence until 2026-10-16, when §3.6 ruled the app holds no card.
+    expect(HOW_IT_WORKS.heart.intro).toContain("your money goes straight to the people hosting you, never through us");
     expect(HOW_IT_WORKS.heart.intro).not.toMatch(/invoice/i);
   });
 

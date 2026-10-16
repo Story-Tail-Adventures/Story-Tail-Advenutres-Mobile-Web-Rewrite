@@ -10,16 +10,18 @@ import {
   isMilestoneKind,
   isMilestoneStatus,
   milestoneFromFormData,
+  validateMarkPaid,
   validateMilestone,
+  validatePayLink,
 } from "@/lib/agent/payments";
+import { PAYMENTS_COPY } from "@/lib/agent/content";
 
 /**
  * §3.4.15's vocabulary and money handling.
  *
  * These matter more than most form tests because of what sits downstream: `paid_cents` is
- * summed by a trigger into `trip.total_paid_cents`, and `wallet/authorize/[tripId]`
- * subtracts that from the trip's value to show a traveler the balance they are authorizing
- * a card against. A cent lost here is a cent wrong there, silently.
+ * summed by a trigger into `trip.total_paid_cents`, the "paid so far" a traveler and the
+ * advisor both read. A cent lost here is a cent wrong there, silently.
  */
 
 describe("the enums match the schema", () => {
@@ -144,5 +146,55 @@ describe("nextUnpaidMilestone", () => {
     ];
     expect(nextUnpaidMilestone(rows)?.milestoneId).toBe("c");
     expect(nextUnpaidMilestone(rows.slice(0, 2))).toBeNull();
+  });
+});
+
+describe("§3.6 pay link and Mark paid checks (2026-10-16)", () => {
+  it("takes an https link, removes on blank, and says why it refuses", () => {
+    expect(validatePayLink("https://www.sandals.com/pay/1")).toEqual({ ok: true, url: "https://www.sandals.com/pay/1" });
+    expect(validatePayLink("")).toEqual({ ok: true, url: null });
+    expect(validatePayLink("http://sandals.com")).toEqual({ ok: false, error: PAYMENTS_COPY.linkNotHttps });
+    expect(validatePayLink(`https://a.com/${"x".repeat(2100)}`)).toEqual({ ok: false, error: PAYMENTS_COPY.linkTooLong });
+  });
+
+  const ok = { amount: "4180.00", paidOn: "2026-05-14", reference: "SRB-220119-FINAL", note: "Sandals confirmed by email." };
+
+  it("accepts a normal paid mark, and a blank amount means the whole amount", () => {
+    expect(validateMarkPaid(ok, "2026-05-14")).toBeNull();
+    expect(validateMarkPaid({ ...ok, amount: "" }, "2026-05-14")).toBeNull();
+  });
+
+  it("refuses a future date, a bad amount and over-long text", () => {
+    const errors = validateMarkPaid(
+      { amount: "abc", paidOn: "2026-05-15", reference: "r".repeat(101), note: "n".repeat(1001) },
+      "2026-05-14",
+    );
+    expect(errors).toEqual({
+      amount: PAYMENTS_COPY.paidAmountInvalid,
+      paidOn: PAYMENTS_COPY.paidDateInvalid,
+      reference: PAYMENTS_COPY.paidReferenceTooLong,
+      note: PAYMENTS_COPY.paidNoteTooLong,
+    });
+  });
+
+  it("refuses a card-shaped number in the confirmation number or the note", () => {
+    // Built at runtime: CI's PAN guard refuses any Luhn-valid literal in source.
+    const body = `4${"1".repeat(14)}`;
+    let pan = "";
+    for (let c = 0; c <= 9 && !pan; c += 1) {
+      const candidate = `${body}${c}`;
+      const sum = [...candidate].reverse().reduce((acc, ch, i) => {
+        let d = Number(ch);
+        if (i % 2 === 1) {
+          d *= 2;
+          if (d > 9) d -= 9;
+        }
+        return acc + d;
+      }, 0);
+      if (sum % 10 === 0) pan = candidate;
+    }
+    const errors = validateMarkPaid({ ...ok, reference: pan, note: `card ${pan}` }, "2026-05-14");
+    expect(errors?.reference).toBe(PAYMENTS_COPY.paidCardLike);
+    expect(errors?.note).toBe(PAYMENTS_COPY.paidCardLike);
   });
 });

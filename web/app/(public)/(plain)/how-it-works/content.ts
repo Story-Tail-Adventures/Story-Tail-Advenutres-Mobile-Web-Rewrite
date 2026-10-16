@@ -47,7 +47,7 @@ export const HOW_IT_WORKS = {
       icon: "plane",
       overline: "STEP 03",
       title: "Go rest",
-      body: "I book through suppliers, you authorize a card for them to charge, and I keep watch on the details while you receive the rest you came for.",
+      body: "I book through suppliers, you pay each one directly on its own secure site, and I keep watch on the details while you receive the rest you came for.",
     },
   ] satisfies readonly Step[],
   heart: {
@@ -60,8 +60,9 @@ export const HOW_IT_WORKS = {
       ", and meant to be enjoyed.",
     ] satisfies RichText,
     // Brief correction (BRD §10.5): the prototype said "we cap your card at the invoice".
+    // Rewritten 2026-10-16 (§3.6 ruling): there is no card to cap; clients pay suppliers.
     intro:
-      "Two beliefs sit behind every trip we plan. They're the reason Gyasi answers a 9pm message about sunscreen brands and the reason your card can only ever be used up to the limit you set — not a penny more.",
+      "Two beliefs sit behind every trip we plan. They're the reason Gyasi answers a 9pm message about sunscreen brands and the reason your money goes straight to the people hosting you, never through us.",
     pillars: [
       {
         icon: "heart",

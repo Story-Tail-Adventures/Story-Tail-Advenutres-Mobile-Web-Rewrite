@@ -22,9 +22,9 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      heading: "3. Payment authorization",
+      heading: "3. Paying suppliers",
       paragraphs: [
-        "When you authorize a card for a trip, you set the limit and the suppliers it may be used for. Story-Tail uses it only to pay those suppliers, within that limit, and every use is recorded and reported to you. You can revoke an authorization at any time; charges already made by a supplier are governed by that supplier's terms.",
+        "You pay each supplier directly, through the pay link your advisor adds to each payment on your trip. The link opens the supplier's own payment page, or a Travefy invoice that passes along supplier costs only. Story-Tail never collects or stores card numbers and never charges you a fee. Each payment is governed by that supplier's terms. Your advisor marks a payment as paid once the supplier confirms it.",
       ],
     },
     {

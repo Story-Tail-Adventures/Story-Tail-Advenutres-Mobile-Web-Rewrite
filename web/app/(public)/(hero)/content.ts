@@ -15,12 +15,12 @@ export const LANDING = {
     /** Absolute so the root layout's "%s · Story-Tail Adventures" template does not double the brand. */
     title: "Story-Tail Adventures · Your travel portal",
     description:
-      "Your portal for everything Story-Tail — trips in motion, cards authorized for suppliers, and a place to dream up what's next.",
+      "Your portal for everything Story-Tail — trips in motion, every payment laid out plainly, and a place to dream up what's next.",
   },
   overline: "REST IS A GIFT · CREATION IS A GIFT",
   title: "Plan a rest worthy of the",
   script: "world He made.",
-  sub: "Your portal for everything Story-Tail — trips in motion, cards authorized for suppliers, and a place to dream up what's next. We believe vacation is rest, and rest is sacred.",
+  sub: "Your portal for everything Story-Tail — trips in motion, every payment laid out plainly, and a place to dream up what's next. We believe vacation is rest, and rest is sacred.",
   cta: {
     signIn: "Sign in",
     create: "Create an account",
@@ -40,7 +40,8 @@ export const LANDING = {
     items: [
       // Brief correction: "offline at the resort" → "always in your pocket" (offline is P3).
       { icon: "plane", title: "View your trips", body: "Itinerary, day-by-day, always in your pocket." },
-      { icon: "card", title: "Authorize cards", body: "Stripe-secured. We pay suppliers — never charge fees." },
+      // Retired 2026-10-16 with §2.4: the app never holds a card. Clients pay suppliers directly.
+      { icon: "lock", title: "Pay suppliers directly", body: "On their own secure site. We never see your card or charge fees." },
       // The reply-time figure comes from the claims registry, never typed here.
       { icon: "message", title: "Message Gyasi", body: `Threaded by trip. Reply usually ${claim("avgReplyTime")}.` },
     ] satisfies readonly LandingFeature[],

@@ -2,10 +2,13 @@
 
 import { refresh, revalidatePath } from "next/cache";
 
+import { createClient } from "@/lib/supabase/server";
 import { DOCUMENT_MESSAGES } from "./documents";
 import { THREAD_MESSAGES, type SendMessageState } from "./thread";
 import { uuidV7 } from "@/lib/uuid";
 import { absoluteStorageUrl, callTripFunction } from "./api";
+import { formatTripMoney } from "./money";
+import { isOpenMilestone, paidNoteBody } from "./payLink";
 
 /**
  * Server actions for screens 2.2.6 and 2.2.7.
@@ -168,3 +171,55 @@ export async function saveReflection(
  */
 const MEMORIES_SAVE_FAILED =
   "That did not save. Your words are still here, so try again in a moment.";
+
+export type PaidNoteState = { status: "idle" | "sent" } | { status: "error"; message: string | null };
+
+/**
+ * "I've paid" on a pay block (Screen-Inventory §2.2.3, ruled 2026-10-16).
+ *
+ * IT ONLY SENDS A MESSAGE. It posts "I've paid the final balance ($4,180)." in the trip's
+ * thread through `trip-message`, the same audited path as any client message, and it never
+ * writes the milestone: only the advisor marks a payment paid (§3.6.5), once the supplier
+ * confirms it. No new write path is added.
+ *
+ * The body is built HERE from the milestone as the traveler's own session reads it, not
+ * taken from the browser, so the message always names the payment it is about. RLS makes a
+ * milestone on someone else's trip read as absent, which ends the action quietly.
+ *
+ * The amount is what is still open on the milestone (amount less paid), the figure the
+ * traveler just paid; a milestone with nothing recorded as paid shows its full amount.
+ */
+export async function sendPaidNote(
+  tripId: string,
+  milestoneId: string,
+  _previous: PaidNoteState,
+): Promise<PaidNoteState> {
+  const supabase = await createClient();
+  const { data: milestone } = await supabase
+    .from("payment_milestone")
+    .select("id, trip_id, label, amount_cents, paid_cents, currency, status")
+    .eq("id", milestoneId)
+    .eq("trip_id", tripId)
+    .maybeSingle();
+
+  if (!milestone || !isOpenMilestone(milestone.status)) return { status: "error", message: null };
+
+  const amount = Number(milestone.amount_cents);
+  const open = amount - Number(milestone.paid_cents ?? 0);
+  const body = paidNoteBody(milestone.label, formatTripMoney(open > 0 ? open : amount, milestone.currency));
+
+  const result = await callTripFunction("trip-message", {
+    method: "POST",
+    body: { messageId: uuidV7(), tripId, body },
+  });
+
+  if (!result.ok) {
+    return { status: "error", message: result.kind === "rejected" && result.detail ? result.detail : null };
+  }
+
+  // The thread and the two screens that show its preview line.
+  revalidatePath(`/trips/${tripId}/messages`);
+  revalidatePath("/messages");
+  revalidatePath("/dashboard");
+  return { status: "sent" };
+}

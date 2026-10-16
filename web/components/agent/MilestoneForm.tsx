@@ -32,9 +32,8 @@ import {
  *
  * NOTHING HERE POSTS `paid_cents` OR `status`. Those belong to the row's own status control
  * in `PaymentScheduleTable`, and keeping them out of this form is what makes a label edit
- * incapable of moving `trip.total_paid_cents` — the figure a traveler is shown as their
- * outstanding balance when they authorize a card. The separation runs SQL → route → action
- * → form, and this is its last layer.
+ * incapable of moving `trip.total_paid_cents`, the "paid so far" a traveler reads. The
+ * separation runs SQL → route → action → form, and this is its last layer.
  *
  * ON THE FORM PRIMITIVES (step 2 of the migration, PR 6): SelectField, Field and DateField
  * carry the label-above-input layout and the hint/error wiring, with the same ids and names

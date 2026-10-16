@@ -1,5 +1,6 @@
 /**
- * Serializable sx shared by the §2.4 wallet and §2.6 messaging screens on MUI.
+ * Serializable sx shared by the §2.6 messaging screens on MUI (and the §2.4 wallet screens,
+ * retired 2026-10-16).
  *
  * NO REACT, NO MUI IMPORTS. Everything here is a plain object or a function returning one,
  * so a Server Component can spread it into `sx` and pass the result across the boundary.

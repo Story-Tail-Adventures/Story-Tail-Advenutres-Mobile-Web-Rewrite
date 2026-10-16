@@ -21,10 +21,9 @@ import { firebaseWebConfig } from "@/lib/firebase";
  *   (scroll, outbound click) carries the redacted page too, not `document.location`.
  *   `page_title` is the redacted path because a document title can name a trip.
  * - The referrer is cut to its origin: which site sent someone, not which page.
- * - `/agent/*` and the card pages under `/wallet/*` switch collection off while they are
- *   open, and the SDK is never started there. The wallet is excluded so Google's script is
- *   never pulled into a payment page (PCI DSS 4.0 §6.4.3 wants every script on one inventoried
- *   and justified); Vercel's cookieless count still covers it through redactAnalyticsUrl.
+ * - `/agent/*` switches collection off while it is open, and the SDK is never started there.
+ *   (The card pages under `/wallet/*` were excluded the same way until §2.4 was retired on
+ *   2026-10-16: the app holds no card, so there is no payment page left to keep Google off.)
  * - Google signals and ad personalization are off, and we never call setUserId.
  *
  * Turning it off later stops collection, deletes the `_ga` cookies Google set, and deletes
@@ -51,7 +50,7 @@ export function FirebaseAnalytics() {
       return;
     }
     const page = redactAnalyticsUrl(window.location.href);
-    if (page === null || isCardPage(window.location.pathname)) {
+    if (page === null) {
       void pause();
       return;
     }
@@ -105,12 +104,7 @@ async function track(page: string) {
   });
 }
 
-/** The client wallet: card picking and authorization (§2.4). No Google script on it. */
-function isCardPage(pathname: string) {
-  return pathname === "/wallet" || pathname.startsWith("/wallet/");
-}
-
-/** On /agent or /wallet: collection off if it ever started, and never started from here. */
+/** On /agent: collection off if it ever started, and never started from here. */
 async function pause() {
   if (!started) return;
   const ready = await started;

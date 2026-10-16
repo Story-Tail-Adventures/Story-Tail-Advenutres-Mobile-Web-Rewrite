@@ -4,14 +4,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { callAgentFunction } from "@/lib/agent/api";
-import { SCHEDULE_COPY } from "@/lib/agent/content";
+import { PAYMENTS_COPY, SCHEDULE_COPY } from "@/lib/agent/content";
 import {
   dollarsToCents,
   isMilestoneStatus,
+  markPaidFromFormData,
   milestoneFromFormData,
+  validateMarkPaid,
   validateMilestone,
+  validatePayLink,
+  type MarkPaidState,
+  type PayLinkState,
   type ScheduleState,
 } from "@/lib/agent/payments";
+import { agentIdentity, localDate } from "@/lib/agent/queries";
 
 /**
  * §3.4.15's three writes.
@@ -19,9 +25,12 @@ import {
  * TWO OF THEM LOOK ALIKE AND ARE NOT. `saveMilestoneAction` changes what the supplier
  * expects; `setMilestoneStatusAction` changes whether the money moved. Only the second can
  * reach `trip.total_paid_cents`, which since 20260929100000 is a trigger-maintained sum and
- * is what `wallet/authorize/[tripId]` subtracts from the trip value to show a traveler
- * their outstanding balance. Keeping them apart at every layer — SQL, route, action, form —
- * is what makes a label edit incapable of moving that number.
+ * is the "paid so far" both the traveler and the advisor read. Keeping them apart at every
+ * layer — SQL, route, action, form — is what makes a label edit incapable of moving that
+ * number.
+ *
+ * §3.6 (2026-10-16) adds two more: `setPayLinkAction` (the pay link, audited in SQL) and
+ * `markPaidAction` (Mark Paid with a date, confirmation number and note).
  */
 
 function schedulePath(tripId: string): string {
@@ -30,6 +39,7 @@ function schedulePath(tripId: string): string {
 
 function revalidateTrip(tripId: string): void {
   revalidatePath(schedulePath(tripId));
+  revalidatePath(`${schedulePath(tripId)}/history`);
   revalidatePath(`/agent/trips/${tripId}`);
   // The roster and the worklist both render a next-payment-due chip off this schedule, and
   // §2.2.3 renders it to the traveler.
@@ -120,5 +130,82 @@ export async function deleteMilestoneAction(form: FormData): Promise<void> {
   });
 
   if (call.ok) revalidateTrip(tripId);
+  redirect(schedulePath(tripId));
+}
+
+/**
+ * §3.6.1b: add, change or remove a milestone's pay link (Data-Model §9.5).
+ *
+ * Checked here first (https only, at most 2,048 characters, never a card number), then by
+ * `agent-trip`'s `payment_link` op with `new URL()`, then by the column's CHECK. A blank
+ * field removes the link. The SQL function writes the audit row (link_set / link_changed /
+ * link_removed) in the same transaction, and a no-op writes nothing.
+ */
+export async function setPayLinkAction(_prev: PayLinkState, form: FormData): Promise<PayLinkState> {
+  const tripId = (form.get("tripId") ?? "").toString();
+  const milestoneId = (form.get("milestoneId") ?? "").toString();
+  const remove = form.get("intent") === "remove";
+  const raw = remove ? "" : (form.get("payUrl") ?? "").toString();
+  if (!tripId || !milestoneId) return { error: PAYMENTS_COPY.failed, value: raw };
+
+  const checked = validatePayLink(raw);
+  if (!checked.ok) return { error: checked.error, value: raw };
+
+  const call = await callAgentFunction("agent-trip", {
+    op: "payment_link",
+    tripId,
+    milestoneId,
+    payUrl: checked.url,
+  });
+  if (!call.ok) {
+    return {
+      error: call.kind === "rejected" ? (call.detail ?? PAYMENTS_COPY.failed) : PAYMENTS_COPY.failed,
+      value: raw,
+    };
+  }
+
+  revalidateTrip(tripId);
+  redirect(schedulePath(tripId));
+}
+
+/**
+ * §3.6.5 Mark Paid: the amount, the date the money landed, and an optional confirmation
+ * number and note. Through `payment_paid`, the same write §3.4.15's status control uses, so
+ * it stays the only thing that can move `trip.total_paid_cents`. Only the advisor does this;
+ * a client's "I've paid" is a message, never a write.
+ */
+export async function markPaidAction(_prev: MarkPaidState, form: FormData): Promise<MarkPaidState> {
+  const tripId = (form.get("tripId") ?? "").toString();
+  const milestoneId = (form.get("milestoneId") ?? "").toString();
+  const values = markPaidFromFormData(form);
+  if (!tripId || !milestoneId) return { formError: PAYMENTS_COPY.failed, values };
+
+  const me = await agentIdentity();
+  const today = localDate(new Date().toISOString(), me.timeZone) ?? new Date().toISOString().slice(0, 10);
+  const fieldErrors = validateMarkPaid(values, today);
+  if (fieldErrors) return { fieldErrors, values };
+
+  const paidCents = values.amount === "" ? undefined : dollarsToCents(values.amount);
+
+  const call = await callAgentFunction("agent-trip", {
+    op: "payment_paid",
+    tripId,
+    milestoneId,
+    status: "paid",
+    paidCents: paidCents === null ? undefined : paidCents,
+    paidOn: values.paidOn,
+    // Blank clears a stored value on the SQL side; a typed value replaces it.
+    paidReference: values.reference,
+    paidNote: values.note,
+  });
+
+  if (!call.ok) {
+    return {
+      formError: call.kind === "rejected" ? (call.detail ?? PAYMENTS_COPY.failed) : PAYMENTS_COPY.failed,
+      values,
+    };
+  }
+
+  revalidateTrip(tripId);
   redirect(schedulePath(tripId));
 }

@@ -70,7 +70,7 @@ describe("JOIN_TEXT — content integrity", () => {
     expect(JOIN_TEXT.bullets).toEqual([
       "Save searches & favorites",
       "View Gyasi's curated proposals",
-      "Authorize cards securely · paid to suppliers, not us",
+      "Pay suppliers directly · nothing goes through us",
     ]);
   });
 });

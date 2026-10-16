@@ -153,15 +153,9 @@ export default async function TripUpdatePage({
         <MuiButton component={NextLink} href={primary.href} variant="contained" fullWidth sx={BTN}>
           {primary.label} <Icon name="arrow_right" size={13} />
         </MuiButton>
-
-        {/* The payment CTA the artboard shows, live now that §2.4.3 exists. It rendered
-            disabled under the plan's "build them visually, disabled" decision; the point of
-            that decision was that the button keeps its place until the screen arrives. */}
-        {update.nextPayment && (
-          <MuiButton component={NextLink} href={`/wallet/authorize/${tripId}`} variant="outlined" fullWidth sx={BTN}>
-            <Icon name="card" size={14} /> {STATUS_CHANGE.authorizeCard}
-          </MuiButton>
-        )}
+        {/* The artboard's "Authorize a card" CTA is gone with §2.4 (retired 2026-10-16): the
+            app never holds a card. The next payment is in "What changed" above, and its pay
+            link lives on the trip's payment timeline, which the primary action opens. */}
       </Box>
     </Box>
   );

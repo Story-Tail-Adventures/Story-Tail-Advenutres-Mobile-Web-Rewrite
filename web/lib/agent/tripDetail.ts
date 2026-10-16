@@ -8,8 +8,11 @@ import {
   type AgentTripMessageRow,
   type AgentTripOverviewRow,
   type AgentTripOpenCommissionRow,
+  type AgentTripPaymentHistoryRow,
   type AgentTripPaymentRow,
 } from "@/lib/agent/api";
+import { toPaymentHistory, type PaymentHistoryEntry } from "@/lib/agent/paymentHistory";
+import { paySiteName } from "@/lib/trips/payLink";
 import { COMMISSION_STATUS_FILTERS } from "@/lib/agent/commissionFilters";
 import { agentIdentity, cents, localDate, monthDay, money } from "@/lib/agent/queries";
 import type { IconName } from "@/components/ui/icon-paths";
@@ -60,7 +63,6 @@ export type TripDetailOverview = {
   refundDetail: string | null;
   notes: string | null;
   version: number;
-  cardOnFile: string | null;
   lastActivityLabel: string | null;
   componentCount: number;
   manualComponentCount: number;
@@ -84,13 +86,6 @@ async function loadOverview(tripId: string): Promise<TripOverviewResult> {
   const r = res.rows[0];
   if (!r) return { ok: false, reason: "not-found" };
 
-  const cardOnFile =
-    r.card_last4 && r.card_brand
-      ? `${r.card_brand.toUpperCase()} •••• ${r.card_last4}${
-          r.card_spending_limit_cents ? ` · ${money(r.card_spending_limit_cents, r.currency)} cap` : ""
-        }`
-      : null;
-
   const overview: TripDetailOverview = {
     tripId: r.trip_id,
     clientId: r.client_id,
@@ -110,7 +105,6 @@ async function loadOverview(tripId: string): Promise<TripOverviewResult> {
     refundDetail: r.refund_detail,
     notes: r.notes,
     version: r.version,
-    cardOnFile,
     lastActivityLabel: r.last_activity_at
       ? monthDay(localDate(r.last_activity_at, me.timeZone))
       : null,
@@ -359,6 +353,17 @@ export type TripPaymentRow = {
   /** For the sidebar's status dot: paid is good, an unpaid/overdue row is warn. */
   dot: "good" | "warn";
   /**
+   * §3.6.1 (2026-10-16). The pay link as stored, its site name (lower case, no `www.`,
+   * punycode: what the client sees), and whether it is a Travefy invoice. All null when the
+   * milestone has no link.
+   */
+  payUrl: string | null;
+  paySite: string | null;
+  isTravefyInvoice: boolean;
+  /** From Mark Paid: the supplier's confirmation number (client-visible) and the advisor's note (internal). */
+  paidReference: string | null;
+  paidNote: string | null;
+  /**
    * The same row unformatted, for §3.4.15's editor — the arrangement
    * `TripComponentRow.edit` already uses, and for the same reason: one accessor, one
    * mapping, and the editor's row is one the list already returned.
@@ -391,12 +396,31 @@ async function loadPayments(tripId: string): Promise<TripPaymentRow[] | null> {
     paidOnLabel: monthDay(p.paid_at ? p.paid_at.slice(0, 10) : null),
     status: p.status,
     dot: p.status === "paid" ? "good" : "warn",
+    payUrl: p.pay_url ?? null,
+    paySite: paySiteName(p.pay_url),
+    isTravefyInvoice: isTravefyHost(paySiteName(p.pay_url)),
+    paidReference: p.paid_reference ?? null,
+    paidNote: p.paid_note ?? null,
     edit: {
       amountCents: p.amount_cents,
       paidCents: p.paid_cents,
       dueDate: p.due_date,
     },
   }));
+}
+
+function isTravefyHost(site: string | null): boolean {
+  return site !== null && (site === "travefy.com" || site.endsWith(".travefy.com"));
+}
+
+/** §3.6.6 Payment History, newest first. `null` when the read failed. */
+async function loadPaymentHistory(tripId: string): Promise<PaymentHistoryEntry[] | null> {
+  const [me, res] = await Promise.all([
+    agentIdentity(),
+    callAgentRead<AgentTripPaymentHistoryRow>("agent_trip_payment_history", { p_trip_id: tripId }),
+  ]);
+  if (!res.ok) return null;
+  return toPaymentHistory(res.rows, me.timeZone);
 }
 
 export type TripDocumentRow = {
@@ -518,6 +542,7 @@ export const loadTripOpenCommission = loadOpenCommission;
 export const loadTripComponents = loadComponents;
 export const loadTripItinerary = loadItinerary;
 export const loadTripPayments = loadPayments;
+export const loadTripPaymentHistory = loadPaymentHistory;
 export const loadTripDocuments = loadDocuments;
 export const loadTripMessages = loadMessages;
 export const loadTripActivity = loadActivity;

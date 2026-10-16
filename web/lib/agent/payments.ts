@@ -1,4 +1,5 @@
-import { SCHEDULE_COPY } from "@/lib/agent/content";
+import { PAYMENTS_COPY, SCHEDULE_COPY } from "@/lib/agent/content";
+import { PAID_NOTE_MAX, PAID_REFERENCE_MAX, checkPayUrl, looksLikeCardNumber } from "@/lib/trips/payLink";
 
 /**
  * §3.4.15 Trip Payment Schedule's vocabulary and form shape.
@@ -11,9 +12,10 @@ import { SCHEDULE_COPY } from "@/lib/agent/content";
  *
  * `agent_upsert_payment_milestone` says what the supplier expects and when;
  * `agent_set_milestone_paid` says whether the money moved. Only the second may touch
- * `trip.total_paid_cents`, which `wallet/authorize/[tripId]` subtracts from the trip's value
- * to show a traveler their outstanding balance. That separation is the whole shape of this
- * screen, so it is two sets of values here rather than one.
+ * `trip.total_paid_cents`, the "paid so far" a traveler and the advisor both read. That
+ * separation is the whole shape of this screen, so it is two sets of values here rather
+ * than one. (§3.6's pay link is a third write, `agent_set_milestone_pay_url`, and touches
+ * neither.)
  */
 
 /** `payment_milestone_kind`, exactly. */
@@ -139,4 +141,80 @@ export function validateMilestone(
  */
 export function nextUnpaidMilestone<T extends { milestoneId: string; status: string }>(rows: readonly T[]): T | null {
   return rows.find((r) => r.status === "scheduled" || r.status === "overdue") ?? null;
+}
+
+/* ── §3.6 pay links and Mark paid (ruled 2026-10-16) ─────────────────────────────────── */
+
+export type PayLinkState = {
+  /** The sentence to show under the field, or nothing. */
+  error?: string;
+  /** What was typed, kept so a refusal does not empty the field. */
+  value?: string;
+};
+
+/**
+ * The pay link field, checked on the web before the Edge Function and the database check it
+ * again (Data-Model §9.5): https only, at most 2,048 characters, never a card number. An
+ * empty value means remove the link.
+ */
+export function validatePayLink(raw: string): { ok: true; url: string | null } | { ok: false; error: string } {
+  const check = checkPayUrl(raw);
+  if (check.ok) return check;
+  const error =
+    check.reason === "card"
+      ? PAYMENTS_COPY.linkCard
+      : check.reason === "length"
+        ? PAYMENTS_COPY.linkTooLong
+        : PAYMENTS_COPY.linkNotHttps;
+  return { ok: false, error };
+}
+
+export type MarkPaidValues = {
+  /** Dollars as typed; blank means the whole amount. */
+  amount: string;
+  /** ISO `yyyy-mm-dd`. */
+  paidOn: string;
+  reference: string;
+  note: string;
+};
+
+export type MarkPaidState = {
+  fieldErrors?: Partial<Record<keyof MarkPaidValues, string>>;
+  formError?: string;
+  values?: MarkPaidValues;
+};
+
+export function markPaidFromFormData(form: FormData): MarkPaidValues {
+  const text = (name: string) => (form.get(name) ?? "").toString().trim();
+  return {
+    amount: text("amount"),
+    paidOn: text("paidOn"),
+    reference: text("reference"),
+    note: text("note"),
+  };
+}
+
+/**
+ * Mark Paid's fields (Screen-Inventory §3.6.5). `today` is the advisor's own date, so a
+ * future date is refused here as the SQL refuses it. The confirmation number and the note
+ * are refused, not masked, when they hold a card-shaped number (Data-Model §9.5).
+ */
+export function validateMarkPaid(
+  values: MarkPaidValues,
+  today: string,
+): Partial<Record<keyof MarkPaidValues, string>> | null {
+  const errors: Partial<Record<keyof MarkPaidValues, string>> = {};
+
+  if (values.amount !== "" && dollarsToCents(values.amount) === null) {
+    errors.amount = PAYMENTS_COPY.paidAmountInvalid;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(values.paidOn) || Number.isNaN(Date.parse(`${values.paidOn}T00:00:00Z`)) || values.paidOn > today) {
+    errors.paidOn = PAYMENTS_COPY.paidDateInvalid;
+  }
+  if (values.reference.length > PAID_REFERENCE_MAX) errors.reference = PAYMENTS_COPY.paidReferenceTooLong;
+  else if (looksLikeCardNumber(values.reference)) errors.reference = PAYMENTS_COPY.paidCardLike;
+  if (values.note.length > PAID_NOTE_MAX) errors.note = PAYMENTS_COPY.paidNoteTooLong;
+  else if (looksLikeCardNumber(values.note)) errors.note = PAYMENTS_COPY.paidCardLike;
+
+  return Object.keys(errors).length > 0 ? errors : null;
 }

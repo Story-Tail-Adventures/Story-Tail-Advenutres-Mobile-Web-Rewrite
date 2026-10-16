@@ -146,18 +146,6 @@ describe("FirebaseAnalytics", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("does not start on the card pages under /wallet even with a yes", async () => {
-    window.localStorage.setItem(KEY, "granted");
-    window.history.replaceState(null, "", "/wallet/authorize/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b");
-    nav.pathname = "/wallet/authorize/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
-    const { FirebaseAnalytics } = await load();
-    renderWithTheme(<FirebaseAnalytics />);
-    await act(async () => {});
-    expect(sdk.initializeAnalytics).not.toHaveBeenCalled();
-    expect(sdk.logEvent).not.toHaveBeenCalled();
-    window.history.replaceState(null, "", "/");
-  });
-
   it("on a no, deletes the IndexedDB stores where Firebase keeps its installation id", async () => {
     const deleteDatabase = vi.fn();
     vi.stubGlobal("indexedDB", { deleteDatabase });

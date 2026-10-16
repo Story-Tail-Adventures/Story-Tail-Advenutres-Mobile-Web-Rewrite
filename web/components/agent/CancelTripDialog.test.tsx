@@ -36,7 +36,6 @@ const OVERVIEW: TripDetailOverview = {
   refundDetail: null,
   notes: null,
   version: 3,
-  cardOnFile: null,
   lastActivityLabel: null,
   componentCount: 0,
   manualComponentCount: 0,

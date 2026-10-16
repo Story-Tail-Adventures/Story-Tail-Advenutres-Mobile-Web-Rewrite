@@ -18,7 +18,10 @@ import {
 import NextLink from "@/components/mui/NextLink";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { SCHEDULE_COPY } from "@/lib/agent/content";
+import Chip from "@mui/material/Chip";
+
+import { PAYMENTS_COPY, SCHEDULE_COPY } from "@/lib/agent/content";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import { MILESTONE_STATUSES, centsToDollars } from "@/lib/agent/payments";
 import type { TripPaymentRow } from "@/lib/agent/tripDetail";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
@@ -47,6 +50,15 @@ import { OutlinedNativeSelect } from "@/components/mui/OutlinedNativeSelect";
  * under it), the status form, and the row's Edit and Remove. Every form, name, value, id,
  * label and action is the one the card list posted. The row being edited keeps
  * `aria-current="true"` and the primary-container tint.
+ *
+ * §3.6.1 TRIP PAYMENTS (ruled 2026-10-16) is drawn onto these same rows rather than as a
+ * second list (A361_TripPayments): a Pay link column (the site name, the full link in its
+ * `title`, a "Travefy invoice" tag, and an edit button, or "No pay link yet" with "Add a pay
+ * link"), and on an open row "Mark paid" (§3.6.5) and "Send link" (§3.6.2, the "Remind the
+ * client" flow pointed at that row). Send link stays off until the row has a link, and says
+ * why. The site name is read from the link itself, exactly as the client sees it. No MUI
+ * Tooltip: it clones its child, which a Server Component cannot hand it; the native `title`
+ * carries the full address instead.
  */
 
 /** The legacy `.btn.btn-sm` box on an MUI Button: 32px tall, 16px sides, 8px icon gap. */
@@ -54,10 +66,12 @@ const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as co
 
 export function PaymentScheduleTable({
   tripId,
+  clientId,
   payments,
   editingId,
 }: {
   tripId: string;
+  clientId: string;
   payments: TripPaymentRow[];
   editingId: string | null;
 }) {
@@ -88,6 +102,7 @@ export function PaymentScheduleTable({
             <TableCell scope="col">{SCHEDULE_COPY.colLabel}</TableCell>
             <TableCell scope="col" align="right">{SCHEDULE_COPY.colAmount}</TableCell>
             <TableCell scope="col">{SCHEDULE_COPY.colStatus}</TableCell>
+            <TableCell scope="col">{PAYMENTS_COPY.colPayLink}</TableCell>
             {/* The actions column has no heading; its controls name themselves. */}
             <TableCell scope="col" />
           </TableRow>
@@ -95,6 +110,8 @@ export function PaymentScheduleTable({
         <TableBody>
           {payments.map((p) => {
             const isEditing = p.milestoneId === editingId;
+            const open = p.status === "scheduled" || p.status === "overdue";
+            const base = `/agent/trips/${tripId}/payments`;
             return (
               <TableRow
                 key={p.milestoneId}
@@ -180,8 +197,92 @@ export function PaymentScheduleTable({
                   </Box>
                 </TableCell>
 
+                {/* ── Pay link (§3.6.1) ───────────────────────────────────── */}
+                <TableCell sx={{ minWidth: 170 }}>
+                  {p.paySite && p.payUrl ? (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
+                      <Box
+                        component="span"
+                        title={p.payUrl}
+                        sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, color: "text.secondary" }}
+                      >
+                        <Icon name="link" size={13} />
+                        <Typography component="span" variant="body2" sx={{ fontWeight: 500, color: "text.primary" }}>
+                          {p.paySite}
+                        </Typography>
+                      </Box>
+                      {p.isTravefyInvoice && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={PAYMENTS_COPY.travefyChip}
+                          sx={{ height: 20, fontSize: 10.5 }}
+                        />
+                      )}
+                      <MuiButton
+                        component={NextLink}
+                        href={`${base}?link=${p.milestoneId}`}
+                        variant="text"
+                        size="small"
+                        aria-label={PAYMENTS_COPY.editLinkAria(p.label)}
+                        sx={{ minHeight: 28, px: "8px", minWidth: 0 }}
+                      >
+                        {PAYMENTS_COPY.editLink}
+                      </MuiButton>
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Typography component="span" variant="caption" sx={{ color: "text.secondary" }}>
+                        {PAYMENTS_COPY.noLink}
+                      </Typography>
+                      <MuiButton
+                        component={NextLink}
+                        href={`${base}?link=${p.milestoneId}`}
+                        variant="text"
+                        size="small"
+                        sx={BTN_SM}
+                      >
+                        <Icon name="plus" size={12} /> {PAYMENTS_COPY.addLink}
+                        <Box component="span" sx={VISUALLY_HIDDEN}> — {p.label}</Box>
+                      </MuiButton>
+                    </Box>
+                  )}
+                </TableCell>
+
                 <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                   <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                    {open && (
+                      <>
+                        <MuiButton
+                          component={NextLink}
+                          href={`${base}?paid=${p.milestoneId}`}
+                          variant="outlined"
+                          color="secondary"
+                          size="small"
+                          sx={BTN_SM}
+                        >
+                          {PAYMENTS_COPY.markPaid}
+                          <Box component="span" sx={VISUALLY_HIDDEN}> — {p.label}</Box>
+                        </MuiButton>
+                        {p.payUrl ? (
+                          <MuiButton
+                            component={NextLink}
+                            href={newMessageHref(clientId, tripId, p.milestoneId)}
+                            variant="text"
+                            size="small"
+                            sx={BTN_SM}
+                          >
+                            <Icon name="send" size={12} /> {PAYMENTS_COPY.sendLink}
+                            <Box component="span" sx={VISUALLY_HIDDEN}> — {p.label}</Box>
+                          </MuiButton>
+                        ) : (
+                          <Button type="button" variant="text" size="sm" disabled title={PAYMENTS_COPY.sendLinkNeedsLink}>
+                            {PAYMENTS_COPY.sendLink}
+                            <Box component="span" sx={VISUALLY_HIDDEN}>. {PAYMENTS_COPY.sendLinkNeedsLink}</Box>
+                          </Button>
+                        )}
+                      </>
+                    )}
                     <MuiButton
                       component={NextLink}
                       href={`/agent/trips/${tripId}/payments?edit=${p.milestoneId}`}

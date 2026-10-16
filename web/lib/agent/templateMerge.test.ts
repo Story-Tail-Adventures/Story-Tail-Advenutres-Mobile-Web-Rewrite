@@ -22,10 +22,13 @@ const doubleQuoted = (s: string | undefined) => [...(s ?? "").matchAll(/"([^"]+)
 describe("the three copies of the field list agree", () => {
   // The Deno tests run without file access, so this side checks all three.
   const sql = readFileSync(resolve(ROOT, "supabase/migrations/20261016120000_agent_message_templates.sql"), "utf8");
+  // 20261021120000 (§3.6, 2026-10-16) redefines the field list with `payment.link` and the
+  // starters with a pay-link line. The LATEST definition is the live one.
+  const latest = readFileSync(resolve(ROOT, "supabase/migrations/20261021120000_supplier_pay_links.sql"), "utf8");
   const deno = readFileSync(resolve(ROOT, "supabase/functions/_shared/messageTemplate.ts"), "utf8");
 
   it("merge fields: migration, Edge Functions and web", () => {
-    const fromSql = quoted(sql.match(/message_template_fields\(\)[\s\S]*?ARRAY\[([\s\S]*?)\]::text\[\]/)?.[1]);
+    const fromSql = quoted(latest.match(/message_template_fields\(\)[\s\S]*?ARRAY\[([\s\S]*?)\]::text\[\]/)?.[1]);
     const fromDeno = doubleQuoted(deno.match(/MERGE_FIELDS = \[([\s\S]*?)\] as const/)?.[1]);
     expect(fromSql).toEqual([...MERGE_FIELDS]);
     expect(fromDeno).toEqual([...MERGE_FIELDS]);
@@ -42,6 +45,14 @@ describe("the three copies of the field list agree", () => {
     const bodies = [...sql.matchAll(/\$body\$([\s\S]*?)\$body\$/g)].map((m) => m[1]);
     expect(bodies).toHaveLength(7);
     for (const body of bodies) expect(unknownTokens(body)).toEqual([]);
+    const current = [...latest.matchAll(/\$body\$([\s\S]*?)\$body\$/g)].map((m) => m[1]);
+    expect(current.length).toBeGreaterThanOrEqual(7);
+    for (const body of current) expect(unknownTokens(body)).toEqual([]);
+  });
+
+  it("the current payment reminder starter carries the pay link", () => {
+    const bodies = [...latest.matchAll(/\$body\$([\s\S]*?)\$body\$/g)].map((m) => m[1]);
+    expect(bodies.some((b) => b.includes("{{payment.link}}"))).toBe(true);
   });
 });
 
@@ -84,6 +95,7 @@ describe("mergeValues", () => {
     paymentOwedCents: "200000",
     paymentCurrency: "USD",
     paymentDueDate: "2026-11-02",
+    paymentLink: "https://www.sandals.com/pay/SRB-220119",
   };
 
   it("formats every field", () => {
@@ -96,6 +108,7 @@ describe("mergeValues", () => {
       "payment.label": "Final balance",
       "payment.amount": "$2,000",
       "payment.dueDate": "Nov 2, 2026",
+      "payment.link": "https://www.sandals.com/pay/SRB-220119",
     });
   });
 
@@ -110,8 +123,15 @@ describe("mergeValues", () => {
       paymentOwedCents: null,
       paymentCurrency: null,
       paymentDueDate: null,
+      paymentLink: null,
     });
     expect(Object.keys(general).sort()).toEqual(["agent.firstName", "client.firstName"]);
+  });
+
+  it("leaves payment.link missing when the milestone has no link", () => {
+    const values = mergeValues({ ...maya, paymentLink: null });
+    expect(values["payment.link"]).toBeUndefined();
+    expect(renderTemplate("Pay here: {{payment.link}}", values).missing).toEqual(["payment.link"]);
   });
 
   it("an owed amount of zero is still a value", () => {
