@@ -1975,6 +1975,7 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 | `is_internal_note` | `boolean` | No | Internal | If true, only agent sees |
 | `read_by_other_at` | `timestamptz` | Yes | Internal | Read receipts |
 | `channel` | `text` | No | Public | `app` or `email`; default `app`. Specified for §3.10 Stage 4 (not built): `email` marks a client reply that arrived by email (§12.10), so the thread can say "by email" |
+| `emailed_at` | `timestamptz` | Yes | Internal | Specified for §3.10 Stage 4 (not built). Set by `email-dispatch` on every advisor reply an email carried, when the SMTP server accepts it; drives the advisor-only "Emailed" mark (§23). Withheld from the client grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
@@ -2178,8 +2179,8 @@ sits in this table.
 **Who gets an email.** Only a client who can sign in (a `platform_user` with role `client`),
 sent to that account's **verified** email, never the advisor-typed `client.email`: an email
 whose link needs a session and whose reply needs a sender is no use to someone with no account,
-and an unverified address could be anyone's. Otherwise the row ends `skipped`. Open question
-(§23): clients without an account.
+and an unverified address could be anyone's. Otherwise the row ends `skipped`. Settled
+2026-10-16: such clients are skipped and the advisor is warned in the thread (§23).
 
 **What an email carries:** the advisor's replies in order, card numbers masked to the last four
 exactly as §12.7's notifications do, attachment **names only**, an "Open the conversation" link
@@ -3481,14 +3482,16 @@ the §16 migration is written. The first four were settled with Gyasi the same d
 
 **Email (§12.8 to §12.10, added 2026-10-16).** Settle before the Stage 4 migration is written.
 
-- **Clients with no account.** An advisor can start a thread with a client who cannot sign in,
-  and email would be the only way that client hears anything. As specified they are skipped
-  (`skip_reason = 'no_account'`): the link needs a session and a reply needs a
-  `message.sender_user_id`. Recommendation: keep the skip for Stage 4 and, in the thread, tell
-  the advisor "Kai can't sign in yet, so this won't reach them by email"; the real fix is
-  inviting them (§6.7), not emailing an unverified address.
-- **Should the advisor see that an email went?** A small "Emailed" mark under a reply would
-  read from §12.8's `sent_at`. Not ruled.
+- ~~**Clients with no account.**~~ **Settled 2026-10-16 (Gyasi): skipped, with a warning.**
+  A client who cannot sign in gets no email (`skip_reason = 'no_account'`): the link needs a
+  session and a reply needs a `message.sender_user_id`. The advisor's thread says so above the
+  reply box ("Kai can't sign in yet, so replies won't reach them by email"). The fix is inviting
+  them (§6.7), never emailing an unverified address.
+- ~~**Should the advisor see that an email went?**~~ **Settled 2026-10-16 (Gyasi): yes.** An
+  "Emailed" mark under each advisor reply that an email carried, read from
+  `message.emailed_at` (§12.2), which `email-dispatch` stamps when IONOS accepts the email. A
+  column rather than a lookup into §12.8, whose finished rows are deleted after 30 days.
+  Advisor-only (the client never sees it); web and phone.
 
 ---
 

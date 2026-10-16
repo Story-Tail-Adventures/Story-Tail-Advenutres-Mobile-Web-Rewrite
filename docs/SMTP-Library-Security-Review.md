@@ -4,7 +4,8 @@ Written 2026-10-16. CLAUDE.md requires a security review before any new third-pa
 sends client email through IONOS SMTP from an Edge Function (`docs/Email-Provider-Review.md` §6),
 and Deno has no SMTP client built in, so something has to speak SMTP. This picks it.
 
-Status: **recommendation, for Gyasi's approval.** Nothing is added to the repo yet.
+Status: **approved by Gyasi 2026-10-16: nodemailer 10.0.14.** Nothing is added to the repo yet;
+§5 binds the build.
 
 ## 1. What the library will be trusted with
 

@@ -3343,7 +3343,9 @@ Preferences (3.12.3).
 > replying**: a per-thread reply address at `reply.story-tail.com` (received by Resend) puts the
 > reply in the thread. Attachments by name only. Each email has a "Stop emailing me about
 > messages" link. Supabase Auth mail moves to the same SMTP. Comparison, security review and
-> every ruling: `docs/Email-Provider-Review.md`.
+> every ruling: `docs/Email-Provider-Review.md`. **On the advisor's thread** (web and phone): an
+> "Emailed" mark under each reply an email carried, and, for a client who cannot sign in, a line
+> above the reply box saying replies won't reach them by email (Gyasi, 2026-10-16; Data-Model §23).
 
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").
