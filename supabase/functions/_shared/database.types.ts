@@ -264,7 +264,7 @@ export type Database = {
           id: string
           ip_address: unknown
           result: string
-          user_agent: string
+          user_agent: string | null
         }
         Insert: {
           account_id?: string | null
@@ -273,9 +273,9 @@ export type Database = {
           event_type: Database["public"]["Enums"]["auth_event_type"]
           failure_reason?: string | null
           id: string
-          ip_address: unknown
+          ip_address?: unknown
           result: string
-          user_agent: string
+          user_agent?: string | null
         }
         Update: {
           account_id?: string | null
@@ -286,7 +286,7 @@ export type Database = {
           id?: string
           ip_address?: unknown
           result?: string
-          user_agent?: string
+          user_agent?: string | null
         }
         Relationships: [
           {
@@ -294,6 +294,39 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auth_event_flag: {
+        Row: {
+          auth_event_id: string
+          created_at: string
+          flagged_by_agent_id: string
+        }
+        Insert: {
+          auth_event_id: string
+          created_at?: string
+          flagged_by_agent_id: string
+        }
+        Update: {
+          auth_event_id?: string
+          created_at?: string
+          flagged_by_agent_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_event_flag_auth_event_id_fkey"
+            columns: ["auth_event_id"]
+            isOneToOne: true
+            referencedRelation: "auth_event"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auth_event_flag_flagged_by_agent_id_fkey"
+            columns: ["flagged_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
             referencedColumns: ["id"]
           },
         ]
@@ -3320,6 +3353,75 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      account_admin_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      account_admin_claim_signin_email: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_kind: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
+      account_admin_lock_client: {
+        Args: { p_agent_id: string; p_client_id: string }
+        Returns: boolean
+      }
+      account_admin_set_flag: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_auth_event_id: string
+          p_client_id: string
+          p_flag: boolean
+          p_ip?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
+      account_admin_set_lock: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_lock: boolean
+          p_reason: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
+      account_admin_sign_out_everywhere: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_user_agent?: string
+        }
+        Returns: number
+      }
+      account_admin_target: {
+        Args: { p_agent_id: string; p_client_id: string }
+        Returns: Json
+      }
       agent_apply_template: {
         Args: { p_agent_id: string; p_template_id: string; p_trip_id: string }
         Returns: {
@@ -3402,6 +3504,10 @@ export type Database = {
           to_status: Database["public"]["Enums"]["trip_status"]
           version: number
         }[]
+      }
+      agent_client_account_admin: {
+        Args: { p_client_id: string }
+        Returns: Json
       }
       agent_client_activity: {
         Args: { p_client_id: string; p_limit?: number }
