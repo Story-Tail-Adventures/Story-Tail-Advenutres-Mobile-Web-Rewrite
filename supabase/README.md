@@ -360,7 +360,9 @@ supabase secrets set --project-ref <prod-ref> \
 ```
 
 IONOS sends only From an address on the mailbox's own domain, so `EMAIL_FROM_ADDRESS` is the
-mailbox itself. Without these `email-dispatch` answers 500 BEFORE claiming, so rows wait.
+mailbox itself. Production uses `info@adventures.story-tail.com`, the mailbox Supabase Auth's SMTP
+settings already use (Auth's settings are not readable by functions, so set the login here too;
+change the password in both places). Without these `email-dispatch` answers 500 BEFORE claiming, so rows wait.
 
 **The tick.** `email_dispatch_tick()` runs every minute and reuses `cruise_sync_service_role_key`:
 

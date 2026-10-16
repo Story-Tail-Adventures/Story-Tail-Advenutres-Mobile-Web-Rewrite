@@ -174,6 +174,12 @@ security review~~ (written 2026-10-16: `docs/SMTP-Library-Security-Review.md`, n
 IONOS on `adventures.story-tail.com` if not already there, DMARC, and the `reply.story-tail.com`
 MX).
 
+Third, same day: **the app-only mailbox is `info@adventures.story-tail.com`** (Gyasi). It already
+sends Supabase Auth's mail, and nobody reads or writes to it, so it is app-only in fact. The Edge
+Functions cannot read Auth's SMTP settings, so the same login is set again as `EMAIL_SMTP_*`
+secrets, on port 465. Two consequences: a password change must be made in BOTH places, and if
+`info@` ever becomes a public contact address, the app moves to a mailbox of its own first.
+
 What this changes in §2 to §4: Resend's 100 a day and 3,000 a month now count only inbound
 replies. Sending over SMTP from Deno needs an **SMTP library**, a new third-party dependency, so
 it gets its own security review before it is added (CLAUDE.md: no new SDK without one). Two
