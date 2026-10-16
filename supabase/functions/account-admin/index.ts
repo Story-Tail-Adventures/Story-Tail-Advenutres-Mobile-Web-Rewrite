@@ -81,6 +81,13 @@ interface Snapshot {
   invitedAt?: string | null;
   hasPassword?: boolean;
   lockedAt?: string | null;
+  bannedUntil?: string | null;
+  duplicateSignInEmail?: boolean;
+}
+
+/** A GoTrue ban still in force. Normally only with lockedAt; alone, a lock's row half failed. */
+function banned(s: Snapshot): boolean {
+  return Boolean(s.bannedUntil && Date.parse(s.bannedUntil) > Date.now());
 }
 
 function json(body: unknown, status = 200): Response {
@@ -145,7 +152,7 @@ function emailRefusal(kind: SignInEmailKind, s: Snapshot): string | null {
     return null;
   }
   if (!s.hasSignIn) return "They haven't signed in yet. Send an invite instead.";
-  if (s.lockedAt) return "Their account is locked. Unlock it first.";
+  if (s.lockedAt || banned(s)) return "Their account is locked. Unlock it first.";
   if (kind === "reset" && !s.hasPassword) return "They sign in with Google or Apple, so there's no password to reset.";
   return null;
 }
@@ -288,18 +295,37 @@ Deno.serve(async (req) => {
         return json({ outcome: "refused", reason: "They haven't signed in yet." });
       }
       if (s.emailVerifiedAt) return json({ outcome: "noop" });
-      if (s.duplicateEmail) {
+      // The adoption trigger matches the SIGN-IN address. If the record's address was edited
+      // away from it, the duplicate check on the record proves nothing, so refuse outright.
+      if ((s.signInEmail ?? "").toLowerCase() !== (s.clientEmail ?? "").toLowerCase()) {
+        return json({
+          outcome: "refused",
+          reason: "Their sign-in address and the one on their record are different. Fix the record first.",
+        });
+      }
+      if (s.duplicateEmail || s.duplicateSignInEmail) {
         // Confirming fires the adoption trigger, which would bind this sign-in to that record.
         return json({ outcome: "duplicate", duplicateClientId: s.duplicateEmailClientId });
       }
-      const { error } = await db.auth.admin.updateUserById(s.accountId, { email_confirm: true });
-      if (error) throw new Error(`email confirm failed: ${error.status} ${error.code}`);
+      // Audited BEFORE GoTrue is called (review finding): this is the riskiest op on the tab, and
+      // a confirmation that lands with no record of who made it is the gap rule 3 exists for.
       await writeAuditEvent(ctx, {
         eventType: "client.email_verified_manually",
         targetEntity: "client",
         targetId: clientId,
         metadata: { accountId: s.accountId, note },
+        when: "before",
       });
+      const { error } = await db.auth.admin.updateUserById(s.accountId, { email_confirm: true });
+      if (error) {
+        await writeAuditEvent(ctx, {
+          eventType: "client.email_verify_failed",
+          targetEntity: "client",
+          targetId: clientId,
+          metadata: { accountId: s.accountId, status: error.status ?? null, code: error.code ?? null },
+        });
+        throw new Error(`email confirm failed: ${error.status} ${error.code}`);
+      }
       return json({ outcome: "changed" });
     }
 
@@ -311,7 +337,9 @@ Deno.serve(async (req) => {
         return json({ outcome: "refused", reason: "They haven't signed in yet." });
       }
       const lock = op === "lock";
-      if (lock === Boolean(s.lockedAt)) return json({ outcome: "noop" });
+      // A ban with no row (a lock whose second half failed and could not be undone) still
+      // blocks sign-in, so Unlock must not call that a no-op.
+      if (lock ? Boolean(s.lockedAt) : !s.lockedAt && !banned(s)) return json({ outcome: "noop" });
 
       const ban = (duration: string) =>
         db.auth.admin.updateUserById(s.accountId!, { ban_duration: duration });

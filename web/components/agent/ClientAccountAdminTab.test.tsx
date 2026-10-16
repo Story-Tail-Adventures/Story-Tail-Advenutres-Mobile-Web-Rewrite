@@ -33,6 +33,7 @@ const ACCOUNT: Extract<AccountAdminView, { kind: "account" }> = {
     { id: "e2", when: "May 5 · 11:42 PM", device: "Android · Chrome", ip: null, flagged: true },
   ],
   duplicate: { any: false, clientId: null },
+  addressMismatch: false,
   sendsLeft: 3,
 };
 
@@ -73,7 +74,7 @@ describe("ClientAccountAdminTab", () => {
       sendsLeft: 3,
     });
     expect(screen.getByText("Hasn't signed in yet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Send an invite/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Send an invite/ })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Another client record has this email. Merge them first.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open the other record" })).toHaveAttribute("href", "/agent/clients/c9");
     expect(screen.queryByRole("button", { name: /Send password reset/ })).toBeNull();
@@ -82,21 +83,21 @@ describe("ClientAccountAdminTab", () => {
   it("an account: status, devices and sign-ins, with Merge waiting for PR 2", () => {
     draw(ACCOUNT);
     expect(screen.getByText("Today · 12:00 PM · iPhone · Safari")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Merge duplicate records/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Merge duplicate records/ })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Not recorded")).toBeInTheDocument();
     expect(screen.getByText("Flagged")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Clear flag" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear flag: May 5 · 11:42 PM, Android · Chrome" })).toBeInTheDocument();
   });
 
   it("Google-only: reset is explained, not offered", () => {
     draw({ ...ACCOUNT, socialOnly: "Google", hasPassword: false });
-    expect(screen.getByRole("button", { name: /Send password reset/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Send password reset/ })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("Signs in with Google, so there's no password to reset.")).toBeInTheDocument();
   });
 
   it("capped: the email buttons say why", () => {
     draw({ ...ACCOUNT, sendsLeft: 0 });
-    expect(screen.getByRole("button", { name: /Send a sign-in link/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Send a sign-in link/ })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("lock needs a reason, then sends lock with it", async () => {
@@ -104,7 +105,7 @@ describe("ClientAccountAdminTab", () => {
     draw(ACCOUNT);
     fireEvent.click(screen.getByRole("button", { name: /Lock account/ }));
     const dialog = await screen.findByRole("dialog", { name: "Lock Jordan's account?" });
-    expect(dialog).toHaveTextContent("Signs them out on every device");
+    expect(dialog).toHaveTextContent("Signs them out everywhere");
 
     fireEvent.click(screen.getByRole("button", { name: "Lock account" }));
     expect(await screen.findByText("Add a short reason.")).toBeInTheDocument();
@@ -136,6 +137,21 @@ describe("ClientAccountAdminTab", () => {
     expect(mocks.accountAdminAction).toHaveBeenCalledWith({ clientId: "c1", op: "magic_link", email: "jordan@example.com" });
   });
 
+  it("a blocked tile stays focusable and does nothing when pressed", () => {
+    draw({ ...ACCOUNT, sendsLeft: 0 });
+    const tile = screen.getByRole("button", { name: /Send a sign-in link/ });
+    tile.focus();
+    expect(tile).toHaveFocus();
+    expect(tile).toHaveAccessibleDescription(/3 sign-in emails this hour/);
+    fireEvent.click(tile);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("verify is explained, not offered, when the two addresses differ", () => {
+    draw({ ...ACCOUNT, emailVerified: false, addressMismatch: true });
+    expect(screen.getByRole("button", { name: /Verify email manually/ })).toHaveAttribute("aria-disabled", "true");
+  });
+
   it("verify needs 20 characters of how", async () => {
     draw({ ...ACCOUNT, emailVerified: false });
     fireEvent.click(screen.getByRole("button", { name: /Verify email manually/ }));
@@ -143,20 +159,21 @@ describe("ClientAccountAdminTab", () => {
     fireEvent.change(screen.getByLabelText("How you confirmed it"), { target: { value: "phoned" } });
     fireEvent.click(screen.getByRole("button", { name: "Mark verified" }));
     expect(await screen.findByText("Say a little more about how you confirmed it.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("How you confirmed it")).toHaveFocus());
     expect(mocks.accountAdminAction).not.toHaveBeenCalled();
   });
 
   it("a locked account offers Unlock and blocks the emails", () => {
     draw({ ...ACCOUNT, locked: { reason: "odd device", since: "Today · 1:30 PM" } });
     expect(screen.getByText(/Locked Today · 1:30 PM\./)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Unlock account/ })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /Send a sign-in link/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Unlock account/ })).not.toHaveAttribute("aria-disabled");
+    expect(screen.getByRole("button", { name: /Send a sign-in link/ })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("flag sends the sign-in's id", async () => {
     mocks.accountAdminAction.mockResolvedValue({ ok: true, message: "Done." });
     draw(ACCOUNT);
-    fireEvent.click(screen.getByRole("button", { name: "Flag" }));
+    fireEvent.click(screen.getByRole("button", { name: "Flag: Today · 12:00 PM, iPhone · Safari" }));
     await waitFor(() =>
       expect(mocks.accountAdminAction).toHaveBeenCalledWith({ clientId: "c1", op: "flag", authEventId: "e1" }),
     );

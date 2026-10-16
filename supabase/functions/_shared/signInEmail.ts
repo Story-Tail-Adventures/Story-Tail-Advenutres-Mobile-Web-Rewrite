@@ -113,8 +113,8 @@ function copyFor(kind: SignInEmailKind, agent: string): Copy {
         lead: `${agent} sent you this link because you asked for help signing in to Story-Tail ` +
           `Adventures. It lets you choose a new password.`,
         button: "Choose a new password",
-        after: `The link works once, for the next hour. If you didn't ask for help, you can ` +
-          `ignore this email and nothing will change.`,
+        after: `The link works once, for the next hour. If it runs out, just ask ${agent} for a ` +
+          `new one. If you didn't ask for help, you can ignore this email and nothing will change.`,
       };
     case "magic_link":
       return {
@@ -122,8 +122,9 @@ function copyFor(kind: SignInEmailKind, agent: string): Copy {
         lead: `${agent} sent you this link because you asked for help signing in to Story-Tail ` +
           `Adventures. It signs you straight in, no password needed.`,
         button: "Sign me in",
-        after: `The link works once, for the next hour. If you didn't ask for help, you can ` +
-          `ignore this email and nothing will change.`,
+        after: `The link works once, for the next hour, and it's just for you, so please don't ` +
+          `forward it. If it runs out, just ask ${agent} for a new one. If you didn't ask for ` +
+          `help, you can ignore this email and nothing will change.`,
       };
     case "invite":
       return {

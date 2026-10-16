@@ -33,6 +33,8 @@ export type AccountAdminRow = {
   mfaEnrolled?: boolean;
   lockedAt?: string | null;
   lockedReason?: string | null;
+  bannedUntil?: string | null;
+  duplicateSignInEmail?: boolean;
   lastLoginAt?: string | null;
   sessions?: { id: string; startedAt: string; lastActiveAt: string; userAgent: string | null; ip: string | null }[];
   activity?: { id: string; at: string; userAgent: string | null; ip: string | null; flagged: boolean }[];
@@ -68,6 +70,8 @@ export type AccountAdminView =
       sessions: AccountSession[];
       activity: AccountSignIn[];
       duplicate: { any: boolean; clientId: string | null };
+      /** The sign-in address differs from the record's (an edit since sign-up). */
+      addressMismatch: boolean;
       sendsLeft: number;
     };
 
@@ -107,7 +111,14 @@ export function deviceLabel(ua: string | null | undefined): string {
 }
 
 /** "Oct 16 · 3:42 PM" in the advisor's zone; "Today · …" / "Yesterday · …" when close. */
-export function whenLabel(iso: string, timeZone: string, now: Date = new Date()): string {
+export function whenLabel(iso: string, zone: string, now: Date = new Date()): string {
+  // A bad zone string on the agent row must not take the whole tab down with a RangeError.
+  let timeZone = zone;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+  } catch {
+    timeZone = "America/New_York";
+  }
   const at = new Date(iso);
   const day = (d: Date) =>
     new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -160,7 +171,13 @@ export function toAccountAdminView(row: AccountAdminRow, now: Date = new Date())
     socialOnly: row.hasPassword ? null : social,
     hasPassword: Boolean(row.hasPassword),
     mfaOn: Boolean(row.mfaEnrolled),
-    locked: row.lockedAt ? { reason: row.lockedReason ?? null, since: whenLabel(row.lockedAt, tz, now) } : null,
+    // A GoTrue ban without the row (a lock whose second half failed) still blocks sign-in, so
+    // it reads as locked and Unlock clears it.
+    locked: row.lockedAt
+      ? { reason: row.lockedReason ?? null, since: whenLabel(row.lockedAt, tz, now) }
+      : row.bannedUntil && Date.parse(row.bannedUntil) > now.getTime()
+        ? { reason: null, since: whenLabel(row.bannedUntil, tz, now) }
+        : null,
     lastSignIn: row.lastLoginAt
       ? `${whenLabel(row.lastLoginAt, tz, now)}${latest ? ` · ${deviceLabel(latest.userAgent)}` : ""}`
       : null,
@@ -177,7 +194,9 @@ export function toAccountAdminView(row: AccountAdminRow, now: Date = new Date())
       ip: a.ip,
       flagged: a.flagged,
     })),
-    duplicate,
+    duplicate: { ...duplicate, any: duplicate.any || Boolean(row.duplicateSignInEmail) },
+    addressMismatch:
+      (row.signInEmail ?? "").toLowerCase() !== (row.clientEmail ?? row.signInEmail ?? "").toLowerCase(),
     sendsLeft,
   };
 }

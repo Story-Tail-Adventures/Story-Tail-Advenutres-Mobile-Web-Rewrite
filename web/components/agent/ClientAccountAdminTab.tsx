@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
@@ -277,7 +277,12 @@ function AccountView({
               <ActionTile
                 icon="check"
                 label={C.actionVerify}
-                blocked={view.emailVerified ? C.alreadyVerified : view.duplicate.any ? C.duplicate : null}
+                blocked={
+                  view.emailVerified ? C.alreadyVerified
+                    : view.addressMismatch ? C.addressMismatch
+                    : view.duplicate.any ? C.duplicate
+                    : null
+                }
                 blockedLink={view.emailVerified ? null : view.duplicate.clientId}
                 onClick={() =>
                   open({
@@ -444,6 +449,7 @@ function AccountView({
                           variant="text"
                           size="sm"
                           disabled={rowPending}
+                          aria-label={`${a.flagged ? C.unflag : C.flag}: ${a.when}, ${a.device}`}
                           onClick={() => onFlag(a.id, !a.flagged)}
                         >
                           {a.flagged ? C.unflag : C.flag}
@@ -491,12 +497,16 @@ function ActionTile({
   blockedLink?: string | null;
   onClick?: () => void;
 }) {
+  // aria-disabled, not disabled: a disabled button leaves the tab order, and the reason it
+  // carries would be skipped by exactly the keyboard and screen-reader users who need it.
   const disabled = Boolean(blocked) || !onClick;
+  const reasonId = useId();
   return (
     <Paper variant="outlined" sx={{ overflow: "hidden" }}>
       <ButtonBase
-        onClick={onClick}
-        disabled={disabled}
+        onClick={disabled ? undefined : onClick}
+        aria-disabled={disabled || undefined}
+        aria-describedby={blocked ? reasonId : undefined}
         sx={{
           width: "100%",
           minHeight: 52,
@@ -505,8 +515,7 @@ function ActionTile({
           gap: 1.25,
           justifyContent: "flex-start",
           textAlign: "left",
-          "&.Mui-disabled": { opacity: 0.55 },
-          "&:hover": { bgcolor: "surface.2" },
+          ...(disabled ? { opacity: 0.55, cursor: "default" } : { "&:hover": { bgcolor: "surface.2" } }),
         }}
       >
         <Avatar sx={{ width: 32, height: 32, bgcolor: "surface.3", color: "text.primary", flexShrink: 0 }}>
@@ -517,7 +526,7 @@ function ActionTile({
             {label}
           </Typography>
           {blocked && (
-            <Typography component="span" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
+            <Typography id={reasonId} component="span" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
               {blocked}
             </Typography>
           )}
@@ -550,13 +559,25 @@ function ConfirmDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [shownFor, setShownFor] = useState<ConfirmSpec | null>(null);
+  // What is drawn: the last spec, kept while the dialog fades out, so it does not empty and lose
+  // its name mid-transition when `spec` goes back to null.
+  const [shown, setShown] = useState<ConfirmSpec | null>(null);
+  const [focusField, setFocusField] = useState(0);
 
   // A fresh dialog starts empty; reopening must not show the last action's text or error.
   if (spec !== shownFor) {
     setShownFor(spec);
-    setValue("");
-    setError(null);
+    if (spec) {
+      setShown(spec);
+      setValue("");
+      setError(null);
+    }
   }
+
+  // After a validation error, put the cursor where the fix goes.
+  useEffect(() => {
+    if (focusField && shown?.field) document.getElementById(`account-admin-${shown.field.key}`)?.focus();
+  }, [focusField, shown]);
 
   function submit() {
     if (!spec) return;
@@ -564,6 +585,7 @@ function ConfirmDialog({
     const trimmed = value.trim();
     if (field && trimmed.length < field.min) {
       setError(field.tooShort);
+      setFocusField((n) => n + 1);
       return;
     }
     setError(null);
@@ -590,25 +612,25 @@ function ConfirmDialog({
         if (reason !== "backdropClick" && !pending) onClose();
       }}
       maxWidth={false}
-      slotProps={{ paper: { "aria-label": spec?.title ?? "", sx: PAPER_SX } }}
+      slotProps={{ paper: { "aria-label": shown?.title ?? "", sx: PAPER_SX } }}
     >
-      {spec && (
+      {shown && (
         <DialogContent sx={{ p: 2.5 }}>
           <Typography component="h2" variant="h5" sx={{ m: 0, overflowWrap: "anywhere" }}>
-            {spec.title}
+            {shown.title}
           </Typography>
           <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
-            {spec.body}
+            {shown.body}
           </Typography>
 
-          {spec.field && (
+          {shown.field && (
             <Box sx={{ mt: 1.5 }}>
               <TextareaField
-                id={`account-admin-${spec.field.key}`}
-                label={spec.field.label}
-                hint={spec.field.hint}
+                id={`account-admin-${shown.field.key}`}
+                label={shown.field.label}
+                hint={shown.field.hint}
                 rows={2}
-                placeholder={spec.field.placeholder}
+                placeholder={shown.field.placeholder}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 disabled={pending}
@@ -637,8 +659,8 @@ function ConfirmDialog({
               {C.cancel}
             </Button>
             <Box sx={{ ml: "auto" }}>
-              <Button type="button" variant={spec.danger ? "danger" : "filled"} size="sm" disabled={pending} onClick={submit}>
-                {pending ? C.working : spec.confirm}
+              <Button type="button" variant={shown.danger ? "danger" : "filled"} size="sm" disabled={pending} onClick={submit}>
+                {pending ? C.working : shown.confirm}
               </Button>
             </Box>
           </Box>

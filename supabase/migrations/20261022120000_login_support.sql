@@ -210,6 +210,13 @@ BEGIN
     SELECT u.email,
            u.email_confirmed_at,
            u.invited_at,
+           -- The confirmation trigger adopts by the SIGN-IN address, which can differ from the
+           -- record's after an edit, so duplicates are checked against it too.
+           EXISTS (SELECT 1 FROM public.client o
+                    WHERE o.email = u.email::citext
+                      AND o.id <> v_client.id
+                      AND o.status <> 'merged_into'
+                      AND o.archived_at IS NULL) AS sign_in_dup,
            u.banned_until,
            (u.encrypted_password IS NOT NULL AND u.encrypted_password <> '') AS has_password
       INTO v_user
@@ -220,6 +227,7 @@ BEGIN
         'accountId',        v_account,
         'signInEmail',      v_user.email,
         'emailVerifiedAt',  v_user.email_confirmed_at,
+        'duplicateSignInEmail', coalesce(v_user.sign_in_dup, false),
         'invitedAt',        v_user.invited_at,
         'hasPassword',      coalesce(v_user.has_password, false),
         'providers',        coalesce((
@@ -651,9 +659,24 @@ BEGIN
     END IF;
     SELECT * INTO v_client FROM public.client WHERE id = p_client_id;
 
-    SELECT u.id, u.email, u.email_confirmed_at, u.created_at INTO v_user
+    SELECT u.id, u.email, u.email_confirmed_at, u.invited_at,
+           (u.encrypted_password IS NULL OR u.encrypted_password = '') AS no_password,
+           NOT EXISTS (SELECT 1 FROM auth.identities i
+                        WHERE i.user_id = u.id AND i.provider <> 'email') AS email_only
+      INTO v_user
       FROM auth.users u WHERE u.id = p_account_id FOR UPDATE;
-    IF NOT FOUND OR v_user.email IS DISTINCT FROM v_client.email::text THEN
+    -- citext on the client side, so `Nora@Example.com` on the record still matches the address
+    -- GoTrue lowercased.
+    IF NOT FOUND OR v_client.email IS NULL OR v_user.email::citext <> v_client.email THEN
+        RETURN 'conflict';
+    END IF;
+
+    -- PRE-HIJACK GUARD (review finding, 2026-10-16). generateLink(type: invite) REUSES an
+    -- existing unconfirmed user. If someone else signed up first with this client's address
+    -- and their own password (or a social identity), binding it would hand them a confirmed
+    -- account on the real record the moment the client accepts. An invite we made has no
+    -- password and only the email identity; anything else is not ours.
+    IF NOT v_user.no_password OR NOT v_user.email_only OR v_user.invited_at IS NULL THEN
         RETURN 'conflict';
     END IF;
 

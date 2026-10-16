@@ -104,6 +104,21 @@ describe("toAccountAdminView", () => {
     expect(v.kind === "account" && v.locked).toEqual({ reason: "odd device", since: "Today · 1:30 PM" });
   });
 
+  it("a ban with no lock row still reads as locked", () => {
+    const v = toAccountAdminView({ ...ACCOUNT, bannedUntil: "2126-10-16T00:00:00Z" }, NOW);
+    expect(v.kind === "account" && v.locked !== null).toBe(true);
+  });
+
+  it("a sign-in duplicate counts as a duplicate, and a changed record address is flagged", () => {
+    const v = toAccountAdminView({ ...ACCOUNT, duplicateSignInEmail: true, clientEmail: "new@example.com" }, NOW);
+    expect(v.kind === "account" && v.duplicate.any).toBe(true);
+    expect(v.kind === "account" && v.addressMismatch).toBe(true);
+  });
+
+  it("a bad zone falls back instead of throwing", () => {
+    expect(whenLabel("2026-10-16T15:30:00Z", "Not/AZone", NOW)).toBe("Today · 11:30 AM");
+  });
+
   it("never goes below zero sends left", () => {
     const v = toAccountAdminView({ ...ACCOUNT, signInEmailsLastHour: 7 }, NOW);
     expect(v.kind === "account" && v.sendsLeft).toBe(0);

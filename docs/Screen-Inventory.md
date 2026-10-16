@@ -3300,16 +3300,22 @@ These tools let the agent help less-technical clients with login issues.
 >   existing adoption trigger binds the new sign-in to this record. Refused when another
 >   unclaimed client has the same email, because adoption would then match nothing (the
 >   advisor is sent to Merge). This replaces the "arrives with §3.9.3" invite deferral.
+>   **It never binds a sign-in someone else made:** generateLink reuses an existing unconfirmed
+>   user, so the bind requires no password and only the email identity (pre-hijack guard,
+>   review 2026-10-16).
 > - **3.9.2 Send reset link** and **3.9.3 Send magic link**: our IONOS email (§3.10 Stage 4
 >   sender) names the advisor ("Gyasi sent you this link because you asked for help signing
 >   in. If you didn't ask, you can ignore it."). Links last **1 hour**, GoTrue's one
 >   `otp_expiry` for every email code (A392's "30 minutes" and A393's "15 minutes" were
->   corrected). The link lands on a new `/auth/confirm` route that verifies the token hash,
->   because admin-made links are not PKCE and `/auth/callback` cannot finish them. **Reset is
+>   corrected). The link lands on a new `/auth/confirm` PAGE with one button, and the token hash
+>   is spent only when a person presses it (a server action calling `verifyOtp`), never on a
+>   GET, because mail scanners open every link and would use it up first (review 2026-10-16).
+>   Admin-made links are not PKCE, so `/auth/callback` cannot finish them. **Reset is
 >   hidden for a client whose only sign-in is Google or Apple** ("Signs in with Google");
 >   magic link still works for them.
 > - **3.9.4 Verify email**: requires a written note of how the advisor confirmed it (at least
->   20 characters), kept in the audit row. **Refused when the email matches a DIFFERENT client
+>   20 characters), kept in the audit row, which is written before GoTrue is called. Refused
+>   when the sign-in address and the record's address differ. **Refused when the email matches a DIFFERENT client
 >   record**: confirming an email fires the adoption trigger, which would bind this sign-in to
 >   that other record and its trips. The refusal points to Merge.
 > - **3.9.5 Lock** needs a reason (kept in `account.locked_reason`, never shown to the client).

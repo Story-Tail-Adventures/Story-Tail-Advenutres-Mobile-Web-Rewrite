@@ -451,7 +451,7 @@ export const ACCOUNT_ADMIN_COPY = {
   gateTitle: "Two-step sign-in first",
   gateBodyNoFactor:
     "These tools can sign a client in or lock them out, so they need two-step sign-in on your account. It takes about a minute.",
-  gateBodyVerify: "These tools need a fresh two-step check. Verify with your authenticator app to carry on.",
+  gateBodyVerify: "These tools need a fresh two-step check. Verify with your authenticator app to keep going.",
   gateSetUp: "Set up two-step sign-in",
   gateVerify: "Verify now",
 
@@ -495,6 +495,7 @@ export const ACCOUNT_ADMIN_COPY = {
   duplicateLink: "Open the other record",
   lockedFirst: "Unlock the account first.",
   alreadyVerified: "Already verified.",
+  addressMismatch: "Their sign-in address and the one on their record are different. Fix the record first.",
 
   // No sign-in yet.
   noSignInTitle: "Hasn't signed in yet",
@@ -528,7 +529,7 @@ export const ACCOUNT_ADMIN_COPY = {
   verifyConfirm: "Mark verified",
   lockTitle: (name: string) => `Lock ${name}'s account?`,
   lockBody:
-    "Signs them out on every device and stops new sign-ins until you unlock it. They won't get an email. If they try to sign in, they'll see their account is on hold.",
+    "Signs them out everywhere and blocks new sign-ins until you unlock it. They won't get an email. If they try to sign in, they'll see their account is on hold.",
   lockReasonLabel: "Reason",
   lockReasonPlaceholder: "A sign-in from a device they don't own",
   lockConfirm: "Lock account",

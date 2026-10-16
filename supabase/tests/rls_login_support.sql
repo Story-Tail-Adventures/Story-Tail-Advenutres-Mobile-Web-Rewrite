@@ -124,6 +124,7 @@ VALUES (:n_client::uuid, :agent::uuid, 'Nora', 'NoLogin', 'nora.nologin@example.
 -- Clean slate for Jordan's sessions and sign-in history, so counts below are literals.
 DELETE FROM auth.sessions WHERE user_id = :jordan::uuid;
 DELETE FROM public.auth_event WHERE account_id = :jordan::uuid;
+UPDATE public.account SET last_login_at = NULL WHERE id = :jordan::uuid;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1. Recording sign-ins
@@ -401,9 +402,18 @@ SELECT pg_temp.assert(public.account_admin_bind_invite(
 SELECT pg_temp.assert(public.account_admin_bind_invite(
     :agent::uuid, :a_actor::uuid, public.uuid_v7(), :n_client::uuid, :jordan::uuid) = 'conflict',
     'a sign-in with a different email is refused');
+-- Pre-hijack: the same unconfirmed user, but with a password set by whoever signed it up.
+UPDATE auth.users SET encrypted_password = 'attacker-set' WHERE id = :nora_acct::uuid;
+SELECT pg_temp.assert(public.account_admin_bind_invite(
+    :agent::uuid, :a_actor::uuid, public.uuid_v7(), :n_client::uuid, :nora_acct::uuid) = 'conflict',
+    'a sign-up someone else made (it has a password) is never bound to the record');
+UPDATE auth.users SET encrypted_password = '' WHERE id = :nora_acct::uuid;
+
+-- The record's address in mixed case still matches GoTrue's lowercased one.
+UPDATE public.client SET email = 'Nora.NoLogin@Example.com' WHERE id = :n_client::uuid;
 SELECT pg_temp.assert(public.account_admin_bind_invite(
     :agent::uuid, :a_actor::uuid, public.uuid_v7(), :n_client::uuid, :nora_acct::uuid) = 'bound',
-    'bind');
+    'bind (mixed-case record email)');
 SELECT pg_temp.assert(
     (SELECT client_id FROM public.platform_user WHERE account_id = :nora_acct::uuid) = :n_client::uuid,
     'the sign-in now points at the invited client');
