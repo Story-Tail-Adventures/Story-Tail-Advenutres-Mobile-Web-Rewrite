@@ -36,7 +36,6 @@ const BASE: TripDetailOverview = {
   refundDetail: null,
   notes: null,
   version: 3,
-  cardOnFile: null,
   lastActivityLabel: null,
   componentCount: 0,
   manualComponentCount: 0,
@@ -101,16 +100,13 @@ describe("the impact list", () => {
     expect(lines[0]?.text).toMatch(/does not move money/i);
   });
 
-  it("says the card authorization STAYS, which is the opposite of the prototype", () => {
-    // agent-trip.jsx:588 draws "Card authorization will be revoked". Nothing revokes it —
-    // there is no revoke path on the agent side at all, §3.6 owns that and is unbuilt.
-    // Rendering the prototype's sentence would be a promise the code does not keep, on a
-    // payment surface. FAILS IF anybody restores it.
-    const lines = cancelImpact({ ...BASE, cardOnFile: "Visa ·8431" });
-    const card = lines.find((l) => l.text.includes("8431"));
-    expect(card?.text).toMatch(/stays authorized/i);
-    expect(card?.text).not.toMatch(/will be revoked/i);
-    expect(card?.tone).toBe("warn");
+  it("never mentions a card, because there is none", () => {
+    // agent-trip.jsx:588 drew "Card authorization will be revoked". §2.4 and the card vault
+    // were retired on 2026-10-16: the app never holds a card. FAILS IF a card line returns.
+    const lines = cancelImpact({ ...BASE, totalPaidLabel: "$2,560", componentCount: 6 });
+    for (const line of lines) {
+      expect(line.text).not.toMatch(/\bcard\b|authoriz/i);
+    }
   });
 
   it("never invents a supplier cancellation fee", () => {
@@ -120,7 +116,6 @@ describe("the impact list", () => {
       ...BASE,
       totalPaidLabel: "$2,560",
       totalCommissionLabel: "$1,318",
-      cardOnFile: "Visa ·8431",
       componentCount: 6,
     });
     for (const line of lines) {

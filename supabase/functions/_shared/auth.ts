@@ -123,9 +123,10 @@ export function requireRole(ctx: AuthContext, ...roles: UserRole[]): void {
  *
  * This distinction is the whole point. "Has MFA enrolled" is a property of the account
  * and is true forever once set up; "was challenged in the last 15 minutes" is what
- * actually protects a PAN reveal (Screen Inventory 3.6.4) from a stolen session. Checking
- * the former and calling it step-up is the difference between passing and failing
- * `audit-pci`.
+ * actually protects a sensitive action from a stolen session. Checking the former and
+ * calling it step-up is not step-up at all. (Written for the card-number reveal, Screen
+ * Inventory 3.6.4, removed on 2026-10-16 with the card tables; kept for the next action
+ * that needs a fresh second factor.)
  *
  * Synchronous: everything it needs is already in the verified JWT that `requireUser`
  * decoded, so there is no round trip to make.

@@ -20,7 +20,6 @@ export const CLOSE = {
   whatHappensLabel: "WHAT HAPPENS",
   whatHappens: [
     "Your trips are archived — ask for a final PDF first if you want one",
-    "Any card you have saved stops being usable",
     "Your personal details are anonymized",
     "Booking and tax records are kept, because the law requires it",
   ],

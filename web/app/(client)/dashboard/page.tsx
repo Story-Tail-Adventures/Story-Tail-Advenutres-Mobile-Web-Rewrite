@@ -8,6 +8,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
+import { PayLinkBlock } from "@/components/client/PayLinkBlock";
 import { EmptyState } from "@/components/client/states";
 import { RetryState } from "@/components/client/RetryState";
 import NextLink from "@/components/mui/NextLink";
@@ -16,6 +17,7 @@ import { Icon } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
 import { formatTripMoney } from "@/lib/trips/money";
+import { paySiteName } from "@/lib/trips/payLink";
 import { formatDay, formatTripDates } from "@/lib/trips/format";
 import { loadDashboard, type DashboardTrip } from "@/lib/trips/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -41,8 +43,7 @@ const OVERLINE_SX = { display: "block", fontWeight: 600, lineHeight: 1.3 } as co
 /** The legacy .t-title-s (15/600) on subtitle1. */
 const TITLE_S_SX = { fontWeight: 600, lineHeight: 1.3 } as const;
 
-/** The legacy .btn and .btn-sm boxes on MUI's Button, so nothing reflows. */
-const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+/** The legacy .btn-sm box on MUI's Button, so nothing reflows. */
 const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
 
 /** A Card that IS the link (the legacy `<Link className="card">`). */
@@ -82,10 +83,10 @@ const SCRIM_SX = {
  *     to count. The artboard's third tab is gone rather than rendered empty.
  *   * "New idea" / "Explore trips" repoint at the trip thread. §2.3 is Phase 2 and the CTA
  *     had no destination; asking Gyasi is how a trip actually starts at MVP.
- *   * "Authorize a card" opens §2.4.3 for the upcoming trip. It rendered disabled with a
- *     reason while §2.4 was unbuilt — which was the right call then and the wrong state to
- *     leave behind: a CTA still disabled after its screen ships is exactly the failure the
- *     disabled-with-a-reason convention exists to make visible.
+ *   * The artboard's "Action needed / Authorize a card" card is now the NEXT PAYMENT card
+ *     (§2.2.3's pay block, ruled 2026-10-16). §2.4 is retired and the app never holds a
+ *     card: when the next unpaid milestone has a pay link, the card offers the same calm pay
+ *     block as the trip's payment timeline, on a plain surface rather than error red.
  *   * The countdown shows days only, not days/hours/minutes. The artboard's HR and MIN
  *     tiles need a ticking client component, and a server-rendered "14 HR" is wrong the
  *     moment it is sent. Days is the unit that survives a cache.
@@ -174,7 +175,7 @@ export default async function DashboardPage() {
         >
           <HeroCountdown trip={upcoming} days={days} itineraryReady={itineraryReady} />
           <Stack spacing={1.25}>
-            {nextPayment && <ActionNeeded payment={nextPayment} tripId={upcoming.id} />}
+            {nextPayment && <NextPayment payment={nextPayment} />}
             {/* Only the advisor's own words are quoted here. When the traveler spoke last
                 the card drops the quote and keeps the reply-window line, which is exactly
                 what somebody waiting for an answer wants to see. */}
@@ -294,47 +295,47 @@ function HeroCountdown({
   );
 }
 
-function ActionNeeded({
+/**
+ * The next unpaid milestone on the upcoming trip, as the C221 artboard draws it: an overline
+ * with the due date, the label and amount, a calm "whenever it suits you" line while the date
+ * is still ahead, and the pay block when the milestone has a pay link. No countdown and no
+ * red (Design-System §2): the money goes to the supplier, never to Story-Tail.
+ */
+function NextPayment({
   payment,
-  tripId,
 }: {
-  payment: NonNullable<Awaited<ReturnType<typeof loadDashboard>>>["nextPayment"];
-  tripId: string;
+  payment: NonNullable<NonNullable<Awaited<ReturnType<typeof loadDashboard>>>["nextPayment"]>;
 }) {
-  if (!payment) return null;
-  const due = payment.daysUntilDue;
+  const ahead = payment.daysUntilDue !== null && payment.daysUntilDue >= 0;
+  const open = payment.amountCents - payment.paidCents;
   return (
-    <Card sx={{ bgcolor: "error.container", color: "error.onContainer" }}>
+    <Card>
       <CardContent sx={CARD_PAD_14}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Icon name="card" size={15} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
+          <Icon name="receipt" size={15} />
           <Typography component="span" variant="overline" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
-            {DASHBOARD.actionNeededLabel}
-            {due !== null && due >= 0 ? ` · ${due} DAYS` : ""}
+            {DASHBOARD.nextPaymentLabel}
+            {payment.dueDate ? ` · DUE ${formatDay(payment.dueDate).toUpperCase()}` : ""}
           </Typography>
         </Box>
         <Typography component="div" variant="subtitle1" sx={{ ...TITLE_S_SX, mt: 0.75 }}>
-          {payment.label}
+          {payment.label} · {formatTripMoney(open > 0 ? open : payment.amountCents, payment.currency)}
         </Typography>
-        <Typography component="div" variant="caption" sx={{ display: "block", mt: 0.5, opacity: 0.85 }}>
-          {formatTripMoney(payment.amountCents, payment.currency)}
-          {payment.dueDate ? ` due ${formatDay(payment.dueDate)}` : ""}
-        </Typography>
-        {/* §2.4.3, scoped to the trip this milestone belongs to. `card_authorization.trip_id`
-            is NOT NULL, so the trip travels in the route rather than being asked for on the
-            far side — the milestone already knows which trip it is due on.
-            A contained error button, as the C221 artboard draws it: MUI's error pair reads
-            against the error-container card in both schemes. */}
-        <MuiButton
-          component={NextLink}
-          href={`/wallet/authorize/${tripId}`}
-          variant="contained"
-          color="error"
-          fullWidth
-          sx={{ ...BTN, mt: 1.25 }}
-        >
-          {DASHBOARD.authorizeCard}
-        </MuiButton>
+        {ahead && (
+          <Typography component="div" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.secondary" }}>
+            {DASHBOARD.nextPaymentWhenever}
+          </Typography>
+        )}
+        {payment.payUrl && paySiteName(payment.payUrl) && (
+          <Box sx={{ mt: 1.25 }}>
+            <PayLinkBlock
+              tripId={payment.tripId}
+              milestoneId={payment.id}
+              label={payment.label}
+              payUrl={payment.payUrl}
+            />
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

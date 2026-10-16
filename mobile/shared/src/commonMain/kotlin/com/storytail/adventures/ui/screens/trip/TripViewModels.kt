@@ -3,6 +3,7 @@ package com.storytail.adventures.ui.screens.trip
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storytail.adventures.api.ItineraryView
+import com.storytail.adventures.api.PaymentMilestoneView
 import com.storytail.adventures.api.TripDetailSnapshot
 import com.storytail.adventures.api.TripFilter
 import com.storytail.adventures.api.TripRepository
@@ -16,6 +17,10 @@ import com.storytail.adventures.api.TripsList
 import com.storytail.adventures.domain.trip.DocumentMessages
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.ThreadMessages
+import com.storytail.adventures.domain.trip.ivePaidMessage
+import com.storytail.adventures.domain.trip.openAmountCents
+import com.storytail.adventures.ui.components.client.IvePaidState
+import com.storytail.adventures.ui.components.client.formatMoney
 import com.storytail.adventures.ui.components.client.ThreadSurface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -81,6 +86,10 @@ class TripDetailViewModel(
     private val _state = MutableStateFlow<Loadable<TripDetailSnapshot>>(Loadable.Loading)
     val state: StateFlow<Loadable<TripDetailSnapshot>> = _state.asStateFlow()
 
+    /** Per milestone id. Absent means [IvePaidState.IDLE]. */
+    private val _ivePaid = MutableStateFlow<Map<String, IvePaidState>>(emptyMap())
+    val ivePaid: StateFlow<Map<String, IvePaidState>> = _ivePaid.asStateFlow()
+
     init {
         load()
     }
@@ -88,6 +97,25 @@ class TripDetailViewModel(
     fun load() {
         _state.value = Loadable.Loading
         read()
+    }
+
+    /**
+     * §2.2.3's "I've paid": a note in the trip's thread through `trip-message`, the same
+     * audited path as any client message. It NEVER writes the milestone; the advisor marks it
+     * paid once the supplier confirms (§3.6.5).
+     */
+    fun sendIvePaid(milestone: PaymentMilestoneView) {
+        val current = _ivePaid.value[milestone.id]
+        if (current == IvePaidState.SENDING || current == IvePaidState.SENT) return
+        _ivePaid.value = _ivePaid.value + (milestone.id to IvePaidState.SENDING)
+        viewModelScope.launch {
+            val body = ivePaidMessage(milestone.label, formatMoney(openAmountCents(milestone.amountCents, milestone.paidCents), milestone.currency))
+            val next = when (trips.sendMessage(tripId, body)) {
+                SendMessageOutcome.Sent -> IvePaidState.SENT
+                is SendMessageOutcome.Failed -> IvePaidState.FAILED
+            }
+            _ivePaid.value = _ivePaid.value + (milestone.id to next)
+        }
     }
 
     /**

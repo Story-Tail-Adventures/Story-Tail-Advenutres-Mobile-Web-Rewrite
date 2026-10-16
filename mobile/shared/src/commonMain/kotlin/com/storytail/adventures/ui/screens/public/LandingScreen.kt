@@ -286,9 +286,10 @@ private fun WhatYouCanDoHere(onBrowseTrips: () -> Unit) {
             body = "Itinerary, day-by-day, always in your pocket.",
         )
         FeatureCard(
-            mark = StoryTailMark.CARD,
-            title = "Authorize cards",
-            body = "Stripe-secured. We pay suppliers — never charge fees.",
+            // Retired 2026-10-16 with §2.4: the app never holds a card. Matches the web hero.
+            mark = StoryTailMark.LOCK,
+            title = "Pay suppliers directly",
+            body = "On their own secure site. We never see your card or charge fees.",
         )
         FeatureCard(
             mark = StoryTailMark.MESSAGE,

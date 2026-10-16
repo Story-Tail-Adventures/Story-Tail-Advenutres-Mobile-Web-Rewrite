@@ -36,11 +36,14 @@ import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.StatusChip
 import com.storytail.adventures.domain.trip.TripStatus
 import com.storytail.adventures.domain.trip.imageKeyForTrip
+import com.storytail.adventures.domain.trip.isPayable
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
 import com.storytail.adventures.ui.components.client.ClientEmptyState
 import com.storytail.adventures.ui.components.client.ClientErrorState
 import com.storytail.adventures.ui.components.client.ClientScaffold
+import com.storytail.adventures.ui.components.client.IvePaidState
+import com.storytail.adventures.ui.components.client.PayLinkBlock
 import com.storytail.adventures.ui.components.client.SectionHeading
 import com.storytail.adventures.ui.components.client.SkeletonBlock
 import com.storytail.adventures.ui.components.client.StatusChipPill
@@ -63,13 +66,18 @@ import kotlinx.datetime.number
  * it is explicitly a larger-viewport affordance and so is absent here) and
  * design/source-prototype/screens/client-trip-mobile.jsx (M221_Dashboard). P1.
  *
- * The desktop artboard's right rail — the action-needed card and the advisor card — becomes
+ * The desktop artboard's right rail — the next-payment card and the advisor card — becomes
  * the first two cards BELOW the hero, in the same order, because both are things to act on.
  *
  * Departures from the artboard, matching the web twin exactly so the two screens agree:
  * no "Saved searches" tab (Phase 2 entity) and the countdown shows DAYS only rather than
- * days/hours/minutes. "Authorize a card" rendered disabled while §2.4 was unbuilt; it opens
- * 2.4.3 for the upcoming trip now, which is what the artboard drew all along.
+ * days/hours/minutes.
+ *
+ * "Authorize a card" is gone with §2.4 (retired 2026-10-16: the app never holds a card). The
+ * next-payment card now carries §2.2.3's pay block when the advisor gave that milestone a
+ * pay link, and is calm unless the milestone is really overdue (Design-System §2: no red
+ * unless a supplier date has truly passed). Tapping the card opens the trip, whose payment
+ * timeline has the rest.
  */
 @Composable
 fun DashboardScreen(
@@ -79,8 +87,8 @@ fun DashboardScreen(
     onOpenItinerary: (tripId: String) -> Unit,
     onSeeAllTrips: () -> Unit,
     onMessageAgent: (tripId: String) -> Unit,
-    /** §2.4.3, scoped to the trip the action-needed milestone is due on. */
-    onAuthorizeCard: (tripId: String) -> Unit,
+    /** §2.2.3's "I've paid" for the next payment, on the upcoming trip's thread. */
+    onIvePaid: (tripId: String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -117,7 +125,8 @@ fun DashboardScreen(
                 onOpenItinerary = onOpenItinerary,
                 onSeeAllTrips = onSeeAllTrips,
                 onMessageAgent = onMessageAgent,
-                onAuthorizeCard = onAuthorizeCard,
+                ivePaid = state.ivePaid,
+                onIvePaid = onIvePaid,
             )
         }
     }
@@ -131,7 +140,8 @@ private fun DashboardBody(
     onOpenItinerary: (String) -> Unit,
     onSeeAllTrips: () -> Unit,
     onMessageAgent: (String) -> Unit,
-    onAuthorizeCard: (String) -> Unit,
+    ivePaid: IvePaidState,
+    onIvePaid: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val brandType = LocalStoryTailBrandTypography.current
@@ -183,7 +193,12 @@ private fun DashboardBody(
         )
         data.nextPayment?.let {
             Spacer(Modifier.height(10.dp))
-            ActionNeededCard(it, onAuthorize = { onAuthorizeCard(upcoming.id) })
+            NextPaymentCard(
+                payment = it,
+                ivePaid = ivePaid,
+                onOpen = { onOpenTrip(upcoming.id) },
+                onIvePaid = { onIvePaid(upcoming.id) },
+            )
         }
         Spacer(Modifier.height(10.dp))
         AdvisorCard(
@@ -316,49 +331,69 @@ private fun HeroCountdown(
     }
 }
 
+/**
+ * The next unpaid milestone on the upcoming trip, as the M221 artboard draws it (redrawn
+ * 2026-10-16): an overline with the due date, the label and the amount still open, a calm
+ * "whenever it suits you" line while the date is ahead, and §2.2.3's pay block when the
+ * milestone has a pay link. No countdown and no red (Design-System §2); the money goes to
+ * the supplier, never to Story-Tail. It was "ACTION NEEDED" with an "Authorize a card"
+ * button into §2.4.3, retired with the rest of the card screens. Mirrors `NextPayment` in
+ * web/app/(client)/dashboard/page.tsx.
+ */
 @Composable
-private fun ActionNeededCard(payment: NextPayment, onAuthorize: () -> Unit) {
+private fun NextPaymentCard(
+    payment: NextPayment,
+    ivePaid: IvePaidState,
+    onOpen: () -> Unit,
+    onIvePaid: () -> Unit,
+) {
     val scheme = MaterialTheme.colorScheme
+    val ahead = payment.daysUntilDue != null && payment.daysUntilDue >= 0
+    val open = payment.amountCents - payment.paidCents
     Column(
         Modifier
             .fillMaxWidth()
-            .background(scheme.errorContainer, RoundedCornerShape(StoryTailRadius.lg))
+            .background(scheme.surfaceContainer, RoundedCornerShape(StoryTailRadius.lg))
+            .clickable(onClick = onOpen)
             .padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            StoryTailGlyph(StoryTailMark.CARD, 15.dp, scheme.onErrorContainer)
+            StoryTailGlyph(StoryTailMark.CARD, 15.dp, scheme.onSurfaceVariant)
             Spacer(Modifier.width(8.dp))
             Text(
                 buildString {
-                    append(DashboardMessages.ACTION_NEEDED_LABEL)
-                    payment.daysUntilDue?.takeIf { it >= 0 }?.let { append(" · $it DAYS") }
+                    append(DashboardMessages.NEXT_PAYMENT_LABEL)
+                    payment.dueDate?.let { append(" · DUE ${formatDay(it).uppercase()}") }
                 },
                 style = LocalStoryTailBrandTypography.current.labelXS,
-                color = scheme.onErrorContainer,
+                color = scheme.onSurfaceVariant,
             )
         }
         Spacer(Modifier.height(6.dp))
-        Text(payment.label, style = MaterialTheme.typography.titleSmall, color = scheme.onErrorContainer)
         Text(
-            buildString {
-                append(formatMoney(payment.amountCents, payment.currency))
-                payment.dueDate?.let { append(" due ${formatDay(it)}") }
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onErrorContainer.copy(alpha = 0.85f),
+            "${payment.label} · ${formatMoney(if (open > 0) open else payment.amountCents, payment.currency)}",
+            style = MaterialTheme.typography.titleSmall,
+            color = scheme.onSurface,
         )
-        Spacer(Modifier.height(10.dp))
-        // 2.4.3, for the trip this milestone is due on. The button kept its place here while
-        // §2.4 was unbuilt precisely so this card would not reflow the day it went live.
-        Button(
-            onClick = onAuthorize,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = scheme.onErrorContainer,
-                contentColor = scheme.errorContainer,
-            ),
-        ) {
-            Text(DashboardMessages.AUTHORIZE_CARD)
+        if (ahead) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                DashboardMessages.NEXT_PAYMENT_WHENEVER,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+            )
+        }
+        // §2.2.3's pay block, only for an open milestone with a link. No link: nothing here
+        // at all, not an empty space for a button that is not coming.
+        val payUrl = payment.payUrl
+        if (isPayable(payment.status, payUrl) && payUrl != null) {
+            Spacer(Modifier.height(10.dp))
+            PayLinkBlock(
+                label = payment.label,
+                payUrl = payUrl,
+                ivePaid = ivePaid,
+                onIvePaid = onIvePaid,
+            )
         }
     }
 }

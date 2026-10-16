@@ -1,8 +1,9 @@
 /**
  * Audit trail — CLAUDE.md rule 3, docs/Data-Model.md §15 and §20.
  *
- * Every mutation to a sensitive table (payment_card, card_authorization, commission,
- * client) writes an audit_event capturing who did what to which record. This module is
+ * Every mutation to a sensitive table (payment_milestone, commission, client) writes an
+ * audit_event capturing who did what to which record. (The card tables were dropped on
+ * 2026-10-16, §3.6: the app holds no card.) This module is
  * the only sanctioned way to do that, so the shape stays consistent and nobody has to
  * remember the column names.
  */
@@ -11,7 +12,7 @@ import { uuidV7 } from "./uuid.ts";
 import type { AuthContext } from "./auth.ts";
 
 export interface AuditSpec {
-  /** Dotted, past-tense-ish: "payment_card.created", "commission.updated". */
+  /** Dotted, past-tense-ish: "payment_milestone.deleted", "commission.updated". */
   eventType: string;
   targetEntity: string;
   targetId: string;
@@ -29,12 +30,13 @@ export interface AuditSpec {
    * a Postgres function called over RPC, or a trigger on the target table. That is now
    * done for the first financial ledger: §3.7's commission writes call `commission_audit()`
    * inside their own SQL transaction (migration 20261011120000) and do not use this module.
-   * Copy that shape for the next financial write; this "after" path remains for the rest.
+   * §3.6's pay link and paid writes do the same (migration 20261021120000). Copy that
+   * shape for the next financial write; this "after" path remains for the rest.
    *
-   * "before" is required for the PAN reveal (Screen Inventory 3.6.4). The point of that
-   * audit row is to record that a human asked to see a card number — if the process
-   * dies mid-reveal, the request still has to be on the record. Auditing afterwards
-   * would lose exactly the event most worth keeping.
+   * "before" is for an action whose REQUEST must be on the record even if the process
+   * dies partway: auditing afterwards would lose exactly the event most worth keeping.
+   * (It was written for a card-number reveal, Screen Inventory 3.6.4, which was removed
+   * on 2026-10-16 with the card tables. No caller uses it today.)
    */
   when?: "before" | "after";
 }

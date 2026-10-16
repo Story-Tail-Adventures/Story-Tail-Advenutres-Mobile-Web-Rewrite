@@ -11,7 +11,7 @@ import kotlinx.datetime.LocalDate
  * check_copy_parity.py's Kotlin reader terminates at the first line-leading `}`, so a `fun`
  * or a `val listOf(...)` inside that object silently truncates the map and takes every key
  * after it out of the gate. Splitting the file is the strong version of the warning
- * AccountCopy and WalletCopy both carry as a comment.
+ * AccountCopy carries as a comment.
  *
  * Everything here is pure and date-injected: a screen whose output depends on an ambient
  * clock cannot be tested, which is the rule §2.2 set for `greeting()`. `today` comes from

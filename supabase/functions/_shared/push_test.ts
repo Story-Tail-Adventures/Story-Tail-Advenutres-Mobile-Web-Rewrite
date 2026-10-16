@@ -170,7 +170,7 @@ Deno.test("readDeviceLabel: optional, trimmed, bounded", () => {
 
 Deno.test("a card number a client typed never reaches a lock screen", () => {
   // Built at runtime: CI's PCI guard (scan_pan.py) rightly refuses any Luhn-valid number in
-  // source, test fixtures included. These are Stripe's public test numbers.
+  // source, test fixtures included. These are well-known public test card numbers.
   const visa = Array(4).fill("4242").join(" ");
   const amex = ["3782", "822463", "10005"].join("-");
   const bare = "4111" + "1".repeat(12);

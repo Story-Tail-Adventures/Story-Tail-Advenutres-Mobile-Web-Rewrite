@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -20,6 +22,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -28,12 +32,16 @@ import androidx.compose.ui.unit.dp
 import com.storytail.adventures.api.PaymentMilestoneView
 import com.storytail.adventures.api.TripDetailSnapshot
 import com.storytail.adventures.domain.trip.Loadable
+import com.storytail.adventures.domain.trip.PayLinkMessages
+import com.storytail.adventures.domain.trip.isPayable
 import com.storytail.adventures.domain.trip.TripStatus
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
 import com.storytail.adventures.ui.components.client.ClientEmptyState
 import com.storytail.adventures.ui.components.client.ClientErrorState
 import com.storytail.adventures.ui.components.client.ClientScaffold
+import com.storytail.adventures.ui.components.client.IvePaidState
+import com.storytail.adventures.ui.components.client.PayLinkBlock
 import com.storytail.adventures.ui.components.client.KeyGrid
 import com.storytail.adventures.ui.components.client.SkeletonBlock
 import com.storytail.adventures.ui.components.client.StatusChipPill
@@ -47,6 +55,7 @@ import com.storytail.adventures.ui.components.client.nightsBetween
 import com.storytail.adventures.ui.theme.LocalStoryTailBrandTypography
 import com.storytail.adventures.ui.theme.PillShape
 import com.storytail.adventures.ui.theme.StoryTailRadius
+import kotlinx.coroutines.launch
 
 /**
  * Screen 2.2.3 Trip Detail / Overview — see docs/Screen-Inventory.md §2.2.3 and §4.4
@@ -60,8 +69,9 @@ import com.storytail.adventures.ui.theme.StoryTailRadius
  * The desktop right rail (advisor card, payment timeline) becomes the last two cards, in the
  * same order, because both are things to act on. The four quick tiles go 2×2.
  *
- * "Card on file · VISA •••• 4242" is dropped from At a glance: that lives on `payment_card`
- * and belongs to §2.4, where a client can actually manage it.
+ * "Card on file · VISA •••• 4242" is dropped from At a glance: §2.4 and `payment_card` were
+ * retired 2026-10-16, and the app never holds a card. The Payments tile scrolls to the
+ * payment timeline, where an open milestone with a pay link carries §2.2.3's pay block.
  */
 @Composable
 fun TripDetailScreen(
@@ -70,8 +80,10 @@ fun TripDetailScreen(
     onOpenItinerary: (tripId: String) -> Unit,
     onOpenDocuments: (tripId: String) -> Unit,
     onOpenThread: (tripId: String) -> Unit,
-    /** §2.4.3 for this trip, behind the Payments tile. */
-    onAuthorizeCard: (tripId: String) -> Unit,
+    /** "I've paid" state per milestone id; absent is [IvePaidState.IDLE]. */
+    ivePaid: Map<String, IvePaidState>,
+    /** §2.2.3's "I've paid": a note in the trip thread, never a write to the milestone. */
+    onIvePaid: (PaymentMilestoneView) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,7 +121,8 @@ fun TripDetailScreen(
                 onOpenItinerary = onOpenItinerary,
                 onOpenDocuments = onOpenDocuments,
                 onOpenThread = onOpenThread,
-                onAuthorizeCard = onAuthorizeCard,
+                ivePaid = ivePaid,
+                onIvePaid = onIvePaid,
             )
         }
     }
@@ -122,11 +135,15 @@ private fun Body(
     onOpenItinerary: (String) -> Unit,
     onOpenDocuments: (String) -> Unit,
     onOpenThread: (String) -> Unit,
-    onAuthorizeCard: (String) -> Unit,
+    ivePaid: Map<String, IvePaidState>,
+    onIvePaid: (PaymentMilestoneView) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val trip = detail.trip
     val cancelled = trip.status == TripStatus.CANCELLED
+    // The Payments tile's destination is the timeline on this same page, not a screen.
+    val timeline = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
 
     TripHeroPhoto(trip = trip, height = 240, grayscale = cancelled) {
         Column {
@@ -172,7 +189,7 @@ private fun Body(
                 onOpenItinerary = { onOpenItinerary(trip.id) },
                 onOpenDocuments = { onOpenDocuments(trip.id) },
                 onOpenThread = { onOpenThread(trip.id) },
-                onAuthorizeCard = { onAuthorizeCard(trip.id) },
+                onOpenPayments = { scope.launch { timeline.bringIntoView() } },
             )
         }
 
@@ -211,7 +228,12 @@ private fun Body(
                 )
             }
         } else {
-            PaymentTimeline(detail.milestones)
+            PaymentTimeline(
+                milestones = detail.milestones,
+                ivePaid = ivePaid,
+                onIvePaid = onIvePaid,
+                modifier = Modifier.bringIntoViewRequester(timeline),
+            )
         }
     }
 }
@@ -222,7 +244,7 @@ private fun QuickTiles(
     onOpenItinerary: () -> Unit,
     onOpenDocuments: () -> Unit,
     onOpenThread: () -> Unit,
-    onAuthorizeCard: () -> Unit,
+    onOpenPayments: () -> Unit,
 ) {
     val next = detail.milestones.firstOrNull { it.status != "paid" && it.status != "waived" }
     val tiles = listOf(
@@ -243,10 +265,9 @@ private fun QuickTiles(
                 formatMoney(it.amountCents, it.currency) +
                     (it.dueDate?.let { d -> " due ${formatDay(d)}" } ?: "")
             } ?: if (detail.milestones.isEmpty()) "Nothing scheduled" else "All paid",
-            // §2.4.3, which the Screen Inventory names as reached from Trip Detail. The tile
-            // kept its place while §2.4 was unbuilt so the 2×2 would not reflow when it
-            // landed; this is that landing.
-            onClick = onAuthorizeCard,
+            // The timeline further down this page (§2.2.3 amended 2026-10-16). It used to
+            // open §2.4.3, which is retired with the rest of the card screens.
+            onClick = onOpenPayments,
         ),
         Tile(
             mark = StoryTailMark.PASSPORT,
@@ -445,12 +466,22 @@ private fun AdvisorCard(onMessage: () -> Unit) {
 
 /**
  * `payment_milestone`, which exists because of this card. A supplier payment schedule the
- * client is kept informed about — never an invoice, and with no action on it at all.
+ * client is kept informed about, never an invoice: Story-Tail bills nobody (BRD §10.5).
+ *
+ * An OPEN milestone with a pay link gets §2.2.3's pay block right under its row, so the
+ * button is next to the figure it pays. The artboard draws one block under the list because
+ * it shows one open milestone; two open milestones with two links (two suppliers) each get
+ * their own. Paid, waived and link-less rows get nothing extra.
  */
 @Composable
-private fun PaymentTimeline(milestones: List<PaymentMilestoneView>) {
+private fun PaymentTimeline(
+    milestones: List<PaymentMilestoneView>,
+    ivePaid: Map<String, IvePaidState>,
+    onIvePaid: (PaymentMilestoneView) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scheme = MaterialTheme.colorScheme
-    TonalCard(scheme.surfaceContainerLowest) {
+    TonalCard(scheme.surfaceContainerLowest, modifier) {
         Text(
             TripDetailMessages.PAYMENT_TIMELINE,
             style = LocalStoryTailBrandTypography.current.labelXS,
@@ -459,7 +490,7 @@ private fun PaymentTimeline(milestones: List<PaymentMilestoneView>) {
         Spacer(Modifier.height(8.dp))
         if (milestones.isEmpty()) {
             Text(
-                TripDetailMessages.NO_SCHEDULE,
+                PayLinkMessages.EMPTY_SCHEDULE,
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
             )
@@ -493,6 +524,16 @@ private fun PaymentTimeline(milestones: List<PaymentMilestoneView>) {
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = if (overdue) scheme.error else scheme.onSurface,
+                        )
+                    }
+                    val payUrl = m.payUrl
+                    if (isPayable(m.status, payUrl) && payUrl != null) {
+                        PayLinkBlock(
+                            label = m.label,
+                            payUrl = payUrl,
+                            ivePaid = ivePaid[m.id] ?: IvePaidState.IDLE,
+                            onIvePaid = { onIvePaid(m) },
+                            modifier = Modifier.padding(start = 17.dp, top = 2.dp, bottom = 4.dp),
                         )
                     }
                 }
@@ -530,12 +571,11 @@ object TripDetailMessages {
     const val MESSAGE = "Message"
     const val PAYMENT_TIMELINE = "PAYMENT TIMELINE"
     const val PAYMENT_TIMELINE_NOTE =
-        "What the resort expects, and when. Story-Tail never charges you a fee."
+        "What each supplier expects, and when. Story-Tail never charges you a fee."
     const val PAID = "paid"
     const val DUE = "due"
     const val WAIVED = "waived by the supplier"
     const val OVERDUE = "overdue"
-    const val NO_SCHEDULE = "No payment schedule yet."
     const val CANCELLED_HEADING = "Cancellation summary"
     const val CANCELLED_REASON = "Reason"
     const val CANCELLED_REFUND = "Refund"

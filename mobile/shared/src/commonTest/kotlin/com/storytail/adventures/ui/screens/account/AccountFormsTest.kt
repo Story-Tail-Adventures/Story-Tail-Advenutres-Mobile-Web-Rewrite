@@ -132,8 +132,8 @@ class AccountFormsTest {
         val fee = faqs.count { it.q.contains("planning fee", ignoreCase = true) }
         assertEquals(1, fee, faqs.joinToString("\n") { it.q })
 
-        // An FAQ that explains an unreachable screen is worse than no FAQ. The filter reads
-        // the ANSWER too: two entries mention card authorization only there.
+        // §2.4 is retired; the card questions stay off this list, matching the web twin. The
+        // filter reads the ANSWER too: some entries mention cards only there.
         val cards = Regex("""\bcards?\b|authoriz""", RegexOption.IGNORE_CASE)
         faqs.forEach { item ->
             assertTrue(!cards.containsMatchIn("${item.q} ${item.a}"), item.q)

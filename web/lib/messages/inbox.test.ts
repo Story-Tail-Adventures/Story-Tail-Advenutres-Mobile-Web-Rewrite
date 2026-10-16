@@ -17,7 +17,7 @@ function conversation(overrides: Partial<InboxConversation> = {}): InboxConversa
     tripId: null,
     tripTitle: null,
     lastMessageAt: "2026-03-15T01:30:00.000Z",
-    lastMessagePreview: "Locked. Final balance authorization is in your dashboard.",
+    lastMessagePreview: "Locked. Your final balance link is on your trip page.",
     unreadCount: 0,
     ...overrides,
   };

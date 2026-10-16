@@ -24,7 +24,7 @@ package com.storytail.adventures.domain.agent
  * check_copy_parity.py's Kotlin reader terminates at the first LINE-LEADING `}`. A `fun`, a
  * `val listOf(...)`, or any nested brace inside this object silently truncates the map and
  * takes every key after it out of the gate — covered, apparently, and unchecked in fact.
- * AccountCopy and WalletCopy both carry this warning. Derivations live in
+ * AccountCopy carries this warning too. Derivations live in
  * `WorklistSections.kt`, below this object's closing brace and in a different file.
  */
 object AgentCopy {
@@ -128,13 +128,11 @@ object AgentCopy {
     // is redundancy a phone cannot afford, and the desk grid has four columns to fill.
     const val GLANCE_TRIP_TYPE = "Trip type"
     const val GLANCE_DESTINATION = "Destination"
-    const val GLANCE_CARD_ON_FILE = "Card on file"
     const val GLANCE_LAST_ACTIVITY = "Last activity"
     const val GLANCE_CANCELLATION_REASON = "Cancellation reason"
     const val GLANCE_REFUND_STATUS = "Refund status"
     const val GLANCE_REFUND_DETAIL = "Refund detail"
     const val GLANCE_NOT_SET = "Not set"
-    const val GLANCE_NO_CARD = "None on file"
     const val GLANCE_NO_ACTIVITY = "No activity yet"
 
     // One sentence for both causes — deleted, and belonging to another advisor — because

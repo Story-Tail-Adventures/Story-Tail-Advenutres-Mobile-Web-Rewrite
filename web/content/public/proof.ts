@@ -216,7 +216,7 @@ export const TESTIMONIALS: readonly Testimonial[] = [
   },
   {
     quote:
-      "I was nervous about authorizing a card online. He walked me through every step, sent me the audit log, never made me feel silly.",
+      "I was nervous about paying for a big trip online. He walked me through every step, sent me the right links, never made me feel silly.",
     who: "Linda Gomez",
     trip: "Riviera Maya · Jan 2024",
     initials: "LG",

@@ -66,6 +66,6 @@ Use this skill when the user names an entity from `docs/Data-Model.md` (or propo
 ## What this skill never does
 
 - Adds an entity without updating `docs/Data-Model.md` if the entity differs from what's documented.
-- Stores card PANs, CVVs, or any raw cardholder data. Only Stripe tokens. (See `audit-pci` skill.)
+- Stores card numbers, CVVs, tokens, or any cardholder data. The app holds none since 2026-10-16. (See `audit-pci` skill.)
 - Creates a hand-written Kotlin or TypeScript domain type that overlaps with the API contract — codegen handles those.
 - Skips the RLS placeholder. Tables without RLS expose data to all authenticated clients.

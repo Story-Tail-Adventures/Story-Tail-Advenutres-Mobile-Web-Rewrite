@@ -97,10 +97,9 @@ class AccountCopyTest {
         )
         val deadline = Regex("""\b\d+\s*days?\b""")
         claims.forEach { line -> assertTrue(!deadline.containsMatchIn(line), line) }
-        assertEquals(4, CLOSE_WHAT_HAPPENS.size)
-        // Card revocation is stated as a CONSEQUENCE, which is true whether or not §2.4
-        // shipped — it is not an action this screen offers.
-        assertTrue(CLOSE_WHAT_HAPPENS.any { it.contains("card", ignoreCase = true) })
+        assertEquals(3, CLOSE_WHAT_HAPPENS.size)
+        // The app holds no card (retired 2026-10-16), so closing promises nothing about one.
+        assertTrue(CLOSE_WHAT_HAPPENS.none { it.contains("card", ignoreCase = true) })
     }
 
     @Test

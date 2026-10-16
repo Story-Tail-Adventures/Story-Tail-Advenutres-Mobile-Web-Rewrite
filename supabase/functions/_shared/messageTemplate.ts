@@ -20,6 +20,8 @@ export const MERGE_FIELDS = [
   "payment.label",
   "payment.amount",
   "payment.dueDate",
+  // Added 2026-10-16 (§3.6): the milestone's pay_url. Unfilled, and flagged, when it has none.
+  "payment.link",
 ] as const;
 
 export const TEMPLATE_CATEGORIES = [

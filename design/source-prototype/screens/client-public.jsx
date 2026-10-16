@@ -554,7 +554,7 @@ function C207_FooterPages() {
             <Typography variant="h5" component="h3" sx={{ mt: 2.25 }}>2. How payment cards are handled</Typography>
             <Typography variant="body1" sx={{ mt: 1, lineHeight: 1.65 }}>Cards you add through the portal are tokenized by Stripe Elements before they leave your browser. Story-Tail never sees the full card number. Tokenized cards are used solely to pay travel suppliers on your behalf, and every use generates an audit-logged event with a notification to you.</Typography>
             <Typography variant="h5" component="h3" sx={{ mt: 2.25 }}>3. Your data rights</Typography>
-            <Typography variant="body1" sx={{ mt: 1, lineHeight: 1.65 }}>You can request a copy of all data we hold about you at any time from your Account → Privacy &amp; Data Export. You can revoke any stored card from your Wallet at any time. Account closure preserves transaction records for tax compliance but anonymizes personal identifiers.</Typography>
+            <Typography variant="body1" sx={{ mt: 1, lineHeight: 1.65 }}>You can request a copy of all data we hold about you at any time from your Account → Privacy &amp; Data Export. Account closure preserves transaction records for tax compliance but anonymizes personal identifiers.</Typography>
           </Box>
         </Box>
       </Box>

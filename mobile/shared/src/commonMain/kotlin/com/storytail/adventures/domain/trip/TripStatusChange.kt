@@ -37,7 +37,6 @@ object StatusChangeMessages {
     const val VIEW_TRIP = "Open the trip"
     const val VIEW_SUMMARY = "See the cancellation summary"
     const val VIEW_MEMORIES = "Open the memories"
-    const val AUTHORIZE_CARD = "Authorize a card"
 
     /** Shown when `status_changed_at` is null — a trip whose status never moved. */
     const val CHANGED_UNKNOWN = "Recently"
@@ -102,7 +101,7 @@ fun statusChangeNextSteps(status: TripStatus): List<String> = when (status) {
     TripStatus.PROPOSAL -> listOf(
         "Have a read, no rush",
         "Reply with what you think",
-        "Authorize a card and Gyasi locks it in",
+        "Say yes and Gyasi locks it in. Payments go straight to each supplier.",
     )
 
     TripStatus.BOOKED -> listOf(

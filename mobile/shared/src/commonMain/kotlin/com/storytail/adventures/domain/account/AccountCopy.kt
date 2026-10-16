@@ -45,14 +45,6 @@ object AccountMessages {
     const val HELP_SUB = "Common questions, or message Gyasi"
     const val PRIVACY = "Privacy & data"
     const val PRIVACY_SUB = "Download a copy of your data"
-    const val WALLET = "Payment methods"
-
-    /**
-     * §2.4, built 2026-09-17. On mobile this row is the ONLY way into that section — Wallet
-     * is rail-only on web and absent from the four-tab bar — which is why it carries a
-     * subtitle rather than being a bare label.
-     */
-    const val WALLET_SUB = "Cards on file and what they were used for"
     const val COMING_SOON = "Coming with the next release"
     const val SIGN_OUT = "Sign out"
     const val FALLBACK_NAME = "Your account"
@@ -251,10 +243,9 @@ fun noPasswordBody(provider: String): String {
         "Manage it in that account."
 }
 
-/** `CLOSE.whatHappens`. Card revocation is stated as a consequence, not as an action. */
+/** `CLOSE.whatHappens`. No card line: the app holds no card since 2026-10-16. */
 val CLOSE_WHAT_HAPPENS: List<String> = listOf(
     "Your trips are archived — ask for a final PDF first if you want one",
-    "Any card you have saved stops being usable",
     "Your personal details are anonymized",
     "Booking and tax records are kept, because the law requires it",
 )

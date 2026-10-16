@@ -922,8 +922,8 @@ internal object PublicCatalog {
     val HOW_IT_WORKS_FAQ: List<FaqItem> = listOf(
         FaqItem(q = "Do I pay a planning fee?", a = "No. Inteletravel host-agency policy prohibits it. Gyasi earns commission from suppliers — you pay them, never us."),
         FaqItem(q = "What does Inteletravel mean for me?", a = "It's the host agency that issues bookings. You'll see them on supplier invoices. It does not change how you work with Story-Tail."),
-        FaqItem(q = "How does payment authorization work?", a = "You add a card through a Stripe-secured form. Story-Tail uses it only to pay suppliers on your behalf — never to charge you a service fee. Every use is audit-logged and you get notified."),
-        FaqItem(q = "Can I plan without an account?", a = "You can browse and inquire as a guest. To save searches, view a real proposal, or authorize a card, you'll create an account."),
+        FaqItem(q = "How do I pay for my trip?", a = "You pay each supplier directly, on their own secure site. When a supplier has no payment page, Gyasi may send a Travefy invoice instead, carrying the supplier's cost only. Gyasi adds a pay link to each payment as it comes due, and you pay whenever it suits you before the due date. Story-Tail never sees your card number and never charges a service fee."),
+        FaqItem(q = "Can I plan without an account?", a = "You can browse and inquire as a guest. To save searches, view a real proposal, or see your payment links, you'll create an account."),
     )
 
     val GYASI_FAQ: List<FaqItem> = listOf(
@@ -931,7 +931,7 @@ internal object PublicCatalog {
         FaqItem(q = "What if I just want to message you, no commitment?", a = "Please do. Most relationships start with a casual question. Use the \"Message Gyasi\" link on any page — no account needed."),
         FaqItem(q = "Why the Caribbean specifically?", a = "I lived in the islands. I know which Sandals has the best Red Lane spa (Grande St. Lucian). I know which Royal Caribbean ship to put a multi-gen family on (Wonder, hands down). When you know one region well, you serve people better."),
         FaqItem(q = "Do you book non-Caribbean trips?", a = "Yes — Mexico, Europe, cruises anywhere, group trips, all-inclusives worldwide. The Caribbean is my deepest specialty, not my only one."),
-        FaqItem(q = "How does payment work?", a = "You add a card through a Stripe-secured form. I use it only to pay suppliers on your behalf, up to a cap you authorize, with audit logs and notifications. I never charge you a service fee."),
+        FaqItem(q = "How does payment work?", a = "You pay each supplier directly, on their own secure site. I add a pay link to each payment as it comes due, and I mark it paid once the supplier confirms. I never see your card number, and I never charge you a service fee."),
     )
 
     val LEGAL_DOCS: List<LegalDoc> = listOf(
@@ -939,35 +939,35 @@ internal object PublicCatalog {
             slug = LegalSlug.PRIVACY,
             title = "Privacy policy",
             navLabel = "Privacy",
-            description = "What Story-Tail Adventures collects, how payment cards are handled, and your data rights.",
-            lastUpdated = "2026-10-15",
+            description = "What Story-Tail Adventures collects, how you pay for your trip, and your data rights.",
+            lastUpdated = "2026-10-16",
             status = "draft",
             sections = listOf(
             LegalSection(
                 heading = "1. What we collect",
                 paragraphs = listOf(
-                    "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. Payment cards are collected through Stripe and stored as tokens; we keep the card brand, last four digits and expiration so you can recognize a card, never the full number.",
+                    "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. The portal has no place to enter a card number, so please don't type one into a message.",
                     "We do not sell your information, and we do not share it with marketing third parties. When you use the portal in a web browser, we also count page views without tying them to your name. Section 3 explains who receives what, and why.",
                 ),
                 bullets = emptyList(),
             ),
             LegalSection(
-                heading = "2. How payment cards are handled",
+                heading = "2. How you pay for your trip",
                 paragraphs = listOf(
-                    "Cards you add through the portal are tokenized by Stripe before they leave your browser. The full card number is stored only by Stripe. Story-Tail uses your card only to pay travel suppliers on your behalf, up to the limit you authorize for a trip — never to charge you a planning, consultation or service fee.",
-                    "Most suppliers are paid directly through Stripe. A few suppliers can only accept payment by hand. For those, your advisor can view a card number through a time-limited, audited step that requires a second sign-in factor; every view is recorded and you are notified. You can revoke a stored card at any time.",
+                    "You pay each supplier directly, on their own secure site. Your advisor adds a pay link to each payment on your trip: the supplier's own payment page, or a Travefy invoice when the supplier doesn't have one. A Travefy invoice passes along supplier costs only. Story-Tail never charges you a planning, consultation or service fee.",
+                    "Story-Tail never asks for your card number, and the portal has nowhere to keep one. For each payment it keeps the amount, the due date and the pay link, and once your advisor marks it paid, the date, any confirmation number and your advisor's own note. Only your advisor can add or change a pay link, and every change is recorded.",
                 ),
                 bullets = emptyList(),
             ),
             LegalSection(
                 heading = "3. Who we share it with",
                 paragraphs = listOf(
-                    "Trip details and traveler names go to the suppliers who deliver your trip (airlines, resorts, cruise lines, tour operators) and to Inteletravel, the host agency that issues bookings. Payment processing is handled by Stripe. Our hosting and database providers process data on our behalf under contract.",
+                    "Trip details and traveler names go to the suppliers who deliver your trip (airlines, resorts, cruise lines, tour operators) and to Inteletravel, the host agency that issues bookings. When you pay a supplier, or a Travefy invoice, you pay them directly on their own site, under their own privacy policy. Our hosting and database providers process data on our behalf under contract.",
                     "When you search for hotels, the destination and dates you enter are sent to SerpApi, which returns results from Google Hotels. We do not send your name, your email, or anything else about you — only the search itself.",
                     "Hotel photographs on the results page are loaded directly from Google's image servers. That means Google receives your IP address and browser details when a photo loads, as it would for any image on the web. We ask your browser not to tell Google which page you were on.",
                     "We keep a record of each hotel search so we can stay inside the search allowance we pay for. The destination and dates are cleared from that record after 30 days; the cached results themselves expire within hours.",
                     "When you use the portal in a web browser, our hosting provider, Vercel, records each page view. It notes the page and the time, the site that sent you, your approximate location (country, region and city), and your device type, operating system and browser. Vercel says it sets no cookies for this, does not follow you to other sites, and does not tie a visit to your name, email or IP address. To tell visits apart for a day, it uses a code made from your browser's request and throws that code away after 24 hours. Before anything is sent, we remove ID numbers from the web address and everything after the “?”, except campaign tags that show which link brought you here. We use the counts to see which pages people visit, which links bring them here, and what to improve. You can read Vercel's own description at vercel.com/docs/analytics/privacy-policy.",
-                    "If you say yes, the website also counts your visit with Google Analytics, a Google service we reach through Firebase. Nothing is sent to Google until you agree, and you can say no and still use everything. Google Analytics sets its own cookies to tell one visit from another, and it records the page, the site that sent you, your approximate location, and your device and browser. It gets the same cleaned-up web address Vercel does, with ID numbers removed and everything after the “?” dropped except campaign tags, and it never sees the advisor's own pages or the wallet pages where you choose and approve a card. We turn off Google's ad features and do not give Google your name or email. You can change your answer any time on the Privacy & data page in your account, or by clearing your browser's site data; turning it off deletes Google's cookies and the visitor code Firebase keeps in your browser. You can read how Google handles this data at policies.google.com/privacy.",
+                    "If you say yes, the website also counts your visit with Google Analytics, a Google service we reach through Firebase. Nothing is sent to Google until you agree, and you can say no and still use everything. Google Analytics sets its own cookies to tell one visit from another, and it records the page, the site that sent you, your approximate location, and your device and browser. It gets the same cleaned-up web address Vercel does, with ID numbers removed and everything after the “?” dropped except campaign tags, and it never sees the advisor's own pages. We turn off Google's ad features and do not give Google your name or email. You can change your answer any time on the Privacy & data page in your account, or by clearing your browser's site data; turning it off deletes Google's cookies and the visitor code Firebase keeps in your browser. You can read how Google handles this data at policies.google.com/privacy.",
                 ),
                 bullets = emptyList(),
             ),
@@ -981,7 +981,7 @@ internal object PublicCatalog {
             LegalSection(
                 heading = "5. Retention and security",
                 paragraphs = listOf(
-                    "We keep trip and payment records for as long as tax and host-agency rules require, and delete or anonymize the rest when you close your account. Access to sensitive data is logged, and every payment-card action generates an audit record.",
+                    "We keep trip and payment records for as long as tax and host-agency rules require, and delete or anonymize the rest when you close your account. Access to sensitive data is logged, and every change to a pay link or a paid payment is recorded.",
                 ),
                 bullets = emptyList(),
             ),
@@ -999,13 +999,13 @@ internal object PublicCatalog {
             title = "Terms of service",
             navLabel = "Terms",
             description = "How the Story-Tail Adventures portal works, what we do and don't charge for, and what you agree to when you use it.",
-            lastUpdated = "2026-09-02",
+            lastUpdated = "2026-10-16",
             status = "draft",
             sections = listOf(
             LegalSection(
                 heading = "1. Who we are",
                 paragraphs = listOf(
-                    "Story-Tail Adventures is an independent travel advisory business hosted by Inteletravel. Your bookings are issued through Inteletravel and fulfilled by the travel suppliers named on your itinerary. This portal is where you view trips, message your advisor, and authorize payment cards for those suppliers.",
+                    "Story-Tail Adventures is an independent travel advisory business hosted by Inteletravel. Your bookings are issued through Inteletravel and fulfilled by the travel suppliers named on your itinerary. This portal is where you view your trips, message your advisor, and find the link to pay each supplier.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1017,9 +1017,9 @@ internal object PublicCatalog {
                 bullets = emptyList(),
             ),
             LegalSection(
-                heading = "3. Payment authorization",
+                heading = "3. Paying suppliers",
                 paragraphs = listOf(
-                    "When you authorize a card for a trip, you set the limit and the suppliers it may be used for. Story-Tail uses it only to pay those suppliers, within that limit, and every use is recorded and reported to you. You can revoke an authorization at any time; charges already made by a supplier are governed by that supplier's terms.",
+                    "You pay each supplier directly, through the pay link your advisor adds to each payment on your trip. The link opens the supplier's own payment page, or a Travefy invoice that passes along supplier costs only. Story-Tail never collects or stores card numbers and never charges you a planning or service fee. Each payment is governed by that supplier's terms. Your advisor marks a payment as paid once the supplier confirms it.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1051,7 +1051,7 @@ internal object PublicCatalog {
             title = "Cookies",
             navLabel = "Cookies",
             description = "The small number of cookies and browser storage keys the Story-Tail portal uses, and what each one does.",
-            lastUpdated = "2026-10-15",
+            lastUpdated = "2026-10-16",
             status = "draft",
             sections = listOf(
             LegalSection(
@@ -1068,9 +1068,9 @@ internal object PublicCatalog {
                 ),
             ),
             LegalSection(
-                heading = "2. Payment forms",
+                heading = "2. Paying suppliers",
                 paragraphs = listOf(
-                    "When you add a card, the form is served by Stripe and may set Stripe's own cookies to prevent fraud. Those are governed by Stripe's privacy policy.",
+                    "The portal has no payment form and never asks for a card. When you pay a supplier, you do it on their own site (or on Travefy's, for a Travefy invoice), which may set its own cookies. Those are governed by that site's privacy policy.",
                 ),
                 bullets = emptyList(),
             ),
@@ -1157,7 +1157,7 @@ internal object PublicCatalog {
         Testimonial(quote = "I message him at 9pm with random questions and he replies. That's the whole pitch right there — he actually cares.", who = "Aisha Patel", trip = "Atlantis · Mar 2024", initials = "AP", consented = false),
         Testimonial(quote = "We did a multi-gen group trip — 12 people, two cabins, three flights from three cities. He made it feel small.", who = "The Khan Family", trip = "Beaches T&C · Aug 2024", initials = "KF", consented = false),
         Testimonial(quote = "No high-pressure sales, no upselling. Just real options, real prices, and a person who picks up the phone.", who = "Tasha Whitfield", trip = "Aruba · Oct 2023", initials = "TW", consented = false),
-        Testimonial(quote = "I was nervous about authorizing a card online. He walked me through every step, sent me the audit log, never made me feel silly.", who = "Linda Gomez", trip = "Riviera Maya · Jan 2024", initials = "LG", consented = false),
+        Testimonial(quote = "I was nervous about paying for a big trip online. He walked me through every step, sent me the right links, never made me feel silly.", who = "Linda Gomez", trip = "Riviera Maya · Jan 2024", initials = "LG", consented = false),
     )
 
     /** The design's photography registry. None of it is licensed yet — see PublicPhoto. */

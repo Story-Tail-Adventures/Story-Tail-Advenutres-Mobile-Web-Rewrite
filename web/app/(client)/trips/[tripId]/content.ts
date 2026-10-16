@@ -41,12 +41,24 @@ export const TRIP_DETAIL = {
   paymentTimeline: "PAYMENT TIMELINE",
   // Said plainly because it is the one thing about money a client could otherwise
   // misread. BRD §10.5: the agency is not the merchant of record and charges no fees.
-  paymentTimelineNote: "What the resort expects, and when. Story-Tail never charges you a fee.",
+  paymentTimelineNote: "What each supplier expects, and when. Story-Tail never charges you a fee.",
   paid: "paid",
   due: "due",
   waived: "waived by the supplier",
   overdue: "overdue",
-  noSchedule: "No payment schedule yet.",
+  noSchedule: "No payments scheduled yet. Gyasi will add them here once your trip is booked.",
+
+  // The pay block (§2.2.3, ruled 2026-10-16). The client pays each supplier directly on the
+  // supplier's own site; Story-Tail never takes a payment or holds a card. The button text
+  // comes from `payButtonLabel` (lib/trips/payLink.ts), the site name from the link's host.
+  // "the supplier", not a name: a milestone has no supplier column (flagged in the PR).
+  payDirect: "Paid directly to the supplier on their secure site.",
+  payOpensNewTab: "(opens the supplier's site in a new tab)",
+  // "I've paid" only posts a message for Gyasi to check. It never marks anything paid.
+  iPaid: "I've paid",
+  iPaidThanks: "Thanks. Gyasi will check and mark it paid.",
+  iPaidAlreadyDone: "This one looks taken care of already. Message Gyasi if that's not right.",
+  iPaidFailed: "That didn't send. Try again in a moment, or message Gyasi.",
 
   cancelledHeading: "Cancellation summary",
   cancelledReason: "Reason",

@@ -7,9 +7,9 @@
 -- DID have a schedule, two contradicted it — one showing a final balance marked `overdue`
 -- while the trip claimed that exact amount as paid.
 --
--- It also reaches further than the other two totals. `wallet/authorize/[tripId]` computes
--- `balanceDueCents = totalValueCents - totalPaidCents`, so this column sizes the
--- outstanding balance a traveler is shown when they authorize a card.
+-- It also reaches further than the other two totals: the traveler's outstanding balance is
+-- the trip value less this column. (It once sized the card authorization screen too, which
+-- was retired with the card tables on 2026-10-16, §3.6.)
 --
 -- Run against a freshly reset local database:
 --     supabase db reset

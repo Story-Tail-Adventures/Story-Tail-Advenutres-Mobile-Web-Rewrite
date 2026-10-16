@@ -124,13 +124,11 @@ export const AGENT_COPY = {
   glanceDestination: "Destination",
   glanceTravelers: "Travelers",
   glanceDates: "Dates",
-  glanceCardOnFile: "Card on file",
   glanceLastActivity: "Last activity",
   glanceCancellationReason: "Cancellation reason",
   glanceRefundStatus: "Refund status",
   glanceRefundDetail: "Refund detail",
   glanceNotSet: "Not set",
-  glanceNoCard: "None on file",
   glanceNoActivity: "No activity yet",
   // §3.4.4. "Build" rather than "Edit components", which is what the Screen Inventory calls
   // the entry point: an advisor opening an empty trip is not editing anything yet, and the
@@ -161,7 +159,7 @@ export const AGENT_COPY = {
   // from the board, and the phone call to the supplier cannot be un-made. An advisor who
   // thinks this button cancels the booking will not go and cancel the booking.
   cancelTripBody:
-    "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier, move any money, or release the card — those are still yours to do.",
+    "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier or move any money. Those are still yours to do.",
   // Not "only these details change": since §3.7 Stage 5 this dialog can also mark open
   // commission lines Lost, so the promise would be false whenever it lists any.
   cancelTripEditBody: "Correct what the client reads. The trip stays cancelled.",
@@ -905,6 +903,95 @@ export const SCHEDULE_COPY = {
   // (automatic reminders need a scheduler, and email; Stage 4).
   remindLabel: "Remind the client",
   remindNothing: "Nothing is still owed on this trip, so there's nothing to remind the client about.",
+} as const;
+
+/**
+ * §3.6 Supplier Payments (agent; ruled 2026-10-16). WEB ONLY, no phone treatment, like §3.7.
+ *
+ * Built onto §3.4.15's page rather than a second copy of the list (Screen-Inventory §3.6.1
+ * note): the schedule rows gain a pay link column, Mark paid (3.6.5), Send link (3.6.2, the
+ * §3.4.15 "Remind the client" flow pointed at one milestone) and a History view (3.6.6).
+ * Artboards: design/source-prototype/screens/agent-payment.jsx.
+ *
+ * The app never holds a card. Clients pay each supplier directly through the link; the
+ * advisor adds, changes or removes it (https only, audited) and marks a payment paid.
+ */
+export const PAYMENTS_COPY = {
+  // 3.6.1 Trip Payments
+  colPayLink: "Pay link",
+  noLink: "No pay link yet",
+  addLink: "Add a pay link",
+  editLink: "Change",
+  editLinkAria: (label: string) => `Change the ${label} pay link`,
+  travefyChip: "Travefy invoice",
+  markPaid: "Mark paid",
+  sendLink: "Send link",
+  sendLinkNeedsLink: "Add a pay link first",
+  paidOn: (date: string) => `Paid ${date}`,
+  history: "History",
+  directNoteStrong: "Clients pay suppliers directly.",
+  directNote:
+    "Each link opens the supplier's own secure site. Story-Tail never sees a card and never charges a fee. Every link you add, change or remove is recorded in History.",
+
+  // 3.6.1b Add or edit a pay link
+  linkTitleEdit: "Edit pay link",
+  linkTitleAdd: "Add a pay link",
+  linkBody: "Where the client goes to pay this one. It opens in a new tab on the supplier's site.",
+  linkLabel: "Pay link",
+  linkHint: "Links must start with https://",
+  linkPreview: "THE CLIENT WILL SEE",
+  linkAudit: "This change is recorded in the trip's payment history, with your name and the time.",
+  linkTravefyGuard: "A Travefy invoice passes along supplier costs only, never a planning or service fee.",
+  linkRemove: "Remove link",
+  linkSave: "Save link",
+  linkSaving: "Saving…",
+  linkNotHttps: "Use a full link that starts with https://",
+  linkTooLong: "That link is too long. Links can be up to 2,048 characters.",
+  linkCard: "That looks like a card number. Card numbers never go in the app.",
+
+  // 3.6.5 Mark paid
+  paidTitle: (label: string) => `Mark ${label.charAt(0).toLowerCase()}${label.slice(1)} paid`,
+  paidBody: "Check with the supplier first. Once you save, the client sees it as paid on the trip.",
+  paidAmount: "Amount paid",
+  paidDate: "Date paid",
+  paidReference: "Confirmation number (optional)",
+  paidNote: "Note (optional)",
+  paidNoteHint: "Only you see this.",
+  paidOnlyYou: "Only you can mark a payment paid. It's recorded in the trip's payment history.",
+  paidSave: "Mark paid",
+  paidSaving: "Saving…",
+  paidAmountInvalid: "That doesn't look like an amount.",
+  paidDateInvalid: "Pick the date the money landed. It can't be in the future.",
+  paidReferenceTooLong: "Keep the confirmation number to 100 characters.",
+  paidNoteTooLong: "Keep the note to 1,000 characters.",
+  paidCardLike: "That looks like a card number. Card numbers never go in the app.",
+
+  cancel: "Cancel",
+  failed: "That didn't save. Try again in a moment.",
+
+  // 3.6.6 Payment history
+  historyTitle: "Payment history",
+  historySubtitle: "Every paid mark and every pay link change, with who and when. Nothing here can be edited.",
+  historyBack: "Back to payments",
+  historyAll: "All payments",
+  historyWhen: "When",
+  historyWhat: "What",
+  historyPayment: "Payment",
+  historyDetails: "Details",
+  historyBy: "By",
+  historyEmpty: "Nothing recorded yet. Paid marks and pay link changes show up here.",
+  historyFoot: "A client's \"I've paid\" note lives in the message thread, not here. Only a paid mark changes the record.",
+  historyKindPaid: "Marked paid",
+  historyKindWaived: "Waived",
+  historyKindCleared: "Marked unpaid",
+  historyKindStatus: "Status changed",
+  historyKindAdded: "Link added",
+  historyKindChanged: "Link changed",
+  historyKindRemoved: "Link removed",
+  historyConf: (ref: string) => `conf. ${ref}`,
+  historyTravefy: "(Travefy invoice)",
+  historyUnknownActor: "System",
+  historyDeleted: "A removed payment",
 } as const;
 
 /**
@@ -1914,6 +2001,7 @@ export function templateMissing(fields: readonly string[]): string {
     "payment.label": "a payment",
     "payment.amount": "a payment",
     "payment.dueDate": "a payment",
+    "payment.link": "a pay link",
   };
   const needs = [...new Set(fields.map((f) => words[f] ?? f))];
   const list = needs.length <= 2 ? needs.join(" and ") : `${needs.slice(0, -1).join(", ")} and ${needs[needs.length - 1]}`;

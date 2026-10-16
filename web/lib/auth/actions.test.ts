@@ -132,8 +132,8 @@ describe("signOutAction", () => {
     await expect(signOutAction()).rejects.toThrow(RedirectSignal);
 
     // Iterated from SIGNED_IN_SHELLS rather than written out again. The literal list this
-    // replaces had fallen four entries behind — /account, /documents, /messages and /wallet
-    // were all added to the shell without it noticing, and /agent would have been the fifth.
+    // replaces had fallen four entries behind — /account, /documents, /messages and the since-retired
+    // /wallet were all added to the shell without it noticing, and /agent would have been the fifth.
     // A test that restates the thing it is testing stops testing it.
     expect(SIGNED_IN_SHELLS.length).toBeGreaterThan(6);
     for (const path of SIGNED_IN_SHELLS) {

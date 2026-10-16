@@ -6,7 +6,7 @@ export const COOKIES: LegalDoc = {
   title: "Cookies",
   navLabel: "Cookies",
   description: "The small number of cookies and browser storage keys the Story-Tail portal uses, and what each one does.",
-  lastUpdated: "2026-10-15",
+  lastUpdated: "2026-10-16",
   status: "draft",
   sections: [
     {
@@ -24,9 +24,9 @@ export const COOKIES: LegalDoc = {
       ],
     },
     {
-      heading: "2. Payment forms",
+      heading: "2. Paying suppliers",
       paragraphs: [
-        "When you add a card, the form is served by Stripe and may set Stripe's own cookies to prevent fraud. Those are governed by Stripe's privacy policy.",
+        "The portal has no payment form and never asks for a card. When you pay a supplier, you do it on their own site (or on Travefy's, for a Travefy invoice), which may set its own cookies. Those are governed by that site's privacy policy.",
       ],
     },
     {

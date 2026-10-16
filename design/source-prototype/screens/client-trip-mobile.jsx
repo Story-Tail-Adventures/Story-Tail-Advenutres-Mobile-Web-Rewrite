@@ -27,8 +27,11 @@
 // Kept deliberately: the payment timeline and the testimonial card, because
 // payment_milestone and testimonial are being modelled in this same PR; the weather card,
 // because itinerary_day.weather_forecast already exists and is agent-authored; "Mark as
-// done", which ships as per-device local state; and "Authorize a card", because §2.4 is
-// Phase 1 and lands next.
+// done", which ships as per-device local state.
+// UPDATE 2026-10-16: "Authorize a card" is gone with §2.4 (retired: the app never holds a
+// card). A milestone with a pay link now shows MPayLink: a button that opens the SUPPLIER's
+// own site in the browser, the site name, who gets the money, and a quiet "I've paid" that
+// only posts a note in the trip thread for Gyasi to check. Paid milestones show no button.
 
 // ──────────────────────────────────────────────────────────────────────
 // Shells
@@ -160,6 +163,25 @@ function MDayChips({ days, active = 0, sticky = true }) {
 
 // The desktop "At a glance" / cancellation grids are 3-col and 2-col. On a 400pt frame
 // they go 2-col, and any row whose value is long gets the full width.
+// Pay link block (§2.2.3, ruled 2026-10-16). Calm by design: no countdown, no red, one tap
+// to the supplier's own site, and "I've paid" is a note to Gyasi, never a status change.
+function MPayLink({ action = 'Pay final balance', site = 'sandals.com', supplier = 'Sandals' }) {
+  return (
+    <div>
+      <button className="btn btn-filled" style={{ width: '100%' }}>
+        {action} <Icon name="external" size={13}/>
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, font: '600 12.5px/1.3 var(--font-sans)' }}>
+        <Icon name="lock" size={12} color="var(--md-on-surface-variant)"/>{site}
+      </div>
+      <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', marginTop: 2 }}>
+        Paid directly to {supplier} on their secure site.
+      </div>
+      <button className="btn btn-text" style={{ marginTop: 4, paddingLeft: 0 }}>I’ve paid</button>
+    </div>
+  );
+}
+
 function MKeyGrid({ rows }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -240,7 +262,7 @@ function M221_Dashboard({ dark = false }) {
         <div className="t-label-s" style={{ color: 'var(--md-secondary)' }}>WELCOME BACK · YOUR REST IS COMING</div>
         <h1 className="t-headline" style={{ margin: '6px 0 4px' }}>Hey Jordan — 90 days until you can finally breathe out.</h1>
         <p className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', margin: 0 }}>
-          One card to authorize, one new idea from Gyasi. The hard part is almost done.
+          Your final balance link is ready, and Gyasi has one new idea for you. The hard part is almost done.
         </p>
       </div>
 
@@ -272,15 +294,13 @@ function M221_Dashboard({ dark = false }) {
       </div>
 
       <div style={{ padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="card" style={{ padding: 14, background: 'var(--md-error-container)', color: 'var(--md-on-error-container)', border: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="card" size={15}/><span className="t-label-s">ACTION NEEDED · 14 DAYS</span>
+        <div className="card" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--md-on-surface-variant)' }}>
+            <Icon name="receipt" size={15}/><span className="t-label-s">NEXT PAYMENT · DUE MAY 28</span>
           </div>
-          <div className="t-title-s" style={{ marginTop: 6 }}>Authorize a card for the final balance</div>
-          <div className="t-body-s" style={{ opacity: 0.85, marginTop: 4 }}>$4,180 due to Sandals on May 28.</div>
-          <button className="btn btn-filled" style={{ width: '100%', marginTop: 10, background: 'var(--md-on-error-container)', color: 'var(--md-error-container)' }}>
-            Authorize a card <Icon name="arrow_right" size={13}/>
-          </button>
+          <div className="t-title-s" style={{ marginTop: 6 }}>Final balance · $4,180</div>
+          <div className="t-body-s" style={{ color: 'var(--md-on-surface-variant)', margin: '2px 0 10px' }}>Whenever it suits you before then.</div>
+          <MPayLink/>
         </div>
 
         <div className="card" style={{ padding: 14 }}>
@@ -407,8 +427,8 @@ function M222_AllTrips({ dark = false }) {
 // §4.4: "Full-screen detail; back button to list; sub-sections collapsible accordions."
 // The four quick-access tiles become a 2x2 grid; the desktop right rail becomes the
 // advisor card and the payment timeline, below the content, in the same order.
-// "Card on file · VISA •••• 4242" is dropped from At a glance — that lives on payment_card
-// and belongs to §2.4; "Nights" takes the slot and comes off the trip's own dates.
+// "Card on file · VISA •••• 4242" is dropped from At a glance; "Nights" takes the slot and
+// comes off the trip's own dates. (§2.4 and payment_card were retired 2026-10-16.)
 // ──────────────────────────────────────────────────────────────────────
 
 function M223_TripDetail({ dark = false }) {
@@ -427,14 +447,14 @@ function M223_TripDetail({ dark = false }) {
 
       <div style={{ padding: '14px 16px 22px' }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-orange" style={{ flex: 1 }}>Authorize card</button>
+          <button className="btn btn-orange" style={{ flex: 1 }}><Icon name="plane" size={14}/> Itinerary</button>
           <button className="btn btn-outlined" style={{ flex: 1 }}><Icon name="message" size={14}/> Message</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
           {[
             { i: 'plane', l: 'Itinerary', s: 'Day-by-day', tone: 'primary' },
-            { i: 'card', l: 'Payments', s: '$4,180 due', tone: 'error' },
+            { i: 'receipt', l: 'Payments', s: 'Final balance May 28', tone: 'secondary' },
             { i: 'passport', l: 'Documents', s: '5 files', tone: 'secondary' },
             { i: 'message', l: 'Messages', s: '2 unread', tone: 'tertiary' },
           ].map((s) => (
@@ -472,7 +492,8 @@ function M223_TripDetail({ dark = false }) {
           <div className="t-title-s">A note from Gyasi</div>
           <p className="t-body" style={{ color: 'var(--md-on-surface-variant)', margin: '6px 0 0' }}>
             “I added a Red Lane spa credit and locked in your bungalow upgrade for Day 3. Sandals
-            settles with me on May 28 — your card covers the final balance and nothing more.”
+            gets the final balance straight from you, on their own site. The link is in your payment
+            timeline whenever you’re ready.”
           </p>
         </div>
 
@@ -487,20 +508,24 @@ function M223_TripDetail({ dark = false }) {
           <button className="btn btn-tonal" style={{ width: '100%', marginTop: 10 }}><Icon name="message" size={14}/> Message Gyasi</button>
         </div>
 
-        {/* payment_milestone rows. A supplier payment schedule, not an invoice — there is no
-            "pay now" here and never will be (BRD §10.5). */}
+        {/* payment_milestone rows. A supplier payment schedule, not an invoice: Story-Tail never
+            bills the client (BRD §10.5). The one button pays the SUPPLIER on its own site, via
+            the milestone's pay link (ruled 2026-10-16). Paid rows never get a button. */}
         <div className="card" style={{ padding: 14, marginTop: 12 }}>
           <div className="t-label" style={{ color: 'var(--md-on-surface-variant)' }}>PAYMENT TIMELINE</div>
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
               { d: 'var(--md-success)', t: 'Deposit · paid $800', c: null },
-              { d: 'var(--md-success)', t: 'Second payment · paid $1,500', c: null },
-              { d: 'var(--md-error)', t: 'Final · $4,180 due May 28', c: 'var(--md-error)' },
+              { d: 'var(--md-success)', t: 'Mid payment · paid $1,500', c: null },
+              { d: 'var(--md-secondary)', t: 'Final balance · $4,180 · due May 28', c: null },
             ].map((p) => (
               <div key={p.t} style={{ display: 'flex', alignItems: 'center', gap: 9, font: '500 12.5px/1.3 var(--font-sans)', color: p.c || 'inherit' }}>
                 <span className="dot" style={{ background: p.d, flexShrink: 0 }}/>{p.t}
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--md-outline-variant)' }}>
+            <MPayLink/>
           </div>
         </div>
       </div>
@@ -777,8 +802,8 @@ function M227_TripThread({ dark = false }) {
     { mine: false, t: '11:14a', b: 'Quick win — Sandals just opened the over-water bungalows for your dates. I held one tentatively. Want me to lock it?' },
     { mine: true, t: '11:32a', b: 'Yes please. Sam will lose it — what does the upgrade run us?' },
     { mine: false, t: '11:33a', b: '$680 over the base, and I got a Red Lane spa credit plus a private island day with it. Net win.' },
-    { mine: true, t: '11:36a', b: 'Done. Authorize whatever you need.' },
-    { mine: false, t: '2:14p', b: 'Locked. I also flagged your card for the final balance of $4,180 — there is an authorization request waiting on your dashboard.' },
+    { mine: true, t: '11:36a', b: 'Yes! Lock it in.' },
+    { mine: false, t: '2:14p', b: 'Locked. Your final balance link is on your trip page now: $4,180, due May 28, paid straight to Sandals on their own site. No rush.' },
   ];
   return (
     <MFrame dark={dark} footer={
@@ -922,7 +947,7 @@ function M229_StatusChange({ dark = false }) {
           <ol style={{ margin: '6px 0 0', paddingLeft: 18, font: '400 13.5px/1.6 var(--font-sans)', color: 'var(--md-on-surface-variant)' }}>
             <li>Have a read, no rush</li>
             <li>Reply with what you think, or pick a room</li>
-            <li>Authorize a card and Gyasi locks it in</li>
+            <li>Once it’s booked, pay the deposit on the supplier’s own site</li>
           </ol>
         </div>
 

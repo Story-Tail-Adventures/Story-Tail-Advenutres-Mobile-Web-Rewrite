@@ -7,14 +7,15 @@ import {
 } from "./nav";
 
 describe("the client destination registry", () => {
-  it("puts six items on the web rail and four on the mobile bar", () => {
-    // Gyasi's 2026-09-06 decision: the prototype's ScreenNavRail (6) and StaMobileTabs (4)
-    // win over Screen-Inventory §6.1/§6.3. If either count changes, the docs change too.
+  it("puts five items on the web rail and four on the mobile bar", () => {
+    // Gyasi's 2026-09-06 decision: the prototype's ScreenNavRail and StaMobileTabs (4) win
+    // over Screen-Inventory §6.1/§6.3. The rail had six until 2026-10-16, when §2.4 was
+    // retired and Wallet left it (the app holds no card). If either count changes, the docs
+    // change too.
     expect(destinationsFor("rail").map((d) => d.id)).toEqual([
       "trips",
       "discover",
       "messages",
-      "wallet",
       "documents",
       "account",
     ]);
@@ -37,7 +38,6 @@ describe("the client destination registry", () => {
     expect(built.map((d) => d.id)).toEqual([
       "trips",
       "messages",
-      "wallet",
       "documents",
       "account",
     ]);
@@ -89,7 +89,7 @@ describe("activeDestinationId", () => {
 
   it("respects `/` boundaries, so a longer path does not match a shorter destination", () => {
     expect(activeDestinationId("/documents-archive")).toBeNull();
-    expect(activeDestinationId("/walletx")).toBeNull();
+    expect(activeDestinationId("/messagesx")).toBeNull();
   });
 
   it("is null off the client surface", () => {

@@ -35,28 +35,34 @@ Administrator-role screens are out of scope for this document and will be invent
 | Client — Authentication & Onboarding | 14 |
 | Client — Dashboard & Trip Experience | 11 |
 | Client — Self-Guided Search | 10 |
-| Client — Payment & Card Authorization | 7 |
+| Client — Payment & Card Authorization (retired 2026-10-16) | 0 (was 7) |
 | Client — Account & Profile | 11 |
 | Client — Messaging | 3 |
 | Client — Mobile-Specific | 8 |
 | Client — Group Trip Coordination (Future-Ready) | 4 |
-| **Client total** | **79** |
+| **Client total** | **72** (was 79) |
 | Agent — Authentication & Activation | 10 |
 | Agent — Dashboard & Pipeline | 3 |
 | Agent — Client Management (CRM) | 12 |
 | Agent — Trip Builder & Management | 16 |
 | Agent — Proposal & Itinerary | 7 |
-| Agent — Payment & Card Management | 7 |
+| Agent — Supplier Payments (was Payment & Card Management) | 4 (was 7) |
 | Agent — Commission Tracking | 7 |
 | Agent — Leads | 5 |
 | Agent — Login Support / Account Admin | 7 |
 | Agent — Messaging & Templates | 6 |
 | Agent — Reporting | 8 |
 | Agent — Agent Profile & Settings | 5 |
-| **Agent total** | **93** |
-| **Platform total** | **~172 screens** |
+| **Agent total** | **90** (was 93) |
+| **Platform total** | **~162 screens** (was ~172) |
 
 These counts include states, modals, and confirmation screens that meaningfully change what the user sees. They do not count every individual tab within a single screen.
+
+> **Amended 2026-10-16 — ten screens fewer.** §2.4's seven client card screens are retired,
+> and §3.6 drops three of its seven (3.6.3, 3.6.4, 3.6.7), so the platform is about 162
+> screens, not 172. The client's pay button and "I've paid" are parts of 2.2.3, not new
+> screens. Retired and removed screens keep their numbers and headings below as a record.
+> Other docs and CLAUDE.md that say "172 screens" are now out of date by ten.
 
 ---
 
@@ -78,7 +84,7 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 
 #### 2.0.1 App Subdomain Public Landing
 **Purpose:** Greet anonymous visitors at app.story-tail.com and direct them into the right next action.
-**Primary elements:** Brand hero (rotating destination imagery); single-sentence value prop ("Your Story-Tail Adventures portal — view trips, authorize payments, and explore your next adventure"); "Sign in" CTA; "Create an account" CTA; "Take a quick tour" link; "Browse trip ideas" link (to Public Search Landing); footer with link to the marketing site and legal pages.
+**Primary elements:** Brand hero (rotating destination imagery); single-sentence value prop ("Your Story-Tail Adventures portal — view trips, authorize payments, and explore your next adventure"; *amended 2026-10-16: "authorize payments" goes with §2.4, for example "view trips, stay close to your advisor, and explore your next adventure"*); "Sign in" CTA; "Create an account" CTA; "Take a quick tour" link; "Browse trip ideas" link (to Public Search Landing); footer with link to the marketing site and legal pages.
 **Key actions:** Sign in; register; browse anonymously; navigate to marketing site; tour.
 **Entry points:** Direct URL; marketing-site CTAs; email-footer links from Gyasi's outbound emails.
 **Related screens:** Login, Registration, Public Search Landing, About / How It Works.
@@ -226,10 +232,10 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Related screens:** Login.
 
 #### 2.1.6 MFA Setup Screen
-**Purpose:** Enable multi-factor authentication. MFA is optional for clients but strongly encouraged once they store a payment card; it is required for agents (see 3.1.6).
+**Purpose:** Enable multi-factor authentication. MFA is optional for clients but strongly encouraged once they store a payment card; it is required for agents (see 3.1.6). *(Amended 2026-10-16: clients never store a card now (§2.4 retired), so MFA stays optional and encouraged, with no card trigger.)*
 **Primary elements:** Explanation of MFA benefits; choice of MFA method (authenticator app, SMS, email); QR code or phone number entry; backup codes display; confirmation field.
 **Key actions:** Choose method; verify enrollment; download backup codes.
-**Entry points:** Security Settings (self-initiated); soft prompt after the client adds their first payment card.
+**Entry points:** Security Settings (self-initiated); soft prompt after the client adds their first payment card *(retired 2026-10-16 with §2.4)*.
 **Related screens:** Security Settings, MFA Challenge.
 
 #### 2.1.7 MFA Challenge Screen
@@ -432,6 +438,13 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 >
 > **Two new entities.** `payment_milestone` (Data-Model §9.5) and `testimonial` (§8.7), both documented before the migrations. The milestone is **a supplier payment schedule the client is kept informed about, not an invoice** — BRD §10.5 prohibits client-facing billing, so there is no merchant-of-record field, no "pay now", and no Stripe reference; the only client action near money stays §2.4's card *authorization*. `message_attachment` (§12.3) was also created, being the one P1 entity that had no migration.
 >
+> > **Amended 2026-10-16 — superseded in part.** §2.4's card authorization is retired. The
+> > client's only actions near money are now a milestone's pay button, which opens the
+> > SUPPLIER's own payment page (or a Travefy invoice that passes along supplier costs only),
+> > and "I've paid", which only posts a message (§2.2.3). The milestone is still not an
+> > invoice and Story-Tail is still never the merchant: no Stripe, and nothing is charged
+> > through this app.
+>
 > **Every derived label lives in one table per stack, compared by CI.** Two of the seven trip-status labels are *derived* — the enum has no "Final payment due" and no "Traveling now" — so the mapping exists in `web/lib/trips/status.ts` and `domain/trip/TripStatus.kt` and nowhere else. Six such tables now cover status, documents, threads, memories, status changes and destinations; `.github/scripts/check_copy_parity.py` compares 293 messages across 26 modules on every CI run. Copy that a traveler reads must not differ between the browser and the phone, and nothing else would catch it.
 >
 > **§5's four states are shell infrastructure, not per-screen work.** Four states × eleven screens × two stacks is 88 hand-written states and exactly how they drift. Web uses route-level `loading`/`error` boundaries plus one primitive set in `web/components/client/states.tsx`; native uses a single `Loadable<T>` sealed interface. `Unauthorized` is not decoration — an agent's `platform_user.client_id` is NULL, so every policy predicate here evaluates NULL for them and returns zero rows, which without that state renders as the friendly "no trips yet" empty state. That reads as data loss.
@@ -442,6 +455,10 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** Tap into upcoming trip; review pending actions; jump to messages; start a search.
 **Entry points:** Post-login; bottom nav "Home" on mobile.
 **Related screens:** Trip Detail, Itinerary Viewer, Messages Inbox, Search Landing.
+
+> **Amended 2026-10-16.** "Payment authorization requested" is no longer a kind of activity,
+> and the dashboard's "Authorize a card" CTA is removed on web, Android and iOS (§2.4 is
+> retired). A trip with a payment coming up points to that trip's payment timeline (§2.2.3).
 
 #### 2.2.2 All Trips List
 **Purpose:** Single place to find any trip — current, future, or past.
@@ -463,6 +480,37 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** Open itinerary; manage payments; view documents; message agent.
 **Entry points:** Dashboard hero card; All Trips List; deep link from email.
 **Related screens:** Itinerary Viewer, Card Authorization for Trip, Trip Document Library, Conversation Thread.
+
+> **Amended 2026-10-16 — pay links on the payment timeline, and "I've paid" (Gyasi, by
+> grilling; web, Android and iOS).** §2.4 is retired, so "manage payments" no longer means
+> authorizing a card, and Card Authorization for Trip drops out of the Related screens
+> above. The Payments tile now leads to the trip's **payment timeline** on this page, and
+> the timeline gains two things. Story-Tail still never takes a payment and never charges a
+> fee (BRD §10.5): the client pays each supplier directly, on the supplier's own site.
+>
+> **A pay button on a milestone that has a pay link.** The advisor can give each
+> `payment_milestone` one optional link (§3.6.1): the supplier's own payment page, or a
+> Travefy invoice link when the supplier has none. When a milestone has one, its row shows:
+>
+> - a button named from the milestone's label, such as **"Pay deposit"** or **"Pay final
+>   balance"**, which opens the link in a new tab on the web and in the browser on Android
+>   and iOS, never inside the app;
+> - the link's site name, such as `royalcaribbean.com`, so the client can see where they are
+>   going before they tap;
+> - one calm line, for example *"Paid directly to Royal Caribbean on their secure site."*
+>
+> A paid or waived milestone shows no button. A milestone with no link shows no button and
+> no empty space for one. Per Design-System §2: no countdowns, no "pay now" urgency, no red
+> unless a supplier date has truly passed. The client can only read a link; they can never
+> add or change one.
+>
+> **"I've paid", which only sends a message.** A milestone that is still open (scheduled or
+> overdue) offers a quiet "I've paid" text button. Tapping it posts a message in the trip's
+> thread (§2.2.7 / §2.6.2) for Gyasi to check, for example *"I've paid the deposit to Royal
+> Caribbean."*, and then says *"Thanks. Gyasi will check and mark it paid."* It **never**
+> changes the milestone. Only the advisor marks a payment paid (§3.6.5), once it is checked
+> with the supplier. The message is sent through `trip-message`, the same audited path as any
+> client message, so no new write path is added.
 
 #### 2.2.4 Itinerary Viewer (Day-by-Day)
 **Purpose:** Present the trip itinerary in the brand-aligned, day-by-day format.
@@ -523,6 +571,11 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** View proposal / view updated itinerary / authorize payment.
 **Entry points:** Push or email notification.
 **Related screens:** Trip Detail, Itinerary Viewer, Card Authorization.
+
+> **Amended 2026-10-16 — no "authorize payment".** §2.4 is retired, so this screen's
+> "authorize payment" action and its Card Authorization link go away on web, Android and
+> iOS. When a status change is about money, the CTA opens the trip's payment timeline
+> (§2.2.3) instead.
 
 
 > Built September 2026, as a **route rather than a sheet**, and saying rather less than the artboards do.
@@ -652,7 +705,29 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 ---
 
-### 2.4 Payment & Card Authorization
+### 2.4 Payment & Card Authorization (Retired 2026-10-16)
+
+> **Amended 2026-10-16 — retired: the app never holds a card (Gyasi, by grilling).** All
+> seven screens, 2.4.1 to 2.4.7, are retired on web, Android and iOS. The specs and the
+> 2026-09-17 notes below stay only as a record of what was built and why. **Do not build
+> from them.** Stripe never gives back a full card number, so the advisor could never use a
+> stored card on a supplier's site; a vault that could show one costs far more than the
+> business can carry. Clients now pay each supplier through a pay link on the trip's payment
+> timeline (§2.2.3), and the advisor marks payments (§3.6). The four card tables
+> (`payment_card`, `card_authorization`, `authorization_request`, `card_use_event`) are
+> retired in Data-Model §9.1 to §9.4 and dropped; production held no rows in any of them.
+>
+> **Every door into this section goes away, on all three surfaces:**
+>
+> - the dashboard's "Authorize a card" CTA (§2.2.1);
+> - the Trip Detail Payments tile's link to 2.4.3 (§2.2.3); the tile now leads to the
+>   trip's payment timeline on the same page;
+> - 2.2.9's "authorize payment" action;
+> - 2.5.1's "Payment methods" row;
+> - the web rail's **Wallet** destination (§6.1), which was this section's home.
+>
+> The `/wallet` routes and the Compose wallet screens are removed with them, not left
+> disabled: a dimmed control says something is coming, and nothing is.
 
 > **Amended 2026-09-17, as the section was built.** Six of the seven screens ship; **2.4.2 Add
 > Card is deferred**, and with it the only thing in §2.4 that needs a Stripe account. The
@@ -906,6 +981,16 @@ gate (2.0.6) sits in front of it rather than beside it.
 > and from the parity map rather than left unreferenced, where the next reader would take
 > them for live copy. Only 2.5.6's payment-notification category is still disabled, and for
 > its own reason — no dispatcher exists — not because §2.4 is missing.
+>
+> > **Amended 2026-10-16 — §2.4 retired, so this reverses again.** Every CTA named above (the
+> > dashboard's, the Trip Detail Payments tile's link to 2.4.3, 2.2.9's) and 2.5.1's "Payment
+> > methods" row are removed on web, Android and iOS, not disabled: there is no card screen
+> > left to point at. In this section that means: 2.5.1 loses the row; 2.5.6's
+> > `payment_authorization` and `card_use` categories have nothing left to send (whether
+> > they are dropped or folded into another is settled when 2.5.6 is built; a payment link
+> > from Gyasi already arrives as a message); 2.5.10's closure warning drops "stored cards
+> > stop being usable", since none are stored; and 2.5.11's two held card questions are
+> > dropped, not restored. 2.1.6's "once they store a payment card" prompt goes the same way.
 
 #### 2.5.1 Account Overview / My Account
 **Purpose:** Hub for everything related to the client's account.
@@ -2000,7 +2085,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 
 #### 3.3.8 Client Activity Log
 **Purpose:** Audit-style timeline of significant events for this client.
-**Primary elements:** Timeline (logins, payment authorizations, status changes, agent actions); filter.
+**Primary elements:** Timeline (logins, payment authorizations, status changes, agent actions); filter. *(Amended 2026-10-16: "payment authorizations" are gone with §2.4; pay link changes and paid marks (§3.6.6) take their place in the trail.)*
 **Key actions:** Filter; tap event for detail.
 **Entry points:** Client Detail.
 **Related screens:** Audit Event Detail.
@@ -2289,6 +2374,13 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > > `next_unpaid_due_date`, so the summary line and the chip above it cannot contradict
 > > each other.
 
+> **Amended 2026-10-16 — no card on this screen (§3.6 reshaped).** The "request card" quick
+> action in the Primary elements line is gone for good, not waiting on §3.6: there is no card
+> to request. The at-a-glance grid's **"card on file"** row is removed on the web and the
+> phone, since no card is ever on file. The Payments tab becomes §3.6.1 Trip Payments on the
+> web (milestones with their pay links, Mark paid, Send link). On the phone it stays
+> read-only and may show each milestone's link site name and status; no write moves there.
+
 #### 3.4.3 Create New Trip — Type Selector
 **Purpose:** Choose what kind of trip to build.
 **Primary elements:** Trip-type tiles (Cruise, All-Inclusive Resort, Multi-Destination, Group, Custom); template option ("Start from a template"); client picker; "Next" CTA.
@@ -2564,7 +2656,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Primary elements:** Schedule rows (date, amount, paid Y/N, paid date); reminder cadence toggle.
 **Key actions:** Add row; edit; trigger reminder.
 **Entry points:** Trip Detail "Payments".
-**Related screens:** Card Use Log, Conversation Thread.
+**Related screens:** Card Use Log, Conversation Thread. *(Card Use Log is now Payment History, 3.6.6; see the 2026-10-16 note below.)*
 
 > **Amended 2026-09-29, as the screen was built.**
 >
@@ -2609,6 +2701,12 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > > The money is paid to the supplier, never to Story-Tail (BRD §10.5), and the starter copy
 > > says so. **The reminder cadence toggle stays off**: automatic reminders need a scheduler
 > > that sends on the advisor's behalf, and they matter most once email exists (Stage 4).
+> >
+> > > **Amended 2026-10-16 — the reminder carries the pay link.** The Payment reminder
+> > > template gains `{{payment.link}}`, filled from the same next unpaid milestone's pay
+> > > link (below). When that milestone has no link, the token is flagged missing like any
+> > > other (§3.10.3): "Insert as-is" is off and Send refuses while it is left in, so the
+> > > advisor adds the link first or takes the token out by hand.
 >
 > **Removing a payment is a hard delete.** `payment_milestone` is not on Data-Model §20.1's
 > soft-delete list, has no `archived_at`, and nothing references it — unlike §3.4.4's
@@ -2618,6 +2716,29 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > **No "amount owing" anywhere in the copy.** BRD §10.5 prohibits client-facing billing, so
 > these rows describe what a *supplier* expects, never a bill from us. "Due" is the
 > supplier's date and "on file" is money we have a record of.
+
+> **Amended 2026-10-16 — a pay link per milestone (Gyasi, by grilling; web only).** Each
+> schedule row gains an optional **pay link** field: the supplier's own payment page, or a
+> Travefy invoice link Gyasi makes when the supplier has none. One link per milestone, not
+> per booking, since one trip can have two suppliers. The rules:
+>
+> - **`https://` only.** Anything else is refused on save, on the web and again on the
+>   server.
+> - **Advisor only.** Only the advisor adds, changes or removes a link. Clients read it on
+>   their payment timeline (§2.2.3) and can never write it.
+> - **Audited.** Every add, change or removal writes an `audit_event` row with the old and
+>   new value, because a swapped link could send a client's money to the wrong place. Those
+>   rows are what Payment History (§3.6.6) shows.
+> - **Shown as its site name** (for example `royalcaribbean.com`) in the row, with the full
+>   address on hover.
+> - **A Travefy invoice may only pass along supplier costs**, never a planning, consultation
+>   or service fee (BRD §10.5). The app stores the link only; what is on the invoice is
+>   Gyasi's to keep right in Travefy.
+>
+> Marking a row paid stays `agent_set_milestone_paid`, now with an optional confirmation or
+> reference number and note (§3.6.5). The 2026-09-29 note above about
+> `wallet/authorize/[tripId]` reading `total_paid_cents` is history: that route is retired
+> with §2.4. The Related screens line's Card Use Log is now §3.6.6 Payment History.
 
 #### 3.4.16 Cancel / Archive Trip
 **Purpose:** Mark a trip as cancelled, with reason and refund tracking.
@@ -2650,6 +2771,10 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > on a cancellation screen is how an advisor comes to trust a number nobody computed. The
 > remaining lines are derived from the trip and verified against behaviour — the dialog says
 > commission will drop by $1,318 and the dashboard figure then drops by exactly that.
+>
+> > **Amended 2026-10-16.** There are no card authorizations any more (§2.4 retired, §3.6
+> > reshaped), so the dialog drops the authorization line altogether. Pay links on the
+> > trip's milestones stay as they are; cancelling does not change them.
 >
 > **Not built: the supplier-side action checklist** named above. It needs per-supplier
 > cancellation terms, which nothing stores, and §3.7's `payment_terms` has the same gap.
@@ -2735,56 +2860,91 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 
 ---
 
-### 3.6 Payment & Card Management (Agent)
+### 3.6 Supplier Payments (Agent)
 
-#### 3.6.1 Card Vault (Per Trip)
-**Purpose:** Show authorized cards for the trip.
-**Primary elements:** Card list (brand + last 4, nickname, authorized spend remaining, expires); "Request authorization" CTA.
-**Key actions:** Request authorization; view card detail; reveal PAN (audited); log a use.
-**Entry points:** Trip Detail "Payments".
-**Related screens:** Request Card Authorization, Reveal Card Number, Log Card Use.
+> **Amended 2026-10-16 — §3.6 reshaped: the app never holds a card (Gyasi, by grilling).**
+> This section was "Payment & Card Management". It planned a card vault per trip and a
+> 3.6.4 Reveal Card Number "via Stripe's API". That screen cannot exist: Stripe never gives
+> back a full card number for a stored card, only the brand, last 4 and a fingerprint, and
+> there is no reveal. The services that can show a number to a person cost about $127 a
+> month (PCI Vault) up to about $1,000 a month (VGS, Basis Theory, Evervault), and Gyasi
+> cannot carry that. Stripe Vault and Forward only posts a card to a short list of approved
+> supplier APIs and never shows a number to anyone.
+>
+> **So the ruling is: the app never holds a card.** No vault, no Stripe, no tokens, no
+> reveal, in P1 and until a new decision. Stripe leaves the stack. Clients pay each supplier
+> themselves, through a **pay link** on each `payment_milestone`: the supplier's own payment
+> page, or a Travefy invoice link Gyasi makes when the supplier has none. One optional link
+> per milestone. Only the advisor adds, changes or removes a link, it must be `https://`,
+> and every change writes an `audit_event` row, because a swapped link could send a client's
+> money to the wrong place. Only the advisor marks a milestone paid. A Travefy invoice may
+> only pass along supplier costs, never a planning, consultation or service fee (BRD §10.5);
+> the app stores the link and nothing about what is on the invoice.
+>
+> **Screens:** 3.6.1 Trip Payments, 3.6.2 Send Payment Link, 3.6.5 Mark Paid and 3.6.6
+> Payment History stay. 3.6.3, 3.6.4 and 3.6.7 are removed. The numbers are kept as they
+> were so links from other docs and commits still land in the right place. The client side
+> of this (the pay button and "I've paid") is under §2.2.3, and §2.4's card screens are
+> retired.
+>
+> **Web only, no phone treatment, like §3.7.** The phone's Trip Detail Payments tab
+> (§3.4.2) stays read-only; it can show a milestone's link site name and status, and every
+> write here lives in a browser. The artboards in
+> `design/source-prototype/screens/agent-payment.jsx` are redrawn first, and building waits
+> for Gyasi's OK on them.
 
-#### 3.6.2 Request Card Authorization
-**Purpose:** Send the client a secure link to authorize a card for this trip.
-**Primary elements:** Spending limit input; expiration date; personal note to client; preview of message; "Send request" CTA.
-**Key actions:** Send.
-**Entry points:** Card Vault "Request authorization".
-**Related screens:** Authorization Request Sent.
+#### 3.6.1 Trip Payments
+**Purpose:** One place to see and manage how a trip's suppliers get paid: every milestone, its pay link, and where it stands.
+**Primary elements:** Milestone list in due-date order (label, supplier, due date, amount due, amount paid, status chip: scheduled, paid, waived or overdue); per milestone, the pay link shown as its site name (for example `royalcaribbean.com`) with the full address on hover, or "No pay link yet"; per row actions; a short note that clients pay suppliers directly and Story-Tail never charges a fee.
+**Key actions:** Add, change or remove a pay link (https only, audited); mark a milestone paid (3.6.5); send a milestone's link to the client (3.6.2); open the payment history (3.6.6).
+**Entry points:** Trip Detail "Payments" tab (§3.4.2); the §3.4.15 payment schedule table; the worklist's "Payments to settle" rows (§3.2.1, web), which open the trip.
+**Related screens:** Send Payment Link, Mark Paid, Payment History, Trip Payment Schedule (3.4.15).
+
+> 3.6.1 and §3.4.15 read the same `payment_milestone` rows. §3.4.15 is where the schedule
+> itself is shaped (label, amount, due date); this screen adds the link and the money side.
+> Whether they ship as one tab or two is for the redrawn artboard to settle, not a reason
+> to keep two copies of the list in step.
+
+#### 3.6.2 Send Payment Link
+**Purpose:** Send the client a milestone's pay link in the trip's message thread, so they can pay the supplier when it suits them.
+**Primary elements:** Milestone picker (defaults to the one it was opened from); the Payment reminder template (§3.10.3) merged with that milestone, including `{{payment.link}}`; editable message preview; "Send" CTA.
+**Key actions:** Edit the message; send.
+**Entry points:** Trip Payments row "Send link"; §3.4.15 "Remind the client".
+**Related screens:** Trip Payments, Conversation Thread (Agent View) (3.10.2), Template Picker (3.10.3).
+
+> This is the §3.4.15 "Remind the client" flow pointed at one milestone: it opens the trip's
+> thread with the picker on Payment reminder. A milestone with no link leaves
+> `{{payment.link}}` flagged as missing, like any other missing field, so it cannot be sent
+> by accident. The message in the thread is the record; nothing else is stored.
 
 #### 3.6.3 Authorization Request Sent
-**Purpose:** Confirm the request and track state.
-**Primary elements:** Confirmation; pending status; option to resend.
-**Key actions:** Resend; back.
-**Entry points:** Request Card Authorization.
-**Related screens:** Card Vault.
+**Removed 2026-10-16.** There is no card authorization to request. The payment link message in the trip thread (3.6.2) is its own record, so there is nothing separate to track.
 
 #### 3.6.4 Reveal Card Number (Audited)
-**Purpose:** One-time-reveal of the card PAN for use on a supplier portal — every reveal is audited.
-**Primary elements:** Justification field (required: supplier name, amount, reason); MFA step-up confirmation; revealed PAN displayed for limited time with copy button; auto-hide countdown.
-**Key actions:** Reveal; copy; close.
-**Entry points:** Card Vault "Use card".
-**Related screens:** Log Card Use.
+**Removed 2026-10-16.** Stripe never returns a full card number for a stored card, and a vault that shows one to a person costs more than the business can carry. The app holds no card at all, so there is nothing to reveal.
 
-#### 3.6.5 Log Card Use
-**Purpose:** Record that a card was used to pay a supplier.
-**Primary elements:** Supplier; amount; date; reference number; note; receipt upload (optional); "Log" CTA.
-**Key actions:** Log.
-**Entry points:** Reveal Card Number flow; Card Vault.
-**Related screens:** Card Use Log.
+#### 3.6.5 Mark Paid
+**Purpose:** Record that a supplier milestone has been paid. Only the advisor does this.
+**Primary elements:** Milestone summary (label, supplier, amount due); amount paid; date paid; confirmation or reference number (optional); note (optional); "Mark paid" CTA. A waived milestone is set from the status, not here.
+**Key actions:** Mark paid; cancel.
+**Entry points:** Trip Payments row "Mark paid"; a client's "I've paid" message in the thread (§2.2.3), which the advisor checks with the supplier first.
+**Related screens:** Trip Payments, Payment History.
 
-#### 3.6.6 Card Use Log (Per Trip / Per Card)
-**Purpose:** Read-only audit log of every card use.
-**Primary elements:** Event list; filter by card or trip; export.
-**Key actions:** Filter; export.
-**Entry points:** Card Vault; Trip Detail.
-**Related screens:** Audit Event Detail.
+> Writes through `agent_set_milestone_paid`, the same path §3.4.15 already uses, so it is
+> the only thing that can move `trip.total_paid_cents`. A client's "I've paid" never
+> changes the record; it is a message for the advisor to check.
+
+#### 3.6.6 Payment History
+**Purpose:** A read-only record, per trip, of every time a milestone was marked paid and every time a pay link was added, changed or removed.
+**Primary elements:** Event list (when, who, milestone, what changed; for a link, the old and new site name); filter by milestone.
+**Key actions:** Filter; open the milestone.
+**Entry points:** Trip Payments "History"; Trip Detail "Activity" tab.
+**Related screens:** Trip Payments, Client Activity Log (3.3.8).
+
+> Read from `audit_event` rows, which every link change and paid mark writes. No new table.
 
 #### 3.6.7 Set or Update Spending Limit
-**Purpose:** Modify the spending limit on an existing card authorization (subject to client re-consent).
-**Primary elements:** Current limit; new limit; note; re-consent required indicator; "Request update" CTA.
-**Key actions:** Send re-consent request.
-**Entry points:** Card Vault "Adjust limit".
-**Related screens:** Authorization Request Sent.
+**Removed 2026-10-16.** Spending limits belonged to card authorizations, which are retired with §2.4.
 
 ---
 
@@ -3215,6 +3375,14 @@ These tools let the agent help less-technical clients with login issues.
 > - **What is sent is plain text.** The message stores the merged words only, with no link
 >   back to the template, so editing a template never changes a message already sent.
 
+> **Amended 2026-10-16 — `{{payment.link}}` joins the merge fields (§3.6 reshaped).** The
+> fixed set gains `{{payment.link}}`: the pay link on the same milestone that fills
+> `{{payment.label}}`, `{{payment.amount}}` and `{{payment.dueDate}}` (Data-Model §12.4). Like
+> the other `payment.*` fields it fills only from the Payments doors: §3.4.15 "Remind the
+> client" and §3.6.2 Send Payment Link. When the milestone has no link, the preview names it
+> as missing, "Insert as-is" is off, and Send refuses while the raw token is left in. The
+> link is inserted as the full `https://` address, so it is tappable in the client's thread.
+
 #### 3.10.4 Template Library
 **Purpose:** Manage reusable email/message templates.
 **Primary elements:** Template list grouped by stage (Lead Response, Proposal, Booking, Pre-Trip, Post-Trip, Payment Reminder); "Create new template" CTA.
@@ -3258,6 +3426,9 @@ These tools let the agent help less-technical clients with login issues.
 >   breadcrumb, and something has to set it.
 > - **Merge fields are chips** that insert at the cursor. **An unknown token blocks Save** and
 >   is named (`{{client.firstname}}`, lowercase n, would never match anything).
+>   **Since 2026-10-16** the chips include `{{payment.link}}` (§3.10.3), and the fixed sample
+>   preview shows a made-up supplier address for it (for example
+>   `https://www.example-cruise.com/pay`), never a real one.
 > - **The preview uses a fixed sample** (Jordan Hayes, Nassau, Aug 12 – 19), never a real
 >   client: writing copy is no reason to put a real traveler's name on screen. The picker is
 >   where real data merges.
@@ -3548,7 +3719,7 @@ Used for Itinerary Viewer, Itinerary Day Detail, Past Trip Memory View, About / 
 - **Web.** Two-column layout: day navigator and trip overview on left (sticky), content on right with reading width capped (~720pt) for legibility; "Download PDF" and "Share" CTAs in a sticky header.
 
 #### Pattern J — Modal / Sheet / Confirmation
-Used for confirmations (revoke card, cancel trip, merge clients), reveals (card PAN), gates (sign-up prompt), pickers (template picker), and other interrupts.
+Used for confirmations (cancel trip, merge clients), gates (sign-up prompt), pickers (template picker), short forms (mark paid), and other interrupts. *(Amended 2026-10-16: "revoke card" and "reveals (card PAN)" are gone with §2.4 and the old 3.6.4; the app holds no card.)*
 
 - **Mobile.** Full-screen modal or full-height bottom sheet; "Cancel" in top-left, primary action in top-right or as a persistent bottom button; swipe-down to dismiss for non-destructive sheets.
 - **Tablet.** Centered modal (~600pt wide) over a dimmed background; for picker-style modals, may use a wider layout with preview.
@@ -3610,7 +3781,11 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.3.9 Quote Request Confirmation** — Pattern J.
 - **2.3.10 Saved Searches & Favorites** — Pattern B.
 
-#### Client — Payment & Card Authorization (2.4.x)
+#### Client — Payment & Card Authorization (2.4.x) (Retired 2026-10-16)
+> **Amended 2026-10-16.** All seven screens are retired (§2.4); the mapping below is kept as a
+> record only. The client's pay button and "I've paid" live inside 2.2.3's payment timeline
+> and follow its Pattern C.
+
 - **2.4.1 My Cards / Payment Methods List** — Pattern B. Cards displayed as visual card-shaped tiles on all viewports (this is one of the rare places where mobile actually shows richer visual treatment because of the credit-card metaphor).
 - **2.4.2 Add Card** — Pattern A. Stripe Elements responsive natively; on mobile uses native payment-keyboard.
 - **2.4.3 Card Authorization for Trip** — Pattern A + Pattern J (consent step).
@@ -3701,14 +3876,15 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 - **3.5.6 Itinerary Preview (Agent)** — Pattern I.
 - **3.5.7 Publish Itinerary Update** — Pattern J.
 
-#### Agent — Payment & Card Management (3.6.x)
-- **3.6.1 Card Vault (Per Trip)** — Pattern B. Visual card tiles like 2.4.1.
-- **3.6.2 Request Card Authorization** — Pattern A.
-- **3.6.3 Authorization Request Sent** — Pattern J.
-- **3.6.4 Reveal Card Number (Audited)** — Pattern J. Critical security screen — uses the same heavy treatment on all viewports (MFA step-up modal, dimmed background, auto-hide). Web copy-button uses clipboard API with auto-clear after 60 seconds; mobile does the same.
-- **3.6.5 Log Card Use** — Pattern A. Mobile prioritizes quick entry with optional receipt photo capture from camera.
-- **3.6.6 Card Use Log** — Pattern B.
-- **3.6.7 Set or Update Spending Limit** — Pattern A.
+#### Agent — Supplier Payments (3.6.x)
+> **Amended 2026-10-16.** Reshaped per §3.6. **Web only, no phone treatment**, like §3.7.
+- **3.6.1 Trip Payments** — Pattern B (a row per milestone, inside Trip Detail's Payments tab).
+- **3.6.2 Send Payment Link** — Pattern J (the template picker over the trip's thread, §3.10.3).
+- **3.6.3 Authorization Request Sent** — Removed 2026-10-16.
+- **3.6.4 Reveal Card Number** — Removed 2026-10-16. The app holds no card.
+- **3.6.5 Mark Paid** — Pattern J (a short form in a dialog).
+- **3.6.6 Payment History** — Pattern B.
+- **3.6.7 Set or Update Spending Limit** — Removed 2026-10-16.
 
 #### Agent — Commission Tracking (3.7.x)
 - **3.7.1 Commission Dashboard** — Pattern D.
@@ -3791,7 +3967,7 @@ Every screen in this inventory must consider four states beyond the "happy path"
 
 **Loading state.** Skeleton placeholders that match the screen's layout; brand-aligned progress indicators; avoid spinner-on-blank wherever possible because it hides what is coming.
 
-**Empty state.** A friendly, branded illustration with a one-line explanation of why the screen is empty and a clear CTA to populate it ("You haven't authorized any cards yet — add one when an agent requests it" / "No trips yet — explore the search to find your next adventure").
+**Empty state.** A friendly, branded illustration with a one-line explanation of why the screen is empty and a clear CTA to populate it ("No payments scheduled yet. Gyasi will add them here once your trip is booked." / "No trips yet — explore the search to find your next adventure"). *(First example changed 2026-10-16: the old one described a retired §2.4 card screen.)*
 
 **Error state.** Plain-language description of what went wrong; never expose stack traces; retry CTA where applicable; "Message Gyasi" CTA as a fallback escalation path. Inline error color is `md.error` — see Design-System §4.1, which is authoritative for it.
 
@@ -3823,6 +3999,8 @@ This contradicts what this section said originally — "Top nav: Logo, Trips, Se
 
 Note the destinations are NOT the same set as §6.3's bottom bar, and this is deliberate rather than an inconsistency — see the note there. "Search" is renamed **Discover** on both surfaces: it is a curated catalog at Phase 1, and "Search" promises a query box that does not exist until the Phase 2 API integration.
 
+> **Amended 2026-10-16 — Wallet leaves the rail.** Wallet was §2.4's home, and §2.4 is retired (the app never holds a card). The rail is now five: Trips, Discover, Messages, Documents, Account. Payments live on each trip's payment timeline (§2.2.3), which is where a client looks for them anyway.
+
 ### 6.2 Client Tablet Navigation
 The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape / drawer-in-portrait split: the rail is 72px and costs the same in either orientation, and a drawer would have been a third navigation implementation to keep in step with the other two. The bottom tab bar appears below 768px, which is the §4.1 mobile breakpoint.
 
@@ -3831,7 +4009,7 @@ The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape 
 **Amended September 2026, built as amended.** A **four-tab** bottom bar: Trips, Discover, Messages, Account. Originally five (Home, Trips, Search, Messages, Profile) with a floating "Help" button; both changed, per the same 2026-09-06 decision.
 
 - **Home and Trips collapsed into one tab.** The dashboard (2.2.1) *is* the Trips tab root, and the trip list (2.2.2) is one tap inside it. Two tabs for one idea is how a four-tab bar becomes a five-tab bar becomes a menu.
-- **Four rather than six.** Wallet (§2.4) and Documents (§2.5.4) stay on the rail and are reached from the trip screens on mobile. A phone bar wants thumb-reachable targets, and §4.2's 44pt minimum across six tabs leaves nothing for a label.
+- **Four rather than six.** Wallet (§2.4) and Documents (§2.5.4) stay on the rail and are reached from the trip screens on mobile. *(Amended 2026-10-16: Wallet is gone with §2.4, so the union is five and only Documents is rail-only. The phone's wallet screens and the Account row that opened them are removed.)* A phone bar wants thumb-reachable targets, and §4.2's 44pt minimum across six tabs leaves nothing for a label.
 - **No Help FAB.** The prototype's own bottom bar has none, and a floating button that follows the traveler across every screen is the opposite of §2's "leaves room for rest". Help lives in Account.
 
 `web/lib/client/nav.ts` and `domain/trip/ClientDestinations.kt` are the two implementations of this, held in step by `.github/scripts/check_copy_parity.py`. Both model a **union of six destinations with per-surface inclusion flags** rather than one list with a projection, precisely because §6.1's set and this one differ.

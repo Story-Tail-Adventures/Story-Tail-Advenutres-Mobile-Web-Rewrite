@@ -56,11 +56,11 @@ export const DASHBOARD = {
   viewItinerary: "View itinerary",
   itineraryNotReady: "Gyasi is still writing this one",
 
-  actionNeededLabel: "ACTION NEEDED",
-  // Points at §2.4.3 for the upcoming trip. `authorizeCardComingSoon` used to sit beside
-  // this as the disabled reason; §2.4 shipped it, so the reason is gone rather than left
-  // in the module unreferenced where the next reader would take it for live copy.
-  authorizeCard: "Authorize a card",
+  // The next-payment card (C221, redrawn 2026-10-16). It was "ACTION NEEDED" with an
+  // "Authorize a card" button into §2.4.3; §2.4 is retired and the app never holds a card,
+  // so the card now shows the next supplier payment and its pay block, calmly.
+  nextPaymentLabel: "NEXT PAYMENT",
+  nextPaymentWhenever: "Whenever it suits you before then.",
 
   advisorLabel: "YOUR ADVISOR",
   advisorName: "Gyasi",

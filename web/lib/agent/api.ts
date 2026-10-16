@@ -50,6 +50,8 @@ export type AgentRead =
   | "agent_trip_itinerary_meta"
   | "agent_trip_itinerary_days"
   | "agent_trip_payments"
+  // §3.6.6 Payment History, read from audit_event (2026-10-16).
+  | "agent_trip_payment_history"
   | "agent_trip_documents"
   | "agent_trip_messages"
   | "agent_trip_activity"
@@ -234,9 +236,6 @@ export type AgentTripOverviewRow = {
   refund_detail: string | null;
   notes: string | null;
   version: number;
-  card_last4: string | null;
-  card_brand: string | null;
-  card_spending_limit_cents: string | null;
   last_activity_at: string | null;
   component_count: number;
   manual_component_count: number;
@@ -326,6 +325,28 @@ export type AgentTripPaymentRow = {
   paid_at: string | null;
   status: string;
   order_index: number;
+  /** §3.6.1 (2026-10-16): the supplier's pay link, https only, or null. */
+  pay_url: string | null;
+  /** The supplier's confirmation number from Mark Paid. Client-visible. */
+  paid_reference: string | null;
+  /** The advisor's own note from Mark Paid. INTERNAL: never shown to the client. */
+  paid_note: string | null;
+};
+
+/**
+ * §3.6.6 Payment History: one `audit_event` row about one of the trip's milestones, newest
+ * first. `metadata` is what the writing function recorded (old and new link, paid amounts,
+ * confirmation number); `paid_note` is never in it.
+ */
+export type AgentTripPaymentHistoryRow = {
+  event_id: string;
+  occurred_at: string;
+  event_type: string;
+  milestone_id: string | null;
+  /** The current label, or the one recorded in the event when the milestone is gone. */
+  milestone_label: string | null;
+  actor_name: string | null;
+  metadata: Record<string, unknown> | null;
 };
 
 export type AgentTripDocumentRow = {
@@ -895,6 +916,8 @@ export type AgentMessageMergeContextRow = {
   payment_owed_cents: string | null;
   payment_currency: string | null;
   payment_due_date: string | null;
+  /** The milestone's `pay_url` (2026-10-16), or null when it has none. */
+  payment_link: string | null;
 };
 
 export type AgentCommissionMonthRow = {

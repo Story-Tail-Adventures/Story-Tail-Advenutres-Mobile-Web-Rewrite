@@ -38,6 +38,25 @@ function C22_MuiDot({ color = 'success.main', sx }) {
   return <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, display: 'inline-block', flexShrink: 0, ...sx }} />;
 }
 
+// Pay link block (§2.2.3, ruled 2026-10-16). A milestone with a pay link shows a calm button
+// that opens the SUPPLIER's own site in a new tab, the site name, and who gets the money.
+// "I've paid" only posts a note in the trip thread for Gyasi to check; it never marks the
+// milestone paid. Paid or waived milestones show no button. No countdowns, no red.
+function C22_PayLink({ action = 'Pay final balance', site = 'sandals.com', supplier = 'Sandals', fullWidth = true }) {
+  const { Box, Stack, Typography, Button } = MUI;
+  return (
+    <Box>
+      <Button variant="contained" size="small" fullWidth={fullWidth} endIcon={<MuiIcon name="external" size={12} />}>{action}</Button>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', mt: 0.75 }}>
+        <MuiIcon name="lock" size={12} sx={{ color: 'text.secondary' }} />
+        <Typography variant="caption" sx={{ fontWeight: 600 }}>{site}</Typography>
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>Paid directly to {supplier} on their secure site.</Typography>
+      <Button variant="text" size="small" sx={{ mt: 0.5, px: 0.5, minWidth: 0 }}>I've paid</Button>
+    </Box>
+  );
+}
+
 // Legacy .kbd
 function C22_MuiKbd({ children }) {
   const { Chip } = MUI;
@@ -95,7 +114,7 @@ function C221_Dashboard() {
       <MuiScreenHeader
         overline="WELCOME BACK · YOUR REST IS COMING"
         title="Hey Jordan — 90 days until you can finally breathe out. ✈"
-        subtitle="One card to authorize for final balance, one new idea from Gyasi. The hard part is almost done."
+        subtitle="Your final balance link is ready, and Gyasi has one new idea for you. The hard part is almost done."
         actions={<>
           <Button variant="outlined" color="secondary" size="small" startIcon={<MuiIcon name="search" size={14} />}>New idea</Button>
           <Button variant="contained" size="small" startIcon={<MuiIcon name="message" size={14} />}>Message Gyasi</Button>
@@ -123,15 +142,15 @@ function C221_Dashboard() {
           </Box>
         </Card>
         <Stack spacing={1.25}>
-          <Card sx={{ bgcolor: 'error.container', color: 'error.onContainer' }}>
-            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Icon name="card" size={16} />
-                <Typography variant="overline" sx={{ lineHeight: 1.3 }}>ACTION NEEDED · 14 DAYS</Typography>
+          <Card>
+            <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.25 } }}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                <Icon name="receipt" size={16} />
+                <Typography variant="overline" sx={{ lineHeight: 1.3 }}>NEXT PAYMENT · DUE MAY 28</Typography>
               </Stack>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 0.75 }}>Authorize a card for final balance</Typography>
-              <Typography variant="caption" sx={{ display: 'block', opacity: 0.85, mt: 0.5 }}>$4,180 due to Sandals on May 28.</Typography>
-              <Button variant="contained" color="error" size="small" fullWidth sx={{ mt: 1.25 }}>Authorize a card →</Button>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 0.75 }}>Final balance · $4,180</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, mb: 1.25 }}>Whenever it suits you before then.</Typography>
+              <C22_PayLink />
             </CardContent>
           </Card>
           <Card>
@@ -247,7 +266,6 @@ function C223_TripDetail() {
               <Typography variant="body2" sx={{ fontWeight: 500, opacity: 0.9 }}>Aug 12 – 19, 2026 · Jordan + Sam · Nassau · 90 days to go</Typography>
             </Box>
             <Stack direction="row" spacing={1}>
-              <Button variant="contained" color="brand">Authorize card</Button>
               <Button variant="outlined" color="inherit" startIcon={<MuiIcon name="download" size={14} />}>PDF</Button>
             </Stack>
           </Stack>
@@ -257,7 +275,7 @@ function C223_TripDetail() {
             <Grid container spacing={1.25} sx={{ mb: 2 }}>
               {[
                 { i: 'plane', l: 'Itinerary', s: 'Day-by-day', tone: 'primary' },
-                { i: 'card', l: 'Payments', s: '$4,180 due May 28', tone: 'error' },
+                { i: 'receipt', l: 'Payments', s: 'Final balance May 28', tone: 'surface' },
                 { i: 'passport', l: 'Documents', s: '5 files', tone: 'secondary' },
                 { i: 'message', l: 'Messages', s: '2 unread', tone: 'tertiary' },
               ].map((s) => (
@@ -284,7 +302,7 @@ function C223_TripDetail() {
                     { l: 'Destination', v: 'Nassau, Bahamas' },
                     { l: 'Travelers', v: 'Jordan + Sam Hayes' },
                     { l: 'Total value', v: '$6,480 all-in' },
-                    { l: 'Card on file', v: 'VISA •••• 4242' },
+                    { l: 'Paid so far', v: '$2,300 of $6,480' },
                     { l: 'Status', v: 'Booked · final balance pending' },
                   ].map((kv) => <C22_MuiKV key={kv.l} l={kv.l} v={kv.v} />)}
                 </Box>
@@ -295,7 +313,7 @@ function C223_TripDetail() {
               <CardContent>
                 <Typography variant="h5">Notes from Gyasi</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                  "I added a Red Lane spa credit and locked in your bungalow upgrade for Day 3. Sandals will invoice me on May 28 — your card is set to cover up to $4,598 of the final balance."
+                  "I added a Red Lane spa credit and locked in your bungalow upgrade for Day 3. The final balance goes straight to Sandals on their own site. The link is in your payment timeline whenever you're ready."
                 </Typography>
               </CardContent>
             </Card>
@@ -321,9 +339,13 @@ function C223_TripDetail() {
                 <C22_MuiLabel>PAYMENT TIMELINE</C22_MuiLabel>
                 <Stack spacing={0.75} sx={{ mt: 0.75 }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}><C22_MuiDot /><Typography variant="caption" sx={{ fontWeight: 500 }}>Deposit · paid $800</Typography></Stack>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}><C22_MuiDot /><Typography variant="caption" sx={{ fontWeight: 500 }}>Mid · paid $1,500</Typography></Stack>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', color: 'error.main' }}><C22_MuiDot color="error.main" /><Typography variant="caption" sx={{ fontWeight: 500 }}>Final · $4,180 due May 28</Typography></Stack>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}><C22_MuiDot /><Typography variant="caption" sx={{ fontWeight: 500 }}>Mid payment · paid $1,500</Typography></Stack>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}><C22_MuiDot color="secondary.main" /><Typography variant="caption" sx={{ fontWeight: 600 }}>Final balance · $4,180 · due May 28</Typography></Stack>
                 </Stack>
+                {/* Only the open milestone with a pay link gets the button; paid rows never do. */}
+                <Box sx={{ mt: 1.25, pt: 1.25, borderTop: 1, borderColor: 'divider' }}>
+                  <C22_PayLink />
+                </Box>
               </CardContent>
             </Card>
           </Stack>
@@ -554,8 +576,8 @@ function C227_TripThread() {
             { who: 'Gyasi', mine: false, t: '11:14a', b: 'Quick win — Sandals just opened up the over-water bungalows for your dates. I held one tentatively. Want me to lock?' },
             { who: 'You', mine: true, t: '11:32a', b: "Yes please. Sam will lose it 😍 — what's the upgrade run us?" },
             { who: 'Gyasi', mine: false, t: '11:33a', b: '$680 over the base, but I got a Red Lane spa credit + a private island day. Net win.' },
-            { who: 'You', mine: true, t: '11:36a', b: 'Done. Authorize whatever you need on the VISA.' },
-            { who: 'Gyasi', mine: false, t: '2:14p', b: "Locked. I also flagged your card for the final balance ($4,180) — there's a payment authorization request in your dashboard." },
+            { who: 'You', mine: true, t: '11:36a', b: 'Yes! Lock it in.' },
+            { who: 'Gyasi', mine: false, t: '2:14p', b: "Locked. Your final balance link is on your trip page now: $4,180, due May 28, paid straight to Sandals on their own site. No rush, and nothing goes through me." },
           ].map((m, i) => (
             <Stack key={i} direction="row" spacing={1} sx={{ justifyContent: m.mine ? 'flex-end' : 'flex-start' }}>
               {!m.mine && <Avatar src={staImg('avatarA', 48, 48)} alt="" sx={{ width: 28, height: 28, alignSelf: 'flex-end' }} />}
@@ -651,7 +673,7 @@ function C229_StatusChange() {
               <Typography component="ol" variant="body2" color="text.secondary" sx={{ mt: 0.75, mb: 0, pl: 2.25, lineHeight: 1.5 }}>
                 <li>Review the proposal</li>
                 <li>Reply with feedback or pick a room</li>
-                <li>Authorize a card so we can lock it in</li>
+                <li>Once it's booked, pay the deposit on the supplier's own site</li>
               </Typography>
             </CardContent>
           </Card>
@@ -685,7 +707,7 @@ function C2210_Cancelled() {
                   { l: 'Cancelled on', v: 'Feb 02, 2026' },
                   { l: 'Cancellation fee', v: '$120 (per Carnival)' },
                   { l: 'Refund', v: '$1,640 · processed Feb 12' },
-                  { l: 'Refund method', v: 'Original VISA •••• 4242' },
+                  { l: 'Refund method', v: 'From Carnival, to the card you paid with' },
                   { l: 'Future-trip credit', v: '$240 · use by Dec 2027' },
                 ].map((kv) => <C22_MuiKV key={kv.l} l={kv.l} v={kv.v} />)}
               </Box>

@@ -23,10 +23,10 @@ package com.storytail.adventures.domain.trip
  * WHY [built] IS SEPARATE FROM [phase]. Filtering on phase removes exactly one destination
  * (Discover, §2.3, Phase 2), and it is the only one the mobile bar still dims. The separation
  * earned itself while §2.4-§2.6 were unbuilt: Wallet, Documents, Messages and Account were all
- * Phase ONE with no screen, so a phase filter would have left dead tabs. §2.6 lights Messages
- * and leaves Wallet (§2.4) as the last unbuilt P1 — rail-only, so the mobile bar is now three
- * live tabs and one dimmed. [built] is what the bar renders against; [phase] only says why
- * something is not built yet.
+ * Phase ONE with no screen, so a phase filter would have left dead tabs. §2.6 lit Messages;
+ * Wallet (§2.4) was rail-only and is gone from the rail too since §2.4 was retired on
+ * 2026-10-16. The mobile bar is three live tabs and one dimmed. [built] is what the bar
+ * renders against; [phase] only says why something is not built yet.
  */
 data class ClientDestination(
     val id: String,
@@ -40,9 +40,9 @@ data class ClientDestination(
 )
 
 /**
- * The mobile bar's four, in order. The web rail's six live in the TypeScript twin; the two
- * files agree on the four they share, and the extra two are rail-only by decision, not by
- * omission.
+ * The mobile bar's four, in order. The web rail lives in the TypeScript twin; the two files
+ * agree on the four they share, and the rail's extra (Documents) is rail-only by decision,
+ * not by omission. Wallet left the rail with §2.4 on 2026-10-16.
  */
 val CLIENT_BAR_DESTINATIONS: List<ClientDestination> = listOf(
     ClientDestination("trips", "Trips", built = true, phase = null, section = "§2.2"),

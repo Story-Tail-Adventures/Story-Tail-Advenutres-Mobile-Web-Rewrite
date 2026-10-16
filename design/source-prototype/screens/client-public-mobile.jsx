@@ -487,7 +487,7 @@ function M207_FooterPages({ dark = false }) {
           <h3 className="t-title-s">2. Payment cards</h3>
           <p style={{ margin: '4px 0 12px', color: 'var(--md-on-surface-variant)' }}>Cards are tokenized by Stripe Elements before they leave your browser. Story-Tail never sees the full card number. Used solely to pay travel suppliers on your behalf, audit-logged every time.</p>
           <h3 className="t-title-s">3. Your rights</h3>
-          <p style={{ margin: '4px 0 12px', color: 'var(--md-on-surface-variant)' }}>Request a full data export from Account → Privacy. Revoke any stored card from Wallet. Account closure preserves transaction records for tax compliance but anonymizes personal identifiers.</p>
+          <p style={{ margin: '4px 0 12px', color: 'var(--md-on-surface-variant)' }}>Request a full data export from Account → Privacy. Account closure preserves transaction records for tax compliance but anonymizes personal identifiers.</p>
         </div>
       </div>
     </MFrame>

@@ -7,7 +7,7 @@ A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advi
 The five documents in `docs/` are the canonical source of truth for this project:
 
 - `@docs/BRD.md` — business requirements, scope, phases
-- `@docs/Screen-Inventory.md` — every screen (172 of them) with mobile/tablet/web variants
+- `@docs/Screen-Inventory.md` — every screen (~162 of them) with mobile/tablet/web variants
 - `@docs/Data-Model.md` — every entity, every field, with Postgres DDL and Kotlin data classes
 - `@docs/Design-System.md` — colors, typography, components, **brand voice and worldview** (§2)
 - `@docs/Tech-Recommendations.md` — stack choices and Claude Code bootstrap walkthrough
@@ -20,7 +20,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 - **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST). Styled with **MUI v9 (9.4.0)**; the theme is `web/lib/mui/theme.ts`. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1, `docs/Design-System.md` §12.2). Follow the MUI rules in `web/AGENTS.md`. The official MUI MCP server (`mui-mcp` in `.mcp.json`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) checks MUI usage against the real docs instead of guessing.
 - **Backend** — Supabase Edge Functions (Deno + TypeScript). NO separate Ktor service.
 - **Database / Auth / Storage / Realtime** — Supabase
-- **Payments** — Stripe (SetupIntent for collection, Vault and Forward for API suppliers, audited PAN reveal for portal suppliers)
+- **Payments**: none. The app holds no cardholder data and has no payment vendor; Stripe left the stack 2026-10-16 (it cannot reveal a stored card number anyway). Clients pay suppliers through a pay link on each payment milestone, and only the advisor marks a milestone paid. See `docs/BRD.md` §10.
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
 - **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
@@ -28,13 +28,13 @@ When the user asks about features, screens, entities, payment workflows, design 
 
 ## Critical rules — these are non-negotiable
 
-1. **Never store cardholder PANs anywhere except Stripe.** Our DB stores only Stripe `PaymentMethod` IDs (tokens) plus non-sensitive metadata (brand, last 4, expiration). If you find yourself writing code that would persist a PAN to Postgres, that's a defect. See `docs/Tech-Recommendations.md` §4.6 and §4.9.
+1. **No cardholder data, anywhere.** Never accept, store, log or display a card number: no card form, no vault, no tokenization, no PAN reveal. Code that takes or keeps a card number is a defect. Bringing back any card handling needs a new decision from Gyasi. See `docs/BRD.md` §10 and `docs/Tech-Recommendations.md` §4.
 
-2. **No client-facing billing.** Story-Tail Adventures is contractually prohibited from charging clients planning, consultation, or service fees (per Inteletravel host agency policy). The platform has no Invoice entity, no "charge client" actions, no merchant-of-record flows. Stripe is used for tokenization only. See `docs/BRD.md` §10.5.
+2. **No client-facing billing.** Story-Tail Adventures is contractually prohibited from charging clients planning, consultation, or service fees (per Inteletravel host agency policy). The platform has no Invoice entity, no "charge client" actions, no merchant-of-record flows. A Travefy invoice used as a pay link may carry supplier cost only, never an advisor fee. See `docs/BRD.md` §10.5.
 
-3. **Every mutation goes through audit middleware.** Edge Functions writing to sensitive tables (payment_card, card_authorization, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
+3. **Every mutation goes through audit middleware.** Edge Functions writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
 
-4. **Stripe `PaymentMethod` IDs are server-only.** Never return them in API responses to client roles. The PAN reveal flow (Screen Inventory 3.6.4) is the one place the PAN is exposed, and only via an audited, MFA-gated Edge Function. See `docs/Data-Model.md` §21.2.
+4. **Pay links are guarded.** A milestone's pay link must be `https://`. Only the advisor can add, change or remove it (clients read it, never write it), and every add, change or removal writes an `audit_event` row, since a swapped link could send a client's money to the wrong place. The client's "I've paid" only posts a trip message; it never marks anything paid. See `docs/BRD.md` §10.
 
 5. **All money is `bigint` cents + `char(3)` currency.** Never `numeric` or `float`. See `docs/Data-Model.md` §2.
 

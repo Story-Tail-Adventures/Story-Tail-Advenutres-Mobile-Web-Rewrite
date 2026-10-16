@@ -15,9 +15,15 @@ This document defines the data structure that backs the Story-Tail Adventures pl
 
 The model is designed around three north-star priorities established in the BRD:
 
-**Operational replacement of Travefy** without losing any of the fidelity Travefy offers around client management, proposals, itineraries, payment authorization, and trip history. Every Travefy concept has a home here.
+**Operational replacement of Travefy** without losing any of the fidelity Travefy offers around client management, proposals, itineraries, supplier payment schedules, and trip history. Every Travefy concept has a home here.
 
 **Strict PCI posture.** Cardholder data never sits raw in our database. We store Stripe-issued tokens, never the PAN, and every interaction with a stored card is audit-logged. Section 9 spells this out in detail.
+
+> **Amended 2026-10-16 — the app holds no card at all.** The paragraph above is superseded.
+> There is no Stripe, no token, no vault and no card reveal. The app never accepts, stores,
+> logs or shows a card number, so it holds no cardholder data and sits outside PCI scope.
+> Clients pay suppliers directly through a pay link on each payment milestone (§9.5). The
+> four card tables in §9.1 to §9.4 are retired and dropped. See §18 for the new posture.
 
 **Future-readiness for multi-agent and group-trip use cases.** Every entity that needs to know "which agent" or "which travel group" carries the right foreign keys today, even though MVP runs with a single agent.
 
@@ -33,7 +39,7 @@ These principles guide the choices in this model. Where the model deviates from 
 
 **Soft delete by default.** Most entities use `archived_at` rather than `DELETE`. Trip records, commission records, audit events, and financial documents are retained indefinitely for tax and compliance reasons. True deletion happens only for personal data on explicit client request (see Section 11).
 
-**Timestamps on everything.** Every entity carries `created_at` and `updated_at`. Append-only entities (audit logs, message history, card use events) carry only `created_at` because they don't mutate.
+**Timestamps on everything.** Every entity carries `created_at` and `updated_at`. Append-only entities (audit logs, message history, trip status history) carry only `created_at` because they don't mutate.
 
 **Strong typing through enums.** Status values, document types, supplier categories, and similar lookups are modeled as Postgres enums (or check-constrained text) rather than free-text strings. Section 7 catalogues every enum.
 
@@ -70,6 +76,11 @@ The final section is **Open Questions** — areas where the model is intentional
 | **PII** | Personally identifiable information | Encrypted at rest (column-level or table-space); access audit-logged |
 | **Sensitive PII** | Government IDs, DOB, passport numbers | Encrypted at rest; MFA-gated access; full audit trail on every read |
 | **Tokenized** | Never stored raw — only an opaque reference (Stripe token) | The raw value lives at Stripe; we hold only the token |
+
+> **Amended 2026-10-16 — "Tokenized" no longer means Stripe.** No Stripe token exists in the
+> schema any more (§9 is retired). The marker stays for the fields that still use it: link
+> and invite token hashes and `integration.credentials_encrypted`. For those it means "only
+> a hash or an encrypted copy is stored, never the raw secret."
 
 ### Phase Markers
 
@@ -112,11 +123,11 @@ The final section is **Open Questions** — areas where the model is intentional
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
 | Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
 | TripStatusHistory | Trip | P1 | Append-only record of every trip status transition |
-| PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
-| CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
-| AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
-| CardUseEvent | Payment | P1 | Append-only log of every supplier-payment use |
-| PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final) |
+| ~~PaymentCard~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.1). Was a Stripe-tokenized card |
+| ~~CardAuthorization~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.2) |
+| ~~AuthorizationRequest~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.3) |
+| ~~CardUseEvent~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.4) |
+| PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final), each with an optional pay link to the supplier |
 | Commission | Commission | P1 | Expected/received commission per trip per supplier |
 | CommissionImport | Commission | P1 | Batch record for an Inteletravel CSV import |
 | CommissionImportRow | Commission | P1 | One line of an imported statement, its match, and the advisor's decision (added 20261012120000) |
@@ -544,7 +555,7 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 **Relationships:**
 - Belongs to one Agent (primary owner). Phase 3 may add a `co_agent_id` for shared ownership.
 - May have one linked Account via `User.client_id`. A Client without an Account is "agent-created and not yet activated."
-- Has many Trips, Companions, TravelDocuments, PaymentCards, Conversations, Documents, ClientNotes.
+- Has many Trips, Companions, TravelDocuments, Conversations, Documents, ClientNotes. (PaymentCards were dropped 2026-10-16, §9.1.)
 
 **Indexes:** index on `(agent_id, status, last_name)`; index on `(email)`; full-text index on `(first_name || ' ' || last_name)` for search.
 
@@ -799,7 +810,7 @@ created.
 
 Only the hash is stored, for the same reason a password is not stored in plaintext: a
 leaked `client_invite` table would otherwise hand an attacker a working key to a named
-traveler's itinerary, passport details and payment authorizations. The code is short
+traveler's itinerary, passport details and payment schedule. The code is short
 enough to read over the phone (`STA-7HX2J9`), which makes it low-entropy, so redemption
 must be rate limited per account and per IP, and a redemption attempt — successful or not
 — writes an `audit_event`.
@@ -911,9 +922,9 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `id` | `uuid` | No | Public | — |
 | `name` | `text` | No | Public | "Royal Caribbean", "Sandals Resorts" |
 | `kind` | `supplier_kind` enum | No | Public | `airline`, `hotel_brand`, `resort`, `cruise_line`, `tour_operator`, `insurance`, `transfer`, `other` |
-| `payment_method_kind` | `supplier_payment_kind` enum | No | Internal | How this supplier accepts card payments — drives which Stripe pattern the agent UI uses (see BRD §10.4) |
-| `payment_api_endpoint` | `text` | Yes | Internal | When `payment_method_kind = 'api'`, the URL Stripe Vault and Forward posts to (e.g., Expedia's `api.ean.com/v3/itineraries`) |
-| `payment_portal_url` | `text` | Yes | Internal | When `payment_method_kind = 'portal'`, the supplier's TA portal URL (e.g., Sandals' `taportal.sandals.com`) — informational only |
+| `payment_method_kind` | `supplier_payment_kind` enum | No | Internal | **Deferred, no producer (amended 2026-10-16).** Was: which Stripe pattern the agent UI uses. Stripe is gone, so nothing reads or writes it. Kept, not dropped; see the note below |
+| `payment_api_endpoint` | `text` | Yes | Internal | **Deferred, no producer (amended 2026-10-16).** Was: the URL Stripe Vault and Forward posts to. There is no Vault and Forward. Kept, not dropped |
+| `payment_portal_url` | `text` | Yes | Internal | The supplier's travel-advisor portal URL (e.g., Sandals' `taportal.sandals.com`). Informational only, for the advisor. Not a client pay link: that lives on `payment_milestone.pay_url` (§9.5) |
 | `default_commission_pct` | `numeric(5,2)` | Yes | Internal | Default for new bookings; can be overridden per trip |
 | `commission_payment_terms` | `commission_payment_terms` enum | Yes | Internal | `at_booking`, `after_travel`. **NULL means varies or unknown** (what the old `mixed` meant): no prefill, the advisor picks. Free text until 20261011120000 |
 | `commission_payment_lag_days` | `integer` | Yes | Internal | Default days after booking / after travel, 0–365. NULL whenever the terms are NULL (CHECK) |
@@ -925,6 +936,15 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `updated_at` | `timestamptz` | No | Public | — |
 
 **The `supplier_payment_kind` enum**: `api` (supplier accepts payments via Stripe Vault and Forward), `portal` (supplier requires manual card entry into a web portal — triggers the PAN reveal workflow), `unknown` (not yet classified — default for new suppliers). See Section 17 for the full enum definition.
+
+> **Amended 2026-10-16 — these payment fields lost their meaning.** The enum text above is
+> superseded. There is no Stripe Vault and Forward and no card reveal, so `api` and `portal`
+> trigger nothing. `payment_method_kind` and `payment_api_endpoint` are **deferred with no
+> producer**: no screen sets them and no code reads them. They stay in the table rather than
+> being dropped, because a P3 API booking flow may want a field like this, and that needs a
+> new decision first. Every row reads `unknown` / NULL until then. `payment_portal_url`
+> stays as a plain note for the advisor. How a client pays a supplier is now the pay link on
+> each payment milestone (§9.5).
 
 ### 8.2 Trip
 
@@ -980,7 +1000,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 - Has many TripComponents.
 - Has 0..1 Itinerary.
 - Has many Proposals (versioned over time).
-- Has many CardAuthorizations and CardUseEvents (via trip_id).
+- Has many PaymentMilestones (via trip_id). (CardAuthorizations and CardUseEvents were dropped 2026-10-16, §9.2 and §9.4.)
 - Has many Commissions.
 - Has many Conversations and Messages (scoped by trip_id).
 - Has many Documents (scoped by trip_id).
@@ -1445,7 +1465,28 @@ or fixture, writes a row without it yet.
 
 This domain is governed by PCI DSS SAQ A constraints (see Section 18). No card primary account number (PAN) is ever stored. All "card" entities here reference a Stripe-issued token; the only locally-stored card data is metadata Stripe explicitly returns (brand, last 4, expiration).
 
-### 9.1 PaymentCard
+> **Amended 2026-10-16 — the card side of this domain is retired. Only §9.5 is current.**
+> The paragraph above is superseded. Ruled by Gyasi on 2026-10-16 (§3.6 grilling):
+>
+> - **The app never holds a card.** No Stripe, no vault, no token, no card reveal. Stripe
+>   never returns a full card number for a stored card, so the planned "reveal" could not
+>   exist, and a vault that can show a number to a person costs more than the business can
+>   carry. The app now holds no cardholder data at all, which puts it outside PCI scope.
+> - **Clients pay suppliers through links.** Each payment milestone (§9.5) can carry one pay
+>   link: the supplier's own payment page, or a Travefy invoice that passes along supplier
+>   cost only (BRD §10.5).
+> - **§9.1 to §9.4 are kept below as a record only.** Their tables (`payment_card`,
+>   `card_authorization`, `authorization_request`, `card_use_event`) are dropped by
+>   migration. Production was checked read-only on 2026-10-16 and all four held 0 rows, so
+>   nothing is lost. Their enums (`card_status`, `card_auth_status`,
+>   `auth_request_status`) go with them. Do not build against anything in §9.1 to §9.4.
+
+### 9.1 PaymentCard (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It held a Stripe token for a client's card. The app no longer holds cards in any form
+> (§9 note above), so there is nothing for it to store. Production held 0 rows when checked
+> on 2026-10-16. The fields below are kept only as a record of what existed.
 
 **Purpose:** A tokenized payment method on file. The platform holds a Stripe `PaymentMethod` ID; Stripe holds the actual PAN. Every PaymentCard belongs to a Client (the cardholder) and may be authorized for one or more Trips via CardAuthorization.
 
@@ -1523,7 +1564,14 @@ data class PaymentCard(
 enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 ```
 
-### 9.2 CardAuthorization
+### 9.2 CardAuthorization (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It recorded a client's consent to let the advisor charge a stored card. With no stored
+> card there is nothing to consent to: the client pays the supplier directly through the
+> milestone's pay link (§9.5). Production held 0 rows when checked on 2026-10-16. The same
+> migration takes the `card_authorization` branch out of `sweep_dated_promises()`. The
+> amendment and fields below are a record only.
 
 **Purpose:** A client's consent to use a stored card for a specific trip up to a spending limit. The agent cannot use a card for a trip without an active authorization. Authorizations expire automatically.
 
@@ -1562,7 +1610,13 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Indexes:** unique on `(payment_card_id, trip_id) where status = 'active'`; index on `(trip_id, status)`.
 
-### 9.3 AuthorizationRequest
+### 9.3 AuthorizationRequest (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It tracked a link asking the client to authorize a card. Its replacement is not a table:
+> the advisor's "Send Payment Link" posts a message in the trip thread (§12.2), and that
+> message is the record. Production held 0 rows when checked on 2026-10-16. The fields below
+> are a record only.
 
 **Phase:** P1
 
@@ -1582,7 +1636,14 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `completed_at` | `timestamptz` | Yes | Public | — |
 | `expires_at` | `timestamptz` | No | Internal | Link expiration |
 
-### 9.4 CardUseEvent
+### 9.4 CardUseEvent (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It logged each time the advisor charged a stored card. The app no longer charges cards.
+> Its job, a record of each payment, now lives on the milestone itself (`paid_at`,
+> `paid_cents`, `paid_reference`, `paid_note`, §9.5) plus the `payment_milestone.*` audit
+> rows. Production held 0 rows when checked on 2026-10-16. The open `client_flag_status`
+> question below dies with the table. The fields and amendment below are a record only.
 
 **Purpose:** Append-only log of every use of a stored card to pay a supplier. This is the audit surface for the supplier-pay workflow.
 
@@ -1646,8 +1707,13 @@ given a control that appears to do nothing. That goes with the same ruling.
 
 **This is not an invoice, and it is not in PCI scope.** Two things it deliberately is not:
 
-- **Not a bill from Story-Tail Adventures.** BRD §10.5 prohibits client-facing billing — the agency is not the merchant of record and charges the client nothing. These rows describe what the *supplier* expects and when, so the client is not surprised by a balance date. There is no "pay now" action, no amount owing *to us*, and no merchant fields.
-- **Not cardholder data.** No PAN, no token, no Stripe reference, no FK to PaymentCard. It lives in this domain because a reader looking for "payments" looks here, but it is outside SAQ A scope entirely. The client's only card-adjacent action remains the authorization flow in §9.2.
+> **Amended 2026-10-16 — the milestone can now carry a pay link to the supplier.** The two
+> bullets below replace the earlier text, which said there was "no pay now action" and
+> pointed at the card authorization flow in §9.2. §9.2 is retired, and the client now pays
+> the supplier through a link on the milestone.
+
+- **Not a bill from Story-Tail Adventures.** BRD §10.5 prohibits client-facing billing: the agency is not the merchant of record and charges the client nothing. These rows describe what the *supplier* expects and when. A milestone may carry a pay link (`pay_url`), but that link always goes to the **supplier**: either the supplier's own payment page, or a Travefy invoice Gyasi makes when the supplier has no page of its own. A Travefy invoice may only pass along supplier cost, never a planning, consultation or service fee (BRD §10.5). The app stores only the link; what goes on that invoice is Gyasi's call in Travefy. There is still no amount owing *to us*, no merchant fields, and no money moves through this app.
+- **Not cardholder data.** No card number, no token, no Stripe reference, no card FK. The client types their card into the supplier's own site, never into ours. It lives in this domain because a reader looking for "payments" looks here, and it is outside PCI scope entirely.
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
@@ -1662,8 +1728,113 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `paid_cents` | `bigint` | No | Public | Default 0. Partial payments happen |
 | `status` | `payment_milestone_status` enum | No | Public | Default `scheduled` |
 | `order_index` | `integer` | No | Public | Display order; ties are broken by `due_date` |
+| `pay_url` | `text` | Yes | Public (client reads) | **Added 2026-10-16.** The one pay link for this milestone: the supplier's payment page or a Travefy invoice. `https://` only, at most 2,048 characters, no user name or password part (CHECK). Advisor writes, client reads. NULL means no link yet. See "Pay link and paid record" below |
+| `paid_reference` | `text` | Yes | Public (client reads) | **Added 2026-10-16.** The supplier's confirmation or reference number for the payment, set when the advisor marks it paid. 1 to 100 characters, trimmed (CHECK) |
+| `paid_note` | `text` | Yes | Internal | **Added 2026-10-16.** The advisor's own note on the payment. 1 to 1,000 characters, trimmed (CHECK). **Never shown to the client**: left out of the client column grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+
+#### Pay link and paid record (added 2026-10-16)
+
+Ruled by Gyasi on 2026-10-16 (§3.6 grilling). Written here before any migration, so the
+build follows this text.
+
+**One link per milestone, not per booking.** One trip can have two suppliers, each with its
+own deposit, so the link sits on the milestone. It is optional: a milestone with no link
+still shows its amount and date as before.
+
+**There is no `pay_url_label` column, on purpose.** The button text comes from the
+milestone's own `label` ("Pay deposit", "Pay final balance"). The site name the client sees
+(for example `royalcaribbean.com`) is **worked out from the link's host at display time**:
+the host in lower case, with a leading `www.` removed, shown in its ASCII (punycode) form so
+a look-alike domain cannot pass as the real one. A stored label could say one site while the
+link goes to another. A name taken from the link itself cannot.
+
+**Postgres DDL (the migration's shape):**
+
+```sql
+ALTER TABLE public.payment_milestone
+    ADD COLUMN pay_url        text,
+    ADD COLUMN paid_reference text,
+    ADD COLUMN paid_note      text,
+
+    -- https only, a host with no user:password@ part, no spaces or control characters.
+    ADD CONSTRAINT payment_milestone_pay_url_https CHECK (
+        pay_url IS NULL OR (
+            char_length(pay_url) <= 2048
+            AND pay_url ~ '^https://[^/?#@[:space:]]+([/?#].*)?$'
+            AND pay_url !~ '[[:space:][:cntrl:]]'
+        )
+    ),
+    ADD CONSTRAINT payment_milestone_paid_reference_shape CHECK (
+        paid_reference IS NULL OR (
+            char_length(paid_reference) BETWEEN 1 AND 100
+            AND paid_reference = btrim(paid_reference)
+        )
+    ),
+    ADD CONSTRAINT payment_milestone_paid_note_shape CHECK (
+        paid_note IS NULL OR (
+            char_length(paid_note) BETWEEN 1 AND 1000
+            AND paid_note = btrim(paid_note)
+        )
+    );
+
+-- The client grant widens by two columns. paid_note stays out.
+GRANT SELECT (pay_url, paid_reference) ON public.payment_milestone TO authenticated;
+```
+
+The CHECK is the last line of defense. The Edge Function checks first, with `new URL()`: it
+refuses anything whose protocol is not `https:`, that has a user name or password, or that
+has no host, and it stores the parsed `href` so what is saved is what was checked.
+
+**No card numbers, ever.** `pay_url`, `paid_reference` and `paid_note` are refused (not
+masked) if they hold a card-shaped run of 13 to 19 digits (the `CARD_LIKE` pattern that
+`maskCardNumbers` in `supabase/functions/_shared/push.ts` uses for §12.7 and §12.8) **that
+also passes the Luhn check**. The Luhn step lets a long supplier reference through when it is
+not a card number. Here the advisor is typing, so the right answer is to say no and say why,
+rather than quietly mask.
+
+**Who can write.** Only the advisor who owns the trip, and only through SECURITY DEFINER
+functions that `service_role` alone can execute, called from the `agent-trip` Edge Function
+the way the §3.4.15 milestone writes already are. Clients have no write path to this table
+at all (the client role holds `SELECT` on named columns and nothing else).
+
+- **`pay_url`**: a new `agent_set_milestone_pay_url(trip_id, agent_id, milestone_id,
+  pay_url)`. NULL removes the link. Setting the same value is a no-op and writes nothing.
+- **`paid_reference`, `paid_note`**: `agent_set_milestone_paid` widens to take both. They are
+  written with `status`, `paid_cents` and `paid_at` in the same call (screen 3.6.5 Mark
+  Paid: amount, date, confirmation number, note), and cleared when the advisor moves a
+  milestone back to `scheduled`. `agent_upsert_payment_milestone` (the schedule edit) still
+  touches none of the paid fields.
+
+**Every change writes an `audit_event` row, in the same transaction as the write.** A link
+swapped without a trace could send a client's money to the wrong place, so the link is
+treated like money. Like the commission writes, the SQL function writes the audit row itself
+(`target_entity = 'payment_milestone'`, `target_id` = the milestone), so the change and its
+record cannot come apart. A no-op writes neither.
+
+| `event_type` | When | `metadata` |
+|---|---|---|
+| `payment_milestone.link_set` | `pay_url` goes from NULL to a link | `trip_id`, `pay_url`, the derived host |
+| `payment_milestone.link_changed` | `pay_url` goes from one link to another | `trip_id`, `old_pay_url`, `new_pay_url`, both hosts |
+| `payment_milestone.link_removed` | `pay_url` goes from a link to NULL | `trip_id`, `old_pay_url`, the old host |
+| `payment_milestone.marked_paid` | the advisor records a payment (status `paid`, or a change to `paid_cents`, `paid_at`, `paid_reference` or `paid_note`) | `trip_id`, old and new `paid_cents`, `paid_at`, whether a reference and a note are present |
+| `payment_milestone.marked_waived` | status becomes `waived` | `trip_id`, prior status |
+| `payment_milestone.payment_cleared` | a `paid` or `waived` milestone goes back to `scheduled` | `trip_id`, prior status and `paid_cents` |
+
+`paid_note` itself is never copied into audit metadata, only whether one exists. Screen 3.6.6
+Payment History reads these rows for one trip and lists every paid mark and link change.
+
+**The client's "I've paid" is a message, never a write here.** On the client side, a
+milestone with a link shows a button that opens the link in a new tab or browser, the site
+name, and a line saying the money goes straight to the supplier on their own site. When the
+client taps "I've paid", the app posts a message in the trip's thread (§12.2) for the advisor
+to check. It changes nothing on this table. Only the advisor marks a milestone paid. A
+`paid` or `waived` milestone shows no button.
+
+**Sending the link.** Screen 3.6.2 Send Payment Link posts a message in the trip thread using
+the Payment reminder template, which fills `{{payment.link}}` from `pay_url` (§12.4). The
+message is the record that it was sent; there is no separate "request" row.
 
 > **`total_paid_cents` got its producer on 2026-09-29, and had none before that.** The
 > purpose line above promised one when this entity was added; five accessors read the column
@@ -1696,6 +1867,33 @@ given a control that appears to do nothing. That goes with the same ruling.
 **`amount_cents` is Public, unlike `trip_component.cost_cents`.** The distinction is real: `cost_cents` is what the agency paid, which reveals margin; this is what the client's trip costs them on a given date, which they are entitled to know and which the itinerary already implies.
 
 **Indexes:** index on `(trip_id, order_index)`; index on `(status, due_date)` for the agent-side overdue sweep.
+
+> **Amended 2026-10-16, as built (migration `20261021120000_supplier_pay_links.sql`).**
+> Three details the spec above left open:
+>
+> - **Date paid.** `agent_set_milestone_paid` also takes `p_paid_on date` (Mark Paid has a
+>   "Date paid" field). A future date is refused. Both writes also take the actor, IP and user
+>   agent so the audit row names who did it.
+> - **Keeping a reference.** On `paid` or `waived`, a NULL `p_paid_reference` / `p_paid_note`
+>   keeps what is stored and an empty string clears it, so the §3.4.15 status toggle cannot
+>   wipe a confirmation number. Both clear when the milestone returns to `scheduled` or
+>   `overdue`. A `scheduled` and `overdue` swap (no money moves) keeps the existing
+>   `payment_milestone.status_changed` event.
+> - **Payment History read.** `agent_trip_payment_history(p_trip_id)` returns the trip's
+>   `payment_milestone.*` audit rows newest first. Like `agent_client_activity` it is granted
+>   to `authenticated` and checks the advisor with `current_agent_id()` (the web app has no
+>   service-role key); a client gets zero rows. Each audit row stores the milestone's label, so
+>   a deleted milestone still reads by name. The note text is never copied into audit
+>   metadata, only whether one exists.
+>
+> - **The card-number guard (after review).** A run is ASCII digit groups joined by up to
+>   three spaces, dots, dashes or no-break / thin spaces; every span of whole groups that joins
+>   to 13 to 19 digits is Luhn-checked, so a short number in front or letters touching the
+>   digits cannot hide a card. The same rule lives in `text_has_card_digits`,
+>   `_shared/payLink.ts` and web `lib/trips/payLink.ts`. It is a guard, not a full filter: a
+>   card typed with a wrong digit fails Luhn and is not caught.
+> - **Named hosts only.** `pay_url`'s host must be a dotted name (no IP literal, bare word or
+>   `localhost`), because the client is shown the host as the reason to trust the link.
 
 ---
 
@@ -2044,10 +2242,19 @@ recorded the usual way.
 | `{{payment.label}}` | `payment_milestone.label` |
 | `{{payment.amount}}` | what is still owed on it: `amount_cents - paid_cents` |
 | `{{payment.dueDate}}` | `payment_milestone.due_date` |
+| `{{payment.link}}` | `payment_milestone.pay_url`, the full link as stored (added 2026-10-16, §9.5) |
 
-The `payment.*` three fill only when the picker is opened from a milestone (Trip Detail's
-"Remind the client"). A field with no value is never filled with blank space: the picker turns
+The `payment.*` four fill only when the picker is opened from a milestone (Trip Detail's
+"Remind the client", or §3.6.2 Send Payment Link). A field with no value is never filled with blank space: the picker turns
 "Insert as-is" off and Send refuses while any token remains (Screen Inventory §3.10.3).
+
+> **Amended 2026-10-16 — `{{payment.link}}` added.** It fills from the milestone's `pay_url`.
+> A milestone with no link leaves the token unfilled and flagged as missing, exactly like any
+> other token with no value, so a reminder can never go out with a blank where the link
+> should be. The save-time check that refuses unknown tokens accepts this one from the same
+> date. The payment reminder starter template should gain the token too; that is a template
+> content change for whoever builds §3.6, and a template an advisor already edited is never
+> rewritten.
 
 **Nothing links a message to its template.** A message stores only its merged words, so
 editing a template never changes one already sent, and there is no "used N times" count.
@@ -2326,6 +2533,11 @@ verified sender only, saying files go in the app.
 > 2.2.6 groups by kind, picks its PDF/IMG badge from mime_type and prints the size, and all
 > three describe the client's own file. `storage_bucket`, `storage_key`, `checksum_sha256`
 > and `is_sensitive` remain server-only.
+>
+> **Amended 2026-10-16.** `card_use_event` is dropped (§9.4), so the supplier-charge receipt
+> example above no longer applies. The allowlist stays exactly as it is: `receipt` is still
+> left out, and `commission_import.document_id` is still a live reason the policy must be an
+> allowlist.
 
 ---
 
@@ -2376,8 +2588,8 @@ verified sender only, saying files go in the app.
 | `id` | `uuid` | No | Public | — |
 | `actor_user_id` | `uuid` | Yes | Public | FK → User. Null for system events. |
 | `actor_role` | `user_role` enum | Yes | Public | Denormalized |
-| `event_type` | `text` | No | Internal | E.g., `client.updated`, `card.revealed`, `commission.received` |
-| `target_entity` | `text` | Yes | Internal | E.g., `client`, `trip`, `payment_card` |
+| `event_type` | `text` | No | Internal | E.g., `client.updated`, `commission.received`, `payment_milestone.link_changed` (amended 2026-10-16: the old `card.revealed` example named an event that can no longer happen) |
+| `target_entity` | `text` | Yes | Internal | E.g., `client`, `trip`, `payment_milestone` |
 | `target_id` | `uuid` | Yes | Internal | The entity acted on |
 | `metadata` | `jsonb` | No | Internal | Free-form structured detail |
 | `ip_address` | `inet` | Yes | PII | — |
@@ -2385,6 +2597,10 @@ verified sender only, saying files go in the app.
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Append-only.** Retained 7 years for tax/compliance; longer for card-related events.
+
+> **Amended 2026-10-16.** No new card-related events can be written (§9 is retired), so the
+> longer card retention covers nothing going forward. `payment_milestone.*` events (§9.5) keep
+> the 7-year default.
 
 **Indexes:** index on `(actor_user_id, created_at desc)`; index on `(target_entity, target_id, created_at desc)`; index on `(event_type, created_at desc)`.
 
@@ -2395,7 +2611,7 @@ verified sender only, saying files go in the app.
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | — |
-| `provider` | `text` | No | Internal | `amadeus`, `hotelbeds`, `viator`, `widgety`, `stripe`, ... |
+| `provider` | `text` | No | Internal | `amadeus`, `hotelbeds`, `viator`, `widgety`, ... (`stripe` removed 2026-10-16: Stripe is not in the stack) |
 | `environment` | `text` | No | Internal | `test`, `production` |
 | `credentials_encrypted` | `bytea` | No | Tokenized | API key bundle, encrypted at rest |
 | `config_payload` | `jsonb` | No | Internal | Provider-specific config |
@@ -2440,8 +2656,9 @@ verified sender only, saying files go in the app.
 - **A group owns one master trip.** The agent builds the shared itinerary on it once
   (rule 1). The master trip has no client and is never shown to one.
 - **Every party is one `group_member` row, and gets its own Trip** once it holds a spot
-  (rules 1 and 3). Deposits, card authorizations, documents and commission then run through
-  the existing P1 flows on that Trip, untouched.
+  (rules 1 and 3). Deposits, documents and commission then run through the existing P1 flows
+  on that Trip, untouched. (Amended 2026-10-16: "card authorizations" removed; a party's
+  deposit is a payment milestone with a pay link, §9.5.)
 - **Shared components stay linked.** A party's copy of a shared component points back at
   the master component, so an edit to the master can be pushed to every copy (rule 2).
 - **Options are what people sign up for** (rules 6 to 10), and the agent marks each one
@@ -3067,14 +3284,14 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `agent_status` | `active`, `inactive`, `archived` | Agent |
 | `travel_doc_kind` | `passport`, `visa`, `drivers_license`, `nexus`, `globalentry`, `insurance`, `vaccination`, `other` | TravelDocument |
 | `supplier_kind` | `airline`, `hotel_brand`, `resort`, `cruise_line`, `tour_operator`, `insurance`, `transfer`, `other` | Supplier |
-| `supplier_payment_kind` | `api`, `portal`, `unknown` | Supplier — drives which Stripe pattern the agent UI uses |
+| `supplier_payment_kind` | `api`, `portal`, `unknown` | Supplier. **Deferred, no producer (2026-10-16)**: drives nothing now that Stripe is gone (§8.1) |
 | `trip_type` | `cruise`, `all_inclusive`, `multi_destination`, `group`, `custom` | Trip, TripTemplate |
 | `trip_status` | `inquiry`, `proposal`, `booked`, `in_progress`, `completed`, `cancelled` | Trip |
 | `component_kind` | `flight`, `hotel`, `cruise`, `transfer`, `excursion`, `insurance`, `custom` | TripComponent |
 | `block_kind` | `morning`, `afternoon`, `evening`, `all_day` | ItineraryActivity |
-| `card_status` | `active`, `revoked`, `expired`, `failed` | PaymentCard |
-| `card_auth_status` | `active`, `revoked`, `expired`, `exhausted` | CardAuthorization |
-| `auth_request_status` | `pending`, `completed`, `expired`, `cancelled` | AuthorizationRequest |
+| ~~`card_status`~~ | `active`, `revoked`, `expired`, `failed` | **Retired 2026-10-16**, dropped with PaymentCard (§9.1) |
+| ~~`card_auth_status`~~ | `active`, `revoked`, `expired`, `exhausted` | **Retired 2026-10-16**, dropped with CardAuthorization (§9.2) |
+| ~~`auth_request_status`~~ | `pending`, `completed`, `expired`, `cancelled` | **Retired 2026-10-16**, dropped with AuthorizationRequest (§9.3) |
 | `commission_status` | `expected`, `invoiced`, `received`, `disputed`, `lost` | Commission |
 | `commission_payment_terms` | `at_booking`, `after_travel` | Commission, Supplier |
 | `commission_import_status` | `mapping`, `review`, `reconciled`, `discarded` | CommissionImport |
@@ -3100,7 +3317,29 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 
 This section is the load-bearing security guidance for the model. It applies in addition to general SDLC security practices and supplements the BRD's Section 10.
 
+> **Amended 2026-10-16 — no cardholder data at all.** Ruled by Gyasi (§3.6 grilling). The
+> app never accepts, stores, logs or shows a card number, in any form, anywhere. There is no
+> Stripe, no vault, no token and no card reveal. With no cardholder data the platform is
+> **outside PCI scope**, which is stronger than the SAQ A posture this section used to
+> describe. Clients pay suppliers on the supplier's own site, through a pay link on the
+> payment milestone (§9.5). The "never store a card number" rule stays as a hard rule, now
+> wider: never accept, store, log or display one. Where a card number arrives anyway (a
+> client pastes one into a message), every copy that leaves the thread is masked as §12.7
+> and §12.8 describe. The
+> subsections below are amended to match; where old text survives, it is marked superseded.
+
 ### 18.1 What Lives Where
+
+**From 2026-10-16:**
+
+| Data | Location | Notes |
+|---|---|---|
+| Card number (PAN), CVC, expiry | **Nowhere in this app** | The client types card details only on the supplier's own site (or a Travefy invoice). No field asks for one and no screen shows one. The one gap we cannot close: a client can paste a number into a message, and that message keeps what they typed. Every push and email copy masks it to the last four (§12.7, §12.8) |
+| Card brand, last 4 | **Nowhere in this app** | There is no stored card to describe |
+| Pay link (`payment_milestone.pay_url`) | Our database | Not cardholder data. Advisor-written, audited on every change (§9.5) |
+| Supplier payment confirmation (`payment_milestone.paid_reference`) | Our database | Refused if it looks like a card number (§9.5) |
+
+**Superseded 2026-10-16 (kept as a record; none of this exists now):**
 
 | Data | Location | Notes |
 |---|---|---|
@@ -3112,6 +3351,10 @@ This section is the load-bearing security guidance for the model. It applies in 
 | Stripe API keys | Vault (e.g., Doppler / AWS Secrets Manager / 1Password Vault) | Never in source control; never in the database; injected as env vars only. |
 
 The "never in our database" rule for the PAN is the single most important architectural decision in the data model.
+
+> **Amended 2026-10-16.** The rule is now wider and simpler: the PAN is never in this app at
+> all, not in our database and not passing through our servers. Nothing above about Stripe
+> tables, tokens or keys applies.
 
 ### 18.2 Encryption at Rest
 
@@ -3130,8 +3373,9 @@ Column-level encryption is bytea storage with `pgcrypto.pgp_sym_encrypt/decrypt`
 
 Reading any of these tables/fields generates an `audit_event`:
 
-- Any `payment_card` row read by an agent (the read itself is audited; not just modifications)
-- Any reveal of a card via Stripe `PaymentMethod` retrieval (always audit + MFA step-up)
+- ~~Any `payment_card` row read by an agent~~ (retired 2026-10-16: the table is dropped)
+- ~~Any reveal of a card via Stripe `PaymentMethod` retrieval~~ (retired 2026-10-16: there is no reveal)
+- Any change to a payment milestone's pay link, and any paid mark (added 2026-10-16; these are write audits, see §9.5)
 - Any `companion.passport_number_encrypted` decryption
 - Any `travel_document.document_number_encrypted` decryption
 - Any bulk client list export
@@ -3141,7 +3385,7 @@ Reading any of these tables/fields generates an `audit_event`:
 
 A second MFA challenge is required (regardless of session state) for:
 
-- Card reveal (Section 9.4 Reveal Card Number screen)
+- ~~Card reveal (Section 9.4 Reveal Card Number screen)~~ (retired 2026-10-16: Screen 3.6.4 is removed and there is no reveal)
 - Inteletravel CSV import that affects already-marked-received commissions
 - Client account merge
 - Deletion of any audit log retention exception
@@ -3151,6 +3395,11 @@ A second MFA challenge is required (regardless of session state) for:
 GDPR/CCPA-style data rights are implemented as follows:
 
 **Export.** Any client can request a full data export via Account → Privacy & Data Export. The export contains every Client, TravelPreference, Companion, TravelDocument, Trip, Itinerary, PaymentCard (token references only — no PANs), CardAuthorization, CardUseEvent, Conversation, Message, Document, SavedSearch, and Favorite row associated with their account. Delivered as a downloadable ZIP within 30 days.
+
+> **Amended 2026-10-16.** PaymentCard, CardAuthorization and CardUseEvent leave the export
+> list (dropped, §9.1 to §9.4). PaymentMilestone joins it, with the client-visible columns
+> only (`paid_note` stays out). The Stripe Customer step in the erasure list below is
+> superseded: there is no Stripe Customer and no PaymentCard row to revoke.
 
 **Erasure.** A client may request deletion. On approval:
 - PII fields on Client, Companion, TravelDocument, Message, etc., are replaced with `deleted_user_<id>` placeholders.
@@ -3162,8 +3411,8 @@ GDPR/CCPA-style data rights are implemented as follows:
 
 | Data Class | Retention |
 |---|---|
-| AuditEvent | 7 years for general events; 10 years for card-related events |
-| CardUseEvent | 10 years (matches card-related audit) |
+| AuditEvent | 7 years for general events; 10 years for card-related events (none written after 2026-10-16) |
+| ~~CardUseEvent~~ | Retired 2026-10-16; the table is dropped (§9.4) |
 | AuthEvent (failed logins) | 1 year |
 | Session | 90 days post-revocation |
 | Soft-deleted Client/Trip/etc. PII | Until erasure requested, otherwise indefinite |
@@ -3193,8 +3442,8 @@ Tables that scope via parent FK:
 - `travel_preference`, `companion`, `travel_document`, `client_invite` → `client.agent_id`
 - `trip_component` → `trip.agent_id`
 - `itinerary*` → `trip.agent_id`
-- `payment_card` → `client.agent_id`
-- `card_authorization`, `card_use_event` → `trip.agent_id`
+- ~~`payment_card` → `client.agent_id`~~ (dropped 2026-10-16, §9.1)
+- ~~`card_authorization`, `card_use_event` → `trip.agent_id`~~ (dropped 2026-10-16, §9.2, §9.4)
 - `document` → `client.agent_id` or `trip.agent_id`
 - `payment_milestone` → `trip.agent_id`
 - `testimonial` → `agent_id` directly (denormalized, for the approval queue)
@@ -3267,6 +3516,12 @@ test, easier to evolve, easier to attach domain context. That wrapper is
 triggers remain available as a defense-in-depth backstop on the most sensitive tables
 (`payment_card`, `card_authorization`, `commission`).
 
+> **Amended 2026-10-16.** `payment_card` and `card_authorization` are dropped (§9.1, §9.2).
+> The sensitive tables are now `commission`, `client` and `payment_milestone`. A
+> `payment_milestone` pay link or paid mark writes its `audit_event` row inside the same SQL
+> function as the change (§9.5), the way the commission writes do, rather than through the
+> Edge Function wrapper alone.
+
 ### 20.4 Versioning for Optimistic Concurrency
 
 Tables with a `version` integer:
@@ -3307,10 +3562,8 @@ storytail/
 ├── supabase/                          # Supabase project
 │   ├── migrations/                    # SQL migrations (supabase db push)
 │   ├── functions/                     # Edge Functions (Deno + TypeScript)
-│   │   ├── _shared/                   # Shared utilities (audit, auth, stripe wrapper)
-│   │   ├── stripe-setup-intent/
-│   │   ├── stripe-vault-forward/
-│   │   ├── stripe-reveal-pan/         # Audited PAN reveal
+│   │   ├── _shared/                   # Shared utilities (audit, auth, email, push)
+│   │   ├── agent-trip/                # Includes the milestone pay link + paid writes (§9.5)
 │   │   ├── commission-import/
 │   │   └── travel-api-proxy/
 │   ├── seed.sql
@@ -3321,6 +3574,12 @@ storytail/
     ├── ts/                            # Auto-generated TypeScript types
     └── kotlin/                        # Auto-generated Kotlin types for mobile
 ```
+
+> **Amended 2026-10-16.** The tree above no longer lists `stripe-setup-intent`,
+> `stripe-vault-forward` or `stripe-reveal-pan`. None of them was ever built, and none will
+> be: Stripe left the stack (§9, §18). The built `card-authorization` and `payment-wallet`
+> functions are removed along with the four card tables. The real list of functions is
+> `supabase/functions/`; this tree is a sketch, not an inventory.
 
 Top-level tooling: Turborepo or Nx for the monorepo; `npm` workspaces for JS package management; Gradle for the mobile sub-project; `supabase` CLI for the database and Edge Functions.
 
@@ -3334,9 +3593,10 @@ Stays server-side only (lives in the Postgres schema; not exposed in any API res
 - `account.auth_provider_id`
 - `mfa_device.secret_encrypted` (raw bytes never leave server)
 - `agent_invitation.token_hash`
-- `authorization_request.token_hash`
-- `payment_card.stripe_payment_method_id` (Edge Functions use, client never sees)
-- `payment_card.stripe_customer_id`
+- ~~`authorization_request.token_hash`~~ (table dropped 2026-10-16, §9.3)
+- ~~`payment_card.stripe_payment_method_id`~~ (table dropped 2026-10-16, §9.1)
+- ~~`payment_card.stripe_customer_id`~~ (table dropped 2026-10-16, §9.1)
+- `payment_milestone.paid_note` (added 2026-10-16: the advisor's own note; the client column grant leaves it out, §9.5)
 - `integration.credentials_encrypted`
 - `audit_event` (mostly — agents may see some via Client Activity Log via a sanitized endpoint)
 
@@ -3356,6 +3616,12 @@ RLS still matters and stays enabled everywhere — it is what scopes rows to the
 The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero policies and a live table-level `SELECT` grant to both `anon` and `authenticated` covering both Stripe columns and `authorization_request.token_hash`. Nothing leaked — zero policies fails closed — but the first `SELECT` policy anyone added would have opened it. `supabase/tests/rls_payment.sql` now asserts a privilege *error* rather than an empty result, because a zero-row answer and a permission-denied answer are different claims.
 
 Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
+
+> **Amended 2026-10-16.** The payment-domain history above is kept as the reason column
+> grants matter, but the tables it describes are dropped (§9.1 to §9.4), and
+> `supabase/tests/rls_payment.sql` goes or is rewritten with them. The lesson carries over to
+> `payment_milestone`: its client grant names columns, so `paid_note` stays hidden even
+> though a client can see the row.
 
 ### 21.3 Value Classes for Domain Primitives
 
@@ -3384,7 +3650,7 @@ All shared types are `@Serializable` (kotlinx.serialization). The backend's Ktor
 
 **Phase note:** The cache architecture described here is **Phase 1 (MVP)** — it makes mobile feel responsive and resilient to brief drops in connectivity. The dedicated offline *user experience* (the Offline Itinerary View screen, the visible "Last synced" indicators, the queued-action handling) ships in **Phase 3** per BRD Section 13.3 and Screen Inventory Section 2.7.1.
 
-SqlDelight is used in the shared module's mobile target to cache the client-facing data (Trip, Itinerary, Conversation, PaymentCard metadata) for offline use. The schema is **not** the same as the server Postgres schema — it's a denormalized read-optimized cache. Sync logic compares server `updated_at` with cached values to decide what to fetch.
+SqlDelight is used in the shared module's mobile target to cache the client-facing data (Trip, Itinerary, Conversation, PaymentMilestone; PaymentCard metadata was dropped 2026-10-16) for offline use. The schema is **not** the same as the server Postgres schema — it's a denormalized read-optimized cache. Sync logic compares server `updated_at` with cached values to decide what to fetch.
 
 ### 21.6 ID Generation
 

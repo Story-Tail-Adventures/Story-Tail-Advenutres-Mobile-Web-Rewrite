@@ -69,6 +69,7 @@ export async function loadMergeValues(
     paymentOwedCents: r.payment_owed_cents,
     paymentCurrency: r.payment_currency,
     paymentDueDate: r.payment_due_date,
+    paymentLink: r.payment_link ?? null,
   });
 }
 

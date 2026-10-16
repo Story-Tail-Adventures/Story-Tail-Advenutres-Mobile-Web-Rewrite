@@ -15,7 +15,7 @@ import kotlinx.serialization.json.put
 /**
  * Screen Inventory §3.2.1's read. The advisor's worklist.
  *
- * A REPOSITORY OF ITS OWN, on the same rule WalletRepository states: one when the section
+ * A REPOSITORY OF ITS OWN, on the rule the retired §2.4 wallet set: one when the section
  * shares no read with an existing file. §3.2 shares nothing with `TripRepository` — every
  * client trip read there goes through PostgREST under `trip_self_select`, and an agent's
  * `platform_user.client_id` is NULL, so every one of those predicates returns zero rows for
@@ -47,7 +47,7 @@ import kotlinx.serialization.json.put
  * supabase-kt validates every response, so `if (status in 400..499)` written after the call
  * is unreachable — the rejection already left through the catch. Three repositories shipped
  * that shape and every Edge Function rejection reached the traveler as the generic "try
- * again in a moment". [problemDetail] is WalletRepository's, copied rather than re-derived,
+ * again in a moment". [problemDetail] is the one §2.4's wallet first got right, kept here,
  * including the part that matters: read the body off `error`, never `message`.
  */
 interface AgentRepository {
@@ -163,9 +163,6 @@ data class AgentTripOverviewRow(
     val refundDetail: String?,
     /** `trip.notes`, the advisor's own prose. The Notes TAB is this one field, not a table. */
     val notes: String?,
-    val cardLast4: String?,
-    val cardBrand: String?,
-    val cardSpendingLimitCents: Long?,
     /**
      * `greatest(max status change, max unarchived conversation message)`, off the accessor.
      *
@@ -796,6 +793,15 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
         ClientRosterRead.Failed
     }
 
+    /**
+     * The problem+json `detail` off a rejected call. 4xx ONLY: those are sentences we wrote
+     * for a person to read; a 5xx detail carries whatever Postgres said.
+     *
+     * READ FROM `error`, NOT `description` OR `message`. supabase-kt's
+     * `Functions.parseErrorResponse` puts the RAW BODY into `error`, leaves `description`
+     * null, and builds `message` as `error` plus appended `URL:` / `Headers:` lines, so
+     * parsing `message` fails on the trailing text and the detail silently comes back null.
+     */
     @Suppress("unused")
     private fun problemDetail(rest: RestException): String? {
         if (rest.statusCode !in 400..499) return null
@@ -804,7 +810,7 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
 }
 
 /**
- * Named apart from WalletRepository's identical private type: two top-level `private`
+ * Named apart from the other repositories' private problem types: two top-level `private`
  * declarations of the same name in one package are a redeclaration error, not two scopes.
  */
 @Serializable
@@ -1210,9 +1216,6 @@ private data class AgentTripOverviewDto(
     val refund_status: String? = null,
     val refund_detail: String? = null,
     val notes: String? = null,
-    val card_last4: String? = null,
-    val card_brand: String? = null,
-    val card_spending_limit_cents: String? = null,
     // `last_activity_at` is greatest(max status change, max unarchived conversation
     // message) — see the accessor's `activity` CTE. Deriving it from the status history
     // alone, which this did first, under-reports every trip whose last event was a client
@@ -1241,11 +1244,6 @@ private data class AgentTripOverviewDto(
         refundStatus = refund_status,
         refundDetail = refund_detail,
         notes = notes,
-        cardLast4 = card_last4,
-        cardBrand = card_brand,
-        // NULL rather than 0: no card on file is not a zero limit, and a confident "$0 cap"
-        // on a payment surface is the kind of figure an advisor would act on.
-        cardSpendingLimitCents = card_spending_limit_cents?.toLongOrNull(),
         lastActivityAt = last_activity_at,
         componentCount = component_count,
         nextUnpaidDueDate = next_unpaid_due_date,

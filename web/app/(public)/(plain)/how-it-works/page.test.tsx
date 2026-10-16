@@ -37,7 +37,7 @@ describe("2.0.2 how it works page", () => {
     expect(screen.getByText("Whatever your faith — you're welcome here.")).toBeInTheDocument();
     // The brief's correction: the heart panel must not describe Story-Tail billing.
     const heart = container.querySelector('section[aria-labelledby="our-heart"]');
-    expect(heart?.textContent).toContain("up to the limit you set");
+    expect(heart?.textContent).toContain("never through us");
     expect(heart?.textContent).not.toMatch(/invoice/i);
   });
 
