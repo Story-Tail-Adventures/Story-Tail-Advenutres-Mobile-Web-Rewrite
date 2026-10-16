@@ -450,6 +450,8 @@ EMAIL_IMAP_HOST = "env(EMAIL_IMAP_HOST)"
 EMAIL_IMAP_PORT = "env(EMAIL_IMAP_PORT)"
 EMAIL_IMAP_USER = "env(EMAIL_IMAP_USER)"
 EMAIL_IMAP_PASSWORD = "env(EMAIL_IMAP_PASSWORD)"
+# The receiving server's name in Authentication-Results; unset, no reply verifies (fail closed).
+EMAIL_AUTHSERV_ID = "env(EMAIL_AUTHSERV_ID)"
 
 # Declared explicitly, one block per function, because Supabase's GitHub integration deploys
 # the Edge Functions "declared in config.toml" — an undeclared directory may simply never

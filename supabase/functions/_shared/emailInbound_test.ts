@@ -7,6 +7,7 @@ import {
   isAutoReply,
   newWordsOnly,
   outboxIdFrom,
+  parseAuthResults,
   parseHeaders,
   plusAddress,
   recipientsOf,
@@ -79,27 +80,55 @@ Deno.test("fallback: the email answered, from In-Reply-To, then the last of ours
   assertEquals(outboxIdFrom(h("In-Reply-To: <CAJ1@mail.gmail.com>"), "adventures.story-tail.com"), null);
 });
 
-Deno.test("dedupe: the email's own Message-ID, so a re-delivery is handled once; else the UID", () => {
-  assertEquals(dedupeKey(h("Message-ID: <CAJ1@Mail.Gmail.com>"), "7", 3), "mid:<caj1@mail.gmail.com>");
-  assertEquals(dedupeKey(h("Subject: no id"), "7", 3), "imap:7:3");
-  assertEquals(dedupeKey(h("Message-ID: not-bracketed"), "7", 3), "imap:7:3");
+Deno.test("dedupe: the sender plus the email's own Message-ID, so a re-delivery is handled once", async () => {
+  const a = await dedupeKey(h("From: jordan@example.com\nMessage-ID: <CAJ1@mail.gmail.com>"), "7", 3);
+  assertEquals(a, await dedupeKey(h("From: Jordan <jordan@example.com>\nMessage-ID: <CAJ1@mail.gmail.com>"), "7", 9), "same sender and id: same key");
+  assert(a.startsWith("mid:"));
+  assert(a !== await dedupeKey(h("From: attacker@evil.com\nMessage-ID: <CAJ1@mail.gmail.com>"), "7", 3), "another sender cannot pre-empt it");
+  assert(a !== await dedupeKey(h("From: jordan@example.com\nMessage-ID: <caj1@mail.gmail.com>"), "7", 3), "case is kept");
+  assertEquals(await dedupeKey(h("Subject: no id"), "7", 3), "imap:7:3");
+  assertEquals(await dedupeKey(h("Message-ID: not-bracketed"), "7", 3), "imap:7:3");
 });
 
 // ── The sender's verdict ────────────────────────────────────────────────────
 
-Deno.test("sender: DMARC pass, or both SPF and DKIM, in the TOPMOST Authentication-Results", () => {
-  assert(senderVerified(h("Authentication-Results: mx.ionos.com; dmarc=pass header.from=example.com")));
-  assert(senderVerified(h("Authentication-Results: mx.ionos.com; spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com; dmarc=none")));
-  assert(!senderVerified(h("Authentication-Results: mx.ionos.com; spf=pass; dkim=fail; dmarc=none")));
-  assert(!senderVerified(h("Subject: hi")), "no verdict at all fails closed");
+const AR = (v: string) => h(`Authentication-Results: ${v}`);
+const ID = "mx.ionos.com";
+const FROM = "jordan@example.com";
+
+Deno.test("verdict: parsed strictly; a quoted value cannot read as a result (review)", () => {
+  const ar = parseAuthResults('mx.ionos.com; spf=pass smtp.mailfrom="a;dmarc=pass"@evil.com (dmarc=pass); dmarc=fail');
+  assertEquals(ar.authservId, "mx.ionos.com");
+  assertEquals(ar.methods.map((m) => `${m.method}=${m.result}`), ["spf=pass", "dmarc=fail"]);
 });
 
-Deno.test("sender: a verdict the SENDER wrote lower down is ignored (RFC 8601)", () => {
-  const forged = h(
-    "Authentication-Results: mx.ionos.com; spf=fail; dkim=none; dmarc=fail\n" +
-      "Authentication-Results: mx.ionos.com; dmarc=pass",
-  );
-  assert(!senderVerified(forged));
+Deno.test("verdict: DMARC pass from OUR server passes", () => {
+  assert(senderVerified(AR(`${ID}; dmarc=pass header.from=example.com`), FROM, ID));
+});
+
+Deno.test("verdict: no pinned server id, or another server's header on top, fails closed (review)", () => {
+  assert(!senderVerified(AR(`${ID}; dmarc=pass`), FROM, null), "id not configured");
+  assert(!senderVerified(AR("evil.example; dmarc=pass"), FROM, ID), "a header the sender wrote");
+  assert(!senderVerified(h("Subject: hi"), FROM, ID), "no header at all");
+  assert(!senderVerified(AR(`${ID}; dmarc=pass`), null, ID), "no single From");
+});
+
+Deno.test("verdict: dmarc=fail always fails; unaligned SPF and DKIM prove nothing (review)", () => {
+  assert(!senderVerified(AR(`${ID}; spf=pass smtp.mailfrom=evil.com; dkim=pass header.d=evil.com; dmarc=fail`), FROM, ID));
+  assert(!senderVerified(AR(`${ID}; spf=pass smtp.mailfrom=evil.com; dkim=pass header.d=evil.com; dmarc=none`), FROM, ID));
+  assert(senderVerified(AR(`${ID}; spf=pass smtp.mailfrom=jordan@example.com; dkim=pass header.d=example.com; dmarc=none`), FROM, ID));
+  assert(!senderVerified(AR(`${ID}; spf=pass smtp.mailfrom=jordan@example.com; dkim=fail header.d=example.com; dmarc=none`), FROM, ID));
+});
+
+Deno.test("verdict: the email-it-answers path needs DMARC itself", () => {
+  const aligned = AR(`${ID}; spf=pass smtp.mailfrom=jordan@example.com; dkim=pass header.d=example.com; dmarc=none`);
+  assert(!senderVerified(aligned, FROM, ID, true));
+  assert(senderVerified(AR(`${ID}; dmarc=pass`), FROM, ID, true));
+});
+
+Deno.test("verdict: a lower header the SENDER wrote is ignored (RFC 8601)", () => {
+  const forged = h(`Authentication-Results: ${ID}; spf=fail; dkim=none; dmarc=fail\nAuthentication-Results: ${ID}; dmarc=pass`);
+  assert(!senderVerified(forged, FROM, ID));
 });
 
 // ── Automatic answers ───────────────────────────────────────────────────────

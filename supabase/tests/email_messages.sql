@@ -332,7 +332,7 @@ SELECT pg_temp.assert(
     'an out-of-office answer, even with a good token and sender, is dropped');
 SELECT pg_temp.assert(
     NOT EXISTS (SELECT 1 FROM public.message WHERE id = :in1::uuid)
-    AND (SELECT count(*) FROM public.inbound_email WHERE outcome <> 'accepted') = 7,
+    AND (SELECT count(*) FROM public.inbound_email WHERE outcome <> 'accepted' AND provider_email_id LIKE 'rs-%') = 7,
     'no rejection writes a message, and each is counted once');
 
 UPDATE public.account SET email_verified_at = NULL WHERE id = :jordan_account::uuid;

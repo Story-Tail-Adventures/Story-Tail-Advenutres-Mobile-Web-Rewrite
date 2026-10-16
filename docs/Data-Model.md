@@ -2244,7 +2244,9 @@ from the app's own mailbox, `info@adventures.story-tail.com`, not through Resend
 mailbox's INBOX, kept so a re-delivered message is handled once and so a rejection can be counted
 without keeping the mail. Service-role only. Written by the `email-inbox` Edge Function, which
 pg_cron's `email_inbox_tick()` calls every two minutes; it logs in with the sending login, records
-each message, then moves it to `Processed` or `Rejected` (nothing is deleted).
+each message, then moves it to `Processed`, `Rejected` or (unreadable) `Failed`; mail in those
+folders is deleted after 30 days, since a reply may hold an unmasked card number. The sender verdict
+counts only from the receiving server named by `EMAIL_AUTHSERV_ID`; see the review §3a.
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|

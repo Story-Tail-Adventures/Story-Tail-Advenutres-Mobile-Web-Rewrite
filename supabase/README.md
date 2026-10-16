@@ -391,6 +391,17 @@ select vault.create_secret(
 `EMAIL_IMAP_HOST` / `EMAIL_IMAP_PORT` default to IONOS on 993; `EMAIL_IMAP_USER` /
 `EMAIL_IMAP_PASSWORD` exist only for a local test server. No Resend, no MX record, no webhook.
 
+**One more setting, read off the first real reply: `EMAIL_AUTHSERV_ID`.** Replies are trusted only
+when the receiving server vouched for the sender, and only the verdict header IONOS itself writes
+counts. Until this is set, every reply goes to `Rejected` (nothing is lost; the mail is still in the
+mailbox for 30 days). After the first real reply arrives, open it in IONOS webmail (Rejected folder),
+view its source, and copy the first word after the topmost `Authentication-Results:` (a host name,
+such as `mx.ionos.com`; the exact value is unknown until then):
+
+```bash
+supabase secrets set --project-ref <prod-ref> EMAIL_AUTHSERV_ID=<that host name>
+```
+
 **Locally: Mailpit is the mail server.** The local stack runs one (web UI on :54324). Put this in
 `supabase/.env.local` and restart with `npm run supabase:start`:
 

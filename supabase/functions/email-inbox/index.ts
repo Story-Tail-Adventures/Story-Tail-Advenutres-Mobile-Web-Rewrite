@@ -5,19 +5,23 @@
  * NO HUMAN CALLER. pg_cron's `email_inbox_tick()` posts here every two minutes with the service
  * role key; any user token is 403. One run:
  *   1. Log in to the mailbox (imapflow 2.2.1, used as docs/IMAP-Library-Security-Review.md §3
- *      requires: TLS on 993 with certificates checked, no logger, no proxy).
- *   2. Take up to 25 messages from INBOX: headers, size and structure only.
+ *      requires: TLS on 993 with certificates checked, no logger, no proxy, deadlines set).
+ *   2. Take up to 25 messages from INBOX: size, structure and only the headers this file reads.
  *   3. Per message: find the reply token (the `info+<token>@` recipient, or our Message-ID in
- *      In-Reply-To / References), read the TOPMOST Authentication-Results, download only the text
- *      part, keep only the new words (card numbers masked), and hand it all to
- *      `email_inbound_record`, which checks token, verified sender and thread and writes the
- *      message, the thread bump and its audit row in one transaction. A message seen before is a
- *      no-op there (keyed on its Message-ID, or the mailbox UID without one).
- *   4. Move it to `Processed` (accepted) or `Rejected` (everything else). Nothing is deleted.
+ *      In-Reply-To / References), read OUR server's Authentication-Results (pinned by
+ *      EMAIL_AUTHSERV_ID), download only the text part, keep only the new words (card numbers
+ *      masked), and hand it all to `email_inbound_record`, which checks token, verified sender and
+ *      thread and writes the message, the thread bump and its audit row in one transaction. A
+ *      message seen before is a no-op there.
+ *   4. Move it to `Processed` (accepted) or `Rejected` (everything else). A message that cannot be
+ *      read goes to `Failed`, so one bad email never jams the inbox (review, 2026-10-16).
  *   5. An accepted reply that carried files gets one short note, to the verified sender only.
+ *   6. Handled mail older than 30 days is deleted from those folders: a client may have pasted a
+ *      card number into a reply, and the mailbox must not keep it (CLAUDE.md rule 1).
  *
  * A message is moved only AFTER it is recorded, so a crash leaves it in INBOX for the next run,
- * where the dedupe makes the second pass harmless.
+ * where the dedupe makes the second pass harmless. A database error stops the run (the next one
+ * retries); a message-specific error moves that message to `Failed` and the run goes on.
  */
 import { ImapFlow } from "imapflow";
 import { requireServiceRole } from "../_shared/auth.ts";
@@ -50,8 +54,28 @@ const MAX_MESSAGE_BYTES = 1_000_000;
 const MAX_TEXT_BYTES = 80_000;
 /** Stop starting new messages after this long; the rest wait for the next run. */
 const TIME_BUDGET_MS = 60_000;
+/** Handled mail is deleted from the folders below after this many days. */
+const KEEP_DAYS = 30;
 const PROCESSED = "Processed";
 const REJECTED = "Rejected";
+const FAILED = "Failed";
+/** Only the headers this function reads: never a whole header block from an unknown sender. */
+const HEADERS = [
+  "from",
+  "to",
+  "cc",
+  "delivered-to",
+  "x-original-to",
+  "subject",
+  "message-id",
+  "in-reply-to",
+  "references",
+  "authentication-results",
+  "auto-submitted",
+  "precedence",
+  "x-autoreply",
+  "x-autorespond",
+];
 
 interface Fetched {
   uid: number;
@@ -60,6 +84,9 @@ interface Fetched {
   structure: BodyNode | undefined;
   subject: string;
 }
+
+/** A failure that is the database's, not the message's: stop the run and let the next one retry. */
+class RecordError extends Error {}
 
 Deno.serve(async (req) => {
   const preflight = handlePreflight(req);
@@ -72,44 +99,70 @@ Deno.serve(async (req) => {
     const cfg = inboxConfigFromEnv((name) => Deno.env.get(name));
     if (!cfg) throw new Error("Set EMAIL_SMTP_USER, EMAIL_SMTP_PASSWORD and EMAIL_FROM_ADDRESS. See supabase/README.md.");
     const domain = cfg.mailbox.split("@")[1];
+    // OUR server's name in Authentication-Results. Unset: no sender can be verified, so every reply
+    // is Rejected (fail closed) until it is read off a real reply. See supabase/README.md.
+    const authservId = Deno.env.get("EMAIL_AUTHSERV_ID")?.trim() || null;
 
-    const client = new ImapFlow({
-      host: cfg.host,
-      port: cfg.port,
-      secure: cfg.secure,
-      // Never downgrade: TLS from the first byte on 993, certificates checked. A local test server
-      // (inboxConfigFromEnv) is the only plain connection allowed.
-      doSTARTTLS: cfg.secure ? undefined : false,
-      tls: { rejectUnauthorized: true, servername: cfg.host },
-      auth: { user: cfg.user, pass: cfg.password },
-      // Its logger can print message contents.
-      logger: false,
-      disableAutoIdle: true,
-    });
-
-    const db = serviceClient();
-    const started = Date.now();
-    const counts: Record<string, number> = {};
-    let skipped = 0;
-
-    await client.connect();
     try {
-      await ensureFolders(client, [PROCESSED, REJECTED]);
-      const lock = await client.getMailboxLock("INBOX");
-      try {
-        const mailbox = client.mailbox;
-        const exists = mailbox && typeof mailbox === "object" ? Number(mailbox.exists ?? 0) : 0;
-        const uidValidity = mailbox && typeof mailbox === "object" ? String(mailbox.uidValidity ?? "0") : "0";
-        if (exists === 0) return json({ read: 0 });
+      return json(await readInbox(cfg, domain, authservId));
+    } catch (err) {
+      // imapflow errors carry the server's response and sometimes the command; keep only the gist.
+      const e = err as { message?: string; code?: string };
+      throw new Error(`email-inbox: ${e.code ?? "error"}: ${(e.message ?? "failed").slice(0, 200)}`);
+    }
+  } catch (err) {
+    return problem(err);
+  }
+});
 
-        // Collect first: imapflow runs no other command while a fetch is being iterated.
-        const batch: Fetched[] = [];
+async function readInbox(
+  cfg: NonNullable<ReturnType<typeof inboxConfigFromEnv>>,
+  domain: string,
+  authservId: string | null,
+): Promise<Record<string, unknown>> {
+  const client = new ImapFlow({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    // Never downgrade: TLS from the first byte on 993, certificates checked. A local test server
+    // (inboxConfigFromEnv) is the only plain connection allowed.
+    doSTARTTLS: cfg.secure ? undefined : false,
+    tls: { rejectUnauthorized: true, servername: cfg.host },
+    auth: { user: cfg.user, pass: cfg.password },
+    // Its logger can print message contents.
+    logger: false,
+    disableAutoIdle: true,
+    // A hung server cannot hold a run (or overlap the next tick) for long.
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 45_000,
+  });
+
+  const db = serviceClient();
+  const started = Date.now();
+  const counts: Record<string, number> = {};
+  const bump = (k: string) => (counts[k] = (counts[k] ?? 0) + 1);
+  let skipped = 0;
+  let purged = 0;
+
+  await client.connect();
+  try {
+    await ensureFolders(client, [PROCESSED, REJECTED, FAILED]);
+    const lock = await client.getMailboxLock("INBOX");
+    try {
+      const mailbox = client.mailbox;
+      const exists = mailbox && typeof mailbox === "object" ? Number(mailbox.exists ?? 0) : 0;
+      const uidValidity = mailbox && typeof mailbox === "object" ? String(mailbox.uidValidity ?? "0") : "0";
+
+      // Collect first: imapflow runs no other command while a fetch is being iterated.
+      const batch: Fetched[] = [];
+      if (exists > 0) {
         for await (
           const m of client.fetch(`1:${Math.min(exists, BATCH)}`, {
             uid: true,
             size: true,
             bodyStructure: true,
-            headers: true,
+            headers: HEADERS,
           })
         ) {
           const headers = parseHeaders(m.headers ? new TextDecoder().decode(m.headers) : "");
@@ -121,49 +174,79 @@ Deno.serve(async (req) => {
             subject: headers.find(([n]) => n === "subject")?.[1] ?? "",
           });
         }
+      }
 
-        for (const m of batch) {
-          if (Date.now() - started > TIME_BUDGET_MS) {
-            skipped += 1;
-            continue;
-          }
-          let outcome: string;
-          let label: string;
+      for (const m of batch) {
+        if (Date.now() - started > TIME_BUDGET_MS) {
+          skipped += 1;
+          continue;
+        }
+        let folder: string;
+        try {
           if (m.size > MAX_MESSAGE_BYTES) {
-            outcome = label = "too_large";
+            folder = REJECTED;
+            bump("too_large");
           } else {
-            const result = await handle(client, db, cfg.mailbox, domain, uidValidity, m);
-            outcome = result.outcome;
+            const result = await handle(client, db, cfg.mailbox, domain, authservId, uidValidity, m);
+            folder = result.outcome === "accepted" ? PROCESSED : REJECTED;
             // A re-delivered copy answers the first copy's outcome; the summary says what it was.
-            label = result.duplicate ? "duplicate" : result.outcome;
+            bump(result.duplicate ? "duplicate" : result.outcome);
             if (result.outcome === "accepted" && !result.duplicate && result.files > 0 && result.replyTo) {
               await filesNote(result.replyTo, m).catch((err) =>
-                console.error("email-inbox: files note failed", (err as Error)?.message ?? err)
+                console.error("email-inbox: files note failed", (err as Error)?.message ?? "error")
               );
             }
           }
-          await client.messageMove(String(m.uid), outcome === "accepted" ? PROCESSED : REJECTED, { uid: true });
-          counts[label] = (counts[label] ?? 0) + 1;
+        } catch (err) {
+          if (err instanceof RecordError) throw err;
+          // Something about THIS message (a part that will not download, odd structure): set it
+          // aside for a person to look at, rather than retry it at the head of every run.
+          console.error("email-inbox: message failed", (err as Error)?.message?.slice(0, 200) ?? "error");
+          folder = FAILED;
+          bump("failed");
         }
-      } finally {
-        lock.release();
+        await client.messageMove(String(m.uid), folder, { uid: true });
       }
     } finally {
-      await client.logout().catch(() => undefined);
+      lock.release();
     }
 
-    return json({ read: Object.values(counts).reduce((a, b) => a + b, 0), outcomes: counts, skipped });
-  } catch (err) {
-    return problem(err);
+    if (Date.now() - started < TIME_BUDGET_MS) purged = await purgeOld(client, [PROCESSED, REJECTED, FAILED]);
+  } finally {
+    await client.logout().catch(() => undefined);
   }
-});
 
-/** Create the two folders on the first run; a mailbox with them already is left alone. */
+  return { read: Object.values(counts).reduce((a, b) => a + b, 0), outcomes: counts, skipped, purged };
+}
+
+/** Create the folders on the first run; one that already exists is left alone. */
 async function ensureFolders(client: ImapFlow, names: string[]): Promise<void> {
   const have = new Set((await client.list()).map((b: { path: string }) => b.path));
   for (const name of names) {
-    if (!have.has(name)) await client.mailboxCreate(name).catch(() => undefined);
+    if (!have.has(name)) await client.mailboxCreate(name);
   }
+}
+
+/**
+ * Delete handled mail older than KEEP_DAYS from the given folders. The thread already holds what
+ * the client wrote (card numbers masked); the original, which may hold an unmasked one, goes.
+ */
+async function purgeOld(client: ImapFlow, folders: string[]): Promise<number> {
+  const before = new Date(Date.now() - KEEP_DAYS * 24 * 60 * 60 * 1000);
+  let total = 0;
+  for (const folder of folders) {
+    const lock = await client.getMailboxLock(folder);
+    try {
+      const uids = await client.search({ before }, { uid: true });
+      if (Array.isArray(uids) && uids.length > 0) {
+        await client.messageDelete(uids.join(","), { uid: true });
+        total += uids.length;
+      }
+    } finally {
+      lock.release();
+    }
+  }
+  return total;
 }
 
 async function handle(
@@ -171,12 +254,14 @@ async function handle(
   db: ReturnType<typeof serviceClient>,
   mailbox: string,
   domain: string,
+  authservId: string | null,
   uidValidity: string,
   m: Fetched,
 ): Promise<{ outcome: string; duplicate: boolean; files: number; replyTo: string | null }> {
   const token = replyTokenFrom(recipientsOf(m.headers), mailbox);
   const outboxId = token ? null : outboxIdFrom(m.headers, domain);
   const files = countFiles(m.structure);
+  const from = fromOf(m.headers);
 
   // Mail that names neither is not a reply to us: recorded (as an unknown token) without reading it.
   let body = "";
@@ -189,42 +274,45 @@ async function handle(
   }
 
   const { data, error } = await db.rpc("email_inbound_record", {
-    p_provider_email_id: dedupeKey(m.headers, uidValidity, m.uid),
+    p_provider_email_id: await dedupeKey(m.headers, uidValidity, m.uid),
     // No token: the hash of "", which no 26-character token can have, so the SQL falls through to
     // the email-it-answers match.
     p_token_hash: await tokenHashParam(token ?? ""),
-    p_from: fromOf(m.headers) ?? "",
-    p_sender_verified: senderVerified(m.headers),
+    p_from: from ?? "",
+    // The email-it-answers match rests on a Message-ID, which travels in forwards and CCs, so it
+    // needs DMARC itself; the token path also accepts aligned SPF and DKIM (review, 2026-10-16).
+    p_sender_verified: senderVerified(m.headers, from, authservId, !token),
     p_body: body,
     p_files: files,
     p_message_id: uuidV7(),
     p_auto_reply: isAutoReply(m.headers, m.subject),
     p_reply_outbox_id: outboxId ?? undefined,
   });
-  if (error) throw new Error(`recording the reply failed: ${error.message}`);
+  if (error) throw new RecordError(`recording the reply failed: ${error.message}`);
   const row = (data ?? [])[0] as { outcome: string; duplicate: boolean; reply_to: string | null } | undefined;
-  if (!row) throw new Error("recording the reply returned nothing");
+  if (!row) throw new RecordError("recording the reply returned nothing");
   return { outcome: row.outcome, duplicate: row.duplicate, files, replyTo: row.reply_to };
 }
 
 /** One text part, decoded, and never more than MAX_TEXT_BYTES of it. */
 async function downloadText(client: ImapFlow, uid: number, part: string): Promise<string> {
-  const { content, meta } = await client.download(String(uid), part, { uid: true, maxBytes: MAX_TEXT_BYTES });
+  const downloaded = await client.download(String(uid), part, { uid: true, maxBytes: MAX_TEXT_BYTES });
+  if (!downloaded?.content) throw new Error(`part ${part} has no content`);
   const chunks: Uint8Array[] = [];
   let total = 0;
-  for await (const chunk of content as AsyncIterable<Uint8Array>) {
-    chunks.push(chunk);
-    total += chunk.length;
+  for await (const chunk of downloaded.content as AsyncIterable<Uint8Array>) {
+    const room = MAX_TEXT_BYTES - total;
+    chunks.push(chunk.length > room ? chunk.subarray(0, room) : chunk);
+    total += Math.min(chunk.length, room);
     if (total >= MAX_TEXT_BYTES) break;
   }
   const bytes = new Uint8Array(total);
   let at = 0;
   for (const c of chunks) {
-    bytes.set(c.subarray(0, Math.min(c.length, total - at)), at);
+    bytes.set(c, at);
     at += c.length;
-    if (at >= total) break;
   }
-  const charset = typeof meta?.charset === "string" ? meta.charset : "utf-8";
+  const charset = typeof downloaded.meta?.charset === "string" ? downloaded.meta.charset : "utf-8";
   try {
     return new TextDecoder(charset).decode(bytes);
   } catch {

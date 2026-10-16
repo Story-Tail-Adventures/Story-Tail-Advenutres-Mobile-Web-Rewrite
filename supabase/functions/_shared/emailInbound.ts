@@ -112,35 +112,125 @@ export function fromOf(headers: [string, string][]): string | null {
 }
 
 /**
- * The key a delivered message is recorded under, so it is handled once. The message's own
- * Message-ID when it has a usable one: a server that re-delivers an email (a retry, a forward
- * loop) gives it a NEW mailbox UID but the same Message-ID. Found in testing (2026-10-16): keyed
- * on the UID, one reply delivered twice posted twice. Without a Message-ID, the mailbox UID.
- * A sender chooses the Message-ID, but abusing that would mean guessing a real reply's ID before
- * it is sent, and nothing is accepted without a live reply token anyway.
+ * The key a delivered message is recorded under, so it is handled once. A hash of the From address
+ * and the message's own Message-ID when it has a usable one: a server that re-delivers an email (a
+ * retry, a forward loop) gives it a NEW mailbox UID but the same Message-ID. Found in testing
+ * (2026-10-16): keyed on the UID, one reply delivered twice posted twice. Scoped to the sender and
+ * case kept (review, 2026-10-16), so another sender reusing an id cannot pre-empt a client's reply.
+ * Without a Message-ID, the mailbox UID.
  */
-export function dedupeKey(headers: [string, string][], uidValidity: string, uid: number): string {
+export async function dedupeKey(
+  headers: [string, string][],
+  uidValidity: string,
+  uid: number,
+): Promise<string> {
   const id = values(headers, "message-id")[0]?.trim();
-  if (id && /^<[^<>\s]{3,190}>$/.test(id)) return `mid:${id.toLowerCase()}`;
-  return `imap:${uidValidity}:${uid}`;
+  if (!id || !/^<[^<>\s]{3,190}>$/.test(id)) return `imap:${uidValidity}:${uid}`;
+  const from = values(headers, "from")[0] ? (bareAddress(values(headers, "from")[0]) ?? "") : "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${from}\n${id}`));
+  return "mid:" + [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ── Was the sender vouched for? ─────────────────────────────────────────────
 
+/** One parsed Authentication-Results header: who wrote it, and each method's result and properties. */
+export interface AuthResults {
+  authservId: string;
+  methods: { method: string; result: string; props: Record<string, string> }[];
+}
+
 /**
- * The receiving server's verdict, from the TOPMOST `Authentication-Results` only (RFC 8601 §5:
- * a sender can write any number of these headers; only the one our server prepended is ours).
- * DMARC pass means the From domain itself authenticated; without a DMARC policy, SPF and DKIM
- * both passing is the best evidence. Anything else, including no header at all, fails closed.
+ * RFC 8601 parsing, strictly: comments `( … )` and quoted strings are removed FIRST, so nothing a
+ * sender put in a property value (`smtp.mailfrom="a;dmarc=pass"@evil.com`) can read as a result.
+ * Then the header splits on `;`: the first piece is the authserv-id (who wrote it), each later piece
+ * starts with `method=result` and may carry `ptype.property=value` pairs. Found in review
+ * (2026-10-16): a substring match accepted `dmarc=pass` from inside a quoted value.
  */
-export function senderVerified(headers: [string, string][]): boolean {
+export function parseAuthResults(value: string): AuthResults {
+  let clean = "";
+  let depth = 0;
+  let quoted = false;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (quoted) {
+      if (c === "\\") i++;
+      else if (c === '"') quoted = false;
+      continue;
+    }
+    if (c === '"' && depth === 0) {
+      quoted = true;
+      clean += '""';
+      continue;
+    }
+    if (c === "(") {
+      depth++;
+      continue;
+    }
+    if (c === ")" && depth > 0) {
+      depth--;
+      continue;
+    }
+    if (depth === 0) clean += c;
+  }
+  const [head, ...rest] = clean.split(";");
+  const authservId = (head ?? "").trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  const methods = rest.map((segment) => {
+    const words = segment.trim().split(/\s+/).filter(Boolean);
+    const [method, result] = (words[0] ?? "").toLowerCase().split("=");
+    const props: Record<string, string> = {};
+    for (const w of words.slice(1)) {
+      const i = w.indexOf("=");
+      if (i > 0) props[w.slice(0, i).toLowerCase()] = w.slice(i + 1).toLowerCase();
+    }
+    return { method: method ?? "", result: result ?? "", props };
+  }).filter((m) => m.method !== "" && m.result !== "");
+  return { authservId, methods };
+}
+
+/** The domain part of an address or a bare domain, lowercased, without a trailing dot. */
+function domainOf(value: string | undefined): string {
+  const v = (value ?? "").toLowerCase().replace(/\.$/, "");
+  return v.includes("@") ? v.slice(v.lastIndexOf("@") + 1) : v;
+}
+
+/**
+ * Whether the receiving server vouched for the From address. Three rules, each from review
+ * (2026-10-16):
+ *
+ *   1. Only the TOPMOST Authentication-Results counts, and only when its authserv-id is OUR
+ *      server's (`authservId`, pinned in settings). A sender can write any number of these headers;
+ *      if the server added none, the sender's own would otherwise be on top. No pinned id, no
+ *      matching header: not verified (fail closed).
+ *   2. `dmarc=fail` always fails. `dmarc=pass` passes: DMARC itself checks that SPF or DKIM is
+ *      aligned with the From domain.
+ *   3. Without DMARC (`none`), SPF and DKIM must BOTH pass AND both be for the From address's own
+ *      domain (`smtp.mailfrom`, `header.d`). An attacker's own domain passing proves nothing about
+ *      someone else's From. `strict` (the match-by-the-email-it-answers path) accepts DMARC only.
+ */
+export function senderVerified(
+  headers: [string, string][],
+  from: string | null,
+  authservId: string | null,
+  strict = false,
+): boolean {
+  if (!from || !authservId) return false;
   const top = values(headers, "authentication-results")[0];
   if (!top) return false;
-  const result = (method: string) => {
-    const m = top.match(new RegExp(`(?:^|[;\\s])${method}=([a-z]+)`, "i"));
-    return m ? m[1].toLowerCase() : null;
-  };
-  return result("dmarc") === "pass" || (result("spf") === "pass" && result("dkim") === "pass");
+  const ar = parseAuthResults(top);
+  if (ar.authservId !== authservId.toLowerCase()) return false;
+
+  const find = (name: string) => ar.methods.find((m) => m.method === name);
+  const dmarc = find("dmarc");
+  if (dmarc?.result === "fail") return false;
+  if (dmarc?.result === "pass") return true;
+  if (strict) return false;
+
+  const fromDomain = domainOf(from);
+  const spf = find("spf");
+  const dkim = ar.methods.find((m) => m.method === "dkim" && m.result === "pass" && domainOf(m.props["header.d"]) === fromDomain);
+  const spfAligned = spf?.result === "pass" &&
+    domainOf(spf.props["smtp.mailfrom"] ?? spf.props["smtp.helo"]) === fromDomain;
+  return spfAligned && Boolean(dkim);
 }
 
 // ── Automatic answers ───────────────────────────────────────────────────────

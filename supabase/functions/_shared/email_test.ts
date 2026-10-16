@@ -158,6 +158,14 @@ Deno.test("email: card numbers are masked in both parts", () => {
   assert(!e.html.includes(visa) && e.html.includes("•••• 4242"));
 });
 
+Deno.test("email: card numbers split by dots or no-break spaces are masked too (review)", () => {
+  const dotted = Array(4).fill("4242").join(".");
+  const nbsp = Array(4).fill("4242").join("\u00a0");
+  const e = buildEmail(row({ messages: said(`A ${dotted} and B ${nbsp}.`) }), TOKENS, cfg);
+  assert(!e.text.includes(dotted) && !e.text.includes(nbsp));
+  assertEquals((e.text.match(/•••• 4242/g) ?? []).length, 2);
+});
+
 Deno.test("email: the advisor's words are escaped, never HTML", () => {
   const e = buildEmail(row({ messages: said("<script>alert(1)</script> & <b>hi</b>") }), TOKENS, cfg);
   assert(!e.html.includes("<script>"));

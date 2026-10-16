@@ -114,7 +114,8 @@ export function messageTitle(clientName: string | null, tripTitle: string | null
  * notification shows the last four only. Errs toward masking: a long reference number loses its
  * middle too, which costs nothing (the thread is one tap away).
  */
-const CARD_LIKE = /\b\d(?:[ -]?\d){12,18}\b/g;
+// Separators: space, dash, dot and the no-break space mail apps insert (review, 2026-10-16).
+const CARD_LIKE = /\b\d(?:[ .\u00a0-]?\d){12,18}\b/g;
 
 export function maskCardNumbers(text: string): string {
   return text.replace(CARD_LIKE, (run) => `•••• ${run.replace(/\D/g, "").slice(-4)}`);

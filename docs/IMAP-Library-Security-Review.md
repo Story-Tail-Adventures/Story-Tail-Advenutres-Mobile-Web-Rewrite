@@ -74,16 +74,28 @@ the alternative to all of this and was ruled out for an extra vendor, a DNS reco
   `References` names the email it answers, and the SQL finds that email's reply token by
   `email_token.outbox_id`. This works while the outbox row exists (30 days); plus addressing works for
   the token's full year. Both paths still need the verified sender.
-- **Which `Authentication-Results` counts:** only the TOPMOST one, the header IONOS adds on receipt.
-  Any lower one was written by whoever sent the mail and is ignored (RFC 8601 §5). Pass is
-  `dmarc=pass`, or `spf=pass` and `dkim=pass`; anything else fails closed.
-- **Dedupe key:** the message's own `Message-ID` (`mid:<…>`), else `imap:<UIDVALIDITY>:<UID>`.
+- **Which `Authentication-Results` counts** (tightened after review, 2026-10-16): only the TOPMOST
+  one, and only when its authserv-id equals `EMAIL_AUTHSERV_ID`, the receiving server's own name.
+  Without that pin, a server that adds no header would leave the SENDER's on top. The header is
+  parsed per RFC 8601, comments and quoted strings removed first, so a property value cannot read as
+  a result. `dmarc=fail` always fails; `dmarc=pass` passes; with no DMARC, SPF and DKIM must both
+  pass AND both be for the From address's own domain. The match-by-the-email-it-answers fallback
+  (a Message-ID, which travels in forwards and CCs) accepts DMARC pass only. **Until
+  `EMAIL_AUTHSERV_ID` is set, every reply is Rejected.** It is read off the first real reply.
+- **Dedupe key:** a SHA-256 of the From address and the message's own `Message-ID` (`mid:<hex>`;
+  sender-scoped and case kept after review, so another sender cannot pre-empt a client's reply),
+  else `imap:<UIDVALIDITY>:<UID>`.
   First written as the UID only, because the sender chooses the Message-ID; local testing showed one
   reply delivered twice then posted twice, since a re-delivery gets a new UID. Abusing a chosen
   Message-ID would mean guessing a real reply's ID before it is sent, and nothing is accepted
   without a live reply token anyway.
 - **Folders:** handled mail moves to `Processed` (accepted) or `Rejected` (everything else: spam,
-  auto-replies, unknown tokens, oversize). The function creates both if missing. Nothing is deleted.
+  auto-replies, unknown tokens, oversize); a message that cannot be read goes to `Failed`, so one
+  bad email never jams the head of the inbox. The function creates all three. **Mail in them is
+  deleted after 30 days** (review, 2026-10-16): a client may paste a card number into a reply, the
+  thread keeps only the masked words, and the mailbox must not keep the original (CLAUDE.md rule 1).
+- **Only the headers it reads** are fetched, never a stranger's whole header block, and the IMAP
+  connection has connect, greeting and socket deadlines.
 - **Pace:** every two minutes from pg_cron (`email_inbox_tick`), one IMAP login per run.
 - **The Resend webhook function (`email-inbound`) and its Svix code are removed**, with their
   `config.toml` block and `RESEND_*` secrets. Its parsing helpers stay and are reused.
