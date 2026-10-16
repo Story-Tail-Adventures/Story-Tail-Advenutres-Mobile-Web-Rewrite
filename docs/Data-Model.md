@@ -102,6 +102,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Session | Identity | P1 | Active session tracking for security/audit |
 | MfaDevice | Identity | P1 | Registered MFA method (TOTP, SMS, backup codes) |
 | AuthEvent | Identity | P1 | Audit of login attempts and security events |
+| AuthEventFlag | Identity | P1 | An advisor's "this sign-in looks off" mark on one AuthEvent (Screen 3.9.6) |
 | Client | Client | P1 | Traveler profile (the end customer) |
 | TravelPreference | Client | P1 | Preferences captured during onboarding |
 | Companion | Client | P1 | Recurring travel companion linked to a client |
@@ -183,9 +184,9 @@ The final section is **Open Questions** — areas where the model is intentional
 | `auth_provider_id` | `text` | Yes | Internal | OAuth subject ID where applicable |
 | `mfa_required` | `boolean` | No | Internal | `true` for all Agent accounts |
 | `mfa_enrolled_at` | `timestamptz` | Yes | Internal | Null until MFA setup completes |
-| `locked_at` | `timestamptz` | Yes | Internal | Non-null when account is locked |
-| `locked_reason` | `text` | Yes | Internal | Free text from agent or system |
-| `last_login_at` | `timestamptz` | Yes | Internal | — |
+| `locked_at` | `timestamptz` | Yes | Internal | Non-null when account is locked. Written only by the `account-admin` Edge Function (Screen 3.9.5), together with a GoTrue ban; `requireUser` refuses a locked account |
+| `locked_reason` | `text` | Yes | Internal | Free text from agent or system. Required on lock; never granted to the client |
+| `last_login_at` | `timestamptz` | Yes | Internal | Set by the `auth.sessions` INSERT trigger (§5.5) |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | Soft delete |
@@ -492,14 +493,49 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `email_attempted` | `citext` | Yes | PII | Captured for failed-login forensics |
 | `event_type` | `auth_event_type` enum | No | Internal | See Section 17 |
 | `result` | `text` | No | Internal | `success`, `failure`, `pending` |
-| `ip_address` | `inet` | No | PII | — |
-| `user_agent` | `text` | No | Internal | — |
+| `ip_address` | `inet` | Yes | PII | Null when GoTrue recorded none for the session |
+| `user_agent` | `text` | Yes | Internal | Null when GoTrue recorded none |
 | `failure_reason` | `text` | Yes | Internal | When result = failure |
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Indexes:** index on `(account_id, created_at desc)`; index on `(ip_address, created_at)` for rate limiting/fraud.
 
 **Append-only:** no UPDATE, no DELETE except by retention policy (Section 21).
+
+**Writer (2026-10-16, §3.9).** Nothing wrote this table before §3.9. Now a `SECURITY DEFINER`
+trigger, `record_auth_session_start()`, runs `AFTER INSERT ON auth.sessions`: GoTrue opens one
+session per sign-in, whatever the method, so it writes one `login_success` row (`result =
+'success'`) with that session's `ip` and `user_agent`, and sets `account.last_login_at`. A token
+refresh updates the session rather than inserting one, so it records nothing. Failed attempts
+open no session and are **not recorded in P1** (they would need GoTrue's audit log or an auth
+hook). `ip_address` and `user_agent` were made nullable because `auth.sessions` allows both to
+be null, and an honest null beats an invented `0.0.0.0`. Locks, unlocks and sign-outs an advisor
+performs are recorded in `audit_event`, not here: this table is what the CLIENT did. Only
+service_role reads it; the advisor reads through `agent_client_login_activity()`.
+
+### 5.6 AuthEventFlag
+
+**Purpose:** An advisor's mark that one sign-in looks suspicious (Screen 3.9.6). Kept out of
+AuthEvent because that table is append-only and a flag can be cleared. A flag never locks
+anything by itself.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `auth_event_id` | `uuid` | No | Public | PK, FK → AuthEvent. One flag per sign-in |
+| `flagged_by_agent_id` | `uuid` | No | Internal | FK → Agent |
+| `created_at` | `timestamptz` | No | Public | — |
+
+Clearing a flag deletes the row; both directions write an `audit_event`. Service-role only.
+
+```sql
+CREATE TABLE auth_event_flag (
+    auth_event_id        uuid PRIMARY KEY REFERENCES auth_event(id),
+    flagged_by_agent_id  uuid NOT NULL REFERENCES agent(id),
+    created_at           timestamptz NOT NULL DEFAULT now()
+);
+```
 
 ---
 
