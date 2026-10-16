@@ -372,6 +372,72 @@ SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM public.auth_event_flag WHERE aut
     'the flag row is gone');
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 7b. The invite binds to the invited client, and acceptance does not re-adopt
+-- ─────────────────────────────────────────────────────────────────────────────
+
+\set nora_acct  '''0c39a000-0000-7000-8000-0000000000e1'''
+\set dup2       '''0c39a000-0000-7000-8000-0000000000e2'''
+
+-- What generateLink(type: invite) does: an unconfirmed auth user, which handle_new_user()
+-- gives a fresh blank client of the advisor named in the metadata.
+INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, invited_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+    confirmation_token, recovery_token, email_change_token_new, email_change)
+VALUES
+    (:nora_acct::uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+     'nora.nologin@example.com', '', now(),
+     '{"provider":"email","providers":["email"]}'::jsonb,
+     '{"first_name":"Nora","last_name":"NoLogin","agent_id":"0195a2c0-1a00-7000-8000-000000000001"}'::jsonb,
+     now(), now(), '', '', '', '');
+
+SELECT pu.client_id AS fresh FROM public.platform_user pu WHERE pu.account_id = :nora_acct::uuid \gset
+\set fresh '''':fresh''''
+SELECT pg_temp.assert(:fresh::uuid <> :n_client::uuid, 'the invite first lands on a blank client');
+
+SELECT pg_temp.assert(public.account_admin_bind_invite(
+    :b_agent::uuid, :b_actor::uuid, public.uuid_v7(), :n_client::uuid, :nora_acct::uuid) = 'not_found',
+    'another advisor cannot bind it');
+SELECT pg_temp.assert(public.account_admin_bind_invite(
+    :agent::uuid, :a_actor::uuid, public.uuid_v7(), :n_client::uuid, :jordan::uuid) = 'conflict',
+    'a sign-in with a different email is refused');
+SELECT pg_temp.assert(public.account_admin_bind_invite(
+    :agent::uuid, :a_actor::uuid, public.uuid_v7(), :n_client::uuid, :nora_acct::uuid) = 'bound',
+    'bind');
+SELECT pg_temp.assert(
+    (SELECT client_id FROM public.platform_user WHERE account_id = :nora_acct::uuid) = :n_client::uuid,
+    'the sign-in now points at the invited client');
+SELECT pg_temp.assert(NOT EXISTS (SELECT 1 FROM public.client WHERE id = :fresh::uuid),
+    'the blank client is gone from the roster');
+SELECT pg_temp.assert(
+    (SELECT raw_app_meta_data ->> 'invited_client_id' FROM auth.users WHERE id = :nora_acct::uuid) = :n_client,
+    'the auth user carries the invite marker');
+SELECT pg_temp.assert(
+    EXISTS (SELECT 1 FROM public.audit_event WHERE target_id = :n_client::uuid AND event_type = 'client.invited'),
+    'the invite is audited');
+SELECT pg_temp.assert(public.account_admin_bind_invite(
+    :agent::uuid, :a_actor::uuid, public.uuid_v7(), :n_client::uuid, :nora_acct::uuid) = 'already',
+    'a resend finds it already bound');
+SELECT pg_temp.assert(
+    (public.account_admin_target(:agent::uuid, :n_client::uuid) ->> 'hasSignIn')::boolean
+    AND public.account_admin_target(:agent::uuid, :n_client::uuid) ->> 'invitedAt' IS NOT NULL
+    AND public.account_admin_target(:agent::uuid, :n_client::uuid) -> 'emailVerifiedAt' = 'null'::jsonb,
+    'the tab sees a pending invite');
+
+-- A same-email record made before she accepts must NOT be adopted on acceptance.
+INSERT INTO public.client (id, agent_id, first_name, last_name, email, status)
+VALUES (:dup2::uuid, :agent::uuid, 'Nora', 'Second', 'nora.nologin@example.com', 'active');
+UPDATE auth.users SET email_confirmed_at = now() WHERE id = :nora_acct::uuid;
+SELECT pg_temp.assert(
+    (SELECT client_id FROM public.platform_user WHERE account_id = :nora_acct::uuid) = :n_client::uuid
+    AND (SELECT status FROM public.client WHERE id = :n_client::uuid) = 'active',
+    'accepting keeps the invited client; the newer duplicate is not adopted');
+
+SELECT pg_temp.assert(public.account_admin_bind_invite(
+    :agent::uuid, :a_actor::uuid, public.uuid_v7(), :dup2::uuid, :nora_acct::uuid) = 'conflict',
+    'a confirmed sign-in cannot be re-bound to another record');
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 8. Grants
 -- ─────────────────────────────────────────────────────────────────────────────
 

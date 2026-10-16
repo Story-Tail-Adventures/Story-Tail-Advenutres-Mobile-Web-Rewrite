@@ -276,6 +276,18 @@ between them would show one traveler another's trips. The invite-code path again
 ClientInvite (§6.7) resolves that case, and the case where the traveler signs up with a
 different address than the agent has on file, deliberately rather than by inference.
 
+**An advisor's invite is the one exception, and it binds at invite time (§3.9, 2026-10-16).**
+`generateLink(type: invite)` creates the auth user at once, so `account_admin_bind_invite()`
+runs straight after it: it points the new sign-in at the client the advisor invited, deletes
+the blank row `handle_new_user()` made, and sets `auth.users.raw_app_meta_data.invited_client_id`.
+`handle_user_email_confirmed()` returns early for a user carrying that marker, so acceptance
+cannot re-adopt by email onto a same-email record made in between (which would archive the real
+one). This does not reopen the hole above: that hole is a stranger TYPING an address. Here the
+advisor chose the record, the address is the one on it, and no session exists until the link
+mailed to that address is opened. Mailbox proof still comes first; only the choice of record
+moved earlier, made by a person rather than inferred. The invite is refused while another live
+record shares the email.
+
 **Which agent owns a self-registered client?** `client.agent_id` is `NOT NULL`, so the
 trigger has to choose one. It reads `agent_id` from the signup's `raw_user_meta_data`
 when present (the Screen Inventory 2.1.13 invite-code path), and otherwise falls back to

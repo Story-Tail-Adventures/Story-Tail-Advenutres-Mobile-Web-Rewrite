@@ -3365,6 +3365,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      account_admin_bind_invite: {
+        Args: {
+          p_account_id: string
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       account_admin_claim_signin_email: {
         Args: {
           p_actor_user_id: string

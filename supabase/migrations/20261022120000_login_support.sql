@@ -208,6 +208,7 @@ BEGIN
 
     SELECT u.email,
            u.email_confirmed_at,
+           u.invited_at,
            u.banned_until,
            (u.encrypted_password IS NOT NULL AND u.encrypted_password <> '') AS has_password
       INTO v_user
@@ -218,6 +219,7 @@ BEGIN
         'accountId',        v_account,
         'signInEmail',      v_user.email,
         'emailVerifiedAt',  v_user.email_confirmed_at,
+        'invitedAt',        v_user.invited_at,
         'hasPassword',      coalesce(v_user.has_password, false),
         'providers',        coalesce((
             SELECT jsonb_agg(DISTINCT i.provider ORDER BY i.provider)
@@ -598,6 +600,201 @@ END;
 $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- 5b. The invite binds to THIS client when it is made, not when it is accepted
+--
+-- generateLink(type: invite) creates the auth user at once, and handle_new_user() gives it a
+-- fresh blank client. Left alone, two things go wrong:
+--   * the blank row sits in the advisor's roster as a second "Nora" until she accepts, and a
+--     failed send leaves it there for good, where it blocks every later invite as a duplicate;
+--   * on acceptance, handle_user_email_confirmed() adopts by EMAIL, so a same-email record made
+--     in between would be adopted instead, and the real record (trips and all) archived.
+--
+-- So the Edge Function calls this straight after generateLink. It points the new sign-in at the
+-- client the advisor invited, removes the blank row, and marks the auth user
+-- (`raw_app_meta_data.invited_client_id`) so the confirmation trigger leaves the binding alone.
+--
+-- WHY BINDING BEFORE THE CLICK IS SAFE, when §5.1.1 forbids adopting at sign-up: that rule
+-- exists because anyone can TYPE an address into a sign-up form. Here the advisor chose the
+-- record, the address is the one on that record, and nobody receives a session until the link
+-- mailed to that address is opened. Proof of the mailbox still comes first; only the choice of
+-- record moves earlier, and an advisor made it rather than an inference.
+--
+-- `raw_app_meta_data` is server-controlled (no client can write it) and is written here, in the
+-- same transaction as the binding, so the two cannot disagree.
+--
+-- 'bound' | 'already' | 'not_found' | 'conflict'.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.account_admin_bind_invite(
+    p_agent_id      uuid,
+    p_actor_user_id uuid,
+    p_audit_id      uuid,
+    p_client_id     uuid,
+    p_account_id    uuid,
+    p_ip            text DEFAULT NULL,
+    p_user_agent    text DEFAULT NULL
+)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_pu      public.platform_user%ROWTYPE;
+    v_client  public.client%ROWTYPE;
+    v_fresh   public.client%ROWTYPE;
+    v_user    record;
+BEGIN
+    IF NOT public.account_admin_lock_client(p_agent_id, p_client_id) THEN
+        RETURN 'not_found';
+    END IF;
+    SELECT * INTO v_client FROM public.client WHERE id = p_client_id;
+
+    SELECT u.id, u.email, u.email_confirmed_at, u.created_at INTO v_user
+      FROM auth.users u WHERE u.id = p_account_id FOR UPDATE;
+    IF NOT FOUND OR v_user.email IS DISTINCT FROM v_client.email::text THEN
+        RETURN 'conflict';
+    END IF;
+
+    SELECT * INTO v_pu FROM public.platform_user
+     WHERE account_id = p_account_id FOR UPDATE;
+    IF NOT FOUND OR v_pu.role <> 'client' THEN
+        RETURN 'conflict';
+    END IF;
+
+    IF v_pu.client_id = p_client_id THEN
+        -- A resend: already bound. Make sure the marker is there too.
+        UPDATE auth.users
+           SET raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+                                   || jsonb_build_object('invited_client_id', p_client_id)
+         WHERE id = p_account_id
+           AND (raw_app_meta_data ->> 'invited_client_id') IS DISTINCT FROM p_client_id::text;
+        RETURN 'already';
+    END IF;
+
+    -- Only an UNCONFIRMED sign-in whose client is the blank row handle_new_user() just made, and
+    -- only onto a client nobody has claimed. Anything else is not an invite we created.
+    IF v_user.email_confirmed_at IS NOT NULL
+       OR EXISTS (SELECT 1 FROM public.platform_user pu WHERE pu.client_id = p_client_id) THEN
+        RETURN 'conflict';
+    END IF;
+
+    SELECT * INTO v_fresh FROM public.client WHERE id = v_pu.client_id FOR UPDATE;
+    IF NOT FOUND
+       OR v_fresh.agent_id <> p_agent_id
+       OR EXISTS (SELECT 1 FROM public.trip t WHERE t.client_id = v_fresh.id)
+       OR EXISTS (SELECT 1 FROM public.conversation cv WHERE cv.client_id = v_fresh.id) THEN
+        RETURN 'conflict';
+    END IF;
+
+    UPDATE public.platform_user
+       SET client_id = p_client_id,
+           display_name = trim(v_client.first_name || ' ' || v_client.last_name),
+           updated_at = now()
+     WHERE id = v_pu.id;
+
+    BEGIN
+        DELETE FROM public.client WHERE id = v_fresh.id;
+    EXCEPTION WHEN foreign_key_violation THEN
+        UPDATE public.client
+           SET status = 'archived', archived_at = now(), updated_at = now()
+         WHERE id = v_fresh.id;
+    END;
+
+    UPDATE auth.users
+       SET raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+                               || jsonb_build_object('invited_client_id', p_client_id)
+     WHERE id = p_account_id;
+
+    PERFORM public.account_admin_audit(
+        p_audit_id, p_actor_user_id, 'client.invited', p_client_id,
+        jsonb_build_object('accountId', p_account_id), p_ip, p_user_agent);
+    RETURN 'bound';
+END;
+$$;
+
+COMMENT ON FUNCTION public.account_admin_bind_invite(uuid, uuid, uuid, uuid, uuid, text, text) IS
+    'Points an advisor-invited sign-in at the invited client and marks it so the confirmation '
+    'trigger does not re-adopt by email. Screen Inventory §3.9 (invite), Data-Model §5.1.1.';
+
+-- The confirmation trigger, unchanged except for the first test after the lookup.
+CREATE OR REPLACE FUNCTION public.handle_user_email_confirmed()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+    v_user        public.platform_user;
+    v_claim_id    uuid;
+    v_match_count integer;
+    v_throwaway   uuid;
+BEGIN
+    SELECT * INTO v_user FROM public.platform_user WHERE account_id = NEW.id;
+
+    -- Agents and admins are provisioned deliberately, not by self-registration, and have
+    -- no client row to adopt.
+    IF NOT FOUND OR v_user.role <> 'client' OR v_user.client_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    -- An advisor's invite (§3.9) was bound to its client when it was made. Re-adopting by email
+    -- here could move the traveler onto a same-email record made since, and archive the real one.
+    IF NEW.raw_app_meta_data ? 'invited_client_id' THEN
+        RETURN NEW;
+    END IF;
+
+    -- The row this signup created is excluded from its own candidate search — it shares the
+    -- email and is, briefly, unclaimed-looking from the wrong angle.
+    WITH unclaimed AS (
+        SELECT c.id
+          FROM public.client c
+         WHERE c.email = NEW.email
+           AND c.id <> v_user.client_id
+           AND c.status = 'active'
+           AND c.archived_at IS NULL
+           AND NOT EXISTS (
+                 SELECT 1 FROM public.platform_user pu WHERE pu.client_id = c.id
+               )
+         -- Two is all the information needed: one is a match, more than one is ambiguous.
+         LIMIT 2
+    )
+    SELECT count(*)::integer, (SELECT id FROM unclaimed LIMIT 1)
+      INTO v_match_count, v_claim_id
+      FROM unclaimed;
+
+    IF v_match_count <> 1 THEN
+        RETURN NEW;
+    END IF;
+
+    v_throwaway := v_user.client_id;
+
+    -- The agent's spelling wins for the display name too.
+    UPDATE public.platform_user pu
+       SET client_id = v_claim_id,
+           display_name = (
+               SELECT trim(c.first_name || ' ' || c.last_name)
+               FROM public.client c WHERE c.id = v_claim_id
+           ),
+           updated_at = now()
+     WHERE pu.id = v_user.id;
+
+    -- Dispose of the blank row the signup made; archive instead if anything points at it, so a
+    -- confirmation can never fail on cleanup.
+    BEGIN
+        DELETE FROM public.client WHERE id = v_throwaway;
+    EXCEPTION
+        WHEN foreign_key_violation THEN
+            UPDATE public.client
+               SET status = 'archived', archived_at = now(), updated_at = now()
+             WHERE id = v_throwaway;
+    END;
+
+    RETURN NEW;
+END;
+$$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- 6. Grants
 --
 -- Naming anon and authenticated is load-bearing: Supabase grants EXECUTE on new public
@@ -614,7 +811,8 @@ BEGIN
         'public.account_admin_claim_signin_email(uuid, uuid, uuid, uuid, text, text, text)',
         'public.account_admin_set_lock(uuid, uuid, uuid, uuid, boolean, text, text, text)',
         'public.account_admin_sign_out_everywhere(uuid, uuid, uuid, uuid, text, text)',
-        'public.account_admin_set_flag(uuid, uuid, uuid, uuid, uuid, boolean, text, text)'
+        'public.account_admin_set_flag(uuid, uuid, uuid, uuid, uuid, boolean, text, text)',
+        'public.account_admin_bind_invite(uuid, uuid, uuid, uuid, uuid, text, text)'
     ]
     LOOP
         EXECUTE format('REVOKE ALL ON FUNCTION %s FROM public, anon, authenticated', f);
