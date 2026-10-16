@@ -1201,6 +1201,19 @@ gate (2.0.6) sits in front of it rather than beside it.
 > lists the count. The toggles are still out. Whether an anonymous, cookieless count should
 > get an opt-out switch is an open question, not a settled no.
 >
+> **Amended 2026-10-15: Google Analytics, opt-in, and the Analytics switch is back.** The
+> website now also runs Google Analytics through Firebase (`components/FirebaseAnalytics.tsx`),
+> web only. It sets cookies, so it waits for a yes: a banner asks once
+> (`components/AnalyticsConsentBanner.tsx`, not in the design project), and this screen draws
+> the artboard's **Analytics** row as a switch over the same stored answer
+> (`lib/analytics-consent.ts`). Essential and Marketing stay out: one is not a choice and the
+> other does not exist. Nothing is downloaded from Google before a yes; Google gets the same
+> redacted URL Vercel does (`redactAnalyticsUrl`), never `/agent/*`, with Google signals and ad
+> personalization off; turning it off deletes the `_ga` cookies. With no
+> `NEXT_PUBLIC_FIREBASE_*` config the banner and switch do not render. The statement stays,
+> reworded to be true on both the website and the app, which still runs no analytics; the
+> cookieless Vercel count still has no switch.
+>
 > **The export cannot include the document-access trail.** Every signature from
 > `trip-document-url` writes an `audit_event` (`document.url_signed`), but `audit_event` is
 > the agency's table and §2.2 deliberately gave clients no policy on it. Naming it in the
