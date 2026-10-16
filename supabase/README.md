@@ -376,7 +376,8 @@ select vault.create_secret(
 -- LOCAL: 'http://kong:8000/functions/v1/email-dispatch'.
 ```
 
-**Receiving: Resend, for `reply.story-tail.com` only.** Add the domain in Resend (receiving),
+**Receiving (SUPERSEDED 2026-10-16: replies will be read from `info@` over IMAP; see
+`../docs/IMAP-Library-Security-Review.md`. Do not set up Resend.)** Was: Resend, for `reply.story-tail.com` only. Add the domain in Resend (receiving),
 point its MX record where Resend says, add a webhook for `email.received` to
 `https://<prod-ref>.supabase.co/functions/v1/email-inbound`, then:
 

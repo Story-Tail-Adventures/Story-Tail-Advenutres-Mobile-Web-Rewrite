@@ -2237,6 +2237,14 @@ unsubscribe anyone.
 
 ### 12.10 InboundEmail
 
+> **Superseded in part, 2026-10-16 (Gyasi): replies are read from `info@` over IMAP, not through
+> Resend.** The table, its outcomes and `email_inbound_record`'s checks stand. What changes in the
+> IMAP build: `provider_email_id` holds the reply's `Message-ID` (or the mailbox's UID validity and
+> UID); the reply token arrives in a `info+<token>@` address or our own `Message-ID` echoed in
+> `In-Reply-To` / `References`; the sender verdict comes from the `Authentication-Results` IONOS
+> adds, and fails closed until that is known. Library review: `docs/IMAP-Library-Security-Review.md`.
+> The Resend webhook below describes the shipped, now dormant, `email-inbound` function.
+
 **Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** One row per email Resend
 reports at `reply.story-tail.com`, kept so a retried webhook is handled once and so a rejection
 can be counted without keeping the mail. Service-role only. Written by an `email-inbound` Edge
