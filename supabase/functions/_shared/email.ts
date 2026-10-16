@@ -174,7 +174,12 @@ function sentenceStart(text: string): string {
  * spaces rather than failing the email, and a card number in it is masked like the body.
  */
 function cleanTitle(value: string | null): string | null {
-  const title = value?.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  // Character codes rather than a regex: deno lint (no-control-regex) refuses control characters
+  // in a pattern.
+  const title = value
+    ? [...value].map((c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? " " : c)).join("")
+      .replace(/\s+/g, " ").trim()
+    : null;
   return title ? maskCardNumbers(title) : null;
 }
 
