@@ -1739,6 +1739,9 @@ export const AGENT_MESSAGES_COPY = {
   archivedDone: "Archived",
   restoredDone: "Moved to inbox",
   internalNoteTag: "Internal note · only you can see this",
+  // §3.10 Stage 4, after a bubble's time: an email carried this reply; the client replied by email.
+  emailedMark: "Emailed",
+  byEmail: "By email",
   senderYou: "You",
   truncated: "Showing the latest 500 messages.",
   emptyThread: "No messages in this thread yet.",
@@ -1790,7 +1793,7 @@ export function messagesReplyByShort(day: string): string {
 
 /** Under the reply box when the client has no login yet. */
 export function messagesNoLogin(firstName: string): string {
-  return `${firstName} hasn't set up a login yet. This will be waiting for them.`;
+  return `${firstName} hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.`;
 }
 
 /** What a bulk archive (or bring-back) did, for the list's status line. */

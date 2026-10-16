@@ -1974,6 +1974,8 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 | `body` | `text` | No | PII | Plain or markdown |
 | `is_internal_note` | `boolean` | No | Internal | If true, only agent sees |
 | `read_by_other_at` | `timestamptz` | Yes | Internal | Read receipts |
+| `channel` | `text` | No | Public | `app` or `email`; default `app`. Specified for §3.10 Stage 4 (not built): `email` marks a client reply that arrived by email (§12.10), so the thread can say "by email" |
+| `emailed_at` | `timestamptz` | Yes | Internal | Specified for §3.10 Stage 4 (not built). Set by `email-dispatch` on every advisor reply an email carried, when the SMTP server accepts it; drives the advisor-only "Emailed" mark (§23). Withheld from the client grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
@@ -2071,6 +2073,15 @@ Copying them to an advisor created later waits for P3's multi-agent work.
 > **Rest hours default to 9pm to 7am and all of Sunday** (§3.10 Stage 3b, Gyasi 2026-10-15)
 > until §3.12.3 exposes `quiet_hours_start` / `quiet_hours_end` for editing. Sunday is not a
 > column: rest is not lateness, the same reason the overdue clock skips it (§3.10 Stage 1).
+>
+> **First writer, specified for §3.10 Stage 4 (2026-10-16, not built): the email opt-out.**
+> A client's "Stop emailing me about messages" link sets `channels.messages.email = false`,
+> creating the row if there is none (today no path creates one). Reading it: a missing row,
+> category or channel means **on**; only an explicit `false` is off. The link turns off this
+> one email only; push and in-app are untouched, and 2.5.6's full matrix reads the same row when
+> it ships. The confirmation page offers "Turn them back on" through the same token. Rest hours
+> for a client's email use this row's `quiet_hours_*` with the same 9pm to 7am and Sunday
+> default, in the client's `platform_user.time_zone`.
 
 ### 12.6 PushDevice
 
@@ -2132,6 +2143,129 @@ on the phone. Browsers get no dismiss: a push that shows nothing is a policy pro
 dismiss is sent only while the thread is still read: if the client writes again first, the owed
 dismiss is dropped (it would cancel the newer notification, which shares its tag), and the
 dispatcher sends dismissals before new messages in each pass.
+
+### 12.8 EmailOutbox
+
+**Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** One row per thread with an
+advisor reply the client has not read yet, so a burst of replies goes as one email. The email
+twin of §12.7: written by a trigger on `conversation.client_unread_count` (rises: queue or
+extend; reaches zero: clear), so `agent_send_message` and every read path drive it unchanged.
+Only a client-visible reply raises that count, so **an internal note can never be emailed**.
+Sent by an `email-dispatch` Edge Function that the one-minute `pg_cron` tick calls only when a
+row is due. Service-role only: no client or agent grant. Rulings and review:
+`docs/Email-Provider-Review.md` §6.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()`. Also the email's `Message-ID` local part: `<id@adventures.story-tail.com>` |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation. Unique while `state = 'pending'` |
+| `client_user_id` | `uuid` | No | Public | FK → PlatformUser (role `client`). Whose verified account email it goes to |
+| `first_message_at` | `timestamptz` | No | Public | `created_at` of the oldest reply this email carries; with the thread's newer replies it bounds what is sent |
+| `latest_message_id` | `uuid` | No | Public | FK → Message. The newest reply it carries |
+| `due_at` | `timestamptz` | No | Public | Newest reply + 5 minutes (each reply pushes it out, so a burst sends once), but never later than the first waiting reply + 30 minutes; then moved to 7am if it lands in the client's rest hours |
+| `state` | `text` | No | Public | `pending`, `sending` (claimed), `sent`, `cleared` (read in the app first), `skipped` (see below), `failed` |
+| `skip_reason` | `text` | Yes | Public | `opted_out`, `no_email`, `client_archived`. Set iff `state = 'skipped'` |
+| `attempts` | `integer` | No | Public | Transient SMTP errors (4xx, timeouts) retry, at most 3; a 5xx fails at once |
+| `claimed_at` | `timestamptz` | Yes | Public | A claim older than 5 minutes counts as a failed try and is retried |
+| `sent_at` | `timestamptz` | Yes | Public | — |
+| `last_error` | `text` | Yes | Internal | SMTP reply code and the server's text, **truncated to 200 characters and never holding the recipient or body** |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**What is stored and what is not.** The row holds ids and times only. The dispatcher reads the
+replies (`created_at >= first_message_at`, not internal notes, not archived) and the recipient
+at send time, so a reply archived before the email goes is not sent, and no email body ever
+sits in this table.
+
+**Who gets an email.** Only a client who can sign in (a `platform_user` with role `client`),
+sent to that account's **verified** email, never the advisor-typed `client.email`: an email
+whose link needs a session and whose reply needs a sender is no use to someone with no account,
+and an unverified address could be anyone's. A client with no account gets **no row at all**
+(as push queues nothing for an advisor with no device); one whose email is missing or
+unverified ends `skipped` with `no_email`. Skips are decided when the row falls due, so an
+opt-out made in the five minutes is honoured. Settled
+2026-10-16: such clients are skipped and the advisor is warned in the thread (§23).
+
+**What an email carries:** the advisor's replies in order, card numbers masked to the last four
+exactly as §12.7's notifications do, attachment **names only**, an "Open the conversation" link
+to the thread (a plain link; it carries no token and signs no one in), a "Stop emailing me about
+messages" link and RFC 8058 `List-Unsubscribe` / `List-Unsubscribe-Post` headers (§12.9), and
+`Reply-To: reply+<token>@reply.story-tail.com` (§12.9). Branded HTML with a plain-text part. From
+"Gyasi at Story-Tail Adventures" at the app-only IONOS mailbox. `In-Reply-To` / `References` name
+the thread's previous email so mail apps keep one conversation. **No open or click tracking.**
+Finished rows are deleted after 30 days.
+
+**Clearing:** the client reading the thread in the app before `due_at` marks the pending row
+`cleared`, so a client who is already looking gets no email; reading PART of it moves
+`first_message_at` past what they saw. There is no "un-send": once `sent`, reading changes
+nothing.
+
+**No reply is ever dropped (found in review, 2026-10-16).** A row that fails, goes stale or is
+released while a newer row waits is `cleared`, and the waiting row's `first_message_at` moves back
+to cover its replies. A run stops starting sends after 90 seconds and releases the rest
+(`email_release`, no try counted); a `sending` row is only treated as stale after 15 minutes, so a
+slow run is never re-claimed under itself. Delivery is at least once: a crash after IONOS accepts
+but before the row is finished sends that email again.
+
+### 12.9 EmailToken
+
+**Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** The secrets an email carries:
+one **reply** token (in `Reply-To`) and one **unsubscribe** token (in the opt-out link and
+header) per sent email. Service-role only. **Only a SHA-256 hash is stored**; the token itself
+exists in the email and nowhere else, so a database read cannot forge a reply.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `token_hash` | `bytea` | No | Internal | PK. SHA-256 of the token: 128 random bits, lowercase base32 (26 characters, safe in an email local part) |
+| `purpose` | `text` | No | Internal | `reply` or `unsubscribe` |
+| `outbox_id` | `uuid` | Yes | Public | FK → EmailOutbox. Which email carried it; nulled when that row is retired after 30 days, since the token outlives it |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation. Where a reply lands |
+| `client_user_id` | `uuid` | No | Public | FK → PlatformUser. Who may use it: a reply must come FROM this account's email; an unsubscribe turns off this user's email |
+| `expires_at` | `timestamptz` | No | Public | Reply: sent + 1 year. Unsubscribe: sent + 2 years |
+| `used_at` | `timestamptz` | Yes | Public | Last use; informational only (a reply token is reused by every reply to that email) |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**A reply token dies early** when its thread is archived for the client
+(`conversation.archived_at`), the client is merged into another, or the account is removed. An
+expired row is deleted 30 days after `expires_at`. A token is per email rather than per thread,
+so a leaked one exposes one email's reply path, never a whole conversation.
+
+**The unsubscribe link and the one-click header** both post to an `email-unsubscribe` Edge
+Function with the token; no sign-in, no confirmation step (RFC 8058 expects one click). It sets
+§12.5's `channels.messages.email = false` and shows a page that says so, with "Turn them back
+on". A GET only shows that page and changes nothing, so a mail scanner that follows links cannot
+unsubscribe anyone.
+
+### 12.10 InboundEmail
+
+**Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** One row per email Resend
+reports at `reply.story-tail.com`, kept so a retried webhook is handled once and so a rejection
+can be counted without keeping the mail. Service-role only. Written by an `email-inbound` Edge
+Function, which checks the webhook signature (Svix headers) before reading anything and fetches
+the message over Resend's API (the webhook is a doorbell, the way §12.7's Android push is).
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()` |
+| `provider_email_id` | `text` | No | Internal | Resend's id. Unique: a repeat webhook is a no-op |
+| `outcome` | `text` | No | Public | `accepted`, `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`, `too_long`, `auto_reply` (an out-of-office or other automatic answer, by its RFC 3834 headers: never a client message) |
+| `message_id` | `uuid` | Yes | Public | FK → Message. Set iff `accepted` |
+| `files_dropped` | `integer` | No | Public | Attachments left off (Stage 4 keeps names only; none are fetched) |
+| `received_at` | `timestamptz` | No | Public | — |
+
+**Nothing about a rejected email is kept**: no From address, subject or body. Rows are deleted
+after 90 days.
+
+**Accepting a reply** needs every one of: a `reply+<token>` recipient whose hash is a live
+`reply` row; a From header naming exactly one address, equal (case-insensitive) to that token's
+account email, which must be verified, and the provider's DMARC (or SPF and DKIM) verdict passing
+for it; a thread still open to the client. Then the new text
+only (quoted history and signature stripped, no HTML rendered, card numbers masked to the last
+four before anything is stored, at most 8,000 characters) becomes
+a client message with `channel = 'email'`, written through the **same path as `trip-message`**
+(`conversation_record_client_message`), so unread counts, push (§12.7), the overdue clock and
+audit all behave as for an in-app message. **A rejected email gets no reply** (answering a
+forged sender is backscatter). An accepted one with files gets one short automatic note, to the
+verified sender only, saying files go in the app.
 
 ---
 
@@ -3358,6 +3492,19 @@ the §16 migration is written. The first four were settled with Gyasi the same d
   leave the list. The agent can move it up by hand (§16.4, §16.8 Timers).
 - **The reply-time and confirmation-time promises** on the public page. None is shown
   today, on purpose. If one is added, it needs a number someone measured.
+
+**Email (§12.8 to §12.10, added 2026-10-16).** Settle before the Stage 4 migration is written.
+
+- ~~**Clients with no account.**~~ **Settled 2026-10-16 (Gyasi): skipped, with a warning.**
+  A client who cannot sign in gets no email (no row is queued): the link needs a
+  session and a reply needs a `message.sender_user_id`. The advisor's thread says so above the
+  reply box ("Kai can't sign in yet, so replies won't reach them by email"). The fix is inviting
+  them (§6.7), never emailing an unverified address.
+- ~~**Should the advisor see that an email went?**~~ **Settled 2026-10-16 (Gyasi): yes.** An
+  "Emailed" mark under each advisor reply that an email carried, read from
+  `message.emailed_at` (§12.2), which `email-dispatch` stamps when IONOS accepts the email. A
+  column rather than a lookup into §12.8, whose finished rows are deleted after 30 days.
+  Advisor-only (the client never sees it); web and phone.
 
 ---
 

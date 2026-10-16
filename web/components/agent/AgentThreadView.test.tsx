@@ -34,9 +34,9 @@ const THREAD: ThreadView = {
     clientCanSignIn: true,
   },
   messages: [
-    { id: "m1", sender: "client", body: "Can we upgrade?", createdAt: "2026-10-12T18:00:00Z", internalNote: false, attachments: [] },
-    { id: "m2", sender: "agent", body: "Margin is 14% on this one", createdAt: "2026-10-12T18:05:00Z", internalNote: true, attachments: [] },
-    { id: "m3", sender: "agent", body: "Yes, it's yours", createdAt: "2026-10-12T18:10:00.123456Z", internalNote: false, attachments: [] },
+    { id: "m1", sender: "client", body: "Can we upgrade?", createdAt: "2026-10-12T18:00:00Z", internalNote: false, attachments: [], emailed: false, byEmail: true },
+    { id: "m2", sender: "agent", body: "Margin is 14% on this one", createdAt: "2026-10-12T18:05:00Z", internalNote: true, attachments: [], emailed: false, byEmail: false },
+    { id: "m3", sender: "agent", body: "Yes, it's yours", createdAt: "2026-10-12T18:10:00.123456Z", internalNote: false, attachments: [], emailed: true, byEmail: false },
   ],
   timeZone: "America/New_York",
   truncated: false,
@@ -57,6 +57,14 @@ describe("AgentThreadView", () => {
     const note = document.getElementById("msg-m2")!;
     expect(within(note).getByText(/Internal note · only you can see this/)).toBeInTheDocument();
     expect(within(note).getByText("Margin is 14% on this one")).toBeInTheDocument();
+  });
+
+  it("marks a reply an email carried, and a client message that came by email (§3.10 Stage 4)", () => {
+    renderWithTheme(<AgentThreadView thread={THREAD} query={EMPTY_INBOX_QUERY} />);
+    expect(document.getElementById("msg-m3")).toHaveTextContent(/· Emailed/);
+    expect(document.getElementById("msg-m1")).toHaveTextContent(/· By email/);
+    // A note is never emailed, and says nothing about it.
+    expect(document.getElementById("msg-m2")).not.toHaveTextContent(/Emailed|By email/);
   });
 
   it("reads the thread up to its newest message when it opens", async () => {

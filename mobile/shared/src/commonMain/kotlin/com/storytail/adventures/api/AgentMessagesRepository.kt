@@ -108,6 +108,10 @@ data class AgentThreadMessage(
     val createdAt: String,
     val internalNote: Boolean,
     val attachmentNames: List<String>,
+    /** §3.10 Stage 4: an email carried this reply to the client (the "Emailed" mark). */
+    val emailed: Boolean = false,
+    /** The client wrote this by replying to an email. */
+    val byEmail: Boolean = false,
 )
 
 sealed interface AgentThreadRead {
@@ -401,17 +405,22 @@ private data class ConversationDto(
 }
 
 @Serializable
-private data class AttachmentDto(val filename: String)
+internal data class AttachmentDto(val filename: String)
 
 @Suppress("PropertyName")
 @Serializable
-private data class ConversationMessageDto(
+// internal, not private, so AgentEmailMarkTest can pin the decode contract.
+internal data class ConversationMessageDto(
     val message_id: String,
     val sender_role: String,
     val body: String,
     val is_internal_note: Boolean = false,
     val created_at: String,
     val attachments: List<AttachmentDto> = emptyList(),
+    // §3.10 Stage 4. NO defaults: PostgREST always sends both keys, so a misspelt name fails the
+    // decode loudly instead of silently reading as "never emailed".
+    val emailed_at: String?,
+    val channel: String,
 ) {
     fun toDomain() = AgentThreadMessage(
         id = message_id,
@@ -421,6 +430,8 @@ private data class ConversationMessageDto(
         createdAt = created_at,
         internalNote = is_internal_note,
         attachmentNames = attachments.map { it.filename },
+        emailed = emailed_at != null,
+        byEmail = channel == "email",
     )
 }
 

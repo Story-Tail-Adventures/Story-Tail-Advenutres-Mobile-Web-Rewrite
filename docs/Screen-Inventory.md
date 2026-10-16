@@ -3335,6 +3335,18 @@ Preferences (3.12.3).
 > - **Only the browsers' own push services** may be a device's address (Google, Mozilla,
 >   Microsoft, Apple). Anything else is refused at registration and again at send.
 
+> **Stage 4 (email) settled 2026-10-16 (grilling, Gyasi); not built.** The advisor's reply
+> reaches the client by email as well as in the app: the full message (card numbers masked),
+> branded HTML with a plain-text part, sent about five minutes later only if the client has not
+> read it in the app, held for the client's rest hours, from "Gyasi at Story-Tail Adventures" on a
+> new app-only IONOS mailbox at `adventures.story-tail.com`. **The client can answer by
+> replying**: a per-thread reply address at `reply.story-tail.com` (received by Resend) puts the
+> reply in the thread. Attachments by name only. Each email has a "Stop emailing me about
+> messages" link. Supabase Auth mail moves to the same SMTP. Comparison, security review and
+> every ruling: `docs/Email-Provider-Review.md`. **On the advisor's thread** (web and phone): an
+> "Emailed" mark under each reply an email carried, and, for a client who cannot sign in, a line
+> above the reply box saying replies won't reach them by email (Gyasi, 2026-10-16; Data-Model §23).
+
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").
 **Primary elements:** Recipient segment builder; template picker; preview; send.

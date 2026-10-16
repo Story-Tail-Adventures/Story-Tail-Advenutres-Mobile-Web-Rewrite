@@ -103,7 +103,7 @@ describe("AgentReplyBox", () => {
     expect(screen.queryByRole("switch", { name: "Internal note" })).toBeNull();
     const box = screen.getByRole("textbox", { name: "Message" });
     expect(box).toHaveAttribute("placeholder", "Write a message…");
-    expect(box).toHaveAccessibleDescription("Nora hasn't set up a login yet. This will be waiting for them.");
+    expect(box).toHaveAccessibleDescription("Nora hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.");
     await user.type(box, "Hi Nora");
     await user.click(screen.getByRole("button", { name: "Send" }));
 

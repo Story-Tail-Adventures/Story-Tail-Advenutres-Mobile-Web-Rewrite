@@ -857,6 +857,10 @@ export type AgentConversationMessageRow = {
   attachments: { document_id: string; filename: string; kind: string }[];
   /** Every message in the thread; the read returns the newest 500 of them. */
   total_messages: number;
+  /** §3.10 Stage 4: when an email carried this advisor reply (the "Emailed" mark), or null. */
+  emailed_at: string | null;
+  /** `email` for a client reply that arrived by email. */
+  channel: string;
 };
 
 export type AgentMessageTargetRow = {

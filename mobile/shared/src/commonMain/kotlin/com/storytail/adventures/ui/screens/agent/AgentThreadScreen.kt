@@ -364,7 +364,7 @@ private fun AdvisorSideBubble(message: AgentThreadMessage) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                formatMessageTime(message.createdAt),
+                bubbleMeta(formatMessageTime(message.createdAt), message),
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onSurfaceVariant,
             )
@@ -555,4 +555,14 @@ private fun ThreadPanel(title: String, body: String, onRetry: (() -> Unit)? = nu
             OutlinedButton(onClick = onRetry) { Text(AgentMessagesCopy.TRY_AGAIN) }
         }
     }
+}
+
+/**
+ * The line under a bubble: its time, then §3.10 Stage 4's mark when there is one. "Emailed" on
+ * the advisor's reply an email carried; "By email" on a client message that came by email.
+ */
+internal fun bubbleMeta(time: String, message: AgentThreadMessage): String = when {
+    message.fromAgent && message.emailed -> "$time · ${AgentMessagesCopy.EMAILED_MARK}"
+    !message.fromAgent && message.byEmail -> "$time · ${AgentMessagesCopy.BY_EMAIL}"
+    else -> time
 }
