@@ -94,8 +94,8 @@ describe("the loaders", () => {
         : {
             ok: true,
             rows: [
-              { message_id: "m0", sender_role: "client", body: "hi", is_internal_note: false, created_at: "2026-10-12T17:00:00.5+00:00", attachments: [], total_messages: 2 },
-              { message_id: "m1", sender_role: "agent", body: "note", is_internal_note: true, created_at: "2026-10-12T18:00:00.123456+00:00", attachments: [{ document_id: "d1", filename: "a.pdf", kind: "passport" }], total_messages: 2 },
+              { message_id: "m0", sender_role: "client", body: "hi", is_internal_note: false, created_at: "2026-10-12T17:00:00.5+00:00", attachments: [], total_messages: 2, emailed_at: null, channel: "email" },
+              { message_id: "m1", sender_role: "agent", body: "note", is_internal_note: true, created_at: "2026-10-12T18:00:00.123456+00:00", attachments: [{ document_id: "d1", filename: "a.pdf", kind: "passport" }], total_messages: 2, emailed_at: "2026-10-12T18:05:00+00:00", channel: "app" },
             ],
           },
     );
@@ -105,8 +105,8 @@ describe("the loaders", () => {
       thread: {
         header: { clientFirstName: "Maya", tripLabel: "General", overdue: true, replyByLabel: null, clientCanSignIn: false },
         messages: [
-          { id: "m0", sender: "client", internalNote: false },
-          { id: "m1", sender: "agent", internalNote: true, attachments: [{ id: "d1", filename: "a.pdf" }] },
+          { id: "m0", sender: "client", internalNote: false, byEmail: true, emailed: false },
+          { id: "m1", sender: "agent", internalNote: true, attachments: [{ id: "d1", filename: "a.pdf" }], emailed: true, byEmail: false },
         ],
         timeZone: "America/New_York",
         truncated: false,
@@ -123,7 +123,7 @@ describe("the loaders", () => {
   it("says a thread is cut short from its real length, not from the row count", async () => {
     const rows = Array.from({ length: 500 }, (_, i) => ({
       message_id: `m${i}`, sender_role: "client", body: "x", is_internal_note: false,
-      created_at: "2026-10-12T18:00:00Z", attachments: [], total_messages: 500,
+      created_at: "2026-10-12T18:00:00Z", attachments: [], total_messages: 500, emailed_at: null, channel: "app",
     }));
     mocks.callAgentRead.mockImplementation(async (fn: string) =>
       fn === "agent_conversation"

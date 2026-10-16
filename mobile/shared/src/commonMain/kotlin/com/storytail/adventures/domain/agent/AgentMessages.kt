@@ -39,6 +39,9 @@ object AgentMessagesCopy {
     const val RESTORED_DONE = "Moved to inbox"
     const val ARCHIVE_FAILED = "That didn't save. Try again in a moment."
     const val INTERNAL_NOTE_TAG = "Internal note · only you can see this"
+    // §3.10 Stage 4, after a bubble's time: an email carried this reply; the client replied by email.
+    const val EMAILED_MARK = "Emailed"
+    const val BY_EMAIL = "By email"
     const val EMPTY_THREAD = "No messages in this thread yet."
     const val REPLY_LABEL = "Reply"
     const val REPLY_PLACEHOLDER = "Write a reply…"
@@ -116,7 +119,7 @@ fun messagesNewTo(firstName: String): String = "Message $firstName"
 
 /** Under the reply box when the client has no login yet. The web's `messagesNoLogin`. */
 fun messagesNoLogin(firstName: String): String =
-    "$firstName hasn't set up a login yet. This will be waiting for them."
+    "$firstName can't sign in yet, so replies won't reach them by email. This will be waiting for them."
 
 private val WEEKDAYS = mapOf(
     DayOfWeek.MONDAY to "Mon",

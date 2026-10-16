@@ -238,7 +238,7 @@ describe("the inbox's own strings (§3.10 Stage 1)", () => {
   it("names the due day and the client with no login", () => {
     expect(messagesReplyBy("Tue")).toBe("Reply by end of Tue");
     expect(messagesReplyByShort("Tue")).toBe("Reply by Tue");
-    expect(messagesNoLogin("Nora")).toBe("Nora hasn't set up a login yet. This will be waiting for them.");
+    expect(messagesNoLogin("Nora")).toBe("Nora can't sign in yet, so replies won't reach them by email. This will be waiting for them.");
   });
 
   it("says what a bulk move did, and names the client a button messages", () => {

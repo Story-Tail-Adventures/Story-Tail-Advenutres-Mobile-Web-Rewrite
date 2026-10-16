@@ -74,7 +74,7 @@ class AgentMessagesTest {
         assertEquals("2 unread · 1 overdue", messagesHeadline(2, 1))
         assertEquals("1 overdue", messagesHeadline(0, 1))
         assertEquals("Message Kai", messageClientLabel("Kai"))
-        assertEquals("Pri hasn't set up a login yet. This will be waiting for them.", messagesNoLogin("Pri"))
+        assertEquals("Pri can't sign in yet, so replies won't reach them by email. This will be waiting for them.", messagesNoLogin("Pri"))
     }
 
     @Test

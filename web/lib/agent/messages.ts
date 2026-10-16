@@ -129,6 +129,10 @@ export type ThreadMessageView = {
   createdAt: string;
   internalNote: boolean;
   attachments: ThreadAttachment[];
+  /** §3.10 Stage 4: an email carried this reply to the client. Advisor-only. */
+  emailed: boolean;
+  /** The client wrote this by replying to an email. */
+  byEmail: boolean;
 };
 
 export type ThreadHeader = {
@@ -194,6 +198,8 @@ export async function loadThread(conversationId: string): Promise<ThreadResult> 
         createdAt: m.created_at,
         internalNote: m.is_internal_note,
         attachments: (m.attachments ?? []).map((a) => ({ id: a.document_id, filename: a.filename })),
+        emailed: m.emailed_at != null,
+        byEmail: m.channel === "email",
       })),
       timeZone: me.timeZone,
       truncated: (msgs.rows[0]?.total_messages ?? 0) > msgs.rows.length,

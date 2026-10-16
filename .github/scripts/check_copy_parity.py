@@ -67,6 +67,8 @@ MESSAGE_TABLES = [
             "restoredDone": "RESTORED_DONE",
             "archiveFailed": "ARCHIVE_FAILED",
             "internalNoteTag": "INTERNAL_NOTE_TAG",
+            "emailedMark": "EMAILED_MARK",
+            "byEmail": "BY_EMAIL",
             "emptyThread": "EMPTY_THREAD",
             "replyLabel": "REPLY_LABEL",
             "replyPlaceholder": "REPLY_PLACEHOLDER",
