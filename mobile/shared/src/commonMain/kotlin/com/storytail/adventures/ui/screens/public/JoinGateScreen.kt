@@ -223,7 +223,7 @@ fun JoinGateScreen(
 private val GateBullets = listOf(
     "Save searches & favorites",
     "View Gyasi's curated proposals",
-    "Authorize cards securely · paid to suppliers, not us",
+    "Pay suppliers directly · never a fee to us",
 )
 
 /**

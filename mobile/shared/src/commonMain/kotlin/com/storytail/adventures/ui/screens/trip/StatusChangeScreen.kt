@@ -65,8 +65,6 @@ fun StatusChangeScreen(
     onOpenTrip: () -> Unit,
     onOpenItinerary: () -> Unit,
     onOpenMemories: () -> Unit,
-    /** §2.4.3 for this trip — the payment CTA the artboard has always drawn. */
-    onAuthorizeCard: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,7 +105,6 @@ fun StatusChangeScreen(
                 onOpenTrip = onOpenTrip,
                 onOpenItinerary = onOpenItinerary,
                 onOpenMemories = onOpenMemories,
-                onAuthorizeCard = onAuthorizeCard,
             )
         }
     }
@@ -120,7 +117,6 @@ private fun Body(
     onOpenTrip: () -> Unit,
     onOpenItinerary: () -> Unit,
     onOpenMemories: () -> Unit,
-    onAuthorizeCard: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val trip = snapshot.trip
@@ -250,13 +246,14 @@ private fun Body(
             Text(primary.first)
         }
 
-        // The payment CTA the artboard shows, live now that §2.4.3 exists. It rendered
-        // disabled with a reason under the plan's "build them visually, disabled" decision;
-        // the reason string is gone rather than left unreferenced in the copy module.
-        if (snapshot.nextPayment != null) {
+        // A payment is coming up: the way to it is the trip's payment timeline on the
+        // overview (§2.2.9 amended 2026-10-16), where a milestone with a pay link has its
+        // button. "Authorize a card" is gone with §2.4. When the primary CTA already opens
+        // the trip, a second button to the same place would only be noise.
+        if (snapshot.nextPayment != null && primary.second != PrimaryTarget.TRIP) {
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onAuthorizeCard, modifier = Modifier.fillMaxWidth()) {
-                Text(StatusChangeMessages.AUTHORIZE_CARD)
+            OutlinedButton(onClick = onOpenTrip, modifier = Modifier.fillMaxWidth()) {
+                Text(StatusChangeMessages.VIEW_TRIP)
             }
         }
 

@@ -2,8 +2,13 @@ package com.storytail.adventures.ui.screens.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.storytail.adventures.api.SendMessageOutcome
 import com.storytail.adventures.api.TripRepository
 import com.storytail.adventures.domain.trip.Loadable
+import com.storytail.adventures.domain.trip.ivePaidMessage
+import com.storytail.adventures.domain.trip.openAmountCents
+import com.storytail.adventures.ui.components.client.IvePaidState
+import com.storytail.adventures.ui.components.client.formatMoney
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +55,24 @@ class DashboardViewModel(
                     snapshot = snapshot?.let { s -> Loadable.Ready(s) } ?: Loadable.Failed(),
                 )
             }
+        }
+    }
+
+    /**
+     * The next-payment card's "I've paid": a note in [tripId]'s thread, never a write to the
+     * milestone. Same path and same rule as TripDetailViewModel.sendIvePaid.
+     */
+    fun sendIvePaid(tripId: String) {
+        val payment = (_state.value.snapshot as? Loadable.Ready)?.value?.nextPayment ?: return
+        if (_state.value.ivePaid == IvePaidState.SENDING || _state.value.ivePaid == IvePaidState.SENT) return
+        _state.update { it.copy(ivePaid = IvePaidState.SENDING) }
+        viewModelScope.launch {
+            val body = ivePaidMessage(payment.label, formatMoney(openAmountCents(payment.amountCents, payment.paidCents), payment.currency))
+            val next = when (trips.sendMessage(tripId, body)) {
+                SendMessageOutcome.Sent -> IvePaidState.SENT
+                is SendMessageOutcome.Failed -> IvePaidState.FAILED
+            }
+            _state.update { it.copy(ivePaid = next) }
         }
     }
 }

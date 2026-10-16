@@ -341,6 +341,14 @@ data class PaymentMilestoneView(
     val currency: String,
     val dueDate: LocalDate?,
     val status: String,
+    /**
+     * §3.6 (2026-10-16): the supplier's own payment page, or a Travefy invoice link, that
+     * the advisor attached. The client only ever READS it; the pay button opens it in the
+     * browser. Null when the milestone has no link, which shows no button at all.
+     */
+    val payUrl: String? = null,
+    /** The supplier's confirmation number once the advisor marks it paid. Client-readable. */
+    val paidReference: String? = null,
 )
 
 data class TripDetailSnapshot(
@@ -386,6 +394,12 @@ data class NextPayment(
     val currency: String,
     val dueDate: LocalDate?,
     val daysUntilDue: Int?,
+    /** What the advisor has recorded as paid so far; the card shows what is still open. */
+    val paidCents: Long = 0,
+    /** `scheduled` or `overdue`: the read excludes paid and waived. */
+    val status: String = "scheduled",
+    /** §3.6's pay link, when the advisor attached one. See [PaymentMilestoneView.payUrl]. */
+    val payUrl: String? = null,
 )
 
 /**
@@ -486,7 +500,10 @@ class SupabaseTripRepository(
             val milestones = read {
                 client.postgrest.from("payment_milestone")
                     .select(
-                        Columns.list("label", "amount_cents", "currency", "due_date", "status", "order_index"),
+                        Columns.list(
+                            "label", "amount_cents", "paid_cents", "currency", "due_date",
+                            "status", "order_index", "pay_url",
+                        ),
                     ) {
                         filter {
                             eq("trip_id", upcomingRow.id)
@@ -506,6 +523,9 @@ class SupabaseTripRepository(
                     currency = next.currency,
                     dueDate = nextUnpaidDue,
                     daysUntilDue = nextUnpaidDue?.let { daysUntilDeparture(it, today) },
+                    paidCents = next.paid_cents,
+                    status = next.status,
+                    payUrl = next.pay_url,
                 )
             }
 
@@ -675,7 +695,7 @@ class SupabaseTripRepository(
                 .select(
                     Columns.list(
                         "id", "kind", "label", "amount_cents", "paid_cents", "currency",
-                        "due_date", "status", "order_index",
+                        "due_date", "status", "order_index", "pay_url", "paid_reference",
                     ),
                 ) {
                     filter { eq("trip_id", tripId) }
@@ -692,6 +712,8 @@ class SupabaseTripRepository(
                 currency = it.currency,
                 dueDate = it.due_date?.let(::parseDate),
                 status = it.status,
+                payUrl = it.pay_url,
+                paidReference = it.paid_reference,
             )
         }
 
@@ -1136,7 +1158,7 @@ class SupabaseTripRepository(
         // NO STATUS CHECK. supabase-kt validates the response, so a non-2xx is thrown, not
         // returned — the `status.value in 400..499` branch that used to live here never ran
         // and every rejection reached the traveler as the generic failure. Found in §2.4 and
-        // fixed in all four places at once; see WalletRepository.problemDetail for why the
+        // fixed in all four places at once; see AgentRepository.problemDetail for why the
         // body has to be read off `RestException.error` rather than `message`.
         val text = runCatching { response.bodyAsText() }.getOrDefault("")
         val id = runCatching {
@@ -1326,7 +1348,8 @@ class SupabaseTripRepository(
                 .select(
                     Columns.list(
                         "id", "kind", "label", "amount_cents", "paid_cents",
-                        "currency", "due_date", "status", "order_index",
+                        "currency", "due_date", "status", "order_index", "pay_url",
+                        "paid_reference",
                     ),
                 ) {
                     filter {
@@ -1363,6 +1386,8 @@ class SupabaseTripRepository(
                     currency = it.currency,
                     dueDate = it.due_date?.let(::parseDate),
                     status = it.status,
+                    payUrl = it.pay_url,
+                    paidReference = it.paid_reference,
                 )
             },
         )
@@ -1503,10 +1528,12 @@ private fun TripDetailRow.toSummary(today: LocalDate, nextUnpaidDue: LocalDate? 
 private data class MilestoneRow(
     val label: String,
     val amount_cents: Long,
+    val paid_cents: Long = 0,
     val currency: String,
     val due_date: String? = null,
     val status: String,
     val order_index: Int,
+    val pay_url: String? = null,
 )
 
 @Serializable
@@ -1539,6 +1566,10 @@ private data class MilestoneDetailRow(
     val due_date: String? = null,
     val status: String,
     val order_index: Int,
+    // §3.6, 2026-10-16. Both are in the client column grant; paid_note is NOT and is never
+    // selected here.
+    val pay_url: String? = null,
+    val paid_reference: String? = null,
 )
 
 @Serializable

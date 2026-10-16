@@ -269,21 +269,8 @@ fun agentTripDetailUiState(
                 (o.destinations.takeIf { it.isNotEmpty() }?.joinToString(", ")
                     ?: AgentCopy.GLANCE_NOT_SET),
         )
-        // Brand, last four and the cap, which is the shape §2.4 already renders to the
-        // traveler. The cap is the figure an advisor needs before adding a component: a
-        // $9,000 limit against a $12,845 trip is a phone call, not a booking.
-        add(
-            AgentCopy.GLANCE_CARD_ON_FILE to (
-                if (o.cardLast4 == null) {
-                    AgentCopy.GLANCE_NO_CARD
-                } else {
-                    listOfNotNull(
-                        "${o.cardBrand?.uppercase() ?: "CARD"} •••• ${o.cardLast4}",
-                        o.cardSpendingLimitCents?.let { "${money(it, o.currency)} cap" },
-                    ).joinToString(" · ")
-                }
-                ),
-        )
+        // No "Card on file" tile: §2.4 and the card tables were retired 2026-10-16, and the
+        // app never holds a card. Clients pay suppliers through pay links (§3.6, web only).
         // OFF THE ACCESSOR, not off the status timeline beside it. `last_activity_at` is
         // greatest(max status change, max unarchived conversation message); the newest
         // `trip_status_history` row — which this read first — is only the last STAGE

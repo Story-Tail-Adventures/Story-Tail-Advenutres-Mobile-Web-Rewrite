@@ -330,7 +330,6 @@ object SupabaseClientProvider {
     private var cachedOnboarding: OnboardingRepository? = null
     private var cachedTrip: TripRepository? = null
     private var cachedAccount: AccountRepository? = null
-    private var cachedWallet: WalletRepository? = null
     private var cachedAgent: AgentRepository? = null
     private var cachedAgentMessages: AgentMessagesRepository? = null
     private var cachedAgentPush: AgentPushRepository? = null
@@ -373,19 +372,6 @@ object SupabaseClientProvider {
         withContext(Dispatchers.Default) {
             ensureBuilt()
             cachedTrip!!
-        }
-
-    /**
-     * §2.4's payment surface, on the SAME client again.
-     *
-     * Separate from the others because §2.4 has no PostgREST query at all: the payment tables
-     * hold no client-role privilege, so every call is an Edge Function invocation. It still
-     * shares the client — two clients would mean two sessions and two refresh loops.
-     */
-    suspend fun walletRepository(): WalletRepository =
-        withContext(Dispatchers.Default) {
-            ensureBuilt()
-            cachedWallet!!
         }
 
     /**
@@ -449,7 +435,6 @@ object SupabaseClientProvider {
             cachedOnboarding = UnconfiguredOnboardingRepository()
             cachedTrip = UnconfiguredTripRepository()
             cachedAccount = UnconfiguredAccountRepository()
-            cachedWallet = UnconfiguredWalletRepository()
             cachedAgent = UnconfiguredAgentRepository()
             cachedAgentMessages = UnconfiguredAgentMessagesRepository()
             cachedAgentPush = UnconfiguredAgentPushRepository()
@@ -467,7 +452,6 @@ object SupabaseClientProvider {
         cachedOnboarding = SupabaseOnboardingRepository(client)
         cachedTrip = SupabaseTripRepository(client)
         cachedAccount = SupabaseAccountRepository(client)
-        cachedWallet = SupabaseWalletRepository(client)
         cachedAgent = SupabaseAgentRepository(client)
         cachedAgentMessages = SupabaseAgentMessagesRepository(client)
         cachedAgentPush = SupabaseAgentPushRepository(client)

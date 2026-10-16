@@ -76,6 +76,7 @@ fun TripRoute(
                 TripDetailViewModel(trips, route.tripId, today)
             }
             val state by viewModel.state.collectAsState()
+            val ivePaid by viewModel.ivePaid.collectAsState()
             // Re-read on entry: the view model outlives the screen, and coming Back from the
             // thread must not show its "2 unread" tile after the traveler read it.
             LaunchedEffect(Unit) { viewModel.refresh() }
@@ -101,9 +102,8 @@ fun TripRoute(
                 onOpenItinerary = { tripId -> nav.push(AppRoute.Itinerary(tripId)) },
                 onOpenDocuments = { tripId -> nav.push(AppRoute.TripDocuments(tripId)) },
                 onOpenThread = { tripId -> nav.push(AppRoute.TripThread(tripId)) },
-                // §2.4.3. Leaves §2.2 for §2.4 the same way 2.5.7 leaves §2.5 for 2.1.6:
-                // the destination already exists and belongs to the other section.
-                onAuthorizeCard = { tripId -> nav.push(AppRoute.WalletAuthorize(tripId)) },
+                ivePaid = ivePaid,
+                onIvePaid = viewModel::sendIvePaid,
                 onRetry = viewModel::load,
             )
         }
@@ -229,10 +229,6 @@ fun TripRoute(
                 onOpenTrip = { nav.replace(AppRoute.TripDetail(route.tripId)) },
                 onOpenItinerary = { nav.replace(AppRoute.Itinerary(route.tripId)) },
                 onOpenMemories = { nav.replace(AppRoute.PastTrip(route.tripId)) },
-                // `push`, not `replace`: the other three CTAs here go where the update was
-                // about, and this one goes somewhere else entirely — back from the
-                // authorization form should return to the update that asked for it.
-                onAuthorizeCard = { nav.push(AppRoute.WalletAuthorize(route.tripId)) },
                 onRetry = viewModel::load,
             )
         }
@@ -250,7 +246,7 @@ fun TripRoute(
                 onOpenItinerary = { tripId -> nav.push(AppRoute.Itinerary(tripId)) },
                 onSeeAllTrips = { nav.push(AppRoute.AllTrips) },
                 onMessageAgent = { tripId -> nav.push(AppRoute.TripThread(tripId)) },
-                onAuthorizeCard = { tripId -> nav.push(AppRoute.WalletAuthorize(tripId)) },
+                onIvePaid = viewModel::sendIvePaid,
                 onRetry = viewModel::load,
             )
         }

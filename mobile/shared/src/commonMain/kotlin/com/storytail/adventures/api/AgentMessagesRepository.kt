@@ -27,7 +27,7 @@ import kotlinx.serialization.json.put
 
 /**
  * §3.10 on the phone (Stage 3): the advisor's Messages tab. Its own repository, on the rule
- * `WalletRepository` states: one when a section shares no read with an existing file.
+ * the retired §2.4 wallet set: one when a section shares no read with an existing file.
  *
  * ── THE SAME SQL THE WEB READS ──────────────────────────────────────────────────
  *
@@ -322,7 +322,7 @@ class SupabaseAgentMessagesRepository(private val client: SupabaseClient) : Agen
     private fun <T> encode(serializer: kotlinx.serialization.KSerializer<T>, value: T): JsonObject =
         json.encodeToJsonElement(serializer, value).jsonObject
 
-    /** 4xx only: those are sentences we wrote. Read from `error`, never `message` (WalletRepository says why). */
+    /** 4xx only: those are sentences we wrote. Read from `error`, never `message` (AgentRepository.problemDetail says why). */
     private fun problemDetail(rest: RestException): String? {
         if (rest.statusCode !in 400..499) return null
         return runCatching { json.decodeFromString(ProblemDto.serializer(), rest.error).detail }.getOrNull()

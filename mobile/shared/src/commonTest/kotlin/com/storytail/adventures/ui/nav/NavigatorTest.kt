@@ -287,7 +287,7 @@ class NavigatorTest {
     fun `every shape of route survives, arguments and all`() {
         // One of each KIND the sealed interface has, because these are what break
         // separately: a bare object, a String argument, an Int, a nullable with a default,
-        // a Boolean with a default, and two different enums. A route carrying a type
+        // and two different enums. A route carrying a type
         // kotlinx cannot write would fail here rather than on somebody's phone.
         val every = listOf(
             AppRoute.Resolving,
@@ -300,8 +300,7 @@ class NavigatorTest {
             AppRoute.VerifyEmail("someone@example.com"),
             AppRoute.Onboarding(WizardStep.WELCOME),
             AppRoute.ItineraryDay(tripId = "t-1", dayNumber = 3),
-            AppRoute.WalletAuthorization(authorizationId = "a-1", justAuthorized = true),
-            AppRoute.WalletActivity(cardId = null),
+            AppRoute.AgentNewMessage(clientId = "c-1", tripId = null),
             AppRoute.AgentClientDetail("c-1"),
         )
         val nav = Navigator(every.first())
@@ -319,6 +318,24 @@ class NavigatorTest {
         assertNull(NavigatorSaver.restore("not json"))
         assertNull(NavigatorSaver.restore("[{\"type\":\"com.storytail.adventures.ui.nav.AppRoute.Deleted\"}]"))
         assertNull(NavigatorSaver.restore(""))
+    }
+
+    @Test
+    fun `a stack saved on a retired wallet screen restores as nothing`() {
+        // §2.4 was retired 2026-10-16 and its routes deleted. A phone that died on one of
+        // them before the update must start clean, not crash on launch.
+        assertNull(
+            NavigatorSaver.restore(
+                "[{\"type\":\"com.storytail.adventures.ui.nav.AppRoute.Account\"}," +
+                    "{\"type\":\"com.storytail.adventures.ui.nav.AppRoute.Wallet\"}]",
+            ),
+        )
+        assertNull(
+            NavigatorSaver.restore(
+                "[{\"type\":\"com.storytail.adventures.ui.nav.AppRoute.WalletAuthorize\"," +
+                    "\"tripId\":\"t-1\"}]",
+            ),
+        )
     }
 
     @Test
