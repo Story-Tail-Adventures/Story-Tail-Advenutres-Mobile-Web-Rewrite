@@ -1,5 +1,9 @@
 /* global React, Icon, IOSDevice */
 // Client · 2.4m Mobile · Payment & Card Authorization — 7 screens.
+//
+// RETIRED 2026-10-16. Kept as a record, not deleted. The app never holds a card now: clients
+// pay each supplier through a pay link on the trip's payment timeline (2.2.3 / 2.2m.3), and the
+// advisor side is 3.6 Supplier Payments (agent-payment.jsx). Do not build these screens.
 // Mobile-native interpretation of the 2.4 desktop artboards in client-payment.jsx.
 //
 // Patterns, per Screen-Inventory §4.4: 2.4.1 **B** (card grid on web, stacked rows on

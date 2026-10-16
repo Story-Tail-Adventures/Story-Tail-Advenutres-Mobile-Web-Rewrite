@@ -21,6 +21,10 @@ Four big infrastructure decisions remain after the BRD, Screen Inventory, Data M
 
 3. **PCI Compliance: Stripe Elements + tokenization keeps you in SAQ A.** Cardholder data never touches Supabase or the Ktor backend. You store only Stripe-issued tokens plus the non-sensitive metadata Stripe returns (brand, last 4, expiration). This is the simplest PCI self-assessment available, supported by Stripe's mature SDKs across Android (Kotlin), iOS (Swift), and JavaScript. PCI DSS 4.0.1 is the current standard.
 
+> **Amended 2026-10-16, no Stripe and no card data.** Points 2 and 3 are superseded. Stripe has
+> left the stack and the app holds no cardholder data at all, which puts it outside PCI scope.
+> Clients pay suppliers through pay links on payment milestones. See §4 and BRD §10.
+
 4. **Claude Code workflow: Bootstrap with `/init`, lean on `CLAUDE.md` + Skills, ship one Phase 1 screen end-to-end before broadening.** Commit the `.claude/` directory to source control so the team and contractors share the same vocabulary.
 
 The rest of this document walks through each decision in detail.
@@ -166,7 +170,7 @@ Use Supabase as the BaaS *and* the backend platform — including Supabase Edge 
 | Authentication | Supabase Auth — signin/signup, MFA (TOTP and SMS), magic links, social (Google, Apple), password reset |
 | File storage | Supabase Storage (replaces S3/R2 recommendation for documents) |
 | Real-time (Section 2.6 Messaging) | Supabase Realtime (Postgres logical replication → WebSocket) |
-| Application backend | Supabase Edge Functions (Deno + TypeScript) for Stripe API calls, travel API integrations, audit middleware, webhook handlers, complex business logic |
+| Application backend | Supabase Edge Functions (Deno + TypeScript) for ~~Stripe API calls~~ (none since 2026-10-16), travel API integrations, audit middleware, webhook handlers, complex business logic |
 | Database auto-API | PostgREST (Supabase generates a REST API from the schema) — used for simple reads where RLS makes direct client access safe |
 | Audit events (Data Model §15) | Standard Postgres table; writes happen from Edge Functions on every sensitive action |
 | Migrations + type generation | Supabase CLI (`supabase db push`, `supabase gen types typescript`) |
@@ -185,6 +189,12 @@ Use Supabase as the BaaS *and* the backend platform — including Supabase Edge 
 - `webhooks/stripe` — handles Stripe webhooks (card validation events, etc.).
 - `audit-middleware` (shared helper) — every mutating Edge Function calls into this to write an AuditEvent.
 
+> **Amended 2026-10-16, no Stripe functions.** `stripe-setup-intent`, `stripe-vault-forward`,
+> `stripe-reveal-pan` and `webhooks/stripe` will not be built. Stripe has left the stack, and
+> Stripe cannot reveal a stored card number anyway (§4). The mentions of Stripe and Stripe
+> tokens elsewhere in this section are out of date. Pay-link writes and paid marks go through
+> the same audit middleware.
+
 ### 3.4 What About Self-Assembled?
 
 Self-assembled (managed Postgres on Neon or RDS + Clerk + S3 + custom Ktor) is also a valid path. It's marginally more expensive in operational time and slightly cheaper at the very high end. For a single-advisor business growing to a small team, Supabase wins on simplicity. Revisit if scale ever reaches 100+ advisors.
@@ -197,7 +207,41 @@ Firebase is the wrong tool for this project. Firestore is NoSQL, the Data Model 
 
 ## 4. PCI Compliance for Card Storage
 
+> **Amended 2026-10-16, the app never holds a card.** Sections 4.1 to 4.10 below record the old
+> Stripe plan. They are superseded except where a note under a heading says what still holds.
+> Do not build from them. Gyasi ruled on 2026-10-16 that the platform holds **no cardholder
+> data at all**: no vault, no Stripe, no tokenization, no PAN reveal. That puts it outside PCI
+> scope, which is stronger than SAQ A. Clients pay suppliers through pay links on payment
+> milestones (BRD §10).
+>
+> **Facts checked on 2026-10-16:**
+>
+> - **Stripe has no reveal.** Stripe never returns the full number of a stored card. Its API and
+>   Dashboard give only brand, last 4 and a fingerprint. So the Reveal Card Number screen
+>   (Screen Inventory 3.6.4) "via Stripe's API" in §4.6 and §4.8 could never have worked.
+> - **Vault and Forward is narrow.** It only POSTs a stored card to an API endpoint Stripe has
+>   approved. Expedia's `api.ean.com` is the only travel supplier on Stripe's list. Each new
+>   endpoint needs Stripe support to approve it, and it never shows a number to a person, so
+>   it cannot help with portal suppliers.
+>   Source: https://docs.stripe.com/payments/vault-and-forward
+> - **Vaults that show a number to a person cost real money.** PCI Vault is about $127 a month
+>   plus per-call fees. VGS, Basis Theory and Evervault (live plan) are about $995 to $1,000 a
+>   month. The business cannot carry that.
+>   Sources: https://pcivault.io/ , https://evervault.com/pricing ,
+>   https://www.capterra.com/p/195135/VGS-Platform/
+> - **Travefy and TravelJoy do show the number** (Travefy for 60 seconds), but they carry the
+>   PCI cost themselves inside their subscription.
+>   Source: https://intercom.help/travefy/en/articles/6741876-viewing-credit-card-information
+> - Production held zero rows in `payment_card`, `card_authorization`, `authorization_request`
+>   and `card_use_event` on 2026-10-16, so dropping those tables loses no data.
+>
+> **What still holds from this section:** the hard rules in §4.6 (now stricter: never accept,
+> store, log or display a card number anywhere) and the case against building our own vault in
+> §4.9.
+
 ### 4.1 The Question
+
+> **Superseded 2026-10-16.** No Stripe, no tokens. See the amendment under §4.
 
 The BRD's Section 10 already established the operating model: Story-Tail Adventures is **not the merchant of record**, never charges clients directly, uses Stripe for tokenization, and stores only opaque tokens. The remaining questions:
 
@@ -222,6 +266,9 @@ Story-Tail Adventures is clearly **Level 4** by volume — and because tokenizat
 
 ### 4.3 What Qualifies for SAQ A With Stripe
 
+> **Superseded 2026-10-16.** No Stripe integration will be built, and the screens named below
+> (2.4.2 Add Card) are retired.
+
 Per [Stripe's PCI guide](https://stripe.com/guides/pci-compliance), the merchant qualifies for SAQ A when **all cardholder data handling is outsourced to a validated third party**. Three accepted Stripe integration patterns:
 
 - **Stripe Checkout** (Stripe-hosted payment page) — easiest, SAQ A eligible
@@ -233,6 +280,10 @@ All three keep cardholder data off your servers entirely. Stripe returns a token
 The Design System and Data Model already specify Stripe Elements for the web (Section 2.4.2 Add Card Screen) and the Stripe mobile SDKs for native (per BRD §15.1, via `expect/actual` in the KMP shared module). This puts the platform squarely in **SAQ A territory**.
 
 ### 4.4 SAQ A Requirements — What You Actually Have to Do
+
+> **Superseded 2026-10-16.** With no cardholder data the platform needs no SAQ A, no AOC and no
+> ASV scans for PCI. TLS, agent MFA, role-based access and audit logging stay, for their own
+> sake.
 
 Per [PCI Policy Portal](https://pcipolicyportal.com/white-papers/need-pci-compliance-stripe-question-answer/) and the [Stripe PCI Guide](https://stripe.com/guides/pci-compliance):
 
@@ -277,6 +328,13 @@ Move to **AWS App Runner or ECS** later if scale or enterprise requirements dema
 
 ### 4.6 The Hard Rules — Things That Would Break PCI Compliance
 
+> **Amended 2026-10-16, the rules get stricter.** The three rules below still hold, and now
+> cover every path: the app never accepts, stores, logs or displays a card number anywhere,
+> and never sends one to Stripe or any vault either, because there is no card form at all. The
+> last paragraph (Reveal Card Number "via Stripe's API") is false: Stripe has no reveal, and
+> screen 3.6.4 is removed. New rule for pay links: `https://` only, advisor-written only, and
+> every add, change or removal writes an `audit_event` row.
+
 Three implementation decisions would push the platform out of SAQ A and into a much heavier compliance burden. **None of these are allowed:**
 
 1. **Storing the card PAN anywhere on your infrastructure**, including encrypted columns or "we'll encrypt it ourselves." If the raw PAN ever touches your server, you're a Level 3 or 4 SAQ D merchant — a 300+ question questionnaire, full pen-testing, network segmentation, the works.
@@ -289,6 +347,11 @@ The Reveal Card Number screen (Screen Inventory 3.6.4) is the one place the plat
 
 ### 4.7 The Two Supplier Realities — Vault and Forward vs. Reveal
 
+> **Superseded 2026-10-16.** Neither path will be built. Vault and Forward only reaches
+> Stripe-approved API endpoints, and Stripe has no reveal. `Supplier.payment_method_kind` and
+> `payment_api_endpoint` are deferred (nothing writes them). Vault and Forward for API
+> suppliers in P3 would need a new decision.
+
 Story-Tail Adventures' suppliers fall into two categories that drive different Stripe patterns. The platform must accommodate both.
 
 **API suppliers** (Expedia via Stripe's supported `api.ean.com` endpoint, hotels via Hotelbeds, some cruise lines via Odysseus/Revelex) accept charges through API endpoints. For these, the platform uses **Stripe's Vault and Forward API** — a `ForwardingRequest` tells Stripe which stored PaymentMethod to use, which URL to POST to, and which body fields to replace with card data. Stripe substitutes the card details on the way out; the card never touches Story-Tail's servers. This is the clean, SAQ-A-preserving path.
@@ -299,6 +362,10 @@ The Supplier entity (Data Model §8.1) tracks `payment_method_kind` per supplier
 
 ### 4.8 Spreedly — When to Add a Second Vault
 
+> **Superseded 2026-10-16.** No second vault, and no first one. "Stripe's reveal mechanism"
+> below does not exist. A vault that can show a number to a person costs about $127 to $1,000
+> a month (see the amendment under §4), which is why the platform holds no cards.
+
 Spreedly's Payment Method Distribution is purpose-built for the portal-supplier reveal flow. They explicitly target the travel industry — [their "Travel Platform's Dilemma" blog](https://www.spreedly.com/blog/a-travel-platform-s-dilemma) is essentially this exact scenario. Spreedly's reveal API is designed to let an agent temporarily view stored card data to enter on a supplier portal, with full audit trail and compliance posture optimized for it.
 
 **The tradeoff:** Spreedly adds a vendor and a per-transaction cost (~$50–$500/month at small volume). For a single-advisor business at MVP, the cost is more than zero but not huge.
@@ -308,6 +375,9 @@ Spreedly's Payment Method Distribution is purpose-built for the portal-supplier 
 The Data Model and BRD are written to support both — switching from Stripe-only reveal to Spreedly is a backend change without schema changes.
 
 ### 4.9 Why Not Build Our Own Vault
+
+> **Amended 2026-10-16.** The conclusion still holds: never build our own vault. The parts
+> about using Stripe as the vault are superseded, since the platform now holds no cards at all.
 
 Some teams reach this point and ask whether it's cheaper to build the vault themselves rather than depend on Stripe. The answer is no, and the cost differential is much larger than it appears.
 
@@ -337,6 +407,9 @@ Compare this to Story-Tail's recommended stack (Section 4.7) running at roughly 
 **Recommendation:** Use Stripe for the card vault. It is the free option for this use case, not a paid one. The single largest cost lever for keeping vendor spend low is in the auth and storage layers (using Supabase rather than Auth0 + Clerk + S3 + RDS) — not in the vault. See Section 6 for the minimum-vendor stack.
 
 ### 4.10 Recommended Vendor Stack — PCI View
+
+> **Superseded 2026-10-16.** The card rows (Stripe, Spreedly, Stripe's PCI portal) and the ASV
+> row no longer apply. No vendor holds card data for us. The rest of the stack is unchanged.
 
 | Concern | Vendor | Role |
 |---|---|---|
@@ -463,13 +536,16 @@ entities, or the design system.
 
 Better: run `/init` in Claude Code first, let it scan the repo, then edit its output down to something tight like the above.
 
+> **Amended 2026-10-16.** The Stripe lines in this example are out of date: there is no Stripe
+> and no PAN reveal. The repo's real `CLAUDE.md` carries the current rules.
+
 #### Step 4 — Set up project Skills
 
 Create skills in `.claude/skills/`:
 
 - **`new-screen/SKILL.md`** — "Implement a screen from the Screen Inventory. Args: screen ID (e.g., `2.2.3 Trip Detail`). Reads the inventory, the matching prototype JSX in `docs/design/source-prototype/screens/`, and builds the Compose (or React) implementation following the design tokens."
 - **`new-entity/SKILL.md`** — "Add an entity from the Data Model. Generates the Flyway migration, the Exposed DSL table, the Kotlin data class in the shared module, and the Ktor route stubs."
-- **`audit-pci/SKILL.md`** — "Check whether a code change touches PCI scope. Greps for card-data adjacent code, checks logging configs for PAN-scrubbing, verifies no Stripe `PaymentMethod` IDs are returned in API responses to client roles."
+- **`audit-pci/SKILL.md`** — "Check whether a code change touches PCI scope. Greps for card-data adjacent code, checks logging configs for PAN-scrubbing, verifies no Stripe `PaymentMethod` IDs are returned in API responses to client roles." (Amended 2026-10-16: with no Stripe, the useful checks are that no code accepts, stores, logs or displays a card number, and that pay-link writes are `https://` only, advisor-only and audited.)
 - **`run-vulnerability-scan/SKILL.md`** — "Trigger a quarterly ASV scan and capture the report."
 
 Commit `.claude/` to source control.
@@ -545,17 +621,17 @@ A few patterns that tend to compound nicely:
 | Mobile UI (Android + iOS) | Compose Multiplatform | Stable, shares code via KMP module |
 | Web UI | Next.js + React + TypeScript | SEO, mature ecosystem, hiring market |
 | KMP shared module | Mobile only (Android + iOS) | Domain types, validation, API clients for mobile |
-| Backend / server-side logic | Supabase Edge Functions (Deno + TypeScript) | Stripe, travel APIs, audit, webhooks — no separate host needed |
+| Backend / server-side logic | Supabase Edge Functions (Deno + TypeScript) | ~~Stripe~~, travel APIs, audit, webhooks — no separate host needed |
 | Database | Supabase Postgres | Matches Data Model, SOC 2 + HIPAA |
 | Auth | Supabase Auth | Replaces Auth0/Clerk recommendation |
 | File storage | Supabase Storage | Same platform |
 | Real-time | Supabase Realtime | Postgres logical replication → WebSocket |
-| Payments / card vault | Stripe Elements + Stripe Mobile SDKs | SAQ A eligible, mature SDKs |
+| Payments / card vault | ~~Stripe Elements + Stripe Mobile SDKs~~ None (since 2026-10-16) | Clients pay suppliers through pay links; no cardholder data, out of PCI scope |
 | Web hosting | Vercel | Native Next.js home |
 | Backend hosting | (none separate — Supabase hosts Edge Functions) | One fewer vendor |
 | Email | Postmark or Resend | Transactional only |
 | Observability | Sentry | Free tier covers MVP |
-| ASV scans | Trustwave / SecurityMetrics / Qualys | Quarterly PCI requirement |
+| ASV scans | ~~Trustwave / SecurityMetrics / Qualys~~ Not needed (since 2026-10-16) | Was a quarterly PCI requirement; no card data now |
 | API contract | OpenAPI spec + generated TS types + generated Kotlin types | One source of truth across mobile + web + backend |
 | Build tool | Turborepo or Nx monorepo · Gradle (mobile) · npm workspaces (web/contracts) · Supabase CLI | Standard for each toolchain |
 | CI/CD | GitHub Actions | Standard, free for small repos |
@@ -571,17 +647,17 @@ A few decisions still need confirmation with stakeholders before final commit.
 
 **Supabase Auth — MFA validation.** Supabase Auth is committed in the recommended stack but the agent's required-MFA flow needs validation against Supabase Auth's MFA capabilities (TOTP, SMS, backup codes). Confirm this with a small spike before the activation screens are built. If Supabase Auth's MFA proves insufficient, fall back to Auth0 — but this is a near-certainty rather than a likely fork given Supabase's MFA capabilities as of 2026.
 
-**Edge Functions execution limits.** Supabase Edge Functions have a 150-second execution limit on the free tier (2× that on Pro). Verify that the longest-running Edge Function (likely Inteletravel CSV import for large statements, or a Stripe Vault and Forward call with a slow supplier endpoint) fits comfortably within that budget. If not, the workaround is to break the work into smaller Edge Functions or use a queue pattern with Supabase Realtime triggers.
+**Edge Functions execution limits.** Supabase Edge Functions have a 150-second execution limit on the free tier (2× that on Pro). Verify that the longest-running Edge Function (likely Inteletravel CSV import for large statements, or a Stripe Vault and Forward call with a slow supplier endpoint, which no longer applies since 2026-10-16) fits comfortably within that budget. If not, the workaround is to break the work into smaller Edge Functions or use a queue pattern with Supabase Realtime triggers.
 
 **Domain registration.** The app subdomain (`app.story-tail.com`) needs to be reserved before the public landing page can go live. Coordinate with DNS owner.
 
 **Apple Developer + Google Play accounts.** Required to publish the mobile apps. Apple Developer Program is $99/year; Google Play is a one-time $25. Register these as soon as the build starts so app review timing doesn't gate launch.
 
-**Stripe account setup.** A Stripe business account in Story-Tail Adventures' name is required. Stripe will request business documentation. Note: even though Story-Tail is not the merchant of record on client purchases, you'll still want a Stripe account for tokenization and for any future planning-fee or B2B billing (the latter is currently prohibited by Inteletravel policy per BRD 10.5).
+**Stripe account setup.** *(Closed 2026-10-16: no Stripe account is needed. Stripe has left the stack.)* A Stripe business account in Story-Tail Adventures' name is required. Stripe will request business documentation. Note: even though Story-Tail is not the merchant of record on client purchases, you'll still want a Stripe account for tokenization and for any future planning-fee or B2B billing (the latter is currently prohibited by Inteletravel policy per BRD 10.5).
 
 **Inteletravel API discovery.** The BRD's open question on whether Inteletravel offers any API access remains open. Worth checking with Inteletravel directly before Phase 2 commission reconciliation work begins.
 
-**Supplier payment-method survey.** Before Phase 1 ends, classify the top 10–20 suppliers Story-Tail books most by `payment_method_kind` (api vs portal — see Data Model §8.1). The ratio determines whether Stripe-only remains viable through Phase 2 or whether Spreedly should be added earlier. Start with the most-booked suppliers: Sandals (portal), Royal Caribbean (portal), Norwegian (portal), Carnival (portal), Inteletravel cruise tools (portal), Expedia (API). If the supplier mix is overwhelmingly portal-only — as is expected for Caribbean/all-inclusive specialists — the eventual Spreedly migration becomes a stronger case.
+**Supplier payment-method survey.** *(Closed 2026-10-16: moot. The app holds no cards, so api vs portal no longer picks a flow. Each payment milestone carries a pay link instead.)* Before Phase 1 ends, classify the top 10–20 suppliers Story-Tail books most by `payment_method_kind` (api vs portal — see Data Model §8.1). The ratio determines whether Stripe-only remains viable through Phase 2 or whether Spreedly should be added earlier. Start with the most-booked suppliers: Sandals (portal), Royal Caribbean (portal), Norwegian (portal), Carnival (portal), Inteletravel cruise tools (portal), Expedia (API). If the supplier mix is overwhelmingly portal-only — as is expected for Caribbean/all-inclusive specialists — the eventual Spreedly migration becomes a stronger case.
 
 
 ---
@@ -612,6 +688,14 @@ A few decisions still need confirmation with stakeholders before final commit.
 - [PCI DSS Tokenization Guidelines — PCI Security Standards Council](https://www.pcisecuritystandards.org/documents/Tokenization_Guidelines_Info_Supplement.pdf)
 - [PCI Security Standards Council Document Library](https://www.pcisecuritystandards.org/document_library/)
 - [PCI DSS Compliance for SaaS (2026 Guide) — xflowpay](https://www.xflowpay.com/blog/pci-dss-compliance-for-saas)
+
+### Card vaults and reveal (checked 2026-10-16)
+
+- [Stripe Vault and Forward: forward card details to third-party API endpoints](https://docs.stripe.com/payments/vault-and-forward)
+- [Evervault pricing](https://evervault.com/pricing)
+- [PCI Vault](https://pcivault.io/)
+- [VGS Platform on Capterra (pricing)](https://www.capterra.com/p/195135/VGS-Platform/)
+- [Travefy help: viewing credit card information](https://intercom.help/travefy/en/articles/6741876-viewing-credit-card-information)
 
 ### Claude Code
 

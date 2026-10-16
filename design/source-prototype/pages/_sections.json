@@ -556,15 +556,15 @@
   {
     "slug": "c24-payment",
     "num": "2.4",
-    "title": "Client \u00b7 Payment & Card Authorization",
-    "subtitle": "Wallet, add, authorize, audit.",
+    "title": "Client \u00b7 Payment & Card Authorization (retired 2026-10-16)",
+    "subtitle": "Retired 2026-10-16. Clients now pay suppliers through pay links on the trip.",
     "files": [
       "screens/client-payment.jsx",
       "screens/client-payment-mobile.jsx"
     ],
     "sectionId": "c24",
-    "sectionTitle": "2.4 \u00b7 Payment & Card Authorization",
-    "sectionSub": "Wallet, add, authorize, audit.",
+    "sectionTitle": "2.4 \u00b7 Payment & Card Authorization (retired)",
+    "sectionSub": "Retired 2026-10-16. Clients now pay suppliers through pay links on the trip.",
     "width": 1280,
     "height": 860,
     "screens": [
@@ -1533,63 +1533,49 @@
   {
     "slug": "a36-payment",
     "num": "3.6",
-    "title": "Agent \u00b7 Payment & Card Management",
-    "subtitle": "Vault, reveal-and-use, audit log.",
+    "title": "Agent \u00b7 Supplier Payments",
+    "subtitle": "Pay links, paid marks, payment history.",
     "files": [
       "screens/agent-payment.jsx"
     ],
     "sectionId": "a36",
-    "sectionTitle": "3.6 \u00b7 Payment & Card Management",
-    "sectionSub": "Vault, reveal-and-use, audit log.",
+    "sectionTitle": "3.6 \u00b7 Supplier Payments",
+    "sectionSub": "Pay links, paid marks, payment history.",
     "width": 1280,
     "height": 820,
     "screens": [
       {
         "id": "361",
-        "comp": "A361_CardVault",
-        "label": "3.6.1 Card vault",
+        "comp": "A361_TripPayments",
+        "label": "3.6.1 Trip payments",
         "h": 820
+      },
+      {
+        "id": "361b",
+        "comp": "A361b_EditPayLink",
+        "label": "3.6.1b Add or edit pay link",
+        "w": 1000,
+        "h": 860
       },
       {
         "id": "362",
-        "comp": "A362_RequestAuth",
-        "label": "3.6.2 Request authorization",
+        "comp": "A362_SendPaymentLink",
+        "label": "3.6.2 Send payment link",
         "w": 1000,
-        "h": 820
-      },
-      {
-        "id": "363",
-        "comp": "A363_AuthRequestSent",
-        "label": "3.6.3 Request sent",
-        "w": 1000,
-        "h": 700
-      },
-      {
-        "id": "364",
-        "comp": "A364_RevealCard",
-        "label": "3.6.4 Reveal card (audited)",
-        "w": 1000,
-        "h": 820
+        "h": 900
       },
       {
         "id": "365",
-        "comp": "A365_LogUse",
-        "label": "3.6.5 Log card use",
+        "comp": "A365_MarkPaid",
+        "label": "3.6.5 Mark paid",
         "w": 1000,
-        "h": 820
+        "h": 860
       },
       {
         "id": "366",
-        "comp": "A366_CardUseLog",
-        "label": "3.6.6 Card use log",
+        "comp": "A366_PaymentHistory",
+        "label": "3.6.6 Payment history",
         "h": 760
-      },
-      {
-        "id": "367",
-        "comp": "A367_UpdateLimit",
-        "label": "3.6.7 Update limit",
-        "w": 1000,
-        "h": 720
       }
     ]
   },

@@ -73,7 +73,7 @@ function C261_Inbox() {
     { who: 'Gyasi', sub: 'Sandals upgrade locked in', preview: 'I added a Red Lane spa credit and locked your bungalow upgrade…', t: '2:14p', unread: 2, trip: 'Sandals · Aug', a: 'avatarA', active: true },
     { who: 'Gyasi', sub: 'New family cruise idea', preview: 'Hey! Found a Royal Caribbean sailing for Christmas dates…', t: 'Tue', unread: 0, trip: 'Family cruise · Dec', a: 'avatarA' },
     { who: 'Gyasi', sub: 'Welcome to Story-Tail', preview: 'So glad to have you. I usually reply in under 2h…', t: 'Mar 14', unread: 0, a: 'avatarA' },
-    { who: 'System', sub: 'Card authorization confirmed', preview: 'Your VISA •••• 4242 has been authorized for $4,598…', t: 'Mar 22', unread: 0, system: true },
+    { who: 'System', sub: 'Payment recorded', preview: 'Gyasi marked your Sandals deposit paid · $800…', t: 'Mar 14', unread: 0, system: true },
     { who: 'System', sub: 'Symphony cruise · post-trip survey', preview: 'Thank you for traveling with us! A quick survey…', t: 'Mar 12', unread: 0, system: true },
   ];
   return (
@@ -147,7 +147,7 @@ function C261_Inbox() {
             {[
               { mine: false, t: '11:14a', b: 'Quick win — Sandals just opened up the over-water bungalows for your dates.' },
               { mine: true, t: '11:32a', b: 'Yes please. Sam will lose it 😍' },
-              { mine: false, t: '2:14p', b: 'Locked. Final balance authorization request is in your dashboard.' },
+              { mine: false, t: '2:14p', b: 'Locked. Your final balance link is on your trip page now.' },
             ].map((m, i) => (
               <Box key={i} sx={{ display: 'flex', justifyContent: m.mine ? 'flex-end' : 'flex-start' }}>
                 <C26_MuiBubble mine={m.mine} sx={{ maxWidth: '75%' }}>{m.b}</C26_MuiBubble>
@@ -185,8 +185,8 @@ function C262_ConversationThread() {
             { mine: false, t: '11:14a', b: 'Quick win — Sandals just opened up the over-water bungalows for your dates. I held one tentatively. Want me to lock?' },
             { mine: true, t: '11:32a', b: "Yes please. Sam will lose it 😍 — what's the upgrade?" },
             { mine: false, t: '11:33a', b: '$680 over the base. I got Sandals to throw in a Red Lane spa credit + a private island day. Net win.', file: { n: 'sandals-bungalow-deck.pdf', s: '2.4 MB' } },
-            { mine: true, t: '11:36a', b: 'Done. Authorize whatever you need on the VISA.' },
-            { mine: false, t: '2:14p', b: "Locked. I also flagged your card for the final balance ($4,180) — there's a payment authorization request in your dashboard. No charge from me, just lets me pay Sandals on May 28 when they invoice.", reactions: [{ e: '❤', n: 1 }] },
+            { mine: true, t: '11:36a', b: 'Yes! Lock it in.' },
+            { mine: false, t: '2:14p', b: "Locked. Your final balance link is on your trip page now: $4,180, due May 28, paid straight to Sandals on their own site. No charge from me, and no rush.", reactions: [{ e: '❤', n: 1 }] },
           ].map((m, i) => (
             <Stack key={i} direction="row" spacing={1} sx={{ justifyContent: m.mine ? 'flex-end' : 'flex-start' }}>
               {!m.mine && <Avatar src={staImg('avatarA', 48, 48)} alt="" sx={{ width: 28, height: 28, alignSelf: 'flex-end' }} />}
@@ -217,7 +217,7 @@ function C262_ConversationThread() {
           ))}
         </Stack>
         <Box sx={{ px: 3.5, pt: 1.5, pb: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>
-          <C26_MuiComposer value="Thanks — go ahead and authorize." sendLabel="Send" />
+          <C26_MuiComposer value="Thank you! I'll take care of it this weekend." sendLabel="Send" />
           <Stack direction="row" spacing={0.75} sx={{ mt: 1 }}>
             {['👍 Sounds good', 'Add my partner', '📎 Passport', 'Schedule a call'].map((t) => <Chip key={t} label={t} variant="outlined" size="small" onClick={() => {}} />)}
           </Stack>

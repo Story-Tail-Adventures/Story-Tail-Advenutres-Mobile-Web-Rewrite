@@ -174,7 +174,6 @@
       { id: 'home', icon: 'home', label: 'Trips' },
       { id: 'search', icon: 'search', label: 'Discover' },
       { id: 'msg', icon: 'message', label: 'Messages' },
-      { id: 'wallet', icon: 'card', label: 'Wallet' },
       { id: 'docs', icon: 'passport', label: 'Documents' },
       { id: 'me', icon: 'user', label: 'Account' },
     ];
