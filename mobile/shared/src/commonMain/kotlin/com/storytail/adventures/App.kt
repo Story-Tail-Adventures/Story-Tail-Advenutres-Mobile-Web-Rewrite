@@ -154,14 +154,15 @@ fun App() {
                     // web/lib/supabase/middleware.ts, and then the same onboarding gate the
                     // (client) layout applies after it.
                     run {
+                        val assurance = repo.assurance()
                         val destination = when {
-                            repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
+                            assurance == Assurance.REQUIRED -> AppRoute.MfaChallenge
                             else -> onboardingRepository?.let { onboarding ->
                                 // Assigned BEFORE the route is chosen, so anything the
                                 // route then renders already has it.
                                 val status = onboarding.status()
                                 onboardingStatus = status
-                                destinationFor(status)
+                                agentMfaGate(destinationFor(status), assurance)
                             } ?: AppRoute.Dashboard
                         }
                         // Only when the destination actually moved. The same answer means
@@ -208,6 +209,9 @@ fun App() {
                 push.threadOpened()
                 return@LaunchedEffect
             }
+            // Not past the second factor yet: hold the request. The gate has sent them to
+            // setup or the challenge, and verifying changes the session, which re-runs this.
+            if (repo.assurance() != Assurance.SATISFIED) return@LaunchedEffect
             if (nav.current != AppRoute.AgentThread(id)) nav.push(AppRoute.AgentThread(id))
             push.threadOpened()
         }
@@ -530,18 +534,26 @@ fun App() {
             AppRoute.MfaSetup -> {
                 val viewModel = viewModel { MfaSetupViewModel(repo) }
                 val state by viewModel.state.collectAsState()
+                // An advisor is here because [agentMfaGate] sent them: there is nothing
+                // behind this screen to go back to, so "Not now" becomes "Sign out".
+                val required = onboardingStatus?.role == "agent"
+                val scope = rememberCoroutineScope()
 
-                LaunchedEffect(viewModel) {
+                LaunchedEffect(viewModel, required) {
                     viewModel.events.collect { event ->
                         when (event) {
                             // Verifying raises the session to aal2; sessionStatus routes it.
-                            MfaSetupEvent.Done -> nav.pop()
-                            MfaSetupEvent.Cancelled -> nav.pop()
+                            // A traveler came from Security and goes back there; an advisor
+                            // has no stack under this screen, and the gate moves them on.
+                            MfaSetupEvent.Done -> if (!required) nav.pop()
+                            MfaSetupEvent.Cancelled ->
+                                if (required) scope.launch { repo.signOut() } else nav.pop()
                         }
                     }
                 }
 
                 MfaSetupScreen(
+                    required = required,
                     state = state,
                     onCodeChange = viewModel::onCodeChange,
                     onSecretCopied = viewModel::onSecretCopied,
@@ -613,13 +625,23 @@ fun destinationFor(status: OnboardingStatus?): AppRoute = when {
 }
 
 /**
- * §3.1.6 MANDATORY AGENT MFA IS NOT ENFORCED HERE, and that is a known gap rather than an
- * oversight. Data-Model §5.1 requires it and `account.mfa_required` is true for the seeded
- * agent, but nothing in this gate sends an agent without a verified factor to [AppRoute.MfaSetup]
- * — the MFA challenge only fires when `repo.assurance()` already says REQUIRED. Closing it
- * belongs with §3.1, which builds the agent activation wizard. Left visible in the gate
- * rather than discovered later.
+ * Agent MFA is required (BRD §11, Data-Model §5.1 `mfa_required`), and the server enforces
+ * it: every agent Edge Function 403s and `current_agent_id()` reads nothing below aal2. So
+ * an advisor who is about to land on the worklist without a second factor goes to set one
+ * up instead, rather than onto a worklist every call of which will refuse.
+ *
+ * Only [Assurance.NONE] reaches here for an advisor: REQUIRED (a factor exists, this session
+ * has not used it) is caught first and sent to the challenge, for everyone. Anything that is
+ * not the worklist passes through untouched; MFA stays optional for travelers.
+ *
+ * The web twin is `agentMfaRedirect` in web/lib/agent/role.ts. If one moves, move both.
  */
+fun agentMfaGate(destination: AppRoute, assurance: Assurance): AppRoute = when {
+    destination != AppRoute.Worklist -> destination
+    assurance == Assurance.SATISFIED -> destination
+    assurance == Assurance.REQUIRED -> AppRoute.MfaChallenge
+    else -> AppRoute.MfaSetup
+}
 
 /**
  * Resolves who the advisor is before handing off to [AgentRoute].
