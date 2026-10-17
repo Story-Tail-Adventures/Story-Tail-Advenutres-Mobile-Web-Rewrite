@@ -102,7 +102,9 @@ export type AgentRead =
   | "agent_message_merge_context"
   // §3.9. One jsonb: the account's status, devices and 90 days of sign-ins, or only
   // {needsMfa} until the session is aal2 (checked in the database).
-  | "agent_client_account_admin";
+  | "agent_client_account_admin"
+  // §3.9.7 / §3.3.11. Likely duplicates, or the merge preview; {needsMfa} until aal2.
+  | "agent_client_merge_view";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }

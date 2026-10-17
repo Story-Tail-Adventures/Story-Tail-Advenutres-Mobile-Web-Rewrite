@@ -78,12 +78,14 @@ describe("ClientAccountAdminTab", () => {
     expect(screen.getByText("Another client record has this email. Merge them first.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open the other record" })).toHaveAttribute("href", "/agent/clients/c9");
     expect(screen.queryByRole("button", { name: /Send password reset/ })).toBeNull();
+    // A duplicate with no sign-in is the commonest case for a merge, so the tile is here too.
+    expect(screen.getByRole("link", { name: /Merge duplicate records/ })).toHaveAttribute("href", "/agent/clients/c1/merge");
   });
 
-  it("an account: status, devices and sign-ins, with Merge waiting for PR 2", () => {
+  it("an account: status, devices and sign-ins, and Merge opens its page", () => {
     draw(ACCOUNT);
     expect(screen.getByText("Today · 12:00 PM · iPhone · Safari")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Merge duplicate records/ })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: /Merge duplicate records/ })).toHaveAttribute("href", "/agent/clients/c1/merge");
     expect(screen.getByText("Not recorded")).toBeInTheDocument();
     expect(screen.getByText("Flagged")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear flag: May 5 · 11:42 PM, Android · Chrome" })).toBeInTheDocument();

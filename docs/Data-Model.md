@@ -582,6 +582,19 @@ CREATE TABLE auth_event_flag (
 | `archived_at` | `timestamptz` | Yes | Public | — |
 | `version` | `integer` | No | Client-visible | Optimistic concurrency |
 
+> **How a record becomes `merged_into` (§3.9 PR 2, October 2026).** Only through
+> `account_admin_merge_clients()` (migration `20261023120000_client_merge`), called by the
+> `account-admin` Edge Function's `merge` op. The retired row is kept, never deleted, with
+> `merged_into_client_id` set to the kept record; records merged into it earlier are re-pointed,
+> so a chain is always one hop. Everything that references `client` moves to the kept record:
+> `trip` (and with it `commission`), `conversation`, `client_note`, `companion` (`client_id` and
+> `linked_client_id`), `document`, `travel_document`, `testimonial` and `client_invite`. The
+> migration fails if a new table references `client` and the merge does not move it.
+> `travel_preference` (one row per client) takes the picker's values on the kept row; the
+> retired row's stays where it is. `platform_user.client_id` moves only when the kept record has
+> no sign-in; otherwise the retired sign-in is locked. The audit row (`client.merged`) holds both
+> rows' every value from before and the id of every row that moved; there is no undo.
+>
 > **The client is the data subject, and reads their own row — September 2026.** Sensitivity
 > here describes how a field must be HANDLED, not who may see it: `date_of_birth` is Sensitive
 > PII and the traveler still reads it back, because it is their own birthday and Screen 2.1.10
