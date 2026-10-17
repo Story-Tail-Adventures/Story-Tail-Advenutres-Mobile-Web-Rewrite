@@ -91,6 +91,7 @@ interface Snapshot {
   emailVerifiedAt?: string | null;
   invitedAt?: string | null;
   hasPassword?: boolean;
+  providers?: string[];
   lockedAt?: string | null;
   bannedUntil?: string | null;
   duplicateSignInEmail?: boolean;
@@ -164,7 +165,12 @@ function emailRefusal(kind: SignInEmailKind, s: Snapshot): string | null {
   }
   if (!s.hasSignIn) return "They haven't signed in yet. Send an invite instead.";
   if (s.lockedAt || banned(s)) return "Their account is locked. Unlock it first.";
-  if (kind === "reset" && !s.hasPassword) return "They sign in with Google or Apple, so there's no password to reset.";
+  // Reset is refused only for a Google- or Apple-only sign-in. An email sign-in with no password
+  // yet (an accepted invite, or one verified by hand) is exactly who a recovery link helps: it
+  // lets them choose one. Found clicking through 2026-10-16.
+  if (kind === "reset" && !s.hasPassword && (s.providers ?? []).some((p) => p !== "email")) {
+    return "They sign in with Google or Apple, so there's no password to reset.";
+  }
   return null;
 }
 

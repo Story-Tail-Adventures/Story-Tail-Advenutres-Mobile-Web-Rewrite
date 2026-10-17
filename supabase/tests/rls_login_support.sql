@@ -70,7 +70,7 @@ EXCEPTION
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION pg_temp.become(account uuid, aal text DEFAULT 'aal1')
+CREATE OR REPLACE FUNCTION pg_temp.become(account uuid, aal text DEFAULT 'aal2')
 RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
     PERFORM set_config('role', 'authenticated', true);
@@ -172,13 +172,13 @@ SELECT pg_temp.assert(
 -- 2. The tab's read
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- Since 20261023120000_agent_mfa_required.sql an aal1 agent has no agent identity at all
+-- (current_agent_id() is NULL), so the read answers NULL before its own needsMfa branch is
+-- reached. That branch stays as a second lock; rls_agent_mfa.sql covers the global gate.
 SELECT pg_temp.become(:gyasi::uuid, 'aal1');
 SELECT pg_temp.assert(
-    (public.agent_client_account_admin(:j_client::uuid) ->> 'needsMfa')::boolean
-    AND public.agent_client_account_admin(:j_client::uuid) ? 'agentHasFactor'
-    AND NOT public.agent_client_account_admin(:j_client::uuid) ? 'sessions'
-    AND NOT public.agent_client_account_admin(:j_client::uuid) ? 'signInEmail',
-    'aal1: needsMfa, and nothing about the account');
+    public.agent_client_account_admin(:j_client::uuid) IS NULL,
+    'aal1: nothing at all, not even the gate shape');
 
 SELECT pg_temp.become(:gyasi::uuid, 'aal2');
 SELECT public.agent_client_account_admin(:j_client::uuid) AS snap \gset

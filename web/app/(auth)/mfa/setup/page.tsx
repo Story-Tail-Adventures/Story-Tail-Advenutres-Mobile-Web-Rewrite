@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { env } from "@/lib/env";
+import { onboardingStatus } from "@/lib/onboarding/status";
 import { safeNext } from "@/lib/safe-next";
 import { single, type SearchParams } from "@/lib/search-params";
 import { createClient } from "@/lib/supabase/server";
@@ -33,13 +34,17 @@ export default async function MfaSetupPage({
   // second one from this screen is Security Settings' job (2.5.7), not first-run's.
   if (await hasVerifiedFactor()) redirect(next);
 
+  // An advisor is here because the (agent) layout sent them: agent MFA is required, so
+  // the screen says why and offers no skip (which would only loop back here).
+  const required = (await onboardingStatus())?.role === "agent";
+
   return (
     <AuthCard
       overline={MFA_SETUP_TEXT.overline}
       title={MFA_SETUP_TEXT.title}
-      sub={MFA_SETUP_TEXT.sub}
+      sub={required ? MFA_SETUP_TEXT.agentSub : MFA_SETUP_TEXT.sub}
     >
-      <MfaSetupForm next={next} />
+      <MfaSetupForm next={next} required={required} />
     </AuthCard>
   );
 }

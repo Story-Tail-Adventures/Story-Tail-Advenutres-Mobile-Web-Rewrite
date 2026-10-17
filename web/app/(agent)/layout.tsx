@@ -5,7 +5,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import { AdminNoAccess } from "@/components/agent/AdminNoAccess";
 import { AgentBottomNav, AgentNavRail } from "@/components/agent/AgentNav";
 import { AgentTopBar } from "@/components/agent/AgentTopBar";
-import { agentShellDecision } from "@/lib/agent/role";
+import { agentMfaRedirect, agentShellDecision } from "@/lib/agent/role";
 import { INITIALS_FALLBACK, initialsFor } from "@/lib/auth/initials";
 import { env } from "@/lib/env";
 import { onboardingStatus } from "@/lib/onboarding/status";
@@ -68,6 +68,13 @@ export default async function AgentLayout({
     unauthorized = decision.kind === "unauthorized";
 
     if (!unauthorized) {
+      // Agent MFA is required, and the server enforces it below aal2 — so finish signing
+      // in first rather than render a shell every read and write of which will refuse.
+      // `getAuthenticatorAssuranceLevel` decodes the token getUser() just validated.
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const mfaTo = agentMfaRedirect(aal?.currentLevel, aal?.nextLevel);
+      if (mfaTo) redirect(mfaTo);
+
       const { data: me } = await supabase
         .from("platform_user")
         .select("display_name")

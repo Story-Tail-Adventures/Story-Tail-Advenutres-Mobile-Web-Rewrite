@@ -84,7 +84,7 @@ RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
     PERFORM set_config('role', 'authenticated', true);
     PERFORM set_config('request.jwt.claims',
-        json_build_object('sub', account::text, 'role', 'authenticated')::text, true);
+        json_build_object('sub', account::text, 'role', 'authenticated', 'aal', 'aal2')::text, true);
 END;
 $$;
 

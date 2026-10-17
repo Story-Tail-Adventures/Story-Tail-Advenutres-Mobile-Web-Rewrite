@@ -65,6 +65,13 @@ private object MfaSetupCopy {
     const val PREPARING = "Getting your key ready…"
     const val RETRY = "Try again"
     const val CANCEL = "Not now"
+
+    // An advisor cannot skip it (agent MFA is required), so the way out is signing out.
+    // AGENT_SUB matches web/app/(auth)/mfa/setup/state.ts `agentSub` word for word.
+    const val AGENT_SUB = "The advisor side asks for a code from an authenticator app each " +
+        "time you sign in. It keeps your travelers' details safe, and it only takes a " +
+        "minute to set up."
+    const val SIGN_OUT = "Sign out"
 }
 
 @Composable
@@ -76,6 +83,8 @@ fun MfaSetupScreen(
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    /** An advisor: MFA is required, so the escape is "Sign out", not "Not now". */
+    required: Boolean = false,
 ) {
     val clipboard = LocalClipboardManager.current
     val uriHandler = LocalUriHandler.current
@@ -92,14 +101,14 @@ fun MfaSetupScreen(
                 isSubmitting = state.isVerifying,
             )
             TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                Text(MfaSetupCopy.CANCEL)
+                Text(if (required) MfaSetupCopy.SIGN_OUT else MfaSetupCopy.CANCEL)
             }
         },
     ) {
         AuthHeader(
             overline = MfaSetupCopy.OVERLINE,
             title = MfaSetupCopy.TITLE,
-            sub = MfaSetupCopy.SUB,
+            sub = if (required) MfaSetupCopy.AGENT_SUB else MfaSetupCopy.SUB,
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -4,6 +4,7 @@ import type { OnboardingStatus, PlatformRole } from "@/lib/onboarding/status";
 import {
   AGENT_SHELL_ROOT,
   CLIENT_SHELL_ROOT,
+  agentMfaRedirect,
   agentShellDecision,
   clientShellDecision,
 } from "./role";
@@ -74,6 +75,32 @@ describe("the two-way shell gate", () => {
     for (const s of ROLES.map(status)) {
       expect(clientShellDecision(s)).toBeDefined();
       expect(agentShellDecision(s)).toBeDefined();
+    }
+  });
+});
+
+describe("agentMfaRedirect", () => {
+  it("lets an aal2 advisor into the shell", () => {
+    expect(agentMfaRedirect("aal2", "aal2")).toBeNull();
+  });
+
+  it("sends an advisor with a factor but no code this session to the challenge", () => {
+    expect(agentMfaRedirect("aal1", "aal2")).toBe("/login/mfa?next=%2Fagent");
+  });
+
+  it("sends an advisor with no factor at all to setup", () => {
+    expect(agentMfaRedirect("aal1", "aal1")).toBe("/mfa/setup?next=%2Fagent");
+  });
+
+  it("fails closed to setup when the level could not be read", () => {
+    // An empty shell over a server that refuses everything is the worse failure.
+    expect(agentMfaRedirect(undefined, undefined)).toBe("/mfa/setup?next=%2Fagent");
+    expect(agentMfaRedirect(null, null)).toBe("/mfa/setup?next=%2Fagent");
+  });
+
+  it("never sends anyone back into the agent shell it is guarding", () => {
+    for (const [c, n] of [["aal1", "aal1"], ["aal1", "aal2"], [null, null]] as const) {
+      expect(agentMfaRedirect(c, n)?.startsWith("/agent")).toBe(false);
     }
   });
 });
