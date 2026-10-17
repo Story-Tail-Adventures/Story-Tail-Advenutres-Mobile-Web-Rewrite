@@ -981,7 +981,7 @@ the old `time_off_blocks` blob, so overlap is a constraint and not a hope.
 | `starts_on` | `date` | No | Internal | First day away, in `agent.time_zone` |
 | `ends_on` | `date` | No | Internal | Last day away (inclusive). `ends_on >= starts_on` |
 | `label` | `text` | Yes | Internal | "Family trip". At most 80 characters |
-| `auto_reply_enabled` | `boolean` | No | Internal | Default false. Used from §3.12 PR 2 |
+| `auto_reply_enabled` | `boolean` | No | Internal | Default false. Answers the first client message in each thread once per block (§12.12) |
 | `auto_reply_text` | `text` | Yes | Internal | At most 600 characters; required when enabled. Merge field `{{return_date}}` |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
@@ -2257,6 +2257,7 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 | `sender_role` | `user_role` enum | No | Public | Denormalized for fast filtering |
 | `body` | `text` | No | PII | Plain or markdown |
 | `is_internal_note` | `boolean` | No | Internal | If true, only agent sees |
+| `is_auto_reply` | `boolean` | No | Public | §3.12.2 (PR 2). True for an out-of-office automatic reply (§12.12). Sent as the advisor (`sender_role = 'agent'`), shown tagged "Automatic reply" on both sides, granted to the client. Never counts as the advisor having answered: the reply-owed clock (`agent_threads_for_current_agent`) skips it |
 | `read_by_other_at` | `timestamptz` | Yes | Internal | Read receipts |
 | `channel` | `text` | No | Public | `app` or `email`; default `app`. Specified for §3.10 Stage 4 (not built): `email` marks a client reply that arrived by email (§12.10), so the thread can say "by email" |
 | `emailed_at` | `timestamptz` | Yes | Internal | Specified for §3.10 Stage 4 (not built). Set by `email-dispatch` on every advisor reply an email carried, when the SMTP server accepts it; drives the advisor-only "Emailed" mark (§23). Withheld from the client grant |
@@ -2358,7 +2359,7 @@ Copying them to an advisor created later waits for P3's multi-agent work.
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `user_id` | `uuid` | No | Public | PK; FK → User |
-| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push}}`. Agent categories (§3.12.3): `messages` (default push on, email off) and `quote_requests` (push on, email on). No `sms`: there is no SMS provider |
+| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push}}`. Agent categories (§3.12.3): `client_messages` (default push on, email off) and `quote_requests` (push on, email on); a missing key means the default, NOT "on" (unlike a client's `messages`). No `sms`: there is no SMS provider |
 | `quiet_hours_start` | `time` | Yes | Internal | — |
 | `quiet_hours_end` | `time` | Yes | Internal | — |
 | `updated_at` | `timestamptz` | No | Public | — |
@@ -2413,10 +2414,13 @@ so every path that records or reads a message drives it without being rewritten.
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | Server default `uuid_v7()`: no client ever writes a row |
 | `agent_id` | `uuid` | No | Public | FK → Agent. Whose devices it goes to |
-| `conversation_id` | `uuid` | No | Public | FK → Conversation. Unique while `state = 'pending'` (a message during a send gets its own row) |
-| `latest_message_id` | `uuid` | No | Public | FK → Message. The newest client message it is about |
+| `kind` | `text` | No | Public | §3.12.3 (PR 2): `message` (default) or `quote_request` |
+| `conversation_id` | `uuid` | Yes | Public | FK → Conversation. Set iff `kind = 'message'`. Unique while `state = 'pending'` (a message during a send gets its own row) |
+| `latest_message_id` | `uuid` | Yes | Public | FK → Message. The newest client message it is about. Set iff `kind = 'message'` |
+| `trip_id` | `uuid` | Yes | Public | FK → Trip. The inquiry a quote request created. Set iff `kind = 'quote_request'` |
+| `hold_reason` | `text` | Yes | Public | `rest` or `away` when `held`: which words the summary uses ("while you rested" / "while you were away") |
 | `message_count` | `integer` | No | Public | Client messages since the last notification |
-| `due_at` | `timestamptz` | No | Public | Now, or 7am after the rest hours it landed in |
+| `due_at` | `timestamptz` | No | Public | Now, or the start of the advisor's next working period (§3.12.2: working hours ARE rest hours, and a day inside an out-of-office block is rest) |
 | `held` | `boolean` | No | Public | True when it fell in rest hours: it joins the 7am SUMMARY instead of its own notification |
 | `state` | `text` | No | Public | `pending`, `sending` (claimed by a dispatcher run), `sent`, `cleared` (read before it went), `failed` |
 | `attempts` | `integer` | No | Public | Retries on a transient error, at most 3 |
@@ -2568,6 +2572,50 @@ a client message with `channel = 'email'`, written through the **same path as `t
 audit all behave as for an in-app message. **A rejected email gets no reply** (answering a
 forged sender is backscatter). An accepted one with files gets one short automatic note, to the
 verified sender only, saying files go in the app.
+
+---
+
+### 12.11 AgentAlertEmail
+
+**Phase:** P1 (§3.12.3, PR 2). The advisor's own alert emails: one row per thing to tell them,
+sent by `email-dispatch` alongside the client emails. Service-role only.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()` |
+| `agent_id` | `uuid` | No | Public | FK → Agent. Sent to `agent.email` (the sign-in email) |
+| `kind` | `text` | No | Public | `client_message` or `quote_request` |
+| `conversation_id` | `uuid` | Yes | Public | Set iff `client_message`. One pending row per thread: a second message adds nothing |
+| `trip_id` | `uuid` | Yes | Public | Set iff `quote_request` |
+| `state` | `text` | No | Public | `pending`, `sending`, `sent`, `cleared` (the thread was read first), `failed` |
+| `attempts` | `integer` | No | Public | At most 3 |
+| `claimed_at` / `sent_at` | `timestamptz` | Yes | Public | — |
+| `last_error` | `text` | Yes | Internal | SMTP code and words, no address, 200 characters |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**What it carries: never a client's words** (Q15). The client's name, the trip and an "Open in
+Story-Tail" link to the thread or the inquiry trip, so client words (and any card number a
+client types) stay out of the advisor's mail provider. **Due at once**: rest hours quiet push
+only. Queued only when the advisor's `notification_preference` has that category's `email` on
+(defaults: client messages off, quote requests on). Finished rows are deleted after 30 days.
+
+### 12.12 AgentAutoReply
+
+**Phase:** P1 (§3.12.2, PR 2). Which threads an out-of-office block has already answered, so
+the automatic reply goes **once per thread per block**. Service-role only.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `time_off_id` | `uuid` | No | Public | FK → AgentTimeOff (§7.5), cascade. Half of the PK |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation, cascade. The other half |
+| `message_id` | `uuid` | No | Public | FK → Message: the reply it sent (`is_auto_reply`) |
+| `created_at` | `timestamptz` | No | Public | — |
+
+Written by a trigger when a client message raises `conversation.agent_unread_count` while today
+(advisor's zone) is inside a block with `auto_reply_enabled`. The reply's text is the block's
+`auto_reply_text` with `{{return_date}}` filled ("Monday, July 8": the day after `ends_on`). It
+raises `client_unread_count` (so the normal message email carries it) and leaves
+`agent_unread_count` alone (it never marks the thread read).
 
 ---
 

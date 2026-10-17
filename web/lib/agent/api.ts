@@ -890,6 +890,8 @@ export type AgentConversationMessageRow = {
   emailed_at: string | null;
   /** `email` for a client reply that arrived by email. */
   channel: string;
+  /** §3.12.2: an out-of-office automatic reply. Absent before 20261026130000. */
+  is_auto_reply?: boolean | null;
 };
 
 export type AgentMessageTargetRow = {

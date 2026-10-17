@@ -299,3 +299,67 @@ export function avatarKeyFromUrl(url: string | null, agentId: string): string | 
   if (!m || m[1] !== agentId) return null;
   return `${m[1]}/${m[2]}`;
 }
+
+// ── Notifications (3.12.3) ───────────────────────────────────────────────────
+
+export function readSwitch(value: unknown, label: string): boolean {
+  if (typeof value !== "boolean") throw badRequest(`${label} didn't come through. Reload and try again.`);
+  return value;
+}
+
+// ── Signature (3.12.4) ───────────────────────────────────────────────────────
+
+export const MAX_SIGNATURE = 500;
+export const MAX_SIGNATURE_LINES = 8;
+export const SIGNATURE_FIELDS = ["agent.name", "agent.phone", "agent.email"] as const;
+
+/** The merge fields a signature names that are not one of the three, as typed inside the braces. */
+export function unknownSignatureFields(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)) {
+    if (!(SIGNATURE_FIELDS as readonly string[]).includes(m[1]) && !out.includes(m[1])) out.push(m[1]);
+  }
+  return out;
+}
+
+/**
+ * Plain text (Q19): at most 8 lines and 500 characters, only the three merge fields. Empty (or
+ * missing) means "use the default". Trailing spaces and blank lines at either end are dropped.
+ */
+export function readSignature(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") throw badRequest("Your signature didn't come through. Reload and try again.");
+  const t = value.replace(/\r\n?/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").replace(/^\n+|\n+$/g, "");
+  if (t.trim() === "") return null;
+  if (t.length > MAX_SIGNATURE) throw badRequest(`A signature can be up to ${MAX_SIGNATURE} characters.`);
+  if (t.split("\n").length > MAX_SIGNATURE_LINES) throw badRequest(`A signature can be up to ${MAX_SIGNATURE_LINES} lines.`);
+  const unknown = unknownSignatureFields(t);
+  if (unknown.length > 0) {
+    throw badRequest(`We don't have a {{${unknown[0]}}} field. You can use {{agent.name}}, {{agent.phone}} or {{agent.email}}.`);
+  }
+  return t;
+}
+
+// ── Out-of-office auto-reply ─────────────────────────────────────────────────
+
+export const MAX_AUTO_REPLY = 600;
+
+/** On or off, and the words when on (Q21). Only `{{return_date}}` may be filled. */
+export function readAutoReply(enabled: unknown, text: unknown): { enabled: boolean; text: string | null } {
+  const on = enabled === true;
+  if (enabled !== undefined && enabled !== null && typeof enabled !== "boolean") {
+    throw badRequest("The automatic reply didn't come through. Reload and try again.");
+  }
+  if (text !== undefined && text !== null && typeof text !== "string") {
+    throw badRequest("The automatic reply didn't come through. Reload and try again.");
+  }
+  const t = typeof text === "string" ? text.trim() : "";
+  if (t.length > MAX_AUTO_REPLY) throw badRequest(`An automatic reply can be up to ${MAX_AUTO_REPLY} characters.`);
+  for (const m of t.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)) {
+    if (m[1] !== "return_date") {
+      throw badRequest(`We don't have a {{${m[1]}}} field. You can use {{return_date}}.`);
+    }
+  }
+  if (on && t === "") throw badRequest("Add the words for your automatic reply, or turn it off.");
+  return { enabled: on, text: t === "" ? null : t };
+}

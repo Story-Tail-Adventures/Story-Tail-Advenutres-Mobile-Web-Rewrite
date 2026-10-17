@@ -68,10 +68,27 @@ export async function saveTimeOffAction(input: {
   startsOn: string;
   endsOn: string;
   label: string;
+  autoReplyEnabled: boolean;
+  autoReplyText: string;
 }): Promise<SettingsResult> {
   return call({ ...input, op: "save_time_off" });
 }
 
 export async function endTimeOffAction(input: { timeOffId: string }): Promise<SettingsResult> {
   return call({ op: "end_time_off", timeOffId: input.timeOffId });
+}
+
+/** §3.12.3: the four switches, saved together. */
+export async function saveNotificationsAction(input: {
+  clientMessagesPush: boolean;
+  clientMessagesEmail: boolean;
+  quoteRequestsPush: boolean;
+  quoteRequestsEmail: boolean;
+}): Promise<SettingsResult> {
+  return call({ ...input, op: "update_notifications" });
+}
+
+/** §3.12.4: empty means "use the default". */
+export async function saveSignatureAction(input: { signature: string }): Promise<SettingsResult> {
+  return call({ signature: input.signature, op: "update_signature" });
 }

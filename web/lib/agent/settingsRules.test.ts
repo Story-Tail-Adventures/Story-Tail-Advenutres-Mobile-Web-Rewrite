@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { avatarSrc } from "./avatarUrl";
 import {
+  autoReplyProblem,
+  DEFAULT_SIGNATURE,
   DEFAULT_WEEKLY_SCHEDULE,
+  returnDateLabel,
+  signatureLines,
+  signatureProblem,
   HALF_HOURS,
   dateRangeLabel,
   normalizeSocialLink,
@@ -127,5 +132,41 @@ describe("avatarSrc", () => {
     expect(avatarSrc("http://kong:8000/storage/v1/object/public/agent-avatars/a/b.jpg", "https://x.supabase.co")).toBeNull();
     expect(avatarSrc("//evil.example/x.jpg", "https://x.supabase.co")).toBeNull();
     expect(avatarSrc(null, "https://x.supabase.co")).toBeNull();
+  });
+});
+
+describe("signature (3.12.4, the server's renderSignature)", () => {
+  const me = { name: "Gyasi Story", phone: "+1 (305) 555-0184", email: "gyasi@story-tail.com" };
+  it("fills the fields and ends with the locked line", () => {
+    expect(signatureLines(DEFAULT_SIGNATURE, me)).toEqual([
+      "Gyasi Story, Travel Advisor",
+      "+1 (305) 555-0184 · gyasi@story-tail.com",
+      "adventures.story-tail.com",
+      "",
+      "Making travel an adventure",
+      "",
+      "Story-Tail Adventures · Hosted by Inteletravel",
+    ]);
+  });
+  it("tidies the separator a missing phone leaves", () => {
+    expect(signatureLines(DEFAULT_SIGNATURE, { ...me, phone: "" })[1]).toBe("gyasi@story-tail.com");
+  });
+  it("checks length, lines and fields", () => {
+    expect(signatureProblem(DEFAULT_SIGNATURE)).toBeNull();
+    expect(signatureProblem("x\n".repeat(8) + "ninth")).toMatch(/8 lines/);
+    expect(signatureProblem("x".repeat(501))).toMatch(/500 characters/);
+    expect(signatureProblem("{{client.firstName}}")).toMatch(/We don't have a/);
+  });
+});
+
+describe("auto-reply (Q21)", () => {
+  it("needs words when on, and fills only {{return_date}}", () => {
+    expect(autoReplyProblem(false, "")).toBeNull();
+    expect(autoReplyProblem(true, "  ")).toMatch(/Add the words/);
+    expect(autoReplyProblem(true, "Back {{agent.name}}")).toMatch(/We don't have a/);
+    expect(autoReplyProblem(true, "Back {{return_date}}")).toBeNull();
+  });
+  it("names the day after the last day away", () => {
+    expect(returnDateLabel("2026-07-07")).toBe("Wednesday, July 8");
   });
 });

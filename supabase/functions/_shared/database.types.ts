@@ -172,6 +172,113 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_alert_email: {
+        Row: {
+          agent_id: string
+          attempts: number
+          claimed_at: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          sent_at: string | null
+          state: string
+          trip_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          sent_at?: string | null
+          state?: string
+          trip_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          sent_at?: string | null
+          state?: string
+          trip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_alert_email_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_alert_email_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_alert_email_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_auto_reply: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          message_id: string
+          time_off_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          message_id: string
+          time_off_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          message_id?: string
+          time_off_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_auto_reply_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_auto_reply_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_auto_reply_time_off_id_fkey"
+            columns: ["time_off_id"]
+            isOneToOne: false
+            referencedRelation: "agent_time_off"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_availability: {
         Row: {
           agent_id: string
@@ -2256,6 +2363,7 @@ export type Database = {
           created_at: string
           emailed_at: string | null
           id: string
+          is_auto_reply: boolean
           is_internal_note: boolean
           read_by_other_at: string | null
           sender_role: Database["public"]["Enums"]["user_role"]
@@ -2269,6 +2377,7 @@ export type Database = {
           created_at?: string
           emailed_at?: string | null
           id: string
+          is_auto_reply?: boolean
           is_internal_note?: boolean
           read_by_other_at?: string | null
           sender_role: Database["public"]["Enums"]["user_role"]
@@ -2282,6 +2391,7 @@ export type Database = {
           created_at?: string
           emailed_at?: string | null
           id?: string
+          is_auto_reply?: boolean
           is_internal_note?: boolean
           read_by_other_at?: string | null
           sender_role?: Database["public"]["Enums"]["user_role"]
@@ -2738,46 +2848,55 @@ export type Database = {
           agent_id: string
           attempts: number
           claimed_at: string | null
-          conversation_id: string
+          conversation_id: string | null
           created_at: string
           due_at: string
           held: boolean
+          hold_reason: string | null
           id: string
-          latest_message_id: string
+          kind: string
+          latest_message_id: string | null
           message_count: number
           needs_dismiss: boolean
           sent_at: string | null
           state: string
+          trip_id: string | null
         }
         Insert: {
           agent_id: string
           attempts?: number
           claimed_at?: string | null
-          conversation_id: string
+          conversation_id?: string | null
           created_at?: string
           due_at: string
           held: boolean
+          hold_reason?: string | null
           id?: string
-          latest_message_id: string
+          kind?: string
+          latest_message_id?: string | null
           message_count: number
           needs_dismiss?: boolean
           sent_at?: string | null
           state?: string
+          trip_id?: string | null
         }
         Update: {
           agent_id?: string
           attempts?: number
           claimed_at?: string | null
-          conversation_id?: string
+          conversation_id?: string | null
           created_at?: string
           due_at?: string
           held?: boolean
+          hold_reason?: string | null
           id?: string
-          latest_message_id?: string
+          kind?: string
+          latest_message_id?: string | null
           message_count?: number
           needs_dismiss?: boolean
           sent_at?: string | null
           state?: string
+          trip_id?: string | null
         }
         Relationships: [
           {
@@ -2799,6 +2918,13 @@ export type Database = {
             columns: ["latest_message_id"]
             isOneToOne: false
             referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
             referencedColumns: ["id"]
           },
         ]
@@ -3497,6 +3623,40 @@ export type Database = {
         Args: { p_agent_id: string; p_client_id: string }
         Returns: Json
       }
+      agent_alert_default: {
+        Args: { p_category: string; p_channel: string }
+        Returns: boolean
+      }
+      agent_alert_email_claim: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_first_name: string
+          alert_id: string
+          client_name: string
+          conversation_id: string
+          kind: string
+          recipient: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_alert_email_finish: {
+        Args: {
+          p_alert_id: string
+          p_error?: string
+          p_ok: boolean
+          p_permanent?: boolean
+        }
+        Returns: string
+      }
+      agent_alert_email_release: {
+        Args: { p_alert_id: string }
+        Returns: string
+      }
+      agent_alert_on: {
+        Args: { p_agent_id: string; p_category: string; p_channel: string }
+        Returns: boolean
+      }
       agent_apply_template: {
         Args: { p_agent_id: string; p_template_id: string; p_trip_id: string }
         Returns: {
@@ -4015,6 +4175,7 @@ export type Database = {
           channel: string
           created_at: string
           emailed_at: string
+          is_auto_reply: boolean
           is_internal_note: boolean
           message_id: string
           sender_role: string
@@ -4097,6 +4258,7 @@ export type Database = {
           trip_id: string
         }[]
       }
+      agent_default_signature: { Args: never; Returns: string }
       agent_default_weekly_schedule: { Args: never; Returns: Json }
       agent_delete_itinerary_activity: {
         Args: { p_activity_id: string; p_agent_id: string; p_trip_id: string }
@@ -4324,6 +4486,11 @@ export type Database = {
           trip_title: string
         }[]
       }
+      agent_platform_user: { Args: { p_agent_id: string }; Returns: string }
+      agent_push_reschedule: {
+        Args: { p_agent_id: string }
+        Returns: undefined
+      }
       agent_reconcile_commission_import: {
         Args: {
           p_actor_user_id: string
@@ -4420,6 +4587,14 @@ export type Database = {
           version: number
         }[]
       }
+      agent_rest_until: {
+        Args: { p_agent_id: string; p_at: string }
+        Returns: {
+          due_at: string
+          reason: string
+        }[]
+      }
+      agent_return_date_label: { Args: { p_ends_on: string }; Returns: string }
       agent_save_trip_as_template: {
         Args: {
           p_agent_id: string
@@ -4588,6 +4763,8 @@ export type Database = {
           p_actor_user_id: string
           p_agent_id: string
           p_audit_id: string
+          p_auto_reply_enabled: boolean
+          p_auto_reply_text: string
           p_ends_on: string
           p_id: string
           p_ip: string
@@ -4627,6 +4804,20 @@ export type Database = {
         }
         Returns: string
       }
+      agent_settings_update_notifications: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_messages_email: boolean
+          p_client_messages_push: boolean
+          p_ip: string
+          p_quote_requests_email: boolean
+          p_quote_requests_push: boolean
+          p_user_agent: string
+        }
+        Returns: string
+      }
       agent_settings_update_profile: {
         Args: {
           p_actor_user_id: string
@@ -4641,6 +4832,26 @@ export type Database = {
           p_user_agent: string
         }
         Returns: string
+      }
+      agent_settings_update_signature: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ip: string
+          p_signature: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_signature_for_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          phone: string
+          signature: string
+        }[]
       }
       agent_social_links_valid: { Args: { p: Json }; Returns: boolean }
       agent_suppliers: {
@@ -5142,6 +5353,7 @@ export type Database = {
           outcome: string
         }[]
       }
+      alert_quote_request: { Args: { p_trip_id: string }; Returns: string }
       block_for_time: {
         Args: { p_time: string }
         Returns: Database["public"]["Enums"]["block_kind"]
@@ -5440,11 +5652,17 @@ export type Database = {
           agent_id: string
           client_name: string
           conversation_id: string
+          destination: string
+          end_date: string
           held: boolean
+          hold_reason: string
+          kind: string
           latest_created_at: string
           message_count: number
           outbox_id: string
           preview: string
+          start_date: string
+          trip_id: string
           trip_title: string
         }[]
       }

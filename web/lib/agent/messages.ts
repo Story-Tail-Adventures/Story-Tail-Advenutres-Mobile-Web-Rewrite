@@ -133,6 +133,8 @@ export type ThreadMessageView = {
   emailed: boolean;
   /** The client wrote this by replying to an email. */
   byEmail: boolean;
+  /** §3.12.2: an out-of-office automatic reply, tagged on both sides. */
+  autoReply: boolean;
 };
 
 export type ThreadHeader = {
@@ -200,6 +202,7 @@ export async function loadThread(conversationId: string): Promise<ThreadResult> 
         attachments: (m.attachments ?? []).map((a) => ({ id: a.document_id, filename: a.filename })),
         emailed: m.emailed_at != null,
         byEmail: m.channel === "email",
+        autoReply: m.is_auto_reply === true,
       })),
       timeZone: me.timeZone,
       truncated: (msgs.rows[0]?.total_messages ?? 0) > msgs.rows.length,

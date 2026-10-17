@@ -129,9 +129,12 @@ $$;
 
 CREATE OR REPLACE FUNCTION pg_temp.last_audit(p_milestone uuid)
 RETURNS public.audit_event LANGUAGE sql AS $$
+    -- NOT `ORDER BY id`: two audit rows written in the same millisecond have v7 ids whose order
+    -- is random, so "the last one" flipped in roughly 2 runs out of 5. Within this one
+    -- transaction the table is only appended to, so physical order is the order written.
     SELECT * FROM public.audit_event
      WHERE target_entity = 'payment_milestone' AND target_id = p_milestone
-     ORDER BY id DESC LIMIT 1;
+     ORDER BY ctid DESC LIMIT 1;
 $$;
 
 -- The milestone as it is NOW. A volatile function takes a fresh snapshot, so an assertion

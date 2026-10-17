@@ -6,13 +6,19 @@ const CONV = "0195a2c0-1a00-7000-8000-0000000000b0";
 const row: ClaimedRow = {
   outbox_id: "o1",
   agent_id: "a1",
+  kind: "message",
   conversation_id: CONV,
+  trip_id: null,
   held: false,
+  hold_reason: null,
   message_count: 2,
   client_name: "Jordan Hayes",
   trip_title: "Anniversary Week in Negril",
   preview: "Is the airport transfer included?",
   latest_created_at: "2026-10-15T14:02:11.123456+00:00",
+  destination: null,
+  start_date: null,
+  end_date: null,
 };
 
 Deno.test("an Android payload carries no name, trip or message text (Google can read it)", () => {

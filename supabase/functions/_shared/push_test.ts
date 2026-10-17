@@ -27,13 +27,19 @@ function row(over: Partial<ClaimedRow> = {}): ClaimedRow {
   return {
     outbox_id: crypto.randomUUID(),
     agent_id: "agent-1",
+    kind: "message",
     conversation_id: CONV,
+    trip_id: null,
     held: false,
+    hold_reason: null,
     message_count: 1,
     client_name: "Jordan Hayes",
     trip_title: "Anniversary Week in Negril",
     preview: "Sending over the confirmation the resort emailed us.",
     latest_created_at: "2026-10-19T08:00:00.123456+00:00",
+    destination: null,
+    start_date: null,
+    end_date: null,
     ...over,
   };
 }
@@ -76,13 +82,13 @@ Deno.test("the morning summary counts messages, not threads, and says overnight 
   ];
   const s = summaryPayload(rows, NOW);
   assertEquals(s.title, "3 new messages while you rested");
-  assertEquals(s.body, "Jordan Hayes and Maya Carter wrote overnight.");
+  assertEquals(s.body, "Jordan Hayes and Maya Carter reached out overnight.");
   assertEquals(s.url, "/agent/messages");
 
   // A Saturday-afternoon message waiting for Monday 07:00 was not "overnight".
   const sunday = summaryPayload([row({ latest_created_at: "2026-10-18T15:00:00+00:00" })], NOW);
   assertEquals(sunday.title, "1 new message while you rested");
-  assertEquals(sunday.body, "Jordan Hayes wrote while you rested.");
+  assertEquals(sunday.body, "Jordan Hayes reached out.");
 });
 
 Deno.test("planForAgent: each live row alone, every held row in one summary", () => {

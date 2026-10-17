@@ -34,9 +34,9 @@ const THREAD: ThreadView = {
     clientCanSignIn: true,
   },
   messages: [
-    { id: "m1", sender: "client", body: "Can we upgrade?", createdAt: "2026-10-12T18:00:00Z", internalNote: false, attachments: [], emailed: false, byEmail: true },
-    { id: "m2", sender: "agent", body: "Margin is 14% on this one", createdAt: "2026-10-12T18:05:00Z", internalNote: true, attachments: [], emailed: false, byEmail: false },
-    { id: "m3", sender: "agent", body: "Yes, it's yours", createdAt: "2026-10-12T18:10:00.123456Z", internalNote: false, attachments: [], emailed: true, byEmail: false },
+    { id: "m1", sender: "client", body: "Can we upgrade?", createdAt: "2026-10-12T18:00:00Z", internalNote: false, attachments: [], emailed: false, byEmail: true, autoReply: false },
+    { id: "m2", sender: "agent", body: "Margin is 14% on this one", createdAt: "2026-10-12T18:05:00Z", internalNote: true, attachments: [], emailed: false, byEmail: false, autoReply: false },
+    { id: "m3", sender: "agent", body: "Yes, it's yours", createdAt: "2026-10-12T18:10:00.123456Z", internalNote: false, attachments: [], emailed: true, byEmail: false, autoReply: false },
   ],
   timeZone: "America/New_York",
   truncated: false,
@@ -65,6 +65,19 @@ describe("AgentThreadView", () => {
     expect(document.getElementById("msg-m1")).toHaveTextContent(/· By email/);
     // A note is never emailed, and says nothing about it.
     expect(document.getElementById("msg-m2")).not.toHaveTextContent(/Emailed|By email/);
+  });
+
+  it("tags an out-of-office automatic reply (§3.12.2)", () => {
+    const thread = {
+      ...THREAD,
+      messages: [
+        ...THREAD.messages,
+        { id: "m4", sender: "agent" as const, body: "Thanks for writing! I'm away resting.", createdAt: "2026-10-12T18:11:00Z", internalNote: false, attachments: [], emailed: false, byEmail: false, autoReply: true },
+      ],
+    };
+    renderWithTheme(<AgentThreadView thread={thread} query={EMPTY_INBOX_QUERY} />);
+    expect(document.getElementById("msg-m4")).toHaveTextContent(/· Automatic reply/);
+    expect(document.getElementById("msg-m3")).not.toHaveTextContent(/Automatic reply/);
   });
 
   it("reads the thread up to its newest message when it opens", async () => {

@@ -12,6 +12,9 @@
  *      (`_shared/email.ts`, card numbers masked); send it over IONOS SMTP.
  *   3. Finish each row: sent (stamping the "Emailed" mark), or back for a retry, or failed on a
  *      5xx (`email_finish`).
+ *   4. §3.12: the advisor's signature goes under their words (`agent_signature_for_conversation`),
+ *      and then the advisor's own alert emails are sent (`agent_alert_email_claim`, Data-Model
+ *      §12.11): who and which trip, with a link, never the client's words.
  *
  * nodemailer 10.0.14, used exactly as docs/SMTP-Library-Security-Review.md §5 requires: port 465
  * with TLS checks on, no file or URL access, no pool, no logging (its logger prints whole
@@ -22,11 +25,14 @@ import { corsHeaders, handlePreflight } from "../_shared/cors.ts";
 import { forbidden, problem } from "../_shared/problem.ts";
 import { serviceClient } from "../_shared/db.ts";
 import {
+  buildAlertEmail,
   buildEmail,
+  type ClaimedAlert,
   type ClaimedEmail,
   classifySmtpError,
   emailConfigFromEnv,
   newToken,
+  type SignatureSource,
   tokenHashParam,
 } from "../_shared/email.ts";
 import { smtpTransport } from "../_shared/smtp.ts";
@@ -59,6 +65,7 @@ Deno.serve(async (req) => {
     if (claimError) throw new Error(`claim failed: ${claimError.message}`);
 
     let sent = 0;
+    let alertsSent = 0;
     let retried = 0;
     let failed = 0;
     const finish = async (outboxId: string, ok: boolean, permanent = false, error: string | null = null) => {
@@ -95,9 +102,17 @@ Deno.serve(async (req) => {
           });
           if (tokenError) throw new Error(`token save failed: ${tokenError.message}`);
 
+          // A failed signature read costs the email its signature, never the email: the advisor's
+          // words still go, with the locked host-agency line.
+          const { data: sigRows, error: sigError } = await db.rpc("agent_signature_for_conversation", {
+            p_conversation_id: row.conversation_id,
+          });
+          if (sigError) console.error("email-dispatch: signature read failed", sigError.message);
+          const signature = (Array.isArray(sigRows) ? sigRows[0] : sigRows) as SignatureSource | null ?? null;
+
           let built;
           try {
-            built = buildEmail(row, tokens, cfg);
+            built = buildEmail(row, tokens, cfg, signature);
           } catch (err) {
             // Nothing honest to send (a bad address, no replies left): retrying cannot help.
             await finish(row.outbox_id, false, true, (err as Error).message);
@@ -118,11 +133,61 @@ Deno.serve(async (req) => {
           await finish(row.outbox_id, false, false, "internal error").catch(() => undefined);
         }
       }
+
+      // §3.12.3: the advisor's alerts, in what is left of the time budget. Anything not reached
+      // stays pending (it is only claimed when there is time to send it).
+      if (Date.now() - started < TIME_BUDGET_MS) {
+        const { data: alerts, error: alertError } = await db.rpc("agent_alert_email_claim", { p_limit: BATCH });
+        if (alertError) throw new Error(`alert claim failed: ${alertError.message}`);
+        for (const alert of (alerts ?? []) as ClaimedAlert[]) {
+          // Out of time: back to waiting with no try counted, so a slow pass never outlasts
+          // the 15-minute stale window and is claimed again under itself (a double send).
+          if (Date.now() - started > TIME_BUDGET_MS) {
+            const { error: releaseError } = await db.rpc("agent_alert_email_release", { p_alert_id: alert.alert_id });
+            if (releaseError) console.error("email-dispatch: alert release failed", releaseError.message);
+            released += 1;
+            continue;
+          }
+          const done = async (ok: boolean, permanent = false, error: string | null = null) => {
+            const { data, error: finishError } = await db.rpc("agent_alert_email_finish", {
+              p_alert_id: alert.alert_id,
+              p_ok: ok,
+              p_permanent: permanent,
+              p_error: error ?? undefined,
+            });
+            if (finishError) throw new Error(`alert finish failed: ${finishError.message}`);
+            if (data === "sent") alertsSent += 1;
+            else if (data === "failed") failed += 1;
+            else retried += 1;
+          };
+          try {
+            let built;
+            try {
+              built = buildAlertEmail(alert, cfg);
+            } catch (err) {
+              await done(false, true, (err as Error).message);
+              continue;
+            }
+            try {
+              const info = await transport.sendMail({ ...built, disableFileAccess: true, disableUrlAccess: true });
+              const rejected = Array.isArray(info?.rejected) ? info.rejected.length : 0;
+              if (rejected > 0) await done(false, true, "550 recipient rejected");
+              else await done(true);
+            } catch (err) {
+              const { permanent, error } = classifySmtpError(err);
+              await done(false, permanent, error);
+            }
+          } catch (err) {
+            console.error("email-dispatch: alert failed", (err as Error)?.message ?? err);
+            await done(false, false, "internal error").catch(() => undefined);
+          }
+        }
+      }
     } finally {
       transport.close();
     }
 
-    return new Response(JSON.stringify({ sent, retried, failed, released }), {
+    return new Response(JSON.stringify({ sent, alertsSent, retried, failed, released }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
   } catch (err) {

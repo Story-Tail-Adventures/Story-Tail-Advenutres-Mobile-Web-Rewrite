@@ -1,4 +1,5 @@
 import {
+  DEFAULT_SIGNATURE,
   DEFAULT_WEEKLY_SCHEDULE,
   scheduleProblem,
   SOCIAL_NETWORKS,
@@ -27,12 +28,19 @@ export type SettingsRow = {
     weeklySchedule?: unknown;
     responseTimeHours?: number | null;
   } | null;
+  notifications?: {
+    clientMessages?: { push?: boolean; email?: boolean } | null;
+    quoteRequests?: { push?: boolean; email?: boolean } | null;
+  } | null;
+  signature?: { text?: string | null; isDefault?: boolean | null } | null;
   today?: string | null;
   timeOff?: Array<{
     id: string;
     startsOn: string;
     endsOn: string;
     label?: string | null;
+    autoReplyEnabled?: boolean | null;
+    autoReplyText?: string | null;
   }> | null;
 };
 
@@ -46,7 +54,25 @@ export type ProfileView = {
   socialLinks: SocialLinks;
 };
 
-export type TimeOffView = { id: string; startsOn: string; endsOn: string; label: string };
+export type TimeOffView = {
+  id: string;
+  startsOn: string;
+  endsOn: string;
+  label: string;
+  autoReplyEnabled: boolean;
+  autoReplyText: string;
+};
+
+/** §3.12.3: the four switches. */
+export type NotificationsView = {
+  clientMessagesPush: boolean;
+  clientMessagesEmail: boolean;
+  quoteRequestsPush: boolean;
+  quoteRequestsEmail: boolean;
+};
+
+/** §3.12.4: what the editor opens with (the default's text when nothing is stored). */
+export type SignatureView = { text: string; isDefault: boolean };
 
 export type AvailabilityView = {
   timeZone: string;
@@ -56,7 +82,12 @@ export type AvailabilityView = {
   timeOff: TimeOffView[];
 };
 
-export type SettingsView = { profile: ProfileView; availability: AvailabilityView };
+export type SettingsView = {
+  profile: ProfileView;
+  availability: AvailabilityView;
+  notifications: NotificationsView;
+  signature: SignatureView;
+};
 
 export function toSettingsView(row: SettingsRow): SettingsView {
   const p = row.profile ?? {};
@@ -89,7 +120,20 @@ export function toSettingsView(row: SettingsRow): SettingsView {
         startsOn: t.startsOn,
         endsOn: t.endsOn,
         label: t.label ?? "",
+        autoReplyEnabled: t.autoReplyEnabled === true,
+        autoReplyText: t.autoReplyText ?? "",
       })),
+    },
+    // The §3.12.3 defaults when the read predates them.
+    notifications: {
+      clientMessagesPush: row.notifications?.clientMessages?.push ?? true,
+      clientMessagesEmail: row.notifications?.clientMessages?.email ?? false,
+      quoteRequestsPush: row.notifications?.quoteRequests?.push ?? true,
+      quoteRequestsEmail: row.notifications?.quoteRequests?.email ?? true,
+    },
+    signature: {
+      text: row.signature?.text ?? DEFAULT_SIGNATURE,
+      isDefault: row.signature?.isDefault ?? true,
     },
   };
 }
