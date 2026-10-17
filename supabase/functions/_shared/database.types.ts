@@ -129,6 +129,7 @@ export type Database = {
           created_at: string
           display_name: string
           email: string
+          email_signature: string | null
           id: string
           phone: string | null
           pronouns: string | null
@@ -144,6 +145,7 @@ export type Database = {
           created_at?: string
           display_name: string
           email: string
+          email_signature?: string | null
           id: string
           phone?: string | null
           pronouns?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           email?: string
+          email_signature?: string | null
           id?: string
           phone?: string | null
           pronouns?: string | null
@@ -202,6 +205,50 @@ export type Database = {
             foreignKeyName: "agent_availability_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: true
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_time_off: {
+        Row: {
+          agent_id: string
+          auto_reply_enabled: boolean
+          auto_reply_text: string | null
+          created_at: string
+          ends_on: string
+          id: string
+          label: string | null
+          starts_on: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          auto_reply_enabled?: boolean
+          auto_reply_text?: string | null
+          created_at?: string
+          ends_on: string
+          id: string
+          label?: string | null
+          starts_on: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          auto_reply_enabled?: boolean
+          auto_reply_text?: string | null
+          created_at?: string
+          ends_on?: string
+          id?: string
+          label?: string | null
+          starts_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_time_off_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "agent"
             referencedColumns: ["id"]
           },
@@ -4050,6 +4097,7 @@ export type Database = {
           trip_id: string
         }[]
       }
+      agent_default_weekly_schedule: { Args: never; Returns: Json }
       agent_delete_itinerary_activity: {
         Args: { p_activity_id: string; p_agent_id: string; p_trip_id: string }
         Returns: {
@@ -4141,6 +4189,7 @@ export type Database = {
           unread_message_count: number
         }[]
       }
+      agent_local_today: { Args: { p_agent_id: string }; Returns: string }
       agent_map_commission_import: {
         Args: {
           p_agent_id: string
@@ -4508,6 +4557,92 @@ export type Database = {
           version: number
         }[]
       }
+      agent_settings_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_audit_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_target_entity: string
+          p_target_id: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      agent_settings_diff: { Args: { p_new: Json; p_old: Json }; Returns: Json }
+      agent_settings_end_time_off: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_id: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_settings_lock: { Args: { p_agent_id: string }; Returns: boolean }
+      agent_settings_save_time_off: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ends_on: string
+          p_id: string
+          p_ip: string
+          p_is_new: boolean
+          p_label: string
+          p_starts_on: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_settings_self: { Args: never; Returns: Json }
+      agent_settings_set_avatar: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_avatar_url: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          previous_url: string
+        }[]
+      }
+      agent_settings_snapshot: { Args: { p_agent_id: string }; Returns: Json }
+      agent_settings_update_availability: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ip: string
+          p_response_time_hours: number
+          p_time_zone: string
+          p_user_agent: string
+          p_weekly_schedule: Json
+        }
+        Returns: string
+      }
+      agent_settings_update_profile: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_bio: string
+          p_display_name: string
+          p_ip: string
+          p_phone: string
+          p_pronouns: string
+          p_social_links: Json
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_social_links_valid: { Args: { p: Json }; Returns: boolean }
       agent_suppliers: {
         Args: never
         Returns: {
@@ -4992,6 +5127,7 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_weekly_schedule_valid: { Args: { p: Json }; Returns: boolean }
       agent_write_client_note: {
         Args: {
           p_actor_user_id: string

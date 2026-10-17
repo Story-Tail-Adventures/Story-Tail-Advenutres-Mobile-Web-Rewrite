@@ -971,26 +971,27 @@ UPDATE public.payment_milestone SET paid_reference = 'SRB-220119-MID'
 
 -- ── Agent availability ───────────────────────────────────────────────────────────
 --
--- Screen 3.2.3's availability layer is deferred because `time_off_blocks` is jsonb with no
--- declared schema — there is nothing to validate a parse against, which is the open item
--- Data-Model §7.4 cites as the reason pipeline_weight is a table instead. The row exists so
--- agent_availability_self() returns something and the deferral is a UI decision rather than
--- an empty read that looks like a bug.
+-- §3.12.2 (2026-10-17). The agent row's insert trigger already created this row with the
+-- default hours, so the seed UPDATES it to something visibly different from the default
+-- (a default-shaped fixture cannot show that a save landed). Fridays end early.
 --
 -- calendar_sync_refresh_token_encrypted stays NULL. A seeded value is how a projection test
 -- starts passing for the wrong reason.
 
-INSERT INTO public.agent_availability (
-    agent_id, weekly_schedule, response_time_hours, time_off_blocks, calendar_sync_provider
-) VALUES (
-    '0195a2c0-1a00-7000-8000-000000000001',
-    '{"mon":["09:00","17:00"],"tue":["09:00","17:00"],"wed":["09:00","17:00"],'
-    '"thu":["09:00","17:00"],"fri":["09:00","15:00"],"sat":[],"sun":[]}'::jsonb,
-    4,
-    '[{"starts_on":"2026-11-26","ends_on":"2026-11-29","reason":"Thanksgiving"},'
-    '{"starts_on":"2026-12-24","ends_on":"2027-01-02","reason":"Christmas"}]'::jsonb,
-    NULL
-);
+UPDATE public.agent_availability
+   SET weekly_schedule =
+           '{"mon":{"start":"09:00","end":"17:00"},"tue":{"start":"09:00","end":"17:00"},'
+           '"wed":{"start":"09:00","end":"17:00"},"thu":{"start":"09:00","end":"17:00"},'
+           '"fri":{"start":"09:00","end":"15:00"},"sat":null,"sun":null}'::jsonb,
+       response_time_hours = 4
+ WHERE agent_id = '0195a2c0-1a00-7000-8000-000000000001';
+
+-- Out-of-office (Data-Model §7.5), formerly the untyped time_off_blocks blob.
+INSERT INTO public.agent_time_off (id, agent_id, starts_on, ends_on, label) VALUES
+    ('0195a2c0-1a00-7000-8000-0000000007f1', '0195a2c0-1a00-7000-8000-000000000001',
+     '2026-11-26', '2026-11-29', 'Thanksgiving'),
+    ('0195a2c0-1a00-7000-8000-0000000007f2', '0195a2c0-1a00-7000-8000-000000000001',
+     '2026-12-24', '2027-01-02', 'Christmas');
 
 
 -- ============================================================

@@ -1,5 +1,4 @@
 import AppBar from "@mui/material/AppBar";
-import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
@@ -7,10 +6,9 @@ import Toolbar from "@mui/material/Toolbar";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 import { AgentQuickAdd, type QuickAddItem } from "@/components/agent/AgentQuickAdd";
-import { AgentSignOutForm } from "@/components/agent/AgentSignOutForm";
+import { AgentAccountMenu } from "@/components/agent/AgentAccountMenu";
 import { BrandMark } from "@/components/brand/BrandMark";
 import NextLink from "@/components/mui/NextLink";
-import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
@@ -33,7 +31,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
  * row: an agent has none, which is the thing the (client) layout's role gate exists to
  * notice.
  *
- * SIGN OUT LIVES HERE, and it is not a nicety. §3.2 redirects an agent off every (client)
+ * SIGN OUT LIVES HERE (since §3.12, inside the avatar menu, AgentAccountMenu), and it is not a nicety. §3.2 redirects an agent off every (client)
  * route, so the one sign-out control on the web — Screen 2.5.1 Account, and the same form
  * inside `UnauthorizedState` — became unreachable for the only role that can fill the
  * worklist: /account, /dashboard, /welcome and /verify-email all land back on /agent. The
@@ -116,31 +114,9 @@ export function AgentTopBar({ initials }: { initials: string }) {
           <Icon name="bell" size={18} />
         </IconButton>
 
-        <Avatar aria-hidden="true" title="Your account" sx={AVATAR_SX}>
-          {initials}
-        </Avatar>
-
-        {/* THE LABEL HIDES BELOW 400px, NOT BELOW `sm`. The bar needs ~395px to seat five
-            controls with the word shown, and `sm` is 640px — which would suppress the word
-            across the entire 400–640px band, not just on the 375px phone the measurement
-            was about. 400px is where the arithmetic actually puts it, so it is a raw media
-            query rather than a breakpoint key.
-
-            `aria-label` AND `title`, because they reach different people. `aria-label` names
-            the button for assistive tech; `title` is all a sighted mouse or touch user gets
-            once the word is off, and below 400px this is the only sign-out control an
-            advisor has on the web.
-
-            The §4.2 touch minimum rides on the form rather than the button, because the
-            shared Button carries the legacy 32px box and exposes no `sx` of its own. */}
-        <AgentSignOutForm sx={SIGN_OUT_FORM_SX}>
-          <Button variant="outlined" size="sm" type="submit" aria-label="Sign out" title="Sign out">
-            <Icon name="lock" size={15} />
-            <Box component="span" sx={SIGN_OUT_LABEL_SX}>
-              Sign out
-            </Box>
-          </Button>
-        </AgentSignOutForm>
+        {/* §3.12 (Q2): the avatar is a menu, Settings and Sign out. Still the LAST control in
+            the bar, so sign-out stays anchored at the right edge at every width. */}
+        <AgentAccountMenu initials={initials} />
       </Toolbar>
     </AppBar>
   );
@@ -183,22 +159,3 @@ const QUICK_ADD_SLOT_SX: SxProps<Theme> = { display: { xs: "none", sm: "flex" } 
 
 // The legacy .btn-icon box, matching ThemeToggle's, so the cluster stays one size.
 const ICON_BUTTON_SX: SxProps<Theme> = { width: 40, height: 40 };
-
-// The prototype's MuiStaTopBar avatar: 36px, primary on its contrast text.
-const AVATAR_SX: SxProps<Theme> = {
-  width: 36,
-  height: 36,
-  fontSize: 13,
-  fontWeight: 600,
-  bgcolor: "primary.main",
-  color: "primary.contrastText",
-};
-
-const SIGN_OUT_FORM_SX: SxProps<Theme> = {
-  "@media (pointer: coarse)": { "& .MuiButton-root": { minHeight: 44 } },
-};
-
-const SIGN_OUT_LABEL_SX: SxProps<Theme> = {
-  display: "none",
-  "@media (min-width:400px)": { display: "inline" },
-};
