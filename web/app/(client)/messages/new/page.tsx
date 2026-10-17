@@ -13,6 +13,7 @@ import {
 import NextLink from "@/components/mui/NextLink";
 import { Icon } from "@/components/ui/Icon";
 import { MESSAGES } from "@/lib/messages/content";
+import { loadAdvisorCard } from "@/lib/client/advisorCardLoad";
 import { NewMessageForm } from "./NewMessageForm";
 
 export const metadata: Metadata = { title: MESSAGES.newTitle };
@@ -33,7 +34,12 @@ export const metadata: Metadata = { title: MESSAGES.newTitle };
  *
  * The subtitle must not promise a quote — see the note in `NewMessageForm`.
  */
-export default function NewConversationPage() {
+export default async function NewConversationPage() {
+  // §3.12 PR 3: the advisor's own photo and reply-time promise (or "Away until…").
+  const card = await loadAdvisorCard();
+  const advisor = card
+    ? { avatarUrl: card.avatarUrl, initials: card.initials, firstName: card.firstName, statusLabel: card.awayLabel ?? card.replyLabel }
+    : null;
   return (
     <Box sx={pageSx(MAX_W_2XL)}>
       <MuiButton
@@ -54,7 +60,7 @@ export default function NewConversationPage() {
         {MESSAGES.newSubtitle}
       </Typography>
 
-      <NewMessageForm />
+      <NewMessageForm advisor={advisor} />
     </Box>
   );
 }

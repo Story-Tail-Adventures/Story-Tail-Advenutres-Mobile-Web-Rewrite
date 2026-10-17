@@ -5358,6 +5358,7 @@ export type Database = {
         Args: { p_time: string }
         Returns: Database["public"]["Enums"]["block_kind"]
       }
+      client_advisor_card: { Args: never; Returns: Json }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
       client_mark_conversation_read: {
         Args: { p_conversation_id: string; p_seen_up_to: string }

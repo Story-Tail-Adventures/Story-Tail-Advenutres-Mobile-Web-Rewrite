@@ -3796,6 +3796,12 @@ Preferences (3.12.3).
 >   the dialog even while it is off. A running block's reply cannot be edited (only ended early).
 > - **The auto-reply's default words** came out of the brand-voice review as "...Your plans are
 >   in good hands." (not "Your trip": a new inquiry has no trip yet).
+> - **PR 3, the client's "Your advisor" card** reads `client_advisor_card()`: only the
+>   client-facing fields (no email, phone, hours or time-away label). The dashboard card shows
+>   photo, name, pronouns, the reply-time promise, a 3-line bio and the links; the conversation
+>   headers and the new-message form show the photo and the promise. While a block runs every
+>   one says "Away until Tuesday, October 20" (the first day back). 24 and 48 hours read as "a
+>   day" and "2 days". A failed read keeps the old fixed words rather than an empty card.
 > - **Signature:** saving the default's exact text stores nothing, so a better default later
 >   still reaches an advisor who never wrote their own. Bare domains become links only with a
 >   common web ending, so "St.Lucia" stays text. The plain-text email puts it after the standard
