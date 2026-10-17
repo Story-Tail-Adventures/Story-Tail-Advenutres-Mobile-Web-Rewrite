@@ -75,12 +75,20 @@ export async function requireUser(req: Request): Promise<AuthContext> {
   // not depend on a client-shaped policy.
   const { data: pu, error: puError } = await serviceClient()
     .from("platform_user")
-    .select("id, role, agent_id, client_id")
+    .select("id, role, agent_id, client_id, account:account_id(locked_at)")
     .eq("account_id", data.user.id)
     .maybeSingle();
 
   if (puError) throw unauthorized("Could not resolve the caller.");
   if (!pu) throw forbidden("This account has no platform user.");
+
+  // §3.9.5: an advisor's lock bans the user in GoTrue and deletes their sessions, so getUser()
+  // above already refuses their old tokens (verified end to end, 2026-10-16). This is the second
+  // wall, in our own data: a locked account changes nothing even if a session outlived the lock
+  // (say, one opened between the ban and the row). Every write goes through an Edge Function.
+  // The words match the "on hold" message the sign-in screen shows.
+  const account = Array.isArray(pu.account) ? pu.account[0] : pu.account;
+  if (account?.locked_at) throw forbidden("This account is on hold.");
 
   const claims = decodeClaims(jwt);
   const amr = Array.isArray(claims.amr) ? (claims.amr as AmrEntry[]) : [];

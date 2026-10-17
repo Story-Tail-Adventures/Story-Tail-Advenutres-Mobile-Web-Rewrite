@@ -3267,6 +3267,105 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Client Account Management.
 **Related screens:** Client Detail.
 
+> **Ruled 2026-10-16 (grilled with Gyasi, "yes" to every recommendation). Web only.** The
+> phone's Client Detail gets nothing from §3.9; these are rare, careful desk tasks. Built in
+> two PRs: **PR 1** is 3.9.1 to 3.9.6 plus the invite, **PR 2** is merge (3.9.7 / 3.3.11).
+>
+> **Where it lives.** Client Detail's disabled "Account admin" tab becomes a live seventh tab:
+> A391's status panel (account, email, MFA, last sign-in, active devices) and its quick
+> actions, each opening A39x's confirm dialog. Login activity (3.9.6) is a section of that
+> tab, not its own page. Merge is a full page, `/agent/clients/[id]/merge` (A3311), opened by
+> Client Detail's Merge button and the tab's Merge action, because a field-by-field picker
+> needs room.
+>
+> **Security floor for every action.**
+> - Every §3.9 Edge Function refuses unless the advisor's session is **aal2**. Verify email and
+>   merge also need the second factor **within the last 15 minutes** (`requireRecentMfa`).
+>   An advisor with no factor sees "Set up two-step sign-in first" and a link to `/mfa/setup`.
+>   (Server-side MFA for every OTHER agent function is a separate follow-up; today only the
+>   web proxy nudges.)
+> - Ownership: the client must be the caller's and not `merged_into`, the same rule every
+>   agent write uses.
+> - Every action writes an `audit_event` row. Nothing a client can use to sign in (a link, a
+>   token hash, an OTP) is ever shown to the advisor, returned to the browser, logged, or put in
+>   an audit row. The server asks GoTrue to MAKE the link (`generateLink`) and mails it itself.
+> - **3 sign-in emails per client per hour** (reset, magic link and invite together), counted
+>   from `audit_event`. The button says why it is paused. Sending through our own mail means
+>   GoTrue's project-wide `email_sent` limit does not apply to these.
+>
+> **The actions.**
+> - **Client with no sign-in yet**: the tab says "Hasn't signed in yet" and offers only
+>   **Send an invite**. It creates their sign-in (`generateLink` type `invite`, carrying this
+>   client's `agent_id` and name) and mails our invite. Accepting it confirms the email, so the
+>   existing adoption trigger binds the new sign-in to this record. Refused when another
+>   unclaimed client has the same email, because adoption would then match nothing (the
+>   advisor is sent to Merge). This replaces the "arrives with §3.9.3" invite deferral.
+>   **It never binds a sign-in someone else made:** generateLink reuses an existing unconfirmed
+>   user, so the bind requires no password and only the email identity (pre-hijack guard,
+>   review 2026-10-16).
+> - **3.9.2 Send reset link** and **3.9.3 Send magic link**: our IONOS email (§3.10 Stage 4
+>   sender) names the advisor ("Gyasi sent you this link because you asked for help signing
+>   in. If you didn't ask, you can ignore it."). Links last **1 hour**, GoTrue's one
+>   `otp_expiry` for every email code (A392's "30 minutes" and A393's "15 minutes" were
+>   corrected). The link lands on a new `/auth/confirm` PAGE with one button, and the token hash
+>   is spent only when a person presses it (a server action calling `verifyOtp`), never on a
+>   GET, because mail scanners open every link and would use it up first (review 2026-10-16).
+>   Admin-made links are not PKCE, so `/auth/callback` cannot finish them. **Reset is
+>   hidden for a client whose only sign-in is Google or Apple** ("Signs in with Google");
+>   magic link still works for them.
+> - **3.9.4 Verify email**: requires a written note of how the advisor confirmed it (at least
+>   20 characters), kept in the audit row, which is written before GoTrue is called. Refused
+>   when the sign-in address and the record's address differ. **Refused when the email matches a DIFFERENT client
+>   record**: confirming an email fires the adoption trigger, which would bind this sign-in to
+>   that other record and its trips. The refusal points to Merge.
+> - **3.9.5 Lock** needs a reason (kept in `account.locked_reason`, never shown to the client).
+>   It **signs them out everywhere**: GoTrue ban (blocks sign-in and refresh), their
+>   `auth.sessions` rows deleted, and `requireUser` refuses a locked account on every Edge
+>   Function at once. A browser already signed in can still READ its own data until its access
+>   token expires (up to an hour); it cannot change anything. No email to the client: if
+>   someone else is in the account, an email would tip them off. **Unlock** reverses all of it
+>   and also needs a reason. A395's "Existing sessions remain" was corrected.
+> - **Sign out everywhere**, separate from Lock, for "I lost my phone": ends every session,
+>   audited, no fresh MFA.
+> - **3.9.6 Login activity**: **successful sign-ins only**, the last **90 days** (`auth_event`
+>   keeps everything for now; a retention job is a later follow-up). Date, device (parsed from
+>   the user agent) and IP. **No location**: there is no geo-IP service, adding one is a new
+>   vendor that receives client IPs, and the business is North America only (A396's Location
+>   column was removed, as §3.3's sessions note already did). Failed password attempts never
+>   open a session, so catching them would need GoTrue's audit log or an auth hook; deferred.
+>   **Flag** marks one sign-in as suspicious (highlighted, audited, can be cleared). It never
+>   locks anything by itself, because automation locks real clients out over hotel Wi-Fi. No
+>   row is highlighted automatically.
+> - **The locked client's message.** "This account is on hold." keeps its wording; its
+>   "Message Gyasi" link (to a `/support` page that never existed, and a locked client cannot
+>   sign in to message anyone) becomes **"Email Gyasi"**, a mailto to info@, on web and phone.
+>
+> **How sign-ins get recorded.** A trigger on `auth.sessions` INSERT (GoTrue opens one row per
+> sign-in by any method, password, OAuth, magic link or invite) writes a `login_success`
+> `auth_event` with the session's IP and user agent and sets `account.last_login_at`. Checked
+> 2026-10-16 that the hosted database grants `postgres` TRIGGER on `auth.sessions`, as it does
+> on `auth.users`, where the sign-up triggers already run.
+>
+> **Merge (PR 2), ruled now.** You pick the record to KEEP; the other becomes `merged_into`
+> pointing at it and is never deleted. **Everything** attached moves: trips (commission rides
+> with them), conversations, notes, companions (both links), documents, travel documents and
+> any retired card rows. The two general (no-trip) threads become one: the retired record's
+> messages move into the kept thread in time order and the empty thread closes. **Sign-ins:**
+> one moves if only the retired record has it; if both records have one, the kept record's
+> stays and the other is locked with the reason "Merged into <name>" (its email in the audit
+> row). **Fields:** each defaults to the kept value, falls back to the retired value when the
+> kept one is empty, and can be flipped; travel preference follows the same rule (one row per
+> client). The email is pinned to the surviving sign-in's email when there is one. The confirm
+> step shows the merged preview and counts ("3 trips, 2 conversations, 5 notes") with fresh
+> MFA; no typed name. **No undo**: the audit row keeps every field value from before, so a
+> mistake can be fixed by hand. **No email to the client.** A397's "trips & cards roll up" and
+> "Best done on desktop" stand (web only anyway).
+>
+> **Owed by Gyasi before release:** point Supabase Auth's own mail (sign-up confirmation, the
+> client's own "Forgot password") at IONOS in the dashboard, as `docs/Email-Provider-Review.md`
+> Q3 already decided. The steps are in the PR 1 description. It does not block the build: the
+> emails an advisor triggers already go through our IONOS mail.
+
 ---
 
 ### 3.10 Messaging & Templates

@@ -99,7 +99,10 @@ export type AgentRead =
   // merge data for one client, trip and milestone.
   | "agent_message_templates"
   | "agent_message_template"
-  | "agent_message_merge_context";
+  | "agent_message_merge_context"
+  // §3.9. One jsonb: the account's status, devices and 90 days of sign-ins, or only
+  // {needsMfa} until the session is aal2 (checked in the database).
+  | "agent_client_account_admin";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -989,6 +992,8 @@ export type AgentFunction =
   // §3.10 Stage 2. Create, edit, duplicate, archive and restore a message template. Not
   // `agent-template`, which is §3.4.13's trip templates.
   | "agent-message-template"
+  // §3.9 Login Support. Nine ops behind one aal2 gate; sign-in links go only by email.
+  | "account-admin"
   // §3.10 Stage 3b. This browser's notifications on (register) or off (sign-out). Never
   // returns a device address.
   | "push-device";
