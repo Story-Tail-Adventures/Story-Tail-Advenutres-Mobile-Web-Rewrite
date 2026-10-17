@@ -583,7 +583,7 @@ CREATE TABLE auth_event_flag (
 | `version` | `integer` | No | Client-visible | Optimistic concurrency |
 
 > **How a record becomes `merged_into` (§3.9 PR 2, October 2026).** Only through
-> `account_admin_merge_clients()` (migration `20261023120000_client_merge`), called by the
+> `account_admin_merge_clients()` (migration `20261024120000_client_merge`), called by the
 > `account-admin` Edge Function's `merge` op. The retired row is kept, never deleted, with
 > `merged_into_client_id` set to the kept record; records merged into it earlier are re-pointed,
 > so a chain is always one hop. Everything that references `client` moves to the kept record:

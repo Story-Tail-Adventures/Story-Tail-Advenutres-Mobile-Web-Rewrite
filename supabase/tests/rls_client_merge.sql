@@ -221,7 +221,8 @@ DELETE FROM public.companion WHERE client_id = :k_client::uuid AND first_name = 
 SELECT pg_temp.assert(
     (SELECT count(*) FROM public.trip WHERE client_id = :maya::uuid) = 5
     AND (SELECT status FROM public.client WHERE id = :maya::uuid) = 'active'
-    AND NOT EXISTS (SELECT 1 FROM public.audit_event WHERE event_type = 'client.merged'),
+    AND NOT EXISTS (SELECT 1 FROM public.audit_event WHERE event_type = 'client.merged'
+                     AND target_id IN (:k_client::uuid, :maya::uuid)),
     'the refusals moved nothing and wrote no merge audit row');
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -397,9 +398,11 @@ VALUES ('0c39b000-0000-7000-8000-000000000013', :agent::uuid, 'Jordan', 'Hayes',
 
 SELECT pg_temp.become(:gyasi::uuid, 'aal1');
 SELECT pg_temp.assert(
-    (public.agent_client_merge_view(:k2_client::uuid) ->> 'needsMfa')::boolean
-    AND public.agent_client_merge_view(:k2_client::uuid) -> 'candidates' IS NULL,
-    'aal1: the read says needsMfa and nothing else');
+    -- {needsMfa} alone, or NULL once agent MFA (PR #139) makes current_agent_id() aal2-only.
+    -- Either way an aal1 session learns nothing about the records.
+    coalesce((public.agent_client_merge_view(:k2_client::uuid) ->> 'needsMfa')::boolean, true)
+    AND (public.agent_client_merge_view(:k2_client::uuid) -> 'candidates') IS NULL,
+    'aal1: the read says needsMfa (or nothing) and never the records');
 
 SELECT pg_temp.become(:gyasi::uuid, 'aal2');
 SELECT pg_temp.assert(
