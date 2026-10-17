@@ -3393,6 +3393,22 @@ export type Database = {
         Args: { p_agent_id: string; p_client_id: string }
         Returns: boolean
       }
+      account_admin_merge_clients: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_choices: Json
+          p_expect_lock_account: string
+          p_ip?: string
+          p_keep_id: string
+          p_keep_version: number
+          p_retire_id: string
+          p_retire_version: number
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
       account_admin_set_flag: {
         Args: {
           p_actor_user_id: string
@@ -3574,6 +3590,10 @@ export type Database = {
           trip_id: string
           trip_title: string
         }[]
+      }
+      agent_client_merge_view: {
+        Args: { p_client_id: string; p_other_id?: string; p_search?: string }
+        Returns: Json
       }
       agent_client_notes: {
         Args: { p_client_id: string }
@@ -4994,6 +5014,33 @@ export type Database = {
       client_mark_conversation_read: {
         Args: { p_conversation_id: string; p_seen_up_to: string }
         Returns: boolean
+      }
+      client_merge_field_list: {
+        Args: never
+        Returns: {
+          field: string
+          ord: number
+          source: string
+        }[]
+      }
+      client_merge_fields: {
+        Args: {
+          p_keep: Json
+          p_keep_pref: Json
+          p_pinned_email: string
+          p_retire: Json
+          p_retire_pref: Json
+        }
+        Returns: Json
+      }
+      client_merge_is_empty: { Args: { p_value: Json }; Returns: boolean }
+      client_merge_preview: {
+        Args: { p_agent_id: string; p_keep_id: string; p_retire_id: string }
+        Returns: Json
+      }
+      client_merge_summary: {
+        Args: { p_client: Database["public"]["Tables"]["client"]["Row"] }
+        Returns: Json
       }
       commission_audit: {
         Args: {

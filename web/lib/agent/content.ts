@@ -287,12 +287,10 @@ export const CLIENT_COPY = {
   paginationPrev: "Previous",
   paginationNext: "Next",
 
-  // FOUR DEFERRALS CAME DUE AND ARE GONE, not rewritten: `rowOpenDeferred`,
+  // FIVE DEFERRALS CAME DUE AND ARE GONE, not rewritten: `rowOpenDeferred`,
   // `rowEditDeferred`, `rowArchiveDeferred` and `bulkDeferred` all named sections that now
   // exist, and none had a call site left once the rows became links and the bulk bar shipped.
-  // Same removal `clientDetailDeferred` got. `mergeDeferred` stays because §3.9 really is
-  // still ahead.
-  mergeDeferred: "Merging clients arrives with §3.9, alongside the account-admin tools it shares a screen with.",
+  // Same removal `clientDetailDeferred` got, and `mergeDeferred` once §3.9's merge shipped.
 
   // ── §3.3.1's bulk-tag bar ──────────────────────────────────────────────
   bulkSelectAll: "Select every client on this page",
@@ -567,6 +565,100 @@ export const ACCOUNT_ADMIN_COPY = {
   flag: "Flag",
   unflag: "Clear flag",
   flagged: "Flagged",
+} as const;
+
+/**
+ * §3.9.7 / §3.3.11 Merge duplicate records. Rulings: docs/Screen-Inventory.md §3.9, "Merge
+ * (PR 2), ruled now". The artboard's SOURCE / TARGET became "Keeping" / "Merging in", because
+ * the ruling has the advisor pick the record to keep, and the words should say which is which.
+ */
+export const MERGE_COPY = {
+  title: "Merge duplicate records",
+  sub: "Pick the record to keep. Everything on the other one moves over, and the change is kept in their history. Best done on a computer.",
+
+  // Picking the other record.
+  pickHeading: "Which record is the duplicate?",
+  pickSub: (name: string) => `These could be the same person as ${name}. Or search for the one you mean.`,
+  searchLabel: "Search your clients",
+  searchPlaceholder: "A name or an email",
+  searchButton: "Search",
+  noCandidates: "Nothing looks like a duplicate. Try searching by name or email.",
+  noResults: "No client matches that search.",
+  reasonEmail: "Same email",
+  reasonPhone: "Same phone",
+  reasonName: "Similar name",
+  reasonSearch: "Matches your search",
+  choose: "Merge with this record",
+  archived: "Archived",
+
+  // The two cards.
+  keeping: "Keeping",
+  mergingIn: "Merging in",
+  summaryLine: (trips: number, joined: string) => `${trips === 1 ? "1 trip" : `${trips} trips`} · joined ${joined}`,
+  signsIn: (email: string) => `Signs in as ${email}`,
+  noSignIn: "Hasn't set up a sign-in",
+  swap: "Keep this one instead",
+  pickAnother: "Pick a different record",
+  notMergeable: "Those two records can't be merged. One of them may already have been merged into another.",
+
+  // The field picker.
+  pickerHeading: "Which details to keep",
+  pickerSub:
+    "Each detail starts with the record you're keeping, or the other one where yours is blank. Pick a value to use it instead.",
+  colField: "Detail",
+  blank: "Blank",
+  pickValueLabel: (field: string, value: string) => `${field}: use ${value}`,
+  pinned: "Matches their sign-in email",
+  sameCount: (n: number) => (n === 1 ? "1 more detail is the same on both." : `${n} more details are the same on both.`),
+  allSame: "Every detail is the same on both records.",
+
+  blockedArchived: "Restore the record you're keeping before merging into it.",
+  blockedCompanions: "Together they'd have more than 12 companions. Archive a few first.",
+
+  cancel: "Cancel",
+  review: "Review the merge",
+
+  // The confirm step.
+  confirmTitle: (name: string) => `Merge into ${name}?`,
+  confirmMoves: (counts: string, from: string) => `Moving over from ${from}'s record: ${counts}.`,
+  nothingMoves: (from: string) => `${from}'s record has nothing else attached.`,
+  confirmResult: "The record you'll have",
+  planMove: (name: string) => `${name}'s sign-in moves over, so they sign in the same way as before.`,
+  planMoveLocked: (name: string) =>
+    `${name}'s sign-in moves over, but it's locked. Unlock it from Account admin once you've checked it's them.`,
+  planLock: (kept: string) =>
+    `Both records have a sign-in. ${kept}'s stays. The other one is locked, and anyone using it is signed out.`,
+  noUndo: "There's no undo button. Every detail from before stays in the client's history, so you can put anything back by hand.",
+  noEmail: "Nothing is emailed to the client.",
+  confirm: "Merge records",
+  working: "Merging…",
+
+  // Results.
+  stale: "One of these records changed since you opened this page. Reload it to see the latest.",
+  failed: "That didn't go through. Try again in a moment.",
+
+  fields: {
+    first_name: "First name",
+    last_name: "Last name",
+    preferred_name: "Goes by",
+    email: "Email",
+    phone: "Phone",
+    date_of_birth: "Date of birth",
+    mailing_address_id: "Mailing address",
+    emergency_contact: "Emergency contact",
+    important_dates: "Important dates",
+    tags: "Tags",
+    notes: "Notes",
+    preferred_destinations: "Dream destinations",
+    travel_styles: "Travel style",
+    budget_band: "Budget",
+    dietary_restrictions: "Dietary needs",
+    dietary_notes: "Dietary notes",
+    accessibility_needs: "Accessibility needs",
+    accessibility_notes: "Accessibility notes",
+    loyalty_programs: "Loyalty programs",
+    favorite_past_trips: "Favorite past trips",
+  } as Record<string, string>,
 } as const;
 
 /** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */

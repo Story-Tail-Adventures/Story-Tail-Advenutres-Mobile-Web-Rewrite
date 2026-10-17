@@ -1951,6 +1951,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > deferred to §3.9**, where it already exists as 3.9.7 ("Same as 3.3.11"); it is the
 > riskiest write in the section and belongs next to the account-admin tools it shares a
 > screen with. The roster's row menu names it with its reason rather than dropping it.
+> **Built 2026-10-16 with §3.9's PR 2**: see the merge note under §3.9.7.
 >
 > **`client.lifetime_value_cents` is not what the money column reads, and the reason is a
 > defect in this document.** Data-Model §6.1 calls the column "Computed; cached for
@@ -3360,6 +3361,34 @@ These tools let the agent help less-technical clients with login issues.
 > MFA; no typed name. **No undo**: the audit row keeps every field value from before, so a
 > mistake can be fixed by hand. **No email to the client.** A397's "trips & cards roll up" and
 > "Best done on desktop" stand (web only anyway).
+>
+> **Merge built 2026-10-16 (PR 2), on the web.** `/agent/clients/[id]/merge`, A3311. The record
+> in the URL is the one KEPT; `?with=` names the one merging in, and "Keep this one instead" is
+> the other record's own merge page. Without `?with=` the page lists likely duplicates in the
+> same book (same email, same phone digits, a similar name) and offers a search. Client
+> Detail's Merge button and the Account admin tab's Merge tile (also on the "Hasn't signed in
+> yet" card, the commonest duplicate) open it, and the "arrives with §3.9" deferral is gone.
+> Where the build differs from the artboard, and why:
+>
+> - SOURCE / TARGET read **"Merging in" / "Keeping"**, so the words say which record survives.
+> - Each detail is **one choice between the two values** (a radio pair), not the artboard's
+>   Source / Target / "Both → keep target" chips, because the ruling is "kept value, else the
+>   retired one, flippable". The artboard's **"Merge" chip for tags (a union) was not ruled**,
+>   so tags pick one side like every other detail. Only details that differ are drawn; the
+>   rest are one line ("4 more details are the same on both").
+> - "Preview merged record" and "Merge clients" became one **Review the merge** button: the
+>   confirm step IS the preview (the record you'll have, the counts, the sign-in plan, no undo,
+>   no email).
+> - The **card tables** the ruling lists were dropped by §3.6 (2026-10-16), so nothing of theirs
+>   is left to move. `testimonial` and `client_invite` also point at a client and move too; a
+>   live invite to the retired record is revoked.
+> - Refused with a sentence: keeping an **archived** record (restore it first), and a merge
+>   that would leave **more than 12 companions** (the existing cap). A companion that is the
+>   other record itself is closed by the merge.
+> - The general thread: the advisor's unread count carries over (a client message they had not
+>   read stays unread) without queuing a new push; the client's is not raised, so no reply
+>   email is queued. A locked sign-in's pending reply emails are cleared. A sign-in that moves
+>   over while locked stays locked, and the confirm step says so.
 >
 > **Owed by Gyasi before release:** point Supabase Auth's own mail (sign-up confirmation, the
 > client's own "Forgot password") at IONOS in the dashboard, as `docs/Email-Provider-Review.md`

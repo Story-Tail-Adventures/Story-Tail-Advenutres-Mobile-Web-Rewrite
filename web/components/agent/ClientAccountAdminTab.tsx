@@ -26,7 +26,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { TextareaField } from "@/components/ui/Textarea";
 import type { AccountAdminView } from "@/lib/agent/accountAdminView";
-import { ACCOUNT_ADMIN_COPY as C, CLIENT_COPY } from "@/lib/agent/content";
+import { ACCOUNT_ADMIN_COPY as C } from "@/lib/agent/content";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
@@ -69,6 +69,7 @@ export function ClientAccountAdminTab({
   const [status, setStatus] = useState<{ ok: boolean; message: string; duplicateClientId?: string | null } | null>(null);
   const [rowPending, startRow] = useTransition();
 
+  const mergeHref = `/agent/clients/${clientId}/merge`;
   const email = view.kind === "account" ? view.email : view.kind === "no-sign-in" ? view.email ?? "" : "";
 
   function done(result: { ok: boolean; message: string; duplicateClientId?: string | null }) {
@@ -117,7 +118,7 @@ export function ClientAccountAdminTab({
               <Typography variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
                 {C.noSignInBody(view.firstName)}
               </Typography>
-              <Box sx={{ mt: 1.75 }}>
+              <Stack spacing={1} sx={{ mt: 1.75 }}>
                 <ActionTile
                   icon="mail"
                   label={C.actionInvite}
@@ -138,7 +139,8 @@ export function ClientAccountAdminTab({
                     })
                   }
                 />
-              </Box>
+                <ActionTile icon="users" label={C.actionMerge} href={mergeHref} />
+              </Stack>
               {view.sendsLeft > 0 && view.sendsLeft < 3 && (
                 <Typography variant="caption" sx={{ display: "block", mt: 1, color: "text.secondary" }}>
                   {C.sendsLeft(view.sendsLeft)}
@@ -154,6 +156,7 @@ export function ClientAccountAdminTab({
             open={setSpec}
             onFlag={flag}
             rowPending={rowPending}
+            mergeHref={mergeHref}
           />
         )}
       </Box>
@@ -169,7 +172,7 @@ export function ClientAccountAdminTab({
   );
 }
 
-function MfaGate({ hasFactor, returnTo }: { hasFactor: boolean; returnTo: string }) {
+export function MfaGate({ hasFactor, returnTo }: { hasFactor: boolean; returnTo: string }) {
   const href = hasFactor
     ? `/login/mfa?next=${encodeURIComponent(returnTo)}`
     : `/mfa/setup?next=${encodeURIComponent(returnTo)}`;
@@ -202,11 +205,13 @@ function AccountView({
   open,
   onFlag,
   rowPending,
+  mergeHref,
 }: {
   view: Extract<AccountAdminView, { kind: "account" }>;
   open: (spec: ConfirmSpec) => void;
   onFlag: (id: string, on: boolean) => void;
   rowPending: boolean;
+  mergeHref: string;
 }) {
   const name = view.firstName;
   const capped = view.sendsLeft === 0 ? C.sendsLeft(0) : null;
@@ -301,7 +306,7 @@ function AccountView({
                   })
                 }
               />
-              <ActionTile icon="users" label={C.actionMerge} blocked={CLIENT_COPY.mergeDeferred} />
+              <ActionTile icon="users" label={C.actionMerge} href={mergeHref} />
               {view.locked ? (
                 <ActionTile
                   icon="lock"
@@ -490,20 +495,24 @@ function ActionTile({
   blocked = null,
   blockedLink = null,
   onClick,
+  href,
 }: {
   icon: IconName;
   label: string;
   blocked?: string | null;
   blockedLink?: string | null;
   onClick?: () => void;
+  /** A tile that opens a page (Merge) rather than a confirm dialog. */
+  href?: string;
 }) {
   // aria-disabled, not disabled: a disabled button leaves the tab order, and the reason it
   // carries would be skipped by exactly the keyboard and screen-reader users who need it.
-  const disabled = Boolean(blocked) || !onClick;
+  const disabled = Boolean(blocked) || (!onClick && !href);
   const reasonId = useId();
   return (
     <Paper variant="outlined" sx={{ overflow: "hidden" }}>
       <ButtonBase
+        {...(href && !disabled ? { component: NextLink, href } : {})}
         onClick={disabled ? undefined : onClick}
         aria-disabled={disabled || undefined}
         aria-describedby={blocked ? reasonId : undefined}

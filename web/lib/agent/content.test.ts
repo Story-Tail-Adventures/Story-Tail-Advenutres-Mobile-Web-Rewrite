@@ -176,15 +176,13 @@ describe("the bulk-tag bar's own strings", () => {
     expect(bar).not.toMatch(/\bmessage\b|\bemail\b|\bexport\b/i);
   });
 
-  it("dropped the four deferrals that came due", () => {
+  it("dropped the five deferrals that came due", () => {
     // A deferral naming a section that now exists is worse than no sentence — it comes due
-    // and nothing arrives. §3.3.2, §3.3.10, §3.3.12 and the bulk action all shipped.
+    // and nothing arrives. §3.3.2, §3.3.10, §3.3.12, the bulk action and §3.9's merge shipped.
     const copy = CLIENT_COPY as Record<string, unknown>;
-    for (const gone of ["rowOpenDeferred", "rowEditDeferred", "rowArchiveDeferred", "bulkDeferred"]) {
+    for (const gone of ["rowOpenDeferred", "rowEditDeferred", "rowArchiveDeferred", "bulkDeferred", "mergeDeferred"]) {
       expect(copy[gone]).toBeUndefined();
     }
-    // §3.9 has not, so this one stays.
-    expect(CLIENT_COPY.mergeDeferred).toMatch(/§3\.9/);
   });
 });
 

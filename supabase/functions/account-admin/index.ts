@@ -1,16 +1,18 @@
 /**
- * §3.9 Login Support: every button on Client Detail's Account admin tab. Screens 3.9.1 to 3.9.6
- * and the invite. Rulings: docs/Screen-Inventory.md §3.9 (2026-10-16).
+ * §3.9 Login Support: every button on Client Detail's Account admin tab, and the merge page.
+ * Screens 3.9.1 to 3.9.7 (3.9.7 is 3.3.11) and the invite. Rulings: docs/Screen-Inventory.md
+ * §3.9 (2026-10-16).
  *
- * ONE FUNCTION, NINE OPS, matching `agent-client`: each is `requireUser` → `requireAgentId` →
- * the MFA gate → the snapshot → one action, and nine copies of that preamble would be nine
+ * ONE FUNCTION, TEN OPS, matching `agent-client`: each is `requireUser` → `requireAgentId` →
+ * the MFA gate → the snapshot → one action, and ten copies of that preamble would be ten
  * places to forget the gate.
  *
  * ── THE MFA GATE ───────────────────────────────────────────────────────────────
  *
- * Every op needs an aal2 session. `verify_email` also needs the second factor within the last
- * 15 minutes (`requireRecentMfa`): marking an address verified that the advisor did not see
- * verified is where a stolen laptop does real harm. Lock does NOT need a fresh factor, because
+ * Every op needs an aal2 session. `verify_email` and `merge` also need the second factor within
+ * the last 15 minutes (`requireRecentMfa`): marking an address verified that the advisor did not
+ * see verified, or folding one person's trips into another's, is where a stolen laptop does real
+ * harm. Lock does NOT need a fresh factor, because
  * locking has to be fast.
  *
  * ── NOTHING A CLIENT CAN SIGN IN WITH LEAVES THIS FUNCTION EXCEPT BY EMAIL ────
@@ -25,6 +27,14 @@
  * GoTrue's ban (Admin API) and our row (`account_admin_set_lock`) cannot share a transaction.
  * So the Admin API goes FIRST and the row second, and a failed row undoes the Admin API call:
  * a ban with no row would leave the tab saying "Active" about a client who cannot sign in.
+ *
+ * ── MERGE ───────────────────────────────────────────────────────────────────────
+ *
+ * When both records have a sign-in, the retired one is locked, and its GoTrue ban is the same
+ * two halves as a lock: ban FIRST, then `account_admin_merge_clients` (which locks the row
+ * through `account_admin_set_lock` inside its own transaction), and a merge that does not land
+ * lifts the ban again, unless the account was already locked before. The SQL is told which
+ * account was banned and answers `stale` if that is no longer the sign-in it would lock.
  *
  * ── ANSWERS ─────────────────────────────────────────────────────────────────────
  *
@@ -55,6 +65,7 @@ const OPS = [
   "sign_out_everywhere",
   "flag",
   "unflag",
+  "merge",
 ] as const;
 type Op = (typeof OPS)[number];
 
@@ -269,6 +280,128 @@ async function sendSignInEmail(
   return json({ outcome: "sent", kind });
 }
 
+// ── Merge (3.9.7 / 3.3.11) ───────────────────────────────────────────────────
+
+/** client_merge_preview(), the parts this function decides from. */
+interface MergePreview {
+  keep: { version: number };
+  retire: { version: number; signIn: { accountId: string; locked: boolean } | null };
+  signInPlan: "none" | "keep" | "move" | "lock_retired";
+  blocked: "kept_archived" | "companion_cap" | null;
+}
+
+const MERGE_REFUSALS: Record<string, string> = {
+  kept_archived: "Restore the record you're keeping before merging into it.",
+  companion_cap: "Together they'd have more than 12 companions. Archive a few first.",
+  name_required: "The record you keep needs a first and last name.",
+};
+
+function version(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw badRequest(`${field} must be a positive integer.`);
+  }
+  return value;
+}
+
+function choices(value: unknown): Record<string, "keep" | "retire"> {
+  if (value === undefined) return {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw badRequest("choices must be an object.");
+  }
+  const out: Record<string, "keep" | "retire"> = {};
+  for (const [key, pick] of Object.entries(value)) {
+    if (!/^[a-z_]{1,40}$/.test(key) || (pick !== "keep" && pick !== "retire")) {
+      throw badRequest("Each choice is a field name and \"keep\" or \"retire\".");
+    }
+    out[key] = pick;
+  }
+  return out;
+}
+
+async function mergeClients(
+  ctx: AuthContext,
+  db: Db,
+  agentId: string,
+  keepId: string,
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  requireRecentMfa(ctx, 900);
+  if (!isUuid(payload.otherClientId)) throw badRequest("otherClientId must be a uuid.");
+  const retireId = payload.otherClientId;
+  const keepVersion = version(payload.keepVersion, "keepVersion");
+  const retireVersion = version(payload.otherVersion, "otherVersion");
+  const picks = choices(payload.choices);
+
+  const { data: raw, error: previewError } = await db.rpc("client_merge_preview", {
+    p_agent_id: agentId,
+    p_keep_id: keepId,
+    p_retire_id: retireId,
+  });
+  if (previewError) throw new Error(`merge preview failed: ${previewError.message}`);
+  if (!raw) throw notFound("No such client.");
+  const preview = raw as unknown as MergePreview;
+
+  if (preview.blocked) return json({ outcome: "refused", reason: MERGE_REFUSALS[preview.blocked] });
+  if (preview.keep.version !== keepVersion || preview.retire.version !== retireVersion) {
+    return json({ outcome: "stale" });
+  }
+
+  // Both sign in: ban the retired one first. See the header.
+  const lockAccount = preview.signInPlan === "lock_retired" ? preview.retire.signIn?.accountId ?? null : null;
+  const wasLocked = Boolean(preview.retire.signIn?.locked);
+  const ban = (duration: string) => db.auth.admin.updateUserById(lockAccount!, { ban_duration: duration });
+  if (lockAccount) {
+    const first = await ban(BAN_FOREVER);
+    if (first.error) throw new Error(`ban failed: ${first.error.status} ${first.error.code}`);
+  }
+
+  let data: unknown = null;
+  let error: { code?: string; message: string } | null = null;
+  let thrown: unknown = null;
+  try {
+    ({ data, error } = await db.rpc("account_admin_merge_clients", {
+      p_agent_id: agentId,
+      p_audit_id: uuidV7(),
+      p_keep_id: keepId,
+      p_retire_id: retireId,
+      p_keep_version: keepVersion,
+      p_retire_version: retireVersion,
+      p_choices: picks,
+      // The generated types say `string`; the SQL takes NULL for "banned nothing".
+      p_expect_lock_account: lockAccount as string,
+      ...audit(ctx),
+    }));
+  } catch (err) {
+    thrown = err;
+  }
+  const result = data as { outcome?: string; reason?: string; counts?: Record<string, number> } | null;
+
+  if (thrown || error || result?.outcome !== "merged") {
+    if (lockAccount && !wasLocked) {
+      // A thrown call is ambiguous: the merge may have committed and only the answer was lost.
+      // The row says which, so the ban is lifted only when the account is not locked.
+      const { data: acct } = await db.from("account").select("locked_at").eq("id", lockAccount).maybeSingle();
+      if (!acct?.locked_at) {
+        const undo = await ban("none");
+        if (undo.error) console.error("[account-admin] could not lift the merge ban", { status: undo.error.status });
+      }
+    }
+    if (thrown) throw thrown;
+    if (error) {
+      // A field the picker does not offer, from a hand-made request.
+      if (error.code === "22023") throw badRequest("One of those choices isn't a field the merge offers.");
+      throw new Error(`merge failed: ${error.message}`);
+    }
+    if (result?.outcome === "not_found") throw notFound("No such client.");
+    if (result?.outcome === "refused") {
+      return json({ outcome: "refused", reason: MERGE_REFUSALS[result.reason ?? ""] ?? null });
+    }
+    return json({ outcome: "stale" });
+  }
+
+  return json({ outcome: "merged", keptClientId: keepId, counts: result!.counts ?? {} });
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -287,6 +420,10 @@ Deno.serve(async (req) => {
     const op = requireOp(payload.op);
     if (!isUuid(payload.clientId)) throw badRequest("clientId must be a uuid.");
     const clientId = payload.clientId;
+
+    if (op === "merge") {
+      return await mergeClients(ctx, db, agentId, clientId, payload);
+    }
 
     if (op === "reset" || op === "magic_link" || op === "invite") {
       return await sendSignInEmail(ctx, db, agentId, clientId, op);
