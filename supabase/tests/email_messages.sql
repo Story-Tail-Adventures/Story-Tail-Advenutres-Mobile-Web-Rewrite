@@ -251,11 +251,17 @@ SELECT pg_temp.assert(
     'a partial read moves the email past what the client already saw');
 
 -- Each reply pushes the send out, but never past 30 minutes after the first one waiting.
-UPDATE public.email_outbox SET first_message_at = now() - interval '1 hour', due_at = now() + interval '1 day'
+-- The first reply is pinned to a weekday noon in the client's own zone, NOT now() - 1 hour:
+-- the cap still goes through push_due_at, so a cap that lands in the client's rest hours
+-- (9pm to 7am, Sunday) rightly waits for morning, and a run at 4am Chicago failed this.
+SELECT ('2026-10-14 12:00'::timestamp AT TIME ZONE pu.time_zone) AS first_at
+  FROM public.platform_user pu WHERE pu.id = :jordan_user::uuid \gset
+UPDATE public.email_outbox SET first_message_at = :'first_at'::timestamptz, due_at = now() + interval '1 day'
  WHERE id = :obb::uuid;
 SELECT pg_temp.advisor_says(:conv::uuid, :r8::uuid, 'Reply C: and sunscreen.', false);
 SELECT pg_temp.assert(
-    (SELECT due_at <= now() FROM public.email_outbox WHERE id = :obb::uuid),
+    (SELECT due_at = :'first_at'::timestamptz + interval '30 minutes' AND due_at <= now()
+       FROM public.email_outbox WHERE id = :obb::uuid),
     'a long back-and-forth cannot keep deferring the email');
 UPDATE public.email_outbox SET state = 'cleared' WHERE state = 'pending';
 

@@ -57,15 +57,32 @@ describe("sitemap", () => {
 describe("robots", () => {
   const result = robots();
 
-  it("allows everything except the auth-gated trees", () => {
+  it("allows everything except the auth-gated trees and the search results", () => {
     expect(result.rules).toEqual({ userAgent: "*", allow: "/", disallow: [...ROBOTS_DISALLOW] });
-    expect(ROBOTS_DISALLOW).toEqual(["/dashboard", "/trips", "/account", "/agent", "/auth/", "/api/", "/quote"]);
+    expect(ROBOTS_DISALLOW).toEqual([
+      "/dashboard",
+      "/trips",
+      "/account",
+      "/agent",
+      "/auth/",
+      "/api/",
+      "/quote",
+      "/explore/results",
+    ]);
   });
 
-  it("does not block the noindex pages — crawlers must fetch them to see the noindex", () => {
-    for (const path of ["/", "/join", "/explore", "/explore/results", "/legal/privacy"]) {
+  it("does not block the other noindex pages — crawlers must fetch them to see the noindex", () => {
+    for (const path of ["/", "/join", "/explore", "/legal/privacy"]) {
       expect(ROBOTS_DISALLOW).not.toContain(path);
     }
+  });
+
+  it("blocks the endless results URLs but leaves the search entry and topic pages crawlable", () => {
+    // robots.txt matches by prefix, so check every rule against each path.
+    const blocked = (path: string) => ROBOTS_DISALLOW.some((rule) => path.startsWith(rule));
+    expect(blocked("/explore/results?mode=hotels&sort=price")).toBe(true);
+    expect(blocked("/explore")).toBe(false);
+    expect(blocked("/explore/caribbean")).toBe(false);
   });
 
   it("points at the sitemap on the same origin", () => {

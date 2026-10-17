@@ -35,10 +35,27 @@ export const STATIC_PUBLIC_PATHS = [
 /**
  * Auth-gated trees crawlers should not enter (web/lib/supabase/middleware.ts PROTECTED_PREFIXES
  * plus the auth callback), and /quote, which only redirects into the sign-up gate and has no
- * page of its own. The noindex pages are deliberately NOT here: a crawler has to be able to
- * fetch /join and /explore/results to see their `noindex`.
+ * page of its own. The noindex pages are otherwise NOT here: a crawler has to be able to fetch
+ * a page like /join to see its `noindex`.
+ *
+ * /explore/results is the exception. Every chip, sort and mode link gives it a new URL, so the
+ * filter space is endless, and a crawler walked it nonstop: 55K requests and 2.3 GB of Fast
+ * Data Transfer in 12 hours (2026-10-17), against about 15 real views a month, which put the
+ * Hobby plan over its limit. Its `follow: false` only works once the page has been fetched, so
+ * it could not stop that. Blocking it costs nothing, because /explore is the canonical entry
+ * and the only results URL a search engine should keep. The prefix leaves /explore and
+ * /explore/[slug] crawlable.
  */
-export const ROBOTS_DISALLOW = ["/dashboard", "/trips", "/account", "/agent", "/auth/", "/api/", "/quote"] as const;
+export const ROBOTS_DISALLOW = [
+  "/dashboard",
+  "/trips",
+  "/account",
+  "/agent",
+  "/auth/",
+  "/api/",
+  "/quote",
+  "/explore/results",
+] as const;
 
 /** `base` is an origin with no trailing slash (env.siteUrl); `path` starts with "/". */
 export function absoluteUrl(base: string, path: string): string {
