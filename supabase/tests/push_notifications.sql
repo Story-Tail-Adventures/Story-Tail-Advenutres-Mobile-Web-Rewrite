@@ -11,8 +11,8 @@
 --      only the caller's own.
 --   6. Everything is service-role only.
 --
--- The rest-hours edges are asserted in the migration itself (push_due_at). Here `held` is
--- checked against push_due_at(now()), because now() is the real clock in this transaction.
+-- The rest-hours edges are asserted in rls_agent_alerts.sql (agent_rest_until, fixed times). Here
+-- `held` is checked against agent_rest_until(now()), because now() is the real clock here.
 --
 -- Run against a freshly reset local database:
 --     supabase db reset
@@ -128,9 +128,13 @@ SELECT pg_temp.assert(
        FROM public.push_outbox),
     'a client message queues one pending notification about it');
 SELECT pg_temp.assert(
-    (SELECT held = (public.push_due_at(now(), (SELECT time_zone FROM public.agent WHERE id = :agent::uuid)) > now())
+    -- §3.12 (20261026130000): an advisor's rest hours are their working hours and time away,
+    -- decided by agent_rest_until(); push_due_at() is the clients' fixed rule now. Checked
+    -- against the advisor's own rule, so this holds at any hour of the day CI runs.
+    (SELECT held = ((SELECT r.due_at FROM public.agent_rest_until(:agent::uuid, now()) r) > now())
+            AND (held = (hold_reason IS NOT NULL))
        FROM public.push_outbox),
-    'held is exactly "this fell in rest hours"');
+    'held is exactly "this fell in rest hours" (the advisor''s working hours), and says why');
 
 SELECT pg_temp.client_says(:m3::uuid, 'And a late checkout!', :jordan_user::uuid);
 SELECT pg_temp.assert(

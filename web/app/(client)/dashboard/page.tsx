@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
 import MuiButton from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -12,6 +13,8 @@ import { PayLinkBlock } from "@/components/client/PayLinkBlock";
 import { EmptyState } from "@/components/client/states";
 import { RetryState } from "@/components/client/RetryState";
 import NextLink from "@/components/mui/NextLink";
+import type { AdvisorCardView } from "@/lib/client/advisorCard";
+import { loadAdvisorCard } from "@/lib/client/advisorCardLoad";
 import { Photo } from "@/components/public/Photo";
 import { Icon } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
@@ -111,7 +114,8 @@ export default async function DashboardPage() {
   // differently on the two stacks.
   const rawName = client?.preferred_name?.trim() || client?.first_name?.trim();
   const name = rawName && rawName !== "New" ? rawName : "there";
-  const data = await loadDashboard();
+  // §3.12 PR 3: the advisor's own card. A failed read keeps the long-standing fixed words.
+  const [data, advisor] = await Promise.all([loadDashboard(), loadAdvisorCard()]);
 
   if (!data) {
     return (
@@ -180,6 +184,7 @@ export default async function DashboardPage() {
                 the card drops the quote and keeps the reply-window line, which is exactly
                 what somebody waiting for an answer wants to see. */}
             <AdvisorCard
+              advisor={advisor}
               preview={latestMessage?.fromAgent ? latestMessage.body : undefined}
               tripId={upcoming.id}
             />
@@ -341,34 +346,79 @@ function NextPayment({
   );
 }
 
-function AdvisorCard({ preview, tripId }: { preview?: string; tripId: string }) {
+/**
+ * §3.12 PR 3 (Q11): "Your advisor", from the advisor's own profile: photo, name, pronouns,
+ * the reply-time promise (or "Away until…" while they rest), a short bio and their links.
+ * `advisor` is null when the read failed; the card then keeps its long-standing words.
+ */
+function AdvisorCard({
+  advisor,
+  preview,
+  tripId,
+}: {
+  advisor: AdvisorCardView | null;
+  preview?: string;
+  tripId: string;
+}) {
   return (
     <Card>
       <CardContent sx={CARD_PAD_14}>
+        <Typography component="p" variant="overline" sx={{ display: "block", lineHeight: 1.3, color: "text.secondary", mb: 0.75 }}>
+          {DASHBOARD.advisorLabel}
+        </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          {/* The legacy `.avatar.sm`: 24px, 10px initials, the tertiary-container pair. */}
           <Avatar
             aria-hidden="true"
+            src={advisor?.avatarUrl ?? undefined}
             sx={{
-              width: 24,
-              height: 24,
-              fontSize: 10,
+              width: 40,
+              height: 40,
+              fontSize: 14,
               fontWeight: 600,
               bgcolor: "tertiary.container",
               color: "tertiary.onContainer",
             }}
           >
-            GS
+            {advisor?.initials ?? "GS"}
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography component="div" variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
-              {DASHBOARD.advisorName} · {DASHBOARD.advisorRole}
+              {advisor?.firstName ?? DASHBOARD.advisorName} · {DASHBOARD.advisorRole}
+              {advisor?.pronouns ? (
+                <Typography component="span" variant="caption" sx={{ ml: 0.75, color: "text.secondary", fontWeight: 400 }}>
+                  ({advisor.pronouns})
+                </Typography>
+              ) : null}
             </Typography>
-            <Typography component="div" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
-              {DASHBOARD.advisorReplyTime}
+            <Typography
+              component="div"
+              variant="caption"
+              sx={{ display: "block", color: advisor?.awayLabel ? "text.primary" : "text.secondary", fontWeight: advisor?.awayLabel ? 600 : 400 }}
+            >
+              {advisor?.awayLabel ?? advisor?.replyLabel ?? DASHBOARD.advisorReplyTime}
             </Typography>
           </Box>
         </Box>
+        {advisor?.bio ? (
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{ mt: 1, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}
+          >
+            {advisor.bio}
+          </Typography>
+        ) : null}
+        {advisor && advisor.links.length > 0 ? (
+          <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, mt: 0.75, display: "flex", flexWrap: "wrap", gap: 1.25 }}>
+            {advisor.links.map((l) => (
+              <li key={l.label}>
+                <MuiLink href={l.href} target="_blank" rel="noopener noreferrer" variant="caption">
+                  {l.label}
+                </MuiLink>
+              </li>
+            ))}
+          </Box>
+        ) : null}
         {preview && (
           <Typography component="p" variant="caption" sx={{ display: "block", mt: 1, color: "text.secondary" }}>
             “{preview}”

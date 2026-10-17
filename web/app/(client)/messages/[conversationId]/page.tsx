@@ -23,6 +23,7 @@ import { ThreadMessages } from "@/components/client/thread/ThreadMessages";
 import { MarkConversationRead } from "@/components/client/thread/MarkConversationRead";
 import { ThreadScroll } from "@/components/client/thread/ThreadScroll";
 import NextLink from "@/components/mui/NextLink";
+import { loadAdvisorCard } from "@/lib/client/advisorCardLoad";
 import { Icon } from "@/components/ui/Icon";
 import { sendConversationMessage } from "@/lib/messages/actions";
 import { MESSAGES } from "@/lib/messages/content";
@@ -64,10 +65,12 @@ export default async function ConversationThreadPage({
 }) {
   const { conversationId } = await params;
 
-  const [thread, conversations, me] = await Promise.all([
+  const [thread, conversations, me, advisor] = await Promise.all([
     loadConversationThread(conversationId),
     loadInbox(),
     currentPlatformUser(),
+    // §3.12 PR 3: the advisor's own photo, reply-time promise and "Away until".
+    loadAdvisorCard(),
   ]);
 
   // No row, not yours, and archived are one answer here, exactly as they are in the Edge
@@ -100,8 +103,8 @@ export default async function ConversationThreadPage({
               <Icon name="arrow_left" size={18} />
             </IconButton>
 
-            <Avatar aria-hidden="true" sx={advisorAvatarSx(36, 12)}>
-              {MESSAGES.advisorInitials}
+            <Avatar aria-hidden="true" src={advisor?.avatarUrl ?? undefined} sx={advisorAvatarSx(36, 12)}>
+              {advisor?.initials ?? MESSAGES.advisorInitials}
             </Avatar>
 
             <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -109,7 +112,7 @@ export default async function ConversationThreadPage({
                 {thread.title}
               </Typography>
               <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
-                {MESSAGES.replyWindow}
+                {advisor?.awayLabel ?? advisor?.replyLabel ?? MESSAGES.replyWindow}
               </Typography>
             </Box>
 
