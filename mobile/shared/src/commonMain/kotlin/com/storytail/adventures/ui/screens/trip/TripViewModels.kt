@@ -15,6 +15,7 @@ import com.storytail.adventures.api.TripDocumentsSnapshot
 import com.storytail.adventures.api.TripThreadSnapshot
 import com.storytail.adventures.api.TripsList
 import com.storytail.adventures.domain.trip.DocumentMessages
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.ThreadMessages
 import com.storytail.adventures.domain.trip.ivePaidMessage
@@ -25,6 +26,7 @@ import com.storytail.adventures.ui.components.client.ThreadSurface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 
@@ -288,10 +290,16 @@ class ThreadViewModel(
         read()
     }
 
+    /** §3.12 PR 3: the advisor's photo and "Away until" / reply promise for the header. */
+    private var advisor: AdvisorCard? = null
+
     private fun read() {
         viewModelScope.launch {
+            val advisorCall = async { trips.advisorCard() }
             val result = trips.tripThread(tripId)
-            if (result != null) _state.value = Loadable.Ready(result.toSurface())
+            // A failed advisor read keeps the last one (or the fixed words), never blanks it.
+            advisor = advisorCall.await() ?: advisor
+            if (result != null) _state.value = Loadable.Ready(result.toSurface(advisor))
             else if (_state.value !is Loadable.Ready) _state.value = Loadable.Failed()
             markReadIfUnread(result)
         }
@@ -330,7 +338,7 @@ class ThreadViewModel(
                     // record, and a locally-appended bubble would show a message that might
                     // not have the id, timestamp or ordering the server gave it.
                     val refreshed = trips.tripThread(tripId)
-                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface())
+                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface(advisor))
                     // The reload can show the advisor's reply that came in while they typed.
                     markReadIfUnread(refreshed)
                 }
@@ -350,13 +358,15 @@ class ThreadViewModel(
  * belongs to the client — what THEY have not read — and 2.6.2 shows the reply-window promise
  * instead, because its list already carries a badge for the same number.
  */
-private fun TripThreadSnapshot.toSurface(): ThreadSurface = ThreadSurface(
+private fun TripThreadSnapshot.toSurface(advisor: AdvisorCard?): ThreadSurface = ThreadSurface(
     title = "Gyasi · $tripTitle",
     subtitle = when {
         unreadCount == 1 -> "1 new message"
         unreadCount > 1 -> "$unreadCount new messages"
-        else -> ThreadMessages.REPLY_WINDOW
+        // §3.12 PR 3: "Away until…" while the advisor rests, else their own reply promise.
+        else -> advisor?.statusLine ?: ThreadMessages.REPLY_WINDOW
     },
+    advisor = advisor,
     messages = messages,
     emptyBody = ThreadMessages.EMPTY_BODY,
 )

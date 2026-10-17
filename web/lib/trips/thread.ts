@@ -66,10 +66,7 @@ export const THREAD_MESSAGES = {
   quickAddPartner: "Add my partner",
   quickSendPassport: "Send a passport",
   quickScheduleCall: "Schedule a call",
-  /**
-   * §3.12.2: the tag on an automatic reply sent while the advisor was away. Web-only until the
-   * Android PR adds `ThreadMessages.AUTO_REPLY` and its row in check_copy_parity.py.
-   */
+  /** §3.12.2: the tag on an automatic reply sent while the advisor was away. */
   autoReply: "Automatic reply",
   /**
    * §2.0's landing said "Reply usually < 2h" and §2.1 said "within 48 hours". Three

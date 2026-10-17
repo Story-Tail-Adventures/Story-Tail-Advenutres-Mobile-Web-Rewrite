@@ -41,7 +41,11 @@ import androidx.compose.ui.unit.sp
 import com.storytail.adventures.api.ThreadMessageView
 import com.storytail.adventures.domain.trip.DocumentBadge
 import com.storytail.adventures.domain.trip.Loadable
+import com.storytail.adventures.config.SupabaseConfig
+import com.storytail.adventures.domain.agent.avatarUrlFor
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.MessageSender
+import com.storytail.adventures.ui.components.AdvisorPhoto
 import com.storytail.adventures.domain.trip.QUICK_REPLIES
 import com.storytail.adventures.domain.trip.ThreadMessages
 import com.storytail.adventures.domain.trip.documentBadge
@@ -77,6 +81,8 @@ data class ThreadSurface(
      * rather than read from `ThreadMessages` for exactly that reason.
      */
     val emptyBody: String,
+    /** §3.12 PR 3: the advisor's own photo for the header and bubbles; null keeps initials. */
+    val advisor: AdvisorCard? = null,
 )
 
 /**
@@ -162,6 +168,7 @@ fun ThreadScreen(
                     subtitle = thread.subtitle,
                     onBack = onBack,
                     onOpenTrip = onOpenTrip,
+                    advisor = thread.advisor,
                 )
                 ThreadList(thread = thread, today = today, modifier = Modifier.weight(1f))
                 Composer(
@@ -182,6 +189,7 @@ private fun ThreadHeader(
     subtitle: String?,
     onBack: () -> Unit,
     onOpenTrip: (() -> Unit)?,
+    advisor: AdvisorCard? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column {
@@ -196,10 +204,10 @@ private fun ThreadHeader(
                 StoryTailGlyph(StoryTailMark.ARROW_LEFT, 18.dp, scheme.onSurfaceVariant)
             }
 
-            // Initials, matching the artboards' MAdvisorAvatar. A photograph would be the
-            // real thing and the design has one, but the only asset behind it is a stock
-            // portrait — and putting a stranger's face on Gyasi is worse than initials.
-            AdvisorAvatar(size = 34.dp, background = StoryTailBrand.Burgundy)
+            // The advisor's own photo once they have uploaded one (§3.12.1), else initials, as
+            // the artboards' MAdvisorAvatar. Never a stock portrait: a stranger's face on
+            // Gyasi is worse than initials.
+            AdvisorAvatar(size = 34.dp, background = StoryTailBrand.Burgundy, advisor = advisor)
             Spacer(Modifier.width(10.dp))
 
             Column(Modifier.weight(1f)) {
@@ -286,14 +294,14 @@ private fun ThreadList(
                 count = day.messages.size,
                 key = { index -> day.messages[index].id },
             ) { index ->
-                MessageBubble(day.messages[index])
+                MessageBubble(day.messages[index], thread.advisor)
             }
         }
     }
 }
 
 @Composable
-private fun MessageBubble(message: ThreadMessageView) {
+private fun MessageBubble(message: ThreadMessageView, advisor: AdvisorCard?) {
     val scheme = MaterialTheme.colorScheme
     val mine = message.sender == MessageSender.CLIENT
 
@@ -305,6 +313,7 @@ private fun MessageBubble(message: ThreadMessageView) {
             AdvisorAvatar(
                 size = 26.dp,
                 background = StoryTailBrand.Orange,
+                advisor = advisor,
                 modifier = Modifier.align(Alignment.Bottom),
             )
             Spacer(Modifier.width(8.dp))
@@ -371,7 +380,7 @@ private fun MessageBubble(message: ThreadMessageView) {
 
             Spacer(Modifier.height(4.dp))
             Text(
-                formatMessageTime(message.createdAt),
+                clientBubbleMeta(formatMessageTime(message.createdAt), message),
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onSurfaceVariant,
                 textAlign = if (mine) TextAlign.End else TextAlign.Start,
@@ -380,6 +389,10 @@ private fun MessageBubble(message: ThreadMessageView) {
         }
     }
 }
+
+/** The time under a bubble, and §3.12.2's tag on the advisor's out-of-office reply. */
+internal fun clientBubbleMeta(time: String, message: ThreadMessageView): String =
+    if (message.sender == MessageSender.AGENT && message.autoReply) "$time · ${ThreadMessages.AUTO_REPLY}" else time
 
 /**
  * The compose bar: quick-reply chips, the field, and send.
@@ -494,22 +507,19 @@ private fun Composer(
     }
 }
 
-/** Gyasi's initials on a brand disc. */
+/** The advisor's photo (§3.12.1), or their initials on a brand disc. */
 @Composable
 private fun AdvisorAvatar(
     size: Dp,
     background: Color,
+    advisor: AdvisorCard?,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier.size(size).background(background, PillShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            "GS",
-            color = Color.White,
-            fontSize = (size.value * 0.36f).sp,
-            fontWeight = FontWeight.Bold,
-        )
-    }
+    AdvisorPhoto(
+        url = avatarUrlFor(advisor?.avatarPath, SupabaseConfig.URL),
+        initials = advisor?.initials ?: "GS",
+        size = size,
+        background = background,
+        modifier = modifier,
+    )
 }

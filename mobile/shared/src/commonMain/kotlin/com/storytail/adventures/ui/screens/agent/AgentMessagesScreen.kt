@@ -88,7 +88,6 @@ fun AgentMessagesScreen(
     onLoadMore: () -> Unit,
     onOpenThread: (String) -> Unit,
     onSelectTab: (String) -> Unit,
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
@@ -96,7 +95,6 @@ fun AgentMessagesScreen(
         topBar = {
             AgentTopBar(
                 title = if (archived) AgentMessagesCopy.VIEW_ARCHIVED else AgentMessagesCopy.TITLE,
-                onSignOut = onSignOut,
             )
         },
         activeTab = "messages",

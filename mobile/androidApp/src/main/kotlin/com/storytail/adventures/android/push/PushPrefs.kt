@@ -3,6 +3,7 @@ package com.storytail.adventures.android.push
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.storytail.adventures.push.AgentPushTarget
 import com.storytail.adventures.push.PendingReply
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -61,7 +62,7 @@ class PushPrefs(context: Context) {
     }
 
     companion object {
-        /** A thread a tapped notification asked to open. One per process: the app reads it. */
-        val openThread = MutableStateFlow<String?>(null)
+        /** What a tapped notification asked to open. One per process: the app reads it. */
+        val openTarget = MutableStateFlow<AgentPushTarget?>(null)
     }
 }

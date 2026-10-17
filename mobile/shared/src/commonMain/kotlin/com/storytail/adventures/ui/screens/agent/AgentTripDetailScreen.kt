@@ -80,7 +80,6 @@ fun AgentTripDetailScreen(
     /** "Open in Messages": this trip's thread, or a new one (§3.10 Stage 3). */
     onOpenMessages: (clientId: String, tripId: String) -> Unit,
     onSelectBarTab: (String) -> Unit,
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
@@ -89,7 +88,7 @@ fun AgentTripDetailScreen(
             // A CONSTANT, not the trip's name — see AgentCopy.TRIP_TITLE. §3.3.2's bar
             // shows the client's name because a person's name fits in one line beside a
             // button; a trip title does not.
-            AgentTopBar(title = AgentCopy.TRIP_TITLE, onSignOut = onSignOut)
+            AgentTopBar(title = AgentCopy.TRIP_TITLE)
         },
         // The bar stays on Worklist, because that is the tab this screen was pushed from in
         // every case but one — and §6.6 has no Trips tab for it to belong to. Reached from

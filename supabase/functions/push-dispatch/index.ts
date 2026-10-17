@@ -63,9 +63,9 @@ Deno.serve(async (req) => {
       ...(sa ? { android: fcmSender(sa) } : {}),
     };
     const send: DeviceSender = (d, p) => {
-      // §3.12.3: the phone app cannot show a trip request until §3.12 PR 4 teaches it how; the
-      // browser can. Skipped, not failed, so a phone-only advisor's row is not retried for it.
-      if (p.kind === "quote_request" && d.platform !== "web") return Promise.resolve("skipped");
+      // §3.12.3: Android shows a trip request since §3.12 PR 4; iOS is not built yet. Skipped,
+      // not failed, so an iPhone-only advisor's row is not retried for it.
+      if (p.kind === "quote_request" && d.platform === "ios") return Promise.resolve("skipped");
       const sender = senders[d.platform];
       if (sender) return sender(d, p);
       // iOS is not built yet; a missing key is a misconfiguration worth seeing.

@@ -25,6 +25,28 @@ class AgentNotificationsTest {
     }
 
     @Test
+    fun parsesATripRequest() {
+        // §3.12.3: ids only (fcm.ts androidData). The tag is the web's, so one request is one notification.
+        val trip = "0195a2c0-1a00-7000-8000-0000000000c1"
+        val parsed = AgentPushData.parse(mapOf("v" to "1", "kind" to "quote_request", "tag" to "quote-$trip", "tripId" to trip))
+        assertEquals(AgentPushData.QuoteRequest(trip), parsed)
+        assertEquals("quote-$trip", (parsed as AgentPushData.QuoteRequest).tag)
+        assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "quote_request", "tripId" to "not-a-uuid")))
+        assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "quote_request")))
+    }
+
+    @Test
+    fun aTripRequestSaysWhoOnTheLockScreenAndWhereWhenUnlocked() {
+        // The words push.ts sends the browser (quoteRequestPayload / quoteRequestDetail).
+        assertEquals("New trip request from Jordan Hayes", quoteRequestTitle("Jordan Hayes"))
+        assertEquals("New trip request from a client", quoteRequestTitle("  "))
+        assertEquals("Negril, Jamaica · Feb 10 – Feb 14", quoteRequestBody("Negril, Jamaica", "2027-02-10", "2027-02-14"))
+        assertEquals("Negril · Feb 10", quoteRequestBody("Negril", "2027-02-10", "2027-02-10"))
+        assertEquals("Mar 3", quoteRequestBody(null, null, "2027-03-03"))
+        assertEquals("Open it to see what they're dreaming of.", quoteRequestBody(" ", null, null))
+    }
+
+    @Test
     fun ignoresWhatItDoesNotUnderstand() {
         assertNull(AgentPushData.parse(mapOf("v" to "2", "kind" to "message")))
         assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "message", "conversationId" to "nope", "seenUpTo" to "x")))

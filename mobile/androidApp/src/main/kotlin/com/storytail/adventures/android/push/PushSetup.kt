@@ -19,6 +19,8 @@ import com.storytail.adventures.domain.agent.AgentMessagesCopy
  */
 object PushSetup {
     const val CHANNEL_MESSAGES = "client_messages"
+    /** §3.12.3. Its own channel, so the phone's settings can quiet one kind without the other. */
+    const val CHANNEL_TRIP_REQUESTS = "trip_requests"
 
     @Volatile
     var configured: Boolean = false
@@ -47,6 +49,15 @@ object PushSetup {
 
     private fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val trips = NotificationChannel(
+            CHANNEL_TRIP_REQUESTS,
+            AgentMessagesCopy.NOTIFY_TRIP_CHANNEL,
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = AgentMessagesCopy.NOTIFY_TRIP_CHANNEL_DESCRIPTION
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+        }
+        context.getSystemService(NotificationManager::class.java).createNotificationChannel(trips)
         val channel = NotificationChannel(
             CHANNEL_MESSAGES,
             AgentMessagesCopy.NOTIFY_CHANNEL,

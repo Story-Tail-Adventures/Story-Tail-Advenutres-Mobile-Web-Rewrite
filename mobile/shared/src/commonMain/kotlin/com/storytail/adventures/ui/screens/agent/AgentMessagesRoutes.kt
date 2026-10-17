@@ -50,7 +50,6 @@ internal fun AgentInboxRoute(
     nav: Navigator,
     timeZone: String,
     onSelectTab: (String) -> Unit,
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // SAVEABLE, so a search survives opening a thread and coming Back, and a rotation.
@@ -115,7 +114,6 @@ internal fun AgentInboxRoute(
         onLoadMore = { limit += INBOX_PAGE },
         onOpenThread = { nav.push(AppRoute.AgentThread(it)) },
         onSelectTab = onSelectTab,
-        onSignOut = onSignOut,
         modifier = modifier,
     )
 }

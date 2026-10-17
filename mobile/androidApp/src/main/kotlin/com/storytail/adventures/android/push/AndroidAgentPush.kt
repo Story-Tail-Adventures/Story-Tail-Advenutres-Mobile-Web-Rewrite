@@ -15,6 +15,7 @@ import com.storytail.adventures.domain.uuidV7
 import com.storytail.adventures.push.AgentPush
 import com.storytail.adventures.push.AgentPushOffer
 import com.storytail.adventures.push.AgentPushResult
+import com.storytail.adventures.push.AgentPushTarget
 import com.storytail.adventures.push.PendingReply
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.StateFlow
@@ -74,7 +75,7 @@ class AndroidAgentPush(private val activity: ComponentActivity) : AgentPush {
         prefs.enabled = false
         prefs.token = null
         prefs.clearAllDrafts()
-        PushPrefs.openThread.value = null
+        PushPrefs.openTarget.value = null
         AgentNotifier(activity).cancelAll()
         // The server first, while the session that registered it still exists; bounded so it
         // can never hold sign-out up. Then the token itself goes, so nothing can reach this phone
@@ -96,10 +97,10 @@ class AndroidAgentPush(private val activity: ComponentActivity) : AgentPush {
         runCatching { activity.startActivity(intent) }
     }
 
-    override val openThread: StateFlow<String?> = PushPrefs.openThread
+    override val openTarget: StateFlow<AgentPushTarget?> = PushPrefs.openTarget
 
-    override fun threadOpened() {
-        PushPrefs.openThread.value = null
+    override fun targetOpened() {
+        PushPrefs.openTarget.value = null
     }
 
     private suspend fun refresh() {

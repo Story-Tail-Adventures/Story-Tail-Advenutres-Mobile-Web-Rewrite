@@ -94,6 +94,13 @@ interface AgentRepository {
      * this detail hangs off already exists and is §3.2.1's.
      */
     suspend fun tripDetail(tripId: String): AgentTripDetailRead
+
+    /**
+     * §3.12.3's trip-request notification: who asked, where and when. ONE accessor, the
+     * overview [tripDetail] gates on, rather than its eight: a notification has seconds to draw.
+     * Null for any failure or no row; the notification then says "New trip request" alone.
+     */
+    suspend fun tripRequestSummary(tripId: String): AgentTripOverviewRow?
 }
 
 /**
@@ -504,6 +511,7 @@ class UnconfiguredAgentRepository : AgentRepository {
     override suspend fun clientDetail(clientId: String): ClientDetailRead = ClientDetailRead.Failed
 
     override suspend fun tripDetail(tripId: String): AgentTripDetailRead = AgentTripDetailRead.Failed
+    override suspend fun tripRequestSummary(tripId: String): AgentTripOverviewRow? = null
 }
 
 class SupabaseAgentRepository(private val client: SupabaseClient) : AgentRepository {
@@ -652,6 +660,18 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
         if (rest.statusCode in 401..403) ClientDetailRead.Forbidden else ClientDetailRead.Failed
     } catch (_: Exception) {
         ClientDetailRead.Failed
+    }
+
+    override suspend fun tripRequestSummary(tripId: String): AgentTripOverviewRow? = try {
+        client.postgrest
+            .rpc("agent_trip_overview", buildJsonObject { put("p_trip_id", tripId) })
+            .decodeList<AgentTripOverviewDto>()
+            .firstOrNull()
+            ?.toDomain()
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
     }
 
     /**

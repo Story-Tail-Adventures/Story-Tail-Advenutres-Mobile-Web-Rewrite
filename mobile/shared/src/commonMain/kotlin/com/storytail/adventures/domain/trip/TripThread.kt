@@ -49,6 +49,9 @@ object ThreadMessages {
     const val QUICK_SEND_PASSPORT = "Send a passport"
     const val QUICK_SCHEDULE_CALL = "Schedule a call"
 
+    /** §3.12.2: the tag on an automatic reply sent while the advisor was away. */
+    const val AUTO_REPLY = "Automatic reply"
+
     /**
      * §2.0's landing said "Reply usually < 2h" and §2.1 said "within 48 hours". Three
      * competing promises across three sections is one too many to keep true, so §2.2

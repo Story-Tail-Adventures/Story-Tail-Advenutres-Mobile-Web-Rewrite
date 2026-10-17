@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.storytail.adventures.api.AgentMessagesRepository
 import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.api.AgentSettingsRepository
 import com.storytail.adventures.api.AgentTripDetailRead
 import com.storytail.adventures.api.ClientDetailRead
 import com.storytail.adventures.api.ClientRosterRead
@@ -36,8 +37,8 @@ import com.storytail.adventures.ui.nav.Navigator
  * and nothing in this package imports `ClientScaffold`. A client route reaching here is
  * unrepresentable: App.kt's `when` is exhaustive and never routes one this way.
  *
- * SEVEN SCREENS NOW. §6.6 keeps Pipeline and Calendar web-only at MVP; More (§3.12) is still a
- * dimmed tab rather than a route. Messages (§3.10) joined on 2026-10-15 (Stage 3): the inbox,
+ * ELEVEN SCREENS NOW. §6.6 keeps Pipeline and Calendar web-only at MVP. More (§3.12) joined
+ * on 2026-10-17 (PR 4): the tab root and three settings screens, in AgentSettingsRoutes.kt. Messages (§3.10) joined on 2026-10-15 (Stage 3): the inbox,
  * a thread, and a new message, in AgentMessagesRoutes.kt. Clients joined on 2026-09-26,
  * which is what turned [tabRoute] from a no-op guard into a real mapping, and Trip detail
  * (§3.4.2) joined on 2026-09-30 — reached from the worklist's rows and the client detail's
@@ -50,16 +51,14 @@ fun AgentRoute(
     agent: AgentRepository,
     /** §3.10's messaging (Stage 3): the Messages tab, threads, and the tab's unread badge. */
     messages: AgentMessagesRepository,
+    /** §3.12's settings (PR 4): the More tab and its three screens. */
+    settings: AgentSettingsRepository,
     displayName: String,
     /** `platform_user.time_zone`. The greeting is derived from it, never from the handset. */
     timeZone: String,
     /**
-     * Ends the session. Handed down from `App.kt` the same way the client shell's is, rather
-     * than reached for here — this package holds no repository but [AgentRepository].
-     *
-     * Worklist is the whole agent shell in this slice, so this is the ONLY way out of it:
-     * `nav.resetTo` cleared the stack, the other three tabs are unbuilt, and iOS has no
-     * system back at all. See `AgentTopBar`.
+     * Ends the session. Handed down from `App.kt` the same way the client shell's is. Drawn
+     * by the More tab since §3.12 PR 4; before it, every tab root's top bar carried it.
      */
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -115,7 +114,6 @@ fun AgentRoute(
                     // three trip sections that rendered it.
                     onOpenTrip = { nav.push(AppRoute.AgentTripDetail(it)) },
                     onOpenThread = { nav.push(AppRoute.AgentThread(it)) },
-                    onSignOut = onSignOut,
                     modifier = modifier,
                 )
             }
@@ -161,7 +159,6 @@ fun AgentRoute(
                     },
                     onLoadMore = { limit += PAGE },
                     onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
-                    onSignOut = onSignOut,
                     modifier = modifier,
                 )
             }
@@ -200,7 +197,6 @@ fun AgentRoute(
                     onOpenThread = { nav.push(AppRoute.AgentThread(it)) },
                     onMessageClient = { nav.push(AppRoute.AgentNewMessage(it)) },
                     onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
-                    onSignOut = onSignOut,
                     modifier = modifier,
                 )
             }
@@ -247,7 +243,6 @@ fun AgentRoute(
                     onOpenClient = { nav.push(AppRoute.AgentClientDetail(it)) },
                     onOpenMessages = { clientId, tripId -> nav.push(AppRoute.AgentNewMessage(clientId, tripId)) },
                     onSelectBarTab = { tabRoute(it)?.let(nav::selectTab) },
-                    onSignOut = onSignOut,
                     modifier = modifier,
                 )
             }
@@ -257,7 +252,6 @@ fun AgentRoute(
                 nav = nav,
                 timeZone = timeZone,
                 onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
-                onSignOut = onSignOut,
                 modifier = modifier,
             )
 
@@ -276,6 +270,19 @@ fun AgentRoute(
                 messages = messages,
                 nav = nav,
                 onMessagesChanged = refreshBadge,
+                modifier = modifier,
+            )
+
+            AppRoute.AgentMore,
+            AppRoute.AgentSettingsProfile,
+            AppRoute.AgentSettingsAvailability,
+            AppRoute.AgentSettingsNotifications,
+            -> AgentSettingsRoute(
+                route = route,
+                settings = settings,
+                nav = nav,
+                onSelectTab = { tabRoute(it)?.let(nav::selectTab) },
+                onSignOut = onSignOut,
                 modifier = modifier,
             )
 
@@ -298,5 +305,6 @@ private fun tabRoute(id: String): AppRoute? = when (id) {
     "worklist" -> AppRoute.Worklist
     "clients" -> AppRoute.AgentClients
     "messages" -> AppRoute.AgentMessages
+    "more" -> AppRoute.AgentMore
     else -> null
 }
