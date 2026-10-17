@@ -29,14 +29,25 @@ export type PushPlatform = "android" | "web" | "ios";
 export interface ClaimedRow {
   outbox_id: string;
   agent_id: string;
-  conversation_id: string;
+  /** §3.12.3: a client message, or a quote request (an inquiry trip a client asked for). */
+  kind: "message" | "quote_request";
+  /** Set for a message; null for a quote request. */
+  conversation_id: string | null;
+  /** Set for a quote request. */
+  trip_id: string | null;
   held: boolean;
+  /** Why a held row waited: the summary says "while you rested" or "while you were away". */
+  hold_reason: "rest" | "away" | null;
   message_count: number;
   client_name: string | null;
   trip_title: string | null;
   preview: string | null;
   /** As PostgREST writes timestamptz, microseconds and all. Never parsed into a Date to send. */
   latest_created_at: string;
+  /** Quote requests only: "Negril, Jamaica", and the dates asked for. */
+  destination: string | null;
+  start_date: string | null;
+  end_date: string | null;
 }
 
 /** A row `push_devices_for_agent` returns. */
@@ -88,7 +99,21 @@ export interface DismissPayload {
   readUpTo: string | null;
 }
 
-export type PushPayload = MessagePayload | SummaryPayload | DismissPayload;
+/**
+ * §3.12.3: a client asked for a trip. The title carries the client's name only (the locked-screen
+ * rule); the body adds where and when, when they said.
+ */
+export interface QuoteRequestPayload {
+  v: 1;
+  kind: "quote_request";
+  tag: string;
+  tripId: string;
+  title: string;
+  body: string;
+  url: string;
+}
+
+export type PushPayload = MessagePayload | SummaryPayload | DismissPayload | QuoteRequestPayload;
 
 export const SUMMARY_TAG = "summary";
 export const INBOX_URL = "/agent/messages";
@@ -118,16 +143,48 @@ export function messageTitle(clientName: string | null, tripTitle: string | null
 export { maskCardNumbers } from "./cardDigits.ts";
 
 export function messagePayload(row: ClaimedRow): MessagePayload {
+  const conversationId = row.conversation_id ?? "";
   return {
     v: 1,
     kind: "message",
-    tag: row.conversation_id,
-    conversationId: row.conversation_id,
+    tag: conversationId,
+    conversationId,
     seenUpTo: row.latest_created_at,
     title: messageTitle(row.client_name, row.trip_title),
     body: maskCardNumbers(row.preview?.trim() || NO_PREVIEW),
     count: row.message_count,
-    url: threadUrl(row.conversation_id),
+    url: threadUrl(conversationId),
+  };
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Feb 10" from "2027-02-10", or null. Read as a calendar date: no zone can move it. */
+function shortDate(iso: string | null): string | null {
+  const m = iso ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}` : null;
+}
+
+/** "Negril, Jamaica · Feb 10 – Feb 14", or what of it there is. */
+export function quoteRequestDetail(row: Pick<ClaimedRow, "destination" | "start_date" | "end_date">): string {
+  const from = shortDate(row.start_date);
+  const to = shortDate(row.end_date);
+  const when = from && to ? (from === to ? from : `${from} – ${to}`) : from ?? to;
+  return [row.destination?.trim() || null, when].filter(Boolean).join(" · ");
+}
+
+export function quoteRequestPayload(row: ClaimedRow): QuoteRequestPayload {
+  const tripId = row.trip_id ?? "";
+  const name = row.client_name?.trim() || "a client";
+  const detail = quoteRequestDetail(row);
+  return {
+    v: 1,
+    kind: "quote_request",
+    tag: `quote-${tripId}`,
+    tripId,
+    title: `New trip request from ${name}`,
+    body: maskCardNumbers(detail || "Open it to see what they're dreaming of."),
+    url: `/agent/trips/${tripId}`,
   };
 }
 
@@ -151,20 +208,30 @@ const OVERNIGHT_HOURS = 11;
  * worth reads "while you rested", which is true of both.
  */
 export function summaryPayload(rows: ClaimedRow[], now: Date): SummaryPayload {
-  const count = rows.reduce((n, r) => n + Math.max(1, r.message_count), 0);
+  const messages = rows.filter((r) => r.kind !== "quote_request");
+  const requests = rows.filter((r) => r.kind === "quote_request");
+  const count = messages.reduce((n, r) => n + Math.max(1, r.message_count), 0);
+  const asks = requests.length;
   const oldest = Math.min(
     ...rows.map((r) => Date.parse(r.latest_created_at) || now.getTime()),
   );
-  const overnight = now.getTime() - oldest <= OVERNIGHT_HOURS * 3_600_000;
+  // §3.12.2: after time away it says so; otherwise the §3.10 words.
+  const away = rows.some((r) => r.hold_reason === "away");
+  const overnight = !away && now.getTime() - oldest <= OVERNIGHT_HOURS * 3_600_000;
   const names = nameList(rows.map((r) => r.client_name ?? ""));
+  const parts = [
+    count > 0 ? `${count} new ${count === 1 ? "message" : "messages"}` : null,
+    asks > 0 ? `${asks} trip ${asks === 1 ? "request" : "requests"}` : null,
+  ].filter(Boolean).join(" and ");
   return {
     v: 1,
     kind: "summary",
     tag: SUMMARY_TAG,
-    count,
-    title: `${count} new ${count === 1 ? "message" : "messages"} while you rested`,
-    body: `${names} wrote ${overnight ? "overnight" : "while you rested"}.`,
-    url: INBOX_URL,
+    count: count + asks,
+    title: `${parts} ${away ? "while you were away" : "while you rested"}`,
+    // The title already says rested or away; "reached out" fits trip requests too.
+    body: `${names} reached out${overnight ? " overnight" : ""}.`,
+    url: count > 0 ? INBOX_URL : "/agent/trips",
   };
 }
 
@@ -175,13 +242,16 @@ export function dismissPayload(conversationId: string, readUpTo: string | null =
 /** What one claimed batch sends for one advisor: each live row alone, the held ones as one. */
 export interface Send {
   outboxIds: string[];
-  payload: MessagePayload | SummaryPayload;
+  payload: MessagePayload | SummaryPayload | QuoteRequestPayload;
 }
 
 export function planForAgent(rows: ClaimedRow[], now: Date): Send[] {
   const live = rows.filter((r) => !r.held);
   const held = rows.filter((r) => r.held);
-  const sends: Send[] = live.map((r) => ({ outboxIds: [r.outbox_id], payload: messagePayload(r) }));
+  const sends: Send[] = live.map((r) => ({
+    outboxIds: [r.outbox_id],
+    payload: r.kind === "quote_request" ? quoteRequestPayload(r) : messagePayload(r),
+  }));
   if (held.length > 0) {
     sends.push({ outboxIds: held.map((r) => r.outbox_id), payload: summaryPayload(held, now) });
   }

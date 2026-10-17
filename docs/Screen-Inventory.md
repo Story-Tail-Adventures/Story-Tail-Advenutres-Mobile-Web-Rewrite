@@ -3775,6 +3775,31 @@ Preferences (3.12.3).
 > on **client message emails only** (auth mail is system mail), under the advisor's words and
 > above "Open the conversation". A locked line, **"Story-Tail Adventures · Hosted by
 > Inteletravel"**, always prints under it and cannot be edited.
+>
+> **Built (PR 1, merged as #144, and PR 2).** Choices made in the build, within the rulings:
+>
+> - **The photo is stored as a path** in the public bucket, never an absolute URL (inside a
+>   function's container the Supabase origin is `http://kong:8000` locally); each surface adds
+>   its own public origin.
+> - **Rest hours (PR 2):** `agent_rest_until()` decides for advisors from working hours and time
+>   away; clients' email rest hours are unchanged. An advisor with no working day at all is never
+>   held (a notification that could never go). Held notifications are re-timed when hours, time
+>   zone or time away change. The summary says "while you were away" when time away was the
+>   reason, and counts trip requests apart from messages ("2 new messages and 1 trip request…").
+> - **Trip-request push is web-only until PR 4:** the phone app learns the new kind with the
+>   Android PR; until then phones are skipped for it (not failed).
+> - **The quote-request alert is raised by `quote-request` itself**, not a trigger on `trip`: the
+>   advisor's own "New trip" also starts at `inquiry` and must not alert.
+> - **The auto-reply** is a real message from the advisor (`message.is_auto_reply`), tagged
+>   "Automatic reply" on both sides, emailed to the client the usual way with the signature. It
+>   never marks the thread read and never stops the reply-owed clock. Its default words wait in
+>   the dialog even while it is off. A running block's reply cannot be edited (only ended early).
+> - **The auto-reply's default words** came out of the brand-voice review as "...Your plans are
+>   in good hands." (not "Your trip": a new inquiry has no trip yet).
+> - **Signature:** saving the default's exact text stores nothing, so a better default later
+>   still reaches an advisor who never wrote their own. Bare domains become links only with a
+>   common web ending, so "St.Lucia" stays text. The plain-text email puts it after the standard
+>   `-- ` separator.
 
 #### 3.12.1 Agent Profile / My Account
 **Purpose:** Manage personal information, photo, contact channels.

@@ -208,6 +208,8 @@ export function ThreadMessages({
                     }}
                   >
                     {formatMessageTime(message.createdAt, timeZone)}
+                    {/* §3.12.2: sent for the advisor while they were away. */}
+                    {!mine && message.autoReply && ` · ${THREAD_MESSAGES.autoReply}`}
                   </Typography>
                 </Box>
               </Stack>

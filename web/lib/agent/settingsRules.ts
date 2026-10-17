@@ -226,3 +226,88 @@ export function timeOffPhase(startsOn: string, endsOn: string, today: string): "
   if (endsOn < today) return "past";
   return startsOn <= today ? "running" : "upcoming";
 }
+
+// ── Signature (3.12.4) ───────────────────────────────────────────────────────
+
+/** The database's agent_default_signature(), word for word. */
+export const DEFAULT_SIGNATURE =
+  "{{agent.name}}, Travel Advisor\n{{agent.phone}} · {{agent.email}}\nadventures.story-tail.com\n\nMaking travel an adventure";
+
+/** The line under every signature (Q18). Not editable: the host agency's. */
+export const LOCKED_SIGNATURE_LINE = "Story-Tail Adventures · Hosted by Inteletravel";
+
+export const MAX_SIGNATURE = 500;
+export const MAX_SIGNATURE_LINES = 8;
+export const SIGNATURE_FIELDS = [
+  { token: "{{agent.name}}", label: "Name" },
+  { token: "{{agent.phone}}", label: "Phone" },
+  { token: "{{agent.email}}", label: "Email" },
+] as const;
+
+/** Mirrors readSignature in _shared/agentSettings.ts. */
+export function signatureProblem(text: string): string | null {
+  const t = text.replace(/\r\n?/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").replace(/^\n+|\n+$/g, "");
+  if (t.length > MAX_SIGNATURE) return `A signature can be up to ${MAX_SIGNATURE} characters.`;
+  if (t.split("\n").length > MAX_SIGNATURE_LINES) return `A signature can be up to ${MAX_SIGNATURE_LINES} lines.`;
+  for (const m of t.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)) {
+    if (!["agent.name", "agent.phone", "agent.email"].includes(m[1])) {
+      return `We don't have a {{${m[1]}}} field. You can use {{agent.name}}, {{agent.phone}} or {{agent.email}}.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * The preview's lines: renderSignature in _shared/email.ts, for the live preview (card-number
+ * masking aside: the preview shows the advisor their own words).
+ */
+export function signatureLines(
+  text: string,
+  me: { name: string; phone: string; email: string },
+): string[] {
+  const src = text.trim();
+  const filled = src
+    .replace(/\{\{\s*agent\.name\s*\}\}/g, me.name.trim())
+    .replace(/\{\{\s*agent\.phone\s*\}\}/g, me.phone.trim())
+    .replace(/\{\{\s*agent\.email\s*\}\}/g, me.email.trim());
+  const sourceLines = src.split("\n");
+  const lines: string[] = [];
+  for (const [i, raw] of filled.split("\n").entries()) {
+    const hadField = /\{\{/.test(sourceLines[i] ?? "");
+    const line = raw
+      .replace(/\s*·\s*(?:·\s*)+/g, " · ")
+      .replace(/^\s*·\s*/, "")
+      .replace(/\s*·\s*$/, "")
+      .trimEnd();
+    if (line.trim() === "" && hadField) continue;
+    lines.push(line);
+  }
+  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  return [...lines, "", LOCKED_SIGNATURE_LINE];
+}
+
+// ── Out-of-office auto-reply ─────────────────────────────────────────────────
+
+export const MAX_AUTO_REPLY = 600;
+
+/** Q21's default words (brand-voice reviewed). `{{return_date}}` is filled when it sends. */
+export const DEFAULT_AUTO_REPLY =
+  "Thanks for writing! I'm away resting until {{return_date}} and will answer when I'm back. Your plans are in good hands.";
+
+/** Mirrors readAutoReply in _shared/agentSettings.ts. */
+export function autoReplyProblem(enabled: boolean, text: string): string | null {
+  const t = text.trim();
+  if (t.length > MAX_AUTO_REPLY) return `An automatic reply can be up to ${MAX_AUTO_REPLY} characters.`;
+  for (const m of t.matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)) {
+    if (m[1] !== "return_date") return `We don't have a {{${m[1]}}} field. You can use {{return_date}}.`;
+  }
+  if (enabled && t === "") return "Add the words for your automatic reply, or turn it off.";
+  return null;
+}
+
+/** "Monday, July 8": the day after the last day away, as the reply will say it. */
+export function returnDateLabel(endsOn: string): string {
+  const d = new Date(`${endsOn}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+}

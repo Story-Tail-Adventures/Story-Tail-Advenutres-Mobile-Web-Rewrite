@@ -132,6 +132,12 @@ Deno.serve(async (req) => {
       },
     });
 
+    // §3.12.3: tell the advisor (push and/or email, by their switches and hours). Here and not
+    // a trigger on trip: the advisor's own "New trip" also makes an inquiry, and must not alert.
+    // A failure costs the alert, never the traveler's request.
+    const { error: alertError } = await db.rpc("alert_quote_request", { p_trip_id: tripId });
+    if (alertError) console.error("[quote-request] advisor alert failed", { code: alertError.code });
+
     return new Response(JSON.stringify({ tripId, status: "inquiry" }), {
       status: 201,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -243,10 +243,72 @@ const MUTED = "#6B6259";
  * to carry, a recipient that is not one address), so the caller fails it rather than mailing
  * something wrong.
  */
+// ── §3.12.4 The advisor's signature ──────────────────────────────────────────
+
+/** The line under every signature (Q18). Not stored and not editable: the host agency's. */
+export const LOCKED_SIGNATURE_LINE = "Story-Tail Adventures · Hosted by Inteletravel";
+
+/** What `agent_signature_for_conversation` hands back. */
+export interface SignatureSource {
+  signature: string | null;
+  display_name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/**
+ * The signature as lines of plain text: the three merge fields filled, the separators a missing
+ * phone leaves behind tidied away ("· gyasi@…" becomes "gyasi@…"), a line left empty by that
+ * dropped, and the locked line always last. Card numbers are masked like the body.
+ */
+export function renderSignature(src: SignatureSource | null): string[] {
+  const text = (src?.signature ?? "").trim();
+  const filled = text
+    .replace(/\{\{\s*agent\.name\s*\}\}/g, src?.display_name?.trim() ?? "")
+    .replace(/\{\{\s*agent\.phone\s*\}\}/g, src?.phone?.trim() ?? "")
+    .replace(/\{\{\s*agent\.email\s*\}\}/g, src?.email?.trim() ?? "");
+  const sourceLines = text.split("\n");
+  const lines: string[] = [];
+  for (const [i, raw] of filled.split("\n").entries()) {
+    const hadField = /\{\{/.test(sourceLines[i] ?? "");
+    // Only the "·" a missing field leaves stranded is tidied: doubled, leading or trailing.
+    // Anything else the advisor typed stays exactly as typed.
+    const line = raw
+      .replace(/\s*·\s*(?:·\s*)+/g, " · ")
+      .replace(/^\s*·\s*/, "")
+      .replace(/\s*·\s*$/, "")
+      .trimEnd();
+    // A line that only held merge fields with nothing behind them disappears; a blank line the
+    // advisor typed on purpose (between blocks) stays.
+    if (line.trim() === "" && hadField) continue;
+    lines.push(maskCardNumbers(line));
+  }
+  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  return [...lines, "", LOCKED_SIGNATURE_LINE];
+}
+
+/** Links typed into a signature become clickable: https URLs, bare story-tail style domains, and email addresses. Input is already escaped. */
+function linkify(escaped: string): string {
+  return escaped.replace(
+    // A bare domain only with a common web ending, so "St.Lucia" or "e.g." never becomes a link.
+    /\b(https?:\/\/[^\s<&]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|(?:[a-z0-9-]+\.)+(?:com|net|org|travel|co|us|ca|mx|io|info|biz)\b(?:\/[^\s<&]*)?)/gi,
+    (m) => {
+      const href = m.includes("@") && !m.startsWith("http") ? `mailto:${m}` : /^https?:/i.test(m) ? m : `https://${m}`;
+      return `<a href="${href}" style="color:${BURGUNDY}">${m}</a>`;
+    },
+  );
+}
+
+function signatureHtml(lines: string[]): string {
+  const body = lines.map((l) => (l === "" ? "" : linkify(escapeHtml(l)))).join("<br>");
+  return `<div style="margin:18px 0 0;padding:14px 0 0;border-top:1px solid ${SAND};color:${MUTED};font-size:14px;line-height:1.5">${body}</div>`;
+}
+
 export function buildEmail(
   row: ClaimedEmail,
   tokens: { reply: string; unsubscribe: string },
   cfg: EmailConfig,
+  signature: SignatureSource | null = null,
 ): BuiltEmail {
   const to = row.recipient?.trim() ?? "";
   if (!ADDRESS.test(to)) throw new Error("recipient is not a single email address");
@@ -277,9 +339,15 @@ export function buildEmail(
     : `${sentenceStart(agent)} shared ${files.length} files with you: ${files.join(", ")}. You'll find them in the conversation.`;
   const replyLine = `Reply to this email and ${agent} will see it in your conversation. Files are best added in the app.`;
 
+  // §3.12.4: under the advisor's words, above the button.
+  const sigLines = renderSignature(signature);
+
   // No greeting of ours: the advisor's own words open the email, and they usually greet already.
   const text = [
     bodies.map((b) => b.text).join("\n\n---\n\n"),
+    "",
+    "-- ",
+    ...sigLines,
     ...(fileLine ? ["", fileLine] : []),
     "",
     `Open the conversation: ${link}`,
@@ -304,6 +372,7 @@ export function buildEmail(
 <div style="max-width:560px;margin:0 auto;padding:28px 18px">
 <p style="margin:0 0 22px;font-weight:600;color:${BURGUNDY};letter-spacing:0.02em">Story-Tail Adventures</p>
 ${messageBlocks}
+${signatureHtml(sigLines)}
 ${fileLine ? `<p style="margin:4px 0 16px;color:${MUTED};font-size:14px">${escapeHtml(fileLine)}</p>` : ""}
 <p style="margin:22px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:${BURGUNDY};color:#FFFFFF;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">Open the conversation</a></p>
 <p style="margin:0 0 28px;color:${MUTED};font-size:14px;line-height:1.5">${escapeHtml(replyLine)}</p>
@@ -329,6 +398,76 @@ ${fileLine ? `<p style="margin:4px 0 16px;color:${MUTED};font-size:14px">${escap
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       "Auto-Submitted": "auto-generated",
     },
+  };
+}
+
+// ── §3.12.3 The advisor's alert emails ───────────────────────────────────────
+
+/** A row `agent_alert_email_claim` hands out. Never a client's words: there is no body field. */
+export interface ClaimedAlert {
+  alert_id: string;
+  kind: "client_message" | "quote_request";
+  recipient: string;
+  agent_first_name: string | null;
+  client_name: string | null;
+  trip_title: string | null;
+  conversation_id: string | null;
+  trip_id: string | null;
+}
+
+/** Where "Open in Story-Tail" goes: the thread, or the inquiry trip. Plain links, no token. */
+export function alertUrl(cfg: EmailConfig, row: ClaimedAlert): string {
+  return row.kind === "client_message" && row.conversation_id
+    ? `${cfg.siteUrl}/agent/messages/${row.conversation_id}`
+    : `${cfg.siteUrl}/agent/trips/${row.trip_id}`;
+}
+
+/**
+ * The advisor's own alert (Q15): who, which trip, and a link. The client's words never appear,
+ * so they (and any card number a client types) stay out of the advisor's mail provider.
+ */
+export function buildAlertEmail(row: ClaimedAlert, cfg: EmailConfig): Omit<BuiltEmail, "replyTo" | "inReplyTo" | "references"> {
+  const to = row.recipient?.trim() ?? "";
+  if (!ADDRESS.test(to)) throw new Error("recipient is not a single email address");
+  if (row.kind === "client_message" && !row.conversation_id) throw new Error("no thread to open");
+  if (row.kind === "quote_request" && !row.trip_id) throw new Error("no trip to open");
+
+  const client = cleanTitle(row.client_name) || "A client";
+  const trip = cleanTitle(row.trip_title);
+  const link = alertUrl(cfg, row);
+  const isMessage = row.kind === "client_message";
+
+  const subject = headerSafe(
+    isMessage ? `New message from ${client}` : `New trip request from ${client}`,
+    "subject",
+  );
+  const line = isMessage
+    ? trip ? `${client} wrote to you about ${trip}.` : `${client} wrote to you.`
+    : trip ? `${client} asked about a trip: ${trip}.` : `${client} sent a trip request.`;
+  const why = isMessage
+    ? "You get this because client-message emails are on in your notification settings."
+    : "You get this because trip-request emails are on in your notification settings.";
+
+  const text = [line, "", `Open in Story-Tail: ${link}`, "", why].join("\n");
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background:${CREAM};color:${INK};font-family:Poppins,Helvetica,Arial,sans-serif;font-size:16px">
+<div style="max-width:560px;margin:0 auto;padding:28px 18px">
+<p style="margin:0 0 22px;font-weight:600;color:${BURGUNDY};letter-spacing:0.02em">Story-Tail Adventures</p>
+<p style="margin:0 0 18px;line-height:1.55">${escapeHtml(line)}</p>
+<p style="margin:22px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:${BURGUNDY};color:#FFFFFF;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">Open in Story-Tail</a></p>
+<p style="margin:0;color:${MUTED};font-size:12px">${escapeHtml(why)}</p>
+</div></body></html>`;
+
+  return {
+    from: { name: "Story-Tail Adventures", address: cfg.fromAddress },
+    to,
+    subject,
+    text,
+    html,
+    messageId: messageIdFor(row.alert_id, cfg.fromAddress),
+    headers: { "Auto-Submitted": "auto-generated" },
   };
 }
 

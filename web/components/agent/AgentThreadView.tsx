@@ -219,6 +219,7 @@ function MessageRow({
         <Typography component="p" variant="caption" sx={{ m: 0, mt: 0.25, display: "block", color: "text.secondary", textAlign: mine ? "right" : "left" }}>
           {time}
           {/* §3.10 Stage 4: an email carried this reply, or the client answered by email. */}
+          {mine && message.autoReply && ` · ${AGENT_MESSAGES_COPY.autoReply}`}
           {mine && message.emailed && ` · ${AGENT_MESSAGES_COPY.emailedMark}`}
           {!mine && message.byEmail && ` · ${AGENT_MESSAGES_COPY.byEmail}`}
         </Typography>

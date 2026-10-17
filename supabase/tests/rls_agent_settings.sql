@@ -254,31 +254,31 @@ SELECT public.agent_local_today(:agent::uuid) AS today \gset
 
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_a::uuid, :agent::uuid, true, :today::date + 10, :today::date + 12,
-        'Beach week', public.uuid_v7(), :actor::uuid, null, 'test') = 'created'
+        'Beach week', false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'created'
     AND pg_temp.audits('agent_time_off.created') = 1,
     'an upcoming block is created and audited');
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_a::uuid, :agent::uuid, true, :today::date + 10, :today::date + 12,
-        'Beach week', public.uuid_v7(), :actor::uuid, null, 'test') = 'unchanged',
+        'Beach week', false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'unchanged',
     'saving the same block again is a no-op (a retried request)');
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_b::uuid, :agent::uuid, true, :today::date + 12, :today::date + 14,
-        null, public.uuid_v7(), :actor::uuid, null, 'test') = 'overlap',
+        null, false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'overlap',
     'a block sharing a day with another is refused');
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_b::uuid, :agent::uuid, true, :today::date + 13, :today::date + 14,
-        null, public.uuid_v7(), :actor::uuid, null, 'test') = 'created',
+        null, false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'created',
     'a block starting the day after another ends is fine');
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(public.uuid_v7(), :agent::uuid, false, :today::date + 40, :today::date + 41,
-        null, public.uuid_v7(), :actor::uuid, null, 'test') = 'not_found',
+        null, false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'not_found',
     'an "edit" of a block that does not exist creates nothing (only a vetted new id may insert)');
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_x::uuid, :agent::uuid, true, :today::date - 1, :today::date + 1,
-        null, public.uuid_v7(), :actor::uuid, null, 'test') = 'starts_in_past',
+        null, false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'starts_in_past',
     'a new block cannot start before today');
 SELECT public.agent_settings_save_time_off(:off_a::uuid, :agent::uuid, true, :today::date + 9, :today::date + 11,
-        'Beach days', public.uuid_v7(), :actor::uuid, null, 'test') AS r \gset
+        'Beach days', false, null, public.uuid_v7(), :actor::uuid, null, 'test') AS r \gset
 SELECT pg_temp.assert(
     :'r' = 'updated'
     AND (SELECT metadata -> 'changes' ?& ARRAY['startsOn', 'endsOn', 'label']
@@ -286,7 +286,7 @@ SELECT pg_temp.assert(
     'an upcoming block can be edited, and the audit row holds the changes');
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_a::uuid, :b_agent::uuid, true, :today::date + 30, :today::date + 31,
-        null, public.uuid_v7(), :actor::uuid, null, 'test') = 'conflict',
+        null, false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'conflict',
     'another advisor''s block id is a conflict');
 SELECT pg_temp.assert(
     public.agent_settings_end_time_off(:off_a::uuid, :b_agent::uuid, public.uuid_v7(), :actor::uuid, null, 'test') = 'not_found',
@@ -298,7 +298,7 @@ VALUES (:off_run::uuid, :agent::uuid, :today::date - 2, :today::date + 2, 'Runni
 
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_run::uuid, :agent::uuid, false, :today::date - 2, :today::date + 2,
-        'New label', public.uuid_v7(), :actor::uuid, null, 'test') = 'started',
+        'New label', false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'started',
     'a running block cannot be edited, even just its label, and it says "started"');
 SELECT public.agent_settings_end_time_off(:off_run::uuid, :agent::uuid, public.uuid_v7(), :actor::uuid, null, 'test') AS r \gset
 SELECT pg_temp.assert(

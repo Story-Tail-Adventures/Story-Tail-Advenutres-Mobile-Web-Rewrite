@@ -2,7 +2,9 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import { AgentAvailabilityForm } from "@/components/agent/AgentAvailabilityForm";
+import { AgentNotificationsForm } from "@/components/agent/AgentNotificationsForm";
 import { AgentProfileForm } from "@/components/agent/AgentProfileForm";
+import { AgentSignatureForm } from "@/components/agent/AgentSignatureForm";
 import { SettingsTabs } from "@/components/agent/SettingsTabs";
 import { RetryState } from "@/components/client/RetryState";
 import { loadAgentSettings } from "@/lib/agent/settings";
@@ -11,9 +13,8 @@ import { validSettingsTab } from "@/lib/agent/settingsTabs";
 
 /**
  * §3.12 Agent Profile & Settings (ruled 2026-10-17, Screen Inventory §3.12). One page, one
- * tab per URL (`?tab=`), reached from the avatar menu. PR 1 has Profile (3.12.1) and
- * Availability (3.12.2); Notifications (3.12.3) and Signature (3.12.4) arrive in PR 2, and
- * no tab is drawn before it does anything.
+ * tab per URL (`?tab=`), reached from the avatar menu: Profile (3.12.1), Availability (3.12.2),
+ * Notifications (3.12.3) and Signature (3.12.4).
  *
  * NOT ON THE NAV RAIL, as `nav.ts` records: §6.4 settled the rail's seven entries.
  */
@@ -46,8 +47,12 @@ export default async function AgentSettingsPage({
           profile={settings.profile}
           responseTimeHours={settings.availability.responseTimeHours}
         />
-      ) : (
+      ) : active === "availability" ? (
         <AgentAvailabilityForm key="availability" availability={settings.availability} />
+      ) : active === "notifications" ? (
+        <AgentNotificationsForm key="notifications" notifications={settings.notifications} />
+      ) : (
+        <AgentSignatureForm key="signature" signature={settings.signature} profile={settings.profile} />
       )}
     </Box>
   );

@@ -10,6 +10,8 @@
  *   update_availability  time zone, working hours and reply time, saved together
  *   save_time_off        create a block, or edit one that has not started
  *   end_time_off         delete an upcoming block, or end a running one early ("I'm back")
+ *   update_notifications the four alert switches (PR 2, 3.12.3)
+ *   update_signature     the email signature; empty means the default (PR 2, 3.12.4)
  *
  * Every write is a service_role SQL function that writes its own `audit_event` row in the
  * same transaction, with {from, to} for each changed field. An unchanged save writes nothing
@@ -40,10 +42,13 @@ import {
   MAX_TIME_OFF_LABEL,
   readAvatar,
   readDisplayName,
+  readAutoReply,
   readOptionalText,
   readPhone,
   readResponseTime,
+  readSignature,
   readSocialLinks,
+  readSwitch,
   readTimeOffDates,
   readTimeZone,
   readWeeklySchedule,
@@ -56,6 +61,8 @@ const OPS = [
   "update_availability",
   "save_time_off",
   "end_time_off",
+  "update_notifications",
+  "update_signature",
 ] as const;
 type Op = (typeof OPS)[number];
 
@@ -85,6 +92,8 @@ function timeOffSaved(outcome: string | null, id: string): Response {
       throw conflict("This time away has already started. You can end it early instead.");
     case "bad_dates":
       throw badRequest("The last day away can't be before the first.");
+    case "reply_needs_text":
+      throw badRequest("Add the words for your automatic reply, or turn it off.");
     default:
       throw notFound("That time away isn't on your calendar.");
   }
@@ -214,6 +223,7 @@ Deno.serve(async (req) => {
           }
         }
         const { startsOn, endsOn } = readTimeOffDates(payload.startsOn, payload.endsOn);
+        const autoReply = readAutoReply(payload.autoReplyEnabled, payload.autoReplyText);
         const { data, error } = await db.rpc("agent_settings_save_time_off", {
           p_id: id,
           p_agent_id: agentId,
@@ -221,10 +231,39 @@ Deno.serve(async (req) => {
           p_starts_on: startsOn,
           p_ends_on: endsOn,
           p_label: readOptionalText(payload.label, MAX_TIME_OFF_LABEL, "The label"),
+          p_auto_reply_enabled: autoReply.enabled,
+          p_auto_reply_text: autoReply.text,
           ...audit,
         } as never);
         if (error) throw new Error(`time off save failed: ${error.message}`);
         return timeOffSaved(scalar(data), id);
+      }
+
+      case "update_notifications": {
+        const { data, error } = await db.rpc("agent_settings_update_notifications", {
+          p_agent_id: agentId,
+          p_client_messages_push: readSwitch(payload.clientMessagesPush, "Client message push"),
+          p_client_messages_email: readSwitch(payload.clientMessagesEmail, "Client message email"),
+          p_quote_requests_push: readSwitch(payload.quoteRequestsPush, "Trip request push"),
+          p_quote_requests_email: readSwitch(payload.quoteRequestsEmail, "Trip request email"),
+          ...audit,
+        } as never);
+        if (error) throw new Error(`notifications update failed: ${error.message}`);
+        const outcome = scalar(data);
+        if (outcome === "not_found" || !outcome) throw notFound("We couldn't find your advisor profile.");
+        return json({ outcome });
+      }
+
+      case "update_signature": {
+        const { data, error } = await db.rpc("agent_settings_update_signature", {
+          p_agent_id: agentId,
+          p_signature: readSignature(payload.signature),
+          ...audit,
+        } as never);
+        if (error) throw new Error(`signature update failed: ${error.message}`);
+        const outcome = scalar(data);
+        if (outcome === "not_found" || !outcome) throw notFound("We couldn't find your advisor profile.");
+        return json({ outcome });
       }
 
       case "end_time_off": {

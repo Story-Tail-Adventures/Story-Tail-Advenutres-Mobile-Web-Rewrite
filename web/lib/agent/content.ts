@@ -2049,6 +2049,7 @@ export const AGENT_MESSAGES_COPY = {
   internalNoteTag: "Internal note · only you can see this",
   // §3.10 Stage 4, after a bubble's time: an email carried this reply; the client replied by email.
   emailedMark: "Emailed",
+  autoReply: "Automatic reply",
   byEmail: "By email",
   senderYou: "You",
   truncated: "Showing the latest 500 messages.",

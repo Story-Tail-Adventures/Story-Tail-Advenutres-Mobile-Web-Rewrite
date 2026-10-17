@@ -769,6 +769,8 @@ export type ThreadMessage = {
   createdAt: string;
   /** Documents attached to this message, already filtered to what the client may read. */
   attachments: TripDocument[];
+  /** §3.12.2: an automatic reply sent while the advisor was away, tagged in the thread. */
+  autoReply: boolean;
 };
 
 export type TripThreadView = {
@@ -854,7 +856,7 @@ export async function loadThreadMessages(conversationId: string): Promise<Thread
   const [{ data: rows }, me] = await Promise.all([
     supabase
       .from("message")
-      .select("id, sender_role, body, created_at")
+      .select("id, sender_role, body, created_at, is_auto_reply")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true }),
     currentPlatformUser(),
@@ -897,6 +899,7 @@ export async function loadThreadMessages(conversationId: string): Promise<Thread
     body: m.body,
     createdAt: m.created_at,
     attachments: attachmentsByMessage.get(m.id) ?? [],
+    autoReply: m.is_auto_reply === true,
   }));
 }
 
