@@ -3706,6 +3706,76 @@ Preferences (3.12.3).
 
 ### 3.12 Agent Profile & Settings
 
+> **Ruled 2026-10-17 (grilled with Gyasi, "yes" to every recommendation, Q1 to Q26).** Build
+> 3.12.1 to 3.12.4; **3.12.5 Branding waits for P3** (multi-agent). Web first, then an Android
+> PR (Profile, Notifications, Availability, and the client "Your advisor" card), then iOS once
+> Xcode is installed. Shipped in four PRs: **PR 1** settings page + Profile + Availability (with
+> the data and docs), **PR 2** Notifications + Signature + the new alerts + rest hours moving to
+> working hours + the out-of-office auto-reply, **PR 3** the client "Your advisor" card,
+> **PR 4** Android.
+>
+> **Where it lives.** One page, `/agent/settings`, with four tabs: Profile, Availability,
+> Notifications, Signature (each tab its own URL, `?tab=`). Reached from a new **avatar menu**
+> in the agent top bar, which also holds Sign out. Each tab saves on its own; leaving a tab
+> with unsaved changes asks first. Every save writes an `audit_event` row with the old and new
+> value of each changed field. Only the advisor edits their own settings.
+>
+> **3.12.1 Profile.** Photo, name, pronouns, email (read-only, with a note on how to change it;
+> a proper confirm-the-new-address flow is later), phone, bio, and four social links:
+> Instagram, Facebook, LinkedIn, Website. Each link is stored as a full `https://` URL, checked
+> on save (a bare `@handle` becomes the full Instagram link); empty ones are hidden from
+> clients. **Photo:** JPG, PNG or WebP up to 5 MB, cropped square and shrunk to 400×400 in the
+> browser, stored in the public `agent-avatars` bucket (emails need a link that works signed
+> out). Removing it falls back to initials on the brand colour. **Clients see it** in a
+> "Your advisor" card on the client home and at the top of their conversation: photo, name,
+> pronouns, bio, "Usually replies within X hours", social links (PR 3). Today nothing on the
+> client side shows any of it.
+>
+> **3.12.2 Availability.**
+> - **Time zone:** an editable list limited to North American zones (USD / North America
+>   only). It drives working hours and rest hours.
+> - **Working hours:** each day an on/off switch with one From/To range in 30-minute steps.
+>   The prototype's hour grid sits above as a read-only picture of the week (no painting).
+>   Default Monday to Saturday 7am to 9pm, Sunday off: today's rest hours, inverted.
+>   **Working hours ARE the rest hours** (PR 2): push is quiet outside them, then one summary
+>   at the start of the next working period. Clients never see the grid.
+> - **"Usually replies within":** 2, 4, 12, 24 or 48 hours, default 24. Shown to clients;
+>   nothing enforces it.
+> - **Out of office:** a block has a start date, an end date (whole days in the advisor's
+>   zone) and an optional label. Blocks never overlap; any upcoming block can be edited or
+>   deleted; a running one can be ended early ("I'm back"); past blocks drop off the list. While
+>   one runs, push is silent and one summary goes at the next working period after it ("…while
+>   you were away"), clients see "Away until Jul 7" on their conversation, and an optional
+>   **auto-reply** (off by default, text per block) answers the first client message in each
+>   thread once per block, as a message from the advisor tagged "Automatic reply", sent through
+>   the normal message email, never marking the thread read. No covering advisor (one advisor).
+>   Stored in a new `agent_time_off` table (Data-Model §7.5), replacing the untyped
+>   `agent_availability.time_off_blocks`.
+> - **Calendar sync (Google / Apple): deferred.** OAuth, a stored refresh token and a new-SDK
+>   security review make it its own project. The switches are not shown at all.
+>
+> **3.12.3 Notifications.** Two columns, **Email** and **Push**; no SMS (no provider). Only
+> rows that really fire, more added as events get built:
+> - **Client message:** push on, email off by default.
+> - **New quote request** (a new trigger, an inquiry trip created from a quote request): push
+>   on, email on. Locked screen "New trip request from Jordan Hayes"; unlocked adds the
+>   destination and dates if given; a tap opens the inquiry trip.
+> - **Rest hours:** a link to the Availability tab's working hours (Q6), not a second setting.
+>
+> The advisor's alert emails go to their sign-in email at once (rest hours quiet push only)
+> and carry **no client words**: the client's name, the trip and an "Open in Story-Tail" link,
+> so client words (and any card number a client types) stay out of the advisor's mail provider.
+> The summary after rest hours or time off: one push at the start of the next working period,
+> "3 clients wrote while you rested" or "…while you were away", nothing if nothing is unread.
+>
+> **3.12.4 Signature.** Plain text (no rich text: stored HTML in email is an injection risk),
+> up to 8 lines and 500 characters, with three merge fields `{{agent.name}}`,
+> `{{agent.phone}}`, `{{agent.email}}`; typed links become clickable in the email. A live
+> preview beside it, as A3124. Default: the prototype's text without the locked line. It goes
+> on **client message emails only** (auth mail is system mail), under the advisor's words and
+> above "Open the conversation". A locked line, **"Story-Tail Adventures · Hosted by
+> Inteletravel"**, always prints under it and cannot be edited.
+
 #### 3.12.1 Agent Profile / My Account
 **Purpose:** Manage personal information, photo, contact channels.
 **Primary elements:** Profile photo upload; name; email; phone; bio (used in client communications); social links.

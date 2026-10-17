@@ -104,7 +104,10 @@ export type AgentRead =
   // {needsMfa} until the session is aal2 (checked in the database).
   | "agent_client_account_admin"
   // §3.9.7 / §3.3.11. Likely duplicates, or the merge preview; {needsMfa} until aal2.
-  | "agent_client_merge_view";
+  | "agent_client_merge_view"
+  // §3.12. One jsonb: the advisor's own profile, working hours and the time away still
+  // ahead. NULL below aal2 (checked in the database).
+  | "agent_settings_self";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -998,7 +1001,10 @@ export type AgentFunction =
   | "account-admin"
   // §3.10 Stage 3b. This browser's notifications on (register) or off (sign-out). Never
   // returns a device address.
-  | "push-device";
+  | "push-device"
+  // §3.12. The advisor's own profile, photo, working hours and time away. Every write audited
+  // in its own SQL transaction.
+  | "agent-settings";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

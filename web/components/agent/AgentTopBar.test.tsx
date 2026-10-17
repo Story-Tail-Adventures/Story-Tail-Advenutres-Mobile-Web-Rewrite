@@ -5,7 +5,9 @@ import { renderWithTheme } from "@/test/render";
 
 // The real module is "use server" and pulls in @/lib/env and @/lib/supabase/server, neither
 // of which is configured in a unit run. The bar only needs something to hand <form action>.
-vi.mock("@/lib/auth/actions", () => ({ signOutAction: vi.fn() }));
+const { signOutAction } = vi.hoisted(() => ({ signOutAction: vi.fn() }));
+vi.mock("@/lib/auth/actions", () => ({ signOutAction }));
+vi.mock("@/lib/agent/pushClient", () => ({ stopPushHere: vi.fn().mockResolvedValue(undefined) }));
 // The same for §3.10.7's notification actions, which sign-out calls first.
 vi.mock("@/lib/agent/pushActions", () => ({ registerPushDeviceAction: vi.fn(), unregisterPushDeviceAction: vi.fn() }));
 
@@ -77,16 +79,26 @@ describe("AgentTopBar", () => {
   });
 
   /**
-   * Sign-out has to stay the LAST control in the bar. §3.2 redirects an agent off every
-   * (client) route, so this form is the only sign-out an advisor has on the web — an
-   * advisor on a shared laptop who cannot find it leaves a live session behind. The toggle
-   * was inserted at the head of the cluster precisely so this stayed put.
+   * Sign-out has to stay one tap away at the bar's right edge. §3.2 redirects an agent off
+   * every (client) route, so this is the only sign-out an advisor has on the web — an
+   * advisor on a shared laptop who cannot find it leaves a live session behind. Since §3.12
+   * (Q2) it lives in the avatar menu, which is the bar's last control.
    */
-  it("keeps sign-out anchored after the toggle", () => {
-    render(<AgentTopBar initials="GS" />);
+  it("keeps the account menu, with sign-out in it, as the last control", async () => {
+    renderWithTheme(<AgentTopBar initials="GS" />);
     const buttons = screen.getAllByRole("button");
-
-    expect(buttons.at(-1)).toHaveAccessibleName("Sign out");
+    expect(buttons.at(-1)).toHaveAccessibleName("Your account");
     expect(buttons[0]).toHaveAccessibleName("Switch to dark mode");
+
+    const user = userEvent.setup();
+    await user.click(buttons.at(-1)!);
+    const menu = within(screen.getByRole("menu"));
+    expect(menu.getByRole("menuitem", { name: "Profile & settings" })).toHaveAttribute("href", "/agent/settings");
+
+    // Reachable by keyboard: a direct menu item, so ArrowDown lands on it.
+    await user.keyboard("{ArrowDown}");
+    expect(menu.getByRole("menuitem", { name: "Sign out" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await vi.waitFor(() => expect(signOutAction).toHaveBeenCalled());
   });
 });

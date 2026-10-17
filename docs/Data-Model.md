@@ -114,6 +114,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
 | PipelineWeight | Agent | P1 | Per-stage probability the commission forecast multiplies by |
+| AgentTimeOff | Agent | P1 | One out-of-office block (§3.12.2) |
 | Supplier | Trip | P1 | Resort, cruise line, tour operator, etc. |
 | Trip | Trip | P1 | Core unit of work — one trip end-to-end |
 | TripComponent | Trip | P1 | Flight, hotel, cruise, transfer, excursion, etc. |
@@ -895,10 +896,11 @@ mutation on the `client` blast radius and rule 3 applies in full.
 | `pronouns` | `text` | Yes | Public | Optional — shown in client-facing communication where appropriate (referenced by Screen 3.1.7 Agent Profile Setup) |
 | `email` | `citext` | No | PII | — |
 | `phone` | `text` | Yes | PII | — |
-| `avatar_url` | `text` | Yes | Public | — |
+| `avatar_url` | `text` | Yes | Public | §3.12.1: a PATH in the public `agent-avatars` bucket, `/storage/v1/object/public/agent-avatars/<agent id>/<v7>.<jpg\|png\|webp>`, never an absolute URL (inside a function's container the Supabase origin is `http://kong:8000` locally). Each surface puts it on its own public Supabase origin. Null means initials |
 | `bio` | `text` | Yes | Public | Client-visible |
-| `social_links` | `jsonb` | No | Public | `{instagram, facebook, linkedin}` |
-| `time_zone` | `text` | No | Internal | — |
+| `social_links` | `jsonb` | No | Public | `{instagram, facebook, linkedin, website}`, each a full `https://` URL or absent (§3.12.1). A CHECK allows no other keys and only `https://` strings |
+| `email_signature` | `text` | Yes | Public | §3.12.4. Plain text, at most 8 lines and 500 characters, merge fields `{{agent.name}}` / `{{agent.phone}}` / `{{agent.email}}`. Null means the default. Printed on client message emails only, above the locked "Story-Tail Adventures · Hosted by Inteletravel" line, which is not stored |
+| `time_zone` | `text` | No | Internal | IANA name. §3.12.2 offers North American zones only; drives working hours and rest hours |
 | `status` | `agent_status` enum | No | Internal | `active`, `inactive`, `archived` |
 | `commission_split_pct` | `numeric(5,2)` | Yes | Internal | If a sub-agent under a master |
 | `created_at` | `timestamptz` | No | Public | — |
@@ -923,19 +925,18 @@ mutation on the `client` blast radius and rule 3 applies in full.
 
 ### 7.3 AgentAvailability
 
-**Phase:** P1
+**Phase:** P1. Edited on Screen 3.12.2 (ruled 2026-10-17). One row per agent, created with
+the defaults on first read.
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `agent_id` | `uuid` | No | Public | PK; FK → Agent |
-| `weekly_schedule` | `jsonb` | No | Internal | Per-weekday array of `{start, end}` |
-| `response_time_hours` | `integer` | No | Public | "Reply within X hours" — shown to clients |
-| `time_off_blocks` | `jsonb` | No | Internal | Array of `{start, end, label}` |
-| `calendar_sync_provider` | `text` | Yes | Internal | `google` / `apple` / null |
-| `calendar_sync_refresh_token_encrypted` | `bytea` | Yes | Tokenized | OAuth refresh token, encrypted |
+| `weekly_schedule` | `jsonb` | No | Internal | Exactly seven keys `mon`…`sun`; each `null` (day off) or `{"start":"HH:MM","end":"HH:MM"}` on a 30-minute step, `start < end`, in `agent.time_zone`. Checked by `agent_weekly_schedule_valid()`. Default Mon to Sat 07:00 to 21:00, Sun off. **These are the advisor's working hours AND rest hours** (§3.12.2): push is quiet outside them |
+| `response_time_hours` | `integer` | No | Public | "Usually replies within X hours", shown to clients. One of 2, 4, 12, 24, 48 (CHECK); default 24 |
+| `time_off_blocks` | `jsonb` | No | Internal | **Retired 2026-10-17, never written or read.** Superseded by `agent_time_off` (§7.5). Dropped once nothing references it |
+| `calendar_sync_provider` | `text` | Yes | Internal | `google` / `apple` / null. **Deferred** (§3.12.2): nothing writes it |
+| `calendar_sync_refresh_token_encrypted` | `bytea` | Yes | Tokenized | OAuth refresh token, encrypted. Deferred with the above |
 | `updated_at` | `timestamptz` | No | Public | — |
-
----
 
 ### 7.4 PipelineWeight
 
@@ -960,11 +961,36 @@ mutation on the `client` blast radius and rule 3 applies in full.
 |---|---|---|---|---|---|
 | 20 | 50 | 100 | 100 | 100 | 0 |
 
-These are defaults, not constants: the rows are seeded per agent and edited on 3.7.7 Commission Forecast (since 20261013120000, through `agent_set_pipeline_weights` in the `agent-commission` Edge Function: the four open stages only, refused as stale if they changed since the page loaded, and audited in the same transaction as `pipeline_weight.updated`). 3.12 Agent Settings will edit them too. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
+These are defaults, not constants: the rows are seeded per agent and edited on 3.7.7 Commission Forecast (since 20261013120000, through `agent_set_pipeline_weights` in the `agent-commission` Edge Function: the four open stages only, refused as stale if they changed since the page loaded, and audited in the same transaction as `pipeline_weight.updated`). §3.12 Agent Settings does not (ruled 2026-10-17: its four tabs leave them on 3.7.7). They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
 
 **The confidence figure** the prototype draws as "71%" is the weighted total over the unweighted one, not a stored value. It is therefore a property of the book's current shape, and it moves when trips move, which is the intended reading.
 
 **Indexes:** primary key on `(agent_id, status)`. Nothing else — it is at most six rows per agent.
+
+---
+
+### 7.5 AgentTimeOff
+
+**Phase:** P1 (§3.12.2, ruled 2026-10-17). One row per out-of-office block. A keyed table, not
+the old `time_off_blocks` blob, so overlap is a constraint and not a hope.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | v7, minted by the caller |
+| `agent_id` | `uuid` | No | Public | FK → Agent |
+| `starts_on` | `date` | No | Internal | First day away, in `agent.time_zone` |
+| `ends_on` | `date` | No | Internal | Last day away (inclusive). `ends_on >= starts_on` |
+| `label` | `text` | Yes | Internal | "Family trip". At most 80 characters |
+| `auto_reply_enabled` | `boolean` | No | Internal | Default false. Used from §3.12 PR 2 |
+| `auto_reply_text` | `text` | Yes | Internal | At most 600 characters; required when enabled. Merge field `{{return_date}}` |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Constraints:** an exclusion constraint (`btree_gist`) forbids two blocks of one agent whose
+`daterange(starts_on, ends_on, '[]')` overlap. "I'm back" sets `ends_on` to yesterday (or
+deletes a block that has not started). Past blocks stay for history but the screen lists only
+blocks with `ends_on >= today`. Agent-scoped RLS, writes through the `agent-settings` Edge
+Function with an `audit_event` row each.
 
 ---
 
@@ -2332,13 +2358,15 @@ Copying them to an advisor created later waits for P3's multi-agent work.
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `user_id` | `uuid` | No | Public | PK; FK → User |
-| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push, sms}}` |
+| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push}}`. Agent categories (§3.12.3): `messages` (default push on, email off) and `quote_requests` (push on, email on). No `sms`: there is no SMS provider |
 | `quiet_hours_start` | `time` | Yes | Internal | — |
 | `quiet_hours_end` | `time` | Yes | Internal | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-> **Rest hours default to 9pm to 7am and all of Sunday** (§3.10 Stage 3b, Gyasi 2026-10-15)
-> until §3.12.3 exposes `quiet_hours_start` / `quiet_hours_end` for editing. Sunday is not a
+> **For an agent, rest hours are the working hours** in `agent_availability.weekly_schedule`
+> (§3.12.2, ruled 2026-10-17, applied in §3.12 PR 2), and out-of-office (§7.5) is rest too;
+> `quiet_hours_*` is not used for agents. Until PR 2 lands, rest hours stay 9pm to 7am and all
+> of Sunday (§3.10 Stage 3b, Gyasi 2026-10-15), which is exactly the working-hours default. Sunday is not a
 > column: rest is not lateness, the same reason the overdue clock skips it (§3.10 Stage 1).
 >
 > **First writer, specified for §3.10 Stage 4 (2026-10-16, not built): the email opt-out.**

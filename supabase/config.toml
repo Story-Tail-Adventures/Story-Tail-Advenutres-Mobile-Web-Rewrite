@@ -591,6 +591,11 @@ verify_jwt = true
 [functions.agent-message-template]
 verify_jwt = true
 
+# §3.12 Agent Settings: the advisor's own profile, photo, working hours and time away. Every
+# write audited in its own SQL transaction (migration 20261025120000).
+[functions.agent-settings]
+verify_jwt = true
+
 # §3.7.5 / §3.7.6: import an Inteletravel statement and reconcile it. Upload, map, resolve,
 # reconcile and discard; the ledger changes only on reconcile, inside one SQL transaction
 # that writes an audit row per line it touches.
