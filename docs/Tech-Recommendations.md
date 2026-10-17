@@ -645,7 +645,14 @@ Estimated **MVP run-rate cost**: $50–$250/month across all services at launch 
 
 A few decisions still need confirmation with stakeholders before final commit.
 
-**Supabase Auth — MFA validation.** Supabase Auth is committed in the recommended stack but the agent's required-MFA flow needs validation against Supabase Auth's MFA capabilities (TOTP, SMS, backup codes). Confirm this with a small spike before the activation screens are built. If Supabase Auth's MFA proves insufficient, fall back to Auth0 — but this is a near-certainty rather than a likely fork given Supabase's MFA capabilities as of 2026.
+**Supabase Auth — MFA validation.** Resolved. TOTP through Supabase Auth carries the agent's required-MFA flow, and agent MFA is enforced on the server as of 2026-10-16, not only nudged by the web proxy:
+
+- **Edge Functions.** `requireAgentId` (`supabase/functions/_shared/agent.ts`) refuses any agent session whose JWT is not `aal2`, with a 403 whose body says to finish signing in with the authenticator code. Every agent route calls it, so one check covers them all. §3.9's `account-admin` keeps its own stricter `requireRecentMfa` step-up on top.
+- **Database reads.** `public.current_agent_id()` returns NULL unless `auth.jwt() ->> 'aal'` is `aal2`. Every `agent_*` read accessor resolves the caller through it, so an `aal1` agent reads empty results rather than their book. Fail closed.
+- **Web.** `web/lib/supabase/middleware.ts` sends an agent with no verified factor to `/mfa/setup` and an `aal1` agent with one to `/login/mfa` before any `(agent)` page renders.
+- **Mobile.** The session gate in `App.kt` does the same: no factor goes to the MFA setup screen, `aal1` to the challenge, before `AgentRoute` loads.
+
+Clients are unaffected; MFA stays optional for them. Before a release that carries this, every agent account in that environment must have a verified TOTP factor, or the advisor will be routed to setup on next sign-in.
 
 **Edge Functions execution limits.** Supabase Edge Functions have a 150-second execution limit on the free tier (2× that on Pro). Verify that the longest-running Edge Function (likely Inteletravel CSV import for large statements, or a Stripe Vault and Forward call with a slow supplier endpoint, which no longer applies since 2026-10-16) fits comfortably within that budget. If not, the workaround is to break the work into smaller Edge Functions or use a queue pattern with Supabase Realtime triggers.
 

@@ -1,5 +1,6 @@
 package com.storytail.adventures
 
+import com.storytail.adventures.api.Assurance
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.ui.nav.AppRoute
@@ -100,5 +101,38 @@ class OnboardingGateTest {
             AppRoute.Onboarding(WizardStep.WELCOME),
             destinationFor(status(step = "some-future-step")),
         )
+    }
+
+    // ── agent MFA (agentMfaGate) ─────────────────────────────────────────────────────
+    //
+    // Agent MFA is required and the server enforces it below aal2. The twin of
+    // web/lib/agent/role.test.ts `agentMfaRedirect`.
+
+    @Test
+    fun lets_an_aal2_agent_onto_the_worklist() {
+        assertEquals(AppRoute.Worklist, agentMfaGate(AppRoute.Worklist, Assurance.SATISFIED))
+    }
+
+    @Test
+    fun sends_an_agent_with_no_factor_to_setup() {
+        assertEquals(AppRoute.MfaSetup, agentMfaGate(AppRoute.Worklist, Assurance.NONE))
+    }
+
+    @Test
+    fun sends_an_agent_with_an_unused_factor_to_the_challenge() {
+        assertEquals(AppRoute.MfaChallenge, agentMfaGate(AppRoute.Worklist, Assurance.REQUIRED))
+    }
+
+    @Test
+    fun leaves_a_traveler_alone_whatever_their_assurance() {
+        // MFA stays optional for clients: the gate only ever reroutes the worklist.
+        for (a in Assurance.entries) {
+            assertEquals(AppRoute.Dashboard, agentMfaGate(AppRoute.Dashboard, a), a.name)
+            assertEquals(
+                AppRoute.Onboarding(WizardStep.WELCOME),
+                agentMfaGate(AppRoute.Onboarding(WizardStep.WELCOME), a),
+                a.name,
+            )
+        }
     }
 }

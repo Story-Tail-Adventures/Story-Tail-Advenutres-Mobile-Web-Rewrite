@@ -41,6 +41,10 @@ export const MFA_SETUP_TEXT = {
   overline: "EXTRA SECURITY",
   title: "Set up two-factor auth",
   sub: "Recommended if you'll be storing payment cards.",
+  // An advisor cannot skip this: agent MFA is required and the server enforces it.
+  agentSub:
+    "The advisor side asks for a code from an authenticator app each time you sign in. " +
+    "It keeps your travelers' details safe, and it only takes a minute to set up.",
   methodAppTitle: "Authenticator app",
   methodAppSub: "Recommended",
   methodSmsTitle: "SMS code",
