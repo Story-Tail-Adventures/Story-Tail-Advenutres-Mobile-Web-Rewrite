@@ -26,6 +26,8 @@ import com.storytail.adventures.domain.agent.notificationLockedTitle
 import com.storytail.adventures.domain.agent.notificationSummaryBody
 import com.storytail.adventures.domain.agent.notificationSummaryTitle
 import com.storytail.adventures.domain.agent.notificationTitle
+import com.storytail.adventures.domain.agent.quoteRequestBody
+import com.storytail.adventures.domain.agent.quoteRequestTitle
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -47,7 +49,57 @@ class AgentNotifier(private val context: Context) {
             is AgentPushData.Message -> showMessage(data)
             is AgentPushData.Summary -> showSummary(data)
             is AgentPushData.Dismiss -> dismiss(data.tag, data.readUpTo)
+            is AgentPushData.QuoteRequest -> showQuoteRequest(data)
         }
+    }
+
+    /**
+     * §3.12.3: a client asked for a trip. The push carries the trip id only; the name, place and
+     * dates come from our own API over the advisor's session, as a message's words do. The locked
+     * screen shows the name only; a tap opens the inquiry trip.
+     */
+    private suspend fun showQuoteRequest(data: AgentPushData.QuoteRequest) {
+        val trip = withTimeoutOrNull(READ_TIMEOUT_MS) {
+            if (SupabaseClientProvider.agentPushRepository().signedIn()) {
+                SupabaseClientProvider.agentRepository().tripRequestSummary(data.tripId)
+            } else {
+                null
+            }
+        }
+        // Which step failed, never what it read.
+        if (trip == null) Log.w(TAG, "trip read for a trip-request notification failed or timed out")
+        val title = trip?.let { quoteRequestTitle(it.clientName) } ?: AgentMessagesCopy.NOTIFY_NEW_TRIP_REQUEST
+        val body = trip?.let { quoteRequestBody(it.destinations.joinToString(", "), it.startDate, it.endDate) }
+
+        val locked = tripBase(data.tripId).setContentTitle(title).build()
+        val builder = tripBase(data.tripId)
+            .setContentTitle(title)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(locked)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+        if (body != null) builder.setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body))
+        post(data.tag, builder.build())
+    }
+
+    private fun tripBase(tripId: String): NotificationCompat.Builder =
+        NotificationCompat.Builder(context, PushSetup.CHANNEL_TRIP_REQUESTS)
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(tripIntent(tripId))
+
+    /** Opens the inquiry trip through MainActivity. */
+    private fun tripIntent(tripId: String): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .setData(threadUri("trip", tripId))
+            .putExtra(EXTRA_TRIP, tripId)
+        return PendingIntent.getActivity(
+            context,
+            ("trip:$tripId").hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     private suspend fun showMessage(data: AgentPushData.Message) {
@@ -240,6 +292,7 @@ class AgentNotifier(private val context: Context) {
         private const val SENT_LINGER_MS = 2_500L
         private const val READ_TIMEOUT_MS = 6_000L
         const val EXTRA_THREAD = "com.storytail.adventures.thread"
+        const val EXTRA_TRIP = "com.storytail.adventures.trip"
         const val EXTRA_SEEN_UP_TO = "com.storytail.adventures.seenUpTo"
         const val KEY_REPLY = "reply"
         const val ACTION_REPLY = "com.storytail.adventures.action.REPLY"

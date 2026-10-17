@@ -21,6 +21,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.storytail.adventures.config.SupabaseConfig
+import com.storytail.adventures.domain.agent.avatarUrlFor
+import com.storytail.adventures.domain.trip.AdvisorCard
+import com.storytail.adventures.ui.components.AdvisorPhoto
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -72,6 +76,8 @@ fun NewMessageScreen(
     onSend: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** §3.12 PR 3: the advisor's own photo and promise; null keeps the fixed words. */
+    advisor: AdvisorCard? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val empty = draft.isBlank()
@@ -109,17 +115,12 @@ fun NewMessageScreen(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    Modifier.size(36.dp).background(StoryTailBrand.Burgundy, PillShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        MessagesMessages.ADVISOR_INITIALS,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                AdvisorPhoto(
+                    url = avatarUrlFor(advisor?.avatarPath, SupabaseConfig.URL),
+                    initials = advisor?.initials ?: MessagesMessages.ADVISOR_INITIALS,
+                    size = 36.dp,
+                    background = StoryTailBrand.Burgundy,
+                )
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(
@@ -128,7 +129,7 @@ fun NewMessageScreen(
                         color = scheme.onSecondaryContainer,
                     )
                     Text(
-                        MessagesMessages.REPLY_WINDOW,
+                        advisor?.statusLine ?: MessagesMessages.REPLY_WINDOW,
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.onSecondaryContainer,
                     )

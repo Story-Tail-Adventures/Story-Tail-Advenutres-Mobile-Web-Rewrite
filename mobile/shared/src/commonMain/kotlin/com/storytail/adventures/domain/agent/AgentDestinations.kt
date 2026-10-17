@@ -3,7 +3,7 @@ package com.storytail.adventures.domain.agent
 /**
  * The agent's bottom bar, mirroring `web/lib/agent/nav.ts`.
  *
- * FOUR TABS, AND TWO OF THEM ARE DIMMED. Clients went `built` on 2026-09-26 with §3.3.1.
+ * FOUR TABS, ALL BUILT since More went `built` on 2026-10-17 with §3.12 PR 4.
  * Screen-Inventory §6.6: "The mobile experience for
  * agents at MVP is intentionally narrower than web — designed for on-the-go tasks rather
  * than deep work. Bottom tab bar: Worklist, Clients, Messages, More. The full pipeline,
@@ -38,10 +38,9 @@ val AGENT_BAR_DESTINATIONS: List<AgentDestination> = listOf(
     AgentDestination("clients", "Clients", built = true, phase = null, section = "§3.3"),
     // Built 2026-10-15 (§3.10 Stage 3): read, reply and internal notes. Templates stay on the web.
     AgentDestination("messages", "Messages", built = true, phase = null, section = "§3.10"),
-    // Not a rail destination on web. It is the eventual home of sign-out; until §3.12
-    // builds it, sign-out rides the worklist's top bar (see `AgentTopBar`) rather than
-    // waiting here, because Worklist is the whole agent shell and nothing else can reach it.
-    AgentDestination("more", "More", built = false, phase = "P1", section = "§3.12"),
+    // Not a rail destination on web (there, settings and sign-out sit in the avatar menu).
+    // Built 2026-10-17 (§3.12 PR 4): Profile, Availability, Notifications and Sign out.
+    AgentDestination("more", "More", built = true, phase = null, section = "§3.12"),
 )
 
 object AgentNavMessages {

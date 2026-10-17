@@ -407,8 +407,7 @@ sealed interface AppRoute {
     // and AccountRoute, and no composable under ui/screens/agent/ imports ClientScaffold.
     //
     // Screen-Inventory §6.6 keeps the agent's phone deliberately narrow: Worklist, Clients,
-    // Messages, More. The first three have screens since §3.10 Stage 3; More (§3.12) is
-    // drawn dimmed, which is why it is not a route yet.
+    // Messages, More. All four have screens since §3.12 PR 4 built More.
 
     /** Screen 3.2.1, and the root of the Worklist tab. */
     @Serializable
@@ -477,6 +476,35 @@ sealed interface AppRoute {
      */
     @Serializable
     data class AgentNewMessage(val clientId: String, val tripId: String? = null) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── §3.12 · More, the fourth tab (PR 4, 2026-10-17) ──────────────────────────
+    //
+    // The web reaches settings from its avatar menu; the phone's home for them is §6.6's
+    // More tab, which also took over sign-out. Signature (3.12.4) stays on the web (Q10).
+
+    /** The root of the More tab: the advisor's card, the three settings, and Sign out. */
+    @Serializable
+    data object AgentMore : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.12.1 on the phone. */
+    @Serializable
+    data object AgentSettingsProfile : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.12.2 on the phone: working hours, reply time and time away. */
+    @Serializable
+    data object AgentSettingsAvailability : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.12.3 on the phone. */
+    @Serializable
+    data object AgentSettingsNotifications : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }

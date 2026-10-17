@@ -239,12 +239,12 @@ class AgentClientRosterTest {
 
     @Test
     fun clientsIsBuiltAndIsTheSecondTabOnTheBar() {
-        // §6.6's four, in order, with two of them now built. The screen reads its own title
+        // §6.6's four, in order, all four built since §3.12 PR 4. The screen reads its own title
         // off this registry, so a rename here moves both ends at once.
         val clients = AGENT_BAR_DESTINATIONS.first { it.id == "clients" }
         assertTrue(clients.built)
         assertNull(clients.phase)
         assertEquals("Clients", clients.label)
-        assertEquals(listOf("worklist", "clients", "messages"), AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id })
+        assertEquals(listOf("worklist", "clients", "messages", "more"), AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id })
     }
 }

@@ -3786,8 +3786,8 @@ Preferences (3.12.3).
 >   held (a notification that could never go). Held notifications are re-timed when hours, time
 >   zone or time away change. The summary says "while you were away" when time away was the
 >   reason, and counts trip requests apart from messages ("2 new messages and 1 trip request…").
-> - **Trip-request push is web-only until PR 4:** the phone app learns the new kind with the
->   Android PR; until then phones are skipped for it (not failed).
+> - **Trip-request push** went to browsers only until PR 4; Android shows it since then, and only
+>   iOS (not built) is skipped for it (not failed).
 > - **The quote-request alert is raised by `quote-request` itself**, not a trigger on `trip`: the
 >   advisor's own "New trip" also starts at `inquiry` and must not alert.
 > - **The auto-reply** is a real message from the advisor (`message.is_auto_reply`), tagged
@@ -3806,6 +3806,31 @@ Preferences (3.12.3).
 >   still reaches an advisor who never wrote their own. Bare domains become links only with a
 >   common web ending, so "St.Lucia" stays text. The plain-text email puts it after the standard
 >   `-- ` separator.
+>
+> **Built (PR 4, Android, 2026-10-17).** Choices made in the build, within the rulings:
+>
+> - **More is the phone's home for settings** (§6.6's fourth tab, now built): the advisor's card
+>   (photo, name, "Away now" while time away runs), then Profile, Availability and Notifications,
+>   then **Sign out**, which left every tab's top bar as §6.6's amendment said it would.
+>   **Signature** is a disabled row saying it changes on the web (Q10), not a hidden one.
+> - **No phone artboard exists** for §3.12, so the screens follow the web tabs' fields and words
+>   in the phone's settings-list grammar. Left off as narrower than the web: the profile's "How
+>   you appear" preview and the read-only week picture.
+> - **The same doors as the web:** `agent_settings_self()` to read, the `agent-settings` ops to
+>   write, each screen saving on its own and asking before leaving unsaved changes. The phone
+>   checks only what it can say before a round trip (name, phone, dates, the auto-reply's field);
+>   social links go to the function, whose sentence is shown as written.
+> - **Photo:** the system photo picker (no storage permission), centre-cropped to 400×400 JPEG on
+>   the phone and sent as base64, as the browser does. No image library was added: the public
+>   photo is fetched with the HTTP client the app already has and drawn with Compose's decoder.
+> - **Trip-request push:** the FCM message carries the trip id only; the phone reads the client's
+>   name, destination and dates over its own session (one accessor, `agent_trip_overview`). The
+>   locked screen says "New trip request from Jordan Hayes"; a tap opens the inquiry trip. Its own
+>   Android channel ("Trip requests"), so the phone's settings can quiet it apart from messages.
+> - **"Automatic reply"** shows under the advisor's out-of-office reply in both phone threads.
+> - **The client's "Your advisor" card** on the phone reads PR 3's `client_advisor_card()`: the
+>   home card (photo, name, pronouns, promise or "Away until", three lines of bio, links), both
+>   conversation headers and the new-message screen, keeping the fixed words when the read fails.
 
 #### 3.12.1 Agent Profile / My Account
 **Purpose:** Manage personal information, photo, contact channels.
@@ -4284,6 +4309,10 @@ The mobile experience for agents at MVP is intentionally narrower than web — d
 > and only More (§3.12) is still dimmed. It reads and replies, with internal notes; templates,
 > bulk send and bulk archive stay on the web, as this section's first line says of template
 > management.
+
+> **Amended 2026-10-17 (§3.12 PR 4).** More is built, so all four tabs are live. It holds the
+> advisor's Profile, Availability and Notifications and **Sign out**, which left the top bar as the
+> 2026-09-23 amendment promised; the bar keeps the title. Email signature stays on the web.
 
 ---
 

@@ -333,6 +333,7 @@ object SupabaseClientProvider {
     private var cachedAgent: AgentRepository? = null
     private var cachedAgentMessages: AgentMessagesRepository? = null
     private var cachedAgentPush: AgentPushRepository? = null
+    private var cachedAgentSettings: AgentSettingsRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -397,6 +398,13 @@ object SupabaseClientProvider {
             cachedAgentPush!!
         }
 
+    /** §3.12 Agent Settings (PR 4), on the SAME client: one session, one refresh loop. */
+    suspend fun agentSettingsRepository(): AgentSettingsRepository =
+        withContext(Dispatchers.Default) {
+            ensureBuilt()
+            cachedAgentSettings!!
+        }
+
     /** §3.10's messaging (Stage 3), on the SAME client: one session, one refresh loop. */
     suspend fun agentMessagesRepository(): AgentMessagesRepository =
         withContext(Dispatchers.Default) {
@@ -438,6 +446,7 @@ object SupabaseClientProvider {
             cachedAgent = UnconfiguredAgentRepository()
             cachedAgentMessages = UnconfiguredAgentMessagesRepository()
             cachedAgentPush = UnconfiguredAgentPushRepository()
+            cachedAgentSettings = UnconfiguredAgentSettingsRepository()
             return
         }
         val client = createSupabaseClient(
@@ -455,5 +464,6 @@ object SupabaseClientProvider {
         cachedAgent = SupabaseAgentRepository(client)
         cachedAgentMessages = SupabaseAgentMessagesRepository(client)
         cachedAgentPush = SupabaseAgentPushRepository(client)
+        cachedAgentSettings = SupabaseAgentSettingsRepository(client)
     }
 }

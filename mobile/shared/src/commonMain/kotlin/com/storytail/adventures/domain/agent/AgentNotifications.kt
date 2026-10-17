@@ -18,6 +18,11 @@ sealed interface AgentPushData {
     data class Summary(val count: Int) : AgentPushData
     /** [readUpTo]: the newest message its notification was about. A newer notification stays. */
     data class Dismiss(val tag: String, val readUpTo: String? = null) : AgentPushData
+    /** §3.12.3: a client asked for a trip. Ids only; the name and dates are read on receipt. */
+    data class QuoteRequest(val tripId: String) : AgentPushData {
+        /** One notification per request, the same tag the web uses. */
+        val tag: String get() = "quote-$tripId"
+    }
 
     companion object {
         /** Null for anything this version does not understand: shown as nothing, never as junk. */
@@ -29,6 +34,7 @@ sealed interface AgentPushData {
                     val seen = data["seenUpTo"]?.takeIf { it.isNotBlank() } ?: return null
                     Message(id, seen, data["count"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1)
                 }
+                "quote_request" -> data["tripId"]?.takeIf { UUID.matches(it) }?.let(::QuoteRequest)
                 "summary" -> Summary(data["count"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1)
                 "dismiss" -> data["tag"]?.takeIf { it.isNotBlank() && it.length <= 64 }
                     ?.let { Dismiss(it, data["readUpTo"]?.takeIf(String::isNotBlank)) }
@@ -121,6 +127,38 @@ fun notificationBody(body: String): String {
         line.length <= 140 -> line
         else -> line.take(139).trimEnd() + "…"
     }
+}
+
+/**
+ * §3.12.3's locked screen: the client's name only, as on the web
+ * (`quoteRequestPayload` in supabase/functions/_shared/push.ts).
+ */
+fun quoteRequestTitle(clientName: String?): String =
+    "New trip request from ${clientName?.trim()?.takeIf { it.isNotEmpty() } ?: AgentMessagesCopy.NOTIFY_A_CLIENT.lowercase()}"
+
+/**
+ * Unlocked: where and when, when the client said. "Negril, Jamaica · Feb 10 – Feb 14", or what
+ * of it there is, or the gentle fallback. Dates are read as calendar dates: no zone moves them.
+ * Masked like a message, since a client types the destination.
+ */
+fun quoteRequestBody(destination: String?, startDate: String?, endDate: String?): String {
+    val from = shortIsoDate(startDate)
+    val to = shortIsoDate(endDate)
+    val whenText = when {
+        from != null && to != null -> if (from == to) from else "$from – $to"
+        else -> from ?: to
+    }
+    val detail = listOfNotNull(destination?.trim()?.takeIf { it.isNotEmpty() }, whenText).joinToString(" · ")
+    return maskCardNumbers(detail.ifEmpty { AgentMessagesCopy.NOTIFY_TRIP_REQUEST_NO_DETAIL })
+}
+
+private val SHORT_MONTHS = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+private fun shortIsoDate(iso: String?): String? {
+    val m = iso?.let { Regex("^(\\d{4})-(\\d{2})-(\\d{2})").find(it) } ?: return null
+    val month = m.groupValues[2].toInt()
+    if (month !in 1..12) return null
+    return "${SHORT_MONTHS[month - 1]} ${m.groupValues[3].toInt()}"
 }
 
 /** "3 new messages while you rested", as on the web. */

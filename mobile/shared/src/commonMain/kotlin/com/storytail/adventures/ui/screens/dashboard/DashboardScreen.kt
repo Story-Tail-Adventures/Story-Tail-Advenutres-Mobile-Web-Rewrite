@@ -29,7 +29,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.storytail.adventures.api.DashboardSnapshot
+import com.storytail.adventures.config.SupabaseConfig
+import com.storytail.adventures.domain.agent.avatarUrlFor
+import com.storytail.adventures.domain.trip.AdvisorCard
+import com.storytail.adventures.ui.components.AdvisorPhoto
+import com.storytail.adventures.ui.nav.rememberPlatformLinks
 import com.storytail.adventures.api.NextPayment
 import com.storytail.adventures.api.TripSummary
 import com.storytail.adventures.domain.trip.Loadable
@@ -121,6 +128,7 @@ fun DashboardScreen(
             is Loadable.Ready -> DashboardBody(
                 data = snapshot.value,
                 firstName = state.firstName,
+                advisor = state.advisor,
                 onOpenTrip = onOpenTrip,
                 onOpenItinerary = onOpenItinerary,
                 onSeeAllTrips = onSeeAllTrips,
@@ -136,6 +144,7 @@ fun DashboardScreen(
 private fun DashboardBody(
     data: DashboardSnapshot,
     firstName: String?,
+    advisor: AdvisorCard?,
     onOpenTrip: (String) -> Unit,
     onOpenItinerary: (String) -> Unit,
     onSeeAllTrips: () -> Unit,
@@ -206,6 +215,7 @@ private fun DashboardBody(
             // card drops the quote and keeps the reply-window line, which is exactly what
             // somebody waiting for an answer wants to see.
             preview = data.latestMessage?.takeIf { it.fromAgent }?.body,
+            advisor = advisor,
             onMessage = { onMessageAgent(upcoming.id) },
         )
     } else {
@@ -398,40 +408,74 @@ private fun NextPaymentCard(
     }
 }
 
+/**
+ * "Your advisor" (§3.12 PR 3, Q11), from the advisor's own profile: photo, name, pronouns, the
+ * reply-time promise (or "Away until…" while they rest), a short bio and their links. [advisor]
+ * is null when the read failed; the card then keeps its long-standing fixed words.
+ */
 @Composable
-private fun AdvisorCard(preview: String?, onMessage: () -> Unit) {
+private fun AdvisorCard(preview: String?, advisor: AdvisorCard?, onMessage: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val links = rememberPlatformLinks()
     Column(
         Modifier
             .fillMaxWidth()
             .background(scheme.surfaceContainerLowest, RoundedCornerShape(StoryTailRadius.lg))
             .padding(14.dp),
     ) {
+        Text(
+            DashboardMessages.ADVISOR_LABEL,
+            style = LocalStoryTailBrandTypography.current.labelXS,
+            color = scheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Gyasi has no licensed photograph, so initials — the same call §2.0's About
-            // page made for his portrait.
-            Box(
-                Modifier.size(32.dp).background(scheme.secondaryContainer, PillShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "GS",
-                    style = LocalStoryTailBrandTypography.current.labelXS,
-                    color = scheme.onSecondaryContainer,
-                )
-            }
+            // Their own photo once they have uploaded one, else initials: never a stock
+            // portrait standing in for a real person.
+            AdvisorPhoto(
+                url = avatarUrlFor(advisor?.avatarPath, SupabaseConfig.URL),
+                initials = advisor?.initials ?: "GS",
+                size = 40.dp,
+                background = StoryTailBrand.Burgundy,
+            )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "${DashboardMessages.ADVISOR_NAME} · ${DashboardMessages.ADVISOR_ROLE}",
+                    buildString {
+                        append("${advisor?.firstName ?: DashboardMessages.ADVISOR_NAME} · ${DashboardMessages.ADVISOR_ROLE}")
+                        advisor?.pronouns?.let { append(" ($it)") }
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     color = scheme.onSurface,
                 )
+                val away = advisor?.awayLabel
                 Text(
-                    DashboardMessages.ADVISOR_REPLY_TIME,
+                    away ?: advisor?.replyLabel ?: DashboardMessages.ADVISOR_REPLY_TIME,
                     style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
+                    color = if (away != null) scheme.onSurface else scheme.onSurfaceVariant,
+                    fontWeight = if (away != null) FontWeight.SemiBold else null,
                 )
+            }
+        }
+        advisor?.bio?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurface,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (advisor != null && advisor.links.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (link in advisor.links) {
+                    TextButton(
+                        onClick = { links.openUrl(link.href) },
+                        contentPadding = PaddingValues(horizontal = 6.dp),
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text(link.label, style = MaterialTheme.typography.labelMedium) }
+                }
             }
         }
         preview?.let {

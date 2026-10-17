@@ -78,12 +78,6 @@ fun WorklistScreen(
     onOpenTrip: (String) -> Unit,
     /** Screen 3.10.2, from "Recent messages" (§3.10 Stage 3). */
     onOpenThread: (String) -> Unit,
-    /**
-     * THE ONLY WAY OFF THIS SURFACE until §3.12 builds More — see [AgentTopBar] for why it
-     * rides the top bar rather than a tab. Required rather than defaulted: a second agent
-     * screen must decide where its sign-out lives, not inherit a silent no-op.
-     */
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
@@ -93,7 +87,6 @@ fun WorklistScreen(
                 // Off the same registry the bottom bar draws, so the two names cannot
                 // disagree — one destination, one label, on both ends of the screen.
                 title = AGENT_BAR_DESTINATIONS.first { it.id == "worklist" }.label,
-                onSignOut = onSignOut,
             )
         },
         activeTab = "worklist",

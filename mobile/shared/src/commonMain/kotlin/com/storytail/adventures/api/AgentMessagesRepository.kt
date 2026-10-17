@@ -112,6 +112,8 @@ data class AgentThreadMessage(
     val emailed: Boolean = false,
     /** The client wrote this by replying to an email. */
     val byEmail: Boolean = false,
+    /** §3.12.2: the out-of-office reply sent for the advisor while they were away. */
+    val autoReply: Boolean = false,
 )
 
 sealed interface AgentThreadRead {
@@ -421,6 +423,8 @@ internal data class ConversationMessageDto(
     // decode loudly instead of silently reading as "never emailed".
     val emailed_at: String?,
     val channel: String,
+    // §3.12.2. No default either, for the same reason as the two above.
+    val is_auto_reply: Boolean,
 ) {
     fun toDomain() = AgentThreadMessage(
         id = message_id,
@@ -432,6 +436,7 @@ internal data class ConversationMessageDto(
         attachmentNames = attachments.map { it.filename },
         emailed = emailed_at != null,
         byEmail = channel == "email",
+        autoReply = is_auto_reply,
     )
 }
 

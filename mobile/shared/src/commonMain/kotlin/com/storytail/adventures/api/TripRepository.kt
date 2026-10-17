@@ -6,7 +6,9 @@ import com.storytail.adventures.domain.trip.tripStatusPresentation
 import com.storytail.adventures.domain.trip.StatusChip
 import com.storytail.adventures.config.SupabaseConfig
 import com.storytail.adventures.domain.messages.inboxTitle
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.MessageSender
+import com.storytail.adventures.domain.trip.parseAdvisorCard
 import com.storytail.adventures.domain.uuidV7
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.exceptions.RestException
@@ -96,6 +98,13 @@ interface TripRepository {
 
     /** Screen 2.6.1's list. Null on a failed read; EMPTY means no conversations. */
     suspend fun inbox(): List<InboxConversationView>?
+
+    /**
+     * §3.12 PR 3 (Q11): the signed-in client's own advisor, from `client_advisor_card()`.
+     * Null when the read failed or there is no advisor; every caller then keeps its
+     * long-standing fixed words rather than drawing an empty card.
+     */
+    suspend fun advisorCard(): AdvisorCard? = null
 
     /**
      * Screen 2.6.2, addressed by CONVERSATION rather than by trip.
@@ -207,6 +216,8 @@ data class ThreadMessageView(
     val body: String,
     val createdAt: String,
     val attachments: List<TripDocumentView>,
+    /** §3.12.2: the advisor's out-of-office reply (`message.is_auto_reply`, granted to clients). */
+    val autoReply: Boolean = false,
 )
 
 data class TripThreadSnapshot(
@@ -991,7 +1002,7 @@ class SupabaseTripRepository(
     private suspend fun threadMessages(conversationId: String): List<ThreadMessageView>? {
         val messageRows = read {
             client.postgrest.from("message")
-                .select(Columns.list("id", "sender_role", "body", "created_at")) {
+                .select(Columns.list("id", "sender_role", "body", "created_at", "is_auto_reply")) {
                     filter { eq("conversation_id", conversationId) }
                     order("created_at", Order.ASCENDING)
                 }
@@ -1030,8 +1041,19 @@ class SupabaseTripRepository(
                 body = row.body,
                 createdAt = row.created_at,
                 attachments = attachments[row.id].orEmpty(),
+                autoReply = row.is_auto_reply,
             )
         }
+    }
+
+    override suspend fun advisorCard(): AdvisorCard? = try {
+        // A scalar jsonb: the object itself, or `null` for no advisor.
+        val element = Json.parseToJsonElement(client.postgrest.rpc("client_advisor_card").data)
+        (element as? JsonObject)?.let(::parseAdvisorCard)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
     }
 
     override suspend fun inbox(): List<InboxConversationView>? {
@@ -1707,6 +1729,9 @@ private data class MessageRow(
     val sender_role: String,
     val body: String,
     val created_at: String,
+    // §3.12.2. Named in the select, so PostgREST always sends it; no default, so a misspelt
+    // name fails the decode instead of reading as "not an automatic reply".
+    val is_auto_reply: Boolean,
 )
 
 @Serializable

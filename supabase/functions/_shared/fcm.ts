@@ -73,8 +73,7 @@ export function androidData(payload: PushPayload): Record<string, string> {
         tag: payload.tag,
         ...(payload.readUpTo ? { readUpTo: payload.readUpTo } : {}),
       };
-    // §3.12.3. Ids only, like a message: the phone reads the name over its own session. The
-    // Android app learns to show it in §3.12 PR 4; until then push-dispatch skips phones for it.
+    // §3.12.3. Ids only, like a message: the phone reads the name over its own session.
     case "quote_request":
       return { v: "1", kind: "quote_request", tag: payload.tag, tripId: payload.tripId };
   }

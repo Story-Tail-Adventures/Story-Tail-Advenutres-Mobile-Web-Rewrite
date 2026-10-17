@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 
@@ -48,10 +49,14 @@ class DashboardViewModel(
         val before = (_state.value.snapshot as? Loadable.Ready)?.value?.nextPayment
         _state.update { it.copy(snapshot = Loadable.Loading) }
         viewModelScope.launch {
+            // §3.12 PR 3: its own failure, like the name's: a failed read keeps the fixed words.
+            val advisorCall = async { trips.advisorCard() }
             val name = trips.greetableFirstName()
             val snapshot = trips.dashboard(today)
+            val advisor = advisorCall.await()
             _state.update {
                 it.copy(
+                    advisor = advisor ?: it.advisor,
                     ivePaid = if (snapshot?.nextPayment == before) it.ivePaid else IvePaidState.IDLE,
                     firstName = name,
                     // FAILS CLOSED. A null snapshot is a failed read, and showing the empty

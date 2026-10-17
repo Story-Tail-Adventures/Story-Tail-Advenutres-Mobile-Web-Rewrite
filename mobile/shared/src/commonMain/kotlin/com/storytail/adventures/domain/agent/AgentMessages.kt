@@ -42,6 +42,8 @@ object AgentMessagesCopy {
     // §3.10 Stage 4, after a bubble's time: an email carried this reply; the client replied by email.
     const val EMAILED_MARK = "Emailed"
     const val BY_EMAIL = "By email"
+    // §3.12.2: an out-of-office reply sent for the advisor while they were away.
+    const val AUTO_REPLY = "Automatic reply"
     const val EMPTY_THREAD = "No messages in this thread yet."
     const val REPLY_LABEL = "Reply"
     const val REPLY_PLACEHOLDER = "Write a reply…"
@@ -65,7 +67,7 @@ object AgentMessagesCopy {
     const val NOTIFY_ON = "Notifications are on for this phone."
     const val NOTIFY_BLOCKED_PHONE = "Notifications are off for Story-Tail in this phone's settings. You can turn them on there."
     const val NOTIFY_CHANNEL = "Client messages"
-    const val NOTIFY_CHANNEL_DESCRIPTION = "When a client writes to you. Quiet overnight and on Sundays."
+    const val NOTIFY_CHANNEL_DESCRIPTION = "When a client writes to you. Quiet outside your working hours."
     const val NOTIFY_LOCKED_BODY = "Unlock to read it."
     const val NOTIFY_NEW_MESSAGE = "New message"
     const val NOTIFY_ACTION_REPLY = "Reply"
@@ -78,6 +80,11 @@ object AgentMessagesCopy {
     const val NOTIFY_A_CLIENT = "A client"
     const val NOTIFY_NO_TEXT = "Sent you a message."
     const val NOTIFY_YOUR_CLIENTS = "Your clients"
+    // §3.12.3: a client asked for a trip (the same words push-dispatch sends the browser).
+    const val NOTIFY_NEW_TRIP_REQUEST = "New trip request"
+    const val NOTIFY_TRIP_REQUEST_NO_DETAIL = "Open it to see what they're dreaming of."
+    const val NOTIFY_TRIP_CHANNEL = "Trip requests"
+    const val NOTIFY_TRIP_CHANNEL_DESCRIPTION = "When a client asks you to plan a trip. Quiet outside your working hours."
     const val OPEN_IN_MESSAGES = "Open in Messages"
 
     // Phone-only. The web has no tab bar and a two-pane layout, so these have no twin.

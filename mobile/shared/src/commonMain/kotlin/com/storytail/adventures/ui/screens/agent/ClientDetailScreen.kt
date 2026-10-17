@@ -71,7 +71,6 @@ fun ClientDetailScreen(
     /** "Message Kai": the client's general thread, or a new one (§3.10 Stage 3). */
     onMessageClient: (String) -> Unit,
     onSelectBarTab: (String) -> Unit,
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
@@ -82,7 +81,6 @@ fun ClientDetailScreen(
                     is Loadable.Ready -> state.value.displayName
                     else -> ClientCopy.TITLE
                 },
-                onSignOut = onSignOut,
             )
         },
         activeTab = "clients",

@@ -561,8 +561,11 @@ private fun ThreadPanel(title: String, body: String, onRetry: (() -> Unit)? = nu
  * The line under a bubble: its time, then §3.10 Stage 4's mark when there is one. "Emailed" on
  * the advisor's reply an email carried; "By email" on a client message that came by email.
  */
-internal fun bubbleMeta(time: String, message: AgentThreadMessage): String = when {
-    message.fromAgent && message.emailed -> "$time · ${AgentMessagesCopy.EMAILED_MARK}"
-    !message.fromAgent && message.byEmail -> "$time · ${AgentMessagesCopy.BY_EMAIL}"
-    else -> time
+internal fun bubbleMeta(time: String, message: AgentThreadMessage): String = buildString {
+    append(time)
+    // §3.12.2: the out-of-office reply, sent for the advisor while they were away. Before
+    // "Emailed", as on the web: an auto-reply is emailed too, and both marks are true.
+    if (message.fromAgent && message.autoReply) append(" · ${AgentMessagesCopy.AUTO_REPLY}")
+    if (message.fromAgent && message.emailed) append(" · ${AgentMessagesCopy.EMAILED_MARK}")
+    if (!message.fromAgent && message.byEmail) append(" · ${AgentMessagesCopy.BY_EMAIL}")
 }

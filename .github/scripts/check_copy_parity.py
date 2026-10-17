@@ -69,6 +69,7 @@ MESSAGE_TABLES = [
             "internalNoteTag": "INTERNAL_NOTE_TAG",
             "emailedMark": "EMAILED_MARK",
             "byEmail": "BY_EMAIL",
+            "autoReply": "AUTO_REPLY",
             "emptyThread": "EMPTY_THREAD",
             "replyLabel": "REPLY_LABEL",
             "replyPlaceholder": "REPLY_PLACEHOLDER",
@@ -353,6 +354,7 @@ MESSAGE_TABLES = [
             "subtitleNoTrip": "SUBTITLE_NO_TRIP",
             "viewItinerary": "VIEW_ITINERARY",
             "itineraryNotReady": "ITINERARY_NOT_READY",
+            "advisorLabel": "ADVISOR_LABEL",
             "advisorName": "ADVISOR_NAME",
             "advisorRole": "ADVISOR_ROLE",
             "advisorReplyTime": "ADVISOR_REPLY_TIME",
@@ -432,6 +434,7 @@ MESSAGE_TABLES = [
             "quickSendPassport": "QUICK_SEND_PASSPORT",
             "quickScheduleCall": "QUICK_SCHEDULE_CALL",
             "replyWindow": "REPLY_WINDOW",
+            "autoReply": "AUTO_REPLY",
         },
     },
     {

@@ -78,12 +78,12 @@ class AgentWorklistTest {
     }
 
     @Test
-    fun three_tabs_are_built_and_every_other_one_names_its_section() {
-        // `clients` joined `worklist` on 2026-09-26 with §3.3.1, and `messages` on 2026-10-15
-        // with §3.10 Stage 3. The order matters: this is §6.6's bar, and the built three are
-        // its first three.
+    fun all_four_tabs_are_built_and_every_other_one_names_its_section() {
+        // `clients` joined `worklist` on 2026-09-26 with §3.3.1, `messages` on 2026-10-15
+        // with §3.10 Stage 3, and `more` on 2026-10-17 with §3.12 PR 4. The order matters:
+        // this is §6.6's bar.
         assertEquals(
-            listOf("worklist", "clients", "messages"),
+            listOf("worklist", "clients", "messages", "more"),
             AGENT_BAR_DESTINATIONS.filter { it.built }.map { it.id },
         )
         for (d in AGENT_BAR_DESTINATIONS.filterNot { it.built }) {

@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * §3.10.7 as the shared UI sees it: the inbox card (M3108), sign-out, a tapped notification and
- * a reply that failed from one.
+ * §3.10.7 as the shared UI sees it: the inbox card (M3108), sign-out, a tapped notification (a
+ * thread, or §3.12.3's trip request) and a reply that failed from one.
  *
  * Common code cannot reach Firebase or Android's permission prompt, so the platform provides
  * this through [LocalAgentPush]: androidApp's `AndroidAgentPush` on Android, [NoAgentPush]
@@ -38,10 +38,16 @@ interface AgentPush {
     /** The phone's own notification settings, for a permission the system will no longer ask. */
     fun openSettings()
 
-    /** A thread a tapped notification asked to open, until the app has opened it. */
-    val openThread: StateFlow<String?>
+    /** What a tapped notification asked to open, until the app has opened it. */
+    val openTarget: StateFlow<AgentPushTarget?>
 
-    fun threadOpened()
+    fun targetOpened()
+}
+
+/** Where a tapped notification goes: a thread (§3.10.7) or a client's trip request (§3.12.3). */
+sealed interface AgentPushTarget {
+    data class Thread(val conversationId: String) : AgentPushTarget
+    data class Trip(val tripId: String) : AgentPushTarget
 }
 
 data class PendingReply(val text: String, val messageId: String)
@@ -58,8 +64,8 @@ object NoAgentPush : AgentPush {
     override fun draftFor(conversationId: String): PendingReply? = null
     override fun clearDraft(conversationId: String) = Unit
     override fun openSettings() = Unit
-    override val openThread: StateFlow<String?> = MutableStateFlow(null)
-    override fun threadOpened() = Unit
+    override val openTarget: StateFlow<AgentPushTarget?> = MutableStateFlow(null)
+    override fun targetOpened() = Unit
 }
 
 val LocalAgentPush = staticCompositionLocalOf<AgentPush> { NoAgentPush }

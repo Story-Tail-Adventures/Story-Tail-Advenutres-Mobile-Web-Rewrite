@@ -80,6 +80,7 @@ fun MessagesRoute(
             val sending by viewModel.sending.collectAsState()
             val sendError by viewModel.sendError.collectAsState()
             val started by viewModel.started.collectAsState()
+            val advisor by viewModel.advisor.collectAsState()
 
             // Once the message is away this screen has nothing left to show, so it is REPLACED
             // by the thread the message landed in — Back then returns to the inbox rather than
@@ -103,6 +104,7 @@ fun MessagesRoute(
                 onDraftChange = viewModel::changeDraft,
                 onSend = viewModel::send,
                 onBack = { nav.pop() },
+                advisor = advisor,
             )
         }
 
