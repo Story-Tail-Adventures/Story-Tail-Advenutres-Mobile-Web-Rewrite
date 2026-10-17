@@ -251,9 +251,16 @@ SELECT pg_temp.assert(
     'a partial read moves the email past what the client already saw');
 
 -- Each reply pushes the send out, but never past 30 minutes after the first one waiting.
-UPDATE public.email_outbox SET first_message_at = now() - interval '1 hour', due_at = now() + interval '1 day'
+-- The capped time still goes through the client's rest hours, which can move it up to 34 hours
+-- on (Saturday 9pm to Monday 7am). Starting the wait three days back keeps the capped time due
+-- whatever hour this runs at; one hour back failed every night and all of Sunday.
+UPDATE public.email_outbox SET first_message_at = now() - interval '3 days', due_at = now() + interval '1 day'
  WHERE id = :obb::uuid;
 SELECT pg_temp.advisor_says(:conv::uuid, :r8::uuid, 'Reply C: and sunscreen.', false);
+SELECT pg_temp.assert(
+    (SELECT due_at = public.push_due_at(now() - interval '3 days' + interval '30 minutes', 'America/Chicago')
+       FROM public.email_outbox WHERE id = :obb::uuid),
+    'a long back-and-forth is held to 30 minutes after the first reply, moved past rest hours');
 SELECT pg_temp.assert(
     (SELECT due_at <= now() FROM public.email_outbox WHERE id = :obb::uuid),
     'a long back-and-forth cannot keep deferring the email');
