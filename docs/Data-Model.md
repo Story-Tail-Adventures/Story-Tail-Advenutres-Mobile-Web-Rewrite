@@ -182,7 +182,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | `password_hash` | `text` | Yes | Tokenized | Null when social-only login |
 | `auth_provider` | `text` | No | Internal | `email`, `google`, `apple` |
 | `auth_provider_id` | `text` | Yes | Internal | OAuth subject ID where applicable |
-| `mfa_required` | `boolean` | No | Internal | `true` for all Agent accounts |
+| `mfa_required` | `boolean` | No | Internal | `true` for all Agent accounts. Enforced by role, not by reading this column: agent Edge Functions (`requireAgentId`) and `current_agent_id()` require an `aal2` session (Tech-Recommendations §7) |
 | `mfa_enrolled_at` | `timestamptz` | Yes | Internal | Null until MFA setup completes |
 | `locked_at` | `timestamptz` | Yes | Internal | Non-null when account is locked. Written only by the `account-admin` Edge Function (Screen 3.9.5), together with a GoTrue ban; `requireUser` refuses a locked account |
 | `locked_reason` | `text` | Yes | Internal | Free text from agent or system. Required on lock; never granted to the client |
