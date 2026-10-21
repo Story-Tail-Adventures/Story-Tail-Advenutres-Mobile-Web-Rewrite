@@ -133,13 +133,15 @@ VALUES
 
 -- Ada's first commitment is L2 at 23:30 on Mar 31 2025 in Pago Pago (Apr 1 10:30 UTC): Q1, not
 -- Q2. L1 committed later, in May.
+-- `::timestamp` before AT TIME ZONE is what makes this LOCAL time: on a bare literal Postgres
+-- picks timestamptz, reads it as UTC and converts the other way, and the edge stops being one.
 INSERT INTO public.trip_status_history (id, trip_id, from_status, to_status, changed_at)
 VALUES (gen_random_uuid(), '0c7f0000-0000-7000-8000-000000000102', 'proposal', 'completed',
-        '2025-03-31 23:30' AT TIME ZONE 'Pacific/Pago_Pago'),
+        '2025-03-31 23:30'::timestamp AT TIME ZONE 'Pacific/Pago_Pago'),
        (gen_random_uuid(), '0c7f0000-0000-7000-8000-000000000101', 'proposal', 'booked',
-        '2025-05-10 12:00' AT TIME ZONE 'Pacific/Pago_Pago'),
+        '2025-05-10 12:00'::timestamp AT TIME ZONE 'Pacific/Pago_Pago'),
        (gen_random_uuid(), '0c7f0000-0000-7000-8000-000000000108', 'proposal', 'completed',
-        '2025-08-01 12:00' AT TIME ZONE 'Pacific/Pago_Pago');
+        '2025-08-01 12:00'::timestamp AT TIME ZONE 'Pacific/Pago_Pago');
 
 -- ── Funnel trips: created within the last 12 months ────────────────────────────────────
 INSERT INTO public.trip (id, client_id, agent_id, title, trip_type, status, archived_at, created_at)
