@@ -20,8 +20,8 @@ import { readJson } from "../_shared/trip.ts";
 import { agentDb, requireAgentId } from "../_shared/agent.ts";
 import {
   readBasis,
-  readPeriod,
   readReport,
+  readReportPeriod,
   type ReportExport,
   reportCsv,
   reportFileName,
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     if (payload.op !== "export") throw badRequest("op must be: export.");
     const report = readReport(payload.report);
-    const period = readPeriod(payload.period);
+    const period = readReportPeriod(report, payload.period);
     const basis = readBasis(report, payload.basis);
 
     const { data, error } = await db.rpc("agent_report_export", {
@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
       outcome: "exported",
       rowCount: out.rows.length,
       csv: reportCsv(report, basis, out.rows),
-      fileName: reportFileName(report, basis, out.from, out.to),
+      // The advisor's own date names a file with no period, never the server's UTC day.
+      fileName: reportFileName(report, basis, out.from, out.to, out.today ?? undefined),
     });
   } catch (err) {
     return problem(err);

@@ -50,11 +50,24 @@ export function ForecastStagesCard({
   acrossLabel,
   stages,
   currency,
+  title = FORECAST_COPY.weightedTitle,
+  hint = FORECAST_COPY.weightsHint,
+  showTotal = true,
+  returnTo = "forecast",
 }: {
   totalLabel: string;
   acrossLabel: string | null;
   stages: ForecastStageView[];
   currency: string;
+  /**
+   * §3.11.7 Pipeline Value reuses this card over GROSS value (rawCents = gross) to edit the
+   * SAME weights in place (§3.11, one set of weights). It names itself, says what saving also
+   * changes, leaves the total to its own tiles, and asks to come back to the pipeline.
+   */
+  title?: string;
+  hint?: string;
+  showTotal?: boolean;
+  returnTo?: "forecast" | "pipeline";
 }) {
   const [state, formAction, pending] = useActionState<WeightsFormState, FormData>(saveWeightsAction, {});
   const saved = Object.fromEntries(stages.map((s) => [s.stage, String(s.weightPct)])) as Record<ForecastStage, string>;
@@ -112,11 +125,13 @@ export function ForecastStagesCard({
     <Card>
       <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
         <Typography component="h2" variant="subtitle1" sx={{ m: 0, fontWeight: 600 }}>
-          {FORECAST_COPY.weightedTitle}
+          {title}
         </Typography>
-        <Typography component="p" variant="h3" sx={{ m: 0, mt: 1, mb: 0.25, fontWeight: 700, color: "primary.main" }}>
-          {totalLabel}
-        </Typography>
+        {showTotal && (
+          <Typography component="p" variant="h3" sx={{ m: 0, mt: 1, mb: 0.25, fontWeight: 700, color: "primary.main" }}>
+            {totalLabel}
+          </Typography>
+        )}
         {acrossLabel && (
           <Typography component="p" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
             {acrossLabel}
@@ -134,6 +149,7 @@ export function ForecastStagesCard({
         <Divider sx={{ my: 1.5 }} />
 
         <Box component="form" action={formAction} onSubmit={onSubmit}>
+          <input type="hidden" name="returnTo" value={returnTo} />
           {editing && showError && state.formError && (
             <Box sx={{ mb: 1.25 }}>
               <Alert tone="error">{state.formError}</Alert>
@@ -145,7 +161,8 @@ export function ForecastStagesCard({
               const t = typed(s);
               const pct = t ?? s.weightPct;
               const amount = editing && t !== null
-                ? formatTripMoney(weightedCents(s.rawCents, t), currency, { whole: true })
+                // formatMoney throws on a negative, and the schema allows a negative trip total.
+                ? formatTripMoney(Math.max(0, weightedCents(s.rawCents, t)), currency, { whole: true })
                 : s.weightedLabel;
               const invalid = editing && t === null;
               const hintId = `weight-${s.stage}-hint`;
@@ -232,7 +249,7 @@ export function ForecastStagesCard({
           {editing ? (
             <Box sx={{ mt: 1.5 }}>
               <Typography component="p" variant="caption" sx={{ display: "block", mb: 1, color: "text.secondary" }}>
-                {FORECAST_COPY.weightsHint}
+                {hint}
               </Typography>
               <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
                 <Button type="button" variant="outlined" size="sm" disabled={pending} onClick={cancel}>

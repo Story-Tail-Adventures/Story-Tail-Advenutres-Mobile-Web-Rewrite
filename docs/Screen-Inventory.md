@@ -3672,9 +3672,14 @@ Preferences (3.12.3).
 > - **Charts are drawn by hand** (MUI boxes and SVG), the way `CommissionTrendChart` already
 >   is: no chart library. Every chart has a plain table of the same figures under it, which
 >   is also what a screen reader and the CSV read.
-> - **One period filter on every report:** chips for *Year to date*, *Last 12 months* and
->   *This quarter*. Calendar years, in the advisor's own time zone. No custom date range
->   except in the Export Center.
+> - **One period filter on every report over a period:** chips for *Year to date*, *Last 12
+>   months* and *This quarter*. Calendar years, in the advisor's own time zone. No custom date
+>   range except in the Export Center. Two reports are not over a period and have no chips
+>   (Gyasi, 2026-10-21): **Client Lifetime Value** (lifetime; it filters by cohort instead) and
+>   **Pipeline Value** (what is open today).
+> - **"First booked" is one rule:** a trip's earliest move in `trip_status_history` to booked,
+>   in progress or completed (the stage write lets an advisor skip `booked`). Revenue, the
+>   Funnel's days to book and LTV's cohort all use it.
 > - **Stage dates come from `trip_status_history` only.** It has no backfill: a trip that
 >   changed stage before 2026-09-19 has no date for that change, and none is made up. Reports
 >   that read stage dates carry one quiet line: "Tracking began Sep 19, 2026."
@@ -3718,21 +3723,32 @@ Preferences (3.12.3).
 >
 > **3.11.5 Client Lifetime Value.** Lifetime value is the same expression Client Detail
 > already uses (the client's committed trips), with a commission column beside it. Cohort is
-> the quarter of the client's first booked trip, shown as a column and a filter. No cohort
-> grid. A row opens Client Detail. `client.lifetime_value_cents`, which nothing ever wrote,
+> the quarter of the client's first booked trip, shown as a column and a filter (chips: All
+> clients, each quarter newest first, and "Before tracking" for a client with any booking
+> from before Sep 19, 2026, since their first booking is that one). No period chips and no cohort grid. Rank is over the whole book, so a
+> cohort filter keeps each client's true rank. A row opens Client Detail. `client.lifetime_value_cents`, which nothing ever wrote,
 > is dropped (Data-Model §6.1).
 >
 > **3.11.6 Conversion Funnel.** Stages **Inquiry → Proposal → Booked → Travelled**. There is no
 > Lead or Qualified stage: a quote request is a trip (decided 2026-09-09). The funnel follows
 > the trips CREATED in the period. A trip counts in every stage up to the furthest it reached,
 > so one entered straight as booked still counts as an inquiry. A cancelled trip is drop-off
-> at the stage it reached. Average days from inquiry to first booking shows here with its
-> sample size (the dashboard's `inquiry_to_book_days`).
+> at the stage it reached. "Booked" includes trips traveling now (in progress); "Traveled" is
+> completed. A trip's stage is the furthest it EVER reached, so one moved back after travel
+> still counts as traveled here, though Revenue (which reads its status now) leaves it out.
+> Each stage's drop is split into **still open** (not a loss yet)
+> and **cancelled**. Average days from inquiry to first booking shows here with its sample
+> size, over the period's trips, by the "first booked" rule above.
 >
-> **3.11.7 Pipeline Value.** The artboard only repeats the funnel, so a local artboard is
-> drawn first. It shows open trips by stage, gross and weighted, and a forecast by expected
-> travel month. "Adjust weighting" edits the same `pipeline_weight` rows §3.7's forecast
-> uses: one set of weights, not two.
+> **3.11.7 Pipeline Value.** The artboard only repeated the funnel, so A3117 was drawn
+> locally on 2026-10-21 and Gyasi approved it the same day. Two tiles (open pipeline at full
+> value, and weighted), then **By stage** (trips, value, weight, weighted) and **By travel
+> month** (weighted value by the month each trip starts, this month and the eleven after; a
+> trip traveling now counts this month; an open trip whose start date passed without it
+> moving on is a "Start date passed" row, set apart rather than inflating this month (review,
+> 2026-10-21); then "Later" and "No travel dates yet" rows, so nothing open is dropped). No period chips. **"Adjust weights" edits in place**: it is
+> §3.7.7's own weights card, over gross value here, saving the same `pipeline_weight` rows,
+> so the commission forecast and the worklist's confidence move with it. One set of weights.
 >
 > **3.11.8 Export Center.** **CSV only:** Excel opens it, and a real `.xlsx` needs a new
 > library and a review. Files are built on demand and downloaded at once, so no client data

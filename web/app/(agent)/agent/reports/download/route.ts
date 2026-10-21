@@ -17,7 +17,7 @@ import { readBasis, readPeriod } from "@/lib/agent/reportsView";
  * `/download`, not `/export`: `/agent/reports/export` is the Export Center's page (§3.11.8).
  */
 
-const REPORTS = ["revenue", "suppliers", "destinations"] as const;
+const REPORTS = ["revenue", "suppliers", "destinations", "clients", "funnel", "pipeline"] as const;
 type Report = (typeof REPORTS)[number];
 
 function failed() {
@@ -52,12 +52,12 @@ export async function GET(request: NextRequest) {
   if (!isReport(report)) {
     return new NextResponse(null, { status: 404 });
   }
-  const period = readPeriod(params.get("period") ?? undefined);
-
   const call = await callAgentFunction("agent-report", {
     op: "export",
     report,
-    period,
+    // Lifetime value is lifetime and the pipeline is today: neither takes a period, and the
+    // function refuses one.
+    ...(report === "clients" || report === "pipeline" ? {} : { period: readPeriod(params.get("period") ?? undefined) }),
     ...(report === "revenue" ? { basis: readBasis(params.get("basis") ?? undefined) } : {}),
   });
 
