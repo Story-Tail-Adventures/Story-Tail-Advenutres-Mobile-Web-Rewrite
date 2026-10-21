@@ -117,7 +117,9 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "chart",
     label: "Reports",
     surfaces: ["rail", "tablet"],
-    availability: { kind: "planned", phase: "P2", section: "§3.11" },
+    // Built 2026-10-21 with §3.11's PR 1 (P1, ruled 2026-10-21). Rail and tablet only: §3.11
+    // is web only, and the phone gets no Reports door at all.
+    availability: { kind: "built" },
   },
   {
     id: "more",

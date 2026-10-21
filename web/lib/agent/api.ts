@@ -107,7 +107,13 @@ export type AgentRead =
   | "agent_client_merge_view"
   // §3.12. One jsonb: the advisor's own profile, working hours and the time away still
   // ahead. NULL below aal2 (checked in the database).
-  | "agent_settings_self";
+  | "agent_settings_self"
+  // §3.11. The period every report labels (no row = not an advisor), then one read per
+  // report. Each is the same SQL the audited CSV export runs, so screen and file agree.
+  | "agent_report_period"
+  | "agent_report_revenue_by_month"
+  | "agent_report_commission_by_supplier"
+  | "agent_report_top_destinations";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -936,6 +942,43 @@ export type AgentCommissionMonthRow = {
   line_count: number;
 };
 
+/** `agent_report_period()` — §3.11's window, in the advisor's zone. Dates as ISO strings. */
+export type AgentReportPeriodRow = {
+  from_date: string;
+  to_date: string;
+  today: string;
+};
+
+/**
+ * `agent_report_revenue_by_month()` — one row per month, oldest first, zero-filled.
+ * `prior_cents` is NULL (not "0") when that month a year earlier had nothing in it.
+ */
+export type AgentReportRevenueRow = {
+  month_start: string;
+  cents: string;
+  item_count: number;
+  prior_cents: string | null;
+};
+
+/** `agent_report_commission_by_supplier()` — ledger lines by supplier, by travel date. */
+export type AgentReportSupplierRow = {
+  supplier_id: string;
+  supplier_name: string;
+  received_cents: string;
+  owed_cents: string;
+  line_count: number;
+  set_aside_count: number;
+  /** Money already received on those disputed or lost lines. */
+  set_aside_received_cents: string;
+};
+
+/** `agent_report_top_destinations()` — NULL destination is "trips with no stop yet". */
+export type AgentReportDestinationRow = {
+  destination: string | null;
+  trip_count: number;
+  value_cents: string;
+};
+
 /**
  * Call one accessor.
  *
@@ -1006,7 +1049,9 @@ export type AgentFunction =
   | "push-device"
   // §3.12. The advisor's own profile, photo, working hours and time away. Every write audited
   // in its own SQL transaction.
-  | "agent-settings";
+  | "agent-settings"
+  // §3.11. Each report's own CSV export; the SQL writes the audit row in the same call.
+  | "agent-report";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

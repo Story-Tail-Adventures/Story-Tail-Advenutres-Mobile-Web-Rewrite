@@ -166,7 +166,6 @@ SET preferred_name = 'Jordan',
     date_of_birth = '1988-04-17',
     mailing_address_id = '0195a2c0-1a00-7000-8000-000000000020',
     tags = ARRAY['anniversary', 'all-inclusive'],
-    lifetime_value_cents = 1284500,
     status = 'active'
 WHERE email = 'jordan.hayes@example.com';
 
@@ -1008,20 +1007,19 @@ INSERT INTO public.agent_time_off (id, agent_id, starts_on, ends_on, label) VALU
 -- same fixture shape Maya Carter uses above), and hand-seeding GoTrue is how `confirmation_token`
 -- NULLs turn every login into a 500.
 --
--- WHY THE MONEY IS IN TRIPS AND NOT IN client.lifetime_value_cents. Nothing in the repository
--- maintains that column — see 20260926140000_agent_client_read_surface.sql. agent_client_roster()
--- derives lifetime value from committed trips, so seeding the cache would prove nothing and
--- seeding it WRONG is how a fixture starts agreeing with a bug.
+-- WHY THE MONEY IS IN TRIPS. agent_client_roster() derives lifetime value from committed trips.
+-- The client.lifetime_value_cents cache it once sat beside was never maintained and was dropped
+-- in 20261028120000_agent_reports.sql.
 -- ============================================================
 
-INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, email, phone, tags, status, lifetime_value_cents) VALUES
+INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, email, phone, tags, status) VALUES
     -- No trips at all: the roster's "—" in both trip columns, and $0 with a NULL currency.
     ('0195a2c0-1a00-7000-8000-000000000100', '0195a2c0-1a00-7000-8000-000000000001',
-     'Eli', 'Park', NULL, 'eli.park@example.com', '+1-555-0190', ARRAY['referral'], 'active', 0),
+     'Eli', 'Park', NULL, 'eli.park@example.com', '+1-555-0190', ARRAY['referral'], 'active'),
 
     -- Inquiry only: counts toward the header's "leads to qualify" and toward nothing else.
     ('0195a2c0-1a00-7000-8000-000000000101', '0195a2c0-1a00-7000-8000-000000000001',
-     'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active', 0),
+     'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active'),
 
     -- Three committed trips spanning past and future, so this row is the one that drives
     -- BOTH the roster's "Last trip" and "Next trip" columns at once, and the only lifetime
@@ -1029,34 +1027,34 @@ INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, 
     -- lifetime_currency_count = 2; Story-Tail is USD only, so that case is now impossible.)
     ('0195a2c0-1a00-7000-8000-000000000102', '0195a2c0-1a00-7000-8000-000000000001',
      'Priya', 'Raghunathan', 'Pri', 'priya.r@example.com', '+1-555-0191',
-     ARRAY['vip','multi-destination'], 'active', 0),
+     ARRAY['vip','multi-destination'], 'active'),
 
     -- No email. `client.email` is nullable and the roster must not assume otherwise.
     ('0195a2c0-1a00-7000-8000-000000000103', '0195a2c0-1a00-7000-8000-000000000001',
-     'Marcus', 'Webb', NULL, NULL, '+1-555-0192', ARRAY['cruise'], 'active', 0),
+     'Marcus', 'Webb', NULL, NULL, '+1-555-0192', ARRAY['cruise'], 'active'),
 
     -- Cancelled trip only: excluded from lifetime value AND from both trip columns, so the
     -- row reads exactly like Eli's despite having a trip.
     ('0195a2c0-1a00-7000-8000-000000000104', '0195a2c0-1a00-7000-8000-000000000001',
-     'Dana', 'Okonkwo', NULL, 'dana.okonkwo@example.com', '+1-555-0193', ARRAY['family'], 'active', 0),
+     'Dana', 'Okonkwo', NULL, 'dana.okonkwo@example.com', '+1-555-0193', ARRAY['family'], 'active'),
 
     -- Many tags, long name: the Tags cell and the Client cell both have to wrap or truncate.
     ('0195a2c0-1a00-7000-8000-000000000105', '0195a2c0-1a00-7000-8000-000000000001',
      'Annabelle', 'Fitzwilliam-Castellanos', 'Belle', 'annabelle.fc@example.com', '+1-555-0194',
-     ARRAY['vip','honeymoon','all-inclusive','adults-only','repeat','referral'], 'active', 0),
+     ARRAY['vip','honeymoon','all-inclusive','adults-only','repeat','referral'], 'active'),
 
     -- A second archived client, so the Archived chip returns more than one row.
     ('0195a2c0-1a00-7000-8000-000000000106', '0195a2c0-1a00-7000-8000-000000000001',
-     'Curtis', 'Nakamura', NULL, 'curtis.n@example.com', NULL, ARRAY['cold'], 'archived', 0),
+     'Curtis', 'Nakamura', NULL, 'curtis.n@example.com', NULL, ARRAY['cold'], 'archived'),
 
     -- A merged tombstone. agent_client_roster() must NEVER return this row, for any filter:
     -- there is no p_status value that can ask for it. rls_agent_clients.sql asserts that.
     ('0195a2c0-1a00-7000-8000-000000000107', '0195a2c0-1a00-7000-8000-000000000001',
-     'Jordan', 'Hayes-Old', NULL, 'jordan.old@example.com', NULL, ARRAY[]::text[], 'merged_into', 0),
+     'Jordan', 'Hayes-Old', NULL, 'jordan.old@example.com', NULL, ARRAY[]::text[], 'merged_into'),
 
     -- Completed trip well in the past: drives the "Last trip" column with nothing in "Next".
     ('0195a2c0-1a00-7000-8000-000000000108', '0195a2c0-1a00-7000-8000-000000000001',
-     'Tomás', 'Delgado', NULL, 'tomas.delgado@example.com', '+1-555-0195', ARRAY['repeat'], 'active', 0);
+     'Tomás', 'Delgado', NULL, 'tomas.delgado@example.com', '+1-555-0195', ARRAY['repeat'], 'active');
 
 UPDATE public.client
    SET merged_into_client_id = (SELECT id FROM public.client WHERE email = 'jordan.hayes@example.com'),
