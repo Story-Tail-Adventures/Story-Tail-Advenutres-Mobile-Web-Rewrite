@@ -232,9 +232,8 @@ export const AGENT_COPY = {
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
   availabilityDeferred:
     "Blocking time arrives with §3.12, which is where the time-off shape gets defined.",
-  // `commissionDeferred` lived here until §3.7.1 shipped. It had no call site left by then
-  // either: the rail renders its own "Arrives with" line from nav.ts.
-  reportsDeferred: "Reporting arrives with §3.11.",
+  // `commissionDeferred` and `reportsDeferred` lived here until §3.7.1 and §3.11 shipped. Neither
+  // had a call site by then: the rail renders its own "Arrives with" line from nav.ts.
 } as const;
 
 /**

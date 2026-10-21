@@ -50,7 +50,6 @@ describe("AGENT_DESTINATIONS", () => {
     // when §3.3 ships, this line changes in the same commit.
     expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
       "leads",
-      "reports",
       "more",
     ]);
     // `clients` joined `worklist` when §3.3.1 shipped on 2026-09-26, and `trips` joined both
@@ -66,7 +65,9 @@ describe("AGENT_DESTINATIONS", () => {
       "trips",
       "messages",
       "commission",
+      "reports",
     ]);
+    // `reports` joined on 2026-10-21 with §3.11's PR 1: the hub and its first three reports.
   });
 
   it("gives every planned destination a phase and a section", () => {

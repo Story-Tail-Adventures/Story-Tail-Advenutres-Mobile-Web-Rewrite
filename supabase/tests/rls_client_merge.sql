@@ -194,7 +194,7 @@ SELECT pg_temp.assert(
     'another advisor cannot merge Gyasi''s records');
 SELECT pg_temp.expect_error(
     format('SELECT public.account_admin_merge_clients(%L, %L, public.uuid_v7(), %L, %L, %s, %s, %L, NULL)',
-           :agent, :a_actor, :k_client, :maya, :k_version, :m_version, '{"lifetime_value_cents":"retire"}'),
+           :agent, :a_actor, :k_client, :maya, :k_version, :m_version, '{"status":"retire"}'),
     '22023', 'a field the picker does not offer is refused');
 SELECT pg_temp.expect_error(
     format('SELECT public.account_admin_merge_clients(%L, %L, public.uuid_v7(), %L, %L, %s, %s, %L, NULL)',

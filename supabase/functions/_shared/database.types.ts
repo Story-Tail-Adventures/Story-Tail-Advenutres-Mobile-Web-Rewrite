@@ -497,7 +497,6 @@ export type Database = {
           id: string
           important_dates: Json
           last_name: string
-          lifetime_value_cents: number
           mailing_address_id: string | null
           merged_into_client_id: string | null
           notes: string | null
@@ -519,7 +518,6 @@ export type Database = {
           id: string
           important_dates?: Json
           last_name: string
-          lifetime_value_cents?: number
           mailing_address_id?: string | null
           merged_into_client_id?: string | null
           notes?: string | null
@@ -541,7 +539,6 @@ export type Database = {
           id?: string
           important_dates?: Json
           last_name?: string
-          lifetime_value_cents?: number
           mailing_address_id?: string | null
           merged_into_client_id?: string | null
           notes?: string | null
@@ -4568,6 +4565,56 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_report_commission_by_supplier: {
+        Args: { p_period: string }
+        Returns: {
+          line_count: number
+          owed_cents: string
+          received_cents: string
+          set_aside_count: number
+          set_aside_received_cents: string
+          supplier_id: string
+          supplier_name: string
+        }[]
+      }
+      agent_report_export: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_basis: string
+          p_ip: string
+          p_period: string
+          p_report: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
+      agent_report_period: {
+        Args: { p_period: string }
+        Returns: {
+          from_date: string
+          to_date: string
+          today: string
+        }[]
+      }
+      agent_report_revenue_by_month: {
+        Args: { p_basis: string; p_period: string }
+        Returns: {
+          cents: string
+          item_count: number
+          month_start: string
+          prior_cents: string
+        }[]
+      }
+      agent_report_top_destinations: {
+        Args: { p_period: string }
+        Returns: {
+          destination: string
+          trip_count: number
+          value_cents: string
+        }[]
+      }
       agent_resolve_commission_import_row: {
         Args: {
           p_action: string
@@ -5708,6 +5755,52 @@ export type Database = {
           p_web_endpoint?: string
         }
         Returns: number
+      }
+      report_agent_today: {
+        Args: { p_agent_id: string }
+        Returns: {
+          agent_id: string
+          time_zone: string
+          today: string
+        }[]
+      }
+      report_commission_by_supplier: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          line_count: number
+          owed_cents: number
+          received_cents: number
+          set_aside_count: number
+          set_aside_received_cents: number
+          supplier_id: string
+          supplier_name: string
+        }[]
+      }
+      report_period_bounds: {
+        Args: { p_period: string; p_today: string }
+        Returns: {
+          from_date: string
+          prior_from: string
+          prior_to: string
+          to_date: string
+        }[]
+      }
+      report_revenue_by_month: {
+        Args: { p_agent_id: string; p_basis: string; p_period: string }
+        Returns: {
+          cents: number
+          item_count: number
+          month_start: string
+          prior_cents: number
+        }[]
+      }
+      report_top_destinations: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          destination: string
+          trip_count: number
+          value_cents: number
+        }[]
       }
       seed_starter_message_templates: {
         Args: { p_agent_id: string }

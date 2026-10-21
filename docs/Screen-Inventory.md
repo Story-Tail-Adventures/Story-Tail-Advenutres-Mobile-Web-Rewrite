@@ -3694,15 +3694,19 @@ Preferences (3.12.3).
 >
 > **3.11.2 Revenue by Month.** Story-Tail never charges clients, so its own income is
 > commission. The report has a two-way toggle: **Booked value** (default), the gross value of
-> trips by the month they were FIRST booked (a trip that goes booked, back, and booked again
-> counts once, in its first month); and **Commission received**, ledger money by the month it
+> trips by the month they were FIRST booked (the first move to booked, in progress or
+> completed, so a trip entered straight as completed still counts; a trip that goes booked,
+> back, and booked again counts once, in its first month; trips now cancelled, or moved back to an earlier stage, are
+> left out, Gyasi confirmed 2026-10-21); and **Commission received**, ledger money by the month it
 > arrived (`commission.received_at`), which is the tax-prep figure. Bars per month for the
 > period, a total, and the table under it.
 >
 > **3.11.3 Commission by Supplier.** Reads the stored **ledger**, never the forecast. The
 > period filters on travel dates, the same as the ledger screen and its export. Each supplier
 > row shows **Received** and **Still owed** (expected plus invoiced) with a bar. Disputed and
-> lost lines are left out and counted in a footnote. A row opens the ledger filtered to that
+> lost lines are left out and counted in a footnote, which also names any money already
+> received on them (Revenue's "Commission received" counts that money, so it must not vanish
+> here). A row opens the ledger filtered to that
 > supplier. Removed lines (`commission.archived_at` set) never count; lines on an archived
 > trip still do, as they do on the ledger, because the money was real.
 >

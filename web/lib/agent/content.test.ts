@@ -45,8 +45,9 @@ describe("AGENT_COPY", () => {
       expect(value, key).toMatch(/§3\.\d/);
     }
     // Five since §3.10 Stage 3 retired `messagesDeferred` (2026-10-15): Messages is built on
-    // both surfaces, and a sentence naming a built section is worse than no sentence.
-    expect(STRINGS.filter(([k]) => k.endsWith("Deferred")).length).toBeGreaterThanOrEqual(5);
+    // both surfaces, and a sentence naming a built section is worse than no sentence. Four
+    // since §3.11's PR 1 retired `reportsDeferred` (2026-10-21) for the same reason.
+    expect(STRINGS.filter(([k]) => k.endsWith("Deferred")).length).toBeGreaterThanOrEqual(4);
   });
 
   it("says `inquiry`, never `lead`, except where it explains the absence", () => {
