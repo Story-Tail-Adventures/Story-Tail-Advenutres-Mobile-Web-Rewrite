@@ -1,6 +1,7 @@
 /**
- * §3.11 Reporting's export door (P1). Each report's Export button downloads that report's own
- * table as CSV, for the period on screen (§3.11, ruled 2026-10-21).
+ * §3.11 Reporting's export door (P1). `export`: each report's Export button downloads that
+ * report's own table as CSV, for the period on screen. `center`: the Export Center's four types
+ * over a From/To range (§3.11.8). Both ruled 2026-10-21.
  *
  * ── THE AUDIT ROW IS NOT WRITTEN HERE ──────────────────────────────────────────
  *
@@ -19,13 +20,19 @@ import { uuidV7 } from "../_shared/uuid.ts";
 import { readJson } from "../_shared/trip.ts";
 import { agentDb, requireAgentId } from "../_shared/agent.ts";
 import {
+  centerCsv,
+  centerFileName,
   readBasis,
+  readExportRange,
+  readExportType,
+  readIncludeContact,
   readReport,
   readReportPeriod,
   type ReportExport,
   reportCsv,
   reportFileName,
 } from "../_shared/report.ts";
+import { type ExportRow, toCsv } from "../_shared/commission.ts";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -46,20 +53,77 @@ Deno.serve(async (req) => {
     const agentId = await requireAgentId(ctx, db);
     const payload = await readJson(req);
 
-    if (payload.op !== "export") throw badRequest("op must be: export.");
+    if (payload.op !== "export" && payload.op !== "center") throw badRequest("op must be: export, center.");
+
+    // What every audited file needs. A fresh v7 per request.
+    const audit = {
+      p_actor_user_id: ctx.platformUserId,
+      p_audit_id: uuidV7(),
+      p_ip: ctx.ip,
+      p_user_agent: ctx.userAgent,
+    };
+
+    // ── §3.11.8 Export Center ─────────────────────────────────────────────
+    if (payload.op === "center") {
+      const type = readExportType(payload.type);
+      const range = readExportRange(type, payload.from, payload.to);
+      const withContact = readIncludeContact(type, payload.includeContact);
+
+      // The ledger is §3.7.2's own export, unfiltered but for travel dates. It writes its own
+      // `commission.exported` row, which the Export Center's history reads too.
+      if (type === "ledger") {
+        const { data, error } = await db.rpc("agent_export_commission", {
+          p_agent_id: agentId,
+          p_status: null,
+          p_supplier_id: null,
+          p_trip_id: null,
+          p_travel_from: range!.from,
+          p_travel_to: range!.to,
+          ...audit,
+        } as never);
+        if (error) throw new Error(`ledger export failed: ${error.message}`);
+        if (data === null) throw notFound("That advisor cannot export.");
+        if (!Array.isArray(data)) throw new Error("ledger export did not return an array");
+        return json({
+          outcome: "exported",
+          rowCount: data.length,
+          csv: toCsv(data as ExportRow[]),
+          fileName: centerFileName(type, range, range!.to),
+        });
+      }
+
+      const { data, error } = await db.rpc("agent_export_center", {
+        p_agent_id: agentId,
+        p_type: type,
+        p_from: range?.from ?? null,
+        p_to: range?.to ?? null,
+        p_include_contact: withContact,
+        ...audit,
+      } as never);
+      if (error) throw new Error(`export center failed: ${error.message}`);
+      if (data === null) throw notFound("That advisor cannot export.");
+      const out = data as ReportExport;
+      if (!out || !Array.isArray(out.rows) || typeof out.today !== "string") {
+        throw new Error("export center did not return rows");
+      }
+      return json({
+        outcome: "exported",
+        rowCount: out.rows.length,
+        csv: centerCsv(type, out.rows, withContact),
+        fileName: centerFileName(type, range, out.today, withContact),
+      });
+    }
+
     const report = readReport(payload.report);
     const period = readReportPeriod(report, payload.period);
     const basis = readBasis(report, payload.basis);
 
     const { data, error } = await db.rpc("agent_report_export", {
       p_agent_id: agentId,
-      p_actor_user_id: ctx.platformUserId,
       p_report: report,
       p_period: period,
       p_basis: basis,
-      p_audit_id: uuidV7(),
-      p_ip: ctx.ip,
-      p_user_agent: ctx.userAgent,
+      ...audit,
     } as never);
     if (error) throw new Error(`report export failed: ${error.message}`);
 

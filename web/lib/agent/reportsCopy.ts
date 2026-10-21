@@ -133,6 +133,33 @@ export const REPORTS_COPY = {
   undated: "No travel dates yet",
   pipelineEmpty: "Nothing open right now.",
   colWeighted: "Weighted",
+
+  // ── 3.11.8 Export Center ────────────────────────────────────────────────
+  exportTitle: "Export center",
+  exportSubtitle: "CSV files for tax prep and the books.",
+  generateTitle: "Download a CSV",
+  typeLabel: "What to export",
+  typeLedger: "Commission ledger",
+  typeTrips: "Trips",
+  typeMilestones: "Payment milestones",
+  typeClients: "Clients",
+  fromLabel: "From",
+  toLabel: "To",
+  // What each type's dates mean, said under the fields.
+  hintLedger: "Commission lines for trips that start between these dates, the same as the ledger.",
+  hintTrips: "Trips that start between these dates, at every stage, cancelled ones too.",
+  hintMilestones: "Supplier payments due between these dates. For safety, pay links show only the site name.",
+  hintClients: "Every client on your book. No dates needed.",
+  contactLabel: "Include contact details (email, phone, mailing address)",
+  contactHint: "Leave this off unless you need it. We keep a record of every export.",
+  downloadLabel: "Download CSV",
+  // CSV only (§3.11): Excel and Numbers both open it.
+  csvNote: "Opens in Excel, Numbers and Google Sheets.",
+  recentTitle: "Recent exports",
+  recentEmpty: "Nothing exported yet. Your downloads show up here.",
+  recentNote: "A new download shows here the next time you open this page.",
+  runAgain: "Run again",
+  withContact: "with contact details",
 } as const;
 
 /**
@@ -186,6 +213,21 @@ export function pipelineBucketTrips(label: string, n: number): string {
   return n > 0 ? `${label} · ${n} ${n === 1 ? "trip" : "trips"}` : label;
 }
 
+/** §3.11.8's four types, and their names. Here (pure data) so the client form can import them. */
+export const EXPORT_TYPES = ["ledger", "trips", "milestones", "clients"] as const;
+export type ExportType = (typeof EXPORT_TYPES)[number];
+export const EXPORT_TYPE_NAMES: Record<ExportType, string> = {
+  ledger: REPORTS_COPY.typeLedger,
+  trips: REPORTS_COPY.typeTrips,
+  milestones: REPORTS_COPY.typeMilestones,
+  clients: REPORTS_COPY.typeClients,
+};
+
+/** "12 rows" on a history line. */
+export function exportRows(n: number): string {
+  return n === 1 ? "1 row" : `${n} rows`;
+}
+
 /** "Total · Year to date". */
 export function reportTotalFor(periodName: string): string {
   return `Total · ${periodName}`;
@@ -199,5 +241,5 @@ export const REPORT_TILES = [
   { id: "clients", title: "Client lifetime value", sub: "Clients ranked by what they've booked", icon: "users" },
   { id: "funnel", title: "Conversion funnel", sub: "Inquiry to traveled, and days to book", icon: "pulse" },
   { id: "pipeline", title: "Pipeline value", sub: "What's open, weighted by stage", icon: "briefcase" },
-  { id: "export", title: "Export center", sub: "CSV files for taxes and the books", icon: "download" },
+  { id: "export", title: "Export center", sub: "CSV files for tax prep and the books", icon: "download" },
 ] as const;

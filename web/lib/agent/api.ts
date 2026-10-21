@@ -119,7 +119,9 @@ export type AgentRead =
   | "agent_report_conversion_funnel"
   // §3.11.7. Today's open trips: by stage (with this advisor's weights) and by travel month.
   | "agent_report_pipeline_stages"
-  | "agent_report_pipeline_months";
+  | "agent_report_pipeline_months"
+  // §3.11.8. The advisor's own recent exports, read from the audit rows each one wrote.
+  | "agent_export_history";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -1002,6 +1004,19 @@ export type AgentReportFunnelRow = {
   cancelled_here: number;
   book_days_avg: number | string | null;
   book_days_n: number;
+};
+
+/**
+ * `agent_export_history()` — one audited export: `report.exported` (a report's Export, or the
+ * Export Center when metadata.source = "export_center") or `commission.exported` (the ledger).
+ * The metadata is ids, dates, counts and switches only; never client data.
+ */
+export type AgentExportHistoryRow = {
+  audit_id: string;
+  event_type: string;
+  created_at: string;
+  created_local: string;
+  metadata: Record<string, unknown>;
 };
 
 /** `agent_report_pipeline_stages()` — one row per open stage; the totals repeat on each row. */

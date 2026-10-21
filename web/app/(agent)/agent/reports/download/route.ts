@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { callAgentFunction } from "@/lib/agent/api";
 import { REPORTS_COPY } from "@/lib/agent/reportsCopy";
-import { readBasis, readPeriod } from "@/lib/agent/reportsView";
+import { EXPORT_TYPES, readBasis, readPeriod, type ExportType } from "@/lib/agent/reportsView";
 
 /**
  * §3.11's per-report Export: the report on screen, for its period, as a CSV (P1).
@@ -31,6 +31,12 @@ function isReport(value: string | null): value is Report {
   return (REPORTS as readonly (string | null)[]).includes(value);
 }
 
+function isExportType(value: string | null): value is ExportType {
+  return (EXPORT_TYPES as readonly (string | null)[]).includes(value);
+}
+
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * Only this origin's own pages, or a link the advisor typed or bookmarked ("none"). Stricter
  * than refusing "cross-site": a page on a sibling subdomain is "same-site", and an <img> there
@@ -46,6 +52,24 @@ export async function GET(request: NextRequest) {
   }
 
   const params = request.nextUrl.searchParams;
+
+  // §3.11.8 Export Center: `type` (+ From/To, + the contact switch for Clients). The dates are
+  // passed through as typed; the function refuses a malformed or reversed range in words.
+  const type = params.get("type");
+  if (type !== null) {
+    if (!isExportType(type)) return new NextResponse(null, { status: 404 });
+    const from = params.get("from");
+    const to = params.get("to");
+    const call = await callAgentFunction("agent-report", {
+      op: "center",
+      type,
+      ...(type === "clients"
+        ? { includeContact: params.get("contact") === "1" }
+        : { from: from && ISO.test(from) ? from : null, to: to && ISO.test(to) ? to : null }),
+    });
+    return fileResponse(call, "/agent/reports/export", request);
+  }
+
   const report = params.get("report");
   // An unknown report is a broken link, not a default: exporting a DIFFERENT report than the
   // one asked for would be an audited file nobody wanted.
@@ -61,10 +85,24 @@ export async function GET(request: NextRequest) {
     ...(report === "revenue" ? { basis: readBasis(params.get("basis") ?? undefined) } : {}),
   });
 
+  return fileResponse(call, `/agent/reports/${report}`, request);
+}
+
+/**
+ * The one way a download leaves: an attachment named by the function, a byte-order mark for
+ * Excel, no caching. A signed-out caller goes to sign in and back to `back`.
+ */
+function fileResponse(call: Awaited<ReturnType<typeof callAgentFunction>>, back: string, request: NextRequest) {
   if (!call.ok) {
     if (call.kind === "unauthenticated") {
-      const back = `/agent/reports/${report}`;
       return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(back)}`, request.url));
+    }
+    // A refusal the function put in words (a reversed range, a missing date) is shown as is.
+    if (call.kind === "rejected" && call.detail) {
+      return new NextResponse(call.detail, {
+        status: 400,
+        headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
+      });
     }
     return failed();
   }

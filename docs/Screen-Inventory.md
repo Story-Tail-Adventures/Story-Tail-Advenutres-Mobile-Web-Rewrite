@@ -3758,6 +3758,24 @@ Preferences (3.12.3).
 > (the supplier pay schedule, paid or not) and **Clients**. A Clients export carries contact
 > details (email, phone, mailing address) only when "Include contact details" is checked; it
 > starts unchecked. Every export is audited.
+>
+> **Built 2026-10-21 (PR 3).** A From/To range, inclusive, defaulting to Jan 1 to today, with
+> one line under it saying what the dates mean for the type chosen:
+> - **Commission ledger:** §3.7.2's own export, by travel start (it audits as
+>   `commission.exported`).
+> - **Trips:** by travel start, at every stage, cancelled ones too (the books should show what
+>   fell through); archived trips are out.
+> - **Payment milestones:** by due date. The pay link leaves as its site name only, and the
+>   advisor's free-text paid note is not exported.
+> - **Clients:** **the whole list, no dates** (a client list filtered by the day each was
+>   added would quietly drop every older client). The contact box shows only for Clients and
+>   resets when the type changes.
+>
+> **Recent exports** list the advisor's last 20 `report.exported` and `commission.exported`
+> audit rows, each report's own Export included: what was exported, its dates, how many rows,
+> and when, on the advisor's clock. "Run again" repeats the same settings, contact switch
+> included (the line says "with contact details"). The form is a plain GET to the download
+> route, so it works with no script; a new download shows in the list on the next visit.
 
 #### 3.11.1 Reports Hub
 **Purpose:** Entry point to every report.

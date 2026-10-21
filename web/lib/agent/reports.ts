@@ -1,5 +1,6 @@
 import {
   callAgentRead,
+  type AgentExportHistoryRow,
   type AgentReportClientRow,
   type AgentReportDestinationRow,
   type AgentReportFunnelRow,
@@ -13,8 +14,10 @@ import {
   clientReport,
   destinationReport,
   funnelReport,
+  exportHistory,
   pipelineReport,
   type ClientReport,
+  type ExportHistoryItem,
   type PipelineReport,
   type FunnelReport,
   periodRangeLabel,
@@ -123,4 +126,14 @@ export async function loadPipelineReport(): Promise<{ report: PipelineReport } |
   ]);
   if (!p.ok || !st.ok || !mo.ok || !p.rows[0]) return null;
   return { report: pipelineReport(st.rows, mo.rows) };
+}
+
+/** 3.11.8: today (for the form's default range) and the recent exports. */
+export async function loadExportCenter(): Promise<{ today: string; history: ExportHistoryItem[] } | null> {
+  const [p, h] = await Promise.all([
+    callAgentRead<AgentReportPeriodRow>("agent_report_period", { p_period: "ytd" }),
+    callAgentRead<AgentExportHistoryRow>("agent_export_history", { p_limit: 20 }),
+  ]);
+  if (!p.ok || !h.ok || !p.rows[0]) return null;
+  return { today: p.rows[0].today, history: exportHistory(h.rows) };
 }

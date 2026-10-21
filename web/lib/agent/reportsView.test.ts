@@ -4,7 +4,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  centerExportHref,
   clientReport,
+  exportHistory,
   cohortName,
   destinationReport,
   funnelReport,
@@ -353,5 +355,74 @@ describe("3.11.7 Pipeline Value", () => {
     expect(r.months.map((m) => m.key)).toEqual(["2026-12-01"]);
     expect(r.empty).toBe(true);
     expect(r.grossLabel).toBe("$0");
+  });
+});
+
+describe("3.11.8 Export Center", () => {
+  const row = (event_type: string, metadata: Record<string, unknown>, id = "a1") => ({
+    audit_id: id, event_type, created_at: "2026-10-21T20:04:00Z", created_local: "2026-10-21T15:04:00", metadata,
+  });
+
+  it("builds the download for a type, range and contact switch", () => {
+    expect(centerExportHref("trips", { from: "2026-01-01", to: "2026-10-21" })).toBe(
+      "/agent/reports/download?type=trips&from=2026-01-01&to=2026-10-21",
+    );
+    expect(centerExportHref("clients", { from: "2026-01-01", to: "2026-10-21" }, true)).toBe(
+      "/agent/reports/download?type=clients&contact=1",
+    );
+    expect(centerExportHref("milestones", { from: "2026-01-01", to: "2026-10-21" }, true)).toBe(
+      "/agent/reports/download?type=milestones&from=2026-01-01&to=2026-10-21",
+    );
+  });
+
+  it("names each kind of export and rebuilds the same settings to run it again", () => {
+    const items = exportHistory([
+      row("report.exported", { report: "clients", source: "export_center", from: null, to: null, include_contact: true, row_count: 12 }, "a1"),
+      row("report.exported", { report: "trips", source: "export_center", from: "2026-01-01", to: "2026-10-21", include_contact: false, row_count: 1 }, "a2"),
+      row("report.exported", { report: "revenue", period: "12mo", basis: "received", from: "2025-11-01", to: "2026-10-21", row_count: 12 }, "a3"),
+      row("commission.exported", { row_count: 4, filters: { status: ["lost"], supplier_id: null, trip_id: null, travel_from: "2026-01-01", travel_to: "2026-10-21" } }, "a4"),
+      row("report.exported", { report: "pipeline", period: null, from: null, to: null, row_count: 18 }, "a5"),
+    ]);
+    expect(items.map((i) => i.title)).toEqual([
+      "Clients · with contact details",
+      "Trips",
+      "Revenue by month · Commission received",
+      "Commission ledger",
+      "Pipeline value",
+    ]);
+    expect(items[0]).toMatchObject({ withContact: true, runAgainHref: "/agent/reports/download?type=clients&contact=1" });
+    expect(items[0].detail).toBe("12 rows · Oct 21, 3:04 PM");
+    expect(items[1].detail).toBe("Jan 1 to Oct 21, 2026 · 1 row · Oct 21, 3:04 PM");
+    expect(items[2].runAgainHref).toBe("/agent/reports/download?report=revenue&period=12mo&basis=received");
+    expect(items[3].runAgainHref).toBe("/agent/commission/ledger/export?status=lost&from=2026-01-01&to=2026-10-21");
+    expect(items[4].runAgainHref).toBe("/agent/reports/download?report=pipeline");
+  });
+
+  it("skips a row it does not know how to describe (an inherited key included), and drops an impossible date", () => {
+    expect(exportHistory([
+      row("report.exported", { report: "payroll", source: "export_center" }),
+      row("report.exported", { report: "mystery" }),
+      row("report.exported", { report: "constructor" }),
+      row("report.exported", { report: "trips", source: "export_center", from: "2026-99-99", to: "2026-10-21" }),
+      row("client.merged", {}),
+    ]).map((i) => [i.title, i.detail])).toEqual([["Trips", "Oct 21, 3:04 PM"]]);
+  });
+
+  it("tells a report's own lifetime-value export from the Export Center's client list", () => {
+    const items = exportHistory([
+      row("report.exported", { report: "clients", period: null, from: null, to: null, row_count: 9 }, "b1"),
+      row("report.exported", { report: "clients", source: "export_center", include_contact: false, row_count: 9 }, "b2"),
+    ]);
+    expect(items.map((i) => [i.title, i.runAgainHref])).toEqual([
+      ["Client lifetime value", "/agent/reports/download?report=clients"],
+      ["Clients", "/agent/reports/download?type=clients"],
+    ]);
+  });
+
+  it("replays only real ledger statuses", () => {
+    const [item] = exportHistory([
+      row("commission.exported", { filters: { status: ["lost", "bogus"], travel_from: "2026-01-01", travel_to: "2026-02-01" } }),
+    ]);
+    expect(item.runAgainHref).toBe("/agent/commission/ledger/export?status=lost&from=2026-01-01&to=2026-02-01");
   });
 });

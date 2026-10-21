@@ -365,24 +365,25 @@ function A3118_ExportCenter() {
   const { Box, Stack, Typography, Grid, Card, CardContent, TextField, Checkbox, FormControlLabel, Button, Chip, IconButton } = MUI;
   return (
     <MuiScreenFrame role="agent" tab="reports" padding={24} scrollable>
-      <MuiScreenHeader title="Export center" subtitle="CSV / Excel exports for tax prep and accounting. Web-only." small/>
+      {/* Ruled 2026-10-21: CSV only (Excel opens it), built on demand, nothing stored or expiring;
+          Recent exports are the audit rows; "Run again" on every line; contact details only for
+          Clients and only when ticked (unticked by default). */}
+      <MuiScreenHeader title="Export center" subtitle="CSV files for tax prep and the books." small/>
       <Grid container spacing={1.75} sx={{ maxWidth: 1080 }}>
         <Grid size={6}>
           <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: 2.25 }}>
-              <Typography variant="subtitle1">Generate export</Typography>
+              <Typography variant="subtitle1">Download a CSV</Typography>
               <Grid container spacing={1.25} sx={{ mt: 0.25 }}>
-                <Grid size={6}><TextField label="Type" size="small" fullWidth defaultValue="Commission ledger"/></Grid>
-                <Grid size={6}><TextField label="Format" size="small" fullWidth defaultValue="CSV"/></Grid>
-                <Grid size={6}><TextField label="From" size="small" fullWidth defaultValue="Jan 1, 2026"/></Grid>
-                <Grid size={6}><TextField label="To" size="small" fullWidth defaultValue="May 14, 2026"/></Grid>
+                <Grid size={12}><TextField label="What to export" size="small" fullWidth defaultValue="Clients"/></Grid>
               </Grid>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Every client on your book. No dates needed.</Typography>
               <FormControlLabel
                 sx={{ mt: 1, ml: 0 }}
-                control={<Checkbox defaultChecked size="small" sx={{ p: 0.5, mr: 0.5 }}/>}
-                label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: 12.5 }}>Include PII (client names, emails) · audit-logged</Typography>}
+                control={<Checkbox size="small" sx={{ p: 0.5, mr: 0.5 }}/>}
+                label={<Typography variant="body2" sx={{ fontWeight: 500, fontSize: 12.5 }}>Include contact details (email, phone, mailing address)</Typography>}
               />
-              <Button variant="contained" fullWidth startIcon={<MuiIcon name="download" size={12}/>} sx={{ mt: 1.5 }}>Generate</Button>
+              <Button variant="contained" startIcon={<MuiIcon name="download" size={12}/>} sx={{ mt: 1.5 }}>Download CSV</Button>
             </CardContent>
           </Card>
         </Grid>
@@ -391,19 +392,17 @@ function A3118_ExportCenter() {
             <CardContent sx={{ p: 2.25 }}>
               <Typography variant="subtitle1">Recent exports</Typography>
               {[
-                { n: 'commission-jan-apr-2026.csv', s: '24 KB · May 12', ok: true },
-                { n: 'clients-roster-2026.xlsx', s: '88 KB · May 04', ok: true },
-                { n: 'pipeline-q1-2026.csv', s: '14 KB · Apr 01', expired: true },
+                { n: 'Commission ledger', s: 'Jan 1 to May 14, 2026 · 42 rows · May 14, 3:04 PM' },
+                { n: 'Clients · with contact details', s: '29 rows · May 4, 9:12 AM' },
+                { n: 'Pipeline value', s: '19 rows · Apr 1, 8:30 AM' },
               ].map((f) => (
                 <Stack key={f.n} direction="row" spacing={1} sx={{ alignItems: 'center', py: 1, borderTop: 1, borderColor: 'divider' }}>
                   <Box sx={{ width: 28, height: 34, borderRadius: 0.5, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 8, lineHeight: 1, flexShrink: 0 }}>CSV</Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="subtitle2" noWrap sx={{ fontSize: 12.5 }}>{f.n}</Typography>
-                    <Typography variant="caption" sx={{ display: 'block', color: f.expired ? 'text.secondary' : 'text.primary' }}>{f.s} {f.expired && '· expired'}</Typography>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{f.s}</Typography>
                   </Box>
-                  {f.expired
-                    ? <Chip variant="outlined" size="small" label="Re-generate" onClick={() => {}}/>
-                    : <IconButton size="small"><MuiIcon name="download" size={14}/></IconButton>}
+                  <Button variant="outlined" color="secondary" size="small" startIcon={<MuiIcon name="download" size={12}/>}>Run again</Button>
                 </Stack>
               ))}
             </CardContent>

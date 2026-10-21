@@ -4292,6 +4292,20 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_export_center: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_from: string
+          p_include_contact: boolean
+          p_ip: string
+          p_to: string
+          p_type: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
       agent_export_commission: {
         Args: {
           p_actor_user_id: string
@@ -4306,6 +4320,16 @@ export type Database = {
           p_user_agent: string
         }
         Returns: Json
+      }
+      agent_export_history: {
+        Args: { p_limit?: number }
+        Returns: {
+          audit_id: string
+          created_at: string
+          created_local: string
+          event_type: string
+          metadata: Json
+        }[]
       }
       agent_generate_itinerary: {
         Args: { p_agent_id: string; p_trip_id: string }
@@ -5807,6 +5831,10 @@ export type Database = {
           today: string
         }[]
       }
+      report_check_range: {
+        Args: { p_from: string; p_to: string }
+        Returns: undefined
+      }
       report_client_lifetime_value: {
         Args: { p_agent_id: string }
         Returns: {
@@ -5839,6 +5867,56 @@ export type Database = {
           open_here: number
           reached: number
           stage: number
+        }[]
+      }
+      report_export_clients: {
+        Args: { p_agent_id: string; p_include_contact: boolean }
+        Returns: {
+          added_on: string
+          address_line1: string
+          address_line2: string
+          city: string
+          client_name: string
+          country: string
+          email: string
+          phone: string
+          postal_code: string
+          region: string
+          status: Database["public"]["Enums"]["client_status"]
+          trip_count: number
+          value_cents: number
+        }[]
+      }
+      report_export_milestones: {
+        Args: { p_agent_id: string; p_from: string; p_to: string }
+        Returns: {
+          amount_cents: number
+          client_name: string
+          due_date: string
+          kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          label: string
+          paid_cents: number
+          paid_on: string
+          paid_reference: string
+          pay_site: string
+          status: Database["public"]["Enums"]["payment_milestone_status"]
+          trip_title: string
+        }[]
+      }
+      report_export_trips: {
+        Args: { p_agent_id: string; p_from: string; p_to: string }
+        Returns: {
+          client_name: string
+          commission_cents: number
+          created_on: string
+          destinations: string
+          end_date: string
+          first_booked_on: string
+          paid_cents: number
+          start_date: string
+          status: Database["public"]["Enums"]["trip_status"]
+          trip_title: string
+          value_cents: number
         }[]
       }
       report_first_committed_at: {
