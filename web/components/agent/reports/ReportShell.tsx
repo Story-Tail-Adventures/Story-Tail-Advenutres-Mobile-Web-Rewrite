@@ -38,7 +38,8 @@ export function ReportShell({
   subtitle: string;
   /** Empty for a report that is not over a period (lifetime value, pipeline). */
   chips: PeriodChip[];
-  exportHref: string;
+  /** Null on the Export Center, which IS the export. */
+  exportHref: string | null;
   windowLabel: string | null;
   /** Report-specific controls under the header, such as Revenue's basis toggle. */
   controls?: ReactNode;
@@ -93,17 +94,19 @@ export function ReportShell({
               ))}
             </Box>
           )}
-          <MuiButton
-            component="a"
-            href={exportHref}
-            variant="outlined"
-            color="secondary"
-            size="small"
-            sx={{ gap: 0.75, minHeight: 32, ...TAP_TARGET }}
-          >
-            <Icon name="download" size={12} />
-            {REPORTS_COPY.exportLabel}
-          </MuiButton>
+          {exportHref && (
+            <MuiButton
+              component="a"
+              href={exportHref}
+              variant="outlined"
+              color="secondary"
+              size="small"
+              sx={{ gap: 0.75, minHeight: 32, ...TAP_TARGET }}
+            >
+              <Icon name="download" size={12} />
+              {REPORTS_COPY.exportLabel}
+            </MuiButton>
+          )}
         </Box>
       </Box>
 

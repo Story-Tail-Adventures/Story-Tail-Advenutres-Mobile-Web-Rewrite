@@ -1,4 +1,5 @@
 import type {
+  AgentExportHistoryRow,
   AgentReportClientRow,
   AgentReportDestinationRow,
   AgentReportFunnelRow,
@@ -7,11 +8,21 @@ import type {
   AgentReportRevenueRow,
   AgentReportSupplierRow,
 } from "@/lib/agent/api";
-import { EMPTY_LEDGER_QUERY, ledgerHref } from "@/lib/agent/commissionFilters";
+import {
+  COMMISSION_STATUS_FILTERS,
+  EMPTY_LEDGER_QUERY,
+  ledgerExportHref,
+  ledgerHref,
+  type CommissionStatus,
+} from "@/lib/agent/commissionFilters";
 import type { ForecastStageView } from "@/lib/agent/forecast";
 import { forecastTripCount } from "@/lib/agent/content";
 import { isForecastStage, STAGE_LABEL } from "@/lib/agent/forecastWeights";
 import {
+  EXPORT_TYPE_NAMES,
+  EXPORT_TYPES,
+  exportRows,
+  type ExportType,
   funnelBookDays,
   funnelStopped,
   funnelSummary,
@@ -45,7 +56,7 @@ export type RevenueBasis = (typeof REVENUE_BASES)[number];
 export type ReportId = (typeof REPORT_TILES)[number]["id"];
 
 /** The reports built so far. The hub shows the rest as "On its way". */
-export const BUILT_REPORTS: readonly ReportId[] = ["revenue", "suppliers", "destinations", "clients", "funnel", "pipeline"];
+export const BUILT_REPORTS: readonly ReportId[] = ["revenue", "suppliers", "destinations", "clients", "funnel", "pipeline", "export"];
 
 /** The reports with a per-report Export. */
 export type ExportableReport = "revenue" | "suppliers" | "destinations" | "clients" | "funnel" | "pipeline";
@@ -539,6 +550,151 @@ export function pipelineReport(
     }),
     empty: trips === 0,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3.11.8 Export Center
+// ─────────────────────────────────────────────────────────────────────────────
+
+export { EXPORT_TYPES, EXPORT_TYPE_NAMES, type ExportType };
+
+const REPORT_NAMES: Record<string, string> = {
+  revenue: REPORTS_COPY.revenueTitle,
+  suppliers: REPORTS_COPY.suppliersTitle,
+  destinations: REPORTS_COPY.destinationsTitle,
+  clients: REPORTS_COPY.clientsTitle,
+  funnel: REPORTS_COPY.funnelTitle,
+  pipeline: REPORTS_COPY.pipelineTitle,
+};
+
+/** The Export Center's own download. A plain anchor's or a GET form's target. */
+export function centerExportHref(
+  type: ExportType,
+  range: { from: string; to: string } | null,
+  withContact = false,
+): string {
+  const qs = new URLSearchParams({ type });
+  if (type !== "clients" && range) {
+    qs.set("from", range.from);
+    qs.set("to", range.to);
+  }
+  if (type === "clients" && withContact) qs.set("contact", "1");
+  return `/agent/reports/download?${qs.toString()}`;
+}
+
+export type ExportHistoryItem = {
+  id: string;
+  title: string;
+  /** "Jan 1 to Oct 21, 2026 · 12 rows · Oct 21, 3:04 PM". */
+  detail: string;
+  /** Null when the row's shape is not one this screen knows how to repeat. */
+  runAgainHref: string | null;
+  /** Contact details went out: the line says so, and Run again repeats it knowingly. */
+  withContact: boolean;
+};
+
+function str(v: unknown): string | null {
+  return typeof v === "string" && v !== "" ? v : null;
+}
+/** A real calendar date or null: "2026-99-99" would make Intl throw and take the page down. */
+function isoDate(v: unknown): string | null {
+  const s = str(v);
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s ? s : null;
+}
+
+/** Own keys only: `"constructor" in {}` is true, and must not become a title. */
+function has<T extends object>(map: T, key: string): key is Extract<keyof T, string> {
+  return Object.hasOwn(map, key);
+}
+
+const LEDGER_STATUSES = new Set<string>(COMMISSION_STATUS_FILTERS.map((f) => f.value));
+
+const WHEN = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/**
+ * Recent exports, from the audit rows (§3.11.8: no history table). Each line names what was
+ * exported, its window, how many rows, and when on the advisor's own clock (`created_local`
+ * is already in their zone, so it is formatted as UTC to print it as it stands).
+ *
+ * "Run again" rebuilds the SAME settings: a report's period (which today covers today's dates),
+ * the Export Center's range and contact switch, or the ledger's filters.
+ */
+export function exportHistory(rows: AgentExportHistoryRow[]): ExportHistoryItem[] {
+  return rows.flatMap((r) => {
+    const m = r.metadata ?? {};
+    const count = typeof m.row_count === "number" ? exportRows(m.row_count) : null;
+    const local = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(r.created_local) ? new Date(`${r.created_local.slice(0, 19)}Z`) : null;
+    const when = local && !Number.isNaN(local.getTime()) ? WHEN.format(local) : null;
+
+    let title: string;
+    let window: string | null = null;
+    let href: string | null = null;
+    let withContact = false;
+
+    if (r.event_type === "commission.exported") {
+      const f = (m.filters ?? {}) as Record<string, unknown>;
+      const from = isoDate(f.travel_from);
+      const to = isoDate(f.travel_to);
+      title = EXPORT_TYPE_NAMES.ledger;
+      window = from && to ? periodRangeLabel(from, to) : null;
+      href = ledgerExportHref({
+        ...EMPTY_LEDGER_QUERY,
+        // Only real statuses, so the cast below claims nothing it has not checked.
+        statuses: Array.isArray(f.status)
+          ? (f.status.filter((x): x is string => typeof x === "string" && LEDGER_STATUSES.has(x)) as CommissionStatus[])
+          : [],
+        supplierId: str(f.supplier_id),
+        tripId: str(f.trip_id),
+        travelFrom: from,
+        travelTo: to,
+      });
+    } else if (r.event_type === "report.exported" && m.source === "export_center") {
+      const type = str(m.report);
+      if (!type || !(EXPORT_TYPES as readonly string[]).includes(type)) return [];
+      // `type` is one of EXPORT_TYPES from here: the includes() above checked it.
+      const from = isoDate(m.from);
+      const to = isoDate(m.to);
+      withContact = m.include_contact === true;
+      title = EXPORT_TYPE_NAMES[type as ExportType];
+      window = from && to ? periodRangeLabel(from, to) : null;
+      href = centerExportHref(type as ExportType, from && to ? { from, to } : null, withContact);
+    } else if (r.event_type === "report.exported") {
+      const report = str(m.report);
+      if (!report || !has(REPORT_NAMES, report)) return [];
+      const period = str(m.period);
+      const basis = str(m.basis);
+      title = REPORT_NAMES[report];
+      if (report === "revenue" && basis) {
+        title = `${title} · ${basis === "received" ? REPORTS_COPY.basisReceived : REPORTS_COPY.basisBooked}`;
+      }
+      const from = isoDate(m.from);
+      const to = isoDate(m.to);
+      window = from && to ? periodRangeLabel(from, to) : null;
+      href = reportExportHref(
+        report as ExportableReport,
+        period && (REPORT_PERIODS as readonly string[]).includes(period) ? (period as ReportPeriod) : "ytd",
+        basis === "received" ? "received" : "booked",
+      );
+    } else {
+      return [];
+    }
+
+    return [{
+      id: r.audit_id,
+      title: withContact ? `${title} · ${REPORTS_COPY.withContact}` : title,
+      detail: [window, count, when].filter(Boolean).join(" · "),
+      runAgainHref: href,
+      withContact,
+    }];
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

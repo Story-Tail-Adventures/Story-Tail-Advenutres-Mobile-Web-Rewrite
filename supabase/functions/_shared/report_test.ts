@@ -2,6 +2,12 @@ import { assertEquals, assertThrows } from "jsr:@std/assert@^1";
 import { HttpError } from "./problem.ts";
 import {
   BASES,
+  centerCsv,
+  centerFileName,
+  EXPORT_TYPES,
+  readExportRange,
+  readExportType,
+  readIncludeContact,
   PERIODS,
   cohortLabel,
   readBasis,
@@ -181,4 +187,67 @@ Deno.test("pipeline: the stage table, a blank line, then the months, later and u
     { kind: "stage", status: "cancelled", weight_pct: 0, trip_count: 1, gross_cents: "1", weighted_cents: "0" },
   ]));
   assertEquals(reportFileName("pipeline", null, null, null, "2026-10-21"), "pipeline-2026-10-21.csv");
+});
+
+Deno.test("export center: the four types, a range for all but Clients", () => {
+  assertEquals([...EXPORT_TYPES], ["ledger", "trips", "milestones", "clients"]);
+  assertEquals(readExportType("milestones"), "milestones");
+  is400(() => readExportType("payroll"));
+  assertEquals(readExportRange("trips", "2026-01-01", "2026-12-31"), { from: "2026-01-01", to: "2026-12-31" });
+  assertEquals(readExportRange("ledger", "2026-03-01", "2026-03-01"), { from: "2026-03-01", to: "2026-03-01" });
+  is400(() => readExportRange("trips", "2026-12-31", "2026-01-01"));
+  is400(() => readExportRange("trips", "2026-02-30", "2026-03-01"));
+  is400(() => readExportRange("milestones", undefined, "2026-03-01"));
+  assertEquals(readExportRange("clients", undefined, null), null);
+  is400(() => readExportRange("clients", "2026-01-01", "2026-12-31"));
+});
+
+Deno.test("export center: contact details only for Clients, and only a real yes", () => {
+  assertEquals(readIncludeContact("clients", true), true);
+  assertEquals(readIncludeContact("clients", undefined), false);
+  assertEquals(readIncludeContact("trips", false), false);
+  is400(() => readIncludeContact("trips", true));
+  is400(() => readIncludeContact("clients", "yes"));
+});
+
+Deno.test("export center: trips and milestones say stages in words, money exactly", () => {
+  const trips = centerCsv("trips", [{
+    trip_title: "=cmd", client_name: "Ana Ruiz", status: "in_progress", start_date: "2026-03-10",
+    end_date: "2026-03-17", destinations: "Lisbon; Porto", value_cents: "100000", commission_cents: "10000",
+    paid_cents: "5", first_booked_on: "2026-02-28", created_on: "2026-01-02",
+  }]);
+  assertEquals(
+    trips,
+    "Trip,Client,Stage,Travel start,Travel end,Destinations,Trip value,Commission,Amount paid,First booked,Created on\r\n" +
+      "'=cmd,Ana Ruiz,Traveling,2026-03-10,2026-03-17,Lisbon; Porto,1000.00,100.00,0.05,2026-02-28,2026-01-02\r\n",
+  );
+  const ms = centerCsv("milestones", [{
+    trip_title: "T1", client_name: "Ana Ruiz", label: "Deposit", kind: "deposit", amount_cents: "50000",
+    due_date: "2026-02-01", status: "paid", paid_cents: "50000", paid_on: "2026-02-01", paid_reference: null,
+    pay_site: "royalcaribbean.com",
+  }]);
+  assertEquals(ms.split("\r\n")[1], "T1,Ana Ruiz,Deposit,Deposit,500.00,2026-02-01,Paid,500.00,2026-02-01,,royalcaribbean.com");
+  assertThrows(() => centerCsv("trips", [{ status: "lead" }]));
+});
+
+Deno.test("export center: a Clients file without the switch has no contact columns at all", () => {
+  const row = {
+    client_name: "Ana Ruiz", status: "active", added_on: "2026-01-02", trip_count: 1, value_cents: "100000",
+    email: "ana@example.com", phone: "+1-555-0101", address_line1: "12 Harbor Way", address_line2: null,
+    city: "Tampa", region: "FL", postal_code: "33602", country: "US",
+  };
+  const bare = centerCsv("clients", [row], false);
+  assertEquals(bare, "Client,Status,Added,Booked trips,Lifetime value\r\nAna Ruiz,Active,2026-01-02,1,1000.00\r\n");
+  assertEquals(bare.includes("example.com"), false);
+  const full = centerCsv("clients", [row], true);
+  assertEquals(full.split("\r\n")[1], "Ana Ruiz,Active,2026-01-02,1,1000.00,ana@example.com,'+1-555-0101,12 Harbor Way,,Tampa,FL,33602,US");
+});
+
+Deno.test("export center: file names carry the type and range, or the day and the switch", () => {
+  const range = { from: "2026-01-01", to: "2026-10-21" };
+  assertEquals(centerFileName("ledger", range, "x"), "commission-ledger-2026-01-01-to-2026-10-21.csv");
+  assertEquals(centerFileName("milestones", range, "x"), "payment-milestones-2026-01-01-to-2026-10-21.csv");
+  assertEquals(centerFileName("clients", null, "2026-10-21"), "clients-2026-10-21.csv");
+  assertEquals(centerFileName("clients", null, "2026-10-21", true), "clients-with-contact-details-2026-10-21.csv");
+  assertThrows(() => centerFileName("trips", null, "2026-10-21"));
 });

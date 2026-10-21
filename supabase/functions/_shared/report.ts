@@ -307,3 +307,215 @@ export function reportFileName(
   if (!from || !to || !iso.test(from) || !iso.test(to)) throw new Error("export period is not two dates");
   return `${report}${basis ? `-${basis}` : ""}-${from}-to-${to}.csv`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §3.11.8 Export Center
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The four types (§3.11, ruled 2026-10-21). `ledger` is the existing commission ledger export;
+ * the other three are `agent_export_center`. Clients is the whole list and takes no dates;
+ * the rest take an inclusive From/To.
+ */
+export const EXPORT_TYPES = ["ledger", "trips", "milestones", "clients"] as const;
+export type ExportType = (typeof EXPORT_TYPES)[number];
+
+/**
+ * The Export Center's refusals are SHOWN to the advisor (the download route prints them as
+ * text), so each says what went wrong and what to do, in words, never a field name.
+ */
+export function readExportType(value: unknown): ExportType {
+  if (typeof value !== "string" || !(EXPORT_TYPES as readonly string[]).includes(value)) {
+    throw badRequest("Pick what to export: commission ledger, trips, payment milestones or clients.");
+  }
+  return value as ExportType;
+}
+
+/** An ISO calendar date that exists ("2026-02-30" does not). */
+function readExportDate(value: unknown, which: "From" | "To"): string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw badRequest(`Pick a ${which} date.`);
+  }
+  const d = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value || value.startsWith("0000")) {
+    throw badRequest(`That ${which} date isn't a real date.`);
+  }
+  return value;
+}
+
+export type ExportRange = { from: string; to: string } | null;
+
+/** From and To, both ISO dates, From on or before To; none at all for Clients. */
+export function readExportRange(type: ExportType, from: unknown, to: unknown): ExportRange {
+  if (type === "clients") {
+    if ((from ?? null) !== null || (to ?? null) !== null) {
+      throw badRequest("The Clients export covers everyone on your book, so it doesn't use dates.");
+    }
+    return null;
+  }
+  const f = readExportDate(from, "From");
+  const t = readExportDate(to, "To");
+  if (f > t) throw badRequest("The From date needs to be on or before the To date.");
+  return { from: f, to: t };
+}
+
+/** Contact details are for Clients alone, and refused on any other type, not ignored. */
+export function readIncludeContact(type: ExportType, value: unknown): boolean {
+  if (value === undefined || value === null || value === false) return false;
+  if (value !== true) throw badRequest("Something went wrong with the contact details box. Reload the page and try again.");
+  if (type !== "clients") {
+    throw badRequest("Contact details can only go in the Clients export. Switch the type, or uncheck the box.");
+  }
+  return true;
+}
+
+export type TripExportRow = {
+  trip_title: string;
+  client_name: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: string;
+  value_cents: string;
+  commission_cents: string;
+  paid_cents: string;
+  first_booked_on: string | null;
+  created_on: string;
+};
+
+export type MilestoneExportRow = {
+  trip_title: string;
+  client_name: string;
+  label: string;
+  kind: string;
+  amount_cents: string;
+  due_date: string;
+  status: string;
+  paid_cents: string;
+  paid_on: string | null;
+  paid_reference: string | null;
+  pay_site: string | null;
+};
+
+export type ClientListRow = {
+  client_name: string;
+  status: string;
+  added_on: string;
+  trip_count: number;
+  value_cents: string;
+  email: string | null;
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  region: string | null;
+  postal_code: string | null;
+  country: string | null;
+};
+
+/** Stage names as the screens say them, never the enum spelling. */
+const TRIP_STAGES: Record<string, string> = {
+  inquiry: "Inquiry",
+  proposal: "Proposal",
+  booked: "Booked",
+  in_progress: "Traveling",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+const MILESTONE_KINDS: Record<string, string> = { deposit: "Deposit", interim: "Interim", final: "Final" };
+const MILESTONE_STATUSES: Record<string, string> = {
+  scheduled: "Scheduled",
+  paid: "Paid",
+  waived: "Waived",
+  overdue: "Overdue",
+};
+const CLIENT_STATUSES: Record<string, string> = { active: "Active", archived: "Archived" };
+
+function named(map: Record<string, string>, value: string, what: string): string {
+  const v = map[value];
+  if (!v) throw new Error(`unknown ${what} in export: ${value}`);
+  return v;
+}
+
+/**
+ * One Export Center file. Clients' contact columns are there only when they were asked for
+ * (`withContact`): a file without them has no empty email column to invite the question.
+ */
+export function centerCsv(type: Exclude<ExportType, "ledger">, rows: unknown[], withContact = false): string {
+  const lines: string[] = [];
+  if (type === "trips") {
+    lines.push(line([
+      "Trip", "Client", "Stage", "Travel start", "Travel end", "Destinations",
+      "Trip value", "Commission", "Amount paid", "First booked", "Created on",
+    ].map((h) => csvCell(h))));
+    for (const r of rows as TripExportRow[]) {
+      lines.push(line([
+        csvCell(r.trip_title),
+        csvCell(r.client_name),
+        csvCell(named(TRIP_STAGES, r.status, "trip stage")),
+        csvCell(r.start_date, false),
+        csvCell(r.end_date, false),
+        csvCell(r.destinations),
+        csvCell(centsToDecimal(r.value_cents), false),
+        csvCell(centsToDecimal(r.commission_cents), false),
+        csvCell(centsToDecimal(r.paid_cents), false),
+        csvCell(r.first_booked_on, false),
+        csvCell(r.created_on, false),
+      ]));
+    }
+  } else if (type === "milestones") {
+    lines.push(line([
+      "Trip", "Client", "Payment", "Payment type", "Amount", "Due", "Status",
+      "Amount paid", "Paid on", "Paid reference", "Pay site",
+    ].map((h) => csvCell(h))));
+    for (const r of rows as MilestoneExportRow[]) {
+      lines.push(line([
+        csvCell(r.trip_title),
+        csvCell(r.client_name),
+        csvCell(r.label),
+        csvCell(named(MILESTONE_KINDS, r.kind, "milestone kind")),
+        csvCell(centsToDecimal(r.amount_cents), false),
+        csvCell(r.due_date, false),
+        csvCell(named(MILESTONE_STATUSES, r.status, "milestone status")),
+        csvCell(centsToDecimal(r.paid_cents), false),
+        csvCell(r.paid_on, false),
+        csvCell(r.paid_reference),
+        csvCell(r.pay_site),
+      ]));
+    }
+  } else {
+    // "Booked trips": booked, traveling and completed only, the trips lifetime value adds up.
+    const head = ["Client", "Status", "Added", "Booked trips", "Lifetime value"];
+    if (withContact) head.push("Email", "Phone", "Address line 1", "Address line 2", "City", "State or region", "Postal code", "Country");
+    lines.push(line(head.map((h) => csvCell(h))));
+    for (const r of rows as ClientListRow[]) {
+      const cells = [
+        csvCell(r.client_name),
+        csvCell(named(CLIENT_STATUSES, r.status, "client status")),
+        csvCell(r.added_on, false),
+        csvCell(count(r.trip_count), false),
+        csvCell(centsToDecimal(r.value_cents), false),
+      ];
+      if (withContact) {
+        cells.push(
+          csvCell(r.email), csvCell(r.phone), csvCell(r.address_line1), csvCell(r.address_line2),
+          csvCell(r.city), csvCell(r.region), csvCell(r.postal_code), csvCell(r.country),
+        );
+      }
+      lines.push(line(cells));
+    }
+  }
+  return lines.join("\r\n") + "\r\n";
+}
+
+/** "trips-2026-01-01-to-2026-10-21.csv"; Clients by the advisor's date, saying if it has contacts. */
+export function centerFileName(type: ExportType, range: ExportRange, today: string, withContact = false): string {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const base = type === "ledger" ? "commission-ledger" : type === "milestones" ? "payment-milestones" : type;
+  if (type === "clients") {
+    if (!iso.test(today)) throw new Error("export date is not a date");
+    return `clients${withContact ? "-with-contact-details" : ""}-${today}.csv`;
+  }
+  if (!range || !iso.test(range.from) || !iso.test(range.to)) throw new Error("export range is not two dates");
+  return `${base}-${range.from}-to-${range.to}.csv`;
+}

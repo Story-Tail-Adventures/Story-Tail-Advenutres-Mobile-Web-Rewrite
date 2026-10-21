@@ -51,6 +51,42 @@ describe("GET /agent/reports/download", () => {
     expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", { op: "export", report: "funnel", period: "qtd" });
   });
 
+  it("Export Center: sends the type and range, and the contact switch only for Clients", async () => {
+    mocks.callAgentFunction.mockResolvedValue(OK);
+    await GET(request("?type=trips&from=2026-01-01&to=2026-10-21&contact=1"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", {
+      op: "center", type: "trips", from: "2026-01-01", to: "2026-10-21",
+    });
+    await GET(request("?type=clients&from=2026-01-01&to=2026-10-21&contact=1"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", {
+      op: "center", type: "clients", includeContact: true,
+    });
+    await GET(request("?type=clients"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", {
+      op: "center", type: "clients", includeContact: false,
+    });
+    // A malformed date is passed as missing; the function refuses it in words.
+    await GET(request("?type=milestones&from=Jan%201&to=2026-10-21"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", {
+      op: "center", type: "milestones", from: null, to: "2026-10-21",
+    });
+  });
+
+  it("Export Center: an unknown type is a 404, and a refusal is shown in the function's words", async () => {
+    expect((await GET(request("?type=payroll"))).status).toBe(404);
+    expect(mocks.callAgentFunction).not.toHaveBeenCalled();
+    mocks.callAgentFunction.mockResolvedValue({ ok: false, kind: "rejected", detail: "The From date needs to be on or before the To date." });
+    const res = await GET(request("?type=trips&from=2026-12-31&to=2026-01-01"));
+    expect(res.status).toBe(400);
+    expect(await res.text()).toBe("The From date needs to be on or before the To date.");
+  });
+
+  it("Export Center: a signed-out caller comes back to the Export Center", async () => {
+    mocks.callAgentFunction.mockResolvedValue({ ok: false, kind: "unauthenticated" });
+    const res = await GET(request("?type=ledger&from=2026-01-01&to=2026-10-21"));
+    expect(res.headers.get("location")).toContain("/login?next=%2Fagent%2Freports%2Fexport");
+  });
+
   it("refuses an unknown report before anything (and so any audit row) happens", async () => {
     const res = await GET(request("?report=payroll"));
     expect(res.status).toBe(404);
