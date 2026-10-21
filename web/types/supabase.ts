@@ -4565,6 +4565,17 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_report_client_lifetime_value: {
+        Args: never
+        Returns: {
+          client_id: string
+          cohort_start: string
+          commission_cents: string
+          display_name: string
+          trip_count: number
+          value_cents: string
+        }[]
+      }
       agent_report_commission_by_supplier: {
         Args: { p_period: string }
         Returns: {
@@ -4575,6 +4586,17 @@ export type Database = {
           set_aside_received_cents: string
           supplier_id: string
           supplier_name: string
+        }[]
+      }
+      agent_report_conversion_funnel: {
+        Args: { p_period: string }
+        Returns: {
+          book_days_avg: number
+          book_days_n: number
+          cancelled_here: number
+          open_here: number
+          reached: number
+          stage: number
         }[]
       }
       agent_report_export: {
@@ -4596,6 +4618,27 @@ export type Database = {
           from_date: string
           to_date: string
           today: string
+        }[]
+      }
+      agent_report_pipeline_months: {
+        Args: never
+        Returns: {
+          bucket: string
+          month_start: string
+          trip_count: number
+          weighted_cents: string
+        }[]
+      }
+      agent_report_pipeline_stages: {
+        Args: never
+        Returns: {
+          gross_cents: string
+          status: Database["public"]["Enums"]["trip_status"]
+          total_gross_cents: string
+          total_weighted_cents: string
+          trip_count: number
+          weight_pct: number
+          weighted_cents: string
         }[]
       }
       agent_report_revenue_by_month: {
@@ -5764,6 +5807,17 @@ export type Database = {
           today: string
         }[]
       }
+      report_client_lifetime_value: {
+        Args: { p_agent_id: string }
+        Returns: {
+          client_id: string
+          cohort_start: string
+          commission_cents: number
+          display_name: string
+          trip_count: number
+          value_cents: number
+        }[]
+      }
       report_commission_by_supplier: {
         Args: { p_agent_id: string; p_period: string }
         Returns: {
@@ -5776,6 +5830,21 @@ export type Database = {
           supplier_name: string
         }[]
       }
+      report_conversion_funnel: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          book_days_avg: number
+          book_days_n: number
+          cancelled_here: number
+          open_here: number
+          reached: number
+          stage: number
+        }[]
+      }
+      report_first_committed_at: {
+        Args: { p_trip_id: string }
+        Returns: string
+      }
       report_period_bounds: {
         Args: { p_period: string; p_today: string }
         Returns: {
@@ -5783,6 +5852,27 @@ export type Database = {
           prior_from: string
           prior_to: string
           to_date: string
+        }[]
+      }
+      report_pipeline_months: {
+        Args: { p_agent_id: string }
+        Returns: {
+          bucket: string
+          month_start: string
+          trip_count: number
+          weighted_cents: number
+        }[]
+      }
+      report_pipeline_stages: {
+        Args: { p_agent_id: string }
+        Returns: {
+          gross_cents: number
+          status: Database["public"]["Enums"]["trip_status"]
+          total_gross_cents: number
+          total_weighted_cents: number
+          trip_count: number
+          weight_pct: number
+          weighted_cents: number
         }[]
       }
       report_revenue_by_month: {

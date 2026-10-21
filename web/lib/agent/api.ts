@@ -113,7 +113,13 @@ export type AgentRead =
   | "agent_report_period"
   | "agent_report_revenue_by_month"
   | "agent_report_commission_by_supplier"
-  | "agent_report_top_destinations";
+  | "agent_report_top_destinations"
+  // §3.11 PR 2. Lifetime value takes no period (it is lifetime); the funnel does.
+  | "agent_report_client_lifetime_value"
+  | "agent_report_conversion_funnel"
+  // §3.11.7. Today's open trips: by stage (with this advisor's weights) and by travel month.
+  | "agent_report_pipeline_stages"
+  | "agent_report_pipeline_months";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -970,6 +976,51 @@ export type AgentReportSupplierRow = {
   set_aside_count: number;
   /** Money already received on those disputed or lost lines. */
   set_aside_received_cents: string;
+};
+
+/**
+ * `agent_report_client_lifetime_value()` — clients with a committed trip, ranked. Cohort is the
+ * quarter start of the first commitment, NULL when that predates tracking.
+ */
+export type AgentReportClientRow = {
+  client_id: string;
+  display_name: string;
+  trip_count: number;
+  value_cents: string;
+  commission_cents: string;
+  cohort_start: string | null;
+};
+
+/**
+ * `agent_report_conversion_funnel()` — four rows, stage 1 (inquiry) to 4 (traveled). The two
+ * book_days columns are the same on every row. PostgREST sends `numeric` as a number.
+ */
+export type AgentReportFunnelRow = {
+  stage: number;
+  reached: number;
+  open_here: number;
+  cancelled_here: number;
+  book_days_avg: number | string | null;
+  book_days_n: number;
+};
+
+/** `agent_report_pipeline_stages()` — one row per open stage; the totals repeat on each row. */
+export type AgentReportPipelineStageRow = {
+  status: string;
+  weight_pct: number;
+  trip_count: number;
+  gross_cents: string;
+  weighted_cents: string;
+  total_gross_cents: string;
+  total_weighted_cents: string;
+};
+
+/** `agent_report_pipeline_months()` — twelve `month` rows, then `later`, then `undated`. */
+export type AgentReportPipelineMonthRow = {
+  bucket: string;
+  month_start: string | null;
+  trip_count: number;
+  weighted_cents: string;
 };
 
 /** `agent_report_top_destinations()` — NULL destination is "trips with no stop yet". */

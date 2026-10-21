@@ -4,7 +4,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  clientReport,
+  cohortName,
   destinationReport,
+  funnelReport,
+  pipelineReport,
+  readCohort,
   periodChips,
   periodRangeLabel,
   readBasis,
@@ -209,5 +214,144 @@ describe("the CSV and the screen say the same words", () => {
 
   it("labels the stopless row the same way in the file as on the screen", () => {
     expect(deno).toContain(`export const NO_DESTINATION = "${REPORTS_COPY.noDestination}";`);
+  });
+});
+
+describe("3.11.5 Client Lifetime Value", () => {
+  const row = (id: string, name: string, value: string, cohort: string | null) => ({
+    client_id: id,
+    display_name: name,
+    trip_count: 1,
+    value_cents: value,
+    commission_cents: "1000",
+    cohort_start: cohort,
+  });
+  const rows = [
+    row("c1", "Bo Diddley", "200000", null),
+    row("c2", "Ada Lovelace", "150000", "2025-01-01"),
+    row("c3", "Cy Young", "90000", "2026-07-01"),
+  ];
+
+  it("ranks the whole book and links each client to their page", () => {
+    const r = clientReport(rows, null);
+    expect(r.rows.map((x) => [x.rank, x.name, x.valueLabel, x.cohortLabel])).toEqual([
+      [1, "Bo Diddley", "$2,000", "Before tracking"],
+      [2, "Ada Lovelace", "$1,500", "2025 Q1"],
+      [3, "Cy Young", "$900", "2026 Q3"],
+    ]);
+    expect(r.rows[0].href).toBe("/agent/clients/c1");
+  });
+
+  it("filters by cohort and keeps each client's true rank", () => {
+    const r = clientReport(rows, "2026-q3");
+    expect(r.rows.map((x) => [x.rank, x.name])).toEqual([[3, "Cy Young"]]);
+    expect(r.cohorts.map((c) => [c.label, c.selected])).toEqual([
+      ["All clients", false],
+      ["2026 Q3", true],
+      ["2025 Q1", false],
+      ["Before tracking", false],
+    ]);
+    expect(r.cohorts[3].href).toBe("/agent/reports/clients?cohort=none");
+    expect(r.empty).toBe(false);
+  });
+
+  it("reads only real cohort keys from the URL", () => {
+    expect(readCohort("2025-q1")).toBe("2025-q1");
+    expect(readCohort("none")).toBe("none");
+    expect(readCohort("2025-q5")).toBeNull();
+    expect(readCohort("drop table")).toBeNull();
+    expect(cohortName("2025-10-01")).toBe("2025 Q4");
+  });
+
+  it("is empty only when the book has nobody ranked", () => {
+    expect(clientReport([], null).empty).toBe(true);
+    expect(clientReport(rows, "2020-q1")).toMatchObject({ empty: false, rows: [] });
+  });
+});
+
+describe("3.11.6 Conversion Funnel", () => {
+  const stage = (s: number, reached: number, open: number, cancelled: number, days: number | string | null = 7, n = 3) => ({
+    stage: s, reached, open_here: open, cancelled_here: cancelled, book_days_avg: days, book_days_n: n,
+  });
+
+  it("summarises inquiries to traveled, and splits each stop into open and cancelled", () => {
+    const r = funnelReport([stage(1, 142, 30, 58), stage(2, 54, 10, 6), stage(3, 38, 6, 0), stage(4, 32, 0, 0)]);
+    expect(r.summary).toBe("142 inquiries → 32 traveled · 22.5% made it all the way");
+    expect(r.stages.map((s) => s.pctLabel)).toEqual(["100%", "38%", "26.8%", "22.5%"]);
+    expect(r.stages[0].stoppedLabel).toBe("−88 · 30 still open, 58 cancelled");
+    expect(r.stages[2].stoppedLabel).toBe("−6 · 6 still open");
+    expect(r.stages[3].stoppedLabel).toBeNull();
+    expect(r.bookDaysLabel).toBe("7.0 days on average from inquiry to booked, across 3 trips.");
+  });
+
+  it("says plainly when nothing has booked yet, and when nothing came in", () => {
+    const none = funnelReport([stage(1, 2, 2, 0, null, 0), stage(2, 0, 0, 0, null, 0), stage(3, 0, 0, 0, null, 0), stage(4, 0, 0, 0, null, 0)]);
+    expect(none.bookDaysLabel).toBe("No trips from this period have booked yet.");
+    expect(none.summary).toBe("2 inquiries → 0 traveled · 0% made it all the way");
+    const empty = funnelReport([stage(1, 0, 0, 0, null, 0), stage(2, 0, 0, 0, null, 0), stage(3, 0, 0, 0, null, 0), stage(4, 0, 0, 0, null, 0)]);
+    expect(empty.empty).toBe(true);
+    expect(empty.summary).toBe("0 inquiries → 0 traveled");
+  });
+
+  it("reads days to book whether PostgREST sends a number or a string", () => {
+    expect(funnelReport([stage(1, 1, 0, 0, "18.36", 38)]).bookDaysLabel).toBe("18.4 days on average from inquiry to booked, across 38 trips.");
+  });
+});
+
+describe("3.11.7 Pipeline Value", () => {
+  const st = (status: string, w: number, n: number, gross: string, weighted: string) => ({
+    status, weight_pct: w, trip_count: n, gross_cents: gross, weighted_cents: weighted,
+    total_gross_cents: "1296594", total_weighted_cents: "817740",
+  });
+  const mo = (bucket: string, m: string | null, n: number, c: string) => ({ bucket, month_start: m, trip_count: n, weighted_cents: c });
+  const months = [
+    mo("past", null, 1, "77777"),
+    mo("month", "2026-12-01", 2, "88888"),
+    mo("month", "2027-01-01", 1, "25000"),
+    ...Array.from({ length: 10 }, (_, i) => mo("month", `2027-${String(i + 2).padStart(2, "0")}-01`, 0, "0")),
+    mo("later", null, 1, "15001"),
+    mo("undated", null, 0, "0"),
+  ];
+
+  it("leads with the totals and hands the weights card GROSS value per stage", () => {
+    const r = pipelineReport(
+      [st("inquiry", 25, 3, "100005", "25001"), st("proposal", 50, 3, "807701", "403851"),
+       st("booked", 100, 3, "177777", "177777"), st("in_progress", 100, 3, "211111", "211111")],
+      months,
+    );
+    expect(r.grossLabel).toBe("$12,966");
+    expect(r.weightedLabel).toBe("$8,177");
+    expect(r.openSub).toBe("12 trips, at full value");
+    expect(r.stages.map((s) => [s.label, s.weightPct, s.rawCents, s.weightedLabel])).toEqual([
+      ["Inquiry", 25, 100005, "$250"],
+      ["Proposal", 50, 807701, "$4,039"],
+      ["Booked", 100, 177777, "$1,778"],
+      ["Traveling", 100, 211111, "$2,111"],
+    ]);
+  });
+
+  it("labels the year where it turns, and shows the set-apart rows only when they hold a trip", () => {
+    const r = pipelineReport([st("inquiry", 20, 1, "1", "0")], months);
+    const monthsOnly = r.months.filter((m) => !m.extra);
+    expect(monthsOnly.slice(0, 3).map((m) => m.label)).toEqual(["Dec 2026", "Jan 2027", "Feb"]);
+    expect(r.months.filter((m) => m.extra).map((m) => m.label)).toEqual(["Start date passed · 1 trip", "Later · 1 trip"]);
+    expect(monthsOnly[0].barPct).toBe(100);
+    expect(monthsOnly[2].barPct).toBe(0);
+  });
+
+  it("scales the month bars against the months only, never a big undated figure", () => {
+    const r = pipelineReport([st("inquiry", 20, 1, "1", "0")], [
+      mo("month", "2026-12-01", 1, "1000"),
+      mo("undated", null, 9, "900000"),
+    ]);
+    expect(r.months[0].barPct).toBe(100);
+    expect(r.months[1]).toMatchObject({ extra: true, barPct: 0 });
+  });
+
+  it("drops a bucket it does not know, and says when nothing is open", () => {
+    const r = pipelineReport([], [mo("overdue", null, 3, "900"), mo("month", "2026-12-01", 2, "88888")]);
+    expect(r.months.map((m) => m.key)).toEqual(["2026-12-01"]);
+    expect(r.empty).toBe(true);
+    expect(r.grossLabel).toBe("$0");
   });
 });

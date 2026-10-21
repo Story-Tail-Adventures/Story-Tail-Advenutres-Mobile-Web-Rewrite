@@ -41,6 +41,16 @@ describe("GET /agent/reports/download", () => {
     });
   });
 
+  it("sends lifetime value with no period, and the funnel with one", async () => {
+    mocks.callAgentFunction.mockResolvedValue(OK);
+    await GET(request("?report=clients&period=ytd"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", { op: "export", report: "clients" });
+    await GET(request("?report=pipeline&period=ytd"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", { op: "export", report: "pipeline" });
+    await GET(request("?report=funnel&period=qtd"));
+    expect(mocks.callAgentFunction).toHaveBeenLastCalledWith("agent-report", { op: "export", report: "funnel", period: "qtd" });
+  });
+
   it("refuses an unknown report before anything (and so any audit row) happens", async () => {
     const res = await GET(request("?report=payroll"));
     expect(res.status).toBe(404);

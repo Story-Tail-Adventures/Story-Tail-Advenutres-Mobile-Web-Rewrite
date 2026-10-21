@@ -50,6 +50,22 @@ describe("saveWeightsAction", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/agent");
   });
 
+  it("from the pipeline report, comes back to it and refreshes both screens (§3.11.7)", async () => {
+    mocks.callAgentFunction.mockResolvedValue({ ok: true, data: { outcome: "saved" } });
+    const f = form("80");
+    f.set("returnTo", "pipeline");
+    await expect(saveWeightsAction({}, f)).rejects.toThrow("REDIRECT /agent/reports/pipeline");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/agent/reports/pipeline");
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/agent/commission/forecast");
+  });
+
+  it("never redirects to a path the form names", async () => {
+    mocks.callAgentFunction.mockResolvedValue({ ok: true, data: { outcome: "saved" } });
+    const f = form("80");
+    f.set("returnTo", "https://evil.example/");
+    await expect(saveWeightsAction({}, f)).rejects.toThrow("REDIRECT /agent/commission/forecast");
+  });
+
   it("a stale save says so", async () => {
     mocks.callAgentFunction.mockResolvedValue({ ok: false, kind: "rejected", conflict: true, detail: "x" });
     const out = await saveWeightsAction({}, form("80"));

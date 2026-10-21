@@ -193,7 +193,9 @@ function A3115_LTV() {
   const { Card, TableContainer, Table, TableHead, TableBody, TableRow, TableCell } = MUI;
   const mono = (t) => t.typography.mono;
   return (
-    <ReportShell title="Client lifetime value" sub="Ranked. Click into a client for cohort analysis.">
+    // Ruled 2026-10-21: cohort is the quarter of the client's first booked trip, a column and a
+    // filter (no cohort grid); a row opens Client Detail.
+    <ReportShell title="Client lifetime value" sub="Clients ranked by what they've booked with you.">
       <TableContainer component={Card}>
         <Table size="small">
           <TableHead>
@@ -233,14 +235,17 @@ function A3115_LTV() {
 // 3.11.6 Conversion funnel
 function A3116_Funnel() {
   const { Box, Stack, Typography, Card, CardContent } = MUI;
-  const stages = [{ s: 'Lead', n: 142, w: 100 }, { s: 'Qualified', n: 96, w: 68 }, { s: 'Proposal', n: 54, w: 38 }, { s: 'Booked', n: 38, w: 27 }, { s: 'Travelled', n: 32, w: 23 }];
+  // Ruled 2026-10-21: no Lead or Qualified stage (a quote request is a trip), so the funnel is
+  // Inquiry → Proposal → Booked → Traveled, over the trips CREATED in the period. Average days to
+  // book (the hub's old Time-to-book tile) sits under it.
+  const stages = [{ s: 'Inquiry', n: 142, w: 100 }, { s: 'Proposal', n: 54, w: 38 }, { s: 'Booked', n: 38, w: 27 }, { s: 'Traveled', n: 32, w: 23 }];
   const tone = (i) => i === 0
     ? { bgcolor: 'primary.container', color: 'primary.onContainer' }
     : i === stages.length - 1
       ? { bgcolor: 'success.container', color: 'text.primary' }
       : { bgcolor: 'secondary.container', color: 'secondary.onContainer' };
   return (
-    <ReportShell title="Conversion funnel" sub="142 leads → 32 travelled · 22.5% end-to-end.">
+    <ReportShell title="Conversion funnel" sub="142 inquiries → 32 traveled · 22.5% made it all the way.">
       <Card>
         <CardContent sx={{ p: 3.5 }}>
           {stages.map((s, i) => (
@@ -255,6 +260,10 @@ function A3116_Funnel() {
               {i < stages.length - 1 && <Typography variant="caption" color="text.secondary" sx={{ minWidth: 80, textAlign: 'right' }}>−{stages[i].n - stages[i+1].n} drop</Typography>}
             </Stack>
           ))}
+          <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', alignItems: 'baseline', gap: 1 }}>
+            <Typography variant="h5" sx={{ fontFamily: (t) => t.typography.mono, fontWeight: 700 }}>18.4 days</Typography>
+            <Typography variant="body2" color="text.secondary">average from inquiry to booked · 38 trips</Typography>
+          </Box>
         </CardContent>
       </Card>
     </ReportShell>
@@ -262,8 +271,93 @@ function A3116_Funnel() {
 }
 
 // 3.11.7 Pipeline value
+// Drawn 2026-10-21 for §3.11 PR 2 (the legacy board only repeated the funnel here). A snapshot
+// of what is open TODAY, so no period chips: a pipeline is not a period. Left: open trips by
+// stage, gross and weighted, with "Adjust weights" editing the SAME pipeline_weight rows as
+// §3.7.7's forecast (one set of weights). Right: the weighted value by the month each trip
+// starts, next 12 months, with undated trips on their own row rather than dropped.
 function A3117_PipelineValue() {
-  return <A3116_Funnel/>; // visually similar
+  const { Box, Stack, Typography, Card, CardContent, Divider, LinearProgress, Button } = MUI;
+  const mono = (t) => t.typography.mono;
+  const stages = [
+    { s: 'Inquiry', n: 12, v: 124800, w: 20 },
+    { s: 'Proposal', n: 6, v: 88600, w: 50 },
+    { s: 'Booked', n: 9, v: 132440, w: 100 },
+    { s: 'Traveling', n: 2, v: 18900, w: 100 },
+  ];
+  const gross = stages.reduce((a, r) => a + r.v, 0);
+  const weighted = stages.reduce((a, r) => a + Math.round(r.v * r.w / 100), 0);
+  const months = [
+    { m: 'Nov', a: 21400 }, { m: 'Dec', a: 38200 }, { m: 'Jan', a: 12600 }, { m: 'Feb', a: 18900 },
+    { m: 'Mar', a: 30100 }, { m: 'Apr', a: 9800 }, { m: 'May', a: 14200 }, { m: 'Jun', a: 26500 },
+    { m: 'Jul', a: 7400 }, { m: 'Aug', a: 0 }, { m: 'Sep', a: 5200 }, { m: 'Oct', a: 3100 },
+  ];
+  const max = Math.max(...months.map((r) => r.a));
+  return (
+    <MuiScreenFrame role="agent" tab="reports" padding={24} scrollable>
+      <Box sx={{ mb: 0.75 }}>
+        <Button variant="text" size="small" startIcon={<MuiIcon name="arrow_left" size={12}/>} sx={{ px: 0, minWidth: 0 }}>Reports hub</Button>
+      </Box>
+      <MuiScreenHeader title="Pipeline value" subtitle="What's open today, and what it's likely worth." actions={<>
+        <Button variant="outlined" size="small" startIcon={<MuiIcon name="download" size={12}/>}>Export</Button>
+      </>} small/>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 1.75 }}>
+        {[
+          { l: 'Open pipeline', v: gross, s: '29 trips, at full value' },
+          { l: 'Weighted', v: weighted, s: 'By the stage weights below', hi: true },
+        ].map((k) => (
+          <Card key={k.l}>
+            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+              <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.3 }}>{k.l}</Typography>
+              <Typography variant="h4" sx={{ fontFamily: mono, fontWeight: 700, color: k.hi ? 'primary.main' : 'text.primary' }}>${k.v.toLocaleString()}</Typography>
+              <Typography variant="caption" color="text.secondary">{k.s}</Typography>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.75 }}>
+        <Card>
+          <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+            <Stack direction="row" sx={{ alignItems: 'center' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }}>By stage</Typography>
+              <Button size="small" variant="outlined" color="secondary">Adjust weights</Button>
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Shared with the commission forecast.</Typography>
+            <Divider sx={{ my: 1.5 }}/>
+            {stages.map((r) => (
+              <Box key={r.s} sx={{ py: 0.75 }}>
+                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'baseline' }}>
+                  <Typography variant="subtitle2" sx={{ flex: 1 }}>{r.s} <Typography component="span" variant="caption" color="text.secondary">· {r.n} trips</Typography></Typography>
+                  <Typography variant="caption" sx={{ fontFamily: mono, color: 'text.secondary' }}>${r.v.toLocaleString()}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ minWidth: 34, textAlign: 'right' }}>{r.w}%</Typography>
+                  <Typography variant="caption" sx={{ fontFamily: mono, fontWeight: 700, minWidth: 80, textAlign: 'right' }}>${Math.round(r.v * r.w / 100).toLocaleString()}</Typography>
+                </Stack>
+                <LinearProgress variant="determinate" value={r.w} sx={{ mt: 0.5, height: 6, borderRadius: 3, bgcolor: 'surface.3' }}/>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>By travel month</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Weighted value, by the month each trip starts.</Typography>
+            <Divider sx={{ my: 1.5 }}/>
+            {months.map((r) => (
+              <Stack key={r.m} direction="row" spacing={1.25} sx={{ alignItems: 'center', py: 0.5 }}>
+                <Typography variant="subtitle2" sx={{ flex: '0 0 40px' }}>{r.m}</Typography>
+                <LinearProgress variant="determinate" value={max ? (r.a / max) * 100 : 0} sx={{ flex: 1, height: 8, borderRadius: 4, bgcolor: 'surface.3' }}/>
+                <Typography variant="body2" sx={{ fontFamily: mono, fontWeight: 700, minWidth: 80, textAlign: 'right' }}>${r.a.toLocaleString()}</Typography>
+              </Stack>
+            ))}
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', py: 0.75, mt: 0.5, borderTop: 1, borderColor: 'divider' }}>
+              <Typography variant="subtitle2" sx={{ flex: 1, fontStyle: 'italic', color: 'text.secondary' }}>No travel dates yet · 4 trips</Typography>
+              <Typography variant="body2" sx={{ fontFamily: mono, fontWeight: 700 }}>$41,280</Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Box>
+    </MuiScreenFrame>
+  );
 }
 
 // 3.11.8 Export Center

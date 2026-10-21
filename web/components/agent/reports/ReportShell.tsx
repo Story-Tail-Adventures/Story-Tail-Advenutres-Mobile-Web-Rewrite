@@ -36,6 +36,7 @@ export function ReportShell({
 }: {
   title: string;
   subtitle: string;
+  /** Empty for a report that is not over a period (lifetime value, pipeline). */
   chips: PeriodChip[];
   exportHref: string;
   windowLabel: string | null;
@@ -73,23 +74,25 @@ export function ReportShell({
         </Box>
 
         <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
-          <Box component="nav" aria-label={REPORTS_COPY.periodLabel} sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            {chips.map((c) => (
-              <Chip
-                key={c.period}
-                component={NextLink}
-                href={c.href}
-                clickable
-                label={c.label}
-                color={c.selected ? "secondary" : "default"}
-                variant={c.selected ? "filled" : "outlined"}
-                aria-current={c.selected ? "true" : undefined}
-                // `scroll={false}`: switching the period should not jump the page to the top.
-                scroll={false}
-                sx={TAP_TARGET}
-              />
-            ))}
-          </Box>
+          {chips.length > 0 && (
+            <Box component="nav" aria-label={REPORTS_COPY.periodLabel} sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+              {chips.map((c) => (
+                <Chip
+                  key={c.period}
+                  component={NextLink}
+                  href={c.href}
+                  clickable
+                  label={c.label}
+                  color={c.selected ? "secondary" : "default"}
+                  variant={c.selected ? "filled" : "outlined"}
+                  aria-current={c.selected ? "true" : undefined}
+                  // `scroll={false}`: switching the period should not jump the page to the top.
+                  scroll={false}
+                  sx={TAP_TARGET}
+                />
+              ))}
+            </Box>
+          )}
           <MuiButton
             component="a"
             href={exportHref}
