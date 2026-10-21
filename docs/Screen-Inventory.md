@@ -3412,7 +3412,9 @@ These tools let the agent help less-technical clients with login issues.
 > one), and the artboard's "past SLA" is **Overdue: one business day, Sundays never count**,
 > so a day of rest never reads as late. A thread is overdue when the client spoke last and it
 > is past the end of the next business day after their first unanswered message, in the
-> advisor's zone. An internal note does not answer anyone.
+> advisor's zone. An internal note does not answer anyone. (Gyasi confirmed the edge cases on
+> 2026-10-21: a Monday 12:05 AM message is due at the end of Tuesday, about 48 hours, and an
+> 11:55 PM one about 24 hours.)
 >
 > - **Filters are links**, so a filtered inbox is a URL: Unread, Overdue, an Archived view,
 >   and a search over names, trips and every message body (notes included). The artboard's
@@ -3657,6 +3659,85 @@ Preferences (3.12.3).
 ---
 
 ### 3.11 Reporting
+
+> **Ruled 2026-10-21 (grilled with Gyasi, "yes" to every recommendation, Q1 to Q17).** P1, and
+> the last agent section before the production release (group trips excepted). **Web only:**
+> the phone gets no Reports door, which supersedes the "summary KPIs" mobile rows in §4.4 and
+> the responsive table for 3.11. Shipped in three PRs after these docs: **PR 1** the hub,
+> Revenue by Month, Commission by Supplier and Top Destinations; **PR 2** Client Lifetime
+> Value, the Funnel and Pipeline Value (Pipeline drawn as a local artboard first); **PR 3**
+> the Export Center.
+>
+> **Shared rules.**
+> - **Charts are drawn by hand** (MUI boxes and SVG), the way `CommissionTrendChart` already
+>   is: no chart library. Every chart has a plain table of the same figures under it, which
+>   is also what a screen reader and the CSV read.
+> - **One period filter on every report:** chips for *Year to date*, *Last 12 months* and
+>   *This quarter*. Calendar years, in the advisor's own time zone. No custom date range
+>   except in the Export Center.
+> - **Stage dates come from `trip_status_history` only.** It has no backfill: a trip that
+>   changed stage before 2026-09-19 has no date for that change, and none is made up. Reports
+>   that read stage dates carry one quiet line: "Tracking began Sep 19, 2026."
+> - **Year over year appears only once there is a last year.** The YoY toggle and any "vs last
+>   year" chip stay hidden until a prior-year month in the period has data. A number-shaped
+>   hole reads as a broken number (the same rule as §3.2.1's dropped deltas).
+> - **Every report's Export downloads that report's own table as CSV**, for the period on
+>   screen, and writes an `audit_event` row. It does not jump to the Export Center.
+> - **Trip-grain reports count the advisor's own trips, not archived ones**; the
+>   ledger-grain ones follow the ledger. Money is USD only (BRD §3), so no report scopes or
+>   labels by currency beyond the one code.
+>
+> **3.11.1 Hub.** A grid of seven tiles: the six reports and the Export Center. **No
+> favorites and no recent list** (one advisor, seven tiles; a table to star them is not worth
+> it). The artboard's seventh "Time-to-book" tile has no screen of its own: average days to
+> book is a figure on the Funnel (3.11.6). The nav rail's Reports item goes live.
+>
+> **3.11.2 Revenue by Month.** Story-Tail never charges clients, so its own income is
+> commission. The report has a two-way toggle: **Booked value** (default), the gross value of
+> trips by the month they were FIRST booked (a trip that goes booked, back, and booked again
+> counts once, in its first month); and **Commission received**, ledger money by the month it
+> arrived (`commission.received_at`), which is the tax-prep figure. Bars per month for the
+> period, a total, and the table under it.
+>
+> **3.11.3 Commission by Supplier.** Reads the stored **ledger**, never the forecast. The
+> period filters on travel dates, the same as the ledger screen and its export. Each supplier
+> row shows **Received** and **Still owed** (expected plus invoiced) with a bar. Disputed and
+> lost lines are left out and counted in a footnote. A row opens the ledger filtered to that
+> supplier. Removed lines (`commission.archived_at` set) never count; lines on an archived
+> trip still do, as they do on the ledger, because the money was real.
+>
+> **3.11.4 Top Destinations.** Counts booked, in-progress and completed trips; the period
+> filters on travel start date. A trip with several stops counts once in each place, and its
+> value is split evenly across them so the column still adds up to the trips' total. Ranked
+> by value, with trip count. **No map:** the artboard's pins sit on a stock photograph, and a
+> real map needs a tile provider (a new third-party service and a security review).
+>
+> **3.11.5 Client Lifetime Value.** Lifetime value is the same expression Client Detail
+> already uses (the client's committed trips), with a commission column beside it. Cohort is
+> the quarter of the client's first booked trip, shown as a column and a filter. No cohort
+> grid. A row opens Client Detail. `client.lifetime_value_cents`, which nothing ever wrote,
+> is dropped (Data-Model §6.1).
+>
+> **3.11.6 Conversion Funnel.** Stages **Inquiry → Proposal → Booked → Travelled**. There is no
+> Lead or Qualified stage: a quote request is a trip (decided 2026-09-09). The funnel follows
+> the trips CREATED in the period. A trip counts in every stage up to the furthest it reached,
+> so one entered straight as booked still counts as an inquiry. A cancelled trip is drop-off
+> at the stage it reached. Average days from inquiry to first booking shows here with its
+> sample size (the dashboard's `inquiry_to_book_days`).
+>
+> **3.11.7 Pipeline Value.** The artboard only repeats the funnel, so a local artboard is
+> drawn first. It shows open trips by stage, gross and weighted, and a forecast by expected
+> travel month. "Adjust weighting" edits the same `pipeline_weight` rows §3.7's forecast
+> uses: one set of weights, not two.
+>
+> **3.11.8 Export Center.** **CSV only:** Excel opens it, and a real `.xlsx` needs a new
+> library and a review. Files are built on demand and downloaded at once, so no client data
+> sits in a bucket. **Recent exports** are read from the `audit_event` rows every export
+> already writes; "Run again" repeats one with the same settings. Nothing expires. Four types:
+> **Commission ledger**, **Trips** (dates, stage, value, commission), **Payment milestones**
+> (the supplier pay schedule, paid or not) and **Clients**. A Clients export carries contact
+> details (email, phone, mailing address) only when "Include contact details" is checked; it
+> starts unchecked. Every export is audited.
 
 #### 3.11.1 Reports Hub
 **Purpose:** Entry point to every report.

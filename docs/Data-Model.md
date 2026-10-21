@@ -573,7 +573,6 @@ CREATE TABLE auth_event_flag (
 | `mailing_address_id` | `uuid` | Yes | Public | FK → Address |
 | `important_dates` | `jsonb` | Yes | PII | Array of `{label, date, recurring}` for birthday, anniversary, etc. |
 | `emergency_contact` | `jsonb` | Yes | PII | `{name, phone, relationship}`. Captured at Screen 2.1.10, edited at 2.5.2, surfaced on the itinerary and at 2.7.3 |
-| `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter. **Not granted to the client role** |
 | `tags` | `text[]` | No | Internal | Free-form agent tags. **Not granted to the client role** |
 | `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into`. Agent-side lifecycle. **Not granted to the client role** |
 | `merged_into_client_id` | `uuid` | Yes | Internal | When status = merged_into. **Not granted to the client role** |
@@ -583,6 +582,15 @@ CREATE TABLE auth_event_flag (
 | `archived_at` | `timestamptz` | Yes | Public | — |
 | `version` | `integer` | No | Client-visible | Optimistic concurrency |
 
+> **`lifetime_value_cents` was dropped on 2026-10-21 (§3.11 ruling).** This table once listed
+> it as "Computed; cached for sort/filter". Nothing ever computed it: no trigger, function or
+> Edge Function wrote it, and only the seed set a value, which was stale. Every reader
+> (`agent_client_roster()`, Client Detail, and §3.11.5's report) derives lifetime value from
+> the client's committed trips instead. A column that looks like the answer and is always
+> wrong was a trap for exactly the reports work, so it went (migration
+> `20261028120000_agent_reports`). The derived figure keeps the name `lifetime_value_cents` in
+> those functions' results.
+>
 > **How a record becomes `merged_into` (§3.9 PR 2, October 2026).** Only through
 > `account_admin_merge_clients()` (migration `20261024120000_client_merge`), called by the
 > `account-admin` Edge Function's `merge` op. The retired row is kept, never deleted, with
@@ -602,7 +610,8 @@ CREATE TABLE auth_event_flag (
 > prefills the form with it. What a client must not see is what the AGENT wrote about them and
 > the CRM's own bookkeeping. Five fields are therefore excluded from the column grant to
 > `authenticated` — `notes`, `tags`, `lifetime_value_cents`, `status` and
-> `merged_into_client_id`. The other fifteen are granted.
+> `merged_into_client_id`. The other fifteen are granted. (`lifetime_value_cents` was dropped
+> on 2026-10-21; see the note below.)
 >
 > `client_self_select` alone did not achieve this. **RLS decides which ROWS; only a GRANT
 > decides which COLUMNS**, and Supabase grants `SELECT` on the whole table to `authenticated`
@@ -638,7 +647,6 @@ CREATE TABLE client (
     mailing_address_id      uuid REFERENCES address(id),
     important_dates         jsonb DEFAULT '[]'::jsonb,
     emergency_contact       jsonb,
-    lifetime_value_cents    bigint NOT NULL DEFAULT 0,
     tags                    text[] NOT NULL DEFAULT '{}',
     status                  client_status NOT NULL DEFAULT 'active',
     merged_into_client_id   uuid REFERENCES client(id),
