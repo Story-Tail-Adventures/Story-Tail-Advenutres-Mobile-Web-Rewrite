@@ -374,12 +374,19 @@ jobs:
           done
 
       - name: Fail if generated DB types drifted from the migrations
+        # `supabase gen types` runs postgres-meta in a container, pulled by default from
+        # public.ecr.aws. Its anonymous quota ("toomanyrequests: Data limit exceeded") failed
+        # this step on #152 and on the 0.0.7-alpha release, and once spent it stays spent: four
+        # retries over five minutes all hit it. Supabase publishes the same images to GitHub's
+        # registry, which Actions runners pull from without that quota. Same image, same tag
+        # (the pinned CLI picks it): generated locally from ghcr.io, the types were byte-for-byte
+        # identical.
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
         run: |
           npm ci
-          # `supabase gen types` pulls postgres-meta from public.ecr.aws, whose anonymous pull
-          # limit ("toomanyrequests: Rate exceeded" / "Data limit exceeded") failed this step
-          # on #152 and twice on the 0.0.7-alpha release, with nothing wrong in the code. Retry
-          # ONLY that: any other failure, including real drift below, still fails the first time.
+          # A backstop for a passing rate limit on any registry. Retries ONLY toomanyrequests:
+          # any other failure, including real drift below, still fails the first time.
           for attempt in 1 2 3 4; do
             # The script's own exit status, whatever tee returns and whether or not the
             # shell runs with pipefail.
