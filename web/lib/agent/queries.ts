@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import {
   callAgentRead,
   type AgentInboxRow,
@@ -51,6 +53,8 @@ export type AgentKpi = {
   unavailable: string | null;
   accent: "primary" | "secondary" | "tertiary" | "surface";
   icon: "briefcase" | "check" | "dollar" | "clock" | "users";
+  /** Where the tile drills to, when somewhere exists. Only commission does, since §3.7.1. */
+  href?: string | null;
 };
 
 export type WorklistTrip = {
@@ -222,6 +226,12 @@ function kpisFrom(k: AgentKpiRow): AgentKpi[] {
       unavailable: null,
       accent: "tertiary",
       icon: "dollar",
+      // Screen Inventory §3.7.1 names the Agent Dashboard as an entry point. This figure is
+      // every open trip's commission UNWEIGHTED; the stage weights show only as the confidence
+      // line under it. §3.7.7 Forecast leads with the weighted figure (that same confidence
+      // times this) and repeats this one in its caption. The dashboard is where the ledger side
+      // of the same money lives.
+      href: "/agent/commission",
     },
     {
       id: "cycle",
@@ -262,7 +272,9 @@ function kpisFrom(k: AgentKpiRow): AgentKpi[] {
  * `platform_user.time_zone` is inside the client column grant, so this needs no new read
  * surface. It defaults to America/Chicago.
  */
-export async function agentIdentity(): Promise<{ displayName: string; timeZone: string }> {
+// cache(): the inbox slot and the thread page both ask for it in one render, and it is one
+// row that cannot change mid-request.
+export const agentIdentity = cache(async (): Promise<{ displayName: string; timeZone: string }> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_user")
@@ -272,7 +284,7 @@ export async function agentIdentity(): Promise<{ displayName: string; timeZone: 
     displayName: data?.display_name ?? "",
     timeZone: data?.time_zone || "America/Chicago",
   };
-}
+});
 
 export async function loadWorklist(): Promise<Worklist | null> {
   // One call per accessor, in parallel. Not one combined RPC: each answers a different

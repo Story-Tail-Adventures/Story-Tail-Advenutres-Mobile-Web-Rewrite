@@ -92,18 +92,6 @@ export const CLIENT_DESTINATIONS: readonly ClientDestination[] = [
     section: "§2.6",
   },
   {
-    id: "wallet",
-    href: "/wallet",
-    icon: "card",
-    label: "Wallet",
-    // Not on the mobile bar: the prototype's StaMobileTabs has four tabs and this is not
-    // one of them. It is reachable from a trip's Payments tile either way.
-    surfaces: ["rail", "tablet"],
-    built: true,
-    phase: null,
-    section: "§2.4",
-  },
-  {
     id: "documents",
     href: "/documents",
     icon: "passport",

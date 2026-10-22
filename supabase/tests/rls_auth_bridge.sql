@@ -52,7 +52,7 @@ BEGIN
     PERFORM set_config('role', 'authenticated', true);
     PERFORM set_config(
         'request.jwt.claims',
-        json_build_object('sub', account::text, 'role', 'authenticated')::text,
+        json_build_object('sub', account::text, 'role', 'authenticated', 'aal', 'aal2')::text,
         true
     );
 END;
@@ -108,9 +108,6 @@ SELECT pg_temp.expect_denied(
 SELECT pg_temp.expect_denied(
     'SELECT tags FROM public.client',
     'client cannot read tags — the agent''s own categorisation');
-SELECT pg_temp.expect_denied(
-    'SELECT lifetime_value_cents FROM public.client',
-    'client cannot read lifetime_value_cents (BRD §10.5 — not their number)');
 SELECT pg_temp.expect_denied(
     'SELECT status FROM public.client',
     'client cannot read status — the agent-side lifecycle');
@@ -168,7 +165,7 @@ SELECT pg_temp.assert(
 -- policies still to come"; none came, and none should. §3.3.1 reaches the book through
 -- public.agent_client_roster(), a SECURITY DEFINER accessor
 -- (20260926140000_agent_client_read_surface.sql), because three of the roster's own columns
--- — status, tags, lifetime_value_cents — are outside the `client` column grant and no RLS
+-- — status, tags, and the derived lifetime value — are outside the `client` column grant and no RLS
 -- policy can hand back a column the GRANT withholds.
 --
 -- So this zero is the correct answer forever, and rls_agent_clients.sql asserts the other

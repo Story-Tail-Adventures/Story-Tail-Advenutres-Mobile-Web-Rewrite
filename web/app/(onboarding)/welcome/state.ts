@@ -62,15 +62,14 @@ export const WELCOME_CARDS: readonly WelcomeCard[] = [
       "to carry with you.",
   },
   {
-    icon: "card",
-    title: "Securely authorize cards",
-    // The prototype says "We pay suppliers — never charge you a fee." Kept in substance
-    // because it is true and it is the thing travelers most need to hear (BRD §10.5: the
-    // agency is contractually barred from charging planning fees), but said in a way that
-    // does not imply we hold the card ourselves.
+    icon: "lock",
+    title: "Pay suppliers directly",
+    // Rewritten 2026-10-16 (§3.6 ruling): the app never holds a card. The prototype's
+    // "never charge you a fee" stays in substance because it is true and it is the thing
+    // travelers most need to hear (BRD §10.5).
     body:
-      "Your card stays with Stripe, not in our database. It pays the resort or cruise " +
-      "line directly — and there's never a planning fee from us.",
+      "Each payment goes straight to the resort, cruise line or tour company, on its own secure site. " +
+      "We never see your card, and there's never a planning fee from us.",
   },
   {
     icon: "message",

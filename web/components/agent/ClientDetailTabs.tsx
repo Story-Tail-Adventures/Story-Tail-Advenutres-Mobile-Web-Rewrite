@@ -6,8 +6,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 
 import { CLIENT_DETAIL_TABS, validClientTab } from "@/lib/agent/clientTabs";
-import { CLIENT_COPY } from "@/lib/agent/content";
-import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
+import { TAP_TARGET } from "@/lib/mui/sx";
 
 /**
  * Screen 3.3.2's tab strip, exactly `TripDetailTabs`'s pattern: plain `<Link>`s carrying
@@ -21,11 +20,7 @@ import { TAP_TARGET, VISUALLY_HIDDEN } from "@/lib/mui/sx";
  * screen through TAP_TARGET's invisible ::after, where the legacy `.agent-view-link` grew
  * its own min-height under `(pointer: coarse)`.
  *
- * The seventh entry is the prototype's "Account admin", rendered as a disabled `<span>`
- * rather than a `<Link>` — Next would otherwise prefetch a route that 404s. See
- * `clientTabs.ts` for why it is disabled rather than cut. It keeps its `title`, so it is
- * dimmed by hand rather than through Chip's `disabled`, whose `pointer-events: none` would
- * swallow the tooltip that says why.
+ * The seventh entry, "Account admin" (§3.9), is an ordinary tab since 2026-10-16.
  */
 
 const TAB_SX = { ...TAP_TARGET, flexShrink: 0 } as const;
@@ -67,19 +62,6 @@ export function ClientDetailTabs({ counts }: { counts: { trips: number; document
           />
         );
       })}
-      <Chip
-        component="span"
-        variant="outlined"
-        aria-disabled
-        title={CLIENT_COPY.accountAdminDeferred}
-        label={
-          <>
-            Account admin
-            <Box component="span" sx={VISUALLY_HIDDEN}> — {CLIENT_COPY.accountAdminDeferred}</Box>
-          </>
-        }
-        sx={{ ...TAB_SX, opacity: 0.4 }}
-      />
     </Box>
   );
 }

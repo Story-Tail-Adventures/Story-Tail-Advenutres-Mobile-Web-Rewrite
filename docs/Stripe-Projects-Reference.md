@@ -4,6 +4,10 @@
 **Captured:** 2026-09-26, from the two URLs below.
 **Why it exists:** Gyasi saved these links to have on hand when Credit Card Authorization work starts (BRD §10.4, Screen Inventory 2.4.2 / 2.4.3 / 3.6.4).
 
+> **Historical since 2026-10-16.** Stripe is not used. The app holds no card at all; clients
+> pay suppliers through pay links on each payment milestone (BRD §10, Data-Model §9.5). The
+> card authorization work this file was saved for was retired. Kept as a record only.
+
 > **Read §3 first if you are here for card authorization.** Neither link is about
 > card handling. Both are about provisioning infrastructure. §3 explains the gap.
 

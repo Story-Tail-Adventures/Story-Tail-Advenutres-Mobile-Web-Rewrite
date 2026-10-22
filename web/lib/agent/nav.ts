@@ -99,7 +99,7 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "message",
     label: "Messages",
     surfaces: ["rail", "bar", "tablet"],
-    availability: { kind: "planned", phase: "P1", section: "§3.10" },
+    availability: { kind: "built" },
   },
   {
     id: "commission",
@@ -107,7 +107,9 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "dollar",
     label: "Commission",
     surfaces: ["rail", "tablet"],
-    availability: { kind: "planned", phase: "P1", section: "§3.7" },
+    // Built 2026-10-11 with §3.7.1 and §3.7.2. Rail and tablet only, still: §6.6's phone bar
+    // is four and Commission is not one of them.
+    availability: { kind: "built" },
   },
   {
     id: "reports",
@@ -115,7 +117,9 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "chart",
     label: "Reports",
     surfaces: ["rail", "tablet"],
-    availability: { kind: "planned", phase: "P2", section: "§3.11" },
+    // Built 2026-10-21 with §3.11's PR 1 (P1, ruled 2026-10-21). Rail and tablet only: §3.11
+    // is web only, and the phone gets no Reports door at all.
+    availability: { kind: "built" },
   },
   {
     id: "more",
@@ -129,6 +133,24 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     availability: { kind: "planned", phase: "P1", section: "§3.12" },
   },
 ] as const;
+
+/**
+ * §3.7's views under its one rail destination — the shape §3.2 settled, for the reason
+ * nav.ts's header gives: a rail entry holds a SECTION, and the dashboard and the ledger are
+ * two views of one section's money. The prototype draws no view strip for §3.7 (its header
+ * carries Import and Export only), so this is a departure, taken because without it the
+ * ledger would be reachable only through tiles. Statements (§3.7.5 import and §3.7.6
+ * reconciliation, one list of uploaded statements) joined with Stage 3, and Forecast
+ * (§3.7.7) with Stage 4.
+ */
+export const AGENT_COMMISSION_VIEWS = [
+  { id: "dashboard", href: "/agent/commission", label: "Dashboard" },
+  { id: "ledger", href: "/agent/commission/ledger", label: "Ledger" },
+  { id: "statements", href: "/agent/commission/import", label: "Statements" },
+  { id: "forecast", href: "/agent/commission/forecast", label: "Forecast" },
+] as const;
+
+export type AgentView = { id: string; href: string; label: string };
 
 /**
  * The three views §3.2 carries under one rail destination.
@@ -170,9 +192,24 @@ export function activeAgentDestinationId(pathname: string): string | null {
   return best?.id ?? null;
 }
 
-/** Which of the three views is showing. Null outside §3.2. */
-export function activeAgentViewId(pathname: string): string | null {
-  return AGENT_WORKLIST_VIEWS.find((v) => v.href === pathname)?.id ?? null;
+/**
+ * Which view of a list is showing. Defaults to §3.2's three; §3.7 passes its own.
+ *
+ * Exact match first; then a view's SUB-route lights it (the ledger's `/ledger/new` and
+ * `/ledger/<id>` are the ledger) — but never the list's first view, which is its root: every
+ * path under `/agent` would otherwise light Worklist.
+ */
+export function activeAgentViewId(
+  pathname: string,
+  views: readonly AgentView[] = AGENT_WORKLIST_VIEWS,
+): string | null {
+  const exact = views.find((v) => v.href === pathname);
+  if (exact) return exact.id;
+  const nested = views
+    .slice(1)
+    .filter((v) => pathname.startsWith(`${v.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  return nested?.id ?? null;
 }
 
 /**

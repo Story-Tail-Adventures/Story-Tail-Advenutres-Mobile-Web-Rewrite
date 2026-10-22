@@ -1,7 +1,9 @@
 package com.storytail.adventures.ui.screens.dashboard
 
 import com.storytail.adventures.api.DashboardSnapshot
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.Loadable
+import com.storytail.adventures.ui.components.client.IvePaidState
 
 /**
  * Screen 2.2.1's state.
@@ -15,6 +17,10 @@ data class DashboardUiState(
     val snapshot: Loadable<DashboardSnapshot> = Loadable.Loading,
     /** Null falls back to a nameless greeting rather than blocking the screen. */
     val firstName: String? = null,
+    /** The next-payment card's "I've paid" note (§2.2.3's pay block). */
+    val ivePaid: IvePaidState = IvePaidState.IDLE,
+    /** §3.12 PR 3: "Your advisor". Null (a failed read) keeps the card's fixed words. */
+    val advisor: AdvisorCard? = null,
 )
 
 /** Copy for Screen 2.2.1, mirroring web/app/(client)/dashboard/content.ts. */
@@ -26,8 +32,9 @@ object DashboardMessages {
         "Nothing on the calendar yet — which is its own kind of open. Tell Gyasi roughly when and where, and he’ll take it from there."
     const val VIEW_ITINERARY = "View itinerary"
     const val ITINERARY_NOT_READY = "Gyasi is still writing this one"
-    const val ACTION_NEEDED_LABEL = "ACTION NEEDED"
-    const val AUTHORIZE_CARD = "Authorize a card"
+    const val NEXT_PAYMENT_LABEL = "NEXT PAYMENT"
+    const val NEXT_PAYMENT_WHENEVER = "Whenever it suits you before then."
+    const val ADVISOR_LABEL = "YOUR ADVISOR"
     const val ADVISOR_NAME = "Gyasi"
     const val ADVISOR_ROLE = "Your advisor"
     const val ADVISOR_REPLY_TIME = "Usually replies the same day"

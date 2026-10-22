@@ -20,9 +20,10 @@ import com.storytail.adventures.api.AccountRepository
 import com.storytail.adventures.api.AuthRepository
 import com.storytail.adventures.api.OnboardingRepository
 import com.storytail.adventures.api.TripRepository
+import com.storytail.adventures.api.AgentMessagesRepository
 import com.storytail.adventures.api.AgentRepository
+import com.storytail.adventures.api.AgentSettingsRepository
 import com.storytail.adventures.ui.screens.agent.AgentRoute
-import com.storytail.adventures.api.WalletRepository
 import com.storytail.adventures.api.OnboardingStatus
 import com.storytail.adventures.domain.onboarding.WizardStep
 import com.storytail.adventures.api.SupabaseClientProvider
@@ -54,11 +55,12 @@ import com.storytail.adventures.ui.screens.auth.VerifyEmailScreen
 import com.storytail.adventures.ui.screens.auth.VerifyEmailViewModel
 import com.storytail.adventures.ui.screens.account.AccountRoute
 import com.storytail.adventures.ui.screens.messages.MessagesRoute
-import com.storytail.adventures.ui.screens.wallet.WalletRoute
 import com.storytail.adventures.ui.screens.trip.TripRoute
 import com.storytail.adventures.ui.screens.public.PublicRoute
 import com.storytail.adventures.ui.screens.onboarding.OnboardingRoute
 import com.storytail.adventures.ui.screens.onboarding.todayIsoUtc
+import com.storytail.adventures.push.AgentPushTarget
+import com.storytail.adventures.push.LocalAgentPush
 import com.storytail.adventures.ui.theme.StoryTailTheme
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
@@ -73,15 +75,17 @@ fun App() {
         var onboardingRepository by remember { mutableStateOf<OnboardingRepository?>(null) }
         var tripRepository by remember { mutableStateOf<TripRepository?>(null) }
         var accountRepository by remember { mutableStateOf<AccountRepository?>(null) }
-        var walletRepository by remember { mutableStateOf<WalletRepository?>(null) }
         var agentRepository by remember { mutableStateOf<AgentRepository?>(null) }
+        var agentMessagesRepository by remember { mutableStateOf<AgentMessagesRepository?>(null) }
+        var agentSettingsRepository by remember { mutableStateOf<AgentSettingsRepository?>(null) }
         LaunchedEffect(Unit) {
             authRepository = SupabaseClientProvider.authRepository()
             onboardingRepository = SupabaseClientProvider.onboardingRepository()
             tripRepository = SupabaseClientProvider.tripRepository()
             accountRepository = SupabaseClientProvider.accountRepository()
-            walletRepository = SupabaseClientProvider.walletRepository()
             agentRepository = SupabaseClientProvider.agentRepository()
+            agentMessagesRepository = SupabaseClientProvider.agentMessagesRepository()
+            agentSettingsRepository = SupabaseClientProvider.agentSettingsRepository()
         }
 
         // Today, as the date-only columns see it. Computed once per composition rather than
@@ -154,14 +158,15 @@ fun App() {
                     // web/lib/supabase/middleware.ts, and then the same onboarding gate the
                     // (client) layout applies after it.
                     run {
+                        val assurance = repo.assurance()
                         val destination = when {
-                            repo.assurance() == Assurance.REQUIRED -> AppRoute.MfaChallenge
+                            assurance == Assurance.REQUIRED -> AppRoute.MfaChallenge
                             else -> onboardingRepository?.let { onboarding ->
                                 // Assigned BEFORE the route is chosen, so anything the
                                 // route then renders already has it.
                                 val status = onboarding.status()
                                 onboardingStatus = status
-                                destinationFor(status)
+                                agentMfaGate(destinationFor(status), assurance)
                             } ?: AppRoute.Dashboard
                         }
                         // Only when the destination actually moved. The same answer means
@@ -190,6 +195,35 @@ fun App() {
             }
         }
 
+        /**
+         * A tapped notification opens its thread (§3.10.7) or its trip request (§3.12.3), once
+         * the session and the advisor's role are known. Until then it waits: a cold start from
+         * a notification goes through the splash and the gate first, and the screen is pushed
+         * on top of the Worklist the gate lands on, so back goes where it would have.
+         */
+        val push = LocalAgentPush.current
+        val pendingTarget by push.openTarget.collectAsState()
+        LaunchedEffect(pendingTarget, sessionStatus, onboardingStatus) {
+            val target = pendingTarget ?: return@LaunchedEffect
+            if (sessionStatus !is SessionStatus.Authenticated) return@LaunchedEffect
+            val role = onboardingStatus?.role ?: return@LaunchedEffect
+            // Only an advisor's notification can name a thread; anyone else drops the request
+            // rather than carrying it into a later sign-in.
+            if (role != "agent") {
+                push.targetOpened()
+                return@LaunchedEffect
+            }
+            // Not past the second factor yet: hold the request. The gate has sent them to
+            // setup or the challenge, and verifying changes the session, which re-runs this.
+            if (repo.assurance() != Assurance.SATISFIED) return@LaunchedEffect
+            val route = when (target) {
+                is AgentPushTarget.Thread -> AppRoute.AgentThread(target.conversationId)
+                is AgentPushTarget.Trip -> AppRoute.AgentTripDetail(target.tripId)
+            }
+            if (nav.current != route) nav.push(route)
+            push.targetOpened()
+        }
+
         // Android's system back. Disabled at the root of the stack so it falls through to
         // leaving the app rather than being swallowed.
         PlatformBackHandler(enabled = nav.canGoBack) { nav.pop() }
@@ -204,22 +238,38 @@ fun App() {
             AppRoute.AgentClients,
             is AppRoute.AgentClientDetail,
             is AppRoute.AgentTripDetail,
+            AppRoute.AgentMessages,
+            is AppRoute.AgentThread,
+            is AppRoute.AgentNewMessage,
+            AppRoute.AgentMore,
+            AppRoute.AgentSettingsProfile,
+            AppRoute.AgentSettingsAvailability,
+            AppRoute.AgentSettingsNotifications,
             -> {
                 val scope = rememberCoroutineScope()
                 val agent = agentRepository
-                if (agent == null) {
+                val messages = agentMessagesRepository
+                val settings = agentSettingsRepository
+                if (agent == null || messages == null || settings == null) {
                     SplashScreen()
                 } else {
                     AgentSectionHost(
                         route = route,
                         agent = agent,
+                        messages = messages,
+                        settings = settings,
                         status = onboardingStatus,
                         nav = nav,
-                        // The same call the client shell's Account tab makes. §3.12 has not
-                        // built More, so the top bar is still the only way out of the agent
-                        // shell — and before §3.2 an agent signing in on a phone landed in
-                        // the client shell, which has one.
-                        onSignOut = { scope.launch { repo.signOut() } },
+                        // The same call the client shell's Account tab makes, from the More
+                        // tab's Sign out (§3.12 PR 4).
+                        // This phone's notifications stop first (§3.10.7), while the session
+                        // that registered them can still say so.
+                        onSignOut = {
+                            scope.launch {
+                                push.turnOffHere()
+                                repo.signOut()
+                            }
+                        },
                     )
                 }
             }
@@ -344,27 +394,6 @@ fun App() {
                     // agree with each other, and the device is the only clock that knows where
                     // the traveler is.
                     MessagesRoute(route = route, nav = nav, trips = trips)
-                }
-            }
-
-            // §2.4, listed for the same reason: the `when` stays exhaustive, so a route added to
-            // AppRoute without a home is a compile error rather than a screen that silently
-            // falls through. That is not hypothetical — it caught these six.
-            AppRoute.Wallet,
-            is AppRoute.WalletAuthorize,
-            is AppRoute.WalletAuthorization,
-            is AppRoute.WalletRemoveAuthorization,
-            is AppRoute.WalletActivity,
-            is AppRoute.WalletUseDetail,
-            -> {
-                val walletRepo = walletRepository
-                val trips = tripRepository
-                if (walletRepo == null || trips == null) {
-                    SplashScreen()
-                } else {
-                    // `trips` is here for 2.4.3 alone, which needs the trip's balance due to
-                    // derive its limit presets. Everything else in §2.4 comes from the wallet.
-                    WalletRoute(route = route, nav = nav, wallet = walletRepo, trips = trips)
                 }
             }
 
@@ -517,18 +546,26 @@ fun App() {
             AppRoute.MfaSetup -> {
                 val viewModel = viewModel { MfaSetupViewModel(repo) }
                 val state by viewModel.state.collectAsState()
+                // An advisor is here because [agentMfaGate] sent them: there is nothing
+                // behind this screen to go back to, so "Not now" becomes "Sign out".
+                val required = onboardingStatus?.role == "agent"
+                val scope = rememberCoroutineScope()
 
-                LaunchedEffect(viewModel) {
+                LaunchedEffect(viewModel, required) {
                     viewModel.events.collect { event ->
                         when (event) {
                             // Verifying raises the session to aal2; sessionStatus routes it.
-                            MfaSetupEvent.Done -> nav.pop()
-                            MfaSetupEvent.Cancelled -> nav.pop()
+                            // A traveler came from Security and goes back there; an advisor
+                            // has no stack under this screen, and the gate moves them on.
+                            MfaSetupEvent.Done -> if (!required) nav.pop()
+                            MfaSetupEvent.Cancelled ->
+                                if (required) scope.launch { repo.signOut() } else nav.pop()
                         }
                     }
                 }
 
                 MfaSetupScreen(
+                    required = required,
                     state = state,
                     onCodeChange = viewModel::onCodeChange,
                     onSecretCopied = viewModel::onSecretCopied,
@@ -600,13 +637,23 @@ fun destinationFor(status: OnboardingStatus?): AppRoute = when {
 }
 
 /**
- * §3.1.6 MANDATORY AGENT MFA IS NOT ENFORCED HERE, and that is a known gap rather than an
- * oversight. Data-Model §5.1 requires it and `account.mfa_required` is true for the seeded
- * agent, but nothing in this gate sends an agent without a verified factor to [AppRoute.MfaSetup]
- * — the MFA challenge only fires when `repo.assurance()` already says REQUIRED. Closing it
- * belongs with §3.1, which builds the agent activation wizard. Left visible in the gate
- * rather than discovered later.
+ * Agent MFA is required (BRD §11, Data-Model §5.1 `mfa_required`), and the server enforces
+ * it: every agent Edge Function 403s and `current_agent_id()` reads nothing below aal2. So
+ * an advisor who is about to land on the worklist without a second factor goes to set one
+ * up instead, rather than onto a worklist every call of which will refuse.
+ *
+ * Only [Assurance.NONE] reaches here for an advisor: REQUIRED (a factor exists, this session
+ * has not used it) is caught first and sent to the challenge, for everyone. Anything that is
+ * not the worklist passes through untouched; MFA stays optional for travelers.
+ *
+ * The web twin is `agentMfaRedirect` in web/lib/agent/role.ts. If one moves, move both.
  */
+fun agentMfaGate(destination: AppRoute, assurance: Assurance): AppRoute = when {
+    destination != AppRoute.Worklist -> destination
+    assurance == Assurance.SATISFIED -> destination
+    assurance == Assurance.REQUIRED -> AppRoute.MfaChallenge
+    else -> AppRoute.MfaSetup
+}
 
 /**
  * Resolves who the advisor is before handing off to [AgentRoute].
@@ -627,6 +674,8 @@ fun destinationFor(status: OnboardingStatus?): AppRoute = when {
 private fun AgentSectionHost(
     route: AppRoute,
     agent: AgentRepository,
+    messages: AgentMessagesRepository,
+    settings: AgentSettingsRepository,
     status: OnboardingStatus?,
     nav: Navigator,
     onSignOut: () -> Unit,
@@ -635,6 +684,8 @@ private fun AgentSectionHost(
         route = route,
         nav = nav,
         agent = agent,
+        messages = messages,
+        settings = settings,
         displayName = status?.displayName.orEmpty(),
         timeZone = status?.timeZone ?: "America/Chicago",
         onSignOut = onSignOut,

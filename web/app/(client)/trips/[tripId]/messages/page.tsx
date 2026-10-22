@@ -18,8 +18,10 @@ import {
 } from "@/components/client/client-sx";
 import { Composer } from "@/components/client/thread/Composer";
 import { ThreadMessages } from "@/components/client/thread/ThreadMessages";
+import { MarkConversationRead } from "@/components/client/thread/MarkConversationRead";
 import { ThreadScroll } from "@/components/client/thread/ThreadScroll";
 import NextLink from "@/components/mui/NextLink";
+import { loadAdvisorCard } from "@/lib/client/advisorCardLoad";
 import { Icon } from "@/components/ui/Icon";
 import { sendTripMessage } from "@/lib/trips/actions";
 import { loadTripThread } from "@/lib/trips/queries";
@@ -61,7 +63,8 @@ export default async function MessagesPage({
   params: Promise<{ tripId: string }>;
 }) {
   const { tripId } = await params;
-  const thread = await loadTripThread(tripId);
+  // §3.12 PR 3: the advisor's own photo, reply-time promise and "Away until".
+  const [thread, advisor] = await Promise.all([loadTripThread(tripId), loadAdvisorCard()]);
 
   if (!thread) notFound();
 
@@ -81,12 +84,11 @@ export default async function MessagesPage({
             <Icon name="arrow_left" size={18} />
           </IconButton>
 
-          {/* The advisor's initials, matching the artboards' MAdvisorAvatar. A photograph
-              would be the real thing, and there is one in the design — but the only asset
-              behind it is a stock portrait, and putting a stranger's face on Gyasi is worse
-              than initials. */}
-          <Avatar aria-hidden="true" sx={advisorAvatarSx(36, 12)}>
-            GS
+          {/* The advisor's own photo once they have uploaded one (§3.12.1), else initials, as
+              the artboards' MAdvisorAvatar. Never a stock portrait: a stranger's face on Gyasi
+              is worse than initials. */}
+          <Avatar aria-hidden="true" src={advisor?.avatarUrl ?? undefined} sx={advisorAvatarSx(36, 12)}>
+            {advisor?.initials ?? "GS"}
           </Avatar>
 
           <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -96,7 +98,7 @@ export default async function MessagesPage({
             <Typography component="p" variant="body2" sx={{ ...BODY_S, color: "text.secondary" }}>
               {thread.unreadCount > 0
                 ? THREAD.unreadLabel(thread.unreadCount)
-                : THREAD_MESSAGES.replyWindow}
+                : advisor?.awayLabel ?? advisor?.replyLabel ?? THREAD_MESSAGES.replyWindow}
             </Typography>
           </Box>
 
@@ -119,6 +121,14 @@ export default async function MessagesPage({
           </MuiButton>
         </Box>
       </Box>
+
+      {thread.conversationId && (
+        <MarkConversationRead
+          conversationId={thread.conversationId}
+          unreadCount={thread.unreadCount}
+          seenUpTo={thread.messages.at(-1)?.createdAt ?? null}
+        />
+      )}
 
       <ThreadScroll messageCount={thread.messages.length}>
         <Box sx={{ mx: "auto", width: "100%", maxWidth: MAX_W_3XL }}>

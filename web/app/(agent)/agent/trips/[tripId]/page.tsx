@@ -12,6 +12,7 @@ import { TripDetailTabs } from "@/components/agent/TripDetailTabs";
 import { TripDocumentsList } from "@/components/agent/TripDocumentsList";
 import { TripItineraryView } from "@/components/agent/TripItineraryView";
 import { TripMessagesThread } from "@/components/agent/TripMessagesThread";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import { TripNotesEditor } from "@/components/agent/TripNotesEditor";
 import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
@@ -21,6 +22,7 @@ import {
   loadTripDocuments,
   loadTripItinerary,
   loadTripMessages,
+  loadTripOpenCommission,
   loadTripOverview,
   loadTripPayments,
 } from "@/lib/agent/tripDetail";
@@ -75,7 +77,13 @@ export default async function AgentTripDetailPage({
   // Overview and payments back the header and the persistent sidebar on every tab; the rest
   // are fetched only for the tab actually being rendered — the same "fetch what this render
   // needs" discipline `loadWorklist`/`loadPipeline`/`loadCalendar` already follow.
-  const [result, payments] = await Promise.all([loadTripOverview(tripId), loadTripPayments(tripId)]);
+  // The open ledger lines ride along for the cancel dialog in the header. A failed read is
+  // `null` and only that dialog says so; it never turns the page into an error.
+  const [result, payments, openCommission] = await Promise.all([
+    loadTripOverview(tripId),
+    loadTripPayments(tripId),
+    loadTripOpenCommission(tripId),
+  ]);
 
   // A TRIP THAT IS NOT THERE IS NOT AN ERROR. `agent_trip_overview` answers zero rows for
   // "no such trip" and "not yours" alike; both mean this URL has no page, and neither is a
@@ -94,7 +102,7 @@ export default async function AgentTripDetailPage({
   // one of its links navigated the agent away from the trip they had just opened.
   return (
     <Box sx={PAGE_SX}>
-      <TripDetailHeader overview={overview} />
+      <TripDetailHeader overview={overview} openCommission={openCommission} />
       <TripDetailTabs />
 
       <Box
@@ -131,7 +139,7 @@ export default async function AgentTripDetailPage({
             </>
           )}
           {tab === "documents" && <TripDocumentsTab tripId={tripId} />}
-          {tab === "messages" && <TripMessagesTab tripId={tripId} />}
+          {tab === "messages" && <TripMessagesTab tripId={tripId} clientId={overview.clientId} />}
           {tab === "notes" && (
             <TripNotesEditor
               tripId={tripId}
@@ -208,10 +216,11 @@ async function TripDocumentsTab({ tripId }: { tripId: string }) {
   return <TripDocumentsList documents={documents} />;
 }
 
-async function TripMessagesTab({ tripId }: { tripId: string }) {
+async function TripMessagesTab({ tripId, clientId }: { tripId: string; clientId: string }) {
   const messages = await loadTripMessages(tripId);
   if (!messages) return <ErrorState />;
-  return <TripMessagesThread messages={messages} />;
+  // §3.10: replying happens in the thread itself, which this opens (or starts).
+  return <TripMessagesThread messages={messages} replyHref={newMessageHref(clientId, tripId)} />;
 }
 
 async function TripActivityTab({ tripId }: { tripId: string }) {

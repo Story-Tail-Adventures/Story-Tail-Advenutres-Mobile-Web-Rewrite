@@ -73,10 +73,6 @@ export function AtAGlanceGrid({ overview }: { overview: TripDetailOverview }) {
           />
           <Field label={AGENT_COPY.glanceDates} value={dates} />
           <Field
-            label={AGENT_COPY.glanceCardOnFile}
-            value={overview.cardOnFile ?? AGENT_COPY.glanceNoCard}
-          />
-          <Field
             label={AGENT_COPY.glanceLastActivity}
             value={overview.lastActivityLabel ?? AGENT_COPY.glanceNoActivity}
           />

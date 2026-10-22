@@ -97,3 +97,33 @@ export function agentShellDecision(status: OnboardingStatus | null): ShellDecisi
       return UNAUTHORIZED;
   }
 }
+
+/** Where the agent's own second-factor screens live. */
+export const MFA_SETUP_PATH = "/mfa/setup";
+export const MFA_CHALLENGE_PATH = "/login/mfa";
+
+/**
+ * Where an advisor goes before the agent shell renders, or null to let it render.
+ *
+ * Agent MFA is required (BRD §11, Tech-Recommendations §7), and the server enforces it:
+ * `requireAgentId` 403s and `current_agent_id()` answers NULL below aal2. So an advisor on
+ * a password alone would see an empty shell and failing actions. This sends them to finish
+ * signing in instead.
+ *
+ * Two cases, because Supabase's `{ currentLevel, nextLevel }` cannot be read as one:
+ *   * a factor exists but this session has not used it (nextLevel aal2) → the challenge;
+ *   * no verified factor at all (nextLevel aal1) → setup. The proxy's "required" rule
+ *     already covers the first everywhere; setup is the case only this shell can see,
+ *     because only here is the caller known to be an advisor.
+ *
+ * `null` levels (the read failed) go to setup's door too: failing closed shows a screen
+ * that explains itself, where failing open shows an empty book.
+ */
+export function agentMfaRedirect(
+  currentLevel: string | null | undefined,
+  nextLevel: string | null | undefined,
+): string | null {
+  if (currentLevel === "aal2") return null;
+  const to = nextLevel === "aal2" ? MFA_CHALLENGE_PATH : MFA_SETUP_PATH;
+  return `${to}?next=${encodeURIComponent(AGENT_SHELL_ROOT)}`;
+}

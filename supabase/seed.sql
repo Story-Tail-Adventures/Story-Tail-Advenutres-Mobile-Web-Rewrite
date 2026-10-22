@@ -12,9 +12,9 @@
 --     mailbox. The design prototype used to carry personas at gmail/yahoo/hotmail, which are
 --     registrable domains and therefore somebody else's inbox; those were moved to
 --     example.com before this repo went public. Keep it that way in both places.
---   * NOTHING resembling cardholder data. No payment_card rows at all; when UI work needs
---     one, use brand='visa', last4='4242', stripe_payment_method_id='pm_card_visa_DEV_FAKE'
---     and nothing else. CLAUDE.md rule 1.
+--   * NOTHING resembling cardholder data, anywhere, ever: not in a pay link, a reference,
+--     a note or a message. The app holds no card at all since 2026-10-16 (§3.6): clients
+--     pay suppliers through links. CLAUDE.md rule 1.
 --
 -- Passwords for every seeded login: DevPassword!234
 
@@ -166,7 +166,6 @@ SET preferred_name = 'Jordan',
     date_of_birth = '1988-04-17',
     mailing_address_id = '0195a2c0-1a00-7000-8000-000000000020',
     tags = ARRAY['anniversary', 'all-inclusive'],
-    lifetime_value_cents = 1284500,
     status = 'active'
 WHERE email = 'jordan.hayes@example.com';
 
@@ -186,7 +185,7 @@ WHERE email = 'sam.rivera@example.com';
 
 INSERT INTO public.supplier (
     id, name, kind, payment_method_kind, payment_portal_url,
-    default_commission_pct, commission_payment_terms, contact_email
+    default_commission_pct, commission_payment_terms, commission_payment_lag_days, contact_email
 ) VALUES (
     '0195a2c0-1a00-7000-8000-000000000030',
     'Sandals Resorts',
@@ -194,7 +193,10 @@ INSERT INTO public.supplier (
     'portal',
     'https://portal.example.com/agent-booking',
     12.00,
-    'Paid 30 days after travel completion.',
+    -- Enum + days since 20261011120000; this row used to say 'Paid 30 days after travel
+    -- completion.' in prose, which nothing could compute a date from.
+    'after_travel',
+    30,
     'agents@example.com'
 );
 
@@ -625,7 +627,7 @@ INSERT INTO public.conversation (
 SELECT '0195a2c0-1a00-7000-8000-0000000000b0', c.id, '0195a2c0-1a00-7000-8000-000000000001',
        '0195a2c0-1a00-7000-8000-000000000040', 'Anniversary Week in Negril',
        now() - interval '2 hours',
-       'Locked. I also flagged your card for the final balance.', 2, 0
+       'Locked. The pay link for the final balance is on your trip page.', 2, 0
 FROM public.client c WHERE c.email = 'jordan.hayes@example.com';
 
 INSERT INTO public.message (id, conversation_id, sender_user_id, sender_role, body, is_internal_note, created_at)
@@ -647,7 +649,7 @@ FROM (VALUES
      'INTERNAL: margin on the suite upgrade is thin, do not discount further. Chase Sandals about the missing commission on the 2024 booking.',
      true, now() - interval '1 day 3 hours'),
     ('0195a2c0-1a00-7000-8000-0000000000b5'::uuid, '0195a2c0-1a00-7000-8000-000000000010'::uuid, 'agent',
-     'Locked. I also flagged your card for the final balance of $7,845 — there is an authorization request waiting on your dashboard.',
+     'Locked. The pay link for the final balance is on your trip page. It goes straight to Sandals, on their own secure site.',
      false, now() - interval '2 hours')
 ) AS v(id, account_id, sender_role, body, internal, created_at);
 
@@ -824,141 +826,6 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- ============================================================
--- Payment domain (Screen Inventory §2.4)
---
--- NOTHING HERE RESEMBLES CARDHOLDER DATA, and the values are the ones this file's own header
--- mandates: brand 'visa', last4 '4242', stripe_payment_method_id 'pm_card_visa_DEV_FAKE'.
--- `pm_card_visa` is Stripe's published test PaymentMethod handle — a token, not a card — and
--- the _DEV_FAKE suffix makes the row unusable against a real Stripe account should one ever
--- be configured. There is no cardholder name and no security-code column; the schema has
--- neither, by CLAUDE.md rule 1 and the table's own COMMENT. Never write a test card number
--- into this file, not even inside a comment: a fixture is exactly where one gets normalised,
--- and the repo's pre-write guard rejects one on sight.
---
--- WHY THESE ROWS EXIST AT ALL. payment_card.stripe_payment_method_id and .stripe_customer_id
--- are both NOT NULL, so no card row can be created without a real Stripe tokenization, and
--- Screen 2.4.2 (Add Card) is deferred until a Stripe account exists. Six of §2.4's seven
--- screens read rows that only 2.4.2 can create. Without a fixture they render empty and
--- cannot be built, reviewed or demoed at all.
---
--- These rows are readable ONLY through the service role. 20260917090000_payment_domain_
--- lockdown.sql revoked every client-role grant on these four tables and no policy replaced
--- it — see supabase/tests/rls_payment.sql.
--- ============================================================
-
--- Jordan's card, and Sam's.
---
--- SAM'S IS A POISON ROW, not decoration. Every §2.4 read is scoped by client, and a scoping
--- bug that returns "all cards" looks identical to a correct one when only a single client
--- owns a card. With two, an isolation test can fail honestly — the same reason the trip
--- fixtures span more than one traveler.
-INSERT INTO public.payment_card (
-    id, client_id, stripe_payment_method_id, stripe_customer_id,
-    brand, last4, exp_month, exp_year, nickname, consent_recorded_at, status
-)
-SELECT '01a0b1c2-d300-7000-8000-000000000010', c.id,
-       'pm_card_visa_DEV_FAKE', 'cus_DEV_FAKE_JORDAN',
-       'visa', '4242', 11, 2029, 'Personal Visa', now() - interval '40 days', 'active'
-FROM public.client c WHERE c.email = 'jordan.hayes@example.com'
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public.payment_card (
-    id, client_id, stripe_payment_method_id, stripe_customer_id,
-    brand, last4, exp_month, exp_year, nickname, consent_recorded_at, status
-)
-SELECT '01a0b1c2-d300-7000-8000-000000000011', c.id,
-       'pm_card_visa_DEV_FAKE_SAM', 'cus_DEV_FAKE_SAM',
-       'visa', '4242', 4, 2028, 'Sam''s card — must never appear in Jordan''s wallet',
-       now() - interval '12 days', 'active'
-FROM public.client c WHERE c.email = 'sam.rivera@example.com'
-ON CONFLICT (id) DO NOTHING;
-
--- A revoked card for Jordan, so 2.4.1 has a non-active row to render. The list is not a list
--- of usable cards; it is a record, and a revoked card stays visible with its date.
-INSERT INTO public.payment_card (
-    id, client_id, stripe_payment_method_id, stripe_customer_id,
-    brand, last4, exp_month, exp_year, nickname, consent_recorded_at,
-    status, revoked_at, revoked_reason
-)
-SELECT '01a0b1c2-d300-7000-8000-000000000012', c.id,
-       'pm_card_mastercard_DEV_FAKE', 'cus_DEV_FAKE_JORDAN',
-       'mastercard', '4444', 2, 2027, 'Old joint card', now() - interval '400 days',
-       'revoked', now() - interval '90 days', 'client_request'
-FROM public.client c WHERE c.email = 'jordan.hayes@example.com'
-ON CONFLICT (id) DO NOTHING;
-
--- An active authorization on the Negril trip — the one §2.2.1's "Authorize a card" tile and
--- §2.2.3's payment timeline both point at.
---
--- consent_payload is a SNAPSHOT of the mandate text the traveler actually agreed to, frozen
--- at the moment of consent. It is jsonb and NOT NULL precisely so the wording cannot be
--- rewritten out from under a past agreement. Note what it does NOT promise: there is no
--- per-use notification clause, because no dispatcher exists on either stack to deliver one —
--- see the §2.4 amendment in docs/Screen-Inventory.md.
-INSERT INTO public.card_authorization (
-    id, payment_card_id, trip_id, spending_limit_cents, amount_used_cents,
-    expires_at, status, consent_payload
-)
-VALUES (
-    '01a0b1c2-d300-7000-8000-000000000020',
-    '01a0b1c2-d300-7000-8000-000000000010',
-    '0195a2c0-1a00-7000-8000-000000000040',
-    900000, 784500,
-    now() + interval '75 days', 'active',
-    jsonb_build_object(
-        'version', 1,
-        'agreed_at', (now() - interval '30 days')::text,
-        'text', 'I authorize Story-Tail Adventures to use this card to pay suppliers for '
-                || 'this trip, up to the limit shown. Story-Tail does not charge me a '
-                || 'planning or service fee.'
-    )
-)
-ON CONFLICT (id) DO NOTHING;
-
--- Three uses against it, oldest first. Between them they cover the three shapes 2.4.5 and
--- 2.4.6 have to render: a supplier we have a row for, a supplier we do not (portal bookings
--- name a merchant that is not in our supplier table), and one the traveler has flagged.
---
--- supplier_name_snapshot is NOT NULL and separate from supplier_id on purpose: the name at
--- the time of the charge is what appears on a statement, and a supplier renamed later must
--- not silently rewrite the traveler's history.
-INSERT INTO public.card_use_event (
-    id, card_authorization_id, payment_card_id, trip_id, agent_user_id,
-    supplier_id, supplier_name_snapshot, amount_cents, currency,
-    reference_number, justification, client_flag_status, client_flagged_at, created_at
-)
-SELECT v.id, '01a0b1c2-d300-7000-8000-000000000020',
-       '01a0b1c2-d300-7000-8000-000000000010',
-       '0195a2c0-1a00-7000-8000-000000000040',
-       pu.id, v.supplier_id, v.supplier_name, v.amount, 'USD',
-       v.reference, v.justification, v.flag, v.flagged_at, v.created_at
-FROM (VALUES
-    ('01a0b1c2-d300-7000-8000-000000000030'::uuid,
-     '0195a2c0-1a00-7000-8000-000000000030'::uuid, 'Sandals Resorts',
-     450000::bigint, 'SDL-88213',
-     'Deposit to hold the ocean-view suite for the Nov 15 arrival.',
-     'not_flagged', NULL::timestamptz, now() - interval '28 days'),
-    ('01a0b1c2-d300-7000-8000-000000000031'::uuid,
-     '0195a2c0-1a00-7000-8000-000000000032'::uuid, 'Island Routes Adventures',
-     18500::bigint, 'IR-4471',
-     'Catamaran sunset cruise for two, booked at the resort rate.',
-     'not_flagged', NULL::timestamptz, now() - interval '9 days'),
-    -- No supplier_id: a portal booking whose merchant is not in our supplier table. This is
-    -- the row that proves the UI reads the snapshot rather than joining for a name.
-    ('01a0b1c2-d300-7000-8000-000000000032'::uuid,
-     NULL::uuid, 'NEGRIL TRANSFERS LTD',
-     31600::bigint, NULL,
-     'Airport transfers both ways. Booked through the resort portal.',
-     'flagged', now() - interval '2 days', now() - interval '3 days')
-) AS v(id, supplier_id, supplier_name, amount, reference, justification,
-       flag, flagged_at, created_at)
-CROSS JOIN LATERAL (
-    SELECT pu.id FROM public.platform_user pu WHERE pu.role = 'agent' LIMIT 1
-) pu
-ON CONFLICT (id) DO NOTHING;
-
-
--- ============================================================
 -- §3.2 agent worklist fixtures
 --
 -- Everything above this point was seeded for the CLIENT surface, and §3.2 rendered correct
@@ -1086,28 +953,44 @@ INSERT INTO public.payment_milestone (
     ('0195a2c0-1a00-7000-8000-0000000000a4', '0195a2c0-1a00-7000-8000-000000000048',
      'deposit', 'Deposit', 99000, 'USD', current_date + 6, 'scheduled', 0);
 
+-- ── Pay links and a paid record (§3.6, 2026-10-16) ──────────────────────────────
+--
+-- Two unpaid milestones carry a link, one of each kind §9.5 allows: the supplier's own
+-- payment page (Negril's final balance) and a Travefy invoice made because the supplier
+-- has no page of its own (trip 48's deposit). Cabo's OVERDUE final balance is left with no
+-- link on purpose: "no link yet" is a state the client and the advisor both have to render.
+-- Negril's second payment carries the supplier's confirmation number, so Mark Paid and
+-- Payment History have a reference to show.
+UPDATE public.payment_milestone SET pay_url = 'https://www.sandals.com/pay/SRB-220119'
+ WHERE id = '0195a2c0-1a00-7000-8000-0000000000a2';
+UPDATE public.payment_milestone SET pay_url = 'https://travefy.com/invoice/st-4471'
+ WHERE id = '0195a2c0-1a00-7000-8000-0000000000a4';
+UPDATE public.payment_milestone SET paid_reference = 'SRB-220119-MID'
+ WHERE id = '0195a2c0-1a00-7000-8000-0000000000a1';
+
 -- ── Agent availability ───────────────────────────────────────────────────────────
 --
--- Screen 3.2.3's availability layer is deferred because `time_off_blocks` is jsonb with no
--- declared schema — there is nothing to validate a parse against, which is the open item
--- Data-Model §7.4 cites as the reason pipeline_weight is a table instead. The row exists so
--- agent_availability_self() returns something and the deferral is a UI decision rather than
--- an empty read that looks like a bug.
+-- §3.12.2 (2026-10-17). The agent row's insert trigger already created this row with the
+-- default hours, so the seed UPDATES it to something visibly different from the default
+-- (a default-shaped fixture cannot show that a save landed). Fridays end early.
 --
 -- calendar_sync_refresh_token_encrypted stays NULL. A seeded value is how a projection test
 -- starts passing for the wrong reason.
 
-INSERT INTO public.agent_availability (
-    agent_id, weekly_schedule, response_time_hours, time_off_blocks, calendar_sync_provider
-) VALUES (
-    '0195a2c0-1a00-7000-8000-000000000001',
-    '{"mon":["09:00","17:00"],"tue":["09:00","17:00"],"wed":["09:00","17:00"],'
-    '"thu":["09:00","17:00"],"fri":["09:00","15:00"],"sat":[],"sun":[]}'::jsonb,
-    4,
-    '[{"starts_on":"2026-11-26","ends_on":"2026-11-29","reason":"Thanksgiving"},'
-    '{"starts_on":"2026-12-24","ends_on":"2027-01-02","reason":"Christmas"}]'::jsonb,
-    NULL
-);
+UPDATE public.agent_availability
+   SET weekly_schedule =
+           '{"mon":{"start":"09:00","end":"17:00"},"tue":{"start":"09:00","end":"17:00"},'
+           '"wed":{"start":"09:00","end":"17:00"},"thu":{"start":"09:00","end":"17:00"},'
+           '"fri":{"start":"09:00","end":"15:00"},"sat":null,"sun":null}'::jsonb,
+       response_time_hours = 4
+ WHERE agent_id = '0195a2c0-1a00-7000-8000-000000000001';
+
+-- Out-of-office (Data-Model §7.5), formerly the untyped time_off_blocks blob.
+INSERT INTO public.agent_time_off (id, agent_id, starts_on, ends_on, label) VALUES
+    ('0195a2c0-1a00-7000-8000-0000000007f1', '0195a2c0-1a00-7000-8000-000000000001',
+     '2026-11-26', '2026-11-29', 'Thanksgiving'),
+    ('0195a2c0-1a00-7000-8000-0000000007f2', '0195a2c0-1a00-7000-8000-000000000001',
+     '2026-12-24', '2027-01-02', 'Christmas');
 
 
 -- ============================================================
@@ -1124,20 +1007,19 @@ INSERT INTO public.agent_availability (
 -- same fixture shape Maya Carter uses above), and hand-seeding GoTrue is how `confirmation_token`
 -- NULLs turn every login into a 500.
 --
--- WHY THE MONEY IS IN TRIPS AND NOT IN client.lifetime_value_cents. Nothing in the repository
--- maintains that column — see 20260926140000_agent_client_read_surface.sql. agent_client_roster()
--- derives lifetime value from committed trips, so seeding the cache would prove nothing and
--- seeding it WRONG is how a fixture starts agreeing with a bug.
+-- WHY THE MONEY IS IN TRIPS. agent_client_roster() derives lifetime value from committed trips.
+-- The client.lifetime_value_cents cache it once sat beside was never maintained and was dropped
+-- in 20261028120000_agent_reports.sql.
 -- ============================================================
 
-INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, email, phone, tags, status, lifetime_value_cents) VALUES
+INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, email, phone, tags, status) VALUES
     -- No trips at all: the roster's "—" in both trip columns, and $0 with a NULL currency.
     ('0195a2c0-1a00-7000-8000-000000000100', '0195a2c0-1a00-7000-8000-000000000001',
-     'Eli', 'Park', NULL, 'eli.park@example.com', '+1-555-0190', ARRAY['referral'], 'active', 0),
+     'Eli', 'Park', NULL, 'eli.park@example.com', '+1-555-0190', ARRAY['referral'], 'active'),
 
     -- Inquiry only: counts toward the header's "leads to qualify" and toward nothing else.
     ('0195a2c0-1a00-7000-8000-000000000101', '0195a2c0-1a00-7000-8000-000000000001',
-     'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active', 0),
+     'Linda', 'Gomez', NULL, 'linda.gomez@example.com', NULL, ARRAY['new'], 'active'),
 
     -- Three committed trips spanning past and future, so this row is the one that drives
     -- BOTH the roster's "Last trip" and "Next trip" columns at once, and the only lifetime
@@ -1145,34 +1027,34 @@ INSERT INTO public.client (id, agent_id, first_name, last_name, preferred_name, 
     -- lifetime_currency_count = 2; Story-Tail is USD only, so that case is now impossible.)
     ('0195a2c0-1a00-7000-8000-000000000102', '0195a2c0-1a00-7000-8000-000000000001',
      'Priya', 'Raghunathan', 'Pri', 'priya.r@example.com', '+1-555-0191',
-     ARRAY['vip','multi-destination'], 'active', 0),
+     ARRAY['vip','multi-destination'], 'active'),
 
     -- No email. `client.email` is nullable and the roster must not assume otherwise.
     ('0195a2c0-1a00-7000-8000-000000000103', '0195a2c0-1a00-7000-8000-000000000001',
-     'Marcus', 'Webb', NULL, NULL, '+1-555-0192', ARRAY['cruise'], 'active', 0),
+     'Marcus', 'Webb', NULL, NULL, '+1-555-0192', ARRAY['cruise'], 'active'),
 
     -- Cancelled trip only: excluded from lifetime value AND from both trip columns, so the
     -- row reads exactly like Eli's despite having a trip.
     ('0195a2c0-1a00-7000-8000-000000000104', '0195a2c0-1a00-7000-8000-000000000001',
-     'Dana', 'Okonkwo', NULL, 'dana.okonkwo@example.com', '+1-555-0193', ARRAY['family'], 'active', 0),
+     'Dana', 'Okonkwo', NULL, 'dana.okonkwo@example.com', '+1-555-0193', ARRAY['family'], 'active'),
 
     -- Many tags, long name: the Tags cell and the Client cell both have to wrap or truncate.
     ('0195a2c0-1a00-7000-8000-000000000105', '0195a2c0-1a00-7000-8000-000000000001',
      'Annabelle', 'Fitzwilliam-Castellanos', 'Belle', 'annabelle.fc@example.com', '+1-555-0194',
-     ARRAY['vip','honeymoon','all-inclusive','adults-only','repeat','referral'], 'active', 0),
+     ARRAY['vip','honeymoon','all-inclusive','adults-only','repeat','referral'], 'active'),
 
     -- A second archived client, so the Archived chip returns more than one row.
     ('0195a2c0-1a00-7000-8000-000000000106', '0195a2c0-1a00-7000-8000-000000000001',
-     'Curtis', 'Nakamura', NULL, 'curtis.n@example.com', NULL, ARRAY['cold'], 'archived', 0),
+     'Curtis', 'Nakamura', NULL, 'curtis.n@example.com', NULL, ARRAY['cold'], 'archived'),
 
     -- A merged tombstone. agent_client_roster() must NEVER return this row, for any filter:
     -- there is no p_status value that can ask for it. rls_agent_clients.sql asserts that.
     ('0195a2c0-1a00-7000-8000-000000000107', '0195a2c0-1a00-7000-8000-000000000001',
-     'Jordan', 'Hayes-Old', NULL, 'jordan.old@example.com', NULL, ARRAY[]::text[], 'merged_into', 0),
+     'Jordan', 'Hayes-Old', NULL, 'jordan.old@example.com', NULL, ARRAY[]::text[], 'merged_into'),
 
     -- Completed trip well in the past: drives the "Last trip" column with nothing in "Next".
     ('0195a2c0-1a00-7000-8000-000000000108', '0195a2c0-1a00-7000-8000-000000000001',
-     'Tomás', 'Delgado', NULL, 'tomas.delgado@example.com', '+1-555-0195', ARRAY['repeat'], 'active', 0);
+     'Tomás', 'Delgado', NULL, 'tomas.delgado@example.com', '+1-555-0195', ARRAY['repeat'], 'active');
 
 UPDATE public.client
    SET merged_into_client_id = (SELECT id FROM public.client WHERE email = 'jordan.hayes@example.com'),
@@ -1561,7 +1443,7 @@ UPDATE public.trip t
 INSERT INTO public.commission (
     id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
     expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
-    payment_terms, status, received_at, inteletravel_reference
+    payment_terms, payment_lag_days, status, received_at, inteletravel_reference
 ) VALUES
     -- Trip 40, Sandals' line ALONE — 1,010,300 at 12%, which is exactly what the component
     -- records. It used to claim the whole trip value (1,284,500) at a flat 12%, which made
@@ -1571,20 +1453,20 @@ INSERT INTO public.commission (
     -- here because it has not been invoiced.
     ('01a0b1c2-d300-7000-8000-000000000070', '0195a2c0-1a00-7000-8000-000000000040',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     1010300, 12.00, 121236, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     1010300, 12.00, 121236, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
 
     -- Two proposals, so `expected` appears on more than one pipeline stage.
     ('01a0b1c2-d300-7000-8000-000000000071', '0195a2c0-1a00-7000-8000-000000000041',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     964000, 12.00, 115680, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     964000, 12.00, 115680, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
     ('01a0b1c2-d300-7000-8000-000000000072', '0195a2c0-1a00-7000-8000-000000000042',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     1912000, 12.00, 229440, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     1912000, 12.00, 229440, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
 
     -- `invoiced` rather than `expected`, so both pre-payment statuses are represented.
     ('01a0b1c2-d300-7000-8000-000000000073', '0195a2c0-1a00-7000-8000-000000000046',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     748000, 12.00, 89760, 0, 0, 'USD', '60 days after travel', 'invoiced', NULL,
+     748000, 12.00, 89760, 0, 0, 'USD', 'after_travel', 60, 'invoiced', NULL,
      'ITV-2026-0912'),
 
     -- Trip 47 is an all-inclusive resort week. This row named supplier ...031 — AMERICAN
@@ -1595,7 +1477,7 @@ INSERT INTO public.commission (
     -- asserts no row claims commission from a supplier that pays none.
     ('01a0b1c2-d300-7000-8000-000000000074', '0195a2c0-1a00-7000-8000-000000000047',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     512000, 12.00, 61440, 0, 0, 'USD', '60 days after travel', 'expected', NULL, NULL),
+     512000, 12.00, 61440, 0, 0, 'USD', 'after_travel', 60, 'expected', NULL, NULL),
 
     -- RECONCILED, WITH A FEE. Expected 83,040, Inteletravel kept 1,246, 81,794 arrived:
     -- 83,040 - 1,246 - 81,794 = 0, so screen 3.7.6 shows this settled rather than short.
@@ -1603,7 +1485,7 @@ INSERT INTO public.commission (
     -- here so that a change which accidentally sweeps it in shows up as a number moving.
     ('01a0b1c2-d300-7000-8000-000000000075', '0195a2c0-1a00-7000-8000-000000000044',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     692000, 12.00, 83040, 1246, 81794, 'USD', '60 days after travel', 'received',
+     692000, 12.00, 83040, 1246, 81794, 'USD', 'after_travel', 60, 'received',
      current_date - 540, 'ITV-2025-0331'),
 
     -- NOT RECONCILED, AND THE FEE DOES NOT EXPLAIN IT. Expected 82,800, fee 1,242, only
@@ -1612,7 +1494,119 @@ INSERT INTO public.commission (
     -- nor a `lost` row before, so both that screen and that tile had nothing to render.
     ('01a0b1c2-d300-7000-8000-000000000076', '0195a2c0-1a00-7000-8000-000000000113',
      '0195a2c0-1a00-7000-8000-000000000001', '0195a2c0-1a00-7000-8000-000000000030',
-     690000, 12.00, 82800, 1242, 79000, 'USD', '60 days after travel', 'disputed',
+     690000, 12.00, 82800, 1242, 79000, 'USD', 'after_travel', 60, 'disputed',
      current_date - 300, 'ITV-2025-0480');
+
+-- §3.7.1 and §3.7.2 HAD NOTHING TO DRAW against the six rows above: nothing received this
+-- calendar year, one bar on a twelve-month chart, one supplier in the ledger's supplier
+-- filter, and no `lost` row behind the chip the prototype forgot. Thirteen more, every one
+-- hand-written against a COMPLETED or CANCELLED trip — money that has had time to arrive,
+-- or to be refused. This is still not the row-per-trip pattern warned against above: the
+-- open trips with no line (three booked, one proposal, two inquiries) stay that way, because
+-- a booking nobody has entered or invoiced yet is a real state.
+--
+-- DATES COME FROM THE TRIP, NOT FROM current_date. The trips above are dated relative to
+-- the day the seed runs, so a received_at keyed off `end_date + lag` stays after the trip it
+-- pays for on any day the seed is run. A literal date would sooner or later have money
+-- arriving before the traveler left.
+--
+-- The Getaway trips are one package component each, priced at 12% of the whole trip with no
+-- supplier on the component (the nullable-supplier gap Data-Model §10.1 records). Filing
+-- them against Sandals at 12% of trip value makes expected equal the trip's own commission
+-- to the cent. The two Allianz lines are insurance the components never priced: a ledger
+-- line is a claim and is allowed to know about money the builder did not, which is what
+-- §3.7.4's "for trips booked outside the platform" form exists for.
+--
+-- Every `received` row reconciles exactly (expected − fee − received = 0), three of them
+-- with a fee. The one disputed row above stays the only disputed row:
+-- constraints_commission.sql asserts it.
+INSERT INTO public.commission (
+    id, trip_id, agent_id, supplier_id, gross_booking_cents, commission_pct,
+    expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
+    payment_terms, payment_lag_days, status, received_at, inteletravel_reference
+)
+SELECT v.id::uuid, t.id, t.agent_id, v.supplier_id::uuid,
+       coalesce(v.gross, t.total_value_cents),
+       v.pct,
+       round(coalesce(v.gross, t.total_value_cents) * v.pct / 100.0)::bigint,
+       v.fee,
+       CASE WHEN v.status = 'received'
+            THEN round(coalesce(v.gross, t.total_value_cents) * v.pct / 100.0)::bigint - v.fee
+            ELSE 0 END,
+       -- `lag` doubles as the terms' day count and the received date's offset. The unpaid
+       -- rows leave it NULL (they have no received date), and every one of them is Sandals
+       -- at 60 days, so 60 is their terms.
+       t.currency, v.terms::commission_payment_terms, coalesce(v.lag, 60),
+       v.status::commission_status,
+       CASE WHEN v.status = 'received' THEN t.end_date + v.lag END,
+       v.ref
+  FROM (VALUES
+    -- Seven Getaway weeks, paid 60 days after travel: deposits one to four months back.
+    ('01a0b1c2-d300-7000-8000-000000000077', '0195a2c0-1a00-7000-8000-000000000302',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL::bigint, 12.00, 0::bigint,
+     'after_travel', 'received', 60, 'ITV-2026-1188'),
+    ('01a0b1c2-d300-7000-8000-000000000078', '0195a2c0-1a00-7000-8000-000000000304',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 360,
+     'after_travel', 'received', 60, 'ITV-2026-1102'),
+    ('01a0b1c2-d300-7000-8000-000000000079', '0195a2c0-1a00-7000-8000-000000000306',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     'after_travel', 'received', 60, 'ITV-2026-1067'),
+    ('01a0b1c2-d300-7000-8000-000000000080', '0195a2c0-1a00-7000-8000-000000000308',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 432,
+     'after_travel', 'received', 60, 'ITV-2026-1019'),
+    ('01a0b1c2-d300-7000-8000-000000000081', '0195a2c0-1a00-7000-8000-000000000310',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     'after_travel', 'received', 60, 'ITV-2026-0974'),
+    ('01a0b1c2-d300-7000-8000-000000000082', '0195a2c0-1a00-7000-8000-000000000312',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     'after_travel', 'received', 60, 'ITV-2026-0931'),
+    ('01a0b1c2-d300-7000-8000-000000000083', '0195a2c0-1a00-7000-8000-000000000314',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 540,
+     'after_travel', 'received', 60, 'ITV-2026-0888'),
+    -- Invoiced months ago and never paid: overdue, and the kind of line 3.7.6 chases.
+    ('01a0b1c2-d300-7000-8000-000000000084', '0195a2c0-1a00-7000-8000-000000000316',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     'after_travel', 'invoiced', NULL, 'ITV-2026-0846'),
+    -- Still `expected` long after travel: entered, never invoiced.
+    ('01a0b1c2-d300-7000-8000-000000000085', '0195a2c0-1a00-7000-8000-000000000318',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     'after_travel', 'expected', NULL, NULL),
+    -- The second supplier, so 3.7.2's supplier filter has a choice to make.
+    ('01a0b1c2-d300-7000-8000-000000000086', '0195a2c0-1a00-7000-8000-000000000117',
+     '0195a2c0-1a00-7000-8000-000000000034', 23000, 25.00, 0,
+     'after_travel', 'received', 30, 'ITV-2026-1010'),
+    -- About a year back: it gives last year's comparisons something to compare against.
+    -- (Which side of the chart's twelve-month edge it lands on depends on the day of the
+    -- month the seed runs; the chip's base does not depend on it, row 075 sits at -540.)
+    ('01a0b1c2-d300-7000-8000-000000000087', '0195a2c0-1a00-7000-8000-000000000111',
+     '0195a2c0-1a00-7000-8000-000000000034', 57400, 25.00, 0,
+     'after_travel', 'received', 30, 'ITV-2025-0975'),
+    -- LOST. Invoiced at booking, then the trip cancelled. No date, no money: a `lost` row
+    -- may carry neither (commission_date_means_paid, commission_money_has_date).
+    ('01a0b1c2-d300-7000-8000-000000000088', '0195a2c0-1a00-7000-8000-000000000115',
+     '0195a2c0-1a00-7000-8000-000000000030', 540000, 12.00, 0,
+     'after_travel', 'lost', NULL, 'ITV-2026-0702'),
+    -- On the ARCHIVED trip. Its line stays in the ledger and in the totals (a commission line
+    -- is a tax record) but its title is not a link, because the trip page will not open.
+    -- Without this row that rule only ever ran inside a test's temporary UPDATE.
+    ('01a0b1c2-d300-7000-8000-000000000089', '0195a2c0-1a00-7000-8000-0000000000af',
+     '0195a2c0-1a00-7000-8000-000000000030', NULL, 12.00, 0,
+     'after_travel', 'received', 60, 'ITV-2025-1101')
+  ) AS v(id, trip_id, supplier_id, gross, pct, fee, terms, status, lag, ref)
+  JOIN public.trip t ON t.id = v.trip_id::uuid;
+
+-- The JOIN above drops a row SILENTLY if a trip id it names ever changes. Count them.
+DO $$
+BEGIN
+    IF (SELECT count(*) FROM public.commission
+         WHERE id BETWEEN '01a0b1c2-d300-7000-8000-000000000077'
+                      AND '01a0b1c2-d300-7000-8000-000000000089') <> 13 THEN
+        RAISE EXCEPTION 'seed: expected 13 §3.7 ledger lines; a trip id they name has moved';
+    END IF;
+END $$;
+
+-- §3.10 Stage 2's seven starter message templates for the local advisor. The migration that
+-- defines them runs BEFORE this file, when no agent exists yet, so it seeds nothing locally.
+SELECT public.seed_starter_message_templates('0195a2c0-1a00-7000-8000-000000000001');
 
 COMMIT;

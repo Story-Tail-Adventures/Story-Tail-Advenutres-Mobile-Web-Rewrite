@@ -17,6 +17,8 @@ import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -328,8 +330,10 @@ object SupabaseClientProvider {
     private var cachedOnboarding: OnboardingRepository? = null
     private var cachedTrip: TripRepository? = null
     private var cachedAccount: AccountRepository? = null
-    private var cachedWallet: WalletRepository? = null
     private var cachedAgent: AgentRepository? = null
+    private var cachedAgentMessages: AgentMessagesRepository? = null
+    private var cachedAgentPush: AgentPushRepository? = null
+    private var cachedAgentSettings: AgentSettingsRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -344,10 +348,8 @@ object SupabaseClientProvider {
      * would mean two of each.
      */
     suspend fun authRepository(): AuthRepository = withContext(Dispatchers.Default) {
-        cached ?: run {
-            build()
-            cached!!
-        }
+        ensureBuilt()
+        cached!!
     }
 
     /**
@@ -358,10 +360,8 @@ object SupabaseClientProvider {
      */
     suspend fun onboardingRepository(): OnboardingRepository =
         withContext(Dispatchers.Default) {
-            cachedOnboarding ?: run {
-                build()
-                cachedOnboarding!!
-            }
+            ensureBuilt()
+            cachedOnboarding!!
         }
 
     /**
@@ -371,25 +371,8 @@ object SupabaseClientProvider {
      */
     suspend fun tripRepository(): TripRepository =
         withContext(Dispatchers.Default) {
-            cachedTrip ?: run {
-                build()
-                cachedTrip!!
-            }
-        }
-
-    /**
-     * §2.4's payment surface, on the SAME client again.
-     *
-     * Separate from the others because §2.4 has no PostgREST query at all: the payment tables
-     * hold no client-role privilege, so every call is an Edge Function invocation. It still
-     * shares the client — two clients would mean two sessions and two refresh loops.
-     */
-    suspend fun walletRepository(): WalletRepository =
-        withContext(Dispatchers.Default) {
-            cachedWallet ?: run {
-                build()
-                cachedWallet!!
-            }
+            ensureBuilt()
+            cachedTrip!!
         }
 
     /**
@@ -401,10 +384,32 @@ object SupabaseClientProvider {
      */
     suspend fun agentRepository(): AgentRepository =
         withContext(Dispatchers.Default) {
-            cachedAgent ?: run {
-                build()
-                cachedAgent!!
-            }
+            ensureBuilt()
+            cachedAgent!!
+        }
+
+    /**
+     * §3.10.7's notification registration, on the SAME client. Also what the Android messaging
+     * service and the notification actions reach for when a push wakes the app from nothing.
+     */
+    suspend fun agentPushRepository(): AgentPushRepository =
+        withContext(Dispatchers.Default) {
+            ensureBuilt()
+            cachedAgentPush!!
+        }
+
+    /** §3.12 Agent Settings (PR 4), on the SAME client: one session, one refresh loop. */
+    suspend fun agentSettingsRepository(): AgentSettingsRepository =
+        withContext(Dispatchers.Default) {
+            ensureBuilt()
+            cachedAgentSettings!!
+        }
+
+    /** §3.10's messaging (Stage 3), on the SAME client: one session, one refresh loop. */
+    suspend fun agentMessagesRepository(): AgentMessagesRepository =
+        withContext(Dispatchers.Default) {
+            ensureBuilt()
+            cachedAgentMessages!!
         }
 
     /**
@@ -417,11 +422,20 @@ object SupabaseClientProvider {
      */
     suspend fun accountRepository(): AccountRepository =
         withContext(Dispatchers.Default) {
-            cachedAccount ?: run {
-                build()
-                cachedAccount!!
-            }
+            ensureBuilt()
+            cachedAccount!!
         }
+
+    /**
+     * Built once, under a lock. `App()` used to be the only caller, in sequence; now a push can
+     * wake the messaging service while the app is starting, and two racing builds would mean
+     * two clients, two sessions and two refresh loops.
+     */
+    private val buildLock = Mutex()
+
+    private suspend fun ensureBuilt() = buildLock.withLock {
+        if (cached == null) build()
+    }
 
     private fun build() {
         if (!SupabaseConfig.isConfigured) {
@@ -429,8 +443,10 @@ object SupabaseClientProvider {
             cachedOnboarding = UnconfiguredOnboardingRepository()
             cachedTrip = UnconfiguredTripRepository()
             cachedAccount = UnconfiguredAccountRepository()
-            cachedWallet = UnconfiguredWalletRepository()
             cachedAgent = UnconfiguredAgentRepository()
+            cachedAgentMessages = UnconfiguredAgentMessagesRepository()
+            cachedAgentPush = UnconfiguredAgentPushRepository()
+            cachedAgentSettings = UnconfiguredAgentSettingsRepository()
             return
         }
         val client = createSupabaseClient(
@@ -445,7 +461,9 @@ object SupabaseClientProvider {
         cachedOnboarding = SupabaseOnboardingRepository(client)
         cachedTrip = SupabaseTripRepository(client)
         cachedAccount = SupabaseAccountRepository(client)
-        cachedWallet = SupabaseWalletRepository(client)
         cachedAgent = SupabaseAgentRepository(client)
+        cachedAgentMessages = SupabaseAgentMessagesRepository(client)
+        cachedAgentPush = SupabaseAgentPushRepository(client)
+        cachedAgentSettings = SupabaseAgentSettingsRepository(client)
     }
 }

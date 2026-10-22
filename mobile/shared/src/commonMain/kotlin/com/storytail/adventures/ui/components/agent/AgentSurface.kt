@@ -25,17 +25,18 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.storytail.adventures.domain.agent.AGENT_BAR_DESTINATIONS
-import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.AgentDestination
 import com.storytail.adventures.ui.components.StoryTailGlyph
 import com.storytail.adventures.ui.components.StoryTailMark
@@ -96,27 +97,15 @@ fun AgentScaffold(
 }
 
 /**
- * The advisor's top bar, and the only way off this surface.
+ * The advisor's top bar: the screen's name and a divider.
  *
- * WHY SIGN-OUT LIVES HERE RATHER THAN BEHIND "MORE". Worklist is the whole agent shell in
- * this slice: `nav.resetTo` clears the stack so system back is disabled, and Clients,
- * Messages and More are all `built = false`, which [AgentTab] draws dimmed and unpressable.
- * Until §3.12 builds More there is no other screen to put this on, and before §3.2 an agent
- * signing in on a phone landed in the CLIENT shell, whose Account tab has one — so shipping
- * without it would REMOVE the only sign-out an agent had rather than merely not add one.
- * That matters most on iOS, where `PlatformBackHandler` is a deliberate no-op and there is
- * no system exit at all, and the session is restored from storage on every relaunch.
- *
- * A WORD, NOT A GLYPH. There is no logout mark in [StoryTailMark], and an unlabelled icon is
- * the opposite of "somewhere a phone user will find it". When §3.12 lands, More takes this
- * over and this bar keeps the title.
+ * SIGN-OUT MOVED TO MORE (§3.12, PR 4). Until More was built this bar carried "Sign out" on
+ * every tab root, because Worklist was the whole agent shell and nothing else could reach it;
+ * §6.6's amendment said More takes it over when it lands, and the bar keeps the title.
  *
  * NO BRAND LOCKUP, unlike the web top bar. [com.storytail.adventures.ui.components.BrandMark]
- * takes a HEIGHT with an 80dp floor — below that the light lockup's "ADVENTURES" line stops
- * being readable — and the dark scheme's lockup is a near-square badge, so the mark would
- * cost 80dp of a phone screen above the densest surface in the product. The screen's own
- * name is the orientation a phone needs here; §6.6's whole argument for this surface is
- * on-the-go density.
+ * takes a HEIGHT with an 80dp floor, so the mark would cost 80dp of a phone screen above the
+ * densest surface in the product. The screen's own name is the orientation a phone needs.
  *
  * 56dp and a divider, the same bar [com.storytail.adventures.ui.components.client.AccountTopBar]
  * draws — the two shells must not drift structurally. Nothing here imports from
@@ -125,7 +114,6 @@ fun AgentScaffold(
 @Composable
 fun AgentTopBar(
     title: String,
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -135,7 +123,7 @@ fun AgentTopBar(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
-                .padding(start = 16.dp, end = 8.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -146,17 +134,17 @@ fun AgentTopBar(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(
-                onClick = onSignOut,
-                // §4.2's 44pt floor on touch; 48dp is the platform's own.
-                modifier = Modifier.heightIn(min = 48.dp),
-            ) {
-                Text(AgentCopy.SIGN_OUT)
-            }
         }
         HorizontalDivider(color = scheme.outlineVariant)
     }
 }
+
+/**
+ * Unread THREADS for the Messages tab's badge (§3.10 Stage 3). Provided once by `AgentRoute`,
+ * which re-reads `agent_message_summary` when the app opens and on every route change (there is
+ * no live feed), so every agent screen's bar draws the same number without each fetching it.
+ */
+val LocalAgentUnreadThreads = compositionLocalOf { 0 }
 
 @Composable
 fun AgentBottomNav(
@@ -214,8 +202,8 @@ private fun AgentTab(
                         onClick = { onSelect(destination.id) },
                     )
                 } else {
-                    // Three of the four are this, in this slice. Dimmed so it does not look
-                    // pressable, and out of the semantics tree's selectable set entirely.
+                    // None since §3.12 built More (2026-10-17); kept for the next unbuilt tab.
+                    // Dimmed so it does not look pressable, and out of the selectable set.
                     Modifier.alpha(0.38f)
                 },
             ),
@@ -236,6 +224,26 @@ private fun AgentTab(
                 size = 19.dp,
                 color = if (selected) scheme.onSecondaryContainer else scheme.onSurfaceVariant,
             )
+            val unread = LocalAgentUnreadThreads.current
+            if (destination.id == "messages" && unread > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 8.dp)
+                        .widthIn(min = 16.dp)
+                        .heightIn(min = 16.dp)
+                        .background(scheme.error, PillShape)
+                        .padding(horizontal = 4.dp)
+                        .clearAndSetSemantics { contentDescription = "$unread unread" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (unread > 99) "99+" else "$unread",
+                        style = LocalStoryTailBrandTypography.current.labelXS,
+                        color = scheme.onError,
+                    )
+                }
+            }
         }
         Text(
             text = destination.label,

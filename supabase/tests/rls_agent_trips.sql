@@ -52,7 +52,7 @@ RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
     PERFORM set_config('role', 'authenticated', true);
     PERFORM set_config('request.jwt.claims',
-        json_build_object('sub', account::text, 'role', 'authenticated')::text, true);
+        json_build_object('sub', account::text, 'role', 'authenticated', 'aal', 'aal2')::text, true);
 END;
 $$;
 
@@ -614,10 +614,9 @@ RESET ROLE;
 --
 -- THE SEPARATION IS THE POINT OF THIS SECTION. `agent_upsert_payment_milestone` says what
 -- the supplier expects; `agent_set_milestone_paid` says whether the money moved. Only the
--- second may touch `trip.total_paid_cents`, which since 20260929100000 is what
--- `wallet/authorize/[tripId]` subtracts from the trip value to show a traveler their
--- outstanding balance. A label edit that could move that number is the failure this shape
--- exists to prevent.
+-- second may touch `trip.total_paid_cents`, which since 20260929100000 is what the
+-- traveler's outstanding balance is worked out from. A label edit that could move that
+-- number is the failure this shape exists to prevent.
 
 SET ROLE postgres;
 

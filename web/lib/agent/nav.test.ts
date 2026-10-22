@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ICON_NAMES } from "@/components/ui/icon-paths";
 import {
+  AGENT_COMMISSION_VIEWS,
   AGENT_DESTINATIONS,
   AGENT_WORKLIST_VIEWS,
   activeAgentDestinationId,
@@ -49,20 +50,24 @@ describe("AGENT_DESTINATIONS", () => {
     // when §3.3 ships, this line changes in the same commit.
     expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
       "leads",
-      "messages",
-      "commission",
-      "reports",
       "more",
     ]);
     // `clients` joined `worklist` when §3.3.1 shipped on 2026-09-26, and `trips` joined both
     // on 2026-09-27 with §3.4.1. The note this line used to carry was the reason it was
     // unbuilt: trip DETAIL existed at /agent/trips/[tripId] while the rail entry pointed at
     // the LIST, which had no route. It does now.
+    // `commission` joined on 2026-10-11 with §3.7.1 and §3.7.2, and `messages` on 2026-10-13
+    // with §3.10 Stage 1 (the inbox and thread). The phone app's own Messages tab is still
+    // unbuilt (Stage 3); that is the Kotlin bar, not this one.
     expect(AGENT_DESTINATIONS.filter(isBuilt).map((d) => d.id)).toEqual([
       "worklist",
       "clients",
       "trips",
+      "messages",
+      "commission",
+      "reports",
     ]);
+    // `reports` joined on 2026-10-21 with §3.11's PR 1: the hub and its first three reports.
   });
 
   it("gives every planned destination a phase and a section", () => {
@@ -114,6 +119,26 @@ describe("active state", () => {
     expect(activeAgentViewId("/agent/pipeline")).toBe("pipeline");
     expect(activeAgentViewId("/agent/calendar")).toBe("calendar");
     expect(activeAgentViewId("/agent/clients")).toBeNull();
+  });
+
+  it("folds both §3.7 views into the Commission rail item, and names which is showing", () => {
+    for (const v of AGENT_COMMISSION_VIEWS) {
+      expect(activeAgentDestinationId(v.href), v.href).toBe("commission");
+    }
+    expect(activeAgentViewId("/agent/commission", AGENT_COMMISSION_VIEWS)).toBe("dashboard");
+    expect(activeAgentViewId("/agent/commission/ledger", AGENT_COMMISSION_VIEWS)).toBe("ledger");
+    // A line's page and the add page are the LEDGER view; the dashboard is exact-only.
+    expect(activeAgentViewId("/agent/commission/ledger/abc", AGENT_COMMISSION_VIEWS)).toBe("ledger");
+    expect(activeAgentViewId("/agent/commission/ledger/new", AGENT_COMMISSION_VIEWS)).toBe("ledger");
+    // §3.7.5 / §3.7.6: a statement and its rows light Statements, not the ledger.
+    expect(activeAgentViewId("/agent/commission/import", AGENT_COMMISSION_VIEWS)).toBe("statements");
+    expect(activeAgentViewId("/agent/commission/import/abc", AGENT_COMMISSION_VIEWS)).toBe("statements");
+    expect(activeAgentViewId("/agent/commission/import/abc/rows/def", AGENT_COMMISSION_VIEWS)).toBe("statements");
+    expect(activeAgentViewId("/agent/commission/forecast", AGENT_COMMISSION_VIEWS)).toBe("forecast");
+    // The default list is still §3.2's: a commission path lights none of its three, and the
+    // root view never lights by prefix (or every /agent page would be "Worklist").
+    expect(activeAgentViewId("/agent/commission/ledger")).toBeNull();
+    expect(activeAgentViewId("/agent/clients/abc")).toBeNull();
   });
 
   it("matches on / boundaries only", () => {

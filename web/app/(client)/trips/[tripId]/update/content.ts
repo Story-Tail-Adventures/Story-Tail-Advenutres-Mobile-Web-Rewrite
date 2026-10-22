@@ -27,7 +27,6 @@ export const STATUS_CHANGE = {
   viewTrip: STATUS_CHANGE_MESSAGES.viewTrip,
   viewSummary: STATUS_CHANGE_MESSAGES.viewSummary,
   viewMemories: STATUS_CHANGE_MESSAGES.viewMemories,
-  authorizeCard: STATUS_CHANGE_MESSAGES.authorizeCard,
 
   narrativeFor: statusChangeNarrative,
   nextSteps: statusChangeNextSteps,

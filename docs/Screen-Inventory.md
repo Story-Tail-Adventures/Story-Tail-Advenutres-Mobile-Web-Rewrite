@@ -35,28 +35,34 @@ Administrator-role screens are out of scope for this document and will be invent
 | Client — Authentication & Onboarding | 14 |
 | Client — Dashboard & Trip Experience | 11 |
 | Client — Self-Guided Search | 10 |
-| Client — Payment & Card Authorization | 7 |
+| Client — Payment & Card Authorization (retired 2026-10-16) | 0 (was 7) |
 | Client — Account & Profile | 11 |
 | Client — Messaging | 3 |
 | Client — Mobile-Specific | 8 |
 | Client — Group Trip Coordination (Future-Ready) | 4 |
-| **Client total** | **79** |
+| **Client total** | **72** (was 79) |
 | Agent — Authentication & Activation | 10 |
 | Agent — Dashboard & Pipeline | 3 |
 | Agent — Client Management (CRM) | 12 |
 | Agent — Trip Builder & Management | 16 |
 | Agent — Proposal & Itinerary | 7 |
-| Agent — Payment & Card Management | 7 |
+| Agent — Supplier Payments (was Payment & Card Management) | 4 (was 7) |
 | Agent — Commission Tracking | 7 |
 | Agent — Leads | 5 |
 | Agent — Login Support / Account Admin | 7 |
 | Agent — Messaging & Templates | 6 |
 | Agent — Reporting | 8 |
 | Agent — Agent Profile & Settings | 5 |
-| **Agent total** | **93** |
-| **Platform total** | **~172 screens** |
+| **Agent total** | **90** (was 93) |
+| **Platform total** | **~162 screens** (was ~172) |
 
 These counts include states, modals, and confirmation screens that meaningfully change what the user sees. They do not count every individual tab within a single screen.
+
+> **Amended 2026-10-16 — ten screens fewer.** §2.4's seven client card screens are retired,
+> and §3.6 drops three of its seven (3.6.3, 3.6.4, 3.6.7), so the platform is about 162
+> screens, not 172. The client's pay button and "I've paid" are parts of 2.2.3, not new
+> screens. Retired and removed screens keep their numbers and headings below as a record.
+> Other docs and CLAUDE.md that say "172 screens" are now out of date by ten.
 
 ---
 
@@ -78,7 +84,7 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 
 #### 2.0.1 App Subdomain Public Landing
 **Purpose:** Greet anonymous visitors at app.story-tail.com and direct them into the right next action.
-**Primary elements:** Brand hero (rotating destination imagery); single-sentence value prop ("Your Story-Tail Adventures portal — view trips, authorize payments, and explore your next adventure"); "Sign in" CTA; "Create an account" CTA; "Take a quick tour" link; "Browse trip ideas" link (to Public Search Landing); footer with link to the marketing site and legal pages.
+**Primary elements:** Brand hero (rotating destination imagery); single-sentence value prop ("Your Story-Tail Adventures portal — view trips, authorize payments, and explore your next adventure"; *amended 2026-10-16: "authorize payments" goes with §2.4, for example "view trips, stay close to your advisor, and explore your next adventure"*); "Sign in" CTA; "Create an account" CTA; "Take a quick tour" link; "Browse trip ideas" link (to Public Search Landing); footer with link to the marketing site and legal pages.
 **Key actions:** Sign in; register; browse anonymously; navigate to marketing site; tour.
 **Entry points:** Direct URL; marketing-site CTAs; email-footer links from Gyasi's outbound emails.
 **Related screens:** Login, Registration, Public Search Landing, About / How It Works.
@@ -226,10 +232,10 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Related screens:** Login.
 
 #### 2.1.6 MFA Setup Screen
-**Purpose:** Enable multi-factor authentication. MFA is optional for clients but strongly encouraged once they store a payment card; it is required for agents (see 3.1.6).
+**Purpose:** Enable multi-factor authentication. MFA is optional for clients but strongly encouraged once they store a payment card; it is required for agents (see 3.1.6). *(Amended 2026-10-16: clients never store a card now (§2.4 retired), so MFA stays optional and encouraged, with no card trigger.)*
 **Primary elements:** Explanation of MFA benefits; choice of MFA method (authenticator app, SMS, email); QR code or phone number entry; backup codes display; confirmation field.
 **Key actions:** Choose method; verify enrollment; download backup codes.
-**Entry points:** Security Settings (self-initiated); soft prompt after the client adds their first payment card.
+**Entry points:** Security Settings (self-initiated); soft prompt after the client adds their first payment card *(retired 2026-10-16 with §2.4)*.
 **Related screens:** Security Settings, MFA Challenge.
 
 #### 2.1.7 MFA Challenge Screen
@@ -432,6 +438,13 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 >
 > **Two new entities.** `payment_milestone` (Data-Model §9.5) and `testimonial` (§8.7), both documented before the migrations. The milestone is **a supplier payment schedule the client is kept informed about, not an invoice** — BRD §10.5 prohibits client-facing billing, so there is no merchant-of-record field, no "pay now", and no Stripe reference; the only client action near money stays §2.4's card *authorization*. `message_attachment` (§12.3) was also created, being the one P1 entity that had no migration.
 >
+> > **Amended 2026-10-16 — superseded in part.** §2.4's card authorization is retired. The
+> > client's only actions near money are now a milestone's pay button, which opens the
+> > SUPPLIER's own payment page (or a Travefy invoice that passes along supplier costs only),
+> > and "I've paid", which only posts a message (§2.2.3). The milestone is still not an
+> > invoice and Story-Tail is still never the merchant: no Stripe, and nothing is charged
+> > through this app.
+>
 > **Every derived label lives in one table per stack, compared by CI.** Two of the seven trip-status labels are *derived* — the enum has no "Final payment due" and no "Traveling now" — so the mapping exists in `web/lib/trips/status.ts` and `domain/trip/TripStatus.kt` and nowhere else. Six such tables now cover status, documents, threads, memories, status changes and destinations; `.github/scripts/check_copy_parity.py` compares 293 messages across 26 modules on every CI run. Copy that a traveler reads must not differ between the browser and the phone, and nothing else would catch it.
 >
 > **§5's four states are shell infrastructure, not per-screen work.** Four states × eleven screens × two stacks is 88 hand-written states and exactly how they drift. Web uses route-level `loading`/`error` boundaries plus one primitive set in `web/components/client/states.tsx`; native uses a single `Loadable<T>` sealed interface. `Unauthorized` is not decoration — an agent's `platform_user.client_id` is NULL, so every policy predicate here evaluates NULL for them and returns zero rows, which without that state renders as the friendly "no trips yet" empty state. That reads as data loss.
@@ -442,6 +455,10 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** Tap into upcoming trip; review pending actions; jump to messages; start a search.
 **Entry points:** Post-login; bottom nav "Home" on mobile.
 **Related screens:** Trip Detail, Itinerary Viewer, Messages Inbox, Search Landing.
+
+> **Amended 2026-10-16.** "Payment authorization requested" is no longer a kind of activity,
+> and the dashboard's "Authorize a card" CTA is removed on web, Android and iOS (§2.4 is
+> retired). A trip with a payment coming up points to that trip's payment timeline (§2.2.3).
 
 #### 2.2.2 All Trips List
 **Purpose:** Single place to find any trip — current, future, or past.
@@ -463,6 +480,37 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** Open itinerary; manage payments; view documents; message agent.
 **Entry points:** Dashboard hero card; All Trips List; deep link from email.
 **Related screens:** Itinerary Viewer, Card Authorization for Trip, Trip Document Library, Conversation Thread.
+
+> **Amended 2026-10-16 — pay links on the payment timeline, and "I've paid" (Gyasi, by
+> grilling; web, Android and iOS).** §2.4 is retired, so "manage payments" no longer means
+> authorizing a card, and Card Authorization for Trip drops out of the Related screens
+> above. The Payments tile now leads to the trip's **payment timeline** on this page, and
+> the timeline gains two things. Story-Tail still never takes a payment and never charges a
+> fee (BRD §10.5): the client pays each supplier directly, on the supplier's own site.
+>
+> **A pay button on a milestone that has a pay link.** The advisor can give each
+> `payment_milestone` one optional link (§3.6.1): the supplier's own payment page, or a
+> Travefy invoice link when the supplier has none. When a milestone has one, its row shows:
+>
+> - a button named from the milestone's label, such as **"Pay deposit"** or **"Pay final
+>   balance"**, which opens the link in a new tab on the web and in the browser on Android
+>   and iOS, never inside the app;
+> - the link's site name, such as `royalcaribbean.com`, so the client can see where they are
+>   going before they tap;
+> - one calm line, for example *"Paid directly to Royal Caribbean on their secure site."*
+>
+> A paid or waived milestone shows no button. A milestone with no link shows no button and
+> no empty space for one. Per Design-System §2: no countdowns, no "pay now" urgency, no red
+> unless a supplier date has truly passed. The client can only read a link; they can never
+> add or change one.
+>
+> **"I've paid", which only sends a message.** A milestone that is still open (scheduled or
+> overdue) offers a quiet "I've paid" text button. Tapping it posts a message in the trip's
+> thread (§2.2.7 / §2.6.2) for Gyasi to check, for example *"I've paid the deposit to Royal
+> Caribbean."*, and then says *"Thanks. Gyasi will check and mark it paid."* It **never**
+> changes the milestone. Only the advisor marks a payment paid (§3.6.5), once it is checked
+> with the supplier. The message is sent through `trip-message`, the same audited path as any
+> client message, so no new write path is added.
 
 #### 2.2.4 Itinerary Viewer (Day-by-Day)
 **Purpose:** Present the trip itinerary in the brand-aligned, day-by-day format.
@@ -523,6 +571,11 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** View proposal / view updated itinerary / authorize payment.
 **Entry points:** Push or email notification.
 **Related screens:** Trip Detail, Itinerary Viewer, Card Authorization.
+
+> **Amended 2026-10-16 — no "authorize payment".** §2.4 is retired, so this screen's
+> "authorize payment" action and its Card Authorization link go away on web, Android and
+> iOS. When a status change is about money, the CTA opens the trip's payment timeline
+> (§2.2.3) instead.
 
 
 > Built September 2026, as a **route rather than a sheet**, and saying rather less than the artboards do.
@@ -652,7 +705,29 @@ gate (2.0.6) sits in front of it rather than beside it.
 
 ---
 
-### 2.4 Payment & Card Authorization
+### 2.4 Payment & Card Authorization (Retired 2026-10-16)
+
+> **Amended 2026-10-16 — retired: the app never holds a card (Gyasi, by grilling).** All
+> seven screens, 2.4.1 to 2.4.7, are retired on web, Android and iOS. The specs and the
+> 2026-09-17 notes below stay only as a record of what was built and why. **Do not build
+> from them.** Stripe never gives back a full card number, so the advisor could never use a
+> stored card on a supplier's site; a vault that could show one costs far more than the
+> business can carry. Clients now pay each supplier through a pay link on the trip's payment
+> timeline (§2.2.3), and the advisor marks payments (§3.6). The four card tables
+> (`payment_card`, `card_authorization`, `authorization_request`, `card_use_event`) are
+> retired in Data-Model §9.1 to §9.4 and dropped; production held no rows in any of them.
+>
+> **Every door into this section goes away, on all three surfaces:**
+>
+> - the dashboard's "Authorize a card" CTA (§2.2.1);
+> - the Trip Detail Payments tile's link to 2.4.3 (§2.2.3); the tile now leads to the
+>   trip's payment timeline on the same page;
+> - 2.2.9's "authorize payment" action;
+> - 2.5.1's "Payment methods" row;
+> - the web rail's **Wallet** destination (§6.1), which was this section's home.
+>
+> The `/wallet` routes and the Compose wallet screens are removed with them, not left
+> disabled: a dimmed control says something is coming, and nothing is.
 
 > **Amended 2026-09-17, as the section was built.** Six of the seven screens ship; **2.4.2 Add
 > Card is deferred**, and with it the only thing in §2.4 that needs a Stripe account. The
@@ -906,6 +981,16 @@ gate (2.0.6) sits in front of it rather than beside it.
 > and from the parity map rather than left unreferenced, where the next reader would take
 > them for live copy. Only 2.5.6's payment-notification category is still disabled, and for
 > its own reason — no dispatcher exists — not because §2.4 is missing.
+>
+> > **Amended 2026-10-16 — §2.4 retired, so this reverses again.** Every CTA named above (the
+> > dashboard's, the Trip Detail Payments tile's link to 2.4.3, 2.2.9's) and 2.5.1's "Payment
+> > methods" row are removed on web, Android and iOS, not disabled: there is no card screen
+> > left to point at. In this section that means: 2.5.1 loses the row; 2.5.6's
+> > `payment_authorization` and `card_use` categories have nothing left to send (whether
+> > they are dropped or folded into another is settled when 2.5.6 is built; a payment link
+> > from Gyasi already arrives as a message); 2.5.10's closure warning drops "stored cards
+> > stop being usable", since none are stored; and 2.5.11's two held card questions are
+> > dropped, not restored. 2.1.6's "once they store a payment card" prompt goes the same way.
 
 #### 2.5.1 Account Overview / My Account
 **Purpose:** Hub for everything related to the client's account.
@@ -1200,6 +1285,19 @@ gate (2.0.6) sits in front of it rather than beside it.
 > the website counts page views anonymously, and `cookies.ts` says "cross-site trackers" and
 > lists the count. The toggles are still out. Whether an anonymous, cookieless count should
 > get an opt-out switch is an open question, not a settled no.
+>
+> **Amended 2026-10-15: Google Analytics, opt-in, and the Analytics switch is back.** The
+> website now also runs Google Analytics through Firebase (`components/FirebaseAnalytics.tsx`),
+> web only. It sets cookies, so it waits for a yes: a banner asks once
+> (`components/AnalyticsConsentBanner.tsx`, not in the design project), and this screen draws
+> the artboard's **Analytics** row as a switch over the same stored answer
+> (`lib/analytics-consent.ts`). Essential and Marketing stay out: one is not a choice and the
+> other does not exist. Nothing is downloaded from Google before a yes; Google gets the same
+> redacted URL Vercel does (`redactAnalyticsUrl`), never `/agent/*`, with Google signals and ad
+> personalization off; turning it off deletes the `_ga` cookies. With no
+> `NEXT_PUBLIC_FIREBASE_*` config the banner and switch do not render. The statement stays,
+> reworded to be true on both the website and the app, which still runs no analytics; the
+> cookieless Vercel count still has no switch.
 >
 > **The export cannot include the document-access trail.** Every signature from
 > `trip-document-url` writes an `audit_event` (`document.url_signed`), but `audit_event` is
@@ -1853,6 +1951,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > deferred to §3.9**, where it already exists as 3.9.7 ("Same as 3.3.11"); it is the
 > riskiest write in the section and belongs next to the account-admin tools it shares a
 > screen with. The roster's row menu names it with its reason rather than dropping it.
+> **Built 2026-10-16 with §3.9's PR 2**: see the merge note under §3.9.7.
 >
 > **`client.lifetime_value_cents` is not what the money column reads, and the reason is a
 > defect in this document.** Data-Model §6.1 calls the column "Computed; cached for
@@ -1987,7 +2086,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 
 #### 3.3.8 Client Activity Log
 **Purpose:** Audit-style timeline of significant events for this client.
-**Primary elements:** Timeline (logins, payment authorizations, status changes, agent actions); filter.
+**Primary elements:** Timeline (logins, payment authorizations, status changes, agent actions); filter. *(Amended 2026-10-16: "payment authorizations" are gone with §2.4; pay link changes and paid marks (§3.6.6) take their place in the trail.)*
 **Key actions:** Filter; tap event for detail.
 **Entry points:** Client Detail.
 **Related screens:** Audit Event Detail.
@@ -2276,6 +2375,13 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > > `next_unpaid_due_date`, so the summary line and the chip above it cannot contradict
 > > each other.
 
+> **Amended 2026-10-16 — no card on this screen (§3.6 reshaped).** The "request card" quick
+> action in the Primary elements line is gone for good, not waiting on §3.6: there is no card
+> to request. The at-a-glance grid's **"card on file"** row is removed on the web and the
+> phone, since no card is ever on file. The Payments tab becomes §3.6.1 Trip Payments on the
+> web (milestones with their pay links, Mark paid, Send link). On the phone it stays
+> read-only and may show each milestone's link site name and status; no write moves there.
+
 #### 3.4.3 Create New Trip — Type Selector
 **Purpose:** Choose what kind of trip to build.
 **Primary elements:** Trip-type tiles (Cruise, All-Inclusive Resort, Multi-Destination, Group, Custom); template option ("Start from a template"); client picker; "Next" CTA.
@@ -2551,7 +2657,7 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Primary elements:** Schedule rows (date, amount, paid Y/N, paid date); reminder cadence toggle.
 **Key actions:** Add row; edit; trigger reminder.
 **Entry points:** Trip Detail "Payments".
-**Related screens:** Card Use Log, Conversation Thread.
+**Related screens:** Card Use Log, Conversation Thread. *(Card Use Log is now Payment History, 3.6.6; see the 2026-10-16 note below.)*
 
 > **Amended 2026-09-29, as the screen was built.**
 >
@@ -2586,6 +2692,23 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > yet. The control renders disabled with its reason — the call §3.4.2's "Account admin" tab
 > got, since §3.10 is a real planned section.
 >
+> > **Amended 2026-10-14 (§3.10 Stage 2 grilling, Gyasi).** "Remind the client" goes live.
+> > The schedule draws ONE button in its header, not one per row, so it reminds about the
+> > **next unpaid milestone in due-date order**, the one the Overview sidebar calls "next":
+> > it opens that trip's thread (or starts it) with the template picker open on Payment
+> > reminder, and `{{payment.label}}`, `{{payment.amount}}` and `{{payment.dueDate}}` fill
+> > from that milestone. `payment.amount` is what is still OWED on it (amount less paid), the
+> > number a reminder is about. With nothing left unpaid the button stays off and says so.
+> > The money is paid to the supplier, never to Story-Tail (BRD §10.5), and the starter copy
+> > says so. **The reminder cadence toggle stays off**: automatic reminders need a scheduler
+> > that sends on the advisor's behalf, and they matter most once email exists (Stage 4).
+> >
+> > > **Amended 2026-10-16 — the reminder carries the pay link.** The Payment reminder
+> > > template gains `{{payment.link}}`, filled from the same next unpaid milestone's pay
+> > > link (below). When that milestone has no link, the token is flagged missing like any
+> > > other (§3.10.3): "Insert as-is" is off and Send refuses while it is left in, so the
+> > > advisor adds the link first or takes the token out by hand.
+>
 > **Removing a payment is a hard delete.** `payment_milestone` is not on Data-Model §20.1's
 > soft-delete list, has no `archived_at`, and nothing references it — unlike §3.4.4's
 > components, which `itinerary_activity.component_id` points at. The copy says so rather
@@ -2594,6 +2717,29 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > **No "amount owing" anywhere in the copy.** BRD §10.5 prohibits client-facing billing, so
 > these rows describe what a *supplier* expects, never a bill from us. "Due" is the
 > supplier's date and "on file" is money we have a record of.
+
+> **Amended 2026-10-16 — a pay link per milestone (Gyasi, by grilling; web only).** Each
+> schedule row gains an optional **pay link** field: the supplier's own payment page, or a
+> Travefy invoice link Gyasi makes when the supplier has none. One link per milestone, not
+> per booking, since one trip can have two suppliers. The rules:
+>
+> - **`https://` only.** Anything else is refused on save, on the web and again on the
+>   server.
+> - **Advisor only.** Only the advisor adds, changes or removes a link. Clients read it on
+>   their payment timeline (§2.2.3) and can never write it.
+> - **Audited.** Every add, change or removal writes an `audit_event` row with the old and
+>   new value, because a swapped link could send a client's money to the wrong place. Those
+>   rows are what Payment History (§3.6.6) shows.
+> - **Shown as its site name** (for example `royalcaribbean.com`) in the row, with the full
+>   address on hover.
+> - **A Travefy invoice may only pass along supplier costs**, never a planning, consultation
+>   or service fee (BRD §10.5). The app stores the link only; what is on the invoice is
+>   Gyasi's to keep right in Travefy.
+>
+> Marking a row paid stays `agent_set_milestone_paid`, now with an optional confirmation or
+> reference number and note (§3.6.5). The 2026-09-29 note above about
+> `wallet/authorize/[tripId]` reading `total_paid_cents` is history: that route is retired
+> with §2.4. The Related screens line's Card Use Log is now §3.6.6 Payment History.
 
 #### 3.4.16 Cancel / Archive Trip
 **Purpose:** Mark a trip as cancelled, with reason and refund tracking.
@@ -2627,6 +2773,10 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > remaining lines are derived from the trip and verified against behaviour — the dialog says
 > commission will drop by $1,318 and the dashboard figure then drops by exactly that.
 >
+> > **Amended 2026-10-16.** There are no card authorizations any more (§2.4 retired, §3.6
+> > reshaped), so the dialog drops the authorization line altogether. Pay links on the
+> > trip's milestones stay as they are; cancelling does not change them.
+>
 > **Not built: the supplier-side action checklist** named above. It needs per-supplier
 > cancellation terms, which nothing stores, and §3.7's `payment_terms` has the same gap.
 > The dialog says plainly that cancelling tells no supplier rather than drawing an
@@ -2636,6 +2786,25 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > already has a producer and the roster already excludes archived trips unconditionally;
 > cancelling and archiving are different states, and the seed carries a fixture that is
 > archived-but-completed precisely so the two exclusions cannot be confused.
+>
+> **Amended 2026-10-12 (§3.7 Stage 5): cancelling offers to close the trip's open
+> commission.** A cancelled trip's Expected and Invoiced ledger lines used to stay open: the
+> ledger kept showing them as owed and statement matching kept offering them. The dialog now
+> lists those lines (supplier, status, amount; up to 100) under one checkbox, "Mark these 2
+> lines as Lost" ("Mark this line as Lost" for one), **checked by default when cancelling**
+> (Gyasi, 2026-10-12). Received, Disputed, Lost and removed lines are never touched. The save
+> sends each line at the version listed, and only lines still as listed are closed, in the
+> cancel's own transaction with an audit row each. When any lines were named, a receipt stays
+> on screen: it leads with "Trip cancelled." (or "Details saved."), then how many were marked
+> Lost, how many had changed since the page loaded and were left alone, and any the answer
+> did not account for, which it never claims as closed. The checkbox also appears on "Save
+> details" for a trip already cancelled, which is how a trip cancelled before this shipped is
+> cleaned up, but **unchecked** there: a line still open on a cancelled trip was most often
+> reopened on purpose, and fixing a refund note must not lose it again (review, 2026-10-12).
+> Moving a trip back out of Cancelled reopens nothing (each line is reopened from 3.7.3), and
+> a late payment still lands, because 3.7.6's Resolve offers Lost lines. This is the
+> prototype's "Commission expectation removed" made true of the ledger; the forecast line
+> above already was.
 
 ---
 
@@ -2692,56 +2861,91 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 
 ---
 
-### 3.6 Payment & Card Management (Agent)
+### 3.6 Supplier Payments (Agent)
 
-#### 3.6.1 Card Vault (Per Trip)
-**Purpose:** Show authorized cards for the trip.
-**Primary elements:** Card list (brand + last 4, nickname, authorized spend remaining, expires); "Request authorization" CTA.
-**Key actions:** Request authorization; view card detail; reveal PAN (audited); log a use.
-**Entry points:** Trip Detail "Payments".
-**Related screens:** Request Card Authorization, Reveal Card Number, Log Card Use.
+> **Amended 2026-10-16 — §3.6 reshaped: the app never holds a card (Gyasi, by grilling).**
+> This section was "Payment & Card Management". It planned a card vault per trip and a
+> 3.6.4 Reveal Card Number "via Stripe's API". That screen cannot exist: Stripe never gives
+> back a full card number for a stored card, only the brand, last 4 and a fingerprint, and
+> there is no reveal. The services that can show a number to a person cost about $127 a
+> month (PCI Vault) up to about $1,000 a month (VGS, Basis Theory, Evervault), and Gyasi
+> cannot carry that. Stripe Vault and Forward only posts a card to a short list of approved
+> supplier APIs and never shows a number to anyone.
+>
+> **So the ruling is: the app never holds a card.** No vault, no Stripe, no tokens, no
+> reveal, in P1 and until a new decision. Stripe leaves the stack. Clients pay each supplier
+> themselves, through a **pay link** on each `payment_milestone`: the supplier's own payment
+> page, or a Travefy invoice link Gyasi makes when the supplier has none. One optional link
+> per milestone. Only the advisor adds, changes or removes a link, it must be `https://`,
+> and every change writes an `audit_event` row, because a swapped link could send a client's
+> money to the wrong place. Only the advisor marks a milestone paid. A Travefy invoice may
+> only pass along supplier costs, never a planning, consultation or service fee (BRD §10.5);
+> the app stores the link and nothing about what is on the invoice.
+>
+> **Screens:** 3.6.1 Trip Payments, 3.6.2 Send Payment Link, 3.6.5 Mark Paid and 3.6.6
+> Payment History stay. 3.6.3, 3.6.4 and 3.6.7 are removed. The numbers are kept as they
+> were so links from other docs and commits still land in the right place. The client side
+> of this (the pay button and "I've paid") is under §2.2.3, and §2.4's card screens are
+> retired.
+>
+> **Web only, no phone treatment, like §3.7.** The phone's Trip Detail Payments tab
+> (§3.4.2) stays read-only; it can show a milestone's link site name and status, and every
+> write here lives in a browser. The artboards in
+> `design/source-prototype/screens/agent-payment.jsx` are redrawn first, and building waits
+> for Gyasi's OK on them.
 
-#### 3.6.2 Request Card Authorization
-**Purpose:** Send the client a secure link to authorize a card for this trip.
-**Primary elements:** Spending limit input; expiration date; personal note to client; preview of message; "Send request" CTA.
-**Key actions:** Send.
-**Entry points:** Card Vault "Request authorization".
-**Related screens:** Authorization Request Sent.
+#### 3.6.1 Trip Payments
+**Purpose:** One place to see and manage how a trip's suppliers get paid: every milestone, its pay link, and where it stands.
+**Primary elements:** Milestone list in due-date order (label, supplier, due date, amount due, amount paid, status chip: scheduled, paid, waived or overdue); per milestone, the pay link shown as its site name (for example `royalcaribbean.com`) with the full address on hover, or "No pay link yet"; per row actions; a short note that clients pay suppliers directly and Story-Tail never charges a fee.
+**Key actions:** Add, change or remove a pay link (https only, audited); mark a milestone paid (3.6.5); send a milestone's link to the client (3.6.2); open the payment history (3.6.6).
+**Entry points:** Trip Detail "Payments" tab (§3.4.2); the §3.4.15 payment schedule table; the worklist's "Payments to settle" rows (§3.2.1, web), which open the trip.
+**Related screens:** Send Payment Link, Mark Paid, Payment History, Trip Payment Schedule (3.4.15).
+
+> 3.6.1 and §3.4.15 read the same `payment_milestone` rows. §3.4.15 is where the schedule
+> itself is shaped (label, amount, due date); this screen adds the link and the money side.
+> Whether they ship as one tab or two is for the redrawn artboard to settle, not a reason
+> to keep two copies of the list in step.
+
+#### 3.6.2 Send Payment Link
+**Purpose:** Send the client a milestone's pay link in the trip's message thread, so they can pay the supplier when it suits them.
+**Primary elements:** Milestone picker (defaults to the one it was opened from); the Payment reminder template (§3.10.3) merged with that milestone, including `{{payment.link}}`; editable message preview; "Send" CTA.
+**Key actions:** Edit the message; send.
+**Entry points:** Trip Payments row "Send link"; §3.4.15 "Remind the client".
+**Related screens:** Trip Payments, Conversation Thread (Agent View) (3.10.2), Template Picker (3.10.3).
+
+> This is the §3.4.15 "Remind the client" flow pointed at one milestone: it opens the trip's
+> thread with the picker on Payment reminder. A milestone with no link leaves
+> `{{payment.link}}` flagged as missing, like any other missing field, so it cannot be sent
+> by accident. The message in the thread is the record; nothing else is stored.
 
 #### 3.6.3 Authorization Request Sent
-**Purpose:** Confirm the request and track state.
-**Primary elements:** Confirmation; pending status; option to resend.
-**Key actions:** Resend; back.
-**Entry points:** Request Card Authorization.
-**Related screens:** Card Vault.
+**Removed 2026-10-16.** There is no card authorization to request. The payment link message in the trip thread (3.6.2) is its own record, so there is nothing separate to track.
 
 #### 3.6.4 Reveal Card Number (Audited)
-**Purpose:** One-time-reveal of the card PAN for use on a supplier portal — every reveal is audited.
-**Primary elements:** Justification field (required: supplier name, amount, reason); MFA step-up confirmation; revealed PAN displayed for limited time with copy button; auto-hide countdown.
-**Key actions:** Reveal; copy; close.
-**Entry points:** Card Vault "Use card".
-**Related screens:** Log Card Use.
+**Removed 2026-10-16.** Stripe never returns a full card number for a stored card, and a vault that shows one to a person costs more than the business can carry. The app holds no card at all, so there is nothing to reveal.
 
-#### 3.6.5 Log Card Use
-**Purpose:** Record that a card was used to pay a supplier.
-**Primary elements:** Supplier; amount; date; reference number; note; receipt upload (optional); "Log" CTA.
-**Key actions:** Log.
-**Entry points:** Reveal Card Number flow; Card Vault.
-**Related screens:** Card Use Log.
+#### 3.6.5 Mark Paid
+**Purpose:** Record that a supplier milestone has been paid. Only the advisor does this.
+**Primary elements:** Milestone summary (label, supplier, amount due); amount paid; date paid; confirmation or reference number (optional); note (optional); "Mark paid" CTA. A waived milestone is set from the status, not here.
+**Key actions:** Mark paid; cancel.
+**Entry points:** Trip Payments row "Mark paid"; a client's "I've paid" message in the thread (§2.2.3), which the advisor checks with the supplier first.
+**Related screens:** Trip Payments, Payment History.
 
-#### 3.6.6 Card Use Log (Per Trip / Per Card)
-**Purpose:** Read-only audit log of every card use.
-**Primary elements:** Event list; filter by card or trip; export.
-**Key actions:** Filter; export.
-**Entry points:** Card Vault; Trip Detail.
-**Related screens:** Audit Event Detail.
+> Writes through `agent_set_milestone_paid`, the same path §3.4.15 already uses, so it is
+> the only thing that can move `trip.total_paid_cents`. A client's "I've paid" never
+> changes the record; it is a message for the advisor to check.
+
+#### 3.6.6 Payment History
+**Purpose:** A read-only record, per trip, of every time a milestone was marked paid and every time a pay link was added, changed or removed.
+**Primary elements:** Event list (when, who, milestone, what changed; for a link, the old and new site name); filter by milestone.
+**Key actions:** Filter; open the milestone.
+**Entry points:** Trip Payments "History"; Trip Detail "Activity" tab.
+**Related screens:** Trip Payments, Client Activity Log (3.3.8).
+
+> Read from `audit_event` rows, which every link change and paid mark writes. No new table.
 
 #### 3.6.7 Set or Update Spending Limit
-**Purpose:** Modify the spending limit on an existing card authorization (subject to client re-consent).
-**Primary elements:** Current limit; new limit; note; re-consent required indicator; "Request update" CTA.
-**Key actions:** Send re-consent request.
-**Entry points:** Card Vault "Adjust limit".
-**Related screens:** Authorization Request Sent.
+**Removed 2026-10-16.** Spending limits belonged to card authorizations, which are retired with §2.4.
 
 ---
 
@@ -2754,12 +2958,71 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Nav "Commissions"; Agent Dashboard.
 **Related screens:** Commission List.
 
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 1).** Built on the web. No phone
+> treatment: Commission is not one of §6.6's four agent tabs and the design has no phone
+> artboards for §3.7 (`mobileScreens={null}`).
+>
+> **The four tiles are the prototype's, not the list above** (Gyasi, 2026-10-11).
+> `A371_CommissionDashboard` draws YTD received, Expected · 90d, At risk and Avg rate; the
+> line above names this month earned, this month received, YTD and pipeline forecast. The
+> prototype won, and the two tiles that could be read two ways were settled before any code:
+>
+> - **YTD received** is money that ARRIVED this calendar year in the agent's time zone,
+>   compared with the same window a year earlier (Jan 1 to today's date last year, not the
+>   whole of last year). Ledger grain.
+> - **Expected · 90d** is TRIP grain, from `trip.total_commission_cents`: booked trips
+>   starting in the next 90 days plus every trip in progress. Not ledger lines — most booked
+>   trips have no line yet, because they have not been invoiced.
+> - **At risk** is the UNPAID GAP on disputed lines, `expected − fee − received`, never below
+>   zero. Not their full expected amount: money that already arrived is not at risk.
+> - **Avg rate** is expected over gross, weighted by gross, across the same lines YTD sums.
+>
+> So this screen reads both numbers Data-Model §10.1 keeps apart — the trip-grain forecast
+> and the line-grain ledger — and the tile labels say which is which. **Only At risk is a
+> link** (to the ledger filtered to Disputed), because it is the one drill that lands on
+> exactly the lines it sums. "Status breakdown" is not a separate element: the ledger's five
+> chip counts are it.
+>
+> **Import CSV and Export render disabled with their reason.** Import is §3.7.5. Export waits
+> for §3.7.3: a ledger download carries every client's name, Data-Model §18.3 audits any bulk
+> export of client data, and the audit record needs the Edge Function the first commission
+> write brings. **Added, not drawn:** a Dashboard / Ledger view strip, the shape §3.2 uses for
+> several views under one rail destination; §3.7.6 and §3.7.7 join it when they ship.
+
 #### 3.7.2 Commission List
 **Purpose:** All commission entries.
 **Primary elements:** Filters (supplier, status, trip, date range); columns (trip, client, supplier, gross, rate, expected, status); export.
 **Key actions:** Filter; export; tap entry.
 **Entry points:** Commission Dashboard; Trip Detail.
 **Related screens:** Commission Detail.
+
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 1).** Built on the web as the
+> **ledger**, the name the artboard (`A372_CommissionList`, "Commission ledger") and the
+> schema use. One row per commission LINE, not per trip.
+>
+> **Five status chips, where the prototype draws four.** It has no Lost, and
+> `commission_status` has five values; a line lost to a cancellation would have no way back
+> onto the screen. Checkboxes, and none ticked means every status — the ledger opens on all
+> of it. **Filters** are status, supplier (only suppliers that appear in the agent's own
+> ledger) and travel dates on the trip's start date; "trip" is not a control but a URL
+> parameter, set by **Trip Detail's cost card**, which links here and shows a removable
+> "One trip" chip.
+>
+> **Lines on archived trips stay.** A commission line is a tax record (Data-Model §18.5
+> keeps it even through erasure), so archiving a trip does not remove it from the ledger or
+> the dashboard's totals; its title is plain text rather than a link, because the trip page
+> will not open.
+>
+> **Stage 1 is read-only.** "Tap entry" is §3.7.3 (Stage 2) and the page says so under the
+> table. **Export renders disabled with its reason**, for the audit reason §3.7.1's note
+> gives, and ships with §3.7.3.
+>
+> **Amended 2026-10-11, Stage 2.** Each row now opens its line (3.7.3), archived trip or not.
+> **Export is live**: it downloads exactly the filtered ledger, every page of it, in exact
+> cents (the screens stay whole dollars), and each download writes one audit record with its
+> filters and row count in the same database call that returns the rows (Data-Model §18.3).
+> Notes are not exported. Cells that start like a spreadsheet formula are neutralised.
+> **"Add line"** (3.7.4) sits beside it.
 
 #### 3.7.3 Commission Detail / Edit
 **Purpose:** View and edit a single commission record.
@@ -2768,12 +3031,49 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Commission List.
 **Related screens:** Trip Detail.
 
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 2).** Built on the web, from
+> `A373_CommissionDetail`. Departures, each on purpose:
+>
+> - **Expected is a read-out, not an input.** It is always gross × rate, computed by the
+>   server; an editable box whose value is discarded would misstate what Save does.
+> - **Payment terms are a choice plus a number of days** (Gyasi, 2026-10-11): after travel
+>   or at booking, and how many days. The aside's "Expected hit" date comes from them — the
+>   trip's end date or first booking, plus the days — and says why when there is no date yet.
+> - **Mark received is its own form** (amount, processing fee, date, received or disputed)
+>   and the only way a line reaches received or disputed. It shows expected − fee − received
+>   as it is typed and suggests Disputed when that leaves a shortfall. The date cannot be in
+>   the future.
+> - **"Link Inteletravel row" renders disabled with its reason** until §3.7.6. The reference
+>   itself is editable by hand.
+> - **Added: "Remove line"**, offered only if the line was never invoiced, paid or given an
+>   Inteletravel reference (Gyasi, 2026-10-11). A set-once stamp remembers, so editing a line
+>   back to Expected does not make it removable again. Removal hides the line and keeps the
+>   record; it is audited.
+> - **Moving a Received or Disputed line back** to Expected, Invoiced or Lost clears its
+>   recorded payment, so the form shows a warning and a **required** "clear the recorded
+>   payment" checkbox; the server refuses the change without it.
+> - Trip and client are not fields: a line belongs to the trip it was entered against. Both
+>   sit in the header, with the trip one click away (unless archived).
+>
+> Every write records its audit entry in the same database transaction as the change.
+
 #### 3.7.4 Add Commission Entry
 **Purpose:** Manually add a commission expectation (e.g., for trips entered without API source).
 **Primary elements:** Same fields as Commission Detail.
 **Key actions:** Save.
 **Entry points:** Commission List "Add"; Trip Detail.
 **Related screens:** Commission Detail.
+
+> **Amended 2026-10-11, on shipping this screen (§3.7 Stage 2).** A **page**, where
+> `A374_AddCommission` draws a modal — the precedent 3.4.3 New Trip set. Its first field,
+> "Linked trip", is a trip search that lands on `?trip=`; Trip Detail's cost card links
+> straight there. With the trip fixed, **picking a supplier fills in what it knows**, into
+> fields not yet typed in: the supplier's usual rate and terms, then — if the trip has
+> bookings that name that supplier — their summed cost as gross and their rate. A new line
+> starts Expected or Invoiced; it is never created as paid.
+>
+> **Production has no suppliers yet**, and no screen creates one. Gyasi's list loads by
+> migration (decided 2026-10-11); until then the form says there is nothing to file against.
 
 #### 3.7.5 Inteletravel CSV Import
 **Purpose:** Bulk-import the periodic commission statement from Inteletravel.
@@ -2782,6 +3082,23 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Commission Dashboard; Reconciliation View.
 **Related screens:** Reconciliation View.
 
+> **Amended 2026-10-12, on shipping this screen (§3.7 Stage 3).** Built on the web at
+> `/agent/commission/import`; no phone treatment (§3.7 has no phone artboards).
+>
+> - **CSV only** (Gyasi, 2026-10-11): Inteletravel gives a CSV download. The prototype's
+>   "CSV / XLSX · ≤ 10 MB" becomes CSV up to 512 KB, and an Excel workbook is named as one and
+>   refused with how to save it as CSV. Windows-1252 files (Excel's "CSV") read correctly.
+> - **The two cards are two steps.** Upload stores the file and its rows; the statement then
+>   has its own page, where both cards show and the column map is filled in from the
+>   advisor's last statement first, then from the header names. Each column shows a sample
+>   value, and an Auto or Manual chip as the artboard draws.
+> - **A "paid on, for every row" date** appears when no column holds the paid-on date.
+> - **Added: a list of past statements** under the cards (not in the artboard), the way back
+>   to one left in review. The same file cannot be imported twice; discarding a statement
+>   frees it.
+> - **Nothing in the ledger changes at this step.** "Import 38 rows" reads the rows and runs
+>   the matcher; the ledger changes only when the statement is marked reconciled (3.7.6).
+
 #### 3.7.6 Reconciliation View
 **Purpose:** Match imported Inteletravel rows against expected commissions in the platform.
 **Primary elements:** Side-by-side list (Inteletravel row | platform match | confidence); auto-match indicator; manual-match action; unmatched rows section.
@@ -2789,12 +3106,62 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Entry points:** Post-import; Commission Dashboard.
 **Related screens:** Commission Detail.
 
+> **Amended 2026-10-12, on shipping this screen (§3.7 Stage 3).** Built on the web at
+> `/agent/commission/import/<id>`, as A376_Reconciliation draws it: one table (Inteletravel
+> row | ledger match | confidence | amount | action), the rows that need a decision first.
+>
+> - **Matching, strongest first:** the row's reference is already on a line (high); it is a
+>   booking's supplier confirmation number and that trip has one line for the supplier
+>   (high); the supplier, the traveler's last name and an amount within a quarter of
+>   expected all agree (medium, a suggestion the advisor must confirm). A ledger line can be
+>   paid by one row only; a second row for the same booking is flagged as a duplicate (Gyasi,
+>   2026-10-11: one row per booking).
+> - **A row matching a line already Received or Disputed never changes it** (Gyasi,
+>   2026-10-11). It shows as already recorded, with any difference named. This is also why
+>   there is no MFA step-up here: Data-Model §18.4 asks for one only when an import changes a
+>   paid line.
+> - **The warning line is computed, not asserted:** the shortfall (expected − fee − received)
+>   and, against the line's booked gross, the rate the payment works out to: the artboard's
+>   "Sandals applied 14% not 15%".
+> - **Resolve is its own page** (the artboard draws the button only): use the suggestion,
+>   match a different unpaid line, create a new line on a trip the advisor picks (already
+>   paid from the row; Gyasi, 2026-10-11), or set the row aside.
+> - **"Mark as reconciled" is disabled, with its reason, while any row needs a decision.** It
+>   asks for confirmation, says how many payments it records and lines it adds, and applies
+>   everything in one transaction with an audit record per line. A line paid by hand since
+>   it was matched is left as the advisor recorded it. "Flag discrepancy" is the disputed
+>   status a short payment lands in.
+> - **Change columns** reopens the map on a statement in review (clearing its decisions);
+>   **Discard statement** throws it away before reconciling.
+
 #### 3.7.7 Commission Forecast / Pipeline View
 **Purpose:** Project commission revenue from pipeline.
 **Primary elements:** Forecast chart; pipeline breakdown by stage; confidence weighting per stage.
 **Key actions:** Adjust weighting.
 **Entry points:** Commission Dashboard.
 **Related screens:** Pipeline.
+
+> **Amended 2026-10-13, on shipping this screen (§3.7 Stage 4).** Built on the web at
+> `/agent/commission/forecast`, the fourth view under Commission; no phone treatment (§3.7 has
+> no phone artboards). A377_Forecast's two cards. Gyasi's rulings (2026-10-12):
+>
+> - **Every open trip** (inquiry, proposal, booked, traveling), whatever its dates. Its totals
+>   are the worklist's own (`agent_kpis`): the "Commission expected" tile shows the unweighted
+>   total and the confidence, which this screen's caption repeats under the weighted total. The
+>   artboard's "Next 12 months" chip reads "All open trips".
+> - **The stages are the four trip statuses**, weighted per Data-Model §7.4. The artboard's
+>   "Qualified" row is not a trip status and is not drawn.
+> - **"Adjust weighting" saves**, after a preview of each stage's new amount, and is audited.
+>   The same weights set the worklist's confidence, so it moves too. A save made from a page
+>   that is out of date is refused, not applied over someone else's change.
+> - **The cash-in calendar is the forecast by month**: each booking's weighted commission in
+>   the month its supplier should pay (after travel or at booking, plus the supplier's days);
+>   **60 days after the trip ends when no terms are on file**. Twelve months from the
+>   advisor's own current month, with Overdue (due before today) first and Later / No travel
+>   dates yet last when they hold money. A trip total set by hand, with no bookings behind it,
+>   is counted under No travel dates yet. Money already received on a trip's ledger lines comes
+>   off it, and the page says how much, so the calendar plus that note equals the forecast to
+>   the cent.
 
 ---
 
@@ -2901,6 +3268,133 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Client Account Management.
 **Related screens:** Client Detail.
 
+> **Ruled 2026-10-16 (grilled with Gyasi, "yes" to every recommendation). Web only.** The
+> phone's Client Detail gets nothing from §3.9; these are rare, careful desk tasks. Built in
+> two PRs: **PR 1** is 3.9.1 to 3.9.6 plus the invite, **PR 2** is merge (3.9.7 / 3.3.11).
+>
+> **Where it lives.** Client Detail's disabled "Account admin" tab becomes a live seventh tab:
+> A391's status panel (account, email, MFA, last sign-in, active devices) and its quick
+> actions, each opening A39x's confirm dialog. Login activity (3.9.6) is a section of that
+> tab, not its own page. Merge is a full page, `/agent/clients/[id]/merge` (A3311), opened by
+> Client Detail's Merge button and the tab's Merge action, because a field-by-field picker
+> needs room.
+>
+> **Security floor for every action.**
+> - Every §3.9 Edge Function refuses unless the advisor's session is **aal2**. Verify email and
+>   merge also need the second factor **within the last 15 minutes** (`requireRecentMfa`).
+>   An advisor with no factor sees "Set up two-step sign-in first" and a link to `/mfa/setup`.
+>   (Server-side MFA for every OTHER agent function is a separate follow-up; today only the
+>   web proxy nudges.)
+> - Ownership: the client must be the caller's and not `merged_into`, the same rule every
+>   agent write uses.
+> - Every action writes an `audit_event` row. Nothing a client can use to sign in (a link, a
+>   token hash, an OTP) is ever shown to the advisor, returned to the browser, logged, or put in
+>   an audit row. The server asks GoTrue to MAKE the link (`generateLink`) and mails it itself.
+> - **3 sign-in emails per client per hour** (reset, magic link and invite together), counted
+>   from `audit_event`. The button says why it is paused. Sending through our own mail means
+>   GoTrue's project-wide `email_sent` limit does not apply to these.
+>
+> **The actions.**
+> - **Client with no sign-in yet**: the tab says "Hasn't signed in yet" and offers only
+>   **Send an invite**. It creates their sign-in (`generateLink` type `invite`, carrying this
+>   client's `agent_id` and name) and mails our invite. Accepting it confirms the email, so the
+>   existing adoption trigger binds the new sign-in to this record. Refused when another
+>   unclaimed client has the same email, because adoption would then match nothing (the
+>   advisor is sent to Merge). This replaces the "arrives with §3.9.3" invite deferral.
+>   **It never binds a sign-in someone else made:** generateLink reuses an existing unconfirmed
+>   user, so the bind requires no password and only the email identity (pre-hijack guard,
+>   review 2026-10-16).
+> - **3.9.2 Send reset link** and **3.9.3 Send magic link**: our IONOS email (§3.10 Stage 4
+>   sender) names the advisor ("Gyasi sent you this link because you asked for help signing
+>   in. If you didn't ask, you can ignore it."). Links last **1 hour**, GoTrue's one
+>   `otp_expiry` for every email code (A392's "30 minutes" and A393's "15 minutes" were
+>   corrected). The link lands on a new `/auth/confirm` PAGE with one button, and the token hash
+>   is spent only when a person presses it (a server action calling `verifyOtp`), never on a
+>   GET, because mail scanners open every link and would use it up first (review 2026-10-16).
+>   Admin-made links are not PKCE, so `/auth/callback` cannot finish them. **Reset is
+>   hidden for a client whose only sign-in is Google or Apple** ("Signs in with Google");
+>   magic link still works for them.
+> - **3.9.4 Verify email**: requires a written note of how the advisor confirmed it (at least
+>   20 characters), kept in the audit row, which is written before GoTrue is called. Refused
+>   when the sign-in address and the record's address differ. **Refused when the email matches a DIFFERENT client
+>   record**: confirming an email fires the adoption trigger, which would bind this sign-in to
+>   that other record and its trips. The refusal points to Merge.
+> - **3.9.5 Lock** needs a reason (kept in `account.locked_reason`, never shown to the client).
+>   It **signs them out everywhere**: GoTrue ban (blocks sign-in and refresh), their
+>   `auth.sessions` rows deleted, and `requireUser` refuses a locked account on every Edge
+>   Function at once. A browser already signed in can still READ its own data until its access
+>   token expires (up to an hour); it cannot change anything. No email to the client: if
+>   someone else is in the account, an email would tip them off. **Unlock** reverses all of it
+>   and also needs a reason. A395's "Existing sessions remain" was corrected.
+> - **Sign out everywhere**, separate from Lock, for "I lost my phone": ends every session,
+>   audited, no fresh MFA.
+> - **3.9.6 Login activity**: **successful sign-ins only**, the last **90 days** (`auth_event`
+>   keeps everything for now; a retention job is a later follow-up). Date, device (parsed from
+>   the user agent) and IP. **No location**: there is no geo-IP service, adding one is a new
+>   vendor that receives client IPs, and the business is North America only (A396's Location
+>   column was removed, as §3.3's sessions note already did). Failed password attempts never
+>   open a session, so catching them would need GoTrue's audit log or an auth hook; deferred.
+>   **Flag** marks one sign-in as suspicious (highlighted, audited, can be cleared). It never
+>   locks anything by itself, because automation locks real clients out over hotel Wi-Fi. No
+>   row is highlighted automatically.
+> - **The locked client's message.** "This account is on hold." keeps its wording; its
+>   "Message Gyasi" link (to a `/support` page that never existed, and a locked client cannot
+>   sign in to message anyone) becomes **"Email Gyasi"**, a mailto to info@, on web and phone.
+>
+> **How sign-ins get recorded.** A trigger on `auth.sessions` INSERT (GoTrue opens one row per
+> sign-in by any method, password, OAuth, magic link or invite) writes a `login_success`
+> `auth_event` with the session's IP and user agent and sets `account.last_login_at`. Checked
+> 2026-10-16 that the hosted database grants `postgres` TRIGGER on `auth.sessions`, as it does
+> on `auth.users`, where the sign-up triggers already run.
+>
+> **Merge (PR 2), ruled now.** You pick the record to KEEP; the other becomes `merged_into`
+> pointing at it and is never deleted. **Everything** attached moves: trips (commission rides
+> with them), conversations, notes, companions (both links), documents, travel documents and
+> any retired card rows. The two general (no-trip) threads become one: the retired record's
+> messages move into the kept thread in time order and the empty thread closes. **Sign-ins:**
+> one moves if only the retired record has it; if both records have one, the kept record's
+> stays and the other is locked with the reason "Merged into <name>" (its email in the audit
+> row). **Fields:** each defaults to the kept value, falls back to the retired value when the
+> kept one is empty, and can be flipped; travel preference follows the same rule (one row per
+> client). The email is pinned to the surviving sign-in's email when there is one. The confirm
+> step shows the merged preview and counts ("3 trips, 2 conversations, 5 notes") with fresh
+> MFA; no typed name. **No undo**: the audit row keeps every field value from before, so a
+> mistake can be fixed by hand. **No email to the client.** A397's "trips & cards roll up" and
+> "Best done on desktop" stand (web only anyway).
+>
+> **Merge built 2026-10-16 (PR 2), on the web.** `/agent/clients/[id]/merge`, A3311. The record
+> in the URL is the one KEPT; `?with=` names the one merging in, and "Keep this one instead" is
+> the other record's own merge page. Without `?with=` the page lists likely duplicates in the
+> same book (same email, same phone digits, a similar name) and offers a search. Client
+> Detail's Merge button and the Account admin tab's Merge tile (also on the "Hasn't signed in
+> yet" card, the commonest duplicate) open it, and the "arrives with §3.9" deferral is gone.
+> Where the build differs from the artboard, and why:
+>
+> - SOURCE / TARGET read **"Merging in" / "Keeping"**, so the words say which record survives.
+> - Each detail is **one choice between the two values** (a radio pair), not the artboard's
+>   Source / Target / "Both → keep target" chips, because the ruling is "kept value, else the
+>   retired one, flippable". The artboard's **"Merge" chip for tags (a union) was not ruled**,
+>   so tags pick one side like every other detail. Only details that differ are drawn; the
+>   rest are one line ("4 more details are the same on both").
+> - "Preview merged record" and "Merge clients" became one **Review the merge** button: the
+>   confirm step IS the preview (the record you'll have, the counts, the sign-in plan, no undo,
+>   no email).
+> - The **card tables** the ruling lists were dropped by §3.6 (2026-10-16), so nothing of theirs
+>   is left to move. `testimonial` and `client_invite` also point at a client and move too; a
+>   live invite to the retired record is revoked.
+> - Refused with a sentence: keeping an **archived** record (restore it first), and a merge
+>   that would leave **more than 12 companions** (the existing cap). A companion that is the
+>   other record itself is closed by the merge.
+> - The general thread: the advisor's unread count carries over (a client message they had not
+>   read stays unread) without queuing a new push; the client's is not raised, so no reply
+>   email is queued. A locked sign-in's pending reply emails are cleared. A sign-in that moves
+>   over while locked stays locked, and the confirm step says so.
+>
+> **Owed by Gyasi before release:** point Supabase Auth's own mail (sign-up confirmation, the
+> client's own "Forgot password") at IONOS in the dashboard, as `docs/Email-Provider-Review.md`
+> Q3 already decided. The steps are in the PR 1 description. It does not block the build: the
+> emails an advisor triggers already go through our IONOS mail.
+
 ---
 
 ### 3.10 Messaging & Templates
@@ -2912,12 +3406,74 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Nav "Messages".
 **Related screens:** Conversation Thread (Agent View).
 
+> **Built 2026-10-13 (§3.10 Stage 1), on the web.** `/agent/messages`, master-detail from
+> `lg` as A3101_AgentInbox draws it: the list beside the open thread, one pane at a time below
+> `lg`. Gyasi's rulings (2026-10-13): **in-app first** (email is Stage 4, nothing here sends
+> one), and the artboard's "past SLA" is **Overdue: one business day, Sundays never count**,
+> so a day of rest never reads as late. A thread is overdue when the client spoke last and it
+> is past the end of the next business day after their first unanswered message, in the
+> advisor's zone. An internal note does not answer anyone. (Gyasi confirmed the edge cases on
+> 2026-10-21: a Monday 12:05 AM message is due at the end of Tuesday, about 48 hours, and an
+> 11:55 PM one about 24 hours.)
+>
+> - **Filters are links**, so a filtered inbox is a URL: Unread, Overdue, an Archived view,
+>   and a search over names, trips and every message body (notes included). The artboard's
+>   "By client" / "By trip" chips arrive as the filters Client Detail and Trip Detail link in
+>   with, shown as removable chips.
+> - **Bulk-archive** is a checkbox per row and one bar. The archive is the **advisor's own**
+>   (`conversation.agent_archived_at`): the client keeps the thread, and their next message
+>   brings it back to the inbox. `conversation.archived_at` would have removed it for them.
+> - **Doors that went live:** the rail's Messages, the worklist's "Recent messages" rows,
+>   Client Detail's Message button and its threads tab, and Trip Detail's Messages tab ("Open
+>   in Messages"). "Send a reminder" waits for templates (Stage 2). **Since Stage 2** the
+>   inbox header also links to the template library (§3.10.4), and Trip Detail's Payments
+>   "Remind the client" is live (§3.4's payments note).
+> - **No phone treatment yet**: Messages is one of §6.6's four agent tabs, and Stage 3 builds
+>   it (read and reply, internal notes too; Gyasi, 2026-10-13), artboards first.
+>
+> > **Stage 3 settled 2026-10-14 (grilling, Gyasi).** The phone's Messages tab: an inbox with
+> > visible search, Unread and Overdue chips, an Archived link and no bulk select; more threads
+> > load on scroll; pull to refresh and a reload on return (no live feed). The thread header
+> > carries the client, trip, an Overdue or "Reply by" chip, Open trip (or Open client) and
+> > Archive, which is the only archive on the phone (no swipe). A Reply / Note toggle sits above
+> > the box, with the web's dashed note look. No template picker. Client attachments by name
+> > only. The tab shows a badge of unread threads, and the Worklist, Client Detail and Trip
+> > Detail doors go live. `agent-message` joins `contracts/openapi.yaml`. The frames to draw
+> > are specified in `design/briefs/agent-messages-phone.md`.
+>
+> > **Built on the phone 2026-10-15 (§3.10 Stage 3).** Messages is the third live tab, with a
+> > badge of unread threads. Inbox (3.10m.1), thread (3.10m.2, Reply / Note) and new message
+> > (3.10m.3) follow `design/source-prototype/screens/agent-messages-mobile.jsx`, drawn locally
+> > from A3101/A3102. The Worklist's "Recent messages" rows, Client Detail's threads tab and its
+> > new "Message Kai" button, and Trip Detail's "Open in Messages" all open the thread (or a new
+> > one). The phone reads the same SQL as the web and writes through `agent-message`, whose
+> > three ops are now in `contracts/openapi.yaml` with generated Kotlin types. The traveler's
+> > and advisor's threads share one bubble and day separator (`ui/components/ChatParts.kt`).
+
 #### 3.10.2 Conversation Thread (Agent View)
 **Purpose:** Threaded message view from the agent side.
 **Primary elements:** Thread header (client, trip link); message bubbles; templated-reply picker; attachment; internal-note toggle (only agent sees); send.
 **Key actions:** Send; attach; insert template; add internal note.
 **Entry points:** Agent Inbox; Client Detail; Trip Detail.
 **Related screens:** Template Picker.
+
+> **Built 2026-10-13 (§3.10 Stage 1), on the web.** `/agent/messages/[id]`, A3101's right pane.
+> Bubbles swap sides from the traveler's view: the advisor's on the right. **An internal note
+> is a dashed, tinted card labelled "only you can see this"** every time, and it moves nothing
+> the client can read: not their inbox preview, not the time, not their unread count. A reply
+> moves all three. Opening a thread reads it (the advisor's unread count clears), and the
+> traveler's own count now clears when THEY open it, on web and mobile; until the advisor could
+> reply nothing raised that count, so nothing cleared it.
+>
+> - **"Message client"** (`/agent/messages/new`) goes straight to the client's live thread for
+>   that trip (or their general thread) when there is one, and otherwise starts it on send. A
+>   thread cannot start with an internal note: the client would see a thread with nothing in it.
+> - **Since Stage 2 (2026-10-14):** "Insert template" opens the picker (§3.10.3) from the reply
+>   box, in reply and note modes, and Send refuses a message that still holds a merge field.
+> - **Not yet:** attaching a file from the advisor's side, and
+>   opening the client's attachments, which are listed by name (nothing on the advisor's side
+>   can open a document yet). When the client has no login, the reply box says they will see it
+>   once they do.
 
 #### 3.10.3 Template Picker
 **Purpose:** Insert a templated message into a conversation or as a new email.
@@ -2926,6 +3482,37 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Conversation Thread "Insert template"; Send Proposal.
 **Related screens:** Template Library.
 
+> **Settled 2026-10-14 (§3.10 Stage 2 grilling, Gyasi), web only.** A dialog over the reply
+> box, as A3103 draws it: the list on the left, the preview on the right, merged with the
+> REAL client and trip of the thread it was opened from.
+>
+> - **Entry points:** the reply box's "Insert template", in reply mode AND internal-note mode;
+>   and Trip Detail's Payments tab "Remind the client" (see §3.4's payments note), which opens
+>   that trip's thread with the picker already open on Payment reminder. **Send Proposal is
+>   not an entry point yet**: proposals are §3.5's, and nothing there sends through a template.
+> - **The list** is grouped by category, A to Z inside each group, with one search box over
+>   names, tags and body text. A "Manage templates" link goes to the library.
+> - **Merge fields are a fixed set** (Data-Model §12.4). When one has no value (a general
+>   thread has no trip, an inquiry may have no dates, `payment.*` only fills from the Payments
+>   door), the preview names what is missing and **"Insert as-is" is off**. "Insert & edit"
+>   still works and leaves the raw `{{token}}` in the reply box, and **Send refuses while any
+>   token is left**, on the web and again in `agent-message`. A client never reads "your trip
+>   on ." or a raw token.
+> - **Inserting never replaces what was typed.** An empty box gets the template; a box with a
+>   draft gets it at the cursor.
+> - **No picker on the phone** (Stage 3): the phone's Messages tab replies and adds notes,
+>   and templates stay web-only.
+> - **What is sent is plain text.** The message stores the merged words only, with no link
+>   back to the template, so editing a template never changes a message already sent.
+
+> **Amended 2026-10-16 — `{{payment.link}}` joins the merge fields (§3.6 reshaped).** The
+> fixed set gains `{{payment.link}}`: the pay link on the same milestone that fills
+> `{{payment.label}}`, `{{payment.amount}}` and `{{payment.dueDate}}` (Data-Model §12.4). Like
+> the other `payment.*` fields it fills only from the Payments doors: §3.4.15 "Remind the
+> client" and §3.6.2 Send Payment Link. When the milestone has no link, the preview names it
+> as missing, "Insert as-is" is off, and Send refuses while the raw token is left in. The
+> link is inserted as the full `https://` address, so it is tappable in the client's thread.
+
 #### 3.10.4 Template Library
 **Purpose:** Manage reusable email/message templates.
 **Primary elements:** Template list grouped by stage (Lead Response, Proposal, Booking, Pre-Trip, Post-Trip, Payment Reminder); "Create new template" CTA.
@@ -2933,12 +3520,134 @@ These tools let the agent help less-technical clients with login issues.
 **Entry points:** Nav "Templates" (under Settings).
 **Related screens:** Template Editor.
 
+> **Settled 2026-10-14 (§3.10 Stage 2 grilling, Gyasi), web only.**
+> `/agent/messages/templates`, not `/agent/templates`, which is §3.4.13's trip templates. The
+> artboard draws it under the Messages tab, and the nav rail does not change (§6.4). The
+> doors are a "Templates" link in the inbox header and the picker's "Manage templates".
+>
+> - **Grouped by the seven categories** in Data-Model §12.4 (Lead response, Proposal,
+>   Booking confirmation, Pre-trip, Post-trip, Payment reminder, Other), with empty groups
+>   hidden. The artboard's merged "Pre / post" group is two groups.
+> - **Cards show "Last edited", not "Used 42×".** An honest count would need each message to
+>   store the template it came from, and messages store only their words.
+> - **Archive, never delete**, with an Archived view and Restore. The artboard's copy icon is
+>   **Duplicate**, which makes "Copy of …" in the same category.
+> - **Seven starters** arrive by migration for every advisor who exists when it deploys: lead
+>   response, proposal, booking confirmation, pre-trip 14 day, pre-trip 7 day, post-trip
+>   (a "welcome home" note; there is no survey) and payment reminder (paying the SUPPLIER,
+>   never us, BRD §10.5). Copying starters to an advisor added later waits for P3.
+
 #### 3.10.5 Template Editor
 **Purpose:** Compose or edit a template.
 **Primary elements:** Subject; body (rich text with merge fields); preview with sample data; tags.
 **Key actions:** Save; preview; archive.
 **Entry points:** Template Library.
 **Related screens:** Template Library.
+
+> **Settled 2026-10-14 (§3.10 Stage 2 grilling, Gyasi), web only.**
+> `/agent/messages/templates/new` and `/agent/messages/templates/[templateId]`, A3105's two
+> panes: the form on the left, a live preview on the right.
+>
+> - **Plain text, not rich text.** The artboard's body is a plain textarea and a chat bubble
+>   shows plain text. The column keeps its `body_markdown` name; rich text is decided with
+>   email in Stage 4.
+> - **No subject field until email.** In-app messages have no subject line. The column stays.
+> - **A category dropdown** beside the name: the artboard shows the category only in the
+>   breadcrumb, and something has to set it.
+> - **Merge fields are chips** that insert at the cursor. **An unknown token blocks Save** and
+>   is named (`{{client.firstname}}`, lowercase n, would never match anything).
+>   **Since 2026-10-16** the chips include `{{payment.link}}` (§3.10.3), and the fixed sample
+>   preview shows a made-up supplier address for it (for example
+>   `https://www.example-cruise.com/pay`), never a real one.
+> - **The preview uses a fixed sample** (Jordan Hayes, Nassau, Aug 12 – 19), never a real
+>   client: writing copy is no reason to put a real traveler's name on screen. The picker is
+>   where real data merges.
+> - **Tags are free-form**, suggesting tags already used. There is no tag filter; search
+>   covers tags.
+> - **Explicit Save, no auto-save.** Auto-save would change what the picker inserts while a
+>   template is half-written. Leaving with unsaved changes asks first.
+> - **Limits:** a name of 1 to 80 characters; a body no longer than one message (8,000), so a
+>   template can never be too long to send.
+> - **No audit rows.** Templates hold no client data, so they are outside Rule 3's sensitive
+>   tables; the messages they produce are recorded the usual way.
+
+#### 3.10.7 Message Notifications (§3.10 Stage 3b: web and Android built; iOS after Xcode)
+**Purpose:** Tell the advisor a client has written, on the web and the phone, and let them answer
+from the phone's notification.
+**Primary elements:** System notification (client, trip, first line); Reply and Mark read on the
+phone; a "Get notified when clients write" card in the inbox.
+**Key actions:** Reply (phone); open the thread; mark read; turn notifications on.
+**Entry points:** A new client message.
+**Related screens:** Agent Inbox; Conversation Thread (Agent View); Agent Notification
+Preferences (3.12.3).
+
+> **Settled 2026-10-15 (grilling, Gyasi). Built as Stage 3b, after the phone Messages tab.**
+> Frames: A3107 (web) and 3.10m.5 to 3.10m.8 (phone) in `design/source-prototype/screens/
+> agent-notifications.jsx`, drawn locally (the canonical design project is out of sync).
+>
+> - **Only a new client message notifies**, to its advisor. Never an internal note, never the
+>   advisor's own reply. Other events, and travelers' push, reuse the plumbing later.
+> - **Locked screen: the client's name only.** Unlocked: the trip and the first line.
+> - **Phone: Reply in the notification, plus Mark read.** A notification reply is always a reply,
+>   never a note. **Web:** browsers do not reliably offer a reply box in a notification, so a
+>   click opens the thread with the reply box ready; Mark read where the browser draws buttons.
+> - **A failed reply** reads "Didn't send. Tap to try again", and the words wait as a draft in
+>   that thread.
+> - **One notification per thread**, updated by the next message; reading the thread on any
+>   device clears it on every device. Signing out stops that device's notifications at once.
+> - **Rest hours:** silent 9pm to 7am in the advisor's zone and all of Sunday, then one 7am
+>   summary. The setting to change it arrives with §3.12.3.
+> - **Permission is asked from an inbox card**, never on launch.
+> - **Services:** Firebase Cloud Messaging for Android (a new SDK: security review first), the
+>   browsers' standard Web Push with our own keys for the web, Apple's push service directly for
+>   iOS. **Android and web first; iOS once Xcode is installed.**
+>
+> **Built (web, Stage 3b PR 1, 2026-10-15).** The queue is `push_outbox` (Data-Model §12.7),
+> filled by a trigger on the advisor's unread count, so none of Stage 1's audited writes changed.
+> `push-dispatch` runs every minute from pg_cron; `push-device` turns a browser on and off.
+> Choices made in the build, within the rulings above:
+>
+> - **Locked screen on the web is the system's call.** A browser cannot tell whether the screen
+>   is locked, so the web notification carries the trip and first line, and the operating
+>   system's own lock-screen privacy setting decides what shows. The phone (PR 2) applies the
+>   name-only rule itself.
+> - **"Not now" is per browser**, like the permission. A browser that was refused permission
+>   before never sees the card again, because the browser will not ask twice.
+> - **"Mark read" reads up to the message the notification named**, never further, so a newer
+>   message stays unread.
+> - **Reading clears the phone, not other browsers.** Browsers expect every push to show
+>   something, and Safari can revoke a subscription that sends silent ones, so no dismiss is
+>   sent to the web. A web notification already answered elsewhere is the advisor's to swipe.
+> - **An archived advisor is told nothing**, as they can read nothing.
+> - **A card number a client types** shows in a notification as "•••• 4242" only.
+>
+> **Built (Android, Stage 3b PR 2).** FCM carries only the thread id and a count; the phone
+> reads the name, trip and first line over its own session (fetch on receipt), and falls back
+> to "New message" if that read fails. Locked: "New message from Jordan Hayes · Unlock to read
+> it." Reply sends a reply (never a note) up to the message the notification showed; a failed
+> one says "Didn't send. Tap to try again" and its words wait as the thread's draft. Mark read
+> reads up to that message. Reading anywhere dismisses it on the phone, and the 7am summary
+> goes once nothing is unread. The summary on the phone says "…wrote while you rested": it
+> cannot tell when the messages came, so it never claims "overnight". The card's "Turn on" asks
+> Android 13+'s permission only then; after two refusals the card offers "Open settings"
+> instead. A failed reply's draft stays saved until a send succeeds and keeps its message id, so
+> resending it can never reach the client twice. Notification state is excluded from backups,
+> and sign-out clears it.
+> - **Only the browsers' own push services** may be a device's address (Google, Mozilla,
+>   Microsoft, Apple). Anything else is refused at registration and again at send.
+
+> **Stage 4 (email) settled 2026-10-16 (grilling, Gyasi); not built.** The advisor's reply
+> reaches the client by email as well as in the app: the full message (card numbers masked),
+> branded HTML with a plain-text part, sent about five minutes later only if the client has not
+> read it in the app, held for the client's rest hours, from "Gyasi at Story-Tail Adventures" on a
+> new app-only IONOS mailbox at `adventures.story-tail.com`. **The client can answer by
+> replying**: a per-thread reply address, the mailbox's own `info+<token>@` plus address, puts the
+> reply in the thread; the app reads that mailbox over IMAP every two minutes (Gyasi, 2026-10-16:
+> not Resend). Attachments by name only. Each email has a "Stop emailing me about
+> messages" link. Supabase Auth mail moves to the same SMTP. Comparison, security review and
+> every ruling: `docs/Email-Provider-Review.md`. **On the advisor's thread** (web and phone): an
+> "Emailed" mark under each reply an email carried, and, for a client who cannot sign in, a line
+> above the reply box saying replies won't reach them by email (Gyasi, 2026-10-16; Data-Model §23).
 
 #### 3.10.6 Bulk Send (Future)
 **Purpose:** Mass-message a segment of clients (e.g., "Hot deals this month").
@@ -2950,6 +3659,123 @@ These tools let the agent help less-technical clients with login issues.
 ---
 
 ### 3.11 Reporting
+
+> **Ruled 2026-10-21 (grilled with Gyasi, "yes" to every recommendation, Q1 to Q17).** P1, and
+> the last agent section before the production release (group trips excepted). **Web only:**
+> the phone gets no Reports door, which supersedes the "summary KPIs" mobile rows in §4.4 and
+> the responsive table for 3.11. Shipped in three PRs after these docs: **PR 1** the hub,
+> Revenue by Month, Commission by Supplier and Top Destinations; **PR 2** Client Lifetime
+> Value, the Funnel and Pipeline Value (Pipeline drawn as a local artboard first); **PR 3**
+> the Export Center.
+>
+> **Shared rules.**
+> - **Charts are drawn by hand** (MUI boxes and SVG), the way `CommissionTrendChart` already
+>   is: no chart library. Every chart has a plain table of the same figures under it, which
+>   is also what a screen reader and the CSV read.
+> - **One period filter on every report over a period:** chips for *Year to date*, *Last 12
+>   months* and *This quarter*. Calendar years, in the advisor's own time zone. No custom date
+>   range except in the Export Center. Two reports are not over a period and have no chips
+>   (Gyasi, 2026-10-21): **Client Lifetime Value** (lifetime; it filters by cohort instead) and
+>   **Pipeline Value** (what is open today).
+> - **"First booked" is one rule:** a trip's earliest move in `trip_status_history` to booked,
+>   in progress or completed (the stage write lets an advisor skip `booked`). Revenue, the
+>   Funnel's days to book and LTV's cohort all use it.
+> - **Stage dates come from `trip_status_history` only.** It has no backfill: a trip that
+>   changed stage before 2026-09-19 has no date for that change, and none is made up. Reports
+>   that read stage dates carry one quiet line: "Tracking began Sep 19, 2026."
+> - **Year over year appears only once there is a last year.** The YoY toggle and any "vs last
+>   year" chip stay hidden until a prior-year month in the period has data. A number-shaped
+>   hole reads as a broken number (the same rule as §3.2.1's dropped deltas).
+> - **Every report's Export downloads that report's own table as CSV**, for the period on
+>   screen, and writes an `audit_event` row. It does not jump to the Export Center.
+> - **Trip-grain reports count the advisor's own trips, not archived ones**; the
+>   ledger-grain ones follow the ledger. Money is USD only (BRD §3), so no report scopes or
+>   labels by currency beyond the one code.
+>
+> **3.11.1 Hub.** A grid of seven tiles: the six reports and the Export Center. **No
+> favorites and no recent list** (one advisor, seven tiles; a table to star them is not worth
+> it). The artboard's seventh "Time-to-book" tile has no screen of its own: average days to
+> book is a figure on the Funnel (3.11.6). The nav rail's Reports item goes live.
+>
+> **3.11.2 Revenue by Month.** Story-Tail never charges clients, so its own income is
+> commission. The report has a two-way toggle: **Booked value** (default), the gross value of
+> trips by the month they were FIRST booked (the first move to booked, in progress or
+> completed, so a trip entered straight as completed still counts; a trip that goes booked,
+> back, and booked again counts once, in its first month; trips now cancelled, or moved back to an earlier stage, are
+> left out, Gyasi confirmed 2026-10-21); and **Commission received**, ledger money by the month it
+> arrived (`commission.received_at`), which is the tax-prep figure. Bars per month for the
+> period, a total, and the table under it.
+>
+> **3.11.3 Commission by Supplier.** Reads the stored **ledger**, never the forecast. The
+> period filters on travel dates, the same as the ledger screen and its export. Each supplier
+> row shows **Received** and **Still owed** (expected plus invoiced) with a bar. Disputed and
+> lost lines are left out and counted in a footnote, which also names any money already
+> received on them (Revenue's "Commission received" counts that money, so it must not vanish
+> here). A row opens the ledger filtered to that
+> supplier. Removed lines (`commission.archived_at` set) never count; lines on an archived
+> trip still do, as they do on the ledger, because the money was real.
+>
+> **3.11.4 Top Destinations.** Counts booked, in-progress and completed trips; the period
+> filters on travel start date. A trip with several stops counts once in each place, and its
+> value is split evenly across them so the column still adds up to the trips' total. Ranked
+> by value, with trip count. **No map:** the artboard's pins sit on a stock photograph, and a
+> real map needs a tile provider (a new third-party service and a security review).
+>
+> **3.11.5 Client Lifetime Value.** Lifetime value is the same expression Client Detail
+> already uses (the client's committed trips), with a commission column beside it. Cohort is
+> the quarter of the client's first booked trip, shown as a column and a filter (chips: All
+> clients, each quarter newest first, and "Before tracking" for a client with any booking
+> from before Sep 19, 2026, since their first booking is that one). No period chips and no cohort grid. Rank is over the whole book, so a
+> cohort filter keeps each client's true rank. A row opens Client Detail. `client.lifetime_value_cents`, which nothing ever wrote,
+> is dropped (Data-Model §6.1).
+>
+> **3.11.6 Conversion Funnel.** Stages **Inquiry → Proposal → Booked → Travelled**. There is no
+> Lead or Qualified stage: a quote request is a trip (decided 2026-09-09). The funnel follows
+> the trips CREATED in the period. A trip counts in every stage up to the furthest it reached,
+> so one entered straight as booked still counts as an inquiry. A cancelled trip is drop-off
+> at the stage it reached. "Booked" includes trips traveling now (in progress); "Traveled" is
+> completed. A trip's stage is the furthest it EVER reached, so one moved back after travel
+> still counts as traveled here, though Revenue (which reads its status now) leaves it out.
+> Each stage's drop is split into **still open** (not a loss yet)
+> and **cancelled**. Average days from inquiry to first booking shows here with its sample
+> size, over the period's trips, by the "first booked" rule above.
+>
+> **3.11.7 Pipeline Value.** The artboard only repeated the funnel, so A3117 was drawn
+> locally on 2026-10-21 and Gyasi approved it the same day. Two tiles (open pipeline at full
+> value, and weighted), then **By stage** (trips, value, weight, weighted) and **By travel
+> month** (weighted value by the month each trip starts, this month and the eleven after; a
+> trip traveling now counts this month; an open trip whose start date passed without it
+> moving on is a "Start date passed" row, set apart rather than inflating this month (review,
+> 2026-10-21); then "Later" and "No travel dates yet" rows, so nothing open is dropped). No period chips. **"Adjust weights" edits in place**: it is
+> §3.7.7's own weights card, over gross value here, saving the same `pipeline_weight` rows,
+> so the commission forecast and the worklist's confidence move with it. One set of weights.
+>
+> **3.11.8 Export Center.** **CSV only:** Excel opens it, and a real `.xlsx` needs a new
+> library and a review. Files are built on demand and downloaded at once, so no client data
+> sits in a bucket. **Recent exports** are read from the `audit_event` rows every export
+> already writes; "Run again" repeats one with the same settings. Nothing expires. Four types:
+> **Commission ledger**, **Trips** (dates, stage, value, commission), **Payment milestones**
+> (the supplier pay schedule, paid or not) and **Clients**. A Clients export carries contact
+> details (email, phone, mailing address) only when "Include contact details" is checked; it
+> starts unchecked. Every export is audited.
+>
+> **Built 2026-10-21 (PR 3).** A From/To range, inclusive, defaulting to Jan 1 to today, with
+> one line under it saying what the dates mean for the type chosen:
+> - **Commission ledger:** §3.7.2's own export, by travel start (it audits as
+>   `commission.exported`).
+> - **Trips:** by travel start, at every stage, cancelled ones too (the books should show what
+>   fell through); archived trips are out.
+> - **Payment milestones:** by due date. The pay link leaves as its site name only, and the
+>   advisor's free-text paid note is not exported.
+> - **Clients:** **the whole list, no dates** (a client list filtered by the day each was
+>   added would quietly drop every older client). The contact box shows only for Clients and
+>   resets when the type changes.
+>
+> **Recent exports** list the advisor's last 20 `report.exported` and `commission.exported`
+> audit rows, each report's own Export included: what was exported, its dates, how many rows,
+> and when, on the advisor's clock. "Run again" repeats the same settings, contact switch
+> included (the line says "with contact details"). The form is a plain GET to the download
+> route, so it works with no script; a new download shows in the list on the next visit.
 
 #### 3.11.1 Reports Hub
 **Purpose:** Entry point to every report.
@@ -2998,6 +3824,132 @@ These tools let the agent help less-technical clients with login issues.
 ---
 
 ### 3.12 Agent Profile & Settings
+
+> **Ruled 2026-10-17 (grilled with Gyasi, "yes" to every recommendation, Q1 to Q26).** Build
+> 3.12.1 to 3.12.4; **3.12.5 Branding waits for P3** (multi-agent). Web first, then an Android
+> PR (Profile, Notifications, Availability, and the client "Your advisor" card), then iOS once
+> Xcode is installed. Shipped in four PRs: **PR 1** settings page + Profile + Availability (with
+> the data and docs), **PR 2** Notifications + Signature + the new alerts + rest hours moving to
+> working hours + the out-of-office auto-reply, **PR 3** the client "Your advisor" card,
+> **PR 4** Android.
+>
+> **Where it lives.** One page, `/agent/settings`, with four tabs: Profile, Availability,
+> Notifications, Signature (each tab its own URL, `?tab=`). Reached from a new **avatar menu**
+> in the agent top bar, which also holds Sign out. Each tab saves on its own; leaving a tab
+> with unsaved changes asks first. Every save writes an `audit_event` row with the old and new
+> value of each changed field. Only the advisor edits their own settings.
+>
+> **3.12.1 Profile.** Photo, name, pronouns, email (read-only, with a note on how to change it;
+> a proper confirm-the-new-address flow is later), phone, bio, and four social links:
+> Instagram, Facebook, LinkedIn, Website. Each link is stored as a full `https://` URL, checked
+> on save (a bare `@handle` becomes the full Instagram link); empty ones are hidden from
+> clients. **Photo:** JPG, PNG or WebP up to 5 MB, cropped square and shrunk to 400×400 in the
+> browser, stored in the public `agent-avatars` bucket (emails need a link that works signed
+> out). Removing it falls back to initials on the brand colour. **Clients see it** in a
+> "Your advisor" card on the client home and at the top of their conversation: photo, name,
+> pronouns, bio, "Usually replies within X hours", social links (PR 3). Today nothing on the
+> client side shows any of it.
+>
+> **3.12.2 Availability.**
+> - **Time zone:** an editable list limited to North American zones (USD / North America
+>   only). It drives working hours and rest hours.
+> - **Working hours:** each day an on/off switch with one From/To range in 30-minute steps.
+>   The prototype's hour grid sits above as a read-only picture of the week (no painting).
+>   Default Monday to Saturday 7am to 9pm, Sunday off: today's rest hours, inverted.
+>   **Working hours ARE the rest hours** (PR 2): push is quiet outside them, then one summary
+>   at the start of the next working period. Clients never see the grid.
+> - **"Usually replies within":** 2, 4, 12, 24 or 48 hours, default 24. Shown to clients;
+>   nothing enforces it.
+> - **Out of office:** a block has a start date, an end date (whole days in the advisor's
+>   zone) and an optional label. Blocks never overlap; any upcoming block can be edited or
+>   deleted; a running one can be ended early ("I'm back"); past blocks drop off the list. While
+>   one runs, push is silent and one summary goes at the next working period after it ("…while
+>   you were away"), clients see "Away until Jul 7" on their conversation, and an optional
+>   **auto-reply** (off by default, text per block) answers the first client message in each
+>   thread once per block, as a message from the advisor tagged "Automatic reply", sent through
+>   the normal message email, never marking the thread read. No covering advisor (one advisor).
+>   Stored in a new `agent_time_off` table (Data-Model §7.5), replacing the untyped
+>   `agent_availability.time_off_blocks`.
+> - **Calendar sync (Google / Apple): deferred.** OAuth, a stored refresh token and a new-SDK
+>   security review make it its own project. The switches are not shown at all.
+>
+> **3.12.3 Notifications.** Two columns, **Email** and **Push**; no SMS (no provider). Only
+> rows that really fire, more added as events get built:
+> - **Client message:** push on, email off by default.
+> - **New quote request** (a new trigger, an inquiry trip created from a quote request): push
+>   on, email on. Locked screen "New trip request from Jordan Hayes"; unlocked adds the
+>   destination and dates if given; a tap opens the inquiry trip.
+> - **Rest hours:** a link to the Availability tab's working hours (Q6), not a second setting.
+>
+> The advisor's alert emails go to their sign-in email at once (rest hours quiet push only)
+> and carry **no client words**: the client's name, the trip and an "Open in Story-Tail" link,
+> so client words (and any card number a client types) stay out of the advisor's mail provider.
+> The summary after rest hours or time off: one push at the start of the next working period,
+> "3 clients wrote while you rested" or "…while you were away", nothing if nothing is unread.
+>
+> **3.12.4 Signature.** Plain text (no rich text: stored HTML in email is an injection risk),
+> up to 8 lines and 500 characters, with three merge fields `{{agent.name}}`,
+> `{{agent.phone}}`, `{{agent.email}}`; typed links become clickable in the email. A live
+> preview beside it, as A3124. Default: the prototype's text without the locked line. It goes
+> on **client message emails only** (auth mail is system mail), under the advisor's words and
+> above "Open the conversation". A locked line, **"Story-Tail Adventures · Hosted by
+> Inteletravel"**, always prints under it and cannot be edited.
+>
+> **Built (PR 1, merged as #144, and PR 2).** Choices made in the build, within the rulings:
+>
+> - **The photo is stored as a path** in the public bucket, never an absolute URL (inside a
+>   function's container the Supabase origin is `http://kong:8000` locally); each surface adds
+>   its own public origin.
+> - **Rest hours (PR 2):** `agent_rest_until()` decides for advisors from working hours and time
+>   away; clients' email rest hours are unchanged. An advisor with no working day at all is never
+>   held (a notification that could never go). Held notifications are re-timed when hours, time
+>   zone or time away change. The summary says "while you were away" when time away was the
+>   reason, and counts trip requests apart from messages ("2 new messages and 1 trip request…").
+> - **Trip-request push** went to browsers only until PR 4; Android shows it since then, and only
+>   iOS (not built) is skipped for it (not failed).
+> - **The quote-request alert is raised by `quote-request` itself**, not a trigger on `trip`: the
+>   advisor's own "New trip" also starts at `inquiry` and must not alert.
+> - **The auto-reply** is a real message from the advisor (`message.is_auto_reply`), tagged
+>   "Automatic reply" on both sides, emailed to the client the usual way with the signature. It
+>   never marks the thread read and never stops the reply-owed clock. Its default words wait in
+>   the dialog even while it is off. A running block's reply cannot be edited (only ended early).
+> - **The auto-reply's default words** came out of the brand-voice review as "...Your plans are
+>   in good hands." (not "Your trip": a new inquiry has no trip yet).
+> - **PR 3, the client's "Your advisor" card** reads `client_advisor_card()`: only the
+>   client-facing fields (no email, phone, hours or time-away label). The dashboard card shows
+>   photo, name, pronouns, the reply-time promise, a 3-line bio and the links; the conversation
+>   headers and the new-message form show the photo and the promise. While a block runs every
+>   one says "Away until Tuesday, October 20" (the first day back). 24 and 48 hours read as "a
+>   day" and "2 days". A failed read keeps the old fixed words rather than an empty card.
+> - **Signature:** saving the default's exact text stores nothing, so a better default later
+>   still reaches an advisor who never wrote their own. Bare domains become links only with a
+>   common web ending, so "St.Lucia" stays text. The plain-text email puts it after the standard
+>   `-- ` separator.
+>
+> **Built (PR 4, Android, 2026-10-17).** Choices made in the build, within the rulings:
+>
+> - **More is the phone's home for settings** (§6.6's fourth tab, now built): the advisor's card
+>   (photo, name, "Away now" while time away runs), then Profile, Availability and Notifications,
+>   then **Sign out**, which left every tab's top bar as §6.6's amendment said it would.
+>   **Signature** is a disabled row saying it changes on the web (Q10), not a hidden one.
+> - **No phone artboard exists** for §3.12, so the screens follow the web tabs' fields and words
+>   in the phone's settings-list grammar. Left off as narrower than the web: the profile's "How
+>   you appear" preview and the read-only week picture.
+> - **The same doors as the web:** `agent_settings_self()` to read, the `agent-settings` ops to
+>   write, each screen saving on its own and asking before leaving unsaved changes. The phone
+>   checks only what it can say before a round trip (name, phone, dates, the auto-reply's field);
+>   social links go to the function, whose sentence is shown as written.
+> - **Photo:** the system photo picker (no storage permission), centre-cropped to 400×400 JPEG on
+>   the phone and sent as base64, as the browser does. No image library was added: the public
+>   photo is fetched with the HTTP client the app already has and drawn with Compose's decoder.
+> - **Trip-request push:** the FCM message carries the trip id only; the phone reads the client's
+>   name, destination and dates over its own session (one accessor, `agent_trip_overview`). The
+>   locked screen says "New trip request from Jordan Hayes"; a tap opens the inquiry trip. Its own
+>   Android channel ("Trip requests"), so the phone's settings can quiet it apart from messages.
+> - **"Automatic reply"** shows under the advisor's out-of-office reply in both phone threads.
+> - **The client's "Your advisor" card** on the phone reads PR 3's `client_advisor_card()`: the
+>   home card (photo, name, pronouns, promise or "Away until", three lines of bio, links), both
+>   conversation headers and the new-message screen, keeping the fixed words when the read fails.
 
 #### 3.12.1 Agent Profile / My Account
 **Purpose:** Manage personal information, photo, contact channels.
@@ -3140,7 +4092,7 @@ Used for Itinerary Viewer, Itinerary Day Detail, Past Trip Memory View, About / 
 - **Web.** Two-column layout: day navigator and trip overview on left (sticky), content on right with reading width capped (~720pt) for legibility; "Download PDF" and "Share" CTAs in a sticky header.
 
 #### Pattern J — Modal / Sheet / Confirmation
-Used for confirmations (revoke card, cancel trip, merge clients), reveals (card PAN), gates (sign-up prompt), pickers (template picker), and other interrupts.
+Used for confirmations (cancel trip, merge clients), gates (sign-up prompt), pickers (template picker), short forms (mark paid), and other interrupts. *(Amended 2026-10-16: "revoke card" and "reveals (card PAN)" are gone with §2.4 and the old 3.6.4; the app holds no card.)*
 
 - **Mobile.** Full-screen modal or full-height bottom sheet; "Cancel" in top-left, primary action in top-right or as a persistent bottom button; swipe-down to dismiss for non-destructive sheets.
 - **Tablet.** Centered modal (~600pt wide) over a dimmed background; for picker-style modals, may use a wider layout with preview.
@@ -3202,7 +4154,11 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.3.9 Quote Request Confirmation** — Pattern J.
 - **2.3.10 Saved Searches & Favorites** — Pattern B.
 
-#### Client — Payment & Card Authorization (2.4.x)
+#### Client — Payment & Card Authorization (2.4.x) (Retired 2026-10-16)
+> **Amended 2026-10-16.** All seven screens are retired (§2.4); the mapping below is kept as a
+> record only. The client's pay button and "I've paid" live inside 2.2.3's payment timeline
+> and follow its Pattern C.
+
 - **2.4.1 My Cards / Payment Methods List** — Pattern B. Cards displayed as visual card-shaped tiles on all viewports (this is one of the rare places where mobile actually shows richer visual treatment because of the credit-card metaphor).
 - **2.4.2 Add Card** — Pattern A. Stripe Elements responsive natively; on mobile uses native payment-keyboard.
 - **2.4.3 Card Authorization for Trip** — Pattern A + Pattern J (consent step).
@@ -3293,14 +4249,15 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 - **3.5.6 Itinerary Preview (Agent)** — Pattern I.
 - **3.5.7 Publish Itinerary Update** — Pattern J.
 
-#### Agent — Payment & Card Management (3.6.x)
-- **3.6.1 Card Vault (Per Trip)** — Pattern B. Visual card tiles like 2.4.1.
-- **3.6.2 Request Card Authorization** — Pattern A.
-- **3.6.3 Authorization Request Sent** — Pattern J.
-- **3.6.4 Reveal Card Number (Audited)** — Pattern J. Critical security screen — uses the same heavy treatment on all viewports (MFA step-up modal, dimmed background, auto-hide). Web copy-button uses clipboard API with auto-clear after 60 seconds; mobile does the same.
-- **3.6.5 Log Card Use** — Pattern A. Mobile prioritizes quick entry with optional receipt photo capture from camera.
-- **3.6.6 Card Use Log** — Pattern B.
-- **3.6.7 Set or Update Spending Limit** — Pattern A.
+#### Agent — Supplier Payments (3.6.x)
+> **Amended 2026-10-16.** Reshaped per §3.6. **Web only, no phone treatment**, like §3.7.
+- **3.6.1 Trip Payments** — Pattern B (a row per milestone, inside Trip Detail's Payments tab).
+- **3.6.2 Send Payment Link** — Pattern J (the template picker over the trip's thread, §3.10.3).
+- **3.6.3 Authorization Request Sent** — Removed 2026-10-16.
+- **3.6.4 Reveal Card Number** — Removed 2026-10-16. The app holds no card.
+- **3.6.5 Mark Paid** — Pattern J (a short form in a dialog).
+- **3.6.6 Payment History** — Pattern B.
+- **3.6.7 Set or Update Spending Limit** — Removed 2026-10-16.
 
 #### Agent — Commission Tracking (3.7.x)
 - **3.7.1 Commission Dashboard** — Pattern D.
@@ -3383,7 +4340,7 @@ Every screen in this inventory must consider four states beyond the "happy path"
 
 **Loading state.** Skeleton placeholders that match the screen's layout; brand-aligned progress indicators; avoid spinner-on-blank wherever possible because it hides what is coming.
 
-**Empty state.** A friendly, branded illustration with a one-line explanation of why the screen is empty and a clear CTA to populate it ("You haven't authorized any cards yet — add one when an agent requests it" / "No trips yet — explore the search to find your next adventure").
+**Empty state.** A friendly, branded illustration with a one-line explanation of why the screen is empty and a clear CTA to populate it ("No payments scheduled yet. Gyasi will add them here once your trip is booked." / "No trips yet — explore the search to find your next adventure"). *(First example changed 2026-10-16: the old one described a retired §2.4 card screen.)*
 
 **Error state.** Plain-language description of what went wrong; never expose stack traces; retry CTA where applicable; "Message Gyasi" CTA as a fallback escalation path. Inline error color is `md.error` — see Design-System §4.1, which is authoritative for it.
 
@@ -3415,6 +4372,8 @@ This contradicts what this section said originally — "Top nav: Logo, Trips, Se
 
 Note the destinations are NOT the same set as §6.3's bottom bar, and this is deliberate rather than an inconsistency — see the note there. "Search" is renamed **Discover** on both surfaces: it is a curated catalog at Phase 1, and "Search" promises a query box that does not exist until the Phase 2 API integration.
 
+> **Amended 2026-10-16 — Wallet leaves the rail.** Wallet was §2.4's home, and §2.4 is retired (the app never holds a card). The rail is now five: Trips, Discover, Messages, Documents, Account. Payments live on each trip's payment timeline (§2.2.3), which is where a client looks for them anyway.
+
 ### 6.2 Client Tablet Navigation
 The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape / drawer-in-portrait split: the rail is 72px and costs the same in either orientation, and a drawer would have been a third navigation implementation to keep in step with the other two. The bottom tab bar appears below 768px, which is the §4.1 mobile breakpoint.
 
@@ -3423,7 +4382,7 @@ The rail from §6.1, unchanged, from 768px up. There is no top-nav-in-landscape 
 **Amended September 2026, built as amended.** A **four-tab** bottom bar: Trips, Discover, Messages, Account. Originally five (Home, Trips, Search, Messages, Profile) with a floating "Help" button; both changed, per the same 2026-09-06 decision.
 
 - **Home and Trips collapsed into one tab.** The dashboard (2.2.1) *is* the Trips tab root, and the trip list (2.2.2) is one tap inside it. Two tabs for one idea is how a four-tab bar becomes a five-tab bar becomes a menu.
-- **Four rather than six.** Wallet (§2.4) and Documents (§2.5.4) stay on the rail and are reached from the trip screens on mobile. A phone bar wants thumb-reachable targets, and §4.2's 44pt minimum across six tabs leaves nothing for a label.
+- **Four rather than six.** Wallet (§2.4) and Documents (§2.5.4) stay on the rail and are reached from the trip screens on mobile. *(Amended 2026-10-16: Wallet is gone with §2.4, so the union is five and only Documents is rail-only. The phone's wallet screens and the Account row that opened them are removed.)* A phone bar wants thumb-reachable targets, and §4.2's 44pt minimum across six tabs leaves nothing for a label.
 - **No Help FAB.** The prototype's own bottom bar has none, and a floating button that follows the traveler across every screen is the opposite of §2's "leaves room for rest". Help lives in Account.
 
 `web/lib/client/nav.ts` and `domain/trip/ClientDestinations.kt` are the two implementations of this, held in step by `.github/scripts/check_copy_parity.py`. Both model a **union of six destinations with per-surface inclusion flags** rather than one list with a projection, precisely because §6.1's set and this one differ.
@@ -3464,6 +4423,15 @@ The mobile experience for agents at MVP is intentionally narrower than web — d
 > What the sentence does **not** mean, and did not say clearly enough to stop the question being asked: it is not a limit on how much an advisor may read. §3.3.2 established that in practice — its mobile client detail kept every real tab — and §3.4.2 follows it. Narrower is about **writes** (every §3.4 form stays in a browser) and about **navigational depth** (no Trips tab, no Pipeline, no Calendar, no template management, which this line names outright). An advisor standing at a gate needs to read anything about a trip.
 >
 > Nothing here is "disabled with a reason", which is the web's treatment for an unbuilt control. A read-only screen with no controls says once, in a sentence, where the writes live. Four dimmed buttons on a 375pt screen cost four taps to discover the same thing.
+
+> **Amended 2026-10-15 (§3.10 Stage 3).** Messages is built: three of the four tabs are live,
+> and only More (§3.12) is still dimmed. It reads and replies, with internal notes; templates,
+> bulk send and bulk archive stay on the web, as this section's first line says of template
+> management.
+
+> **Amended 2026-10-17 (§3.12 PR 4).** More is built, so all four tabs are live. It holds the
+> advisor's Profile, Availability and Notifications and **Sign out**, which left the top bar as the
+> 2026-09-23 amendment promised; the bar keeps the title. Email signature stays on the web.
 
 ---
 

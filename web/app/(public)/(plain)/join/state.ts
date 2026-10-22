@@ -39,7 +39,7 @@ export const JOIN_TEXT = {
   bullets: [
     "Save searches & favorites",
     "View Gyasi's curated proposals",
-    "Authorize cards securely · paid to suppliers, not us",
+    "Pay suppliers directly · nothing goes through us",
   ],
   google: "Continue with Google",
   apple: "Continue with Apple",

@@ -113,7 +113,7 @@ describe("2.0.6 sign-up gate — form semantics", () => {
     expect(items.map((li) => li.textContent)).toEqual([
       "Save searches & favorites",
       "View Gyasi's curated proposals",
-      "Authorize cards securely · paid to suppliers, not us",
+      "Pay suppliers directly · nothing goes through us",
     ]);
   });
 });

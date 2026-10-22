@@ -46,7 +46,15 @@ const IDLE: SendMessageState = { status: "idle" };
  * ON MUI (step 2 of the migration): the card IS the form (`Card component="form"`), the
  * field is the shared TextareaField, and the error is the MUI Alert tint.
  */
-export function NewMessageForm() {
+/**
+ * `advisor` (§3.12 PR 3): the advisor's own photo and reply-time promise, or "Away until…".
+ * Plain strings from the server page; absent, the long-standing words stay.
+ */
+export function NewMessageForm({
+  advisor,
+}: {
+  advisor?: { avatarUrl: string | null; initials: string; firstName: string; statusLabel: string } | null;
+} = {}) {
   const [state, action, pending] = useActionState(startConversation, IDLE);
   const [typed, setTyped] = useState<string | null>(null);
 
@@ -70,11 +78,11 @@ export function NewMessageForm() {
           color: "secondary.onContainer",
         }}
       >
-        <Avatar aria-hidden="true" sx={advisorAvatarSx(36, 12)}>
-          {MESSAGES.advisorInitials}
+        <Avatar aria-hidden="true" src={advisor?.avatarUrl ?? undefined} sx={advisorAvatarSx(36, 12)}>
+          {advisor?.initials ?? MESSAGES.advisorInitials}
         </Avatar>
         <Typography component="p" variant="body2" sx={BODY_S}>
-          <b>{MESSAGES.advisorName}</b> · {MESSAGES.replyWindow}
+          <b>{advisor?.firstName ?? MESSAGES.advisorName}</b> · {advisor?.statusLabel ?? MESSAGES.replyWindow}
         </Typography>
       </Paper>
 

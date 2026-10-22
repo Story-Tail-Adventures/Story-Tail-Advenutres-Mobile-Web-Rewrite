@@ -49,10 +49,8 @@ const HERO_SX = {
  *  · The avatar is INITIALS, not a photograph. `web/lib/images.ts` has no avatar entries at
  *    all, so every `staImg('avatar*')` in the artboards is a stock portrait of a stranger.
  *    `platform_user.avatar_url` exists for the day a traveler uploads one.
- *  · "Payment methods" opens §2.4.1. It rendered disabled with a reason while §2.4 was
- *    unbuilt, and the §2.2 artboard's live "Authorize a card" CTA was flagged to the
- *    designer as out of step with the shipped app. §2.4 settled that the other way: the
- *    artboard was right and the app has caught up, so the flag is retired.
+ *  · No "Payment methods" row. It opened §2.4.1 until §2.4 was retired on 2026-10-16: the
+ *    app never holds a card, and clients pay each supplier through a pay link on the trip.
  *  · "Notifications" is disabled too: `notification_preference` has RLS with no policy and
  *    no row-creation path, so 2.5.6 would read zero rows forever. See its own note.
  *
@@ -177,13 +175,6 @@ export default async function AccountPage() {
             title={ACCOUNT.connected}
             sub={ACCOUNT.connectedSub}
             href="/account/connected"
-          />
-          <SettingsRow
-            tile
-            icon="card"
-            title={ACCOUNT.wallet}
-            sub={ACCOUNT.walletSub}
-            href="/wallet"
           />
         </SettingsGroup>
 

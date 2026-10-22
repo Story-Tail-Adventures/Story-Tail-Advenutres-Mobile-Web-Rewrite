@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENT_COPY, bulkTagResult, CLIENT_COPY, needsYouLine } from "./content";
+import {
+  AGENT_COPY,
+  bulkTagResult,
+  cancelLinesCheckbox,
+  cancelReceipt,
+  CLIENT_COPY,
+  messagesHeadline,
+  messageClientLabel,
+  messagesMoved,
+  messagesNoLogin,
+  messagesReplyByShort,
+  messagesReplyBy,
+  needsYouLine,
+  templateMissing,
+} from "./content";
 
 /**
  * The agent copy.
@@ -30,7 +44,10 @@ describe("AGENT_COPY", () => {
       if (!key.endsWith("Deferred")) continue;
       expect(value, key).toMatch(/§3\.\d/);
     }
-    expect(STRINGS.filter(([k]) => k.endsWith("Deferred")).length).toBeGreaterThanOrEqual(6);
+    // Five since §3.10 Stage 3 retired `messagesDeferred` (2026-10-15): Messages is built on
+    // both surfaces, and a sentence naming a built section is worse than no sentence. Four
+    // since §3.11's PR 1 retired `reportsDeferred` (2026-10-21) for the same reason.
+    expect(STRINGS.filter(([k]) => k.endsWith("Deferred")).length).toBeGreaterThanOrEqual(4);
   });
 
   it("says `inquiry`, never `lead`, except where it explains the absence", () => {
@@ -160,14 +177,86 @@ describe("the bulk-tag bar's own strings", () => {
     expect(bar).not.toMatch(/\bmessage\b|\bemail\b|\bexport\b/i);
   });
 
-  it("dropped the four deferrals that came due", () => {
+  it("dropped the five deferrals that came due", () => {
     // A deferral naming a section that now exists is worse than no sentence — it comes due
-    // and nothing arrives. §3.3.2, §3.3.10, §3.3.12 and the bulk action all shipped.
+    // and nothing arrives. §3.3.2, §3.3.10, §3.3.12, the bulk action and §3.9's merge shipped.
     const copy = CLIENT_COPY as Record<string, unknown>;
-    for (const gone of ["rowOpenDeferred", "rowEditDeferred", "rowArchiveDeferred", "bulkDeferred"]) {
+    for (const gone of ["rowOpenDeferred", "rowEditDeferred", "rowArchiveDeferred", "bulkDeferred", "mergeDeferred"]) {
       expect(copy[gone]).toBeUndefined();
     }
-    // §3.9 has not, so this one stays.
-    expect(CLIENT_COPY.mergeDeferred).toMatch(/§3\.9/);
+  });
+});
+
+describe("the cancel dialog's commission lines (§3.7 Stage 5)", () => {
+  it("names how many lines the checkbox marks Lost", () => {
+    expect(cancelLinesCheckbox(1)).toBe("Mark this line as Lost");
+    expect(cancelLinesCheckbox(2)).toBe("Mark these 2 lines as Lost");
+    expect(cancelLinesCheckbox(1200)).toBe("Mark these 1,200 lines as Lost");
+  });
+
+  it("is only a receipt when lines were named, and leads with what happened to the trip", () => {
+    expect(cancelReceipt({ cancelled: true, named: 0, closed: 0, skipped: 0 })).toBeNull();
+    expect(cancelReceipt({ cancelled: true, named: 1, closed: 1, skipped: 0 })).toBe(
+      "Trip cancelled. 1 commission line marked Lost.",
+    );
+    expect(cancelReceipt({ cancelled: false, named: 3, closed: 3, skipped: 0 })).toBe(
+      "Details saved. 3 commission lines marked Lost.",
+    );
+  });
+
+  it("says which lines moved since the page loaded and were left alone", () => {
+    expect(cancelReceipt({ cancelled: true, named: 3, closed: 2, skipped: 1 })).toBe(
+      "Trip cancelled. 2 commission lines marked Lost. 1 line changed since the page loaded, so it was left alone.",
+    );
+    // Every line moved: the trip still cancelled, and the receipt says so first.
+    expect(cancelReceipt({ cancelled: true, named: 2, closed: 0, skipped: 2 })).toBe(
+      "Trip cancelled. 2 lines changed since the page loaded, so they were left alone.",
+    );
+  });
+
+  it("never claims a line it cannot account for", () => {
+    // An answer with no counts (an Edge Function that predates the list): the box was ticked,
+    // so silence would read as done.
+    expect(cancelReceipt({ cancelled: true, named: 2, closed: 0, skipped: 0 })).toBe(
+      "Trip cancelled. We couldn't confirm 2 lines were marked Lost. Check them in the ledger.",
+    );
+    expect(cancelReceipt({ cancelled: true, named: 2, closed: 1, skipped: 0 })).toBe(
+      "Trip cancelled. 1 commission line marked Lost. We couldn't confirm 1 line was marked Lost. Check it in the ledger.",
+    );
+  });
+});
+
+describe("the inbox's own strings (§3.10 Stage 1)", () => {
+  it("counts what needs attention, or says there is none", () => {
+    expect(messagesHeadline(0, 0)).toBe("All caught up");
+    expect(messagesHeadline(3, 0)).toBe("3 unread");
+    expect(messagesHeadline(0, 1)).toBe("1 overdue");
+    expect(messagesHeadline(5, 2)).toBe("5 unread · 2 overdue");
+  });
+
+  it("names the due day and the client with no login", () => {
+    expect(messagesReplyBy("Tue")).toBe("Reply by end of Tue");
+    expect(messagesReplyByShort("Tue")).toBe("Reply by Tue");
+    expect(messagesNoLogin("Nora")).toBe("Nora hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.");
+  });
+
+  it("says what a bulk move did, and names the client a button messages", () => {
+    expect(messagesMoved(1, true)).toBe("1 archived");
+    expect(messagesMoved(2, false)).toBe("2 moved to inbox");
+    expect(messageClientLabel("Kai Traveler")).toBe("Message Kai Traveler");
+  });
+});
+
+describe("message template copy (§3.10 Stage 2)", () => {
+  it("says what a template needs in plain words, once each", () => {
+    expect(templateMissing(["payment.label", "payment.amount", "payment.dueDate"])).toBe(
+      "This one needs a payment, which this thread doesn't have. Use Insert & edit to fill it in yourself.",
+    );
+    expect(templateMissing(["trip.dates"])).toBe(
+      "This one needs trip dates, which this thread doesn't have. Use Insert & edit to fill them in yourself.",
+    );
+    expect(templateMissing(["trip.name", "trip.dates", "payment.amount"])).toBe(
+      "This one needs a trip, trip dates and a payment, which this thread doesn't have. Use Insert & edit to fill them in yourself.",
+    );
   });
 });

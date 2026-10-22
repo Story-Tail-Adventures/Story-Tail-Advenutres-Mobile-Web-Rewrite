@@ -37,9 +37,11 @@ sealed interface AuthError {
         override val message = "That's a few too many tries. Give it a minute, then try again."
     }
 
+    // §3.9.5 (2026-10-16): a locked client cannot sign in to message anyone, and `/support`
+    // never existed, so the way back is an email to the business.
     data object AccountLocked : AuthError {
         override val message = "This account is on hold."
-        override val action = Action("Message Gyasi", "/support")
+        override val action = Action("Email Gyasi", "mailto:info@adventures.story-tail.com")
     }
 
     /**

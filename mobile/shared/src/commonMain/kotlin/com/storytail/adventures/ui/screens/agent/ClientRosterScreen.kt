@@ -79,16 +79,6 @@ fun ClientRosterScreen(
     onStatusChange: (String) -> Unit,
     onLoadMore: () -> Unit,
     onSelectTab: (String) -> Unit,
-    /**
-     * Carried here as well as on the worklist, and that is a decision rather than a copy.
-     *
-     * [AgentTopBar]'s own note says the second agent screen must decide where its sign-out
-     * lives rather than inherit a silent no-op. §3.12 still has not built More, so this is
-     * still the only place an advisor can end a session — and a tab that could strand them
-     * with no way out would be worse on iOS, where `PlatformBackHandler` is a deliberate
-     * no-op and there is no system exit at all. When More lands, both bars lose it together.
-     */
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
@@ -98,7 +88,6 @@ fun ClientRosterScreen(
                 // Off the same registry the bottom bar draws, so the two names cannot
                 // disagree — one destination, one label, on both ends of the screen.
                 title = AGENT_BAR_DESTINATIONS.first { it.id == "clients" }.label,
-                onSignOut = onSignOut,
             )
         },
         activeTab = "clients",

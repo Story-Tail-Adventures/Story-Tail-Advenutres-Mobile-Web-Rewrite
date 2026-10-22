@@ -129,6 +129,7 @@ export type Database = {
           created_at: string
           display_name: string
           email: string
+          email_signature: string | null
           id: string
           phone: string | null
           pronouns: string | null
@@ -144,6 +145,7 @@ export type Database = {
           created_at?: string
           display_name: string
           email: string
+          email_signature?: string | null
           id: string
           phone?: string | null
           pronouns?: string | null
@@ -159,6 +161,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           email?: string
+          email_signature?: string | null
           id?: string
           phone?: string | null
           pronouns?: string | null
@@ -168,6 +171,113 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      agent_alert_email: {
+        Row: {
+          agent_id: string
+          attempts: number
+          claimed_at: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          sent_at: string | null
+          state: string
+          trip_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          sent_at?: string | null
+          state?: string
+          trip_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          sent_at?: string | null
+          state?: string
+          trip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_alert_email_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_alert_email_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_alert_email_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_auto_reply: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          message_id: string
+          time_off_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          message_id: string
+          time_off_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          message_id?: string
+          time_off_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_auto_reply_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_auto_reply_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_auto_reply_time_off_id_fkey"
+            columns: ["time_off_id"]
+            isOneToOne: false
+            referencedRelation: "agent_time_off"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_availability: {
         Row: {
@@ -202,6 +312,50 @@ export type Database = {
             foreignKeyName: "agent_availability_agent_id_fkey"
             columns: ["agent_id"]
             isOneToOne: true
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_time_off: {
+        Row: {
+          agent_id: string
+          auto_reply_enabled: boolean
+          auto_reply_text: string | null
+          created_at: string
+          ends_on: string
+          id: string
+          label: string | null
+          starts_on: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          auto_reply_enabled?: boolean
+          auto_reply_text?: string | null
+          created_at?: string
+          ends_on: string
+          id: string
+          label?: string | null
+          starts_on: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          auto_reply_enabled?: boolean
+          auto_reply_text?: string | null
+          created_at?: string
+          ends_on?: string
+          id?: string
+          label?: string | null
+          starts_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_time_off_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
             referencedRelation: "agent"
             referencedColumns: ["id"]
           },
@@ -264,7 +418,7 @@ export type Database = {
           id: string
           ip_address: unknown
           result: string
-          user_agent: string
+          user_agent: string | null
         }
         Insert: {
           account_id?: string | null
@@ -273,9 +427,9 @@ export type Database = {
           event_type: Database["public"]["Enums"]["auth_event_type"]
           failure_reason?: string | null
           id: string
-          ip_address: unknown
+          ip_address?: unknown
           result: string
-          user_agent: string
+          user_agent?: string | null
         }
         Update: {
           account_id?: string | null
@@ -286,7 +440,7 @@ export type Database = {
           id?: string
           ip_address?: unknown
           result?: string
-          user_agent?: string
+          user_agent?: string | null
         }
         Relationships: [
           {
@@ -298,243 +452,35 @@ export type Database = {
           },
         ]
       }
-      authorization_request: {
+      auth_event_flag: {
         Row: {
-          client_id: string
-          completed_at: string | null
-          completed_card_authorization_id: string | null
-          expires_at: string
-          id: string
-          personal_note: string | null
-          proposed_expiry: string
-          proposed_limit_cents: number
-          requesting_agent_id: string
-          sent_at: string
-          status: Database["public"]["Enums"]["auth_request_status"]
-          token_hash: string
-          trip_id: string
+          auth_event_id: string
+          created_at: string
+          flagged_by_agent_id: string
         }
         Insert: {
-          client_id: string
-          completed_at?: string | null
-          completed_card_authorization_id?: string | null
-          expires_at: string
-          id: string
-          personal_note?: string | null
-          proposed_expiry: string
-          proposed_limit_cents: number
-          requesting_agent_id: string
-          sent_at?: string
-          status?: Database["public"]["Enums"]["auth_request_status"]
-          token_hash: string
-          trip_id: string
+          auth_event_id: string
+          created_at?: string
+          flagged_by_agent_id: string
         }
         Update: {
-          client_id?: string
-          completed_at?: string | null
-          completed_card_authorization_id?: string | null
-          expires_at?: string
-          id?: string
-          personal_note?: string | null
-          proposed_expiry?: string
-          proposed_limit_cents?: number
-          requesting_agent_id?: string
-          sent_at?: string
-          status?: Database["public"]["Enums"]["auth_request_status"]
-          token_hash?: string
-          trip_id?: string
+          auth_event_id?: string
+          created_at?: string
+          flagged_by_agent_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "authorization_request_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client"
+            foreignKeyName: "auth_event_flag_auth_event_id_fkey"
+            columns: ["auth_event_id"]
+            isOneToOne: true
+            referencedRelation: "auth_event"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "authorization_request_completed_card_authorization_id_fkey"
-            columns: ["completed_card_authorization_id"]
-            isOneToOne: false
-            referencedRelation: "card_authorization"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "authorization_request_requesting_agent_id_fkey"
-            columns: ["requesting_agent_id"]
+            foreignKeyName: "auth_event_flag_flagged_by_agent_id_fkey"
+            columns: ["flagged_by_agent_id"]
             isOneToOne: false
             referencedRelation: "agent"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "authorization_request_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trip"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      card_authorization: {
-        Row: {
-          amount_used_cents: number
-          consent_payload: Json
-          created_at: string
-          expires_at: string
-          id: string
-          payment_card_id: string
-          revoked_at: string | null
-          revoked_by_user_id: string | null
-          spending_limit_cents: number
-          status: Database["public"]["Enums"]["card_auth_status"]
-          trip_id: string
-          updated_at: string
-        }
-        Insert: {
-          amount_used_cents?: number
-          consent_payload: Json
-          created_at?: string
-          expires_at: string
-          id: string
-          payment_card_id: string
-          revoked_at?: string | null
-          revoked_by_user_id?: string | null
-          spending_limit_cents: number
-          status?: Database["public"]["Enums"]["card_auth_status"]
-          trip_id: string
-          updated_at?: string
-        }
-        Update: {
-          amount_used_cents?: number
-          consent_payload?: Json
-          created_at?: string
-          expires_at?: string
-          id?: string
-          payment_card_id?: string
-          revoked_at?: string | null
-          revoked_by_user_id?: string | null
-          spending_limit_cents?: number
-          status?: Database["public"]["Enums"]["card_auth_status"]
-          trip_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "card_authorization_payment_card_id_fkey"
-            columns: ["payment_card_id"]
-            isOneToOne: false
-            referencedRelation: "payment_card"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_authorization_revoked_by_user_id_fkey"
-            columns: ["revoked_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "platform_user"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_authorization_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trip"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      card_use_event: {
-        Row: {
-          agent_user_id: string
-          amount_cents: number
-          card_authorization_id: string
-          client_flag_status: string
-          client_flagged_at: string | null
-          created_at: string
-          currency: string
-          id: string
-          justification: string
-          payment_card_id: string
-          receipt_document_id: string | null
-          reference_number: string | null
-          supplier_id: string | null
-          supplier_name_snapshot: string
-          trip_id: string
-        }
-        Insert: {
-          agent_user_id: string
-          amount_cents: number
-          card_authorization_id: string
-          client_flag_status?: string
-          client_flagged_at?: string | null
-          created_at?: string
-          currency?: string
-          id: string
-          justification: string
-          payment_card_id: string
-          receipt_document_id?: string | null
-          reference_number?: string | null
-          supplier_id?: string | null
-          supplier_name_snapshot: string
-          trip_id: string
-        }
-        Update: {
-          agent_user_id?: string
-          amount_cents?: number
-          card_authorization_id?: string
-          client_flag_status?: string
-          client_flagged_at?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          justification?: string
-          payment_card_id?: string
-          receipt_document_id?: string | null
-          reference_number?: string | null
-          supplier_id?: string | null
-          supplier_name_snapshot?: string
-          trip_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "card_use_event_agent_user_id_fkey"
-            columns: ["agent_user_id"]
-            isOneToOne: false
-            referencedRelation: "platform_user"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_card_authorization_id_fkey"
-            columns: ["card_authorization_id"]
-            isOneToOne: false
-            referencedRelation: "card_authorization"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_payment_card_id_fkey"
-            columns: ["payment_card_id"]
-            isOneToOne: false
-            referencedRelation: "payment_card"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_receipt_fk"
-            columns: ["receipt_document_id"]
-            isOneToOne: false
-            referencedRelation: "document"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "card_use_event_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trip"
             referencedColumns: ["id"]
           },
         ]
@@ -551,7 +497,6 @@ export type Database = {
           id: string
           important_dates: Json
           last_name: string
-          lifetime_value_cents: number
           mailing_address_id: string | null
           merged_into_client_id: string | null
           notes: string | null
@@ -573,7 +518,6 @@ export type Database = {
           id: string
           important_dates?: Json
           last_name: string
-          lifetime_value_cents?: number
           mailing_address_id?: string | null
           merged_into_client_id?: string | null
           notes?: string | null
@@ -595,7 +539,6 @@ export type Database = {
           id?: string
           important_dates?: Json
           last_name?: string
-          lifetime_value_cents?: number
           mailing_address_id?: string | null
           merged_into_client_id?: string | null
           notes?: string | null
@@ -736,6 +679,7 @@ export type Database = {
       commission: {
         Row: {
           agent_id: string
+          archived_at: string | null
           commission_pct: number
           component_id: string | null
           created_at: string
@@ -746,7 +690,9 @@ export type Database = {
           import_id: string | null
           inteletravel_reference: string | null
           notes: string | null
-          payment_terms: string
+          on_record_at: string | null
+          payment_lag_days: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents: number
           received_at: string | null
           received_commission_cents: number
@@ -754,9 +700,11 @@ export type Database = {
           supplier_id: string
           trip_id: string
           updated_at: string
+          version: number
         }
         Insert: {
           agent_id: string
+          archived_at?: string | null
           commission_pct: number
           component_id?: string | null
           created_at?: string
@@ -767,7 +715,9 @@ export type Database = {
           import_id?: string | null
           inteletravel_reference?: string | null
           notes?: string | null
-          payment_terms: string
+          on_record_at?: string | null
+          payment_lag_days?: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
@@ -775,9 +725,11 @@ export type Database = {
           supplier_id: string
           trip_id: string
           updated_at?: string
+          version?: number
         }
         Update: {
           agent_id?: string
+          archived_at?: string | null
           commission_pct?: number
           component_id?: string | null
           created_at?: string
@@ -788,7 +740,9 @@ export type Database = {
           import_id?: string | null
           inteletravel_reference?: string | null
           notes?: string | null
-          payment_terms?: string
+          on_record_at?: string | null
+          payment_lag_days?: number
+          payment_terms?: Database["public"]["Enums"]["commission_payment_terms"]
           processing_fee_cents?: number
           received_at?: string | null
           received_commission_cents?: number
@@ -796,6 +750,7 @@ export type Database = {
           supplier_id?: string
           trip_id?: string
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -837,45 +792,79 @@ export type Database = {
       }
       commission_import: {
         Row: {
+          agent_id: string
+          checksum_sha256: string
+          column_map: Json
           created_at: string
-          document_id: string | null
+          document_id: string
+          headers: string[]
           id: string
           imported_by_user_id: string
           matched_rows: number
           original_filename: string
           period_end: string | null
           period_start: string | null
+          reconciled_at: string | null
           source: string
+          statement_date: string | null
+          status: Database["public"]["Enums"]["commission_import_status"]
           total_rows: number
           unmatched_rows: number
+          updated_at: string
+          version: number
         }
         Insert: {
+          agent_id: string
+          checksum_sha256: string
+          column_map?: Json
           created_at?: string
-          document_id?: string | null
+          document_id: string
+          headers?: string[]
           id: string
           imported_by_user_id: string
           matched_rows?: number
           original_filename: string
           period_end?: string | null
           period_start?: string | null
+          reconciled_at?: string | null
           source?: string
+          statement_date?: string | null
+          status?: Database["public"]["Enums"]["commission_import_status"]
           total_rows?: number
           unmatched_rows?: number
+          updated_at?: string
+          version?: number
         }
         Update: {
+          agent_id?: string
+          checksum_sha256?: string
+          column_map?: Json
           created_at?: string
-          document_id?: string | null
+          document_id?: string
+          headers?: string[]
           id?: string
           imported_by_user_id?: string
           matched_rows?: number
           original_filename?: string
           period_end?: string | null
           period_start?: string | null
+          reconciled_at?: string | null
           source?: string
+          statement_date?: string | null
+          status?: Database["public"]["Enums"]["commission_import_status"]
           total_rows?: number
           unmatched_rows?: number
+          updated_at?: string
+          version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "commission_import_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "commission_import_document_fk"
             columns: ["document_id"]
@@ -888,6 +877,123 @@ export type Database = {
             columns: ["imported_by_user_id"]
             isOneToOne: false
             referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_import_row: {
+        Row: {
+          cells: string[]
+          commission_id: string | null
+          created_at: string
+          currency: string
+          fee_cents: number | null
+          gross_cents: number | null
+          id: string
+          import_id: string
+          match_basis: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_id: string | null
+          new_commission_pct: number | null
+          new_gross_cents: number | null
+          new_supplier_id: string | null
+          new_trip_id: string | null
+          paid_on: string | null
+          parse_error: string | null
+          received_cents: number | null
+          reference: string | null
+          row_number: number
+          state: Database["public"]["Enums"]["commission_import_row_state"]
+          suggested_commission_id: string | null
+          supplier_text: string | null
+          traveler_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          cells: string[]
+          commission_id?: string | null
+          created_at?: string
+          currency?: string
+          fee_cents?: number | null
+          gross_cents?: number | null
+          id: string
+          import_id: string
+          match_basis?: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_id?: string | null
+          new_commission_pct?: number | null
+          new_gross_cents?: number | null
+          new_supplier_id?: string | null
+          new_trip_id?: string | null
+          paid_on?: string | null
+          parse_error?: string | null
+          received_cents?: number | null
+          reference?: string | null
+          row_number: number
+          state?: Database["public"]["Enums"]["commission_import_row_state"]
+          suggested_commission_id?: string | null
+          supplier_text?: string | null
+          traveler_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cells?: string[]
+          commission_id?: string | null
+          created_at?: string
+          currency?: string
+          fee_cents?: number | null
+          gross_cents?: number | null
+          id?: string
+          import_id?: string
+          match_basis?: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_id?: string | null
+          new_commission_pct?: number | null
+          new_gross_cents?: number | null
+          new_supplier_id?: string | null
+          new_trip_id?: string | null
+          paid_on?: string | null
+          parse_error?: string | null
+          received_cents?: number | null
+          reference?: string | null
+          row_number?: number
+          state?: Database["public"]["Enums"]["commission_import_row_state"]
+          suggested_commission_id?: string | null
+          supplier_text?: string | null
+          traveler_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_import_row_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "commission"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "commission_import"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_new_supplier_id_fkey"
+            columns: ["new_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_new_trip_id_fkey"
+            columns: ["new_trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_import_row_suggested_commission_id_fkey"
+            columns: ["suggested_commission_id"]
+            isOneToOne: false
+            referencedRelation: "commission"
             referencedColumns: ["id"]
           },
         ]
@@ -963,6 +1069,7 @@ export type Database = {
       }
       conversation: {
         Row: {
+          agent_archived_at: string | null
           agent_id: string
           agent_unread_count: number
           archived_at: string | null
@@ -977,6 +1084,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_archived_at?: string | null
           agent_id: string
           agent_unread_count?: number
           archived_at?: string | null
@@ -991,6 +1099,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_archived_at?: string | null
           agent_id?: string
           agent_unread_count?: number
           archived_at?: string | null
@@ -1718,6 +1827,131 @@ export type Database = {
           },
         ]
       }
+      email_outbox: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          client_user_id: string
+          conversation_id: string
+          created_at: string
+          due_at: string
+          first_message_at: string
+          id: string
+          last_error: string | null
+          latest_message_id: string
+          sent_at: string | null
+          skip_reason: string | null
+          state: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          client_user_id: string
+          conversation_id: string
+          created_at?: string
+          due_at: string
+          first_message_at: string
+          id?: string
+          last_error?: string | null
+          latest_message_id: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          state?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          client_user_id?: string
+          conversation_id?: string
+          created_at?: string
+          due_at?: string
+          first_message_at?: string
+          id?: string
+          last_error?: string | null
+          latest_message_id?: string
+          sent_at?: string | null
+          skip_reason?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_outbox_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_outbox_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_outbox_latest_message_id_fkey"
+            columns: ["latest_message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_token: {
+        Row: {
+          client_user_id: string
+          conversation_id: string
+          created_at: string
+          expires_at: string
+          outbox_id: string | null
+          purpose: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          client_user_id: string
+          conversation_id: string
+          created_at?: string
+          expires_at: string
+          outbox_id?: string | null
+          purpose: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          client_user_id?: string
+          conversation_id?: string
+          created_at?: string
+          expires_at?: string
+          outbox_id?: string | null
+          purpose?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_token_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_token_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_token_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "email_outbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flag: {
         Row: {
           description: string | null
@@ -1925,6 +2159,41 @@ export type Database = {
         }
         Relationships: []
       }
+      inbound_email: {
+        Row: {
+          files_dropped: number
+          id: string
+          message_id: string | null
+          outcome: string
+          provider_email_id: string
+          received_at: string
+        }
+        Insert: {
+          files_dropped?: number
+          id?: string
+          message_id?: string | null
+          outcome: string
+          provider_email_id: string
+          received_at?: string
+        }
+        Update: {
+          files_dropped?: number
+          id?: string
+          message_id?: string | null
+          outcome?: string
+          provider_email_id?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_email_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itinerary: {
         Row: {
           closing_note: string | null
@@ -2086,9 +2355,12 @@ export type Database = {
         Row: {
           archived_at: string | null
           body: string
+          channel: string
           conversation_id: string
           created_at: string
+          emailed_at: string | null
           id: string
+          is_auto_reply: boolean
           is_internal_note: boolean
           read_by_other_at: string | null
           sender_role: Database["public"]["Enums"]["user_role"]
@@ -2097,9 +2369,12 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           body: string
+          channel?: string
           conversation_id: string
           created_at?: string
+          emailed_at?: string | null
           id: string
+          is_auto_reply?: boolean
           is_internal_note?: boolean
           read_by_other_at?: string | null
           sender_role: Database["public"]["Enums"]["user_role"]
@@ -2108,9 +2383,12 @@ export type Database = {
         Update: {
           archived_at?: string | null
           body?: string
+          channel?: string
           conversation_id?: string
           created_at?: string
+          emailed_at?: string | null
           id?: string
+          is_auto_reply?: boolean
           is_internal_note?: boolean
           read_by_other_at?: string | null
           sender_role?: Database["public"]["Enums"]["user_role"]
@@ -2292,68 +2570,6 @@ export type Database = {
           },
         ]
       }
-      payment_card: {
-        Row: {
-          brand: string
-          client_id: string
-          consent_recorded_at: string
-          created_at: string
-          exp_month: number
-          exp_year: number
-          id: string
-          last4: string
-          nickname: string | null
-          revoked_at: string | null
-          revoked_reason: string | null
-          status: Database["public"]["Enums"]["card_status"]
-          stripe_customer_id: string
-          stripe_payment_method_id: string
-          updated_at: string
-        }
-        Insert: {
-          brand: string
-          client_id: string
-          consent_recorded_at: string
-          created_at?: string
-          exp_month: number
-          exp_year: number
-          id: string
-          last4: string
-          nickname?: string | null
-          revoked_at?: string | null
-          revoked_reason?: string | null
-          status?: Database["public"]["Enums"]["card_status"]
-          stripe_customer_id: string
-          stripe_payment_method_id: string
-          updated_at?: string
-        }
-        Update: {
-          brand?: string
-          client_id?: string
-          consent_recorded_at?: string
-          created_at?: string
-          exp_month?: number
-          exp_year?: number
-          id?: string
-          last4?: string
-          nickname?: string | null
-          revoked_at?: string | null
-          revoked_reason?: string | null
-          status?: Database["public"]["Enums"]["card_status"]
-          stripe_customer_id?: string
-          stripe_payment_method_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_card_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "client"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payment_milestone: {
         Row: {
           amount_cents: number
@@ -2366,6 +2582,9 @@ export type Database = {
           order_index: number
           paid_at: string | null
           paid_cents: number
+          paid_note: string | null
+          paid_reference: string | null
+          pay_url: string | null
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           updated_at: string
@@ -2381,6 +2600,9 @@ export type Database = {
           order_index?: number
           paid_at?: string | null
           paid_cents?: number
+          paid_note?: string | null
+          paid_reference?: string | null
+          pay_url?: string | null
           status?: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           updated_at?: string
@@ -2396,6 +2618,9 @@ export type Database = {
           order_index?: number
           paid_at?: string | null
           paid_cents?: number
+          paid_note?: string | null
+          paid_reference?: string | null
+          pay_url?: string | null
           status?: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id?: string
           updated_at?: string
@@ -2568,6 +2793,139 @@ export type Database = {
           },
         ]
       }
+      push_device: {
+        Row: {
+          created_at: string
+          fcm_token: string | null
+          id: string
+          label: string | null
+          last_seen_at: string
+          platform: Database["public"]["Enums"]["push_platform"]
+          platform_user_id: string
+          web_auth: string | null
+          web_endpoint: string | null
+          web_p256dh: string | null
+        }
+        Insert: {
+          created_at?: string
+          fcm_token?: string | null
+          id: string
+          label?: string | null
+          last_seen_at?: string
+          platform: Database["public"]["Enums"]["push_platform"]
+          platform_user_id: string
+          web_auth?: string | null
+          web_endpoint?: string | null
+          web_p256dh?: string | null
+        }
+        Update: {
+          created_at?: string
+          fcm_token?: string | null
+          id?: string
+          label?: string | null
+          last_seen_at?: string
+          platform?: Database["public"]["Enums"]["push_platform"]
+          platform_user_id?: string
+          web_auth?: string | null
+          web_endpoint?: string | null
+          web_p256dh?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_device_platform_user_id_fkey"
+            columns: ["platform_user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_outbox: {
+        Row: {
+          agent_id: string
+          attempts: number
+          claimed_at: string | null
+          conversation_id: string | null
+          created_at: string
+          due_at: string
+          held: boolean
+          hold_reason: string | null
+          id: string
+          kind: string
+          latest_message_id: string | null
+          message_count: number
+          needs_dismiss: boolean
+          sent_at: string | null
+          state: string
+          trip_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          due_at: string
+          held: boolean
+          hold_reason?: string | null
+          id?: string
+          kind?: string
+          latest_message_id?: string | null
+          message_count: number
+          needs_dismiss?: boolean
+          sent_at?: string | null
+          state?: string
+          trip_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          attempts?: number
+          claimed_at?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          due_at?: string
+          held?: boolean
+          hold_reason?: string | null
+          id?: string
+          kind?: string
+          latest_message_id?: string | null
+          message_count?: number
+          needs_dismiss?: boolean
+          sent_at?: string | null
+          state?: string
+          trip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_outbox_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_latest_message_id_fkey"
+            columns: ["latest_message_id"]
+            isOneToOne: false
+            referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session: {
         Row: {
           account_id: string
@@ -2618,7 +2976,10 @@ export type Database = {
       supplier: {
         Row: {
           archived_at: string | null
-          commission_payment_terms: string | null
+          commission_payment_lag_days: number | null
+          commission_payment_terms:
+            | Database["public"]["Enums"]["commission_payment_terms"]
+            | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -2634,7 +2995,10 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
-          commission_payment_terms?: string | null
+          commission_payment_lag_days?: number | null
+          commission_payment_terms?:
+            | Database["public"]["Enums"]["commission_payment_terms"]
+            | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -2650,7 +3014,10 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
-          commission_payment_terms?: string | null
+          commission_payment_lag_days?: number | null
+          commission_payment_terms?:
+            | Database["public"]["Enums"]["commission_payment_terms"]
+            | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -3156,6 +3523,137 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      account_admin_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      account_admin_bind_invite: {
+        Args: {
+          p_account_id: string
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
+      account_admin_claim_signin_email: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_kind: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
+      account_admin_lock_client: {
+        Args: { p_agent_id: string; p_client_id: string }
+        Returns: boolean
+      }
+      account_admin_merge_clients: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_choices: Json
+          p_expect_lock_account: string
+          p_ip?: string
+          p_keep_id: string
+          p_keep_version: number
+          p_retire_id: string
+          p_retire_version: number
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
+      account_admin_set_flag: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_auth_event_id: string
+          p_client_id: string
+          p_flag: boolean
+          p_ip?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
+      account_admin_set_lock: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_lock: boolean
+          p_reason: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
+      account_admin_sign_out_everywhere: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_id: string
+          p_ip?: string
+          p_user_agent?: string
+        }
+        Returns: number
+      }
+      account_admin_target: {
+        Args: { p_agent_id: string; p_client_id: string }
+        Returns: Json
+      }
+      agent_alert_default: {
+        Args: { p_category: string; p_channel: string }
+        Returns: boolean
+      }
+      agent_alert_email_claim: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_first_name: string
+          alert_id: string
+          client_name: string
+          conversation_id: string
+          kind: string
+          recipient: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_alert_email_finish: {
+        Args: {
+          p_alert_id: string
+          p_error?: string
+          p_ok: boolean
+          p_permanent?: boolean
+        }
+        Returns: string
+      }
+      agent_alert_email_release: {
+        Args: { p_alert_id: string }
+        Returns: string
+      }
+      agent_alert_on: {
+        Args: { p_agent_id: string; p_category: string; p_channel: string }
+        Returns: boolean
+      }
       agent_apply_template: {
         Args: { p_agent_id: string; p_template_id: string; p_trip_id: string }
         Returns: {
@@ -3216,6 +3714,33 @@ export type Database = {
           version: number
         }[]
       }
+      agent_cancel_trip: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_ids?: string[]
+          p_close_lines?: Json
+          p_expected_version: number
+          p_ip?: string
+          p_reason: string
+          p_refund_detail?: string
+          p_refund_status?: string
+          p_trip_id: string
+          p_user_agent?: string
+        }
+        Returns: {
+          from_status: Database["public"]["Enums"]["trip_status"]
+          lines_closed: number
+          lines_skipped: number
+          outcome: string
+          to_status: Database["public"]["Enums"]["trip_status"]
+          version: number
+        }[]
+      }
+      agent_client_account_admin: {
+        Args: { p_client_id: string }
+        Returns: Json
+      }
       agent_client_activity: {
         Args: { p_client_id: string; p_limit?: number }
         Returns: {
@@ -3269,6 +3794,10 @@ export type Database = {
           trip_id: string
           trip_title: string
         }[]
+      }
+      agent_client_merge_view: {
+        Args: { p_client_id: string; p_other_id?: string; p_search?: string }
+        Returns: Json
       }
       agent_client_notes: {
         Args: { p_client_id: string }
@@ -3387,6 +3916,269 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
         }[]
       }
+      agent_commission_cash_in: {
+        Args: never
+        Returns: {
+          bucket: string
+          cents: string
+          month_start: string
+          received_cents: string
+          trip_count: number
+        }[]
+      }
+      agent_commission_dashboard: {
+        Args: never
+        Returns: {
+          as_of_date: string
+          at_risk_cents: string
+          avg_rate_pct: number
+          currency: string
+          disputed_count: number
+          ly_avg_rate_pct: number
+          ly_received_cents: string
+          prior_12_cents: string
+          trailing_12_cents: string
+          upcoming_commission_cents: string
+          upcoming_trip_count: number
+          ytd_received_cents: string
+        }[]
+      }
+      agent_commission_forecast: {
+        Args: never
+        Returns: {
+          as_of_date: string
+          raw_cents: string
+          status: Database["public"]["Enums"]["trip_status"]
+          total_raw_cents: string
+          total_weighted_cents: string
+          trip_count: number
+          weight_pct: number
+          weighted_cents: string
+        }[]
+      }
+      agent_commission_import: {
+        Args: { p_import_id: string }
+        Returns: {
+          already_recorded_count: number
+          as_of_date: string
+          column_map: Json
+          confirmed_count: number
+          created_at: string
+          duplicate_count: number
+          headers: string[]
+          ignored_count: number
+          import_id: string
+          original_filename: string
+          period_end: string
+          period_start: string
+          reconciled_at: string
+          reconciled_on: string
+          sample_rows: Json
+          statement_date: string
+          status: Database["public"]["Enums"]["commission_import_status"]
+          suggested_count: number
+          to_create_count: number
+          total_rows: number
+          unmatched_count: number
+          unreadable_count: number
+          version: number
+        }[]
+      }
+      agent_commission_import_candidates: {
+        Args: { p_import_id: string; p_row_id: string }
+        Returns: {
+          client_name: string
+          commission_id: string
+          commission_pct: number
+          expected_cents: string
+          gross_booking_cents: string
+          start_date: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_matches: boolean
+          supplier_name: string
+          traveler_matches: boolean
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_commission_import_rows: {
+        Args: { p_import_id: string }
+        Returns: {
+          currency: string
+          fee_cents: string
+          gross_cents: string
+          line_client_name: string
+          line_commission_pct: number
+          line_expected_cents: string
+          line_fee_cents: string
+          line_gross_cents: string
+          line_id: string
+          line_received_at: string
+          line_received_cents: string
+          line_status: Database["public"]["Enums"]["commission_status"]
+          line_supplier_name: string
+          line_trip_id: string
+          line_trip_title: string
+          match_basis: Database["public"]["Enums"]["commission_match_basis"]
+          new_commission_pct: number
+          new_gross_cents: string
+          new_supplier_id: string
+          new_supplier_name: string
+          new_trip_id: string
+          new_trip_title: string
+          paid_on: string
+          parse_error: string
+          received_cents: string
+          reference: string
+          row_id: string
+          row_number: number
+          state: Database["public"]["Enums"]["commission_import_row_state"]
+          supplier_text: string
+          traveler_text: string
+        }[]
+      }
+      agent_commission_imports: {
+        Args: never
+        Returns: {
+          created_at: string
+          created_on: string
+          import_id: string
+          matched_rows: number
+          original_filename: string
+          period_end: string
+          period_start: string
+          reconciled_at: string
+          status: Database["public"]["Enums"]["commission_import_status"]
+          total_rows: number
+          unmatched_rows: number
+        }[]
+      }
+      agent_commission_ledger: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_status?: Database["public"]["Enums"]["commission_status"][]
+          p_supplier_id?: string
+          p_travel_from?: string
+          p_travel_to?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          as_of_date: string
+          client_display_name: string
+          client_id: string
+          commission_id: string
+          commission_pct: number
+          currency: string
+          end_date: string
+          expected_commission_cents: string
+          gross_booking_cents: string
+          inteletravel_reference: string
+          processing_fee_cents: string
+          received_at: string
+          received_commission_cents: string
+          start_date: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_id: string
+          supplier_name: string
+          total_count: number
+          trip_archived: boolean
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_commission_ledger_summary: {
+        Args: never
+        Returns: {
+          disputed_count: number
+          expected_count: number
+          invoiced_count: number
+          lost_count: number
+          received_count: number
+          total_count: number
+        }[]
+      }
+      agent_commission_ledger_suppliers: {
+        Args: never
+        Returns: {
+          line_count: number
+          supplier_id: string
+          supplier_name: string
+        }[]
+      }
+      agent_commission_line: {
+        Args: { p_commission_id: string }
+        Returns: {
+          as_of_date: string
+          booked_on: string
+          can_remove: boolean
+          client_display_name: string
+          client_id: string
+          commission_id: string
+          commission_pct: number
+          currency: string
+          expected_commission_cents: string
+          expected_payment_date: string
+          gross_booking_cents: string
+          inteletravel_reference: string
+          notes: string
+          payment_lag_days: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          processing_fee_cents: string
+          received_at: string
+          received_commission_cents: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_id: string
+          supplier_name: string
+          trip_archived: boolean
+          trip_end_date: string
+          trip_id: string
+          trip_start_date: string
+          trip_status: Database["public"]["Enums"]["trip_status"]
+          trip_title: string
+          version: number
+        }[]
+      }
+      agent_commission_monthly: {
+        Args: never
+        Returns: {
+          line_count: number
+          month_start: string
+          received_cents: string
+        }[]
+      }
+      agent_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          agent_unread_count: number
+          archived: boolean
+          client_can_sign_in: boolean
+          client_display_name: string
+          client_first_name: string
+          client_id: string
+          conversation_id: string
+          overdue: boolean
+          reply_due_at: string
+          subject: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_conversation_messages: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          attachments: Json
+          body: string
+          channel: string
+          created_at: string
+          emailed_at: string
+          is_auto_reply: boolean
+          is_internal_note: boolean
+          message_id: string
+          sender_role: string
+          total_messages: number
+        }[]
+      }
       agent_create_client: {
         Args: {
           p_agent_id: string
@@ -3412,6 +4204,43 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_create_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_commission_id: string
+          p_commission_pct: number
+          p_gross_cents: number
+          p_inteletravel_reference: string
+          p_ip: string
+          p_notes: string
+          p_payment_lag_days: number
+          p_payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          p_status: Database["public"]["Enums"]["commission_status"]
+          p_supplier_id: string
+          p_trip_id: string
+          p_user_agent: string
+        }
+        Returns: {
+          commission_id: string
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_create_message_template: {
+        Args: {
+          p_agent_id: string
+          p_body: string
+          p_category: string
+          p_name: string
+          p_tags: string[]
+          p_template_id: string
+        }
+        Returns: {
+          outcome: string
+        }[]
+      }
       agent_create_trip: {
         Args: {
           p_agent_id: string
@@ -3426,6 +4255,8 @@ export type Database = {
           trip_id: string
         }[]
       }
+      agent_default_signature: { Args: never; Returns: string }
+      agent_default_weekly_schedule: { Args: never; Returns: Json }
       agent_delete_itinerary_activity: {
         Args: { p_activity_id: string; p_agent_id: string; p_trip_id: string }
         Returns: {
@@ -3438,6 +4269,66 @@ export type Database = {
         Returns: {
           milestone_id: string
           outcome: string
+        }[]
+      }
+      agent_discard_commission_import: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_expected_version: number
+          p_import_id: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_duplicate_message_template: {
+        Args: { p_agent_id: string; p_new_id: string; p_source_id: string }
+        Returns: {
+          outcome: string
+        }[]
+      }
+      agent_export_center: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_from: string
+          p_include_contact: boolean
+          p_ip: string
+          p_to: string
+          p_type: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
+      agent_export_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ip: string
+          p_status: Database["public"]["Enums"]["commission_status"][]
+          p_supplier_id: string
+          p_travel_from: string
+          p_travel_to: string
+          p_trip_id: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
+      agent_export_history: {
+        Args: { p_limit?: number }
+        Returns: {
+          audit_id: string
+          created_at: string
+          created_local: string
+          event_type: string
+          metadata: Json
         }[]
       }
       agent_generate_itinerary: {
@@ -3481,6 +4372,123 @@ export type Database = {
           unread_message_count: number
         }[]
       }
+      agent_local_today: { Args: { p_agent_id: string }; Returns: string }
+      agent_map_commission_import: {
+        Args: {
+          p_agent_id: string
+          p_column_map: Json
+          p_expected_version: number
+          p_import_id: string
+          p_rows: Json
+          p_statement_date: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_mark_conversation_read: {
+        Args: {
+          p_agent_id: string
+          p_conversation_id: string
+          p_seen_up_to: string
+        }
+        Returns: boolean
+      }
+      agent_message_merge_context: {
+        Args: {
+          p_client_id: string
+          p_milestone_id?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          agent_first_name: string
+          client_first_name: string
+          payment_currency: string
+          payment_due_date: string
+          payment_label: string
+          payment_link: string
+          payment_owed_cents: string
+          trip_destinations: string[]
+          trip_end_date: string
+          trip_start_date: string
+          trip_title: string
+        }[]
+      }
+      agent_message_summary: {
+        Args: never
+        Returns: {
+          archived_threads: number
+          open_threads: number
+          overdue_threads: number
+          unread_messages: number
+          unread_threads: number
+        }[]
+      }
+      agent_message_target: {
+        Args: { p_client_id: string; p_trip_id?: string }
+        Returns: {
+          client_can_sign_in: boolean
+          client_display_name: string
+          client_first_name: string
+          client_id: string
+          conversation_id: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      agent_message_template: {
+        Args: { p_template_id: string }
+        Returns: {
+          archived: boolean
+          body: string
+          category: string
+          name: string
+          tags: string[]
+          template_id: string
+          updated_at: string
+        }[]
+      }
+      agent_message_templates: {
+        Args: { p_archived?: boolean }
+        Returns: {
+          archived: boolean
+          body: string
+          category: string
+          name: string
+          tags: string[]
+          template_id: string
+          updated_at: string
+        }[]
+      }
+      agent_message_threads: {
+        Args: {
+          p_archived?: boolean
+          p_client_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_overdue?: boolean
+          p_search?: string
+          p_trip_id?: string
+          p_unread?: boolean
+        }
+        Returns: {
+          agent_unread_count: number
+          archived: boolean
+          client_display_name: string
+          client_id: string
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          last_sender_role: string
+          overdue: boolean
+          reply_due_at: string
+          subject: string
+          total_count: number
+          trip_id: string
+          trip_title: string
+        }[]
+      }
       agent_payments_due: {
         Args: { p_within_days?: number }
         Returns: {
@@ -3497,6 +4505,65 @@ export type Database = {
           status: Database["public"]["Enums"]["payment_milestone_status"]
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_platform_user: { Args: { p_agent_id: string }; Returns: string }
+      agent_push_reschedule: {
+        Args: { p_agent_id: string }
+        Returns: undefined
+      }
+      agent_reconcile_commission_import: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_ids: string[]
+          p_expected_version: number
+          p_import_id: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          already_count: number
+          blocking_count: number
+          created_count: number
+          outcome: string
+          paid_count: number
+          version: number
+        }[]
+      }
+      agent_record_commission_payment: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_commission_id: string
+          p_expected_version: number
+          p_fee_cents: number
+          p_ip: string
+          p_received_at: string
+          p_received_cents: number
+          p_status: Database["public"]["Enums"]["commission_status"]
+          p_user_agent: string
+        }
+        Returns: {
+          gap_cents: string
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_remove_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_commission_id: string
+          p_expected_version: number
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          version: number
         }[]
       }
       agent_reorder_itinerary_activities: {
@@ -3522,6 +4589,126 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_report_client_lifetime_value: {
+        Args: never
+        Returns: {
+          client_id: string
+          cohort_start: string
+          commission_cents: string
+          display_name: string
+          trip_count: number
+          value_cents: string
+        }[]
+      }
+      agent_report_commission_by_supplier: {
+        Args: { p_period: string }
+        Returns: {
+          line_count: number
+          owed_cents: string
+          received_cents: string
+          set_aside_count: number
+          set_aside_received_cents: string
+          supplier_id: string
+          supplier_name: string
+        }[]
+      }
+      agent_report_conversion_funnel: {
+        Args: { p_period: string }
+        Returns: {
+          book_days_avg: number
+          book_days_n: number
+          cancelled_here: number
+          open_here: number
+          reached: number
+          stage: number
+        }[]
+      }
+      agent_report_export: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_basis: string
+          p_ip: string
+          p_period: string
+          p_report: string
+          p_user_agent: string
+        }
+        Returns: Json
+      }
+      agent_report_period: {
+        Args: { p_period: string }
+        Returns: {
+          from_date: string
+          to_date: string
+          today: string
+        }[]
+      }
+      agent_report_pipeline_months: {
+        Args: never
+        Returns: {
+          bucket: string
+          month_start: string
+          trip_count: number
+          weighted_cents: string
+        }[]
+      }
+      agent_report_pipeline_stages: {
+        Args: never
+        Returns: {
+          gross_cents: string
+          status: Database["public"]["Enums"]["trip_status"]
+          total_gross_cents: string
+          total_weighted_cents: string
+          trip_count: number
+          weight_pct: number
+          weighted_cents: string
+        }[]
+      }
+      agent_report_revenue_by_month: {
+        Args: { p_basis: string; p_period: string }
+        Returns: {
+          cents: string
+          item_count: number
+          month_start: string
+          prior_cents: string
+        }[]
+      }
+      agent_report_top_destinations: {
+        Args: { p_period: string }
+        Returns: {
+          destination: string
+          trip_count: number
+          value_cents: string
+        }[]
+      }
+      agent_resolve_commission_import_row: {
+        Args: {
+          p_action: string
+          p_agent_id: string
+          p_commission_id?: string
+          p_commission_pct?: number
+          p_expected_version: number
+          p_gross_cents?: number
+          p_import_id: string
+          p_new_commission_id?: string
+          p_row_id: string
+          p_supplier_id?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_rest_until: {
+        Args: { p_agent_id: string; p_at: string }
+        Returns: {
+          due_at: string
+          reason: string
+        }[]
+      }
+      agent_return_date_label: { Args: { p_ends_on: string }; Returns: string }
       agent_save_trip_as_template: {
         Args: {
           p_agent_id: string
@@ -3533,6 +4720,25 @@ export type Database = {
           components_saved: number
           days_saved: number
           template_id: string
+        }[]
+      }
+      agent_send_message: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_body: string
+          p_client_id?: string
+          p_conversation_id?: string
+          p_is_internal_note: boolean
+          p_message_id: string
+          p_new_conversation_id?: string
+          p_seen_up_to?: string
+          p_trip_id?: string
+        }
+        Returns: {
+          conversation_id: string
+          created_at: string
+          outcome: string
         }[]
       }
       agent_set_client_archived: {
@@ -3547,18 +4753,67 @@ export type Database = {
           version: number
         }[]
       }
-      agent_set_milestone_paid: {
+      agent_set_conversations_archived: {
         Args: {
           p_agent_id: string
+          p_archived: boolean
+          p_conversation_ids: string[]
+        }
+        Returns: number
+      }
+      agent_set_message_template_archived: {
+        Args: { p_agent_id: string; p_archived: boolean; p_template_id: string }
+        Returns: {
+          outcome: string
+        }[]
+      }
+      agent_set_milestone_paid: {
+        Args: {
+          p_actor_user_id?: string
+          p_agent_id: string
+          p_ip?: string
           p_milestone_id: string
           p_paid_cents?: number
+          p_paid_note?: string
+          p_paid_on?: string
+          p_paid_reference?: string
           p_status: Database["public"]["Enums"]["payment_milestone_status"]
           p_trip_id: string
+          p_user_agent?: string
         }
         Returns: {
           milestone_id: string
           outcome: string
           paid_cents: string
+        }[]
+      }
+      agent_set_milestone_pay_url: {
+        Args: {
+          p_actor_user_id?: string
+          p_agent_id: string
+          p_ip?: string
+          p_milestone_id: string
+          p_pay_url: string
+          p_trip_id: string
+          p_user_agent?: string
+        }
+        Returns: {
+          milestone_id: string
+          outcome: string
+        }[]
+      }
+      agent_set_pipeline_weights: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_expected: Json
+          p_ip: string
+          p_user_agent: string
+          p_weights: Json
+        }
+        Returns: {
+          outcome: string
         }[]
       }
       agent_set_trip_notes: {
@@ -3591,9 +4846,133 @@ export type Database = {
           version: number
         }[]
       }
+      agent_settings_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_audit_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_target_entity: string
+          p_target_id: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      agent_settings_diff: { Args: { p_new: Json; p_old: Json }; Returns: Json }
+      agent_settings_end_time_off: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_id: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_settings_lock: { Args: { p_agent_id: string }; Returns: boolean }
+      agent_settings_save_time_off: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_auto_reply_enabled: boolean
+          p_auto_reply_text: string
+          p_ends_on: string
+          p_id: string
+          p_ip: string
+          p_is_new: boolean
+          p_label: string
+          p_starts_on: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_settings_self: { Args: never; Returns: Json }
+      agent_settings_set_avatar: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_avatar_url: string
+          p_ip: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          previous_url: string
+        }[]
+      }
+      agent_settings_snapshot: { Args: { p_agent_id: string }; Returns: Json }
+      agent_settings_update_availability: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ip: string
+          p_response_time_hours: number
+          p_time_zone: string
+          p_user_agent: string
+          p_weekly_schedule: Json
+        }
+        Returns: string
+      }
+      agent_settings_update_notifications: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_client_messages_email: boolean
+          p_client_messages_push: boolean
+          p_ip: string
+          p_quote_requests_email: boolean
+          p_quote_requests_push: boolean
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_settings_update_profile: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_bio: string
+          p_display_name: string
+          p_ip: string
+          p_phone: string
+          p_pronouns: string
+          p_social_links: Json
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_settings_update_signature: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_ip: string
+          p_signature: string
+          p_user_agent: string
+        }
+        Returns: string
+      }
+      agent_signature_for_conversation: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          phone: string
+          signature: string
+        }[]
+      }
+      agent_social_links_valid: { Args: { p: Json }; Returns: boolean }
       agent_suppliers: {
         Args: never
         Returns: {
+          commission_payment_lag_days: number
+          commission_payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
           default_commission_pct: number
           kind: Database["public"]["Enums"]["supplier_kind"]
           name: string
@@ -3624,6 +5003,27 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
           updated_at: string
           value_cents: string
+        }[]
+      }
+      agent_threads_for_current_agent: {
+        Args: never
+        Returns: {
+          agent_unread_count: number
+          archived: boolean
+          as_of: string
+          awaiting_since: string
+          client_display_name: string
+          client_first_name: string
+          client_id: string
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          last_sender_role: string
+          overdue: boolean
+          reply_due_at: string
+          subject: string
+          trip_id: string
+          trip_title: string
         }[]
       }
       agent_trip_activity: {
@@ -3748,15 +5148,23 @@ export type Database = {
           sender_role: Database["public"]["Enums"]["user_role"]
         }[]
       }
+      agent_trip_open_commission: {
+        Args: { p_trip_id: string }
+        Returns: {
+          commission_id: string
+          currency: string
+          expected_commission_cents: string
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_name: string
+          version: number
+        }[]
+      }
       agent_trip_overview: {
         Args: { p_trip_id: string }
         Returns: {
           api_component_count: number
           as_of_date: string
           cancellation_reason: string
-          card_brand: string
-          card_last4: string
-          card_spending_limit_cents: string
           client_display_name: string
           client_id: string
           component_count: number
@@ -3783,6 +5191,18 @@ export type Database = {
           version: number
         }[]
       }
+      agent_trip_payment_history: {
+        Args: { p_trip_id: string }
+        Returns: {
+          actor_name: string
+          event_id: string
+          event_type: string
+          metadata: Json
+          milestone_id: string
+          milestone_label: string
+          occurred_at: string
+        }[]
+      }
       agent_trip_payments: {
         Args: { p_trip_id: string }
         Returns: {
@@ -3795,6 +5215,9 @@ export type Database = {
           order_index: number
           paid_at: string
           paid_cents: string
+          paid_note: string
+          paid_reference: string
+          pay_url: string
           status: Database["public"]["Enums"]["payment_milestone_status"]
         }[]
       }
@@ -3870,6 +5293,43 @@ export type Database = {
           version: number
         }[]
       }
+      agent_update_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_clear_payment?: boolean
+          p_commission_id: string
+          p_commission_pct: number
+          p_expected_version: number
+          p_gross_cents: number
+          p_inteletravel_reference: string
+          p_ip: string
+          p_notes: string
+          p_payment_lag_days: number
+          p_payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          p_status: Database["public"]["Enums"]["commission_status"]
+          p_supplier_id: string
+          p_user_agent: string
+        }
+        Returns: {
+          outcome: string
+          version: number
+        }[]
+      }
+      agent_update_message_template: {
+        Args: {
+          p_agent_id: string
+          p_body: string
+          p_category: string
+          p_name: string
+          p_tags: string[]
+          p_template_id: string
+        }
+        Returns: {
+          outcome: string
+        }[]
+      }
       agent_update_template: {
         Args: {
           p_agent_id: string
@@ -3879,6 +5339,29 @@ export type Database = {
         }
         Returns: {
           outcome: string
+        }[]
+      }
+      agent_upload_commission_statement: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_audit_id: string
+          p_checksum: string
+          p_column_map: Json
+          p_document_id: string
+          p_filename: string
+          p_headers: string[]
+          p_import_id: string
+          p_ip: string
+          p_rows: Json
+          p_size_bytes: number
+          p_storage_key: string
+          p_user_agent: string
+        }
+        Returns: {
+          import_id: string
+          outcome: string
+          uploaded_at: string
         }[]
       }
       agent_upsert_client_address: {
@@ -3969,6 +5452,7 @@ export type Database = {
           outcome: string
         }[]
       }
+      agent_weekly_schedule_valid: { Args: { p: Json }; Returns: boolean }
       agent_write_client_note: {
         Args: {
           p_actor_user_id: string
@@ -3983,11 +5467,105 @@ export type Database = {
           outcome: string
         }[]
       }
+      alert_quote_request: { Args: { p_trip_id: string }; Returns: string }
       block_for_time: {
         Args: { p_time: string }
         Returns: Database["public"]["Enums"]["block_kind"]
       }
+      client_advisor_card: { Args: never; Returns: Json }
       client_invite_code_hash: { Args: { p_code: string }; Returns: string }
+      client_mark_conversation_read: {
+        Args: { p_conversation_id: string; p_seen_up_to: string }
+        Returns: boolean
+      }
+      client_merge_field_list: {
+        Args: never
+        Returns: {
+          field: string
+          ord: number
+          source: string
+        }[]
+      }
+      client_merge_fields: {
+        Args: {
+          p_keep: Json
+          p_keep_pref: Json
+          p_pinned_email: string
+          p_retire: Json
+          p_retire_pref: Json
+        }
+        Returns: Json
+      }
+      client_merge_is_empty: { Args: { p_value: Json }; Returns: boolean }
+      client_merge_preview: {
+        Args: { p_agent_id: string; p_keep_id: string; p_retire_id: string }
+        Returns: Json
+      }
+      client_merge_summary: {
+        Args: { p_client: Database["public"]["Tables"]["client"]["Row"] }
+        Returns: Json
+      }
+      commission_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_audit_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_target_entity: string
+          p_target_id: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      commission_fold: { Args: { p_text: string }; Returns: string }
+      commission_import_match: {
+        Args: { p_agent_id: string; p_import_id: string }
+        Returns: undefined
+      }
+      commission_lines_for_current_agent: {
+        Args: never
+        Returns: {
+          agent_id: string
+          archived_at: string | null
+          commission_pct: number
+          component_id: string | null
+          created_at: string
+          currency: string
+          expected_commission_cents: number
+          gross_booking_cents: number
+          id: string
+          import_id: string | null
+          inteletravel_reference: string | null
+          notes: string | null
+          on_record_at: string | null
+          payment_lag_days: number
+          payment_terms: Database["public"]["Enums"]["commission_payment_terms"]
+          processing_fee_cents: number
+          received_at: string | null
+          received_commission_cents: number
+          status: Database["public"]["Enums"]["commission_status"]
+          supplier_id: string
+          trip_id: string
+          updated_at: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "commission"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      commission_ref_key: { Args: { p_text: string }; Returns: string }
+      conversation_record_client_message: {
+        Args: { p_message_id: string }
+        Returns: boolean
+      }
+      conversation_reply_due_at: {
+        Args: { p_since: string; p_time_zone: string }
+        Returns: string
+      }
       cruise_sailing_search: {
         Args: {
           depart_from?: string
@@ -4056,6 +5634,71 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      email_claim_due: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_first_name: string
+          client_first_name: string
+          conversation_id: string
+          messages: Json
+          outbox_id: string
+          previous_outbox_id: string
+          recipient: string
+          trip_title: string
+        }[]
+      }
+      email_client_user: { Args: { p_client_id: string }; Returns: string }
+      email_dispatch_tick: { Args: never; Returns: string }
+      email_finish: {
+        Args: {
+          p_error?: string
+          p_ok: boolean
+          p_outbox_id: string
+          p_permanent?: boolean
+        }
+        Returns: string
+      }
+      email_inbound_record: {
+        Args: {
+          p_auto_reply?: boolean
+          p_body: string
+          p_files: number
+          p_from: string
+          p_message_id: string
+          p_provider_email_id: string
+          p_reply_outbox_id?: string
+          p_sender_verified: boolean
+          p_token_hash: string
+        }
+        Returns: {
+          duplicate: boolean
+          message_id: string
+          outcome: string
+          reply_to: string
+        }[]
+      }
+      email_inbox_tick: { Args: never; Returns: string }
+      email_messages_opted_out: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      email_record_tokens: {
+        Args: {
+          p_outbox_id: string
+          p_reply_hash: string
+          p_unsub_hash: string
+        }
+        Returns: undefined
+      }
+      email_release: { Args: { p_outbox_id: string }; Returns: string }
+      email_set_messages_email: {
+        Args: { p_on: boolean; p_token_hash: string }
+        Returns: string
+      }
+      email_unsubscribe_status: {
+        Args: { p_token_hash: string }
+        Returns: string
+      }
       hotel_search_gc: {
         Args: never
         Returns: {
@@ -4078,15 +5721,269 @@ export type Database = {
       }
       itinerary_for_trip: { Args: { p_trip_id: string }; Returns: string }
       itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
+      message_preview: { Args: { p_body: string }; Returns: string }
+      message_template_check: {
+        Args: {
+          p_body: string
+          p_category: string
+          p_name: string
+          p_tags: string[]
+        }
+        Returns: undefined
+      }
+      message_template_clean_tags: {
+        Args: { p_tags: string[] }
+        Returns: string[]
+      }
+      message_template_fields: { Args: never; Returns: string[] }
+      message_template_unknown_tokens: {
+        Args: { p_body: string }
+        Returns: string[]
+      }
+      pay_url_host: { Args: { p_url: string }; Returns: string }
+      payment_milestone_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_agent_id: string
+          p_event_type: string
+          p_ip: string
+          p_metadata: Json
+          p_milestone_id: string
+          p_user_agent: string
+        }
+        Returns: undefined
+      }
+      push_claim_dismissals: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_id: string
+          conversation_id: string
+          read_up_to: string
+        }[]
+      }
+      push_claim_due: {
+        Args: { p_limit?: number }
+        Returns: {
+          agent_id: string
+          client_name: string
+          conversation_id: string
+          destination: string
+          end_date: string
+          held: boolean
+          hold_reason: string
+          kind: string
+          latest_created_at: string
+          message_count: number
+          outbox_id: string
+          preview: string
+          start_date: string
+          trip_id: string
+          trip_title: string
+        }[]
+      }
+      push_device_gone: { Args: { p_device_id: string }; Returns: undefined }
+      push_devices_for_agent: {
+        Args: { p_agent_id: string }
+        Returns: {
+          device_id: string
+          fcm_token: string
+          platform: Database["public"]["Enums"]["push_platform"]
+          web_auth: string
+          web_endpoint: string
+          web_p256dh: string
+        }[]
+      }
+      push_dispatch_tick: { Args: never; Returns: string }
+      push_due_at: {
+        Args: { p_at: string; p_time_zone: string }
+        Returns: string
+      }
+      push_finish: {
+        Args: { p_ok: boolean; p_outbox_id: string }
+        Returns: string
+      }
+      push_register_device: {
+        Args: {
+          p_device_id: string
+          p_fcm_token?: string
+          p_label?: string
+          p_platform: Database["public"]["Enums"]["push_platform"]
+          p_user_id: string
+          p_web_auth?: string
+          p_web_endpoint?: string
+          p_web_p256dh?: string
+        }
+        Returns: string
+      }
+      push_unregister_device: {
+        Args: {
+          p_fcm_token?: string
+          p_user_id: string
+          p_web_endpoint?: string
+        }
+        Returns: number
+      }
+      report_agent_today: {
+        Args: { p_agent_id: string }
+        Returns: {
+          agent_id: string
+          time_zone: string
+          today: string
+        }[]
+      }
+      report_check_range: {
+        Args: { p_from: string; p_to: string }
+        Returns: undefined
+      }
+      report_client_lifetime_value: {
+        Args: { p_agent_id: string }
+        Returns: {
+          client_id: string
+          cohort_start: string
+          commission_cents: number
+          display_name: string
+          trip_count: number
+          value_cents: number
+        }[]
+      }
+      report_commission_by_supplier: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          line_count: number
+          owed_cents: number
+          received_cents: number
+          set_aside_count: number
+          set_aside_received_cents: number
+          supplier_id: string
+          supplier_name: string
+        }[]
+      }
+      report_conversion_funnel: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          book_days_avg: number
+          book_days_n: number
+          cancelled_here: number
+          open_here: number
+          reached: number
+          stage: number
+        }[]
+      }
+      report_export_clients: {
+        Args: { p_agent_id: string; p_include_contact: boolean }
+        Returns: {
+          added_on: string
+          address_line1: string
+          address_line2: string
+          city: string
+          client_name: string
+          country: string
+          email: string
+          phone: string
+          postal_code: string
+          region: string
+          status: Database["public"]["Enums"]["client_status"]
+          trip_count: number
+          value_cents: number
+        }[]
+      }
+      report_export_milestones: {
+        Args: { p_agent_id: string; p_from: string; p_to: string }
+        Returns: {
+          amount_cents: number
+          client_name: string
+          due_date: string
+          kind: Database["public"]["Enums"]["payment_milestone_kind"]
+          label: string
+          paid_cents: number
+          paid_on: string
+          paid_reference: string
+          pay_site: string
+          status: Database["public"]["Enums"]["payment_milestone_status"]
+          trip_title: string
+        }[]
+      }
+      report_export_trips: {
+        Args: { p_agent_id: string; p_from: string; p_to: string }
+        Returns: {
+          client_name: string
+          commission_cents: number
+          created_on: string
+          destinations: string
+          end_date: string
+          first_booked_on: string
+          paid_cents: number
+          start_date: string
+          status: Database["public"]["Enums"]["trip_status"]
+          trip_title: string
+          value_cents: number
+        }[]
+      }
+      report_first_committed_at: {
+        Args: { p_trip_id: string }
+        Returns: string
+      }
+      report_period_bounds: {
+        Args: { p_period: string; p_today: string }
+        Returns: {
+          from_date: string
+          prior_from: string
+          prior_to: string
+          to_date: string
+        }[]
+      }
+      report_pipeline_months: {
+        Args: { p_agent_id: string }
+        Returns: {
+          bucket: string
+          month_start: string
+          trip_count: number
+          weighted_cents: number
+        }[]
+      }
+      report_pipeline_stages: {
+        Args: { p_agent_id: string }
+        Returns: {
+          gross_cents: number
+          status: Database["public"]["Enums"]["trip_status"]
+          total_gross_cents: number
+          total_weighted_cents: number
+          trip_count: number
+          weight_pct: number
+          weighted_cents: number
+        }[]
+      }
+      report_revenue_by_month: {
+        Args: { p_agent_id: string; p_basis: string; p_period: string }
+        Returns: {
+          cents: number
+          item_count: number
+          month_start: string
+          prior_cents: number
+        }[]
+      }
+      report_top_destinations: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          destination: string
+          trip_count: number
+          value_cents: number
+        }[]
+      }
+      seed_starter_message_templates: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sweep_dated_promises: {
         Args: never
         Returns: {
-          authorizations_expired: number
           milestones_marked_overdue: number
         }[]
       }
+      text_has_card_digits: { Args: { p_text: string }; Returns: boolean }
+      uuid_v7: { Args: never; Returns: string }
     }
     Enums: {
       agent_status: "active" | "inactive" | "archived"
@@ -4103,11 +6000,29 @@ export type Database = {
         | "account_unlocked"
         | "session_revoked"
       auth_provider: "email" | "google" | "apple"
-      auth_request_status: "pending" | "completed" | "expired" | "cancelled"
       block_kind: "morning" | "afternoon" | "evening" | "all_day"
-      card_auth_status: "active" | "revoked" | "expired" | "exhausted"
-      card_status: "active" | "revoked" | "expired" | "failed"
       client_status: "active" | "archived" | "merged_into"
+      commission_import_row_state:
+        | "confirmed"
+        | "suggested"
+        | "unmatched"
+        | "duplicate"
+        | "unreadable"
+        | "already_recorded"
+        | "to_create"
+        | "ignored"
+      commission_import_status:
+        | "mapping"
+        | "review"
+        | "reconciled"
+        | "discarded"
+      commission_match_basis:
+        | "reference"
+        | "confirmation"
+        | "supplier_and_traveler"
+        | "manual"
+        | "none"
+      commission_payment_terms: "at_booking" | "after_travel"
       commission_status:
         | "expected"
         | "invoiced"
@@ -4156,6 +6071,7 @@ export type Database = {
       mfa_kind: "totp" | "sms" | "backup_codes"
       payment_milestone_kind: "deposit" | "interim" | "final"
       payment_milestone_status: "scheduled" | "paid" | "waived" | "overdue"
+      push_platform: "android" | "web" | "ios"
       supplier_kind:
         | "airline"
         | "hotel_brand"
@@ -4340,11 +6256,32 @@ export const Constants = {
         "session_revoked",
       ],
       auth_provider: ["email", "google", "apple"],
-      auth_request_status: ["pending", "completed", "expired", "cancelled"],
       block_kind: ["morning", "afternoon", "evening", "all_day"],
-      card_auth_status: ["active", "revoked", "expired", "exhausted"],
-      card_status: ["active", "revoked", "expired", "failed"],
       client_status: ["active", "archived", "merged_into"],
+      commission_import_row_state: [
+        "confirmed",
+        "suggested",
+        "unmatched",
+        "duplicate",
+        "unreadable",
+        "already_recorded",
+        "to_create",
+        "ignored",
+      ],
+      commission_import_status: [
+        "mapping",
+        "review",
+        "reconciled",
+        "discarded",
+      ],
+      commission_match_basis: [
+        "reference",
+        "confirmation",
+        "supplier_and_traveler",
+        "manual",
+        "none",
+      ],
+      commission_payment_terms: ["at_booking", "after_travel"],
       commission_status: [
         "expected",
         "invoiced",
@@ -4398,6 +6335,7 @@ export const Constants = {
       mfa_kind: ["totp", "sms", "backup_codes"],
       payment_milestone_kind: ["deposit", "interim", "final"],
       payment_milestone_status: ["scheduled", "paid", "waived", "overdue"],
+      push_platform: ["android", "web", "ios"],
       supplier_kind: [
         "airline",
         "hotel_brand",

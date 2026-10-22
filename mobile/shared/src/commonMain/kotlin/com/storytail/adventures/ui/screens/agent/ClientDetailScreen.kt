@@ -1,5 +1,11 @@
 package com.storytail.adventures.ui.screens.agent
 
+import com.storytail.adventures.domain.agent.messageClientLabel
+import com.storytail.adventures.ui.components.StoryTailMark
+import com.storytail.adventures.ui.components.StoryTailGlyph
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -60,8 +66,11 @@ fun ClientDetailScreen(
     onBack: () -> Unit,
     /** Screen 3.4.2, from the Trips tab's cards. */
     onOpenTrip: (String) -> Unit,
+    /** Screen 3.10.2, from the Messages tab's thread cards (§3.10 Stage 3). */
+    onOpenThread: (String) -> Unit,
+    /** "Message Kai": the client's general thread, or a new one (§3.10 Stage 3). */
+    onMessageClient: (String) -> Unit,
     onSelectBarTab: (String) -> Unit,
-    onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AgentScaffold(
@@ -72,7 +81,6 @@ fun ClientDetailScreen(
                     is Loadable.Ready -> state.value.displayName
                     else -> ClientCopy.TITLE
                 },
-                onSignOut = onSignOut,
             )
         },
         activeTab = "clients",
@@ -92,7 +100,7 @@ fun ClientDetailScreen(
                 body = "Your account does not have access to this client.",
             )
             is Loadable.Empty -> DetailPanel(title = state.title, body = state.body)
-            is Loadable.Ready -> DetailBody(state.value, activeTab, onSelectTab, onOpenTrip)
+            is Loadable.Ready -> DetailBody(state.value, activeTab, onSelectTab, onOpenTrip, onOpenThread, onMessageClient)
         }
     }
 }
@@ -123,6 +131,8 @@ private fun DetailBody(
     activeTab: String,
     onSelectTab: (String) -> Unit,
     onOpenTrip: (String) -> Unit,
+    onOpenThread: (String) -> Unit,
+    onMessageClient: (String) -> Unit,
 ) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
@@ -166,6 +176,19 @@ private fun DetailBody(
         }
     }
 
+    // An archived client keeps their existing threads but gets no NEW one (agent_message_target
+    // drops them), so the button is not drawn rather than drawn to fail.
+    if (!ui.archived) {
+        FilledTonalButton(
+            onClick = { onMessageClient(ui.clientId) },
+            modifier = Modifier.padding(top = 10.dp).heightIn(min = 44.dp),
+        ) {
+            StoryTailGlyph(StoryTailMark.MESSAGE, 14.dp, scheme.onSecondaryContainer)
+            Spacer(Modifier.width(8.dp))
+            Text(messageClientLabel(ui.displayName.substringBefore(' ')))
+        }
+    }
+
     if (ui.archived) {
         Text(
             ClientCopy.ARCHIVED_BANNER,
@@ -193,7 +216,7 @@ private fun DetailBody(
 
     when (activeTab) {
         "trips" -> TripsTab(ui, onOpenTrip)
-        "messages" -> ThreadsTab(ui)
+        "messages" -> ThreadsTab(ui, onOpenThread)
         "documents" -> DocumentsTab(ui)
         "notes" -> NotesTab(ui)
         "activity" -> ActivityTab(ui)
@@ -330,7 +353,7 @@ private fun TripsTab(ui: ClientDetailUiState, onOpenTrip: (String) -> Unit) {
 }
 
 @Composable
-private fun ThreadsTab(ui: ClientDetailUiState) {
+private fun ThreadsTab(ui: ClientDetailUiState, onOpenThread: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     if (ui.threads.isEmpty()) {
         EmptyLine(ClientCopy.THREADS_EMPTY)
@@ -339,7 +362,7 @@ private fun ThreadsTab(ui: ClientDetailUiState) {
     ui.threads.forEach { t ->
         Card(
             colors = CardDefaults.cardColors(containerColor = scheme.surfaceContainerLow),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable { onOpenThread(t.conversationId) },
         ) {
             Column(Modifier.padding(14.dp)) {
                 Text(t.subject, style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)

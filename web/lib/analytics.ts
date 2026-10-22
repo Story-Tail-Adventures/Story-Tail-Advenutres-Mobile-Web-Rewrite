@@ -1,9 +1,10 @@
 import type { BeforeSendEvent } from "@vercel/analytics";
 
 /**
- * `beforeSend` for Vercel Web Analytics (components/VercelAnalytics.tsx). P1.
+ * `beforeSend` for Vercel Web Analytics (components/VercelAnalytics.tsx), and through
+ * `redactAnalyticsUrl` the page location Google Analytics receives too. P1.
  *
- * Vercel only ever sees a page view's URL, so this is the whole privacy boundary:
+ * Both providers only ever see a page's URL from us, so this is the whole privacy boundary:
  *
  * - **The agent surface is dropped.** `/agent/*` is Gyasi working his own CRM. Counting it
  *   would mix one person's workday into the visitor numbers, and its URLs carry client
@@ -25,9 +26,21 @@ import type { BeforeSendEvent } from "@vercel/analytics";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function redactAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent | null {
+  const url = redactAnalyticsUrl(event.url);
+  return url === null ? null : { ...event, url };
+}
+
+/**
+ * The same rules on a bare URL, for Google Analytics (components/FirebaseAnalytics.tsx),
+ * which takes a page's location as a string rather than a Vercel event. One function so
+ * the two providers cannot drift apart: whatever Vercel never sees, Google never sees.
+ *
+ * Returns null for the agent surface and for a URL that will not parse.
+ */
+export function redactAnalyticsUrl(href: string): string | null {
   let url: URL;
   try {
-    url = new URL(event.url);
+    url = new URL(href);
   } catch {
     return null;
   }
@@ -43,5 +56,5 @@ export function redactAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent | 
     .map((segment) => (UUID.test(segment) ? "[id]" : segment))
     .join("/");
 
-  return { ...event, url: url.toString() };
+  return url.toString();
 }

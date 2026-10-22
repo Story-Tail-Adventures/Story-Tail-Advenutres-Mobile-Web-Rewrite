@@ -101,7 +101,14 @@ function MethodTiles() {
  * the two beats have genuinely different pending states — "getting your code" and "checking
  * that code" are not the same wait.
  */
-export function MfaSetupForm({ next }: { next: string }) {
+export function MfaSetupForm({
+  next,
+  required = false,
+}: {
+  next: string;
+  /** An advisor: MFA is required, so there is no "Not right now". */
+  required?: boolean;
+}) {
   const [enrollState, enrollAction] = useActionState(
     beginMfaEnrollmentAction,
     initialMfaEnrollState,
@@ -234,15 +241,17 @@ export function MfaSetupForm({ next }: { next: string }) {
         </CardContent>
       </Card>
 
-      <MuiLink
-        component={NextLink}
-        href={next}
-        variant="subtitle2"
-        color="text.secondary"
-        sx={{ ...TAP_LINK, alignSelf: "center" }}
-      >
-        {MFA_SETUP_TEXT.skip}
-      </MuiLink>
+      {required ? null : (
+        <MuiLink
+          component={NextLink}
+          href={next}
+          variant="subtitle2"
+          color="text.secondary"
+          sx={{ ...TAP_LINK, alignSelf: "center" }}
+        >
+          {MFA_SETUP_TEXT.skip}
+        </MuiLink>
+      )}
     </Box>
   );
 }

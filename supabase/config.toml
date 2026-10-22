@@ -428,6 +428,30 @@ HOTEL_SEARCH_CALLER_TOKEN = "env(HOTEL_SEARCH_CALLER_TOKEN)"
 HOTEL_SEARCH_IP_PEPPER = "env(HOTEL_SEARCH_IP_PEPPER)"
 SERPAPI_API_KEY = "env(SERPAPI_API_KEY)"
 TRACK_CRUISES_API_KEY = "env(TRACK_CRUISES_API_KEY)"
+# §3.10 Stage 3b: Web Push signing (push-dispatch). The private key is a secret; the public one
+# also ships in the web app as NEXT_PUBLIC_VAPID_PUBLIC_KEY.
+VAPID_PUBLIC_KEY = "env(VAPID_PUBLIC_KEY)"
+VAPID_PRIVATE_KEY = "env(VAPID_PRIVATE_KEY)"
+VAPID_SUBJECT = "env(VAPID_SUBJECT)"
+# §3.10 Stage 3b PR 2: Android delivery (push-dispatch). The Firebase service-account key file,
+# as one JSON string.
+FCM_SERVICE_ACCOUNT_JSON = "env(FCM_SERVICE_ACCOUNT_JSON)"
+# §3.10 Stage 4: client email (email-dispatch, email-inbox, email-unsubscribe). Port 465 only;
+# the local Mailpit is the one plain exception (see supabase/README.md "Email secrets").
+EMAIL_SMTP_HOST = "env(EMAIL_SMTP_HOST)"
+EMAIL_SMTP_PORT = "env(EMAIL_SMTP_PORT)"
+EMAIL_SMTP_USER = "env(EMAIL_SMTP_USER)"
+EMAIL_SMTP_PASSWORD = "env(EMAIL_SMTP_PASSWORD)"
+EMAIL_FROM_ADDRESS = "env(EMAIL_FROM_ADDRESS)"
+EMAIL_SITE_URL = "env(EMAIL_SITE_URL)"
+EMAIL_UNSUBSCRIBE_URL = "env(EMAIL_UNSUBSCRIBE_URL)"
+# Replies are read from the same mailbox over IMAP (email-inbox); 993 unless a local test server.
+EMAIL_IMAP_HOST = "env(EMAIL_IMAP_HOST)"
+EMAIL_IMAP_PORT = "env(EMAIL_IMAP_PORT)"
+EMAIL_IMAP_USER = "env(EMAIL_IMAP_USER)"
+EMAIL_IMAP_PASSWORD = "env(EMAIL_IMAP_PASSWORD)"
+# The receiving server's name in Authentication-Results; unset, no reply verifies (fail closed).
+EMAIL_AUTHSERV_ID = "env(EMAIL_AUTHSERV_ID)"
 
 # Declared explicitly, one block per function, because Supabase's GitHub integration deploys
 # the Edge Functions "declared in config.toml" — an undeclared directory may simply never
@@ -469,21 +493,6 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.trip-document-url]
-verify_jwt = true
-
-# ── §2.4 payment surface ──────────────────────────────────────────────────────
-# The payment tables hold NO client-role privilege — 20260917090000_payment_domain_lockdown
-# revoked it and added no policy — so these are not a convenience over PostgREST, they are
-# the only read and write path that exists. Both verify the JWT: each resolves the caller to
-# a client and every row is keyed to that client's id.
-#
-# `payment-wallet` never selects payment_card.stripe_payment_method_id or
-# .stripe_customer_id. Data-Model §21.2 names both server-only.
-
-[functions.payment-wallet]
-verify_jwt = true
-
-[functions.card-authorization]
 verify_jwt = true
 
 # ── §3.2 agent worklist ───────────────────────────────────────────────────────
@@ -559,6 +568,46 @@ verify_jwt = true
 [functions.agent-client]
 verify_jwt = true
 
+# §3.9 Login Support: the Account admin tab's actions. aal2 and ownership are checked in the
+# function; the GoTrue Admin API calls run on the service role.
+[functions.account-admin]
+verify_jwt = true
+
+# §3.7.3 / §3.7.4 commission writes, §3.7.2's export and §3.7.7's stage weights. Each SQL
+# write audits itself in the same transaction; this function supplies the audit id and the
+# caller's ip and user agent.
+[functions.agent-commission]
+verify_jwt = true
+
+# §3.10 Stage 1: the advisor's messaging. Send (a reply or an internal note, into a thread or a
+# new one for a client), mark a thread read, archive from the inbox. Writes go through SQL
+# functions callable only by service_role (20261015120000_agent_messaging.sql).
+[functions.agent-message]
+verify_jwt = true
+
+# §3.10 Stage 2: the advisor's message templates. Create, edit, duplicate, archive and restore,
+# through SQL functions callable only by service_role. No audit rows: a template holds no client
+# data (Gyasi, 2026-10-14).
+[functions.agent-message-template]
+verify_jwt = true
+
+# §3.12 Agent Settings: the advisor's own profile, photo, working hours and time away. Every
+# write audited in its own SQL transaction (migration 20261025120000).
+[functions.agent-settings]
+verify_jwt = true
+
+# §3.11 Reporting: each report's audited CSV export. agent_report_export writes the audit row in
+# the same SQL call that returns the rows (migration 20261028120000). Screen reads do not come
+# through here; they are definer functions called with the advisor's own token.
+[functions.agent-report]
+verify_jwt = true
+
+# §3.7.5 / §3.7.6: import an Inteletravel statement and reconcile it. Upload, map, resolve,
+# reconcile and discard; the ledger changes only on reconcile, inside one SQL transaction
+# that writes an audit row per line it touches.
+[functions.commission-import]
+verify_jwt = true
+
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
 # public.cruise_sync_tick() with the service-role key, and a developer invokes it by hand
@@ -630,3 +679,32 @@ enabled = true
 # declarative_schema_path = "./schemas"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# ── §3.10 Stage 3b: notifications ────────────────────────────────────────────
+[functions.push-device]
+# An advisor turning notifications on or off for this browser. Resolves the caller from the
+# token; device addresses are never returned.
+verify_jwt = true
+
+[functions.push-dispatch]
+# No human caller: pg_cron's push_dispatch_tick() posts here with the service-role key, and the
+# function refuses any other role (requireServiceRole), as cruise-sync does.
+verify_jwt = true
+
+# ── §3.10 Stage 4: client email ──────────────────────────────────────────────
+[functions.email-dispatch]
+# No human caller: pg_cron's email_dispatch_tick() posts here with the service-role key, and the
+# function refuses any other role (requireServiceRole), as push-dispatch does.
+verify_jwt = true
+
+[functions.email-inbox]
+# No human caller: pg_cron's email_inbox_tick() posts here every two minutes with the service-role
+# key, and the function refuses any other role (requireServiceRole). It reads the app's own IONOS
+# mailbox over IMAP; replies by email are no longer received through Resend (2026-10-16).
+verify_jwt = true
+
+[functions.email-unsubscribe]
+# Opened from an email by someone who may not be signed in, and POSTed by mail apps for RFC 8058
+# one-click with no Authorization header, so OFF. The 128-bit token in the link is the
+# credential, and it changes one switch for one person.
+verify_jwt = false

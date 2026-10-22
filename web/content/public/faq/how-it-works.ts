@@ -11,11 +11,11 @@ export const HOW_IT_WORKS_FAQ: readonly FaqItem[] = [
     a: "It's the host agency that issues bookings. You'll see them on supplier invoices. It does not change how you work with Story-Tail.",
   },
   {
-    q: "How does payment authorization work?",
-    a: "You add a card through a Stripe-secured form. Story-Tail uses it only to pay suppliers on your behalf — never to charge you a service fee. Every use is audit-logged and you get notified.",
+    q: "How do I pay for my trip?",
+    a: "You pay each supplier directly, on their own secure site. When a supplier has no payment page, Gyasi may send a Travefy invoice instead, carrying the supplier's cost only. Gyasi adds a pay link to each payment as it comes due, and you pay whenever it suits you before the due date. Story-Tail never sees your card number and never charges a service fee.",
   },
   {
     q: "Can I plan without an account?",
-    a: "You can browse and inquire as a guest. To save searches, view a real proposal, or authorize a card, you'll create an account.",
+    a: "You can browse and inquire as a guest. To save searches, view a real proposal, or see your payment links, you'll create an account.",
   },
 ];

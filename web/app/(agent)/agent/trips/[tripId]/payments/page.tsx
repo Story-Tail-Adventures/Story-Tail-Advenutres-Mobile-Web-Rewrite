@@ -1,20 +1,27 @@
 import Box from "@mui/material/Box";
+import MuiButton from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import MuiLink from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 
 import NextLink from "@/components/mui/NextLink";
+import Paper from "@mui/material/Paper";
+
+import { MarkPaidDialog } from "@/components/agent/MarkPaidDialog";
 import { MilestoneForm } from "@/components/agent/MilestoneForm";
+import { PayLinkDialog } from "@/components/agent/PayLinkDialog";
 import { PaymentScheduleTable } from "@/components/agent/PaymentScheduleTable";
 import { TripNotFound } from "@/components/agent/TripNotFound";
 import { ErrorState } from "@/components/client/states";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { SCHEDULE_COPY } from "@/lib/agent/content";
+import { PAYMENTS_COPY, SCHEDULE_COPY } from "@/lib/agent/content";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import {
   centsToDollars,
   isMilestoneKind,
+  nextUnpaidMilestone,
   type MilestoneValues,
 } from "@/lib/agent/payments";
 import { formatTripMoney } from "@/lib/trips/money";
@@ -23,6 +30,7 @@ import {
   loadTripPayments,
   type TripPaymentRow,
 } from "@/lib/agent/tripDetail";
+import { agentIdentity, localDate } from "@/lib/agent/queries";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
@@ -33,13 +41,20 @@ import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
  * trip — and this is where the schedule is worked on. `?edit=<id>` opens a row in the form,
  * the same URL-as-state shape `?tab=` and `?add=` already use.
  *
- * "TRIGGER REMINDER" AND THE CADENCE TOGGLE FROM THE INVENTORY ARE NOT BUILT. §3.10 is
- * agent messaging and nothing in the schema can send on the client's behalf yet. The button
- * renders disabled with its reason, which is the call §3.4.2's "Account admin" tab got —
- * §3.10 is a real planned section, so a disabled control is an honest promise.
+ * "REMIND THE CLIENT" (the inventory's "trigger reminder", §3.10 Stage 2) is ONE button for
+ * the schedule, about the next unpaid milestone: it opens the trip's thread with the template
+ * picker on Payment reminder, filled from that milestone. With nothing left to pay it stays
+ * off and says why. The cadence toggle is still not built: automatic reminders need a
+ * scheduler that sends on the advisor's behalf, and email (Stage 4).
+ *
+ * §3.6 SUPPLIER PAYMENTS (ruled 2026-10-16) lives on this same page, as Screen-Inventory
+ * §3.6.1 allows, so there is one list of milestones rather than two kept in step. The rows
+ * gain a pay link column with Mark paid and Send link. Two more URL states join `?edit=`:
+ * `?link=<id>` opens Add or edit pay link (3.6.1b) and `?paid=<id>` opens Mark Paid
+ * (3.6.5). Payment History (3.6.6) is its own route, `./history`, read-only.
  */
 
-export const metadata = { title: "Payment schedule" };
+export const metadata = { title: "Payments" };
 
 /** The page column: `mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8`. */
 const PAGE_SX = {
@@ -68,14 +83,15 @@ export default async function TripPaymentsPage({
   searchParams,
 }: {
   params: Promise<{ tripId: string }>;
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ edit?: string; link?: string; paid?: string }>;
 }) {
   const { tripId } = await params;
-  const { edit } = await searchParams;
+  const { edit, link, paid } = await searchParams;
 
-  const [result, payments] = await Promise.all([
+  const [result, payments, me] = await Promise.all([
     loadTripOverview(tripId),
     loadTripPayments(tripId),
+    agentIdentity(),
   ]);
 
   // A trip that is not there is not an error — `agent_trip_overview` answers zero rows for
@@ -85,6 +101,19 @@ export default async function TripPaymentsPage({
 
   const overview = result.overview;
   const editingRow = edit ? payments.find((p) => p.milestoneId === edit) : undefined;
+  const linkRow = link ? payments.find((p) => p.milestoneId === link) : undefined;
+  // Mark Paid is for a payment still open; a stale `?paid=` on a settled row opens nothing.
+  const paidRow = paid
+    ? payments.find((p) => p.milestoneId === paid && (p.status === "scheduled" || p.status === "overdue"))
+    : undefined;
+  const today = localDate(new Date().toISOString(), me.timeZone) ?? new Date().toISOString().slice(0, 10);
+  const basePath = `/agent/trips/${tripId}/payments`;
+  const summaryFor = (row: TripPaymentRow) => ({
+    label: row.label,
+    context: `${overview.title} · ${overview.clientName}`,
+    amountLabel: row.amountLabel,
+    dueLabel: row.dueLabel,
+  });
 
   // Summed here rather than read off the trip, and the two answer different questions.
   // `trip.total_paid_cents` is what has been PAID and it is trigger-maintained from these
@@ -93,6 +122,7 @@ export default async function TripPaymentsPage({
   const expectedCents = payments.reduce((sum, p) => sum + Number(p.edit.amountCents || 0), 0);
   const paidCents = payments.reduce((sum, p) => sum + Number(p.edit.paidCents || 0), 0);
   const currency = "USD";
+  const remindAbout = nextUnpaidMilestone(payments);
 
   return (
     <Box sx={PAGE_SX}>
@@ -196,16 +226,56 @@ export default async function TripPaymentsPage({
             <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 600 }}>
               {SCHEDULE_COPY.title}
             </Typography>
-            <Button type="button" variant="outlined" size="sm" disabled title={SCHEDULE_COPY.remindDeferred}>
-              {SCHEDULE_COPY.remindLabel}
-              <Box component="span" sx={VISUALLY_HIDDEN}> — {SCHEDULE_COPY.remindDeferred}</Box>
-            </Button>
+            <MuiButton
+              component={NextLink}
+              href={`${basePath}/history`}
+              variant="outlined"
+              size="small"
+              sx={{ ml: "auto", minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" }}
+            >
+              <Icon name="clock" size={12} /> {PAYMENTS_COPY.history}
+            </MuiButton>
+            {remindAbout ? (
+              <MuiButton
+                component={NextLink}
+                href={newMessageHref(overview.clientId, tripId, remindAbout.milestoneId)}
+                variant="outlined"
+                size="small"
+                sx={{ minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" }}
+              >
+                <Icon name="send" size={12} /> {SCHEDULE_COPY.remindLabel}
+              </MuiButton>
+            ) : (
+              <Button type="button" variant="outlined" size="sm" disabled title={SCHEDULE_COPY.remindNothing}>
+                {SCHEDULE_COPY.remindLabel}
+                <Box component="span" sx={VISUALLY_HIDDEN}>. {SCHEDULE_COPY.remindNothing}</Box>
+              </Button>
+            )}
           </Box>
           <PaymentScheduleTable
             tripId={tripId}
+            clientId={overview.clientId}
             payments={payments}
             editingId={editingRow?.milestoneId ?? null}
           />
+
+          <Paper
+            elevation={0}
+            sx={{
+              mt: 1.75,
+              p: 1.5,
+              bgcolor: "secondary.container",
+              color: "secondary.onContainer",
+              display: "flex",
+              gap: 1.25,
+              alignItems: "center",
+            }}
+          >
+            <Icon name="shield" size={16} />
+            <Typography component="p" variant="caption">
+              <b>{PAYMENTS_COPY.directNoteStrong}</b> {PAYMENTS_COPY.directNote}
+            </Typography>
+          </Paper>
         </Box>
 
         <MilestoneForm
@@ -217,6 +287,39 @@ export default async function TripPaymentsPage({
           initial={editingRow ? editValues(editingRow) : undefined}
         />
       </Box>
+
+      {linkRow && (
+        <PayLinkDialog
+          key={`link-${linkRow.milestoneId}`}
+          tripId={tripId}
+          milestoneId={linkRow.milestoneId}
+          label={linkRow.label}
+          currentUrl={linkRow.payUrl}
+          closeHref={basePath}
+          summary={summaryFor(linkRow)}
+        />
+      )}
+      {paidRow && (
+        <MarkPaidDialog
+          key={`paid-${paidRow.milestoneId}`}
+          tripId={tripId}
+          milestoneId={paidRow.milestoneId}
+          label={paidRow.label}
+          today={today}
+          closeHref={basePath}
+          summary={summaryFor(paidRow)}
+          initial={{
+            // What is still open on the row: the figure that most likely just landed.
+            amount: centsToDollars(
+              Math.max(Number(paidRow.edit.amountCents || 0) - Number(paidRow.edit.paidCents || 0), 0) ||
+                Number(paidRow.edit.amountCents || 0),
+            ),
+            paidOn: today,
+            reference: paidRow.paidReference ?? "",
+            note: paidRow.paidNote ?? "",
+          }}
+        />
+      )}
     </Box>
   );
 }

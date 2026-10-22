@@ -24,7 +24,7 @@ package com.storytail.adventures.domain.agent
  * check_copy_parity.py's Kotlin reader terminates at the first LINE-LEADING `}`. A `fun`, a
  * `val listOf(...)`, or any nested brace inside this object silently truncates the map and
  * takes every key after it out of the gate — covered, apparently, and unchecked in fact.
- * AccountCopy and WalletCopy both carry this warning. Derivations live in
+ * AccountCopy carries this warning too. Derivations live in
  * `WorklistSections.kt`, below this object's closing brace and in a different file.
  */
 object AgentCopy {
@@ -77,7 +77,8 @@ object AgentCopy {
     // pair was broken rather than re-made. That asymmetry is now closed from the other end.
     //
     // CLIENT_DETAIL_DEFERRED lived here until §3.3.2 shipped, and never had a call site.
-    const val MESSAGES_DEFERRED = "Agent messaging arrives with §3.10."
+    // MESSAGES_DEFERRED lived here until §3.10 Stage 3 put Messages on the phone (2026-10-15):
+    // the worklist's message rows and Trip Detail's Messages tab both open the thread now.
     // QUICK_ADD_TRIP_DEFERRED lived here until §3.4.3 shipped, and followed
     // QUICK_ADD_CLIENT_DEFERRED out for the same reason: §3.2.1 on Compose has no quick-add
     // at all, by decision, so neither ever had a render site on this side. The web control
@@ -127,13 +128,11 @@ object AgentCopy {
     // is redundancy a phone cannot afford, and the desk grid has four columns to fill.
     const val GLANCE_TRIP_TYPE = "Trip type"
     const val GLANCE_DESTINATION = "Destination"
-    const val GLANCE_CARD_ON_FILE = "Card on file"
     const val GLANCE_LAST_ACTIVITY = "Last activity"
     const val GLANCE_CANCELLATION_REASON = "Cancellation reason"
     const val GLANCE_REFUND_STATUS = "Refund status"
     const val GLANCE_REFUND_DETAIL = "Refund detail"
     const val GLANCE_NOT_SET = "Not set"
-    const val GLANCE_NO_CARD = "None on file"
     const val GLANCE_NO_ACTIVITY = "No activity yet"
 
     // One sentence for both causes — deleted, and belonging to another advisor — because

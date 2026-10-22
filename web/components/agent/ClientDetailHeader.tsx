@@ -8,11 +8,11 @@ import Typography from "@mui/material/Typography";
 import NextLink from "@/components/mui/NextLink";
 import { Avatar } from "@/components/public/Avatar";
 import { ClientArchiveDialog } from "@/components/agent/ClientArchiveDialog";
-import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
-import { CLIENT_COPY } from "@/lib/agent/content";
+import { CLIENT_COPY, messageClientLabel } from "@/lib/agent/content";
 import type { ClientOverview } from "@/lib/agent/clientDetail";
+import { newMessageHref } from "@/lib/agent/messageQuery";
 import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
 
 /**
@@ -34,7 +34,7 @@ import { VISUALLY_HIDDEN } from "@/lib/mui/sx";
  * theme's own CSS variables (a Server Component cannot read the palette through a callback,
  * and the two container colours switch with the scheme on their own), MUI Buttons in the
  * legacy `.btn-sm` box, the `StatusChip` for the archived pill, and the artboard's 20px tag
- * chips. The Button primitive keeps a disabled control's tooltip alive.
+ * chips.
  */
 
 /** The legacy `.btn.btn-sm` box on an MUI Button: 32px tall, 16px sides, 8px icon gap. */
@@ -108,10 +108,18 @@ export function ClientDetailHeader({ client }: { client: ClientOverview }) {
         </Box>
 
         <Box sx={{ display: "flex", flexShrink: 0, flexWrap: "wrap", gap: 0.75 }}>
-          <Button type="button" variant="tonal" size="sm" disabled title={CLIENT_COPY.messageClientDeferred}>
+          {/* §3.10: their general thread, or a new one. */}
+          <MuiButton
+            component={NextLink}
+            href={newMessageHref(client.clientId)}
+            variant="outlined"
+            color="secondary"
+            size="small"
+            sx={BTN_SM}
+          >
             <Icon name="message" size={12} />
-            <Box component="span" sx={VISUALLY_HIDDEN}>{CLIENT_COPY.messageClientDeferred}</Box>
-          </Button>
+            <Box component="span" sx={VISUALLY_HIDDEN}>{messageClientLabel(client.displayName)}</Box>
+          </MuiButton>
           {/* Not disabled: a tel: link needs no section behind it. */}
           {client.phone ? (
             <MuiButton
@@ -145,12 +153,18 @@ export function ClientDetailHeader({ client }: { client: ClientOverview }) {
             version={client.version}
             archived={client.archived}
           />
-          {/* §3.3.11 is DEFERRED to §3.9, where it also lives as 3.9.7 — the riskiest write
-              in the section, next to the account-admin tools it shares a screen with. */}
-          <Button type="button" variant="text" size="sm" disabled title={CLIENT_COPY.mergeDeferred}>
+          {/* §3.3.11, which is also §3.9.7: a full page, because a field-by-field picker
+              needs the room. */}
+          <MuiButton
+            component={NextLink}
+            href={`/agent/clients/${client.clientId}/merge`}
+            variant="text"
+            color="primary"
+            size="small"
+            sx={BTN_SM}
+          >
             Merge
-            <Box component="span" sx={VISUALLY_HIDDEN}> — {CLIENT_COPY.mergeDeferred}</Box>
-          </Button>
+          </MuiButton>
         </Box>
       </Box>
 

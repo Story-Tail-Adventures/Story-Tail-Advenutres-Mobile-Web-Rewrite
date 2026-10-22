@@ -39,7 +39,6 @@ export const STATUS_CHANGE_MESSAGES = {
   viewTrip: "Open the trip",
   viewSummary: "See the cancellation summary",
   viewMemories: "Open the memories",
-  authorizeCard: "Authorize a card",
 
   /** Shown when `status_changed_at` is null — a trip whose status never moved. */
   changedUnknown: "Recently",
@@ -88,7 +87,9 @@ const NEXT_STEPS: Record<TripStatus, readonly string[]> = {
   proposal: [
     "Have a read, no rush",
     "Reply with what you think",
-    "Authorize a card and Gyasi locks it in",
+    // Rewritten 2026-10-16 (§3.6 ruling): there is no card to authorize. Clients pay each
+    // supplier directly through a pay link. Identical on web and mobile.
+    "Say yes and Gyasi locks it in. Payments go straight to each supplier.",
   ],
   booked: [
     "Look through the itinerary when you have a minute",

@@ -48,7 +48,7 @@ BEGIN
     PERFORM set_config('role', 'authenticated', true);
     PERFORM set_config(
         'request.jwt.claims',
-        json_build_object('sub', account::text, 'role', 'authenticated')::text,
+        json_build_object('sub', account::text, 'role', 'authenticated', 'aal', 'aal2')::text,
         true
     );
 END;
@@ -778,9 +778,12 @@ SELECT pg_temp.assert(
     (SELECT count(*) FROM public.agent_payments_due(3650)) = 0,
     'the second agent sees none of Gyasi''s payment milestones — the predicate this proves '
     'could be deleted without any other assertion in this file noticing');
+-- Since §3.12 (20261025120000) every advisor gets an availability row on insert, so the
+-- second agent has their OWN row with the defaults, never Gyasi's (his seed is 4 hours).
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM public.agent_availability_self()) = 0,
-    'and no availability row, because they have none — not Gyasi''s');
+    (SELECT count(*) = 1 AND bool_and(response_time_hours = 24)
+       FROM public.agent_availability_self()),
+    'and only their own availability row (the defaults), not Gyasi''s');
 
 -- The KPI counts are separate subqueries with separate predicates. A forgotten one returns
 -- MORE, which reads as a healthy book rather than as a bug.
@@ -816,7 +819,7 @@ INSERT INTO public.commission (
     '0195a2c0-1a00-7000-8000-000000000041',
     '0195a2c0-1a00-7000-8000-0000000000e2',
     '0195a2c0-1a00-7000-8000-000000000030',
-    1000000, 8.00, 80000, 'USD', '60 days after travel', 'expected');
+    1000000, 8.00, 80000, 'USD', 'after_travel', 'expected');
 
 SELECT pg_temp.become(:gyasi::uuid);
 SELECT pg_temp.assert(

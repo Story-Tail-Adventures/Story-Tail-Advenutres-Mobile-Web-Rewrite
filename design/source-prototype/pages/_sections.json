@@ -556,15 +556,15 @@
   {
     "slug": "c24-payment",
     "num": "2.4",
-    "title": "Client \u00b7 Payment & Card Authorization",
-    "subtitle": "Wallet, add, authorize, audit.",
+    "title": "Client \u00b7 Payment & Card Authorization (retired 2026-10-16)",
+    "subtitle": "Retired 2026-10-16. Clients now pay suppliers through pay links on the trip.",
     "files": [
       "screens/client-payment.jsx",
       "screens/client-payment-mobile.jsx"
     ],
     "sectionId": "c24",
-    "sectionTitle": "2.4 \u00b7 Payment & Card Authorization",
-    "sectionSub": "Wallet, add, authorize, audit.",
+    "sectionTitle": "2.4 \u00b7 Payment & Card Authorization (retired)",
+    "sectionSub": "Retired 2026-10-16. Clients now pay suppliers through pay links on the trip.",
     "width": 1280,
     "height": 860,
     "screens": [
@@ -902,17 +902,154 @@
   {
     "slug": "c28-group",
     "num": "2.8",
-    "title": "Client \u00b7 Group Trip Coordination",
-    "subtitle": "Phase 3+ surface.",
+    "title": "Client \u00b7 Group Trips",
+    "subtitle": "Public sign-up, waitlist, leaders, members.",
     "files": [
-      "screens/client-group.jsx"
+      "screens/client-group.jsx",
+      "screens/group-shared.jsx",
+      "screens/group-public.jsx",
+      "screens/group-leader.jsx",
+      "screens/group-mobile.jsx"
     ],
     "sectionId": "c28",
-    "sectionTitle": "2.8 \u00b7 Group Trip Coordination",
-    "sectionSub": "Phase 3+ surface.",
+    "sectionTitle": "2.8 \u00b7 Group Trips",
+    "sectionSub": "Public sign-up, waitlist, leaders, members. Brief 2026-10-14.",
     "width": 1280,
     "height": 840,
     "screens": [
+      {
+        "id": "2851",
+        "comp": "C285_PublicOpen",
+        "label": "2.8.5a Open \u00b7 sign-up step 2",
+        "w": 1440,
+        "h": 2420
+      },
+      {
+        "id": "2852",
+        "comp": "C285_PublicReview",
+        "label": "2.8.5b Review and send",
+        "w": 1440,
+        "h": 2460
+      },
+      {
+        "id": "2853",
+        "comp": "C285_PublicOptionFull",
+        "label": "2.8.5c One option full",
+        "w": 1440,
+        "h": 2420
+      },
+      {
+        "id": "2854",
+        "comp": "C285_PublicGroupFull",
+        "label": "2.8.5d Group full \u00b7 waitlist",
+        "w": 1440,
+        "h": 2500
+      },
+      {
+        "id": "2855",
+        "comp": "C285_PublicClosed",
+        "label": "2.8.5e Closed",
+        "w": 1440,
+        "h": 1820
+      },
+      {
+        "id": "2856",
+        "comp": "C285_PublicAlready",
+        "label": "2.8.5f Already signed up",
+        "w": 1440,
+        "h": 1820
+      },
+      {
+        "id": "2857",
+        "comp": "C285_PublicSent",
+        "label": "2.8.5g Sent \u00b7 thank you",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2861",
+        "comp": "C286_OfferOpen",
+        "label": "2.8.6a Open offer",
+        "w": 1280,
+        "h": 860
+      },
+      {
+        "id": "2862",
+        "comp": "C286_OfferAccepted",
+        "label": "2.8.6b Accepted",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2863",
+        "comp": "C286_OfferExpired",
+        "label": "2.8.6c Expired",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2864",
+        "comp": "C286_OfferDeclined",
+        "label": "2.8.6d Declined",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2871",
+        "comp": "C287_RosterOpen",
+        "label": "2.8.7a Open \u00b7 invited party (3 days)",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2872",
+        "comp": "C287_RosterAdd",
+        "label": "2.8.7b Add someone to the trip",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2873",
+        "comp": "C287_RosterFlag",
+        "label": "2.8.7c Flag for Gyasi",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2874",
+        "comp": "C287_RosterExpired",
+        "label": "2.8.7d Invite expired",
+        "w": 1440,
+        "h": 1240
+      },
+      {
+        "id": "2875",
+        "comp": "C287_RosterDeparted",
+        "label": "2.8.7e Departed \u00b7 read-only",
+        "w": 1440,
+        "h": 1180
+      },
+      {
+        "id": "2881",
+        "comp": "C288_WelcomeNote",
+        "label": "2.8.8 Edit welcome note",
+        "w": 1280,
+        "h": 820
+      },
+      {
+        "id": "2891",
+        "comp": "C289_MemberTripWithCard",
+        "label": "2.8.9a On the trip view",
+        "w": 1440,
+        "h": 900
+      },
+      {
+        "id": "2892",
+        "comp": "C289_CardStates",
+        "label": "2.8.9b Card states",
+        "w": 1280,
+        "h": 620
+      },
       {
         "id": "281",
         "comp": "C281_GroupOverview",
@@ -937,6 +1074,38 @@
         "comp": "C284_CoTravelerView",
         "label": "2.8.4 Limited view",
         "h": 820
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m2851",
+        "comp": "M285_PublicOpen",
+        "label": "2.8.5m Phone \u00b7 open"
+      },
+      {
+        "id": "m2852",
+        "comp": "M285_SignupStep",
+        "label": "2.8.5m Phone \u00b7 who's coming"
+      },
+      {
+        "id": "m2861",
+        "comp": "M286_Offer",
+        "label": "2.8.6m Phone \u00b7 open offer"
+      },
+      {
+        "id": "m2871",
+        "comp": "M287_Roster",
+        "label": "2.8.7m Phone \u00b7 party cards"
+      },
+      {
+        "id": "m2881",
+        "comp": "M288_WelcomeNote",
+        "label": "2.8.8m Phone"
+      },
+      {
+        "id": "m2891",
+        "comp": "M289_MemberCard",
+        "label": "2.8.9m Phone"
       }
     ]
   },
@@ -1364,63 +1533,49 @@
   {
     "slug": "a36-payment",
     "num": "3.6",
-    "title": "Agent \u00b7 Payment & Card Management",
-    "subtitle": "Vault, reveal-and-use, audit log.",
+    "title": "Agent \u00b7 Supplier Payments",
+    "subtitle": "Pay links, paid marks, payment history.",
     "files": [
       "screens/agent-payment.jsx"
     ],
     "sectionId": "a36",
-    "sectionTitle": "3.6 \u00b7 Payment & Card Management",
-    "sectionSub": "Vault, reveal-and-use, audit log.",
+    "sectionTitle": "3.6 \u00b7 Supplier Payments",
+    "sectionSub": "Pay links, paid marks, payment history.",
     "width": 1280,
     "height": 820,
     "screens": [
       {
         "id": "361",
-        "comp": "A361_CardVault",
-        "label": "3.6.1 Card vault",
+        "comp": "A361_TripPayments",
+        "label": "3.6.1 Trip payments",
         "h": 820
+      },
+      {
+        "id": "361b",
+        "comp": "A361b_EditPayLink",
+        "label": "3.6.1b Add or edit pay link",
+        "w": 1000,
+        "h": 860
       },
       {
         "id": "362",
-        "comp": "A362_RequestAuth",
-        "label": "3.6.2 Request authorization",
+        "comp": "A362_SendPaymentLink",
+        "label": "3.6.2 Send payment link",
         "w": 1000,
-        "h": 820
-      },
-      {
-        "id": "363",
-        "comp": "A363_AuthRequestSent",
-        "label": "3.6.3 Request sent",
-        "w": 1000,
-        "h": 700
-      },
-      {
-        "id": "364",
-        "comp": "A364_RevealCard",
-        "label": "3.6.4 Reveal card (audited)",
-        "w": 1000,
-        "h": 820
+        "h": 900
       },
       {
         "id": "365",
-        "comp": "A365_LogUse",
-        "label": "3.6.5 Log card use",
+        "comp": "A365_MarkPaid",
+        "label": "3.6.5 Mark paid",
         "w": 1000,
-        "h": 820
+        "h": 860
       },
       {
         "id": "366",
-        "comp": "A366_CardUseLog",
-        "label": "3.6.6 Card use log",
+        "comp": "A366_PaymentHistory",
+        "label": "3.6.6 Payment history",
         "h": 760
-      },
-      {
-        "id": "367",
-        "comp": "A367_UpdateLimit",
-        "label": "3.6.7 Update limit",
-        "w": 1000,
-        "h": 720
       }
     ]
   },
@@ -1600,7 +1755,9 @@
     "title": "Agent \u00b7 Messaging & Templates",
     "subtitle": "Agent inbox, templates, bulk send.",
     "files": [
-      "screens/agent-leads-support-msg.jsx"
+      "screens/agent-leads-support-msg.jsx",
+      "screens/agent-messages-mobile.jsx",
+      "screens/agent-notifications.jsx"
     ],
     "sectionId": "a310",
     "sectionTitle": "3.10 \u00b7 Messaging & Templates",
@@ -1644,6 +1801,59 @@
         "comp": "A3106_BulkSend",
         "label": "3.10.6 Bulk send",
         "h": 820
+      },
+      {
+        "id": "3107",
+        "comp": "A3107_WebNotifications",
+        "label": "3.10.7 Notifications (proposed, Stage 3b)",
+        "h": 620
+      }
+    ],
+    "mobileScreens": [
+      {
+        "id": "m3101",
+        "comp": "M3101_Inbox",
+        "label": "3.10m.1 Inbox"
+      },
+      {
+        "id": "m3102a",
+        "comp": "M3102_ThreadReply",
+        "label": "3.10m.2 Thread \u00b7 reply"
+      },
+      {
+        "id": "m3102b",
+        "comp": "M3102_ThreadNote",
+        "label": "3.10m.2 Thread \u00b7 note"
+      },
+      {
+        "id": "m3103",
+        "comp": "M3103_NewMessage",
+        "label": "3.10m.3 New message"
+      },
+      {
+        "id": "m3104",
+        "comp": "M3104_DeskOnly",
+        "label": "3.10m.4 On the web (deferred)"
+      },
+      {
+        "id": "m3105",
+        "comp": "M3105_NotifyLocked",
+        "label": "3.10m.5 Notification \u00b7 locked"
+      },
+      {
+        "id": "m3106",
+        "comp": "M3106_NotifyReply",
+        "label": "3.10m.6 Notification \u00b7 reply"
+      },
+      {
+        "id": "m3107",
+        "comp": "M3107_NotifyStates",
+        "label": "3.10m.7 Notification \u00b7 failed & summary"
+      },
+      {
+        "id": "m3108",
+        "comp": "M3108_InboxTurnOn",
+        "label": "3.10m.8 Turn on notifications"
       }
     ]
   },
@@ -1754,6 +1964,86 @@
         "comp": "A3125_Branding",
         "label": "3.12.5 Branding (future)",
         "h": 760
+      }
+    ]
+  },
+  {
+    "slug": "a313-groups",
+    "num": "3.13",
+    "title": "Agent \u00b7 Groups",
+    "subtitle": "Group list, setup wizard, dashboard, party detail.",
+    "files": [
+      "screens/group-shared.jsx",
+      "screens/agent-groups.jsx"
+    ],
+    "sectionId": "a313",
+    "sectionTitle": "3.13 \u00b7 Groups",
+    "sectionSub": "Group list, setup wizard, dashboard, party detail. Web only.",
+    "width": 1440,
+    "height": 900,
+    "screens": [
+      {
+        "id": "31311",
+        "comp": "A3131_GroupsList",
+        "label": "3.13.1 Groups list",
+        "w": 1440,
+        "h": 760
+      },
+      {
+        "id": "31321",
+        "comp": "A3132_Step1",
+        "label": "3.13.2 Step 1 \u00b7 Details",
+        "w": 1280,
+        "h": 1000
+      },
+      {
+        "id": "31322",
+        "comp": "A3132_Step2",
+        "label": "3.13.2 Step 2 \u00b7 Master trip",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31323",
+        "comp": "A3132_Step3",
+        "label": "3.13.2 Step 3 \u00b7 Options",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31324",
+        "comp": "A3132_Step4",
+        "label": "3.13.2 Step 4 \u00b7 Public page",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31325",
+        "comp": "A3132_Step5",
+        "label": "3.13.2 Step 5 \u00b7 Leaders",
+        "w": 1280,
+        "h": 760
+      },
+      {
+        "id": "31326",
+        "comp": "A3132_Step6",
+        "label": "3.13.2 Step 6 \u00b7 Review and open",
+        "w": 1280,
+        "h": 860
+      },
+      {
+        "id": "31331",
+        "comp": "A3133_GroupDashboard",
+        "label": "3.13.3 Group dashboard",
+        "w": 1600,
+        "h": 1380
+      },
+      {
+        "id": "31341",
+        "comp": "A3134_PartyDetail",
+        "label": "3.13.4 Party detail",
+        "w": 1440,
+        "h": 820
       }
     ]
   }

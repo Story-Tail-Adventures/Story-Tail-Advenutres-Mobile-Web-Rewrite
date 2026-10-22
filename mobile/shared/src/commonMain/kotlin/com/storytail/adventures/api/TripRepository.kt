@@ -6,7 +6,9 @@ import com.storytail.adventures.domain.trip.tripStatusPresentation
 import com.storytail.adventures.domain.trip.StatusChip
 import com.storytail.adventures.config.SupabaseConfig
 import com.storytail.adventures.domain.messages.inboxTitle
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.MessageSender
+import com.storytail.adventures.domain.trip.parseAdvisorCard
 import com.storytail.adventures.domain.uuidV7
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.exceptions.RestException
@@ -98,6 +100,13 @@ interface TripRepository {
     suspend fun inbox(): List<InboxConversationView>?
 
     /**
+     * §3.12 PR 3 (Q11): the signed-in client's own advisor, from `client_advisor_card()`.
+     * Null when the read failed or there is no advisor; every caller then keeps its
+     * long-standing fixed words rather than drawing an empty card.
+     */
+    suspend fun advisorCard(): AdvisorCard? = null
+
+    /**
      * Screen 2.6.2, addressed by CONVERSATION rather than by trip.
      *
      * Not [tripThread]: that one resolves the conversation from a trip and cannot reach a row
@@ -110,6 +119,18 @@ interface TripRepository {
 
     /** Send into an existing thread, for 2.6.2's compose bar. */
     suspend fun sendToConversation(conversationId: String, body: String): SendMessageOutcome
+
+    /**
+     * Opening a thread reads it: clears the traveler's own unread count (§3.10 Stage 1).
+     *
+     * Nothing raised `client_unread_count` until the advisor could reply, so nothing cleared it
+     * either; the two arrived together. `client_mark_conversation_read` checks the thread is the
+     * caller's own. [seenUpTo] is the `created_at` of the newest message on screen, exactly as
+     * the server sent it (microseconds and all): a reply that landed after it stays unread
+     * rather than being cleared unseen. True when the count moved; false
+     * otherwise, including on any failure, which must never cost the traveler the thread.
+     */
+    suspend fun markConversationRead(conversationId: String, seenUpTo: String): Boolean
 
     /**
      * Start — or continue — the general thread, for 2.6.3.
@@ -195,6 +216,8 @@ data class ThreadMessageView(
     val body: String,
     val createdAt: String,
     val attachments: List<TripDocumentView>,
+    /** §3.12.2: the advisor's out-of-office reply (`message.is_auto_reply`, granted to clients). */
+    val autoReply: Boolean = false,
 )
 
 data class TripThreadSnapshot(
@@ -329,6 +352,14 @@ data class PaymentMilestoneView(
     val currency: String,
     val dueDate: LocalDate?,
     val status: String,
+    /**
+     * §3.6 (2026-10-16): the supplier's own payment page, or a Travefy invoice link, that
+     * the advisor attached. The client only ever READS it; the pay button opens it in the
+     * browser. Null when the milestone has no link, which shows no button at all.
+     */
+    val payUrl: String? = null,
+    /** The supplier's confirmation number once the advisor marks it paid. Client-readable. */
+    val paidReference: String? = null,
 )
 
 data class TripDetailSnapshot(
@@ -374,6 +405,12 @@ data class NextPayment(
     val currency: String,
     val dueDate: LocalDate?,
     val daysUntilDue: Int?,
+    /** What the advisor has recorded as paid so far; the card shows what is still open. */
+    val paidCents: Long = 0,
+    /** `scheduled` or `overdue`: the read excludes paid and waived. */
+    val status: String = "scheduled",
+    /** §3.6's pay link, when the advisor attached one. See [PaymentMilestoneView.payUrl]. */
+    val payUrl: String? = null,
 )
 
 /**
@@ -415,6 +452,7 @@ class UnconfiguredTripRepository : TripRepository {
     override suspend fun conversationThread(conversationId: String): ConversationThreadSnapshot? = null
     override suspend fun sendToConversation(conversationId: String, body: String): SendMessageOutcome =
         SendMessageOutcome.Failed(null)
+    override suspend fun markConversationRead(conversationId: String, seenUpTo: String): Boolean = false
     override suspend fun startConversation(body: String): StartConversationOutcome =
         StartConversationOutcome.Failed(null)
     override suspend fun sendMessage(tripId: String, body: String): SendMessageOutcome =
@@ -473,7 +511,10 @@ class SupabaseTripRepository(
             val milestones = read {
                 client.postgrest.from("payment_milestone")
                     .select(
-                        Columns.list("label", "amount_cents", "currency", "due_date", "status", "order_index"),
+                        Columns.list(
+                            "label", "amount_cents", "paid_cents", "currency", "due_date",
+                            "status", "order_index", "pay_url",
+                        ),
                     ) {
                         filter {
                             eq("trip_id", upcomingRow.id)
@@ -493,6 +534,9 @@ class SupabaseTripRepository(
                     currency = next.currency,
                     dueDate = nextUnpaidDue,
                     daysUntilDue = nextUnpaidDue?.let { daysUntilDeparture(it, today) },
+                    paidCents = next.paid_cents,
+                    status = next.status,
+                    payUrl = next.pay_url,
                 )
             }
 
@@ -662,7 +706,7 @@ class SupabaseTripRepository(
                 .select(
                     Columns.list(
                         "id", "kind", "label", "amount_cents", "paid_cents", "currency",
-                        "due_date", "status", "order_index",
+                        "due_date", "status", "order_index", "pay_url", "paid_reference",
                     ),
                 ) {
                     filter { eq("trip_id", tripId) }
@@ -679,6 +723,8 @@ class SupabaseTripRepository(
                 currency = it.currency,
                 dueDate = it.due_date?.let(::parseDate),
                 status = it.status,
+                payUrl = it.pay_url,
+                paidReference = it.paid_reference,
             )
         }
 
@@ -886,6 +932,19 @@ class SupabaseTripRepository(
         )
     }
 
+    override suspend fun markConversationRead(conversationId: String, seenUpTo: String): Boolean =
+        read {
+            client.postgrest
+                .rpc(
+                    "client_mark_conversation_read",
+                    buildJsonObject {
+                        put("p_conversation_id", conversationId)
+                        put("p_seen_up_to", seenUpTo)
+                    },
+                )
+                .decodeAs<Boolean>()
+        } ?: false
+
     override suspend fun tripThread(tripId: String): TripThreadSnapshot? {
         val trip = read {
             client.postgrest.from("trip")
@@ -943,7 +1002,7 @@ class SupabaseTripRepository(
     private suspend fun threadMessages(conversationId: String): List<ThreadMessageView>? {
         val messageRows = read {
             client.postgrest.from("message")
-                .select(Columns.list("id", "sender_role", "body", "created_at")) {
+                .select(Columns.list("id", "sender_role", "body", "created_at", "is_auto_reply")) {
                     filter { eq("conversation_id", conversationId) }
                     order("created_at", Order.ASCENDING)
                 }
@@ -982,8 +1041,19 @@ class SupabaseTripRepository(
                 body = row.body,
                 createdAt = row.created_at,
                 attachments = attachments[row.id].orEmpty(),
+                autoReply = row.is_auto_reply,
             )
         }
+    }
+
+    override suspend fun advisorCard(): AdvisorCard? = try {
+        // A scalar jsonb: the object itself, or `null` for no advisor.
+        val element = Json.parseToJsonElement(client.postgrest.rpc("client_advisor_card").data)
+        (element as? JsonObject)?.let(::parseAdvisorCard)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
     }
 
     override suspend fun inbox(): List<InboxConversationView>? {
@@ -1110,7 +1180,7 @@ class SupabaseTripRepository(
         // NO STATUS CHECK. supabase-kt validates the response, so a non-2xx is thrown, not
         // returned — the `status.value in 400..499` branch that used to live here never ran
         // and every rejection reached the traveler as the generic failure. Found in §2.4 and
-        // fixed in all four places at once; see WalletRepository.problemDetail for why the
+        // fixed in all four places at once; see AgentRepository.problemDetail for why the
         // body has to be read off `RestException.error` rather than `message`.
         val text = runCatching { response.bodyAsText() }.getOrDefault("")
         val id = runCatching {
@@ -1300,7 +1370,8 @@ class SupabaseTripRepository(
                 .select(
                     Columns.list(
                         "id", "kind", "label", "amount_cents", "paid_cents",
-                        "currency", "due_date", "status", "order_index",
+                        "currency", "due_date", "status", "order_index", "pay_url",
+                        "paid_reference",
                     ),
                 ) {
                     filter {
@@ -1337,6 +1408,8 @@ class SupabaseTripRepository(
                     currency = it.currency,
                     dueDate = it.due_date?.let(::parseDate),
                     status = it.status,
+                    payUrl = it.pay_url,
+                    paidReference = it.paid_reference,
                 )
             },
         )
@@ -1477,10 +1550,12 @@ private fun TripDetailRow.toSummary(today: LocalDate, nextUnpaidDue: LocalDate? 
 private data class MilestoneRow(
     val label: String,
     val amount_cents: Long,
+    val paid_cents: Long = 0,
     val currency: String,
     val due_date: String? = null,
     val status: String,
     val order_index: Int,
+    val pay_url: String? = null,
 )
 
 @Serializable
@@ -1513,6 +1588,10 @@ private data class MilestoneDetailRow(
     val due_date: String? = null,
     val status: String,
     val order_index: Int,
+    // §3.6, 2026-10-16. Both are in the client column grant; paid_note is NOT and is never
+    // selected here.
+    val pay_url: String? = null,
+    val paid_reference: String? = null,
 )
 
 @Serializable
@@ -1650,6 +1729,9 @@ private data class MessageRow(
     val sender_role: String,
     val body: String,
     val created_at: String,
+    // §3.12.2. Named in the select, so PostgREST always sends it; no default, so a misspelt
+    // name fails the decode instead of reading as "not an automatic reply".
+    val is_auto_reply: Boolean,
 )
 
 @Serializable

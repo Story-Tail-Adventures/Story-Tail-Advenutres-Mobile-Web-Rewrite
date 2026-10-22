@@ -1,6 +1,10 @@
 /* global React, MUI, Icon, MuiIcon, staImg, MuiScreenFrame, MuiScreenHeader, MuiStaStatus */
 // Client · 2.4 Payment & Card Authorization — 7 screens. MUI v9.
 //
+// RETIRED 2026-10-16. Kept as a record, not deleted. The app never holds a card now: clients
+// pay each supplier through a pay link on the trip's payment timeline (2.2.3 / 2.2m.3), and the
+// advisor side is 3.6 Supplier Payments (agent-payment.jsx). Do not build these screens.
+//
 // PCI note: every card shown here is masked to its last 4 (•••• 4242). The
 // only full number on this page is the Stripe public test PAN typed into the
 // Add Card entry form (2.4.2), exactly as the legacy screen drew it.

@@ -1,6 +1,11 @@
 import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert@^1";
 import { HttpError } from "./problem.ts";
-import { requireAgentId, requireExpectedVersion, stageWriteBody } from "./agent.ts";
+import {
+  AGENT_MFA_REQUIRED,
+  requireAgentId,
+  requireExpectedVersion,
+  stageWriteBody,
+} from "./agent.ts";
 import type { AuthContext } from "./auth.ts";
 import type { Db } from "./db.ts";
 
@@ -35,7 +40,7 @@ function ctx(overrides: Partial<AuthContext>): AuthContext {
     role: "agent",
     agentId: "0195a2c0-1a00-7000-8000-000000000001",
     clientId: null,
-    aal: "aal1",
+    aal: "aal2",
     secondFactorVerifiedAt: null,
     ip: null,
     userAgent: null,
@@ -415,4 +420,35 @@ Deno.test("an outcome the helper does not know throws rather than reporting no c
     error.message,
     "unhandled agent_set_trip_status outcome: reopened",
   );
+});
+
+// ── aal2 ────────────────────────────────────────────────────────────────────────
+//
+// Agent MFA is required. A password-only (aal1) session must not reach any agent route,
+// and must not cost a database read or learn the advisor's status on the way out.
+
+Deno.test("an aal1 agent is refused before any database read", async () => {
+  const { status, detail } = await rejection(() =>
+    requireAgentId(ctx({ aal: "aal1" }), unreachableDb())
+  );
+  assertEquals(status, 403);
+  assertEquals(detail, AGENT_MFA_REQUIRED);
+});
+
+Deno.test("an aal1 ARCHIVED agent hears about MFA, not about the archive", async () => {
+  // The status lookup is what reveals "closed"; an unverified session never gets that far.
+  const { detail } = await rejection(() =>
+    requireAgentId(ctx({ aal: "aal1" }), lookup({ data: { status: "archived" }, error: null }).db)
+  );
+  assertEquals(detail, AGENT_MFA_REQUIRED);
+});
+
+Deno.test("a client is refused on role, whatever their aal", async () => {
+  const { detail } = await rejection(() =>
+    requireAgentId(
+      ctx({ role: "client", agentId: null, aal: "aal1" }),
+      unreachableDb(),
+    )
+  );
+  assertEquals(detail, "This is the advisor's side of the platform.");
 });

@@ -23,10 +23,13 @@ type Faq = { q: string; a: string };
 const SAME_TOPIC: RegExp[] = [/planning fee/i];
 
 /**
- * Cards and authorization, which §2.4 has not built.
+ * Anything about cards or authorization. §2.4 (card authorization) was retired on 2026-10-16
+ * before it ever reached a traveler: the app holds no card, and clients pay each supplier
+ * through a link. The public answers now say so; this screen keeps the old filter so its
+ * list stays identical to the Kotlin twin's until both are changed together.
  *
- * Matched against the QUESTION AND THE ANSWER: two of the entries mention card authorization
- * only in the answer, and an FAQ that explains an unreachable screen is worse than no FAQ.
+ * Matched against the QUESTION AND THE ANSWER, since some entries mention cards only in the
+ * answer.
  */
 const UNREACHABLE = /\bcards?\b|authoriz/i;
 

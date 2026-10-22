@@ -75,12 +75,20 @@ export async function requireUser(req: Request): Promise<AuthContext> {
   // not depend on a client-shaped policy.
   const { data: pu, error: puError } = await serviceClient()
     .from("platform_user")
-    .select("id, role, agent_id, client_id")
+    .select("id, role, agent_id, client_id, account:account_id(locked_at)")
     .eq("account_id", data.user.id)
     .maybeSingle();
 
   if (puError) throw unauthorized("Could not resolve the caller.");
   if (!pu) throw forbidden("This account has no platform user.");
+
+  // §3.9.5: an advisor's lock bans the user in GoTrue and deletes their sessions, so getUser()
+  // above already refuses their old tokens (verified end to end, 2026-10-16). This is the second
+  // wall, in our own data: a locked account changes nothing even if a session outlived the lock
+  // (say, one opened between the ban and the row). Every write goes through an Edge Function.
+  // The words match the "on hold" message the sign-in screen shows.
+  const account = Array.isArray(pu.account) ? pu.account[0] : pu.account;
+  if (account?.locked_at) throw forbidden("This account is on hold.");
 
   const claims = decodeClaims(jwt);
   const amr = Array.isArray(claims.amr) ? (claims.amr as AmrEntry[]) : [];
@@ -123,9 +131,10 @@ export function requireRole(ctx: AuthContext, ...roles: UserRole[]): void {
  *
  * This distinction is the whole point. "Has MFA enrolled" is a property of the account
  * and is true forever once set up; "was challenged in the last 15 minutes" is what
- * actually protects a PAN reveal (Screen Inventory 3.6.4) from a stolen session. Checking
- * the former and calling it step-up is the difference between passing and failing
- * `audit-pci`.
+ * actually protects a sensitive action from a stolen session. Checking the former and
+ * calling it step-up is not step-up at all. (Written for the card-number reveal, Screen
+ * Inventory 3.6.4, removed on 2026-10-16 with the card tables; kept for the next action
+ * that needs a fresh second factor.)
  *
  * Synchronous: everything it needs is already in the verified JWT that `requireUser`
  * decoded, so there is no round trip to make.
@@ -144,5 +153,22 @@ export function requireRecentMfa(ctx: AuthContext, maxAgeSeconds = 900): void {
     throw forbidden(
       `MFA was verified ${Math.round(ageSeconds)}s ago; this action requires it within ${maxAgeSeconds}s.`,
     );
+  }
+}
+
+/**
+ * For a function with no human caller (a pg_cron tick): the already-verified token's `role`
+ * claim must be `service_role`. `verify_jwt = true` in config.toml checks the signature before
+ * the function runs; this reads the claim afterwards, as `requireUser` reads `aal`. Any user
+ * token, however valid, is 403. cruise-sync keeps its own copy of this for now.
+ */
+export function requireServiceRole(req: Request, what: string): void {
+  const authorization = req.headers.get("Authorization");
+  if (!authorization?.startsWith("Bearer ")) {
+    throw unauthorized("Missing bearer token.");
+  }
+  const claims = decodeClaims(authorization.slice("Bearer ".length));
+  if (claims.role !== "service_role") {
+    throw forbidden(`${what} runs as the service role, not as a user.`);
   }
 }

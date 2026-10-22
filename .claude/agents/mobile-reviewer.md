@@ -124,12 +124,12 @@ Before reviewing anything, read in this order:
 - [ ] **Money is `Long` (Kotlin) cents + `String` (3-char ISO currency).** Flag `Double`, `Float`, `BigDecimal` in money shapes.
 - [ ] **UUIDs are v7 (client-generated for offline support).** The project's UUID v7 helper should be the only generator. Flag `UUID.randomUUID()` (Java, also v4) or `java.util.UUID` usage in commonMain at all.
 - [ ] **No client-facing billing UI.** Flag any Compose screens or strings that suggest charging the client.
-- [ ] **No raw PAN handling.** Flag any field/state/parameter named `cardNumber`, `pan`, `cvv`, `cvc`.
-- [ ] **No Stripe `PaymentMethod` IDs in client-role state.** Server-only.
+- [ ] **No card numbers anywhere** (the app holds no card since 2026-10-16). Flag any field/state/parameter named `cardNumber`, `pan`, `cvv`, `cvc`, and any card SDK.
+- [ ] **Pay links open in the browser only** and show the link's host; the client never edits one.
 
 ## When to delegate
 
-- **Payment-adjacent diffs** (anything under `mobile/**/payment*`, code calling Stripe Edge Functions, references to `PaymentCard` / `CardAuthorization` data classes): say "Delegate to `audit-pci` skill" and stop.
+- **Payment-adjacent diffs** (the client pay block, milestone DTOs, or anything that would bring card storage back): say "Delegate to `audit-pci` skill" and stop.
 - **User-facing string changes** (Compose `Text(...)` literals, string resources visible to users, email body strings if any): say "Delegate to `brand-voice-reviewer` agent" and skip those strings.
 
 ## Output format
@@ -147,7 +147,7 @@ Before reviewing anything, read in this order:
 - `path/to/File.kt:88` — <one-line description with suggestion>
 
 ### Delegated
-- Payment code in `mobile/shared/.../payment/PaymentVm.kt` → run `audit-pci`
+- Pay-block code in `mobile/shared/.../trip/TripDetailScreen.kt` → run `audit-pci`
 - Copy strings in `mobile/shared/.../HomeScreen.kt:34,52` → run `brand-voice-reviewer`
 
 ### Looks good

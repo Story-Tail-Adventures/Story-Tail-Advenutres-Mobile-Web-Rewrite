@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
 import MuiButton from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -8,14 +9,18 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
+import { PayLinkBlock } from "@/components/client/PayLinkBlock";
 import { EmptyState } from "@/components/client/states";
 import { RetryState } from "@/components/client/RetryState";
 import NextLink from "@/components/mui/NextLink";
+import type { AdvisorCardView } from "@/lib/client/advisorCard";
+import { loadAdvisorCard } from "@/lib/client/advisorCardLoad";
 import { Photo } from "@/components/public/Photo";
 import { Icon } from "@/components/ui/Icon";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
 import { formatTripMoney } from "@/lib/trips/money";
+import { paySiteName } from "@/lib/trips/payLink";
 import { formatDay, formatTripDates } from "@/lib/trips/format";
 import { loadDashboard, type DashboardTrip } from "@/lib/trips/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -41,8 +46,7 @@ const OVERLINE_SX = { display: "block", fontWeight: 600, lineHeight: 1.3 } as co
 /** The legacy .t-title-s (15/600) on subtitle1. */
 const TITLE_S_SX = { fontWeight: 600, lineHeight: 1.3 } as const;
 
-/** The legacy .btn and .btn-sm boxes on MUI's Button, so nothing reflows. */
-const BTN = { minHeight: 40, px: "24px", gap: 1, whiteSpace: "nowrap" } as const;
+/** The legacy .btn-sm box on MUI's Button, so nothing reflows. */
 const BTN_SM = { minHeight: 32, px: "16px", gap: 1, whiteSpace: "nowrap" } as const;
 
 /** A Card that IS the link (the legacy `<Link className="card">`). */
@@ -82,10 +86,10 @@ const SCRIM_SX = {
  *     to count. The artboard's third tab is gone rather than rendered empty.
  *   * "New idea" / "Explore trips" repoint at the trip thread. §2.3 is Phase 2 and the CTA
  *     had no destination; asking Gyasi is how a trip actually starts at MVP.
- *   * "Authorize a card" opens §2.4.3 for the upcoming trip. It rendered disabled with a
- *     reason while §2.4 was unbuilt — which was the right call then and the wrong state to
- *     leave behind: a CTA still disabled after its screen ships is exactly the failure the
- *     disabled-with-a-reason convention exists to make visible.
+ *   * The artboard's "Action needed / Authorize a card" card is now the NEXT PAYMENT card
+ *     (§2.2.3's pay block, ruled 2026-10-16). §2.4 is retired and the app never holds a
+ *     card: when the next unpaid milestone has a pay link, the card offers the same calm pay
+ *     block as the trip's payment timeline, on a plain surface rather than error red.
  *   * The countdown shows days only, not days/hours/minutes. The artboard's HR and MIN
  *     tiles need a ticking client component, and a server-rendered "14 HR" is wrong the
  *     moment it is sent. Days is the unit that survives a cache.
@@ -110,7 +114,8 @@ export default async function DashboardPage() {
   // differently on the two stacks.
   const rawName = client?.preferred_name?.trim() || client?.first_name?.trim();
   const name = rawName && rawName !== "New" ? rawName : "there";
-  const data = await loadDashboard();
+  // §3.12 PR 3: the advisor's own card. A failed read keeps the long-standing fixed words.
+  const [data, advisor] = await Promise.all([loadDashboard(), loadAdvisorCard()]);
 
   if (!data) {
     return (
@@ -174,11 +179,12 @@ export default async function DashboardPage() {
         >
           <HeroCountdown trip={upcoming} days={days} itineraryReady={itineraryReady} />
           <Stack spacing={1.25}>
-            {nextPayment && <ActionNeeded payment={nextPayment} tripId={upcoming.id} />}
+            {nextPayment && <NextPayment payment={nextPayment} />}
             {/* Only the advisor's own words are quoted here. When the traveler spoke last
                 the card drops the quote and keeps the reply-window line, which is exactly
                 what somebody waiting for an answer wants to see. */}
             <AdvisorCard
+              advisor={advisor}
               preview={latestMessage?.fromAgent ? latestMessage.body : undefined}
               tripId={upcoming.id}
             />
@@ -294,80 +300,125 @@ function HeroCountdown({
   );
 }
 
-function ActionNeeded({
+/**
+ * The next unpaid milestone on the upcoming trip, as the C221 artboard draws it: an overline
+ * with the due date, the label and amount, a calm "whenever it suits you" line while the date
+ * is still ahead, and the pay block when the milestone has a pay link. No countdown and no
+ * red (Design-System §2): the money goes to the supplier, never to Story-Tail.
+ */
+function NextPayment({
   payment,
-  tripId,
 }: {
-  payment: NonNullable<Awaited<ReturnType<typeof loadDashboard>>>["nextPayment"];
-  tripId: string;
+  payment: NonNullable<NonNullable<Awaited<ReturnType<typeof loadDashboard>>>["nextPayment"]>;
 }) {
-  if (!payment) return null;
-  const due = payment.daysUntilDue;
+  const ahead = payment.daysUntilDue !== null && payment.daysUntilDue >= 0;
+  const open = payment.amountCents - payment.paidCents;
   return (
-    <Card sx={{ bgcolor: "error.container", color: "error.onContainer" }}>
+    <Card>
       <CardContent sx={CARD_PAD_14}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Icon name="card" size={15} />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
+          <Icon name="receipt" size={15} />
           <Typography component="span" variant="overline" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
-            {DASHBOARD.actionNeededLabel}
-            {due !== null && due >= 0 ? ` · ${due} DAYS` : ""}
+            {DASHBOARD.nextPaymentLabel}
+            {payment.dueDate ? ` · DUE ${formatDay(payment.dueDate).toUpperCase()}` : ""}
           </Typography>
         </Box>
         <Typography component="div" variant="subtitle1" sx={{ ...TITLE_S_SX, mt: 0.75 }}>
-          {payment.label}
+          {payment.label} · {formatTripMoney(open > 0 ? open : payment.amountCents, payment.currency)}
         </Typography>
-        <Typography component="div" variant="caption" sx={{ display: "block", mt: 0.5, opacity: 0.85 }}>
-          {formatTripMoney(payment.amountCents, payment.currency)}
-          {payment.dueDate ? ` due ${formatDay(payment.dueDate)}` : ""}
-        </Typography>
-        {/* §2.4.3, scoped to the trip this milestone belongs to. `card_authorization.trip_id`
-            is NOT NULL, so the trip travels in the route rather than being asked for on the
-            far side — the milestone already knows which trip it is due on.
-            A contained error button, as the C221 artboard draws it: MUI's error pair reads
-            against the error-container card in both schemes. */}
-        <MuiButton
-          component={NextLink}
-          href={`/wallet/authorize/${tripId}`}
-          variant="contained"
-          color="error"
-          fullWidth
-          sx={{ ...BTN, mt: 1.25 }}
-        >
-          {DASHBOARD.authorizeCard}
-        </MuiButton>
+        {ahead && (
+          <Typography component="div" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.secondary" }}>
+            {DASHBOARD.nextPaymentWhenever}
+          </Typography>
+        )}
+        {payment.payUrl && paySiteName(payment.payUrl) && (
+          <Box sx={{ mt: 1.25 }}>
+            <PayLinkBlock
+              tripId={payment.tripId}
+              milestoneId={payment.id}
+              label={payment.label}
+              payUrl={payment.payUrl}
+            />
+          </Box>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function AdvisorCard({ preview, tripId }: { preview?: string; tripId: string }) {
+/**
+ * §3.12 PR 3 (Q11): "Your advisor", from the advisor's own profile: photo, name, pronouns,
+ * the reply-time promise (or "Away until…" while they rest), a short bio and their links.
+ * `advisor` is null when the read failed; the card then keeps its long-standing words.
+ */
+function AdvisorCard({
+  advisor,
+  preview,
+  tripId,
+}: {
+  advisor: AdvisorCardView | null;
+  preview?: string;
+  tripId: string;
+}) {
   return (
     <Card>
       <CardContent sx={CARD_PAD_14}>
+        <Typography component="p" variant="overline" sx={{ display: "block", lineHeight: 1.3, color: "text.secondary", mb: 0.75 }}>
+          {DASHBOARD.advisorLabel}
+        </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          {/* The legacy `.avatar.sm`: 24px, 10px initials, the tertiary-container pair. */}
           <Avatar
             aria-hidden="true"
+            src={advisor?.avatarUrl ?? undefined}
             sx={{
-              width: 24,
-              height: 24,
-              fontSize: 10,
+              width: 40,
+              height: 40,
+              fontSize: 14,
               fontWeight: 600,
               bgcolor: "tertiary.container",
               color: "tertiary.onContainer",
             }}
           >
-            GS
+            {advisor?.initials ?? "GS"}
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography component="div" variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
-              {DASHBOARD.advisorName} · {DASHBOARD.advisorRole}
+              {advisor?.firstName ?? DASHBOARD.advisorName} · {DASHBOARD.advisorRole}
+              {advisor?.pronouns ? (
+                <Typography component="span" variant="caption" sx={{ ml: 0.75, color: "text.secondary", fontWeight: 400 }}>
+                  ({advisor.pronouns})
+                </Typography>
+              ) : null}
             </Typography>
-            <Typography component="div" variant="caption" sx={{ display: "block", color: "text.secondary" }}>
-              {DASHBOARD.advisorReplyTime}
+            <Typography
+              component="div"
+              variant="caption"
+              sx={{ display: "block", color: advisor?.awayLabel ? "text.primary" : "text.secondary", fontWeight: advisor?.awayLabel ? 600 : 400 }}
+            >
+              {advisor?.awayLabel ?? advisor?.replyLabel ?? DASHBOARD.advisorReplyTime}
             </Typography>
           </Box>
         </Box>
+        {advisor?.bio ? (
+          <Typography
+            component="p"
+            variant="body2"
+            sx={{ mt: 1, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}
+          >
+            {advisor.bio}
+          </Typography>
+        ) : null}
+        {advisor && advisor.links.length > 0 ? (
+          <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, mt: 0.75, display: "flex", flexWrap: "wrap", gap: 1.25 }}>
+            {advisor.links.map((l) => (
+              <li key={l.label}>
+                <MuiLink href={l.href} target="_blank" rel="noopener noreferrer" variant="caption">
+                  {l.label}
+                </MuiLink>
+              </li>
+            ))}
+          </Box>
+        ) : null}
         {preview && (
           <Typography component="p" variant="caption" sx={{ display: "block", mt: 1, color: "text.secondary" }}>
             “{preview}”

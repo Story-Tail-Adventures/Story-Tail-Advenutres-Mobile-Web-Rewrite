@@ -17,3 +17,8 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# §3.10.7: the app reads Firebase from local.properties instead (androidApp/build.gradle.kts).
+# Android Studio's Firebase Assistant still drops this file here; it names the project, so it
+# stays out of git.
+google-services.json

@@ -3,6 +3,7 @@ package com.storytail.adventures.ui.screens.trip
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storytail.adventures.api.ItineraryView
+import com.storytail.adventures.api.PaymentMilestoneView
 import com.storytail.adventures.api.TripDetailSnapshot
 import com.storytail.adventures.api.TripFilter
 import com.storytail.adventures.api.TripRepository
@@ -14,12 +15,18 @@ import com.storytail.adventures.api.TripDocumentsSnapshot
 import com.storytail.adventures.api.TripThreadSnapshot
 import com.storytail.adventures.api.TripsList
 import com.storytail.adventures.domain.trip.DocumentMessages
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.ThreadMessages
+import com.storytail.adventures.domain.trip.ivePaidMessage
+import com.storytail.adventures.domain.trip.openAmountCents
+import com.storytail.adventures.ui.components.client.IvePaidState
+import com.storytail.adventures.ui.components.client.formatMoney
 import com.storytail.adventures.ui.components.client.ThreadSurface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 
@@ -81,17 +88,55 @@ class TripDetailViewModel(
     private val _state = MutableStateFlow<Loadable<TripDetailSnapshot>>(Loadable.Loading)
     val state: StateFlow<Loadable<TripDetailSnapshot>> = _state.asStateFlow()
 
+    /** Per milestone id. Absent means [IvePaidState.IDLE]. */
+    private val _ivePaid = MutableStateFlow<Map<String, IvePaidState>>(emptyMap())
+    val ivePaid: StateFlow<Map<String, IvePaidState>> = _ivePaid.asStateFlow()
+
     init {
         load()
     }
 
     fun load() {
         _state.value = Loadable.Loading
+        read()
+    }
+
+    /**
+     * §2.2.3's "I've paid": a note in the trip's thread through `trip-message`, the same
+     * audited path as any client message. It NEVER writes the milestone; the advisor marks it
+     * paid once the supplier confirms (§3.6.5).
+     */
+    fun sendIvePaid(milestone: PaymentMilestoneView) {
+        val current = _ivePaid.value[milestone.id]
+        if (current == IvePaidState.SENDING || current == IvePaidState.SENT) return
+        _ivePaid.value = _ivePaid.value + (milestone.id to IvePaidState.SENDING)
+        viewModelScope.launch {
+            val body = ivePaidMessage(milestone.label, formatMoney(openAmountCents(milestone.amountCents, milestone.paidCents), milestone.currency))
+            val next = when (trips.sendMessage(tripId, body)) {
+                SendMessageOutcome.Sent -> IvePaidState.SENT
+                is SendMessageOutcome.Failed -> IvePaidState.FAILED
+            }
+            _ivePaid.value = _ivePaid.value + (milestone.id to next)
+        }
+    }
+
+    /**
+     * Re-read on entry, keeping what is on screen. The view model outlives the screen (it is
+     * app-scoped), so without this the "2 unread" tile would still say 2 after the traveler
+     * read the thread it opens (§3.10 Stage 1). A failed re-read keeps the last good view.
+     */
+    fun refresh() {
+        if (_state.value !is Loadable.Ready) _state.value = Loadable.Loading
+        read()
+    }
+
+    private fun read() {
         viewModelScope.launch {
             val result = trips.tripDetail(tripId, today)
             // A null here means either "no such trip" or "not yours" — RLS makes those the
             // same answer, deliberately, and the screen says so without guessing which.
-            _state.value = result?.let { Loadable.Ready(it) } ?: Loadable.Failed()
+            if (result != null) _state.value = Loadable.Ready(result)
+            else if (_state.value !is Loadable.Ready) _state.value = Loadable.Failed()
         }
     }
 }
@@ -231,10 +276,45 @@ class ThreadViewModel(
 
     fun load() {
         _state.value = Loadable.Loading
+        read()
+    }
+
+    /**
+     * Re-read on entry, keeping what is on screen. The view model outlives the screen (it is
+     * app-scoped, which is what keeps a draft), so `init` runs once a session: without this a
+     * reopened thread showed the messages from its first open and never cleared a newer reply
+     * (§3.10 Stage 1, mobile review).
+     */
+    fun refresh() {
+        if (_state.value !is Loadable.Ready) _state.value = Loadable.Loading
+        read()
+    }
+
+    /** §3.12 PR 3: the advisor's photo and "Away until" / reply promise for the header. */
+    private var advisor: AdvisorCard? = null
+
+    private fun read() {
         viewModelScope.launch {
+            val advisorCall = async { trips.advisorCard() }
             val result = trips.tripThread(tripId)
-            _state.value = result?.let { Loadable.Ready(it.toSurface()) } ?: Loadable.Failed()
+            // A failed advisor read keeps the last one (or the fixed words), never blanks it.
+            advisor = advisorCall.await() ?: advisor
+            if (result != null) _state.value = Loadable.Ready(result.toSurface(advisor))
+            else if (_state.value !is Loadable.Ready) _state.value = Loadable.Failed()
+            markReadIfUnread(result)
         }
+    }
+
+    /**
+     * Opening the thread reads it, AFTER it is on screen and only when there is something to
+     * clear, naming the newest message shown so a reply that landed since stays unread.
+     */
+    private suspend fun markReadIfUnread(snapshot: TripThreadSnapshot?) {
+        val conversationId = snapshot?.conversationId ?: return
+        if (snapshot.unreadCount <= 0) return
+        // Nothing on screen, nothing read: the server needs the newest message the traveler saw.
+        val seenUpTo = snapshot.messages.lastOrNull()?.createdAt ?: return
+        trips.markConversationRead(conversationId, seenUpTo)
     }
 
     fun changeDraft(next: String) {
@@ -258,7 +338,9 @@ class ThreadViewModel(
                     // record, and a locally-appended bubble would show a message that might
                     // not have the id, timestamp or ordering the server gave it.
                     val refreshed = trips.tripThread(tripId)
-                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface())
+                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface(advisor))
+                    // The reload can show the advisor's reply that came in while they typed.
+                    markReadIfUnread(refreshed)
                 }
 
                 is SendMessageOutcome.Failed ->
@@ -276,13 +358,15 @@ class ThreadViewModel(
  * belongs to the client — what THEY have not read — and 2.6.2 shows the reply-window promise
  * instead, because its list already carries a badge for the same number.
  */
-private fun TripThreadSnapshot.toSurface(): ThreadSurface = ThreadSurface(
+private fun TripThreadSnapshot.toSurface(advisor: AdvisorCard?): ThreadSurface = ThreadSurface(
     title = "Gyasi · $tripTitle",
     subtitle = when {
         unreadCount == 1 -> "1 new message"
         unreadCount > 1 -> "$unreadCount new messages"
-        else -> ThreadMessages.REPLY_WINDOW
+        // §3.12 PR 3: "Away until…" while the advisor rests, else their own reply promise.
+        else -> advisor?.statusLine ?: ThreadMessages.REPLY_WINDOW
     },
+    advisor = advisor,
     messages = messages,
     emptyBody = ThreadMessages.EMPTY_BODY,
 )

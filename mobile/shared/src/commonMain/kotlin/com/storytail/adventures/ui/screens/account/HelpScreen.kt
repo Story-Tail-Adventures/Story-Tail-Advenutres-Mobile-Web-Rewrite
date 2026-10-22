@@ -52,8 +52,8 @@ import com.storytail.adventures.ui.theme.StoryTailRadius
  *  · "Email platform support" is GONE. No `support@` address exists anywhere in the repo, and
  *    a second tier that routes somewhere other than Gyasi would promise a queue nobody
  *    staffs. Story-Tail is one advisor.
- *  · The card-authorization questions are held until §2.4 ships. An FAQ that explains an
- *    unreachable screen is worse than no FAQ.
+ *  · The card questions stay off this list (see [helpFaqs]). §2.4 was retired 2026-10-16:
+ *    the app never holds a card, and clients pay suppliers through links.
  *  · "Message Gyasi" now opens 2.6.3. It was a MAILTO while §2.6.3 could not send, on the rule
  *    that a CTA which looks like a way to reach him and is not one is worse than a plain email
  *    link. §2.6 landed, so it repoints — which is what that note said it would do.
@@ -171,8 +171,11 @@ fun HelpScreen(
 private val SAME_TOPIC = listOf(Regex("planning fee", RegexOption.IGNORE_CASE))
 
 /**
- * Cards and authorization, which §2.4 has not built. Matched against the QUESTION AND THE
- * ANSWER: two entries mention card authorization only in the answer.
+ * Anything about cards or authorization. §2.4 (card authorization) was retired 2026-10-16
+ * before it ever reached a traveler: the app holds no card, and clients pay each supplier
+ * through a link. The filter stays so this list stays identical to the web twin's
+ * (`web/lib/account/help-faqs.ts`) until both change together. Matched against the QUESTION
+ * AND THE ANSWER, since some entries mention cards only in the answer.
  */
 private val UNREACHABLE = Regex("""\bcards?\b|authoriz""", RegexOption.IGNORE_CASE)
 

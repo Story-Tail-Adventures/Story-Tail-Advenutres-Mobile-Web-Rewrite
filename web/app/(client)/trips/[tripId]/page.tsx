@@ -9,6 +9,7 @@ import CardContent from "@mui/material/CardContent";
 import MuiLink from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 
+import { PayLinkBlock } from "@/components/client/PayLinkBlock";
 import { EmptyState } from "@/components/client/states";
 import NextLink from "@/components/mui/NextLink";
 import { Photo } from "@/components/public/Photo";
@@ -18,6 +19,7 @@ import { StatusChip } from "@/components/ui/StatusChip";
 import { formatDay, formatTripDates } from "@/lib/trips/format";
 import { imageKeyForTrip } from "@/lib/trips/imagery";
 import { formatTripMoney } from "@/lib/trips/money";
+import { isOpenMilestone, paySiteName } from "@/lib/trips/payLink";
 import { loadTripDetail, type PaymentMilestoneView, type TripDetail } from "@/lib/trips/queries";
 import { TRIP_DETAIL } from "./content";
 import {
@@ -76,11 +78,11 @@ const TILE_SX = {
  * layouts that share only a hero.
  *
  * TWO THINGS THE ARTBOARD SHOWS THAT ARE NOT HERE:
- *   * "Card on file · VISA •••• 4242" is dropped from At a glance. That lives on
- *     `payment_card`, which belongs to §2.4 — and the wallet is where a client should manage
- *     it, not a read-only echo on a trip page.
- *   * The "Payments" tile opens §2.4.3 for this trip, which is the entry point the Screen
- *     Inventory names for that screen. It was disabled while §2.4 was unbuilt.
+ *   * "Card on file · VISA •••• 4242" is dropped from At a glance. There is no card: §2.4
+ *     was retired on 2026-10-16 and the app never holds one.
+ *   * The "Payments" tile leads to the payment timeline on this page (`#payments`). It
+ *     opened §2.4.3's card authorization until that was retired; clients now pay each
+ *     supplier through the pay link on a milestone (§2.2.3, 2026-10-16).
  *
  * ON MUI (migration step 2, PR 5): Server Component throughout — plain sx objects, palette
  * paths, and `component={NextLink}` for every link. The layout (hero height, the 1fr/300px
@@ -135,7 +137,7 @@ export default async function TripDetailPage({
 
         <Box component="aside" sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <AdvisorCard tripId={trip.id} />
-          {cancelled ? <ReadyAgain /> : <PaymentTimeline milestones={detail.milestones} />}
+          {cancelled ? <ReadyAgain /> : <PaymentTimeline tripId={trip.id} milestones={detail.milestones} />}
         </Box>
       </Box>
     </Box>
@@ -230,15 +232,13 @@ function QuickTiles({ detail }: { detail: TripDetail }) {
       tone: "primary",
     },
     {
-      icon: "card",
+      icon: "receipt",
       label: TRIP_DETAIL.tilePayments,
       sub: nextDueLabel(detail.milestones),
-      // §2.4.3. The Screen Inventory names Trip Detail "Authorize a card" as this screen's
-      // entry point, and this tile is the only card affordance on it. A fully-paid trip
-      // still lands somewhere real: the form's presets come out at $0 and the submit stays
-      // disabled until a custom limit is typed, which is a readable state rather than a
-      // dead tile.
-      href: `/wallet/authorize/${trip.id}`,
+      // The payment timeline in this page's side column, where each open milestone with a
+      // pay link has its pay block (§2.2.3, 2026-10-16). It opened §2.4.3's card
+      // authorization until §2.4 was retired.
+      href: "#payments",
       tone: "error",
     },
     {
@@ -478,13 +478,17 @@ function AdvisorCard({ tripId }: { tripId: string }) {
 
 /**
  * `payment_milestone`, which exists because of this card. It is a supplier payment schedule
- * the client is being kept informed about — never an invoice, and there is deliberately no
- * action on it beyond §2.4's card authorization.
+ * the client is being kept informed about, never an invoice.
+ *
+ * PAY BLOCKS (§2.2.3, ruled 2026-10-16). Each OPEN milestone (scheduled or overdue) with a
+ * pay link gets a pay block below the list: a button that opens the supplier's own site, the
+ * site name, and "I've paid", which only posts a message. A paid or waived milestone, or one
+ * with no link, gets nothing, and leaves no empty space.
  */
-function PaymentTimeline({ milestones }: { milestones: PaymentMilestoneView[] }) {
+function PaymentTimeline({ tripId, milestones }: { tripId: string; milestones: PaymentMilestoneView[] }) {
   if (milestones.length === 0) {
     return (
-      <Card>
+      <Card id="payments" sx={{ scrollMarginTop: 80 }}>
         <CardContent sx={CARD_PAD_SM}>
           <Typography component="div" variant="overline" sx={{ ...OVERLINE, color: "text.secondary" }}>
             {TRIP_DETAIL.paymentTimeline}
@@ -496,8 +500,12 @@ function PaymentTimeline({ milestones }: { milestones: PaymentMilestoneView[] })
       </Card>
     );
   }
+  const payable = milestones.filter(
+    (m): m is PaymentMilestoneView & { payUrl: string } =>
+      isOpenMilestone(m.status) && m.payUrl !== null && paySiteName(m.payUrl) !== null,
+  );
   return (
-    <Card>
+    <Card id="payments" sx={{ scrollMarginTop: 80 }}>
       <CardContent sx={CARD_PAD_SM}>
         <Typography component="div" variant="overline" sx={{ ...OVERLINE, color: "text.secondary" }}>
           {TRIP_DETAIL.paymentTimeline}
@@ -540,6 +548,11 @@ function PaymentTimeline({ milestones }: { milestones: PaymentMilestoneView[] })
             );
           })}
         </Box>
+        {payable.map((m) => (
+          <Box key={m.id} sx={{ mt: 1.25, pt: 1.25, borderTop: 1, borderColor: "divider" }}>
+            <PayLinkBlock tripId={tripId} milestoneId={m.id} label={m.label} payUrl={m.payUrl} />
+          </Box>
+        ))}
         <Typography component="p" variant="body2" sx={{ mt: 1.25, color: "text.secondary" }}>
           {TRIP_DETAIL.paymentTimelineNote}
         </Typography>

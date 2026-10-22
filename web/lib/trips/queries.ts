@@ -49,13 +49,22 @@ export type DashboardData = {
   inPlanning: DashboardTrip[];
   /** `completed`, newest first. */
   past: DashboardTrip[];
-  /** The soonest unpaid milestone on the upcoming trip, for the action-needed card. */
+  /**
+   * The soonest unpaid milestone on the upcoming trip, for the next-payment card. Carries
+   * its pay link (§2.2.3, 2026-10-16) so the card can offer the same pay block the trip's
+   * payment timeline does.
+   */
   nextPayment: {
+    id: string;
+    tripId: string;
     label: string;
     amountCents: number;
+    paidCents: number;
     currency: string;
     dueDate: string | null;
     daysUntilDue: number | null;
+    status: string;
+    payUrl: string | null;
   } | null;
   /** Whether the upcoming trip's itinerary is published and therefore readable. */
   itineraryReady: boolean;
@@ -155,7 +164,7 @@ export async function loadDashboard(today = todayIsoUtc()): Promise<DashboardDat
   if (upcomingRow) {
     const { data: milestones } = await supabase
       .from("payment_milestone")
-      .select("label, amount_cents, currency, due_date, status, order_index")
+      .select("id, label, amount_cents, paid_cents, currency, due_date, status, order_index, pay_url")
       .eq("trip_id", upcomingRow.id)
       .neq("status", "paid")
       .neq("status", "waived")
@@ -165,11 +174,16 @@ export async function loadDashboard(today = todayIsoUtc()): Promise<DashboardDat
     if (next) {
       nextUnpaidDueDate = next.due_date ?? null;
       nextPayment = {
+        id: next.id,
+        tripId: upcomingRow.id,
         label: next.label,
         amountCents: Number(next.amount_cents),
+        paidCents: Number(next.paid_cents ?? 0),
         currency: next.currency,
         dueDate: next.due_date ?? null,
         daysUntilDue: next.due_date ? daysUntilDeparture(next.due_date, today) : null,
+        status: next.status,
+        payUrl: next.pay_url ?? null,
       };
     }
 
@@ -339,6 +353,13 @@ export type PaymentMilestoneView = {
   currency: string;
   dueDate: string | null;
   status: string;
+  /**
+   * The supplier's pay link (Data-Model §9.5, 2026-10-16), or null. The client reads it and
+   * never writes it. `paid_note` is the advisor's and is outside the client column grant.
+   */
+  payUrl: string | null;
+  /** The supplier's confirmation number, set when the advisor marks the payment paid. */
+  paidReference: string | null;
 };
 
 export type TripDetail = {
@@ -386,7 +407,7 @@ export async function loadTripDetail(
         .maybeSingle(),
       supabase
         .from("payment_milestone")
-        .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status, order_index")
+        .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status, order_index, pay_url, paid_reference")
         .eq("trip_id", tripId)
         .order("order_index", { ascending: true }),
       supabase
@@ -424,6 +445,8 @@ export async function loadTripDetail(
     currency: m.currency,
     dueDate: m.due_date ?? null,
     status: m.status,
+    payUrl: m.pay_url ?? null,
+    paidReference: m.paid_reference ?? null,
   }));
 
   const nextUnpaid = milestones.find((m) => m.status !== "paid" && m.status !== "waived");
@@ -746,6 +769,8 @@ export type ThreadMessage = {
   createdAt: string;
   /** Documents attached to this message, already filtered to what the client may read. */
   attachments: TripDocument[];
+  /** §3.12.2: an automatic reply sent while the advisor was away, tagged in the thread. */
+  autoReply: boolean;
 };
 
 export type TripThreadView = {
@@ -831,7 +856,7 @@ export async function loadThreadMessages(conversationId: string): Promise<Thread
   const [{ data: rows }, me] = await Promise.all([
     supabase
       .from("message")
-      .select("id, sender_role, body, created_at")
+      .select("id, sender_role, body, created_at, is_auto_reply")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true }),
     currentPlatformUser(),
@@ -874,6 +899,7 @@ export async function loadThreadMessages(conversationId: string): Promise<Thread
     body: m.body,
     createdAt: m.created_at,
     attachments: attachmentsByMessage.get(m.id) ?? [],
+    autoReply: m.is_auto_reply === true,
   }));
 }
 
@@ -1046,7 +1072,7 @@ export async function loadStatusChange(
       .maybeSingle(),
     supabase
       .from("payment_milestone")
-      .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status")
+      .select("id, kind, label, amount_cents, paid_cents, currency, due_date, status, pay_url, paid_reference")
       .eq("trip_id", tripId)
       .neq("status", "paid")
       // `waived` too. Without it 2.2.9 can announce a WAIVED milestone as the next
@@ -1087,6 +1113,8 @@ export async function loadStatusChange(
           currency: milestone.currency,
           dueDate: milestone.due_date ?? null,
           status: milestone.status,
+          payUrl: milestone.pay_url ?? null,
+          paidReference: milestone.paid_reference ?? null,
         }
       : null,
   };

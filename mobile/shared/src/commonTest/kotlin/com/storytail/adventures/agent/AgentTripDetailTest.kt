@@ -64,9 +64,6 @@ class AgentTripDetailTest {
         refundStatus: String? = null,
         refundDetail: String? = null,
         notes: String? = null,
-        cardLast4: String? = "4242",
-        cardBrand: String? = "visa",
-        cardSpendingLimitCents: Long? = 900_000,
         lastActivityAt: String? = null,
         componentCount: Int = 6,
     ) = AgentTripOverviewRow(
@@ -88,9 +85,6 @@ class AgentTripDetailTest {
         refundStatus = refundStatus,
         refundDetail = refundDetail,
         notes = notes,
-        cardLast4 = cardLast4,
-        cardBrand = cardBrand,
-        cardSpendingLimitCents = cardSpendingLimitCents,
         lastActivityAt = lastActivityAt,
         componentCount = componentCount,
         nextUnpaidDueDate = nextUnpaidDueDate,
@@ -329,18 +323,14 @@ class AgentTripDetailTest {
     }
 
     @Test
-    fun the_card_line_carries_the_cap_because_that_is_what_blocks_a_booking() {
-        val glance = ui(snapshot()).glance.toMap()
-        assertEquals("VISA •••• 4242 · $9,000 cap", glance[AgentCopy.GLANCE_CARD_ON_FILE])
-    }
-
-    @Test
-    fun a_card_with_no_cap_and_no_card_at_all_are_different_lines() {
-        val noCap = ui(snapshot(overview(cardSpendingLimitCents = null))).glance.toMap()
-        assertEquals("VISA •••• 4242", noCap[AgentCopy.GLANCE_CARD_ON_FILE])
-
-        val none = ui(snapshot(overview(cardLast4 = null, cardBrand = null))).glance.toMap()
-        assertEquals(AgentCopy.GLANCE_NO_CARD, none[AgentCopy.GLANCE_CARD_ON_FILE])
+    fun the_glance_has_no_card_tile_because_the_app_never_holds_a_card() {
+        // §2.4 and the card tables were retired 2026-10-16.
+        val labels = ui(snapshot()).glance.map { it.first }
+        assertEquals(
+            listOf(AgentCopy.GLANCE_TRIP_TYPE, AgentCopy.GLANCE_DESTINATION, AgentCopy.GLANCE_LAST_ACTIVITY),
+            labels.take(3),
+        )
+        assertTrue(labels.none { it.contains("card", ignoreCase = true) })
     }
 
     @Test

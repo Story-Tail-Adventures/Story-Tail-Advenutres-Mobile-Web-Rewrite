@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- §3.10.7. Asked only from the inbox card's "Turn on", never at launch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name="com.storytail.adventures.android.StoryTailApplication"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -12,6 +18,7 @@
         android:theme="@style/Theme.StoryTail">
         <activity
             android:exported="true"
+            android:launchMode="singleTop"
             android:name="com.storytail.adventures.android.MainActivity"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -20,6 +27,31 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- §3.10.7: Firebase Cloud Messaging only (docs/Push-Notifications-Security-Review.md).
+             No token exists until the advisor taps "Turn on"; nothing is collected for analytics. -->
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_deactivated" android:value="true" />
+        <!-- Firebase is configured by hand in StoryTailApplication (from local.properties), so its
+             own startup provider, which looks for google-services.json, has nothing to do. -->
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            tools:node="remove" />
+
+        <service
+            android:name="com.storytail.adventures.android.push.StoryTailMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- The notification's Reply and Mark read. Not exported: only our own PendingIntents
+             reach it. -->
+        <receiver
+            android:name="com.storytail.adventures.android.push.NotificationActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

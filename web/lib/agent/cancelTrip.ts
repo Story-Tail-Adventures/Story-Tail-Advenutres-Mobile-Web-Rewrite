@@ -50,11 +50,9 @@ export type ImpactLine = {
  * The prototype's impact list (`agent-trip.jsx:588-592`) is four hardcoded sentences, and
  * two of them are not true of this system:
  *
- *   * "Card authorization will be revoked" — NOTHING REVOKES IT. There is no revoke path
- *     on the agent side at all; §3.6 owns that and is unbuilt. Rendering that sentence
- *     would be a promise the code does not keep, on a payment surface, which is the exact
- *     defect class the last three PRs were spent removing. It is inverted here into the
- *     true version: the authorization STAYS, and that is something to go and deal with.
+ *   * "Card authorization will be revoked" — there is no card at all. §2.4 and the card
+ *     vault were retired on 2026-10-16 (the app never holds a card; clients pay suppliers
+ *     through pay links), so the line is gone rather than reworded.
  *   * "Sandals cancellation fee · $120 per policy" — nothing stores a supplier cancellation
  *     fee anywhere in the schema. Omitted rather than invented.
  *
@@ -82,18 +80,10 @@ export function cancelImpact(overview: TripDetailOverview): ImpactLine[] {
     });
   }
 
-  // The prototype's claim, inverted into the truth.
-  if (overview.cardOnFile) {
-    lines.push({
-      tone: "warn",
-      text: `The card on file (${overview.cardOnFile}) stays authorized. Revoking an authorization arrives with §3.6.`,
-    });
-  }
-
   if (overview.componentCount > 0) {
     lines.push({
       tone: "warn",
-      text: `${overview.componentCount} booked ${overview.componentCount === 1 ? "item" : "items"} stay on the trip. Cancelling here does not tell any supplier.`,
+      text: `${overview.componentCount} booked ${overview.componentCount === 1 ? "item stays" : "items stay"} on the trip. Cancelling here does not tell any supplier.`,
     });
   }
 

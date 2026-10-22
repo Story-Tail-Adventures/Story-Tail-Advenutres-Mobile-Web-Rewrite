@@ -263,7 +263,7 @@ function A391_AccountMgmt() {
           <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>STATUS</Typography>
             <Stack spacing={0.75} sx={{ mt: 0.75 }}>
-              {[{ l: 'Account', v: 'Active', tone: 'booked' }, { l: 'Email', v: 'Verified', tone: 'booked' }, { l: 'MFA', v: 'On · Authy', tone: 'booked' }, { l: 'Last sign-in', v: '2h · Miami iPhone' }].map((s, i) => (
+              {[{ l: 'Account', v: 'Active', tone: 'booked' }, { l: 'Email', v: 'Verified', tone: 'booked' }, { l: 'MFA', v: 'On · Authy', tone: 'booked' }, { l: 'Last sign-in', v: '2h · iPhone · Safari' }].map((s, i) => (
                 <Stack key={i} direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>{s.l}</Typography>
                   {s.tone ? <MuiStaStatus kind={s.tone}>{s.v}</MuiStaStatus> : <Typography variant="body2" sx={{ fontWeight: 500 }}>{s.v}</Typography>}
@@ -297,9 +297,9 @@ function ConfirmModal({ title, body, primary, danger, extra }) {
 }
 
 // 3.9.2 Send password reset
-function A392_SendReset() { return <ConfirmModal title="Send password reset to Jordan?" body="An email goes to jordan.hayes@example.com with a 30-minute link. You won't see the password." primary="Send reset link"/>; }
+function A392_SendReset() { return <ConfirmModal title="Send password reset to Jordan?" body="An email goes to jordan.hayes@example.com with a link that works for 1 hour. You won't see the password, and the email says you sent it." primary="Send reset link"/>; }
 // 3.9.3 Send magic link
-function A393_SendMagic() { return <ConfirmModal title="Send a magic-link sign-in?" body="One-time link valid for 15 minutes. Sent to verified email only." primary="Send magic link"/>; }
+function A393_SendMagic() { return <ConfirmModal title="Send a magic-link sign-in?" body="A one-time link that works for 1 hour, sent only to their own email. The email says you sent it. You never see the link." primary="Send magic link"/>; }
 // 3.9.4 Verify email manually
 function A394_VerifyEmail() {
   return <ConfirmModal title="Manually mark email as verified?" body="Use only after out-of-band confirmation (phone call). Skips standard verification." primary="Mark verified" extra={
@@ -308,7 +308,7 @@ function A394_VerifyEmail() {
 }
 // 3.9.5 Lock / unlock
 function A395_LockAccount() {
-  return <ConfirmModal title="Lock Jordan's account?" body="Prevents new sign-ins. Existing sessions remain. Used for suspected fraud." danger primary="Lock account" extra={
+  return <ConfirmModal title="Lock Jordan's account?" body="Signs them out on every device and stops new sign-ins until you unlock it. They won't get an email. Used for suspected fraud." danger primary="Lock account" extra={
     <A38_MuiField label="Reason" placeholder="e.g. suspicious sign-in from Atlanta" sx={{ mt: 1.5 }}/>
   }/>;
 }
@@ -317,27 +317,26 @@ function A396_LoginActivity() {
   const { Button, Card, Table, TableHead, TableBody, TableRow, TableCell } = MUI;
   return (
     <MuiScreenFrame role="agent" tab="clients" padding={28} scrollable>
-      <MuiScreenHeader title="Login activity · Jordan Hayes" subtitle="Recent sign-ins. Flag anything that looks off." small/>
+      <MuiScreenHeader title="Login activity · Jordan Hayes" subtitle="Sign-ins from the last 90 days. Flag anything that looks off." small/>
       <Card>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>When</TableCell><TableCell>Device</TableCell><TableCell>Location</TableCell><TableCell>IP</TableCell><TableCell/>
+              <TableCell>When</TableCell><TableCell>Device</TableCell><TableCell>IP</TableCell><TableCell/>
             </TableRow>
           </TableHead>
           <TableBody>
             {[
-              { d: '2h ago', dev: 'iPhone 17 · Safari', loc: 'Miami, FL', ip: '99.244.18.4', warn: false },
-              { d: 'Yesterday', dev: 'Mac · Chrome', loc: 'Miami, FL', ip: '99.244.18.4', warn: false },
-              { d: 'May 6 · 11:42p', dev: 'Android · Chrome', loc: 'Atlanta, GA', ip: '24.117.220.5', warn: true },
-              { d: 'May 4 · 7:08p', dev: 'iPhone 17 · Safari', loc: 'Miami, FL', ip: '99.244.18.4', warn: false },
+              { d: '2h ago', dev: 'iPhone 17 · Safari', ip: '99.244.18.4', warn: false },
+              { d: 'Yesterday', dev: 'Mac · Chrome', ip: '99.244.18.4', warn: false },
+              { d: 'May 6 · 11:42p', dev: 'Android · Chrome', ip: '24.117.220.5', warn: true },
+              { d: 'May 4 · 7:08p', dev: 'iPhone 17 · Safari', ip: '99.244.18.4', warn: false },
             ].map((r, i) => (
               <TableRow key={i} hover>
                 <TableCell>{r.d}</TableCell>
                 <TableCell>{r.dev}</TableCell>
-                <TableCell sx={{ color: r.warn ? 'error.main' : 'text.secondary' }}>{r.warn && '⚠ '}{r.loc}</TableCell>
                 <TableCell sx={{ fontFamily: (t) => t.typography.mono, fontSize: 12, color: 'text.secondary' }}>{r.ip}</TableCell>
-                <TableCell>{r.warn ? <Button variant="outlined" size="small">Flag</Button> : <MuiStaStatus kind="booked">Trusted</MuiStaStatus>}</TableCell>
+                <TableCell>{r.warn ? <MuiStaStatus kind="cancelled">⚠ Flagged</MuiStaStatus> : <Button variant="text" size="small">Flag</Button>}</TableCell>
               </TableRow>
             ))}
           </TableBody>

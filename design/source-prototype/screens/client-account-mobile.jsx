@@ -58,6 +58,8 @@
 //          one out of step. UPDATE 2026-09-17: §2.4 shipped and the artboard was right. The
 //          Payment methods row opens 2.4.1 and every "Authorize a card" CTA opens 2.4.3.
 //          Only 2.5.6's category stays disabled, because no notification dispatcher exists.
+//          UPDATE 2026-10-16: §2.4 is retired (the app never holds a card). The Payment
+//          methods row is gone from 2.5m.1; clients pay suppliers through pay links (2.2m.3).
 //        · 2.5.9's danger card DROPS the desktop's "cards revoked" line outright rather than
 //          disabling it — it is one clause inside a paragraph, not an affordance, and a
 //          greyed-out clause mid-sentence is unreadable.
@@ -372,8 +374,8 @@ function M251_AccountOverview({ dark = false }) {
           <MSettingsRow first icon="bell" title="Notifications" sub="Email · push · SMS"/>
           <MSettingsRow icon="shield" title="Security" sub="Password and two-factor"/>
           <MSettingsRow icon="link" title="Connected accounts" sub="Google linked"/>
-          {/* §2.4 is unbuilt. Disabled with the reason, per the §2.2 phase-leak rule. */}
-          <MSettingsRow icon="card" title="Payment methods" disabled reason="Coming with the next release"/>
+          {/* "Payment methods" removed 2026-10-16: §2.4 is retired and the app never holds a
+              card. Clients pay suppliers through pay links on the trip (2.2m.3). */}
         </div>
 
         <MSectionLabel>SUPPORT</MSectionLabel>

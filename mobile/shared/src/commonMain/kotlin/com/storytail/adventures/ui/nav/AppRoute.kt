@@ -392,72 +392,11 @@ sealed interface AppRoute {
         override val requiresSession: Boolean get() = true
     }
 
-    // ── Screen Inventory §2.4, Payment & Card Authorization ─────────────────────
-    //
-    // §2.4 IS NOT A TAB ON MOBILE, which is the structural difference from every other
-    // section here and from the desktop frames, all of which carry `tab="wallet"`. The bar
-    // has four tabs — Trips · Discover · Messages · Account — and Wallet is not one of them;
-    // it is rail-only on web by the same 2026-09-06 decision that settled the bar. So all six
-    // of these are PUSHED, every one carries a back bar, and the entry point is 2.5.1's
-    // "Payment methods" row, which this section lights.
-    //
-    // 2.4.2 Add Card has no route at all. It is deferred until a Stripe account exists —
-    // payment_card.stripe_payment_method_id and .stripe_customer_id are both NOT NULL, so
-    // there is no row without a real tokenization and therefore no half-built screen worth
-    // reaching. 2.4.1 renders the CTA disabled with its reason instead, which is the §2.5
-    // rule for every deferral.
-
-    /** Screen 2.4.1, reached from the Account tab. */
-    @Serializable
-    data object Wallet : AppRoute {
-        override val requiresSession: Boolean get() = true
-    }
-
-    /**
-     * Screen 2.4.3, scoped to a trip by the route.
-     *
-     * `card_authorization.trip_id` is NOT NULL and a partial unique index allows one active
-     * authorization per card per trip, so an authorization with no trip is not a state the
-     * schema can hold. Carrying the trip in the route means the screen cannot be reached with
-     * that question open.
-     */
-    @Serializable
-    data class WalletAuthorize(val tripId: String) : AppRoute {
-        override val requiresSession: Boolean get() = true
-    }
-
-    /**
-     * Screen 2.4.4, and the detail view afterwards.
-     *
-     * [justAuthorized] decides only whether the success chrome shows. The authorization has an
-     * id the moment it exists, so it has an address — and "what did I agree to, and until
-     * when" is a question that outlives the tap that answered it.
-     */
-    @Serializable
-    data class WalletAuthorization(
-        val authorizationId: String,
-        val justAuthorized: Boolean = false,
-    ) : AppRoute {
-        override val requiresSession: Boolean get() = true
-    }
-
-    /** Screen 2.4.7. Removes an AUTHORIZATION, never a card — see the screen for why. */
-    @Serializable
-    data class WalletRemoveAuthorization(val authorizationId: String) : AppRoute {
-        override val requiresSession: Boolean get() = true
-    }
-
-    /** Screen 2.4.5. [cardId] is the optional filter 2.4.1's per-card "Activity" passes. */
-    @Serializable
-    data class WalletActivity(val cardId: String? = null) : AppRoute {
-        override val requiresSession: Boolean get() = true
-    }
-
-    /** Screen 2.4.6. */
-    @Serializable
-    data class WalletUseDetail(val eventId: String) : AppRoute {
-        override val requiresSession: Boolean get() = true
-    }
+    // §2.4 (Payment & Card Authorization) was retired on 2026-10-16: the app never holds a
+    // card, and clients pay suppliers through links on the trip's payment timeline. Its six
+    // Wallet routes are gone. A phone that saved one of them before updating restores as
+    // nothing (NavigatorSaver returns null for a route this binary no longer has) and falls
+    // back to the initial route rather than crashing; NavigatorTest pins that.
 
     // ── §3.2 · the advisor's side ────────────────────────────────────────────────
     //
@@ -468,8 +407,7 @@ sealed interface AppRoute {
     // and AccountRoute, and no composable under ui/screens/agent/ imports ClientScaffold.
     //
     // Screen-Inventory §6.6 keeps the agent's phone deliberately narrow: Worklist, Clients,
-    // Messages, More. The first two have screens; Messages (§3.10) and More (§3.12) are
-    // drawn dimmed, which is why they are not routes yet.
+    // Messages, More. All four have screens since §3.12 PR 4 built More.
 
     /** Screen 3.2.1, and the root of the Worklist tab. */
     @Serializable
@@ -511,6 +449,62 @@ sealed interface AppRoute {
      */
     @Serializable
     data class AgentTripDetail(val tripId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── §3.10 · Messages, the third tab (Stage 3, 2026-10-15) ───────────────────
+
+    /** Screen 3.10.1 on the phone (3.10m.1), and the root of the Messages tab. */
+    @Serializable
+    data object AgentMessages : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * Screen 3.10.2 (3.10m.2), pushed from the inbox, the worklist's "Recent messages", Client
+     * Detail's threads tab and Trip Detail's Messages tab.
+     */
+    @Serializable
+    data class AgentThread(val conversationId: String) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /**
+     * A message to a client (and optionally one trip) with no live thread yet (3.10m.3).
+     * Client Detail's "Message" and Trip Detail's Messages tab push this; when a thread exists
+     * it REPLACES itself with [AgentThread], so Back never lands on an empty composer.
+     */
+    @Serializable
+    data class AgentNewMessage(val clientId: String, val tripId: String? = null) : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    // ── §3.12 · More, the fourth tab (PR 4, 2026-10-17) ──────────────────────────
+    //
+    // The web reaches settings from its avatar menu; the phone's home for them is §6.6's
+    // More tab, which also took over sign-out. Signature (3.12.4) stays on the web (Q10).
+
+    /** The root of the More tab: the advisor's card, the three settings, and Sign out. */
+    @Serializable
+    data object AgentMore : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.12.1 on the phone. */
+    @Serializable
+    data object AgentSettingsProfile : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.12.2 on the phone: working hours, reply time and time away. */
+    @Serializable
+    data object AgentSettingsAvailability : AppRoute {
+        override val requiresSession: Boolean get() = true
+    }
+
+    /** Screen 3.12.3 on the phone. */
+    @Serializable
+    data object AgentSettingsNotifications : AppRoute {
         override val requiresSession: Boolean get() = true
     }
 }

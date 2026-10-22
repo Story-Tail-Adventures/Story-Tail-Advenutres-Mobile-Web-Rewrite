@@ -61,7 +61,9 @@ const BY_KIND: Record<AuthErrorKind, MappedAuthError> = {
   account_locked: {
     kind: "account_locked",
     message: "This account is on hold.",
-    action: { label: "Message Gyasi", href: "/support" },
+    // §3.9.5 (2026-10-16): a locked client cannot sign in to message anyone, and `/support`
+    // never existed, so the way back is an email to the business.
+    action: { label: "Email Gyasi", href: "mailto:info@adventures.story-tail.com" },
   },
   network: {
     kind: "network",

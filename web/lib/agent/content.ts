@@ -124,13 +124,11 @@ export const AGENT_COPY = {
   glanceDestination: "Destination",
   glanceTravelers: "Travelers",
   glanceDates: "Dates",
-  glanceCardOnFile: "Card on file",
   glanceLastActivity: "Last activity",
   glanceCancellationReason: "Cancellation reason",
   glanceRefundStatus: "Refund status",
   glanceRefundDetail: "Refund detail",
   glanceNotSet: "Not set",
-  glanceNoCard: "None on file",
   glanceNoActivity: "No activity yet",
   // §3.4.4. "Build" rather than "Edit components", which is what the Screen Inventory calls
   // the entry point: an advisor opening an empty trip is not editing anything yet, and the
@@ -161,9 +159,10 @@ export const AGENT_COPY = {
   // from the board, and the phone call to the supplier cannot be un-made. An advisor who
   // thinks this button cancels the booking will not go and cancel the booking.
   cancelTripBody:
-    "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier, move any money, or release the card — those are still yours to do.",
-  cancelTripEditBody:
-    "Correct what the client reads. The trip stays cancelled; only these details change.",
+    "This marks the trip cancelled and tells the client's screen why. It does not contact any supplier or move any money. Those are still yours to do.",
+  // Not "only these details change": since §3.7 Stage 5 this dialog can also mark open
+  // commission lines Lost, so the promise would be false whenever it lists any.
+  cancelTripEditBody: "Correct what the client reads. The trip stays cancelled.",
   // MANDATORY, and the reason is in the label rather than discovered on submit. The Edge
   // Function refuses a cancellation with no reason because §2.2.10 renders it to the
   // traveler, and a cancellation that cannot say why is a worse row than none.
@@ -185,6 +184,17 @@ export const AGENT_COPY = {
   cancelSaving: "Saving\u2026",
   cancelFailed: "That did not save. Try again in a moment.",
   cancelStale: "This trip moved since the page loaded. Reload and try again.",
+  // §3.7 Stage 5: the trip's open ledger lines, offered to mark Lost (Gyasi, 2026-10-12:
+  // offered, on by default). "Lost" is the ledger's own word for money that will not come,
+  // and the help says the one way back, since a supplier sometimes pays on a cancellation.
+  cancelLinesTitle: "COMMISSION STILL OPEN",
+  // "Left alone", not "never change": a Received line can still be edited in the ledger; this
+  // is about what a cancellation does. "A supplier", because the list can name several.
+  cancelLinesHelp:
+    "Received and Disputed lines are left alone. If a supplier pays after all, you can reopen the line in the ledger.",
+  cancelDone: "Done",
+  cancelLinesUnavailable:
+    "We couldn't check this trip's commission lines just now, so any open ones stay open. You can mark them Lost from the ledger.",
 
   // REPOINTED when §3.3.2 shipped. This said "§3.3.2" and that section is now built —
   // and building it delivered no client preview, because previewing a TRIP as the
@@ -217,14 +227,13 @@ export const AGENT_COPY = {
   // straight into the client, so the string had no call site left — and a deferral naming a
   // section which has since been built is worse than no sentence at all. Same removal
   // `tripDetailDeferred` got when §3.4.2 landed.
-  messagesDeferred: "Agent messaging arrives with §3.10.",
   // The one that is not "not yet". It explains where the thing actually is.
   leadsDeferred:
     "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
   availabilityDeferred:
     "Blocking time arrives with §3.12, which is where the time-off shape gets defined.",
-  commissionDeferred: "Commission tracking arrives with §3.7.",
-  reportsDeferred: "Reporting arrives with §3.11.",
+  // `commissionDeferred` and `reportsDeferred` lived here until §3.7.1 and §3.11 shipped. Neither
+  // had a call site by then: the rail renders its own "Arrives with" line from nav.ts.
 } as const;
 
 /**
@@ -277,12 +286,10 @@ export const CLIENT_COPY = {
   paginationPrev: "Previous",
   paginationNext: "Next",
 
-  // FOUR DEFERRALS CAME DUE AND ARE GONE, not rewritten: `rowOpenDeferred`,
+  // FIVE DEFERRALS CAME DUE AND ARE GONE, not rewritten: `rowOpenDeferred`,
   // `rowEditDeferred`, `rowArchiveDeferred` and `bulkDeferred` all named sections that now
   // exist, and none had a call site left once the rows became links and the bulk bar shipped.
-  // Same removal `clientDetailDeferred` got. `mergeDeferred` stays because §3.9 really is
-  // still ahead.
-  mergeDeferred: "Merging clients arrives with §3.9, alongside the account-admin tools it shares a screen with.",
+  // Same removal `clientDetailDeferred` got, and `mergeDeferred` once §3.9's merge shipped.
 
   // ── §3.3.1's bulk-tag bar ──────────────────────────────────────────────
   bulkSelectAll: "Select every client on this page",
@@ -356,13 +363,10 @@ export const CLIENT_COPY = {
 
   // Activity
   activityEmpty: "Nothing recorded yet.",
-  activityNote:
-    "Sign-ins are on the account's own activity screen, which arrives with §3.9.6.",
+  // §3.9.6 is built (web only, 2026-10-16). The phone shows the same line, so it says where.
+  activityNote: "Sign-ins are on the Account admin tab in the web app.",
 
   // Per-action deferrals on the detail surface.
-  accountAdminDeferred: "Account admin arrives with §3.9.",
-  messageClientDeferred: "Agent messaging arrives with §3.10.",
-  openThreadDeferred: "Opening a thread arrives with §3.10.2.",
   documentDownloadDeferred: "Downloading a document arrives with §3.3.6's upload path.",
 
   // ── §3.3.9 / §3.3.10 / §3.3.12, the write path ─────────────────────────
@@ -400,12 +404,10 @@ export const CLIENT_COPY = {
   newTagPlaceholder: "New tag",
   hintNotes: "Only you see this. It shows on their Snapshot card.",
 
-  // The prototype draws a live "Send a portal invitation with welcome template?" toggle.
-  // Nothing in the repository creates a client_invite row and no email provider is wired,
-  // and issuing a portal invitation is handing out a bearer credential — it wants its own
-  // expiry, revocation and rate-limit thinking rather than a checkbox on a create form.
-  inviteDeferred:
-    "Sending a portal invitation arrives with §3.9.3, where emailing a client a one-time link gets built.",
+  // The prototype draws a live "Send a portal invitation with welcome template?" toggle. The
+  // invite is built now (§3.9, 2026-10-16) but lives on the Account admin tab, behind the
+  // MFA gate and the per-client email cap, rather than as a checkbox on a create form.
+  inviteDeferred: "Save them first, then send it from their Account admin tab.",
   inviteLabel: "Send a portal invitation",
   // FOUR DEFERRALS CAME DUE WITH §3.4.3 AND ARE DELETED, not reworded: quickAddTripDeferred,
   // newTripForClientDeferred, saveAndTripDeferred and newTripDeferred all named a screen
@@ -430,6 +432,232 @@ export const CLIENT_COPY = {
   restoreBody: "Puts them back on the active roster. Nothing else about the record changes.",
   restoreConfirm: "Restore",
   moreActions: "More actions",
+} as const;
+
+/**
+ * §3.9 Login Support: the Account admin tab (Screens 3.9.1 to 3.9.6 and the invite).
+ * Rulings: docs/Screen-Inventory.md §3.9 (2026-10-16). A desk tool, so the voice is the
+ * friend who's done this 100 times: plain, calm, and honest about what each button does to
+ * the client. Nothing here is shown to the client.
+ */
+export const ACCOUNT_ADMIN_COPY = {
+  tab: "Account admin",
+  sub: "Help a client get back in. Everything you do here is kept in their history.",
+
+  // The MFA gate.
+  gateTitle: "Two-step sign-in first",
+  gateBodyNoFactor:
+    "These tools can sign a client in or lock them out, so they need two-step sign-in on your account. It takes about a minute.",
+  gateBodyVerify: "These tools need a fresh two-step check. Verify with your authenticator app to keep going.",
+  gateSetUp: "Set up two-step sign-in",
+  gateVerify: "Verify now",
+
+  // Status panel (A391).
+  statusHeading: "Status",
+  statusAccount: "Account",
+  statusActive: "Active",
+  statusLocked: "Locked",
+  statusInviteSent: "Invite sent",
+  statusEmail: "Email",
+  statusVerified: "Verified",
+  statusNotVerified: "Not verified",
+  statusMfa: "Two-step sign-in",
+  statusOn: "On",
+  statusOff: "Off",
+  statusLastSignIn: "Last sign-in",
+  statusNever: "Not yet",
+  lockedSince: (since: string) => `Locked ${since}.`,
+  lockedReason: (reason: string) => `Your reason: ${reason}`,
+  invitePending: "Invite sent. They haven't opened it yet.",
+
+  // Quick actions.
+  actionsHeading: "Quick actions",
+  actionReset: "Send password reset",
+  actionMagic: "Send a sign-in link",
+  actionInvite: "Send an invite",
+  actionInviteAgain: "Send the invite again",
+  actionVerify: "Verify email manually",
+  actionMerge: "Merge duplicate records",
+  actionLock: "Lock account",
+  actionUnlock: "Unlock account",
+  actionSignOut: "Sign out everywhere",
+  socialOnly: (provider: string) => `Signs in with ${provider}, so there's no password to reset.`,
+  sendsLeft: (n: number) =>
+    n === 0
+      ? "That's 3 sign-in emails this hour. Give it a little while before sending another."
+      : n === 1
+        ? "1 more sign-in email this hour."
+        : `${n} more sign-in emails this hour.`,
+  duplicate: "Another client record has this email. Merge them first.",
+  duplicateLink: "Open the other record",
+  lockedFirst: "Unlock the account first.",
+  alreadyVerified: "Already verified.",
+  addressMismatch: "Their sign-in address and the one on their record are different. Fix the record first.",
+
+  // No sign-in yet.
+  noSignInTitle: "Hasn't signed in yet",
+  noSignInBody: (name: string) =>
+    `${name} doesn't have a sign-in yet. Send an invite and they'll get a link that opens their trips.`,
+  noEmail: "Add an email address to their record first.",
+  archivedFirst: "Restore this client before inviting them.",
+
+  // Dialogs (A392 to A395). The audit line is the same everywhere.
+  auditNotice: "This is kept in the client's history.",
+  cancel: "Cancel",
+  working: "Working…",
+  resetTitle: (name: string) => `Send a password reset to ${name}?`,
+  resetBody: (email: string) =>
+    `An email goes to ${email} with a link that works for 1 hour. You won't see their password, and the email says you sent it.`,
+  resetConfirm: "Send reset link",
+  magicTitle: (name: string) => `Send ${name} a sign-in link?`,
+  magicBody: (email: string) =>
+    `A one-time link that works for 1 hour, sent only to ${email}. It signs them straight in. The email says you sent it, and you never see the link.`,
+  magicConfirm: "Send link",
+  inviteTitle: (name: string) => `Invite ${name}?`,
+  inviteBody: (email: string) =>
+    `An email goes to ${email} with a link that opens their trips. It works for 1 hour, and you can send another if it runs out.`,
+  inviteConfirm: "Send invite",
+  verifyTitle: (email: string) => `Mark ${email} as verified?`,
+  verifyBody:
+    "Only do this after you've confirmed it another way, like a phone call. It skips the usual email check.",
+  verifyNoteLabel: "How you confirmed it",
+  verifyNotePlaceholder: "Called on 10/16 and they read back the address",
+  verifyNoteHint: "At least 20 characters. It's kept with the record.",
+  verifyConfirm: "Mark verified",
+  lockTitle: (name: string) => `Lock ${name}'s account?`,
+  lockBody:
+    "Signs them out everywhere and blocks new sign-ins until you unlock it. They won't get an email. If they try to sign in, they'll see their account is on hold.",
+  lockReasonLabel: "Reason",
+  lockReasonPlaceholder: "A sign-in from a device they don't own",
+  lockConfirm: "Lock account",
+  unlockTitle: (name: string) => `Unlock ${name}'s account?`,
+  unlockBody: "They can sign in again right away.",
+  unlockReasonPlaceholder: "Confirmed by phone that it was them",
+  unlockConfirm: "Unlock",
+  signOutTitle: (name: string) => `Sign ${name} out everywhere?`,
+  signOutBody:
+    "Ends their sessions on every device. Their account stays open, so they can sign right back in. Good for a lost phone.",
+  signOutConfirm: "Sign out everywhere",
+  reasonRequired: "Add a short reason.",
+  noteTooShort: "Say a little more about how you confirmed it.",
+
+  // Results.
+  sent: (email: string) => `Sent. It's on its way to ${email}.`,
+  capped: "That's 3 sign-in emails this hour. Give it a little while before sending another.",
+  sendFailed: "That email didn't go out. Try again in a moment.",
+  changed: "Done.",
+  noop: "Nothing to change. It was already done.",
+  failed: "That didn't go through. Try again in a moment.",
+  mfaStale: "Verify your two-step sign-in again, then try once more.",
+
+  // Devices and sign-ins (3.9.6).
+  devicesHeading: "Signed in on",
+  devicesEmpty: "Not signed in anywhere right now.",
+  deviceLastActive: (when: string) => `Active ${when}`,
+  activityHeading: "Sign-ins",
+  activitySub: "The last 90 days. Flag anything that looks off.",
+  activityEmpty: "No sign-ins in the last 90 days.",
+  colWhen: "When",
+  colDevice: "Device",
+  colIp: "IP address",
+  ipUnknown: "Not recorded",
+  flag: "Flag",
+  unflag: "Clear flag",
+  flagged: "Flagged",
+} as const;
+
+/**
+ * §3.9.7 / §3.3.11 Merge duplicate records. Rulings: docs/Screen-Inventory.md §3.9, "Merge
+ * (PR 2), ruled now". The artboard's SOURCE / TARGET became "Keeping" / "Merging in", because
+ * the ruling has the advisor pick the record to keep, and the words should say which is which.
+ */
+export const MERGE_COPY = {
+  title: "Merge duplicate records",
+  sub: "Pick the record to keep. Everything on the other one moves over, and the change is kept in their history. Best done on a computer.",
+
+  // Picking the other record.
+  pickHeading: "Which record is the duplicate?",
+  pickSub: (name: string) => `These could be the same person as ${name}. Or search for the one you mean.`,
+  searchLabel: "Search your clients",
+  searchPlaceholder: "A name or an email",
+  searchButton: "Search",
+  noCandidates: "Nothing looks like a duplicate. Try searching by name or email.",
+  noResults: "No client matches that search.",
+  reasonEmail: "Same email",
+  reasonPhone: "Same phone",
+  reasonName: "Similar name",
+  reasonSearch: "Matches your search",
+  choose: "Merge with this record",
+  archived: "Archived",
+
+  // The two cards.
+  keeping: "Keeping",
+  mergingIn: "Merging in",
+  summaryLine: (trips: number, joined: string) => `${trips === 1 ? "1 trip" : `${trips} trips`} · joined ${joined}`,
+  signsIn: (email: string) => `Signs in as ${email}`,
+  noSignIn: "Hasn't set up a sign-in",
+  swap: "Keep this one instead",
+  pickAnother: "Pick a different record",
+  notMergeable: "Those two records can't be merged. One of them may already have been merged into another.",
+
+  // The field picker.
+  pickerHeading: "Which details to keep",
+  pickerSub:
+    "Each detail starts with the record you're keeping, or the other one where yours is blank. Pick a value to use it instead.",
+  colField: "Detail",
+  blank: "Blank",
+  pickValueLabel: (field: string, value: string) => `${field}: use ${value}`,
+  pinned: "Matches their sign-in email",
+  sameCount: (n: number) => (n === 1 ? "1 more detail is the same on both." : `${n} more details are the same on both.`),
+  allSame: "Every detail is the same on both records.",
+
+  blockedArchived: "Restore the record you're keeping before merging into it.",
+  blockedCompanions: "Together they'd have more than 12 companions. Archive a few first.",
+
+  cancel: "Cancel",
+  review: "Review the merge",
+
+  // The confirm step.
+  confirmTitle: (name: string) => `Merge into ${name}?`,
+  confirmMoves: (counts: string, from: string) => `Moving over from ${from}'s record: ${counts}.`,
+  nothingMoves: (from: string) => `${from}'s record has nothing else attached.`,
+  confirmResult: "The record you'll have",
+  planMove: (name: string) => `${name}'s sign-in moves over, so they sign in the same way as before.`,
+  planMoveLocked: (name: string) =>
+    `${name}'s sign-in moves over, but it's locked. Unlock it from Account admin once you've checked it's them.`,
+  planLock: (kept: string) =>
+    `Both records have a sign-in. ${kept}'s stays. The other one is locked, and anyone using it is signed out.`,
+  noUndo: "There's no undo button. Every detail from before stays in the client's history, so you can put anything back by hand.",
+  noEmail: "Nothing is emailed to the client.",
+  confirm: "Merge records",
+  working: "Merging…",
+
+  // Results.
+  stale: "One of these records changed since you opened this page. Reload it to see the latest.",
+  failed: "That didn't go through. Try again in a moment.",
+
+  fields: {
+    first_name: "First name",
+    last_name: "Last name",
+    preferred_name: "Goes by",
+    email: "Email",
+    phone: "Phone",
+    date_of_birth: "Date of birth",
+    mailing_address_id: "Mailing address",
+    emergency_contact: "Emergency contact",
+    important_dates: "Important dates",
+    tags: "Tags",
+    notes: "Notes",
+    preferred_destinations: "Dream destinations",
+    travel_styles: "Travel style",
+    budget_band: "Budget",
+    dietary_restrictions: "Dietary needs",
+    dietary_notes: "Dietary notes",
+    accessibility_needs: "Accessibility needs",
+    accessibility_notes: "Accessibility notes",
+    loyalty_programs: "Loyalty programs",
+    favorite_past_trips: "Favorite past trips",
+  } as Record<string, string>,
 } as const;
 
 /** "27 active · 5 in motion · 1 lead to qualify." Assembled, because all three are live. */
@@ -890,11 +1118,100 @@ export const SCHEDULE_COPY = {
   failed: "That didn't save. Try again in a moment.",
   gone: "That's not on this trip any more. Reload and take another look.",
 
-  // §3.10 is agent messaging and nothing exists to send on. The Screen Inventory's
-  // "trigger reminder" and "reminder cadence toggle" both wait on it — a button that
-  // silently sends nothing would be worse than one that says why it is off.
+  // §3.10 Stage 2: "Remind the client" opens the trip's thread with the template picker on
+  // Payment reminder, filled from the next unpaid milestone. The cadence toggle stays unbuilt
+  // (automatic reminders need a scheduler, and email; Stage 4).
   remindLabel: "Remind the client",
-  remindDeferred: "Sending a reminder arrives with §3.10, where agent messaging gets built.",
+  remindNothing: "Nothing is still owed on this trip, so there's nothing to remind the client about.",
+} as const;
+
+/**
+ * §3.6 Supplier Payments (agent; ruled 2026-10-16). WEB ONLY, no phone treatment, like §3.7.
+ *
+ * Built onto §3.4.15's page rather than a second copy of the list (Screen-Inventory §3.6.1
+ * note): the schedule rows gain a pay link column, Mark paid (3.6.5), Send link (3.6.2, the
+ * §3.4.15 "Remind the client" flow pointed at one milestone) and a History view (3.6.6).
+ * Artboards: design/source-prototype/screens/agent-payment.jsx.
+ *
+ * The app never holds a card. Clients pay each supplier directly through the link; the
+ * advisor adds, changes or removes it (https only, audited) and marks a payment paid.
+ */
+export const PAYMENTS_COPY = {
+  // 3.6.1 Trip Payments
+  colPayLink: "Pay link",
+  noLink: "No pay link yet",
+  addLink: "Add a pay link",
+  editLink: "Change",
+  editLinkAria: (label: string) => `Change the ${label} pay link`,
+  travefyChip: "Travefy invoice",
+  markPaid: "Mark paid",
+  sendLink: "Send link",
+  sendLinkNeedsLink: "Add a pay link first",
+  paidOn: (date: string) => `Paid ${date}`,
+  history: "History",
+  directNoteStrong: "Clients pay suppliers directly.",
+  directNote:
+    "Each link opens the supplier's own secure site. Story-Tail never sees a card and never charges a fee. Every link you add, change or remove is recorded in History.",
+
+  // 3.6.1b Add or edit a pay link
+  linkTitleEdit: "Edit pay link",
+  linkTitleAdd: "Add a pay link",
+  linkBody: "Where the client goes to pay this one. It opens in a new tab on the supplier's site.",
+  linkLabel: "Pay link",
+  linkHint: "Links must start with https://",
+  linkPreview: "THE CLIENT WILL SEE",
+  linkAudit: "This change is recorded in the trip's payment history, with your name and the time.",
+  linkTravefyGuard: "A Travefy invoice passes along supplier costs only, never a planning or service fee.",
+  linkRemove: "Remove link",
+  linkSave: "Save link",
+  linkSaving: "Saving…",
+  linkNotHttps: "Use a full link that starts with https://",
+  linkTooLong: "That link is too long. Links can be up to 2,048 characters.",
+  linkCard: "That looks like a card number. Card numbers never go in the app.",
+
+  // 3.6.5 Mark paid
+  paidTitle: (label: string) => `Mark ${label.charAt(0).toLowerCase()}${label.slice(1)} paid`,
+  paidBody: "Check with the supplier first. Once you save, the client sees it as paid on the trip.",
+  paidAmount: "Amount paid",
+  paidDate: "Date paid",
+  paidReference: "Confirmation number (optional)",
+  paidNote: "Note (optional)",
+  paidNoteHint: "Only you see this.",
+  paidOnlyYou: "Only you can mark a payment paid. It's recorded in the trip's payment history.",
+  paidSave: "Mark paid",
+  paidSaving: "Saving…",
+  paidAmountInvalid: "That doesn't look like an amount.",
+  paidDateInvalid: "Pick the date the money landed. It can't be in the future.",
+  paidReferenceTooLong: "Keep the confirmation number to 100 characters.",
+  paidNoteTooLong: "Keep the note to 1,000 characters.",
+  paidCardLike: "That looks like a card number. Card numbers never go in the app.",
+
+  cancel: "Cancel",
+  failed: "That didn't save. Try again in a moment.",
+
+  // 3.6.6 Payment history
+  historyTitle: "Payment history",
+  historySubtitle: "Every paid mark and every pay link change, with who and when. Nothing here can be edited.",
+  historyBack: "Back to payments",
+  historyAll: "All payments",
+  historyWhen: "When",
+  historyWhat: "What",
+  historyPayment: "Payment",
+  historyDetails: "Details",
+  historyBy: "By",
+  historyEmpty: "Nothing recorded yet. Paid marks and pay link changes show up here.",
+  historyFoot: "A client's \"I've paid\" note lives in the message thread, not here. Only a paid mark changes the record.",
+  historyKindPaid: "Marked paid",
+  historyKindWaived: "Waived",
+  historyKindCleared: "Marked unpaid",
+  historyKindStatus: "Status changed",
+  historyKindAdded: "Link added",
+  historyKindChanged: "Link changed",
+  historyKindRemoved: "Link removed",
+  historyConf: (ref: string) => `conf. ${ref}`,
+  historyTravefy: "(Travefy invoice)",
+  historyUnknownActor: "System",
+  historyDeleted: "A removed payment",
 } as const;
 
 /**
@@ -1066,3 +1383,863 @@ export const TEMPLATE_COPY = {
   payloadFixedNote:
     "A template is a snapshot of a real trip. To change the shape, save a new one from a trip that has it.",
 } as const;
+
+/**
+ * §3.7.1 Commission Dashboard and §3.7.2 Commission Ledger.
+ *
+ * WEB ONLY. Commission is not one of §6.6's four phone tabs, and `a37-commission.html` draws
+ * no phone artboards (`mobileScreens={null}`), so there is no Kotlin twin and no row in the
+ * copy-parity gate.
+ *
+ * SAME REGISTER AS AGENT_COPY: terse and numerate, read at a desk. This is the advisor's own
+ * money, the most transactional surface in the product — §2.5 is explicit that a screen like
+ * this needs facts, not a verse. Plain words over the prototype's shorthand where the
+ * shorthand was jargon: "vs last year" rather than "LY", "pts" rather than "pp".
+ */
+export const COMMISSION_COPY = {
+  viewsLabel: "Commission views",
+
+  title: "Commissions",
+  // The prototype's subtitle, kept: it is the whole lifecycle in five words, and it names
+  // the one counterpart the numbers are checked against.
+  subtitle: "Expected → invoiced → received. Reconciled against Inteletravel.",
+
+  // Live since §3.7 Stage 3 (§3.7.5).
+  importLabel: "Import CSV",
+  // Live since §3.7 Stage 2. Each download writes an audit record (Data-Model §18.3), in the
+  // same database call that produces the rows.
+  exportLabel: "Export",
+  exportFailed: "The export didn't come through. Go back and try again in a moment.",
+  addLineLabel: "Add line",
+
+  tileYtd: "YTD received",
+  tileUpcoming: "Expected · 90d",
+  tileAtRisk: "At risk",
+  tileRate: "Avg rate",
+  rateUnavailable: "Nothing received yet this year.",
+  nothingDisputed: "Nothing disputed",
+  // "Nothing priced", not "nothing booked": a booked trip nobody has priced adds no
+  // commission and is not counted, so "nothing booked" would be false while one sits there.
+  nothingUpcoming: "Nothing priced in the next 90 days",
+
+  trendTitle: "Monthly trend · 12 months",
+  trendEmpty: "No commission received in the last 12 months.",
+  trendTableCaption: "Commission received by month",
+  trendMonth: "Month",
+  trendAmount: "Received",
+
+  ledgerTitle: "Commission ledger",
+  ledgerSubtitle: "Every booking, every line.",
+  // FIVE, NOT THE PROTOTYPE'S FOUR. Its chip row has no Lost, and `commission_status` has
+  // five values; a line lost to a cancellation would have no way back onto the screen.
+  filterExpected: "Expected",
+  filterInvoiced: "Invoiced",
+  filterReceived: "Received",
+  filterDisputed: "Disputed",
+  filterLost: "Lost",
+  filterStatusLegend: "Status",
+  supplierLabel: "Supplier",
+  supplierAll: "All suppliers",
+  travelFromLabel: "Travel from",
+  travelToLabel: "Travel to",
+  applyFilters: "Apply",
+  clearFilters: "Clear filters",
+  tripFilterPrefix: "One trip:",
+  tripFilterUnnamed: "One trip only",
+  tripFilterRemove: "Show every trip",
+
+  colTrip: "Trip · client",
+  colSupplier: "Supplier",
+  colTravel: "Travel",
+  colGross: "Gross",
+  colRate: "Rate",
+  colCommission: "Comm",
+  colStatus: "Status",
+  noDates: "No dates yet",
+  archivedTrip: "Archived",
+
+  emptyTitle: "No commission lines yet",
+  // Says where lines actually COME FROM. An earlier draft said a line appears "once a booking
+  // is invoiced", which is wrong twice: a line starts life as `expected`, before any invoice,
+  // and nothing creates one automatically — entry and import are the only producers.
+  emptyBody:
+    "Use Add line to enter one, or import a statement from Inteletravel.",
+  emptyFilteredTitle: "Nothing matches",
+  emptyFilteredBody: "Try another status, supplier or date range.",
+  emptyTripTitle: "No lines for this trip yet",
+  emptyTripBody: "Its forecast commission still shows on the trip's cost card.",
+  ledgerTableLabel: "Commission lines",
+  ledgerPagesLabel: "Ledger pages",
+
+  // Trip Detail's cost card, the ledger's second entry point (§3.7.2), and 3.7.4's.
+  tripLedgerLink: "Commission lines",
+  tripAddLine: "Add commission line",
+
+  // ── 3.7.4 Add ──────────────────────────────────────────────────────────────
+  addTitle: "Add commission line",
+  addSubtitle: "Add one line per supplier on a trip. Expected is gross × rate, worked out when you save.",
+  pickTripTitle: "Which trip is it for?",
+  pickTripSearch: "Search trips",
+  pickTripPlaceholder: "Trip, destination, or client…",
+  pickTripNone: "No trips match that.",
+  pickTripChange: "Pick a different trip",
+  noSuppliers: "No suppliers on file yet. A line needs one to attach to.",
+  tripNotAvailableTitle: "That trip isn't available",
+  tripNotAvailableBody: "It may have been archived, or it belongs to another advisor.",
+
+  // ── The line form, shared by 3.7.3 and 3.7.4 ─────────────────────────────
+  supplierPlaceholder: "Pick a supplier",
+  supplierNoLongerListed: "No longer listed",
+  grossLabel: "Gross booking",
+  grossHint: "The booking total the rate applies to.",
+  rateLabel: "Commission rate",
+  rateHint: "A percent, 0 to 100.",
+  expectedLabel: "Expected",
+  expectedHint: "Gross × rate. Worked out again when you save.",
+  termsLabel: "Paid",
+  termsAfterTravel: "After travel",
+  termsAtBooking: "At booking",
+  lagLabel: "Days after",
+  statusLabel: "Status",
+  statusHint: "Received and Disputed are set with Mark received.",
+  referenceLabel: "Inteletravel reference",
+  referenceHint: "From the statement, once there is one. A line with one can't be removed.",
+  notesLabel: "Notes",
+  saveLine: "Save line",
+  saving: "Saving…",
+  cancel: "Cancel",
+
+  supplierRequired: "Pick a supplier.",
+  grossInvalid: "Enter an amount like 6480.00.",
+  rateInvalid: "Enter a rate from 0 to 100.",
+  lagInvalid: "Enter whole days, 0 to 365.",
+  duplicateReference: "That reference is already on another line.",
+  supplierGone: "That supplier is no longer on file. Pick another.",
+  stale: "This line changed since you opened it. Reload to see what changed.",
+  failed: "That didn't save. Try again in a moment.",
+  // Moving a paid line back to an unpaid status wipes the recorded payment (audited). The
+  // checkbox is required, so the advisor says yes before it happens.
+  clearsPayment: "Changing the status clears the payment recorded on this line.",
+  clearsPaymentConfirm: "Yes, clear the recorded payment",
+  receivedNeedsAmount: "Received needs the amount that arrived. If nothing came, record it as Disputed.",
+  signedOut: "You were signed out. Sign in again and retry.",
+
+  // ── 3.7.3 Detail ───────────────────────────────────────────────────────────
+  backToLedger: "Back to ledger",
+  lineNotFoundTitle: "That line isn't on your ledger",
+  lineNotFoundBody: "It may have been removed, or the link is to a line that isn't yours.",
+  // The prototype's subtitle, less the Inteletravel link, which waits for §3.7.6.
+  detailSubtitle: "Edit terms, mark received, and keep notes for the statement.",
+  openTrip: "Open trip",
+  archivedTripNote: "This trip is archived. Its commission line stays on the record.",
+
+  markReceived: "Mark received",
+  receivedAmountLabel: "Amount received",
+  feeLabel: "Processing fee",
+  feeHint: "What Inteletravel kept, if anything.",
+  receivedOnLabel: "Received on",
+  recordAsLabel: "Record as",
+  recordReceived: "Received",
+  recordDisputed: "Disputed",
+  savePayment: "Save payment",
+  badDate: "Use today or an earlier date.",
+  amountInvalid: "Enter an amount like 970.00.",
+
+  linkInteletravel: "Link Inteletravel row",
+  linkDeferred: "Matching a line to a statement row arrives with §3.7.6.",
+
+  expectationTitle: "Payment expectation",
+  expectationNoEnd: "No date yet: the trip has no end date.",
+  expectationNotBooked: "No date yet: the trip has not been booked.",
+
+  removeLine: "Remove line",
+  removeTitle: "Remove this line?",
+  removeBody:
+    "For a line entered by mistake. It leaves the ledger and your totals, and you can't bring it back from here. A record that it existed is kept.",
+  removeConfirm: "Remove",
+  removeKeep: "Keep it",
+  // Gyasi's rule, said as the rule rather than as one case of it: a disputed or received
+  // line was never "invoiced" in the advisor's sense, and the old wording said it was.
+  // Gyasi's rule (2026-10-11), stated as history: a line that was ever invoiced, paid or
+  // given a reference stays on the record, whatever its status says now.
+  removeNotAllowed:
+    "Only a line that was never invoiced or given an Inteletravel reference can be removed. You can still edit this one.",
+  removeRefused: "That line couldn't be removed. It may have changed since you opened it.",
+} as const;
+
+/** "Sandals Resorts · 60 days after travel" — the expectation card's first line. */
+export function commissionTermsLine(supplier: string, terms: string, days: number): string {
+  const atBooking = terms === "at_booking";
+  const span = days === 0
+    ? (atBooking ? "paid at booking" : "paid when travel ends")
+    : `paid ${days} ${days === 1 ? "day" : "days"} after ${atBooking ? "booking" : "travel"}`;
+  return `${supplier} · ${span}`;
+}
+
+/** 3.7.3's header, as A373 draws it: "Sandals Resorts · Kyoto in the spring · $1,368 expected". */
+export function commissionLineHeading(supplier: string, trip: string, expected: string): string {
+  return `${supplier} · ${trip} · ${expected} expected`;
+}
+
+/** "Expected around Oct 18, 2026." */
+export function commissionExpectedOn(dateLabel: string): string {
+  return `Expected around ${dateLabel}.`;
+}
+
+/** "Received $1,190 on Feb 21, 2027, after a $12 fee." */
+export function commissionPaidLine(amount: string, dateLabel: string, fee: string | null): string {
+  return fee ? `Received ${amount} on ${dateLabel}, after a ${fee} fee.` : `Received ${amount} on ${dateLabel}.`;
+}
+
+/**
+ * What the payment form says about expected − fee − received, live. Zero is reconciled;
+ * a shortfall is the thing §3.7.6 exists to chase; more than expected is worth a look too.
+ */
+export function commissionGapLine(gapCents: number, gapLabel: string): string {
+  if (gapCents === 0) return "Matches expected, once the fee is taken out.";
+  if (gapCents > 0) return `${gapLabel} short of expected, after the fee. Record it as Disputed to chase it.`;
+  return `${gapLabel} more than expected, after the fee.`;
+}
+
+/** "Gross and rate filled in from this trip's Sandals Resorts bookings." */
+export function commissionPrefilledFrom(supplier: string): string {
+  return `Gross and rate filled in from this trip's ${supplier} bookings. Change them if the final figures differ.`;
+}
+
+/** "5 trips", "1 trip" — the Expected · 90d tile's second line. */
+export function commissionTripCount(count: number): string {
+  return count === 1 ? "1 trip" : `${count} trips`;
+}
+
+/** "1 disputed" — the At risk tile's second line. */
+export function commissionDisputedCount(count: number): string {
+  return count === 0 ? COMMISSION_COPY.nothingDisputed : `${count} disputed`;
+}
+
+/**
+ * A signed change with a true minus sign (not a hyphen, so a fall reads as one at a glance in
+ * small type), or "No change" when it rounds to zero. "±0%" was the first draft: a screen
+ * reader says "plus or minus zero", and nobody says that out loud.
+ */
+function signedChange(value: string, isZero: boolean, isFall: boolean, against: string): string {
+  if (isZero) return `No change vs ${against}`;
+  return `${isFall ? "−" : "+"}${value} vs ${against}`;
+}
+
+/** "+24% vs last year" — the same Jan-1-to-today window a year back. */
+export function commissionChangeVsLastYear(pct: number): string {
+  return signedChange(`${Math.abs(pct)}%`, pct === 0, pct < 0, "last year");
+}
+
+/** "+0.4 pts vs last year": a change in a RATE is points, never a percentage of a percentage. */
+export function commissionRateChangeVsLastYear(points: number): string {
+  const shown = Math.abs(points).toFixed(1);
+  return signedChange(`${shown} pts`, shown === "0.0", points < 0, "last year");
+}
+
+/**
+ * The trend chip: the chart's twelve months against the twelve before them. Worded apart
+ * from the tiles' "vs last year" on purpose — that is a calendar-year window, this is a
+ * rolling one, and the same words would invite comparing two different numbers.
+ */
+export function commissionTrendChange(pct: number): string {
+  return signedChange(`${Math.abs(pct)}%`, pct === 0, pct < 0, "the 12 months before");
+}
+
+/**
+ * §3.7.5 Import statement and §3.7.6 Reconcile.
+ *
+ * WEB ONLY, like the rest of §3.7: no phone artboards, no Kotlin twin, no copy-parity row.
+ * Same register as COMMISSION_COPY: facts first, read at a desk. The one promise these
+ * screens make, and so say more than once, is that NOTHING IN THE LEDGER CHANGES until the
+ * advisor marks the statement reconciled, and that a line they already marked paid never
+ * changes at all (Gyasi, 2026-10-11).
+ */
+export const STATEMENT_COPY = {
+  importTitle: "Import Inteletravel statement",
+  importSubtitle:
+    "Upload the CSV from Inteletravel. Your ledger stays the same until you mark the statement reconciled.",
+  whereFileLabel: "Where do I get this file?",
+  // Deliberately general: no real statement has been seen yet, so this names no menu that
+  // might not exist.
+  whereFileBody:
+    "Download your commission statement from Inteletravel as a CSV file. If it opens in Excel, use Save As and choose CSV.",
+
+  step1Title: "Step 1 · Upload",
+  dropTitle: "Choose your statement",
+  dropHint: "Inteletravel statement · CSV · up to 512 KB",
+  fileLabel: "Statement file",
+  uploadButton: "Upload statement",
+  uploading: "Uploading…",
+  noFile: "Choose a CSV file first.",
+  tooBig: "That file is larger than 512 KB. Check it's the statement.",
+  notCsv: "That isn't a CSV file. If it's an Excel file, save it as CSV and upload that.",
+  duplicate: "You've already imported this file.",
+  duplicateOpen: "Open that statement",
+  uploadFailed: "The upload didn't come through. Try again in a moment.",
+  useDifferentFile: "Use a different file",
+
+  step2Title: "Step 2 · Map columns",
+  step2Waiting: "Upload a statement and its columns show up here.",
+  mapIntro: "Say what each column holds. Guesses are filled in and marked Auto.",
+  mapTableLabel: "Statement columns",
+  autoChip: "Auto",
+  manualChip: "Manual",
+  ignoreColumn: "Ignore this column",
+  fieldReference: "Booking reference",
+  fieldSupplier: "Supplier",
+  fieldTraveler: "Traveler name",
+  fieldGross: "Gross booking",
+  fieldReceived: "Commission paid",
+  fieldFee: "Fee withheld",
+  fieldPaidOn: "Paid on",
+  statementDateLabel: "Paid on, for every row",
+  statementDateHint: "No column holds the paid-on date, so use the date on the statement.",
+  mapNeedsReceived: "Choose the column that holds the commission paid.",
+  mapNeedsDate: "Choose the paid-on column, or enter the date the statement paid.",
+  remapWarning: "Changing the columns clears the choices you've made on this statement.",
+  mapFailed: "That didn't save. Try again in a moment.",
+  changeColumns: "Change columns",
+
+  pastTitle: "Past statements",
+  pastEmpty: "No statements yet. Your first one will show up here.",
+  pastTableLabel: "Past statements",
+  statusMapping: "Needs columns",
+  statusReview: "Ready to review",
+  statusReconciled: "Reconciled",
+
+  colStatementRow: "Inteletravel row",
+  colMatch: "Ledger match",
+  colConfidence: "Confidence",
+  colAmount: "Amount",
+  colAction: "Action",
+  rowsTableLabel: "Statement rows",
+  confidenceHigh: "High",
+  confidenceMedium: "Medium",
+  confidenceLow: "Low",
+
+  auto: "Auto-matched",
+  matched: "Matched",
+  newLine: "New line",
+  setAside: "Set aside",
+  alreadyRecorded: "Already recorded",
+  resolve: "Resolve",
+  change: "Change",
+  noMatch: "No match found",
+  possibleNew: "Possible new booking. Create a line?",
+  duplicateRow: "Same booking as an earlier row. Only one row can pay a booking, so choose what to do with this one.",
+  checkSuggestion: "Check this match before it counts.",
+
+  markReconciled: "Mark as reconciled",
+  reconcileConfirmTitle: "Mark this statement reconciled?",
+  reconcileKeep: "Not yet",
+  reconcileFailed: "That didn't save. Nothing in your ledger changed. Try again in a moment.",
+  // When the call failed with no answer, the reconcile may have committed: say only what is known.
+  reconcileUnsure: "That didn't finish. Reload the page to see where the statement stands, then try again.",
+  rowNeedsYouAgain: "A row needs you again. It's at the top of the table.",
+  discardLabel: "Discard statement",
+  discardTitle: "Discard this statement?",
+  discardBody: "Nothing in your ledger has changed. You can upload the file again afterward.",
+  discardConfirm: "Discard",
+  discardKeep: "Keep it",
+  discardFailed: "That didn't go through. Try again in a moment.",
+  working: "Working…",
+
+  stale: "This statement changed since you opened it. Reload the page and try again.",
+  notOpen: "This statement is already reconciled or discarded, so it can't change.",
+  notFoundTitle: "Statement not found",
+  notFoundBody: "It may have been discarded. Your other statements are on the import page.",
+  backToImport: "Back to statements",
+  backToStatement: "Back to the statement",
+
+  resolveTitle: "Resolve a statement row",
+  useSuggestionTitle: "Use the suggested match",
+  useSuggestion: "Use this match",
+  matchTitle: "Match a different line",
+  matchHint: "Lines that aren't paid yet, closest first.",
+  matchButton: "Match this line",
+  candidatesEmpty: "No unpaid lines to match. Create a new line instead.",
+  createTitle: "Create a new line",
+  createHint: "The line is added when you mark the statement reconciled. It starts out paid, using this row's amount.",
+  createTripLabel: "Trip",
+  createTripSearch: "Find a trip",
+  createTripPlaceholder: "Trip or client name",
+  createTripChange: "Choose a different trip",
+  createTripNone: "No trips match that search.",
+  createSupplierLabel: "Supplier",
+  createGrossLabel: "Gross booking",
+  createRateLabel: "Commission rate (%)",
+  createButton: "Create line when reconciled",
+  ignoreTitle: "Set it aside",
+  ignoreHint: "Nothing is recorded for this row. You can still add a line by hand later.",
+  ignoreButton: "Set aside",
+  lineUnavailable: "That line can't take this payment anymore. It's been paid, or another row already matches it.",
+  tripGone: "That trip isn't available anymore. Pick another.",
+  supplierGone: "That supplier isn't available anymore. Pick another.",
+  notAllowed: "That choice isn't available for this row.",
+  resolveFailed: "That didn't save. Try again in a moment.",
+  createNeedsTrip: "Choose a trip first.",
+  createNeedsGross: "Enter the gross booking, like 6480.00.",
+  tripNotAvailable: "That trip isn't available. Find another below.",
+  createNeedsRate: "Enter a commission rate from 0 to 100.",
+} as const;
+
+/** "Uploaded: april.csv · 38 rows found". */
+export function statementUploadedLine(filename: string, rows: number): string {
+  return `Uploaded: ${filename} · ${rows.toLocaleString("en-US")} ${rows === 1 ? "row" : "rows"} found`;
+}
+
+/** "Import 38 rows". */
+export function statementImportRows(rows: number): string {
+  return `Import ${rows.toLocaleString("en-US")} ${rows === 1 ? "row" : "rows"}`;
+}
+
+/** "Example: SRB-220119" under a column, or nothing when the sample cell is blank. */
+export function statementSample(value: string): string {
+  return `Example: ${value}`;
+}
+
+/** "Fee withheld is chosen for two columns. Pick one." */
+export function statementFieldTwice(field: string): string {
+  return `${field} is chosen for two columns. Pick one.`;
+}
+
+/** "Reconcile · April 2026 statement". */
+export function statementReconcileTitle(label: string): string {
+  return `Reconcile · ${label}`;
+}
+
+/** "April 2026 statement" when every paid date is in one month. */
+export function statementMonthLabel(month: string): string {
+  return `${month} statement`;
+}
+
+/** "38 imported · 35 matched · 3 to resolve", the prototype's subtitle in plain words. */
+export function statementSummary(total: number, matched: number, toResolve: number, setAside = 0): string {
+  const parts = [`${total} imported`, `${matched} matched`];
+  if (setAside > 0) parts.push(`${setAside} set aside`);
+  parts.push(toResolve === 0 ? "nothing to resolve" : `${toResolve} to resolve`);
+  return parts.join(" · ");
+}
+
+/** "Resolve 3 more rows to reconcile." Beside a disabled Mark as reconciled: what to do. */
+export function statementStillNeedYou(count: number): string {
+  return `Resolve ${count} more ${count === 1 ? "row" : "rows"} to reconcile.`;
+}
+
+/** The reconcile confirmation: what is about to change, and what will not. */
+export function statementReconcileBody(paid: number, created: number): string {
+  const what: string[] = [];
+  if (paid > 0) what.push(`records ${paid} ${paid === 1 ? "payment" : "payments"}`);
+  if (created > 0) what.push(`adds ${created} new ${created === 1 ? "line" : "lines"}`);
+  const head = what.length ? `This ${what.join(" and ")} in your ledger.` : "Nothing in your ledger changes.";
+  return `${head} Lines you already marked paid stay as they are.`;
+}
+
+/** "Reconciled Oct 12, 2026: 35 payments recorded, 2 new lines." */
+export function statementReconciledLine(date: string, paid: number, created: number): string {
+  return `Reconciled ${date}: ${paid} ${paid === 1 ? "payment" : "payments"} recorded, ${created} new ${created === 1 ? "line" : "lines"}.`;
+}
+
+/**
+ * "Expected $1,212.36. Paid $1,100.00 plus a $50.00 fee. That's $62.36 short, so it'll be
+ * marked Disputed." The fee is named when there is one, so the three numbers add up on the
+ * page (the first draft said "after the fee" whether or not there was one, and left it out
+ * of the sum it showed). Past tense once the statement is reconciled.
+ */
+export function statementShortNote(
+  expected: string,
+  paid: string,
+  fee: string | null,
+  gap: string,
+  done = false,
+): string {
+  const paidPart = fee ? `Paid ${paid} plus a ${fee} fee.` : `Paid ${paid}.`;
+  return `Expected ${expected}. ${paidPart} That's ${gap} short, so it ${done ? "was" : "will be"} marked Disputed.`;
+}
+
+/** "$20.00 more than expected." */
+export function statementOverNote(gap: string): string {
+  return `${gap} more than expected.`;
+}
+
+/** The prototype's "Sandals applied 14% not 15%", from the amounts rather than a guess. */
+export function statementRateNote(paidPct: string, linePct: string): string {
+  return `Paid at about ${paidPct} of the booking, not ${linePct}.`;
+}
+
+/**
+ * A row matched to a line already received or disputed: what the ledger holds, and that this
+ * import will not change it (Gyasi, 2026-10-11).
+ */
+export function statementAlreadyNote(
+  status: "received" | "disputed",
+  ledgerAmount: string | null,
+  statementAmount: string | null,
+): string {
+  const marked = status === "disputed" ? "Disputed" : "Received";
+  if (ledgerAmount && statementAmount && statementAmount !== ledgerAmount) {
+    return `Your ledger says ${ledgerAmount}; this statement says ${statementAmount}. If the ledger's wrong, fix it on the line.`;
+  }
+  return ledgerAmount
+    ? `Already marked ${marked} (${ledgerAmount}). This import won't change it.`
+    : `Already marked ${marked} on your ledger. This import won't change it.`;
+}
+
+/** "Row 4" — the resolve page's heading and the row's name in the table. */
+export function statementRowName(n: number): string {
+  return `Row ${n}`;
+}
+
+/** A candidate line's second line: "Sandals Resorts · Carter · expected $614". */
+export function statementCandidateMeta(supplier: string, client: string, expected: string): string {
+  return `${supplier} · ${client} · expected ${expected}`;
+}
+
+/**
+ * §3.7.7 Commission Forecast.
+ *
+ * WEB ONLY, like the rest of §3.7. Facts first: this is a projection, and it says so plainly
+ * (weights are a guess until there is history, Data-Model §7.4) without hedging every number.
+ */
+export const FORECAST_COPY = {
+  title: "Commission forecast",
+  subtitle: "Expected commission by stage, each counted at a percent you can adjust.",
+  scopeChip: "All open trips",
+
+  weightedTitle: "Weighted forecast",
+  stagesLabel: "Forecast by stage",
+  stageInquiry: "Inquiry",
+  stageProposal: "Proposal",
+  stageBooked: "Booked",
+  stageTraveling: "Traveling",
+  adjust: "Adjust weights",
+  save: "Save weights",
+  cancel: "Cancel",
+  saving: "Saving…",
+  weightLabel: "Weight (%)",
+  weightsHint: "Saving also changes the confidence on your worklist's Commission expected.",
+  weightsInvalid: "Each weight is a whole number from 0 to 100.",
+  stale: "These weights were changed somewhere else, so yours weren't saved. Reload the page and try again.",
+  saveFailed: "That didn't save. Try again in a moment.",
+  nothingYet: "No open trips have commission yet. It shows up here once you add a booking that earns commission.",
+
+  calendarTitle: "Cash-in calendar",
+  calendarLabel: "Expected commission by month",
+  overdue: "Overdue",
+  later: "Later",
+  undated: "No travel dates yet",
+  noTermsNote: "Bookings with no payment terms on file are expected 60 days after the trip ends.",
+} as const;
+
+/** The cancel dialog's checkbox: "Mark this line as Lost" / "Mark these 2 lines as Lost". */
+export function cancelLinesCheckbox(n: number): string {
+  return n === 1 ? "Mark this line as Lost" : `Mark these ${n.toLocaleString("en-US")} lines as Lost`;
+}
+
+/**
+ * The receipt a save leaves on screen when it named any commission lines; null when it named
+ * none, and the dialog then closes as it always has. It leads with the trip, because the
+ * receipt replaces the whole form and is the only thing left to read.
+ *
+ *  - `skipped`: moved since the page loaded (paid, edited, removed) and left alone.
+ *  - Named but in neither count (an Edge Function too old to know the list, say) is said as
+ *    unconfirmed, never as closed: the box was ticked, so silence would read as done.
+ */
+export function cancelReceipt(r: {
+  /** This save cancelled the trip, rather than correcting one already cancelled. */
+  cancelled: boolean;
+  named: number;
+  closed: number;
+  skipped: number;
+}): string | null {
+  if (r.named <= 0) return null;
+  const n = (k: number) => k.toLocaleString("en-US");
+  const parts = [r.cancelled ? "Trip cancelled." : "Details saved."];
+  if (r.closed > 0) {
+    parts.push(`${n(r.closed)} commission ${r.closed === 1 ? "line" : "lines"} marked Lost.`);
+  }
+  if (r.skipped > 0) {
+    parts.push(
+      r.skipped === 1
+        ? "1 line changed since the page loaded, so it was left alone."
+        : `${n(r.skipped)} lines changed since the page loaded, so they were left alone.`,
+    );
+  }
+  const unconfirmed = r.named - r.closed - r.skipped;
+  if (unconfirmed > 0) {
+    parts.push(
+      unconfirmed === 1
+        ? "We couldn't confirm 1 line was marked Lost. Check it in the ledger."
+        : `We couldn't confirm ${n(unconfirmed)} lines were marked Lost. Check them in the ledger.`,
+    );
+  }
+  return parts.join(" ");
+}
+
+/**
+ * "Of $11,101 across 11 open trips · 94% confidence": the worklist's "Commission expected"
+ * tile, in its own words. That tile shows the unweighted total and this confidence; the big
+ * number here is the weighted one, and this line is how the two screens are seen to agree.
+ */
+export function forecastAcross(rawTotal: string, trips: number, confidencePct: number | null): string {
+  const head = `Of ${rawTotal} across ${trips.toLocaleString("en-US")} open ${trips === 1 ? "trip" : "trips"}`;
+  return confidencePct === null ? head : `${head} · ${confidencePct}% confidence`;
+}
+
+/** "3 trips" under a stage. */
+export function forecastTripCount(n: number): string {
+  return `${n.toLocaleString("en-US")} ${n === 1 ? "trip" : "trips"}`;
+}
+
+/** "$200 of the forecast is already received, so the calendar leaves it out." */
+export function forecastReceivedNote(amount: string): string {
+  return `${amount} of the forecast is already received, so the calendar leaves it out.`;
+}
+
+/** While editing: "New total: $10,411 · 94% confidence". */
+export function forecastNewTotal(total: string, confidencePct: number | null): string {
+  return confidencePct === null ? `New total: ${total}` : `New total: ${total} · ${confidencePct}% confidence`;
+}
+
+// ── §3.10 Messaging (Stage 1: inbox and thread) ─────────────────────────────
+// The advisor's own tool, so plain and quick. "Overdue" is Gyasi's rule (2026-10-13): one
+// business day, Sundays never count, so a day of rest never reads as late.
+export const AGENT_MESSAGES_COPY = {
+  title: "Messages",
+  inboxLabel: "Message threads",
+  caughtUp: "All caught up",
+  filterUnread: "Unread",
+  filterOverdue: "Overdue",
+  viewArchived: "Archived",
+  viewInbox: "Inbox",
+  searchLabel: "Search messages",
+  searchPlaceholder: "Name, trip or message",
+  searchSubmit: "Search",
+  oneClient: "This client",
+  oneTrip: "This trip",
+  clearFilter: "Show all",
+  emptyInbox: "No messages yet. When a client writes to you, it shows up here.",
+  emptyNarrowed: "No threads match these filters.",
+  emptyArchived: "Nothing archived.",
+  pickThread: "Pick a thread to read it here.",
+  generalThread: "General",
+  youPrefix: "You: ",
+  overdue: "Overdue",
+  unreadLabel: "unread",
+  pagesLabel: "Inbox pages",
+  newer: "Newer",
+  older: "Older",
+  selectLabel: "Select",
+  selectedLabel: "Selected threads",
+  archiveSelected: "Archive",
+  restoreSelected: "Move to inbox",
+  archiveFailed: "That didn't save. Try again in a moment.",
+  // Thread
+  backToInbox: "All messages",
+  openTrip: "Open trip",
+  openClient: "Open client",
+  openInMessages: "Open in Messages",
+  archiveThread: "Archive",
+  restoreThread: "Move to inbox",
+  archivedTag: "Archived",
+  archivedDone: "Archived",
+  restoredDone: "Moved to inbox",
+  internalNoteTag: "Internal note · only you can see this",
+  // §3.10 Stage 4, after a bubble's time: an email carried this reply; the client replied by email.
+  emailedMark: "Emailed",
+  autoReply: "Automatic reply",
+  byEmail: "By email",
+  senderYou: "You",
+  truncated: "Showing the latest 500 messages.",
+  emptyThread: "No messages in this thread yet.",
+  // Reply
+  replyLabel: "Reply",
+  replyPlaceholder: "Write a reply…",
+  messageLabel: "Message",
+  messagePlaceholder: "Write a message…",
+  notePlaceholder: "Write a note only you can see…",
+  noteSwitch: "Internal note",
+  noteHint: "Only you can see this note.",
+  send: "Send",
+  addNote: "Add note",
+  sending: "Sending…",
+  sent: "Sent",
+  noteAdded: "Note added",
+  sendFailed: "That didn't send. Try again in a moment.",
+  // New message (from Client Detail / Trip Detail)
+  newTitle: "New message",
+  notFound: "That client isn't one of yours, or they've been archived.",
+  // §3.10.7 notifications (A3107). The phone's twins arrive with Stage 3b PR 2.
+  notifyTitle: "Get notified when clients write",
+  notifyBody: "Quiet overnight and on Sundays, with one summary in the morning.",
+  notifyTurnOn: "Turn on",
+  notifyNotNow: "Not now",
+  notifyTurningOn: "Turning on…",
+  notifyBlocked: "This browser is blocking notifications from us. You can allow them in its site settings.",
+  notifyFailed: "Notifications didn't turn on. Try again in a moment.",
+  notifyOn: "Notifications are on for this browser.",
+} as const;
+
+/** "3 unread · 1 overdue", or "All caught up". */
+export function messagesHeadline(unreadThreads: number, overdueThreads: number): string {
+  const parts: string[] = [];
+  if (unreadThreads > 0) parts.push(`${unreadThreads.toLocaleString("en-US")} unread`);
+  if (overdueThreads > 0) parts.push(`${overdueThreads.toLocaleString("en-US")} overdue`);
+  return parts.length > 0 ? parts.join(" · ") : AGENT_MESSAGES_COPY.caughtUp;
+}
+
+/** "Reply by end of Mon": the day a reply falls due, before it is overdue (the thread header). */
+export function messagesReplyBy(day: string): string {
+  return `Reply by end of ${day}`;
+}
+
+/** "Reply by Mon": the same, short enough for an inbox row. */
+export function messagesReplyByShort(day: string): string {
+  return `Reply by ${day}`;
+}
+
+/** Under the reply box when the client has no login yet. */
+export function messagesNoLogin(firstName: string): string {
+  return `${firstName} hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.`;
+}
+
+/** What a bulk archive (or bring-back) did, for the list's status line. */
+export function messagesMoved(n: number, archived: boolean): string {
+  return `${n.toLocaleString("en-US")} ${archived ? "archived" : "moved to inbox"}`;
+}
+
+/** "Message Kai", Client Detail's header button. */
+export function messageClientLabel(firstName: string): string {
+  return `Message ${firstName}`;
+}
+
+/** "Message Maya", the new-thread page's heading. */
+export function messagesNewTo(firstName: string): string {
+  return `Message ${firstName}`;
+}
+
+/** "2 selected" in the inbox's bulk bar. */
+export function messagesSelected(n: number): string {
+  return `${n.toLocaleString("en-US")} selected`;
+}
+
+/**
+ * §3.10 Stage 2: message templates (Screens 3.10.3 Picker, 3.10.4 Library, 3.10.5 Editor).
+ * WEB ONLY (Gyasi, 2026-10-14): the phone's Messages tab replies without a picker, so none of
+ * this has a Kotlin twin and the copy-parity gate does not list it.
+ */
+export const MESSAGE_TEMPLATE_COPY = {
+  // Library (3.10.4)
+  title: "Templates",
+  subtitle: "Messages you send often, grouped by stage. Make each one your own before it goes.",
+  newTemplate: "New template",
+  viewArchived: "Archived",
+  viewLive: "All templates",
+  archivedTitle: "Archived templates",
+  backToMessages: "Messages",
+  emptyLibrary: "No templates yet. Start one, and it'll be ready whenever you write to a client.",
+  emptyArchived: "Nothing archived.",
+  emptyArchivedBody: "Templates you archive wait here, ready to restore.",
+  edit: "Edit",
+  duplicate: "Duplicate",
+  duplicated: "Copy made",
+  archive: "Archive",
+  restore: "Restore",
+  archivedDone: "Archived",
+  restoredDone: "Restored",
+  actionFailed: "That didn't save. Try again in a moment.",
+  // Editor (3.10.5)
+  newTitle: "New template",
+  backToLibrary: "Templates",
+  nameLabel: "Name",
+  categoryLabel: "Category",
+  bodyLabel: "Message",
+  bodyHint: "Add a field from the list below. It goes in where your cursor is.",
+  fieldsLabel: "Merge fields",
+  tagsLabel: "Tags",
+  tagsHint: "Separate tags with commas.",
+  previewHeading: "Preview · with sample data",
+  save: "Save",
+  saving: "Saving…",
+  saved: "Saved",
+  nothingChanged: "No changes to save.",
+  unsaved: "Unsaved changes",
+  leaveUnsaved: "You have changes that aren't saved. Leave without saving?",
+  nameRequired: "Give this template a name.",
+  bodyRequired: "Write the message this template starts from.",
+  saveFailed: "That didn't save. Try again in a moment.",
+  notFound: "That template isn't in your library.",
+  // Picker (3.10.3)
+  insertTemplate: "Insert template",
+  pickerTitle: "Insert a template",
+  searchLabel: "Search templates",
+  searchPlaceholder: "Name, tag or words",
+  noMatch: "No templates match.",
+  pickerEmpty: "No templates yet.",
+  manage: "Manage templates",
+  pickOne: "Pick a template to see it here.",
+  insertAsIs: "Insert as-is",
+  insertAndEdit: "Insert & edit",
+  cancel: "Cancel",
+  close: "Close",
+  inserted: "Template added. Read it over, then send.",
+} as const;
+
+/** Each category's group heading and dropdown label, in the order the library shows them. */
+export const MESSAGE_TEMPLATE_CATEGORY_LABELS = {
+  lead_response: "Lead response",
+  proposal: "Proposal",
+  booking_confirmation: "Booking confirmation",
+  pre_trip: "Pre-trip",
+  post_trip: "Post-trip",
+  payment_reminder: "Payment reminder",
+  other: "Other",
+} as const;
+
+/** "Last edited Oct 14". */
+export function templateLastEdited(day: string): string {
+  return `Last edited ${day}`;
+}
+
+/** The picker's preview heading: "Preview · for Maya". */
+export function templatePreviewFor(firstName: string): string {
+  return `Preview · for ${firstName}`;
+}
+
+/**
+ * Why "Insert as-is" is off: what the template needs that this thread does not have, in plain
+ * words rather than token names. "This one needs trip dates and a payment, which this thread
+ * doesn't have. Use Insert & edit to fill them in yourself."
+ */
+export function templateMissing(fields: readonly string[]): string {
+  const words: Record<string, string> = {
+    "client.firstName": "a first name",
+    "trip.name": "a trip",
+    "trip.destination": "a destination",
+    "trip.dates": "trip dates",
+    "agent.firstName": "your first name",
+    "payment.label": "a payment",
+    "payment.amount": "a payment",
+    "payment.dueDate": "a payment",
+    "payment.link": "a pay link",
+  };
+  const needs = [...new Set(fields.map((f) => words[f] ?? f))];
+  const list = needs.length <= 2 ? needs.join(" and ") : `${needs.slice(0, -1).join(", ")} and ${needs[needs.length - 1]}`;
+  const them = needs.length === 1 && !needs[0].endsWith("dates") ? "it" : "them";
+  return `This one needs ${list}, which this thread doesn't have. Use Insert & edit to fill ${them} in yourself.`;
+}
+
+/** The editor's refusal, naming each unknown token. */
+export function templateUnknownFields(tokens: readonly string[]): string {
+  const named = tokens.map((t) => `{{${t}}}`).join(", ");
+  return `${named} ${tokens.length === 1 ? "isn't a merge field" : "aren't merge fields"}. Pick from the list under the message.`;
+}
+
+/** The reply box's refusal, naming each field still in the message. */
+export function templateUnfilled(fields: readonly string[]): string {
+  const named = fields.map((f) => `{{${f}}}`).join(", ");
+  return fields.length === 1
+    ? `${named} is still in your message, and this thread has no value for it. Fill it in before you send.`
+    : `${named} are still in your message, and this thread has no values for them. Fill them in before you send.`;
+}

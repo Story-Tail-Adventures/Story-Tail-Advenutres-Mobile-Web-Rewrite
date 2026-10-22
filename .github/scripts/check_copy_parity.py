@@ -35,6 +35,66 @@ AGENT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adv
 # map is a SILENT gap, not a failure. Add the row when you add the string.
 MESSAGE_TABLES = [
     {
+        # §3.10's advisor messaging, built on the web in Stages 1 and 2 and on the phone in
+        # Stage 3. The template strings (MESSAGE_TEMPLATE_COPY) are web-only by ruling and
+        # have no twin; the phone-only strings in AgentMessagesCopy (the Reply / Note toggle,
+        # load more, the pushed screens' empty and failed states) have none on the web.
+        "label": "agent 3.10",
+        "web_file": ROOT / "web/lib/agent/content.ts",
+        "web_const": "AGENT_MESSAGES_COPY",
+        "kmp_file": AGENT_DOMAIN_DIR / "AgentMessages.kt",
+        "kmp_object": "AgentMessagesCopy",
+        "keys": {
+            "title": "TITLE",
+            "filterUnread": "FILTER_UNREAD",
+            "filterOverdue": "FILTER_OVERDUE",
+            "viewArchived": "VIEW_ARCHIVED",
+            "viewInbox": "VIEW_INBOX",
+            "searchPlaceholder": "SEARCH_PLACEHOLDER",
+            "caughtUp": "CAUGHT_UP",
+            "emptyInbox": "EMPTY_INBOX",
+            "emptyNarrowed": "EMPTY_NARROWED",
+            "emptyArchived": "EMPTY_ARCHIVED",
+            "generalThread": "GENERAL_THREAD",
+            "youPrefix": "YOU_PREFIX",
+            "overdue": "OVERDUE",
+            "openTrip": "OPEN_TRIP",
+            "openClient": "OPEN_CLIENT",
+            "archiveThread": "ARCHIVE_THREAD",
+            "restoreThread": "RESTORE_THREAD",
+            "archivedTag": "ARCHIVED_TAG",
+            "archivedDone": "ARCHIVED_DONE",
+            "restoredDone": "RESTORED_DONE",
+            "archiveFailed": "ARCHIVE_FAILED",
+            "internalNoteTag": "INTERNAL_NOTE_TAG",
+            "emailedMark": "EMAILED_MARK",
+            "byEmail": "BY_EMAIL",
+            "autoReply": "AUTO_REPLY",
+            "emptyThread": "EMPTY_THREAD",
+            "replyLabel": "REPLY_LABEL",
+            "replyPlaceholder": "REPLY_PLACEHOLDER",
+            "messagePlaceholder": "MESSAGE_PLACEHOLDER",
+            "notePlaceholder": "NOTE_PLACEHOLDER",
+            "noteSwitch": "NOTE_SWITCH",
+            # §3.10.7's opt-in card. "notifyOn" and "notifyBlocked" name the browser, so the
+            # phone has its own wording for those two.
+            "notifyTitle": "NOTIFY_TITLE",
+            "notifyBody": "NOTIFY_BODY",
+            "notifyTurnOn": "NOTIFY_TURN_ON",
+            "notifyNotNow": "NOTIFY_NOT_NOW",
+            "notifyTurningOn": "NOTIFY_TURNING_ON",
+            "notifyFailed": "NOTIFY_FAILED",
+            # The phone's quiet "Sent" after a reply from a notification is the web's "Sent".
+            "sent": "NOTIFY_REPLY_SENT",
+            "noteHint": "NOTE_HINT",
+            "send": "SEND",
+            "addNote": "ADD_NOTE",
+            "sendFailed": "SEND_FAILED",
+            "notFound": "NOT_FOUND",
+            "openInMessages": "OPEN_IN_MESSAGES",
+        },
+    },
+    {
         # §3.2's copy. The web side's greeting line and cancelled note are FUNCTIONS —
         # each takes a count and pluralises — and web_messages skips anything that is not a
         # string literal, so those two are covered by the paired unit tests
@@ -75,7 +135,6 @@ MESSAGE_TABLES = [
             # This list is the set of strings that must match BYTE FOR BYTE across both
             # stacks. A string only one stack has does not belong in it — the same reason
             # the pipeline and calendar keys were never added.
-            "messagesDeferred": "MESSAGES_DEFERRED",
             "leadsDeferred": "LEADS_DEFERRED",
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
 
@@ -115,13 +174,11 @@ MESSAGE_TABLES = [
             "commissionLabel": "COMMISSION_LABEL",
             "glanceTripType": "GLANCE_TRIP_TYPE",
             "glanceDestination": "GLANCE_DESTINATION",
-            "glanceCardOnFile": "GLANCE_CARD_ON_FILE",
             "glanceLastActivity": "GLANCE_LAST_ACTIVITY",
             "glanceCancellationReason": "GLANCE_CANCELLATION_REASON",
             "glanceRefundStatus": "GLANCE_REFUND_STATUS",
             "glanceRefundDetail": "GLANCE_REFUND_DETAIL",
             "glanceNotSet": "GLANCE_NOT_SET",
-            "glanceNoCard": "GLANCE_NO_CARD",
             "glanceNoActivity": "GLANCE_NO_ACTIVITY",
             "tripNotFoundTitle": "TRIP_NOT_FOUND_TITLE",
             "tripNotFoundBody": "TRIP_NOT_FOUND_BODY",
@@ -289,14 +346,15 @@ MESSAGE_TABLES = [
         "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/dashboard/DashboardUiState.kt",
         "kmp_object": "DashboardMessages",
         "keys": {
+            "nextPaymentLabel": "NEXT_PAYMENT_LABEL",
+            "nextPaymentWhenever": "NEXT_PAYMENT_WHENEVER",
             "overlineRest": "OVERLINE_REST",
             "overlineNeutral": "OVERLINE_NEUTRAL",
             "subtitleTraveling": "SUBTITLE_TRAVELING",
             "subtitleNoTrip": "SUBTITLE_NO_TRIP",
             "viewItinerary": "VIEW_ITINERARY",
             "itineraryNotReady": "ITINERARY_NOT_READY",
-            "actionNeededLabel": "ACTION_NEEDED_LABEL",
-            "authorizeCard": "AUTHORIZE_CARD",
+            "advisorLabel": "ADVISOR_LABEL",
             "advisorName": "ADVISOR_NAME",
             "advisorRole": "ADVISOR_ROLE",
             "advisorReplyTime": "ADVISOR_REPLY_TIME",
@@ -376,6 +434,7 @@ MESSAGE_TABLES = [
             "quickSendPassport": "QUICK_SEND_PASSPORT",
             "quickScheduleCall": "QUICK_SCHEDULE_CALL",
             "replyWindow": "REPLY_WINDOW",
+            "autoReply": "AUTO_REPLY",
         },
     },
     {
@@ -440,7 +499,6 @@ MESSAGE_TABLES = [
             "viewTrip": "VIEW_TRIP",
             "viewSummary": "VIEW_SUMMARY",
             "viewMemories": "VIEW_MEMORIES",
-            "authorizeCard": "AUTHORIZE_CARD",
             "changedUnknown": "CHANGED_UNKNOWN",
         },
     },
@@ -484,6 +542,25 @@ MESSAGE_TABLES = [
         },
     },
     {
+        # §2.2.3's pay block (2026-10-16). The web keys live in TRIP_DETAIL beside the rest of
+        # the trip page; the phone keeps them in their own object because the dashboard's
+        # next-payment card renders the same block. The two templated lines ("Pay {label}",
+        # "I've paid the {label} ({amount}).") are functions on both stacks and are pinned by
+        # their unit tests, not here.
+        "label": "2.2.3 pay links",
+        "web_file": ROOT / "web/app/(client)/trips/[tripId]/content.ts",
+        "web_const": "TRIP_DETAIL",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/PayLinks.kt",
+        "kmp_object": "PayLinkMessages",
+        "keys": {
+            "noSchedule": "EMPTY_SCHEDULE",
+            "payDirect": "PAY_DIRECT",
+            "iPaid": "I_HAVE_PAID",
+            "iPaidThanks": "I_HAVE_PAID_THANKS",
+            "iPaidFailed": "I_HAVE_PAID_FAILED",
+        },
+    },
+    {
         # The biggest per-screen table in §2.2, and it covers 2.2.10 as well — the
         # cancellation summary labels live here. Thirty-four strings that matched by hand
         # and by nothing else until now.
@@ -518,7 +595,6 @@ MESSAGE_TABLES = [
             "due": "DUE",
             "waived": "WAIVED",
             "overdue": "OVERDUE",
-            "noSchedule": "NO_SCHEDULE",
             "cancelledHeading": "CANCELLED_HEADING",
             "cancelledReason": "CANCELLED_REASON",
             "cancelledRefund": "CANCELLED_REFUND",
@@ -995,8 +1071,6 @@ MESSAGE_TABLES = [
             "helpSub": "HELP_SUB",
             "privacy": "PRIVACY",
             "privacySub": "PRIVACY_SUB",
-            "wallet": "WALLET",
-            "walletSub": "WALLET_SUB",
             "comingSoon": "COMING_SOON",
             "signOut": "SIGN_OUT",
         },
@@ -1228,86 +1302,6 @@ MESSAGE_TABLES = [
             "newSending": "NEW_SENDING",
             "newFailed": "NEW_FAILED",
             "attachDeferred": "ATTACH_DEFERRED",
-        },
-    },
-    {
-        # §2.4's whole section. The most compliance-sensitive copy in the app: `feeAssurance`
-        # states a hard BRD §10.5 constraint, `chargedBySupplier*` says who actually took the
-        # money, and `consentMandate` is FROZEN into card_authorization.consent_payload at the
-        # moment a traveler agrees — that string may be superseded by a new version, never
-        # edited, and the Edge Function holds its own copy for the same reason.
-        #
-        # Every plain-string key in WALLET is listed. An unlisted key is not a failure here,
-        # it is invisible — which on this table would mean the two stacks quietly disagreeing
-        # about what a traveler consented to.
-        "label": "2.4 wallet",
-        "web_file": ROOT / "web/lib/wallet/content.ts",
-        "web_const": "WALLET",
-        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/wallet/WalletCopy.kt",
-        "kmp_object": "WalletMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "feeAssurance": "FEE_ASSURANCE",
-            "feeAssuranceBody": "FEE_ASSURANCE_BODY",
-            "statusActive": "STATUS_ACTIVE",
-            "statusRevoked": "STATUS_REVOKED",
-            "statusExpired": "STATUS_EXPIRED",
-            "viewActivity": "VIEW_ACTIVITY",
-            "removeAuthorization": "REMOVE_AUTHORIZATION",
-            "addCard": "ADD_CARD",
-            "addCardDeferred": "ADD_CARD_DEFERRED",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "authorizeTitle": "AUTHORIZE_TITLE",
-            "authorizeCardHeading": "AUTHORIZE_CARD_HEADING",
-            "authorizeNoNewCard": "AUTHORIZE_NO_NEW_CARD",
-            "limitHeading": "LIMIT_HEADING",
-            "limitBody": "LIMIT_BODY",
-            "limitCustom": "LIMIT_CUSTOM",
-            "expiresLabel": "EXPIRES_LABEL",
-            "expiresHint": "EXPIRES_HINT",
-            "consentMandate": "CONSENT_MANDATE",
-            "authorizeCta": "AUTHORIZE_CTA",
-            "authorizeFailed": "AUTHORIZE_FAILED",
-            "consentRequired": "CONSENT_REQUIRED",
-            "statusFailed": "STATUS_FAILED",
-            "confirmedTitle": "CONFIRMED_TITLE",
-            "confirmedOverline": "CONFIRMED_OVERLINE",
-            "confirmedSummary": "CONFIRMED_SUMMARY",
-            "confirmedTrip": "CONFIRMED_TRIP",
-            "confirmedCard": "CONFIRMED_CARD",
-            "confirmedLimit": "CONFIRMED_LIMIT",
-            "confirmedExpires": "CONFIRMED_EXPIRES",
-            "confirmedBackToTrip": "CONFIRMED_BACK_TO_TRIP",
-            "activityTitle": "ACTIVITY_TITLE",
-            "activitySubtitle": "ACTIVITY_SUBTITLE",
-            "activityEmptyTitle": "ACTIVITY_EMPTY_TITLE",
-            "activityEmptyBody": "ACTIVITY_EMPTY_BODY",
-            "filterAllCards": "FILTER_ALL_CARDS",
-            "filterAllTrips": "FILTER_ALL_TRIPS",
-            "useDetailTitle": "USE_DETAIL_TITLE",
-            "chargedBySupplier": "CHARGED_BY_SUPPLIER",
-            "chargedBySupplierBody": "CHARGED_BY_SUPPLIER_BODY",
-            "detailAmount": "DETAIL_AMOUNT",
-            "detailCard": "DETAIL_CARD",
-            "detailSupplier": "DETAIL_SUPPLIER",
-            "detailPaidBy": "DETAIL_PAID_BY",
-            "detailTrip": "DETAIL_TRIP",
-            "detailWhen": "DETAIL_WHEN",
-            "detailReference": "DETAIL_REFERENCE",
-            "askGyasi": "ASK_GYASI",
-            "flagUnfamiliar": "FLAG_UNFAMILIAR",
-            "flagDeferred": "FLAG_DEFERRED",
-            "removeTitle": "REMOVE_TITLE",
-            "removeOverline": "REMOVE_OVERLINE",
-            "removeBodyLead": "REMOVE_BODY_LEAD",
-            "removeBodyPast": "REMOVE_BODY_PAST",
-            "removeThisAuthorization": "REMOVE_THIS_AUTHORIZATION",
-            "removeCardStays": "REMOVE_CARD_STAYS",
-            "removeCta": "REMOVE_CTA",
-            "removeCancel": "REMOVE_CANCEL",
-            "removeFailed": "REMOVE_FAILED",
         },
     },
 ]

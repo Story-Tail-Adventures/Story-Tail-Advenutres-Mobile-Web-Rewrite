@@ -61,7 +61,7 @@ BEGIN
     PERFORM set_config('role', 'authenticated', true);
     PERFORM set_config(
         'request.jwt.claims',
-        json_build_object('sub', account::text, 'role', 'authenticated')::text,
+        json_build_object('sub', account::text, 'role', 'authenticated', 'aal', 'aal2')::text,
         true
     );
 END;
@@ -81,9 +81,7 @@ SELECT
         AND status = 'archived')                           AS archived_clients,
     (SELECT count(*) FROM public.client
       WHERE agent_id = '0195a2c0-1a00-7000-8000-000000000001'
-        AND status = 'merged_into')                        AS merged_clients,
-    (SELECT lifetime_value_cents FROM public.client
-      WHERE email = 'jordan.hayes@example.com')            AS jordan_cached_ltv;
+        AND status = 'merged_into')                        AS merged_clients;
 
 -- The temp table is owned by postgres; every assertion below reads it while the session has
 -- dropped into `authenticated`, which holds no grant on it by default.
@@ -101,9 +99,6 @@ SELECT pg_temp.expect_denied(
 SELECT pg_temp.expect_denied(
     'SELECT tags FROM public.client',
     'agent cannot select client.tags directly');
-SELECT pg_temp.expect_denied(
-    'SELECT lifetime_value_cents FROM public.client',
-    'agent cannot select client.lifetime_value_cents directly');
 SELECT pg_temp.expect_denied(
     'SELECT * FROM public.client',
     'select * on client is refused outright rather than quietly returning fewer columns');
@@ -155,15 +150,18 @@ SELECT pg_temp.assert(
 -- 3. Money: derived, and USD
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- The cache is NOT the source. Jordan's seeded client.lifetime_value_cents is a stale
--- hand-written figure and nothing in the repository maintains it. The cached value is read
--- ABOVE, as the table owner, because an agent selecting that column is denied — which is
--- itself the reason the accessor has to derive the number.
+-- There is no cache to read. client.lifetime_value_cents was never maintained and was dropped
+-- in 20261028120000_agent_reports.sql (§3.11 ruling), so the accessor's figure can only be the
+-- one it derives from committed trips. Asserted from the catalog, because the reader that would
+-- be tempted by the column is a future one.
 SELECT pg_temp.assert(
-    (SELECT lifetime_value_cents::bigint
-       FROM public.agent_client_roster(NULL, NULL, 'jordan.hayes@example.com', 10, 0))
-    <> (SELECT jordan_cached_ltv FROM expected),
-    'lifetime value is derived from committed trips, not read from the unmaintained cache');
+    -- pg_attribute, not information_schema: the session is an agent here, and
+    -- information_schema hides columns the role holds no privilege on, so it would pass
+    -- whether the column existed or not.
+    NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute
+                 WHERE attrelid = 'public.client'::regclass
+                   AND attname = 'lifetime_value_cents' AND NOT attisdropped),
+    'client.lifetime_value_cents is gone: lifetime value is derived, never cached');
 
 -- The three-trip client, asserted against figures read off the seed BY HAND rather than
 -- recomputed with the accessor's own expression. A fixture derived from the implementation

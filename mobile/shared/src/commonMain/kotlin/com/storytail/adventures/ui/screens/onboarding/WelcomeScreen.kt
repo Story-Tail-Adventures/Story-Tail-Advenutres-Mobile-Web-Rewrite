@@ -42,12 +42,12 @@ private val WELCOME_CARDS = listOf(
             "to carry with you.",
     ),
     WelcomeCard(
-        "Securely authorize cards",
-        // BRD §10.5: the agency is contractually barred from charging planning fees, and
-        // this is the thing travelers most need to hear — said in a way that does not imply
-        // we hold the card ourselves.
-        "Your card stays with Stripe, not in our database. It pays the resort or cruise " +
-            "line directly — and there's never a planning fee from us.",
+        "Pay suppliers directly",
+        // Rewritten 2026-10-16 (§3.6 ruling): the app never holds a card. BRD §10.5: the
+        // agency is contractually barred from charging planning fees, and this is the thing
+        // travelers most need to hear. Matches web/app/(onboarding)/welcome/state.ts.
+        "Each payment goes straight to the resort, cruise line or tour company, on its own secure site. " +
+            "We never see your card, and there's never a planning fee from us.",
     ),
     WelcomeCard(
         "Talk to me anytime",

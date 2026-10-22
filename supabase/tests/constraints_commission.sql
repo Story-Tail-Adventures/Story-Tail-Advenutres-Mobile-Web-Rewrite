@@ -132,10 +132,16 @@ SELECT pg_temp.assert(
 
 -- The fee is what separates a settled row from one to chase. Both shapes are in the seed
 -- on purpose, and this is the expression screen 3.7.6 renders.
+--
+-- Over EVERY received row, not one: §3.7's seed block added a year of deposits, three of them
+-- with a fee. The count guard keeps bool_and from passing over zero rows, where it is NULL.
 SELECT pg_temp.assert(
-    (SELECT expected_commission_cents - processing_fee_cents - received_commission_cents
-       FROM public.commission WHERE status = 'received') = 0,
-    'the received row reconciles exactly once its processing fee is allowed for');
+    (SELECT count(*) FROM public.commission
+      WHERE status = 'received' AND processing_fee_cents > 0) >= 2
+    AND (SELECT bool_and(expected_commission_cents - processing_fee_cents
+                         - received_commission_cents = 0)
+           FROM public.commission WHERE status = 'received'),
+    'every received row reconciles exactly once its processing fee is allowed for');
 
 SELECT pg_temp.assert(
     (SELECT expected_commission_cents - processing_fee_cents - received_commission_cents
@@ -164,7 +170,7 @@ BEGIN
     PERFORM set_config('role', 'authenticated', true);
     PERFORM set_config(
         'request.jwt.claims',
-        json_build_object('sub', account::text, 'role', 'authenticated')::text, true);
+        json_build_object('sub', account::text, 'role', 'authenticated', 'aal', 'aal2')::text, true);
 END;
 $$;
 
@@ -258,7 +264,7 @@ INSERT INTO public.commission (
     expected_commission_cents, processing_fee_cents, received_commission_cents, currency,
     payment_terms, status, received_at, inteletravel_reference
 ) VALUES ('01a0b1c2-d300-7000-8000-00000000ff02', :trip40, :gyasi, :sandals,
-          99999900, 50.00, 49999950, 0, 0, 'USD', 'absurd', 'expected', NULL, NULL);
+          99999900, 50.00, 49999950, 0, 0, 'USD', 'after_travel', 'expected', NULL, NULL);
 
 SELECT pg_temp.become('0195a2c0-1a00-7000-8000-000000000010'::uuid);
 SELECT pg_temp.assert(
@@ -369,38 +375,12 @@ SELECT pg_temp.assert(
 
 DELETE FROM public.payment_milestone WHERE id::text LIKE '01a0b1c2-d300-7000-8000-00000000fa0%';
 
--- The other dated promise. Data-Model §9.2 says authorizations expire automatically and
--- nothing anywhere wrote 'expired'. This one is on a payment surface and it BLOCKS: the
--- card_auth_active_per_trip unique index is partial on status='active', so a stale row that
--- never expires stops a new authorization for the same card and trip being created at all.
-CREATE TEMP TABLE auth_probe AS
-SELECT id, payment_card_id, trip_id FROM public.card_authorization LIMIT 1;
-
+-- The sweep used to expire card authorizations too. The card tables were dropped on
+-- 2026-10-16 (§3.6), and the sweep now returns only the milestone count.
 SELECT pg_temp.assert(
-    (SELECT count(*) FROM auth_probe) = 1,
-    'the seed has a card_authorization to bite on');
-
-UPDATE public.card_authorization
-   SET status = 'active', expires_at = now() - interval '2 days'
- WHERE id = (SELECT id FROM auth_probe);
-
-SELECT public.sweep_dated_promises();
-
-SELECT pg_temp.assert(
-    (SELECT status FROM public.card_authorization WHERE id = (SELECT id FROM auth_probe))
-        = 'expired',
-    'an authorization past expires_at is expired — and until now nothing in the repository '
-    'ever wrote that value');
-
--- `revoked` is somebody's decision and a sweep must not overwrite it with a weaker word.
-UPDATE public.card_authorization
-   SET status = 'revoked', expires_at = now() - interval '2 days'
- WHERE id = (SELECT id FROM auth_probe);
-SELECT public.sweep_dated_promises();
-SELECT pg_temp.assert(
-    (SELECT status FROM public.card_authorization WHERE id = (SELECT id FROM auth_probe))
-        = 'revoked',
-    'a REVOKED authorization past its expiry stays revoked');
+    pg_get_function_result('public.sweep_dated_promises()'::regprocedure)
+        = 'TABLE(milestones_marked_overdue integer)',
+    'sweep_dated_promises() lost its card branch and returns the milestone count alone');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 6. One forward guard, LABELLED as vacuous today

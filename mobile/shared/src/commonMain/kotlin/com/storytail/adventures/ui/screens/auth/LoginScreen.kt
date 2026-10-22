@@ -9,6 +9,7 @@ package com.storytail.adventures.ui.screens.auth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -117,7 +119,13 @@ fun LoginScreen(
             }
 
             state.formError?.let { error ->
-                FormErrorCard(message = error.message, actionLabel = error.action?.label)
+                FormErrorCard(
+                    message = error.message,
+                    actionLabel = error.action?.label,
+                    // Only an outside link is opened from here (the locked account's "Email
+                    // Gyasi"); in-app routes stay a label, as they always were on this card.
+                    mailto = error.action?.route?.takeIf { it.startsWith("mailto:") },
+                )
             }
 
             OutlinedButton(
@@ -263,7 +271,8 @@ fun LoginScreen(
 }
 
 @Composable
-private fun FormErrorCard(message: String, actionLabel: String?) {
+private fun FormErrorCard(message: String, actionLabel: String?, mailto: String? = null) {
+    val uriHandler = LocalUriHandler.current
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -272,7 +281,19 @@ private fun FormErrorCard(message: String, actionLabel: String?) {
     ) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text(text = message, style = MaterialTheme.typography.bodySmall)
-            if (actionLabel != null) {
+            if (actionLabel != null && mailto != null) {
+                TextButton(
+                    onClick = { runCatching { uriHandler.openUri(mailto) } },
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Text(
+                        text = actionLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            } else if (actionLabel != null) {
                 Text(
                     text = actionLabel,
                     style = MaterialTheme.typography.bodySmall,

@@ -10,6 +10,15 @@ import { serviceClient, type Db } from "./db.ts";
 import { badRequest, forbidden } from "./problem.ts";
 
 /**
+ * The 403 detail an agent route answers when the session has no second factor.
+ *
+ * Exported because the web and the phone key their "finish signing in" path off the
+ * status AND this sentence; changing the words is a three-place change.
+ */
+export const AGENT_MFA_REQUIRED =
+  "Finish signing in with your authenticator code to open the advisor side.";
+
+/**
  * The caller's agent id, or 403. A traveler has none and does not belong on these routes.
  *
  * WHY THIS EXISTS RATHER THAN `requireRole(ctx, "agent")`, which would look equivalent:
@@ -35,10 +44,25 @@ import { badRequest, forbidden } from "./problem.ts";
  * out is a support incident, not a security control. `archived` is the terminal state.
  *
  * The two must agree. If one moves, move both.
+ *
+ * AND IT REQUIRES aal2, because agent MFA is required (BRD §11 Security, Data-Model §5.1
+ * `mfa_required`) and until 2026-10-16 only the web proxy nudged it — and only for an
+ * advisor who already had a factor. A password alone reached every agent route from the
+ * phone, from curl, from anything holding the token. `current_agent_id()` makes the same
+ * test on the read side (20261023120000_agent_mfa_required.sql), so a stolen password
+ * opens neither door. Again: if one moves, move both.
+ *
+ * Checked BEFORE the status lookup, so an aal1 session learns nothing about the advisor
+ * record, and costs no database read. This is the plain "has a second factor this
+ * session" test; `requireRecentMfa` stays the stricter step-up for the few ops that need
+ * a fresh code (§3.9's `verify_email`).
  */
 export async function requireAgentId(ctx: AuthContext, db: Db): Promise<string> {
   if (ctx.role !== "agent" || !ctx.agentId) {
     throw forbidden("This is the advisor's side of the platform.");
+  }
+  if (ctx.aal !== "aal2") {
+    throw forbidden(AGENT_MFA_REQUIRED);
   }
 
   // serviceClient (see `agentDb`): `public.agent` has no self-read policy for the agent

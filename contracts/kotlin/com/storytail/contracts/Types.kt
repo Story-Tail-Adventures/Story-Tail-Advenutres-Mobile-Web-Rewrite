@@ -132,6 +132,54 @@ enum class OnboardingStepRequestStep {
 }
 
 @Serializable
+enum class AgentArchiveThreadsRequestOp {
+    @SerialName("archive")
+    ARCHIVE,
+}
+
+@Serializable
+enum class AgentMarkThreadReadRequestOp {
+    @SerialName("read")
+    READ,
+}
+
+@Serializable
+enum class PushDeviceResponseOutcome {
+    @SerialName("registered")
+    REGISTERED,
+    @SerialName("unregistered")
+    UNREGISTERED,
+    @SerialName("not_found")
+    NOT_FOUND,
+}
+
+@Serializable
+enum class PushUnregisterRequestOp {
+    @SerialName("unregister")
+    UNREGISTER,
+}
+
+@Serializable
+enum class PushRegisterRequestPlatform {
+    @SerialName("web")
+    WEB,
+    @SerialName("android")
+    ANDROID,
+}
+
+@Serializable
+enum class PushRegisterRequestOp {
+    @SerialName("register")
+    REGISTER,
+}
+
+@Serializable
+enum class AgentSendMessageRequestOp {
+    @SerialName("send")
+    SEND,
+}
+
+@Serializable
 enum class AgentTripStatusResponsePreviousStatus {
     @SerialName("inquiry")
     INQUIRY,
@@ -177,44 +225,6 @@ enum class AgentTripStatusRequestStatus {
     COMPLETED,
     @SerialName("cancelled")
     CANCELLED,
-}
-
-@Serializable
-enum class CardAuthorizationResponseStatus {
-    @SerialName("active")
-    ACTIVE,
-    @SerialName("revoked")
-    REVOKED,
-    @SerialName("expired")
-    EXPIRED,
-}
-
-@Serializable
-enum class CardAuthorizationRequestAction {
-    @SerialName("create")
-    CREATE,
-    @SerialName("revoke")
-    REVOKE,
-}
-
-@Serializable
-enum class WalletAuthorizationStatus {
-    @SerialName("active")
-    ACTIVE,
-    @SerialName("revoked")
-    REVOKED,
-    @SerialName("expired")
-    EXPIRED,
-}
-
-@Serializable
-enum class WalletCardStatus {
-    @SerialName("active")
-    ACTIVE,
-    @SerialName("revoked")
-    REVOKED,
-    @SerialName("expired")
-    EXPIRED,
 }
 
 @Serializable
@@ -359,151 +369,6 @@ data class SaveTestimonialResponse(
     val submittedAt: String? = null,
 )
 
-/** A card on file. NEITHER STRIPE COLUMN APPEARS HERE and neither ever */
-/** should — see CLAUDE.md rule 4. Brand and last 4 are the non-sensitive */
-/** metadata the traveler needs to recognize their own card. */
-@Serializable
-data class WalletCard(
-    @SerialName("id")
-    val id: String,
-    // Stripe's brand slug, e.g. `visa`, `mastercard`, `amex`.
-    @SerialName("brand")
-    val brand: String,
-    @SerialName("last4")
-    val last4: String,
-    @SerialName("expMonth")
-    val expMonth: Int,
-    @SerialName("expYear")
-    val expYear: Int,
-    // The traveler's own label, e.g. "Personal Visa".
-    @SerialName("nickname")
-    val nickname: String? = null,
-    @SerialName("status")
-    val status: WalletCardStatus,
-    @SerialName("consentRecordedAt")
-    val consentRecordedAt: String? = null,
-    @SerialName("revokedAt")
-    val revokedAt: String? = null,
-    @SerialName("revokedReason")
-    val revokedReason: String? = null,
-)
-
-/** One card bound to one trip, with a ceiling and an expiry. */
-@Serializable
-data class WalletAuthorization(
-    @SerialName("id")
-    val id: String,
-    @SerialName("cardId")
-    val cardId: String,
-    @SerialName("tripId")
-    val tripId: String,
-    // Resolved server-side so neither client has to join. Null when the trip is no
-    // longer readable — an authorization outliving its trip is a state the traveler
-    // should still see rather than a row that renders blank.
-    @SerialName("tripTitle")
-    val tripTitle: String? = null,
-    // The ceiling the traveler set. Capped at $250,000 by the function.
-    @SerialName("spendingLimitCents")
-    val spendingLimitCents: Int,
-    // Denormalized on `card_authorization`. Both clients derive "remaining" from this
-    // and clamp it at zero — a supplier overcharging past the ceiling is a real state,
-    // and a negative remaining is not a number to show anybody.
-    @SerialName("amountUsedCents")
-    val amountUsedCents: Int,
-    @SerialName("expiresAt")
-    val expiresAt: String,
-    @SerialName("status")
-    val status: WalletAuthorizationStatus,
-    @SerialName("revokedAt")
-    val revokedAt: String? = null,
-    @SerialName("createdAt")
-    val createdAt: String,
-)
-
-/** One time a card on file was used to pay a supplier. Currently fixture-fed: the */
-/** producing surface is the agent's reveal-and-record flow in §3.6, which is unbuilt. */
-@Serializable
-data class WalletUseEvent(
-    @SerialName("id")
-    val id: String,
-    @SerialName("authorizationId")
-    val authorizationId: String? = null,
-    @SerialName("cardId")
-    val cardId: String,
-    @SerialName("tripId")
-    val tripId: String? = null,
-    @SerialName("tripTitle")
-    val tripTitle: String? = null,
-    // `supplier_name_snapshot`, never a join. Null is possible and is not an error: a
-    // portal booking names a merchant with no `supplier` row behind it.
-    @SerialName("supplierName")
-    val supplierName: String? = null,
-    @SerialName("amountCents")
-    val amountCents: Int,
-    @SerialName("currency")
-    val currency: String,
-    @SerialName("referenceNumber")
-    val referenceNumber: String? = null,
-    @SerialName("createdAt")
-    val createdAt: String,
-)
-
-@Serializable
-data class WalletResponse(
-    @SerialName("cards")
-    val cards: List<WalletCard>,
-    @SerialName("authorizations")
-    val authorizations: List<WalletAuthorization>,
-    @SerialName("events")
-    val events: List<WalletUseEvent>,
-)
-
-@Serializable
-data class CardAuthorizationRequest(
-    @SerialName("action")
-    val action: CardAuthorizationRequestAction,
-    // Client-generated UUID v7 on `create`; the server validates the embedded
-    // timestamp is recent (Data-Model §21.6). Supplying it client-side is what makes a
-    // retry idempotent against the primary key rather than a second authorization. On
-    // `revoke` it names the existing row.
-    @SerialName("authorizationId")
-    val authorizationId: String? = null,
-    // `create` only. Must be an active card belonging to the caller.
-    @SerialName("cardId")
-    val cardId: String? = null,
-    // `create` only. `card_authorization.trip_id` is NOT NULL.
-    @SerialName("tripId")
-    val tripId: String? = null,
-    // `create` only. Zero and negatives are refused: an authorization that permits
-    // nothing is a record with no meaning, not a cautious default.
-    @SerialName("spendingLimitCents")
-    val spendingLimitCents: Int? = null,
-    // `create` only. Both clients default to trip end + 7 days so a late supplier
-    // charge still goes through. The function caps it at ten years out.
-    @SerialName("expiresAt")
-    val expiresAt: String? = null,
-    // `create` only, and required to be true. Re-checked server-side even though both
-    // clients gate the submit button on it — the stored `consent_payload` is a
-    // compliance record, and one written for somebody who never ticked the box is
-    // worse than no record at all. The TEXT is the server's, never the request's.
-    @SerialName("consent")
-    val consent: Boolean? = null,
-)
-
-@Serializable
-data class CardAuthorizationResponse(
-    @SerialName("authorizationId")
-    val authorizationId: String,
-    @SerialName("status")
-    val status: CardAuthorizationResponseStatus,
-    // `create` only. False means the id already existed — a retry.
-    @SerialName("created")
-    val created: Boolean? = null,
-    // `revoke` only. False means it was already revoked or expired.
-    @SerialName("changed")
-    val changed: Boolean? = null,
-)
-
 @Serializable
 data class AgentTripStatusRequest(
     @SerialName("tripId")
@@ -560,6 +425,122 @@ data class AgentTripNotesResponse(
     // False when the submitted notes matched what was already stored.
     @SerialName("changed")
     val changed: Boolean,
+)
+
+@Serializable
+data class AgentSendMessageRequest(
+    @SerialName("op")
+    val op: AgentSendMessageRequestOp,
+    // Client-generated UUID v7, minted once per draft so a double send or a retry
+    // lands once (the repeat is a 400, "already sent"). Validated as recent.
+    @SerialName("messageId")
+    val messageId: String,
+    // An existing thread. Mutually exclusive with `clientId` / `tripId`.
+    @SerialName("conversationId")
+    val conversationId: String? = null,
+    // Starts or finds this client's live thread. Mutually exclusive with `conversationId`.
+    @SerialName("clientId")
+    val clientId: String? = null,
+    // With `clientId`, that trip's thread; without it, the general thread.
+    @SerialName("tripId")
+    val tripId: String? = null,
+    @SerialName("body")
+    val body: String,
+    // REQUIRED. True writes a note only the advisor sees.
+    @SerialName("internalNote")
+    val internalNote: Boolean,
+    // `created_at` of the newest message on screen, EXACTLY as PostgREST wrote it.
+    // Writing in a thread reads it only up to here. Omitted on a new message.
+    @SerialName("seenUpTo")
+    val seenUpTo: String? = null,
+)
+
+@Serializable
+data class AgentSendMessageResponse(
+    @SerialName("messageId")
+    val messageId: String,
+    // The thread written to, which a new message may have just started.
+    @SerialName("conversationId")
+    val conversationId: String,
+    @SerialName("createdAt")
+    val createdAt: String,
+)
+
+@Serializable
+data class PushRegisterRequest(
+    @SerialName("op")
+    val op: PushRegisterRequestOp,
+    @SerialName("platform")
+    val platform: PushRegisterRequestPlatform,
+    // A fresh client-minted v7. An address already registered keeps its own id.
+    @SerialName("deviceId")
+    val deviceId: String,
+    // `android` only, and required there: the Firebase registration token.
+    @SerialName("fcmToken")
+    val fcmToken: String? = null,
+    // `web` only, and required there: `PushSubscription.toJSON()`.
+    @SerialName("subscription")
+    val subscription: JsonElement? = null,
+    // "Chrome · macOS" or the phone model, for a later device list. Optional.
+    @SerialName("label")
+    val label: String? = null,
+)
+
+/** At least one of `fcmToken` (a phone) or `endpoint` (a browser); neither is a 400. */
+@Serializable
+data class PushUnregisterRequest(
+    @SerialName("op")
+    val op: PushUnregisterRequestOp,
+    @SerialName("fcmToken")
+    val fcmToken: String? = null,
+    @SerialName("endpoint")
+    val endpoint: String? = null,
+)
+
+@Serializable
+data class PushDeviceResponse(
+    @SerialName("outcome")
+    val outcome: PushDeviceResponseOutcome,
+    // `register` only: the device's row id.
+    @SerialName("deviceId")
+    val deviceId: String? = null,
+)
+
+@Serializable
+data class AgentMarkThreadReadRequest(
+    @SerialName("op")
+    val op: AgentMarkThreadReadRequestOp,
+    @SerialName("conversationId")
+    val conversationId: String,
+    // `created_at` of the newest message on screen, as PostgREST wrote it.
+    @SerialName("seenUpTo")
+    val seenUpTo: String,
+)
+
+@Serializable
+data class AgentMarkThreadReadResponse(
+    // False when nothing was unread, or the thread is not the caller's (one answer).
+    @SerialName("changed")
+    val changed: Boolean,
+)
+
+@Serializable
+data class AgentArchiveThreadsRequest(
+    @SerialName("op")
+    val op: AgentArchiveThreadsRequestOp,
+    @SerialName("conversationIds")
+    val conversationIds: List<String>,
+    // True archives from the advisor's inbox; false brings back.
+    @SerialName("archived")
+    val archived: Boolean,
+)
+
+@Serializable
+data class AgentArchiveThreadsResponse(
+    @SerialName("moved")
+    val moved: Int,
+    @SerialName("requested")
+    val requested: Int,
 )
 
 @Serializable

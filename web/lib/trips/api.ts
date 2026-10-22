@@ -21,11 +21,7 @@ export type TripFunction =
   | "trip-document"
   | "trip-document-url"
   | "testimonial"
-  | "quote-request"
-  // §2.4. Unlike the five above, these two are not a convenience over PostgREST — the
-  // payment tables hold no client-role privilege at all, so they are the only path there is.
-  | "payment-wallet"
-  | "card-authorization";
+  | "quote-request";
 
 export type TripCallResult = EdgeCallResult;
 

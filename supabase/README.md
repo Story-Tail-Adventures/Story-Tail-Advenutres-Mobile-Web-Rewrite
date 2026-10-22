@@ -20,8 +20,8 @@ Seeded logins, all with password `DevPassword!234`:
 **RLS is enabled on all 34 tables and only three policies exist** — the self-read
 policies on `account`, `platform_user` and `client` that Login needs. Everything else is
 service-role-only until the full RLS pass lands. That is safe by default, but it also
-means CLAUDE.md rule 4 (Stripe `PaymentMethod` IDs are server-only) is currently enforced
-by convention rather than by the database. Use the `rls-policy` skill for the rest; it
+means server-only columns are protected by GRANTs and service-role-only functions, not by
+policies. Use the `rls-policy` skill for the rest; it
 tests each policy under a forged JWT rather than just writing it.
 
 ## Initialize
@@ -51,16 +51,12 @@ supabase/
 │   ├── _shared/             # Shared utilities across functions
 │   │   ├── audit.ts         # Audit event helper
 │   │   ├── auth.ts          # JWT verification, MFA step-up
-│   │   └── stripe.ts        # Stripe SDK wrapper
-│   ├── stripe-setup-intent/
-│   ├── stripe-vault-forward/
-│   ├── stripe-reveal-pan/
+│   │   └── payLink.ts       # Pay-link checks (https only, no card numbers)
 │   ├── commission-import/
 │   ├── travel-api-proxy-amadeus/
 │   ├── travel-api-proxy-hotelbeds/
 │   ├── travel-api-proxy-viator/
-│   ├── travel-api-proxy-widgety/
-│   └── webhooks-stripe/
+│   └── travel-api-proxy-widgety/
 ├── seed.sql                 # Optional seed data for local dev
 └── tests/                   # Optional pgTAP database tests
 ```
@@ -141,7 +137,7 @@ supabase secrets set ALLOWED_ORIGIN=<the production origin> --project-ref <prod-
 
 The cruise catalog sync (`functions/cruise-sync`, migrations `20260909001124` and
 `20260909001125`) needs one secret to work and two more for the schedule to fire. All three
-are set out of band, the same way `ALLOWED_ORIGIN` and the Stripe key are — none of them
+are set out of band, the same way `ALLOWED_ORIGIN` is — none of them
 belongs in git.
 
 **The API key.** track.cruises relays through RapidAPI; the free BASIC plan is 100
@@ -275,12 +271,155 @@ HTTP attempt, month-to-date is the budget), `cruise_sync_run` is one row per inv
 `cruise_sync_scope` is what the sync is allowed to fetch. Widening the sync is an `UPDATE` on
 that last table, not a deploy.
 
+## Notification secrets (§3.10 Stage 3b)
+
+Advisors' web notifications (`functions/push-device`, `functions/push-dispatch`, migration
+`20261017120000`) need one key pair and one vault secret. None belongs in git.
+
+**The Web Push (VAPID) keys.** Generate a pair once per environment and never reuse the local
+one in production:
+
+```bash
+deno eval 'import w from "npm:web-push@3.6.7"; console.log(w.generateVAPIDKeys())'
+supabase secrets set VAPID_PUBLIC_KEY=<public> VAPID_PRIVATE_KEY=<private> \
+  VAPID_SUBJECT=mailto:<an inbox the push services can reach> --project-ref <prod-ref>
+```
+
+The PUBLIC key also goes to the web app as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (Vercel env, and
+`web/.env.local` locally). It is public by design. The two must be the same pair: a browser
+subscribed with one public key cannot receive pushes signed with another key's private half.
+Changing the pair later silently orphans every existing subscription, so pick it once.
+
+Without the keys `push-dispatch` answers 500 BEFORE claiming anything, so nothing is lost; rows
+wait as `pending` until the keys exist.
+
+**The tick.** `push_dispatch_tick()` runs every minute from pg_cron and posts to the function
+only when something is due. It reuses `cruise_sync_service_role_key` (above) for its key, so the
+one extra secret is the URL:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/push-dispatch',
+  'push_dispatch_function_url');
+-- LOCAL: 'http://kong:8000/functions/v1/push-dispatch', as for the cruise sync.
+```
+
+With either secret missing the tick returns `unprovisioned` and does nothing.
+
+**Locally:** add the three `VAPID_*` lines to `supabase/.env.local` and restart with
+`npm run supabase:start` (or `supabase functions serve --env-file supabase/.env.local`).
+Firing the dispatcher by hand:
+
+```bash
+curl -X POST http://127.0.0.1:54321/functions/v1/push-dispatch \
+  -H "Authorization: Bearer $(supabase status -o json | jq -r .SERVICE_ROLE_KEY)"
+```
+
+Answers `{"sent","retried","dismissed","gone"}`. Any user token is 403.
+
+**Android: the Firebase service-account key.** Firebase console → Project settings → Service
+accounts → Generate new private key. The whole JSON file, as ONE line:
+
+```bash
+supabase secrets set FCM_SERVICE_ACCOUNT_JSON="$(jq -c . < service-account.json)" --project-ref <prod-ref>
+```
+
+Locally it goes in `supabase/.env.local` the same way, single-quoted:
+`FCM_SERVICE_ACCOUNT_JSON='{"type":"service_account",…}'`. A pasted multi-line file does not
+parse. Delete the downloaded file afterwards; it can send to our app and nothing else.
+
+With only one of VAPID or FCM set, that platform's devices answer "error". For an advisor
+whose devices are ALL on that platform, the row retries and ends `failed`, visible in
+`push_outbox`. For an advisor with devices on both, the other platform delivers and the row is
+`sent`: the missing key then shows only in the function log ("push: … send failed"). Check both
+keys after any change. The phone side
+needs the four `firebase.*` values in `mobile/local.properties` (see its `.example`).
+See `../docs/Push-Notifications-Security-Review.md`.
+
+## Email secrets (§3.10 Stage 4)
+
+Client email (`functions/email-dispatch`, `email-inbound`, `email-unsubscribe`, migration
+`20261019120000`). Rulings: `../docs/Email-Provider-Review.md` §6; the library rules:
+`../docs/SMTP-Library-Security-Review.md` §5. None of these belongs in git.
+
+**Sending: the app-only IONOS mailbox, over SMTP on port 465.** Supabase blocks 25 and 587, and
+`emailConfigFromEnv` refuses any other port for a real server.
+
+```bash
+supabase secrets set --project-ref <prod-ref> \
+  EMAIL_SMTP_HOST=smtp.ionos.com EMAIL_SMTP_PORT=465 \
+  EMAIL_SMTP_USER=<the app mailbox address> EMAIL_SMTP_PASSWORD=<its password> \
+  EMAIL_FROM_ADDRESS=<the same address> \
+  EMAIL_SITE_URL=https://storytailadventures.vercel.app \
+  EMAIL_UNSUBSCRIBE_URL=https://<prod-ref>.supabase.co/functions/v1/email-unsubscribe
+```
+
+`EMAIL_SITE_URL` is production's web origin, the one `.github/workflows/deploy.yml` names: the
+Vercel alias today, `https://adventures.story-tail.com` once the brand domain moves there (change it
+then, or every email's links point at the old address). `app.story-tail.com` is not being created.
+IONOS sends only From an address on the mailbox's own domain, so `EMAIL_FROM_ADDRESS` is the
+mailbox itself. Production uses `info@adventures.story-tail.com`, the mailbox Supabase Auth's SMTP
+settings already use (Auth's settings are not readable by functions, so set the login here too;
+change the password in both places). Without these `email-dispatch` answers 500 BEFORE claiming, so rows wait.
+
+**The tick.** `email_dispatch_tick()` runs every minute and reuses `cruise_sync_service_role_key`:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/email-dispatch',
+  'email_dispatch_function_url');
+-- LOCAL: 'http://kong:8000/functions/v1/email-dispatch'.
+```
+
+**Receiving: the same `info@` mailbox, over IMAP** (`functions/email-inbox`, migration
+`20261020120000`; Gyasi, 2026-10-16; `../docs/IMAP-Library-Security-Review.md`). Replies come
+back to `info+<token>@adventures.story-tail.com`; every two minutes `email_inbox_tick()` posts to
+`email-inbox`, which logs in with the SAME `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` on
+`imap.ionos.com:993`, records each message and moves it to `Processed` or `Rejected`. Nothing new
+to set beyond the tick's URL:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/email-inbox',
+  'email_inbox_function_url');
+```
+
+`EMAIL_IMAP_HOST` / `EMAIL_IMAP_PORT` default to IONOS on 993; `EMAIL_IMAP_USER` /
+`EMAIL_IMAP_PASSWORD` exist only for a local test server. No Resend, no MX record, no webhook.
+
+**One more setting, read off the first real reply: `EMAIL_AUTHSERV_ID`.** Replies are trusted only
+when the receiving server vouched for the sender, and only the verdict header IONOS itself writes
+counts. Until this is set, every reply goes to `Rejected` (nothing is lost; the mail is still in the
+mailbox for 30 days). After the first real reply arrives, open it in IONOS webmail (Rejected folder),
+view its source, and copy the first word after the topmost `Authentication-Results:` (a host name,
+such as `mx.ionos.com`; the exact value is unknown until then):
+
+```bash
+supabase secrets set --project-ref <prod-ref> EMAIL_AUTHSERV_ID=<that host name>
+```
+
+**Locally: Mailpit is the mail server.** The local stack runs one (web UI on :54324). Put this in
+`supabase/.env.local` and restart with `npm run supabase:start`:
+
+```bash
+EMAIL_SMTP_HOST=inbucket
+EMAIL_SMTP_PORT=1025
+EMAIL_FROM_ADDRESS=gyasi.messages@adventures.story-tail.com
+EMAIL_SITE_URL=http://localhost:3000
+EMAIL_UNSUBSCRIBE_URL=http://127.0.0.1:54321/functions/v1/email-unsubscribe
+```
+
+`inbucket` is Mailpit's name on the stack's Docker network (its container name does not
+resolve from the edge runtime). No user or password locally: plain SMTP is allowed only to the catcher, and only with no
+credentials. Fire the dispatcher by hand as for push (`.../functions/v1/email-dispatch` with the
+service-role key); a waiting row is due five minutes after the reply.
+
 ## Critical PCI rules for this directory
 
-1. **Never store PANs in migrations or Edge Function code.** Only Stripe tokens (`PaymentMethod` IDs) and Stripe-returned metadata (brand, last 4, expiration). See `../docs/Data-Model.md` §18.
+1. **No cardholder data, anywhere (since 2026-10-16).** No card tables, tokens, Stripe or card SDK. Free-text payment fields (`payment_milestone.pay_url`, `paid_reference`, `paid_note`) refuse card numbers by CHECK and in `_shared/payLink.ts`. See `../docs/Data-Model.md` §9.5 and §18.
 2. **Every mutating Edge Function calls `_shared/audit.ts`** to write an `audit_event` row. See `../docs/Data-Model.md` §20.3.
-3. **MFA step-up is enforced via `_shared/auth.ts`** for PAN reveals, card merges, and Inteletravel CSV imports that touch already-received commissions. See `../docs/Data-Model.md` §18.4.
-4. **Stripe secret key never leaves the backend.** Store it in Supabase environment variables (`stripe-secret`), not in client code or git. The web app uses only the publishable key.
+3. **MFA step-up is enforced via `_shared/auth.ts`** for Inteletravel CSV imports that touch already-received commissions. See `../docs/Data-Model.md` §18.4.
+4. **Pay links are advisor-only and audited.** `https://` only; written through `agent_set_milestone_pay_url` (service role), which writes an `audit_event` for every add, change and removal. Clients read `pay_url` and `paid_reference`, never `paid_note`.
 
 ## First migration
 

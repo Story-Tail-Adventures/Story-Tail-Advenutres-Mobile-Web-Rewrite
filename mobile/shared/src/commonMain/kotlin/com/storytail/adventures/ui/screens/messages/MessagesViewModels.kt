@@ -10,12 +10,14 @@ import com.storytail.adventures.domain.messages.InboxRowView
 import com.storytail.adventures.domain.messages.MessagesMessages
 import com.storytail.adventures.domain.messages.filterInboxRows
 import com.storytail.adventures.domain.messages.inboxRows
+import com.storytail.adventures.domain.trip.AdvisorCard
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.domain.trip.ThreadMessages
 import com.storytail.adventures.ui.components.client.ThreadSurface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 /**
@@ -139,13 +141,42 @@ class ConversationThreadViewModel(
 
     fun load() {
         _state.value = Loadable.Loading
+        read()
+    }
+
+    /** Re-read on entry, keeping what is on screen; see `ThreadViewModel.refresh` for why. */
+    fun refresh() {
+        if (_state.value !is Loadable.Ready) _state.value = Loadable.Loading
+        read()
+    }
+
+    /** §3.12 PR 3: the advisor's photo and "Away until" / reply promise for the header. */
+    private var advisor: AdvisorCard? = null
+
+    private fun read() {
         viewModelScope.launch {
+            val advisorCall = async { trips.advisorCard() }
             val result = trips.conversationThread(conversationId)
+            // A failed advisor read keeps the last one (or the fixed words), never blanks it.
+            advisor = advisorCall.await() ?: advisor
             // Null covers no such row, not yours, and archived alike — the policy makes all
             // three invisible, so none of them can be told apart.
-            _state.value = result?.let { Loadable.Ready(it.toSurface()) } ?: Loadable.Failed()
-            _tripId.value = result?.tripId
+            if (result != null) {
+                _state.value = Loadable.Ready(result.toSurface(advisor))
+                _tripId.value = result.tripId
+            } else if (_state.value !is Loadable.Ready) {
+                _state.value = Loadable.Failed()
+            }
+            markReadIfUnread(result)
         }
+    }
+
+    /** Opening the thread reads it (§3.10 Stage 1), as on 2.2.7: after it is on screen. */
+    private suspend fun markReadIfUnread(snapshot: ConversationThreadSnapshot?) {
+        if (snapshot == null || snapshot.unreadCount <= 0) return
+        // Nothing on screen, nothing read: the server needs the newest message the traveler saw.
+        val seenUpTo = snapshot.messages.lastOrNull()?.createdAt ?: return
+        trips.markConversationRead(conversationId, seenUpTo)
     }
 
     fun changeDraft(next: String) {
@@ -167,7 +198,9 @@ class ConversationThreadViewModel(
                     // and a locally-appended bubble would show a message that might not have
                     // the id, timestamp or ordering the server gave it.
                     val refreshed = trips.conversationThread(conversationId)
-                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface())
+                    if (refreshed != null) _state.value = Loadable.Ready(refreshed.toSurface(advisor))
+                    // The reload can show the advisor's reply that came in while they typed.
+                    markReadIfUnread(refreshed)
                 }
 
                 is SendMessageOutcome.Failed ->
@@ -199,6 +232,14 @@ class NewConversationViewModel(private val trips: TripRepository) : ViewModel() 
 
     private val _started = MutableStateFlow<String?>(null)
     val started: StateFlow<String?> = _started.asStateFlow()
+
+    /** §3.12 PR 3: the advisor's photo and "Away until" / reply promise. Null keeps the fixed words. */
+    private val _advisor = MutableStateFlow<AdvisorCard?>(null)
+    val advisor: StateFlow<AdvisorCard?> = _advisor.asStateFlow()
+
+    init {
+        viewModelScope.launch { trips.advisorCard()?.let { _advisor.value = it } }
+    }
 
     fun changeDraft(next: String) {
         _draft.value = next
@@ -235,9 +276,11 @@ class NewConversationViewModel(private val trips: TripRepository) : ViewModel() 
  * screen was opened from already carried a badge for that number, and repeating it in the
  * header of the thread somebody is now reading says nothing.
  */
-private fun ConversationThreadSnapshot.toSurface(): ThreadSurface = ThreadSurface(
+private fun ConversationThreadSnapshot.toSurface(advisor: AdvisorCard?): ThreadSurface = ThreadSurface(
     title = title,
-    subtitle = MessagesMessages.REPLY_WINDOW,
+    // §3.12 PR 3: "Away until…" while the advisor rests, else their own reply promise.
+    subtitle = advisor?.statusLine ?: MessagesMessages.REPLY_WINDOW,
+    advisor = advisor,
     messages = messages,
     // `ThreadMessages.EMPTY_BODY` says "about this trip", which is wrong on the one thread
     // that has none. Reachable, because `trip-message` is not atomic.

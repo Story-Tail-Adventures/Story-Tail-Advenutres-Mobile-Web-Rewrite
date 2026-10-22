@@ -50,6 +50,8 @@ export type AgentRead =
   | "agent_trip_itinerary_meta"
   | "agent_trip_itinerary_days"
   | "agent_trip_payments"
+  // §3.6.6 Payment History, read from audit_event (2026-10-16).
+  | "agent_trip_payment_history"
   | "agent_trip_documents"
   | "agent_trip_messages"
   | "agent_trip_activity"
@@ -61,7 +63,65 @@ export type AgentRead =
   | "agent_client_conversations"
   | "agent_client_documents"
   | "agent_client_notes"
-  | "agent_client_activity";
+  | "agent_client_activity"
+  // §3.7.1 / §3.7.2. The ledger is service-role-only at the table, so these five definer
+  // accessors are the agent's whole view of it. Two numbers on purpose: the dashboard's
+  // "Expected · 90d" reads trip totals, everything else reads ledger lines.
+  | "agent_commission_ledger"
+  | "agent_commission_ledger_summary"
+  | "agent_commission_ledger_suppliers"
+  | "agent_commission_dashboard"
+  | "agent_commission_monthly"
+  // §3.7.3. One line, through the same scope as the ledger, so a removed line or one whose
+  // two agent ids disagree is no row here either.
+  | "agent_commission_line"
+  // §3.7.5 / §3.7.6. An imported statement, its rows beside their ledger lines, and the
+  // lines one row could pay. The tables are service-role only; these are the whole view.
+  | "agent_commission_imports"
+  | "agent_commission_import"
+  | "agent_commission_import_rows"
+  | "agent_commission_import_candidates"
+  // §3.7.7. Trip grain, the worklist's own weighted figure by stage, and that forecast spread
+  // over the months each booking's supplier should pay.
+  | "agent_commission_forecast"
+  | "agent_commission_cash_in"
+  // §3.4.16 (§3.7 Stage 5). The trip's Expected and Invoiced lines, which the cancel dialog
+  // offers to mark Lost, each with the version the close is checked against.
+  | "agent_trip_open_commission"
+  // §3.10 Stage 1. The advisor's threads (filtered, paged), the inbox header's counts, one
+  // thread's header and messages (internal notes included), and who a new message is for.
+  | "agent_message_threads"
+  | "agent_message_summary"
+  | "agent_conversation"
+  | "agent_conversation_messages"
+  | "agent_message_target"
+  // §3.10 Stage 2. The templates (live, or archived), one for the editor, and the picker's
+  // merge data for one client, trip and milestone.
+  | "agent_message_templates"
+  | "agent_message_template"
+  | "agent_message_merge_context"
+  // §3.9. One jsonb: the account's status, devices and 90 days of sign-ins, or only
+  // {needsMfa} until the session is aal2 (checked in the database).
+  | "agent_client_account_admin"
+  // §3.9.7 / §3.3.11. Likely duplicates, or the merge preview; {needsMfa} until aal2.
+  | "agent_client_merge_view"
+  // §3.12. One jsonb: the advisor's own profile, working hours and the time away still
+  // ahead. NULL below aal2 (checked in the database).
+  | "agent_settings_self"
+  // §3.11. The period every report labels (no row = not an advisor), then one read per
+  // report. Each is the same SQL the audited CSV export runs, so screen and file agree.
+  | "agent_report_period"
+  | "agent_report_revenue_by_month"
+  | "agent_report_commission_by_supplier"
+  | "agent_report_top_destinations"
+  // §3.11 PR 2. Lifetime value takes no period (it is lifetime); the funnel does.
+  | "agent_report_client_lifetime_value"
+  | "agent_report_conversion_funnel"
+  // §3.11.7. Today's open trips: by stage (with this advisor's weights) and by travel month.
+  | "agent_report_pipeline_stages"
+  | "agent_report_pipeline_months"
+  // §3.11.8. The advisor's own recent exports, read from the audit rows each one wrote.
+  | "agent_export_history";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -198,9 +258,6 @@ export type AgentTripOverviewRow = {
   refund_detail: string | null;
   notes: string | null;
   version: number;
-  card_last4: string | null;
-  card_brand: string | null;
-  card_spending_limit_cents: string | null;
   last_activity_at: string | null;
   component_count: number;
   manual_component_count: number;
@@ -243,6 +300,9 @@ export type AgentSupplierRow = {
   name: string;
   kind: string;
   default_commission_pct: number | null;
+  /** §3.7.4's prefill, since 20261011120000. NULL = varies or not on file. */
+  commission_payment_terms: string | null;
+  commission_payment_lag_days: number | null;
 };
 
 export type AgentTripItineraryMetaRow = {
@@ -287,6 +347,28 @@ export type AgentTripPaymentRow = {
   paid_at: string | null;
   status: string;
   order_index: number;
+  /** §3.6.1 (2026-10-16): the supplier's pay link, https only, or null. */
+  pay_url: string | null;
+  /** The supplier's confirmation number from Mark Paid. Client-visible. */
+  paid_reference: string | null;
+  /** The advisor's own note from Mark Paid. INTERNAL: never shown to the client. */
+  paid_note: string | null;
+};
+
+/**
+ * §3.6.6 Payment History: one `audit_event` row about one of the trip's milestones, newest
+ * first. `metadata` is what the writing function recorded (old and new link, paid amounts,
+ * confirmation number); `paid_note` is never in it.
+ */
+export type AgentTripPaymentHistoryRow = {
+  event_id: string;
+  occurred_at: string;
+  event_type: string;
+  milestone_id: string | null;
+  /** The current label, or the one recorded in the event when the milestone is gone. */
+  milestone_label: string | null;
+  actor_name: string | null;
+  metadata: Record<string, unknown> | null;
 };
 
 export type AgentTripDocumentRow = {
@@ -544,6 +626,426 @@ export type AgentClientSummaryRow = {
 };
 
 /**
+ * §3.7.2's ledger row. One per commission LINE, not per trip: a trip can carry several
+ * suppliers' lines, and most trips carry none yet.
+ *
+ * `commission_pct` is Postgres `numeric`, which PostgREST sends as a JSON number. It is a
+ * rate between 0 and 100 with two decimals, so a number is safe here where money is not.
+ */
+export type AgentCommissionLedgerRow = {
+  commission_id: string;
+  trip_id: string;
+  trip_title: string;
+  /** Lines on archived trips stay (a commission line is a tax record); the trip page does not. */
+  trip_archived: boolean;
+  client_id: string;
+  client_display_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  gross_booking_cents: string;
+  commission_pct: number;
+  expected_commission_cents: string;
+  processing_fee_cents: string;
+  received_commission_cents: string;
+  currency: string;
+  status: string;
+  received_at: string | null;
+  inteletravel_reference: string | null;
+  as_of_date: string;
+  total_count: number;
+};
+
+export type AgentCommissionSummaryRow = {
+  expected_count: number;
+  invoiced_count: number;
+  received_count: number;
+  disputed_count: number;
+  lost_count: number;
+  total_count: number;
+};
+
+export type AgentCommissionSupplierRow = {
+  supplier_id: string;
+  supplier_name: string;
+  line_count: number;
+};
+
+/**
+ * §3.7.1's tiles. The two rates are NULL when nothing arrived in that window — not 0%, which
+ * would be a claim about a rate nobody was paid at.
+ */
+export type AgentCommissionDashboardRow = {
+  as_of_date: string;
+  currency: string | null;
+  ytd_received_cents: string;
+  ly_received_cents: string;
+  avg_rate_pct: number | null;
+  ly_avg_rate_pct: number | null;
+  upcoming_commission_cents: string;
+  upcoming_trip_count: number;
+  at_risk_cents: string;
+  disputed_count: number;
+  trailing_12_cents: string;
+  prior_12_cents: string;
+};
+
+/** §3.7.3's one line. Money is a digit-string; `commission_pct` is a JSON number. */
+export type AgentCommissionLineRow = {
+  commission_id: string;
+  trip_id: string;
+  trip_title: string;
+  trip_status: string;
+  trip_archived: boolean;
+  trip_start_date: string | null;
+  trip_end_date: string | null;
+  booked_on: string | null;
+  client_id: string;
+  client_display_name: string;
+  supplier_id: string;
+  supplier_name: string;
+  gross_booking_cents: string;
+  commission_pct: number;
+  expected_commission_cents: string;
+  processing_fee_cents: string;
+  received_commission_cents: string;
+  currency: string;
+  payment_terms: string;
+  payment_lag_days: number;
+  /** NULL when the anchor date is not known yet — no end date, or never booked. */
+  expected_payment_date: string | null;
+  status: string;
+  received_at: string | null;
+  inteletravel_reference: string | null;
+  notes: string | null;
+  version: number;
+  can_remove: boolean;
+  as_of_date: string;
+};
+
+/** §3.7.5's list of past statements. */
+export type AgentCommissionImportListRow = {
+  import_id: string;
+  original_filename: string;
+  status: string;
+  total_rows: number;
+  matched_rows: number;
+  unmatched_rows: number;
+  period_start: string | null;
+  period_end: string | null;
+  created_at: string;
+  /** The upload's date in the advisor's own zone. */
+  created_on: string;
+  reconciled_at: string | null;
+};
+
+/** §3.7.5 / §3.7.6's one statement. `column_map` is field → header index. */
+export type AgentCommissionImportRow = {
+  import_id: string;
+  original_filename: string;
+  status: string;
+  headers: string[];
+  column_map: Record<string, number> | null;
+  statement_date: string | null;
+  total_rows: number;
+  period_start: string | null;
+  period_end: string | null;
+  version: number;
+  created_at: string;
+  reconciled_at: string | null;
+  /** The reconcile's date in the advisor's own zone. */
+  reconciled_on: string | null;
+  confirmed_count: number;
+  suggested_count: number;
+  unmatched_count: number;
+  duplicate_count: number;
+  unreadable_count: number;
+  already_recorded_count: number;
+  to_create_count: number;
+  ignored_count: number;
+  /** The first three rows' cells, for the map screen. */
+  sample_rows: string[][] | null;
+  as_of_date: string;
+};
+
+/** §3.7.6's row: the statement line, and the ledger line beside it (all null when none). */
+export type AgentCommissionImportLineRow = {
+  row_id: string;
+  row_number: number;
+  state: string;
+  match_basis: string;
+  reference: string | null;
+  supplier_text: string | null;
+  traveler_text: string | null;
+  gross_cents: string | null;
+  received_cents: string | null;
+  fee_cents: string | null;
+  paid_on: string | null;
+  currency: string;
+  parse_error: string | null;
+  line_id: string | null;
+  line_trip_id: string | null;
+  line_trip_title: string | null;
+  line_client_name: string | null;
+  line_supplier_name: string | null;
+  line_status: string | null;
+  line_gross_cents: string | null;
+  line_commission_pct: number | null;
+  line_expected_cents: string | null;
+  line_fee_cents: string | null;
+  line_received_cents: string | null;
+  line_received_at: string | null;
+  new_trip_id: string | null;
+  new_trip_title: string | null;
+  new_supplier_id: string | null;
+  new_supplier_name: string | null;
+  new_gross_cents: string | null;
+  new_commission_pct: number | null;
+};
+
+/** §3.7.6's "match to a different line". */
+export type AgentCommissionCandidateRow = {
+  commission_id: string;
+  trip_id: string;
+  trip_title: string;
+  client_name: string;
+  supplier_name: string;
+  status: string;
+  start_date: string | null;
+  gross_booking_cents: string;
+  commission_pct: number;
+  expected_cents: string;
+  supplier_matches: boolean;
+  traveler_matches: boolean;
+};
+
+/** §3.7.7's stage row. The totals repeat on every row, rounded once as agent_kpis rounds. */
+export type AgentCommissionForecastRow = {
+  status: string;
+  weight_pct: number;
+  trip_count: number;
+  raw_cents: string;
+  weighted_cents: string;
+  total_raw_cents: string;
+  total_weighted_cents: string;
+  as_of_date: string;
+};
+
+/** §3.7.7's calendar row: overdue, twelve months, later, undated — every one, zero or not. */
+export type AgentCommissionCashInRow = {
+  bucket: string;
+  month_start: string | null;
+  cents: string;
+  trip_count: number;
+  received_cents: string;
+};
+
+export type AgentTripOpenCommissionRow = {
+  commission_id: string;
+  supplier_name: string;
+  status: string;
+  expected_commission_cents: string;
+  currency: string;
+  version: number;
+};
+
+export type AgentMessageThreadRow = {
+  conversation_id: string;
+  client_id: string;
+  client_display_name: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  subject: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  /** Who wrote the last message the client can see: "client" or "agent". Null in an empty thread. */
+  last_sender_role: string | null;
+  agent_unread_count: number;
+  reply_due_at: string | null;
+  overdue: boolean;
+  archived: boolean;
+  total_count: number;
+};
+
+export type AgentMessageSummaryRow = {
+  open_threads: number;
+  unread_threads: number;
+  unread_messages: number;
+  overdue_threads: number;
+  archived_threads: number;
+};
+
+export type AgentConversationRow = {
+  conversation_id: string;
+  client_id: string;
+  client_display_name: string;
+  client_first_name: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  subject: string | null;
+  agent_unread_count: number;
+  reply_due_at: string | null;
+  overdue: boolean;
+  archived: boolean;
+  client_can_sign_in: boolean;
+};
+
+export type AgentConversationMessageRow = {
+  message_id: string;
+  sender_role: string;
+  body: string;
+  is_internal_note: boolean;
+  created_at: string;
+  attachments: { document_id: string; filename: string; kind: string }[];
+  /** Every message in the thread; the read returns the newest 500 of them. */
+  total_messages: number;
+  /** §3.10 Stage 4: when an email carried this advisor reply (the "Emailed" mark), or null. */
+  emailed_at: string | null;
+  /** `email` for a client reply that arrived by email. */
+  channel: string;
+  /** §3.12.2: an out-of-office automatic reply. Absent before 20261026130000. */
+  is_auto_reply?: boolean | null;
+};
+
+export type AgentMessageTargetRow = {
+  client_id: string;
+  client_display_name: string;
+  client_first_name: string;
+  trip_id: string | null;
+  trip_title: string | null;
+  conversation_id: string | null;
+  client_can_sign_in: boolean;
+};
+
+export type AgentMessageTemplateRow = {
+  template_id: string;
+  category: string;
+  name: string;
+  body: string;
+  tags: string[];
+  archived: boolean;
+  updated_at: string;
+};
+
+export type AgentMessageMergeContextRow = {
+  client_first_name: string | null;
+  agent_first_name: string | null;
+  trip_title: string | null;
+  trip_destinations: string[] | null;
+  trip_start_date: string | null;
+  trip_end_date: string | null;
+  payment_label: string | null;
+  /** What is still owed on the milestone, a digit string. */
+  payment_owed_cents: string | null;
+  payment_currency: string | null;
+  payment_due_date: string | null;
+  /** The milestone's `pay_url` (2026-10-16), or null when it has none. */
+  payment_link: string | null;
+};
+
+export type AgentCommissionMonthRow = {
+  month_start: string;
+  received_cents: string;
+  line_count: number;
+};
+
+/** `agent_report_period()` — §3.11's window, in the advisor's zone. Dates as ISO strings. */
+export type AgentReportPeriodRow = {
+  from_date: string;
+  to_date: string;
+  today: string;
+};
+
+/**
+ * `agent_report_revenue_by_month()` — one row per month, oldest first, zero-filled.
+ * `prior_cents` is NULL (not "0") when that month a year earlier had nothing in it.
+ */
+export type AgentReportRevenueRow = {
+  month_start: string;
+  cents: string;
+  item_count: number;
+  prior_cents: string | null;
+};
+
+/** `agent_report_commission_by_supplier()` — ledger lines by supplier, by travel date. */
+export type AgentReportSupplierRow = {
+  supplier_id: string;
+  supplier_name: string;
+  received_cents: string;
+  owed_cents: string;
+  line_count: number;
+  set_aside_count: number;
+  /** Money already received on those disputed or lost lines. */
+  set_aside_received_cents: string;
+};
+
+/**
+ * `agent_report_client_lifetime_value()` — clients with a committed trip, ranked. Cohort is the
+ * quarter start of the first commitment, NULL when that predates tracking.
+ */
+export type AgentReportClientRow = {
+  client_id: string;
+  display_name: string;
+  trip_count: number;
+  value_cents: string;
+  commission_cents: string;
+  cohort_start: string | null;
+};
+
+/**
+ * `agent_report_conversion_funnel()` — four rows, stage 1 (inquiry) to 4 (traveled). The two
+ * book_days columns are the same on every row. PostgREST sends `numeric` as a number.
+ */
+export type AgentReportFunnelRow = {
+  stage: number;
+  reached: number;
+  open_here: number;
+  cancelled_here: number;
+  book_days_avg: number | string | null;
+  book_days_n: number;
+};
+
+/**
+ * `agent_export_history()` — one audited export: `report.exported` (a report's Export, or the
+ * Export Center when metadata.source = "export_center") or `commission.exported` (the ledger).
+ * The metadata is ids, dates, counts and switches only; never client data.
+ */
+export type AgentExportHistoryRow = {
+  audit_id: string;
+  event_type: string;
+  created_at: string;
+  created_local: string;
+  metadata: Record<string, unknown>;
+};
+
+/** `agent_report_pipeline_stages()` — one row per open stage; the totals repeat on each row. */
+export type AgentReportPipelineStageRow = {
+  status: string;
+  weight_pct: number;
+  trip_count: number;
+  gross_cents: string;
+  weighted_cents: string;
+  total_gross_cents: string;
+  total_weighted_cents: string;
+};
+
+/** `agent_report_pipeline_months()` — twelve `month` rows, then `later`, then `undated`. */
+export type AgentReportPipelineMonthRow = {
+  bucket: string;
+  month_start: string | null;
+  trip_count: number;
+  weighted_cents: string;
+};
+
+/** `agent_report_top_destinations()` — NULL destination is "trips with no stop yet". */
+export type AgentReportDestinationRow = {
+  destination: string | null;
+  trip_count: number;
+  value_cents: string;
+};
+
+/**
  * Call one accessor.
  *
  * ZERO ROWS IS A VALID ANSWER, NOT AN ERROR. A client, an admin or an archived agent gets an
@@ -593,7 +1095,29 @@ export type AgentFunction =
   // which is the reason every agent write on this surface is a function.
   | "agent-client-notes"
   // §3.3.9 / §3.3.10 / §3.3.12 and §3.3.1's bulk tag — one function, four ops.
-  | "agent-client";
+  | "agent-client"
+  // §3.7.3 / §3.7.4 and §3.7.2's export. Each SQL write audits itself in the same
+  // transaction; the function supplies the audit id, ip and user agent.
+  | "agent-commission"
+  // §3.7.5 / §3.7.6. Upload, map, resolve, reconcile, discard. Only reconcile writes the
+  // ledger, all of it in one transaction.
+  | "commission-import"
+  // §3.10. Send (a reply or an internal note), mark a thread read, archive from the inbox.
+  // The send is one SQL transaction so a note can never move what the client reads.
+  | "agent-message"
+  // §3.10 Stage 2. Create, edit, duplicate, archive and restore a message template. Not
+  // `agent-template`, which is §3.4.13's trip templates.
+  | "agent-message-template"
+  // §3.9 Login Support. Nine ops behind one aal2 gate; sign-in links go only by email.
+  | "account-admin"
+  // §3.10 Stage 3b. This browser's notifications on (register) or off (sign-out). Never
+  // returns a device address.
+  | "push-device"
+  // §3.12. The advisor's own profile, photo, working hours and time away. Every write audited
+  // in its own SQL transaction.
+  | "agent-settings"
+  // §3.11. Each report's own CSV export; the SQL writes the audit row in the same call.
+  | "agent-report";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

@@ -262,7 +262,7 @@ function MComposer({ value, quickReplies = [] }) {
 
 function M261_Inbox({ dark = false }) {
   const threads = [
-    { subject: 'Sandals upgrade locked in', preview: 'Locked. I also flagged your card for the final balance — there is a request waiting in your dashboard.', time: '2:14p', unread: 2, trip: 'Sandals · Aug' },
+    { subject: 'Sandals upgrade locked in', preview: 'Locked. Your final balance link is on your trip page now. No rush.', time: '2:14p', unread: 2, trip: 'Sandals · Aug' },
     { subject: 'New family cruise idea', preview: 'Found a Royal Caribbean sailing over the Christmas dates. Six nights, and the kids’ club is the good one.', time: 'Tue', trip: 'Family cruise · Dec' },
     { subject: 'Welcome to Story-Tail', preview: 'So glad to have you. Anything at all you are wondering about, just send it here.', time: '14 Mar' },
   ];

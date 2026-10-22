@@ -106,12 +106,12 @@ Before reviewing anything, read in this order:
 - [ ] **Money is `bigint` cents + `char(3)` currency** in any shape touching money. Flag `number`, `float`, `numeric`.
 - [ ] **UUIDs are v7** — flag any `uuid.v4()`, `crypto.randomUUID()` (which is v4), or string IDs without a v7 generator.
 - [ ] **No client-facing billing.** Flag any UI that suggests charging the client, invoicing the client, or any "merchant of record" language. Story-Tail is contractually prohibited from this (`BRD.md` §10.5).
-- [ ] **No raw PANs anywhere.** Flag any `card_number`, `pan`, `cvv`, `cvc` field, form input, or state.
-- [ ] **No Stripe `PaymentMethod` IDs in client-role API responses.** Server-only.
+- [ ] **No card numbers anywhere** (the app holds no card since 2026-10-16). Flag any `card_number`, `pan`, `cvv`, `cvc` field, form input, or state, and any card SDK.
+- [ ] **Pay links are safe.** `https://` only, written only by the advisor, shown to clients as the link's host. `paid_note` never reaches a client.
 
 ## When to delegate
 
-- **Payment-adjacent diffs** (anything under `web/app/**/payment*`, `web/app/**/stripe*`, calls to Edge Functions named `stripe-*`, references to `payment_card` / `card_authorization`): say "Delegate to `audit-pci` skill" and stop. Don't try to do the PCI review yourself.
+- **Payment-adjacent diffs** (pay links, the payments schedule under `web/app/(agent)/agent/trips/[tripId]/payments`, the client pay block, or anything that would bring card storage back): say "Delegate to `audit-pci` skill" and stop. Don't try to do the PCI review yourself.
 - **User-facing string changes** (button labels, headings, body copy, email templates, error messages visible to users): say "Delegate to `brand-voice-reviewer` agent" and skip those strings. You can still review the surrounding code structure.
 
 ## Output format
@@ -129,7 +129,7 @@ Before reviewing anything, read in this order:
 - `path/to/file.tsx:88` — <one-line description with suggestion>
 
 ### Delegated
-- Payment code in `web/app/payment/page.tsx` → run `audit-pci`
+- Pay-link code in `web/app/(agent)/agent/trips/[tripId]/payments/actions.ts` → run `audit-pci`
 - Copy strings in `web/components/Hero.tsx:12,18,24` → run `brand-voice-reviewer`
 
 ### Looks good

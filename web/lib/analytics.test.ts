@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { redactAnalyticsEvent } from "./analytics";
+import { redactAnalyticsEvent, redactAnalyticsUrl } from "./analytics";
 
 const ORIGIN = "https://storytailadventures.vercel.app";
 const view = (path: string) => ({ type: "pageview" as const, url: `${ORIGIN}${path}` });
@@ -36,9 +36,9 @@ describe("redactAnalyticsEvent", () => {
     );
     expect(
       redactAnalyticsEvent(
-        view("/wallet/authorizations/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/remove?x=1"),
+        view("/trips/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/update?x=1"),
       )?.url,
-    ).toBe(`${ORIGIN}/wallet/authorizations/[id]/remove`);
+    ).toBe(`${ORIGIN}/trips/[id]/update`);
   });
 
   it("leaves slugs that are not ids alone", () => {
@@ -53,5 +53,15 @@ describe("redactAnalyticsEvent", () => {
 
   it("drops a URL that will not parse", () => {
     expect(redactAnalyticsEvent({ type: "pageview", url: "not a url" })).toBeNull();
+  });
+});
+
+describe("redactAnalyticsUrl", () => {
+  it("applies the same rules Vercel's beforeSend does, for Google Analytics", () => {
+    expect(
+      redactAnalyticsUrl(`${ORIGIN}/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b?tab=docs&utm_source=ig#x`),
+    ).toBe(`${ORIGIN}/trips/[id]?utm_source=ig`);
+    expect(redactAnalyticsUrl(`${ORIGIN}/agent/clients?q=Smith`)).toBeNull();
+    expect(redactAnalyticsUrl("not a url")).toBeNull();
   });
 });

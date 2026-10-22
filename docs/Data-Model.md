@@ -15,9 +15,15 @@ This document defines the data structure that backs the Story-Tail Adventures pl
 
 The model is designed around three north-star priorities established in the BRD:
 
-**Operational replacement of Travefy** without losing any of the fidelity Travefy offers around client management, proposals, itineraries, payment authorization, and trip history. Every Travefy concept has a home here.
+**Operational replacement of Travefy** without losing any of the fidelity Travefy offers around client management, proposals, itineraries, supplier payment schedules, and trip history. Every Travefy concept has a home here.
 
 **Strict PCI posture.** Cardholder data never sits raw in our database. We store Stripe-issued tokens, never the PAN, and every interaction with a stored card is audit-logged. Section 9 spells this out in detail.
+
+> **Amended 2026-10-16 — the app holds no card at all.** The paragraph above is superseded.
+> There is no Stripe, no token, no vault and no card reveal. The app never accepts, stores,
+> logs or shows a card number, so it holds no cardholder data and sits outside PCI scope.
+> Clients pay suppliers directly through a pay link on each payment milestone (§9.5). The
+> four card tables in §9.1 to §9.4 are retired and dropped. See §18 for the new posture.
 
 **Future-readiness for multi-agent and group-trip use cases.** Every entity that needs to know "which agent" or "which travel group" carries the right foreign keys today, even though MVP runs with a single agent.
 
@@ -33,7 +39,7 @@ These principles guide the choices in this model. Where the model deviates from 
 
 **Soft delete by default.** Most entities use `archived_at` rather than `DELETE`. Trip records, commission records, audit events, and financial documents are retained indefinitely for tax and compliance reasons. True deletion happens only for personal data on explicit client request (see Section 11).
 
-**Timestamps on everything.** Every entity carries `created_at` and `updated_at`. Append-only entities (audit logs, message history, card use events) carry only `created_at` because they don't mutate.
+**Timestamps on everything.** Every entity carries `created_at` and `updated_at`. Append-only entities (audit logs, message history, trip status history) carry only `created_at` because they don't mutate.
 
 **Strong typing through enums.** Status values, document types, supplier categories, and similar lookups are modeled as Postgres enums (or check-constrained text) rather than free-text strings. Section 7 catalogues every enum.
 
@@ -71,6 +77,11 @@ The final section is **Open Questions** — areas where the model is intentional
 | **Sensitive PII** | Government IDs, DOB, passport numbers | Encrypted at rest; MFA-gated access; full audit trail on every read |
 | **Tokenized** | Never stored raw — only an opaque reference (Stripe token) | The raw value lives at Stripe; we hold only the token |
 
+> **Amended 2026-10-16 — "Tokenized" no longer means Stripe.** No Stripe token exists in the
+> schema any more (§9 is retired). The marker stays for the fields that still use it: link
+> and invite token hashes and `integration.credentials_encrypted`. For those it means "only
+> a hash or an encrypted copy is stored, never the raw secret."
+
 ### Phase Markers
 
 | Marker | Meaning |
@@ -91,6 +102,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | Session | Identity | P1 | Active session tracking for security/audit |
 | MfaDevice | Identity | P1 | Registered MFA method (TOTP, SMS, backup codes) |
 | AuthEvent | Identity | P1 | Audit of login attempts and security events |
+| AuthEventFlag | Identity | P1 | An advisor's "this sign-in looks off" mark on one AuthEvent (Screen 3.9.6) |
 | Client | Client | P1 | Traveler profile (the end customer) |
 | TravelPreference | Client | P1 | Preferences captured during onboarding |
 | Companion | Client | P1 | Recurring travel companion linked to a client |
@@ -102,6 +114,7 @@ The final section is **Open Questions** — areas where the model is intentional
 | AgentInvitation | Agent | P3 | Pending agent activation (multi-agent) |
 | AgentAvailability | Agent | P1 | Working hours and time zone |
 | PipelineWeight | Agent | P1 | Per-stage probability the commission forecast multiplies by |
+| AgentTimeOff | Agent | P1 | One out-of-office block (§3.12.2) |
 | Supplier | Trip | P1 | Resort, cruise line, tour operator, etc. |
 | Trip | Trip | P1 | Core unit of work — one trip end-to-end |
 | TripComponent | Trip | P1 | Flight, hotel, cruise, transfer, excursion, etc. |
@@ -112,13 +125,14 @@ The final section is **Open Questions** — areas where the model is intentional
 | TripTemplate | Trip | P1 | Reusable trip skeleton |
 | Testimonial | Trip | P1 | A client's reflection on a completed trip, gated by approval |
 | TripStatusHistory | Trip | P1 | Append-only record of every trip status transition |
-| PaymentCard | Payment | P1 | **Tokenized** card vaulted at Stripe |
-| CardAuthorization | Payment | P1 | Client's consent to use a card for a specific trip |
-| AuthorizationRequest | Payment | P1 | Pending request for the client to authorize a card |
-| CardUseEvent | Payment | P1 | Append-only log of every supplier-payment use |
-| PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final) |
+| ~~PaymentCard~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.1). Was a Stripe-tokenized card |
+| ~~CardAuthorization~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.2) |
+| ~~AuthorizationRequest~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.3) |
+| ~~CardUseEvent~~ | Payment | Retired | **Retired 2026-10-16**, table dropped (§9.4) |
+| PaymentMilestone | Payment | P1 | Supplier payment schedule for a trip (deposit / interim / final), each with an optional pay link to the supplier |
 | Commission | Commission | P1 | Expected/received commission per trip per supplier |
 | CommissionImport | Commission | P1 | Batch record for an Inteletravel CSV import |
+| CommissionImportRow | Commission | P1 | One line of an imported statement, its match, and the advisor's decision (added 20261012120000) |
 | Lead | Lead | P2 | Quote request originating from public search |
 | LeadSource | Lead | P2 | Origin of a lead (search inspiration tile, ad, referral) |
 | Conversation | Communication | P1 | Threaded conversation between client and agent |
@@ -126,6 +140,8 @@ The final section is **Open Questions** — areas where the model is intentional
 | MessageAttachment | Communication | P1 | File attached to a message |
 | MessageTemplate | Communication | P1 | Reusable email/message template |
 | NotificationPreference | Communication | P1 | Per-user notification channel matrix |
+| PushDevice | Communication | P1 | A signed-in device that has turned notifications on (§3.10 Stage 3b) |
+| PushOutbox | Communication | P1 | One pending notification per thread, held through rest hours (§3.10 Stage 3b) |
 | Document | Document | P1 | Generic file/asset (uploaded or generated) |
 | SavedSearch | Search | P2 | Persisted search criteria for a client |
 | Favorite | Search | P2 | Bookmarked search result |
@@ -142,8 +158,12 @@ The final section is **Open Questions** — areas where the model is intentional
 | AuditEvent | System | P1 | Append-only log of significant actions |
 | Integration | System | P2 | Configuration record for an external API (Amadeus, Hotelbeds, etc.) |
 | FeatureFlag | System | P1 | Optional — toggles for partial rollouts |
-| TripGroup | Group Trip | P3 | A group trip linking multiple clients |
-| GroupMember | Group Trip | P3 | Co-traveler participating in a group trip |
+| TripGroup | Group Trip | P3 | A group trip: public sign-up link, capacity, deadline, master trip. Designed 2026-10-14, next after P1 release |
+| GroupLeader | Group Trip | P3 | A leader the agent assigned, before and after they claim an account |
+| GroupOption | Group Trip | P3 | One thing a party can sign up for, with its price and deposit |
+| GroupMember | Group Trip | P3 | One party in a group, its status, size, place in line, and its Trip |
+| GroupTraveler | Group Trip | P3 | One person in a party, by the name on their ID |
+| GroupMemberFlag | Group Trip | P3 | A leader's note to the agent about one party |
 
 ---
 
@@ -163,11 +183,11 @@ The final section is **Open Questions** — areas where the model is intentional
 | `password_hash` | `text` | Yes | Tokenized | Null when social-only login |
 | `auth_provider` | `text` | No | Internal | `email`, `google`, `apple` |
 | `auth_provider_id` | `text` | Yes | Internal | OAuth subject ID where applicable |
-| `mfa_required` | `boolean` | No | Internal | `true` for all Agent accounts |
+| `mfa_required` | `boolean` | No | Internal | `true` for all Agent accounts. Enforced by role, not by reading this column: agent Edge Functions (`requireAgentId`) and `current_agent_id()` require an `aal2` session (Tech-Recommendations §7) |
 | `mfa_enrolled_at` | `timestamptz` | Yes | Internal | Null until MFA setup completes |
-| `locked_at` | `timestamptz` | Yes | Internal | Non-null when account is locked |
-| `locked_reason` | `text` | Yes | Internal | Free text from agent or system |
-| `last_login_at` | `timestamptz` | Yes | Internal | — |
+| `locked_at` | `timestamptz` | Yes | Internal | Non-null when account is locked. Written only by the `account-admin` Edge Function (Screen 3.9.5), together with a GoTrue ban; `requireUser` refuses a locked account |
+| `locked_reason` | `text` | Yes | Internal | Free text from agent or system. Required on lock; never granted to the client |
+| `last_login_at` | `timestamptz` | Yes | Internal | Set by the `auth.sessions` INSERT trigger (§5.5) |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | Soft delete |
@@ -256,6 +276,18 @@ is adopted: duplicates are a real state (Screen 3.9.7 exists to merge them) and 
 between them would show one traveler another's trips. The invite-code path against
 ClientInvite (§6.7) resolves that case, and the case where the traveler signs up with a
 different address than the agent has on file, deliberately rather than by inference.
+
+**An advisor's invite is the one exception, and it binds at invite time (§3.9, 2026-10-16).**
+`generateLink(type: invite)` creates the auth user at once, so `account_admin_bind_invite()`
+runs straight after it: it points the new sign-in at the client the advisor invited, deletes
+the blank row `handle_new_user()` made, and sets `auth.users.raw_app_meta_data.invited_client_id`.
+`handle_user_email_confirmed()` returns early for a user carrying that marker, so acceptance
+cannot re-adopt by email onto a same-email record made in between (which would archive the real
+one). This does not reopen the hole above: that hole is a stranger TYPING an address. Here the
+advisor chose the record, the address is the one on it, and no session exists until the link
+mailed to that address is opened. Mailbox proof still comes first; only the choice of record
+moved earlier, made by a person rather than inferred. The invite is refused while another live
+record shares the email.
 
 **Which agent owns a self-registered client?** `client.agent_id` is `NOT NULL`, so the
 trigger has to choose one. It reads `agent_id` from the signup's `raw_user_meta_data`
@@ -474,14 +506,49 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `email_attempted` | `citext` | Yes | PII | Captured for failed-login forensics |
 | `event_type` | `auth_event_type` enum | No | Internal | See Section 17 |
 | `result` | `text` | No | Internal | `success`, `failure`, `pending` |
-| `ip_address` | `inet` | No | PII | — |
-| `user_agent` | `text` | No | Internal | — |
+| `ip_address` | `inet` | Yes | PII | Null when GoTrue recorded none for the session |
+| `user_agent` | `text` | Yes | Internal | Null when GoTrue recorded none |
 | `failure_reason` | `text` | Yes | Internal | When result = failure |
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Indexes:** index on `(account_id, created_at desc)`; index on `(ip_address, created_at)` for rate limiting/fraud.
 
 **Append-only:** no UPDATE, no DELETE except by retention policy (Section 21).
+
+**Writer (2026-10-16, §3.9).** Nothing wrote this table before §3.9. Now a `SECURITY DEFINER`
+trigger, `record_auth_session_start()`, runs `AFTER INSERT ON auth.sessions`: GoTrue opens one
+session per sign-in, whatever the method, so it writes one `login_success` row (`result =
+'success'`) with that session's `ip` and `user_agent`, and sets `account.last_login_at`. A token
+refresh updates the session rather than inserting one, so it records nothing. Failed attempts
+open no session and are **not recorded in P1** (they would need GoTrue's audit log or an auth
+hook). `ip_address` and `user_agent` were made nullable because `auth.sessions` allows both to
+be null, and an honest null beats an invented `0.0.0.0`. Locks, unlocks and sign-outs an advisor
+performs are recorded in `audit_event`, not here: this table is what the CLIENT did. Only
+service_role reads it; the advisor reads through `agent_client_login_activity()`.
+
+### 5.6 AuthEventFlag
+
+**Purpose:** An advisor's mark that one sign-in looks suspicious (Screen 3.9.6). Kept out of
+AuthEvent because that table is append-only and a flag can be cleared. A flag never locks
+anything by itself.
+
+**Phase:** P1
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `auth_event_id` | `uuid` | No | Public | PK, FK → AuthEvent. One flag per sign-in |
+| `flagged_by_agent_id` | `uuid` | No | Internal | FK → Agent |
+| `created_at` | `timestamptz` | No | Public | — |
+
+Clearing a flag deletes the row; both directions write an `audit_event`. Service-role only.
+
+```sql
+CREATE TABLE auth_event_flag (
+    auth_event_id        uuid PRIMARY KEY REFERENCES auth_event(id),
+    flagged_by_agent_id  uuid NOT NULL REFERENCES agent(id),
+    created_at           timestamptz NOT NULL DEFAULT now()
+);
+```
 
 ---
 
@@ -506,7 +573,6 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `mailing_address_id` | `uuid` | Yes | Public | FK → Address |
 | `important_dates` | `jsonb` | Yes | PII | Array of `{label, date, recurring}` for birthday, anniversary, etc. |
 | `emergency_contact` | `jsonb` | Yes | PII | `{name, phone, relationship}`. Captured at Screen 2.1.10, edited at 2.5.2, surfaced on the itinerary and at 2.7.3 |
-| `lifetime_value_cents` | `bigint` | No | Internal | Computed; cached for sort/filter. **Not granted to the client role** |
 | `tags` | `text[]` | No | Internal | Free-form agent tags. **Not granted to the client role** |
 | `status` | `client_status` enum | No | Internal | `active`, `archived`, `merged_into`. Agent-side lifecycle. **Not granted to the client role** |
 | `merged_into_client_id` | `uuid` | Yes | Internal | When status = merged_into. **Not granted to the client role** |
@@ -516,13 +582,36 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 | `archived_at` | `timestamptz` | Yes | Public | — |
 | `version` | `integer` | No | Client-visible | Optimistic concurrency |
 
+> **`lifetime_value_cents` was dropped on 2026-10-21 (§3.11 ruling).** This table once listed
+> it as "Computed; cached for sort/filter". Nothing ever computed it: no trigger, function or
+> Edge Function wrote it, and only the seed set a value, which was stale. Every reader
+> (`agent_client_roster()`, Client Detail, and §3.11.5's report) derives lifetime value from
+> the client's committed trips instead. A column that looks like the answer and is always
+> wrong was a trap for exactly the reports work, so it went (migration
+> `20261028120000_agent_reports`). The derived figure keeps the name `lifetime_value_cents` in
+> those functions' results.
+>
+> **How a record becomes `merged_into` (§3.9 PR 2, October 2026).** Only through
+> `account_admin_merge_clients()` (migration `20261024120000_client_merge`), called by the
+> `account-admin` Edge Function's `merge` op. The retired row is kept, never deleted, with
+> `merged_into_client_id` set to the kept record; records merged into it earlier are re-pointed,
+> so a chain is always one hop. Everything that references `client` moves to the kept record:
+> `trip` (and with it `commission`), `conversation`, `client_note`, `companion` (`client_id` and
+> `linked_client_id`), `document`, `travel_document`, `testimonial` and `client_invite`. The
+> migration fails if a new table references `client` and the merge does not move it.
+> `travel_preference` (one row per client) takes the picker's values on the kept row; the
+> retired row's stays where it is. `platform_user.client_id` moves only when the kept record has
+> no sign-in; otherwise the retired sign-in is locked. The audit row (`client.merged`) holds both
+> rows' every value from before and the id of every row that moved; there is no undo.
+>
 > **The client is the data subject, and reads their own row — September 2026.** Sensitivity
 > here describes how a field must be HANDLED, not who may see it: `date_of_birth` is Sensitive
 > PII and the traveler still reads it back, because it is their own birthday and Screen 2.1.10
 > prefills the form with it. What a client must not see is what the AGENT wrote about them and
 > the CRM's own bookkeeping. Five fields are therefore excluded from the column grant to
 > `authenticated` — `notes`, `tags`, `lifetime_value_cents`, `status` and
-> `merged_into_client_id`. The other fifteen are granted.
+> `merged_into_client_id`. The other fifteen are granted. (`lifetime_value_cents` was dropped
+> on 2026-10-21; see the note below.)
 >
 > `client_self_select` alone did not achieve this. **RLS decides which ROWS; only a GRANT
 > decides which COLUMNS**, and Supabase grants `SELECT` on the whole table to `authenticated`
@@ -537,7 +626,7 @@ enum class UserRole { CLIENT, AGENT, ADMIN }
 **Relationships:**
 - Belongs to one Agent (primary owner). Phase 3 may add a `co_agent_id` for shared ownership.
 - May have one linked Account via `User.client_id`. A Client without an Account is "agent-created and not yet activated."
-- Has many Trips, Companions, TravelDocuments, PaymentCards, Conversations, Documents, ClientNotes.
+- Has many Trips, Companions, TravelDocuments, Conversations, Documents, ClientNotes. (PaymentCards were dropped 2026-10-16, §9.1.)
 
 **Indexes:** index on `(agent_id, status, last_name)`; index on `(email)`; full-text index on `(first_name || ' ' || last_name)` for search.
 
@@ -558,7 +647,6 @@ CREATE TABLE client (
     mailing_address_id      uuid REFERENCES address(id),
     important_dates         jsonb DEFAULT '[]'::jsonb,
     emergency_contact       jsonb,
-    lifetime_value_cents    bigint NOT NULL DEFAULT 0,
     tags                    text[] NOT NULL DEFAULT '{}',
     status                  client_status NOT NULL DEFAULT 'active',
     merged_into_client_id   uuid REFERENCES client(id),
@@ -792,7 +880,7 @@ created.
 
 Only the hash is stored, for the same reason a password is not stored in plaintext: a
 leaked `client_invite` table would otherwise hand an attacker a working key to a named
-traveler's itinerary, passport details and payment authorizations. The code is short
+traveler's itinerary, passport details and payment schedule. The code is short
 enough to read over the phone (`STA-7HX2J9`), which makes it low-entropy, so redemption
 must be rate limited per account and per IP, and a redemption attempt — successful or not
 — writes an `audit_event`.
@@ -816,10 +904,11 @@ mutation on the `client` blast radius and rule 3 applies in full.
 | `pronouns` | `text` | Yes | Public | Optional — shown in client-facing communication where appropriate (referenced by Screen 3.1.7 Agent Profile Setup) |
 | `email` | `citext` | No | PII | — |
 | `phone` | `text` | Yes | PII | — |
-| `avatar_url` | `text` | Yes | Public | — |
+| `avatar_url` | `text` | Yes | Public | §3.12.1: a PATH in the public `agent-avatars` bucket, `/storage/v1/object/public/agent-avatars/<agent id>/<v7>.<jpg\|png\|webp>`, never an absolute URL (inside a function's container the Supabase origin is `http://kong:8000` locally). Each surface puts it on its own public Supabase origin. Null means initials |
 | `bio` | `text` | Yes | Public | Client-visible |
-| `social_links` | `jsonb` | No | Public | `{instagram, facebook, linkedin}` |
-| `time_zone` | `text` | No | Internal | — |
+| `social_links` | `jsonb` | No | Public | `{instagram, facebook, linkedin, website}`, each a full `https://` URL or absent (§3.12.1). A CHECK allows no other keys and only `https://` strings |
+| `email_signature` | `text` | Yes | Public | §3.12.4. Plain text, at most 8 lines and 500 characters, merge fields `{{agent.name}}` / `{{agent.phone}}` / `{{agent.email}}`. Null means the default. Printed on client message emails only, above the locked "Story-Tail Adventures · Hosted by Inteletravel" line, which is not stored |
+| `time_zone` | `text` | No | Internal | IANA name. §3.12.2 offers North American zones only; drives working hours and rest hours |
 | `status` | `agent_status` enum | No | Internal | `active`, `inactive`, `archived` |
 | `commission_split_pct` | `numeric(5,2)` | Yes | Internal | If a sub-agent under a master |
 | `created_at` | `timestamptz` | No | Public | — |
@@ -844,19 +933,18 @@ mutation on the `client` blast radius and rule 3 applies in full.
 
 ### 7.3 AgentAvailability
 
-**Phase:** P1
+**Phase:** P1. Edited on Screen 3.12.2 (ruled 2026-10-17). One row per agent, created with
+the defaults on first read.
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `agent_id` | `uuid` | No | Public | PK; FK → Agent |
-| `weekly_schedule` | `jsonb` | No | Internal | Per-weekday array of `{start, end}` |
-| `response_time_hours` | `integer` | No | Public | "Reply within X hours" — shown to clients |
-| `time_off_blocks` | `jsonb` | No | Internal | Array of `{start, end, label}` |
-| `calendar_sync_provider` | `text` | Yes | Internal | `google` / `apple` / null |
-| `calendar_sync_refresh_token_encrypted` | `bytea` | Yes | Tokenized | OAuth refresh token, encrypted |
+| `weekly_schedule` | `jsonb` | No | Internal | Exactly seven keys `mon`…`sun`; each `null` (day off) or `{"start":"HH:MM","end":"HH:MM"}` on a 30-minute step, `start < end`, in `agent.time_zone`. Checked by `agent_weekly_schedule_valid()`. Default Mon to Sat 07:00 to 21:00, Sun off. **These are the advisor's working hours AND rest hours** (§3.12.2): push is quiet outside them |
+| `response_time_hours` | `integer` | No | Public | "Usually replies within X hours", shown to clients. One of 2, 4, 12, 24, 48 (CHECK); default 24 |
+| `time_off_blocks` | `jsonb` | No | Internal | **Retired 2026-10-17, never written or read.** Superseded by `agent_time_off` (§7.5). Dropped once nothing references it |
+| `calendar_sync_provider` | `text` | Yes | Internal | `google` / `apple` / null. **Deferred** (§3.12.2): nothing writes it |
+| `calendar_sync_refresh_token_encrypted` | `bytea` | Yes | Tokenized | OAuth refresh token, encrypted. Deferred with the above |
 | `updated_at` | `timestamptz` | No | Public | — |
-
----
 
 ### 7.4 PipelineWeight
 
@@ -881,11 +969,36 @@ mutation on the `client` blast radius and rule 3 applies in full.
 |---|---|---|---|---|---|
 | 20 | 50 | 100 | 100 | 100 | 0 |
 
-These are defaults, not constants: the rows are seeded per agent and 3.12 Agent Settings edits them. They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
+These are defaults, not constants: the rows are seeded per agent and edited on 3.7.7 Commission Forecast (since 20261013120000, through `agent_set_pipeline_weights` in the `agent-commission` Edge Function: the four open stages only, refused as stale if they changed since the page loaded, and audited in the same transaction as `pipeline_weight.updated`). §3.12 Agent Settings does not (ruled 2026-10-17: its four tabs leave them on 3.7.7). They are also a guess — nobody has enough history in this platform to derive real conversion rates yet, which is the argument for making them editable rather than for picking better numbers now.
 
 **The confidence figure** the prototype draws as "71%" is the weighted total over the unweighted one, not a stored value. It is therefore a property of the book's current shape, and it moves when trips move, which is the intended reading.
 
 **Indexes:** primary key on `(agent_id, status)`. Nothing else — it is at most six rows per agent.
+
+---
+
+### 7.5 AgentTimeOff
+
+**Phase:** P1 (§3.12.2, ruled 2026-10-17). One row per out-of-office block. A keyed table, not
+the old `time_off_blocks` blob, so overlap is a constraint and not a hope.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | v7, minted by the caller |
+| `agent_id` | `uuid` | No | Public | FK → Agent |
+| `starts_on` | `date` | No | Internal | First day away, in `agent.time_zone` |
+| `ends_on` | `date` | No | Internal | Last day away (inclusive). `ends_on >= starts_on` |
+| `label` | `text` | Yes | Internal | "Family trip". At most 80 characters |
+| `auto_reply_enabled` | `boolean` | No | Internal | Default false. Answers the first client message in each thread once per block (§12.12) |
+| `auto_reply_text` | `text` | Yes | Internal | At most 600 characters; required when enabled. Merge field `{{return_date}}` |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Constraints:** an exclusion constraint (`btree_gist`) forbids two blocks of one agent whose
+`daterange(starts_on, ends_on, '[]')` overlap. "I'm back" sets `ends_on` to yesterday (or
+deletes a block that has not started). Past blocks stay for history but the screen lists only
+blocks with `ends_on >= today`. Agent-scoped RLS, writes through the `agent-settings` Edge
+Function with an `audit_event` row each.
 
 ---
 
@@ -904,11 +1017,12 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `id` | `uuid` | No | Public | — |
 | `name` | `text` | No | Public | "Royal Caribbean", "Sandals Resorts" |
 | `kind` | `supplier_kind` enum | No | Public | `airline`, `hotel_brand`, `resort`, `cruise_line`, `tour_operator`, `insurance`, `transfer`, `other` |
-| `payment_method_kind` | `supplier_payment_kind` enum | No | Internal | How this supplier accepts card payments — drives which Stripe pattern the agent UI uses (see BRD §10.4) |
-| `payment_api_endpoint` | `text` | Yes | Internal | When `payment_method_kind = 'api'`, the URL Stripe Vault and Forward posts to (e.g., Expedia's `api.ean.com/v3/itineraries`) |
-| `payment_portal_url` | `text` | Yes | Internal | When `payment_method_kind = 'portal'`, the supplier's TA portal URL (e.g., Sandals' `taportal.sandals.com`) — informational only |
+| `payment_method_kind` | `supplier_payment_kind` enum | No | Internal | **Deferred, no producer (amended 2026-10-16).** Was: which Stripe pattern the agent UI uses. Stripe is gone, so nothing reads or writes it. Kept, not dropped; see the note below |
+| `payment_api_endpoint` | `text` | Yes | Internal | **Deferred, no producer (amended 2026-10-16).** Was: the URL Stripe Vault and Forward posts to. There is no Vault and Forward. Kept, not dropped |
+| `payment_portal_url` | `text` | Yes | Internal | The supplier's travel-advisor portal URL (e.g., Sandals' `taportal.sandals.com`). Informational only, for the advisor. Not a client pay link: that lives on `payment_milestone.pay_url` (§9.5) |
 | `default_commission_pct` | `numeric(5,2)` | Yes | Internal | Default for new bookings; can be overridden per trip |
-| `commission_payment_terms` | `text` | Yes | Internal | `at_booking`, `after_travel`, `mixed` |
+| `commission_payment_terms` | `commission_payment_terms` enum | Yes | Internal | `at_booking`, `after_travel`. **NULL means varies or unknown** (what the old `mixed` meant): no prefill, the advisor picks. Free text until 20261011120000 |
+| `commission_payment_lag_days` | `integer` | Yes | Internal | Default days after booking / after travel, 0–365. NULL whenever the terms are NULL (CHECK) |
 | `contact_email` | `text` | Yes | Internal | — |
 | `contact_phone` | `text` | Yes | Internal | — |
 | `notes` | `text` | Yes | Internal | — |
@@ -918,13 +1032,22 @@ This is the largest and most central domain. Trip is the unit of work the entire
 
 **The `supplier_payment_kind` enum**: `api` (supplier accepts payments via Stripe Vault and Forward), `portal` (supplier requires manual card entry into a web portal — triggers the PAN reveal workflow), `unknown` (not yet classified — default for new suppliers). See Section 17 for the full enum definition.
 
+> **Amended 2026-10-16 — these payment fields lost their meaning.** The enum text above is
+> superseded. There is no Stripe Vault and Forward and no card reveal, so `api` and `portal`
+> trigger nothing. `payment_method_kind` and `payment_api_endpoint` are **deferred with no
+> producer**: no screen sets them and no code reads them. They stay in the table rather than
+> being dropped, because a P3 API booking flow may want a field like this, and that needs a
+> new decision first. Every row reads `unknown` / NULL until then. `payment_portal_url`
+> stays as a plain note for the advisor. How a client pays a supplier is now the pay link on
+> each payment milestone (§9.5).
+
 ### 8.2 Trip
 
 **Purpose:** The core entity. One Trip per actual travel experience for a client.
 
 **Phase:** P1
 
-**Note on `trip_type = 'group'` vs. Group Trip Coordination (Section 16):** A Trip with `trip_type = 'group'` is a single-trip designation (one client, the agent records this trip as a group event such as a family reunion) and is available from MVP. This is **not** the Group Trip Coordination feature in Section 16, which lets multiple clients with their own accounts share an itinerary, exchange messages in a group chat, and invite co-travelers — that's Phase 3.
+**Note on `trip_type = 'group'` vs. Group Trip Coordination (Section 16):** A Trip with `trip_type = 'group'` is a single-trip designation (one client, the agent records this trip as a group event such as a family reunion) and is available from MVP. This is **not** the Group Trip Coordination feature in Section 16, which lets many parties sign up for one agent-built trip through a public page, each with their own Trip. That is Phase 3, designed 2026-10-14 and next after the P1 release; §16.7 lists the three changes it makes to this table (`group_id`, `is_group_master`, and a nullable `client_id` for the master trip).
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
@@ -945,7 +1068,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 | `total_commission_cents` | `bigint` | No | Internal | Sum of component commissions. **Never granted to the client role** |
 | `currency` | `char(3)` | No | Public | ISO 4217 (`USD`, `EUR`, ...) |
 | `template_id` | `uuid` | Yes | Public | FK → TripTemplate if created from one. **Given a producer 2026-09-28 by §3.4.13, and it doubles as that apply's IDEMPOTENCY KEY**: `agent_apply_template` refuses a trip that already carries one and answers `already_applied`, so a double-click, a retried request or a second tab all write nothing. A trip seeded from a pattern was seeded from ONE |
-| `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3) |
+| `group_id` | `uuid` | Yes | Public | FK → TripGroup (P3). **Not in the database yet**: the initial migration left it commented out. Added with the rest of §16 |
 | `cancellation_reason` | `text` | Yes | Client-visible | Free text on cancel |
 | `refund_status` | `text` | Yes | Client-visible | **One of `none_expected`, `pending`, `partial`, `full`** since `20261001100000`, enforced by the `trip_refund_status_vocabulary` CHECK. NULL means **not stated**, which is a different fact from `none_expected`: one is an advisor who has not checked, the other is one who has. Written only by `agent_set_trip_status` on a `cancelled` call (§3.4.16), and only ever SET by one — a trip moved back out of `cancelled` keeps its refund history, because the money moved and reinstating the trip does not un-move it |
 | `refund_detail` | `text` | Yes | Client-visible | The specifics behind `refund_status`, in the advisor's own words: *"Refunded $1,640 on Feb 12; $240 future-trip credit through Dec 2027"*. **Added because that sentence was what `refund_status` held before it had a vocabulary** — a filterable state cannot carry an amount, a date, or a credit that expires, and flattening it to `partial` would have been a regression in what §2.2.10 tells the traveler. Neither column derives from the other |
@@ -972,7 +1095,7 @@ This is the largest and most central domain. Trip is the unit of work the entire
 - Has many TripComponents.
 - Has 0..1 Itinerary.
 - Has many Proposals (versioned over time).
-- Has many CardAuthorizations and CardUseEvents (via trip_id).
+- Has many PaymentMilestones (via trip_id). (CardAuthorizations and CardUseEvents were dropped 2026-10-16, §9.2 and §9.4.)
 - Has many Commissions.
 - Has many Conversations and Messages (scoped by trip_id).
 - Has many Documents (scoped by trip_id).
@@ -1437,7 +1560,28 @@ or fixture, writes a row without it yet.
 
 This domain is governed by PCI DSS SAQ A constraints (see Section 18). No card primary account number (PAN) is ever stored. All "card" entities here reference a Stripe-issued token; the only locally-stored card data is metadata Stripe explicitly returns (brand, last 4, expiration).
 
-### 9.1 PaymentCard
+> **Amended 2026-10-16 — the card side of this domain is retired. Only §9.5 is current.**
+> The paragraph above is superseded. Ruled by Gyasi on 2026-10-16 (§3.6 grilling):
+>
+> - **The app never holds a card.** No Stripe, no vault, no token, no card reveal. Stripe
+>   never returns a full card number for a stored card, so the planned "reveal" could not
+>   exist, and a vault that can show a number to a person costs more than the business can
+>   carry. The app now holds no cardholder data at all, which puts it outside PCI scope.
+> - **Clients pay suppliers through links.** Each payment milestone (§9.5) can carry one pay
+>   link: the supplier's own payment page, or a Travefy invoice that passes along supplier
+>   cost only (BRD §10.5).
+> - **§9.1 to §9.4 are kept below as a record only.** Their tables (`payment_card`,
+>   `card_authorization`, `authorization_request`, `card_use_event`) are dropped by
+>   migration. Production was checked read-only on 2026-10-16 and all four held 0 rows, so
+>   nothing is lost. Their enums (`card_status`, `card_auth_status`,
+>   `auth_request_status`) go with them. Do not build against anything in §9.1 to §9.4.
+
+### 9.1 PaymentCard (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It held a Stripe token for a client's card. The app no longer holds cards in any form
+> (§9 note above), so there is nothing for it to store. Production held 0 rows when checked
+> on 2026-10-16. The fields below are kept only as a record of what existed.
 
 **Purpose:** A tokenized payment method on file. The platform holds a Stripe `PaymentMethod` ID; Stripe holds the actual PAN. Every PaymentCard belongs to a Client (the cardholder) and may be authorized for one or more Trips via CardAuthorization.
 
@@ -1515,7 +1659,14 @@ data class PaymentCard(
 enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 ```
 
-### 9.2 CardAuthorization
+### 9.2 CardAuthorization (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It recorded a client's consent to let the advisor charge a stored card. With no stored
+> card there is nothing to consent to: the client pays the supplier directly through the
+> milestone's pay link (§9.5). Production held 0 rows when checked on 2026-10-16. The same
+> migration takes the `card_authorization` branch out of `sweep_dated_promises()`. The
+> amendment and fields below are a record only.
 
 **Purpose:** A client's consent to use a stored card for a specific trip up to a spending limit. The agent cannot use a card for a trip without an active authorization. Authorizations expire automatically.
 
@@ -1554,7 +1705,13 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 
 **Indexes:** unique on `(payment_card_id, trip_id) where status = 'active'`; index on `(trip_id, status)`.
 
-### 9.3 AuthorizationRequest
+### 9.3 AuthorizationRequest (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It tracked a link asking the client to authorize a card. Its replacement is not a table:
+> the advisor's "Send Payment Link" posts a message in the trip thread (§12.2), and that
+> message is the record. Production held 0 rows when checked on 2026-10-16. The fields below
+> are a record only.
 
 **Phase:** P1
 
@@ -1574,7 +1731,14 @@ enum class CardStatus { ACTIVE, REVOKED, EXPIRED, FAILED }
 | `completed_at` | `timestamptz` | Yes | Public | — |
 | `expires_at` | `timestamptz` | No | Internal | Link expiration |
 
-### 9.4 CardUseEvent
+### 9.4 CardUseEvent (Retired 2026-10-16)
+
+> **Retired 2026-10-16. This table is dropped by migration and must not be built against.**
+> It logged each time the advisor charged a stored card. The app no longer charges cards.
+> Its job, a record of each payment, now lives on the milestone itself (`paid_at`,
+> `paid_cents`, `paid_reference`, `paid_note`, §9.5) plus the `payment_milestone.*` audit
+> rows. Production held 0 rows when checked on 2026-10-16. The open `client_flag_status`
+> question below dies with the table. The fields and amendment below are a record only.
 
 **Purpose:** Append-only log of every use of a stored card to pay a supplier. This is the audit surface for the supplier-pay workflow.
 
@@ -1638,8 +1802,13 @@ given a control that appears to do nothing. That goes with the same ruling.
 
 **This is not an invoice, and it is not in PCI scope.** Two things it deliberately is not:
 
-- **Not a bill from Story-Tail Adventures.** BRD §10.5 prohibits client-facing billing — the agency is not the merchant of record and charges the client nothing. These rows describe what the *supplier* expects and when, so the client is not surprised by a balance date. There is no "pay now" action, no amount owing *to us*, and no merchant fields.
-- **Not cardholder data.** No PAN, no token, no Stripe reference, no FK to PaymentCard. It lives in this domain because a reader looking for "payments" looks here, but it is outside SAQ A scope entirely. The client's only card-adjacent action remains the authorization flow in §9.2.
+> **Amended 2026-10-16 — the milestone can now carry a pay link to the supplier.** The two
+> bullets below replace the earlier text, which said there was "no pay now action" and
+> pointed at the card authorization flow in §9.2. §9.2 is retired, and the client now pays
+> the supplier through a link on the milestone.
+
+- **Not a bill from Story-Tail Adventures.** BRD §10.5 prohibits client-facing billing: the agency is not the merchant of record and charges the client nothing. These rows describe what the *supplier* expects and when. A milestone may carry a pay link (`pay_url`), but that link always goes to the **supplier**: either the supplier's own payment page, or a Travefy invoice Gyasi makes when the supplier has no page of its own. A Travefy invoice may only pass along supplier cost, never a planning, consultation or service fee (BRD §10.5). The app stores only the link; what goes on that invoice is Gyasi's call in Travefy. There is still no amount owing *to us*, no merchant fields, and no money moves through this app.
+- **Not cardholder data.** No card number, no token, no Stripe reference, no card FK. The client types their card into the supplier's own site, never into ours. It lives in this domain because a reader looking for "payments" looks here, and it is outside PCI scope entirely.
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
@@ -1654,8 +1823,112 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `paid_cents` | `bigint` | No | Public | Default 0. Partial payments happen |
 | `status` | `payment_milestone_status` enum | No | Public | Default `scheduled` |
 | `order_index` | `integer` | No | Public | Display order; ties are broken by `due_date` |
+| `pay_url` | `text` | Yes | Public (client reads) | **Added 2026-10-16.** The one pay link for this milestone: the supplier's payment page or a Travefy invoice. `https://` only, at most 2,048 characters, no user name or password part (CHECK). Advisor writes, client reads. NULL means no link yet. See "Pay link and paid record" below |
+| `paid_reference` | `text` | Yes | Public (client reads) | **Added 2026-10-16.** The supplier's confirmation or reference number for the payment, set when the advisor marks it paid. 1 to 100 characters, trimmed (CHECK) |
+| `paid_note` | `text` | Yes | Internal | **Added 2026-10-16.** The advisor's own note on the payment. 1 to 1,000 characters, trimmed (CHECK). **Never shown to the client**: left out of the client column grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+
+#### Pay link and paid record (added 2026-10-16)
+
+Ruled by Gyasi on 2026-10-16 (§3.6 grilling). Written here before any migration, so the
+build follows this text.
+
+**One link per milestone, not per booking.** One trip can have two suppliers, each with its
+own deposit, so the link sits on the milestone. It is optional: a milestone with no link
+still shows its amount and date as before.
+
+**There is no `pay_url_label` column, on purpose.** The button text comes from the
+milestone's own `label` ("Pay deposit", "Pay final balance"). The site name the client sees
+(for example `royalcaribbean.com`) is **worked out from the link's host at display time**:
+the host in lower case, with a leading `www.` removed, shown in its ASCII (punycode) form so
+a look-alike domain cannot pass as the real one. A stored label could say one site while the
+link goes to another. A name taken from the link itself cannot.
+
+**Postgres DDL (the migration's shape):**
+
+```sql
+ALTER TABLE public.payment_milestone
+    ADD COLUMN pay_url        text,
+    ADD COLUMN paid_reference text,
+    ADD COLUMN paid_note      text,
+
+    -- https only, a host with no user:password@ part, no spaces or control characters.
+    ADD CONSTRAINT payment_milestone_pay_url_https CHECK (
+        pay_url IS NULL OR (
+            char_length(pay_url) <= 2048
+            AND pay_url ~ '^https://[^/?#@[:space:]]+([/?#].*)?$'
+            AND pay_url !~ '[[:space:][:cntrl:]]'
+        )
+    ),
+    ADD CONSTRAINT payment_milestone_paid_reference_shape CHECK (
+        paid_reference IS NULL OR (
+            char_length(paid_reference) BETWEEN 1 AND 100
+            AND paid_reference = btrim(paid_reference)
+        )
+    ),
+    ADD CONSTRAINT payment_milestone_paid_note_shape CHECK (
+        paid_note IS NULL OR (
+            char_length(paid_note) BETWEEN 1 AND 1000
+            AND paid_note = btrim(paid_note)
+        )
+    );
+
+-- The client grant widens by two columns. paid_note stays out.
+GRANT SELECT (pay_url, paid_reference) ON public.payment_milestone TO authenticated;
+```
+
+The CHECK is the last line of defense. The Edge Function checks first, with `new URL()`: it
+refuses anything whose protocol is not `https:`, that has a user name or password, or that
+has no host, and it stores the parsed `href` so what is saved is what was checked.
+
+**No card numbers, ever.** `pay_url`, `paid_reference` and `paid_note` are refused (not
+masked) if they hold a card-shaped run of 13 to 19 digits (the rule in §18.1a, which the
+§12.7 and §12.8 maskers share) **that also passes the Luhn check**. The Luhn step lets a long supplier reference through when it is
+not a card number. Here the advisor is typing, so the right answer is to say no and say why,
+rather than quietly mask.
+
+**Who can write.** Only the advisor who owns the trip, and only through SECURITY DEFINER
+functions that `service_role` alone can execute, called from the `agent-trip` Edge Function
+the way the §3.4.15 milestone writes already are. Clients have no write path to this table
+at all (the client role holds `SELECT` on named columns and nothing else).
+
+- **`pay_url`**: a new `agent_set_milestone_pay_url(trip_id, agent_id, milestone_id,
+  pay_url)`. NULL removes the link. Setting the same value is a no-op and writes nothing.
+- **`paid_reference`, `paid_note`**: `agent_set_milestone_paid` widens to take both. They are
+  written with `status`, `paid_cents` and `paid_at` in the same call (screen 3.6.5 Mark
+  Paid: amount, date, confirmation number, note), and cleared when the advisor moves a
+  milestone back to `scheduled`. `agent_upsert_payment_milestone` (the schedule edit) still
+  touches none of the paid fields.
+
+**Every change writes an `audit_event` row, in the same transaction as the write.** A link
+swapped without a trace could send a client's money to the wrong place, so the link is
+treated like money. Like the commission writes, the SQL function writes the audit row itself
+(`target_entity = 'payment_milestone'`, `target_id` = the milestone), so the change and its
+record cannot come apart. A no-op writes neither.
+
+| `event_type` | When | `metadata` |
+|---|---|---|
+| `payment_milestone.link_set` | `pay_url` goes from NULL to a link | `trip_id`, `pay_url`, the derived host |
+| `payment_milestone.link_changed` | `pay_url` goes from one link to another | `trip_id`, `old_pay_url`, `new_pay_url`, both hosts |
+| `payment_milestone.link_removed` | `pay_url` goes from a link to NULL | `trip_id`, `old_pay_url`, the old host |
+| `payment_milestone.marked_paid` | the advisor records a payment (status `paid`, or a change to `paid_cents`, `paid_at`, `paid_reference` or `paid_note`) | `trip_id`, old and new `paid_cents`, `paid_at`, whether a reference and a note are present |
+| `payment_milestone.marked_waived` | status becomes `waived` | `trip_id`, prior status |
+| `payment_milestone.payment_cleared` | a `paid` or `waived` milestone goes back to `scheduled` | `trip_id`, prior status and `paid_cents` |
+
+`paid_note` itself is never copied into audit metadata, only whether one exists. Screen 3.6.6
+Payment History reads these rows for one trip and lists every paid mark and link change.
+
+**The client's "I've paid" is a message, never a write here.** On the client side, a
+milestone with a link shows a button that opens the link in a new tab or browser, the site
+name, and a line saying the money goes straight to the supplier on their own site. When the
+client taps "I've paid", the app posts a message in the trip's thread (§12.2) for the advisor
+to check. It changes nothing on this table. Only the advisor marks a milestone paid. A
+`paid` or `waived` milestone shows no button.
+
+**Sending the link.** Screen 3.6.2 Send Payment Link posts a message in the trip thread using
+the Payment reminder template, which fills `{{payment.link}}` from `pay_url` (§12.4). The
+message is the record that it was sent; there is no separate "request" row.
 
 > **`total_paid_cents` got its producer on 2026-09-29, and had none before that.** The
 > purpose line above promised one when this entity was added; five accessors read the column
@@ -1689,6 +1962,33 @@ given a control that appears to do nothing. That goes with the same ruling.
 
 **Indexes:** index on `(trip_id, order_index)`; index on `(status, due_date)` for the agent-side overdue sweep.
 
+> **Amended 2026-10-16, as built (migration `20261021120000_supplier_pay_links.sql`).**
+> Three details the spec above left open:
+>
+> - **Date paid.** `agent_set_milestone_paid` also takes `p_paid_on date` (Mark Paid has a
+>   "Date paid" field). A future date is refused. Both writes also take the actor, IP and user
+>   agent so the audit row names who did it.
+> - **Keeping a reference.** On `paid` or `waived`, a NULL `p_paid_reference` / `p_paid_note`
+>   keeps what is stored and an empty string clears it, so the §3.4.15 status toggle cannot
+>   wipe a confirmation number. Both clear when the milestone returns to `scheduled` or
+>   `overdue`. A `scheduled` and `overdue` swap (no money moves) keeps the existing
+>   `payment_milestone.status_changed` event.
+> - **Payment History read.** `agent_trip_payment_history(p_trip_id)` returns the trip's
+>   `payment_milestone.*` audit rows newest first. Like `agent_client_activity` it is granted
+>   to `authenticated` and checks the advisor with `current_agent_id()` (the web app has no
+>   service-role key); a client gets zero rows. Each audit row stores the milestone's label, so
+>   a deleted milestone still reads by name. The note text is never copied into audit
+>   metadata, only whether one exists.
+>
+> - **The card-number guard (after review).** A run is ASCII digit groups joined by up to
+>   three spaces, dots, dashes or no-break / thin spaces; every span of whole groups that joins
+>   to 13 to 19 digits is Luhn-checked, so a short number in front or letters touching the
+>   digits cannot hide a card. The same rule lives in `text_has_card_digits`,
+>   `_shared/cardDigits.ts` and web `lib/trips/payLink.ts`, and the maskers share it (§18.1a). It is a guard, not a full filter: a
+>   card typed with a wrong digit fails Luhn and is not caught.
+> - **Named hosts only.** `pay_url`'s host must be a dotted name (no IP literal, bare word or
+>   `localhost`), because the client is shown the host as the reason to trust the link.
+
 ---
 
 ## 10. Commission Domain
@@ -1710,7 +2010,11 @@ given a control that appears to do nothing. That goes with the same ruling.
 | `processing_fee_cents` | `bigint` | No | Internal | What the host agency deducts before depositing (Gyasi, 2026-09-28). Its own column so the line above can stay exact; §3.7.6 renders `expected − fee − received`, and a non-zero remainder is the discrepancy to chase |
 | `received_commission_cents` | `bigint` | No | Internal | What actually arrived. Becomes a tax figure |
 | `currency` | `char(3)` | No | Internal | Matches its trip's. Added 20260930150000: this was the one money table with no currency column, a quiet exception to the cents-plus-currency rule that only worked while `agent_kpis()` inferred it through a join it no longer makes |
-| `payment_terms` | `text` | No | Internal | `at_booking`, `after_travel` |
+| `payment_terms` | `commission_payment_terms` enum | No | Internal | `at_booking`, `after_travel`. An enum since 20261011120000; free text before that, which no date could be computed from |
+| `payment_lag_days` | `integer` | No | Internal | Days after the booking (`at_booking`) or after travel ends (`after_travel`) that the supplier pays. 0–365. Dates 3.7.3's "expected payment" and §3.7.7's cash-in calendar |
+| `version` | `integer` | No | Public | Optimistic lock (§20.4). Every write bumps it; a write naming a different version is refused as stale |
+| `archived_at` | `timestamptz` | Yes | Public | Soft removal of a line entered by mistake, **only if the line was never on the record** (`on_record_at IS NULL`; Gyasi, 2026-10-11). Removed lines leave every reader; the row and its audit trail stay |
+| `on_record_at` | `timestamptz` | Yes | Public | When the line first left `expected` or got an `inteletravel_reference`. **Set once by the `commission_on_record` trigger and never cleared**, so the remove rule tests HISTORY, not the current state. Review found a received line could otherwise be edited back to expected, its reference blanked, and removed. A guard on the row's own past, not the derive-from-components trigger this section warns against |
 | `status` | `commission_status` enum | No | Internal | `expected`, `invoiced`, `received`, `disputed`, `lost` |
 | `received_at` | `date` | Yes | Internal | When the deposit hit |
 | `inteletravel_reference` | `text` | Yes | Internal | Matching ID from Inteletravel report |
@@ -1729,9 +2033,17 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 
 **A trip with no row here has not been invoiced yet. That is a state, not a gap** — 16 of 22 revenue trips in the seed are deliberately in it.
 
-**Producers, none of them built:** §3.7.3 (edit), §3.7.4 (manual entry), §3.7.5 (Inteletravel CSV import).
+**Producers.** §3.7.3 (edit, mark received, remove) and §3.7.4 (manual entry) since 20261011120000, through `agent_create_commission`, `agent_update_commission`, `agent_record_commission_payment` and `agent_remove_commission` — service-role only, reached through the `agent-commission` Edge Function. §3.7.6 (reconciling an imported Inteletravel statement) since 20261012120000, through `agent_reconcile_commission_import` (see §10.2). §3.4.16 (cancelling a trip) since 20261014120000, through `agent_cancel_trip`: it marks Lost only the lines the advisor confirmed in the cancel dialog, each still Expected or Invoiced at the version the dialog showed (Gyasi, 2026-10-12: offered, on by default). A stage change never touches the ledger otherwise.
 
-**`payment_terms` is out of spec and blocks §3.7.7.** This table documents `at_booking` / `after_travel`; the seed writes free text like `'60 days after travel'`, and `supplier.commission_payment_terms` is free text too. §3.7.7's cash-in calendar needs a parsed date offset, which free text cannot give, so this wants an enum plus a lag-days integer **before** that screen is built.
+**Every write records its `audit_event` in the same transaction** (`commission_audit()`), the first writes on the agent surface to do so: a failed audit insert takes the change with it. The edit audits before AND after for every financial field; notes are recorded only as changed or not, never their text. The export (`agent_export_commission`) writes one `commission.exported` row with its filters and row count in the same call that returns the rows (§18.3, "any bulk client list export").
+
+**Status moves.** Create starts at `expected` or `invoiced`. The edit moves among `expected`, `invoiced` and `lost`; `received` and `disputed` are reached only through the payment write, which takes the amount, the fee and a date that is not in the future (in the advisor's zone), and refuses `received` for $0. A cancellation can also move `expected` or `invoiced` to `lost` (§3.4.16, `agent_cancel_trip`), one `commission.updated` audit row per line with `via: trip_cancelled` and the trip id, in the cancel's own transaction; a line no longer as the dialog showed it is skipped. Moving the trip back out of `cancelled` reopens nothing: each line is reopened by the edit. A line closed this way is on the record (`on_record_at` is stamped when a line first leaves `expected`), so it can no longer be removed, only edited; and a line the dialog did not list (added after it opened, or past the 100 it lists) stays open. A paid line moved back by the edit has its payment cleared **only when the caller passes `p_clear_payment`** (the screen's required "clear the recorded payment" checkbox); otherwise the outcome is `payment_would_clear` and nothing changes. The audit keeps what was cleared.
+
+**The export returns one `jsonb` array**, not a row set: PostgREST caps every RPC row set at `max_rows` (1,000), and a capped export arrived short while its audit row counted every line.
+
+**Readers, built 2026-10-11 (§3.7 Stage 1):** `agent_commission_ledger()`, `_ledger_summary()`, `_ledger_suppliers()`, `agent_commission_dashboard()` and `agent_commission_monthly()`. SECURITY DEFINER accessors, as §3.2 to §3.4 read everything else, and **not RLS policies**: this table has been service-role-only since the payment-domain lockdown revoked every client-role privilege on it, and a policy would only work alongside a table grant that lockdown exists to prevent. Each one requires BOTH `commission.agent_id` and the trip's `agent_id` to be the caller, because nothing in the schema makes the two agree. Lines on archived trips are included — a commission line is a tax record (§18.5) — and the accessors flag them rather than drop them. Since 20261011120000 all of them, plus 3.7.3's `agent_commission_line()`, read through one scope function, `commission_lines_for_current_agent()`, which holds the two-agent-id test and excludes removed lines in one place.
+
+**`payment_terms` was out of spec until 20261011120000** — free text such as `'60 days after travel'` against the documented pair. It is now the enum plus `payment_lag_days`, which is what §3.7.7's cash-in calendar needed. Production held no rows when it changed.
 
 ### 10.2 CommissionImport
 
@@ -1740,16 +2052,85 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | — |
+| `agent_id` | `uuid` | No | Public | FK → Agent. Added 20261012120000: every other §3.7 row is scoped by agent, and `imported_by_user_id` alone names a login, not a book |
 | `imported_by_user_id` | `uuid` | No | Public | FK → User (agent) |
 | `source` | `text` | No | Internal | `inteletravel_csv` (extensible) |
 | `original_filename` | `text` | No | Internal | — |
-| `document_id` | `uuid` | No | Public | FK → Document (the stored CSV) |
-| `total_rows` | `integer` | No | Internal | — |
-| `matched_rows` | `integer` | No | Internal | — |
-| `unmatched_rows` | `integer` | No | Internal | — |
-| `period_start` | `date` | Yes | Internal | The statement period |
+| `document_id` | `uuid` | No | Public | FK → Document (the stored CSV, kind `csv_import`, in the private `commission-statements` bucket). NOT NULL since 20261012120000 |
+| `checksum_sha256` | `bytea` | No | Internal | Of the file as uploaded. **Unique per agent among imports that are not discarded**, so the same statement cannot be imported twice |
+| `headers` | `text[]` | No | Internal | The CSV's header row, in order |
+| `column_map` | `jsonb` | No | Internal | Platform field → header index, e.g. `{"reference": 0, "received": 3}`. Guessed at upload (from the advisor's last statement first, then from the header names); confirmed on the mapping screen |
+| `statement_date` | `date` | Yes | Internal | The paid-on date for every row, when no column carries one |
+| `status` | `commission_import_status` enum | No | Internal | `mapping` → `review` → `reconciled`; or `discarded` |
+| `version` | `integer` | No | Public | Optimistic lock: every map, decision, reconcile and discard bumps it |
+| `total_rows` | `integer` | No | Internal | Data rows in the file, 1 to 1,000 |
+| `matched_rows` | `integer` | No | Internal | Rows tied to a ledger line (while in review: the matcher's count; once reconciled: lines paid, lines created, and rows already recorded) |
+| `unmatched_rows` | `integer` | No | Internal | The rest |
+| `period_start` | `date` | Yes | Internal | The statement period: the earliest paid-on date among its rows |
 | `period_end` | `date` | Yes | Internal | — |
+| `reconciled_at` | `timestamptz` | Yes | Public | When "Mark as reconciled" applied it |
 | `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**Built 20261012120000 (§3.7 Stage 3).** Producers: the `commission-import` Edge Function, through service-role SQL functions `agent_upload_commission_statement`, `agent_map_commission_import`, `agent_resolve_commission_import_row`, `agent_reconcile_commission_import` and `agent_discard_commission_import`. Readers: `agent_commission_imports()`, `agent_commission_import()`, `agent_commission_import_rows()` and `agent_commission_import_candidates()`, SECURITY DEFINER accessors like the rest of §3.7. No client role can read or write the table.
+
+**Gyasi's rulings (2026-10-11):**
+- **CSV only.** Inteletravel gives a CSV download; no spreadsheet parser, which would need a security review.
+- **A row that matches a line already Received or Disputed never changes it.** The row is shown as already recorded, with any difference flagged for the advisor to fix by hand. This is also what keeps §18.4's MFA step-up out of scope: the step-up is required for an import that AFFECTS received commissions, and this one cannot. **If an import is ever allowed to update a paid line, the step-up comes back with it.**
+- **One statement row per booking.** A second row for a booking already matched in the same file is flagged as a duplicate, never summed.
+- **An unmatched row can become a new line**: the advisor picks the trip, and reconciling creates the line already paid, filled in from the row.
+
+**Nothing touches the ledger until "Mark as reconciled".** Upload, mapping and each decision change only these two tables. Reconcile then applies every decision in one transaction, with one `audit_event` per ledger line it pays or creates and one for the statement, through the same `commission_audit()` as Stage 2: if any audit row fails, nothing lands. Uploads and discards are audited too; mapping and the per-row decisions are not, because they change nothing outside the statement and reconcile's audit rows record the decision that took effect (the row and how it was matched).
+
+**Reconcile re-checks every decision against the ledger as it is now, under lock.** Reconciles of one advisor take turns (an advisory lock), and every line a confirmed row pays is locked before anything is read. Then:
+- a confirmed row whose line has since been **paid by hand** becomes already recorded, and the line keeps what the advisor recorded;
+- a row whose line was **removed**, or whose new line's trip or supplier is gone, goes back to needing a decision;
+- a confirmed row whose line now carries a **different reference** goes back to needing a decision (that line is another booking's);
+- a row whose reference is **already on another line** (put there by hand, or by another statement reconciled first) is pointed at that line: already recorded if it is paid, otherwise a suggestion to confirm. Two statements each creating the same booking counted its money twice before this (found in review);
+- a second row in the same statement paying or creating for the **same booking** is a duplicate again.
+
+Any of these stops the reconcile with the rows that need the advisor at the top of the screen.
+
+**What the matcher will not confirm on its own.** A reference shorter than four characters is not a key (it neither matches nor makes a duplicate). A supplier confirmation number whose row names a different supplier is only a suggestion: confirmation numbers are short and reused, and review found a $2 row from another supplier confirmed onto a $1,212 line. Amounts are capped at $99,999,999.99, the cap hand entry has. Both lookups are indexed on `commission_ref_key()` (a 1,000-row statement against a large book went from 18 seconds to under one).
+
+**A discarded statement's file is deleted from the bucket**; its `document` row stays, archived, as the record that it existed.
+
+### 10.3 CommissionImportRow
+
+**Phase:** P1. Added 20261012120000: the Data Model had nowhere to keep an imported row that matched nothing, and screen 3.7.6 lists them.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | v7, minted by the Edge Function |
+| `import_id` | `uuid` | No | Public | FK → CommissionImport |
+| `row_number` | `integer` | No | Public | 1 = the first data row under the header. Unique per import |
+| `cells` | `text[]` | No | PII | The row exactly as the file had it, aligned to `headers`. Statements carry traveler names |
+| `reference` | `text` | Yes | Internal | The booking reference, per the column map |
+| `supplier_text` | `text` | Yes | Internal | The supplier as the statement names it |
+| `traveler_text` | `text` | Yes | PII | The traveler as the statement names it |
+| `gross_cents` | `bigint` | Yes | Internal | — |
+| `received_cents` | `bigint` | Yes | Internal | What Inteletravel paid on this row. Required for a row to be readable, and more than $0 |
+| `fee_cents` | `bigint` | Yes | Internal | What the host agency kept, when the statement shows it |
+| `paid_on` | `date` | Yes | Internal | The row's own date, or the statement date; never in the advisor's future |
+| `currency` | `char(3)` | No | Internal | `USD` (BRD §2) |
+| `parse_error` | `text` | Yes | Internal | Why the row could not be read, in words the screen shows |
+| `state` | `commission_import_row_state` enum | No | Internal | See below |
+| `match_basis` | `commission_match_basis` enum | No | Internal | How the line was found: `reference` (already on a line), `confirmation` (a booking's supplier confirmation number), `supplier_and_traveler` (supplier name, traveler last name and a close amount), `manual`, or `none` |
+| `suggested_commission_id` | `uuid` | Yes | Public | FK → Commission. The matcher's pick, kept so "use the suggestion" survives a change of mind |
+| `commission_id` | `uuid` | Yes | Public | FK → Commission. The line this row pays (`confirmed`), already paid (`already_recorded`), or created (`to_create`, once reconciled) |
+| `new_trip_id` | `uuid` | Yes | Public | FK → Trip. For `to_create` |
+| `new_supplier_id` | `uuid` | Yes | Public | FK → Supplier. For `to_create` |
+| `new_gross_cents` | `bigint` | Yes | Internal | For `to_create` |
+| `new_commission_pct` | `numeric(5,2)` | Yes | Internal | For `to_create` |
+| `new_commission_id` | `uuid` | Yes | Public | The id the created line will take, minted when the advisor chose to create it |
+| `created_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | — |
+
+**States.** `confirmed` (pays its line on reconcile; set by a `reference` or `confirmation` match, or by the advisor), `suggested` (a `supplier_and_traveler` match the advisor must confirm), `unmatched`, `duplicate` (a second row for a booking already matched in this file), `unreadable` (has a `parse_error`), `already_recorded` (its line is already paid; never changed), `to_create` and `ignored`. Reconcile refuses while any row is `suggested`, `unmatched`, `duplicate` or `unreadable`: every row is accounted for before money moves.
+
+**Indexes:** unique `(import_id, row_number)`; **partial unique `(import_id, commission_id) WHERE state = 'confirmed'`**, so two rows can never both pay one line.
+
+**What reconcile does to a confirmed row's line:** status `received`, or `disputed` when `expected − fee − received` is above zero; the row's amount, fee (0 when the statement has none) and paid-on date; the row's reference, when the line has none and no other line holds it; and `import_id`. A created line takes its trip, supplier, gross and rate from the advisor's choice, its terms from the supplier's defaults (`after_travel`, 0 days when the supplier has none), and its payment from the row.
 
 ---
 
@@ -1831,11 +2212,12 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 | `last_message_preview` | `text` | Yes | PII | Denormalized |
 | `client_unread_count` | `integer` | No | Internal | — |
 | `agent_unread_count` | `integer` | No | Internal | — |
-| `archived_at` | `timestamptz` | Yes | Public | — |
+| `archived_at` | `timestamptz` | Yes | Public | The thread is gone **for the client**: their read policy and `trip-message`'s find-or-create both skip it. Not the advisor's inbox archive, which is the next field |
+| `agent_archived_at` | `timestamptz` | Yes | Internal | Since 20261015120000. Archived from the **advisor's** inbox (Screen 3.10.1): the `last_message_at` the advisor archived through. The thread counts as archived only while nothing client-visible has been written since (`agent_archived_at >= last_message_at`), so a client's next message brings it back. Archiving also sets `agent_unread_count` to 0. Withheld from the client grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-**Indexes:** index on `(agent_id, last_message_at desc)`; index on `(client_id, last_message_at desc)`; index on `(trip_id)`.
+**Indexes:** index on `(agent_id, last_message_at desc)`; index on `(client_id, last_message_at desc)`; index on `(trip_id)`. Since 20261015120000, **one live thread per trip and one live general thread per client**: unique on `(client_id, trip_id) WHERE archived_at IS NULL AND trip_id IS NOT NULL` and on `(client_id) WHERE archived_at IS NULL AND trip_id IS NULL`. Both writers find-or-create, and the client and the advisor could otherwise each create the same thread at the same moment.
 
 > **Reclassified September 2026, when `trip_read_policies` shipped.**
 > `client_unread_count` is granted to `authenticated`. It is the *client's own* unread count
@@ -1843,6 +2225,33 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 > `agent_unread_count` reads like an artefact of the two being added as a pair.
 > `agent_unread_count` stays Internal and excluded — how far behind the agent is on their
 > inbox is not something a client should be able to poll.
+
+> **Writers, since 20261015120000 (§3.10 Stage 1).** The client posts through `trip-message`
+> (§2.2.7, §2.6). The advisor posts through the `agent-message` Edge Function and
+> `agent_send_message`, which does the whole send in one transaction: find-or-create the
+> thread, insert the message, and update this row. **An internal note touches nothing here a
+> client can read**: `last_message_at` and `last_message_preview` are in the client grant, so
+> only a client-visible reply moves them and raises `client_unread_count`.
+>
+> **Reading clears only what was on screen.** Sending, opening a thread
+> (`agent_mark_conversation_read`) and the client's own open (`client_mark_conversation_read`,
+> on web and mobile) each name the `created_at` of the newest message the screen showed, and
+> the count drops to the messages newer than that, never rising. A message that lands while
+> the page is open stays unread. Before §3.10 nothing raised or cleared `client_unread_count`.
+>
+> `trip-message`'s update of this row is one statement since 20261015120000
+> (`conversation_record_client_message`): `agent_unread_count + 1` in SQL rather than a read
+> and a write from TypeScript, which undid an advisor's clear that landed in between, and
+> `last_message_at` only moves forward. A thread of an archived client or trip can still be
+> answered; a NEW thread needs a live client and trip; a client merged into another drops out
+> of the advisor's inbox.
+>
+> **Overdue (Screen 3.10.1's "past SLA"; Gyasi, 2026-10-13: one business day, Sundays never
+> count).** A thread is awaiting a reply when its last client-visible message is the client's.
+> It is due at the end of the next business day after the FIRST client message since the
+> advisor's last reply, in the advisor's time zone, Monday to Saturday: a message on Saturday
+> or Sunday is due at the end of Monday. Computed by `conversation_reply_due_at()`; nothing is
+> stored.
 
 ### 12.2 Message
 
@@ -1856,7 +2265,10 @@ Sourcing the forecast from here was a real defect, fixed in `20260930140000`. Th
 | `sender_role` | `user_role` enum | No | Public | Denormalized for fast filtering |
 | `body` | `text` | No | PII | Plain or markdown |
 | `is_internal_note` | `boolean` | No | Internal | If true, only agent sees |
+| `is_auto_reply` | `boolean` | No | Public | §3.12.2 (PR 2). True for an out-of-office automatic reply (§12.12). Sent as the advisor (`sender_role = 'agent'`), shown tagged "Automatic reply" on both sides, granted to the client. Never counts as the advisor having answered: the reply-owed clock (`agent_threads_for_current_agent`) skips it |
 | `read_by_other_at` | `timestamptz` | Yes | Internal | Read receipts |
+| `channel` | `text` | No | Public | `app` or `email`; default `app`. Specified for §3.10 Stage 4 (not built): `email` marks a client reply that arrived by email (§12.10), so the thread can say "by email" |
+| `emailed_at` | `timestamptz` | Yes | Internal | Specified for §3.10 Stage 4 (not built). Set by `email-dispatch` on every advisor reply an email carried, when the SMTP server accepts it; drives the advisor-only "Emailed" mark (§23). Withheld from the client grant |
 | `created_at` | `timestamptz` | No | Public | — |
 | `archived_at` | `timestamptz` | Yes | Public | — |
 
@@ -1897,14 +2309,56 @@ rather than looking like an omission.
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | — |
 | `agent_id` | `uuid` | No | Public | FK → Agent (owner) |
-| `category` | `text` | No | Internal | `lead_response`, `proposal`, `booking_confirmation`, `pre_trip`, `post_trip`, `payment_reminder`, `other` |
-| `name` | `text` | No | Internal | — |
-| `subject` | `text` | Yes | Internal | — |
-| `body_markdown` | `text` | No | Internal | With `{{merge_fields}}` |
-| `tags` | `text[]` | No | Internal | — |
-| `archived_at` | `timestamptz` | Yes | Public | — |
+| `category` | `text` | No | Internal | `lead_response`, `proposal`, `booking_confirmation`, `pre_trip`, `post_trip`, `payment_reminder`, `other`. CHECKed since §3.10 Stage 2 |
+| `name` | `text` | No | Internal | 1 to 80 characters, trimmed (CHECKed since §3.10 Stage 2) |
+| `subject` | `text` | Yes | Internal | Unused until email (§3.10 Stage 4); the editor does not show it |
+| `body_markdown` | `text` | No | Internal | With `{{merge_fields}}` from the fixed set below. PLAIN TEXT until Stage 4 despite the name; at most 8,000 characters, one message's ceiling |
+| `tags` | `text[]` | No | Internal | Free-form |
+| `archived_at` | `timestamptz` | Yes | Public | The only delete (§20.1); Restore clears it |
 | `created_at` | `timestamptz` | No | Public | — |
-| `updated_at` | `timestamptz` | No | Public | — |
+| `updated_at` | `timestamptz` | No | Public | Shown on the library card as "Last edited" |
+
+**Given a producer by §3.10 Stage 2 (settled 2026-10-14, Gyasi).** The table existed from the
+initial migration with no write path and no rows. Writes go through the `agent-message-template`
+Edge Function to service-role SQL, the way every agent write on this surface does; reads are a
+definer accessor scoped by `current_agent_id()`. **No `audit_event` rows**: a template holds no
+client data, so it is outside Rule 3's sensitive tables, and the messages it produces are
+recorded the usual way.
+
+**The merge fields are a fixed set**, checked on save (an unknown token is refused, named):
+
+| Token | Filled from |
+|---|---|
+| `{{client.firstName}}` | `client.preferred_name`, else `first_name` |
+| `{{trip.name}}` | `trip.title` |
+| `{{trip.destination}}` | `trip.destinations`, joined "A", "A and B", "A, B and C" |
+| `{{trip.dates}}` | `trip.start_date` / `end_date`, the app's date-range format |
+| `{{agent.firstName}}` | the first word of `agent.display_name` |
+| `{{payment.label}}` | `payment_milestone.label` |
+| `{{payment.amount}}` | what is still owed on it: `amount_cents - paid_cents` |
+| `{{payment.dueDate}}` | `payment_milestone.due_date` |
+| `{{payment.link}}` | `payment_milestone.pay_url`, the full link as stored (added 2026-10-16, §9.5) |
+
+The `payment.*` four fill only when the picker is opened from a milestone (Trip Detail's
+"Remind the client", or §3.6.2 Send Payment Link). A field with no value is never filled with blank space: the picker turns
+"Insert as-is" off and Send refuses while any token remains (Screen Inventory §3.10.3).
+
+> **Amended 2026-10-16 — `{{payment.link}}` added.** It fills from the milestone's `pay_url`.
+> A milestone with no link leaves the token unfilled and flagged as missing, exactly like any
+> other token with no value, so a reminder can never go out with a blank where the link
+> should be. The save-time check that refuses unknown tokens accepts this one from the same
+> date. The payment reminder starter template should gain the token too; that is a template
+> content change for whoever builds §3.6, and a template an advisor already edited is never
+> rewritten.
+
+**Nothing links a message to its template.** A message stores only its merged words, so
+editing a template never changes one already sent, and there is no "used N times" count.
+
+**Starter templates.** A migration gives every agent that exists when it runs the seven
+starters (lead response, proposal, booking confirmation, pre-trip 14 day, pre-trip 7 day,
+post-trip, payment reminder) through `seed_starter_message_templates(agent_id)`, which writes
+nothing for an agent who already has a template. The local seed calls it for its advisor.
+Copying them to an advisor created later waits for P3's multi-agent work.
 
 ### 12.5 NotificationPreference
 
@@ -1913,10 +2367,263 @@ rather than looking like an omission.
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `user_id` | `uuid` | No | Public | PK; FK → User |
-| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push, sms}}` |
+| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push}}`. Agent categories (§3.12.3): `client_messages` (default push on, email off) and `quote_requests` (push on, email on); a missing key means the default, NOT "on" (unlike a client's `messages`). No `sms`: there is no SMS provider |
 | `quiet_hours_start` | `time` | Yes | Internal | — |
 | `quiet_hours_end` | `time` | Yes | Internal | — |
 | `updated_at` | `timestamptz` | No | Public | — |
+
+> **For an agent, rest hours are the working hours** in `agent_availability.weekly_schedule`
+> (§3.12.2, ruled 2026-10-17, applied in §3.12 PR 2), and out-of-office (§7.5) is rest too;
+> `quiet_hours_*` is not used for agents. Until PR 2 lands, rest hours stay 9pm to 7am and all
+> of Sunday (§3.10 Stage 3b, Gyasi 2026-10-15), which is exactly the working-hours default. Sunday is not a
+> column: rest is not lateness, the same reason the overdue clock skips it (§3.10 Stage 1).
+>
+> **First writer, specified for §3.10 Stage 4 (2026-10-16, not built): the email opt-out.**
+> A client's "Stop emailing me about messages" link sets `channels.messages.email = false`,
+> creating the row if there is none (today no path creates one). Reading it: a missing row,
+> category or channel means **on**; only an explicit `false` is off. The link turns off this
+> one email only; push and in-app are untouched, and 2.5.6's full matrix reads the same row when
+> it ships. The confirmation page offers "Turn them back on" through the same token. Rest hours
+> for a client's email use this row's `quiet_hours_*` with the same 9pm to 7am and Sunday
+> default, in the client's `platform_user.time_zone`.
+
+### 12.6 PushDevice
+
+**Phase:** P1 (§3.10 Stage 3b). One row per signed-in device that has turned notifications on.
+Service-role only: no client or agent grant, never returned by an accessor. Written by the
+`push-device` Edge Function (register on "Turn on", remove on sign-out) and pruned by the sender
+when a push service reports the address gone. Security review: `docs/Push-Notifications-Security-Review.md`.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | v7, minted by the device |
+| `platform_user_id` | `uuid` | No | Public | FK → PlatformUser. Advisors only in 3b |
+| `platform` | `push_platform` enum | No | Internal | `android`, `web`, `ios` |
+| `fcm_token` | `text` | Yes | Internal | Android (and iOS through APNs later: `apns_token`). Set iff `platform = 'android'` |
+| `web_endpoint` | `text` | Yes | Internal | Web Push subscription URL. Set iff `platform = 'web'` |
+| `web_p256dh` | `text` | Yes | Internal | The browser's public key for RFC 8291 |
+| `web_auth` | `text` | Yes | Internal | The browser's auth secret for RFC 8291 |
+| `label` | `text` | Yes | Internal | "Pixel 9 · Android", "Chrome · macOS", for a future device list |
+| `created_at` | `timestamptz` | No | Public | — |
+| `last_seen_at` | `timestamptz` | No | Public | Bumped on each register; a device unseen for 60 days is dropped |
+
+Unique: `fcm_token` where not null, `web_endpoint` where not null (a token belongs to one
+device, so re-registering moves it to the signed-in user rather than duplicating it).
+
+### 12.7 PushOutbox
+
+**Phase:** P1 (§3.10 Stage 3b). **One row per thread with something to tell the advisor**, so a
+second message updates the row instead of queueing a second notification (ruling: one
+notification per thread). Written by a trigger on `conversation.agent_unread_count` (rises: queue; reaches zero: clear),
+so every path that records or reads a message drives it without being rewritten. Sent by the
+`push-dispatch` Edge Function, which a one-minute `pg_cron` tick calls only when there is work.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()`: no client ever writes a row |
+| `agent_id` | `uuid` | No | Public | FK → Agent. Whose devices it goes to |
+| `kind` | `text` | No | Public | §3.12.3 (PR 2): `message` (default) or `quote_request` |
+| `conversation_id` | `uuid` | Yes | Public | FK → Conversation. Set iff `kind = 'message'`. Unique while `state = 'pending'` (a message during a send gets its own row) |
+| `latest_message_id` | `uuid` | Yes | Public | FK → Message. The newest client message it is about. Set iff `kind = 'message'` |
+| `trip_id` | `uuid` | Yes | Public | FK → Trip. The inquiry a quote request created. Set iff `kind = 'quote_request'` |
+| `hold_reason` | `text` | Yes | Public | `rest` or `away` when `held`: which words the summary uses ("while you rested" / "while you were away") |
+| `message_count` | `integer` | No | Public | Client messages since the last notification |
+| `due_at` | `timestamptz` | No | Public | Now, or the start of the advisor's next working period (§3.12.2: working hours ARE rest hours, and a day inside an out-of-office block is rest) |
+| `held` | `boolean` | No | Public | True when it fell in rest hours: it joins the 7am SUMMARY instead of its own notification |
+| `state` | `text` | No | Public | `pending`, `sending` (claimed by a dispatcher run), `sent`, `cleared` (read before it went), `failed` |
+| `attempts` | `integer` | No | Public | Retries on a transient error, at most 3 |
+| `claimed_at` | `timestamptz` | Yes | Public | When a run claimed it; a claim older than 5 minutes counts as a failed try and is retried |
+| `sent_at` | `timestamptz` | Yes | Public | — |
+| `needs_dismiss` | `boolean` | No | Public | Read after (or while) it was sent: a silent dismiss is owed to the phones, claimed once `sent` |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**What a push carries:** on Android, only the thread id and a count (Google can read FCM
+payloads; the app fetches the preview over its own session). On the web, the client's first
+name, the trip and the first line (Web Push is end-to-end encrypted to the browser). The locked
+screen shows the name only on the phone; on the web the system's own lock-screen setting
+decides. **Never card data, never an internal note**, and a card number a client typed is masked
+to its last four. An archived advisor is sent nothing. Finished rows are deleted after 30 days.
+
+**Clearing:** reading a thread (either surface) marks its pending row `cleared`, and a sent one
+owes a silent "dismiss" to the advisor's PHONES, so a notification read on the laptop disappears
+on the phone. Browsers get no dismiss: a push that shows nothing is a policy problem there. A
+dismiss is sent only while the thread is still read: if the client writes again first, the owed
+dismiss is dropped (it would cancel the newer notification, which shares its tag), and the
+dispatcher sends dismissals before new messages in each pass.
+
+### 12.8 EmailOutbox
+
+**Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** One row per thread with an
+advisor reply the client has not read yet, so a burst of replies goes as one email. The email
+twin of §12.7: written by a trigger on `conversation.client_unread_count` (rises: queue or
+extend; reaches zero: clear), so `agent_send_message` and every read path drive it unchanged.
+Only a client-visible reply raises that count, so **an internal note can never be emailed**.
+Sent by an `email-dispatch` Edge Function that the one-minute `pg_cron` tick calls only when a
+row is due. Service-role only: no client or agent grant. Rulings and review:
+`docs/Email-Provider-Review.md` §6.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()`. Also the email's `Message-ID` local part: `<id@adventures.story-tail.com>` |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation. Unique while `state = 'pending'` |
+| `client_user_id` | `uuid` | No | Public | FK → PlatformUser (role `client`). Whose verified account email it goes to |
+| `first_message_at` | `timestamptz` | No | Public | `created_at` of the oldest reply this email carries; with the thread's newer replies it bounds what is sent |
+| `latest_message_id` | `uuid` | No | Public | FK → Message. The newest reply it carries |
+| `due_at` | `timestamptz` | No | Public | Newest reply + 5 minutes (each reply pushes it out, so a burst sends once), but never later than the first waiting reply + 30 minutes; then moved to 7am if it lands in the client's rest hours |
+| `state` | `text` | No | Public | `pending`, `sending` (claimed), `sent`, `cleared` (read in the app first), `skipped` (see below), `failed` |
+| `skip_reason` | `text` | Yes | Public | `opted_out`, `no_email`, `client_archived`. Set iff `state = 'skipped'` |
+| `attempts` | `integer` | No | Public | Transient SMTP errors (4xx, timeouts) retry, at most 3; a 5xx fails at once |
+| `claimed_at` | `timestamptz` | Yes | Public | A claim older than 5 minutes counts as a failed try and is retried |
+| `sent_at` | `timestamptz` | Yes | Public | — |
+| `last_error` | `text` | Yes | Internal | SMTP reply code and the server's text, **truncated to 200 characters and never holding the recipient or body** |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**What is stored and what is not.** The row holds ids and times only. The dispatcher reads the
+replies (`created_at >= first_message_at`, not internal notes, not archived) and the recipient
+at send time, so a reply archived before the email goes is not sent, and no email body ever
+sits in this table.
+
+**Who gets an email.** Only a client who can sign in (a `platform_user` with role `client`),
+sent to that account's **verified** email, never the advisor-typed `client.email`: an email
+whose link needs a session and whose reply needs a sender is no use to someone with no account,
+and an unverified address could be anyone's. A client with no account gets **no row at all**
+(as push queues nothing for an advisor with no device); one whose email is missing or
+unverified ends `skipped` with `no_email`. Skips are decided when the row falls due, so an
+opt-out made in the five minutes is honoured. Settled
+2026-10-16: such clients are skipped and the advisor is warned in the thread (§23).
+
+**What an email carries:** the advisor's replies in order, card numbers masked to the last four
+exactly as §12.7's notifications do, attachment **names only**, an "Open the conversation" link
+to the thread (a plain link; it carries no token and signs no one in), a "Stop emailing me about
+messages" link and RFC 8058 `List-Unsubscribe` / `List-Unsubscribe-Post` headers (§12.9), and
+`Reply-To: info+<token>@adventures.story-tail.com`, the sending mailbox's own plus address (§12.9,
+§12.10). Branded HTML with a plain-text part. From
+"Gyasi at Story-Tail Adventures" at the app-only IONOS mailbox. `In-Reply-To` / `References` name
+the thread's previous email so mail apps keep one conversation. **No open or click tracking.**
+Finished rows are deleted after 30 days.
+
+**Clearing:** the client reading the thread in the app before `due_at` marks the pending row
+`cleared`, so a client who is already looking gets no email; reading PART of it moves
+`first_message_at` past what they saw. There is no "un-send": once `sent`, reading changes
+nothing.
+
+**No reply is ever dropped (found in review, 2026-10-16).** A row that fails, goes stale or is
+released while a newer row waits is `cleared`, and the waiting row's `first_message_at` moves back
+to cover its replies. A run stops starting sends after 90 seconds and releases the rest
+(`email_release`, no try counted); a `sending` row is only treated as stale after 15 minutes, so a
+slow run is never re-claimed under itself. Delivery is at least once: a crash after IONOS accepts
+but before the row is finished sends that email again.
+
+### 12.9 EmailToken
+
+**Phase:** P1 (§3.10 Stage 4). **Specified 2026-10-16, not built.** The secrets an email carries:
+one **reply** token (in `Reply-To`) and one **unsubscribe** token (in the opt-out link and
+header) per sent email. Service-role only. **Only a SHA-256 hash is stored**; the token itself
+exists in the email and nowhere else, so a database read cannot forge a reply.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `token_hash` | `bytea` | No | Internal | PK. SHA-256 of the token: 128 random bits, lowercase base32 (26 characters, safe in an email local part) |
+| `purpose` | `text` | No | Internal | `reply` or `unsubscribe` |
+| `outbox_id` | `uuid` | Yes | Public | FK → EmailOutbox. Which email carried it; nulled when that row is retired after 30 days, since the token outlives it |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation. Where a reply lands |
+| `client_user_id` | `uuid` | No | Public | FK → PlatformUser. Who may use it: a reply must come FROM this account's email; an unsubscribe turns off this user's email |
+| `expires_at` | `timestamptz` | No | Public | Reply: sent + 1 year. Unsubscribe: sent + 2 years |
+| `used_at` | `timestamptz` | Yes | Public | Last use; informational only (a reply token is reused by every reply to that email) |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**A reply token dies early** when its thread is archived for the client
+(`conversation.archived_at`), the client is merged into another, or the account is removed. An
+expired row is deleted 30 days after `expires_at`. A token is per email rather than per thread,
+so a leaked one exposes one email's reply path, never a whole conversation.
+
+**The unsubscribe link and the one-click header** both post to an `email-unsubscribe` Edge
+Function with the token; no sign-in, no confirmation step (RFC 8058 expects one click). It sets
+§12.5's `channels.messages.email = false` and shows a page that says so, with "Turn them back
+on". A GET only shows that page and changes nothing, so a mail scanner that follows links cannot
+unsubscribe anyone.
+
+### 12.10 InboundEmail
+
+**Phase:** P1 (§3.10 Stage 4). **Built 2026-10-16, over IMAP** (Gyasi, 2026-10-16: replies are read
+from the app's own mailbox, `info@adventures.story-tail.com`, not through Resend; library review
+`docs/IMAP-Library-Security-Review.md`, imapflow 2.2.1). One row per message read from that
+mailbox's INBOX, kept so a re-delivered message is handled once and so a rejection can be counted
+without keeping the mail. Service-role only. Written by the `email-inbox` Edge Function, which
+pg_cron's `email_inbox_tick()` calls every two minutes; it logs in with the sending login, records
+each message, then moves it to `Processed`, `Rejected` or (unreadable) `Failed`; mail in those
+folders is deleted after 30 days, since a reply may hold an unmasked card number. The sender verdict
+counts only from the receiving server named by `EMAIL_AUTHSERV_ID`; see the review §3a.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()` |
+| `provider_email_id` | `text` | No | Internal | `mid:<Message-ID>` of the delivered message, or `imap:<UIDVALIDITY>:<UID>` when it has none. Unique: a re-delivery is a no-op (a re-delivered copy gets a new UID but keeps its Message-ID) |
+| `outcome` | `text` | No | Public | `accepted`, `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`, `too_long`, `auto_reply` (an out-of-office or other automatic answer, by its RFC 3834 headers: never a client message) |
+| `message_id` | `uuid` | Yes | Public | FK → Message. Set iff `accepted` |
+| `files_dropped` | `integer` | No | Public | Attachments left off (Stage 4 keeps names only; none are fetched) |
+| `received_at` | `timestamptz` | No | Public | — |
+
+**Nothing about a rejected email is kept**: no From address, subject or body. Rows are deleted
+after 90 days.
+
+**Accepting a reply** needs every one of: a live `reply` token, found by the hash of the token in an
+`info+<token>@` recipient or, when that was lost, as the reply token of OUR email named in the
+reply's `In-Reply-To` / `References` (our Message-IDs are `<outbox-id@…>`; this works while the
+outbox row exists, 30 days); a From header naming exactly one address, equal (case-insensitive) to that token's
+account email, which must be verified, and the receiving server's DMARC (or SPF and DKIM) verdict
+passing for it, read from the TOPMOST `Authentication-Results` only (a lower one came with the mail); a thread still open to the client. Then the new text
+only (quoted history and signature stripped, no HTML rendered, card numbers masked to the last
+four before anything is stored, at most 8,000 characters) becomes
+a client message with `channel = 'email'`, written through the **same path as `trip-message`**
+(`conversation_record_client_message`), so unread counts, push (§12.7), the overdue clock and
+audit all behave as for an in-app message. **A rejected email gets no reply** (answering a
+forged sender is backscatter). An accepted one with files gets one short automatic note, to the
+verified sender only, saying files go in the app.
+
+---
+
+### 12.11 AgentAlertEmail
+
+**Phase:** P1 (§3.12.3, PR 2). The advisor's own alert emails: one row per thing to tell them,
+sent by `email-dispatch` alongside the client emails. Service-role only.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public | Server default `uuid_v7()` |
+| `agent_id` | `uuid` | No | Public | FK → Agent. Sent to `agent.email` (the sign-in email) |
+| `kind` | `text` | No | Public | `client_message` or `quote_request` |
+| `conversation_id` | `uuid` | Yes | Public | Set iff `client_message`. One pending row per thread: a second message adds nothing |
+| `trip_id` | `uuid` | Yes | Public | Set iff `quote_request` |
+| `state` | `text` | No | Public | `pending`, `sending`, `sent`, `cleared` (the thread was read first), `failed` |
+| `attempts` | `integer` | No | Public | At most 3 |
+| `claimed_at` / `sent_at` | `timestamptz` | Yes | Public | — |
+| `last_error` | `text` | Yes | Internal | SMTP code and words, no address, 200 characters |
+| `created_at` | `timestamptz` | No | Public | — |
+
+**What it carries: never a client's words** (Q15). The client's name, the trip and an "Open in
+Story-Tail" link to the thread or the inquiry trip, so client words (and any card number a
+client types) stay out of the advisor's mail provider. **Due at once**: rest hours quiet push
+only. Queued only when the advisor's `notification_preference` has that category's `email` on
+(defaults: client messages off, quote requests on). Finished rows are deleted after 30 days.
+
+### 12.12 AgentAutoReply
+
+**Phase:** P1 (§3.12.2, PR 2). Which threads an out-of-office block has already answered, so
+the automatic reply goes **once per thread per block**. Service-role only.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `time_off_id` | `uuid` | No | Public | FK → AgentTimeOff (§7.5), cascade. Half of the PK |
+| `conversation_id` | `uuid` | No | Public | FK → Conversation, cascade. The other half |
+| `message_id` | `uuid` | No | Public | FK → Message: the reply it sent (`is_auto_reply`) |
+| `created_at` | `timestamptz` | No | Public | — |
+
+Written by a trigger when a client message raises `conversation.agent_unread_count` while today
+(advisor's zone) is inside a block with `auto_reply_enabled`. The reply's text is the block's
+`auto_reply_text` with `{{return_date}}` filled ("Monday, July 8": the day after `ends_on`). It
+raises `client_unread_count` (so the normal message email carries it) and leaves
+`agent_unread_count` alone (it never marks the thread read).
 
 ---
 
@@ -1970,6 +2677,11 @@ rather than looking like an omission.
 > 2.2.6 groups by kind, picks its PDF/IMG badge from mime_type and prints the size, and all
 > three describe the client's own file. `storage_bucket`, `storage_key`, `checksum_sha256`
 > and `is_sensitive` remain server-only.
+>
+> **Amended 2026-10-16.** `card_use_event` is dropped (§9.4), so the supplier-charge receipt
+> example above no longer applies. The allowlist stays exactly as it is: `receipt` is still
+> left out, and `commission_import.document_id` is still a live reason the policy must be an
+> allowlist.
 
 ---
 
@@ -2020,8 +2732,8 @@ rather than looking like an omission.
 | `id` | `uuid` | No | Public | — |
 | `actor_user_id` | `uuid` | Yes | Public | FK → User. Null for system events. |
 | `actor_role` | `user_role` enum | Yes | Public | Denormalized |
-| `event_type` | `text` | No | Internal | E.g., `client.updated`, `card.revealed`, `commission.received` |
-| `target_entity` | `text` | Yes | Internal | E.g., `client`, `trip`, `payment_card` |
+| `event_type` | `text` | No | Internal | E.g., `client.updated`, `commission.received`, `payment_milestone.link_changed` (amended 2026-10-16: the old `card.revealed` example named an event that can no longer happen) |
+| `target_entity` | `text` | Yes | Internal | E.g., `client`, `trip`, `payment_milestone` |
 | `target_id` | `uuid` | Yes | Internal | The entity acted on |
 | `metadata` | `jsonb` | No | Internal | Free-form structured detail |
 | `ip_address` | `inet` | Yes | PII | — |
@@ -2029,6 +2741,10 @@ rather than looking like an omission.
 | `created_at` | `timestamptz` | No | Public | — |
 
 **Append-only.** Retained 7 years for tax/compliance; longer for card-related events.
+
+> **Amended 2026-10-16.** No new card-related events can be written (§9 is retired), so the
+> longer card retention covers nothing going forward. `payment_milestone.*` events (§9.5) keep
+> the 7-year default.
 
 **Indexes:** index on `(actor_user_id, created_at desc)`; index on `(target_entity, target_id, created_at desc)`; index on `(event_type, created_at desc)`.
 
@@ -2039,7 +2755,7 @@ rather than looking like an omission.
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | — |
-| `provider` | `text` | No | Internal | `amadeus`, `hotelbeds`, `viator`, `widgety`, `stripe`, ... |
+| `provider` | `text` | No | Internal | `amadeus`, `hotelbeds`, `viator`, `widgety`, ... (`stripe` removed 2026-10-16: Stripe is not in the stack) |
 | `environment` | `text` | No | Internal | `test`, `production` |
 | `credentials_encrypted` | `bytea` | No | Tokenized | API key bundle, encrypted at rest |
 | `config_payload` | `jsonb` | No | Internal | Provider-specific config |
@@ -2065,35 +2781,636 @@ rather than looking like an omission.
 
 ## 16. Group Trip Domain (Phase 3)
 
+> **Designed, not built.** Nothing in this section exists in a migration yet. It was
+> settled with Gyasi on 2026-10-14 in a grilling session, and he has named it **the next
+> feature after the P1 release**. The rulings it rests on, numbered 1 to 33, live in
+> `design/briefs/group-trips.md`; the artboards are Screen Inventory §2.8.5 to §2.8.9 and
+> §3.13 (proposed), mirrored in `design/source-prototype/pages/c28-group.html` and
+> `a313-groups.html`. Rule numbers below ("rule 17") point into that brief.
+>
+> **This replaces the earlier §16 sketch.** That draft had two tables, `trip_group` and
+> `group_member`, with one `coordinator_user_id`, a stored `total_pax`, and magic-link
+> co-traveler access. The settled design needs co-leaders, a public sign-up page, agent-set
+> options and a waitlist, so the sketch could not carry it. `total_pax` is gone on purpose:
+> a headcount that is stored rather than counted is a sum with no producer, and it drifts
+> the first time a party changes size.
+
+### 16.0 How the pieces fit
+
+- **A group owns one master trip.** The agent builds the shared itinerary on it once
+  (rule 1). The master trip has no client and is never shown to one.
+- **Every party is one `group_member` row, and gets its own Trip** once it holds a spot
+  (rules 1 and 3). Deposits, documents and commission then run through the existing P1 flows
+  on that Trip, untouched. (Amended 2026-10-16: "card authorizations" removed; a party's
+  deposit is a payment milestone with a pay link, §9.5.)
+- **Shared components stay linked.** A party's copy of a shared component points back at
+  the master component, so an edit to the master can be pushed to every copy (rule 2).
+- **Options are what people sign up for** (rules 6 to 10), and the agent marks each one
+  public or hidden.
+- **Leaders read through one function and nothing else** (rules 17 and 18). They get no
+  table grants at all.
+
+| Entity | Purpose |
+|---|---|
+| TripGroup | The group: name, dates, link, capacity, deadline, lifecycle |
+| GroupLeader | A leader the agent assigned, before and after they claim an account |
+| GroupOption | One thing a party can sign up for, with its price and deposit |
+| GroupMember | One party: its option, status, size, place in line, and its Trip |
+| GroupTraveler | One person in a party, by the name on their ID |
+| GroupMemberFlag | A leader's note to the agent about one party |
+| (columns on Trip and TripComponent) | The master trip marker and the master-component link |
+
 ### 16.1 TripGroup
 
-**Phase:** P3
+**Purpose:** One group trip. Holds what the public page shows and what the agent controls.
+
+**Phase:** P3 (next after the P1 release)
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
-| `id` | `uuid` | No | Public | — |
+| `id` | `uuid` | No | Public |  |
 | `agent_id` | `uuid` | No | Public | FK → Agent |
-| `name` | `text` | No | PII | "Smith Family Reunion 2027" |
-| `start_date` | `date` | Yes | PII | — |
-| `end_date` | `date` | Yes | PII | — |
-| `coordinator_user_id` | `uuid` | Yes | Public | The lead participant |
-| `total_pax` | `integer` | No | Internal | Sum across members |
-| `created_at` | `timestamptz` | No | Public | — |
-| `updated_at` | `timestamptz` | No | Public | — |
-| `archived_at` | `timestamptz` | Yes | Public | — |
+| `name` | `text` | No | Public | "Grace Community Caribbean Cruise". Public because the page is |
+| `slug` | `citext` | No | Public | Unique. Lowercase letters, digits and hyphens. The page lives at `story-tail.com/groups/<slug>` (rule 33) |
+| `status` | `group_status` enum | No | Public | `draft`, `open`, `closed`, `departed`, `archived`. **"Full" is not stored** (see Notes) |
+| `destination` | `text` | Yes | Public | Free text for the page header |
+| `description` | `text` | Yes | Public | The agent's copy for the page |
+| `hero_document_id` | `uuid` | Yes | Public | FK → Document (`photo`) |
+| `start_date` | `date` | Yes | Public |  |
+| `end_date` | `date` | Yes | Public |  |
+| `cap_people` | `integer` | Yes | Internal | Headcount cap, counted in **people**, not parties (rule 11). NULL means no cap |
+| `signup_deadline` | `timestamptz` | Yes | Public | NULL means no deadline |
+| `waitlist_enabled` | `boolean` | No | Internal | Default `true` (rule 11) |
+| `offer_window_hours` | `integer` | No | Internal | Default `72` (rule 12) |
+| `invite_hold_days` | `integer` | No | Internal | Default `7` (rule 19) |
+| `master_trip_id` | `uuid` | No | Internal | FK → Trip, unique. The shared itinerary (rule 1) |
+| `featured_leader_id` | `uuid` | Yes | Internal | FK → GroupLeader. Whose welcome note leads the public page. NULL means the earliest claimed leader (§16.2, settled 2026-10-14) |
+| `currency` | `char(3)` | No | Public | Always `USD` today |
+| `opened_at` | `timestamptz` | Yes | Internal | Set on `draft → open` |
+| `closed_at` | `timestamptz` | Yes | Internal |  |
+| `departed_at` | `timestamptz` | Yes | Internal | Turns the leader roster read-only (rule 23) |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `archived_at` | `timestamptz` | Yes | Public | Ends leader access (rule 23) |
+| `version` | `integer` | No | Internal | Optimistic concurrency |
 
-### 16.2 GroupMember
+**Notes:**
+- **"Full" is derived.** The artboards show a Full status, but the group is full when the
+  people holding spots reach `cap_people`, and that changes every time a party joins,
+  shrinks or cancels. Storing it would need a trigger on every `group_member` write to keep
+  it true. The read functions compute it instead: `status = 'open'` and the held headcount
+  is at the cap.
+- **Sign-ups are accepted only while** `status = 'open'`, the deadline has not passed, and
+  the group is not full. A full group or option sends the visitor to the waitlist if
+  `waitlist_enabled` (rule 13).
+- **`draft` and `archived` groups have no public page.** The public function returns
+  nothing for them, the same as for a slug that does not exist, so a draft cannot be found
+  by guessing.
+
+```sql
+CREATE TYPE group_status AS ENUM ('draft','open','closed','departed','archived');
+
+CREATE TABLE trip_group (
+    id                  uuid PRIMARY KEY,
+    agent_id            uuid NOT NULL REFERENCES agent(id),
+    name                text NOT NULL,
+    slug                citext NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+    status              group_status NOT NULL DEFAULT 'draft',
+    destination         text,
+    description         text,
+    hero_document_id    uuid REFERENCES document(id),
+    start_date          date,
+    end_date            date,
+    cap_people          integer CHECK (cap_people IS NULL OR cap_people > 0),
+    signup_deadline     timestamptz,
+    waitlist_enabled    boolean NOT NULL DEFAULT true,
+    offer_window_hours  integer NOT NULL DEFAULT 72 CHECK (offer_window_hours > 0),
+    invite_hold_days    integer NOT NULL DEFAULT 7 CHECK (invite_hold_days > 0),
+    master_trip_id      uuid NOT NULL UNIQUE REFERENCES trip(id),
+    featured_leader_id  uuid,  -- FK → group_leader, added after that table exists (§16.2)
+    currency            char(3) NOT NULL DEFAULT 'USD',
+    opened_at           timestamptz,
+    closed_at           timestamptz,
+    departed_at         timestamptz,
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    updated_at          timestamptz NOT NULL DEFAULT now(),
+    archived_at         timestamptz,
+    version             integer NOT NULL DEFAULT 1,
+    CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
+);
+CREATE INDEX trip_group_agent_status ON trip_group (agent_id, status);
+```
+
+```kotlin
+@Serializable
+data class TripGroup(
+    val id: Uuid,
+    val agentId: Uuid,
+    val name: String,
+    val slug: String,
+    val status: GroupStatus,
+    val destination: String? = null,
+    val description: String? = null,
+    val heroDocumentId: Uuid? = null,
+    val startDate: LocalDate? = null,
+    val endDate: LocalDate? = null,
+    val capPeople: Int? = null,
+    val signupDeadline: Instant? = null,
+    val waitlistEnabled: Boolean = true,
+    val offerWindowHours: Int = 72,
+    val inviteHoldDays: Int = 7,
+    val masterTripId: Uuid,
+    val featuredLeaderId: Uuid? = null,
+    val currency: String = "USD",
+    val openedAt: Instant? = null,
+    val closedAt: Instant? = null,
+    val departedAt: Instant? = null,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val archivedAt: Instant? = null,
+    val version: Int = 1
+)
+
+@Serializable enum class GroupStatus { DRAFT, OPEN, CLOSED, DEPARTED, ARCHIVED }
+```
+
+### 16.2 GroupLeader
+
+**Purpose:** A leader the agent assigned to a group. A row exists from the moment the
+agent adds the leader's email, before any account does (rule 15).
 
 **Phase:** P3
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
-| `id` | `uuid` | No | Public | — |
+| `id` | `uuid` | No | Public |  |
 | `group_id` | `uuid` | No | Public | FK → TripGroup |
-| `trip_id` | `uuid` | No | Public | FK → Trip (each group member has their own trip) |
-| `role` | `text` | No | Internal | `coordinator`, `traveler`, `co_traveler_no_account` |
-| `magic_link_token_hash` | `text` | Yes | Tokenized | For account-less co-traveler access |
-| `magic_link_expires_at` | `timestamptz` | Yes | Internal | — |
+| `user_id` | `uuid` | Yes | Public | FK → PlatformUser. NULL until the invite is claimed |
+| `invite_email` | `citext` | No | PII | Where the claim invite went. Agent-only |
+| `invite_token_hash` | `text` | Yes | Tokenized | Hash of the single-use claim token. Cleared on claim |
+| `invited_at` | `timestamptz` | No | Internal |  |
+| `claimed_at` | `timestamptz` | Yes | Internal | Until set, the page leaves out the note and photo (rule 15) |
+| `is_traveling` | `boolean` | No | Internal | A leader does not have to travel (rule 14). A traveling leader also has a `group_member` row like anyone else (rule 16) |
+| `welcome_note` | `text` | Yes | Public | Shown on the public page. Max 600 characters. The only page copy a leader can edit (rule 24) |
+| `photo_document_id` | `uuid` | Yes | Public | FK → Document (`photo`) |
+| `digest_enabled` | `boolean` | No | Internal | Daily sign-up email, default `false` (rule 22) |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `removed_at` | `timestamptz` | Yes | Internal | Soft removal by the agent. Access ends at once |
+
+**Notes:**
+- **Leaders are not a new `user_role`.** A leader is an ordinary `client` account that has
+  a live `group_leader` row. Leadership is per group, so a role on the account would be
+  wrong for every other group that person joins.
+- **Whose note leads the public page** (settled 2026-10-14, §23). If
+  `trip_group.featured_leader_id` is set and that leader is live and claimed, their note
+  and photo lead. Otherwise the earliest `claimed_at` among live leaders wins, which covers
+  the common one-leader group with nothing to set. The agent sets or clears it from the
+  Leaders panel. Removing the featured leader does not need to clear the column: the read
+  function skips a removed or unclaimed leader and falls back to the earliest claim.
+
+```sql
+CREATE TABLE group_leader (
+    id                 uuid PRIMARY KEY,
+    group_id           uuid NOT NULL REFERENCES trip_group(id),
+    user_id            uuid REFERENCES platform_user(id),
+    invite_email       citext NOT NULL,
+    invite_token_hash  text,
+    invited_at         timestamptz NOT NULL DEFAULT now(),
+    claimed_at         timestamptz,
+    is_traveling       boolean NOT NULL DEFAULT false,
+    welcome_note       text CHECK (welcome_note IS NULL OR char_length(welcome_note) <= 600),
+    photo_document_id  uuid REFERENCES document(id),
+    digest_enabled     boolean NOT NULL DEFAULT false,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    removed_at         timestamptz,
+    CHECK ((claimed_at IS NULL) = (user_id IS NULL))
+);
+CREATE UNIQUE INDEX group_leader_live_user  ON group_leader (group_id, user_id) WHERE removed_at IS NULL AND user_id IS NOT NULL;
+CREATE UNIQUE INDEX group_leader_live_email ON group_leader (group_id, invite_email) WHERE removed_at IS NULL;
+
+-- trip_group is created first, so its featured-leader FK is added here.
+-- The composite key stops a group from featuring another group's leader.
+ALTER TABLE group_leader ADD CONSTRAINT group_leader_id_group UNIQUE (id, group_id);
+ALTER TABLE trip_group ADD CONSTRAINT trip_group_featured_leader
+    FOREIGN KEY (featured_leader_id, id) REFERENCES group_leader (id, group_id);
+```
+
+```kotlin
+@Serializable
+data class GroupLeader(
+    val id: Uuid,
+    val groupId: Uuid,
+    val userId: Uuid? = null,
+    val inviteEmail: String,          // agent-only; never in a leader- or member-facing DTO
+    val invitedAt: Instant,
+    val claimedAt: Instant? = null,
+    val isTraveling: Boolean = false,
+    val welcomeNote: String? = null,
+    val photoDocumentId: Uuid? = null,
+    val digestEnabled: Boolean = false,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val removedAt: Instant? = null
+)
+```
+
+### 16.3 GroupOption
+
+**Purpose:** One thing a party can sign up for: a cabin type, a land package, day-trip
+only, a cabin plus airfare (rule 6).
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `group_id` | `uuid` | No | Public | FK → TripGroup |
+| `name` | `text` | No | Public | "Balcony" |
+| `description` | `text` | Yes | Public |  |
+| `price_per_person_cents` | `bigint` | No | Public | Fixed, agent-entered (rule 7). Not a live supplier rate |
+| `deposit_per_person_cents` | `bigint` | No | Public |  |
+| `currency` | `char(3)` | No | Public | Matches the group |
+| `max_occupancy` | `integer` | No | Public | People per unit ("sleeps up to 4") |
+| `unit_limit` | `integer` | Yes | Internal | How many **units** (cabins, packages) the agent holds. Counted in parties, because one party takes one unit. NULL means no limit (rule 10) |
+| `is_public` | `boolean` | No | Internal | Visitors and leaders see only public options (rule 8) |
+| `order_index` | `integer` | No | Public | Display order |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `archived_at` | `timestamptz` | Yes | Public | An option with parties on it is archived, never deleted |
+
+**Notes:**
+- **A hidden option's name never reaches a leader.** The leader read model prints
+  "Arranged by Gyasi" in its place (rule 30). The agent's name is read from the group's
+  agent row, not hard-coded.
+- **The two capacities count different things on purpose.** `trip_group.cap_people` counts
+  heads, because the ship and the venue fill by headcount. `unit_limit` counts parties,
+  because the agent holds eight cabins, not sixteen people.
+
+```sql
+CREATE TABLE group_option (
+    id                        uuid PRIMARY KEY,
+    group_id                  uuid NOT NULL REFERENCES trip_group(id),
+    name                      text NOT NULL,
+    description               text,
+    price_per_person_cents    bigint NOT NULL CHECK (price_per_person_cents >= 0),
+    deposit_per_person_cents  bigint NOT NULL CHECK (deposit_per_person_cents >= 0),
+    currency                  char(3) NOT NULL DEFAULT 'USD',
+    max_occupancy             integer NOT NULL CHECK (max_occupancy > 0),
+    unit_limit                integer CHECK (unit_limit IS NULL OR unit_limit > 0),
+    is_public                 boolean NOT NULL DEFAULT true,
+    order_index               integer NOT NULL DEFAULT 0,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now(),
+    archived_at               timestamptz,
+    CHECK (deposit_per_person_cents <= price_per_person_cents)
+);
+CREATE INDEX group_option_group_order ON group_option (group_id, order_index);
+```
+
+```kotlin
+@Serializable
+data class GroupOption(
+    val id: Uuid,
+    val groupId: Uuid,
+    val name: String,
+    val description: String? = null,
+    val pricePerPersonCents: Long,
+    val depositPerPersonCents: Long,
+    val currency: String = "USD",
+    val maxOccupancy: Int,
+    val unitLimit: Int? = null,
+    val isPublic: Boolean = true,
+    val orderIndex: Int = 0,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val archivedAt: Instant? = null
+)
+```
+
+### 16.4 GroupMember (one party)
+
+**Purpose:** One party in a group: who owns it, which option it chose, how many people,
+and where it stands. This replaces the old one-row-per-person `group_member`.
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `group_id` | `uuid` | No | Public | FK → TripGroup |
+| `option_id` | `uuid` | No | Public | FK → GroupOption. For a waitlisted party, the option it is waiting for (rule 10) |
+| `client_id` | `uuid` | Yes | Public | FK → Client, the party owner. NULL only while `invited` and not yet claimed |
+| `trip_id` | `uuid` | Yes | Public | FK → Trip, unique. Set when the party first **holds a spot** (see Notes) |
+| `status` | `group_member_status` enum | No | Public | See the lifecycle below |
+| `source` | `group_member_source` enum | No | Internal | `public_page`, `leader`, `agent` |
+| `party_size` | `integer` | No | Public | People in the party. What capacity counts |
+| `invite_email` | `citext` | Yes | PII | Only for a leader-added or agent-added party before it is claimed. Agent-only, **never shown to the leader who typed it** (rule 18) |
+| `invite_token_hash` | `text` | Yes | Tokenized | Single-use claim token, cleared on claim |
+| `invited_by_leader_id` | `uuid` | Yes | Internal | FK → GroupLeader, for "Added by Marcus Webb" |
+| `hold_expires_at` | `timestamptz` | Yes | Internal | When an unclaimed invite releases its spots (rule 19) |
+| `waitlist_position` | `integer` | Yes | Internal | Set only while `waitlisted` or `offered`. Lower goes first |
+| `offer_expires_at` | `timestamptz` | Yes | Internal | Set only while `offered` (rule 12) |
+| `signed_up_at` | `timestamptz` | No | Public | Shown to the leader as "Signed up" |
+| `confirmed_at` | `timestamptz` | Yes | Internal |  |
+| `cancelled_at` | `timestamptz` | Yes | Internal |  |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+| `version` | `integer` | No | Internal | Optimistic concurrency |
+
+**Lifecycle (`group_member_status`):**
+
+| Status | Holds spots? | Has a Trip? | How it gets here |
+|---|---|---|---|
+| `invited` | Yes, until `hold_expires_at` | No | A leader or the agent added the party (rule 19) |
+| `requested` | Yes | Yes, in `inquiry` | Signed up on the page, or claimed an invite (rule 4) |
+| `confirmed` | Yes | Yes | The agent confirmed the spot |
+| `waitlisted` | No | No | Signed up while the group or option was full (rule 11) |
+| `offered` | Yes, until `offer_expires_at` | No | A spot opened and the agent's offer went out (rule 12) |
+| `declined` | No | No | Turned the offer down ("take me off the list") |
+| `expired` | No | No | An invite ran out of time. **An offer that runs out does not land here** (see Notes) |
+| `cancelled` | No | Kept, `cancelled` | Only the party or the agent can cancel (rules 20 and 26) |
+
+**Notes:**
+- **A party gets a Trip when it first holds a spot it has accepted,** which is `requested`.
+  A waitlisted party has nothing to book yet, and a Trip in `inquiry` for every hopeful
+  would flood the agent's worklist. An `offered` party that says yes moves to `requested`
+  and gets its Trip then. An unclaimed invite has no client yet, and Trip needs one.
+- **Deposit received and paid in full are not statuses.** They are read off the party
+  Trip's `payment_milestone` rows: a paid `deposit` milestone, then every milestone paid
+  or waived. Storing them here would be a second copy of §9.5 that nothing keeps in step.
+  The leader read model derives them (rule 17).
+- **Held headcount** is the sum of `party_size` over `invited`, `requested`, `confirmed`
+  and `offered`. **Units used** on an option is the count of those same rows. Both are
+  computed, never stored.
+- **An offer that runs out sends the party to the back of the line** (settled 2026-10-14,
+  §23). The party goes from `offered` back to `waitlisted`, `offer_expires_at` is cleared,
+  and `waitlist_position` becomes one past the last position on that option's line. The
+  party owner gets a short note saying so, with a way to leave the list. Keeping its old
+  place would hand the next offer straight back to a party that did not answer, and stall
+  the line by another full offer window each time. The agent can still move it up by hand.
+- **Who can cancel** is enforced in the Edge Function, not here: the party owner or the
+  agent. A leader can only flag (rule 20, §16.6).
+- **Changing a party's option** is agent-only (rule 32). It rewrites `option_id` and the
+  party Trip's price and milestones in one audited call.
+
+```sql
+CREATE TYPE group_member_status AS ENUM
+  ('invited','requested','confirmed','waitlisted','offered','declined','expired','cancelled');
+CREATE TYPE group_member_source AS ENUM ('public_page','leader','agent');
+
+CREATE TABLE group_member (
+    id                    uuid PRIMARY KEY,
+    group_id              uuid NOT NULL REFERENCES trip_group(id),
+    option_id             uuid NOT NULL REFERENCES group_option(id),
+    client_id             uuid REFERENCES client(id),
+    trip_id               uuid UNIQUE REFERENCES trip(id),
+    status                group_member_status NOT NULL,
+    source                group_member_source NOT NULL,
+    party_size            integer NOT NULL CHECK (party_size > 0),
+    invite_email          citext,
+    invite_token_hash     text,
+    invited_by_leader_id  uuid REFERENCES group_leader(id),
+    hold_expires_at       timestamptz,
+    waitlist_position     integer,
+    offer_expires_at      timestamptz,
+    signed_up_at          timestamptz NOT NULL DEFAULT now(),
+    confirmed_at          timestamptz,
+    cancelled_at          timestamptz,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now(),
+    version               integer NOT NULL DEFAULT 1,
+    CHECK (client_id IS NOT NULL OR status IN ('invited','expired','cancelled')),
+    CHECK (status <> 'offered' OR offer_expires_at IS NOT NULL),
+    CHECK ((status IN ('waitlisted','offered')) = (waitlist_position IS NOT NULL)),
+    CHECK (status <> 'invited' OR hold_expires_at IS NOT NULL)
+);
+-- Rule 5: one active party per account per group.
+CREATE UNIQUE INDEX group_member_one_active_party ON group_member (group_id, client_id)
+    WHERE client_id IS NOT NULL AND status NOT IN ('declined','expired','cancelled');
+CREATE INDEX group_member_group_status ON group_member (group_id, status);
+CREATE INDEX group_member_waitlist     ON group_member (group_id, option_id, waitlist_position)
+    WHERE waitlist_position IS NOT NULL;
+CREATE INDEX group_member_timers       ON group_member (hold_expires_at, offer_expires_at)
+    WHERE status IN ('invited','offered');
+```
+
+```kotlin
+@Serializable
+data class GroupMember(
+    val id: Uuid,
+    val groupId: Uuid,
+    val optionId: Uuid,
+    val clientId: Uuid? = null,
+    val tripId: Uuid? = null,
+    val status: GroupMemberStatus,
+    val source: GroupMemberSource,
+    val partySize: Int,
+    val invitedByLeaderId: Uuid? = null,
+    val holdExpiresAt: Instant? = null,
+    val waitlistPosition: Int? = null,
+    val offerExpiresAt: Instant? = null,
+    val signedUpAt: Instant,
+    val confirmedAt: Instant? = null,
+    val cancelledAt: Instant? = null,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val version: Int = 1
+    // invite_email and invite_token_hash are server-only and have no field here (§21.2)
+)
+
+@Serializable enum class GroupMemberStatus { INVITED, REQUESTED, CONFIRMED, WAITLISTED, OFFERED, DECLINED, EXPIRED, CANCELLED }
+@Serializable enum class GroupMemberSource { PUBLIC_PAGE, LEADER, AGENT }
+```
+
+### 16.5 GroupTraveler
+
+**Purpose:** One person in a party, as the sign-up form collects them: the full name on
+their ID, and adult or child (brief §2.5, settled in grilling round 3).
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `member_id` | `uuid` | No | Public | FK → GroupMember |
+| `full_name` | `text` | No | PII | As it appears on their ID. **The leader sees it** (rule 17, "names of the people in the party") |
+| `age_band` | `traveler_age_band` enum | No | PII | `adult`, `child`. Not a birth date: birth dates are collected later, privately, through §6.4 |
+| `is_owner` | `boolean` | No | Internal | True for the person who signed up |
+| `companion_id` | `uuid` | Yes | PII | FK → Companion, when the owner later links this person to a saved companion |
+| `order_index` | `integer` | No | Public |  |
+| `created_at` | `timestamptz` | No | Public |  |
+| `updated_at` | `timestamptz` | No | Public |  |
+
+**Notes:**
+- **This table exists because nothing else holds a trip's travelers by name.** Trip has
+  `traveler_count` and a `traveler_breakdown` jsonb, and Companion is per client, not per
+  trip.
+- **It hangs off the party, not the trip, on purpose** (settled 2026-10-14, §23). A
+  waitlisted party typed its names into the sign-up form but has no Trip yet, so a
+  trip-keyed table has nowhere to put them. That also rules out the earlier idea of making
+  this a view over a general `trip_traveler`. No `trip_traveler` is built now. If ordinary
+  trips later need named travelers, build it then, and copy a party's names into it when
+  the party gets its Trip.
+- **A party's traveler rows can be fewer than `party_size`** while it is `invited`, because
+  a leader enters a count, not names. The agent cannot move a party to `confirmed` until the
+  counts match.
+
+```sql
+CREATE TYPE traveler_age_band AS ENUM ('adult','child');
+
+CREATE TABLE group_traveler (
+    id            uuid PRIMARY KEY,
+    member_id     uuid NOT NULL REFERENCES group_member(id),
+    full_name     text NOT NULL,
+    age_band      traveler_age_band NOT NULL,
+    is_owner      boolean NOT NULL DEFAULT false,
+    companion_id  uuid REFERENCES companion(id),
+    order_index   integer NOT NULL DEFAULT 0,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX group_traveler_one_owner ON group_traveler (member_id) WHERE is_owner;
+```
+
+```kotlin
+@Serializable
+data class GroupTraveler(
+    val id: Uuid,
+    val memberId: Uuid,
+    val fullName: String,
+    val ageBand: TravelerAgeBand,
+    val isOwner: Boolean = false,
+    val companionId: Uuid? = null,
+    val orderIndex: Int = 0,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+@Serializable enum class TravelerAgeBand { ADULT, CHILD }
+```
+
+### 16.6 GroupMemberFlag
+
+**Purpose:** A leader's note to the agent about one party: "Ana says they can't make it in
+March after all." This is how a leader asks for a cancellation without being able to
+cancel (rule 20).
+
+**Phase:** P3
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `id` | `uuid` | No | Public |  |
+| `member_id` | `uuid` | No | Public | FK → GroupMember |
+| `leader_id` | `uuid` | No | Public | FK → GroupLeader |
+| `note` | `text` | No | PII | Only the agent reads it. The leader sees only that a flag is open |
+| `created_at` | `timestamptz` | No | Public |  |
+| `resolved_at` | `timestamptz` | Yes | Internal |  |
+| `resolved_by_agent_id` | `uuid` | Yes | Internal | FK → Agent |
+
+```sql
+CREATE TABLE group_member_flag (
+    id                    uuid PRIMARY KEY,
+    member_id             uuid NOT NULL REFERENCES group_member(id),
+    leader_id             uuid NOT NULL REFERENCES group_leader(id),
+    note                  text NOT NULL CHECK (char_length(note) BETWEEN 1 AND 1000),
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    resolved_at           timestamptz,
+    resolved_by_agent_id  uuid REFERENCES agent(id),
+    CHECK ((resolved_at IS NULL) = (resolved_by_agent_id IS NULL))
+);
+CREATE INDEX group_member_flag_open ON group_member_flag (member_id) WHERE resolved_at IS NULL;
+```
+
+```kotlin
+@Serializable
+data class GroupMemberFlag(
+    val id: Uuid,
+    val memberId: Uuid,
+    val leaderId: Uuid,
+    val note: String,                 // agent-facing only
+    val createdAt: Instant,
+    val resolvedAt: Instant? = null,
+    val resolvedByAgentId: Uuid? = null
+)
+```
+
+### 16.7 Changes to Trip and TripComponent
+
+**Trip.** Three changes, all new columns or relaxed constraints, so no existing row moves:
+
+| Field | Change | Notes |
+|---|---|---|
+| `group_id` | **Add for real** | Listed in §8.2 since the first draft, but the initial migration (`20260514120000`) left it commented out. FK → TripGroup |
+| `is_group_master` | **Add**, `boolean NOT NULL DEFAULT false` | True only for a group's master trip |
+| `client_id` | **Relax to nullable**, with `CHECK (client_id IS NOT NULL OR is_group_master)` | A master trip belongs to no client (rule 1) |
+
+**The master is a Trip, not a TripTemplate** (settled 2026-10-14, §23). Rule 2 needs edits
+to reach every party, and a template cannot do that: trips are not linked back to the
+template they came from, and §8.6 makes a template's payload read-only. The exclusion work
+below is the price, paid knowingly.
+
+Every client-facing policy on Trip keys on `client_id`, so a master trip is invisible to
+clients by construction. **Every agent-side aggregate must exclude it**: the worklist, the
+pipeline, commission forecasts and reports all read Trip, and a master trip with a cruise
+on it would otherwise count as one more booking. Add `AND NOT is_group_master` to each, and
+a test per surface that seeds a master trip and checks the totals do not move.
+
+**TripComponent.** One new column:
+
+| Field | Change | Notes |
+|---|---|---|
+| `master_component_id` | **Add**, `uuid REFERENCES trip_component(id)` | On a party's copy, the master component it came from. NULL on the master itself and on anything added to one party only (rule 2, "This party only") |
+
+An edit to a master component is pushed by one Edge Function that updates every row whose
+`master_component_id` points at it, bumps each party Trip's `version`, and writes one
+`audit_event` per party Trip plus a notice to the party owner.
+
+```sql
+ALTER TABLE trip ADD COLUMN group_id uuid REFERENCES trip_group(id);
+ALTER TABLE trip ADD COLUMN is_group_master boolean NOT NULL DEFAULT false;
+ALTER TABLE trip ALTER COLUMN client_id DROP NOT NULL;
+ALTER TABLE trip ADD CONSTRAINT trip_client_or_master CHECK (client_id IS NOT NULL OR is_group_master);
+CREATE INDEX trip_group_id ON trip (group_id) WHERE group_id IS NOT NULL;
+
+ALTER TABLE trip_component ADD COLUMN master_component_id uuid REFERENCES trip_component(id);
+CREATE INDEX trip_component_master ON trip_component (master_component_id) WHERE master_component_id IS NOT NULL;
+```
+
+### 16.8 Read models and access
+
+Nobody but the agent reads these tables directly. Three SECURITY DEFINER functions are the
+only doors, each with an explicit column list, the same shape as §3.2's agent read surface.
+**The leader rule is about columns, not rows,** so RLS alone cannot express it: a policy
+can let a leader see a party's row, but not half of that row.
+
+| Function | Caller | Returns | Never returns |
+|---|---|---|---|
+| `group_public_page(slug)` | `anon`, `authenticated` | Group name, dates, destination, description, hero, public options with a Full flag, day-level itinerary from the master trip, deadline, spots left **only when 10 or fewer** (rule 28), the featured leader's name, note and photo (or the earliest claimed leader's, §16.2), the agent's contact card, and the caller's own party if signed in (rule 5) | Hidden options, any party, headcount above 10, any email |
+| `group_leader_roster(group_id)` | a live, claimed leader of that group | Per party: traveler names, `party_size`, option name or "Arranged by Gyasi", `signed_up_at`, status with the derived payment milestone, whether a flag is open, and "Added by" with the hold time. The waitlist: position, names, size, option. Status counts | Email, phone, address, birth dates, documents, dietary or accessibility notes, card data, **any amount**, commission, flag text (rule 18) |
+| `group_member_card(group_id)` | the owner of an active party in that group | Group name, leader name and photo, "32 of 40 spots filled", and the caller's own waitlist position or offer deadline | Any other party (rule 25) |
+
+**Writes all go through Edge Functions,** each of which writes an `audit_event`
+(CLAUDE.md rule 3): sign up, join waitlist, accept or decline an offer, leader add-party,
+leader invite-again (rule 31, a new 7-day hold), leader flag, leader note and photo, agent
+confirm, agent cancel, agent change option (rule 32), agent reorder or skip the waitlist,
+agent send offer, and the master-component push.
+
+**The roster export** (rule 32) is an agent-only Edge Function. It carries contact details
+and amounts, so it is never offered through the leader surface.
+
+**Timers.** A pg_cron tick moves `invited` past `hold_expires_at` to `expired`, and
+`offered` past `offer_expires_at` back to `waitlisted` at the end of that option's line
+(§16.4), then offers the freed spot to the next `waitlisted` party on the same option. That
+is never the party whose offer just ran out: if it is the only one waiting, the spot stays
+open and the agent decides. Each move is audited. Nobody is moved into a spot without
+accepting it (rule 12).
+
+**Sign-up abuse.** The public sign-up function takes anonymous traffic and creates an
+account, so it needs rate limiting and bot protection before launch. It must also answer a
+duplicate email with the same response as a new one, so the page does not reveal who has
+already signed up.
 
 ---
 
@@ -2111,15 +3428,19 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `agent_status` | `active`, `inactive`, `archived` | Agent |
 | `travel_doc_kind` | `passport`, `visa`, `drivers_license`, `nexus`, `globalentry`, `insurance`, `vaccination`, `other` | TravelDocument |
 | `supplier_kind` | `airline`, `hotel_brand`, `resort`, `cruise_line`, `tour_operator`, `insurance`, `transfer`, `other` | Supplier |
-| `supplier_payment_kind` | `api`, `portal`, `unknown` | Supplier — drives which Stripe pattern the agent UI uses |
+| `supplier_payment_kind` | `api`, `portal`, `unknown` | Supplier. **Deferred, no producer (2026-10-16)**: drives nothing now that Stripe is gone (§8.1) |
 | `trip_type` | `cruise`, `all_inclusive`, `multi_destination`, `group`, `custom` | Trip, TripTemplate |
 | `trip_status` | `inquiry`, `proposal`, `booked`, `in_progress`, `completed`, `cancelled` | Trip |
 | `component_kind` | `flight`, `hotel`, `cruise`, `transfer`, `excursion`, `insurance`, `custom` | TripComponent |
 | `block_kind` | `morning`, `afternoon`, `evening`, `all_day` | ItineraryActivity |
-| `card_status` | `active`, `revoked`, `expired`, `failed` | PaymentCard |
-| `card_auth_status` | `active`, `revoked`, `expired`, `exhausted` | CardAuthorization |
-| `auth_request_status` | `pending`, `completed`, `expired`, `cancelled` | AuthorizationRequest |
+| ~~`card_status`~~ | `active`, `revoked`, `expired`, `failed` | **Retired 2026-10-16**, dropped with PaymentCard (§9.1) |
+| ~~`card_auth_status`~~ | `active`, `revoked`, `expired`, `exhausted` | **Retired 2026-10-16**, dropped with CardAuthorization (§9.2) |
+| ~~`auth_request_status`~~ | `pending`, `completed`, `expired`, `cancelled` | **Retired 2026-10-16**, dropped with AuthorizationRequest (§9.3) |
 | `commission_status` | `expected`, `invoiced`, `received`, `disputed`, `lost` | Commission |
+| `commission_payment_terms` | `at_booking`, `after_travel` | Commission, Supplier |
+| `commission_import_status` | `mapping`, `review`, `reconciled`, `discarded` | CommissionImport |
+| `commission_import_row_state` | `confirmed`, `suggested`, `unmatched`, `duplicate`, `unreadable`, `already_recorded`, `to_create`, `ignored` | CommissionImportRow |
+| `commission_match_basis` | `reference`, `confirmation`, `supplier_and_traveler`, `manual`, `none` | CommissionImportRow |
 | `lead_status` | `new`, `contacted`, `qualified`, `converted`, `lost` | Lead |
 | `lead_source_kind` | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` | LeadSource |
 | `document_kind` | `passport`, `visa`, `insurance_cert`, `supplier_confirmation`, `receipt`, `photo`, `csv_import`, `pdf_proposal`, `pdf_itinerary`, `other` | Document |
@@ -2129,6 +3450,10 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `cruise_sync_endpoint` | `cruise_lines`, `filter_options`, `coverage`, `ships`, `ports`, `cruises`, `cruise_detail` | CruiseSyncScope, CruiseApiRequest |
 | `cruise_sync_status` | `running`, `ok`, `partial`, `skipped`, `failed` | CruiseSyncRun, CruiseSyncScope |
 | `cruise_sync_trigger` | `cron`, `manual` | CruiseSyncRun |
+| `group_status` | `draft`, `open`, `closed`, `departed`, `archived` | TripGroup (P3). "Full" is derived, not stored |
+| `group_member_status` | `invited`, `requested`, `confirmed`, `waitlisted`, `offered`, `declined`, `expired`, `cancelled` | GroupMember (P3) |
+| `group_member_source` | `public_page`, `leader`, `agent` | GroupMember (P3) |
+| `traveler_age_band` | `adult`, `child` | GroupTraveler (P3) |
 
 ---
 
@@ -2136,7 +3461,29 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 
 This section is the load-bearing security guidance for the model. It applies in addition to general SDLC security practices and supplements the BRD's Section 10.
 
+> **Amended 2026-10-16 — no cardholder data at all.** Ruled by Gyasi (§3.6 grilling). The
+> app never accepts, stores, logs or shows a card number, in any form, anywhere. There is no
+> Stripe, no vault, no token and no card reveal. With no cardholder data the platform is
+> **outside PCI scope**, which is stronger than the SAQ A posture this section used to
+> describe. Clients pay suppliers on the supplier's own site, through a pay link on the
+> payment milestone (§9.5). The "never store a card number" rule stays as a hard rule, now
+> wider: never accept, store, log or display one. Where a card number arrives anyway (a
+> client pastes one into a message), every copy that leaves the thread is masked as §12.7
+> and §12.8 describe. The
+> subsections below are amended to match; where old text survives, it is marked superseded.
+
 ### 18.1 What Lives Where
+
+**From 2026-10-16:**
+
+| Data | Location | Notes |
+|---|---|---|
+| Card number (PAN), CVC, expiry | **Nowhere in this app** | The client types card details only on the supplier's own site (or a Travefy invoice). No field asks for one and no screen shows one. The one gap we cannot close: a client can paste a number into a message, and that message keeps what they typed. Every push and email copy masks it to the last four (§12.7, §12.8) |
+| Card brand, last 4 | **Nowhere in this app** | There is no stored card to describe |
+| Pay link (`payment_milestone.pay_url`) | Our database | Not cardholder data. Advisor-written, audited on every change (§9.5) |
+| Supplier payment confirmation (`payment_milestone.paid_reference`) | Our database | Refused if it looks like a card number (§9.5) |
+
+**Superseded 2026-10-16 (kept as a record; none of this exists now):**
 
 | Data | Location | Notes |
 |---|---|---|
@@ -2148,6 +3495,36 @@ This section is the load-bearing security guidance for the model. It applies in 
 | Stripe API keys | Vault (e.g., Doppler / AWS Secrets Manager / 1Password Vault) | Never in source control; never in the database; injected as env vars only. |
 
 The "never in our database" rule for the PAN is the single most important architectural decision in the data model.
+
+> **Amended 2026-10-16.** The rule is now wider and simpler: the PAN is never in this app at
+> all, not in our database and not passing through our servers. Nothing above about Stripe
+> tables, tokens or keys applies.
+
+### 18.1a One rule finds a card number: the guard refuses, the maskers mask
+
+*Added 2026-10-16, after the §3.6 review.* The guard on `payment_milestone` (§9.5) and every
+masker that copies a client's words out of a thread find a card number the same way:
+
+- A **run** is ASCII digit groups (`0-9` only) joined by up to three spaces, dots, dashes or
+  no-break / thin spaces. Letters, underscores and other punctuation end a run but never hide
+  one, so `ref4111…` and `x_4111…` are still found. Fullwidth and other non-ASCII digits are not
+  digits here, in any twin, so the twins cannot disagree.
+- **Every span of whole groups** in a run is tried, from every starting group. A span that
+  joins to 13 to 19 digits and passes Luhn is a card number. So a short number in front
+  ("Paid 12 4111…") cannot swallow the card the way one greedy match used to.
+- The **guard** refuses the text (the advisor is typing; say no and say why). The **maskers**
+  replace each span with `•••• ` and its last four digits, keeping the text around it. From each
+  start the longest valid span is masked, and the search goes on after it.
+
+| Where | Refuses or masks | Code |
+|---|---|---|
+| `payment_milestone` pay link, confirmation, note | Refuses | SQL `public.text_has_card_digits`; Edge `hasCardNumber` (`_shared/cardDigits.ts`, via `payLink.ts`); web `looksLikeCardNumber` (`lib/trips/payLink.ts`) |
+| Web push and FCM message body (§12.7) | Masks | `maskCardNumbers` in `_shared/cardDigits.ts`, re-exported by `push.ts` |
+| Email outbox body and subject, inbound reply text (§12.8) | Masks | the same `maskCardNumbers` (`email.ts`, `email-inbox`) |
+| Phone notification text | Masks | `maskCardNumbers` in mobile `domain/agent/AgentNotifications.kt` |
+
+A number that fails Luhn (a long supplier reference, or a card typed with a wrong digit) is
+neither refused nor masked. That is the price of letting real references through.
 
 ### 18.2 Encryption at Rest
 
@@ -2166,8 +3543,9 @@ Column-level encryption is bytea storage with `pgcrypto.pgp_sym_encrypt/decrypt`
 
 Reading any of these tables/fields generates an `audit_event`:
 
-- Any `payment_card` row read by an agent (the read itself is audited; not just modifications)
-- Any reveal of a card via Stripe `PaymentMethod` retrieval (always audit + MFA step-up)
+- ~~Any `payment_card` row read by an agent~~ (retired 2026-10-16: the table is dropped)
+- ~~Any reveal of a card via Stripe `PaymentMethod` retrieval~~ (retired 2026-10-16: there is no reveal)
+- Any change to a payment milestone's pay link, and any paid mark (added 2026-10-16; these are write audits, see §9.5)
 - Any `companion.passport_number_encrypted` decryption
 - Any `travel_document.document_number_encrypted` decryption
 - Any bulk client list export
@@ -2177,7 +3555,7 @@ Reading any of these tables/fields generates an `audit_event`:
 
 A second MFA challenge is required (regardless of session state) for:
 
-- Card reveal (Section 9.4 Reveal Card Number screen)
+- ~~Card reveal (Section 9.4 Reveal Card Number screen)~~ (retired 2026-10-16: Screen 3.6.4 is removed and there is no reveal)
 - Inteletravel CSV import that affects already-marked-received commissions
 - Client account merge
 - Deletion of any audit log retention exception
@@ -2187,6 +3565,11 @@ A second MFA challenge is required (regardless of session state) for:
 GDPR/CCPA-style data rights are implemented as follows:
 
 **Export.** Any client can request a full data export via Account → Privacy & Data Export. The export contains every Client, TravelPreference, Companion, TravelDocument, Trip, Itinerary, PaymentCard (token references only — no PANs), CardAuthorization, CardUseEvent, Conversation, Message, Document, SavedSearch, and Favorite row associated with their account. Delivered as a downloadable ZIP within 30 days.
+
+> **Amended 2026-10-16.** PaymentCard, CardAuthorization and CardUseEvent leave the export
+> list (dropped, §9.1 to §9.4). PaymentMilestone joins it, with the client-visible columns
+> only (`paid_note` stays out). The Stripe Customer step in the erasure list below is
+> superseded: there is no Stripe Customer and no PaymentCard row to revoke.
 
 **Erasure.** A client may request deletion. On approval:
 - PII fields on Client, Companion, TravelDocument, Message, etc., are replaced with `deleted_user_<id>` placeholders.
@@ -2198,8 +3581,8 @@ GDPR/CCPA-style data rights are implemented as follows:
 
 | Data Class | Retention |
 |---|---|
-| AuditEvent | 7 years for general events; 10 years for card-related events |
-| CardUseEvent | 10 years (matches card-related audit) |
+| AuditEvent | 7 years for general events; 10 years for card-related events (none written after 2026-10-16) |
+| ~~CardUseEvent~~ | Retired 2026-10-16; the table is dropped (§9.4) |
 | AuthEvent (failed logins) | 1 year |
 | Session | 90 days post-revocation |
 | Soft-deleted Client/Trip/etc. PII | Until erasure requested, otherwise indefinite |
@@ -2229,8 +3612,8 @@ Tables that scope via parent FK:
 - `travel_preference`, `companion`, `travel_document`, `client_invite` → `client.agent_id`
 - `trip_component` → `trip.agent_id`
 - `itinerary*` → `trip.agent_id`
-- `payment_card` → `client.agent_id`
-- `card_authorization`, `card_use_event` → `trip.agent_id`
+- ~~`payment_card` → `client.agent_id`~~ (dropped 2026-10-16, §9.1)
+- ~~`card_authorization`, `card_use_event` → `trip.agent_id`~~ (dropped 2026-10-16, §9.2, §9.4)
 - `document` → `client.agent_id` or `trip.agent_id`
 - `payment_milestone` → `trip.agent_id`
 - `testimonial` → `agent_id` directly (denormalized, for the approval queue)
@@ -2303,6 +3686,12 @@ test, easier to evolve, easier to attach domain context. That wrapper is
 triggers remain available as a defense-in-depth backstop on the most sensitive tables
 (`payment_card`, `card_authorization`, `commission`).
 
+> **Amended 2026-10-16.** `payment_card` and `card_authorization` are dropped (§9.1, §9.2).
+> The sensitive tables are now `commission`, `client` and `payment_milestone`. A
+> `payment_milestone` pay link or paid mark writes its `audit_event` row inside the same SQL
+> function as the change (§9.5), the way the commission writes do, rather than through the
+> Edge Function wrapper alone.
+
 ### 20.4 Versioning for Optimistic Concurrency
 
 Tables with a `version` integer:
@@ -2343,10 +3732,8 @@ storytail/
 ├── supabase/                          # Supabase project
 │   ├── migrations/                    # SQL migrations (supabase db push)
 │   ├── functions/                     # Edge Functions (Deno + TypeScript)
-│   │   ├── _shared/                   # Shared utilities (audit, auth, stripe wrapper)
-│   │   ├── stripe-setup-intent/
-│   │   ├── stripe-vault-forward/
-│   │   ├── stripe-reveal-pan/         # Audited PAN reveal
+│   │   ├── _shared/                   # Shared utilities (audit, auth, email, push)
+│   │   ├── agent-trip/                # Includes the milestone pay link + paid writes (§9.5)
 │   │   ├── commission-import/
 │   │   └── travel-api-proxy/
 │   ├── seed.sql
@@ -2357,6 +3744,12 @@ storytail/
     ├── ts/                            # Auto-generated TypeScript types
     └── kotlin/                        # Auto-generated Kotlin types for mobile
 ```
+
+> **Amended 2026-10-16.** The tree above no longer lists `stripe-setup-intent`,
+> `stripe-vault-forward` or `stripe-reveal-pan`. None of them was ever built, and none will
+> be: Stripe left the stack (§9, §18). The built `card-authorization` and `payment-wallet`
+> functions are removed along with the four card tables. The real list of functions is
+> `supabase/functions/`; this tree is a sketch, not an inventory.
 
 Top-level tooling: Turborepo or Nx for the monorepo; `npm` workspaces for JS package management; Gradle for the mobile sub-project; `supabase` CLI for the database and Edge Functions.
 
@@ -2370,9 +3763,10 @@ Stays server-side only (lives in the Postgres schema; not exposed in any API res
 - `account.auth_provider_id`
 - `mfa_device.secret_encrypted` (raw bytes never leave server)
 - `agent_invitation.token_hash`
-- `authorization_request.token_hash`
-- `payment_card.stripe_payment_method_id` (Edge Functions use, client never sees)
-- `payment_card.stripe_customer_id`
+- ~~`authorization_request.token_hash`~~ (table dropped 2026-10-16, §9.3)
+- ~~`payment_card.stripe_payment_method_id`~~ (table dropped 2026-10-16, §9.1)
+- ~~`payment_card.stripe_customer_id`~~ (table dropped 2026-10-16, §9.1)
+- `payment_milestone.paid_note` (added 2026-10-16: the advisor's own note; the client column grant leaves it out, §9.5)
 - `integration.credentials_encrypted`
 - `audit_event` (mostly — agents may see some via Client Activity Log via a sanitized endpoint)
 
@@ -2392,6 +3786,12 @@ RLS still matters and stays enabled everywhere — it is what scopes rows to the
 The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero policies and a live table-level `SELECT` grant to both `anon` and `authenticated` covering both Stripe columns and `authorization_request.token_hash`. Nothing leaked — zero policies fails closed — but the first `SELECT` policy anyone added would have opened it. `supabase/tests/rls_payment.sql` now asserts a privilege *error* rather than an empty result, because a zero-row answer and a permission-denied answer are different claims.
 
 Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
+
+> **Amended 2026-10-16.** The payment-domain history above is kept as the reason column
+> grants matter, but the tables it describes are dropped (§9.1 to §9.4), and
+> `supabase/tests/rls_payment.sql` goes or is rewritten with them. The lesson carries over to
+> `payment_milestone`: its client grant names columns, so `paid_note` stays hidden even
+> though a client can see the row.
 
 ### 21.3 Value Classes for Domain Primitives
 
@@ -2420,7 +3820,7 @@ All shared types are `@Serializable` (kotlinx.serialization). The backend's Ktor
 
 **Phase note:** The cache architecture described here is **Phase 1 (MVP)** — it makes mobile feel responsive and resilient to brief drops in connectivity. The dedicated offline *user experience* (the Offline Itinerary View screen, the visible "Last synced" indicators, the queued-action handling) ships in **Phase 3** per BRD Section 13.3 and Screen Inventory Section 2.7.1.
 
-SqlDelight is used in the shared module's mobile target to cache the client-facing data (Trip, Itinerary, Conversation, PaymentCard metadata) for offline use. The schema is **not** the same as the server Postgres schema — it's a denormalized read-optimized cache. Sync logic compares server `updated_at` with cached values to decide what to fetch.
+SqlDelight is used in the shared module's mobile target to cache the client-facing data (Trip, Itinerary, Conversation, PaymentMilestone; PaymentCard metadata was dropped 2026-10-16) for offline use. The schema is **not** the same as the server Postgres schema — it's a denormalized read-optimized cache. Sync logic compares server `updated_at` with cached values to decide what to fetch.
 
 ### 21.6 ID Generation
 
@@ -2445,7 +3845,8 @@ Phase 2 migrations add:
 - Lead, LeadSource, SavedSearch, Favorite, Integration.
 
 Phase 3 migrations add:
-- TripGroup, GroupMember, AgentInvitation, ClientShare (if pursued).
+- TripGroup, GroupLeader, GroupOption, GroupMember, GroupTraveler, GroupMemberFlag, and the §16.7 columns on Trip and TripComponent. **Scheduled as the first feature after the P1 release** (Gyasi, 2026-10-14), ahead of the rest of Phase 3.
+- AgentInvitation, ClientShare (if pursued).
 
 Each entity in this document is tagged with its phase; the implementation team can sequence migrations accordingly.
 
@@ -2513,6 +3914,40 @@ Decisions that should be settled with the implementation team before initial mig
 **Soft-delete cascade behavior.** If a Client is archived, should their Trips be auto-archived too? The current model says no — trips remain queryable for reports — but the agent UI should clearly indicate "client archived" on those trips. Confirm with the agent UX.
 
 **Multi-currency on Trip.** ~~The model has one `currency` per Trip. In practice a single trip can have suppliers quoting in different currencies (a Caribbean resort in USD plus a European insurer in EUR). The Trip's currency is the "presented to client" currency; individual TripComponents may have their own currency in the payload. Confirm this is the right modeling.~~ **ANSWERED, twice, and the answer is no.** The suggestion that components may carry their own currency was already contradicted by shipped code before this line was corrected: `trip_component_currency_matches_trip` (`20260928100000`) and `payment_milestone_currency_guard` (`20260929100000`) both REFUSE a child row whose currency differs from its trip's, because summing across currencies needs an FX rate that is nowhere in this schema and silently dropping the odd one out would make the headline total omit a cost the advisor entered. Then `20260930100000` settled the parent too: `CHECK (currency = 'USD')` on `trip`, per BRD §4.3. One trip, one currency, and that currency is USD.
+
+
+**Group trips: open questions for the build (§16, added 2026-10-14).** Settle these before
+the §16 migration is written. The first four were settled with Gyasi the same day.
+
+- ~~**Master trip as a Trip, or as a TripTemplate?**~~ **Settled 2026-10-14: a Trip.**
+  §16.7 makes `trip.client_id` nullable and every agent aggregate excludes
+  `is_group_master`, with a test per surface. A template cannot carry rule 2, because
+  templates are not live-linked and their payload is read-only (§8.6).
+- ~~**A general `trip_traveler` table?**~~ **Settled 2026-10-14: no, keep
+  `group_traveler`.** It stays keyed to the party, because a waitlisted party has names but
+  no Trip. Build `trip_traveler` only when ordinary trips need named travelers, and copy a
+  party's names into it when the party gets its Trip (§16.5).
+- ~~**Which leader's note leads the page?**~~ **Settled 2026-10-14: the agent can pick.**
+  New nullable `trip_group.featured_leader_id`. When it is empty or points at a removed
+  leader, the earliest claimed leader leads (§16.1, §16.2).
+- ~~**Where an expired offer sends the party.**~~ **Settled 2026-10-14: the back of the
+  line.** The party returns to `waitlisted`, last on its option's line, and is told it can
+  leave the list. The agent can move it up by hand (§16.4, §16.8 Timers).
+- **The reply-time and confirmation-time promises** on the public page. None is shown
+  today, on purpose. If one is added, it needs a number someone measured.
+
+**Email (§12.8 to §12.10, added 2026-10-16).** Settle before the Stage 4 migration is written.
+
+- ~~**Clients with no account.**~~ **Settled 2026-10-16 (Gyasi): skipped, with a warning.**
+  A client who cannot sign in gets no email (no row is queued): the link needs a
+  session and a reply needs a `message.sender_user_id`. The advisor's thread says so above the
+  reply box ("Kai can't sign in yet, so replies won't reach them by email"). The fix is inviting
+  them (§6.7), never emailing an unverified address.
+- ~~**Should the advisor see that an email went?**~~ **Settled 2026-10-16 (Gyasi): yes.** An
+  "Emailed" mark under each advisor reply that an email carried, read from
+  `message.emailed_at` (§12.2), which `email-dispatch` stamps when IONOS accepts the email. A
+  column rather than a lookup into §12.8, whose finished rows are deleted after 30 days.
+  Advisor-only (the client never sees it); web and phone.
 
 ---
 

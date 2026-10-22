@@ -221,87 +221,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/payment-wallet": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The caller's cards, authorizations and card-use history.
-         * @description Screens 2.4.1, 2.4.4, 2.4.5, 2.4.6 and 2.4.7 — one read behind all five, because
-         *     they are five views of the same three lists and a second endpoint would be a second
-         *     column list to keep honest.
-         *
-         *     Ownership is resolved from the JWT and applied explicitly: the service role means
-         *     RLS checks nothing, so every query filters on the caller's own `client_id`. A card,
-         *     authorization or event belonging to somebody else is simply absent from the answer.
-         *
-         *     `tripId` and `cardId` NARROW the lists; they never widen them. Passing a trip that
-         *     is not the caller's returns empty rather than 404 — this is a list endpoint, and
-         *     "no rows" is the honest answer to a filter that matches nothing.
-         *
-         *     `supplierName` is `card_use_event.supplier_name_snapshot`, never a join to
-         *     `supplier`. A supplier renamed later must not rewrite a traveler's history, and a
-         *     portal booking names a merchant that has no `supplier` row at all.
-         *
-         *     `justification` is NOT returned. Data-Model §9.4 classes it Internal and that is
-         *     right — it is the agent's reason, written for the audit trail. `amountCents` IS
-         *     returned, and §9.4 was amended to match: 2.4.5 exists to show a traveler what was
-         *     charged to their own card, which BRD §10.3 makes part of the SAQ A trust posture.
-         */
-        get: operations["getWallet"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/card-authorization": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Authorize a card for a trip, or revoke that authorization.
-         * @description Screens 2.4.3 and 2.4.7. ONE ENDPOINT WITH AN EXPLICIT `action`, not two: the
-         *     ownership check, the consent rules and the audit write are identical, and a second
-         *     function is a second place for that proof to drift.
-         *
-         *     AN AUTHORIZATION IS ALWAYS TRIP-SCOPED. `card_authorization.trip_id` is NOT NULL and
-         *     a partial unique index (`card_auth_active_per_trip`) allows one ACTIVE authorization
-         *     per card per trip. A second `create` for the same pair is a 400 saying so — a real
-         *     conflict the traveler can act on — while a repeat of the same `authorizationId` is a
-         *     retry and returns `created: false` with a 200.
-         *
-         *     REVOKE NEVER TOUCHES THE CARD. It sets `card_authorization.status`, leaving
-         *     `payment_card` alone: the card stays on file for the traveler's other trips.
-         *     Removing a card outright belongs with 2.4.2 and is deferred with it.
-         *
-         *     `consentPayload` IS WRITTEN FROM THE SERVER'S FROZEN TEXT, never from the request.
-         *     A mandate the client could compose is not a mandate. The `consent` flag is
-         *     re-checked server-side even though both clients disable the submit button without
-         *     it — the button is a courtesy, this is the record.
-         *
-         *     NOT ATOMIC. The insert and the `audit_event` are separate round trips; the audit is
-         *     written after the row exists so a failed write is never recorded as an authorization
-         *     that never happened. `supabase/functions/_shared/audit.ts` records why and names the
-         *     fix.
-         */
-        post: operations["changeCardAuthorization"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/agent-trip-status": {
         parameters: {
             query?: never;
@@ -399,6 +318,69 @@ export interface paths {
          *     anything else is a 400.
          */
         post: operations["setAgentTripNotes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's messaging writes. Send, mark read, archive.
+         * @description Screens 3.10.1 and 3.10.2 (§3.10 Stage 1 on the web; Stage 3 on the phone). ONE
+         *     endpoint with three ops, chosen by `op`, each its own request and response shape.
+         *
+         *     `send` writes a reply or an internal note (`internalNote` is REQUIRED, never
+         *     defaulted: a missing flag read as "public" would send a private note to the client).
+         *     Address an existing thread by `conversationId`, OR a client (and optionally one of
+         *     their trips) by `clientId` / `tripId`, which finds their live thread or starts one.
+         *     Never both. A thread cannot START with a note. A body that still holds a known
+         *     `{{merge.field}}` from a template is refused. One SQL transaction, so a note never
+         *     moves the client's preview, time or unread count.
+         *
+         *     `read` clears the advisor's unread count up to `seenUpTo`, the `created_at` of the
+         *     newest message on screen, passed as the raw string (microseconds intact).
+         *
+         *     `archive` files threads in the ADVISOR's inbox only; the client keeps the thread, and
+         *     their next message brings it back.
+         */
+        post: operations["agentMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push-device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn this device's message notifications on or off.
+         * @description Screen 3.10.7 (§3.10 Stage 3b). `register` is the inbox card's "Turn on": a browser
+         *     sends its Web Push subscription, an Android phone its FCM token. Advisors only; an
+         *     archived advisor is refused. The device is keyed on its address, so registering again
+         *     refreshes the row, and an address another user held moves to the caller.
+         *
+         *     `unregister` is sign-out: only the caller's own row for that address goes. It needs a
+         *     signed-in caller, not an active advisor.
+         *
+         *     Device addresses are identifiers and are never returned.
+         */
+        post: operations["pushDevice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -664,143 +646,6 @@ export interface components {
             /** Format: date-time */
             submittedAt?: string;
         };
-        /**
-         * @description A card on file. NEITHER STRIPE COLUMN APPEARS HERE and neither ever
-         *     should — see CLAUDE.md rule 4. Brand and last 4 are the non-sensitive
-         *     metadata the traveler needs to recognize their own card.
-         */
-        WalletCard: {
-            /** Format: uuid */
-            id: string;
-            /**
-             * @description Stripe's brand slug, e.g. `visa`, `mastercard`, `amex`.
-             * @example visa
-             */
-            brand: string;
-            last4: string;
-            expMonth: number;
-            expYear: number;
-            /** @description The traveler's own label, e.g. "Personal Visa". */
-            nickname?: string | null;
-            /** @enum {string} */
-            status: "active" | "revoked" | "expired";
-            /** Format: date-time */
-            consentRecordedAt?: string | null;
-            /** Format: date-time */
-            revokedAt?: string | null;
-            revokedReason?: string | null;
-        };
-        /** @description One card bound to one trip, with a ceiling and an expiry. */
-        WalletAuthorization: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            cardId: string;
-            /** Format: uuid */
-            tripId: string;
-            /**
-             * @description Resolved server-side so neither client has to join. Null when the trip is no
-             *     longer readable — an authorization outliving its trip is a state the traveler
-             *     should still see rather than a row that renders blank.
-             */
-            tripTitle?: string | null;
-            /** @description The ceiling the traveler set. Capped at $250,000 by the function. */
-            spendingLimitCents: number;
-            /**
-             * @description Denormalized on `card_authorization`. Both clients derive "remaining" from this
-             *     and clamp it at zero — a supplier overcharging past the ceiling is a real state,
-             *     and a negative remaining is not a number to show anybody.
-             */
-            amountUsedCents: number;
-            /** Format: date-time */
-            expiresAt: string;
-            /** @enum {string} */
-            status: "active" | "revoked" | "expired";
-            /** Format: date-time */
-            revokedAt?: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        /**
-         * @description One time a card on file was used to pay a supplier. Currently fixture-fed: the
-         *     producing surface is the agent's reveal-and-record flow in §3.6, which is unbuilt.
-         */
-        WalletUseEvent: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            authorizationId?: string | null;
-            /** Format: uuid */
-            cardId: string;
-            /** Format: uuid */
-            tripId?: string | null;
-            tripTitle?: string | null;
-            /**
-             * @description `supplier_name_snapshot`, never a join. Null is possible and is not an error: a
-             *     portal booking names a merchant with no `supplier` row behind it.
-             */
-            supplierName?: string | null;
-            amountCents: number;
-            currency: string;
-            referenceNumber?: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        WalletResponse: {
-            cards: components["schemas"]["WalletCard"][];
-            authorizations: components["schemas"]["WalletAuthorization"][];
-            events: components["schemas"]["WalletUseEvent"][];
-        };
-        CardAuthorizationRequest: {
-            /** @enum {string} */
-            action: "create" | "revoke";
-            /**
-             * Format: uuid
-             * @description Client-generated UUID v7 on `create`; the server validates the embedded
-             *     timestamp is recent (Data-Model §21.6). Supplying it client-side is what makes a
-             *     retry idempotent against the primary key rather than a second authorization. On
-             *     `revoke` it names the existing row.
-             */
-            authorizationId?: string;
-            /**
-             * Format: uuid
-             * @description `create` only. Must be an active card belonging to the caller.
-             */
-            cardId?: string;
-            /**
-             * Format: uuid
-             * @description `create` only. `card_authorization.trip_id` is NOT NULL.
-             */
-            tripId?: string;
-            /**
-             * @description `create` only. Zero and negatives are refused: an authorization that permits
-             *     nothing is a record with no meaning, not a cautious default.
-             */
-            spendingLimitCents?: number;
-            /**
-             * Format: date-time
-             * @description `create` only. Both clients default to trip end + 7 days so a late supplier
-             *     charge still goes through. The function caps it at ten years out.
-             */
-            expiresAt?: string;
-            /**
-             * @description `create` only, and required to be true. Re-checked server-side even though both
-             *     clients gate the submit button on it — the stored `consent_payload` is a
-             *     compliance record, and one written for somebody who never ticked the box is
-             *     worse than no record at all. The TEXT is the server's, never the request's.
-             */
-            consent?: boolean;
-        };
-        CardAuthorizationResponse: {
-            /** Format: uuid */
-            authorizationId: string;
-            /** @enum {string} */
-            status: "active" | "revoked" | "expired";
-            /** @description `create` only. False means the id already existed — a retry. */
-            created?: boolean;
-            /** @description `revoke` only. False means it was already revoked or expired. */
-            changed?: boolean;
-        };
         AgentTripStatusRequest: {
             /** Format: uuid */
             tripId: string;
@@ -843,6 +688,108 @@ export interface components {
             version: number;
             /** @description False when the submitted notes matched what was already stored. */
             changed: boolean;
+        };
+        AgentSendMessageRequest: {
+            /** @enum {string} */
+            op: "send";
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7, minted once per draft so a double send or a retry
+             *     lands once (the repeat is a 400, "already sent"). Validated as recent.
+             */
+            messageId: string;
+            /**
+             * Format: uuid
+             * @description An existing thread. Mutually exclusive with `clientId` / `tripId`.
+             */
+            conversationId?: string;
+            /**
+             * Format: uuid
+             * @description Starts or finds this client's live thread. Mutually exclusive with `conversationId`.
+             */
+            clientId?: string;
+            /**
+             * Format: uuid
+             * @description With `clientId`, that trip's thread; without it, the general thread.
+             */
+            tripId?: string;
+            body: string;
+            /** @description REQUIRED. True writes a note only the advisor sees. */
+            internalNote: boolean;
+            /**
+             * @description `created_at` of the newest message on screen, EXACTLY as PostgREST wrote it.
+             *     Writing in a thread reads it only up to here. Omitted on a new message.
+             */
+            seenUpTo?: string;
+        };
+        AgentSendMessageResponse: {
+            /** Format: uuid */
+            messageId: string;
+            /**
+             * Format: uuid
+             * @description The thread written to, which a new message may have just started.
+             */
+            conversationId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PushRegisterRequest: {
+            /** @enum {string} */
+            op: "register";
+            /** @enum {string} */
+            platform: "web" | "android";
+            /**
+             * Format: uuid
+             * @description A fresh client-minted v7. An address already registered keeps its own id.
+             */
+            deviceId: string;
+            /** @description `android` only, and required there: the Firebase registration token. */
+            fcmToken?: string;
+            /** @description `web` only, and required there: `PushSubscription.toJSON()`. */
+            subscription?: {
+                [key: string]: unknown;
+            };
+            /** @description "Chrome · macOS" or the phone model, for a later device list. Optional. */
+            label?: string;
+        };
+        /** @description At least one of `fcmToken` (a phone) or `endpoint` (a browser); neither is a 400. */
+        PushUnregisterRequest: {
+            /** @enum {string} */
+            op: "unregister";
+            fcmToken?: string;
+            endpoint?: string;
+        } | unknown | unknown;
+        PushDeviceResponse: {
+            /** @enum {string} */
+            outcome: "registered" | "unregistered" | "not_found";
+            /**
+             * Format: uuid
+             * @description `register` only: the device's row id.
+             */
+            deviceId?: string;
+        };
+        AgentMarkThreadReadRequest: {
+            /** @enum {string} */
+            op: "read";
+            /** Format: uuid */
+            conversationId: string;
+            /** @description `created_at` of the newest message on screen, as PostgREST wrote it. */
+            seenUpTo: string;
+        };
+        AgentMarkThreadReadResponse: {
+            /** @description False when nothing was unread, or the thread is not the caller's (one answer). */
+            changed: boolean;
+        };
+        AgentArchiveThreadsRequest: {
+            /** @enum {string} */
+            op: "archive";
+            conversationIds: string[];
+            /** @description True archives from the advisor's inbox; false brings back. */
+            archived: boolean;
+        };
+        AgentArchiveThreadsResponse: {
+            moved: number;
+            requested: number;
         };
         OnboardingStepRequest: {
             /**
@@ -1389,86 +1336,6 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
-    getWallet: {
-        parameters: {
-            query?: {
-                /** @description Narrow the authorizations and events to one trip. */
-                tripId?: string;
-                /** @description Narrow the authorizations and events to one card. */
-                cardId?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /**
-             * @description The three lists. All three are empty for a caller with no `client_id` — an
-             *     agent, for instance — rather than a 403, because an agent has no wallet rather
-             *     than a forbidden one.
-             */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    changeCardAuthorization: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CardAuthorizationRequest"];
-            };
-        };
-        responses: {
-            /**
-             * @description Nothing changed because it was already in this state — a retried create or a
-             *     second revoke. `created` / `changed` is false.
-             */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CardAuthorizationResponse"];
-                };
-            };
-            /** @description The authorization was created. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CardAuthorizationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            /**
-             * @description No such card, trip or authorization — OR one that is not the caller's. The two
-             *     are deliberately the same answer, as everywhere else in this API.
-             */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     setAgentTripStatus: {
         parameters: {
             query?: never;
@@ -1529,6 +1396,70 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    agentMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSendMessageRequest"] | components["schemas"]["AgentMarkThreadReadRequest"] | components["schemas"]["AgentArchiveThreadsRequest"];
+            };
+        };
+        responses: {
+            /** @description `read`: whether the count moved. `archive`: how many threads moved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMarkThreadReadResponse"] | components["schemas"]["AgentArchiveThreadsResponse"];
+                };
+            };
+            /** @description `send`: the message was written. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSendMessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    pushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushRegisterRequest"] | components["schemas"]["PushUnregisterRequest"];
+            };
+        };
+        responses: {
+            /** @description What happened. Never an address. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     setOnboardingStep: {

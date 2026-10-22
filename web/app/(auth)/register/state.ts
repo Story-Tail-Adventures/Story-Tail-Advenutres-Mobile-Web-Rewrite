@@ -29,8 +29,8 @@ export const initialRegisterState: RegisterState = {};
 export const REGISTER_TEXT = {
   metaTitle: "Create your account",
   metaDescription:
-    "Create a Story-Tail account to see the trips Gyasi is planning for you, authorize " +
-    "cards securely, and message him any time.",
+    "Create a Story-Tail account to see the trips Gyasi is planning for you, pay " +
+    "suppliers directly, and message him any time.",
   overline: "JOIN STORY-TAIL",
   title: "Create your account",
   sub: "Takes about 60 seconds. No planning fees, ever.",

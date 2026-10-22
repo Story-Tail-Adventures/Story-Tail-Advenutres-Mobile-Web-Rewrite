@@ -3,37 +3,37 @@ import type { LegalDoc } from "../types";
 /**
  * DRAFT — not yet reviewed by counsel. Screen Inventory 2.0.7.
  *
- * The prototype sentence "Story-Tail never sees the full card number" was not accurate:
- * BRD §10.4 and Screen Inventory 3.6.4 define an audited, MFA-gated reveal for suppliers
- * who can only take payment by hand. The card section below describes what actually
- * happens (Data-Model §9, §18).
+ * Payments, as ruled 2026-10-16 (Screen Inventory §3.6, Data-Model §9): the app never
+ * collects, stores or shows a card number. Clients pay each supplier directly through a pay
+ * link the advisor adds to a payment. The card tables, Stripe and the planned "reveal" step
+ * are gone, so section 2 below says that and nothing more.
  */
 export const PRIVACY: LegalDoc = {
   slug: "privacy",
   title: "Privacy policy",
   navLabel: "Privacy",
-  description: "What Story-Tail Adventures collects, how payment cards are handled, and your data rights.",
-  lastUpdated: "2026-10-10",
+  description: "What Story-Tail Adventures collects, how you pay for your trip, and your data rights.",
+  lastUpdated: "2026-10-16",
   status: "draft",
   sections: [
     {
       heading: "1. What we collect",
       paragraphs: [
-        "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. Payment cards are collected through Stripe and stored as tokens; we keep the card brand, last four digits and expiration so you can recognize a card, never the full number.",
+        "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. The portal has no place to enter a card number, so please don't type one into a message.",
         "We do not sell your information, and we do not share it with marketing third parties. When you use the portal in a web browser, we also count page views without tying them to your name. Section 3 explains who receives what, and why.",
       ],
     },
     {
-      heading: "2. How payment cards are handled",
+      heading: "2. How you pay for your trip",
       paragraphs: [
-        "Cards you add through the portal are tokenized by Stripe before they leave your browser. The full card number is stored only by Stripe. Story-Tail uses your card only to pay travel suppliers on your behalf, up to the limit you authorize for a trip — never to charge you a planning, consultation or service fee.",
-        "Most suppliers are paid directly through Stripe. A few suppliers can only accept payment by hand. For those, your advisor can view a card number through a time-limited, audited step that requires a second sign-in factor; every view is recorded and you are notified. You can revoke a stored card at any time.",
+        "You pay each supplier directly, on their own secure site. Your advisor adds a pay link to each payment on your trip: the supplier's own payment page, or a Travefy invoice when the supplier doesn't have one. A Travefy invoice passes along supplier costs only. Story-Tail never charges you a planning, consultation or service fee.",
+        "Story-Tail never asks for your card number, and the portal has nowhere to keep one. For each payment it keeps the amount, the due date and the pay link, and once your advisor marks it paid, the date, any confirmation number and your advisor's own note. Only your advisor can add or change a pay link, and every change is recorded.",
       ],
     },
     {
       heading: "3. Who we share it with",
       paragraphs: [
-        "Trip details and traveler names go to the suppliers who deliver your trip (airlines, resorts, cruise lines, tour operators) and to Inteletravel, the host agency that issues bookings. Payment processing is handled by Stripe. Our hosting and database providers process data on our behalf under contract.",
+        "Trip details and traveler names go to the suppliers who deliver your trip (airlines, resorts, cruise lines, tour operators) and to Inteletravel, the host agency that issues bookings. When you pay a supplier, or a Travefy invoice, you pay them directly on their own site, under their own privacy policy. Our hosting and database providers process data on our behalf under contract.",
         // Added 2026-09-09 with the live hotel search. HotelCard.tsx points here in a code
         // comment; before this the page said we shared nothing with third parties while the
         // results page was loading images from Google's CDN on every visit.
@@ -47,6 +47,9 @@ export const PRIVACY: LegalDoc = {
         // (vercel.com/docs/analytics/privacy-policy, "Data point information"); the id, query
         // string and /agent rules are web/lib/analytics.ts. Change either and this must change too.
         "When you use the portal in a web browser, our hosting provider, Vercel, records each page view. It notes the page and the time, the site that sent you, your approximate location (country, region and city), and your device type, operating system and browser. Vercel says it sets no cookies for this, does not follow you to other sites, and does not tie a visit to your name, email or IP address. To tell visits apart for a day, it uses a code made from your browser's request and throws that code away after 24 hours. Before anything is sent, we remove ID numbers from the web address and everything after the “?”, except campaign tags that show which link brought you here. We use the counts to see which pages people visit, which links bring them here, and what to improve. You can read Vercel's own description at vercel.com/docs/analytics/privacy-policy.",
+        // Added 2026-10-15 with Google Analytics (components/FirebaseAnalytics.tsx). Every
+        // clause is a rule in that file or in lib/analytics.ts; change one and change this.
+        "If you say yes, the website also counts your visit with Google Analytics, a Google service we reach through Firebase. Nothing is sent to Google until you agree, and you can say no and still use everything. Google Analytics sets its own cookies to tell one visit from another, and it records the page, the site that sent you, your approximate location, and your device and browser. It gets the same cleaned-up web address Vercel does, with ID numbers removed and everything after the “?” dropped except campaign tags, and it never sees the advisor's own pages. We turn off Google's ad features and do not give Google your name or email. You can change your answer any time on the Privacy & data page in your account, or by clearing your browser's site data; turning it off deletes Google's cookies and the visitor code Firebase keeps in your browser. You can read how Google handles this data at policies.google.com/privacy.",
       ],
     },
     {
@@ -58,7 +61,7 @@ export const PRIVACY: LegalDoc = {
     {
       heading: "5. Retention and security",
       paragraphs: [
-        "We keep trip and payment records for as long as tax and host-agency rules require, and delete or anonymize the rest when you close your account. Access to sensitive data is logged, and every payment-card action generates an audit record.",
+        "We keep trip and payment records for as long as tax and host-agency rules require, and delete or anonymize the rest when you close your account. Access to sensitive data is logged, and every change to a pay link or a paid payment is recorded.",
       ],
     },
     {

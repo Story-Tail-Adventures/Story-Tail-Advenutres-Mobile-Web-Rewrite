@@ -40,7 +40,7 @@ describe("2.0.1 landing page", () => {
     expect(screen.getByRole("heading", { level: 2, name: "WHAT YOU CAN DO HERE" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
       "View your trips",
-      "Authorize cards",
+      "Pay suppliers directly",
       "Message Gyasi",
     ]);
   });
