@@ -23,6 +23,13 @@ sealed interface AgentPushData {
         /** One notification per request, the same tag the web uses. */
         val tag: String get() = "quote-$tripId"
     }
+    /**
+     * §3.8 (2026-10-21): somebody without an account wrote through the public form. The lead id
+     * only; the name is read on receipt. There is no phone Leads screen, so a tap opens the app.
+     */
+    data class LeadMessage(val leadId: String) : AgentPushData {
+        val tag: String get() = "lead-$leadId"
+    }
 
     companion object {
         /** Null for anything this version does not understand: shown as nothing, never as junk. */
@@ -35,6 +42,7 @@ sealed interface AgentPushData {
                     Message(id, seen, data["count"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1)
                 }
                 "quote_request" -> data["tripId"]?.takeIf { UUID.matches(it) }?.let(::QuoteRequest)
+                "lead_message" -> data["leadId"]?.takeIf { UUID.matches(it) }?.let(::LeadMessage)
                 "summary" -> Summary(data["count"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1)
                 "dismiss" -> data["tag"]?.takeIf { it.isNotBlank() && it.length <= 64 }
                     ?.let { Dismiss(it, data["readUpTo"]?.takeIf(String::isNotBlank)) }
@@ -133,6 +141,13 @@ fun notificationBody(body: String): String {
  * §3.12.3's locked screen: the client's name only, as on the web
  * (`quoteRequestPayload` in supabase/functions/_shared/push.ts).
  */
+/**
+ * §3.8: "New note from Dana Reyes". A NOTE, never a "message": a stranger's note must not look
+ * like a client's message on a lock screen. The web push says the same (`_shared/push.ts`).
+ */
+fun leadMessageTitle(name: String?): String =
+    name?.trim()?.takeIf { it.isNotEmpty() }?.let { "New note from $it" } ?: AgentMessagesCopy.NOTIFY_NEW_LEAD
+
 fun quoteRequestTitle(clientName: String?): String =
     "New trip request from ${clientName?.trim()?.takeIf { it.isNotEmpty() } ?: AgentMessagesCopy.NOTIFY_A_CLIENT.lowercase()}"
 

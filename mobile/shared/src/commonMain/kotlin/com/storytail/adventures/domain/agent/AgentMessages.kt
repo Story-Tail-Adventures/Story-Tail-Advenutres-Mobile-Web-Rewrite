@@ -83,8 +83,13 @@ object AgentMessagesCopy {
     // §3.12.3: a client asked for a trip (the same words push-dispatch sends the browser).
     const val NOTIFY_NEW_TRIP_REQUEST = "New trip request"
     const val NOTIFY_TRIP_REQUEST_NO_DETAIL = "Open it to see what they're dreaming of."
-    const val NOTIFY_TRIP_CHANNEL = "Trip requests"
-    const val NOTIFY_TRIP_CHANNEL_DESCRIPTION = "When a client asks you to plan a trip. Quiet outside your working hours."
+    // §3.8 (2026-10-21): the channel carries a lead's note too, the same switch the web calls
+    // "New inquiries and messages". The channel id is unchanged, so a phone keeps its setting.
+    const val NOTIFY_TRIP_CHANNEL = "New inquiries and messages"
+    const val NOTIFY_TRIP_CHANNEL_DESCRIPTION =
+        "When a client asks you to plan a trip, or someone without an account writes to you. Quiet outside your working hours."
+    const val NOTIFY_NEW_LEAD = "New note from someone new"
+    const val NOTIFY_LEAD_BODY = "They wrote from the website. Open Leads on the web to read and reply."
     const val OPEN_IN_MESSAGES = "Open in Messages"
 
     // Phone-only. The web has no tab bar and a two-pane layout, so these have no twin.

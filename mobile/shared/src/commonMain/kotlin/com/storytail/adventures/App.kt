@@ -282,6 +282,7 @@ fun App() {
             is AppRoute.PublicResults,
             is AppRoute.PublicTripDetail,
             is AppRoute.PublicJoin,
+            is AppRoute.PublicMessage,
             is AppRoute.PublicTopic,
             is AppRoute.PublicLegal,
             -> PublicRoute(

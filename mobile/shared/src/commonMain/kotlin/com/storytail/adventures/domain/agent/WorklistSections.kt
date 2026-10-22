@@ -3,7 +3,10 @@ package com.storytail.adventures.domain.agent
 import com.storytail.adventures.api.WorklistPayment
 import com.storytail.adventures.api.WorklistSnapshot
 import com.storytail.adventures.api.WorklistTrip
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * The worklist's derivations. Deliberately OUTSIDE [AgentCopy].
@@ -18,9 +21,32 @@ import kotlinx.datetime.LocalDate
  * `agent_kpis().as_of_date`, already computed in the agent's own time zone.
  */
 
-/** How many things actually need him. Derived, never a literal — it is the first line on the screen. */
+/**
+ * How many things actually need him. Derived, never a literal — it is the first line on the screen.
+ * New leads count since 2026-10-21 (§3.8), as on the web.
+ */
 fun needsYouCount(snapshot: WorklistSnapshot): Int =
-    snapshot.awaitingResponse.size + snapshot.paymentsDue.size + snapshot.newInquiries.size
+    snapshot.awaitingResponse.size + snapshot.paymentsDue.size + snapshot.newInquiries.size +
+        snapshot.newLeadCount
+
+/**
+ * How long a new inquiry has waited: "Arrived today", "Waiting 1 day", "Waiting 4 days"
+ * (§3.2.1, 2026-10-21). Calendar days in the ADVISOR's zone, from [sinceIso] (an instant) to
+ * [today] (already his date, off `agent_kpis`). Never negative, never a colour. Word for word
+ * the web's `waitingLabel` in `web/lib/agent/queries.ts`.
+ */
+fun waitingLabel(today: String, sinceIso: String?, timeZone: String): String? {
+    if (sinceIso == null) return null
+    val instant = runCatching { Instant.parse(sinceIso) }.getOrNull() ?: return null
+    val zone = runCatching { TimeZone.of(timeZone) }.getOrDefault(TimeZone.UTC)
+    val since = instant.toLocalDateTime(zone).date.toString()
+    val days = (daysBetween(since, today) ?: return null).coerceAtLeast(0)
+    return if (days == 0) "Arrived today" else "Waiting $days ${if (days == 1) "day" else "days"}"
+}
+
+/** §3.8's phone line: "1 new lead is waiting." / "3 new leads are waiting." */
+fun newLeadsLine(count: Int): String =
+    if (count == 1) "1 new lead is waiting." else "$count new leads are waiting."
 
 fun needsYouLine(count: Int): String = when (count) {
     0 -> AgentCopy.GREETING_ZERO

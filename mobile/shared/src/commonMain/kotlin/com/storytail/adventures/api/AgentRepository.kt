@@ -101,6 +101,13 @@ interface AgentRepository {
      * Null for any failure or no row; the notification then says "New trip request" alone.
      */
     suspend fun tripRequestSummary(tripId: String): AgentTripOverviewRow?
+
+    /**
+     * §3.8's lead notification (2026-10-21): the lead's name, read over the advisor's session
+     * (`agent_lead`) because the push carries the id only. Null for any failure or no row; the
+     * notification then names nobody.
+     */
+    suspend fun leadName(leadId: String): String?
 }
 
 /**
@@ -446,10 +453,18 @@ data class WorklistSnapshot(
     val kpis: WorklistKpis,
     val awaitingResponse: List<WorklistTrip>,
     val paymentsDue: List<WorklistPayment>,
-    /** `trip.status = 'inquiry'`. NOT leads — there is no lead entity (BRD §6.5). */
+    /**
+     * `trip.status = 'inquiry'`. NOT leads: a lead is somebody without an account who wrote in
+     * (BRD §6.5, 2026-10-21), and the phone shows only how many there are ([newLeadCount]).
+     */
     val newInquiries: List<WorklistTrip>,
     val departingSoon: List<WorklistTrip>,
     val recentMessages: List<WorklistMessage>,
+    /**
+     * §3.8 (2026-10-21): `new` leads that are not "Already a client", the web worklist's own
+     * filter. A count only: there is no phone Leads screen, so the section points to the web.
+     */
+    val newLeadCount: Int = 0,
 )
 
 data class WorklistKpis(
@@ -476,6 +491,8 @@ data class WorklistTrip(
     val startDate: String?,
     val totalValueCents: Long,
     val currency: String,
+    /** When it entered its current stage. For a new inquiry, when it arrived (§3.2.1's wait). */
+    val statusChangedAt: String? = null,
 )
 
 data class WorklistPayment(
@@ -512,6 +529,7 @@ class UnconfiguredAgentRepository : AgentRepository {
 
     override suspend fun tripDetail(tripId: String): AgentTripDetailRead = AgentTripDetailRead.Failed
     override suspend fun tripRequestSummary(tripId: String): AgentTripOverviewRow? = null
+    override suspend fun leadName(leadId: String): String? = null
 }
 
 class SupabaseAgentRepository(private val client: SupabaseClient) : AgentRepository {
@@ -549,11 +567,15 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
                     .rpc("agent_inbox", buildJsonObject { put("p_limit", 5) })
                     .decodeList<InboxDto>()
             }
+            // §3.8: only the count reaches the screen, so only the two fields that decide it
+            // are decoded.
+            val leadCall = async { client.postgrest.rpc("agent_leads").decodeList<LeadCountDto>() }
 
             val kpiRows = kpiCall.await()
             val trips = tripCall.await()
             val payments = paymentCall.await()
             val inbox = inboxCall.await()
+            val leads = leadCall.await()
 
             // No row at all means the caller is not an agent — App.kt's gate should already
             // have caught that, so this is the second line of defence. One row of zeros is a
@@ -585,6 +607,7 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
                         .filter { it.start_date != null && it.start_date >= kpi.as_of_date }
                         .map { it.toDomain() },
                     recentMessages = inbox.map { it.toDomain() },
+                    newLeadCount = leads.count { it.status == "new" && !it.already_client },
                 ),
             )
         }
@@ -660,6 +683,19 @@ class SupabaseAgentRepository(private val client: SupabaseClient) : AgentReposit
         if (rest.statusCode in 401..403) ClientDetailRead.Forbidden else ClientDetailRead.Failed
     } catch (_: Exception) {
         ClientDetailRead.Failed
+    }
+
+    override suspend fun leadName(leadId: String): String? = try {
+        client.postgrest
+            .rpc("agent_lead", buildJsonObject { put("p_lead_id", leadId) })
+            .decodeList<LeadNameDto>()
+            .firstOrNull()
+            ?.let { listOfNotNull(it.first_name, it.last_name).joinToString(" ").trim() }
+            ?.takeIf { it.isNotEmpty() }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        null
     }
 
     override suspend fun tripRequestSummary(tripId: String): AgentTripOverviewRow? = try {
@@ -879,6 +915,7 @@ private data class TripDto(
     val total_value_cents: String? = null,
     val currency: String = "USD",
     val proposal_sent_at: String? = null,
+    val status_changed_at: String? = null,
 ) {
     fun toDomain() = WorklistTrip(
         tripId = trip_id,
@@ -888,8 +925,23 @@ private data class TripDto(
         startDate = start_date,
         totalValueCents = total_value_cents.cents(),
         currency = currency,
+        statusChangedAt = status_changed_at,
     )
 }
+
+/** §3.8: the two `agent_leads` fields the worklist's count needs. */
+@Serializable
+private data class LeadCountDto(
+    val status: String = "",
+    val already_client: Boolean = false,
+)
+
+/** §3.8: the name a lead notification shows. */
+@Serializable
+private data class LeadNameDto(
+    val first_name: String? = null,
+    val last_name: String? = null,
+)
 
 @Serializable
 private data class PaymentDto(
