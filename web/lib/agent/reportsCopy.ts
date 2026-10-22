@@ -257,7 +257,7 @@ export const LEAD_SOURCES_COPY = {
   colOpen: "Still open",
   colClosed: "Closed",
   campaignsTitle: "Website campaigns",
-  colCampaign: "Campaign (utm_source)",
+  colCampaign: "Campaign link",
   note: "Leads that came in during the period, by how they reached you. A note from somebody who was already a client isn't counted: they were never a lead. Leads come before the Conversion funnel, which starts when a client asks for a quote.",
 } as const;
 

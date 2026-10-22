@@ -54,7 +54,7 @@ describe("2.0.12 Message Gyasi — the form", () => {
     expect(screen.getByLabelText("Email")).toBeRequired();
     expect(screen.getByLabelText("Phone (optional)")).not.toBeRequired();
     expect(screen.getByLabelText("Your note")).toBeRequired();
-    expect(screen.getByText(/Gyasi will only use this to reply to you/)).toBeTruthy();
+    expect(screen.getByText(/Gyasi will only use this to get back to you/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/legal/privacy");
     expect(screen.getByRole("button", { name: "Send to Gyasi" })).toBeTruthy();
   });

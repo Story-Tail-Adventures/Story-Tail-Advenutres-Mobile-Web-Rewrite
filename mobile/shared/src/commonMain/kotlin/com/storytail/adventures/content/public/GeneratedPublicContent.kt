@@ -948,7 +948,7 @@ internal object PublicCatalog {
                 paragraphs = listOf(
                     "Story-Tail Adventures collects contact information, trip details, travel preferences, and travel-document details you choose to share, only to plan and support your trips. The portal has no place to enter a card number, so please don't type one into a message.",
                     "We do not sell your information, and we do not share it with marketing third parties. When you use the portal in a web browser, we also count page views without tying them to your name. Section 3 explains who receives what, and why.",
-                    "If you send Gyasi a note without an account, we keep your name, email, any phone number you add, your note, and the page you sent it from, only so Gyasi can reply. We never email you automatically, and the form refuses a card number. If you later create an account with the same email, the note becomes part of your account. If not, we delete it 24 months after Gyasi closes it.",
+                    "If you send Gyasi a note without an account, we keep your name, your email, any phone number you add, your note, and the page or link you wrote from. We keep them so Gyasi can reply and see where people find us. To stop spam, we also keep a scrambled form of your network address for one day. We never email you automatically, and the form refuses card numbers. If you create an account with the same email later, your note joins it. If not, we delete it 24 months after Gyasi closes it.",
                 ),
                 bullets = emptyList(),
             ),

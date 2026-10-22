@@ -24,7 +24,7 @@ export const PRIVACY: LegalDoc = {
         // Added 2026-10-21 with the 2.0.12 Message Gyasi form (BRD §6.5, Data-Model §11).
         // lead_retention_sweep() and the CHECKs on lead / lead_message are what make each
         // clause true; change one and you must change the other.
-        "If you send Gyasi a note without an account, we keep your name, email, any phone number you add, your note, and the page you sent it from, only so Gyasi can reply. We never email you automatically, and the form refuses a card number. If you later create an account with the same email, the note becomes part of your account. If not, we delete it 24 months after Gyasi closes it.",
+        "If you send Gyasi a note without an account, we keep your name, your email, any phone number you add, your note, and the page or link you wrote from. We keep them so Gyasi can reply and see where people find us. To stop spam, we also keep a scrambled form of your network address for one day. We never email you automatically, and the form refuses card numbers. If you create an account with the same email later, your note joins it. If not, we delete it 24 months after Gyasi closes it.",
       ],
     },
     {
