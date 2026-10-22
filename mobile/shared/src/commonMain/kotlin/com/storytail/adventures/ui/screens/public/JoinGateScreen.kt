@@ -59,9 +59,10 @@ import com.storytail.adventures.ui.theme.PillShape
  * raw parameter. It is printed in the headline, and printing something a visitor typed
  * would be putting their words in Gyasi's mouth.
  *
- * [onContinueAsGuest] is the Phase 1 prefilled-email path (Screen Inventory 2.0.5's phase
- * note — the Lead entity is P2). It creates nothing, which is why the line under it says so
- * rather than letting "continue" imply a saved trip is waiting.
+ * [onContinueAsGuest] opens 2.0.12, "Message Gyasi" without an account (BRD §6.5,
+ * 2026-10-21): the note becomes a lead. It was the Phase 1 prefilled-email path, then a plain
+ * close; the line under it says a quote still needs an account, so "instead" promises nothing
+ * the form cannot do.
  */
 @Composable
 fun JoinGateScreen(
@@ -202,13 +203,13 @@ fun JoinGateScreen(
                     modifier = Modifier.fillMaxWidth().heightIn(min = PublicTapTarget),
                 ) {
                     Text(
-                        text = "Continue as guest",
+                        // The web gate's words (`JOIN_TEXT.emailInstead`), less its arrow.
+                        text = "Message Gyasi instead",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Text(
-                    text = "Opens an email to Gyasi. Nothing is saved on your end until " +
-                        "you have an account.",
+                    text = "Send him a note, no account needed. A full quote still needs one.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

@@ -295,6 +295,7 @@ class NavigatorTest {
             AppRoute.PublicResults("Maldives"),            // ... and supplied
             AppRoute.PublicTripDetail("overwater-villas"),
             AppRoute.PublicJoin(intent = "quote", tripSlug = null),
+            AppRoute.PublicMessage(tripSlug = null, topic = Topic.CARIBBEAN),
             AppRoute.PublicTopic(Topic.HONEYMOONS),
             AppRoute.PublicLegal(LegalSlug.PRIVACY),
             AppRoute.VerifyEmail("someone@example.com"),

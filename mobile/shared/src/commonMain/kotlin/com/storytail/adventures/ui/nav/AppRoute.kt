@@ -90,6 +90,17 @@ sealed interface AppRoute {
     data class PublicJoin(val intent: String, val tripSlug: String? = null) : AppRoute
 
     /**
+     * Screen 2.0.12, "Message Gyasi" without an account (§3.8, BRD §6.5, 2026-10-21). Every
+     * guest "message" lands here, and the gate's "Message Gyasi instead". [tripSlug] and
+     * [topic] say what they were viewing; the screen resolves both against the catalog.
+     */
+    @Serializable
+    data class PublicMessage(
+        val tripSlug: String? = null,
+        val topic: com.storytail.adventures.content.public.Topic? = null,
+    ) : AppRoute
+
+    /**
      * Screens 2.0.8-2.0.10, the topic landing pages.
      *
      * One route carrying the topic for the same reason [Onboarding] carries its step: the

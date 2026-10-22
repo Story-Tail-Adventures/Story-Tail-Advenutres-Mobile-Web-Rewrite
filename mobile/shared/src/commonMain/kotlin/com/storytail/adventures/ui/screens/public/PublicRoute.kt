@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.storytail.adventures.content.public.PublicCatalog
+import com.storytail.adventures.content.public.LegalSlug
 import com.storytail.adventures.content.public.PublicContent
+import com.storytail.adventures.content.public.Topic
 import com.storytail.adventures.ui.components.public.PublicMenuSheet
 import com.storytail.adventures.ui.nav.AppRoute
 
@@ -34,12 +36,15 @@ fun PublicRoute(
     var menuOpen by remember { mutableStateOf(false) }
     val openMenu = { menuOpen = true }
 
-    // The gate is where every account-gated action on this surface lands. Guest "message"
-    // goes here too: the Lead entity is P2 (Data-Model §11) and no inquiry address is
-    // configured for the app, so routing to a dead mailto would be worse than asking. Web
-    // makes the same fallback when NEXT_PUBLIC_INQUIRY_EMAIL is unset.
+    // The gate is where every account-gated action on this surface lands: a quote, a save.
     val gate = { intent: String, slug: String? ->
         onNavigate(AppRoute.PublicJoin(intent = intent, tripSlug = slug))
+    }
+    // A guest "message" is NOT gated since 2026-10-21 (BRD §6.5): it opens 2.0.12, the form
+    // that makes a lead, as the web's `inquiryHref` does. It used to land on the gate because
+    // there was nowhere for a message without an account to go.
+    val message = { slug: String?, topic: Topic? ->
+        onNavigate(AppRoute.PublicMessage(tripSlug = slug, topic = topic))
     }
 
     when (route) {
@@ -53,7 +58,7 @@ fun PublicRoute(
 
         AppRoute.PublicHowItWorks -> HowItWorksScreen(
             onCreateAccount = onCreateAccount,
-            onMessageGyasi = { gate("message", null) },
+            onMessageGyasi = { message(null, null) },
             onMenu = openMenu,
             onBack = onBack,
         )
@@ -93,7 +98,7 @@ fun PublicRoute(
                     trip = trip,
                     onRequestQuote = { gate("quote", trip.slug) },
                     onSave = { gate("save", trip.slug) },
-                    onMessageGyasi = { gate("message", trip.slug) },
+                    onMessageGyasi = { message(trip.slug, null) },
                     onMenu = openMenu,
                     onBack = onBack,
                 )
@@ -107,9 +112,17 @@ fun PublicRoute(
             tripName = route.tripSlug?.let { PublicContent.tripBySlug(it)?.name },
             onCreateAccount = onCreateAccount,
             onSignIn = onSignIn,
-            // Phase 1 has no lead capture, so "continue as guest" cannot promise a saved
-            // trip or an account. It closes the gate and leaves them where they were.
-            onContinueAsGuest = onBack,
+            // "Message Gyasi instead" (2026-10-21): a note without an account, which becomes a
+            // lead. It used to close the gate, because there was no lead to make.
+            onContinueAsGuest = { message(route.tripSlug, null) },
+            onDismiss = onBack,
+        )
+
+        is AppRoute.PublicMessage -> MessageGyasiScreen(
+            tripSlug = route.tripSlug,
+            topic = route.topic,
+            onPrivacy = { onNavigate(AppRoute.PublicLegal(LegalSlug.PRIVACY)) },
+            onKeepExploring = { onNavigate(AppRoute.PublicExplore) },
             onDismiss = onBack,
         )
 
@@ -118,14 +131,14 @@ fun PublicRoute(
             onOpenTrip = { onNavigate(AppRoute.PublicTripDetail(it)) },
             onRequestQuote = { gate("quote", it) },
             onSeeAll = { onNavigate(AppRoute.PublicResults()) },
-            onMessageGyasi = { gate("message", null) },
+            onMessageGyasi = { message(null, route.topic) },
             onMenu = openMenu,
             onBack = onBack,
         )
 
         AppRoute.PublicAbout -> AboutGyasiScreen(
             onRequestQuote = { gate("quote", null) },
-            onMessageGyasi = { gate("message", null) },
+            onMessageGyasi = { message(null, null) },
             onMenu = openMenu,
             onBack = onBack,
         )

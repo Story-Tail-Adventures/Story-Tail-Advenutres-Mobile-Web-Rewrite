@@ -1266,6 +1266,38 @@ MESSAGE_TABLES = [
         },
     },
     {
+        # Screen 2.0.12 "Message Gyasi" without an account (§3.8, BRD §6.5, 2026-10-21): the
+        # web form and the phone screen say the same words. The web's metaTitle,
+        # metaDescription, honeypot and quoteInstead have no phone twin (no page metadata, no
+        # hidden field, and the phone's gate already offers the account), so they are left out.
+        "label": "2.0.12 message gyasi",
+        "web_file": ROOT / "web/app/(public)/(plain)/message/state.ts",
+        "web_const": "MESSAGE_TEXT",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessageGyasi.kt",
+        "kmp_object": "MessageGyasiCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "title": "TITLE",
+            "body": "BODY",
+            "aboutPrefix": "ABOUT_PREFIX",
+            "firstName": "FIRST_NAME",
+            "lastName": "LAST_NAME",
+            "email": "EMAIL",
+            "phone": "PHONE",
+            "message": "MESSAGE",
+            "messageHint": "MESSAGE_HINT",
+            "privacyBefore": "PRIVACY_BEFORE",
+            "privacyLink": "PRIVACY_LINK",
+            "submit": "SUBMIT",
+            "pending": "PENDING",
+            "sentTitle": "SENT_TITLE",
+            "sentBody": "SENT_BODY",
+            "keepExploring": "KEEP_EXPLORING",
+            "throttled": "THROTTLED",
+            "unavailable": "UNAVAILABLE",
+        },
+    },
+    {
         # §2.6's whole section, all three screens, in one module on each side.
         #
         # EVERY plain-string key in MESSAGES is listed here. That is the point: an unlisted key

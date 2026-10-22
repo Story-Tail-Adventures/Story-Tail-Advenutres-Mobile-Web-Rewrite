@@ -100,6 +100,7 @@ fun AgentRoute(
                                 ),
                                 // The agent's own date, off the accessor — never the handset's.
                                 today = read.snapshot.asOfDate,
+                                timeZone = timeZone,
                             ),
                         )
                         WorklistRead.Forbidden -> Loadable.Unauthorized

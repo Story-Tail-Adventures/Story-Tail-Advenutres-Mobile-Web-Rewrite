@@ -21,6 +21,7 @@ import com.storytail.adventures.domain.agent.AGENT_PUSH_SUMMARY_TAG
 import com.storytail.adventures.domain.agent.AgentMessagesCopy
 import com.storytail.adventures.domain.agent.AgentPushData
 import com.storytail.adventures.domain.agent.dismissApplies
+import com.storytail.adventures.domain.agent.leadMessageTitle
 import com.storytail.adventures.domain.agent.notificationBody
 import com.storytail.adventures.domain.agent.notificationLockedTitle
 import com.storytail.adventures.domain.agent.notificationSummaryBody
@@ -50,7 +51,52 @@ class AgentNotifier(private val context: Context) {
             is AgentPushData.Summary -> showSummary(data)
             is AgentPushData.Dismiss -> dismiss(data.tag, data.readUpTo)
             is AgentPushData.QuoteRequest -> showQuoteRequest(data)
+            is AgentPushData.LeadMessage -> showLeadMessage(data)
         }
+    }
+
+    /**
+     * §3.8 (2026-10-21): somebody without an account wrote in. The push carries the lead id only;
+     * the name is read over the advisor's session. Never what they wrote, on any screen. There is
+     * no phone Leads screen, so a tap opens the app and the body says where to read it.
+     */
+    private suspend fun showLeadMessage(data: AgentPushData.LeadMessage) {
+        val name = withTimeoutOrNull(READ_TIMEOUT_MS) {
+            if (SupabaseClientProvider.agentPushRepository().signedIn()) {
+                SupabaseClientProvider.agentRepository().leadName(data.leadId)
+            } else {
+                null
+            }
+        }
+        if (name == null) Log.w(TAG, "lead read for a lead notification failed or timed out")
+        val title = leadMessageTitle(name)
+        val body = AgentMessagesCopy.NOTIFY_LEAD_BODY
+        val locked = leadBase().setContentTitle(title).build()
+        val builder = leadBase()
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(locked)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+        post(data.tag, builder.build())
+    }
+
+    /** The trip-request channel (renamed "New inquiries and messages"); a tap opens the app. */
+    private fun leadBase(): NotificationCompat.Builder {
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val open = PendingIntent.getActivity(
+            context,
+            "lead".hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        return NotificationCompat.Builder(context, PushSetup.CHANNEL_TRIP_REQUESTS)
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(open)
     }
 
     /**
