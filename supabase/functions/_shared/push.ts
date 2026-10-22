@@ -221,7 +221,9 @@ export function leadMessagePayload(row: ClaimedRow): LeadMessagePayload {
     kind: "lead_message",
     tag: `lead-${leadId}`,
     leadId,
-    title: `New message from ${name}`,
+    // "note", not "message": a stranger's note must not look like a client's message on a lock
+    // screen, and the public form and the summary both call it a note.
+    title: `New note from ${name}`,
     body: "They wrote from the website. Open it to read and reply.",
     url: `/agent/leads/${leadId}`,
   };

@@ -206,7 +206,7 @@ Deno.test("a lead's message: their name, no words, opening the lead; Android get
   const lead = row({ kind: "lead_message", trip_id: null, trip_title: null, destination: null, start_date: null,
                      end_date: null, client_name: "Dana Reyes", lead_id: "lead-1" });
   const p = leadMessagePayload(lead);
-  assertEquals(p.title, "New message from Dana Reyes");
+  assertEquals(p.title, "New note from Dana Reyes");
   assertEquals(p.body, "They wrote from the website. Open it to read and reply.");
   assertEquals(p.url, "/agent/leads/lead-1");
   assertEquals(p.tag, "lead-lead-1");

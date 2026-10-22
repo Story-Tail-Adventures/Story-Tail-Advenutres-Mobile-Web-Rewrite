@@ -57,9 +57,31 @@ export const MAX_CLOSE_NOTE = 500;
 /** Faster than this from drawing the form to sending it, and it was not a person. */
 export const MIN_FILL_MS = 3000;
 
-/** The sentence the form shows when a message holds a card number. */
-export const CARD_NUMBER_REFUSAL =
-  "Please leave card numbers out of your note. Gyasi will never ask for one here.";
+/**
+ * WHO IS READING THE 400. The same parsers serve the public form (a visitor, so the sentence
+ * speaks about Gyasi) and the advisor's Add lead and Close (Gyasi himself, who should not be
+ * told "Please tell Gyasi your first name"). Each sentence comes in both voices.
+ */
+export type Audience = "visitor" | "advisor";
+
+/** What the form, or the advisor's screen, shows when a text holds a card number. */
+export const CARD_NUMBER_REFUSAL = "Please leave card numbers out. Gyasi will never ask for one here.";
+export const CARD_NUMBER_REFUSAL_ADVISOR = "Card numbers can't be saved here. Please take it out and try again.";
+
+const SAY: Record<Audience, { firstName: string; body: string; bodyLong: string; card: string }> = {
+  visitor: {
+    firstName: "Please tell Gyasi your first name.",
+    body: "Please write a few words for Gyasi.",
+    bodyLong: "Your note is a little long. Please keep it under 2,000 characters.",
+    card: CARD_NUMBER_REFUSAL,
+  },
+  advisor: {
+    firstName: "Add a first name.",
+    body: "Add a few words about what they're looking for.",
+    bodyLong: "That's a little long. Please keep it under 2,000 characters.",
+    card: CARD_NUMBER_REFUSAL_ADVISOR,
+  },
+};
 
 const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
 const PHONE = /^[0-9+().\-\s]{3,40}$/;
@@ -80,17 +102,17 @@ function line(value: unknown, max: number, label: string): string | null {
 }
 
 /** A message body: newlines kept, other control characters dropped, trimmed. */
-function body(value: unknown, label: string): string {
-  if (typeof value !== "string") throw badRequest(`${label} must be text.`);
+function body(value: unknown, audience: Audience): string {
+  if (typeof value !== "string") throw badRequest(SAY[audience].body);
   const cleaned = value.replace(/\r\n?/g, "\n").replace(CONTROL, "").trim();
-  if (cleaned === "") throw badRequest(`Please write a few words for Gyasi.`);
-  if (cleaned.length > MAX_BODY) throw badRequest(`${label} is too long.`);
+  if (cleaned === "") throw badRequest(SAY[audience].body);
+  if (cleaned.length > MAX_BODY) throw badRequest(SAY[audience].bodyLong);
   return cleaned;
 }
 
-function requiredName(value: unknown): string {
+function requiredName(value: unknown, audience: Audience): string {
   const first = line(value, MAX_NAME, "First name");
-  if (!first) throw badRequest("Please tell Gyasi your first name.");
+  if (!first) throw badRequest(SAY[audience].firstName);
   return first;
 }
 
@@ -106,8 +128,8 @@ function phone(value: unknown): string | null {
   return p;
 }
 
-function refuseCard(...texts: (string | null)[]): void {
-  if (texts.some((t) => t !== null && hasCardNumber(t))) throw badRequest(CARD_NUMBER_REFUSAL);
+function refuseCard(audience: Audience, ...texts: (string | null)[]): void {
+  if (texts.some((t) => t !== null && hasCardNumber(t))) throw badRequest(SAY[audience].card);
 }
 
 export interface LeadFormInput {
@@ -142,12 +164,12 @@ export function looksAutomated(payload: Record<string, unknown>, now: number): b
 
 /** The public form's fields, checked. Throws a 400 a person can read. */
 export function parseLeadForm(payload: Record<string, unknown>): LeadFormInput {
-  const firstName = requiredName(payload.firstName);
+  const firstName = requiredName(payload.firstName, "visitor");
   const lastName = line(payload.lastName, MAX_NAME, "Last name");
   const e = email(payload.email);
   const p = phone(payload.phone);
-  const message = body(payload.message, "Your note");
-  refuseCard(message, p);
+  const message = body(payload.message, "visitor");
+  refuseCard("visitor", message, p);
 
   const page = typeof payload.page === "string" && (LEAD_PAGES as readonly string[]).includes(payload.page)
     ? payload.page as LeadPage
@@ -214,12 +236,12 @@ export function parseManualLead(payload: Record<string, unknown>): ManualLeadInp
   if (typeof source !== "string" || !(MANUAL_LEAD_SOURCES as readonly string[]).includes(source)) {
     throw badRequest(`source must be one of: ${MANUAL_LEAD_SOURCES.join(", ")}.`);
   }
-  const firstName = requiredName(payload.firstName);
+  const firstName = requiredName(payload.firstName, "advisor");
   const lastName = line(payload.lastName, MAX_NAME, "Last name");
   const e = email(payload.email);
   const p = phone(payload.phone);
-  const message = body(payload.message, "What they're looking for");
-  refuseCard(message, p);
+  const message = body(payload.message, "advisor");
+  refuseCard("advisor", message, p);
   return { firstName, lastName, email: e, phone: p, source: source as ManualLeadSource, message };
 }
 
@@ -241,7 +263,7 @@ export function parseClose(payload: Record<string, unknown>): CloseInput {
     if (n.length > MAX_CLOSE_NOTE) throw badRequest("That note is too long.");
     note = n === "" ? null : n;
   }
-  refuseCard(note);
+  refuseCard("advisor", note);
   return { reason: reason as LeadCloseReason, note };
 }
 

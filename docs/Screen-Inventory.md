@@ -211,7 +211,10 @@ the platform tracks (Data-Model §11), instead of an email that leaves the site.
 **Primary elements:** Short intro in Gyasi's voice; "About: [trip or topic]" line when opened
 from one; first name (required), last name, email (required), phone, message (required, up to
 2,000 characters); a hidden field only bots fill; "Send to Gyasi" button; the line "Gyasi will
-only use this to reply to you", linked to the Privacy page; no consent checkbox. After sending,
+only use this to get back to you and see where people find us", linked to the Privacy page; no
+consent checkbox. *(The ruled wording was "Gyasi will only use this to reply to you"; the
+brand-voice review on 2026-10-21 widened it, because the page, the trip or topic and the
+campaign tag are also kept for 3.11.9, and "only to reply" would be untrue.)* After sending,
 an on-screen thank-you that uses the settled reply-time string ("Usually replies the same
 day") and a gentle link back to browsing. **No email is sent to the visitor** (a form that
 mails any typed address can be used to send mail to strangers).
