@@ -376,7 +376,25 @@ jobs:
       - name: Fail if generated DB types drifted from the migrations
         run: |
           npm ci
-          npm run supabase:types
+          # `supabase gen types` pulls postgres-meta from public.ecr.aws, whose anonymous pull
+          # limit ("toomanyrequests: Rate exceeded" / "Data limit exceeded") failed this step
+          # on #152 and twice on the 0.0.7-alpha release, with nothing wrong in the code. Retry
+          # ONLY that: any other failure, including real drift below, still fails the first time.
+          for attempt in 1 2 3 4; do
+            # The script's own exit status, whatever tee returns and whether or not the
+            # shell runs with pipefail.
+            set +e
+            npm run supabase:types 2>&1 | tee /tmp/gen-types.log
+            status=${PIPESTATUS[0]}
+            set -e
+            if [ "$status" -eq 0 ]; then break; fi
+            if ! grep -q "toomanyrequests" /tmp/gen-types.log || [ "$attempt" -eq 4 ]; then
+              echo "::error::supabase:types failed (attempt $attempt)."
+              exit 1
+            fi
+            echo "::warning::Image registry rate limit; retrying in $((attempt * 45))s (attempt $attempt of 4)."
+            sleep $((attempt * 45))
+          done
           # Both copies: the script writes web/types/ AND functions/_shared/, so diffing
           # only the first would let a hand-edit to the Edge Function types through.
           git diff --exit-code web/types/supabase.ts \
