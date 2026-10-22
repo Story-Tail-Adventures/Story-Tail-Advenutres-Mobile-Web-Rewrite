@@ -122,8 +122,9 @@ object AgentSettingsCopy {
     const val CHANNEL_PUSH = "Push"
     const val CLIENT_MESSAGES = "Client message"
     const val CLIENT_MESSAGES_HINT = "A client writes to you."
-    const val QUOTE_REQUESTS = "New trip request"
-    const val QUOTE_REQUESTS_HINT = "A client asks for a quote."
+    // Renamed 2026-10-21 (Screen Inventory 3.12.3), word for word the web's settingsCopy.
+    const val QUOTE_REQUESTS = "New inquiries and messages"
+    const val QUOTE_REQUESTS_HINT = "A client asks for a quote, or someone without an account writes to you."
     const val REST_TITLE = "Rest hours"
     const val REST_BODY =
         "Push stays quiet outside your working hours and while you're away, then one summary when you're back."

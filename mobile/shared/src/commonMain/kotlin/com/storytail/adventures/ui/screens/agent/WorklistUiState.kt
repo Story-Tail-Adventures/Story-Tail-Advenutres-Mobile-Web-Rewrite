@@ -8,6 +8,7 @@ import com.storytail.adventures.domain.agent.PartOfDay
 import com.storytail.adventures.domain.agent.departingWithin30
 import com.storytail.adventures.domain.agent.needsYouCount
 import com.storytail.adventures.domain.agent.paymentsInOrder
+import com.storytail.adventures.domain.agent.waitingLabel
 
 /**
  * Everything Screen 3.2.1 renders, already derived.
@@ -29,7 +30,12 @@ data class WorklistUiState(
     val snapshot: WorklistSnapshot,
     val payments: List<WorklistPayment>,
     val departing: List<WorklistTrip>,
+    /** §3.2.1 (2026-10-21): new inquiries, oldest first, each with how long it has waited. */
+    val inquiries: List<WorklistInquiry> = emptyList(),
 )
+
+/** A new inquiry and its wait label ("Waiting 2 days"), already derived. */
+data class WorklistInquiry(val trip: WorklistTrip, val waitLabel: String?)
 
 private val MONTHS = listOf(
     "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
@@ -48,6 +54,8 @@ fun worklistUiState(
     displayName: String,
     partOfDay: PartOfDay,
     today: String,
+    /** The advisor's own zone, for the inquiry wait labels. */
+    timeZone: String = "UTC",
 ): WorklistUiState = WorklistUiState(
     firstName = displayName.substringBefore(' ').ifBlank { "there" },
     partOfDay = partOfDay,
@@ -59,6 +67,10 @@ fun worklistUiState(
         snapshot.awaitingResponse + snapshot.newInquiries + snapshot.departingSoon,
         today,
     ).distinctBy { it.tripId },
+    // Oldest first, the web worklist's order. ISO instants sort as text; a missing one last.
+    inquiries = snapshot.newInquiries
+        .sortedWith(compareBy(nullsLast()) { it.statusChangedAt })
+        .map { WorklistInquiry(it, waitingLabel(today, it.statusChangedAt, timeZone)) },
 )
 
 /** The empty state, when the read succeeded and the book is genuinely quiet. */

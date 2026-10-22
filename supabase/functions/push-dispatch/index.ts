@@ -65,7 +65,10 @@ Deno.serve(async (req) => {
     const send: DeviceSender = (d, p) => {
       // §3.12.3: Android shows a trip request since §3.12 PR 4; iOS is not built yet. Skipped,
       // not failed, so an iPhone-only advisor's row is not retried for it.
-      if (p.kind === "quote_request" && d.platform === "ios") return Promise.resolve("skipped");
+      // A lead's message (§3.8) likewise.
+      if ((p.kind === "quote_request" || p.kind === "lead_message") && d.platform === "ios") {
+        return Promise.resolve("skipped");
+      }
       const sender = senders[d.platform];
       if (sender) return sender(d, p);
       // iOS is not built yet; a missing key is a misconfiguration worth seeing.

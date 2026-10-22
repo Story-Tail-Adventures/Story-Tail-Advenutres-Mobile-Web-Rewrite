@@ -425,6 +425,22 @@ service-role key); a waiting row is due five minutes after the reply.
 
 The initial migration should be generated from `../docs/Data-Model.md`. Claude can transcribe the inline DDL into `migrations/20260514120000_initial.sql`. See `../docs/Tech-Recommendations.md` §5.3 Step 5.
 
+## Lead form secret (P2, §3.8)
+
+The public "Message Gyasi" form posts through a Next.js server action, so `lead-message` sees
+the web server's address, not the visitor's. The web sends the visitor's address beside a
+shared key, and the per-address limit (five sends an hour) counts visitors only when the key
+matches:
+
+```bash
+supabase secrets set LEAD_FORM_KEY=<a long random string>    --project-ref <prod-ref>
+# and the same value on Vercel as STA_LEAD_FORM_KEY (server-only, never NEXT_PUBLIC_)
+```
+
+Unset on either side, the forwarded address is ignored and the limit counts the web server's
+addresses instead: still a limit, just a coarser one. The Android app calls `lead-message`
+directly, so its sends are counted by the phone's own address with no key.
+
 ## Hotel search secrets (P2)
 
 `hotel-search` needs three values, and it fails closed without the first two — a missing

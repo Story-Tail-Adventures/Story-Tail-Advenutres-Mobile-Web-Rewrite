@@ -1,3 +1,17 @@
+buildscript {
+    // Raise the Bouncy Castle that AGP brings onto the plugin classpath to a patched release
+    // (Dependabot #61, #62). A constraint rather than a force: it only sets a floor, so a
+    // future AGP that asks for something newer still wins. Reasoning lives next to the
+    // version in gradle/libs.versions.toml.
+    dependencies {
+        constraints {
+            classpath(libs.bouncycastle.bcprov)
+            classpath(libs.bouncycastle.bcpkix)
+            classpath(libs.bouncycastle.bcutil)
+        }
+    }
+}
+
 plugins {
     // this is necessary to avoid the plugins to be loaded multiple times
     // in each subproject's classloader

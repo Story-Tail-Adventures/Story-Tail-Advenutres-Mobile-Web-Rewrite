@@ -172,7 +172,7 @@ describe("AgentNotificationsForm (3.12.3)", () => {
     renderWithTheme(<AgentNotificationsForm notifications={DEFAULTS} />);
     expect(screen.getByRole("switch", { name: "Client message by email" })).not.toBeChecked();
     expect(screen.getByRole("switch", { name: "Client message by push" })).toBeChecked();
-    expect(screen.getByRole("switch", { name: "New trip request by email" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "New inquiries and messages by email" })).toBeChecked();
     expect(screen.queryByText("SMS")).toBeNull();
     expect(screen.getByRole("link", { name: "Set your working hours" })).toHaveAttribute("href", "/agent/settings?tab=availability");
   });

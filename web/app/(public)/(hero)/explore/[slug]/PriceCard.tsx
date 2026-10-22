@@ -14,7 +14,7 @@ interface PriceCardProps {
   trip: Trip;
   quoteHref: string;
   saveHref: string;
-  /** Guest inquiry (mailto or the gate) — rendered as a plain <a>. */
+  /** Guest inquiry: the 2.0.12 Message Gyasi form, rendered as a plain <a>. */
   messageHref: string;
   className?: string;
 }

@@ -94,8 +94,10 @@ export const SETTINGS_COPY = {
     push: "Push",
     clientMessages: "Client message",
     clientMessagesHint: "A client writes to you.",
-    quoteRequests: "New trip request",
-    quoteRequestsHint: "A client asks for a quote.",
+    // Renamed 2026-10-21 (Screen Inventory 3.12.3): the switch covers a lead's message too
+    // (§3.8). The stored key stays `quote_requests`, so saved settings carry over.
+    quoteRequests: "New inquiries and messages",
+    quoteRequestsHint: "A client asks for a quote, or someone without an account writes to you.",
     switchLabel: (what: string, channel: string) => `${what} by ${channel.toLowerCase()}`,
     restTitle: "Rest hours",
     restBody: "Push stays quiet outside your working hours and while you're away, then one summary when you're back.",

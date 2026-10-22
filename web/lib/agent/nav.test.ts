@@ -48,10 +48,7 @@ describe("AGENT_DESTINATIONS", () => {
   it("knows exactly which destinations are unbuilt today", () => {
     // The snapshot that replaces the client test's phase assertion. Editing it is the point:
     // when §3.3 ships, this line changes in the same commit.
-    expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual([
-      "leads",
-      "more",
-    ]);
+    expect(AGENT_DESTINATIONS.filter((d) => !isBuilt(d)).map((d) => d.id)).toEqual(["more"]);
     // `clients` joined `worklist` when §3.3.1 shipped on 2026-09-26, and `trips` joined both
     // on 2026-09-27 with §3.4.1. The note this line used to carry was the reason it was
     // unbuilt: trip DETAIL existed at /agent/trips/[tripId] while the rail entry pointed at
@@ -63,11 +60,14 @@ describe("AGENT_DESTINATIONS", () => {
       "worklist",
       "clients",
       "trips",
+      "leads",
       "messages",
       "commission",
       "reports",
     ]);
     // `reports` joined on 2026-10-21 with §3.11's PR 1: the hub and its first three reports.
+    // `leads` joined the same day with §3.8's web PR. It had been the one `deferred`
+    // destination since 2026-09-09; §3.8 was revived (BRD §6.5) and the state went with it.
   });
 
   it("gives every planned destination a phase and a section", () => {
@@ -78,15 +78,11 @@ describe("AGENT_DESTINATIONS", () => {
     }
   });
 
-  it("has exactly one deferred destination, and it explains itself", () => {
-    // `deferred` must not become a dumping ground for "not yet" — that is what `planned` is
-    // for. Leads is the only thing a decision was taken against (BRD §6.5), and its reason
-    // is the content rather than a section number.
-    const deferred = AGENT_DESTINATIONS.filter((d) => d.availability.kind === "deferred");
-    expect(deferred.map((d) => d.id)).toEqual(["leads"]);
-    const reason = deferred[0].availability.kind === "deferred" ? deferred[0].availability.reason : "";
-    expect(reason).toMatch(/Inquiry/);
-    expect(reason.length).toBeGreaterThan(40);
+  it("has only two availability states now that Leads is built", () => {
+    // `deferred` existed for Leads alone and went with it on 2026-10-21 (§3.8 revived, BRD
+    // §6.5). Nothing may quietly reintroduce a destination drawn but deliberately unbuilt.
+    for (const d of AGENT_DESTINATIONS) expect(["built", "planned"], d.id).toContain(d.availability.kind);
+    expect(AGENT_DESTINATIONS.find((d) => d.id === "leads")?.href).toBe("/agent/leads");
   });
 
   it("uses only icons the web set actually has", () => {

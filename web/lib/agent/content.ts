@@ -60,7 +60,9 @@ export const AGENT_COPY = {
   paymentsTitle: "Payments to settle",
   paymentsEmpty: "No supplier payments due.",
   // "New inquiries", NOT "New leads". A quote request creates a trip in `inquiry` status
-  // (BRD §6.5, amended 2026-09-09); the lead domain is specified and deliberately unbuilt.
+  // (BRD §6.5, amended 2026-09-09). Since 2026-10-21 leads exist too, and they are a different
+  // thing: somebody without an account who wrote in. Their section's copy is LEAD_COPY's
+  // (`lib/agent/leads.ts`), so this object still never says "lead".
   inquiriesTitle: "New inquiries",
   inquiriesEmpty: "No new inquiries.",
   departingTitle: "Travelers in next 30 days",
@@ -227,9 +229,8 @@ export const AGENT_COPY = {
   // straight into the client, so the string had no call site left — and a deferral naming a
   // section which has since been built is worse than no sentence at all. Same removal
   // `tripDetailDeferred` got when §3.4.2 landed.
-  // The one that is not "not yet". It explains where the thing actually is.
-  leadsDeferred:
-    "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8).",
+  // `leadsDeferred` ("There is no Leads inbox…") lived here until §3.8 was revived on
+  // 2026-10-21 (BRD §6.5). Leads is a live destination now, so the sentence was false.
   availabilityDeferred:
     "Blocking time arrives with §3.12, which is where the time-off shape gets defined.",
   // `commissionDeferred` and `reportsDeferred` lived here until §3.7.1 and §3.11 shipped. Neither

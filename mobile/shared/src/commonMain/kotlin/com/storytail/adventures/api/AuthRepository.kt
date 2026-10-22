@@ -334,6 +334,7 @@ object SupabaseClientProvider {
     private var cachedAgentMessages: AgentMessagesRepository? = null
     private var cachedAgentPush: AgentPushRepository? = null
     private var cachedAgentSettings: AgentSettingsRepository? = null
+    private var cachedLeadMessage: LeadMessageRepository? = null
 
     /**
      * Builds the auth repository. **Call this off the main thread.**
@@ -398,6 +399,16 @@ object SupabaseClientProvider {
             cachedAgentPush!!
         }
 
+    /**
+     * Screen 2.0.12's "Message Gyasi" (§3.8, 2026-10-21), on the SAME client. It needs no
+     * session: a visitor without an account sends through the anon key.
+     */
+    suspend fun leadMessageRepository(): LeadMessageRepository =
+        withContext(Dispatchers.Default) {
+            ensureBuilt()
+            cachedLeadMessage!!
+        }
+
     /** §3.12 Agent Settings (PR 4), on the SAME client: one session, one refresh loop. */
     suspend fun agentSettingsRepository(): AgentSettingsRepository =
         withContext(Dispatchers.Default) {
@@ -447,6 +458,7 @@ object SupabaseClientProvider {
             cachedAgentMessages = UnconfiguredAgentMessagesRepository()
             cachedAgentPush = UnconfiguredAgentPushRepository()
             cachedAgentSettings = UnconfiguredAgentSettingsRepository()
+            cachedLeadMessage = UnconfiguredLeadMessageRepository()
             return
         }
         val client = createSupabaseClient(
@@ -465,5 +477,6 @@ object SupabaseClientProvider {
         cachedAgentMessages = SupabaseAgentMessagesRepository(client)
         cachedAgentPush = SupabaseAgentPushRepository(client)
         cachedAgentSettings = SupabaseAgentSettingsRepository(client)
+        cachedLeadMessage = SupabaseLeadMessageRepository(client)
     }
 }

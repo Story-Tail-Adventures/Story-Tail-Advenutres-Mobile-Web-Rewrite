@@ -40,6 +40,7 @@ function row(over: Partial<ClaimedRow> = {}): ClaimedRow {
     destination: null,
     start_date: null,
     end_date: null,
+    lead_id: null,
     ...over,
   };
 }

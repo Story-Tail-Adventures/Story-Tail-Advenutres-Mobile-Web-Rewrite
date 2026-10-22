@@ -10,7 +10,14 @@ import {
   newToken,
   renderSignature,
 } from "./email.ts";
-import { type ClaimedRow, planForAgent, quoteRequestDetail, quoteRequestPayload, summaryPayload } from "./push.ts";
+import {
+  type ClaimedRow,
+  leadMessagePayload,
+  planForAgent,
+  quoteRequestDetail,
+  quoteRequestPayload,
+  summaryPayload,
+} from "./push.ts";
 import { androidData } from "./fcm.ts";
 import { readAutoReply, readSignature, unknownSignatureFields } from "./agentSettings.ts";
 
@@ -105,6 +112,7 @@ const ALERT: ClaimedAlert = {
   trip_title: "Anniversary Week in Negril",
   conversation_id: "0195a2c0-1a00-7000-8000-0000000000b0",
   trip_id: null,
+  lead_id: null,
 };
 
 Deno.test("buildAlertEmail: who, which trip and a link to the thread; no client words exist to leak", () => {
@@ -120,6 +128,18 @@ Deno.test("buildAlertEmail: a trip request links to the inquiry trip", () => {
   const e = buildAlertEmail({ ...ALERT, kind: "quote_request", conversation_id: null, trip_id: "t-1", trip_title: "Hotel in Negril" }, CFG);
   assertEquals(e.subject, "New trip request from Jordan Hayes");
   assertStringIncludes(e.text, "/agent/trips/t-1");
+});
+
+Deno.test("buildAlertEmail: a lead's message names them and links to the lead, never their words", () => {
+  const e = buildAlertEmail(
+    { ...ALERT, kind: "lead_message", conversation_id: null, trip_title: null, client_name: "Dana Reyes", lead_id: "l-1" },
+    CFG,
+  );
+  assertEquals(e.subject, "Dana Reyes wrote to you from the website");
+  assertStringIncludes(e.text, "Dana Reyes doesn't have an account yet and sent you a note from the website.");
+  assertStringIncludes(e.text, "https://app.story-tail.com/agent/leads/l-1");
+  assertStringIncludes(e.text, "\"New inquiries and messages\" emails are on");
+  assertThrows(() => buildAlertEmail({ ...ALERT, kind: "lead_message", conversation_id: null, lead_id: null }, CFG));
 });
 
 Deno.test("buildAlertEmail: refuses what it cannot honestly send", () => {
@@ -148,6 +168,7 @@ function row(over: Partial<ClaimedRow> = {}): ClaimedRow {
     destination: "Negril, Jamaica",
     start_date: "2027-02-10",
     end_date: "2027-02-14",
+    lead_id: null,
     ...over,
   };
 }
@@ -179,6 +200,30 @@ Deno.test("the summary after time away says so, and counts trip requests apart f
   const rested = summaryPayload([row({ kind: "message", conversation_id: "c1", trip_id: null, held: true, hold_reason: "rest" })],
     new Date("2026-10-19T08:30:00Z"));
   assertEquals(rested.title, "1 new message while you rested");
+});
+
+Deno.test("a lead's message: their name, no words, opening the lead; Android gets the id only", () => {
+  const lead = row({ kind: "lead_message", trip_id: null, trip_title: null, destination: null, start_date: null,
+                     end_date: null, client_name: "Dana Reyes", lead_id: "lead-1" });
+  const p = leadMessagePayload(lead);
+  assertEquals(p.title, "New note from Dana Reyes");
+  assertEquals(p.body, "They wrote from the website. Open it to read and reply.");
+  assertEquals(p.url, "/agent/leads/lead-1");
+  assertEquals(p.tag, "lead-lead-1");
+  assertEquals(androidData(p), { v: "1", kind: "lead_message", tag: "lead-lead-1", leadId: "lead-1" });
+  assertEquals(planForAgent([lead], new Date())[0].payload.kind, "lead_message");
+
+  const s = summaryPayload([
+    row({ kind: "message", conversation_id: "c1", trip_id: null, held: true, hold_reason: "rest" }),
+    row({ held: true, hold_reason: "rest" }),
+    { ...lead, held: true, hold_reason: "rest" },
+  ], new Date("2026-10-19T12:00:00Z"));
+  assertEquals(s.title, "1 new message, 1 trip request and 1 note from someone new while you rested");
+  assertEquals(s.count, 3);
+  const onlyLeads = summaryPayload([{ ...lead, held: true, hold_reason: "rest" }, { ...lead, held: true, hold_reason: "rest" }],
+    new Date("2026-10-19T12:00:00Z"));
+  assertEquals(onlyLeads.title, "2 notes from new people while you rested");
+  assertEquals(onlyLeads.url, "/agent/leads");
 });
 
 Deno.test("planForAgent: a live trip request is its own notification", () => {

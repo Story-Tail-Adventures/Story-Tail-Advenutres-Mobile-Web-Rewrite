@@ -15,7 +15,7 @@ interface AdvisorHeroProps {
   script: string;
   lead: string;
   primary: { label: string; href: string };
-  /** Guest inquiry — rendered as a plain anchor (mailto or the gate). */
+  /** Guest inquiry: the 2.0.12 Message Gyasi form (BRD §6.5, 2026-10-21). */
   secondary: { label: string; href: string };
 }
 

@@ -2136,61 +2136,97 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 
 ## 11. Lead Domain
 
-> **DEFERRED 2026-09-09 — specified, not built, and not currently planned.** BRD §6.5 was
-> amended: a quote request creates a **Trip in `inquiry` status** directly, so nothing writes
-> a `lead` row and no migration creates the table. `trip.status` already defaults to
-> `inquiry`, which is why no new entity was needed for the "awaiting a quote" state.
+> **REVIVED 2026-10-21 IN A SMALLER SHAPE (P2). See BRD §6.5.** Gyasi's rule: anyone who asks
+> for a quote is a client (a Trip in `inquiry`, unchanged since 2026-09-09); anyone who only
+> sends a message without an account is a **lead**. The 2026-09-09 shape below was built for
+> the other case, a quote request from somebody with no account, and is replaced rather than
+> built: there are no search criteria on a message (`destinations`, dates, budget), no
+> `qualified` stage, no `converted_to_trip_id` (a lead converts to a CLIENT, who then asks for
+> trips), and no `LeadSource` table (the source is an enum on the lead, and campaign tags are
+> three columns). `conversation.lead_id` (§12.1) is not built either: a lead has no thread,
+> because the advisor replies from his own email app.
 >
-> **What that costs, recorded here because this is where the shape lives:** `trip.client_id`
-> is `NOT NULL` and `client.first_name` / `client.last_name` are `NOT NULL`, so a Trip cannot
-> be attached to somebody who has given only an email. `lead` was the one entity in this
-> model built for that case — nullable `client_id`, its own `email citext NOT NULL`, and
-> `referenced_search_payload jsonb` for a search snapshot that has no catalog row to point at
-> (which is exactly the shape a hotel result needs, since hotels are deliberately not stored).
->
-> The domain stays specified because it is the designed answer if the account requirement
-> proves lossy at the top of the funnel. Reviving it is this section plus a migration; nothing
-> else in the model depends on it.
+> Built by `20261031120000_leads.sql`. Every table here is service-role only; the advisor
+> reads through SECURITY DEFINER functions keyed on `current_agent_id()`, as the rest of the
+> agent read surface does, and writes through the `agent-lead` Edge Function. The public form
+> writes through `lead-message` (anonymous, spam-checked).
 
 ### 11.1 Lead
 
-**Phase:** P2 — **deferred, see the note above**
+**Phase:** P2 (built 2026-10-21)
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
-| `id` | `uuid` | No | Public | — |
-| `agent_id` | `uuid` | No | Public | FK → Agent |
-| `client_id` | `uuid` | Yes | Public | FK → Client if existing; null for new leads |
-| `email` | `citext` | No | PII | — |
-| `first_name` | `text` | Yes | PII | — |
-| `last_name` | `text` | Yes | PII | — |
-| `phone` | `text` | Yes | PII | — |
-| `destinations` | `text[]` | No | PII | From search criteria |
-| `start_date` | `date` | Yes | PII | — |
-| `end_date` | `date` | Yes | PII | — |
-| `traveler_count` | `integer` | Yes | PII | — |
-| `budget_band` | `text` | Yes | PII | — |
-| `trip_type_interest` | `text[]` | No | PII | — |
-| `notes` | `text` | Yes | PII | What the client wrote |
-| `source_id` | `uuid` | Yes | Public | FK → LeadSource |
-| `referenced_search_payload` | `jsonb` | Yes | Internal | Search/favorites snapshot |
-| `status` | `lead_status` enum | No | Internal | `new`, `contacted`, `qualified`, `converted`, `lost` |
-| `converted_to_trip_id` | `uuid` | Yes | Public | FK → Trip on conversion |
-| `first_contacted_at` | `timestamptz` | Yes | Internal | SLA marker |
-| `lost_reason` | `text` | Yes | Internal | — |
+| `id` | `uuid` | No | Public | Server default `uuid_v7()` |
+| `agent_id` | `uuid` | No | Public | FK → Agent. The one active advisor, the same rule `handle_new_user()` uses for sign-ups (several active advisors is P3 routing) |
+| `client_id` | `uuid` | Yes | Public | FK → Client. Set when the email was already a client's, when the advisor invites them, or when they sign up and confirm the same address |
+| `email` | `citext` | No | PII | Required on the form |
+| `first_name` | `text` | No | PII | Required on the form; 1 to 80 characters |
+| `last_name` | `text` | Yes | PII | Optional; "Invite to an account" asks for it, because `client.last_name` is NOT NULL |
+| `phone` | `text` | Yes | PII | Optional; up to 40 characters |
+| `source` | `lead_source` enum | No | Internal | `website` (the form), `email`, `phone`, `referral`, `social`, `other` (the last five for "Add lead") |
+| `status` | `lead_status` enum | No | Internal | `new`, `contacted`, `converted`, `closed` |
+| `already_client` | `boolean` | No | Internal | True when the form's email was already on a client record: saved, linked, `converted` at once, labelled "Already a client", not counted as a new lead |
+| `utm_source` / `utm_medium` / `utm_campaign` | `text` | Yes | Internal | From the first message's page URL, up to 100 characters each |
+| `first_contacted_at` | `timestamptz` | Yes | Internal | "Mark contacted". Set once; reopening keeps it |
+| `converted_at` | `timestamptz` | Yes | Internal | Set with `status = 'converted'` |
+| `closed_at` | `timestamptz` | Yes | Internal | Set with `status = 'closed'`; cleared on reopen. The retention clock |
+| `close_reason` | `lead_close_reason` enum | Yes | Internal | `not_a_fit`, `no_reply`, `went_elsewhere`, `other`. Never shown to the lead |
+| `close_note` | `text` | Yes | Internal | Optional private note on close, up to 500 characters. Refused if it holds a card number (§18.1a), as `phone` is |
+| `last_message_at` | `timestamptz` | No | Internal | The newest message; the list's order |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
 
-### 11.2 LeadSource
+**Constraints:** `converted` ⇔ `converted_at` and `client_id` set; `closed` ⇔ `closed_at` and
+`close_reason` set; `already_client` implies `converted`. **One open lead per email:** unique on
+`(agent_id, email) WHERE status IN ('new', 'contacted')`, so a second message joins it and a
+message after Converted or Closed starts a new lead.
 
-**Phase:** P2
+**Linking to a client** (`lead_link_client()`): open leads with the client's email, for the
+client's advisor, become `converted` with `client_id` set. It runs when a client row is
+inserted (the advisor's "Create client", or a sign-up whose address is already confirmed, such
+as Google) and when a sign-up's address is confirmed (a trigger that fires after
+`handle_user_email_confirmed()`, so it links the record that adoption kept). It does NOT run
+for a sign-up whose address is still unconfirmed: anybody can type somebody else's email into
+a sign-up form.
+
+**Retention:** a daily sweep deletes leads 24 months after `closed_at`, messages with them.
+Converted leads are kept as part of the client's history. "Delete as spam" deletes at once.
+
+### 11.2 LeadMessage
+
+**Phase:** P2 (built 2026-10-21)
 
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
-| `id` | `uuid` | No | Public | — |
-| `kind` | `lead_source_kind` enum | No | Internal | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` |
-| `label` | `text` | No | Internal | — |
-| `tracking_payload` | `jsonb` | No | Internal | Campaign IDs, referrer URL, etc. |
+| `id` | `uuid` | No | Public | Server default `uuid_v7()` |
+| `lead_id` | `uuid` | No | Public | FK → Lead, `ON DELETE CASCADE` |
+| `body` | `text` | No | PII | 1 to 2,000 characters. What the visitor wrote, or what the advisor noted on "Add lead". **Refused if it holds a card number** (§18.1a's guard): the form says so and asks them to leave it out |
+| `entered_by_agent` | `boolean` | No | Internal | True for "Add lead"'s note |
+| `page` | `text` | Yes | Internal | Which public page the form was opened from: `landing`, `how-it-works`, `about`, `topic`, `results`, `detail`, `join` (the web's `InquirySource`), or `app` for the Android public screens |
+| `about_kind` | `text` | Yes | Internal | `trip` or `topic`, when the visitor was viewing one |
+| `about_slug` | `text` | Yes | Internal | Its catalog slug, up to 120 characters |
+| `about_label` | `text` | Yes | Internal | What the form showed them ("About: a Caribbean week"), up to 120 characters. As the page sent it: shown to the advisor only |
+| `created_at` | `timestamptz` | No | Public | — |
+
+### 11.3 LeadSubmitThrottle
+
+**Phase:** P2 (built 2026-10-21). The form's per-address limit: **five sends per hour** from one
+network address. The address is never stored: `ip_hash` is SHA-256 of the address plus a
+random salt that is made fresh each day (`lead_throttle_salt`) and deleted with the rows after a
+day, so yesterday's hashes cannot be matched to anything.
+
+| Field | Type | Nullable | Sensitivity | Notes |
+|---|---|---|---|---|
+| `ip_hash` | `bytea` | No | Internal | — |
+| `created_at` | `timestamptz` | No | Public | — |
+
+`lead_throttle_salt (day date PRIMARY KEY, salt bytea NOT NULL)` holds the day's salt. Both
+tables are service-role only and emptied of anything older than a day by the daily sweep.
+
+The other two spam checks live in `lead-message` and store nothing: a hidden field only bots
+fill, and a form sent less than three seconds after it was drawn. Both answer like a success,
+so a bot learns nothing, and write nothing.
 
 ---
 
@@ -2206,7 +2242,7 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 | `client_id` | `uuid` | No | Public | FK → Client |
 | `agent_id` | `uuid` | No | Public | FK → Agent |
 | `trip_id` | `uuid` | Yes | Public | FK → Trip (null for general/pre-trip threads) |
-| `lead_id` | `uuid` | Yes | Public | FK → Lead (when conversation originated from a lead) |
+| `lead_id` | `uuid` | Yes | Public | **Not built (2026-10-21).** Was: FK → Lead when a conversation began as a lead. A lead has no thread: the advisor replies from his own email app, and an invited lead's conversations begin once they are a client (§11) |
 | `subject` | `text` | Yes | PII | Optional |
 | `last_message_at` | `timestamptz` | No | Public | For inbox sorting |
 | `last_message_preview` | `text` | Yes | PII | Denormalized |
@@ -2367,7 +2403,7 @@ Copying them to an advisor created later waits for P3's multi-agent work.
 | Field | Type | Nullable | Sensitivity | Notes |
 |---|---|---|---|---|
 | `user_id` | `uuid` | No | Public | PK; FK → User |
-| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push}}`. Agent categories (§3.12.3): `client_messages` (default push on, email off) and `quote_requests` (push on, email on); a missing key means the default, NOT "on" (unlike a client's `messages`). No `sms`: there is no SMS provider |
+| `channels` | `jsonb` | No | Internal | Matrix: `{category: {email, push}}`. Agent categories (§3.12.3): `client_messages` (default push on, email off) and `quote_requests` (push on, email on; since 2026-10-21 it also covers a lead's message, and the switch reads "New inquiries and messages". The key keeps its name so saved settings carry over); a missing key means the default, NOT "on" (unlike a client's `messages`). No `sms`: there is no SMS provider |
 | `quiet_hours_start` | `time` | Yes | Internal | — |
 | `quiet_hours_end` | `time` | Yes | Internal | — |
 | `updated_at` | `timestamptz` | No | Public | — |
@@ -2422,10 +2458,11 @@ so every path that records or reads a message drives it without being rewritten.
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | Server default `uuid_v7()`: no client ever writes a row |
 | `agent_id` | `uuid` | No | Public | FK → Agent. Whose devices it goes to |
-| `kind` | `text` | No | Public | §3.12.3 (PR 2): `message` (default) or `quote_request` |
+| `kind` | `text` | No | Public | §3.12.3 (PR 2): `message` (default) or `quote_request`; `lead_message` since 2026-10-21 (§11) |
 | `conversation_id` | `uuid` | Yes | Public | FK → Conversation. Set iff `kind = 'message'`. Unique while `state = 'pending'` (a message during a send gets its own row) |
 | `latest_message_id` | `uuid` | Yes | Public | FK → Message. The newest client message it is about. Set iff `kind = 'message'` |
 | `trip_id` | `uuid` | Yes | Public | FK → Trip. The inquiry a quote request created. Set iff `kind = 'quote_request'` |
+| `lead_id` | `uuid` | Yes | Public | FK → Lead, `ON DELETE CASCADE`. Set iff `kind = 'lead_message'`. Each message stands alone, like a quote request. Since 2026-10-21 |
 | `hold_reason` | `text` | Yes | Public | `rest` or `away` when `held`: which words the summary uses ("while you rested" / "while you were away") |
 | `message_count` | `integer` | No | Public | Client messages since the last notification |
 | `due_at` | `timestamptz` | No | Public | Now, or the start of the advisor's next working period (§3.12.2: working hours ARE rest hours, and a day inside an out-of-office block is rest) |
@@ -2592,9 +2629,10 @@ sent by `email-dispatch` alongside the client emails. Service-role only.
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | Server default `uuid_v7()` |
 | `agent_id` | `uuid` | No | Public | FK → Agent. Sent to `agent.email` (the sign-in email) |
-| `kind` | `text` | No | Public | `client_message` or `quote_request` |
+| `kind` | `text` | No | Public | `client_message` or `quote_request`; `lead_message` since 2026-10-21 |
 | `conversation_id` | `uuid` | Yes | Public | Set iff `client_message`. One pending row per thread: a second message adds nothing |
 | `trip_id` | `uuid` | Yes | Public | Set iff `quote_request` |
+| `lead_id` | `uuid` | Yes | Public | Set iff `lead_message`, `ON DELETE CASCADE`. Since 2026-10-21 |
 | `state` | `text` | No | Public | `pending`, `sending`, `sent`, `cleared` (the thread was read first), `failed` |
 | `attempts` | `integer` | No | Public | At most 3 |
 | `claimed_at` / `sent_at` | `timestamptz` | Yes | Public | — |
@@ -2603,7 +2641,8 @@ sent by `email-dispatch` alongside the client emails. Service-role only.
 
 **What it carries: never a client's words** (Q15). The client's name, the trip and an "Open in
 Story-Tail" link to the thread or the inquiry trip, so client words (and any card number a
-client types) stay out of the advisor's mail provider. **Due at once**: rest hours quiet push
+client types) stay out of the advisor's mail provider. A lead's alert (2026-10-21) is the same:
+the lead's name and a link to the lead page, never what they wrote. **Due at once**: rest hours quiet push
 only. Queued only when the advisor's `notification_preference` has that category's `email` on
 (defaults: client messages off, quote requests on). Finished rows are deleted after 30 days.
 
@@ -3441,8 +3480,9 @@ Consolidated enum reference. Each enum is defined as a Postgres `CREATE TYPE` an
 | `commission_import_status` | `mapping`, `review`, `reconciled`, `discarded` | CommissionImport |
 | `commission_import_row_state` | `confirmed`, `suggested`, `unmatched`, `duplicate`, `unreadable`, `already_recorded`, `to_create`, `ignored` | CommissionImportRow |
 | `commission_match_basis` | `reference`, `confirmation`, `supplier_and_traveler`, `manual`, `none` | CommissionImportRow |
-| `lead_status` | `new`, `contacted`, `qualified`, `converted`, `lost` | Lead |
-| `lead_source_kind` | `inspiration_tile`, `direct_search`, `referral_link`, `ad_campaign`, `social_post` | LeadSource |
+| `lead_status` | `new`, `contacted`, `converted`, `closed` (2026-10-21; was `new`, `contacted`, `qualified`, `converted`, `lost`) | Lead |
+| `lead_source` | `website`, `email`, `phone`, `referral`, `social`, `other` (2026-10-21; replaces `lead_source_kind` and the LeadSource table) | Lead |
+| `lead_close_reason` | `not_a_fit`, `no_reply`, `went_elsewhere`, `other` | Lead |
 | `document_kind` | `passport`, `visa`, `insurance_cert`, `supplier_confirmation`, `receipt`, `photo`, `csv_import`, `pdf_proposal`, `pdf_itinerary`, `other` | Document |
 | `payment_milestone_kind` | `deposit`, `interim`, `final` | PaymentMilestone |
 | `payment_milestone_status` | `scheduled`, `paid`, `waived`, `overdue` | PaymentMilestone |
@@ -3519,6 +3559,7 @@ masker that copies a client's words out of a thread find a card number the same 
 | Where | Refuses or masks | Code |
 |---|---|---|
 | `payment_milestone` pay link, confirmation, note | Refuses | SQL `public.text_has_card_digits`; Edge `hasCardNumber` (`_shared/cardDigits.ts`, via `payLink.ts`); web `looksLikeCardNumber` (`lib/trips/payLink.ts`) |
+| `lead_message.body`, `lead.phone`, `lead.close_note` (§11, 2026-10-21) | Refuses | SQL CHECKs on `public.text_has_card_digits`; Edge `hasCardNumber` in `_shared/lead.ts`. A message box open to anyone is where a card number is most likely to be pasted, and nothing has been stored yet, so refusing keeps it out entirely |
 | Web push and FCM message body (§12.7) | Masks | `maskCardNumbers` in `_shared/cardDigits.ts`, re-exported by `push.ts` |
 | Email outbox body and subject, inbound reply text (§12.8) | Masks | the same `maskCardNumbers` (`email.ts`, `email-inbox`) |
 | Phone notification text | Masks | `maskCardNumbers` in mobile `domain/agent/AgentNotifications.kt` |

@@ -135,7 +135,9 @@ MESSAGE_TABLES = [
             # This list is the set of strings that must match BYTE FOR BYTE across both
             # stacks. A string only one stack has does not belong in it — the same reason
             # the pipeline and calendar keys were never added.
-            "leadsDeferred": "LEADS_DEFERRED",
+            # `leadsDeferred` / LEADS_DEFERRED was paired here until §3.8 was revived on
+            # 2026-10-21 (BRD §6.5). The web retired its sentence in §3.8's web PR; the phone's
+            # goes in its Android PR, which replaces it with the "New leads" count.
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
 
             # §3.4.2 Trip Detail, which joined this row rather than getting one of its own
@@ -1261,6 +1263,38 @@ MESSAGE_TABLES = [
             "messageCta": "MESSAGE_CTA",
             "faqHeading": "FAQ_HEADING",
             "legalHeading": "LEGAL_HEADING",
+        },
+    },
+    {
+        # Screen 2.0.12 "Message Gyasi" without an account (§3.8, BRD §6.5, 2026-10-21): the
+        # web form and the phone screen say the same words. The web's metaTitle,
+        # metaDescription, honeypot and quoteInstead have no phone twin (no page metadata, no
+        # hidden field, and the phone's gate already offers the account), so they are left out.
+        "label": "2.0.12 message gyasi",
+        "web_file": ROOT / "web/app/(public)/(plain)/message/state.ts",
+        "web_const": "MESSAGE_TEXT",
+        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessageGyasi.kt",
+        "kmp_object": "MessageGyasiCopy",
+        "keys": {
+            "overline": "OVERLINE",
+            "title": "TITLE",
+            "body": "BODY",
+            "aboutPrefix": "ABOUT_PREFIX",
+            "firstName": "FIRST_NAME",
+            "lastName": "LAST_NAME",
+            "email": "EMAIL",
+            "phone": "PHONE",
+            "message": "MESSAGE",
+            "messageHint": "MESSAGE_HINT",
+            "privacyBefore": "PRIVACY_BEFORE",
+            "privacyLink": "PRIVACY_LINK",
+            "submit": "SUBMIT",
+            "pending": "PENDING",
+            "sentTitle": "SENT_TITLE",
+            "sentBody": "SENT_BODY",
+            "keepExploring": "KEEP_EXPLORING",
+            "throttled": "THROTTLED",
+            "unavailable": "UNAVAILABLE",
         },
     },
     {

@@ -1,25 +1,21 @@
 import type { Topic } from "@/content/public/types";
-import { env } from "@/lib/env";
-import { joinHref } from "./links";
 
 /**
  * Guest inquiry — "Message Gyasi without an account" / "Continue as guest"
- * (Screen Inventory 2.0.5, 2.0.6; Design-System §2 voice).
+ * (Screen Inventory 2.0.5, 2.0.6, 2.0.12; Design-System §2 voice).
  *
- * A prefilled email, and — as of 2026-09-09 — permanently so rather than a placeholder.
- * BRD §6.5 was amended: a quote request creates a Trip in `inquiry` status, which requires
- * an account, because `trip.client_id` and `client.first_name`/`last_name` are all NOT NULL.
- * The Lead entity that could have absorbed an anonymous visitor is deferred (Data-Model §11).
+ * SINCE 2026-10-21 THIS IS A FORM, NOT AN EMAIL. BRD §6.5: anyone who asks for a quote is a
+ * client (an account and a trip in `inquiry`); anyone who only messages Gyasi without an
+ * account is a LEAD, and the platform tracks it (Data-Model §11). The email link this module
+ * used to build left the site, carried no context and could not be counted. Every guest
+ * "message" CTA already called `inquiryHref`, and the September note here promised that
+ * "reviving `lead` is the designed fix and `inquiryHref` grows a route without any call site
+ * changing". This is that route: `/message`, with where the visitor came from and what they
+ * were viewing in the query string.
  *
- * So this IS the no-account path, not a stand-in for one. It carries no search context and
- * lands in a mailbox rather than a queue, which is the accepted cost of that decision; if it
- * proves lossy, reviving `lead` is the designed fix and `inquiryHref` grows a route without
- * any call site changing.
- *
- * Security notes: every part is `encodeURIComponent`-ed and CR/LF are stripped before
- * encoding (mail clients decode into headers), the subject is capped, and the body only
- * ever contains catalog fields plus blank prompts — never anything the visitor typed, so
- * no PII rides in a URL.
+ * Only allowlisted values go into the URL: a source from `InquirySource`, a catalog slug, a
+ * topic. Never anything a visitor typed, so no personal information rides in a URL. The page
+ * looks the slug up again and shows only the catalog's name for it.
  */
 
 export type InquirySource =
@@ -31,66 +27,37 @@ export type InquirySource =
   | "detail"
   | "join";
 
+export const INQUIRY_SOURCES: readonly InquirySource[] = [
+  "landing",
+  "how-it-works",
+  "about",
+  "topic",
+  "results",
+  "detail",
+  "join",
+];
+
+export function isInquirySource(value: string | null | undefined): value is InquirySource {
+  return typeof value === "string" && (INQUIRY_SOURCES as readonly string[]).includes(value);
+}
+
 export interface GuestInquiryContext {
   source: InquirySource;
   trip?: { slug: string; name: string };
   topic?: Topic;
 }
 
-const SUBJECT_MAX = 120;
-
-function oneLine(value: string): string {
-  return value.replace(/[\r\n\p{Cc}]+/gu, " ").replace(/\s+/g, " ").trim();
-}
-
-const TOPIC_LABEL: Record<Topic, string> = {
+/** How the form names a topic: "About: a Caribbean week". */
+export const TOPIC_LABEL: Record<Topic, string> = {
   caribbean: "a Caribbean week",
   cruises: "a cruise",
   honeymoons: "a honeymoon",
 };
 
-export function inquirySubject(ctx: GuestInquiryContext): string {
-  let subject: string;
-  if (ctx.trip) subject = `Trip inquiry · ${oneLine(ctx.trip.name)}`;
-  else if (ctx.topic) subject = `Trip inquiry · ${TOPIC_LABEL[ctx.topic]}`;
-  else subject = "Trip inquiry";
-  return subject.slice(0, SUBJECT_MAX);
-}
-
-export function inquiryBodyLines(ctx: GuestInquiryContext): string[] {
-  const lines = ["Hi Gyasi,", ""];
-  if (ctx.trip) lines.push(`I'm looking at ${oneLine(ctx.trip.name)} and would love your take.`, "");
-  else if (ctx.topic) lines.push(`I'm thinking about ${TOPIC_LABEL[ctx.topic]} and would love your take.`, "");
-  else lines.push("I'm dreaming about a trip and would love your take.", "");
-  lines.push(
-    "Roughly when: ",
-    "Who's coming: ",
-    "What kind of rest we're after: ",
-    "Budget range (optional): ",
-    "",
-    "Thanks!",
-  );
-  return lines;
-}
-
-export function buildInquiryMailto(ctx: GuestInquiryContext, email: string): string {
-  const to = oneLine(email);
-  const subject = encodeURIComponent(inquirySubject(ctx));
-  const body = inquiryBodyLines(ctx).map((l) => encodeURIComponent(oneLine(l))).join("%0D%0A");
-  return `mailto:${to}?subject=${subject}&body=${body}`;
-}
-
-/**
- * The href every guest "message" CTA uses. Email when an address is configured;
- * otherwise the sign-up gate with the `message` intent, so the CTA is never dead.
- */
+/** The href every guest "message" CTA uses: the 2.0.12 form, carrying where they came from. */
 export function inquiryHref(ctx: GuestInquiryContext): string {
-  const email = env.inquiryEmail;
-  if (email) return buildInquiryMailto(ctx, email);
-  return joinHref({ intent: "message", trip: ctx.trip?.slug });
-}
-
-/** Whether `inquiryHref` will open a mail client (true) or the gate (false). */
-export function inquiryIsEmail(): boolean {
-  return Boolean(env.inquiryEmail);
+  const params = new URLSearchParams({ from: ctx.source });
+  if (ctx.trip) params.set("trip", ctx.trip.slug);
+  else if (ctx.topic) params.set("topic", ctx.topic);
+  return `/message?${params.toString()}`;
 }

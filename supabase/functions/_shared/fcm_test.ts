@@ -19,6 +19,7 @@ const row: ClaimedRow = {
   destination: null,
   start_date: null,
   end_date: null,
+  lead_id: null,
 };
 
 Deno.test("an Android payload carries no name, trip or message text (Google can read it)", () => {

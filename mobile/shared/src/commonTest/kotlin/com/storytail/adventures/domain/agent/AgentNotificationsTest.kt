@@ -36,6 +36,20 @@ class AgentNotificationsTest {
     }
 
     @Test
+    fun parsesALeadsNoteAndNamesItANote() {
+        // §3.8 (2026-10-21): the lead id only (fcm.ts androidData), the web's tag. A "note", never
+        // a "message", so a stranger's note never looks like a client's message.
+        val lead = "0195a2c0-1a00-7000-8000-0000000000d1"
+        val parsed = AgentPushData.parse(mapOf("v" to "1", "kind" to "lead_message", "tag" to "lead-$lead", "leadId" to lead))
+        assertEquals(AgentPushData.LeadMessage(lead), parsed)
+        assertEquals("lead-$lead", (parsed as AgentPushData.LeadMessage).tag)
+        assertNull(AgentPushData.parse(mapOf("v" to "1", "kind" to "lead_message", "leadId" to "nope")))
+        assertEquals("New note from Dana Reyes", leadMessageTitle(" Dana Reyes "))
+        assertEquals("New note from someone new", leadMessageTitle(null))
+        assertEquals("New note from someone new", leadMessageTitle("  "))
+    }
+
+    @Test
     fun aTripRequestSaysWhoOnTheLockScreenAndWhereWhenUnlocked() {
         // The words push.ts sends the browser (quoteRequestPayload / quoteRequestDetail).
         assertEquals("New trip request from Jordan Hayes", quoteRequestTitle("Jordan Hayes"))

@@ -1,6 +1,6 @@
 {
   "name": "@storytail/contracts",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "description": "OpenAPI contract for the Story-Tail Adventures API, plus generated TypeScript types.",
   "scripts": {

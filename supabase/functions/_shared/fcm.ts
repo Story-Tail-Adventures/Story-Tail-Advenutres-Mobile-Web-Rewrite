@@ -76,6 +76,10 @@ export function androidData(payload: PushPayload): Record<string, string> {
     // §3.12.3. Ids only, like a message: the phone reads the name over its own session.
     case "quote_request":
       return { v: "1", kind: "quote_request", tag: payload.tag, tripId: payload.tripId };
+    // §3.8 (2026-10-21). The lead id only; the phone reads the name over its own session. A
+    // phone build from before the lead kind existed shows nothing for it (AgentPushData.parse).
+    case "lead_message":
+      return { v: "1", kind: "lead_message", tag: payload.tag, leadId: payload.leadId };
   }
 }
 

@@ -12,6 +12,8 @@ import com.storytail.adventures.domain.agent.departingWithin30
 import com.storytail.adventures.domain.agent.isOverdue
 import com.storytail.adventures.domain.agent.needsYouCount
 import com.storytail.adventures.domain.agent.needsYouLine
+import com.storytail.adventures.domain.agent.newLeadsLine
+import com.storytail.adventures.domain.agent.waitingLabel
 import com.storytail.adventures.domain.agent.partOfDay
 import com.storytail.adventures.domain.agent.paymentDueLabel
 import com.storytail.adventures.domain.agent.paymentsInOrder
@@ -328,8 +330,8 @@ class AgentWorklistTest {
         // gone rather than re-worded: its three worklist sections and the client detail's
         // Trips tab all push AppRoute.AgentTripDetail now, so there was nothing left to
         // defer and a sentence naming a built section is worse than no sentence.
+        // LEADS_DEFERRED went the same way on 2026-10-21, when §3.8 was revived (BRD §6.5).
         for (copy in listOf(
-            AgentCopy.LEADS_DEFERRED,
             AgentCopy.AVAILABILITY_DEFERRED,
         )) {
             assertTrue(Regex("§3\\.\\d").containsMatchIn(copy), "no section in: $copy")
@@ -353,11 +355,47 @@ class AgentWorklistTest {
     }
 
     @Test
-    fun the_copy_says_inquiry_rather_than_lead() {
-        // BRD §6.5: a quote request creates a trip in `inquiry`. One string is allowed to
-        // say the word, and its whole job is to point at where the thing actually is.
-        assertTrue(AgentCopy.INQUIRIES_TITLE == "New inquiries")
+    fun an_inquiry_and_a_lead_are_two_different_sections() {
+        // BRD §6.5: a quote request is a trip in `inquiry`; since 2026-10-21 a lead is somebody
+        // without an account who wrote in. The inquiry copy never says "lead".
+        assertEquals("New inquiries", AgentCopy.INQUIRIES_TITLE)
         assertTrue(!AgentCopy.INQUIRIES_EMPTY.lowercase().contains("lead"))
-        assertTrue(AgentCopy.LEADS_DEFERRED.contains("Inquiry"))
+        assertEquals("New leads", AgentCopy.LEADS_TITLE)
+        assertEquals("1 new lead is waiting.", newLeadsLine(1))
+        assertEquals("3 new leads are waiting.", newLeadsLine(3))
+    }
+
+    // ── §3.2.1 / §3.8 (2026-10-21) ───────────────────────────────────────────
+
+    @Test
+    fun the_wait_label_counts_calendar_days_in_the_advisors_zone() {
+        // 03:00Z on the 21st is still the 20th in Chicago. Word for word the web's labels.
+        assertEquals("Waiting 1 day", waitingLabel("2026-10-21", "2026-10-21T03:00:00Z", "America/Chicago"))
+        assertEquals("Arrived today", waitingLabel("2026-10-21", "2026-10-21T15:00:00Z", "America/Chicago"))
+        assertEquals("Waiting 5 days", waitingLabel("2026-10-21", "2026-10-16T15:00:00Z", "America/Chicago"))
+        // Never negative, and nothing to say without a time.
+        assertEquals("Arrived today", waitingLabel("2026-10-21", "2026-10-25T15:00:00Z", "America/Chicago"))
+        assertNull(waitingLabel("2026-10-21", null, "America/Chicago"))
+        assertNull(waitingLabel("2026-10-21", "not a time", "America/Chicago"))
+    }
+
+    @Test
+    fun inquiries_come_oldest_first_with_their_wait_and_new_leads_count_toward_needs_you() {
+        val newer = trip("newer", "inquiry", null).copy(statusChangedAt = "2026-10-20T15:00:00Z")
+        val older = trip("older", "inquiry", null).copy(statusChangedAt = "2026-10-15T15:00:00Z")
+        val snapshot = WorklistSnapshot(
+            asOfDate = "2026-10-21",
+            kpis = kpis(),
+            awaitingResponse = emptyList(),
+            paymentsDue = emptyList(),
+            newInquiries = listOf(newer, older),
+            departingSoon = emptyList(),
+            recentMessages = emptyList(),
+            newLeadCount = 2,
+        )
+        val ui = worklistUiState(snapshot, "Gyasi Story", PartOfDay.MORNING, "2026-10-21", "America/Chicago")
+        assertEquals(listOf("older", "newer"), ui.inquiries.map { it.trip.tripId })
+        assertEquals(listOf("Waiting 6 days", "Waiting 1 day"), ui.inquiries.map { it.waitLabel })
+        assertEquals(4, ui.needsYouCount)
     }
 }

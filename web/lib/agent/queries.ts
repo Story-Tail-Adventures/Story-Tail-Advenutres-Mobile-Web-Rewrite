@@ -3,6 +3,7 @@ import { cache } from "react";
 import {
   callAgentRead,
   type AgentInboxRow,
+  type AgentLeadListRow,
   type AgentKpiRow,
   type AgentPaymentRow,
   type AgentTripRow,
@@ -66,6 +67,16 @@ export type WorklistTrip = {
   /** Pre-formatted relative label, e.g. "3 days" or "Tomorrow". Null when there is no date. */
   dueLabel: string | null;
   startLabel: string | null;
+  /** New inquiries only (§3.2.1, 2026-10-21): "Waiting 2 days". Null elsewhere. */
+  waitLabel?: string | null;
+};
+
+/** §3.8: a lead nobody has answered yet, for the worklist's "New leads". */
+export type WorklistLead = {
+  leadId: string;
+  name: string;
+  preview: string;
+  waitLabel: string | null;
 };
 
 export type WorklistPayment = {
@@ -95,6 +106,8 @@ export type Worklist = {
   proposalsAwaiting: WorklistTrip[];
   paymentsDue: WorklistPayment[];
   newInquiries: WorklistTrip[];
+  /** §3.8 (2026-10-21): New leads, oldest first. "Already a client" messages are not here. */
+  newLeads: WorklistLead[];
   departingSoon: WorklistTrip[];
   recentMessages: WorklistMessage[];
 };
@@ -172,6 +185,22 @@ export function localDate(timestamp: string, timeZone: string): string | null {
     // component. A date that is briefly the UTC one beats a page that does not render.
   }
   return timestamp.slice(0, 10);
+}
+
+/**
+ * How long something has waited for the advisor: "Arrived today", "Waiting 1 day", "Waiting 4
+ * days". §3.2.1 (2026-10-21) for new inquiries and §3.8 for leads. Calendar days in the
+ * advisor's zone, the same counting every other date here uses. Never a colour or an alarm:
+ * the promise is "Usually replies the same day", and §2's pace has no red SLA flag in it.
+ * Mirrored on the phone (PR 3) word for word.
+ */
+export function waitingLabel(todayIso: string, sinceTimestamp: string | null, timeZone: string): string | null {
+  if (!sinceTimestamp) return null;
+  const since = localDate(sinceTimestamp, timeZone);
+  if (!since) return null;
+  const d = Math.max(0, daysFrom(since, todayIso));
+  if (d === 0) return "Arrived today";
+  return `Waiting ${d} ${d === 1 ? "day" : "days"}`;
 }
 
 function partOfDayIn(timeZone: string): Worklist["partOfDay"] {
@@ -289,15 +318,16 @@ export const agentIdentity = cache(async (): Promise<{ displayName: string; time
 export async function loadWorklist(): Promise<Worklist | null> {
   // One call per accessor, in parallel. Not one combined RPC: each answers a different
   // question and the board read is the one that would grow.
-  const [me, kpiRes, boardRes, dueRes, inboxRes] = await Promise.all([
+  const [me, kpiRes, boardRes, dueRes, inboxRes, leadRes] = await Promise.all([
     agentIdentity(),
     callAgentRead<AgentKpiRow>("agent_kpis"),
     callAgentRead<AgentTripRow>("agent_trip_board"),
     callAgentRead<AgentPaymentRow>("agent_payments_due", { p_within_days: 21 }),
     callAgentRead<AgentInboxRow>("agent_inbox", { p_limit: 5 }),
+    callAgentRead<AgentLeadListRow>("agent_leads"),
   ]);
 
-  if (!kpiRes.ok || !boardRes.ok || !dueRes.ok || !inboxRes.ok) return null;
+  if (!kpiRes.ok || !boardRes.ok || !dueRes.ok || !inboxRes.ok || !leadRes.ok) return null;
 
   // No row at all means the caller is not an agent. The layout's gate should already have
   // caught that, so this is the second line of defence rather than the first.
@@ -311,9 +341,29 @@ export async function loadWorklist(): Promise<Worklist | null> {
     .filter((t) => t.status === "proposal" && t.proposal_sent_at !== null)
     .map((t) => toWorklistTrip(t, today, t.proposal_viewed_at === null ? "Awaiting reply" : "Viewed"));
 
+  // OLDEST FIRST, with how long each has waited (§3.2.1, 2026-10-21). From
+  // `status_changed_at`, the moment it became an inquiry: for a quote request that is when it
+  // arrived, and the board read carries no `created_at`. Every inquiry trip, the advisor's own
+  // drafts included: no field records who started one (ruled the same day).
   const newInquiries = trips
     .filter((t) => t.status === "inquiry")
-    .map((t) => toWorklistTrip(t, today, null));
+    .sort((a, b) => a.status_changed_at.localeCompare(b.status_changed_at))
+    .map((t) => ({
+      ...toWorklistTrip(t, today, null),
+      waitLabel: waitingLabel(today, t.status_changed_at, me.timeZone),
+    }));
+
+  // §3.8: only `new` leads, oldest first. An "Already a client" message is converted at once
+  // and is not a lead (BRD §6.5), so it never lands here.
+  const newLeads: WorklistLead[] = leadRes.rows
+    .filter((l) => l.status === "new" && !l.already_client)
+    .sort((a, b) => a.first_message_at.localeCompare(b.first_message_at))
+    .map((l) => ({
+      leadId: l.id,
+      name: [l.first_name, l.last_name].filter(Boolean).join(" "),
+      preview: l.latest_preview ?? "",
+      waitLabel: waitingLabel(today, l.first_message_at, me.timeZone),
+    }));
 
   // CANCELLED IS NOT A DEPARTURE. `agent_trip_board` filters archived trips and deliberately
   // not cancelled ones — `loadPipeline` needs them to count — so the exclusion has to happen
@@ -355,7 +405,8 @@ export async function loadWorklist(): Promise<Worklist | null> {
 
   // Derived, never a literal. A hardcoded count that says 3 when there are 7 is worse than
   // no count, and it is the first thing on the screen.
-  const needsYouCount = proposalsAwaiting.length + paymentsDue.length + newInquiries.length;
+  const needsYouCount =
+    proposalsAwaiting.length + paymentsDue.length + newInquiries.length + newLeads.length;
 
   const [, month, day] = today.split("-");
   const periodLabel = `${monthDay(today) ?? `${month}-${day}`}`;
@@ -369,6 +420,7 @@ export async function loadWorklist(): Promise<Worklist | null> {
     proposalsAwaiting,
     paymentsDue,
     newInquiries,
+    newLeads,
     departingSoon,
     recentMessages,
   };

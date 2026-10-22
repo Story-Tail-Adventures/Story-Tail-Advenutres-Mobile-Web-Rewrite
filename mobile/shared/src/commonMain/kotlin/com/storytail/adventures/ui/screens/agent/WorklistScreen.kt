@@ -33,6 +33,7 @@ import com.storytail.adventures.domain.agent.AgentCopy
 import com.storytail.adventures.domain.agent.isOverdue
 import com.storytail.adventures.domain.agent.label
 import com.storytail.adventures.domain.agent.needsYouLine
+import com.storytail.adventures.domain.agent.newLeadsLine
 import com.storytail.adventures.domain.agent.paymentDueLabel
 import com.storytail.adventures.domain.trip.Loadable
 import com.storytail.adventures.ui.components.StoryTailGlyph
@@ -162,10 +163,27 @@ private fun WorklistBody(ui: WorklistUiState, onOpenTrip: (String) -> Unit, onOp
     Section(AgentCopy.PAYMENTS_TITLE, ui.snapshot.paymentsDue.size, AgentCopy.PAYMENTS_EMPTY) {
         ui.payments.forEachIndexed { i, p -> PaymentRow(p, first = i == 0) }
     }
-    Section(AgentCopy.INQUIRIES_TITLE, ui.snapshot.newInquiries.size, AgentCopy.INQUIRIES_EMPTY, AgentCopy.LEADS_DEFERRED) {
-        ui.snapshot.newInquiries.forEachIndexed { i, trip ->
-            TripRow(trip, first = i == 0, onOpen = onOpenTrip)
+    // Oldest first, each saying how long it has waited (§3.2.1, 2026-10-21). Grey, never an
+    // alarm: the promise is "Usually replies the same day".
+    Section(AgentCopy.INQUIRIES_TITLE, ui.snapshot.newInquiries.size, AgentCopy.INQUIRIES_EMPTY) {
+        ui.inquiries.forEachIndexed { i, inquiry ->
+            TripRow(inquiry.trip, first = i == 0, onOpen = onOpenTrip, waitLabel = inquiry.waitLabel)
         }
+    }
+    // §3.8 (2026-10-21): a count, not rows. There is no phone Leads screen, so the section
+    // says how many and where to read them.
+    Section(
+        AgentCopy.LEADS_TITLE,
+        ui.snapshot.newLeadCount,
+        AgentCopy.LEADS_EMPTY,
+        footer = if (ui.snapshot.newLeadCount > 0) AgentCopy.LEADS_ON_WEB else null,
+    ) {
+        Text(
+            newLeadsLine(ui.snapshot.newLeadCount),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+        )
     }
     Section(AgentCopy.DEPARTING_TITLE, ui.departing.size, AgentCopy.DEPARTING_EMPTY) {
         ui.departing.forEachIndexed { i, trip ->
@@ -297,7 +315,13 @@ private fun Section(
 }
 
 @Composable
-private fun TripRow(trip: WorklistTrip, first: Boolean, onOpen: (String) -> Unit) {
+private fun TripRow(
+    trip: WorklistTrip,
+    first: Boolean,
+    onOpen: (String) -> Unit,
+    /** New inquiries only: "Waiting 2 days", under the value. */
+    waitLabel: String? = null,
+) {
     val type = LocalStoryTailBrandTypography.current
     val scheme = MaterialTheme.colorScheme
     if (!first) HorizontalDivider(color = scheme.outlineVariant)
@@ -315,8 +339,13 @@ private fun TripRow(trip: WorklistTrip, first: Boolean, onOpen: (String) -> Unit
             Text(trip.clientName, style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)
             Text(trip.title, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
         }
-        Text(formatMoney(trip.totalValueCents, trip.currency),
-            style = type.labelXS, color = scheme.onSurface)
+        Column(horizontalAlignment = Alignment.End) {
+            Text(formatMoney(trip.totalValueCents, trip.currency),
+                style = type.labelXS, color = scheme.onSurface)
+            if (waitLabel != null) {
+                Text(waitLabel, style = type.labelXS, color = scheme.onSurfaceVariant)
+            }
+        }
     }
 }
 

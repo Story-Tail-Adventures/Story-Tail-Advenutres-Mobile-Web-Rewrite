@@ -86,8 +86,11 @@ object AgentCopy {
     // QUICK_ADD_CLIENT_DEFERRED lived here until §3.3.9 shipped. It never had a render
     // site on this side — §3.2.1 on Compose has no quick-add at all, by decision — and
     // the web control it paired with is now a link to /agent/clients/new.
-    const val LEADS_DEFERRED =
-        "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries above (§3.8)."
+    // LEADS_DEFERRED ("There is no Leads inbox…") lived here until §3.8 was revived on
+    // 2026-10-21 (BRD §6.5). Leads exist now; the phone shows how many and points to the web.
+    const val LEADS_TITLE = "New leads"
+    const val LEADS_EMPTY = "No new leads."
+    const val LEADS_ON_WEB = "Read and reply to them in Leads on the web."
     const val AVAILABILITY_DEFERRED =
         "Blocking time arrives with §3.12, which is where the time-off shape gets defined."
 
