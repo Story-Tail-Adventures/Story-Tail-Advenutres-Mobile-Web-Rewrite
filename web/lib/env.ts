@@ -82,11 +82,11 @@ export const env = {
   },
 
   /**
-   * Where "Message Gyasi without an account" emails go (Screen Inventory 2.0.5 / 2.0.6).
-   * The no-account path is a prefilled email, and stays one: per BRD §6.5 a quote request
-   * creates a Trip and so needs an account, and the Lead entity is deferred. Outside production
-   * the seed agent's address stands in; in production an unset value returns null and the
-   * guest CTAs fall back to the sign-up gate rather than inventing an address.
+   * Gyasi's own address, for the few plain "email me" links that remain (onboarding's
+   * finish page). Since 2026-10-21 the guest "Message Gyasi" CTAs open the 2.0.12 form
+   * instead (`lib/public/inquiry.ts`, BRD §6.5), so a visitor's message becomes a lead the
+   * platform tracks. Outside production the seed agent's address stands in; in production an
+   * unset value returns null rather than inventing an address.
    */
   get inquiryEmail(): string | null {
     const configured = process.env.NEXT_PUBLIC_INQUIRY_EMAIL;
@@ -145,5 +145,18 @@ export const env = {
    */
   get hotelSearchEnabled(): boolean {
     return process.env.HOTEL_SEARCH_ENABLED !== "false";
+  },
+
+  /**
+   * §3.8 (2026-10-21): the key the "Message Gyasi" form's server action sends beside the
+   * visitor's address, so `lead-message` counts its five-an-hour limit per visitor rather than
+   * per web server. `LEAD_FORM_KEY` in supabase secrets is the same value. NOT `NEXT_PUBLIC_`:
+   * in a browser bundle it would let anyone pick a fresh address for every send.
+   *
+   * Null when unset: the action then sends no address and the limit counts the web server's
+   * own addresses instead. Coarser, still a limit, and never a broken form.
+   */
+  get leadFormKey(): string | null {
+    return process.env.STA_LEAD_FORM_KEY || null;
   },
 };

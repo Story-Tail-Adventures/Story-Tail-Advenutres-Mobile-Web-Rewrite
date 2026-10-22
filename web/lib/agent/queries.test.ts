@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   AgentInboxRow,
+  AgentLeadListRow,
   AgentKpiRow,
   AgentPaymentRow,
   AgentRead,
@@ -128,6 +129,7 @@ type Board = {
   agent_trip_board?: AgentTripRow[];
   agent_payments_due?: AgentPaymentRow[];
   agent_inbox?: AgentInboxRow[];
+  agent_leads?: AgentLeadListRow[];
 };
 
 /** Every accessor answers; `failing` names the ones that come back unavailable instead. */
@@ -564,5 +566,65 @@ describe("the view models are plain data", () => {
     expect(notPlainData({ byDate: new Map() })).toEqual(["$.byDate: Map"]);
     expect(notPlainData({ dueLabel: undefined })).toEqual(["$.dueLabel: undefined"]);
     expect(notPlainData({ cards: [{ id: "a" }, { fn: () => 1 }] })).toEqual(["$.cards[1].fn: function"]);
+  });
+});
+
+// ── §3.2.1 / §3.8 (2026-10-21): inquiry wait times and New leads ───────────────
+
+describe("new inquiries and new leads", () => {
+  const lead = (over: Partial<AgentLeadListRow>): AgentLeadListRow => ({
+    id: "l1",
+    first_name: "Dana",
+    last_name: null,
+    email: "dana@example.com",
+    source: "website",
+    status: "new",
+    already_client: false,
+    client_id: null,
+    message_count: 1,
+    latest_preview: "Hi",
+    first_message_at: "2026-09-18T15:00:00Z",
+    last_message_at: "2026-09-18T15:00:00Z",
+    first_contacted_at: null,
+    converted_at: null,
+    closed_at: null,
+    ...over,
+  });
+
+  it("lists inquiries oldest first, each saying how long it has waited", async () => {
+    identity();
+    reads({
+      agent_kpis: [kpi()],
+      agent_trip_board: [
+        trip({ trip_id: "newer", status: "inquiry", status_changed_at: "2026-09-19T15:00:00Z" }),
+        trip({ trip_id: "older", status: "inquiry", status_changed_at: "2026-09-16T15:00:00Z" }),
+      ],
+    });
+    const w = await loadWorklist();
+    expect(w?.newInquiries.map((t) => t.tripId)).toEqual(["older", "newer"]);
+    expect(w?.newInquiries[0].waitLabel).toMatch(/^Waiting \d+ days?$|^Arrived today$/);
+  });
+
+  it("lists only New leads that are not already clients, oldest first, and counts them", async () => {
+    identity();
+    reads({
+      agent_kpis: [kpi()],
+      agent_leads: [
+        lead({ id: "b", first_message_at: "2026-09-18T15:00:00Z", last_name: "Reyes" }),
+        lead({ id: "a", first_message_at: "2026-09-17T15:00:00Z" }),
+        lead({ id: "c", status: "contacted" }),
+        lead({ id: "d", status: "converted", already_client: true }),
+      ],
+    });
+    const w = await loadWorklist();
+    expect(w?.newLeads.map((l) => l.leadId)).toEqual(["a", "b"]);
+    expect(w?.newLeads[1].name).toBe("Dana Reyes");
+    expect(w?.needsYouCount).toBe(2);
+  });
+
+  it("fails the whole read when the leads read fails, rather than showing none", async () => {
+    identity();
+    reads({ agent_kpis: [kpi()] }, ["agent_leads"]);
+    expect(await loadWorklist()).toBeNull();
   });
 });

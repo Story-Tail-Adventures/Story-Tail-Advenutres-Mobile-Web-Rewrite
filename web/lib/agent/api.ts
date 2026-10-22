@@ -121,7 +121,15 @@ export type AgentRead =
   | "agent_report_pipeline_stages"
   | "agent_report_pipeline_months"
   // §3.11.8. The advisor's own recent exports, read from the audit rows each one wrote.
-  | "agent_export_history";
+  | "agent_export_history"
+  // §3.8 Leads (revived 2026-10-21, BRD §6.5). Every lead (the list and the worklist), one
+  // lead, its messages, a client's "first reached out as a lead", and 3.11.9's two tables.
+  | "agent_leads"
+  | "agent_lead"
+  | "agent_lead_messages"
+  | "agent_client_lead_origin"
+  | "agent_report_lead_sources"
+  | "agent_report_lead_campaigns";
 
 export type AgentReadResult<T> =
   | { ok: true; rows: T[] }
@@ -1053,6 +1061,78 @@ export type AgentReportDestinationRow = {
  * and `rls_agent_reads.sql` asserts it. `agent_kpis()` still distinguishes the two cases that
  * matter: one row of zeros for an agent with an empty book, no row at all for a non-agent.
  */
+/** §3.8's rows (Data-Model §11), with `| null` by hand for the same reason as the rest. */
+export type LeadStatus = "new" | "contacted" | "converted" | "closed";
+export type LeadSource = "website" | "email" | "phone" | "referral" | "social" | "other";
+export type LeadCloseReason = "not_a_fit" | "no_reply" | "went_elsewhere" | "other";
+
+export type AgentLeadListRow = {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string;
+  source: LeadSource;
+  status: LeadStatus;
+  already_client: boolean;
+  client_id: string | null;
+  message_count: number;
+  latest_preview: string | null;
+  first_message_at: string;
+  last_message_at: string;
+  first_contacted_at: string | null;
+  converted_at: string | null;
+  closed_at: string | null;
+};
+
+export type AgentLeadRow = {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string;
+  phone: string | null;
+  source: LeadSource;
+  status: LeadStatus;
+  already_client: boolean;
+  client_id: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  first_contacted_at: string | null;
+  converted_at: string | null;
+  closed_at: string | null;
+  close_reason: LeadCloseReason | null;
+  close_note: string | null;
+  created_at: string;
+  last_message_at: string;
+};
+
+export type AgentLeadMessageRow = {
+  id: string;
+  body: string;
+  entered_by_agent: boolean;
+  page: string | null;
+  about_kind: "trip" | "topic" | null;
+  about_slug: string | null;
+  about_label: string | null;
+  created_at: string;
+};
+
+export type AgentClientLeadOriginRow = { lead_id: string; created_at: string };
+
+export type AgentReportLeadSourceRow = {
+  source: LeadSource;
+  lead_count: number;
+  converted_count: number;
+  open_count: number;
+  closed_count: number;
+};
+
+export type AgentReportLeadCampaignRow = {
+  utm_source: string;
+  lead_count: number;
+  converted_count: number;
+};
+
 export async function callAgentRead<T>(
   read: AgentRead,
   args: Record<string, unknown> = {},
@@ -1117,7 +1197,9 @@ export type AgentFunction =
   // in its own SQL transaction.
   | "agent-settings"
   // §3.11. Each report's own CSV export; the SQL writes the audit row in the same call.
-  | "agent-report";
+  | "agent-report"
+  // §3.8. Add lead, mark contacted, close, reopen, convert, delete as spam; audited.
+  | "agent-lead";
 
 /**
  * The §3.x door onto the shared Edge Function transport.

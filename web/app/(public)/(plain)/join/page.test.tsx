@@ -47,8 +47,8 @@ describe("2.0.6 sign-up gate — untrusted URL parameters", () => {
       `Create an account to send Gyasi your trip details for ${trip.name}.`,
     );
     expect(hiddenValue(container, "trip")).toBe(trip.slug);
-    expect(screen.getByRole("link", { name: "Email Gyasi instead →" }).getAttribute("href")).toMatch(
-      /^mailto:/,
+    expect(screen.getByRole("link", { name: "Message Gyasi instead →" }).getAttribute("href")).toMatch(
+      /^\/message\?from=/,
     );
   });
 

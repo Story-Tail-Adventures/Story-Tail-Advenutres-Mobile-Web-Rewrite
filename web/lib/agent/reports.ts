@@ -4,6 +4,8 @@ import {
   type AgentReportClientRow,
   type AgentReportDestinationRow,
   type AgentReportFunnelRow,
+  type AgentReportLeadCampaignRow,
+  type AgentReportLeadSourceRow,
   type AgentReportPipelineMonthRow,
   type AgentReportPipelineStageRow,
   type AgentReportPeriodRow,
@@ -14,6 +16,8 @@ import {
   clientReport,
   destinationReport,
   funnelReport,
+  leadSourcesReport,
+  type LeadSourcesReport,
   exportHistory,
   pipelineReport,
   type ClientReport,
@@ -136,4 +140,19 @@ export async function loadExportCenter(): Promise<{ today: string; history: Expo
   ]);
   if (!p.ok || !h.ok || !p.rows[0]) return null;
   return { today: p.rows[0].today, history: exportHistory(h.rows) };
+}
+
+/** 3.11.9 Lead Sources (P2, 2026-10-21): leads created in the period, by source and campaign. */
+export async function loadLeadSourcesReport(
+  period: ReportPeriod,
+): Promise<{ window: ReportWindow; report: LeadSourcesReport } | null> {
+  const [p, s, c] = await Promise.all([
+    callAgentRead<AgentReportPeriodRow>("agent_report_period", { p_period: period }),
+    callAgentRead<AgentReportLeadSourceRow>("agent_report_lead_sources", { p_period: period }),
+    callAgentRead<AgentReportLeadCampaignRow>("agent_report_lead_campaigns", { p_period: period }),
+  ]);
+  if (!p.ok || !s.ok || !c.ok) return null;
+  const window = windowOf(p.rows[0]);
+  if (!window) return null;
+  return { window, report: leadSourcesReport(s.rows, c.rows) };
 }

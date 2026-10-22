@@ -90,7 +90,7 @@ describe("2.0.10 Honeymoons page", () => {
       expect(link).toHaveAttribute("href", topicQuoteLink(TOPIC));
     }
     for (const name of ["Message Gyasi first", "Message Gyasi"]) {
-      expect(screen.getByRole("link", { name }).getAttribute("href")).toMatch(/^mailto:/);
+      expect(screen.getByRole("link", { name }).getAttribute("href")).toMatch(/^\/message\?from=/);
     }
   });
 

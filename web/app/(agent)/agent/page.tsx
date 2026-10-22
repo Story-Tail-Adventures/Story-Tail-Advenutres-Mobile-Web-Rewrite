@@ -12,6 +12,7 @@ import NextLink from "@/components/mui/NextLink";
 import { threadHref } from "@/lib/agent/messageQuery";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { AGENT_COPY, needsYouLine } from "@/lib/agent/content";
+import { LEAD_COPY } from "@/lib/agent/leads";
 import { loadWorklist } from "@/lib/agent/queries";
 import { tripStatusPresentation, type TripStatus } from "@/lib/trips/status";
 
@@ -233,11 +234,12 @@ export default async function AgentWorklistPage() {
         ))}
       </Section>
 
+      {/* Oldest first, each with how long it has waited (§3.2.1, 2026-10-21). No colour:
+          the promise is "Usually replies the same day", not an SLA alarm. */}
       <Section
         title={AGENT_COPY.inquiriesTitle}
         count={worklist.newInquiries.length}
         empty={AGENT_COPY.inquiriesEmpty}
-        seeAll={AGENT_COPY.leadsDeferred}
       >
         {worklist.newInquiries.map((t) => (
           <TripRow key={t.tripId} tripId={t.tripId}>
@@ -250,8 +252,36 @@ export default async function AgentWorklistPage() {
                 {t.title}
               </Typography>
             </Box>
+            {t.waitLabel && (
+              <Typography component="p" variant="caption" sx={{ color: "text.secondary", flexShrink: 0 }}>
+                {t.waitLabel}
+              </Typography>
+            )}
             <TripChip status={t.status} />
           </TripRow>
+        ))}
+      </Section>
+
+      {/* §3.8 (2026-10-21): somebody without an account wrote in. A lead, not an inquiry, so
+          its own section and its own words (LEAD_COPY). Only `new` ones, oldest first. */}
+      <Section title={LEAD_COPY.worklistTitle} count={worklist.newLeads.length} empty={LEAD_COPY.worklistEmpty}>
+        {worklist.newLeads.map((l) => (
+          <ListItemButton key={l.leadId} component={NextLink} href={`/agent/leads/${l.leadId}`} sx={ROW_SX}>
+            <Initials name={l.name} />
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography component="p" variant="subtitle2">
+                {l.name}
+              </Typography>
+              <Typography component="p" variant="body2" noWrap sx={{ color: "text.secondary" }}>
+                {l.preview}
+              </Typography>
+            </Box>
+            {l.waitLabel && (
+              <Typography component="p" variant="caption" sx={{ color: "text.secondary", flexShrink: 0 }}>
+                {l.waitLabel}
+              </Typography>
+            )}
+          </ListItemButton>
         ))}
       </Section>
 

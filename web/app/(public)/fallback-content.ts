@@ -15,6 +15,6 @@ export const SOMETHING_WENT_WRONG = {
   title: "Something went sideways.",
   body: "It's on our end, not yours. Try again in a moment — or message Gyasi and we'll sort it out.",
   retry: "Try again",
-  /** Links to About Gyasi, where every "message" CTA lives; the inquiry mailto reads env on the server. */
+  /** Links to About Gyasi, where every "message" CTA lives; the guest message CTAs open the 2.0.12 form. */
   message: { label: "Message Gyasi", href: "/about" },
 } as const;

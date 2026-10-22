@@ -135,7 +135,9 @@ MESSAGE_TABLES = [
             # This list is the set of strings that must match BYTE FOR BYTE across both
             # stacks. A string only one stack has does not belong in it — the same reason
             # the pipeline and calendar keys were never added.
-            "leadsDeferred": "LEADS_DEFERRED",
+            # `leadsDeferred` / LEADS_DEFERRED was paired here until §3.8 was revived on
+            # 2026-10-21 (BRD §6.5). The web retired its sentence in §3.8's web PR; the phone's
+            # goes in its Android PR, which replaces it with the "New leads" count.
             "availabilityDeferred": "AVAILABILITY_DEFERRED",
 
             # §3.4.2 Trip Detail, which joined this row rather than getting one of its own

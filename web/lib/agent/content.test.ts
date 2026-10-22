@@ -46,19 +46,20 @@ describe("AGENT_COPY", () => {
     }
     // Five since §3.10 Stage 3 retired `messagesDeferred` (2026-10-15): Messages is built on
     // both surfaces, and a sentence naming a built section is worse than no sentence. Four
-    // since §3.11's PR 1 retired `reportsDeferred` (2026-10-21) for the same reason.
-    expect(STRINGS.filter(([k]) => k.endsWith("Deferred")).length).toBeGreaterThanOrEqual(4);
+    // since §3.11's PR 1 retired `reportsDeferred` (2026-10-21) for the same reason. Three since
+    // §3.8's web PR retired `leadsDeferred` the same day: Leads is built.
+    expect(STRINGS.filter(([k]) => k.endsWith("Deferred")).length).toBeGreaterThanOrEqual(3);
   });
 
-  it("says `inquiry`, never `lead`, except where it explains the absence", () => {
-    // BRD §6.5: a quote request creates a trip in `inquiry` status and the lead domain is
-    // deliberately unbuilt. One string is allowed to say the word — the one whose whole job
-    // is to point at where the thing actually is.
+  it("says `inquiry`, never `lead`: the two are different things", () => {
+    // BRD §6.5: a quote request creates a trip in `inquiry` status. Since 2026-10-21 a lead is
+    // something else, a message from somebody without an account, and its copy lives in
+    // LEAD_COPY (`lib/agent/leads.ts`). So no string in this object may say the word, and
+    // the old `leadsDeferred` exception is gone with the deferral.
     for (const [key, value] of STRINGS) {
-      if (key === "leadsDeferred") continue;
       expect(value.toLowerCase(), key).not.toMatch(/\blead\b|\bleads\b/);
     }
-    expect(AGENT_COPY.leadsDeferred).toMatch(/Inquiry/);
+    expect("leadsDeferred" in AGENT_COPY).toBe(false);
   });
 
   it("stays out of CRM-vendor register", () => {

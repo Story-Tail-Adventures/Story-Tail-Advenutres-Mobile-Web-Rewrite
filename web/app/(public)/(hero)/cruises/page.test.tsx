@@ -83,7 +83,7 @@ describe("2.0.9 Cruises page", () => {
     for (const link of quoteLinks) {
       expect(link).toHaveAttribute("href", topicQuoteLink(TOPIC));
     }
-    expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^mailto:/);
+    expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^\/message\?from=/);
 
     // The page now offers TWO different lists and the labels have to keep them apart:
     // "All sailings" is Gyasi's curated nine, and the inquiry bar opens the live synced

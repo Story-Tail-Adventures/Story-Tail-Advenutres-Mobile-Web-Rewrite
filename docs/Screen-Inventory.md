@@ -1758,8 +1758,11 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > client asked for. The naming rule above now cuts the other way: `new_inquiry_count` and the
 > "New inquiries" section stay about trips, and everything about leads is named `lead`. Two
 > changes to this screen, web and Android:
-> - **"New inquiries" rows show how long each has waited** ("Waiting 2 days", from
->   `trip.created_at` in the advisor's time zone), **oldest first**. No red SLA flag: the
+> - **"New inquiries" rows show how long each has waited** ("Waiting 2 days", "Arrived today",
+>   from `trip.status_changed_at`, the moment it became an inquiry, counted in calendar days in
+>   the advisor's time zone), **oldest first**. For a quote request that is when it arrived;
+>   the board read carries no `created_at`, and a trip moved back to Inquiry starts waiting
+>   again, which is the honest answer. No red SLA flag: the
 >   promise is "Usually replies the same day", and an alarm colour does not fit §2's pace. The
 >   section still lists every `inquiry` trip, including ones the advisor started; no field
 >   records who started it.

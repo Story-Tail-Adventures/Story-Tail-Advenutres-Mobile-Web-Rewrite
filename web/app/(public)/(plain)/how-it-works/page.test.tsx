@@ -23,7 +23,7 @@ describe("2.0.2 how it works page", () => {
     );
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "message Gyasi without one" }).getAttribute("href")).toMatch(
-      /^mailto:/,
+      /^\/message\?from=/,
     );
   });
 
