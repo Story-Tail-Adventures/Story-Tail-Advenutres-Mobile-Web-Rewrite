@@ -9,6 +9,7 @@ import { assert, assertEquals, assertThrows } from "jsr:@std/assert@^1";
 import { luhnValid } from "./cardDigits.ts";
 import {
   CARD_NUMBER_REFUSAL,
+  CARD_NUMBER_REFUSAL_ADVISOR,
   clientAddress,
   looksAutomated,
   MIN_FILL_MS,
@@ -69,14 +70,15 @@ Deno.test("first name, email and a message are required", () => {
   refusedWith(() => parseLeadForm({ ...form(), firstName: "  " }), /first name/);
   refusedWith(() => parseLeadForm({ ...form(), email: "not-an-email" }), /email/);
   refusedWith(() => parseLeadForm({ ...form(), message: " \n " }), /few words/);
-  refusedWith(() => parseLeadForm({ ...form(), message: "x".repeat(2001) }), /too long/);
+  refusedWith(() => parseLeadForm({ ...form(), message: "x".repeat(2001) }), /under 2,000 characters/);
   assertEquals(parseLeadForm({ ...form(), message: "x".repeat(2000) }).message.length, 2000);
 });
 
 Deno.test("a card number is refused, in a message, an Add lead note or a close note", () => {
   refusedWith(() => parseLeadForm({ ...form(), message: `My card is ${CARD}` }), CARD_NUMBER_REFUSAL);
-  refusedWith(() => parseManualLead({ ...form(), source: "phone", message: `card ${CARD}` }), CARD_NUMBER_REFUSAL);
-  refusedWith(() => parseClose({ reason: "other", note: `left ${CARD}` }), CARD_NUMBER_REFUSAL);
+  // Gyasi's own screens get his own voice, never "Gyasi will never ask for one here".
+  refusedWith(() => parseManualLead({ ...form(), source: "phone", message: `card ${CARD}` }), CARD_NUMBER_REFUSAL_ADVISOR);
+  refusedWith(() => parseClose({ reason: "other", note: `left ${CARD}` }), CARD_NUMBER_REFUSAL_ADVISOR);
   // A phone number, a date and a confirmation code are not card numbers.
   assertEquals(parseLeadForm({ ...form(), message: "Call 555-010-0100 after 6/14. Ref SRB-220119." }).page, "topic");
 });
@@ -103,9 +105,11 @@ Deno.test("the hidden field and the clock catch a bot; a person passes", () => {
   refusedWith(() => looksAutomated({ ...form(), startedAt: "soon" }, now), /startedAt/);
 });
 
-Deno.test("Add lead takes one of five sources, never 'website'", () => {
+Deno.test("Add lead takes one of five sources, never 'website', and speaks to the advisor", () => {
   const m = parseManualLead({ ...form(), source: "referral" });
   assertEquals(m.source, "referral");
+  refusedWith(() => parseManualLead({ ...form(), source: "phone", firstName: " " }), "Add a first name.");
+  refusedWith(() => parseManualLead({ ...form(), source: "phone", message: " " }), /Add a few words/);
   refusedWith(() => parseManualLead({ ...form(), source: "website" }), /source must be/);
 });
 
