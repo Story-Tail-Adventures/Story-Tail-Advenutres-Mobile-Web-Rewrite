@@ -154,7 +154,7 @@ jobs:
       # nothing here is deployed — the deployment sets its own value.
       - run: npm run build -w web
         env:
-          NEXT_PUBLIC_SITE_URL: https://app.story-tail.com
+          NEXT_PUBLIC_SITE_URL: https://storytailadventures.vercel.app
 
       # The build above proves the app COMPILES without Supabase config. This proves the
       # marketing pages are still files on a CDN: one cookies() in the (public) server tree

@@ -9,7 +9,7 @@ import { POST } from "./route";
 
 const CONV = "0195a2c0-1a00-7000-8000-0000000000b0";
 const SEEN = "2026-10-15T14:02:11.123456+00:00";
-const ORIGIN = "https://app.story-tail.test";
+const ORIGIN = "https://storytailadventures.vercel.app";
 
 function post(body: unknown, { origin = ORIGIN, id = CONV }: { origin?: string | null; id?: string } = {}) {
   const headers = new Headers({ "content-type": "application/json" });

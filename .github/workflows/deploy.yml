@@ -58,9 +58,8 @@ env:
 
   # The one origin the whole deploy is measured against — the single place to change it.
   #
-  # The Vercel-assigned production alias. The eventual home is adventures.story-tail.com
-  # pointed here; app.story-tail.com is NOT being created, despite docs/BRD.md:74 and the
-  # TODO at docs/Tech-Recommendations.md:523 (both get corrected as part of that move).
+  # The Vercel-assigned production alias, and the app's real address. The eventual home is
+  # adventures.story-tail.com pointed here; there is no separate app subdomain.
   #
   # Unbranded until then, because web/app/seo.ts:77 serves `allow: "/"` — whatever origin
   # this names is crawlable, and web/content/public/proof.ts still reports unverified claims,

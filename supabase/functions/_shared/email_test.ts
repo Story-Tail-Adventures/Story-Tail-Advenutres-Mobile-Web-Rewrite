@@ -16,7 +16,7 @@ const prodEnv: Record<string, string> = {
   EMAIL_SMTP_USER: "gyasi.messages@adventures.story-tail.com",
   EMAIL_SMTP_PASSWORD: "secret",
   EMAIL_FROM_ADDRESS: "gyasi.messages@adventures.story-tail.com",
-  EMAIL_SITE_URL: "https://app.story-tail.com/",
+  EMAIL_SITE_URL: "https://storytailadventures.vercel.app/",
   EMAIL_UNSUBSCRIBE_URL: "https://x.supabase.co/functions/v1/email-unsubscribe",
 };
 const envOf = (over: Record<string, string | undefined> = {}) => (name: string) =>
@@ -54,7 +54,7 @@ const said = (body: string, attachments: string[] = []) => [{ message_id: "m", b
 Deno.test("config: production settings are TLS on 465, with credentials", () => {
   assertEquals(cfg.port, 465);
   assertEquals(cfg.secure, true);
-  assertEquals(cfg.siteUrl, "https://app.story-tail.com");
+  assertEquals(cfg.siteUrl, "https://storytailadventures.vercel.app");
 });
 
 Deno.test("config: not set up is null, so the dispatcher refuses before claiming", () => {
@@ -86,7 +86,7 @@ Deno.test("config: the local catcher may be plain, but never with a password", (
 Deno.test("config: a real server without a login, half a login, or an http link is refused", () => {
   assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SMTP_USER: undefined, EMAIL_SMTP_PASSWORD: undefined })), Error, "needs");
   assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SMTP_PASSWORD: undefined })), Error, "both");
-  assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SITE_URL: "http://app.story-tail.com" })), Error, "EMAIL_SITE_URL");
+  assertThrows(() => emailConfigFromEnv(envOf({ EMAIL_SITE_URL: "http://storytailadventures.vercel.app" })), Error, "EMAIL_SITE_URL");
 });
 
 Deno.test("inbox config: the sending login, port 993 with TLS, and nothing without a login", () => {
@@ -143,8 +143,8 @@ Deno.test("email: a card number in a trip title is masked in the subject", () =>
 Deno.test("email: carries the words, the thread link and both opt-out paths", () => {
   const e = buildEmail(row(), TOKENS, cfg);
   assert(e.text.includes("Your ferry is booked for 9am."));
-  assert(e.text.includes("https://app.story-tail.com/messages/0195a2c0-1a00-7000-8000-0000000000b0"));
-  assert(e.text.includes(`https://app.story-tail.com/email/unsubscribe?t=${T2}`));
+  assert(e.text.includes("https://storytailadventures.vercel.app/messages/0195a2c0-1a00-7000-8000-0000000000b0"));
+  assert(e.text.includes(`https://storytailadventures.vercel.app/email/unsubscribe?t=${T2}`));
   assertEquals(e.headers["List-Unsubscribe"], `<${cfg.unsubscribeUrl}?t=${T2}>`);
   assertEquals(e.headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
   assert(!e.text.includes(T1) && !e.html.includes(T1), "the reply token is only in Reply-To");

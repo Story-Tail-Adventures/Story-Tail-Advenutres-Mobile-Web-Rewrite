@@ -7,7 +7,7 @@ const prodEnv: Record<string, string> = {
   EMAIL_SMTP_USER: "gyasi.messages@adventures.story-tail.com",
   EMAIL_SMTP_PASSWORD: "secret",
   EMAIL_FROM_ADDRESS: "gyasi.messages@adventures.story-tail.com",
-  EMAIL_SITE_URL: "https://app.story-tail.com/",
+  EMAIL_SITE_URL: "https://storytailadventures.vercel.app/",
   EMAIL_UNSUBSCRIBE_URL: "https://x.supabase.co/functions/v1/email-unsubscribe",
 };
 const cfg: EmailConfig = emailConfigFromEnv((n) => prodEnv[n])!;
@@ -30,7 +30,7 @@ function build(kind: SignInEmailKind, over: Partial<Parameters<typeof buildSignI
 Deno.test("the link goes to /auth/confirm on the site, with the hash, type and a fixed next", () => {
   for (const kind of ["reset", "magic_link", "invite"] as const) {
     const url = new URL(signInUrl(cfg, kind, HASH));
-    assertEquals(url.origin, "https://app.story-tail.com");
+    assertEquals(url.origin, "https://storytailadventures.vercel.app");
     assertEquals(url.pathname, "/auth/confirm");
     assertEquals(url.searchParams.get("token_hash"), HASH);
     assertEquals(url.searchParams.get("type"), VERIFY_TYPE[kind]);
