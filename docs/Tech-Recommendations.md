@@ -656,7 +656,7 @@ Clients are unaffected; MFA stays optional for them. Before a release that carri
 
 **Edge Functions execution limits.** Supabase Edge Functions have a 150-second execution limit on the free tier (2× that on Pro). Verify that the longest-running Edge Function (likely Inteletravel CSV import for large statements, or a Stripe Vault and Forward call with a slow supplier endpoint, which no longer applies since 2026-10-16) fits comfortably within that budget. If not, the workaround is to break the work into smaller Edge Functions or use a queue pattern with Supabase Realtime triggers.
 
-**Domain registration.** The app subdomain (`app.story-tail.com`) needs to be reserved before the public landing page can go live. Coordinate with DNS owner.
+**App address.** The app is served at `https://storytailadventures.vercel.app`, Vercel's production alias (`SITE_ORIGIN` in `.github/workflows/deploy.yml`). The brand domain `adventures.story-tail.com` can be pointed at it later; there is no separate app subdomain.
 
 **Apple Developer + Google Play accounts.** Required to publish the mobile apps. Apple Developer Program is $99/year; Google Play is a one-time $25. Register these as soon as the build starts so app review timing doesn't gate launch.
 

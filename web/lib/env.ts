@@ -75,7 +75,7 @@ export const env = {
     if (configured) return configured.replace(/\/+$/, "");
     if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "Missing NEXT_PUBLIC_SITE_URL. Set it to the app subdomain origin (e.g. https://app.story-tail.com).",
+        "Missing NEXT_PUBLIC_SITE_URL. Set it to the app's origin (e.g. https://storytailadventures.vercel.app).",
       );
     }
     return "http://localhost:3000";

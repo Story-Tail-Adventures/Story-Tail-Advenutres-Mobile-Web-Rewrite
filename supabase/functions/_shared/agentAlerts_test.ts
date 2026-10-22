@@ -28,7 +28,7 @@ const CFG: EmailConfig = {
   user: null,
   password: null,
   fromAddress: "gyasi.messages@adventures.story-tail.com",
-  siteUrl: "https://app.story-tail.com",
+  siteUrl: "https://storytailadventures.vercel.app",
   unsubscribeUrl: "https://x.supabase.co/functions/v1/email-unsubscribe",
 };
 
@@ -120,7 +120,7 @@ Deno.test("buildAlertEmail: who, which trip and a link to the thread; no client 
   assertEquals(e.subject, "New message from Jordan Hayes");
   assertEquals(e.to, "gyasi@example.com");
   assertStringIncludes(e.text, "Jordan Hayes wrote to you about Anniversary Week in Negril.");
-  assertStringIncludes(e.text, "https://app.story-tail.com/agent/messages/0195a2c0-1a00-7000-8000-0000000000b0");
+  assertStringIncludes(e.text, "https://storytailadventures.vercel.app/agent/messages/0195a2c0-1a00-7000-8000-0000000000b0");
   assertStringIncludes(e.html, "Open in Story-Tail");
 });
 
@@ -137,7 +137,7 @@ Deno.test("buildAlertEmail: a lead's message names them and links to the lead, n
   );
   assertEquals(e.subject, "Dana Reyes wrote to you from the website");
   assertStringIncludes(e.text, "Dana Reyes doesn't have an account yet and sent you a note from the website.");
-  assertStringIncludes(e.text, "https://app.story-tail.com/agent/leads/l-1");
+  assertStringIncludes(e.text, "https://storytailadventures.vercel.app/agent/leads/l-1");
   assertStringIncludes(e.text, "\"New inquiries and messages\" emails are on");
   assertThrows(() => buildAlertEmail({ ...ALERT, kind: "lead_message", conversation_id: null, lead_id: null }, CFG));
 });

@@ -75,7 +75,7 @@ The web application (responsive, desktop-and-mobile-browser ready), the mobile a
 
 ### 4.2 Out of Scope (Phase 1)
 
-Direct payment processing where the client is charged by Story-Tail Adventures (we are an advisor — suppliers charge clients; we only hold card auth to pay suppliers. Since 2026-10-16 we hold no card auth either: clients pay suppliers through pay links, see §10). Replacing Inteletravel's role as host agency or booking-of-record. Replacing the public marketing site at adventures.story-tail.com (initially the platform lives at an app subdomain like app.story-tail.com; consolidation can come later). A full agent-to-agent collaboration suite (this is built for a small team to start). Direct integration with every cruise line or tour operator (we'll integrate with aggregators).
+Direct payment processing where the client is charged by Story-Tail Adventures (we are an advisor — suppliers charge clients; we only hold card auth to pay suppliers. Since 2026-10-16 we hold no card auth either: clients pay suppliers through pay links, see §10). Replacing Inteletravel's role as host agency or booking-of-record. Replacing the public marketing site at adventures.story-tail.com (the platform lives at its own address, https://storytailadventures.vercel.app; consolidation can come later). A full agent-to-agent collaboration suite (this is built for a small team to start). Direct integration with every cruise line or tour operator (we'll integrate with aggregators).
 
 ### 4.3 Assumptions
 
