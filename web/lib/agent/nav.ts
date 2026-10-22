@@ -22,24 +22,20 @@ import type { IconName } from "@/components/ui/icon-paths";
  * each a whole area. Templates and Settings stay off it for the reason §6.6 gives about the
  * phone bar: depth is not the same as reach.
  *
- * WHY AVAILABILITY IS THREE STATES AND NOT `built: boolean`.
+ * AVAILABILITY: `built`, or `planned` (a section will build it, and which).
  *
- * The client registry's two states cannot say what Leads is. §3.8 is not "not yet" — the
- * `lead` domain is specified and deliberately UNBUILT (Data-Model §11), because a quote
- * request creates a trip in `inquiry` status instead (BRD §6.5, amended 2026-09-09). Its
- * blockquote says to treat §3.8 as "unbuilt and unplanned". Rendering it with the client
- * rail's "Coming with the next release" would be a lie in the one place Gyasi reads it.
- *
- * So: `built`, `planned` (a section will build it, and which), and `deferred` (a decision
- * was taken not to, and why).
+ * There was a third state, `deferred` (a decision was taken not to build it, and why), and
+ * Leads was its only entry: §3.8 was deliberately unbuilt after the 2026-09-09 ruling that a
+ * quote request creates a trip. On 2026-10-21 Gyasi revived §3.8 in a smaller shape (BRD
+ * §6.5: a message from somebody without an account is a lead), Leads became a live
+ * destination, and the state went with it rather than linger with no members.
  */
 
 export type AgentSurface = "rail" | "bar" | "tablet";
 
 export type AgentAvailability =
   | { kind: "built" }
-  | { kind: "planned"; phase: "P1" | "P2" | "P3"; section: string }
-  | { kind: "deferred"; section: string; reason: string };
+  | { kind: "planned"; phase: "P1" | "P2" | "P3"; section: string };
 
 export type AgentDestination = {
   id: string;
@@ -85,13 +81,9 @@ export const AGENT_DESTINATIONS: readonly AgentDestination[] = [
     icon: "inbox",
     label: "Leads",
     surfaces: ["rail", "tablet"],
-    // The only `deferred` entry, and the type exists for it. See the header.
-    availability: {
-      kind: "deferred",
-      section: "§3.8",
-      reason:
-        "There is no Leads inbox. A quote request creates a trip in Inquiry instead — it is in New inquiries on the worklist.",
-    },
+    // Built 2026-10-21 with §3.8's web PR (P2, BRD §6.5). Rail and tablet only: the phone has
+    // no Leads screen, and its worklist shows a "New leads" count that points here instead.
+    availability: { kind: "built" },
   },
   {
     id: "messages",
@@ -215,12 +207,10 @@ export function activeAgentViewId(
 /**
  * Copy for the disabled states, kept here so the rail and the bar cannot disagree.
  *
- * Two messages rather than the client rail's one, because the two kinds of unavailable are
- * different claims. `plannedLabel` takes the section; `deferred` carries its own sentence
- * per destination, because the reason IS the content.
+ * `plannedLabel` takes the section. (`deferredAria` went with the `deferred` state on
+ * 2026-10-21; see the header.)
  */
 export const AGENT_NAV_MESSAGES = {
   plannedLabel: "Arrives with",
   plannedAria: "not available yet",
-  deferredAria: "not planned",
 } as const;

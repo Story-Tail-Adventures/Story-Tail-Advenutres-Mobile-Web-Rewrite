@@ -35,9 +35,9 @@ import { VISUALLY_HIDDEN as VISUALLY_HIDDEN_SX } from "@/lib/mui/sx";
  * needs client state plus a width transition that reflows the grid, and "icon-only by
  * default" is already satisfied.
  *
- * THREE AVAILABILITY STATES, NOT TWO. A `planned` destination says which section builds it;
- * a `deferred` one carries its own sentence, because the reason IS the content. Leads is the
- * only `deferred` entry and the type exists for it — see the registry's header.
+ * TWO AVAILABILITY STATES. A `planned` destination says which section builds it. A third,
+ * `deferred`, existed for Leads alone until §3.8 was revived on 2026-10-21 (BRD §6.5); it went
+ * with it, so a deferral cannot quietly come back as a dumping ground for "not yet".
  *
  * MUI SINCE 2026-10-01, on the prototype's RailItem (shared/mui-kit.jsx): each destination
  * is a `ListItemButton` laid out as a column, `selected` tints it, and the glyph goes
@@ -59,8 +59,6 @@ function tooltipFor(d: AgentDestination): string | undefined {
       return undefined;
     case "planned":
       return `${d.label} — ${AGENT_NAV_MESSAGES.plannedLabel} ${d.availability.section}`;
-    case "deferred":
-      return `${d.label} — ${d.availability.reason}`;
   }
 }
 
@@ -70,8 +68,6 @@ function srTextFor(d: AgentDestination): string | null {
       return null;
     case "planned":
       return `${d.label} ${AGENT_NAV_MESSAGES.plannedAria}`;
-    case "deferred":
-      return `${d.label} ${AGENT_NAV_MESSAGES.deferredAria}`;
   }
 }
 

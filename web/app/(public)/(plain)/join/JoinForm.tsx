@@ -38,7 +38,7 @@ export interface JoinFormProps {
   appleEnabled: boolean;
   /** `/login?next=…` built by the page. */
   signInHref: string;
-  /** Guest inquiry — mailto when configured, otherwise the gate's `message` intent. */
+  /** Guest inquiry: the 2.0.12 Message Gyasi form (BRD §6.5, 2026-10-21). */
   emailHref: string;
 }
 

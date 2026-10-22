@@ -56,7 +56,7 @@ export const JOIN_TEXT = {
   privacyLink: "Privacy policy",
   pending: "Creating your account…",
   signIn: "Already have an account? Sign in",
-  emailInstead: "Email Gyasi instead →",
+  emailInstead: "Message Gyasi instead →",
   confirmTitle: "Check your inbox",
   confirmBefore: "We sent a link to ",
   confirmAfter: ". Open it to finish creating your account.",

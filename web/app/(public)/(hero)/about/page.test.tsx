@@ -37,7 +37,7 @@ describe("2.0.11 about Gyasi page", () => {
       expect(link).toHaveAttribute("href", "/join?intent=quote&next=%2Fabout");
     }
     for (const name of ["Message me first", "Message Gyasi", "Message me"]) {
-      expect(screen.getByRole("link", { name }).getAttribute("href")).toMatch(/^mailto:/);
+      expect(screen.getByRole("link", { name }).getAttribute("href")).toMatch(/^\/message\?from=/);
     }
   });
 

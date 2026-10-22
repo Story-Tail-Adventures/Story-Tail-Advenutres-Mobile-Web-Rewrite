@@ -92,7 +92,7 @@ describe("2.0.8 Caribbean page", () => {
     for (const link of quoteLinks) {
       expect(link).toHaveAttribute("href", topicQuoteLink(TOPIC));
     }
-    expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^mailto:/);
+    expect(screen.getByRole("link", { name: "Message Gyasi first" }).getAttribute("href")).toMatch(/^\/message\?from=/);
     expect(screen.getByRole("link", { name: "Browse all" })).toHaveAttribute("href", resultsHref({ topic: TOPIC }));
   });
 

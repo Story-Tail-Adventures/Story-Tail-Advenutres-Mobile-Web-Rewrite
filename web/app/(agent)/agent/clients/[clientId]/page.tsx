@@ -1,4 +1,6 @@
 import Box from "@mui/material/Box";
+import MuiLink from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 
 import { ClientAccountAdminTab } from "@/components/agent/ClientAccountAdminTab";
 import { ClientActivityTab } from "@/components/agent/ClientActivityTab";
@@ -11,6 +13,8 @@ import { ClientOverviewTab } from "@/components/agent/ClientOverviewTab";
 import { ClientThreadsTab } from "@/components/agent/ClientThreadsTab";
 import { ClientTripsTab } from "@/components/agent/ClientTripsTab";
 import { RetryState } from "@/components/client/RetryState";
+import NextLink from "@/components/mui/NextLink";
+import { LEAD_COPY, loadClientLeadOrigin } from "@/lib/agent/leads";
 import { loadAccountAdmin } from "@/lib/agent/accountAdmin";
 import { validClientTab } from "@/lib/agent/clientTabs";
 import type { ClientOverview } from "@/lib/agent/clientDetail";
@@ -72,7 +76,9 @@ export default async function AgentClientDetailPage({
   const { tab: tabParam } = await searchParams;
   const tab = validClientTab(tabParam);
 
-  const result = await loadClientOverview(clientId);
+  // §3.3.2 (2026-10-21): "First reached out as a lead on [date]". A failed read just leaves
+  // the line out: it is a link back to history, not part of the record.
+  const [result, origin] = await Promise.all([loadClientOverview(clientId), loadClientLeadOrigin(clientId)]);
 
   // A CLIENT THAT IS NOT THERE IS NOT AN ERROR. `agent_client_overview` answers zero rows
   // for a client that does not exist, one belonging to another advisor, and a merged
@@ -94,6 +100,14 @@ export default async function AgentClientDetailPage({
       <Box sx={{ mt: 1.25 }}>
         <ClientDetailHeader client={client} />
       </Box>
+      {origin && (
+        <Typography component="p" variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+          {LEAD_COPY.originBefore}
+          <MuiLink component={NextLink} href={`/agent/leads/${origin.leadId}`}>
+            {origin.dateLabel}
+          </MuiLink>
+        </Typography>
+      )}
 
       <ClientDetailTabs
         counts={{

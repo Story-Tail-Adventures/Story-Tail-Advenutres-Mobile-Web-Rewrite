@@ -65,8 +65,8 @@ describe("2.0.5 public trip detail", () => {
     // §4.4: the guest path is a sticky bottom button on mobile AND the side-rail CTA.
     const guest = screen.getAllByRole("link", { name: "Message Gyasi without an account →" });
     expect(guest).toHaveLength(2); // PriceCard rail + StickyCta second row
-    for (const link of guest) expect(link.getAttribute("href")).toMatch(/^mailto:/);
-    expect(screen.getByRole("link", { name: "Message →" }).getAttribute("href")).toMatch(/^mailto:/);
+    for (const link of guest) expect(link.getAttribute("href")).toMatch(/^\/message\?from=/);
+    expect(screen.getByRole("link", { name: "Message →" }).getAttribute("href")).toMatch(/^\/message\?from=/);
     // The advisor line comes from the claims registry (rail + mobile card).
     expect(screen.getAllByText(advisorTitle(SLUG))).toHaveLength(2);
   });

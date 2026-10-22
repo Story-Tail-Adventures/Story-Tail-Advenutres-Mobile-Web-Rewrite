@@ -242,4 +242,26 @@ export const REPORT_TILES = [
   { id: "funnel", title: "Conversion funnel", sub: "Inquiry to traveled, and days to book", icon: "pulse" },
   { id: "pipeline", title: "Pipeline value", sub: "What's open, weighted by stage", icon: "briefcase" },
   { id: "export", title: "Export center", sub: "CSV files for tax prep and the books", icon: "download" },
+  // 3.11.9 (P2, 2026-10-21): moved here from §3.8's 3.8.5 when Leads was revived (BRD §6.5).
+  { id: "leads", title: "Lead sources", sub: "Where leads come from, and who became a client", icon: "inbox" },
 ] as const;
+
+/** 3.11.9 Lead Sources' copy. Leads are people without an account who wrote in (§3.8). */
+export const LEAD_SOURCES_COPY = {
+  title: "Lead sources",
+  empty: "No leads came in during this period.",
+  chartLabel: "Leads by source",
+  colSource: "Source",
+  colLeads: "Leads",
+  colClients: "Became clients",
+  colOpen: "Still open",
+  colClosed: "Closed",
+  campaignsTitle: "Website campaigns",
+  colCampaign: "Campaign (utm_source)",
+  note: "Leads that came in during the period, by how they reached you. A note from somebody who was already a client isn't counted: they were never a lead. Leads come before the Conversion funnel, which starts when a client asks for a quote.",
+} as const;
+
+export function leadSourcesSummary(total: number, clients: number): string {
+  if (total === 0) return "No leads yet in this period";
+  return `${total} ${total === 1 ? "lead" : "leads"} · ${clients} became ${clients === 1 ? "a client" : "clients"}`;
+}

@@ -129,7 +129,7 @@ describe("2.0.4 public search results", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("0 trips · Antarctica");
     expect(screen.getByText("No trips match that week yet.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute("href", "/explore/results");
-    expect(screen.getByRole("link", { name: "Message Gyasi" }).getAttribute("href")).toMatch(/^mailto:/);
+    expect(screen.getByRole("link", { name: "Message Gyasi" }).getAttribute("href")).toMatch(/^\/message\?from=/);
   });
 
   it("is not indexed and points canonical at /explore", () => {

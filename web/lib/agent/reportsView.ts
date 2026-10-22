@@ -7,6 +7,8 @@ import type {
   AgentReportPipelineStageRow,
   AgentReportRevenueRow,
   AgentReportSupplierRow,
+  AgentReportLeadCampaignRow,
+  AgentReportLeadSourceRow,
 } from "@/lib/agent/api";
 import {
   COMMISSION_STATUS_FILTERS,
@@ -56,7 +58,16 @@ export type RevenueBasis = (typeof REVENUE_BASES)[number];
 export type ReportId = (typeof REPORT_TILES)[number]["id"];
 
 /** The reports built so far. The hub shows the rest as "On its way". */
-export const BUILT_REPORTS: readonly ReportId[] = ["revenue", "suppliers", "destinations", "clients", "funnel", "pipeline", "export"];
+export const BUILT_REPORTS: readonly ReportId[] = [
+  "revenue",
+  "suppliers",
+  "destinations",
+  "clients",
+  "funnel",
+  "pipeline",
+  "export",
+  "leads",
+];
 
 /** The reports with a per-report Export. */
 export type ExportableReport = "revenue" | "suppliers" | "destinations" | "clients" | "funnel" | "pipeline";
@@ -732,5 +743,66 @@ export function destinationReport(rows: AgentReportDestinationRow[]): Destinatio
     })),
     totalLabel: usd(total),
     empty: rows.length === 0,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3.11.9 Lead Sources (P2, 2026-10-21, BRD §6.5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LeadSourceLine = {
+  source: string;
+  label: string;
+  leads: number;
+  clients: number;
+  open: number;
+  closed: number;
+  /** Bar widths as shares of the largest source, 0 to 100. */
+  clientsPct: number;
+  openPct: number;
+  closedPct: number;
+};
+
+export type LeadSourcesReport = {
+  total: number;
+  clients: number;
+  empty: boolean;
+  lines: LeadSourceLine[];
+  campaigns: { name: string; leads: number; clients: number }[];
+};
+
+const LEAD_SOURCE_NAMES: Record<string, string> = {
+  website: "Website form",
+  email: "Email",
+  phone: "Phone",
+  referral: "Referral",
+  social: "Social",
+  other: "Other",
+};
+
+export function leadSourcesReport(
+  rows: AgentReportLeadSourceRow[],
+  campaigns: AgentReportLeadCampaignRow[],
+): LeadSourcesReport {
+  const max = Math.max(1, ...rows.map((r) => r.lead_count));
+  const pct = (n: number) => Math.round((n / max) * 1000) / 10;
+  const total = rows.reduce((n, r) => n + r.lead_count, 0);
+  const clients = rows.reduce((n, r) => n + r.converted_count, 0);
+  return {
+    total,
+    clients,
+    empty: total === 0,
+    lines: rows.map((r) => ({
+      source: r.source,
+      label: LEAD_SOURCE_NAMES[r.source] ?? r.source,
+      leads: r.lead_count,
+      clients: r.converted_count,
+      open: r.open_count,
+      closed: r.closed_count,
+      clientsPct: pct(r.converted_count),
+      openPct: pct(r.open_count),
+      closedPct: pct(r.closed_count),
+    })),
+    campaigns: campaigns.map((c) => ({ name: c.utm_source, leads: c.lead_count, clients: c.converted_count })),
   };
 }

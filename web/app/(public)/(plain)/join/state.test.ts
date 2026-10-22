@@ -66,7 +66,7 @@ describe("JOIN_TEXT — content integrity", () => {
   });
 
   it("keeps the brief's corrected CTA copy", () => {
-    expect(JOIN_TEXT.emailInstead).toBe("Email Gyasi instead →");
+    expect(JOIN_TEXT.emailInstead).toBe("Message Gyasi instead →");
     expect(JOIN_TEXT.bullets).toEqual([
       "Save searches & favorites",
       "View Gyasi's curated proposals",
