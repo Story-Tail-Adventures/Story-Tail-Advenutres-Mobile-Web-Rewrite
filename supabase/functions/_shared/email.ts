@@ -406,20 +406,24 @@ ${fileLine ? `<p style="margin:4px 0 16px;color:${MUTED};font-size:14px">${escap
 /** A row `agent_alert_email_claim` hands out. Never a client's words: there is no body field. */
 export interface ClaimedAlert {
   alert_id: string;
-  kind: "client_message" | "quote_request";
+  kind: "client_message" | "quote_request" | "lead_message";
   recipient: string;
   agent_first_name: string | null;
   client_name: string | null;
   trip_title: string | null;
   conversation_id: string | null;
   trip_id: string | null;
+  /** §3.8 (2026-10-21): set for a lead's message; `client_name` is then the lead's name. */
+  lead_id: string | null;
 }
 
-/** Where "Open in Story-Tail" goes: the thread, or the inquiry trip. Plain links, no token. */
+/** Where "Open in Story-Tail" goes: the thread, the inquiry trip, or the lead. Plain links. */
 export function alertUrl(cfg: EmailConfig, row: ClaimedAlert): string {
-  return row.kind === "client_message" && row.conversation_id
-    ? `${cfg.siteUrl}/agent/messages/${row.conversation_id}`
-    : `${cfg.siteUrl}/agent/trips/${row.trip_id}`;
+  if (row.kind === "client_message" && row.conversation_id) {
+    return `${cfg.siteUrl}/agent/messages/${row.conversation_id}`;
+  }
+  if (row.kind === "lead_message") return `${cfg.siteUrl}/agent/leads/${row.lead_id}`;
+  return `${cfg.siteUrl}/agent/trips/${row.trip_id}`;
 }
 
 /**
@@ -431,22 +435,33 @@ export function buildAlertEmail(row: ClaimedAlert, cfg: EmailConfig): Omit<Built
   if (!ADDRESS.test(to)) throw new Error("recipient is not a single email address");
   if (row.kind === "client_message" && !row.conversation_id) throw new Error("no thread to open");
   if (row.kind === "quote_request" && !row.trip_id) throw new Error("no trip to open");
+  if (row.kind === "lead_message" && !row.lead_id) throw new Error("no lead to open");
 
-  const client = cleanTitle(row.client_name) || "A client";
+  const isMessage = row.kind === "client_message";
+  const isLead = row.kind === "lead_message";
+  const client = cleanTitle(row.client_name) || (isLead ? "Someone new" : "A client");
   const trip = cleanTitle(row.trip_title);
   const link = alertUrl(cfg, row);
-  const isMessage = row.kind === "client_message";
 
   const subject = headerSafe(
-    isMessage ? `New message from ${client}` : `New trip request from ${client}`,
+    isMessage
+      ? `New message from ${client}`
+      : isLead
+      ? `${client} wrote to you from the website`
+      : `New trip request from ${client}`,
     "subject",
   );
+  // A lead's words stay out of the mail provider exactly as a client's do (§3.8).
   const line = isMessage
     ? trip ? `${client} wrote to you about ${trip}.` : `${client} wrote to you.`
+    : isLead
+    ? `${client} doesn't have an account yet and sent you a note from the website.`
     : trip ? `${client} asked about a trip: ${trip}.` : `${client} sent a trip request.`;
+  // The quote-request switch covers leads too since 2026-10-21, and reads "New inquiries and
+  // messages" (Screen Inventory 3.12.3).
   const why = isMessage
     ? "You get this because client-message emails are on in your notification settings."
-    : "You get this because trip-request emails are on in your notification settings.";
+    : "You get this because \"New inquiries and messages\" emails are on in your notification settings.";
 
   const text = [line, "", `Open in Story-Tail: ${link}`, "", why].join("\n");
   const html = `<!doctype html>

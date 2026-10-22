@@ -244,8 +244,8 @@ Deno.serve(async (req) => {
           p_agent_id: agentId,
           p_client_messages_push: readSwitch(payload.clientMessagesPush, "Client message push"),
           p_client_messages_email: readSwitch(payload.clientMessagesEmail, "Client message email"),
-          p_quote_requests_push: readSwitch(payload.quoteRequestsPush, "Trip request push"),
-          p_quote_requests_email: readSwitch(payload.quoteRequestsEmail, "Trip request email"),
+          p_quote_requests_push: readSwitch(payload.quoteRequestsPush, "New inquiries and messages push"),
+          p_quote_requests_email: readSwitch(payload.quoteRequestsEmail, "New inquiries and messages email"),
           ...audit,
         } as never);
         if (error) throw new Error(`notifications update failed: ${error.message}`);

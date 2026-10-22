@@ -156,12 +156,56 @@ Prospective and existing clients can search for trips by destination, dates, tra
 > way to attach a trip to somebody who has given only an email. The sign-up gate (Screen
 > Inventory 2.0.6) therefore becomes a real gate rather than a nudge.
 >
-> **What absorbs a visitor who will not sign up:** the "Message Gyasi" email that already
-> ships (`web/lib/public/inquiry.ts`). It is not a queue and it does not carry search
-> context, but it is a real reply channel and it keeps the public surface from dead-ending.
-> If that proves lossy — inquiries arriving as unstructured email that nobody triages — the
-> Lead domain in Data-Model §11 is the designed answer and is still specified; it is deferred,
-> not deleted.
+> **What absorbs a visitor who will not sign up:** ~~the "Message Gyasi" email that already
+> ships (`web/lib/public/inquiry.ts`)~~ superseded 2026-10-21, see below.
+
+> **DECIDED 2026-10-21: a message without an account is a LEAD, and leads are tracked (P2).**
+> Gyasi's rule, in his words: *"anyone that request a quote is a client, anyone that just
+> messages me is a lead."* The 2026-09-09 ruling above stands for quote requests. What it left
+> untracked was everyone else: the "Message Gyasi" email opened the visitor's own mail app, so
+> the platform never saw the message, never knew what the visitor had been looking at, and
+> could not count how many took that path. The Lead domain (Data-Model §11) is revived in a
+> smaller shape to close that gap. Settled in a grilling session, every answer as recommended:
+>
+> 1. **Intake is a form, not an email link.** A short "Message Gyasi" form (Screen Inventory
+>    2.0.12) replaces every "Message Gyasi" / "Continue as guest" email link on web and on the
+>    Android public screens: first name (required), last name, email (required), phone, and a
+>    message of up to 2,000 characters. It attaches the trip or topic the visitor was viewing
+>    and any `utm_` tags. Gyasi's address can stay in the footer for people who prefer email.
+> 2. **No new vendor for spam.** A hidden field only bots fill, a too-fast check, and a few
+>    sends per hour per network address (stored hashed, dropped after a day). Cloudflare
+>    Turnstile is added only if spam gets through, and only after a security review.
+> 3. **No automatic email to the visitor.** An on-screen thank-you only. Mailing whatever
+>    address a stranger types would let anyone use the form to send mail.
+> 4. **One open lead per email.** A second message while a lead is New or Contacted joins it;
+>    after Converted or Closed, a new message starts a new lead.
+> 5. **"Add lead" by hand**, with a source: website form, email, phone, referral, social, other.
+> 6. **Statuses: New, Contacted, Converted, Closed.** Actions: Reply (opens Gyasi's own email
+>    app; the platform does not send or thread lead email), Mark contacted, Invite to an
+>    account (creates the client and sends the §3.9 invite; the lead is converted and linked),
+>    Close (Not a fit, No reply, Went elsewhere, Other, plus an optional private note; a closed
+>    lead can be reopened), and Delete as spam (removed at once, audited without personal
+>    info). No "assign" until multi-agent (P3).
+> 7. **Existing clients are not leads.** A form sent with an email already on a client record is
+>    saved, linked to that client, labelled "Already a client", closed as converted, and not
+>    counted as a new lead; its page offers "Open client". A lead who later creates an account
+>    with the same email is linked and converted automatically once the address is confirmed,
+>    and the client page shows "First reached out as a lead on [date]".
+> 8. **Alerts share the quote-request switch**, renamed "New inquiries and messages".
+> 9. **Where it shows:** the Leads rail destination becomes live (web rail and tablet); the web
+>    worklist gains a "New leads" section counted in "Needs you"; Reports gains a Lead Sources
+>    report (leads by source, how many became clients). Android gets the alert and a "New
+>    leads" count on its worklist that points to the web; there is no phone Leads screen.
+> 10. **Privacy:** one line on the Privacy page about messages sent without an account; closed
+>     leads are deleted 24 months after they close; converted leads live on with the client.
+>
+> **Also settled the same day, for inquiry trips:** each "New inquiries" row on the worklist
+> (web and Android) shows how long it has waited, oldest first, with no red SLA flag; no field
+> records who started an inquiry; turning one down stays "cancel with a reason" (§3.4.16).
+>
+> **The 2026-09-09 revisit trigger is retired.** It asked whether "a visible share of visitors
+> take the email instead of the form". Leads are now counted in the platform itself, so the
+> Lead Sources report answers that directly.
 
 ### 6.6 Messaging & Notifications
 
@@ -497,7 +541,7 @@ The core entities and relationships:
 
 **Commission** — expected, invoiced, and received commission per Trip: gross booking value, commission rate, supplier, payment terms, status, reconciliation reference to Inteletravel report.
 
-**Lead** — *deferred, see §6.5 (2026-09-09).* Was: a qualified inquiry from self-guided search, converted to a Trip by the agent. A quote request now creates a Trip in `inquiry` status directly. The entity stays specified in Data-Model §11 because it is the designed answer if the account requirement proves too costly at the top of the funnel.
+**Lead** — *revived 2026-10-21 in a smaller shape, see §6.5.* Somebody without an account who sent Gyasi a message (or whom he added by hand), tracked until they become a client or the lead is closed. A quote request still creates a Trip in `inquiry` status directly and is never a lead. Data-Model §11.
 
 **Message** — inbound/outbound communication, threaded by Trip or by Client; channel (in-app, email, eventually SMS).
 
@@ -519,7 +563,7 @@ Goal: cancel Travefy.
 
 ### 13.2 Phase 2 — Self-Guided Search & API Integrations
 
-Integrate Amadeus (flights), Hotelbeds (hotels), Viator (tours) for self-guided search and lead generation; lead workflow for the agent; advanced commission reporting with Inteletravel reconciliation; cruise content display (Widgety); deeper itinerary auto-generation from API-sourced components.
+Integrate Amadeus (flights), Hotelbeds (hotels), Viator (tours) for self-guided search and lead generation; lead workflow for the agent (built ahead of the API work from 2026-10-21 in the §6.5 shape: messages without an account, not quote requests); advanced commission reporting with Inteletravel reconciliation; cruise content display (Widgety); deeper itinerary auto-generation from API-sourced components.
 
 Goal: start generating leads from the platform itself.
 

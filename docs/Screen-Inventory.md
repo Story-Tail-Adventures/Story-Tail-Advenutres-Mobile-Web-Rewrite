@@ -31,7 +31,7 @@ Administrator-role screens are out of scope for this document and will be invent
 
 | Area | Screens |
 |---|---|
-| Client — Public / Pre-Auth Surface | 11 |
+| Client — Public / Pre-Auth Surface | 12 (was 11) |
 | Client — Authentication & Onboarding | 14 |
 | Client — Dashboard & Trip Experience | 11 |
 | Client — Self-Guided Search | 10 |
@@ -40,7 +40,7 @@ Administrator-role screens are out of scope for this document and will be invent
 | Client — Messaging | 3 |
 | Client — Mobile-Specific | 8 |
 | Client — Group Trip Coordination (Future-Ready) | 4 |
-| **Client total** | **72** (was 79) |
+| **Client total** | **73** (was 72) |
 | Agent — Authentication & Activation | 10 |
 | Agent — Dashboard & Pipeline | 3 |
 | Agent — Client Management (CRM) | 12 |
@@ -51,10 +51,10 @@ Administrator-role screens are out of scope for this document and will be invent
 | Agent — Leads | 5 |
 | Agent — Login Support / Account Admin | 7 |
 | Agent — Messaging & Templates | 6 |
-| Agent — Reporting | 8 |
+| Agent — Reporting | 9 (was 8) |
 | Agent — Agent Profile & Settings | 5 |
-| **Agent total** | **90** (was 93) |
-| **Platform total** | **~162 screens** (was ~172) |
+| **Agent total** | **91** (was 90) |
+| **Platform total** | **~164 screens** (was ~162) |
 
 These counts include states, modals, and confirmation screens that meaningfully change what the user sees. They do not count every individual tab within a single screen.
 
@@ -63,6 +63,10 @@ These counts include states, modals, and confirmation screens that meaningfully 
 > screens, not 172. The client's pay button and "I've paid" are parts of 2.2.3, not new
 > screens. Retired and removed screens keep their numbers and headings below as a record.
 > Other docs and CLAUDE.md that say "172 screens" are now out of date by ten.
+>
+> **Amended 2026-10-21: two screens more.** 2.0.12 Message Gyasi (the public form that makes a
+> lead) and 3.11.9 Lead Sources (3.8.5 moved into Reports). §3.8 keeps five: 3.8.5 becomes Add
+> Lead. See BRD §6.5 (2026-10-21).
 
 ---
 
@@ -137,6 +141,10 @@ there is no lead to capture. The email is the whole of the no-account path: it i
 thing on this screen a visitor can do without signing up, which makes it load-bearing rather
 than a placeholder.
 
+**Superseded 2026-10-21 (BRD §6.5).** The email link is replaced by the 2.0.12 form, which makes
+a lead in the platform, carries what the visitor was viewing, and is counted. "Message Gyasi
+without an account" now opens `/message` with the trip attached.
+
 #### 2.0.6 Sign-up Gate / Quote Request Prompt
 **Purpose:** Convert browsing into account creation at the moment of high intent.
 **Primary elements:** Contextual headline ("Almost there — create an account to send Gyasi your trip details"); short value prop (3 bullets); inline registration form (name, email, password) with social-login options; "Already have an account? Sign in" link; "Continue as guest with just email" fallback (opens a prefilled email to Gyasi — see the implementation note).
@@ -152,6 +160,10 @@ are all `NOT NULL`, so there is no way to record an intent without a registered 
 guest fallback is an email to Gyasi and carries no search context with it. Worth measuring:
 if a visible share of visitors take the email rather than the form, the Lead domain
 (Data-Model §11) is the designed fix and is deferred rather than deleted.
+
+**Amended 2026-10-21 (BRD §6.5).** "Continue as guest" now opens the 2.0.12 form instead of an
+email, and its message becomes a lead. A quote still needs an account: the guest path is a
+message to Gyasi, not a quote request, and its copy must not promise a quote.
 
 #### 2.0.7 Footer Pages (Privacy, Terms, Cookies, Accessibility)
 **Purpose:** Legal and compliance pages reachable from any public or authenticated screen.
@@ -191,6 +203,31 @@ if a visible share of visitors take the email rather than the form, the Lead dom
 **Key actions:** Request a quote; message Gyasi; read; expand FAQ.
 **Entry points:** Public nav "About Gyasi"; the Gyasi card on 2.0.2 and 2.0.5; footer.
 **Related screens:** About / How It Works, Sign-up Gate.
+
+#### 2.0.12 Message Gyasi (no account)
+**Phase:** P2 (added 2026-10-21, BRD §6.5).
+**Purpose:** Let a visitor who will not create an account send Gyasi a note, and make it a lead
+the platform tracks (Data-Model §11), instead of an email that leaves the site.
+**Primary elements:** Short intro in Gyasi's voice; "About: [trip or topic]" line when opened
+from one; first name (required), last name, email (required), phone, message (required, up to
+2,000 characters); a hidden field only bots fill; "Send to Gyasi" button; the line "Gyasi will
+only use this to get back to you and see where people find us", linked to the Privacy page; no
+consent checkbox. *(The ruled wording was "Gyasi will only use this to reply to you"; the
+brand-voice review on 2026-10-21 widened it, because the page, the trip or topic and the
+campaign tag are also kept for 3.11.9, and "only to reply" would be untrue.)* After sending,
+an on-screen thank-you that uses the settled reply-time string ("Usually replies the same
+day") and a gentle link back to browsing. **No email is sent to the visitor** (a form that
+mails any typed address can be used to send mail to strangers).
+**Key actions:** Send.
+**Entry points:** Every "Message Gyasi" link on the public surface (landing, how it works, About
+Gyasi, topic pages, results, detail) and 2.0.6's "Continue as guest". Web: `/message`, which
+works without JavaScript like `/join`; Android: a public-flow screen.
+**Related screens:** Sign-up Gate (the quote path, for comparison), 2.0.7 Privacy.
+**Rules:** a send from an address already on a client record is still saved (linked, "Already a
+client") and still alerts Gyasi; the visitor sees the same thank-you either way, so the form
+never confirms whether an address belongs to a client. Spam answers (hidden field filled, sent
+in under three seconds) look like success and save nothing; more than five sends in an hour
+from one network address gets a calm "Please try again a little later".
 
 ---
 
@@ -1716,6 +1753,23 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 > field is `new_inquiry_count` — no column, function or route on the agent side may be named
 > `lead`, or the deferred domain comes back by autocomplete. Copy may still say either.
 >
+> **Amended 2026-10-21: leads are real now, and they are not inquiries (BRD §6.5).** A lead is
+> somebody without an account who sent a message (Data-Model §11); an inquiry is still a trip a
+> client asked for. The naming rule above now cuts the other way: `new_inquiry_count` and the
+> "New inquiries" section stay about trips, and everything about leads is named `lead`. Two
+> changes to this screen, web and Android:
+> - **"New inquiries" rows show how long each has waited** ("Waiting 2 days", from
+>   `trip.created_at` in the advisor's time zone), **oldest first**. No red SLA flag: the
+>   promise is "Usually replies the same day", and an alarm colour does not fit §2's pace. The
+>   section still lists every `inquiry` trip, including ones the advisor started; no field
+>   records who started it.
+> - **A "New leads" section under "New inquiries"** on the web, oldest first, each row the
+>   lead's name, how long it has waited and the start of their message, linking to 3.8.2. Only
+>   `new` leads; an "Already a client" message is not one. It counts toward "Needs you". The
+>   section's old "There is no Leads inbox" line under New inquiries is removed. **Android**
+>   shows a "New leads" count with a line pointing to the web, because there is no phone Leads
+>   screen.
+>
 > **Cycle time starts empty and the screen must say so.** `trip.status_changed_at` keeps only
 > the latest transition, so the figure is computed from `trip_status_history`, which
 > accumulates forward from 2026-09-19. It returns NULL with a zero sample until trips move
@@ -2048,6 +2102,10 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 **Key actions:** Navigate tabs; quick actions.
 **Entry points:** Client List; Lead conversion.
 **Related screens:** All client sub-screens, Trip Detail, Conversation Thread.
+
+> **Amended 2026-10-21 (BRD §6.5).** A client who first reached out as a lead shows "First
+> reached out as a lead on [date]" under the header, linking to that lead (3.8.2). The earliest
+> linked lead wins. Web only, like §3.8.
 
 #### 3.3.3 Client Overview Tab
 **Purpose:** Snapshot of the client's profile and preferences.
@@ -3167,51 +3225,86 @@ Covers both day-to-day authentication and the first-run experience when a new ad
 
 ### 3.8 Leads
 
-**Phase:** All screens in Section 3.8 are **Phase 2** per BRD Section 13.2. They depend on the Lead and LeadSource entities (P2 in the Data Model) and on the self-guided search flow that generates leads. They do not exist at MVP — leads at MVP are tracked as informal trip-inquiry messages rather than structured Lead records.
+**Phase:** P2, built ahead of the travel APIs (ruled 2026-10-21). **Web only** for the advisor:
+the rail and tablet carry Leads; the phone gets the alert and a "New leads" count on its
+worklist that points to the web (§3.2.1).
 
-> **§3.8 IS DEFERRED AS OF 2026-09-09, NOT DELETED.** Per BRD §6.5 a quote request now
-> creates a Trip in `inquiry` status rather than a Lead, so nothing arrives in this workspace
-> — the agent works one queue (3.3 Trips) instead of two, and 3.8.3's "Convert Lead to Trip"
-> step no longer exists as a stage. The five screens below stay specified because the Lead
-> domain (Data-Model §11) is still the designed answer if requiring an account at the top of
-> the funnel proves too lossy; if it is revived, this is what it looks like. Until then,
-> **treat §3.8 as unbuilt and unplanned**, and read `inquiry`-status trips in 3.3 as the
-> queue it describes.
+> **REVIVED 2026-10-21 IN A SMALLER SHAPE (grilled with Gyasi, "yes" to every recommendation).**
+> The 2026-09-09 deferral is superseded. Gyasi's rule: anyone who asks for a quote is a
+> client (a trip in `inquiry`, worked in 3.3 / 3.4 as before); anyone who only messages him
+> without an account is a **lead**. The deferral had left that second person untracked: the
+> "Message Gyasi" email never reached the platform. BRD §6.5 carries the ten rulings; the
+> entity is Data-Model §11. What changed from the original five screens:
+> - **3.8.1** lists messages, not quote requests: no search criteria, no SLA colour, no
+>   bulk-archive.
+> - **3.8.2** shows the messages and what the visitor was viewing; replying happens in Gyasi's
+>   own email app, so there is no thread here, and no "assign" (P3).
+> - **3.8.3 "Convert Lead to Trip" becomes "Invite to an account":** a lead converts to a
+>   CLIENT, who then asks for trips.
+> - **3.8.4** closes with a private reason (the lead never sees it) and adds Delete as spam.
+> - **3.8.5 Lead Source Analytics moves to Reports as 3.11.9**, and 3.8.5 is now Add Lead.
+>
+> *(The 2026-09-09 note, kept as the record: "§3.8 IS DEFERRED, NOT DELETED. A quote request
+> creates a Trip in `inquiry` status rather than a Lead, so nothing arrives in this workspace."
+> That is still true of quote requests.)*
 
-#### 3.8.1 Leads Inbox
-**Purpose:** All new quote-request leads from self-guided search.
-**Primary elements:** Filters (status, source, date); list rows (name, destination, dates, source, age of lead); SLA indicator (red if past target response time).
-**Key actions:** Open lead; bulk-archive.
-**Entry points:** Nav "Leads"; Agent Dashboard.
-**Related screens:** Lead Detail.
+#### 3.8.1 Leads List
+**Purpose:** Everyone without an account who has written to Gyasi, and where each one stands.
+**Primary elements:** Status filter chips (Open = New + Contacted, the default; Converted;
+Closed; All); rows newest message first: name, the start of their latest message, source,
+"Already a client" label when it applies, status chip, and how long it has waited (New only).
+"Add lead" button. Empty state in §2's voice.
+**Key actions:** Open a lead; add a lead.
+**Entry points:** Rail "Leads"; worklist "New leads"; the lead alert.
+**Related screens:** Lead Detail, Add Lead.
 
 #### 3.8.2 Lead Detail
-**Purpose:** Everything about a single lead.
-**Primary elements:** Contact info; trip request summary; favorites/search context; client account state (existing vs. new); message thread; conversion actions.
-**Key actions:** Convert to trip; convert to client only; reject; assign.
-**Entry points:** Leads Inbox.
-**Related screens:** Convert Lead to Trip, Create Client.
+**Purpose:** Everything about one lead, and the next step.
+**Primary elements:** Name, email, phone, source, status, dates (first message, contacted,
+converted or closed); every message, oldest first, each with what they were viewing ("About: a
+Caribbean week", which page) and any campaign tags; for a converted lead, "Open client"; for a
+closed one, the reason and private note.
+**Key actions:** **Reply** (a `mailto:` to the lead with a subject, opening Gyasi's own email
+app; the platform sends nothing); **Mark contacted** (sets the first-contacted date once);
+**Invite to an account** (3.8.3); **Close** (3.8.4); **Reopen** (a closed lead goes back to
+Contacted if it ever was, otherwise New); **Delete as spam** (3.8.4).
+**Entry points:** Leads List; worklist; alert; a client's "First reached out as a lead" link.
+**Related screens:** Invite to an Account, Close / Delete, Client Detail.
+**Rules:** an "Already a client" lead offers "Open client" and none of the other actions.
+Reopening fails politely if the same email already has another open lead.
 
-#### 3.8.3 Convert Lead to Trip
-**Purpose:** Promote a lead into the trip pipeline.
-**Primary elements:** Client picker (existing or create new); trip-type pre-fill from lead; "Continue to builder" CTA.
-**Key actions:** Convert.
+#### 3.8.3 Invite to an Account
+**Purpose:** Turn a lead into a client with a sign-in.
+**Primary elements:** A small dialog prefilled from the lead: first name, last name (required
+here, because a client record needs one), email. "Send invite" button.
+**Key actions:** Send invite. It creates the client (as 3.3.9 does), sends the §3.9 invite, and
+marks the lead Converted with the client linked. If the email is already a client's, it links
+to that client and sends nothing.
 **Entry points:** Lead Detail.
-**Related screens:** Trip Builder, Create Client.
+**Related screens:** Create Client (3.3.9), Account admin invite (§3.9).
 
-#### 3.8.4 Reject / Archive Lead
-**Purpose:** Dispose of leads that won't convert.
-**Primary elements:** Reason field (with common reasons); optional client notification template.
-**Key actions:** Reject; archive.
+#### 3.8.4 Close / Delete as Spam
+**Purpose:** Set aside a lead that will not become a client, or remove junk.
+**Primary elements:** Close: reason chips (Not a fit, No reply, Went elsewhere, Other) and an
+optional private note (up to 500 characters). Delete as spam: a confirm that says it cannot be
+undone.
+**Key actions:** Close; delete.
 **Entry points:** Lead Detail.
-**Related screens:** Leads Inbox.
+**Related screens:** Leads List.
+**Rules:** a closed lead is deleted automatically 24 months after it closed. A deleted lead's
+audit row keeps no name, email or message.
 
-#### 3.8.5 Lead Source Analytics
-**Purpose:** Where leads come from.
-**Primary elements:** Source breakdown chart; conversion rate per source; time-to-first-contact.
-**Key actions:** Filter by date.
-**Entry points:** Reports Hub.
-**Related screens:** Reports Hub.
+#### 3.8.5 Add Lead
+**Purpose:** Record somebody who reached Gyasi another way: a call, a text, a referral, an email
+to his own address.
+**Primary elements:** First name, last name, email (required, because one open lead per email
+is the rule), phone, source (Email, Phone, Referral, Social, Other), "What they're looking for"
+(required, up to 2,000 characters).
+**Key actions:** Save. An email already on an open lead adds the note to that lead; an email
+already on a client record says so and offers "Open client" instead.
+**Entry points:** Leads List.
+**Related screens:** Lead Detail.
+*(Was: Lead Source Analytics, now 3.11.9.)*
 
 ---
 
@@ -3821,6 +3914,20 @@ Preferences (3.12.3).
 **Entry points:** Reports Hub; any report "Export".
 **Related screens:** Reports Hub.
 
+#### 3.11.9 Lead Sources
+**Phase:** P2 (added 2026-10-21 from 3.8.5, BRD §6.5).
+**Purpose:** Where leads come from, and how many became clients.
+**Primary elements:** The shared period chips; one bar per source (Website form, Email, Phone,
+Referral, Social, Other) for leads created in the period, each split into became a client /
+still open / closed, with the same figures in a plain table under it. "Already a client"
+messages are left out: they were never leads. For website leads, a second small table of
+campaign tags (`utm_source`) when any exist.
+**Key actions:** Change the period.
+**Entry points:** Reports Hub (a tile like the others).
+**Related screens:** Leads List (3.8.1), Conversion Funnel (3.11.6, which still starts at
+Inquiry: a lead is before the funnel, not a stage of it).
+**Rules:** no time-to-first-contact figure (ruled out 2026-10-21). Not in the Export Center.
+
 ---
 
 ### 3.12 Agent Profile & Settings
@@ -3972,6 +4079,13 @@ Preferences (3.12.3).
 **Entry points:** Profile menu.
 **Related screens:** Profile.
 
+> **Amended 2026-10-21 (BRD §6.5).** A lead's message alerts the advisor through the same switch
+> as a quote request, and the row is renamed from "New trip request" to **"New inquiries and
+> messages"** (hint: "A client asks for a quote, or someone without an account writes to
+> you."). The stored key stays `quote_requests`, so saved settings carry over. The alert says
+> who and links to the lead (3.8.2), never what they wrote; on the phone, until the Android PR
+> lands, tapping it opens the worklist.
+
 #### 3.12.4 Email Signature Configuration
 **Purpose:** Standard signature for all outbound email.
 **Primary elements:** Rich-text editor with merge fields; live preview.
@@ -4112,6 +4226,7 @@ Each screen's pattern assignment and any meaningful deviations from the pattern.
 - **2.0.7 Footer Pages** — Pattern I, simplified. Identical content across viewports; mobile uses larger type. Web implementation note: 2.0.2's FAQ ships as a single-column accordion on web too (matches the design prototype), and 2.0.6 ships as a route rather than a modal.
 - **2.0.8 Caribbean / 2.0.9 Cruises / 2.0.10 Honeymoons** — Pattern H. Web: inquire bar sticks under the top bar, 3-column trip grid, island tiles in one row. Tablet: 2-column grid; the four-cell inquire bars (2.0.8, 2.0.10) wrap to two rows of two, while the three-cell Cruises bar fits one row. Mobile: single column, island tiles as a horizontal snap strip, trips as image-left rows, inquire bar replaced by the sticky bottom CTA ("Request a quote").
 - **2.0.11 About Gyasi** — Pattern H with Pattern I reading widths. Web: two-column hero (copy + portrait), 4-up stats strip, two-column story/credentials, 3-column testimonials. Tablet: hero keeps two columns, story stacks above credentials. Mobile: stacked; portrait becomes a round badge on the hero; testimonials as a horizontal snap strip; sticky bottom CTA.
+- **2.0.12 Message Gyasi** — Pattern J (centered card, like 2.0.6's `/join`). Web, tablet and phone alike; on Android it is a screen in the public flow.
 
 #### Client — Authentication & Onboarding (2.1.x)
 - **2.1.1 Login** — Pattern A.
@@ -4269,11 +4384,11 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 - **3.7.7 Commission Forecast / Pipeline** — Pattern D.
 
 #### Agent — Leads (3.8.x)
-- **3.8.1 Leads Inbox** — Pattern B.
+- **3.8.1 Leads List** — Pattern B. **Web and tablet only** (2026-10-21); the phone has no Leads screen.
 - **3.8.2 Lead Detail** — Pattern C.
-- **3.8.3 Convert Lead to Trip** — Pattern G.
-- **3.8.4 Reject / Archive Lead** — Pattern J.
-- **3.8.5 Lead Source Analytics** — Pattern D.
+- **3.8.3 Invite to an Account** — Pattern J (dialog; was Convert Lead to Trip, Pattern G).
+- **3.8.4 Close / Delete as Spam** — Pattern J.
+- **3.8.5 Add Lead** — Pattern A (was Lead Source Analytics, now 3.11.9).
 
 #### Agent — Login Support (3.9.x)
 - **3.9.1 Client Account Management Screen** — Pattern C variant (per-client admin).
@@ -4293,6 +4408,7 @@ These screens exist only on mobile and tablet PWA installs. The web variant eith
 - **3.11.1 Reports Hub** — Pattern D variant (tile grid).
 - **3.11.2 – 3.11.7 Individual Reports** — Pattern D variants. **Web-primary** for all reports; mobile shows summary KPIs; tablet supports basic interaction.
 - **3.11.8 Export Center** — Pattern A. **Web-only** for downloads.
+- **3.11.9 Lead Sources** — Pattern D. Web only, like the rest of §3.11.
 
 #### Agent — Agent Profile & Settings (3.12.x)
 - **3.12.1 Agent Profile / My Account** — Pattern A.
@@ -4407,6 +4523,11 @@ Left rail: Dashboard, Pipeline, Calendar, Clients, Trips, Leads, Messages, Commi
 > Trips and Commission were each a whole area. Templates and Settings stay off for the reason
 > §6.6 gives about the phone bar: depth is not the same as reach. Settings is reachable from
 > the profile menu; Templates is §3.10.4, inside Messaging.
+>
+> **Amended 2026-10-21: Leads is live.** Until §3.8 was revived (BRD §6.5) the rail drew Leads
+> disabled with its reason, the only "deferred" destination. It now opens 3.8.1 like any other.
+> The rail stays seven; the phone bar stays four and has no Leads tab (§3.2.1 gives the phone a
+> "New leads" count instead).
 >
 > **Quick-add hides below 640px so the toggle can have its place.** The bar does not overflow — the brand link has no `shrink-0`, so the lockup absorbs the pressure and shrinks past the 80px legibility floor (Design-System §11.2) instead. Measured in Chrome, lockup width against its natural 201px: at 375px it went 152 → 115 when the toggle was added, and back to 144 once quick-add yields; at 400px, 131 → 94 → 120; from 500px up it is 201 either way. A disabled placeholder was costing a working control about 35px of logo at every phone width, so the placeholder gives way.
 
