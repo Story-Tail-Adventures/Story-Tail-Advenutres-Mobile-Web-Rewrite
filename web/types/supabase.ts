@@ -182,6 +182,7 @@ export type Database = {
           id: string
           kind: string
           last_error: string | null
+          lead_id: string | null
           sent_at: string | null
           state: string
           trip_id: string | null
@@ -195,6 +196,7 @@ export type Database = {
           id?: string
           kind: string
           last_error?: string | null
+          lead_id?: string | null
           sent_at?: string | null
           state?: string
           trip_id?: string | null
@@ -208,6 +210,7 @@ export type Database = {
           id?: string
           kind?: string
           last_error?: string | null
+          lead_id?: string | null
           sent_at?: string | null
           state?: string
           trip_id?: string | null
@@ -225,6 +228,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_alert_email_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
             referencedColumns: ["id"]
           },
           {
@@ -2351,6 +2361,167 @@ export type Database = {
           },
         ]
       }
+      lead: {
+        Row: {
+          agent_id: string
+          already_client: boolean
+          client_id: string | null
+          close_note: string | null
+          close_reason: Database["public"]["Enums"]["lead_close_reason"] | null
+          closed_at: string | null
+          converted_at: string | null
+          created_at: string
+          email: string
+          first_contacted_at: string | null
+          first_name: string
+          id: string
+          last_message_at: string
+          last_name: string | null
+          phone: string | null
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          agent_id: string
+          already_client?: boolean
+          client_id?: string | null
+          close_note?: string | null
+          close_reason?: Database["public"]["Enums"]["lead_close_reason"] | null
+          closed_at?: string | null
+          converted_at?: string | null
+          created_at?: string
+          email: string
+          first_contacted_at?: string | null
+          first_name: string
+          id?: string
+          last_message_at?: string
+          last_name?: string | null
+          phone?: string | null
+          source: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          agent_id?: string
+          already_client?: boolean
+          client_id?: string | null
+          close_note?: string | null
+          close_reason?: Database["public"]["Enums"]["lead_close_reason"] | null
+          closed_at?: string | null
+          converted_at?: string | null
+          created_at?: string
+          email?: string
+          first_contacted_at?: string | null
+          first_name?: string
+          id?: string
+          last_message_at?: string
+          last_name?: string | null
+          phone?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_message: {
+        Row: {
+          about_kind: string | null
+          about_label: string | null
+          about_slug: string | null
+          body: string
+          created_at: string
+          entered_by_agent: boolean
+          id: string
+          lead_id: string
+          page: string | null
+        }
+        Insert: {
+          about_kind?: string | null
+          about_label?: string | null
+          about_slug?: string | null
+          body: string
+          created_at?: string
+          entered_by_agent?: boolean
+          id?: string
+          lead_id: string
+          page?: string | null
+        }
+        Update: {
+          about_kind?: string | null
+          about_label?: string | null
+          about_slug?: string | null
+          body?: string
+          created_at?: string
+          entered_by_agent?: boolean
+          id?: string
+          lead_id?: string
+          page?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_message_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_submit_throttle: {
+        Row: {
+          created_at: string
+          ip_hash: string
+        }
+        Insert: {
+          created_at?: string
+          ip_hash: string
+        }
+        Update: {
+          created_at?: string
+          ip_hash?: string
+        }
+        Relationships: []
+      }
+      lead_throttle_salt: {
+        Row: {
+          day: string
+          salt: string
+        }
+        Insert: {
+          day: string
+          salt: string
+        }
+        Update: {
+          day?: string
+          salt?: string
+        }
+        Relationships: []
+      }
       message: {
         Row: {
           archived_at: string | null
@@ -2853,6 +3024,7 @@ export type Database = {
           id: string
           kind: string
           latest_message_id: string | null
+          lead_id: string | null
           message_count: number
           needs_dismiss: boolean
           sent_at: string | null
@@ -2871,6 +3043,7 @@ export type Database = {
           id?: string
           kind?: string
           latest_message_id?: string | null
+          lead_id?: string | null
           message_count: number
           needs_dismiss?: boolean
           sent_at?: string | null
@@ -2889,6 +3062,7 @@ export type Database = {
           id?: string
           kind?: string
           latest_message_id?: string | null
+          lead_id?: string | null
           message_count?: number
           needs_dismiss?: boolean
           sent_at?: string | null
@@ -2915,6 +3089,13 @@ export type Database = {
             columns: ["latest_message_id"]
             isOneToOne: false
             referencedRelation: "message"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_outbox_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead"
             referencedColumns: ["id"]
           },
           {
@@ -3632,6 +3813,7 @@ export type Database = {
           client_name: string
           conversation_id: string
           kind: string
+          lead_id: string
           recipient: string
           trip_id: string
           trip_title: string
@@ -3793,6 +3975,13 @@ export type Database = {
           size_bytes: string
           trip_id: string
           trip_title: string
+        }[]
+      }
+      agent_client_lead_origin: {
+        Args: { p_client_id: string }
+        Returns: {
+          created_at: string
+          lead_id: string
         }[]
       }
       agent_client_merge_view: {
@@ -4372,6 +4561,93 @@ export type Database = {
           unread_message_count: number
         }[]
       }
+      agent_lead: {
+        Args: { p_lead_id: string }
+        Returns: {
+          already_client: boolean
+          client_id: string
+          close_note: string
+          close_reason: Database["public"]["Enums"]["lead_close_reason"]
+          closed_at: string
+          converted_at: string
+          created_at: string
+          email: string
+          first_contacted_at: string
+          first_name: string
+          id: string
+          last_message_at: string
+          last_name: string
+          phone: string
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          utm_campaign: string
+          utm_medium: string
+          utm_source: string
+        }[]
+      }
+      agent_lead_create: {
+        Args: {
+          p_agent_id: string
+          p_body: string
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_phone: string
+          p_source: Database["public"]["Enums"]["lead_source"]
+        }
+        Returns: {
+          client_id: string
+          lead_id: string
+          outcome: string
+        }[]
+      }
+      agent_lead_messages: {
+        Args: { p_lead_id: string }
+        Returns: {
+          about_kind: string
+          about_label: string
+          about_slug: string
+          body: string
+          created_at: string
+          entered_by_agent: boolean
+          id: string
+          page: string
+        }[]
+      }
+      agent_lead_write: {
+        Args: {
+          p_agent_id: string
+          p_client_id: string
+          p_close_note: string
+          p_close_reason: Database["public"]["Enums"]["lead_close_reason"]
+          p_lead_id: string
+          p_op: string
+        }
+        Returns: {
+          outcome: string
+          status: Database["public"]["Enums"]["lead_status"]
+        }[]
+      }
+      agent_leads: {
+        Args: never
+        Returns: {
+          already_client: boolean
+          client_id: string
+          closed_at: string
+          converted_at: string
+          email: string
+          first_contacted_at: string
+          first_message_at: string
+          first_name: string
+          id: string
+          last_message_at: string
+          last_name: string
+          latest_preview: string
+          message_count: number
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+        }[]
+      }
       agent_local_today: { Args: { p_agent_id: string }; Returns: string }
       agent_map_commission_import: {
         Args: {
@@ -4635,6 +4911,24 @@ export type Database = {
           p_user_agent: string
         }
         Returns: Json
+      }
+      agent_report_lead_campaigns: {
+        Args: { p_period: string }
+        Returns: {
+          converted_count: number
+          lead_count: number
+          utm_source: string
+        }[]
+      }
+      agent_report_lead_sources: {
+        Args: { p_period: string }
+        Returns: {
+          closed_count: number
+          converted_count: number
+          lead_count: number
+          open_count: number
+          source: Database["public"]["Enums"]["lead_source"]
+        }[]
       }
       agent_report_period: {
         Args: { p_period: string }
@@ -5467,6 +5761,7 @@ export type Database = {
           outcome: string
         }[]
       }
+      alert_lead_message: { Args: { p_lead_id: string }; Returns: string }
       alert_quote_request: { Args: { p_trip_id: string }; Returns: string }
       block_for_time: {
         Args: { p_time: string }
@@ -5721,6 +6016,31 @@ export type Database = {
       }
       itinerary_for_trip: { Args: { p_trip_id: string }; Returns: string }
       itinerary_touch: { Args: { p_itinerary_id: string }; Returns: undefined }
+      lead_active_agent: { Args: never; Returns: string }
+      lead_link_client: { Args: { p_client_id: string }; Returns: number }
+      lead_retention_sweep: { Args: never; Returns: number }
+      lead_submit: {
+        Args: {
+          p_about_kind: string
+          p_about_label: string
+          p_about_slug: string
+          p_body: string
+          p_email: string
+          p_first_name: string
+          p_ip: string
+          p_last_name: string
+          p_page: string
+          p_phone: string
+          p_utm_campaign: string
+          p_utm_medium: string
+          p_utm_source: string
+        }
+        Returns: {
+          lead_id: string
+          outcome: string
+        }[]
+      }
+      lead_throttle_check: { Args: { p_ip: string }; Returns: boolean }
       message_preview: { Args: { p_body: string }; Returns: string }
       message_template_check: {
         Args: {
@@ -5773,6 +6093,7 @@ export type Database = {
           hold_reason: string
           kind: string
           latest_created_at: string
+          lead_id: string
           message_count: number
           outbox_id: string
           preview: string
@@ -5923,6 +6244,24 @@ export type Database = {
         Args: { p_trip_id: string }
         Returns: string
       }
+      report_lead_campaigns: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          converted_count: number
+          lead_count: number
+          utm_source: string
+        }[]
+      }
+      report_lead_sources: {
+        Args: { p_agent_id: string; p_period: string }
+        Returns: {
+          closed_count: number
+          converted_count: number
+          lead_count: number
+          open_count: number
+          source: Database["public"]["Enums"]["lead_source"]
+        }[]
+      }
       report_period_bounds: {
         Args: { p_period: string; p_today: string }
         Returns: {
@@ -6068,6 +6407,15 @@ export type Database = {
         | "budget_exhausted"
         | "provider_unavailable"
         | "rejected"
+      lead_close_reason: "not_a_fit" | "no_reply" | "went_elsewhere" | "other"
+      lead_source:
+        | "website"
+        | "email"
+        | "phone"
+        | "referral"
+        | "social"
+        | "other"
+      lead_status: "new" | "contacted" | "converted" | "closed"
       mfa_kind: "totp" | "sms" | "backup_codes"
       payment_milestone_kind: "deposit" | "interim" | "final"
       payment_milestone_status: "scheduled" | "paid" | "waived" | "overdue"
@@ -6332,6 +6680,9 @@ export const Constants = {
         "provider_unavailable",
         "rejected",
       ],
+      lead_close_reason: ["not_a_fit", "no_reply", "went_elsewhere", "other"],
+      lead_source: ["website", "email", "phone", "referral", "social", "other"],
+      lead_status: ["new", "contacted", "converted", "closed"],
       mfa_kind: ["totp", "sms", "backup_codes"],
       payment_milestone_kind: ["deposit", "interim", "final"],
       payment_milestone_status: ["scheduled", "paid", "waived", "overdue"],

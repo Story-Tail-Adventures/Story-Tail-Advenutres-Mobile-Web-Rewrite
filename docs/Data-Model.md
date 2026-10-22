@@ -2172,7 +2172,7 @@ Any of these stops the reconcile with the rows that need the advisor at the top 
 | `converted_at` | `timestamptz` | Yes | Internal | Set with `status = 'converted'` |
 | `closed_at` | `timestamptz` | Yes | Internal | Set with `status = 'closed'`; cleared on reopen. The retention clock |
 | `close_reason` | `lead_close_reason` enum | Yes | Internal | `not_a_fit`, `no_reply`, `went_elsewhere`, `other`. Never shown to the lead |
-| `close_note` | `text` | Yes | Internal | Optional private note on close, up to 500 characters |
+| `close_note` | `text` | Yes | Internal | Optional private note on close, up to 500 characters. Refused if it holds a card number (§18.1a), as `phone` is |
 | `last_message_at` | `timestamptz` | No | Internal | The newest message; the list's order |
 | `created_at` | `timestamptz` | No | Public | — |
 | `updated_at` | `timestamptz` | No | Public | — |
@@ -2201,7 +2201,7 @@ Converted leads are kept as part of the client's history. "Delete as spam" delet
 |---|---|---|---|---|
 | `id` | `uuid` | No | Public | Server default `uuid_v7()` |
 | `lead_id` | `uuid` | No | Public | FK → Lead, `ON DELETE CASCADE` |
-| `body` | `text` | No | PII | 1 to 2,000 characters. What the visitor wrote, or what the advisor noted on "Add lead" |
+| `body` | `text` | No | PII | 1 to 2,000 characters. What the visitor wrote, or what the advisor noted on "Add lead". **Refused if it holds a card number** (§18.1a's guard): the form says so and asks them to leave it out |
 | `entered_by_agent` | `boolean` | No | Internal | True for "Add lead"'s note |
 | `page` | `text` | Yes | Internal | Which public page the form was opened from: `landing`, `how-it-works`, `about`, `topic`, `results`, `detail`, `join` (the web's `InquirySource`), or `app` for the Android public screens |
 | `about_kind` | `text` | Yes | Internal | `trip` or `topic`, when the visitor was viewing one |
@@ -3559,6 +3559,7 @@ masker that copies a client's words out of a thread find a card number the same 
 | Where | Refuses or masks | Code |
 |---|---|---|
 | `payment_milestone` pay link, confirmation, note | Refuses | SQL `public.text_has_card_digits`; Edge `hasCardNumber` (`_shared/cardDigits.ts`, via `payLink.ts`); web `looksLikeCardNumber` (`lib/trips/payLink.ts`) |
+| `lead_message.body`, `lead.phone`, `lead.close_note` (§11, 2026-10-21) | Refuses | SQL CHECKs on `public.text_has_card_digits`; Edge `hasCardNumber` in `_shared/lead.ts`. A message box open to anyone is where a card number is most likely to be pasted, and nothing has been stored yet, so refusing keeps it out entirely |
 | Web push and FCM message body (§12.7) | Masks | `maskCardNumbers` in `_shared/cardDigits.ts`, re-exported by `push.ts` |
 | Email outbox body and subject, inbound reply text (§12.8) | Masks | the same `maskCardNumbers` (`email.ts`, `email-inbox`) |
 | Phone notification text | Masks | `maskCardNumbers` in mobile `domain/agent/AgentNotifications.kt` |

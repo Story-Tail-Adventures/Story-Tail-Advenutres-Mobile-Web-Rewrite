@@ -29,8 +29,11 @@ export type PushPlatform = "android" | "web" | "ios";
 export interface ClaimedRow {
   outbox_id: string;
   agent_id: string;
-  /** §3.12.3: a client message, or a quote request (an inquiry trip a client asked for). */
-  kind: "message" | "quote_request";
+  /**
+   * §3.12.3: a client message, or a quote request (an inquiry trip a client asked for), or
+   * since 2026-10-21 a lead's message (somebody without an account wrote; §3.8).
+   */
+  kind: "message" | "quote_request" | "lead_message";
   /** Set for a message; null for a quote request. */
   conversation_id: string | null;
   /** Set for a quote request. */
@@ -48,6 +51,8 @@ export interface ClaimedRow {
   destination: string | null;
   start_date: string | null;
   end_date: string | null;
+  /** Set for a lead's message. Its `client_name` is the lead's own name. */
+  lead_id: string | null;
 }
 
 /** A row `push_devices_for_agent` returns. */
@@ -113,7 +118,27 @@ export interface QuoteRequestPayload {
   url: string;
 }
 
-export type PushPayload = MessagePayload | SummaryPayload | DismissPayload | QuoteRequestPayload;
+/**
+ * §3.8 (2026-10-21): somebody without an account wrote through the public form. The title is
+ * their name only; the body never carries what they wrote, on the web either: a stranger's
+ * words have not earned a place on a lock screen, and the lead page is one tap away.
+ */
+export interface LeadMessagePayload {
+  v: 1;
+  kind: "lead_message";
+  tag: string;
+  leadId: string;
+  title: string;
+  body: string;
+  url: string;
+}
+
+export type PushPayload =
+  | MessagePayload
+  | SummaryPayload
+  | DismissPayload
+  | QuoteRequestPayload
+  | LeadMessagePayload;
 
 export const SUMMARY_TAG = "summary";
 export const INBOX_URL = "/agent/messages";
@@ -188,6 +213,20 @@ export function quoteRequestPayload(row: ClaimedRow): QuoteRequestPayload {
   };
 }
 
+export function leadMessagePayload(row: ClaimedRow): LeadMessagePayload {
+  const leadId = row.lead_id ?? "";
+  const name = row.client_name?.trim() || "Someone new";
+  return {
+    v: 1,
+    kind: "lead_message",
+    tag: `lead-${leadId}`,
+    leadId,
+    title: `New message from ${name}`,
+    body: "They wrote from the website. Open it to read and reply.",
+    url: `/agent/leads/${leadId}`,
+  };
+}
+
 /** "Jordan Hayes", "Jordan Hayes and Maya Carter", "A, B and C", "A, B, C and 2 others". */
 export function nameList(names: string[]): string {
   const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
@@ -208,10 +247,11 @@ const OVERNIGHT_HOURS = 11;
  * worth reads "while you rested", which is true of both.
  */
 export function summaryPayload(rows: ClaimedRow[], now: Date): SummaryPayload {
-  const messages = rows.filter((r) => r.kind !== "quote_request");
+  const messages = rows.filter((r) => r.kind === "message");
   const requests = rows.filter((r) => r.kind === "quote_request");
   const count = messages.reduce((n, r) => n + Math.max(1, r.message_count), 0);
   const asks = requests.length;
+  const leads = rows.filter((r) => r.kind === "lead_message").length;
   const oldest = Math.min(
     ...rows.map((r) => Date.parse(r.latest_created_at) || now.getTime()),
   );
@@ -222,16 +262,18 @@ export function summaryPayload(rows: ClaimedRow[], now: Date): SummaryPayload {
   const parts = [
     count > 0 ? `${count} new ${count === 1 ? "message" : "messages"}` : null,
     asks > 0 ? `${asks} trip ${asks === 1 ? "request" : "requests"}` : null,
-  ].filter(Boolean).join(" and ");
+    leads > 0 ? (leads === 1 ? "1 note from someone new" : `${leads} notes from new people`) : null,
+  ].filter((p): p is string => p !== null);
+  const said = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
   return {
     v: 1,
     kind: "summary",
     tag: SUMMARY_TAG,
-    count: count + asks,
-    title: `${parts} ${away ? "while you were away" : "while you rested"}`,
+    count: count + asks + leads,
+    title: `${said} ${away ? "while you were away" : "while you rested"}`,
     // The title already says rested or away; "reached out" fits trip requests too.
     body: `${names} reached out${overnight ? " overnight" : ""}.`,
-    url: count > 0 ? INBOX_URL : "/agent/trips",
+    url: count > 0 ? INBOX_URL : asks > 0 ? "/agent/trips" : "/agent/leads",
   };
 }
 
@@ -242,7 +284,7 @@ export function dismissPayload(conversationId: string, readUpTo: string | null =
 /** What one claimed batch sends for one advisor: each live row alone, the held ones as one. */
 export interface Send {
   outboxIds: string[];
-  payload: MessagePayload | SummaryPayload | QuoteRequestPayload;
+  payload: MessagePayload | SummaryPayload | QuoteRequestPayload | LeadMessagePayload;
 }
 
 export function planForAgent(rows: ClaimedRow[], now: Date): Send[] {
@@ -250,7 +292,11 @@ export function planForAgent(rows: ClaimedRow[], now: Date): Send[] {
   const held = rows.filter((r) => r.held);
   const sends: Send[] = live.map((r) => ({
     outboxIds: [r.outbox_id],
-    payload: r.kind === "quote_request" ? quoteRequestPayload(r) : messagePayload(r),
+    payload: r.kind === "quote_request"
+      ? quoteRequestPayload(r)
+      : r.kind === "lead_message"
+      ? leadMessagePayload(r)
+      : messagePayload(r),
   }));
   if (held.length > 0) {
     sends.push({ outboxIds: held.map((r) => r.outbox_id), payload: summaryPayload(held, now) });

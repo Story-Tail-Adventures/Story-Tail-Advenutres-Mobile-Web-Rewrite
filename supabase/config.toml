@@ -452,6 +452,10 @@ EMAIL_IMAP_USER = "env(EMAIL_IMAP_USER)"
 EMAIL_IMAP_PASSWORD = "env(EMAIL_IMAP_PASSWORD)"
 # The receiving server's name in Authentication-Results; unset, no reply verifies (fail closed).
 EMAIL_AUTHSERV_ID = "env(EMAIL_AUTHSERV_ID)"
+# §3.8 (2026-10-21): the key the web server sends beside a visitor's address to lead-message, so
+# the per-address limit counts visitors rather than the web server. The web's is
+# STA_LEAD_FORM_KEY. Unset, the forwarded address is ignored (the limit still applies).
+LEAD_FORM_KEY = "env(LEAD_FORM_KEY)"
 
 # Declared explicitly, one block per function, because Supabase's GitHub integration deploys
 # the Edge Functions "declared in config.toml" — an undeclared directory may simply never
@@ -708,3 +712,14 @@ verify_jwt = true
 # one-click with no Authorization header, so OFF. The 128-bit token in the link is the
 # credential, and it changes one switch for one person.
 verify_jwt = false
+
+# ── §3.8 Leads (2026-10-21) ───────────────────────────────────────────────────
+# The public "Message Gyasi" form (Screen Inventory 2.0.12): a visitor without an account, so
+# OFF. The function's own checks are the gate: a hidden field, a too-fast check, and five sends
+# an hour per address in lead_submit.
+[functions.lead-message]
+verify_jwt = false
+
+# The advisor's lead actions. requireAgentId (aal2, not archived) is the gate.
+[functions.agent-lead]
+verify_jwt = true
