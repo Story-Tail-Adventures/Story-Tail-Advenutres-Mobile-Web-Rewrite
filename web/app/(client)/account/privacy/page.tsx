@@ -42,7 +42,8 @@ const TITLE_ROW_SX = { display: "flex", alignItems: "center", gap: 1 } as const;
  *  · Of the artboard's three tracking toggles, only Analytics is drawn (AnalyticsSwitch),
  *    and only when Firebase is configured: it switches Google Analytics, the one tracker
  *    that needs a yes. Essential cookies are not a choice, and there is no Marketing tracker.
- *    The statement above it stays, because the cookieless Vercel count has no switch.
+ *    The statement above it stays: it also covers the sign-in cookies, which are
+ *    not a choice.
  *  · The export does NOT claim to include the document-access trail. Every signature from
  *    trip-document-url writes an `audit_event`, but that is the agency's table and §2.2
  *    deliberately gave clients no policy on it — naming it here would promise data the

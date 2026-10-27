@@ -1,67 +1,72 @@
 import { describe, it, expect } from "vitest";
-import { redactAnalyticsEvent, redactAnalyticsUrl } from "./analytics";
+import { redactAnalyticsUrl } from "./analytics";
 
+/**
+ * The privacy boundary for analytics, and the whole of it: the only thing any provider ever
+ * receives from us is a page's URL, so what this function strips is what they never see.
+ *
+ * These cases used to be written against `redactAnalyticsEvent`, the Vercel `beforeSend`
+ * wrapper. Vercel Web Analytics is gone with the move off that host, and Google Analytics
+ * through Firebase takes a bare URL, so the rules are pinned directly on the function that
+ * now carries them. The cases are unchanged: this is the same contract
+ * web/content/public/legal/privacy.ts describes to travelers.
+ */
 const ORIGIN = "https://storytailadventures.vercel.app";
-const view = (path: string) => ({ type: "pageview" as const, url: `${ORIGIN}${path}` });
+const url = (path: string) => `${ORIGIN}${path}`;
 
-describe("redactAnalyticsEvent", () => {
+describe("redactAnalyticsUrl", () => {
   it("passes a plain public page through unchanged", () => {
-    expect(redactAnalyticsEvent(view("/how-it-works"))).toEqual(view("/how-it-works"));
+    expect(redactAnalyticsUrl(url("/how-it-works"))).toBe(url("/how-it-works"));
   });
 
   it("keeps utm_* and drops every other query param and the hash", () => {
-    const result = redactAnalyticsEvent(
-      view("/explore/results?mode=hotels&destination=Lisbon&utm_source=ig&utm_campaign=fall#top"),
-    );
-    expect(result?.url).toBe(`${ORIGIN}/explore/results?utm_source=ig&utm_campaign=fall`);
+    expect(
+      redactAnalyticsUrl(
+        url("/explore/results?mode=hotels&destination=Lisbon&utm_source=ig&utm_campaign=fall#top"),
+      ),
+    ).toBe(url("/explore/results?utm_source=ig&utm_campaign=fall"));
   });
 
   it("leaves no bare ? when nothing survives", () => {
-    expect(redactAnalyticsEvent(view("/trips?status=upcoming"))?.url).toBe(`${ORIGIN}/trips`);
+    expect(redactAnalyticsUrl(url("/trips?status=upcoming"))).toBe(url("/trips"));
   });
 
   it("drops the agent surface, including the client-name search", () => {
-    expect(redactAnalyticsEvent(view("/agent"))).toBeNull();
-    expect(redactAnalyticsEvent(view("/agent/clients?q=Smith"))).toBeNull();
-    expect(redactAnalyticsEvent(view("/agent/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"))).toBeNull();
+    expect(redactAnalyticsUrl(url("/agent"))).toBeNull();
+    expect(redactAnalyticsUrl(url("/agent/clients?q=Smith"))).toBeNull();
+    expect(redactAnalyticsUrl(url("/agent/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"))).toBeNull();
   });
 
   it("only treats /agent as a whole segment", () => {
-    expect(redactAnalyticsEvent(view("/agentic"))).toEqual(view("/agentic"));
+    expect(redactAnalyticsUrl(url("/agentic"))).toBe(url("/agentic"));
   });
 
   it("replaces record ids in the path with [id]", () => {
-    expect(redactAnalyticsEvent(view("/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"))?.url).toBe(
-      `${ORIGIN}/trips/[id]`,
+    expect(redactAnalyticsUrl(url("/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"))).toBe(
+      url("/trips/[id]"),
     );
-    expect(
-      redactAnalyticsEvent(
-        view("/trips/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/update?x=1"),
-      )?.url,
-    ).toBe(`${ORIGIN}/trips/[id]/update`);
+    expect(redactAnalyticsUrl(url("/trips/0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B/update?x=1"))).toBe(
+      url("/trips/[id]/update"),
+    );
   });
 
   it("leaves slugs that are not ids alone", () => {
-    expect(redactAnalyticsEvent(view("/legal/cookies"))).toEqual(view("/legal/cookies"));
+    expect(redactAnalyticsUrl(url("/legal/cookies"))).toBe(url("/legal/cookies"));
   });
 
-  it("redacts custom events the same way", () => {
-    expect(
-      redactAnalyticsEvent({ type: "event", url: `${ORIGIN}/join?email=a%40b.co` })?.url,
-    ).toBe(`${ORIGIN}/join`);
+  // An address typed into the sign-up gate must not travel on the URL.
+  it("strips an email out of the query", () => {
+    expect(redactAnalyticsUrl(url("/join?email=a%40b.co"))).toBe(url("/join"));
+  });
+
+  // An implicit-flow auth redirect would carry tokens in the hash.
+  it("strips the hash even when the query survives", () => {
+    expect(redactAnalyticsUrl(url("/dashboard?utm_source=ig#access_token=secret"))).toBe(
+      url("/dashboard?utm_source=ig"),
+    );
   });
 
   it("drops a URL that will not parse", () => {
-    expect(redactAnalyticsEvent({ type: "pageview", url: "not a url" })).toBeNull();
-  });
-});
-
-describe("redactAnalyticsUrl", () => {
-  it("applies the same rules Vercel's beforeSend does, for Google Analytics", () => {
-    expect(
-      redactAnalyticsUrl(`${ORIGIN}/trips/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b?tab=docs&utm_source=ig#x`),
-    ).toBe(`${ORIGIN}/trips/[id]?utm_source=ig`);
-    expect(redactAnalyticsUrl(`${ORIGIN}/agent/clients?q=Smith`)).toBeNull();
     expect(redactAnalyticsUrl("not a url")).toBeNull();
   });
 });
