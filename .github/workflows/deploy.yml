@@ -72,17 +72,20 @@ env:
 
   # The one origin the whole deploy is measured against — the single place to change it.
   #
-  # STILL A PLACEHOLDER, deliberately: the address is undecided (docs/RENDER-MIGRATION.md §8,
-  # "`.onrender.com` or a real domain"). The guard below refuses to deploy until it is filled
-  # in, which is the same protection SITE_ORIGIN has always had and exactly the case it was
-  # written for.
+  # The Render-assigned URL, decided 2026-10-27. Whatever origin this names is crawlable —
+  # web/app/seo.ts serves `allow: "/"` — and web/content/public/proof.ts still reports
+  # unverified claims, placeholder prices and unlicensed photos. Those do not belong on the
+  # brand domain, least of all one that already has traffic. So adventures.story-tail.com
+  # waits for the content registry to be clean; moving there later costs a rebuild, because
+  # NEXT_PUBLIC_SITE_URL is inlined, not a migration.
   #
-  # Whatever origin this names is crawlable — web/app/seo.ts serves `allow: "/"` — and
-  # web/content/public/proof.ts still reports unverified claims, placeholder prices and
-  # unlicensed photos. Those do not belong on the brand domain, least of all one with traffic.
-  # So the Render-assigned URL is the right first value, and adventures.story-tail.com waits
-  # for the content registry to be clean.
-  SITE_ORIGIN: "https://REPLACE-ME.onrender.com"
+  # DERIVED, NOT OBSERVED. Render serves a web service at <service name>.onrender.com, and
+  # render.yaml names this one `storytail-web`. Render appends a suffix when that name is
+  # already taken globally, so the real URL may differ — confirm it against the service's own
+  # address the first time. A mismatch does not reach production: the required-variables step
+  # below compares this against NEXT_PUBLIC_SITE_URL on the service and fails BEFORE the
+  # deploy, and the smoke test reads the value back out of the built bundle afterwards.
+  SITE_ORIGIN: "https://storytail-web.onrender.com"
 
   # Identify the service by its id, which is visible in the dashboard URL
   # (dashboard.render.com/web/srv-…) and is therefore checkable in a diff, on sight, without a
