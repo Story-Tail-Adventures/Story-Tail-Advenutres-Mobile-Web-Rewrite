@@ -9,8 +9,14 @@ import {
   authFlagAction,
 } from "@/lib/auth/chrome-flag";
 
-/** Route groups that require a signed-in user. */
-const PROTECTED_PREFIXES = [
+/**
+ * Route groups that require a signed-in user.
+ *
+ * Exported because web/proxy.ts's matcher has to cover every one of them, and a matcher that
+ * silently stopped covering one would take the gate off it. proxy.test.ts holds the two in
+ * step.
+ */
+export const PROTECTED_PREFIXES = [
   "/dashboard",
   "/trips",
   "/account",
@@ -44,7 +50,7 @@ const PROTECTED_PREFIXES = [
  * /link-account is likewise absent: the person arriving has just authenticated at a social
  * provider and may or may not have a session here yet.
  */
-const AUTH_ONLY_PREFIXES = ["/login", "/register", "/join", "/forgot-password"];
+export const AUTH_ONLY_PREFIXES = ["/login", "/register", "/join", "/forgot-password"];
 
 /**
  * Screen 2.1.7 MFA Challenge. It lives under /login because that is what it is — the
@@ -53,8 +59,32 @@ const AUTH_ONLY_PREFIXES = ["/login", "/register", "/join", "/forgot-password"];
  */
 const MFA_CHALLENGE = "/login/mfa";
 
-function startsWithAny(pathname: string, prefixes: string[]): boolean {
+function startsWithAny(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/**
+ * Whether this request carries a Supabase session cookie at all.
+ *
+ * @supabase/ssr stores the session in `sb-<project-ref>-auth-token`, split into `.0`/`.1`
+ * chunks past 3180 bytes. The ref differs between local and production, so this matches on
+ * the SHAPE rather than on a derived name — lib/auth/chrome-flag.ts lists the three ways
+ * deriving the exact name goes wrong. Matching the shape is safe here where exactness is
+ * not: a false positive costs one needless lookup, and there is no false negative, because
+ * a session cannot exist without that cookie.
+ *
+ * The PKCE `…-auth-token-code-verifier` cookie matches too. That is the right direction —
+ * mid-OAuth it means "pay for the lookup", not "skip a real session".
+ *
+ * ── WHY IT IS HERE ───────────────────────────────────────────────────────────────
+ *
+ * No cookie means no session, so `getUser()` can only answer null, and it spends a network
+ * round trip to Supabase to do it. Every crawler, every scanner and every first-time visitor
+ * was paying that. It is the bulk of the Fluid Active CPU behind the 2026-10-26 Hobby pause
+ * (9h44m against a 4h limit, on about 700K requests of which roughly none were human).
+ */
+export function hasSessionCookie(names: readonly string[]): boolean {
+  return names.some((name) => name.startsWith("sb-") && name.includes("-auth-token"));
 }
 
 /**
@@ -173,6 +203,12 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
+  // Nothing to refresh and nobody to look up. Answer from the routing table alone, without
+  // building a client or touching the network — see `hasSessionCookie`.
+  if (!hasSessionCookie(request.cookies.getAll().map((cookie) => cookie.name))) {
+    return finish(request, NextResponse.next({ request }), false, "none");
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
@@ -200,18 +236,39 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // `supabaseResponse` is read HERE, after the await, on purpose: a token refresh replaces
+  // the whole object through the `setAll` callback above, so anything captured earlier would
+  // be the copy without the refreshed cookies on it. That is rule 1.
+  return finish(request, supabaseResponse, Boolean(user), await assuranceOf(supabase, user));
+}
+
+/**
+ * Turn the auth decision into the response.
+ *
+ * Split out because this half does not care HOW the decision was reached. `updateSession`
+ * arrives here either from a Supabase round trip or — for an anonymous request, which is
+ * nearly all of them — straight from the routing table with no network call at all. Both
+ * have to apply the flag and build their redirects identically, and a second copy of this
+ * would be a second place for rule 1 to get violated.
+ */
+function finish(
+  request: NextRequest,
+  base: NextResponse,
+  signedIn: boolean,
+  assurance: Assurance,
+): NextResponse {
   const { pathname } = request.nextUrl;
-  const signedIn = Boolean(user);
   const target = authRedirectFor(
     pathname,
     signedIn,
-    await assuranceOf(supabase, user),
+    assurance,
     request.nextUrl.searchParams.get("next"),
   );
 
-  // Publish the one bit the static public pages need (lib/auth/chrome-flag.ts). Done here
-  // because getUser() above has already paid for the answer, and skipped entirely when it
-  // would not change — otherwise every public page response carries a redundant Set-Cookie.
+  // Publish the one bit the static public pages need (lib/auth/chrome-flag.ts), and skip it
+  // entirely when it would not change. That skip matters twice over: it keeps a redundant
+  // Set-Cookie off every response, and a Set-Cookie is itself a reason a CDN will not cache
+  // one.
   const flag = authFlagAction(request.cookies.get(AUTH_FLAG_COOKIE)?.value, signedIn);
 
   if (target === "/login" || target === MFA_CHALLENGE) {
@@ -219,7 +276,7 @@ export async function updateSession(request: NextRequest) {
     url.pathname = target;
     url.search = "";
     url.searchParams.set("next", pathname);
-    return applyAuthFlag(redirectKeepingCookies(url, supabaseResponse), flag);
+    return applyAuthFlag(redirectKeepingCookies(url, base), flag);
   }
 
   if (target) {
@@ -232,10 +289,10 @@ export async function updateSession(request: NextRequest) {
     // NextResponse.redirect here drops the session Supabase may have just refreshed, which is
     // the bug fixed on dev in "stop the proxy dropping a refreshed session on every redirect",
     // and it would leave the public chrome showing stale auth state.
-    return applyAuthFlag(redirectKeepingCookies(url, supabaseResponse), flag);
+    return applyAuthFlag(redirectKeepingCookies(url, base), flag);
   }
 
-  return applyAuthFlag(supabaseResponse, flag);
+  return applyAuthFlag(base, flag);
 }
 
 /**

@@ -19,6 +19,31 @@ const nextConfig: NextConfig = {
         source: "/email/unsubscribe",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       },
+      {
+        /*
+         * Screen 2.0.4 is the one public page that cannot be prerendered: its whole state is
+         * the query string, so every chip, sort and mode link is a distinct render. That is
+         * what a crawler walked for 55K requests and 2.3 GB in twelve hours on 2026-10-17
+         * (app/seo.ts), and in Hotels mode a distinct key also spends a metered provider
+         * request out of 250 a month.
+         *
+         * robots.txt now disallows it and the proxy no longer runs on it, but neither helps
+         * a bot that ignores robots.txt. Shared caching does: a repeat walk of the same URLs
+         * is served by the CDN without reaching a function or the provider. It is safe to
+         * cache publicly because the rendered HTML carries no identity — the signed-in
+         * chrome is decided in the browser from a cookie, which is exactly why
+         * app/(public)/layout.tsx reads no request-time APIs.
+         *
+         * An hour matches the revalidate on the other public pages.
+         */
+        source: "/explore/results",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        ],
+      },
     ];
   },
 };
