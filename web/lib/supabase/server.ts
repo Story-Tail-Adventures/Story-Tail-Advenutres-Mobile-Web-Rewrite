@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
 import { env } from "@/lib/env";
+import { visitorAddressFrom } from "@/lib/client-address";
 
 /**
  * Supabase client for Server Components, Route Handlers and Server Actions.
@@ -42,10 +43,15 @@ export async function createClient() {
  * Web sign-ins run HERE, on the server (`signInWithPassword` in a Server Action, `verifyOtp` in
  * `/auth/confirm`), so without this GoTrue records the server's own address and Node's user
  * agent on every web session, and the advisor's Login activity shows every traveler signing in
- * from the same machine. GoTrue takes the first `X-Forwarded-For` entry as the client.
+ * from the same machine. GoTrue takes the first `X-Forwarded-For` entry as the client, so the
+ * address is handed over in that position whatever header it was read from.
  *
- * Only the FIRST forwarded hop, which Vercel sets from the real connection (a value a browser
- * sends is replaced, not trusted). Both are informational: nothing decides access on them.
+ * Which header that is lives in `lib/client-address.ts`, shared with the lead path rather than
+ * repeated here: `cf-connecting-ip` when the edge set it, else the left-most forwarded entry.
+ * Both values here are informational, nothing decides access on them, but a spoofed one would
+ * still put a wrong address in an advisor's Login activity, and the lead path next door rate
+ * limits on the same rule. One copy, so they cannot drift apart.
+ *
  * Outside a request (a build, a script) there are no headers and nothing is added.
  */
 async function callerHeaders(): Promise<Record<string, string>> {
@@ -53,7 +59,7 @@ async function callerHeaders(): Promise<Record<string, string>> {
     const h = await headers();
     const out: Record<string, string> = {};
     const ua = h.get("user-agent");
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim();
+    const ip = visitorAddressFrom(h);
     if (ua) out["user-agent"] = ua.slice(0, 500);
     if (ip) out["x-forwarded-for"] = ip;
     return out;

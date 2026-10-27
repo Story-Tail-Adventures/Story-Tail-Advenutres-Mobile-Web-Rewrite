@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendLeadMessage, visitorAddressFrom, type LeadMessageInput } from "./leadMessage";
+import { sendLeadMessage, type LeadMessageInput } from "./leadMessage";
 
 /**
  * The server's one call to `lead-message`. Pinned: the visitor's address goes only beside the
@@ -75,10 +75,3 @@ describe("sendLeadMessage", () => {
   });
 });
 
-describe("visitorAddressFrom", () => {
-  it("takes the left-most entry", () => {
-    expect(visitorAddressFrom("203.0.113.9, 10.0.0.1")).toBe("203.0.113.9");
-    expect(visitorAddressFrom(null)).toBeNull();
-    expect(visitorAddressFrom("")).toBeNull();
-  });
-});

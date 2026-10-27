@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { findTrip } from "@/content/public/trips";
 import type { Topic } from "@/content/public/types";
 import { isInquirySource, TOPIC_LABEL } from "@/lib/public/inquiry";
-import { sendLeadMessage, visitorAddressFrom } from "@/lib/public/leadMessage";
+import { visitorAddressFrom } from "@/lib/client-address";
+import { sendLeadMessage } from "@/lib/public/leadMessage";
 import { MESSAGE_TEXT, type MessageState } from "./state";
 
 /**
@@ -43,7 +44,9 @@ export async function sendMessageAction(_prev: MessageState, formData: FormData)
       : null;
 
   const startedAt = Number(text(formData.get("startedAt")));
-  const forwardedFor = (await headers()).get("x-forwarded-for");
+  // The whole header set, not one name: `visitorAddressFrom` prefers `cf-connecting-ip` over
+  // `x-forwarded-for`, because only the first is unforgeable from outside.
+  const requestHeaders = await headers();
 
   const result = await sendLeadMessage(
     {
@@ -58,7 +61,7 @@ export async function sendMessageAction(_prev: MessageState, formData: FormData)
       website: text(formData.get("website")),
       startedAt: Number.isFinite(startedAt) ? startedAt : 0,
     },
-    visitorAddressFrom(forwardedFor),
+    visitorAddressFrom(requestHeaders),
   );
 
   if (result.ok) return { outcome: "sent" };

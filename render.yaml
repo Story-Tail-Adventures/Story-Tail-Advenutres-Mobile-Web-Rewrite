@@ -1,0 +1,76 @@
+# Render Blueprint for the web app. See docs/RENDER-MIGRATION.md.
+#
+# This file defines the service so it is reviewable and reproducible instead of living only in
+# a dashboard. Create the service from it with Render's "New > Blueprint", pointed at this repo.
+#
+# Only `web/` runs here. Supabase (database, auth, storage, Edge Functions) is unchanged and is
+# not described by this file, and nothing under `mobile/` is deployed at all.
+
+services:
+  - type: web
+    name: storytail-web
+    runtime: node
+
+    # us-east-1 is where the Supabase project lives (ref hlazrvdpyixvtveharqi), and Virginia is
+    # Render's region next to it. Every authenticated request makes a Supabase round trip, so
+    # putting the two on opposite coasts would show up on every page behind the login.
+    region: virginia
+
+    # 512 MB / 0.5 CPU, always on. A Next 16 + MUI SSR process idles near 150-250 MB, so this
+    # fits at current traffic but is not generous: watch memory for the first week
+    # (docs/RENDER-MIGRATION.md §5.3). NOTE this is the instance fee only. Render meters
+    # bandwidth separately: 5 GB/month included on a Hobby workspace, then $0.15/GB, which is
+    # another reason Cloudflare belongs in front.
+    plan: starter
+
+    branch: production
+
+    # `npm ci` at the repo root: this is an npm workspace monorepo, and the lockfile is the
+    # root one. `-w web` then builds only the web workspace.
+    buildCommand: npm ci && npm run build -w web
+    startCommand: npm run start -w web
+
+    # `next start` binds to $PORT, which Render sets.
+    healthCheckPath: /
+
+    # DELIBERATELY OFF, and it is the same decision .github/workflows/deploy.yml already makes
+    # for Vercel: "Not `push`. A push trigger races CI, so a commit that fails typecheck, the
+    # RLS isolation tests or the PAN guard could reach users before CI has an opinion about
+    # it." Render cannot see GitHub Actions, so deploys are triggered by the workflow calling
+    # Render's deploy hook after CI passes, not by Render watching the branch.
+    autoDeploy: false
+
+    envVars:
+      # Must match .github/workflows/deploy.yml's NODE_VERSION.
+      - key: NODE_VERSION
+        value: "22"
+
+      # EVERY `NEXT_PUBLIC_*` VALUE IS INLINED AT BUILD TIME, not read at boot. They have to be
+      # set in the dashboard BEFORE the first build, or the build bakes in the wrong value (or
+      # fails: lib/env.ts throws in production rather than failing open). Changing one later
+      # needs a rebuild, not a restart.
+      #
+      # `sync: false` means "ask me in the dashboard, do not keep the value in git". None of
+      # these belong in the repo: two are secrets, and the rest differ per environment.
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_INQUIRY_EMAIL
+        sync: false
+      - key: NEXT_PUBLIC_AUTH_GOOGLE_ENABLED
+        sync: false
+      - key: NEXT_PUBLIC_AUTH_APPLE_ENABLED
+        sync: false
+
+      # Server-side only, read at request time.
+      - key: HOTEL_SEARCH_ENABLED
+        sync: false
+      - key: SERPAPI_API_KEY
+        sync: false
+      - key: STA_HOTEL_SEARCH_TOKEN
+        sync: false
+      - key: STA_LEAD_FORM_KEY
+        sync: false
