@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authRedirectFor } from "./middleware";
+import { authRedirectFor, hasSessionCookie } from "./middleware";
 
 /**
  * The routing table the proxy applies on every request. Kept pure so the gate rules
@@ -171,5 +171,31 @@ describe("authRedirectFor — an account with no second factor is unaffected", (
     expect(authRedirectFor("/dashboard", true, "none")).toBeNull();
     expect(authRedirectFor("/dashboard", false, "none")).toBe("/login");
     expect(authRedirectFor("/login", true, "none")).toBe("/dashboard");
+  });
+});
+
+/**
+ * The cookie test that decides whether a request is worth a Supabase round trip. Matching on
+ * shape rather than on a derived name is deliberate (see the function's own comment); what
+ * matters is that it never misses a real session, because a miss would sign somebody out.
+ */
+describe("hasSessionCookie", () => {
+  it.each([
+    ["the local ref", ["sb-127-auth-token"]],
+    ["a hosted ref", ["sb-abcdefghijklmnop-auth-token"]],
+    ["a chunked token", ["sb-127-auth-token.0", "sb-127-auth-token.1"]],
+    ["a PKCE verifier mid-flow", ["sb-127-auth-token-code-verifier"]],
+    ["one among many", ["sta-theme", "sb-127-auth-token", "sta-authed"]],
+  ])("finds a session in %s", (_name, names) => {
+    expect(hasSessionCookie(names)).toBe(true);
+  });
+
+  it.each([
+    ["nothing at all", []],
+    ["our own cookies", ["sta-authed", "sta-theme"]],
+    ["an sb- cookie that is not a token", ["sb-marketing-opt-in"]],
+    ["a lookalike that is not ours", ["not-sb-127-auth-token-either"]],
+  ])("finds none in %s", (_name, names) => {
+    expect(hasSessionCookie(names)).toBe(false);
   });
 });
