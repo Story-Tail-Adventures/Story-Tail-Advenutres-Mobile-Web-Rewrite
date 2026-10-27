@@ -92,12 +92,3 @@ export async function sendLeadMessage(
   console.error("[lead-message] send refused", res.status);
   return { ok: false, kind: "unavailable" };
 }
-
-/**
- * The visitor's address as the platform in front of us saw it: the left-most
- * `x-forwarded-for` entry, which Vercel sets from the connection. Null when absent.
- */
-export function visitorAddressFrom(forwardedFor: string | null): string | null {
-  const first = forwardedFor?.split(",")[0]?.trim();
-  return first && first.length <= 64 ? first : null;
-}
