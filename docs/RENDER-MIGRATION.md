@@ -138,9 +138,18 @@ build**, not after. Set Node to 22 to match `deploy.yml`.
 - The error-message examples in `web/lib/env.ts` and `supabase/functions/_shared/email.ts`
   (cosmetic, but they tell the next person the wrong thing)
 
-Decide between `<name>.onrender.com` and a real domain before starting. A real domain is
-better anyway: it makes the host swappable next time, and it stops the app's address being
-tied to a vendor.
+**Decided 2026-10-27: the Render-assigned `.onrender.com` URL**, not the brand domain. The
+deciding factor is not cost, it is what gets crawled. `web/app/seo.ts` serves `allow: "/"`,
+so whatever `SITE_ORIGIN` names is open to search engines, and `web/content/public/proof.ts`
+still reports unverified claims, placeholder prices and unlicensed photos. Those do not
+belong on `adventures.story-tail.com`, least of all a domain that already has traffic. A real
+domain would make the host swappable next time, and it is still the right end state, but it
+waits for the content registry to be clean. Moving then costs a rebuild, because
+`NEXT_PUBLIC_SITE_URL` is inlined at build time, not a migration.
+
+The value is derived from the service name in `render.yaml`: `storytail-web` gives
+`https://storytail-web.onrender.com`. Render appends a suffix when a name is already taken
+globally, so confirm it against the service's own address the first time.
 
 ---
 
@@ -197,7 +206,7 @@ as much traffic as possible.
 Nothing here is irreversible until step 8.
 
 1. Merge PR #168 first. It is host-independent and it reduces load wherever the app runs.
-2. Decide the address (4.4). Register or point the domain.
+2. ~~Decide the address.~~ Done: the Render URL (4.4). No domain to register or point.
 3. Create the Render service against a branch, not `production`. Set all eleven env vars and
    Node 22. Do not point any domain at it yet.
 4. Verify on the `.onrender.com` URL: public pages render, sign-in works end to end, the lead
@@ -237,7 +246,8 @@ project is still aliased and the account is unpaused. Which it is not today: see
   the limits (the 2026-10-17 spike leaves the window around 2026-11-16) and then it takes a
   manual request at vercel.com/help. **Until that happens there is no rollback target**, which
   is an argument for not rushing the cutover.
-- **The address.** `.onrender.com` or a real domain. Not decided.
+- ~~**The address.**~~ Settled 2026-10-27 on the Render URL (4.4). Revisit when
+  `proof.ts` no longer carries placeholders, since that is what keeps it off the brand domain.
 - **Blocking AI crawlers** (GPTBot, ClaudeBot and the rest) in `robots.txt`. Cuts real load,
   costs presence in AI search. Gyasi's call, and it applies on any host.
 - **Confirming Render's prices** against render.com/pricing (section 2).
