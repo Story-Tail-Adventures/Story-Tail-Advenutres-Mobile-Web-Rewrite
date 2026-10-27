@@ -4,7 +4,6 @@ import { AuthChromeScript } from "@/components/AuthChromeScript";
 import { ThemeScript } from "@/components/ThemeScript";
 import { AnalyticsConsentBanner } from "@/components/AnalyticsConsentBanner";
 import { FirebaseAnalytics } from "@/components/FirebaseAnalytics";
-import { VercelAnalytics } from "@/components/VercelAnalytics";
 import { MuiRegistry } from "@/components/mui/MuiRegistry";
 import { env } from "@/lib/env";
 import { THEME_COLOR_DARK, THEME_COLOR_LIGHT } from "@/lib/theme";
@@ -60,7 +59,6 @@ export default function RootLayout({
           {children}
           <AnalyticsConsentBanner />
         </MuiRegistry>
-        <VercelAnalytics />
         <FirebaseAnalytics />
       </body>
     </html>

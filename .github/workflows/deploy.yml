@@ -5,16 +5,31 @@
 # OAuth connection. That split is why there is no `supabase link`, no `supabase db push` and
 # no SUPABASE_* credential below: a database password that never enters GitHub cannot leak
 # from GitHub. ci.yml's header says "Secrets enter only with the deploy workflow" — there is
-# exactly one here, and it is Vercel's.
+# exactly one here, and it is Render's.
 #
 # Because the two halves run on separate machines with separate logs, the release cut at the
 # end is the only place the whole of a deploy is written down together. That is what it is
 # for; it is not decoration.
+#
+# ── WHY RENDER AND NOT VERCEL ────────────────────────────────────────────────────
+#
+# Vercel blocked the account on 2026-10-26 under its fair use guidelines, which restrict the
+# Hobby plan to "non-commercial personal use only". This is a travel advisory's site and CRM.
+# docs/RENDER-MIGRATION.md has the whole story. The Vercel half of this file is gone with it:
+# no CLI pin, no link/pull dance, no prebuilt-output move.
+#
+# What replaces it is smaller, because Render builds from the repo itself. The one thing that
+# got BETTER in the swap is worth naming: this deploys by `commitId`, so production runs the
+# exact commit CI tested rather than whatever happens to be at the branch tip.
 name: Deploy
 
 on:
   # Not `push`. A push trigger races CI, so a commit that fails typecheck, the RLS isolation
   # tests or the PAN guard could reach users before CI has an opinion about it.
+  #
+  # This is also why render.yaml sets `autoDeploy: false`. Render cannot see GitHub Actions,
+  # so if it watched the branch itself it would deploy on push and race CI exactly the way
+  # this trigger exists to prevent. The API call below is the only thing that deploys.
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -23,12 +38,15 @@ on:
   # Re-deploy the current tree without inventing an empty commit: a rolled-back deployment,
   # a rotated anon key, or a red CI job in a stack this deploy does not touch (an iOS klib
   # failure should not hold a web hotfix hostage).
-  # dry_run stops after `vercel build` — the only way to exercise the monorepo build path
-  # without putting the result in front of anyone.
+  #
+  # dry_run proves everything except the deploy itself: the credential, the service, the
+  # production variables, and a real `next build` of this commit on the runner. Render builds
+  # on its own machines as part of a deploy, so there is no remote build to stop halfway —
+  # building here is the closest equivalent, and it exercises the same monorepo path.
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Build only, do not deploy
+        description: Verify and build, do not deploy
         type: boolean
         default: false
 
@@ -39,9 +57,10 @@ concurrency:
   # report as "cancelled", not failed, so nothing would go red. On workflow_run,
   # `inputs.dry_run` is empty, so the suffix folds away and the push path's group is unchanged.
   group: deploy-production${{ inputs.dry_run && '-dry' || '' }}
-  # Deliberately NOT cancel-in-progress, the opposite of ci.yml's concurrency block.
-  # `vercel deploy` is not atomic from here; killing it between the upload and the alias
-  # promotion leaves a deployment that exists, is half-wired, and answers nothing. Queue.
+  # Deliberately NOT cancel-in-progress, the opposite of ci.yml's concurrency block. Killing
+  # this between the trigger and the poll does not stop the deploy Render has already started;
+  # it only throws away the job that was watching it, leaving production changing with nothing
+  # reporting on it and no release cut. Queue.
   cancel-in-progress: false
 
 # contents: write is for the release and its tag, and is the only write this needs.
@@ -51,49 +70,35 @@ permissions:
 env:
   NODE_VERSION: "22"
 
-  # Pinned, not @latest. Vercel ships CLI releases weekly, and how it resolves a monorepo
-  # lockfile is exactly the behaviour that changes. With @latest, two identical commits can
-  # deploy differently and the first evidence is a broken production site.
-  VERCEL_CLI_VERSION: "59.11.7"
-
   # The one origin the whole deploy is measured against — the single place to change it.
   #
-  # The Vercel-assigned production alias, and the app's real address. The eventual home is
-  # adventures.story-tail.com pointed here; there is no separate app subdomain.
+  # STILL A PLACEHOLDER, deliberately: the address is undecided (docs/RENDER-MIGRATION.md §8,
+  # "`.onrender.com` or a real domain"). The guard below refuses to deploy until it is filled
+  # in, which is the same protection SITE_ORIGIN has always had and exactly the case it was
+  # written for.
   #
-  # Unbranded until then, because web/app/seo.ts:77 serves `allow: "/"` — whatever origin
-  # this names is crawlable, and web/content/public/proof.ts still reports unverified claims,
-  # placeholder prices and unlicensed photos. Those do not belong on the brand domain, least
-  # of all one that already has traffic.
-  #
-  # Vercel's default alias for project `storytailadventures` (Hobby scope
-  # gyasistorys-projects). The Domains tab is empty because nothing has been deployed to
-  # production yet — Vercel creates this alias on the first --prod deploy. Until then it
-  # answers 404 DEPLOYMENT_NOT_FOUND, which is expected, not a misconfiguration.
-  SITE_ORIGIN: "https://storytailadventures.vercel.app"
+  # Whatever origin this names is crawlable — web/app/seo.ts serves `allow: "/"` — and
+  # web/content/public/proof.ts still reports unverified claims, placeholder prices and
+  # unlicensed photos. Those do not belong on the brand domain, least of all one with traffic.
+  # So the Render-assigned URL is the right first value, and adventures.story-tail.com waits
+  # for the content registry to be clean.
+  SITE_ORIGIN: "https://REPLACE-ME.onrender.com"
 
-  # Identify the project by SLUG, not by the opaque VERCEL_ORG_ID / VERCEL_PROJECT_ID pair.
+  # Identify the service by its id, which is visible in the dashboard URL
+  # (dashboard.render.com/web/srv-…) and is therefore checkable in a diff, on sight, without a
+  # deploy. Not a secret.
   #
-  # Five consecutive runs died on "Could not retrieve Project Settings" with a demonstrably
-  # valid token — the signature of an org id that does not own the project. The deeper
-  # problem is that those ids cannot be read back out of GitHub once stored, so a wrong one
-  # is indistinguishable from a right one and every attempt costs a full run to test.
-  #
-  # These two slugs are both visible in the project's own URL —
-  # vercel.com/gyasistorys-projects/storytailadventures — so a wrong value is obvious on
-  # sight, in a diff, without a deploy. They are not secrets and are deliberately literals.
-  #
-  # Note: VERCEL_ORG_ID / VERCEL_PROJECT_ID must NOT be set in this environment. The CLI
-  # prefers them over an on-disk link, so leaving them set would silently override the
-  # `vercel link` below and reintroduce exactly the failure this replaces.
-  VERCEL_SCOPE: "gyasistorys-projects"
-  VERCEL_PROJECT: "storytailadventures"
+  # The lesson behind this being a literal rather than a GitHub secret is the one the Vercel
+  # version of this file learned over seven runs: an opaque id stored as a secret cannot be
+  # read back, so a wrong one is indistinguishable from a right one and every attempt costs a
+  # full run to test. The step below prints the service this id actually resolves to.
+  RENDER_SERVICE_ID: "REPLACE-ME"
 
 jobs:
-  vercel:
-    name: Vercel production
+  render:
+    name: Render production
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     # Three conditions, not one.
     #   conclusion  — workflow_run fires on completion, INCLUDING failure and cancellation.
@@ -111,14 +116,14 @@ jobs:
       # THE bug this workflow is one line away from. A workflow_run job runs the file from
       # the DEFAULT branch and defaults github.sha to the default branch's head — so a bare
       # checkout builds `dev` and ships it to production, silently, on every green CI run.
-      # head_sha is the commit CI actually tested.
+      # head_sha is the commit CI actually tested, and it is also what gets deployed: the
+      # trigger below passes it as `commitId`.
       # fetch-depth: 0 because the release step diffs against the previous tag.
-      # persist-credentials: false because the next steps run `vercel build`, which executes
-      # this project's own install and build — i.e. third-party code from node_modules, with
-      # the workspace as cwd. The default leaves a contents:write GITHUB_TOKEN in
-      # .git/config's extraheader for that code to read. Nothing here needs authenticated
-      # git: the release step talks to the REST API with GH_TOKEN, and the rest is local
-      # rev-parse / describe / diff, which fetch-depth: 0 has already satisfied.
+      # persist-credentials: false because the dry-run build executes this project's own
+      # install and build — third-party code from node_modules with the workspace as cwd. The
+      # default leaves a contents:write GITHUB_TOKEN in .git/config's extraheader for that
+      # code to read. Nothing here needs authenticated git: the release step talks to the REST
+      # API with GH_TOKEN, and the rest is local rev-parse / describe / diff.
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
@@ -129,15 +134,25 @@ jobs:
       # `SUPABASE_PROJECT_ID: "your-supabase-project-ref-id"` for its whole life because
       # nothing complained. A placeholder that fails loudly is a placeholder; one that fails
       # quietly is a bug waiting for a deploy.
-      - name: SITE_ORIGIN has been filled in
+      - name: SITE_ORIGIN and RENDER_SERVICE_ID have been filled in
         run: |
+          set -uo pipefail
+          bad=0
           case "$SITE_ORIGIN" in
             *REPLACE-ME*)
-              echo "::error::SITE_ORIGIN is still the placeholder. Set it to the Vercel"
-              echo "::error::production alias (Project -> Domains) in .github/workflows/deploy.yml."
-              exit 1
+              echo "::error::SITE_ORIGIN is still the placeholder. Set it to the service's"
+              echo "::error::address (Render -> the service -> its URL, or the custom domain)."
+              bad=1
               ;;
           esac
+          case "$RENDER_SERVICE_ID" in
+            *REPLACE-ME*|"")
+              echo "::error::RENDER_SERVICE_ID is still the placeholder. Take it from the"
+              echo "::error::dashboard URL: dashboard.render.com/web/srv-xxxxxxxx."
+              bad=1
+              ;;
+          esac
+          [ "$bad" -eq 0 ] || exit 1
 
       # A manual dispatch runs this file from whichever branch the UI dropdown had selected,
       # and checks that branch out. Shipping `dev` to production is one dropdown away; a dry
@@ -150,239 +165,194 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - run: npm install --global vercel@${{ env.VERCEL_CLI_VERSION }}
-
-      # Run from the repo ROOT — never `--cwd ./web`. The Vercel project's Root Directory is
-      # already `web`, so --cwd would resolve it a second time and look for web/web. And web/
-      # has no lockfile of its own: the only package-lock.json is at the repo root, so an
-      # install rooted at web/ has nothing deterministic to install from.
-      # --cwd ./web on every Vercel call, so WHERE the Next app lives is stated in this file
-      # rather than in a dashboard setting nobody reviews. The CLI walks up from web/, finds
-      # the npm workspace root via the root package.json's `workspaces` array, and installs
-      # from the root package-lock.json — the only lockfile in the repo. web/ has none, so
-      # that walk-up is what keeps the deployed tree pinned to what CI tested.
+      # Ask the API who the key is and what the id resolves to, before anything acts on them.
       #
-      # Everything the CLI writes therefore lands in web/.vercel/, not ./.vercel/ — the two
-      # steps below read it there.
-      # Ask the API who the token is, before the CLI does anything with it.
+      # The Vercel version of this step existed because a bad credential was reported
+      # indirectly — "Could not retrieve Project Settings" — and seven runs were spent reading
+      # that as a project problem. The same trap is here: a key without access and a wrong
+      # service id both 404. One call tells them apart, and a GitHub secret cannot be read
+      # back out, so this is the only way to see what is actually stored.
       #
-      # Vercel reports a bad credential indirectly — "Could not retrieve Project Settings",
-      # "Not able to load user ... User not found (404)" — and each phrasing points at the
-      # project or the scope rather than at the token. Seven runs were spent reading those
-      # as project problems. /v2/user answers in one call, and a GitHub secret cannot be read
-      # back out, so this step is the only way to see what is actually stored.
-      #
-      # Prints the account, never the token. The two credentials that get confused here:
-      # an ACCOUNT ACCESS TOKEN (vercel.com/account/tokens) can act as you and is what this
-      # needs; a Protection Bypass secret (the project's Deployment Protection page) is
-      # project-scoped, has no user behind it, and 404s exactly like this.
-      - name: The Vercel token belongs to a real account
+      # Prints the service name and branch, never the key.
+      - name: The Render key can see this service
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set -uo pipefail
-          code="$(curl -sS -o "$RUNNER_TEMP/who.json" -w '%{http_code}' \
-                    -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-                    https://api.vercel.com/v2/user || echo 000)"
-          if [ "$code" != "200" ]; then
-            echo "::error::VERCEL_TOKEN cannot load a Vercel user (HTTP $code)."
-            echo "::error::API response: $(head -c 300 "$RUNNER_TEMP/who.json" 2>/dev/null)"
-            echo "::error::Expected an account access token from https://vercel.com/account/tokens"
-            echo "::error::(Account Settings -> Tokens), NOT the Protection Bypass secret from the"
-            echo "::error::project's Deployment Protection page."
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "::error::RENDER_API_KEY is not set. Create one at Render -> Account Settings"
+            echo "::error::-> API Keys and add it as a repository secret."
             exit 1
           fi
-          echo "Token acts as: $(jq -r '.user.username // .user.email // "?"' "$RUNNER_TEMP/who.json")"
-          echo "Scopes visible to this token:"
-          curl -sS -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-               https://api.vercel.com/v2/teams \
-            | jq -r '.teams[]?.slug // empty' | sed 's/^/  - /'
-
-      # Writes web/.vercel/project.json from the slugs, which is what `pull` then reads.
-      # Failing here rather than in `pull` distinguishes "cannot find the project" from
-      # "cannot read its environment" — two problems with very different fixes that the
-      # single combined step reported identically.
-      - name: Link the Vercel project
-        run: |
-          vercel link --yes \
-            --scope "$VERCEL_SCOPE" \
-            --project "$VERCEL_PROJECT" \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --cwd ./web
-
-      - name: Pull the production environment
-        run: |
-          vercel pull --yes --environment=production \
-            --scope "$VERCEL_SCOPE" \
-            --token=${{ secrets.VERCEL_TOKEN }} \
-            --cwd ./web
-
-      # The one dashboard setting that can still break this. `vercel build` joins its cwd with
-      # the project's rootDirectory, so a Root Directory of anything but empty-or-`web` sends
-      # it looking for web/<that>. Empty is the intended state here (the --cwd above already
-      # says where the app is) and `web` is tolerated — the CLI notices web/web does not exist
-      # and does not double-apply. Anything else is a misconfiguration, and failing here beats
-      # failing in a build log several minutes later.
-      #
-      # `jq .settings`, not `cat` — project.json also carries the org and project ids.
-      - name: Vercel Root Directory does not fight --cwd
-        run: |
-          set -euo pipefail
-          jq '.settings' web/.vercel/project.json
-          root="$(jq -r '.settings.rootDirectory // ""' web/.vercel/project.json)"
-          case "$root" in
-            ""|web) echo "Root Directory '$root' is compatible with --cwd ./web." ;;
-            *)
-              echo "::error::Vercel Root Directory is '$root'. This workflow passes --cwd ./web,"
-              echo "::error::so the build would resolve to web/$root. Clear Root Directory at"
-              echo "::error::Project Settings -> Build and Deployment, then re-run."
-              exit 1
-              ;;
-          esac
+          code="$(curl -sS -o "$RUNNER_TEMP/service.json" -w '%{http_code}' \
+                    -H "Authorization: Bearer $RENDER_API_KEY" \
+                    "https://api.render.com/v1/services/$RENDER_SERVICE_ID" || echo 000)"
+          if [ "$code" != "200" ]; then
+            echo "::error::Render answered HTTP $code for service $RENDER_SERVICE_ID."
+            echo "::error::Response: $(head -c 300 "$RUNNER_TEMP/service.json" 2>/dev/null)"
+            echo "::error::A 401 is the key; a 404 is the key lacking access OR a wrong"
+            echo "::error::RENDER_SERVICE_ID. They look identical from the dashboard."
+            exit 1
+          fi
+          echo "Service:  $(jq -r '.name // "?"' "$RUNNER_TEMP/service.json")"
+          echo "Branch:   $(jq -r '.branch // "?"' "$RUNNER_TEMP/service.json")"
+          echo "AutoDeploy: $(jq -r '.autoDeploy // "?"' "$RUNNER_TEMP/service.json")"
+          # render.yaml turns this off so CI gates every deploy. If it is on, Render is also
+          # deploying on push behind this workflow's back, which is the race the trigger above
+          # exists to prevent — and the two would fight over which commit is live.
+          if [ "$(jq -r '.autoDeploy // ""' "$RUNNER_TEMP/service.json")" = "yes" ]; then
+            echo "::error::Auto-Deploy is ON for this service. render.yaml sets autoDeploy:"
+            echo "::error::false so CI gates deploys; turn it off under Settings -> Build &"
+            echo "::error::Deploy, or this workflow and Render will race each other."
+            exit 1
+          fi
 
       # The trap this step exists for: NO prerendered route reads NEXT_PUBLIC_SUPABASE_URL or
       # NEXT_PUBLIC_SUPABASE_ANON_KEY, so a build missing them is GREEN. Then web/lib/env.ts
       # throws inside the proxy (web/lib/supabase/middleware.ts) on the first real request and
       # every page 500s. Fail here, where the message names the variable.
       #
-      # NEXT_PUBLIC_SITE_URL is the value ci.yml promises "the deployment sets its own".
+      # It matters more on Render than it did on Vercel, because every NEXT_PUBLIC_* value is
+      # inlined at BUILD time: a variable added after the build is still missing from the
+      # bundle until the next one, and nothing about the service looks wrong.
       #
-      # PUBLIC_CLAIMS_MODE is deliberately absent, here and in Vercel. Setting it to "strict"
+      # PUBLIC_CLAIMS_MODE is deliberately absent, here and in Render. Setting it to "strict"
       # makes web/content/public/proof.ts throw at import while any claim, price, photo or
       # legal page is still a placeholder — it would fail every build today. PlaceholderBanner
-      # keeps those honest meanwhile. Set it in Vercel's Production environment, not here, the
-      # day the registry is clean, so the gate lives with the content decision.
+      # keeps those honest meanwhile. Set it on the service, not here, the day the registry is
+      # clean, so the gate lives with the content decision.
       - name: Required production variables are present
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
-          set -euo pipefail
-          file=web/.vercel/.env.production.local
+          set -uo pipefail
+          code="$(curl -sS -o "$RUNNER_TEMP/envvars.json" -w '%{http_code}' \
+                    -H "Authorization: Bearer $RENDER_API_KEY" \
+                    "https://api.render.com/v1/services/$RENDER_SERVICE_ID/env-vars?limit=100" \
+                    || echo 000)"
+          if [ "$code" != "200" ]; then
+            echo "::error::Could not read the service's environment variables (HTTP $code)."
+            echo "::error::Response: $(head -c 300 "$RUNNER_TEMP/envvars.json" 2>/dev/null)"
+            exit 1
+          fi
+          # Names only, never values. The list is [{ envVar: { key, value } }, …].
+          jq -r '.[].envVar.key' "$RUNNER_TEMP/envvars.json" | sort > "$RUNNER_TEMP/names.txt"
           missing=()
           for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_SITE_URL; do
-            # Not `=.+`: `vercel pull` writes every value double-quoted, so a variable defined
-            # in Vercel with an EMPTY value lands here as KEY="" — two characters, which `.+`
-            # happily matches. That is precisely the case this guard exists to catch. Require
-            # a first character that is neither a quote nor whitespace.
-            grep -qE "^${v}=\"?[^\"[:space:]]" "$file" || missing+=("$v")
+            grep -qx "$v" "$RUNNER_TEMP/names.txt" || missing+=("$v")
           done
           if [ ${#missing[@]} -ne 0 ]; then
-            echo "::error::Missing or empty in Vercel's Production environment: ${missing[*]}."
-            echo "::error::Add them under Settings -> Environments -> Production, then re-run."
-            # Names only, never values. "Missing" has several causes that look identical from
-            # the dashboard — a typo in the name, the variable scoped to Preview but not
-            # Production, or Vercel's "Sensitive" type, which is write-only and deliberately
-            # NOT returned by `vercel pull`. Printing what actually arrived tells them apart
-            # in one glance instead of one run each.
-            echo "Names present in the pulled Production environment:"
-            grep -oE '^[A-Za-z_][A-Za-z0-9_]*' "$file" 2>/dev/null | sort | sed 's/^/  /' \
-              || echo "  (none — the file is empty or absent)"
+            echo "::error::Missing from the service's environment: ${missing[*]}."
+            echo "::error::Add them under the service -> Environment, then re-run."
+            echo "Names present on the service:"
+            sed 's/^/  /' "$RUNNER_TEMP/names.txt" || echo "  (none)"
             exit 1
           fi
           # Read this one's VALUE back, not just its presence. A wrong NEXT_PUBLIC_SITE_URL is
           # not a 500 — it is correct-looking pages whose canonical URLs, sitemap entries and
           # email confirmation links all point somewhere the traveler cannot reach.
-          site="$(grep -m1 '^NEXT_PUBLIC_SITE_URL=' "$file" | cut -d= -f2- | tr -d '"')"
+          site="$(jq -r '.[].envVar | select(.key=="NEXT_PUBLIC_SITE_URL") | .value' \
+                    "$RUNNER_TEMP/envvars.json")"
           if [ "$site" != "$SITE_ORIGIN" ]; then
-            echo "::error::NEXT_PUBLIC_SITE_URL is '$site', expected '$SITE_ORIGIN'."
+            echo "::error::NEXT_PUBLIC_SITE_URL on the service is '$site', expected '$SITE_ORIGIN'."
             exit 1
           fi
 
-      - name: Build
+      # Only on a dry run. A real deploy does not build here: Render builds the commit itself,
+      # and building twice would prove nothing about the machine that matters while doubling
+      # the chance of a false green from a runner-only difference.
+      - uses: actions/setup-node@v7
+        if: ${{ inputs.dry_run }}
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Dry run — build this commit without deploying
+        if: ${{ inputs.dry_run }}
+        env:
+          # The build inlines this, so it has to match what the service would use.
+          NEXT_PUBLIC_SITE_URL: ${{ env.SITE_ORIGIN }}
         run: |
           set -euo pipefail
-          vercel build --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }} --cwd ./web
-          # Proves the monorepo walk-up actually produced Build Output API artifacts,
-          # rather than a build that resolved somewhere unexpected and exited 0.
-          test -f web/.vercel/output/config.json || {
-            echo "::error::vercel build produced no web/.vercel/output — check the Root"
-            echo "::error::Directory setting reported above."
-            exit 1
-          }
+          npm ci
+          npm run build -w web
 
-      # THE BUILD OUTPUT IS ANCHORED AT THE REPO ROOT, NOT AT web/. Measured, not assumed —
-      # every .func's .vc-config.json says so:
-      #
-      #   "handler": "web/___next_launcher.cjs"
-      #   "filePathMap": { "node_modules/client-only/index.js": "...", ... }
-      #
-      # The launcher is addressed as web/…; the dependencies as node_modules/… . Both are
-      # relative to the REPO ROOT, because `vercel build` walks up from web/ to the npm
-      # workspace root (web/ has no lockfile) and installs there — 370 packages at the root,
-      # 3 under web/.
-      #
-      # `vercel deploy --prebuilt --cwd ./web` resolves that map against web/ instead, so it
-      # wants web/node_modules/… and would want web/web/___next_launcher.cjs. On 2026-09-09
-      # it failed on the first of those:
-      #
-      #   File does not exist: "node_modules/@swc/helpers/cjs/_interop_require_default.cjs"
-      #
-      # — a real file, present at ./node_modules, absent under ./web. Installing dependencies
-      # into web/ would not fix this: it treats the first symptom and leaves the handler path
-      # pointing at web/web. The output is root-anchored; the deploy has to be too.
-      #
-      # So move the CLI's directory up to meet the output rather than the reverse. `vercel
-      # build` keeps --cwd ./web (it is what produces this layout, correctly), and .vercel/
-      # moves to the root carrying both project.json and output/ — deploy needs both.
+      # Deploy the commit CI tested, by sha. Without `commitId` Render takes the branch tip,
+      # which is not necessarily what the workflow_run that triggered this was about.
       - name: Deploy
         id: deploy
         if: ${{ !inputs.dry_run }}
-        run: |
-          set -euo pipefail
-          # `mv a b` puts a INSIDE b when b is an existing directory, so a stray root
-          # .vercel/ would silently become .vercel/.vercel and the deploy would upload
-          # nothing recognisable. Nothing creates one today — link and pull both run with
-          # --cwd ./web — so if one exists, an assumption here has changed. Say so.
-          if [ -e .vercel ]; then
-            echo "::error::A .vercel already exists at the repo root; refusing to move"
-            echo "::error::web/.vercel onto it. Something now writes it — check the link"
-            echo "::error::and pull steps above."
-            exit 1
-          fi
-          mv web/.vercel .vercel
-          test -f .vercel/output/config.json && test -f .vercel/project.json
-          url="$(vercel deploy --prebuilt --prod --scope "$VERCEL_SCOPE" --token=${{ secrets.VERCEL_TOKEN }})"
-          echo "Deployed $url"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-
-      # The step above proves the variables EXIST; this proves the running app can use them.
-      # A proxy that throws returns 5xx on every path, and that is invisible from a green
-      # build. Anything under 500 passes — a redirect to /login is a working app.
-      - name: Smoke-test the deployment
-        if: ${{ !inputs.dry_run }}
         env:
-          # Optional. Vercel -> Settings -> Deployment Protection -> Protection Bypass for
-          # Automation. Only needed while Deployment Protection is on.
-          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set -euo pipefail
-          hdr=()
-          if [ -n "${BYPASS:-}" ]; then
-            hdr=(-H "x-vercel-protection-bypass: $BYPASS")
-          fi
-
-          # Deployment Protection is on for this project: an unauthenticated request 302s to
-          # vercel.com/sso-api and never reaches Next.js. That breaks this step in BOTH
-          # directions — the 302 is under 500, so the status check below would pass without
-          # ever exercising the app, and the robots.txt assertion would grep the SSO page and
-          # fail a deploy that actually worked. Neither is acceptable in a step whose whole
-          # job is to distinguish a green deploy from a working one, so detect the wall and
-          # say which of the two fixes is needed rather than guessing.
-          loc="$(curl -sS -o /dev/null -D - --max-time 20 "${hdr[@]}" \
-                   "${{ steps.deploy.outputs.url }}/" | tr -d '\r' | grep -i '^location:' || true)"
-          case "$loc" in
-            *vercel.com/sso-api*)
-              echo "::error::Deployment Protection intercepted the smoke test — the app was never reached."
-              echo "::error::Either set the VERCEL_AUTOMATION_BYPASS_SECRET repo secret (Vercel ->"
-              echo "::error::Settings -> Deployment Protection -> Protection Bypass for Automation),"
-              echo "::error::or turn Deployment Protection off for production."
+          sha="$(git rev-parse HEAD)"
+          echo "Deploying $sha"
+          code="$(curl -sS -o "$RUNNER_TEMP/deploy.json" -w '%{http_code}' -X POST \
+                    -H "Authorization: Bearer $RENDER_API_KEY" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"commitId\":\"$sha\",\"clearCache\":\"do_not_clear\"}" \
+                    "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys")"
+          case "$code" in
+            200|201|202) ;;
+            *)
+              echo "::error::Render refused the deploy (HTTP $code)."
+              echo "::error::Response: $(head -c 400 "$RUNNER_TEMP/deploy.json" 2>/dev/null)"
               exit 1
               ;;
           esac
+          id="$(jq -r '.id // empty' "$RUNNER_TEMP/deploy.json")"
+          if [ -z "$id" ]; then
+            echo "::error::Render accepted the deploy but returned no id; cannot follow it."
+            echo "::error::Response: $(head -c 400 "$RUNNER_TEMP/deploy.json" 2>/dev/null)"
+            exit 1
+          fi
+          echo "Deploy $id started"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
 
+      # Render's deploy is asynchronous, and a failed one does NOT roll back: the previous
+      # version keeps serving. So "the API accepted it" says nothing about what is live, and
+      # without this the release below would record a deploy that never went out.
+      - name: Wait for it to go live
+        if: ${{ !inputs.dry_run }}
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          set -uo pipefail
+          deploy_id="${{ steps.deploy.outputs.id }}"
+          # 20s x 75 = 25 minutes, inside the job's 30. Render suggests 10-30s to stay within
+          # the API rate limit.
+          for _ in $(seq 1 75); do
+            status="$(curl -sS -H "Authorization: Bearer $RENDER_API_KEY" \
+                        "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$deploy_id" \
+                      | jq -r '.status // "unknown"')"
+            echo "  status: $status"
+            case "$status" in
+              live)
+                echo "Deploy $deploy_id is live."
+                exit 0
+                ;;
+              build_failed|update_failed|pre_deploy_failed|canceled|deactivated)
+                echo "::error::Deploy $deploy_id ended as '$status'. The previous version is"
+                echo "::error::still serving. Build logs: https://dashboard.render.com/web/$RENDER_SERVICE_ID"
+                exit 1
+                ;;
+            esac
+            sleep 20
+          done
+          echo "::error::Deploy $deploy_id did not reach 'live' within 25 minutes."
+          exit 1
+
+      # The step above proves the deploy finished; this proves the running app can use its
+      # configuration. A proxy that throws returns 5xx on every path, and that is invisible
+      # from a successful build. Anything under 500 passes — a redirect to /login is a working
+      # app.
+      - name: Smoke-test the deployment
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
           code="$(curl -sS -o /dev/null -w '%{http_code}' --retry 6 --retry-delay 5 \
-                    --retry-all-errors "${hdr[@]}" "${{ steps.deploy.outputs.url }}/")"
+                    --retry-all-errors "$SITE_ORIGIN/")"
           echo "GET / -> $code"
           if [ "$code" -ge 500 ]; then
             echo "::error::Deployment answered $code. A 5xx here is almost always a missing"
@@ -391,17 +361,20 @@ jobs:
           fi
           # The sharper assertion: web/app/robots.ts renders from env.siteUrl, so this reads
           # back the NEXT_PUBLIC_SITE_URL actually COMPILED INTO the bundle — not the one the
-          # dashboard claims. The step above only proved what the dashboard says.
-          curl -sS --retry 3 --retry-all-errors "${hdr[@]}" "$SITE_ORIGIN/robots.txt" \
+          # dashboard claims. The step above only proved what the dashboard says, and on
+          # Render that gap is wider, because the value is inlined at build time and a
+          # variable corrected after the last build is still wrong in what is serving.
+          curl -sS --retry 3 --retry-all-errors "$SITE_ORIGIN/robots.txt" \
             | grep -q "$SITE_ORIGIN/sitemap.xml" || {
               echo "::error::robots.txt does not carry $SITE_ORIGIN — the bundle was built"
-              echo "::error::with a different NEXT_PUBLIC_SITE_URL."
+              echo "::error::with a different NEXT_PUBLIC_SITE_URL. Correct it on the service"
+              echo "::error::and deploy again; a restart will not pick it up."
               exit 1
             }
 
       # The split deploy's missing artifact. Migrations reach production via Supabase's
       # integration and leave no record in this repo; the frontend reaches production via the
-      # step above. Neither knows about the other. This release is the one place a future
+      # steps above. Neither knows about the other. This release is the one place a future
       # incident can read what shipped together, so it names the migrations by file rather
       # than assuming anyone will diff two branches at 2am.
       #
@@ -414,9 +387,8 @@ jobs:
       #
       # VERSION is a semver PRERELEASE (0.0.1-alpha), and the release is cut with
       # --prerelease to match. That is not decoration either: `gh release list`, the repo's
-      # releases page and the Latest badge all key off that flag, and this platform handles
-      # cardholder-adjacent flows. An alpha that presents itself as a finished release is the
-      # kind of thing someone reads at 2am and believes.
+      # releases page and the Latest badge all key off that flag. An alpha that presents
+      # itself as a finished release is the kind of thing someone reads at 2am and believes.
       - name: Tag and release what shipped
         if: ${{ !inputs.dry_run }}
         env:
@@ -452,7 +424,7 @@ jobs:
           {
             echo "**${version}** — pre-release. Not release-grade; do not treat this as GA."
             echo
-            echo "Frontend: ${{ steps.deploy.outputs.url }}"
+            echo "Frontend: $SITE_ORIGIN (Render deploy ${{ steps.deploy.outputs.id }})"
             echo
             echo "### Migrations in this release"
             echo "Applied to production by Supabase's GitHub integration, not by this workflow."
@@ -476,7 +448,7 @@ jobs:
             {
               cat "$RUNNER_TEMP/old.md"
               echo
-              echo "Re-deployed by run ${GITHUB_RUN_ID}: ${{ steps.deploy.outputs.url }}"
+              echo "Re-deployed by run ${GITHUB_RUN_ID}: Render deploy ${{ steps.deploy.outputs.id }}"
             } > "$RUNNER_TEMP/merged.md"
             gh release edit "$tag" --notes-file "$RUNNER_TEMP/merged.md"
           else
@@ -487,6 +459,6 @@ jobs:
       - name: Dry run — nothing was deployed
         if: ${{ inputs.dry_run }}
         run: |
-          echo "Dry run complete. Proved: the Vercel link, the Root Directory, the three"
-          echo "production env vars, and a successful monorepo build from the repo root."
-          echo "Production was not modified."
+          echo "Dry run complete. Proved: the Render API key, the service id and its"
+          echo "Auto-Deploy setting, the three production env vars, and a successful"
+          echo "monorepo build of this commit. Production was not modified."

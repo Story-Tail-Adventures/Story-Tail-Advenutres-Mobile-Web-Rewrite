@@ -588,9 +588,11 @@ two, so that no Supabase credential ever has to enter GitHub:
 - **Supabase's GitHub integration** applies new migrations and deploys the Edge Functions
   declared in `config.toml`, server-side over its own OAuth connection. Nothing in
   `.github/workflows/` runs `supabase db push` or `functions deploy`.
-- **`.github/workflows/deploy.yml`** builds and deploys the web app to Vercel via the Vercel
-  CLI (not Vercel's GitHub integration, which is deliberately left disconnected), then cuts a
-  GitHub Release naming the migrations that shipped alongside it. It gates on CI via
+- **`.github/workflows/deploy.yml`** deploys the web app to Render through Render's API (not
+  Render's own branch watching, which `render.yaml` disables with `autoDeploy: false` so that
+  CI gates every deploy), then cuts a GitHub Release naming the migrations that shipped
+  alongside it. It deploys by `commitId`, so production runs the exact commit CI tested rather
+  than the branch tip. It gates on CI via
   `workflow_run`, so a red build cannot deploy on the automatic path. A manual
   `workflow_dispatch` bypasses that gate by design — the escape hatch for a red job in a stack
   the frontend does not touch — and compensates by refusing any ref but `production`.
@@ -627,7 +629,7 @@ A few patterns that tend to compound nicely:
 | File storage | Supabase Storage | Same platform |
 | Real-time | Supabase Realtime | Postgres logical replication → WebSocket |
 | Payments / card vault | ~~Stripe Elements + Stripe Mobile SDKs~~ None (since 2026-10-16) | Clients pay suppliers through pay links; no cardholder data, out of PCI scope |
-| Web hosting | Vercel | Native Next.js home |
+| Web hosting | Render (Starter) | Vercel blocked the account 2026-10-26 under its fair use guidelines, which limit Hobby to non-commercial use; see `docs/RENDER-MIGRATION.md` |
 | Backend hosting | (none separate — Supabase hosts Edge Functions) | One fewer vendor |
 | Email | Postmark or Resend | Transactional only |
 | Observability | Sentry | Free tier covers MVP |
@@ -637,7 +639,7 @@ A few patterns that tend to compound nicely:
 | CI/CD | GitHub Actions | Standard, free for small repos |
 | Workflow | Claude Code with `CLAUDE.md` + Skills | Documented in Section 5 |
 
-Estimated **MVP run-rate cost**: $50–$250/month across all services at launch volume — Supabase free tier + Vercel free tier cover early traffic.
+Estimated **MVP run-rate cost**: $50–$250/month across all services at launch volume — the Supabase free tier plus one Render Starter instance cover early traffic. Render is $7/month for the instance and meters bandwidth separately (5 GB/month included on a Hobby workspace, then $0.15/GB), so Cloudflare's free tier in front is doing real work on the bill as well as on bot traffic.
 
 ---
 
@@ -656,7 +658,7 @@ Clients are unaffected; MFA stays optional for them. Before a release that carri
 
 **Edge Functions execution limits.** Supabase Edge Functions have a 150-second execution limit on the free tier (2× that on Pro). Verify that the longest-running Edge Function (likely Inteletravel CSV import for large statements, or a Stripe Vault and Forward call with a slow supplier endpoint, which no longer applies since 2026-10-16) fits comfortably within that budget. If not, the workaround is to break the work into smaller Edge Functions or use a queue pattern with Supabase Realtime triggers.
 
-**App address.** The app is served at `https://storytailadventures.vercel.app`, Vercel's production alias (`SITE_ORIGIN` in `.github/workflows/deploy.yml`). The brand domain `adventures.story-tail.com` can be pointed at it later; there is no separate app subdomain.
+**App address.** UNDECIDED since the move off Vercel, and `SITE_ORIGIN` in `.github/workflows/deploy.yml` is a `REPLACE-ME` placeholder that refuses to deploy until it is filled in. The choice is the Render-assigned `.onrender.com` URL or a real domain. Whatever it names is crawlable (`web/app/seo.ts` serves `allow: "/"`), and `web/content/public/proof.ts` still reports unverified claims, placeholder prices and unlicensed photos, so the brand domain `adventures.story-tail.com` should wait for the content registry to be clean. There is no separate app subdomain.
 
 **Apple Developer + Google Play accounts.** Required to publish the mobile apps. Apple Developer Program is $99/year; Google Play is a one-time $25. Register these as soon as the build starts so app review timing doesn't gate launch.
 

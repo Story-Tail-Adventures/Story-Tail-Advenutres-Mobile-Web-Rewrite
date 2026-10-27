@@ -5,8 +5,8 @@ import { useSyncExternalStore } from "react";
 /**
  * The visitor's answer to "may Google Analytics count this visit?". P1.
  *
- * Google Analytics sets cookies and sends data to Google, so unlike Vercel's cookieless
- * count it waits for a yes. Until there is one, the Firebase SDK is not even downloaded
+ * Google Analytics sets cookies and sends data to Google, so it waits for a yes. It is the
+ * only analytics the site runs: the cookieless page-view count went with Vercel. Until there is one, the Firebase SDK is not even downloaded
  * (components/FirebaseAnalytics.tsx imports it lazily).
  *
  * Stored per browser in localStorage, like the theme and the dismissed sign-in banner, so

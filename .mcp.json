@@ -11,6 +11,10 @@
         "-y",
         "@mui/mcp@latest"
       ]
+    },
+    "render": {
+      "type": "http",
+      "url": "https://mcp.render.com/mcp"
     }
   }
 }
