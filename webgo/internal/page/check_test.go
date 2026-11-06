@@ -74,6 +74,26 @@ func TestLoadRefusesBrokenPages(t *testing.T) {
 			"missing file", nil,
 			Spec{Slots: nil}, "file does not exist",
 		},
+		{
+			"slot on a <link>", []byte(`<!DOCTYPE html><html><head><link data-slot="a" rel="stylesheet" href="/x.css"></head><body></body></html>`),
+			Spec{Slots: []string{"a"}}, "may not be a slot",
+		},
+		{
+			"slot on a <base>", []byte(`<!DOCTYPE html><html><head><base data-slot="a" href="/"></head><body></body></html>`),
+			Spec{Slots: []string{"a"}}, "may not be a slot",
+		},
+		{
+			"slot on a <meta>", []byte(`<!DOCTYPE html><html><head><meta data-slot="a" http-equiv="refresh" content="0"></head><body></body></html>`),
+			Spec{Slots: []string{"a"}}, "may not be a slot",
+		},
+		{
+			"slot on an <embed>", doc(`<embed data-slot="a" src="/x">`),
+			Spec{Slots: []string{"a"}}, "may not be a slot",
+		},
+		{
+			"slot with xlink:href", doc(`<svg><a data-slot="a" xlink:href="#placeholder"><text>x</text></a></svg>`),
+			Spec{Slots: []string{"a"}}, "namespaced attribute",
+		},
 	}
 	for _, c := range cases {
 		fsys := fstest.MapFS{}
@@ -92,6 +112,8 @@ func TestLoadRefusesBrokenPages(t *testing.T) {
 	}
 }
 
+const okLayout = `<!DOCTYPE html><html><head><title>L</title></head><body><main data-layout-main></main></body></html>`
+
 func TestLayoutRules(t *testing.T) {
 	page := doc(`<p data-slot="a">x</p>`)
 	cases := map[string]struct {
@@ -103,6 +125,12 @@ func TestLayoutRules(t *testing.T) {
 		"layout with two mains":  {`<!DOCTYPE html><html><body><main data-layout-main></main><div data-layout-main></div></body></html>`, page, "found 2"},
 		"page without a main":    {`<!DOCTYPE html><html><body><main data-layout-main></main></body></html>`, []byte(`<!DOCTYPE html><p data-slot="a">x</p>`), "exactly one <main>"},
 		"undeclared layout slot": {`<!DOCTYPE html><html><body><nav data-slot="nav">n</nav><main data-layout-main></main></body></html>`, page, `slot "nav" is in the HTML but not declared`},
+		// compose uses only the page's <title> and <main>; anything else must fail loudly.
+		"page stylesheet":      {okLayout, []byte(`<!DOCTYPE html><html><head><title>t</title><link rel="stylesheet" href="/p.css"></head><body><main><p data-slot="a">x</p></main></body></html>`), "<link> in the page's <head> would be dropped"},
+		"page script":          {okLayout, []byte(`<!DOCTYPE html><html><head><script src="/p.js"></script></head><body><main><p data-slot="a">x</p></main></body></html>`), "<script> in the page's <head> would be dropped"},
+		"main attributes":      {okLayout, []byte(`<!DOCTYPE html><html><body><main class="wide"><p data-slot="a">x</p></main></body></html>`), "attributes on the page's <main>"},
+		"content outside main": {okLayout, []byte(`<!DOCTYPE html><html><body><nav data-slot="nav">n</nav><main><p data-slot="a">x</p></main></body></html>`), "<nav> outside <main>"},
+		"text outside main":    {okLayout, []byte(`<!DOCTYPE html><html><body>stray<main><p data-slot="a">x</p></main></body></html>`), "text outside <main>"},
 	}
 	for name, c := range cases {
 		fsys := fstest.MapFS{"l.html": {Data: []byte(c.layout)}, "p.html": {Data: c.page}}

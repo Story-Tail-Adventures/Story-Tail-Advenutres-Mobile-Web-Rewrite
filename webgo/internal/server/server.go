@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
@@ -105,7 +106,14 @@ func recoverPanics(next http.Handler, log *slog.Logger) http.Handler {
 				if v == http.ErrAbortHandler {
 					panic(v) // the server's own signal to drop the connection
 				}
-				log.Error("handler panicked", "method", r.Method, "path", r.URL.Path, "panic", fmt.Sprint(v))
+				// The panic's type and the stack, never its message: a message can carry
+				// whatever value the handler was holding (a name, an address, a note).
+				log.Error("handler panicked",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"panic_type", fmt.Sprintf("%T", v),
+					"stack", string(debug.Stack()),
+				)
 				http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 			}
 		}()

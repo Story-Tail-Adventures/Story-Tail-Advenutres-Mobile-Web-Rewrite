@@ -39,7 +39,7 @@ type Config struct {
 	SiteURL string
 
 	SupabaseURL     string
-	SupabaseAnonKey string
+	SupabaseAnonKey string `json:"-"` // public by design, but kept out of JSON with the rest
 
 	// InquiryEmail is Gyasi's address for the few plain "email me" links. Empty in
 	// production when unset, rather than inventing an address.
@@ -50,13 +50,14 @@ type Config struct {
 	AppleAuthEnabled  bool
 
 	// HotelSearchEnabled is the kill switch for live hotel search, which spends a metered
-	// budget on a public page. On unless set to "false".
+	// budget on a public page. On when unset or "true", off when "false"; any other value
+	// is refused, so a typo like "off" or "0" cannot leave the meter running.
 	HotelSearchEnabled bool
 
-	// Secrets. Never logged, never sent to a browser.
-	SerpAPIKey       string // SERPAPI_API_KEY, the metered provider credential
-	HotelSearchToken string // STA_HOTEL_SEARCH_TOKEN, proves a cruise-search call is ours (until it is ported)
-	LeadFormKey      string // STA_LEAD_FORM_KEY, lets lead-message trust the forwarded address (until it is ported)
+	// Secrets. Never logged, never sent to a browser, never marshalled to JSON.
+	SerpAPIKey       string `json:"-"` // SERPAPI_API_KEY, the metered provider credential
+	HotelSearchToken string `json:"-"` // STA_HOTEL_SEARCH_TOKEN, proves a cruise-search call is ours (until it is ported)
+	LeadFormKey      string `json:"-"` // STA_LEAD_FORM_KEY, lets lead-message trust the forwarded address (until it is ported)
 }
 
 // Load reads the configuration through getenv (os.Getenv in main, a map in tests).
@@ -118,7 +119,14 @@ func Load(getenv func(string) string) (Config, error) {
 
 	c.GoogleAuthEnabled = getenv("AUTH_GOOGLE_ENABLED") == "true"
 	c.AppleAuthEnabled = getenv("AUTH_APPLE_ENABLED") == "true"
-	c.HotelSearchEnabled = getenv("HOTEL_SEARCH_ENABLED") != "false"
+	switch v := strings.ToLower(strings.TrimSpace(getenv("HOTEL_SEARCH_ENABLED"))); v {
+	case "", "true":
+		c.HotelSearchEnabled = true
+	case "false":
+		c.HotelSearchEnabled = false
+	default:
+		errs = append(errs, fmt.Errorf(`HOTEL_SEARCH_ENABLED must be "true" or "false", got %q`, v))
+	}
 
 	c.SerpAPIKey = strings.TrimSpace(getenv("SERPAPI_API_KEY"))
 	c.HotelSearchToken = strings.TrimSpace(getenv("STA_HOTEL_SEARCH_TOKEN"))

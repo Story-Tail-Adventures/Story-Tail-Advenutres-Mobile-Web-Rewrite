@@ -188,4 +188,11 @@ func TestPanicsBecomeA500WithHeaders(t *testing.T) {
 	if !strings.Contains(logs.String(), `"status":500`) {
 		t.Errorf("the request log did not record the 500: %s", logs.String())
 	}
+	// The panic's message can carry request data, so only its type and the stack are logged.
+	if strings.Contains(logs.String(), "boom") {
+		t.Errorf("the panic message reached the log: %s", logs.String())
+	}
+	if !strings.Contains(logs.String(), `"panic_type":"string"`) || !strings.Contains(logs.String(), `"stack"`) {
+		t.Errorf("the log lacks the panic type or stack: %s", logs.String())
+	}
 }

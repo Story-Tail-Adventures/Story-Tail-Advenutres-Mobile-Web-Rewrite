@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -141,6 +142,17 @@ func TestFlags(t *testing.T) {
 	if c.HotelSearchEnabled {
 		t.Error(`HOTEL_SEARCH_ENABLED="false" did not turn search off`)
 	}
+
+	c, err = Load(env(with(goodProd, "HOTEL_SEARCH_ENABLED", "FALSE")))
+	if err != nil || c.HotelSearchEnabled {
+		t.Errorf(`HOTEL_SEARCH_ENABLED="FALSE": enabled=%v err=%v, want off`, c.HotelSearchEnabled, err)
+	}
+	// A typo must not leave a metered search running.
+	for _, v := range []string{"off", "0", "no", "disabled", "flase"} {
+		if _, err := Load(env(with(goodProd, "HOTEL_SEARCH_ENABLED", v))); err == nil {
+			t.Errorf("HOTEL_SEARCH_ENABLED=%q loaded without error", v)
+		}
+	}
 }
 
 // Secrets must not reach a log line or a %v, whatever verb is used.
@@ -156,9 +168,14 @@ func TestSecretsNeverPrinted(t *testing.T) {
 
 	var logged bytes.Buffer
 	slog.New(slog.NewJSONHandler(&logged, nil)).Info("start", "config", c)
+	asJSON, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	outputs := []string{
 		logged.String(),
+		string(asJSON),
 		fmt.Sprintf("%v", c),
 		fmt.Sprintf("%+v", c),
 		fmt.Sprintf("%#v", c),

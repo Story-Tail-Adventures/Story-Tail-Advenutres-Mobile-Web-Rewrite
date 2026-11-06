@@ -6,12 +6,21 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // slotName keeps names boring: they appear in HTML attributes and Go string literals.
 var slotName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// noSlotTags are elements that change how the whole page loads or runs. Filling one from
+// data (a <base href>, a <link> stylesheet, a <meta http-equiv>) is never a page's job.
+var noSlotTags = map[atom.Atom]bool{
+	atom.Base: true, atom.Link: true, atom.Meta: true, atom.Object: true, atom.Embed: true,
+	atom.Param: true, atom.Frame: true, atom.Frameset: true, atom.Template: true,
+}
 
 // check is the startup stand-in for a template compiler's type check. Both directions:
 // every slot and repeat in the HTML is declared in Go (an undeclared one would ship its
@@ -36,6 +45,18 @@ func check(root *html.Node, file string, declared []string, repeats map[string][
 
 			if (isSlot || isRepeat) && raw {
 				fail("<%s> carries a slot or repeat inside raw text, where values are written unescaped", n.Data)
+			}
+			if (isSlot || isRepeat) && noSlotTags[n.DataAtom] {
+				fail("<%s> may not be a slot or repeat: it changes how the whole page loads", n.Data)
+			}
+			if isSlot || isRepeat {
+				for _, a := range n.Attr {
+					if a.Namespace != "" || strings.Contains(a.Key, ":") {
+						// setAttr and removeAttr only see plain attributes, so an
+						// xlink:href placeholder could never be replaced or removed.
+						fail("<%s data-slot> carries the namespaced attribute %s:%s, which the setters cannot replace", n.Data, a.Namespace, a.Key)
+					}
+				}
 			}
 			if isSlot && isRepeat {
 				fail("<%s> has both %s=%q and %s=%q; put the slot inside the row", n.Data, attrSlot, slot, attrRepeat, rep)

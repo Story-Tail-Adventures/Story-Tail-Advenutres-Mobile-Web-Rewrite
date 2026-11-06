@@ -5,11 +5,13 @@
 // links; rows marked data-repeat="name" are copied once per item; blocks that do not apply
 // are removed from the tree, so their data never reaches the browser.
 //
-// This is the ONLY package that imports htmlx, and it uses htmlx only to READ: parse, find,
-// remove. Every write is our own code on golang.org/x/net/html, because htmlx's setters are
+// This is the ONLY package that imports htmlx, and it uses htmlx only to find and remove
+// nodes. Every write is our own code on golang.org/x/net/html, because htmlx's setters are
 // broken (SetAttr keeps an existing value, AddClass never applies, RemoveAttr writes into a
-// shared slice) or unsafe (SetHTML parses its input as markup). boundary_test.go enforces
-// both rules. See docs/HTMLX-Library-Security-Review.md and docs/GO-MIGRATION.md §4.4.
+// shared slice) or unsafe (SetHTML parses its input as markup). Pages are parsed with
+// x/net/html directly, so no htmlx.Node value (the type that carries those setters and the
+// double-unescaping Text) ever exists here. boundary_test.go enforces all of it. See
+// docs/HTMLX-Library-Security-Review.md and docs/GO-MIGRATION.md §4.4.
 //
 // The safety rules, which template engines would otherwise have given us:
 //
@@ -31,6 +33,7 @@ import (
 	"io/fs"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/mdigger/htmlx"
 	"golang.org/x/net/html"
@@ -39,7 +42,9 @@ import (
 
 // Layout is a shared frame: a full HTML document with exactly one element carrying
 // data-layout-main. A page's <main> children are moved into that element, and the page's
-// <title> text replaces the layout's.
+// <title> text replaces the layout's. Nothing else in a page file is used, so Load refuses
+// a page that has anything else: head content beyond <title> and <meta>, attributes on its
+// <main>, or anything in <body> outside <main>. Shared CSS and scripts go in the layout.
 type Layout struct {
 	File  string   // path inside the pages file system, e.g. "layout/base.html"
 	Slots []string // slots the layout itself carries, filled by every page that uses it
@@ -139,11 +144,11 @@ func parseFile(fsys fs.FS, name string) (*html.Node, error) {
 		return nil, fmt.Errorf("%s: %w", name, err)
 	}
 	defer f.Close()
-	doc, err := htmlx.Parse(f)
+	doc, err := html.Parse(f) // not htmlx.Parse: see the package comment
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", name, err)
 	}
-	return doc.Node, nil
+	return doc, nil
 }
 
 // compose builds a new tree from a copy of the layout with the page's main content moved in.
@@ -158,6 +163,9 @@ func compose(layout, pageDoc *html.Node, spec Spec) (*html.Node, error) {
 	pageMains := htmlx.FindAll(pageDoc, htmlx.Tag(atom.Main))
 	if len(pageMains) != 1 {
 		return nil, fmt.Errorf("%s: needs exactly one <main> to place in %s, found %d", spec.File, spec.Layout.File, len(pageMains))
+	}
+	if err := onlyMainIsUsed(pageDoc, pageMains[0], spec.File); err != nil {
+		return nil, err
 	}
 
 	target, src := mains[0], pageMains[0]
@@ -175,4 +183,34 @@ func compose(layout, pageDoc *html.Node, spec Spec) (*html.Node, error) {
 		}
 	}
 	return out, nil
+}
+
+// onlyMainIsUsed refuses a page file with content compose would silently drop. A Phase 2
+// page that added its own stylesheet or script in <head> would otherwise lose it with no
+// warning, and an undeclared slot outside <main> would never be checked.
+func onlyMainIsUsed(pageDoc, main *html.Node, file string) error {
+	var errs []error
+	if len(main.Attr) > 0 {
+		errs = append(errs, fmt.Errorf("%s: attributes on the page's <main> would be dropped; the layout owns <main>", file))
+	}
+	if head := htmlx.Find(pageDoc, htmlx.Tag(atom.Head)); head != nil {
+		for c := head.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && c.DataAtom != atom.Title && c.DataAtom != atom.Meta {
+				errs = append(errs, fmt.Errorf("%s: <%s> in the page's <head> would be dropped; shared assets go in the layout", file, c.Data))
+			}
+		}
+	}
+	if body := htmlx.Find(pageDoc, htmlx.Tag(atom.Body)); body != nil {
+		for c := body.FirstChild; c != nil; c = c.NextSibling {
+			switch {
+			case c == main, c.Type == html.CommentNode:
+			case c.Type == html.TextNode && strings.TrimSpace(c.Data) == "":
+			case c.Type == html.ElementNode:
+				errs = append(errs, fmt.Errorf("%s: <%s> outside <main> would be dropped; <main> must be the only element in <body>", file, c.Data))
+			default:
+				errs = append(errs, fmt.Errorf("%s: text outside <main> would be dropped", file))
+			}
+		}
+	}
+	return errors.Join(errs...)
 }

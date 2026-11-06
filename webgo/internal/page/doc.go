@@ -11,10 +11,17 @@ import (
 
 	"github.com/mdigger/htmlx"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // plainAttrs may be set with Attr. URL attributes go through URL or PayURL; event handlers
 // (on*), style, srcdoc, srcset and the like are never set from Go.
+//
+// Values are escaped on render, so any string is safe AS AN ATTRIBUTE. Two uses still need
+// care, and they are the handler's job: a data-* value that one of our JS modules reads as a
+// URL or as markup must be checked there too (SafeURL does not run on data-*), and name
+// should come from the handler, never from request data, so a visitor cannot pick a name
+// that shadows a global our scripts read.
 var plainAttrs = map[string]bool{
 	"title": true, "alt": true, "value": true, "placeholder": true, "name": true,
 	"type": true, "min": true, "max": true, "step": true, "rows": true, "cols": true,
@@ -32,8 +39,14 @@ var boolAttrs = map[string]bool{
 	"inert": true,
 }
 
-// urlAttrs may only be set through URL (or PayURL for href).
-var urlAttrs = map[string]bool{"href": true, "src": true, "action": true, "formaction": true}
+// urlTags pairs each URL attribute with the elements URL may set it on. Anything else (a
+// <base href>, a <link href> stylesheet, an <embed src>) is refused even with a safe value.
+var urlTags = map[string]map[atom.Atom]bool{
+	"href":       {atom.A: true, atom.Area: true},
+	"src":        {atom.Img: true, atom.Source: true, atom.Audio: true, atom.Video: true, atom.Track: true},
+	"action":     {atom.Form: true},
+	"formaction": {atom.Button: true, atom.Input: true},
+}
 
 var (
 	attrName  = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
@@ -54,24 +67,59 @@ func settable(name string) bool {
 // scope is the set of slots one set of setters can reach: the whole page for a Doc, one
 // copied row for a Row. Setter mistakes are recorded, not returned, so a handler reads as
 // a list of fills; Doc.Bytes reports every recorded mistake and renders nothing.
+//
+// What counts as handling a slot, so no placeholder ships:
+//
+//   - Text, URL, PayURL, Remove or Keep handle it.
+//   - Attr handles a void element (<input>, <img>): attributes are all it has. On any other
+//     element Attr, like Class and Bool, only adjusts it; its text still needs Text, Keep or
+//     Remove.
+//   - Separately, every URL attribute the slot carries in the HTML (its placeholder link)
+//     must go through URL or PayURL, unless the slot is kept or removed. Text alone on
+//     <a href="#sample"> would otherwise ship the sample link.
+//
+// Text the HTML gives a slot is treated as copy unless Text is called; put text that varies
+// in its own slot (a <span> inside the link), and the startup check covers it.
 type scope struct {
 	where      string
-	slots      map[string]*html.Node // nil value: removed
-	touched    map[string]bool
-	repeats    map[string]*html.Node // Doc only; nil value: filled or removed
-	repeatDone map[string]bool       // Doc only
+	slots      map[string]*html.Node      // nil value: removed
+	filled     map[string]bool            // handled as content
+	urlPending map[string]map[string]bool // slot -> URL attributes still holding placeholders (present = pending)
+	repeats    map[string]*html.Node      // Doc only; nil value: filled or removed
+	repeatDone map[string]bool            // Doc only
 	errs       *[]error
 }
 
 func newScope(where string, errs *[]error) scope {
-	return scope{where: where, slots: map[string]*html.Node{}, touched: map[string]bool{}, errs: errs}
+	return scope{
+		where:      where,
+		slots:      map[string]*html.Node{},
+		filled:     map[string]bool{},
+		urlPending: map[string]map[string]bool{},
+		errs:       errs,
+	}
+}
+
+// track records the URL attributes each slot carries, after index has found the slots.
+func (s *scope) track() {
+	for name, n := range s.slots {
+		for _, a := range n.Attr {
+			if a.Namespace == "" && urlTags[a.Key] != nil {
+				if s.urlPending[name] == nil {
+					s.urlPending[name] = map[string]bool{}
+				}
+				s.urlPending[name][a.Key] = true
+			}
+		}
+	}
 }
 
 func (s *scope) fail(format string, a ...any) {
 	*s.errs = append(*s.errs, fmt.Errorf("%s: "+format, append([]any{s.where}, a...)...))
 }
 
-func (s *scope) node(slot string) *html.Node {
+// node finds a live slot. fill says whether the calling setter handles the slot's content.
+func (s *scope) node(slot string, fill bool) *html.Node {
 	n, ok := s.slots[slot]
 	if !ok {
 		s.fail("no slot %q here (not declared for this page or row)", slot)
@@ -81,14 +129,16 @@ func (s *scope) node(slot string) *html.Node {
 		s.fail("slot %q was already removed", slot)
 		return nil
 	}
-	s.touched[slot] = true
+	if fill {
+		s.filled[slot] = true
+	}
 	return n
 }
 
 // Text makes text the slot's only content, as a text node. Any string is safe here: it is
 // escaped when the page is written.
 func (s *scope) Text(slot, text string) {
-	n := s.node(slot)
+	n := s.node(slot, true)
 	if n == nil {
 		return
 	}
@@ -100,15 +150,45 @@ func (s *scope) Text(slot, text string) {
 		s.fail("slot %q is inside <%s>, where text is written unescaped", slot, tag)
 		return
 	}
+	if inner := s.liveInside(n); inner != "" {
+		s.fail("slot %q holds %s; Text would drop it, so fill that instead (or Remove %q)", slot, inner, slot)
+		return
+	}
+	// Attributes stay, so a link's placeholder href is still pending until URL handles it.
 	replaceText(n, text)
 }
 
+// liveInside names a still-live slot or repeat inside n (not n itself), or "".
+func (s *scope) liveInside(n *html.Node) string {
+	found := ""
+	var walk func(*html.Node)
+	walk = func(x *html.Node) {
+		for c := x.FirstChild; c != nil && found == ""; c = c.NextSibling {
+			if name, ok := attrValue(c, attrSlot); ok && s.slots[name] == c {
+				found = fmt.Sprintf("slot %q", name)
+				return
+			}
+			if name, ok := attrValue(c, attrRepeat); ok && s.repeats != nil && s.repeats[name] == c {
+				found = fmt.Sprintf("repeat %q", name)
+				return
+			}
+			walk(c)
+		}
+	}
+	walk(n)
+	return found
+}
+
 // Attr sets a plain attribute: data-*, aria-*, or one of a fixed list (title, alt, value,
-// name, ...). It refuses URL attributes (use URL), event handlers and style.
+// name, ...). It refuses URL attributes (use URL), event handlers and style. On a void
+// element it handles the slot; elsewhere it only adjusts it.
 func (s *scope) Attr(slot, name, value string) {
-	n := s.node(slot)
+	n := s.node(slot, false)
 	if n == nil {
 		return
+	}
+	if voidElements[n.DataAtom] {
+		s.filled[slot] = true
 	}
 	if !settable(name) {
 		s.fail("attribute %q cannot be set with Attr (links use URL; event handlers and style are never set)", name)
@@ -117,9 +197,10 @@ func (s *scope) Attr(slot, name, value string) {
 	setAttr(n, name, value)
 }
 
-// Bool switches a boolean attribute such as checked, selected, disabled or hidden.
+// Bool switches a boolean attribute such as checked, selected, disabled or hidden. It only
+// adjusts the slot; it does not handle it.
 func (s *scope) Bool(slot, name string, on bool) {
-	n := s.node(slot)
+	n := s.node(slot, false)
 	if n == nil {
 		return
 	}
@@ -134,18 +215,25 @@ func (s *scope) Bool(slot, name string, on bool) {
 	}
 }
 
-// URL sets href, src, action or formaction when SafeURL allows the value, and reports
-// whether it did. A refused value removes the attribute instead (so the placeholder link
-// cannot ship either); the handler decides whether to hide the element too.
+// URL sets href, src, action or formaction, on an element that takes it, when SafeURL
+// allows the value, and reports whether it did. A refused value removes the attribute
+// instead (so the placeholder link cannot ship either); the handler decides whether to
+// hide the element too. Either way the attribute counts as handled.
 func (s *scope) URL(slot, attr, raw string) bool {
-	n := s.node(slot)
+	n := s.node(slot, true)
 	if n == nil {
 		return false
 	}
-	if !urlAttrs[attr] {
+	tags, known := urlTags[attr]
+	if !known {
 		s.fail("URL sets only href, src, action or formaction, not %q", attr)
 		return false
 	}
+	if !tags[n.DataAtom] {
+		s.fail("URL may not set %s on <%s> (slot %q)", attr, n.Data, slot)
+		return false
+	}
+	s.markURL(slot, attr)
 	v, ok := SafeURL(raw)
 	if !ok {
 		removeAttr(n, attr)
@@ -155,13 +243,18 @@ func (s *scope) URL(slot, attr, raw string) bool {
 	return true
 }
 
-// PayURL sets a pay link's href only when it is absolute https:// (CLAUDE.md rule 4), and
-// reports whether it did. A refused value removes the href.
+// PayURL sets a pay link's href, on an <a> only, when the value is absolute https://
+// (CLAUDE.md rule 4), and reports whether it did. A refused value removes the href.
 func (s *scope) PayURL(slot, raw string) bool {
-	n := s.node(slot)
+	n := s.node(slot, true)
 	if n == nil {
 		return false
 	}
+	if n.DataAtom != atom.A {
+		s.fail("PayURL sets the href of an <a> only, not <%s> (slot %q)", n.Data, slot)
+		return false
+	}
+	s.markURL(slot, "href")
 	v, ok := SafePayURL(raw)
 	if !ok {
 		removeAttr(n, "href")
@@ -171,9 +264,14 @@ func (s *scope) PayURL(slot, raw string) bool {
 	return true
 }
 
-// Class adds (on) or removes (off) one class name.
+// markURL records that attr on slot went through URL or PayURL.
+func (s *scope) markURL(slot, attr string) {
+	delete(s.urlPending[slot], attr) // deleting from a nil map is a no-op
+}
+
+// Class adds (on) or removes (off) one class name. It only adjusts the slot.
 func (s *scope) Class(slot, class string, on bool) {
-	n := s.node(slot)
+	n := s.node(slot, false)
 	if n == nil {
 		return
 	}
@@ -201,7 +299,7 @@ func (s *scope) Class(slot, class string, on bool) {
 // Remove takes the slot's element, and everything in it, out of the page. Slots and
 // repeats inside it count as handled.
 func (s *scope) Remove(slot string) {
-	n := s.node(slot)
+	n := s.node(slot, true)
 	if n == nil {
 		return
 	}
@@ -209,7 +307,8 @@ func (s *scope) Remove(slot string) {
 	walk = func(x *html.Node) {
 		if name, ok := attrValue(x, attrSlot); ok && s.slots[name] == x {
 			s.slots[name] = nil
-			s.touched[name] = true
+			s.filled[name] = true
+			delete(s.urlPending, name)
 		}
 		if name, ok := attrValue(x, attrRepeat); ok && s.repeats != nil && s.repeats[name] == x {
 			s.repeats[name] = nil
@@ -223,15 +322,25 @@ func (s *scope) Remove(slot string) {
 	htmlx.Remove(n)
 }
 
-// Keep marks a slot as deliberately left as written in the HTML, for blocks that are shown
-// or hidden depending on the data (call Remove in the other branch).
-func (s *scope) Keep(slot string) { s.node(slot) }
+// Keep marks a slot as deliberately left as written in the HTML, links included, for
+// blocks that are shown or hidden depending on the data (call Remove in the other branch).
+func (s *scope) Keep(slot string) {
+	if s.node(slot, true) != nil {
+		delete(s.urlPending, slot)
+	}
+}
 
-func (s *scope) untouched() []error {
+func (s *scope) unhandled() []error {
 	var errs []error
 	for _, name := range slices.Sorted(maps.Keys(s.slots)) {
-		if !s.touched[name] {
-			errs = append(errs, fmt.Errorf("%s: slot %q was never filled; fill it, Remove it or Keep it", s.where, name))
+		if s.slots[name] == nil {
+			continue
+		}
+		if !s.filled[name] {
+			errs = append(errs, fmt.Errorf("%s: slot %q was never filled; fill it (Text, URL, PayURL, or Attr on a void element), Remove it or Keep it", s.where, name))
+		}
+		for _, attr := range slices.Sorted(maps.Keys(s.urlPending[name])) {
+			errs = append(errs, fmt.Errorf("%s: slot %q still has its placeholder %s; set it with URL or PayURL, or Keep or Remove the slot", s.where, name, attr))
 		}
 	}
 	return errs
@@ -257,6 +366,7 @@ func (t *Template) New() *Doc {
 	d.repeats = map[string]*html.Node{}
 	d.repeatDone = map[string]bool{}
 	index(d.root, d.slots, d.repeats)
+	d.track()
 	return d
 }
 
@@ -277,11 +387,12 @@ func (d *Doc) Repeat(name string, n int, fill func(i int, r *Row)) {
 		removeAttr(row, attrRepeat)
 		r := &Row{scope: newScope(fmt.Sprintf("%s: repeat %q row %d", d.where, name, i), d.errs)}
 		index(row, r.slots, nil)
+		r.track()
 		tmpl.Parent.InsertBefore(row, tmpl)
 		if fill != nil {
 			fill(i, r)
 		}
-		*d.errs = append(*d.errs, r.untouched()...)
+		*d.errs = append(*d.errs, r.unhandled()...)
 	}
 	htmlx.Remove(tmpl)
 	d.repeats[name] = nil
@@ -290,7 +401,7 @@ func (d *Doc) Repeat(name string, n int, fill func(i int, r *Row)) {
 
 func (d *Doc) problems() error {
 	errs := slices.Clone(d.errList)
-	errs = append(errs, d.untouched()...)
+	errs = append(errs, d.unhandled()...)
 	for _, name := range slices.Sorted(maps.Keys(d.repeats)) {
 		if !d.repeatDone[name] {
 			errs = append(errs, fmt.Errorf("%s: repeat %q was never filled; its sample row would ship (Repeat with 0 removes it)", d.where, name))

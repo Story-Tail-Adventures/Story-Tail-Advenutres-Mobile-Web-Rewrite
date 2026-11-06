@@ -66,13 +66,16 @@ func TestOnlyThisPackageImportsHtmlx(t *testing.T) {
 }
 
 // htmlx's writers are broken or unsafe (review findings 1 to 8), so this package never
-// calls them. Package-qualified names are banned outright; the method names are banned on
-// any receiver, since this package defines no methods by those names.
+// calls them. Package-qualified names are banned outright, including every way to make an
+// htmlx.Node value (Node, New, Parse, String, Load, Get): with no Node value in the package,
+// none of its methods (SetHTML, Text, ...) can be reached on any receiver, which a purely
+// syntactic scan could not otherwise prove. The method names stay banned as a backstop.
 func TestNoBannedHtmlxCalls(t *testing.T) {
 	bannedFuncs := map[string]bool{
 		"SetHTML": true, "SetText": true, "SetAttr": true, "RemoveAttr": true,
 		"AddAttrWord": true, "Rename": true, "Get": true, "Load": true, "Text": true,
-		"WriteText": true, "Stats": true,
+		"WriteText": true, "Stats": true, "HTML": true,
+		"Node": true, "New": true, "Parse": true, "String": true,
 	}
 	bannedMethods := map[string]bool{
 		"SetHTML": true, "SetText": true, "SetAttr": true, "RemoveAttr": true,
