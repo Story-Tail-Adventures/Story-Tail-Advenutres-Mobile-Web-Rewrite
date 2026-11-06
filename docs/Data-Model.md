@@ -3733,6 +3733,11 @@ triggers remain available as a defense-in-depth backstop on the most sensitive t
 > function as the change (§9.5), the way the commission writes do, rather than through the
 > Edge Function wrapper alone.
 
+> **Amended 2026-11-06.** The backend is moving from Edge Functions into one Go service
+> (`docs/GO-MIGRATION.md`, ruling 8). `withAudit()` and its siblings port to
+> `webgo/internal/audit` with the same columns and metadata. Until a function is ported, its
+> Deno wrapper is still the writer. SQL functions that take `p_audit_id` do not change.
+
 ### 20.4 Versioning for Optimistic Concurrency
 
 Tables with a `version` integer:
@@ -3746,6 +3751,12 @@ Reads return the current `version`. Writes include the `version` and increment i
 ---
 
 ## 21. Implementation Notes — KMP (Mobile) + TypeScript (Backend + Web)
+
+> **Amended 2026-11-06.** The web app and the backend are moving to one Go service
+> (`docs/GO-MIGRATION.md`). It is built in `webgo/`, holds both the pages and the API mobile
+> calls, and becomes `web/` once Next.js and `supabase/functions/` are deleted. Until then the
+> layout below is still what runs. The rules in this section (column grants, server-only types,
+> UUID v7) apply to the Go code unchanged.
 
 ### 21.1 Repo Layout
 
@@ -3828,6 +3839,11 @@ The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero pol
 
 Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
 
+> **Amended 2026-11-06.** As functions move into the Go service, the key moves with them: it
+> lives in Render's env and only `webgo/internal/api/...` can reach it. A test fails the build
+> if any page handler imports the service client, so pages keep reading with the visitor's own
+> token and stay under RLS and these grants.
+
 > **Amended 2026-10-16.** The payment-domain history above is kept as the reason column
 > grants matter, but the tables it describes are dropped (§9.1 to §9.4), and
 > `supabase/tests/rls_payment.sql` goes or is rewritten with them. The lesson carries over to
@@ -3876,6 +3892,10 @@ UUID v7 is generated client-side where possible (avoids round-trip when creating
 Schema migrations live in `supabase/migrations/` and follow Supabase CLI conventions (`<timestamp>_<name>.sql`, e.g., `20260514120000_initial.sql`). Migrations are applied via `supabase db push` in development, and in production by Supabase's GitHub integration on merge to the `production` branch — not by GitHub Actions, which owns only the frontend deploy. Migrations are forward-only in production; a down migration is allowed only in development branches.
 
 The Supabase CLI also generates TypeScript types from the database schema (`supabase gen types typescript`) — those generated types feed into the Next.js web app and the Edge Functions for type-safe database access.
+
+> **Amended 2026-11-06.** Both consumers go away with the Go move (`docs/GO-MIGRATION.md`
+> Phase 6). The Go code uses hand-written structs next to each caller, with every `*_cents`
+> field an `int64`, never decoded through `any`.
 
 ### 22.2 Phasing the Schema
 

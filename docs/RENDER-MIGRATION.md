@@ -2,6 +2,16 @@
 
 Status: **planned, not started.** Decided 2026-10-27 after the Vercel account was paused.
 
+> **Amended 2026-11-06: Render hosts the Go service, not Next.js.** Gyasi chose to skip
+> putting Next.js back online and move straight to Go (`docs/GO-MIGRATION.md`, ruling 1). Render
+> Starter in Virginia is still the host, and these parts of this plan still apply: deploying by
+> `commitId` with Auto-Deploy off, the deploy guards, the client-address rule and the
+> forged-header test (§5.1), Cloudflare in front, and the Supabase auth redirect allowlist.
+> What changes: `render.yaml` becomes `runtime: go` with `rootDir: webgo`, the env vars lose
+> their `NEXT_PUBLIC_` prefix and are read at runtime, and the first deploy is the Go public
+> pages (Phase 2), not today's Next.js build. Gyasi's setup list is in `docs/GO-MIGRATION.md`
+> section 6.
+
 This covers `web/` only. Supabase (database, auth, storage, Edge Functions) does not move, and
 neither does anything under `mobile/`. Where this contradicts `docs/Tech-Recommendations.md`,
 that document wins until this one is executed and it is updated (see "Docs to update").
