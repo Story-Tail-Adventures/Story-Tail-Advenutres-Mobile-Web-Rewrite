@@ -15,8 +15,10 @@
     },
     {
       "name": "webgo",
-      "runtimeExecutable": "go",
+      "runtimeExecutable": "env",
       "runtimeArgs": [
+        "STA_ENV=development",
+        "go",
         "-C",
         "webgo",
         "run",
