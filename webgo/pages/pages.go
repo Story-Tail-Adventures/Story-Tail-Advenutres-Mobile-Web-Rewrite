@@ -9,5 +9,5 @@ import "embed"
 
 // FS holds every page file. internal/page parses them once at startup.
 //
-//go:embed layout/*.html demo/*.html
+//go:embed layout/*.html demo/*.html dev/*.html
 var FS embed.FS

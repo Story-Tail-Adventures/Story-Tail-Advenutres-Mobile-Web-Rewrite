@@ -1,9 +1,10 @@
 // Package server wires the HTTP handler: routes, security headers, the cross-origin check,
 // request logging and panic recovery.
 //
-// Phase 1 (docs/GO-MIGRATION.md §8) serves only /healthz, a plain 404 for everything else,
-// and in development the /_demo page. Session, gate, the /functions/v1 registry and the real
-// pages arrive in later PRs, each mounted under its gate rather than matched by string.
+// Phase 1 (docs/GO-MIGRATION.md §8) serves /healthz, the /functions/v1 registry (every name
+// passed through to Supabase), and a plain 404 for everything else. In development it adds
+// the /_demo page and, with Supabase configured, the sign-in harness. Every route goes
+// through gate.Router, so none can exist without choosing a gate.
 package server
 
 import (
@@ -12,11 +13,17 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/demo"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/devauth"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
 )
 
 // CSP is the Content Security Policy every response carries, set strictly from day one
@@ -37,27 +44,56 @@ const CSP = "default-src 'self'; " +
 // New builds the whole handler. It loads and checks every page first, so a broken page file
 // stops the server from starting.
 func New(cfg config.Config, pagesFS fs.FS, log *slog.Logger) (http.Handler, error) {
+	dev := cfg.Env == config.Development
+	devAuth := dev && cfg.SupabaseConfigured()
+
 	var specs []page.Spec
-	if cfg.Env == config.Development {
+	if dev {
 		specs = append(specs, demo.Spec)
+	}
+	if devAuth {
+		specs = append(specs, devauth.Specs...)
 	}
 	set, err := page.Load(pagesFS, specs...)
 	if err != nil {
 		return nil, fmt.Errorf("loading pages: %w", err)
 	}
 
+	auth := supa.New(cfg.SupabaseURL, cfg.SupabaseAnonKey, nil)
+	// Secure everywhere but a local http:// server, where browsers would drop the cookie.
+	secure := cfg.Env == config.Production || strings.HasPrefix(cfg.SiteURL, "https://")
+	sessions := session.NewManager(auth, secure, log)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthz)
-	if cfg.Env == config.Development {
+	rt := gate.NewRouter(mux, sessions, cfg.AuthChecksDisabledForLocalDev(), log)
+
+	rt.Public("GET /healthz", http.HandlerFunc(healthz))
+
+	// The backend door. Public at the gate because it carries its own bearer token (mobile,
+	// pg_cron) and never reads the session cookie.
+	rt.Public("/functions/v1/{name}", api.New(api.Config{
+		SupabaseURL: cfg.SupabaseURL,
+		AnonKey:     cfg.SupabaseAnonKey,
+		LeadFormKey: cfg.LeadFormKey,
+		SearchToken: cfg.HotelSearchToken,
+	}, nil, log))
+
+	if dev {
 		h, err := demo.Handler(set, log)
 		if err != nil {
 			return nil, err
 		}
-		mux.Handle("GET /_demo", h)
+		rt.Public("GET /_demo", h)
 	}
+	if devAuth {
+		if err := devauth.Mount(rt, set, auth, sessions, log); err != nil {
+			return nil, err
+		}
+	}
+
 	// Everything else, any method: a plain 404 that reads no cookie and calls nothing. Bots
 	// probing /wp-login.php and /.env land here, and must cost next to nothing.
-	mux.HandleFunc("/", notFound)
+	rt.Public("/", http.HandlerFunc(notFound))
 
 	var h http.Handler = mux
 	h = http.NewCrossOriginProtection().Handler(h)
