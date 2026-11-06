@@ -1,0 +1,13 @@
+/* Story-Tail Adventures — styles for the agent pages only.
+ *
+ * Owned by the session building the agent area (docs/GO-MIGRATION.md §4.8). The agent layout links
+ * this file after site.css, so a rule here may use every token, theme variable and ui.css
+ * class. Put a rule here when one page or a few agent pages need it; anything a second area
+ * would use belongs in ui.css or shell.css instead, in its own PR.
+ *
+ * No inline styles anywhere (the CSP is style-src 'self'): a page that needs a one-off size
+ * or colour gets a class here. internal/static/classes_test.go fails on any class a page uses
+ * that no stylesheet defines. */
+
+@layer components {
+}

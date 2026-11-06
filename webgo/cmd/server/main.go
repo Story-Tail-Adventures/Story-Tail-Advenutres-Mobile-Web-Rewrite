@@ -16,6 +16,7 @@ import (
 	// time.LoadLocation would fail at runtime, not at build.
 	_ "time/tzdata"
 
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/assets"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/server"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/pages"
@@ -41,7 +42,7 @@ func run(log *slog.Logger) error {
 	if err != nil {
 		return err // fail closed: a bad or missing variable never starts a server
 	}
-	handler, err := server.New(cfg, pages.FS, log)
+	handler, err := server.New(cfg, pages.FS, assets.FS, log)
 	if err != nil {
 		return err
 	}

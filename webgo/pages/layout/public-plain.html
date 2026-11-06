@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<!--
+  The public shell, plain variant: pages with a solid sticky top bar at every width.
+  Ports app/(public)/layout.tsx with app/(public)/(plain)/layout.tsx, PublicTopBar,
+  PublicNav, PublicAuthCluster, PublicFooter, SkipLink and PlaceholderBanner.
+
+  Public pages are cached by Cloudflare and read no cookie, so the signed-in chrome ships BOTH
+  states and the pre-paint flag picks one (public.css, shell.css). Filled by
+  internal/shell.Public: the nav's current page (aria-current), the footer year, the
+  placeholder banner and the flash. A page's <main> children land in #main.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBF6EE">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050D1A">
+  <title>Story-Tail Adventures</title>
+  <meta name="description" content="Trips planned by someone who has done this a hundred times — so you can rest when you get there.">
+  <script src="/assets/js/prepaint-theme.js"></script>
+  <script src="/assets/js/prepaint-auth.js"></script>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/area/public.css">
+  <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/assets/img/icon.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" sizes="180x180">
+  <script type="module" src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/ui.js"></script>
+</head>
+<body>
+  <div class="pub-surface">
+    <a class="btn btn-contained btn-small skip-link" href="#main">Skip to content</a>
+    <div class="placeholder-banner" role="note" data-slot="placeholder-banner">Preview content — some figures, quotes, prices and photos are placeholders pending verification.</div>
+    <div class="pub-region">
+      <header class="pub-topbar">
+        <div class="pub-toolbar">
+          <a class="pub-brand" href="/" aria-label="Story-Tail Adventures home"><span class="sta-art brand-80" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" loading="lazy" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" loading="lazy" decoding="async"></span></a>
+          <nav class="pub-nav" aria-label="Primary">
+          <a class="pub-nav-link" href="/explore" data-slot="nav-explore">Explore</a>
+          <a class="pub-nav-link" href="/caribbean" data-slot="nav-caribbean">Caribbean</a>
+          <a class="pub-nav-link" href="/cruises" data-slot="nav-cruises">Cruises</a>
+          <a class="pub-nav-link" href="/honeymoons" data-slot="nav-honeymoons">Honeymoons</a>
+          <a class="pub-nav-link" href="/about" data-slot="nav-about">About Gyasi</a>
+          </nav>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn icon-btn-36 tap-target sta-light-only" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#moon"></use></svg></button>
+        <button type="button" class="icon-btn icon-btn-36 tap-target sta-dark-only" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#sun"></use></svg></button>
+          <button type="button" class="icon-btn icon-btn-36 tap-target pub-menu-button" popovertarget="pub-menu" aria-haspopup="dialog" aria-controls="pub-menu" aria-label="Open menu"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#menu"></use></svg></button>
+          <div class="pub-auth" data-auth="unknown">
+            <div class="pub-auth-out">
+              <a class="btn btn-text btn-small pub-signin" href="/login">Sign in</a>
+              <a class="btn btn-contained btn-small pub-create" href="/join">Create account</a>
+            </div>
+            <a class="pub-auth-in" href="/dashboard" aria-label="Your account"><span class="avatar" aria-hidden="true"></span></a>
+          </div>
+        </div>
+      </header>
+      <div id="pub-menu" class="pub-drawer" popover role="dialog" aria-modal="true" aria-label="Menu">
+        <div class="pub-drawer-head">
+          <a class="pub-brand" href="/" aria-label="Story-Tail Adventures home"><span class="sta-art brand-80" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" loading="lazy" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" loading="lazy" decoding="async"></span></a>
+          <button type="button" class="icon-btn icon-btn-44" popovertarget="pub-menu" popovertargetaction="hide" aria-label="Close menu"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg></button>
+        </div>
+        <nav class="pub-drawer-nav" aria-label="Primary">
+          <ul class="pub-drawer-list">
+            <li><a class="pub-drawer-link" href="/explore" data-slot="drawer-explore">Explore</a></li>
+            <li><a class="pub-drawer-link" href="/caribbean" data-slot="drawer-caribbean">Caribbean</a></li>
+            <li><a class="pub-drawer-link" href="/cruises" data-slot="drawer-cruises">Cruises</a></li>
+            <li><a class="pub-drawer-link" href="/honeymoons" data-slot="drawer-honeymoons">Honeymoons</a></li>
+            <li><a class="pub-drawer-link" href="/about" data-slot="drawer-about">About Gyasi</a></li>
+          </ul>
+        </nav>
+        <div class="pub-drawer-actions">
+          <div class="pub-drawer-out stack gap-1">
+            <a class="btn btn-contained btn-large btn-block" href="/join">Create an account</a>
+            <a class="btn btn-outlined btn-large btn-block" href="/login">Sign in</a>
+          </div>
+          <div class="pub-drawer-in">
+            <a class="btn btn-contained btn-large btn-block" href="/dashboard">Your trips</a>
+          </div>
+        </div>
+        <ul class="pub-drawer-small">
+          <li><a href="/how-it-works">How it works</a></li>
+          <li><a href="/legal/privacy">Privacy</a></li>
+          <li><a href="/legal/terms">Terms</a></li>
+        </ul>
+      </div>
+      <main class="pub-main" id="main" data-layout-main>
+        <p>Page content goes here.</p>
+      </main>
+    </div>
+    <footer class="pub-footer">
+      <div class="container pub-footer-inner">
+        <p class="pub-footer-copy">© <span data-slot="footer-year">2026</span> Story-Tail Adventures · Hosted by Inteletravel</p>
+        <nav aria-label="Legal">
+          <ul class="pub-footer-links">
+            <li><a class="pub-footer-link" href="/legal/privacy">Privacy</a></li>
+            <li><a class="pub-footer-link" href="/legal/terms">Terms</a></li>
+            <li><a class="pub-footer-link" href="/legal/cookies">Cookies</a></li>
+            <li><a class="pub-footer-link" href="/legal/accessibility">Accessibility</a></li>
+            <li><a class="pub-footer-link" href="/how-it-works">How it works</a></li>
+            <li><a class="pub-footer-link pub-footer-link-external" href="https://adventures.story-tail.com" target="_blank" rel="noopener noreferrer">Marketing site <svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#external"></use></svg><span class="visually-hidden">(opens in a new tab)</span></a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+    <div class="snackbar" role="status" data-autohide data-slot="flash"><div class="snackbar-content"><div class="snackbar-message" data-slot="flash-text">Your changes are saved.</div></div></div>
+  </div>
+</body>
+</html>

@@ -37,7 +37,9 @@ type Sessions interface {
 	End(w http.ResponseWriter, r *http.Request)
 }
 
-// Mount registers the harness on rt.
+// Mount registers the harness on rt. It mounts after the real areas, and steps aside from
+// any route one of them already took: as the auth and client pages land, the harness
+// shrinks route by route instead of colliding with them.
 func Mount(rt *gate.Router, set *page.Set, auth SignIn, sessions Sessions, log *slog.Logger) error {
 	login, err := set.Template("dev/login.html")
 	if err != nil {
@@ -60,11 +62,18 @@ func Mount(rt *gate.Router, set *page.Set, auth SignIn, sessions Sessions, log *
 		write(w, log, d, status)
 	}
 
-	rt.AuthOnly("GET /login", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		renderLogin(w, http.StatusOK, "", "", gate.SafeNext(r.URL.Query().Get("next"), "/dashboard"))
-	}))
+	// mount registers a route unless a real page already has it.
+	mount := func(pattern string, add func(string, http.Handler), h http.HandlerFunc) {
+		if !rt.Has(pattern) {
+			add(pattern, h)
+		}
+	}
 
-	rt.AuthOnly("POST /login", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mount("GET /login", rt.AuthOnly, func(w http.ResponseWriter, r *http.Request) {
+		renderLogin(w, http.StatusOK, "", "", gate.SafeNext(r.URL.Query().Get("next"), "/dashboard"))
+	})
+
+	mount("POST /login", rt.AuthOnly, func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Bad request", http.StatusBadRequest)
@@ -83,22 +92,22 @@ func Mount(rt *gate.Router, set *page.Set, auth SignIn, sessions Sessions, log *
 		}
 		sessions.Start(w, tok)
 		http.Redirect(w, r, next, http.StatusSeeOther)
-	}))
+	})
 
-	rt.Protected("GET /dashboard", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mount("GET /dashboard", rt.Protected, func(w http.ResponseWriter, r *http.Request) {
 		st, _ := session.From(r.Context())
 		d := dash.New()
 		d.Text("email", st.User.Email)
 		d.Text("user-id", st.User.ID)
 		d.Text("assurance", gate.AssuranceOf(st).String())
 		write(w, log, d, http.StatusOK)
-	}))
+	})
 
 	// Not Protected: sign-out must work mid-MFA and during an outage (see SignOutRoute).
-	rt.SignOutRoute("POST /account/sign-out", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mount("POST /account/sign-out", rt.SignOutRoute, func(w http.ResponseWriter, r *http.Request) {
 		sessions.End(w, r)
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
-	}))
+	})
 	return nil
 }
 

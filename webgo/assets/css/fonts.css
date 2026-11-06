@@ -1,0 +1,83 @@
+/* Story-Tail Adventures — the brand typefaces, self-hosted.
+ *
+ * CLAUDE.md forbids loading Google Fonts at runtime, so these are the same TTFs the phone app
+ * bundles (mobile/shared/src/commonMain/composeResources/font/), served from /assets/fonts/
+ * with their SIL Open Font Licences beside them. The Next app got the same families from
+ * next/font at build time; docs/Design-System.md §5 is the type system they back.
+ *
+ * Poppins ships as static instances: 400, 400 italic, 500, 600, 700 and 800. The Next app also
+ * loaded 300, which only MUI's h1 and h2 variants ask for; without it the browser uses 400.
+ * Caveat and JetBrains Mono are variable fonts, so one file covers every weight.
+ *
+ * The three --font-* names are the ones next/font declared on <html>; the MUI theme variables
+ * (theme.css) and base.css build their stacks on them, exactly as in the Next app. */
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/poppins_regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/poppins_italic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/assets/fonts/poppins_medium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/assets/fonts/poppins_semibold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/poppins_bold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/assets/fonts/poppins_extrabold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Caveat";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/assets/fonts/caveat_variable.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("/assets/fonts/jetbrains_mono_variable.ttf") format("truetype");
+}
+
+:root {
+  --font-poppins: "Poppins";
+  --font-caveat: "Caveat";
+  --font-jetbrains-mono: "JetBrains Mono";
+}
