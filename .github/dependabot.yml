@@ -102,6 +102,27 @@ updates:
         applies-to: version-updates
         update-types: [minor, patch]
 
+  # ── Go: the web app and API in webgo/ ───────────────────────────────────────────
+  #
+  # Read htmlx bumps in full before taking them (docs/HTMLX-Library-Security-Review.md §7);
+  # it is a one-maintainer library used read-only behind internal/page. golang.org/x/net is
+  # where the real fixes land, so take its bumps promptly. Becomes "/web" when webgo/ is
+  # renamed (GO-MIGRATION Phase 6).
+  - package-ecosystem: gomod
+    directory: "/webgo"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      go-minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        exclude-patterns:
+          - "github.com/mdigger/htmlx"
+
   # ── GitHub Actions ───────────────────────────────────────────────────────────────
   #
   # The workflows pin actions by major tag (actions/checkout@v5, and so on). Worth watching:
