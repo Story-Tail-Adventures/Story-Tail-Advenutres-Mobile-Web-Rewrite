@@ -14,6 +14,18 @@
       "autoPort": true
     },
     {
+      "name": "webgo",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "-C",
+        "webgo",
+        "run",
+        "./cmd/server"
+      ],
+      "port": 8080,
+      "autoPort": true
+    },
+    {
       "name": "design-canvas",
       "runtimeExecutable": "python3",
       "runtimeArgs": [

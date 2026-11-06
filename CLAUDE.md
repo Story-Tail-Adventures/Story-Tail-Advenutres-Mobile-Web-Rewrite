@@ -18,13 +18,14 @@ When the user asks about features, screens, entities, payment workflows, design 
 
 - **Mobile** — Kotlin Multiplatform + Compose Multiplatform (Android + iOS)
 - **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST). Styled with **MUI v9 (9.4.0)**; the theme is `web/lib/mui/theme.ts`. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1, `docs/Design-System.md` §12.2). Follow the MUI rules in `web/AGENTS.md`. The official MUI MCP server (`mui-mcp` in `.mcp.json`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) checks MUI usage against the real docs instead of guessing.
-- **Backend** — Supabase Edge Functions (Deno + TypeScript). NO separate Ktor service.
+- **Backend** — Supabase Edge Functions (Deno + TypeScript) today. NO Ktor service.
+- **Moving to Go (adopted 2026-11-06).** One Go service replaces both the Next.js web app and the Edge Functions: server-rendered HTML pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at the same `/functions/v1/{name}` addresses, one binary on Render. It is built in `webgo/` and becomes `web/` when Next.js is deleted. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. **Read `docs/GO-MIGRATION.md` before touching `webgo/`, and before building any new web screen: new screens go only in Go once Phase 1 ships.** Until an area moves, the Next.js and Edge Function lines above describe what runs.
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments**: none. The app holds no cardholder data and has no payment vendor; Stripe left the stack 2026-10-16 (it cannot reveal a stored card number anyway). Clients pay suppliers through a pay link on each payment milestone, and only the advisor marks a milestone paid. See `docs/BRD.md` §10.
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
 - **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
-**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / MUI) lives under `web/`. Backend code lives under `supabase/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
+**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / MUI) lives under `web/`. Backend code lives under `supabase/`. All Go code (`.go`, `go.mod`, `go.sum`) lives under `webgo/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
 
 ## Critical rules — these are non-negotiable
 
@@ -32,7 +33,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 
 2. **No client-facing billing.** Story-Tail Adventures is contractually prohibited from charging clients planning, consultation, or service fees (per Inteletravel host agency policy). The platform has no Invoice entity, no "charge client" actions, no merchant-of-record flows. A Travefy invoice used as a pay link may carry supplier cost only, never an advisor fee. See `docs/BRD.md` §10.5.
 
-3. **Every mutation goes through audit middleware.** Edge Functions writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
+3. **Every mutation goes through audit middleware.** Edge Functions, and the Go API handlers that replace them (`webgo/internal/audit`), writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
 
 4. **Pay links are guarded.** A milestone's pay link must be `https://`. Only the advisor can add, change or remove it (clients read it, never write it), and every add, change or removal writes an `audit_event` row, since a swapped link could send a client's money to the wrong place. The client's "I've paid" only posts a trip message; it never marks anything paid. See `docs/BRD.md` §10.
 
@@ -92,9 +93,26 @@ supabase gen types typescript --local > web/types/supabase.ts   # regen DB types
 
 # Contracts (codegen TS + Kotlin types from openapi.yaml)
 npm run generate -w contracts
+
+# Go web app + API (from webgo/; needs Go 1.27.3+, go.mod pins the toolchain)
+go run ./cmd/server                 # serves on :8080 (PORT overrides)
+go test -race ./...
+go vet ./...
+gofmt -l .                          # must print nothing
+go build ./cmd/server
 ```
 
 ## Local development gotchas
+
+- **Go: a parsed page is shared by every request.** Fill a deep copy (`internal/page` does it),
+  never the parsed tree, or one visitor sees another's data. htmlx is a reader only; its setters
+  have real bugs (`SetAttr` keeps an existing value). See `docs/HTMLX-Library-Security-Review.md`.
+- **Go: never decode a row into `any` or `map[string]any`.** JSON numbers become `float64`
+  there and break the cents rule. Use typed structs with `int64` for every `*_cents` field.
+- **Go: import `time/tzdata`.** A slim build has no zone files, and `time.LoadLocation` fails at
+  runtime, not at build.
+- **Go: every slot a handler fills must exist in its HTML.** The startup slot check fails the
+  boot (and CI) on a renamed slot; don't work around it.
 
 Things that cost real time to rediscover:
 
@@ -188,7 +206,8 @@ unfamiliar is staged, another session put it there — leave it alone and commit
 - Don't add fields to the Data Model without first updating `docs/Data-Model.md` and regenerating the docx.
 - Don't introduce new third-party SDKs without a security review (especially anything payment-adjacent).
 - Don't refactor screen-level structure that deviates from the Design System without checking the Screen Inventory's Pattern Mapping (§4.4) first.
-- Don't introduce a separate Kotlin backend service. Backend is Supabase Edge Functions (TypeScript). If you find yourself wanting a Ktor service, push back and discuss before adding it.
+- Don't introduce a separate Kotlin backend service, or any second backend service. The backend is Supabase Edge Functions today, moving into the one Go service in `webgo/` (`docs/GO-MIGRATION.md`). If you find yourself wanting a Ktor service or another host, push back and discuss before adding it.
+- Don't let the service-role key reach a page handler in Go. Only `webgo/internal/api/...` may import the service client; pages read with the visitor's own token.
 - Don't paste files into chat — use `@-mentions` (e.g., `@docs/BRD.md`) for cleaner tokenization and a better audit trail.
 - Don't load Google Fonts at runtime in production — bundle Poppins / Caveat / JetBrains Mono in `mobile/shared/src/commonMain/composeResources/font/` for mobile and via `next/font` for web.
 - Don't make a copy decision without checking `docs/Design-System.md` §2 first. The brand voice is load-bearing.
