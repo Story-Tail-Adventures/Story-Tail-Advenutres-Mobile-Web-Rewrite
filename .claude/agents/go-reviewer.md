@@ -63,19 +63,25 @@ Don't invoke me for:
 ### Page building (`internal/page`) (hard fails)
 - [ ] **Only `internal/page` imports htmlx** (`github.com/mdigger/htmlx`). The import-boundary
       test should catch it; flag it anyway.
-- [ ] **No banned htmlx calls**: `SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`, `AddClass`,
-      `Rename`, `Get`, `Load`, `Text`, `Stats`. `SetAttr` silently keeps an existing value;
-      `RemoveAttr` writes into a shared slice.
+- [ ] **No banned htmlx calls**: any writer (`SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`,
+      `AddClass`, `Rename`), `Get`, `Load`, `Text`, `Stats`, `HTML`, and **no `htmlx.Node`
+      value at all** (`Node`, `New`, `Parse`, `String` are banned; pages parse with
+      `x/net/html`). `SetAttr` silently keeps an existing value; `RemoveAttr` writes into a
+      shared slice.
 - [ ] **No parsed page is changed.** Every fill works on a deep copy with new nodes and new
       attribute slices. Flag any handler that holds a `*html.Node` from the loaded set and
       edits it.
 - [ ] **Request or database data never becomes markup.** Text goes in as a text node; nothing
       from a request or a row reaches `html.ParseFragment` or `SetHTML`.
 - [ ] **No text into raw-text elements** (`script`, `style`, `noscript`, `iframe`, `xmp`,
-      `noembed`, `noframes`, `plaintext`, `textarea`).
+      `noembed`, `noframes`, `plaintext`). `textarea` and `title` are escaped, so they are fine.
 - [ ] **Every URL attribute goes through the URL setter** (`href`, `src`, `action`,
-      `formaction`): relative, `https:`, `mailto:`, `tel:` only. **Pay links use the
-      `https://`-only setter** and are read-only on client pages.
+      `formaction`, each on the elements that take it): relative, `https:`, `mailto:`, `tel:`
+      only. **Pay links use `PayURL`** (`https://` only, `<a>` only) and are read-only on client
+      pages, showing the link's host.
+- [ ] **No placeholder can ship.** Every slot is filled, removed or kept, and every link
+      attribute a slot carries goes through `URL`/`PayURL`. Flag a handler that relies on
+      `Class`, `Bool` or a non-void `Attr` to "fill" a slot, or that keeps placeholder copy.
 - [ ] **Every slot a handler fills is declared** so the startup check covers it.
 - [ ] **Tests assert on rendered output**, not htmlx `Text()` (it un-escapes twice).
 

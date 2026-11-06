@@ -210,24 +210,36 @@ This replaces React components, so it is built and tested before any screen.
 
 **Safety rules**
 
-- **htmlx is a reader only.** Allowed: `Parse`, `String` (tests), `Find`, `FindAll`, `FindNext`,
-  `FindPrev`, `Tag`, `TagName`, `HasAttrVal`, `ID`, `Class`, `Remove`, `RemoveChilds`,
-  `OuterHTML`, `Attr`. Banned: `SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`, `AddClass`,
-  `Rename`, `Get`, `Load`, `Text`, `Stats`. Its setters have real bugs (`SetAttr` silently keeps
-  an existing value; `AddClass` never works when a class is already set). A test fails the build
-  on any banned name.
+- **htmlx only finds and removes** (approved by Gyasi 2026-11-06). Allowed: the find helpers
+  and matchers, `AttrVal`, `Remove`, `RemoveChilds`. Banned: every writer, the fetchers, the
+  double-unescaping readers, and every way to make an `htmlx.Node` (`Node`, `New`, `Parse`,
+  `String`), so none of its methods can be reached; pages parse with `x/net/html` directly. Its
+  setters have real bugs (`SetAttr` silently keeps an existing value; `AddClass` never works when
+  a class is already set). A test fails the build on any banned name. Full list in the review,
+  section 6.
 - **Only `internal/page` imports htmlx.** A test fails the build if another package does.
 - **Text goes in as a fresh text node**, never parsed as markup. The setter refuses an element
   inside `script`, `style`, `noscript`, `iframe`, `xmp`, `noembed`, `noframes` or `plaintext`,
   because `x/net/html` writes text there without escaping. (`textarea` and `title` are escaped
   on render, checked 2026-11-06, so a form can be re-filled with what the visitor typed.)
-- **Links are checked.** One setter for `href`, `src`, `action` and `formaction` allows only
-  relative paths, `https:`, `mailto:` and `tel:`, after trimming and lower-casing. **Pay links**
-  get a stricter setter: absolute `https://` only (CLAUDE.md rule 4), and on client pages they are
-  shown, never editable.
-- **Every slot a handler uses must exist.** Each page declares its slots in Go, and a startup
-  check confirms each is in the HTML (exactly once for single slots). A renamed slot fails at boot
-  and in CI.
+- **Links are checked.** One setter for `href`, `src`, `action` and `formaction`, each only on
+  the elements that take it, allows only relative paths, `https:`, `mailto:` and `tel:`, after
+  trimming and lower-casing. **Pay links** get a stricter setter: absolute `https://` only, on
+  `<a>` only (CLAUDE.md rule 4), and on client pages they are shown, never editable. Client pages
+  also show the link's host (lower-case, no `www.`, punycode), so a look-alike domain cannot pass
+  as the real one (owed in Phase 4).
+- **Every slot a handler uses must exist, both ways.** Each page declares its slots in Go, and a
+  startup check confirms each is in the HTML exactly once and that the HTML has no undeclared
+  slot. A renamed slot fails at boot and in CI. Slots on `base`, `link`, `meta`, `object` or
+  `embed`, and slots with namespaced attributes, are refused at load.
+- **No placeholder ships.** A page renders only when every slot was filled, removed or explicitly
+  kept, and every link attribute a slot carries in the HTML went through the link setters. Class,
+  boolean and (on non-void elements) plain attribute changes only adjust a slot; they do not fill
+  it. Text the HTML gives a slot is copy unless the handler sets it, so text that varies goes in
+  its own slot.
+- **A page file holds only `<title>` and `<main>`.** Load refuses head content beyond `<title>`
+  and `<meta>`, attributes on `<main>`, and anything in `<body>` outside `<main>`, rather than
+  dropping it silently. Shared CSS and scripts go in the layout.
 - **Never write raw HTML from the database.** Message text, notes and template bodies go in as
   text.
 - **Tests check rendered output**, never htmlx's `Text()`, which un-escapes a second time.
