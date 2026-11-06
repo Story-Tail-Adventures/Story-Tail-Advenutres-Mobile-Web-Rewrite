@@ -71,6 +71,9 @@ func TestPagesThatBreakTheCSPFailToLoad(t *testing.T) {
 		"event handler":       {`<html><body><button onclick="go()">x</button></body></html>`, "onclick handler"},
 		"xlink asset":         {`<html><body><svg><use xlink:href="/assets/icons.svg#a"></use></svg></body></html>`, "plain href"},
 		"unknown icon sprite": {`<html><body><svg><use href="/assets/other.svg#a"></use></svg></body></html>`, "does not exist"},
+		"svg script by href":  {`<html><body><svg><script href="https://cdn.example.com/x.js"></script></svg></body></html>`, "<script> inside <svg>"},
+		"javascript: link":    {`<html><body><a href=" JavaScript:alert(1)">x</a></body></html>`, "javascript: URL"},
+		"javascript: action":  {`<html><body><form action="javascript:go()"></form></body></html>`, "javascript: URL"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -55,12 +55,17 @@ func rewriteAssets(root *html.Node, file string, resolve func(string) (string, b
 					fail("<%s> has an %s handler; the CSP blocks inline handlers, so use a JS module", n.Data, a.Key)
 				case a.Namespace != "" && a.Key == "href" && strings.HasPrefix(a.Val, assetPrefix):
 					fail("<%s> uses %s:href for an asset; use a plain href", n.Data, a.Namespace)
+				case urlTags[a.Key] != nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(a.Val)), "javascript:"):
+					fail("<%s %s> is a javascript: URL; the CSP blocks it, so use a JS module", n.Data, a.Key)
 				}
 			}
 			switch n.DataAtom {
 			case atom.Script:
 				src, hasSrc := attrValue(n, "src")
 				switch {
+				case n.Namespace != "":
+					// An SVG <script> loads by href, which the src rule below would not see.
+					fail("<script> inside <%s>; scripts belong in /assets/js/ files", n.Namespace)
 				case !hasSrc:
 					if strings.TrimSpace(textOf(n)) != "" {
 						fail("inline <script>; the CSP (script-src 'self') blocks it, so move it to an /assets/js/ file")
