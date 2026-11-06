@@ -218,8 +218,9 @@ This replaces React components, so it is built and tested before any screen.
   on any banned name.
 - **Only `internal/page` imports htmlx.** A test fails the build if another package does.
 - **Text goes in as a fresh text node**, never parsed as markup. The setter refuses an element
-  inside `script`, `style`, `noscript`, `iframe`, `xmp`, `noembed`, `noframes`, `plaintext` or
-  `textarea`, because `x/net/html` writes text there without escaping.
+  inside `script`, `style`, `noscript`, `iframe`, `xmp`, `noembed`, `noframes` or `plaintext`,
+  because `x/net/html` writes text there without escaping. (`textarea` and `title` are escaped
+  on render, checked 2026-11-06, so a form can be re-filled with what the visitor typed.)
 - **Links are checked.** One setter for `href`, `src`, `action` and `formaction` allows only
   relative paths, `https:`, `mailto:` and `tel:`, after trimming and lower-casing. **Pay links**
   get a stricter setter: absolute `https://` only (CLAUDE.md rule 4), and on client pages they are
