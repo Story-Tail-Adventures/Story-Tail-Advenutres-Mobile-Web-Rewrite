@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!--
+  The traveler's shell: Screens 2.2 onward (trips, messages, documents, account).
+  Ports app/(client)/layout.tsx with ClientNavRail (72px, from md), ClientTopBar (104px) and
+  ClientBottomNav (below md). The rail and bar read one registry in Next (lib/client/nav.ts);
+  here they are static HTML, and internal/shell.ClientNav is the table of which route lights
+  which item. Filled by internal/shell.Client: the current item, the avatar initials and the
+  flash. A page's <main> children land in #main.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBF6EE">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050D1A">
+  <title>Story-Tail Adventures</title>
+  <meta name="description" content="Trips planned by someone who has done this a hundred times — so you can rest when you get there.">
+  <script src="/assets/js/prepaint-theme.js"></script>
+  <script src="/assets/js/prepaint-auth.js"></script>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/area/client.css">
+  <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/assets/img/icon.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" sizes="180x180">
+  <script type="module" src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/ui.js"></script>
+</head>
+<body>
+  <div class="app-shell client-surface">
+    <nav class="app-rail" aria-label="Main">
+      <a class="rail-item" href="/dashboard" data-slot="rail-trips"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#home"></use></svg></span><span class="rail-label">Trips</span></a>
+      <span class="rail-item" aria-disabled="true" title="Discover — Coming with the next release"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg></span><span class="rail-label">Discover</span><span class="visually-hidden">Discover not available yet</span></span>
+      <a class="rail-item" href="/messages" data-slot="rail-messages"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></span><span class="rail-label">Messages</span></a>
+      <a class="rail-item" href="/documents" data-slot="rail-documents"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#passport"></use></svg></span><span class="rail-label">Documents</span></a>
+      <a class="rail-item" href="/account" data-slot="rail-account"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span><span class="rail-label">Account</span></a>
+    </nav>
+    <div class="app-column">
+      <header class="app-topbar client-topbar">
+        <div class="app-toolbar">
+          <a class="app-brand" href="/dashboard" aria-label="Story-Tail Adventures — your trips"><span class="sta-art brand-80" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" loading="lazy" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" loading="lazy" decoding="async"></span></a>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn tap-target sta-light-only" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#moon"></use></svg></button>
+        <button type="button" class="icon-btn tap-target sta-dark-only" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#sun"></use></svg></button>
+          <button type="button" class="icon-btn" aria-label="Notifications — not available yet" aria-disabled="true" disabled><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#bell"></use></svg></button>
+          <span class="avatar avatar-primary" aria-hidden="true" title="Your account" data-slot="avatar-initials">GS</span>
+        </div>
+      </header>
+      <main class="app-main client-main" id="main" data-layout-main>
+        <p>Page content goes here.</p>
+      </main>
+    </div>
+    <nav class="client-bottom-nav" aria-label="Main">
+    <a class="bottom-tab" href="/dashboard" data-slot="tab-trips"><svg class="icon icon-22" aria-hidden="true"><use href="/assets/icons.svg#home"></use></svg><span class="bottom-tab-label">Trips</span></a>
+    <span class="bottom-tab" aria-disabled="true" title="Discover — Coming with the next release"><svg class="icon icon-22" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg><span class="bottom-tab-label">Discover</span><span class="visually-hidden">Discover not available yet</span></span>
+    <a class="bottom-tab" href="/messages" data-slot="tab-messages"><svg class="icon icon-22" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg><span class="bottom-tab-label">Messages</span></a>
+    <a class="bottom-tab" href="/account" data-slot="tab-account"><svg class="icon icon-22" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg><span class="bottom-tab-label">Account</span></a>
+    </nav>
+    <div class="snackbar" role="status" data-autohide data-slot="flash"><div class="snackbar-content"><div class="snackbar-message" data-slot="flash-text">Your changes are saved.</div></div></div>
+  </div>
+</body>
+</html>

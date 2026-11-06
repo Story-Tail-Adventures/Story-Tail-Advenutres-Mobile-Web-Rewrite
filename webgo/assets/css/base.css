@@ -1,0 +1,38 @@
+/* Story-Tail Adventures — the html and body rules, ported from web/app/globals.css.
+ *
+ * Same font stacks, same scheme-keyed color-scheme, same full-height column, same layer.
+ * Dark mode is the `.scheme-dark` class on <html> (set before first paint by
+ * js/prepaint-theme.js), never prefers-color-scheme; see the long note in globals.css for
+ * why color-scheme follows the class and not the OS. */
+
+:root {
+  --font-sans: var(--font-poppins), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-script: var(--font-caveat), var(--font-poppins), cursive;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    background: var(--md-bg);
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  html.scheme-dark {
+    color-scheme: dark;
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    background: var(--md-bg);
+    color: var(--md-on-bg);
+    font-family: var(--font-sans);
+  }
+}

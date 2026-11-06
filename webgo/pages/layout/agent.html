@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!--
+  The advisor's shell: Screen Inventory §3.2 onward.
+  Ports app/(agent)/layout.tsx with AgentNavRail (72px, from md), AgentTopBar (104px: theme,
+  quick-add from sm, the inert bell, the account menu) and AgentBottomNav (below md). The
+  destinations are lib/agent/nav.ts's, as static HTML; internal/shell.AgentNav is the table
+  of which route lights which item. Filled by internal/shell.Agent: the current item, the
+  account initials and the flash. Sign-out is a form POST to /account/sign-out.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBF6EE">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050D1A">
+  <title>Story-Tail Adventures</title>
+  <meta name="description" content="Trips planned by someone who has done this a hundred times — so you can rest when you get there.">
+  <script src="/assets/js/prepaint-theme.js"></script>
+  <script src="/assets/js/prepaint-auth.js"></script>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/area/agent.css">
+  <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/assets/img/icon.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" sizes="180x180">
+  <script type="module" src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/ui.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-rail agent-rail" aria-label="Main">
+      <a class="rail-item" href="/agent" data-slot="rail-worklist"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#pulse"></use></svg></span><span class="rail-label">Worklist</span></a>
+      <a class="rail-item" href="/agent/clients" data-slot="rail-clients"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></span><span class="rail-label">Clients</span></a>
+      <a class="rail-item" href="/agent/trips" data-slot="rail-trips"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span><span class="rail-label">Trips</span></a>
+      <a class="rail-item" href="/agent/leads" data-slot="rail-leads"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#inbox"></use></svg></span><span class="rail-label">Leads</span></a>
+      <a class="rail-item" href="/agent/messages" data-slot="rail-messages"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></span><span class="rail-label">Messages</span></a>
+      <a class="rail-item" href="/agent/commission" data-slot="rail-commission"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#dollar"></use></svg></span><span class="rail-label">Commission</span></a>
+      <a class="rail-item" href="/agent/reports" data-slot="rail-reports"><span class="rail-glyph"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#chart"></use></svg></span><span class="rail-label">Reports</span></a>
+    </nav>
+    <div class="app-column">
+      <header class="app-topbar agent-topbar">
+        <div class="app-toolbar">
+          <a class="app-brand" href="/agent" aria-label="Story-Tail Adventures — your worklist"><span class="sta-art brand-80" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" loading="lazy" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" loading="lazy" decoding="async"></span></a>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn tap-target sta-light-only" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#moon"></use></svg></button>
+        <button type="button" class="icon-btn tap-target sta-dark-only" data-theme-toggle aria-label="Switch to light mode" title="Switch to light mode"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#sun"></use></svg></button>
+          <div class="agent-quick-add">
+            <button type="button" class="icon-btn" popovertarget="agent-quick-add" aria-haspopup="menu" aria-controls="agent-quick-add" aria-label="New"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></button>
+            <div id="agent-quick-add" class="menu menu-dense agent-menu" popover role="menu" aria-label="New">
+              <a class="menu-item" role="menuitem" href="/agent/clients/new"><span class="menu-item-icon"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>New client</a>
+              <a class="menu-item" role="menuitem" href="/agent/trips/new"><span class="menu-item-icon"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#trip"></use></svg></span>New trip</a>
+            </div>
+          </div>
+          <button type="button" class="icon-btn" aria-label="Notifications — not available yet" aria-disabled="true" disabled><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#bell"></use></svg></button>
+          <button type="button" class="icon-btn agent-account-trigger" popovertarget="agent-account" aria-haspopup="menu" aria-controls="agent-account" aria-label="Your account"><span class="avatar avatar-primary" aria-hidden="true" data-slot="account-initials">GS</span></button>
+          <div id="agent-account" class="menu menu-dense agent-menu" popover role="menu" aria-label="Your account">
+            <a class="menu-item" role="menuitem" href="/agent/settings"><span class="menu-item-icon"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>Profile &amp; settings</a>
+            <hr class="menu-divider">
+            <form method="post" action="/account/sign-out">
+              <button type="submit" class="menu-item" role="menuitem"><span class="menu-item-icon"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg></span>Sign out</button>
+            </form>
+          </div>
+        </div>
+      </header>
+      <main class="app-main agent-main" id="main" data-layout-main>
+        <p>Page content goes here.</p>
+      </main>
+    </div>
+    <nav class="agent-tabs" aria-label="Main">
+      <a class="rail-item" href="/agent" data-slot="tab-worklist"><span class="rail-glyph"><svg class="icon icon-19" aria-hidden="true"><use href="/assets/icons.svg#pulse"></use></svg></span><span class="rail-label">Worklist</span></a>
+      <a class="rail-item" href="/agent/clients" data-slot="tab-clients"><span class="rail-glyph"><svg class="icon icon-19" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></span><span class="rail-label">Clients</span></a>
+      <a class="rail-item" href="/agent/messages" data-slot="tab-messages"><span class="rail-glyph"><svg class="icon icon-19" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></span><span class="rail-label">Messages</span></a>
+      <span class="rail-item" aria-disabled="true" title="More — Arrives with §3.12"><span class="rail-glyph"><svg class="icon icon-19" aria-hidden="true"><use href="/assets/icons.svg#more_vert"></use></svg></span><span class="rail-label">More</span><span class="visually-hidden">More not available yet</span></span>
+    </nav>
+    <div class="snackbar" role="status" data-autohide data-slot="flash"><div class="snackbar-content"><div class="snackbar-message" data-slot="flash-text">Your changes are saved.</div></div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,131 @@
+/* Story-Tail Adventures — authenticated client surface layer.
+ *
+ * Screens 2.2.1–2.2.11 (docs/Screen-Inventory.md §2.2; prototypes in
+ * design/source-prototype/screens/client-trip.jsx and client-trip-mobile.jsx). Imported
+ * from web/app/globals.css after public.css.
+ *
+ * This is a SECTION stylesheet, not a set of primitives, and that distinction is why it
+ * exists as its own file: components.css holds things any screen may use (the scheme
+ * gates), while the app chrome below belongs to one surface. public.css set that
+ * precedent for §2.0 and this is its counterpart. Nothing here should be reached for from
+ * a public page, and `.client-surface` scopes it so it cannot be.
+ *
+ * The chrome dimensions come from the prototype's ScreenFrame, not from Design-System §9:
+ * §9.2 says an 88px rail and the prototype draws 72px. Gyasi settled that on 2026-09-06 in
+ * the prototype's favour, and §9.2 is being amended to match.
+ */
+
+:root {
+  /* 80px of brand lockup + 12px above and below. Everything that offsets against the
+     authenticated top bar reads this, so the bar and its dependants cannot drift — the
+     lesson from `--public-topbar-h`, whose consumers all moved for free when it grew. */
+  --client-topbar-h: 104px;
+}
+
+@layer components {
+  /* ── The surface ───────────────────────────────────────────────────────── */
+
+  .client-surface {
+    min-height: 100dvh;
+    background: var(--md-bg);
+    color: var(--md-on-surface);
+  }
+
+  /* ── Reserve for the bottom bar ─────────────────────────────────────────
+   *
+   * BOUNDED BY A MEDIA QUERY, not by `:has()` alone, and the difference was a bug.
+   * `.client-bottom-nav` is `display: none` from `md` up (an sx breakpoint on the MUI
+   * BottomNavigation in components/client/ClientNav.tsx) — the element stays
+   * in the DOM at every width, so `:has(.client-bottom-nav)` matched on a 1400px desktop
+   * and reserved 72px under a bar that is not rendered. `not all and (min-width: 48rem)` is
+   * the exact complement of the theme's `md` breakpoint, so the reserve now exists on precisely the
+   * widths the bar does. The `:has()` is kept inside it because a screen that passes
+   * `activeTab = null` has no bar in the tree at all.
+   *
+   * The reserve sits on the element that wraps BOTH the content and anything after it. §2.0
+   * shipped a bug where StickyCta emitted its own spacer as the last child of <main> while
+   * PublicFooter rendered after {children} — so the reserve landed above the footer and the
+   * fixed bar covered it. */
+  @media not all and (min-width: 48rem) {
+    .client-surface:has(.client-bottom-nav) .client-main {
+      padding-bottom: calc(64px + max(env(safe-area-inset-bottom), 8px));
+    }
+  }
+
+  /* ── A screen that fills the viewport instead of scrolling the document ──
+   *
+   * Screen 2.2.7 is the one §2.2 surface that is not a document you scroll: the thread
+   * scrolls inside itself and the compose bar stays pinned under it. §4.4 calls that
+   * "mobile is full-screen", and the artboards make the compose bar a SIBLING of the scroll
+   * rather than an overlay so a long thread cannot hide its own last message.
+   *
+   * That needs a DEFINITE height somewhere, and the shell deliberately has none — the
+   * column is `minHeight: 100dvh` because every other client screen scrolls the document,
+   * and the itinerary's day-chip strip is sticky under the top bar against exactly that
+   * document scroll. Switching the shell to `height: 100dvh` with an internal scroller would fix this screen and
+   * break that one. So this is an opt-in a page puts on its own root.
+   *
+   * IT SUBTRACTS THE TOP BAR AND NOTHING ELSE. There were two more rules here — one
+   * cancelling the reserve above for a `.client-fill` screen, one subtracting the bar's
+   * height from this one — and BOTH were dead: they select `.client-fill` as a DESCENDANT
+   * of `.client-surface`, and React's streaming parks the suspended subtree in a
+   * body-level holder, so the ancestor relationship those selectors need does not hold in
+   * the rendered DOM. The screen worked anyway, because the reserve above did the job the
+   * dead subtraction was written to do — two mistakes cancelling, which is not a thing to
+   * leave in a stylesheet.
+   *
+   * So it subtracts both bars ITSELF, through a plain media query with no ancestor
+   * dependency — which is the whole point. Measured: with only the top bar subtracted, the
+   * compose bar's text field sat behind the bottom nav at 375px, because `.client-main`'s
+   * reserve cannot reach a subtree that is not inside it.
+   *
+   * The one assumption left is that a bottom bar exists below 48rem, and it holds for every
+   * `(client)` screen: the layout renders `<ClientBottomNav />` unconditionally. */
+  .client-fill {
+    height: calc(100dvh - var(--client-topbar-h));
+  }
+
+  @media not all and (min-width: 48rem) {
+    .client-fill {
+      height: calc(100dvh - var(--client-topbar-h) - 64px - max(env(safe-area-inset-bottom), 8px));
+    }
+  }
+
+  /* ── Top bar (104px, Design-System §9.1) ──────────────────────────────── */
+
+  /* No rules. Both authenticated bars are MUI AppBars since migration step 2; they read
+   * `--client-topbar-h` above as their total height, border included. */
+
+  /* ── Nav rail and bottom bar ──────────────────────────────────────────── */
+
+  /* No rules. Since migration step 2 the rail (72px, sticky) and the phone bar (fixed,
+   * MUI BottomNavigation) are styled in components/client/ClientNav.tsx with sx; the
+   * `.client-rail*`, `.client-tab*`, `.pill` and `.client-nav-item-disabled` rules that
+   * lived here styled nothing else and went with them. `.client-bottom-nav` survives as
+   * a CLASS on the bar, not a rule: the reserve above keys on it. */
+
+  /* ── Skeletons ── MUI's wave Skeleton (components/client/states.tsx) since migration
+   * step 2; the theme's reduced-motion setting stops its animation. */
+
+  /* ── Focus and motion ─────────────────────────────────────────────────── */
+
+  /* The only general focus ring in the project was `.pub-surface`-scoped, and
+   * components.css covered the old `.btn` class alone — so an authenticated screen had no visible focus
+   * on a link, a summary or a bare [tabindex]. WCAG 2.1 AA (BRD §11) needs one. */
+  .client-surface :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .client-surface *,
+    .client-surface *::before,
+    .client-surface *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
