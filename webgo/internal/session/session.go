@@ -177,13 +177,30 @@ func (m *Manager) Start(w http.ResponseWriter, t supa.Tokens) {
 	m.setFlag(w)
 }
 
-// End signs the session out at GoTrue (best effort) and clears both cookies.
+// End signs the session out at GoTrue (best effort) and clears both cookies, whatever
+// GoTrue says. It must sign out with a LIVE access token: GoTrue answers an expired one with
+// 401, which looks like success, and the session (and its refresh token) would stay alive
+// in the advisor's Login activity. So it uses the token the gate already checked this
+// request, or refreshes the cookie's token first when it is near expiry, the way supabase-js
+// refreshes before it calls logout.
 func (m *Manager) End(w http.ResponseWriter, r *http.Request) {
-	if c, err := r.Cookie(CookieName); err == nil {
+	ctx, who := r.Context(), Who(r)
+	token := ""
+	if st, ok := From(ctx); ok && st.SignedIn {
+		token = st.AccessToken
+	} else if c, err := r.Cookie(CookieName); err == nil {
 		if tok, ok := decode(c.Value); ok {
-			if err := m.auth.SignOut(r.Context(), tok.AccessToken, Who(r)); err != nil {
-				m.log.Warn("sign-out at GoTrue failed; cookies cleared anyway", "err", err)
+			token = tok.AccessToken
+			if time.Unix(tok.ExpiresAt, 0).Sub(m.now()) < refreshWithin {
+				if next, err := m.auth.Refresh(ctx, tok.RefreshToken, who); err == nil {
+					token = next.AccessToken
+				}
 			}
+		}
+	}
+	if token != "" {
+		if err := m.auth.SignOut(ctx, token, who); err != nil {
+			m.log.Warn("sign-out at GoTrue failed; cookies cleared anyway", "err", err)
 		}
 	}
 	m.clear(w)

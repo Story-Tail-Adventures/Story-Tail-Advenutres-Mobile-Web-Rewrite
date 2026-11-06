@@ -10,6 +10,10 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 )
 
+// OutageMessage is shown when sign-in cannot be checked. It is the web app's existing
+// sentence for a 5xx (web/lib/auth-errors.ts), reused word for word rather than new copy.
+const OutageMessage = "Something went sideways on our end. Try again in a moment."
+
 // Sessions is what the router needs from the session package (*session.Manager).
 type Sessions interface {
 	Load(w http.ResponseWriter, r *http.Request) session.State
@@ -34,11 +38,36 @@ func NewRouter(mux *http.ServeMux, sessions Sessions, skipAuth bool, log *slog.L
 }
 
 // Public mounts a route that reads no session and calls no Supabase. Most of the site.
+//
+// The literal path is checked against the gated prefixes, so a pattern whose first segment
+// is a wildcard ("/{a}/{b...}") or that names a host is refused outright: it could match
+// /trips/x or /agent/y without either prefix ever appearing in the pattern.
 func (rt *Router) Public(pattern string, h http.Handler) {
-	if p := patternPath(pattern); IsProtected(p) || IsAuthOnly(p) || p == "/{$}" {
+	p := patternPath(pattern)
+	switch {
+	case !strings.HasPrefix(p, "/"):
+		panic(fmt.Sprintf("gate: %q names a host; mount paths only", pattern))
+	case strings.HasPrefix(p, "/{") && p != "/{$}":
+		panic(fmt.Sprintf("gate: %q starts with a wildcard, which could match gated paths", pattern))
+	case IsProtected(p) || IsAuthOnly(p) || p == "/{$}":
 		panic(fmt.Sprintf("gate: %q is gated; mount it with Protected, AuthOnly or FrontDoor", pattern))
 	}
 	rt.mux.Handle(pattern, h)
+}
+
+// SignOutRoute mounts sign-out. It loads the session (so sign-out can revoke the live token)
+// but never redirects and never refuses: a half-assured session mid-MFA and a visitor during
+// an auth outage must both be able to sign out, and on a shared computer clearing the
+// cookies matters most when something else is wrong.
+func (rt *Router) SignOutRoute(pattern string, h http.Handler) {
+	rt.mux.Handle(pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if rt.skipAuth {
+			h.ServeHTTP(w, r)
+			return
+		}
+		st := rt.sessions.Load(w, r)
+		h.ServeHTTP(w, r.WithContext(session.WithState(r.Context(), st)))
+	}))
 }
 
 // Protected mounts a route that needs a signed-in user. It refuses a path outside
@@ -82,7 +111,8 @@ func (rt *Router) wrap(h http.Handler, needsSession bool) http.Handler {
 			// Not "signed out": bouncing to /login would lose their place for an outage.
 			rt.log.Warn("auth unavailable on a gated route", "path", r.URL.Path)
 			w.Header().Set("Retry-After", "5")
-			http.Error(w, "We couldn't check your sign-in just now. Please try again in a moment.", http.StatusServiceUnavailable)
+			// The web app's existing 5xx sentence (web/lib/auth-errors.ts), word for word.
+			http.Error(w, OutageMessage, http.StatusServiceUnavailable)
 			return
 		}
 		if !st.Unavailable {
@@ -92,9 +122,10 @@ func (rt *Router) wrap(h http.Handler, needsSession bool) http.Handler {
 		target := RedirectFor(r.URL.Path, st.SignedIn, AssuranceOf(st), r.URL.Query().Get("next"))
 		switch {
 		case target == "/login" || target == MFAChallenge:
-			// Path only, as the Next.js proxy did. 303 so a POST that lost its session is not
-			// replayed against the sign-in form.
-			http.Redirect(w, r, target+"?next="+url.QueryEscape(r.URL.Path), http.StatusSeeOther)
+			// Path only, as the Next.js proxy did, and the ESCAPED path, as nextUrl.pathname
+			// is: the decoded one would turn an encoded ? or # into a real query or fragment on
+			// the way back. 303 so a POST that lost its session is not replayed at sign-in.
+			http.Redirect(w, r, target+"?next="+url.QueryEscape(r.URL.EscapedPath()), http.StatusSeeOther)
 		case target != "":
 			http.Redirect(w, r, target, http.StatusSeeOther)
 		default:

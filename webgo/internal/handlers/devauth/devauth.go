@@ -78,7 +78,7 @@ func Mount(rt *gate.Router, set *page.Set, auth SignIn, sessions Sessions, log *
 			return
 		case err != nil:
 			log.Warn("dev sign-in unavailable", "err", err) // never the email or password
-			renderLogin(w, http.StatusServiceUnavailable, "We couldn't reach sign-in just now. Please try again in a moment.", email, next)
+			renderLogin(w, http.StatusServiceUnavailable, gate.OutageMessage, email, next)
 			return
 		}
 		sessions.Start(w, tok)
@@ -94,7 +94,8 @@ func Mount(rt *gate.Router, set *page.Set, auth SignIn, sessions Sessions, log *
 		write(w, log, d, http.StatusOK)
 	}))
 
-	rt.Protected("POST /account/sign-out", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Not Protected: sign-out must work mid-MFA and during an outage (see SignOutRoute).
+	rt.SignOutRoute("POST /account/sign-out", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sessions.End(w, r)
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	}))

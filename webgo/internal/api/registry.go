@@ -81,11 +81,22 @@ type Config struct {
 	SupabaseURL, AnonKey, LeadFormKey, SearchToken string
 }
 
-// New builds the registry. A nil hc gets a client with a 60-second timeout.
+// webOnly are functions the HTTP door refuses (404). Only the web server calls them, in
+// process, with a token it holds; mobile never does. Passing them through would hand that
+// token to anyone on the internet: hotel-search spends a metered SerpApi budget.
+var webOnly = map[string]bool{"hotel-search": true, "cruise-search": true}
+
+// noRedirects stops the client following a redirect, which would copy our headers (the
+// bearer token, a trusted x-sta-* value) to whatever host the Location names.
+func noRedirects(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+
+// New builds the registry. A nil hc gets a client with a 60-second timeout. Either way the
+// client never follows redirects.
 func New(c Config, hc *http.Client, log *slog.Logger) *Registry {
 	if hc == nil {
 		hc = &http.Client{Timeout: 60 * time.Second}
 	}
+	hc.CheckRedirect = noRedirects
 	known := make(map[string]bool, len(Functions))
 	for _, f := range Functions {
 		known[f] = true
@@ -101,21 +112,25 @@ func New(c Config, hc *http.Client, log *slog.Logger) *Registry {
 	}
 }
 
-// trusted adds the headers only this server may send, for the functions that read them.
-func (g *Registry) trusted(h http.Header, name, visitor string) {
-	switch name {
-	case "lead-message":
-		// lead-message rate-limits per visitor and trusts x-sta-client-ip only beside this
-		// key. Without it, every mobile and web lead would count against this server's own
-		// address.
-		if g.leadFormKey != "" && visitor != "" {
-			h.Set("X-Sta-Form-Key", g.leadFormKey)
-			h.Set("X-Sta-Client-Ip", visitor)
-		}
-	case "cruise-search", "hotel-search":
-		if g.searchToken != "" {
-			h.Set("X-Sta-Search-Token", g.searchToken)
-		}
+// visitorHeaders tells the function who the visitor is. Through Go, Supabase's own edge sees
+// this server as the caller, so without these every call would look like it came from here.
+//
+//   - X-Forwarded-For carries the visitor's address into _shared/auth.ts (ctx.ip, the IP on
+//     audit_event rows). Informational, as it was when mobile called Supabase directly.
+//   - lead-message rate-limits per visitor and trusts x-sta-client-ip only beside the form
+//     key. Without it every lead would share this server's one bucket.
+//
+// Both rely on clientaddr, which trusts cf-connecting-ip. Before any production traffic the
+// origin must only be reachable through Cloudflare, or a caller who reaches it directly can
+// forge that header and rotate lead buckets (docs/GO-MIGRATION.md §6, the forged-header test).
+func (g *Registry) visitorHeaders(h http.Header, name, visitor string) {
+	if visitor == "" {
+		return
+	}
+	h.Set("X-Forwarded-For", visitor)
+	if name == "lead-message" && g.leadFormKey != "" {
+		h.Set("X-Sta-Form-Key", g.leadFormKey)
+		h.Set("X-Sta-Client-Ip", visitor)
 	}
 }
 
@@ -123,7 +138,7 @@ func (g *Registry) trusted(h http.Header, name, visitor string) {
 // "/functions/v1/{name}" as a public route: it carries its own bearer token, never a cookie.
 func (g *Registry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	if !g.known[name] {
+	if !g.known[name] || webOnly[name] {
 		http.NotFound(w, r)
 		return
 	}
@@ -154,7 +169,7 @@ func (g *Registry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	visitor, _ := clientaddr.From(r.Header)
-	g.trusted(out.Header, name, visitor)
+	g.visitorHeaders(out.Header, name, visitor) // never the search token: see webOnly
 
 	start := time.Now()
 	resp, err := g.client.Do(out)
@@ -170,6 +185,11 @@ func (g *Registry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.ContentLength > maxResponseBody {
+		g.log.Warn("function reply too large", "function", name, "bytes", resp.ContentLength)
+		problem(w, http.StatusBadGateway)
+		return
+	}
 
 	for _, k := range forwardResponse {
 		if v := resp.Header.Values(k); len(v) > 0 {
@@ -178,6 +198,10 @@ func (g *Registry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	n, _ := io.Copy(w, io.LimitReader(resp.Body, maxResponseBody))
+	if n == maxResponseBody {
+		// A reply with no length that ran past the limit; the status is already sent.
+		g.log.Warn("function reply cut at the size limit", "function", name)
+	}
 	g.log.Info("function", "function", name, "method", r.Method, "status", resp.StatusCode,
 		"bytes", n, "ms", time.Since(start).Milliseconds())
 }
@@ -261,7 +285,10 @@ func (g *Registry) Call(ctx context.Context, name, accessToken string, in Input)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	g.trusted(req.Header, name, in.Visitor)
+	g.visitorHeaders(req.Header, name, in.Visitor)
+	if webOnly[name] && g.searchToken != "" {
+		req.Header.Set("X-Sta-Search-Token", g.searchToken) // in process only, never the HTTP door
+	}
 
 	resp, err := g.client.Do(req)
 	if err != nil {

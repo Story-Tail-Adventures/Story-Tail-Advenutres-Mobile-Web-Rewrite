@@ -33,6 +33,9 @@ func New(baseURL, anonKey string, hc *http.Client) *Client {
 	if hc == nil {
 		hc = &http.Client{Timeout: 15 * time.Second}
 	}
+	// Never follow a redirect: it would copy the apikey and the visitor's bearer token to
+	// whatever host the Location names.
+	hc.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &Client{baseURL: strings.TrimRight(baseURL, "/"), anonKey: anonKey, http: hc}
 }
 
@@ -108,6 +111,10 @@ func (c *Client) Refresh(ctx context.Context, refreshToken string, who Caller) (
 	switch {
 	case err != nil:
 		return Tokens{}, err
+	case status == http.StatusTooManyRequests || status == http.StatusRequestTimeout:
+		// Every refresh now leaves from one server, so GoTrue's rate limit is reachable. A
+		// limit is not a revoked session: keep the cookie and try again later.
+		return Tokens{}, fmt.Errorf("%w: refresh returned %d", ErrUnavailable, status)
 	case status >= 400 && status < 500:
 		return Tokens{}, ErrUnauthenticated
 	case status != http.StatusOK:
