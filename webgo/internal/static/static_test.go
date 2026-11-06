@@ -203,3 +203,12 @@ func TestRealAssetsBuild(t *testing.T) {
 		}
 	}
 }
+
+// Content types never depend on the host's MIME tables.
+func TestIconTypesAreExplicit(t *testing.T) {
+	for ext, want := range map[string]string{".ico": "image/x-icon", ".png": "image/png", ".webp": "image/webp", ".ttf": "font/ttf", ".svg": "image/svg+xml"} {
+		if got := contentType(ext); got != want {
+			t.Errorf("contentType(%s) = %q, want %q", ext, got, want)
+		}
+	}
+}

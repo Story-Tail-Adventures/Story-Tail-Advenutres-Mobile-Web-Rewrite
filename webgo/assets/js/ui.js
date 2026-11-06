@@ -55,7 +55,8 @@ document.addEventListener("submit", (event) => {
   form.dataset.submitted = "1";
   // After the submit has started, so the clicked button's name and value still go with it.
   window.setTimeout(() => {
-    form.querySelectorAll('button[type="submit"]:not([disabled]), input[type="submit"]:not([disabled])').forEach((b) => {
+    // A <button> with no type submits too.
+    form.querySelectorAll('button[type="submit"]:not([disabled]), button:not([type]):not([disabled]), input[type="submit"]:not([disabled])').forEach((b) => {
       b.setAttribute("disabled", "");
       b.setAttribute("data-submit-locked", "");
     });

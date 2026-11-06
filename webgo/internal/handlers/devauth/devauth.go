@@ -10,6 +10,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
@@ -62,9 +63,11 @@ func Mount(rt *gate.Router, set *page.Set, auth SignIn, sessions Sessions, log *
 		write(w, log, d, status)
 	}
 
-	// mount registers a route unless a real page already has it.
+	// mount registers a route unless a real page already has it, with or without a method
+	// (a method-less "/login" would otherwise lose GET to this harness).
 	mount := func(pattern string, add func(string, http.Handler), h http.HandlerFunc) {
-		if !rt.Has(pattern) {
+		_, path, _ := strings.Cut(pattern, " ")
+		if !rt.Has(pattern) && !rt.Has(path) {
 			add(pattern, h)
 		}
 	}

@@ -17,8 +17,21 @@ import (
 //
 // The flash is for gated pages only: a public page is cached and must never read it.
 
-// FlashCookie holds the pending flash key.
-const FlashCookie = "sta-flash"
+// FlashCookie holds the pending flash key on a local http:// server. Everywhere else it is
+// SecureFlashCookie: the __Host- prefix makes the browser refuse one set by a sibling
+// subdomain (Domain=.story-tail.com), which the host-only clear could never remove, so a
+// planted "Saved." would otherwise show on every gated page until it expired.
+const (
+	FlashCookie       = "sta-flash"
+	SecureFlashCookie = "__Host-sta-flash"
+)
+
+func flashName(secure bool) string {
+	if secure {
+		return SecureFlashCookie
+	}
+	return FlashCookie
+}
 
 // Flash is one registered message.
 type Flash struct {
@@ -57,19 +70,19 @@ func NewFlash(key, text string) Flash {
 // secure matches the session cookie's (false only on a local http:// server).
 func SetFlash(w http.ResponseWriter, f Flash, secure bool) {
 	http.SetCookie(w, &http.Cookie{
-		Name: FlashCookie, Value: f.key, Path: "/", MaxAge: 60,
+		Name: flashName(secure), Value: f.key, Path: "/", MaxAge: 60,
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	})
 }
 
 // TakeFlash returns the pending message, if any, and clears the cookie so it shows once.
 func TakeFlash(w http.ResponseWriter, r *http.Request, secure bool) string {
-	c, err := r.Cookie(FlashCookie)
+	c, err := r.Cookie(flashName(secure))
 	if err != nil {
 		return ""
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: FlashCookie, Value: "", Path: "/", MaxAge: -1,
+		Name: flashName(secure), Value: "", Path: "/", MaxAge: -1,
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	})
 	flashMu.RLock()

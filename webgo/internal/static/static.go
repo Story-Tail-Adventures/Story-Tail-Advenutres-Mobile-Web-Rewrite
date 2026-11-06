@@ -215,6 +215,11 @@ func contentType(ext string) string {
 		return "font/woff2"
 	case ".webp":
 		return "image/webp"
+	case ".png":
+		return "image/png"
+	case ".ico":
+		// Explicit: mime.TypeByExtension reads the host's tables, and a slim image has none.
+		return "image/x-icon"
 	case ".txt":
 		return "text/plain; charset=utf-8"
 	}

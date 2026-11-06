@@ -201,7 +201,10 @@ func (c *Client) rest(ctx context.Context, method, path, token string, body any,
 		return fmt.Errorf("%w: reply over %d bytes", ErrUnavailable, maxRestBody)
 	}
 	switch {
-	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+	case resp.StatusCode == http.StatusUnauthorized:
+		// The token is expired or not ours. A 403 is NOT this: it is a missing grant or an
+		// RLS refusal (42501) for a signed-in visitor, and sending them to /login would loop
+		// (the sign-in page bounces a signed-in visitor straight back).
 		return ErrUnauthenticated
 	case resp.StatusCode >= 500:
 		return fmt.Errorf("%w: PostgREST returned %d", ErrUnavailable, resp.StatusCode)
@@ -211,28 +214,82 @@ func (c *Client) rest(ctx context.Context, method, path, token string, body any,
 		}
 		_ = json.Unmarshal(raw, &p)
 		return &Error{Status: resp.StatusCode, Code: p.Code}
+	case resp.StatusCode < 200 || resp.StatusCode >= 300:
+		// A redirect (never followed) or anything else unexpected is not an empty success.
+		return fmt.Errorf("%w: PostgREST returned %d", ErrUnavailable, resp.StatusCode)
 	}
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil // 204, or a void function
 	}
 	if err := json.Unmarshal(raw, out); err != nil {
-		return fmt.Errorf("supa: decoding %s: %w", strings.SplitN(path, "?", 2)[0], err)
+		return decodeError(strings.SplitN(path, "?", 2)[0], err)
 	}
 	return nil
 }
 
-// typed refuses a result type that would decode JSON numbers into float64: an interface
-// (any), or a map, slice or pointer whose element is one.
-func typed[T any]() error {
-	t := reflect.TypeFor[T]()
-	for t.Kind() == reflect.Slice || t.Kind() == reflect.Array || t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
+// decodeError describes a reply that did not fit the caller's type WITHOUT the value that did
+// not fit: encoding/json quotes it ("cannot unmarshal number 1234.5 ..."), and errors reach
+// the logs. The field and the Go type are enough to find the mismatch.
+func decodeError(path string, err error) error {
+	var typeErr *json.UnmarshalTypeError
+	var syntaxErr *json.SyntaxError
 	switch {
-	case t.Kind() == reflect.Interface:
-		return errors.New("supa: decode into a struct type, never any (JSON numbers would become float64)")
-	case t.Kind() == reflect.Map && t.Elem().Kind() == reflect.Interface:
-		return errors.New("supa: decode into a struct type, never map[string]any (JSON numbers would become float64)")
+	case errors.As(err, &typeErr):
+		return fmt.Errorf("supa: decoding %s: field %q does not fit %s", path, typeErr.Field, typeErr.Type)
+	case errors.As(err, &syntaxErr):
+		return fmt.Errorf("supa: decoding %s: malformed JSON at offset %d", path, syntaxErr.Offset)
+	}
+	return fmt.Errorf("supa: decoding %s: the reply does not fit the result type", path)
+}
+
+// typed refuses a result type that could decode a JSON number into float64, at any depth:
+// an interface (any) or a map of one anywhere in it, or a float field whose JSON name ends in
+// _cents (CLAUDE.md rule 5: money is int64 cents). It walks struct fields, slices, arrays,
+// pointers and maps.
+func typed[T any]() error {
+	return checkType(reflect.TypeFor[T](), "", map[reflect.Type]bool{})
+}
+
+func checkType(t reflect.Type, field string, seen map[reflect.Type]bool) error {
+	switch t.Kind() {
+	case reflect.Interface:
+		return fmt.Errorf("supa: %sdecode into a struct type, never any (JSON numbers would become float64)", where(field))
+	case reflect.Pointer, reflect.Slice, reflect.Array:
+		return checkType(t.Elem(), field, seen)
+	case reflect.Map:
+		return checkType(t.Elem(), field, seen)
+	case reflect.Float32, reflect.Float64:
+		if strings.HasSuffix(field, "_cents") {
+			return fmt.Errorf("supa: %smoney is int64 cents, never a float", where(field))
+		}
+	case reflect.Struct:
+		if seen[t] {
+			return nil
+		}
+		seen[t] = true
+		for i := range t.NumField() {
+			f := t.Field(i)
+			if !f.IsExported() {
+				continue
+			}
+			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			if name == "-" {
+				continue
+			}
+			if name == "" {
+				name = f.Name
+			}
+			if err := checkType(f.Type, name, seen); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
+}
+
+func where(field string) string {
+	if field == "" {
+		return ""
+	}
+	return "field " + field + ": "
 }

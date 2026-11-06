@@ -55,11 +55,19 @@ func rewriteAssets(root *html.Node, file string, resolve func(string) (string, b
 					fail("<%s> has an %s handler; the CSP blocks inline handlers, so use a JS module", n.Data, a.Key)
 				case a.Namespace != "" && a.Key == "href" && strings.HasPrefix(a.Val, assetPrefix):
 					fail("<%s> uses %s:href for an asset; use a plain href", n.Data, a.Namespace)
-				case urlTags[a.Key] != nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(a.Val)), "javascript:"):
+				case urlTags[a.Key] != nil && isJavaScriptURL(a.Val):
 					fail("<%s %s> is a javascript: URL; the CSP blocks it, so use a JS module", n.Data, a.Key)
+				case strings.Contains(a.Val, assetPrefix) && !rewrites(n, a):
+					// srcset, poster, an <a href>, an svg <image>: nothing here hashes them, so
+					// the plain name would ship and 404.
+					fail("<%s %s=%q> names an asset where the loader cannot rewrite it; use <img src>, <link href>, <script src> or <use href>", n.Data, a.Key, a.Val)
 				}
 			}
 			switch n.DataAtom {
+			case atom.Noscript:
+				// x/net/html parses <noscript> content as raw text when scripting is on, so a
+				// <style> or style="" inside it would pass this check unseen.
+				fail("<noscript>; its content is raw text the loader cannot check. Make the page work without JS instead")
 			case atom.Script:
 				src, hasSrc := attrValue(n, "src")
 				switch {
@@ -97,6 +105,33 @@ func rewriteAssets(root *html.Node, file string, resolve func(string) (string, b
 	}
 	walk(root)
 	return errors.Join(errs...)
+}
+
+// rewrites reports whether the walk below hashes this attribute.
+func rewrites(n *html.Node, a html.Attribute) bool {
+	if a.Namespace != "" {
+		return false
+	}
+	switch {
+	case n.DataAtom == atom.Script && n.Namespace == "" && a.Key == "src",
+		n.DataAtom == atom.Link && a.Key == "href",
+		(n.DataAtom == atom.Img || n.DataAtom == atom.Source) && a.Key == "src",
+		n.Namespace == "svg" && n.Data == "use" && a.Key == "href":
+		return strings.HasPrefix(a.Val, assetPrefix)
+	}
+	return false
+}
+
+// isJavaScriptURL reads a URL the way a browser does, which drops tabs and newlines anywhere
+// in it ("java\tscript:" runs).
+func isJavaScriptURL(v string) bool {
+	v = strings.Map(func(r rune) rune {
+		if r == '\t' || r == '\n' || r == '\r' {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(v))
+	return strings.HasPrefix(strings.ToLower(v), "javascript:")
 }
 
 func hasToken(list, token string) bool {

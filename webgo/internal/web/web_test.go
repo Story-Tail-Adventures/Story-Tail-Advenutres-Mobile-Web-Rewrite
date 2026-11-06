@@ -89,7 +89,7 @@ func TestFlashShowsOnceAndOnlyRegisteredText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	SetFlash(rec, flashSaved, true)
 	c := rec.Result().Cookies()[0]
-	if c.Value != "test.saved" || !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteLaxMode {
+	if c.Name != "__Host-sta-flash" || c.Value != "test.saved" || !c.HttpOnly || !c.Secure || c.Path != "/" || c.Domain != "" || c.SameSite != http.SameSiteLaxMode {
 		t.Errorf("flash cookie = %+v", c)
 	}
 	if strings.Contains(c.Value, "saved.") {
@@ -108,12 +108,24 @@ func TestFlashShowsOnceAndOnlyRegisteredText(t *testing.T) {
 
 	// Chosen text in the cookie shows nothing.
 	forged := httptest.NewRequest(http.MethodGet, "/x", nil)
-	forged.AddCookie(&http.Cookie{Name: FlashCookie, Value: "Call 555-0100 to verify your account"})
+	forged.AddCookie(&http.Cookie{Name: SecureFlashCookie, Value: "Call 555-0100 to verify your account"})
 	if got := TakeFlash(httptest.NewRecorder(), forged, true); got != "" {
 		t.Errorf("an unregistered flash showed %q", got)
 	}
 	if got := TakeFlash(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/x", nil), true); got != "" {
 		t.Error("no cookie, no flash")
+	}
+	// Without the prefix (a sibling subdomain's cookie) a secure server shows nothing.
+	planted := httptest.NewRequest(http.MethodGet, "/x", nil)
+	planted.AddCookie(&http.Cookie{Name: FlashCookie, Value: "test.saved"})
+	if got := TakeFlash(httptest.NewRecorder(), planted, true); got != "" {
+		t.Errorf("an unprefixed flash cookie showed %q on a secure server", got)
+	}
+	// A local http:// server cannot use __Host-, and reads the plain name.
+	local := httptest.NewRecorder()
+	SetFlash(local, flashSaved, false)
+	if c := local.Result().Cookies()[0]; c.Name != FlashCookie || c.Secure {
+		t.Errorf("local flash cookie = %+v", c)
 	}
 }
 

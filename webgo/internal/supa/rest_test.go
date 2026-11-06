@@ -94,6 +94,26 @@ func TestUntypedResultsAreRefused(t *testing.T) {
 	if _, err := RPC[[]map[string]any](context.Background(), c, "t", "agent_worklist", nil); err == nil {
 		t.Error("[]map[string]any was accepted from an RPC")
 	}
+	type nested struct {
+		Trip  tripRow        `json:"trip"`
+		Extra map[string]any `json:"extra"`
+	}
+	if _, err := Select[nested](context.Background(), c, "t", "trip", Q()); err == nil || !strings.Contains(err.Error(), "extra") {
+		t.Errorf("a nested map[string]any was accepted: %v", err)
+	}
+	type floatCents struct {
+		TotalCents float64 `json:"total_cents"`
+	}
+	if _, err := Select[floatCents](context.Background(), c, "t", "trip", Q()); err == nil || !strings.Contains(err.Error(), "total_cents") {
+		t.Errorf("float cents were accepted: %v", err)
+	}
+	type rate struct {
+		Rate float64 `json:"commission_rate"` // a float that is not money is fine
+		Self *rate   `json:"self"`            // and a recursive type terminates
+	}
+	if err := typed[rate](); err != nil {
+		t.Errorf("a non-money float was refused: %v", err)
+	}
 	if got.path != "" {
 		t.Error("an untyped read was sent at all")
 	}
@@ -159,7 +179,12 @@ func TestRestErrors(t *testing.T) {
 		check  func(error) bool
 	}{
 		{401, `{"message":"JWT expired"}`, func(err error) bool { return errors.Is(err, ErrUnauthenticated) }},
-		{403, `{}`, func(err error) bool { return errors.Is(err, ErrUnauthenticated) }},
+		// A 403 is a refusal for a signed-in visitor (a grant or RLS), not a lost session.
+		{403, `{"code":"42501"}`, func(err error) bool {
+			var pe *Error
+			return errors.As(err, &pe) && pe.Status == 403 && pe.Code == "42501" && !errors.Is(err, ErrUnauthenticated)
+		}},
+		{302, ``, func(err error) bool { return errors.Is(err, ErrUnavailable) }},
 		{500, `{}`, func(err error) bool { return errors.Is(err, ErrUnavailable) }},
 		{400, `{"code":"22P02","message":"invalid input syntax for type uuid: \"Jordan Hale\""}`, func(err error) bool {
 			var pe *Error
@@ -174,8 +199,14 @@ func TestRestErrors(t *testing.T) {
 		}
 	}
 
+	// A reply that does not fit the type names the field, never the value.
+	cl, _ := fakeRest(t, 200, `[{"id":"a","total_cents":1234.5}]`)
+	if _, err := Select[tripRow](context.Background(), cl, "t", "trip", Q()); err == nil || strings.Contains(err.Error(), "1234") || !strings.Contains(err.Error(), "total_cents") {
+		t.Errorf("decode error: %v", err)
+	}
+
 	// Unreachable: the error names the path, never the query.
-	cl := New("http://127.0.0.1:1", "anon", nil)
+	cl = New("http://127.0.0.1:1", "anon", nil)
 	_, err := Select[tripRow](context.Background(), cl, "t", "client", Q().Eq("email", "jordan@example.com"))
 	if !errors.Is(err, ErrUnavailable) || strings.Contains(err.Error(), "jordan") {
 		t.Errorf("unreachable: %v", err)

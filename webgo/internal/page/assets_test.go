@@ -74,6 +74,11 @@ func TestPagesThatBreakTheCSPFailToLoad(t *testing.T) {
 		"svg script by href":  {`<html><body><svg><script href="https://cdn.example.com/x.js"></script></svg></body></html>`, "<script> inside <svg>"},
 		"javascript: link":    {`<html><body><a href=" JavaScript:alert(1)">x</a></body></html>`, "javascript: URL"},
 		"javascript: action":  {`<html><body><form action="javascript:go()"></form></body></html>`, "javascript: URL"},
+		"tabbed javascript:":  {"<html><body><a href=\"java\tscript:alert(1)\">x</a></body></html>", "javascript: URL"},
+		"noscript":            {`<html><head><noscript><link rel="stylesheet" href="https://x.example/a.css"></noscript></head><body></body></html>`, "<noscript>"},
+		"srcset":              {`<html><body><img src="/assets/img/a.webp" srcset="/assets/img/a.webp 2x" alt=""></body></html>`, "cannot rewrite"},
+		"poster":              {`<html><body><video poster="/assets/img/a.webp"></video></body></html>`, "cannot rewrite"},
+		"link to an asset":    {`<html><body><a href="/assets/fonts/OFL-Poppins.txt">licence</a></body></html>`, "cannot rewrite"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
