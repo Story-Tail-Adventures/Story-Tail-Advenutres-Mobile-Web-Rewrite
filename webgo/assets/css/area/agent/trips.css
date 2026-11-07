@@ -323,4 +323,69 @@
   .trp-it-act-editing { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-surface-2); }
   .trp-iact-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
   .trp-itip { margin-top: 6px; padding: 6px 10px; background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+
+  /* ── 3.4.15 Payment schedule, §3.6 pay links and Mark paid, 3.6.6 history ──────────────── */
+  /* PAGE_SX here: maxWidth 1100. */
+  .trp-col-1100 { max-width: 1100px; }
+  .trp-fw-500 { font-weight: 500; }
+  .trp-nowrap { white-space: nowrap; }
+  .trp-inline-flex { display: inline-flex; }
+  .trp-scroll-x { overflow-x: auto; }
+  .trp-pad-16,
+  .trp-pad-16:last-child { padding: 16px; }
+  .trp-pay-hint { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+
+  /* The schedule beside the form from lg. */
+  .trp-pgrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) { .trp-pgrid { grid-template-columns: minmax(0, 1fr) 340px; } }
+  .trp-pempty-text { margin: 4px auto 0; max-width: 44ch; }
+
+  /* PaymentScheduleTable rows. */
+  .trp-pay-editing,
+  .trp-pay-editing:hover { background-color: var(--mui-palette-primary-container); }
+  .trp-pay-cell-label { min-width: 180px; }
+  .trp-pay-cell-link { min-width: 170px; }
+  .trp-pay-amount { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+  .trp-pay-partial { display: block; font-weight: 400; }
+  .trp-status-form { display: flex; align-items: center; gap: 6px; }
+  /* NativeSelect / OutlinedInput size="small": MUI's 40px box, padding less the 1px border. */
+  .trp-select-40 { min-height: 40px; padding: 7.5px 32px 7.5px 13px; }
+  .trp-w-96 { width: 96px; box-sizing: border-box; }
+  .trp-link-has { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .trp-link-site { display: inline-flex; align-items: center; gap: 6px; color: var(--mui-palette-text-secondary); }
+  .trp-travefy { height: 20px; font-size: 10.5px; }
+  .trp-btn-change { min-height: 28px; min-width: 0; padding-left: 8px; padding-right: 8px; }
+  .trp-link-none { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .trp-pay-actions { display: inline-flex; align-items: center; gap: 4px; }
+  .trp-direct { --Paper-shadow: none; margin-top: 14px; padding: 12px; display: flex; gap: 10px; align-items: center; background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+
+  /* The two dialogs: Paper m 2 at their own widths, DialogContent p 2.75. */
+  .trp-dialog-600 { width: min(600px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-dialog-580 { width: min(580px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-dialog-pad { padding: 22px; }
+  .trp-dialog-buttons { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .trp-dialog-buttons .btn > .icon { margin-left: -4px; margin-right: 8px; }
+  /* MilestoneSummary. */
+  .trp-msum { margin-top: 12px; padding: 10px; background-color: var(--mui-palette-surface-2); }
+  .trp-msum-row { display: flex; align-items: center; gap: 10px; }
+  .trp-msum-text { flex: 1; min-width: 0; }
+  .trp-msum-end { text-align: right; }
+  /* The pay link preview: a picture of the client's button, not a working one. */
+  .trp-preview { margin-top: 12px; padding: 12px; }
+  .trp-preview[hidden] { display: none; }
+  .trp-preview-row { margin-top: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .trp-pay-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background-color: var(--mui-palette-primary-main); color: var(--mui-palette-primary-contrastText); font: var(--mui-font-button); text-transform: none; }
+  .trp-paid-grid { margin-top: 12px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) {
+    .trp-paid-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .trp-span-2 { grid-column: span 2; }
+  }
+
+  /* 3.6.6 Payment history. */
+  .trp-hhead { margin-top: 20px; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .trp-hhead-text { min-width: 0; flex: 1; }
+  .trp-hchips { margin-top: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .trp-hempty,
+  .trp-hempty:last-child { padding: 32px 16px; text-align: center; }
+  .trp-hdetail { font-family: var(--font-mono); font-size: 12px; color: var(--mui-palette-text-secondary); overflow-wrap: anywhere; }
 }

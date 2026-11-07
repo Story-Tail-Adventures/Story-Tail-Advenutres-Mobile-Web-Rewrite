@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.15, Trip Payment Schedule, with §3.6's pay links (3.6.1, 3.6.1b) and Mark Paid
+  (3.6.5). Ports app/(agent)/agent/trips/[tripId]/payments/page.tsx with PaymentScheduleTable,
+  MilestoneForm, PayLinkDialog, MarkPaidDialog and MilestoneSummary. Filled by
+  internal/handlers/agent/trips (payments.go).
+
+  The form and the dialogs live in the URL: ?edit=<id>, ?link=<id>, ?paid=<id>. No card
+  field exists here, by design (CLAUDE.md rule 1): clients pay suppliers through the link.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Payments · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col trp-col-1100" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <div class="trp-notfound" data-slot="not-found">
+        <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span>
+        <h1 class="type-h5">No such trip</h1>
+        <p class="type-body2 text-secondary trp-mt-1">It may have been deleted, or it belongs to another advisor.</p>
+        <a class="btn btn-outlined btn-secondary st-btn trp-mt-2_5" href="/agent">Back to the worklist</a>
+      </div>
+
+      <div data-slot="trip">
+        <header class="card trp-dhead">
+          <div class="card-content trp-dhead-body">
+            <p class="type-body2 text-secondary"><a class="link link-hover link-inherit" href="/agent/trips/sample" data-slot="back-link">Back to the trip</a> · <span data-slot="client-name">Jordan Hayes</span></p>
+            <h1 class="type-h5 trp-fw-700 trp-mt-0_5" data-slot="title">Anniversary Week in Negril</h1>
+            <p class="type-body2 text-secondary trp-mt-0_25">What the supplier expects, and when.</p>
+            <dl class="trp-figures">
+              <div><dt class="type-caption trp-dt">Scheduled</dt><dd class="type-subtitle1 trp-dd trp-mono" data-slot="expected">$12,845</dd></div>
+              <div><dt class="type-caption trp-dt">On file</dt><dd class="type-subtitle1 trp-dd trp-mono" data-slot="paid-total">$2,560</dd></div>
+              <div><dt class="type-caption trp-dt">Trip total</dt><dd class="type-subtitle1 trp-dd trp-mono" data-slot="trip-total">$12,845</dd></div>
+            </dl>
+            <p class="type-body2 text-secondary trp-pay-hint"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg>A schedule doesn't have to add up to the trip total — suppliers set their dates when they set them.</p>
+          </div>
+        </header>
+
+        <div class="trp-pgrid">
+          <section>
+            <div class="trp-ihead">
+              <h2 class="type-subtitle1 trp-fw-600">Payment schedule</h2>
+              <a class="btn btn-outlined btn-small st-btn trp-push-end" href="/agent/trips/sample/payments/history" data-slot="history-link"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#clock"></use></svg> History</a>
+              <a class="btn btn-outlined btn-small st-btn" href="/agent/messages/new?client=sample" data-slot="remind-link"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#send"></use></svg> Remind the client</a>
+              <button type="button" class="btn btn-outlined btn-small st-btn" disabled title="Nothing is still owed on this trip, so there's nothing to remind the client about." data-slot="remind-off">Remind the client<span class="visually-hidden">. Nothing is still owed on this trip, so there's nothing to remind the client about.</span></button>
+            </div>
+
+            <div class="card trp-canvas-empty" data-slot="schedule-empty">
+              <div class="card-content trp-canvas-empty-body">
+                <p class="type-subtitle1 trp-fw-600">No schedule yet</p>
+                <p class="type-body2 text-secondary trp-pempty-text">Add the deposit when the supplier confirms it. The rest can follow.</p>
+              </div>
+            </div>
+
+            <div class="card trp-scroll-x" data-slot="schedule">
+              <table class="table table-small table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Payment</th>
+                    <th scope="col" class="cell-num">Amount</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Pay link</th>
+                    <th scope="col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-repeat="pay" data-slot="pay">
+                    <td class="trp-pay-cell-label">
+                      <p class="type-body2 trp-fw-600" data-slot="pr-label">Deposit</p>
+                      <p class="type-caption text-secondary trp-block" data-slot="pr-meta">Due Aug 1 · Paid Aug 1</p>
+                    </td>
+                    <td class="cell-num trp-pay-amount"><span data-slot="pr-amount">$1,000</span><span class="type-caption text-secondary trp-pay-partial" data-slot="pr-paid"><span data-slot="pr-paid-text">$500 on file</span></span></td>
+                    <td>
+                      <form class="trp-status-form" method="post" action="/agent/trips/sample/payments/status" data-submit-once data-slot="st-form">
+                        <input type="hidden" name="milestoneId" value="sample" data-slot="st-id">
+                        <!-- Named by aria-label: Next's visually hidden <label for> needs a per-row id. -->
+                        <div class="select"><select class="input trp-select-40" name="status" aria-label="Mark this — Deposit" data-slot="st-select">
+                          <option value="scheduled" title="Not paid yet." data-slot="st-scheduled">Scheduled</option>
+                          <option value="paid" title="The money has moved." data-slot="st-paid">Paid</option>
+                          <option value="overdue" title="Past its date and still unpaid. Leave it scheduled if the supplier has given more time." data-slot="st-overdue">Overdue</option>
+                          <option value="waived" title="The supplier let it go. Not a payment — this doesn't count toward what's been paid." data-slot="st-waived">Waived</option>
+                        </select></div>
+                        <input class="input trp-input-40 trp-mono trp-w-96" name="paidAmount" aria-label="Amount that arrived — Deposit" placeholder="Amount" inputmode="decimal" data-slot="st-amount">
+                        <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn">Save</button>
+                      </form>
+                    </td>
+                    <td class="trp-pay-cell-link">
+                      <div class="trp-link-has" data-slot="link-has">
+                        <span class="trp-link-site" title="https://www.sandals.com/pay/1" data-slot="link-title"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#link"></use></svg><span class="type-body2 trp-fw-500 text-primary" data-slot="link-site-text">sandals.com</span></span>
+                        <span class="chip chip-small chip-outlined trp-travefy" data-slot="link-travefy"><span class="chip-label">Travefy invoice</span></span>
+                        <a class="btn btn-text btn-small trp-btn-change" href="/agent/trips/sample/payments?link=sample" aria-label="Change the Deposit pay link" data-slot="link-change">Change</a>
+                      </div>
+                      <div class="trp-link-none" data-slot="link-none">
+                        <span class="type-caption text-secondary">No pay link yet</span>
+                        <a class="btn btn-text btn-small st-btn" href="/agent/trips/sample/payments?link=sample" data-slot="link-add"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> Add a pay link<span class="visually-hidden" data-slot="link-add-sr"> — Deposit</span></a>
+                      </div>
+                    </td>
+                    <td class="cell-num trp-nowrap">
+                      <div class="trp-pay-actions">
+                        <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/payments?paid=sample" data-slot="mark-paid">Mark paid<span class="visually-hidden" data-slot="mark-paid-sr"> — Deposit</span></a>
+                        <a class="btn btn-text btn-small st-btn" href="/agent/messages/new?client=sample" data-slot="send-link"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#send"></use></svg> Send link<span class="visually-hidden" data-slot="send-link-sr"> — Deposit</span></a>
+                        <button type="button" class="btn btn-text btn-small st-btn" disabled title="Add a pay link first" data-slot="send-off">Send link<span class="visually-hidden">. Add a pay link first</span></button>
+                        <a class="btn btn-text btn-small st-btn" href="/agent/trips/sample/payments?edit=sample" data-slot="pr-edit">Edit<span class="visually-hidden" data-slot="pr-edit-sr"> Deposit</span></a>
+                        <form class="trp-inline-flex" method="post" action="/agent/trips/sample/payments/delete" data-slot="rm-form">
+                          <input type="hidden" name="milestoneId" value="sample" data-slot="rm-id">
+                          <button type="submit" class="icon-btn trp-icon-btn-28" title="Removing a payment takes it off the schedule for good."><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#trash"></use></svg><span class="visually-hidden" data-slot="rm-sr">Remove Deposit — Removing a payment takes it off the schedule for good.</span></button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="paper trp-direct">
+              <svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg>
+              <p class="type-caption"><b>Clients pay suppliers directly.</b> Each link opens the supplier's own secure site. Story-Tail never sees a card and never charges a fee. Every link you add, change or remove is recorded in History.</p>
+            </div>
+          </section>
+
+          <form class="card" method="post" action="/agent/trips/sample/payments/milestone" data-submit-once data-slot="milestone-form">
+            <div class="card-content trp-pad-16">
+              <input type="hidden" name="milestoneId" value="sample" data-slot="form-id">
+              <h2 class="type-h5 trp-mb-1_5" data-slot="form-heading">Add a payment</h2>
+              <div class="alert alert-error trp-mb-1_5" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Try again in a moment.</div></div>
+              <div class="trp-sheet-fields">
+                <div class="field">
+                  <label class="field-label" for="milestone-kind">What kind</label>
+                  <div class="select"><select class="input" id="milestone-kind" name="kind">
+                    <option value="deposit" data-slot="kind-deposit">Deposit</option>
+                    <option value="interim" data-slot="kind-interim">Interim payment</option>
+                    <option value="final" data-slot="kind-final">Final balance</option>
+                  </select></div>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="milestone-label">What the client sees</label>
+                  <input class="input" id="milestone-label" name="label" required maxlength="120" placeholder="Deposit" data-slot="f-label">
+                  <p class="field-help field-error" id="milestone-label-error" data-slot="f-label-error">Give it a name — it's the line the client reads.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="milestone-amount">Amount</label>
+                  <input class="input trp-mono" id="milestone-amount" name="amount" placeholder="0.00" inputmode="decimal" aria-describedby="milestone-amount-hint" data-slot="f-amount">
+                  <p class="field-help" id="milestone-amount-hint" data-slot="f-amount-hint">What the supplier expects on this date.</p>
+                  <p class="field-help field-error" id="milestone-amount-error" role="alert" data-slot="f-amount-error">That doesn't look like an amount.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="milestone-due">Due</label>
+                  <input class="input" id="milestone-due" name="dueDate" type="date" aria-describedby="milestone-due-hint" data-slot="f-due">
+                  <p class="field-help" id="milestone-due-hint">Leave it blank until the supplier sets one.</p>
+                </div>
+              </div>
+              <div class="row wrap gap-1 trp-mt-2">
+                <button type="submit" class="btn btn-contained btn-brand st-btn">Save</button>
+                <a class="btn btn-outlined btn-secondary st-btn" href="/agent/trips/sample/payments" data-slot="form-cancel">Cancel</a>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- 3.6.1b Add or edit a pay link. -->
+        <dialog class="dialog trp-dialog-600" open aria-labelledby="pay-link-title" tabindex="-1" data-trp-modal data-trp-close-href="/agent/trips/sample/payments" data-slot="link-dialog">
+          <div class="trp-dialog-pad">
+            <form method="post" action="/agent/trips/sample/payments/link" data-submit-once data-slot="link-form">
+              <input type="hidden" name="milestoneId" value="sample" data-slot="link-id">
+              <h2 class="type-h5" id="pay-link-title" data-slot="link-heading">Add a pay link</h2>
+              <p class="type-body2 text-secondary trp-mt-0_5">Where the client goes to pay this one. It opens in a new tab on the supplier's site.</p>
+              <div class="paper paper-outlined trp-msum">
+                <div class="trp-msum-row">
+                  <svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#receipt"></use></svg>
+                  <div class="trp-msum-text">
+                    <p class="type-subtitle2" data-slot="ls-label">Final balance</p>
+                    <p class="type-caption text-secondary" data-slot="ls-context">Anniversary Week in Negril · Jordan Hayes</p>
+                  </div>
+                  <div class="trp-msum-end">
+                    <p class="type-subtitle1 trp-mono trp-fw-700" data-slot="ls-amount">$4,180</p>
+                    <p class="type-caption text-secondary" data-slot="ls-due">due May 28</p>
+                  </div>
+                </div>
+              </div>
+              <div class="field trp-mt-1_75">
+                <label class="field-label" for="pay-url">Pay link</label>
+                <input class="input trp-mono" id="pay-url" name="payUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" maxlength="2100" aria-describedby="pay-url-hint" data-trp-payurl data-slot="link-input">
+                <p class="field-help" id="pay-url-hint" data-slot="link-hint">Links must start with https://</p>
+                <p class="field-help field-error" id="pay-url-error" data-slot="link-error">Use a full link that starts with https://</p>
+              </div>
+              <div class="paper paper-outlined trp-preview" data-trp-preview data-slot="link-preview">
+                <p class="type-overline text-secondary trp-block trp-lh-13">THE CLIENT WILL SEE</p>
+                <div class="trp-preview-row">
+                  <span class="trp-pay-pill" aria-hidden="true"><span data-slot="link-button">Pay final balance </span><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#external"></use></svg></span>
+                  <div>
+                    <p class="type-body2 trp-fw-600" data-trp-site data-slot="link-site">sandals.com</p>
+                    <p class="type-caption text-secondary">Paid directly to the supplier on their secure site.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="trp-mt-1_25"><div class="alert alert-info" role="alert" aria-live="polite"><div class="alert-message">This change is recorded in the trip's payment history, with your name and the time.</div></div></div>
+              <p class="type-caption text-secondary trp-block trp-mt-1">A Travefy invoice passes along supplier costs only, never a planning or service fee.</p>
+              <div class="trp-dialog-buttons">
+                <!-- Enter in the link field submits the FIRST submit button: Save, never Remove. -->
+                <button type="submit" name="intent" value="save" tabindex="-1" aria-hidden="true" class="visually-hidden"></button>
+                <button type="submit" name="intent" value="remove" class="btn btn-text btn-error" data-slot="link-remove"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#trash"></use></svg>Remove link</button>
+                <a class="btn btn-text trp-push-end" href="/agent/trips/sample/payments" data-slot="link-cancel">Cancel</a>
+                <button type="submit" name="intent" value="save" class="btn btn-contained">Save link</button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+
+        <!-- 3.6.5 Mark paid. The advisor only: a client's "I've paid" is a message. -->
+        <dialog class="dialog trp-dialog-580" open aria-labelledby="mark-paid-title" tabindex="-1" data-trp-modal data-trp-close-href="/agent/trips/sample/payments" data-slot="paid-dialog">
+          <div class="trp-dialog-pad">
+            <form method="post" action="/agent/trips/sample/payments/paid" data-submit-once data-slot="paid-form">
+              <input type="hidden" name="milestoneId" value="sample" data-slot="paid-id">
+              <h2 class="type-h5" id="mark-paid-title" data-slot="paid-heading">Mark final balance paid</h2>
+              <p class="type-body2 text-secondary trp-mt-0_5">Check with the supplier first. Once you save, the client sees it as paid on the trip.</p>
+              <div class="paper paper-outlined trp-msum">
+                <div class="trp-msum-row">
+                  <svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#receipt"></use></svg>
+                  <div class="trp-msum-text">
+                    <p class="type-subtitle2" data-slot="ps-label">Final balance</p>
+                    <p class="type-caption text-secondary" data-slot="ps-context">Anniversary Week in Negril · Jordan Hayes</p>
+                  </div>
+                  <div class="trp-msum-end">
+                    <p class="type-subtitle1 trp-mono trp-fw-700" data-slot="ps-amount">$4,180</p>
+                    <p class="type-caption text-secondary" data-slot="ps-due">due May 28</p>
+                  </div>
+                </div>
+              </div>
+              <div class="trp-mt-1_5" data-slot="paid-error"><div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="paid-error-text">That didn't save. Try again in a moment.</div></div></div>
+              <div class="trp-paid-grid">
+                <div class="field">
+                  <label class="field-label" for="paid-amount">Amount paid</label>
+                  <input class="input trp-mono" id="paid-amount" name="amount" inputmode="decimal" data-slot="p-amount">
+                  <p class="field-help field-error" id="paid-amount-error" data-slot="p-amount-error">That doesn't look like an amount.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="paid-on">Date paid</label>
+                  <input class="input" id="paid-on" name="paidOn" type="date" required data-slot="p-on">
+                  <p class="field-help field-error" id="paid-on-error" data-slot="p-on-error">Pick the date the money landed. It can't be in the future.</p>
+                </div>
+                <div class="field trp-span-2">
+                  <label class="field-label" for="paid-reference">Confirmation number (optional)</label>
+                  <input class="input trp-mono" id="paid-reference" name="reference" autocomplete="off" maxlength="100" data-slot="p-ref">
+                  <p class="field-help field-error" id="paid-reference-error" data-slot="p-ref-error">Keep the confirmation number to 100 characters.</p>
+                </div>
+                <div class="field trp-span-2">
+                  <label class="field-label" for="paid-note">Note (optional)</label>
+                  <textarea class="input trp-textarea" id="paid-note" name="note" rows="2" maxlength="1000" aria-describedby="paid-note-hint" data-slot="p-note"></textarea>
+                  <p class="field-help" id="paid-note-hint" data-slot="p-note-hint">Only you see this.</p>
+                  <p class="field-help field-error" id="paid-note-error" data-slot="p-note-error">Keep the note to 1,000 characters.</p>
+                </div>
+              </div>
+              <p class="type-caption text-secondary trp-block trp-mt-1">Only you can mark a payment paid. It's recorded in the trip's payment history.</p>
+              <div class="trp-dialog-buttons">
+                <a class="btn btn-text" href="/agent/trips/sample/payments" data-slot="paid-cancel">Cancel</a>
+                <button type="submit" class="btn btn-contained trp-push-end"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg>Mark paid</button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/payments.js"></script>
+</main>
+</body>
+</html>
