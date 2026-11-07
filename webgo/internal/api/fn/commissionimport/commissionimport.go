@@ -70,7 +70,10 @@ func Func(d *edge.Deps, r *http.Request) (*edge.Reply, error) {
 	if r.Method != http.MethodPost {
 		return nil, problem.BadRequest("Use POST.")
 	}
-	ctx := r.Context()
+	// Not cancelled when the caller disconnects (review of #190): an upload stores the file
+	// and then writes the row, and the clean-up that removes the file when the row is refused
+	// must still run. Each call keeps its own client timeout.
+	ctx := context.WithoutCancel(r.Context())
 	c, err := edge.RequireUser(d, r)
 	if err != nil {
 		return nil, err
@@ -508,10 +511,12 @@ func discard(ctx context.Context, db *service.Client, log *slog.Logger, c *calle
 	}
 	// A discarded statement's file goes too: it names every traveler on it, and nothing reads
 	// it again. The document row stays, archived, as the record that it existed. Best effort:
-	// the discard has already happened, and a leftover object is logged, not shown. The key
-	// is built from the importId as sent, as the Deno function built it.
+	// the discard has already happened, and a leftover object is logged, not shown. The key is
+	// built from the id LOWER-CASED (review of #190): ids are matched in SQL whatever their
+	// case, so an upper-case importId discarded the row and missed the object, leaving a file
+	// that names every traveler in the bucket. The Deno function had the same gap.
 	if res.Outcome == "discarded" {
-		if err := db.Remove(ctx, bucket, []string{agentID + "/" + importID + ".csv"}); err != nil {
+		if err := db.Remove(ctx, bucket, []string{agentID + "/" + strings.ToLower(importID) + ".csv"}); err != nil {
 			log.Error("discarded statement object not removed")
 		}
 	}
