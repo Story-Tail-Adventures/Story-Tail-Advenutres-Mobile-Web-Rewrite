@@ -14,6 +14,174 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class CommissionImportReconcileResponseOutcome {
+    @SerialName("reconciled")
+    RECONCILED,
+    @SerialName("needs_decisions")
+    NEEDS_DECISIONS,
+    @SerialName("not_open")
+    NOT_OPEN,
+}
+
+@Serializable
+enum class CommissionImportResponseOutcome {
+    @SerialName("mapped")
+    MAPPED,
+    @SerialName("resolved")
+    RESOLVED,
+    @SerialName("discarded")
+    DISCARDED,
+    @SerialName("not_open")
+    NOT_OPEN,
+    @SerialName("not_allowed")
+    NOT_ALLOWED,
+    @SerialName("line_unavailable")
+    LINE_UNAVAILABLE,
+    @SerialName("trip_not_found")
+    TRIP_NOT_FOUND,
+    @SerialName("supplier_not_found")
+    SUPPLIER_NOT_FOUND,
+}
+
+@Serializable
+enum class CommissionImportUploadResponseOutcome {
+    @SerialName("uploaded")
+    UPLOADED,
+    @SerialName("duplicate_file")
+    DUPLICATE_FILE,
+}
+
+@Serializable
+enum class CommissionImportStatementRequestOp {
+    @SerialName("reconcile")
+    RECONCILE,
+    @SerialName("discard")
+    DISCARD,
+}
+
+@Serializable
+enum class CommissionImportResolveRequestAction {
+    @SerialName("confirm")
+    CONFIRM,
+    @SerialName("match")
+    MATCH,
+    @SerialName("create")
+    CREATE,
+    @SerialName("ignore")
+    IGNORE,
+}
+
+@Serializable
+enum class CommissionImportResolveRequestOp {
+    @SerialName("resolve")
+    RESOLVE,
+}
+
+@Serializable
+enum class CommissionImportMapRequestOp {
+    @SerialName("map")
+    MAP,
+}
+
+@Serializable
+enum class CommissionImportUploadRequestOp {
+    @SerialName("upload")
+    UPLOAD,
+}
+
+@Serializable
+enum class AgentCommissionWeightsResponseOutcome {
+    @SerialName("saved")
+    SAVED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AgentCommissionExportResponseOutcome {
+    @SerialName("exported")
+    EXPORTED,
+}
+
+@Serializable
+enum class AgentCommissionPaymentResponseOutcome {
+    @SerialName("recorded")
+    RECORDED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("bad_date")
+    BAD_DATE,
+}
+
+@Serializable
+enum class AgentCommissionLineResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("supplier_not_found")
+    SUPPLIER_NOT_FOUND,
+    @SerialName("duplicate_reference")
+    DUPLICATE_REFERENCE,
+    @SerialName("payment_would_clear")
+    PAYMENT_WOULD_CLEAR,
+    @SerialName("removed")
+    REMOVED,
+    @SerialName("not_removable")
+    NOT_REMOVABLE,
+}
+
+@Serializable
+enum class AgentCommissionCreateResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("duplicate_reference")
+    DUPLICATE_REFERENCE,
+    @SerialName("supplier_not_found")
+    SUPPLIER_NOT_FOUND,
+}
+
+@Serializable
+enum class AgentCommissionWeightsRequestOp {
+    @SerialName("weights")
+    WEIGHTS,
+}
+
+@Serializable
+enum class AgentCommissionExportRequestOp {
+    @SerialName("export")
+    EXPORT,
+}
+
+@Serializable
+enum class AgentCommissionRemoveRequestOp {
+    @SerialName("remove")
+    REMOVE,
+}
+
+@Serializable
+enum class AgentCommissionPaymentRequestStatus {
+    @SerialName("received")
+    RECEIVED,
+    @SerialName("disputed")
+    DISPUTED,
+}
+
+@Serializable
+enum class AgentCommissionPaymentRequestOp {
+    @SerialName("payment")
+    PAYMENT,
+}
+
+@Serializable
+enum class AgentCommissionLineFieldsPaymentTerms {
+    @SerialName("at_booking")
+    AT_BOOKING,
+    @SerialName("after_travel")
+    AFTER_TRAVEL,
+}
+
+@Serializable
 enum class AgentSettingsResponseOutcome {
     @SerialName("updated")
     UPDATED,
@@ -2590,4 +2758,278 @@ data class AgentSettingsResponse(
     // `save_time_off` only.
     @SerialName("timeOffId")
     val timeOffId: String? = null,
+)
+
+@Serializable
+data class AgentCommissionLineFields(
+    @SerialName("supplierId")
+    val supplierId: String,
+    // Gross booking value in cents. Required (absent or blank is a 400, never $0).
+    @SerialName("grossCents")
+    val grossCents: JsonElement,
+    // 0 to 100; rounded to two decimals. Required.
+    @SerialName("commissionPct")
+    val commissionPct: JsonElement,
+    @SerialName("paymentTerms")
+    val paymentTerms: AgentCommissionLineFieldsPaymentTerms,
+    // Whole days from 0 to 365.
+    @SerialName("paymentLagDays")
+    val paymentLagDays: JsonElement,
+    // Trimmed; blank is none. Unique per advisor.
+    @SerialName("inteletravelReference")
+    val inteletravelReference: String? = null,
+    // Trimmed; blank is none. Never exported.
+    @SerialName("notes")
+    val notes: String? = null,
+)
+
+@Serializable
+data class AgentCommissionPaymentRequest(
+    @SerialName("op")
+    val op: AgentCommissionPaymentRequestOp,
+    @SerialName("commissionId")
+    val commissionId: String,
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    @SerialName("status")
+    val status: AgentCommissionPaymentRequestStatus,
+    // Required. `received` with 0 is a 400 (record it as disputed instead).
+    @SerialName("receivedCents")
+    val receivedCents: JsonElement,
+    // Optional; absent or blank is 0.
+    @SerialName("feeCents")
+    val feeCents: JsonElement? = null,
+    // A real calendar date. One after the advisor's today is the `bad_date` outcome.
+    @SerialName("receivedAt")
+    val receivedAt: String,
+)
+
+@Serializable
+data class AgentCommissionRemoveRequest(
+    @SerialName("op")
+    val op: AgentCommissionRemoveRequestOp,
+    @SerialName("commissionId")
+    val commissionId: String,
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+)
+
+@Serializable
+data class AgentCommissionExportRequest(
+    @SerialName("op")
+    val op: AgentCommissionExportRequestOp,
+    // The ledger's filters, as the web's ledgerQueryFromParams writes them. All optional.
+    @SerialName("filters")
+    val filters: JsonElement? = null,
+)
+
+@Serializable
+data class AgentCommissionStageWeights(
+    @SerialName("inquiry")
+    val inquiry: Int,
+    @SerialName("proposal")
+    val proposal: Int,
+    @SerialName("booked")
+    val booked: Int,
+    @SerialName("in_progress")
+    val in_progress: Int,
+)
+
+@Serializable
+data class AgentCommissionWeightsRequest(
+    @SerialName("op")
+    val op: AgentCommissionWeightsRequestOp,
+    // The weights the screen showed. If the stored ones differ, the save is a 409.
+    @SerialName("expected")
+    val expected: AgentCommissionStageWeights,
+    @SerialName("weights")
+    val weights: AgentCommissionStageWeights,
+)
+
+@Serializable
+data class AgentCommissionCreateResponse(
+    @SerialName("outcome")
+    val outcome: AgentCommissionCreateResponseOutcome,
+    // Only on `created`. Minted by the server (v7).
+    @SerialName("commissionId")
+    val commissionId: String? = null,
+    // Only on `created`: always 1.
+    @SerialName("version")
+    val version: Int? = null,
+)
+
+/** `update` and `remove`. `commissionId` is echoed as it was sent. */
+@Serializable
+data class AgentCommissionLineResponse(
+    @SerialName("outcome")
+    val outcome: AgentCommissionLineResponseOutcome,
+    @SerialName("commissionId")
+    val commissionId: String,
+    // The line's version now (after the write on changed / removed).
+    @SerialName("version")
+    val version: Int,
+)
+
+@Serializable
+data class AgentCommissionPaymentResponse(
+    @SerialName("outcome")
+    val outcome: AgentCommissionPaymentResponseOutcome,
+    @SerialName("commissionId")
+    val commissionId: String,
+    @SerialName("version")
+    val version: Int,
+    // Expected - fee - received, in cents as a digit-string. Null on `bad_date`.
+    @SerialName("gapCents")
+    val gapCents: String? = null,
+)
+
+@Serializable
+data class AgentCommissionExportResponse(
+    @SerialName("outcome")
+    val outcome: AgentCommissionExportResponseOutcome,
+    @SerialName("rowCount")
+    val rowCount: Int,
+    // RFC 4180, CRLF line ends with a trailing CRLF, no byte-order mark. Money as exact decimals ("1234.56"); a text cell starting with = + - @ tab or CR is prefixed with an apostrophe. Notes are not exported.
+    @SerialName("csv")
+    val csv: String,
+)
+
+@Serializable
+data class AgentCommissionWeightsResponse(
+    @SerialName("outcome")
+    val outcome: AgentCommissionWeightsResponseOutcome,
+)
+
+@Serializable
+data class CommissionImportUploadRequest(
+    @SerialName("op")
+    val op: CommissionImportUploadRequestOp,
+    // The name the advisor will recognise. Path parts are dropped; at most 255 characters kept.
+    @SerialName("filename")
+    val filename: String,
+    // The CSV's bytes, base64 (forgiving: white space and padding as atob takes them).
+    @SerialName("fileBase64")
+    val fileBase64: String,
+)
+
+/** Statement field to a 0-based column of the file. `received` is required; null is unmapped. */
+@Serializable
+data class CommissionImportColumnMap(
+    @SerialName("reference")
+    val reference: Int? = null,
+    @SerialName("supplier")
+    val supplier: Int? = null,
+    @SerialName("traveler")
+    val traveler: Int? = null,
+    @SerialName("gross")
+    val gross: Int? = null,
+    @SerialName("received")
+    val received: Int? = null,
+    @SerialName("fee")
+    val fee: Int? = null,
+    @SerialName("paid_on")
+    val paid_on: Int? = null,
+)
+
+@Serializable
+data class CommissionImportMapRequest(
+    @SerialName("op")
+    val op: CommissionImportMapRequestOp,
+    @SerialName("importId")
+    val importId: String,
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    @SerialName("columnMap")
+    val columnMap: CommissionImportColumnMap,
+    // The paid-on date for rows with none. Blank or null is none. Required when no `paid_on` column is mapped.
+    @SerialName("statementDate")
+    val statementDate: String? = null,
+)
+
+@Serializable
+data class CommissionImportResolveRequest(
+    @SerialName("op")
+    val op: CommissionImportResolveRequestOp,
+    @SerialName("importId")
+    val importId: String,
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    @SerialName("action")
+    val action: CommissionImportResolveRequestAction,
+    @SerialName("rowId")
+    val rowId: String,
+    // `match` only: the unpaid line this row pays.
+    @SerialName("commissionId")
+    val commissionId: String? = null,
+    // `create` only.
+    @SerialName("tripId")
+    val tripId: String? = null,
+    // `create` only.
+    @SerialName("supplierId")
+    val supplierId: String? = null,
+    // `create` only; required.
+    @SerialName("grossCents")
+    val grossCents: JsonElement? = null,
+    // `create` only; required, rounded to two decimals.
+    @SerialName("commissionPct")
+    val commissionPct: JsonElement? = null,
+)
+
+/** `reconcile` and `discard`. */
+@Serializable
+data class CommissionImportStatementRequest(
+    @SerialName("op")
+    val op: CommissionImportStatementRequestOp,
+    @SerialName("importId")
+    val importId: String,
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+)
+
+@Serializable
+data class CommissionImportUploadResponse(
+    @SerialName("outcome")
+    val outcome: CommissionImportUploadResponseOutcome,
+    // The new statement's id, or (`duplicate_file`) the earlier one's.
+    @SerialName("importId")
+    val importId: String,
+    // `uploaded` only: the data rows read.
+    @SerialName("rowCount")
+    val rowCount: Int? = null,
+    // `duplicate_file` only: when the earlier statement was uploaded.
+    @SerialName("uploadedAt")
+    val uploadedAt: String? = null,
+)
+
+/** `map`, `resolve` and `discard`. `importId` is echoed as it was sent. */
+@Serializable
+data class CommissionImportResponse(
+    @SerialName("outcome")
+    val outcome: CommissionImportResponseOutcome,
+    @SerialName("importId")
+    val importId: String,
+    // The statement's version now. Send it as the next `expectedVersion`.
+    @SerialName("version")
+    val version: Int,
+)
+
+@Serializable
+data class CommissionImportReconcileResponse(
+    @SerialName("outcome")
+    val outcome: CommissionImportReconcileResponseOutcome,
+    @SerialName("importId")
+    val importId: String,
+    @SerialName("version")
+    val version: Int,
+    // Lines marked received.
+    @SerialName("paid")
+    val paid: Int,
+    // Lines created and marked received.
+    @SerialName("created")
+    val created: Int,
+    @SerialName("alreadyRecorded")
+    val alreadyRecorded: Int,
+    // `needs_decisions`: rows still suggested, unmatched, duplicate or unreadable.
+    @SerialName("blocking")
+    val blocking: Int,
 )
