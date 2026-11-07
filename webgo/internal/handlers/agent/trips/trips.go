@@ -28,12 +28,12 @@ import (
 )
 
 // Specs declares every page this sub-area fills (files under pages/agent/trips/).
-var Specs = slices.Concat(listSpecs, newTripSpecs)
+var Specs = slices.Concat(listSpecs, newTripSpecs, detailSpecs)
 
 // Mount registers this sub-area's routes. Take templates from d.Pages here, so a missing
 // page stops the boot.
 func Mount(rt *gate.Router, d handlers.Deps) error {
-	for _, m := range []func(*gate.Router, handlers.Deps) error{mountList, mountNewTrip} {
+	for _, m := range []func(*gate.Router, handlers.Deps) error{mountList, mountNewTrip, mountDetail} {
 		if err := m(rt, d); err != nil {
 			return err
 		}

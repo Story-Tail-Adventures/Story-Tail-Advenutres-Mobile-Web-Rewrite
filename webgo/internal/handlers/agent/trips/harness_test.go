@@ -155,6 +155,14 @@ func (f *fakeSupabase) readCount() int {
 	return len(f.readLog)
 }
 
+type testLog struct{ t *testing.T }
+
+func (l testLog) Write(p []byte) (int, error) {
+	l.t.Helper()
+	l.t.Log(strings.TrimSpace(string(p)))
+	return len(p), nil
+}
+
 type app struct {
 	t    *testing.T
 	h    http.Handler
@@ -168,7 +176,8 @@ func newApp(t *testing.T) *app {
 	t.Cleanup(srv.Close)
 	cfg := config.Config{Env: config.Development, Port: "8080", SiteURL: "http://localhost:8080",
 		SupabaseURL: srv.URL, SupabaseAnonKey: "anon"}
-	h, err := server.New(cfg, pages.FS, assets.FS, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)))
+	// Errors reach the test log: a page that fails to fill says why, not just "500".
+	h, err := server.New(cfg, pages.FS, assets.FS, slog.New(slog.NewTextHandler(testLog{t}, &slog.HandlerOptions{Level: slog.LevelError})))
 	if err != nil {
 		t.Fatal(err)
 	}

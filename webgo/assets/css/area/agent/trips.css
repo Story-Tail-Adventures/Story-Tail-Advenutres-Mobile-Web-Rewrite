@@ -43,7 +43,7 @@
   .trp-filters { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
   /* OutlinedInput size="small" with no FormControl: 40px, not the Field's 44. */
   .trp-search,
-  .trp-input-40 { min-height: 40px; padding-top: 7.5px; padding-bottom: 7.5px; }
+  .trp-input-40 { min-height: 40px; padding: 7.5px 13px; }
   .trp-search { flex: 1; width: auto; min-width: 0; }
   .trp-chips { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .trp-chip-count { margin-left: 4px; opacity: 0.6; }
@@ -105,4 +105,122 @@
   .trp-travelers { max-width: 220px; }
   .trp-note { display: flex; align-items: center; gap: 6px; border-radius: 4px; background-color: var(--mui-palette-surface-2); padding: 8px 12px; }
   .trp-push-end { margin-left: auto; }
+
+  /* ── Shared small helpers ─────────────────────────────────────────────────────────────── */
+  .trp-minw0 { min-width: 0; }
+  .trp-mt-0_25 { margin-top: 2px; }
+  .trp-mt-0_5 { margin-top: 4px; }
+  .trp-mt-0_75 { margin-top: 6px; }
+  .trp-mt-1_5 { margin-top: 12px; }
+  .trp-mt-1_75 { margin-top: 14px; }
+  .trp-mt-2_5 { margin-top: 20px; }
+  .trp-fw-600 { font-weight: 600; }
+  .trp-fw-700 { font-weight: 700; }
+  .trp-lh-13 { line-height: 1.3; }
+  .trp-pad-12,
+  .trp-pad-12:last-child { padding: 12px; }
+  .trp-pad-14,
+  .trp-pad-14:last-child { padding: 14px; }
+  .trp-anywhere { overflow-wrap: anywhere; }
+  .trp-break-word { overflow-wrap: break-word; }
+  .trp-flat { background-color: var(--mui-palette-surface-2); }
+  .trp-money-12 { font-family: var(--font-mono); font-weight: 700; font-size: 12px; }
+  .trp-minw-70 { min-width: 70px; text-align: right; }
+  .trp-empty { padding: 16px 4px; }
+  /* Shown only with JS off; detail.js marks the document. */
+  .trp-js .trp-nojs { display: none; }
+
+  /* ── 3.4.2 Trip Detail: header ─────────────────────────────────────────────────────────── */
+  .trp-dhead { margin-top: 20px; }
+  .trp-dhead-body,
+  .trp-dhead-body:last-child { padding: 16px; }
+  .trp-dhead-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .trp-dhead-title { margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  /* Box mt 1.5 around StageMenu's Box mt 1: the two margins collapse to 12px. */
+  .trp-stage { margin-top: 12px; max-width: 320px; }
+
+  /* TripDetailTabs: chips as links, one URL each. */
+  .trp-tabs { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .trp-tab { flex-shrink: 0; }
+
+  /* The two columns: the tab, and the side cards from lg. */
+  .trp-dgrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) { .trp-dgrid { grid-template-columns: minmax(0, 1fr) 320px; } }
+  .trp-aside { display: flex; flex-direction: column; gap: 12px; }
+  .trp-tab-action { margin-bottom: 8px; display: flex; justify-content: flex-end; }
+
+  /* AtAGlanceGrid: two columns on a phone, four from sm. */
+  .trp-glance { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (min-width: 640px) { .trp-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .trp-glance-label { display: block; font-weight: 500; line-height: 1.3; letter-spacing: 0.4px; color: var(--mui-palette-text-secondary); }
+
+  /* CostCommissionCard. */
+  .trp-kv { display: flex; justify-content: space-between; }
+  .trp-kv-commission { margin-top: 6px; color: var(--mui-palette-primary-main); }
+  .trp-cost-links { margin-top: 4px; display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 4px; }
+
+  /* PaymentsSummaryCard rows. */
+  .trp-pay-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .trp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .trp-dot-good { background-color: var(--mui-palette-success-main); }
+  .trp-dot-warn { background-color: var(--mui-palette-error-main); }
+
+  /* Component and document rows (ROW_SX). */
+  .trp-stack-6 { display: flex; flex-direction: column; gap: 6px; }
+  .trp-stack-8 { display: flex; flex-direction: column; gap: 8px; }
+  .trp-ol { margin: 0; padding: 0; list-style: none; }
+  .trp-row-card,
+  .trp-row-card:last-child { padding: 10px 14px; display: flex; gap: 12px; align-items: center; }
+  .trp-avatar-rounded { border-radius: 4px; }
+  .trp-tile-secondary { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .trp-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .trp-badge { height: 20px; font-family: var(--font-mono); font-size: 11px; }
+  .trp-doc-icon { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-text-secondary); }
+
+  /* TripItineraryView, flattened: the gaps the nested Next layout had. */
+  .trp-it-badge { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .trp-it-dayline { display: flex; align-items: baseline; gap: 8px; }
+  .trp-it-daynum { font-size: 22px; line-height: 1; color: var(--mui-palette-primary-main); }
+  .trp-it-gap-8 { margin-top: 8px; }
+  .trp-it-gap-16 { margin-top: 16px; }
+  .trp-it-gap-24 { margin-top: 24px; }
+  .trp-it-end-16 { margin-bottom: 16px; }
+  .trp-it-end-24 { margin-bottom: 24px; }
+  .trp-tip {
+    --Paper-shadow: none;
+    margin-top: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    background-color: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+
+  /* Messages, notes, activity. */
+  .trp-msg-reply { display: flex; justify-content: flex-end; }
+  /* MUI's padding (16.5px 14px) less the 1px border its fieldset draws outside the box. */
+  .trp-notes { padding: 15.5px 13px; }
+  /* A small multiline field (TextareaField): MUI's 8.5px 14px less the same 1px border. */
+  .trp-textarea { padding: 7.5px 13px; }
+  .trp-history { display: flex; align-items: center; gap: 12px; }
+  .trp-history-bar { width: 8px; flex-shrink: 0; align-self: stretch; border-radius: 999px; background-color: var(--mui-palette-primary-container); }
+
+  /* TripNotFound. */
+  .trp-notfound { margin: 0 auto; width: 100%; max-width: 600px; padding: 64px 0; text-align: center; box-sizing: border-box; }
+
+  /* The two dialogs (MUI Dialog with a sized Paper, DialogContent p 2.5). */
+  .trp-dialog-520 { width: min(520px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-dialog-560 { width: min(560px, calc(100vw - 2rem)); max-width: 100%; margin: auto; }
+  .trp-dialog-content { padding: 20px; }
+  .trp-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; }
+  .trp-dialog-actions-split { justify-content: space-between; }
+  .trp-dialog-end { margin-top: 14px; display: flex; justify-content: flex-end; }
+  .trp-bullets { margin: 4px 0 0; padding: 0 0 0 20px; list-style: disc; display: flex; flex-direction: column; }
+  .trp-gap-2 { gap: 2px; }
+  .trp-gap-4 { gap: 4px; }
+  .trp-check-label { margin-left: -11px; }
+  .trp-check-sm { width: 15px; height: 15px; margin: 11.5px; background-size: 12px 12px; }
+  .trp-cancel-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .trp-cancel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 }
