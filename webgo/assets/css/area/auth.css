@@ -7,7 +7,182 @@
  *
  * No inline styles anywhere (the CSP is style-src 'self'): a page that needs a one-off size
  * or colour gets a class here. internal/static/classes_test.go fails on any class a page uses
- * that no stylesheet defines. */
+ * that no stylesheet defines.
+ *
+ * Every value is the sx of the Next component it replaces (web/app/(auth)/**, components/auth/*),
+ * named beside it, in MUI's 8px spacing: 0.5 = 4px, 0.75 = 6px, 1.25 = 10px, 1.75 = 14px. */
 
 @layer components {
+  /* ── AuthCard (components/auth/AuthCard.tsx) ───────────────────────────────────────────── */
+  /* overline: brand.main, 600, line-height 1.3, mb 0.5 */
+  .auth-overline {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mui-palette-brand-main);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  /* sub: body2, text.secondary, mt 0.5 */
+  .auth-sub { margin-top: 4px; }
+  /* footer: caption div, centred, mt auto (the column is a flex gap, so auto still reaches the bottom) */
+  .auth-footer { display: block; margin-top: auto; text-align: center; }
+
+  /* ── Columns: FORM_SX / COLUMN_SX, the legacy 14px gap ─────────────────────────────────── */
+  .auth-form,
+  .auth-column { display: flex; flex-direction: column; gap: 14px; }
+  /* verify-email's change-address form: gap 1.25 */
+  .auth-change-form { display: flex; flex-direction: column; gap: 10px; }
+  /* FIELDSET_SX: disables its controls while posting, adds no box of its own */
+  .auth-fieldset { display: contents; margin: 0; padding: 0; border: 0; min-width: 0; }
+  /* A wrapper that groups blocks for removal and adds no box, so the gap is unchanged. */
+  .auth-contents { display: contents; }
+  /* The "check your inbox" panels: role=status Box, flex column */
+  .auth-panel { display: flex; flex-direction: column; }
+  .auth-strong { font-weight: 600; color: var(--mui-palette-text-primary); }
+  .auth-center { align-self: center; }
+  .auth-center-self { align-self: center; }
+
+  .auth-mt-4 { margin-top: 4px; }
+  .auth-mt-6 { margin-top: 6px; }
+  .auth-mt-8 { margin-top: 8px; }
+  .auth-mt-10 { margin-top: 10px; }
+  .auth-mt-14 { margin-top: 14px; }
+  /* confirm's "Go to sign in": Box mt 2 */
+  .auth-mt-16-block { margin-top: 16px; }
+
+  /* ── Cards: NOTE_SX (p 1.75 on CardContent, last-child too), the expired card (p 2) ─── */
+  .auth-note,
+  .auth-note:last-child { padding: 14px; }
+  .auth-expired,
+  .auth-expired:last-child { display: flex; flex-direction: column; padding: 16px; }
+
+  /* ── Links ─────────────────────────────────────────────────────────────────────────────── */
+  /* TAP_LINK: inline-flex, centred, the .tap-target 44px touch area, alignSelf flex-start */
+  .auth-tap-link { display: inline-flex; align-items: center; align-self: flex-start; }
+  .auth-tap-link.auth-center-self { align-self: center; }
+  /* FormError's action: inherits the alert's colour, underlined, 600, offset 2 */
+  .auth-error-link { font-weight: 600; text-underline-offset: 2px; }
+  /* "Forgot?" beside a label: caption, line-height 1.3 */
+  .auth-label-link { line-height: 1.3; }
+  /* 2.1.6's "Not right now": color text.secondary */
+  .auth-skip {
+    align-self: center;
+    color: var(--mui-palette-text-secondary);
+    text-decoration-color: rgba(var(--mui-palette-text-secondaryChannel) / 0.4);
+  }
+
+  /* ── Registration ──────────────────────────────────────────────────────────────────────── */
+  /* the name pair: two equal columns, gap 1.25 */
+  .auth-name-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  /* FormControlLabel mr 0, the label body2 text.secondary */
+  .auth-check { margin-right: 0; }
+  /* Checkbox size="small": a 20px icon (the box is 15px of it, 1.67px stroke) in 9px of
+     padding, so a 38px row where ui.css's medium box makes 42. */
+  .auth-check .check-input {
+    width: 15px;
+    height: 15px;
+    margin: 11.5px;
+    border-width: 1.67px;
+    background-size: 11.67px 11.67px;
+  }
+  /* FormHelperText mx 0, mt 0.75 */
+  .auth-terms-error { margin: 6px 0 0; }
+
+  /* ── PasswordStrengthField's meter (LinearProgress determinate, 4px, mt 0.75) ─────────── */
+  .auth-meter {
+    position: relative;
+    overflow: hidden;
+    height: 4px;
+    margin-top: 6px;
+    border-radius: 2px;
+    background-color: var(--mui-palette-outline-variant);
+    color: var(--mui-palette-outline-main);
+  }
+  .auth-meter-bar {
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    background-color: currentColor;
+    transform: translateX(-100%);
+    transition: transform 0.4s linear;
+  }
+  /* TONE: outline, error, brand, brand, success; the bar is score / 4 of the track */
+  .auth-meter[data-score="1"] { color: var(--mui-palette-error-main); }
+  .auth-meter[data-score="2"],
+  .auth-meter[data-score="3"] { color: var(--mui-palette-brand-main); }
+  .auth-meter[data-score="4"] { color: var(--mui-palette-success-main); }
+  .auth-meter[data-score="1"] .auth-meter-bar { transform: translateX(-75%); }
+  .auth-meter[data-score="2"] .auth-meter-bar { transform: translateX(-50%); }
+  .auth-meter[data-score="3"] .auth-meter-bar { transform: translateX(-25%); }
+  .auth-meter[data-score="4"] .auth-meter-bar { transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .auth-meter-bar { transition: none; }
+  }
+
+  /* ── Email verification: the mail glyph on an 84px Avatar, secondary container, py 1.75 ── */
+  .auth-mail { display: flex; justify-content: center; padding: 14px 0; }
+  .auth-mail-avatar {
+    width: 84px;
+    height: 84px;
+    background-color: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+
+  /* ── MFA code fields: CODE_INPUT_SX, mono, centred, 0.5em tracking (18px on the challenge) ─ */
+  .auth-code-field .input {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 18px;
+    letter-spacing: 0.5em;
+  }
+  .auth-code-field-setup .input { font-size: 1rem; }
+
+  /* ── MFA setup: the method tiles (outlined Paper, p 1.5, a 2-column grid, gap 1) ───────── */
+  .auth-methods {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .auth-method { height: 100%; padding: 12px; }
+  .auth-method-on {
+    background-color: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+    border-color: var(--mui-palette-primary-main);
+  }
+  .auth-method-off {
+    background-color: var(--mui-palette-background-paper);
+    color: var(--mui-palette-text-primary);
+    opacity: 0.6;
+  }
+  .auth-method-title { margin-top: 6px; color: inherit; }
+  .auth-method-sub { color: inherit; opacity: 0.8; }
+
+  /* The QR card: a column, a row from sm, gap 1.5 */
+  .auth-scan { display: flex; flex-direction: column; gap: 12px; }
+  @media (min-width: 640px) {
+    .auth-scan { flex-direction: row; align-items: center; }
+  }
+  /* A QR code needs a light quiet zone in both schemes: the white frame is the image's padding. */
+  .auth-qr {
+    display: block;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    align-self: center;
+    width: 112px;
+    height: 112px;
+    padding: 6px;
+    border-radius: var(--mui-shape-borderRadius);
+    background-color: var(--mui-palette-common-white);
+  }
+  .auth-scan-copy { min-width: 0; }
+  /* Selectable and wrapping: "can't scan" is exactly when someone copies this by hand. */
+  .auth-secret {
+    display: block;
+    font-family: var(--font-mono);
+    color: var(--mui-palette-text-primary);
+    word-break: break-all;
+  }
 }

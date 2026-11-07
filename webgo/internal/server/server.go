@@ -3,8 +3,7 @@
 //
 // It serves /healthz, the hashed assets under /assets/, the /functions/v1 registry (every name
 // passed through to Supabase until it is ported), the five page areas, and a plain 404 for
-// everything else. In development it adds /_demo, /_styleguide and, with Supabase
-// configured, the sign-in harness. Every route goes through gate.Router, so none can exist
+// everything else. In development it adds /_demo and /_styleguide. Every route goes through gate.Router, so none can exist
 // without choosing a gate.
 package server
 
@@ -25,7 +24,6 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/auth"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/client"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/demo"
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/devauth"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/onboarding"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/styleguide"
@@ -71,7 +69,6 @@ const CSP = "default-src 'self'; " +
 // stops the server from starting.
 func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Handler, error) {
 	dev := cfg.Env == config.Development
-	devAuth := dev && cfg.SupabaseConfigured()
 
 	// Assets first: every page's <link>, <script>, <img> and <use> is pointed at a hashed
 	// asset as it loads, and an unknown one stops the boot.
@@ -87,9 +84,6 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 	if dev {
 		specs = append(specs, demo.Spec)
 		specs = append(specs, styleguide.Specs...)
-	}
-	if devAuth {
-		specs = append(specs, devauth.Specs...)
 	}
 	set, err := page.LoadWith(pagesFS, page.Options{Assets: assetSet.Lookup}, specs...)
 	if err != nil {
@@ -143,13 +137,6 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 			return nil, err
 		}
 	}
-	// After the areas, so the harness steps aside from any route a real page has taken.
-	if devAuth {
-		if err := devauth.Mount(rt, set, sc, sessions, log); err != nil {
-			return nil, err
-		}
-	}
-
 	// Everything else, any method: a plain 404 that reads no cookie and calls nothing. Bots
 	// probing /wp-login.php and /.env land here, and must cost next to nothing.
 	rt.Public("/", http.HandlerFunc(notFound))
