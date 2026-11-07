@@ -268,12 +268,13 @@ func TestMarkPaid(t *testing.T) {
 	if strings.Contains(rec.Body.String(), luhnForTests()) {
 		t.Error("a card-shaped note was rendered")
 	}
-	// A refusal from the function itself is scrubbed the same way.
-	a.fake.fn("agent-trip", reply{400, `{"detail":"Card numbers never go in the app."}`})
-	rec = a.post(payURL("/paid"), url.Values{"milestoneId": {msFinal}, "paidOn": {today}, "reference": {"4111 " + luhnForTests()[4:]}})
-	if strings.Contains(rec.Body.String(), luhnForTests()[4:]) {
-		t.Error("a function-refused card-shaped reference was rendered")
+	// A refusal from the function itself: its sentence, and the (harmless) typed text kept.
+	a.fake.fn("agent-trip", reply{400, `{"detail":"That date is before the trip was booked."}`})
+	rec = a.post(payURL("/paid"), url.Values{"milestoneId": {msFinal}, "paidOn": {today}, "reference": {"SRB-9"}})
+	if len(a.fake.calls("agent-trip")) != 3 {
+		t.Error("the function was not asked")
 	}
+	has(t, rec, "That date is before the trip was booked.", `value="SRB-9"`)
 	a.fake.fn("agent-trip", reply{200, `{}`})
 
 	a.fake.fn("agent-trip", reply{422, `{"detail":"That payment is already settled."}`})
@@ -336,5 +337,90 @@ func TestPaymentHistory(t *testing.T) {
 	a.fake.read("agent_trip_overview", `[]`)
 	if rec := a.get(payURL("/history")); rec.Code != 404 {
 		t.Errorf("gone = %d", rec.Code)
+	}
+}
+
+// fullwidth writes digits as U+FF10..U+FF19; IDNA maps them back to ASCII.
+func fullwidth(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		b.WriteRune(r - '0' + 0xFF10)
+	}
+	return b.String()
+}
+
+// A refused form never writes a card-shaped number back into the page, in any field and in
+// any spelling checkPayURL normalises, and nothing is sent for it.
+func TestPaymentsNeverEchoACard(t *testing.T) {
+	pan := luhnForTests()
+	dashed := pan[:4] + "-" + pan[4:8] + "-" + pan[8:12] + "-" + pan[12:]
+	softHyphens := pan[:4] + "\u00ad" + pan[4:8] + "\u00ad" + pan[8:12] + "\u00ad" + pan[12:]
+	clean := func(t *testing.T, body string, forms ...string) {
+		t.Helper()
+		for _, f := range append(forms, pan, dashed) {
+			if strings.Contains(body, f) {
+				t.Errorf("%q rendered", f)
+			}
+		}
+	}
+	a := paymentsApp(t)
+	a.fake.fn("agent-trip", reply{400, `{"detail":"That date does not look right."}`})
+
+	for _, host := range []string{fullwidth(pan), softHyphens} {
+		rec := a.post(payURL("/link"), url.Values{"milestoneId": {msFinal}, "payUrl": {"https://" + host + ".example.com/pay"}})
+		if rec.Code != 422 {
+			t.Errorf("card host = %d", rec.Code)
+		}
+		has(t, rec, "That looks like a card number.")
+		clean(t, rec.Body.String(), host)
+		if strings.Contains(rec.Body.String(), `data-slot="link-site">`) && !strings.Contains(rec.Body.String(), `data-slot="link-site"></p>`) {
+			t.Error("the preview names a site for a refused card link")
+		}
+	}
+
+	// The milestone form: an amount, a label, a due date the function refuses.
+	rec := a.post(payURL("/milestone"), url.Values{"label": {"Deposit"}, "amount": {dashed}})
+	has(t, rec, "That doesn&#39;t look like an amount.")
+	clean(t, rec.Body.String())
+	rec = a.post(payURL("/milestone"), url.Values{"label": {"Deposit " + pan}, "amount": {"10"}})
+	if rec.Code != 422 {
+		t.Errorf("card label = %d", rec.Code)
+	}
+	has(t, rec, "That looks like a card number. Card numbers never go in the app.")
+	clean(t, rec.Body.String())
+	rec = a.post(payURL("/milestone"), url.Values{"label": {"Deposit"}, "amount": {"10"}, "dueDate": {pan}})
+	has(t, rec, "That date does not look right.")
+	clean(t, rec.Body.String())
+	// A milestone id that is no row is not sent at all.
+	n := len(a.fake.calls("agent-trip"))
+	if rec := a.post(payURL("/milestone"), url.Values{"milestoneId": {pan}, "label": {"D"}, "amount": {"10"}}); rec.Code != 303 || len(a.fake.calls("agent-trip")) != n {
+		t.Errorf("forged milestone id = %d", rec.Code)
+	}
+
+	// Mark Paid's date.
+	rec = a.post(payURL("/paid"), url.Values{"milestoneId": {msFinal}, "paidOn": {pan}})
+	has(t, rec, "Pick the date the money landed.")
+	clean(t, rec.Body.String())
+}
+
+// "Amount that arrived" too large for cents: Next sends it and the function refuses, so
+// nothing moves. Here nothing is sent; leaving paidCents out would mark it paid in full.
+func TestStatusAmountTooLargeSendsNothing(t *testing.T) {
+	a := paymentsApp(t)
+	a.fake.fn("agent-trip", reply{200, `{}`})
+	for _, amt := range []string{"50000000000000000", "$99,999,999,999,999,999.99", luhnForTests() + "123"} {
+		if rec := a.post(payURL("/status"), url.Values{"milestoneId": {msFinal}, "status": {"paid"}, "paidAmount": {amt}}); rec.Code != 303 {
+			t.Errorf("%s = %d", amt, rec.Code)
+		}
+	}
+	if n := len(a.fake.calls("agent-trip")); n != 0 {
+		t.Errorf("%d calls", n)
+	}
+	// Not a number at all still means "the whole amount", as in Next.
+	a.post(payURL("/status"), url.Values{"milestoneId": {msFinal}, "status": {"paid"}, "paidAmount": {"lots"}})
+	if c := a.fake.calls("agent-trip"); len(c) != 1 {
+		t.Errorf("%d calls", len(c))
+	} else if _, sent := c[0].body["paidCents"]; sent {
+		t.Error("a non-number was sent")
 	}
 }

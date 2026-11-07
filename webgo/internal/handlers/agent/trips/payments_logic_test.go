@@ -79,6 +79,10 @@ func TestValidateMilestone(t *testing.T) {
 	if validateMilestone(with(func(v *milestoneValues) { v.amount = "some" }))["amount"] != copyAmountNotNumber {
 		t.Error("not an amount")
 	}
+	// Stricter than Next: a card-shaped label (the line the client reads) is refused.
+	if validateMilestone(with(func(v *milestoneValues) { v.label = "Deposit " + testPAN() }))["label"] != copyPaidCardLike {
+		t.Error("a card-shaped label was accepted")
+	}
 }
 
 func TestMilestoneFromForm(t *testing.T) {
@@ -115,6 +119,10 @@ func TestValidatePayLink(t *testing.T) {
 		{"https://a.com/pay/" + testPAN(), "", copyLinkCard},
 		{"https://user:pw@sandals.com/pay", "", copyLinkNotHTTPS},
 		{"https://192.168.1.1/pay", "", copyLinkNotHTTPS},
+		// What new URL() takes, as the browser's host parser does: underscores and odd hyphens.
+		{"https://pay_portal.supplier.com/x", "https://pay_portal.supplier.com/x", ""},
+		{"https://ab--cd.com/x", "https://ab--cd.com/x", ""},
+		{"https://-pay.supplier.com/x", "https://-pay.supplier.com/x", ""},
 	}
 	for _, c := range cases {
 		link, err := validatePayLink(c.in)

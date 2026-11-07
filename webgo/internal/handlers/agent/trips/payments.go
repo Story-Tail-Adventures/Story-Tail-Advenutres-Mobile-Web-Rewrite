@@ -28,6 +28,16 @@ import (
 
 func paymentsPath(tripID string) string { return tripPath(tripID) + "/payments" }
 
+// scrubLink is what a refused pay link field may show again: nothing when the link holds a
+// card-shaped number anywhere checkPayURL looks (its IDNA-normalised href included, so
+// fullwidth digits or soft hyphens in the host cannot carry one back as ASCII).
+func scrubLink(raw string) string {
+	if noCard(raw) == "" || checkPayURL(raw).reason == "card" {
+		return ""
+	}
+	return raw
+}
+
 // noCard is what a refused form may show again of a value: nothing, when it holds a
 // card-shaped number. Next kept the typed text in the field (client state); a server-rendered
 // page would be writing the number into HTML, which rule 1 forbids ("display").
@@ -249,9 +259,15 @@ func mountPayments(rt *gate.Router, d handlers.Deps) error {
 	// saveMilestoneAction: payment_upsert. Never carries a status or a paid amount.
 	post("POST /agent/trips/{tripId}/payments/milestone", func(w http.ResponseWriter, r *http.Request, v visit, tripID string, f url.Values) {
 		vals := milestoneFromForm(f)
+		if vals.milestoneID != "" && !uuid.IsUUID(vals.milestoneID) {
+			back(w, r, tripID) // not a row of any schedule: nothing to send
+			return
+		}
 		again := func(status int, errs map[string]string, msg string) {
+			shown := vals
+			shown.label, shown.amount, shown.dueDate = noCard(vals.label), noCard(vals.amount), noCard(vals.dueDate)
 			h.show(w, r, v, tripID, status, func(pv *paymentsView) {
-				pv.form, pv.formErrs, pv.formError = vals, errs, msg
+				pv.form, pv.formErrs, pv.formError = shown, errs, msg
 				pv.editID = ""
 				if pv.row(vals.milestoneID) != nil {
 					pv.editID = vals.milestoneID
@@ -291,8 +307,15 @@ func mountPayments(rt *gate.Router, d handlers.Deps) error {
 		}
 		body := map[string]any{"op": "payment_paid", "tripId": tripID, "milestoneId": id, "status": status}
 		if raw := trimJS(f.Get("paidAmount")); raw != "" {
-			if cents, ok := dollarsToCents(raw); ok {
+			cents, ok := dollarsToCents(raw)
+			switch {
+			case ok:
 				body["paidCents"] = cents
+			case amountOverflows(raw):
+				// Next sends the huge figure and the function refuses it: nothing changes. Left
+				// out here it would read as "the whole amount" and mark the payment paid.
+				back(w, r, tripID)
+				return
 			}
 		}
 		if call(r.Context(), d, r, v, "agent-trip", body).Kind == api.Unauthenticated {
@@ -324,7 +347,7 @@ func mountPayments(rt *gate.Router, d handlers.Deps) error {
 		}
 		again := func(status int, msg string) {
 			h.show(w, r, v, tripID, status, func(pv *paymentsView) {
-				pv.linkRow, pv.linkValue, pv.linkError = pv.row(id), noCard(raw), msg
+				pv.linkRow, pv.linkValue, pv.linkError = pv.row(id), scrubLink(raw), msg
 			})
 		}
 		if !uuid.IsUUID(id) {
@@ -358,7 +381,8 @@ func mountPayments(rt *gate.Router, d handlers.Deps) error {
 		vals := markPaidFromForm(f)
 		again := func(status int, errs map[string]string, msg string) {
 			shown := vals
-			shown.amount, shown.reference, shown.note = noCard(vals.amount), noCard(vals.reference), noCard(vals.note)
+			shown.amount, shown.paidOn = noCard(vals.amount), noCard(vals.paidOn)
+			shown.reference, shown.note = noCard(vals.reference), noCard(vals.note)
 			h.show(w, r, v, tripID, status, func(pv *paymentsView) {
 				pv.paidRow, pv.paid, pv.paidErrs, pv.paidError = pv.row(id), shown, errs, msg
 			})

@@ -181,12 +181,7 @@ func numberJS(s string) (float64, bool) {
 // an amount (a third decimal, a minus, words) is refused (ok false). Parsed as digits, never
 // through a float, so it is exact.
 func dollarsToCents(input string) (int64, bool) {
-	cleaned := strings.Map(func(r rune) rune {
-		if r == '$' || r == ',' || jsSpace(r) {
-			return -1
-		}
-		return r
-	}, input)
+	cleaned := stripMoney(input)
 	if cleaned == "" {
 		return 0, true
 	}
@@ -204,6 +199,27 @@ func dollarsToCents(input string) (int64, bool) {
 	}
 	f, _ := strconv.ParseInt(frac, 10, 64)
 	return whole*100 + f, true
+}
+
+// stripMoney is dollarsToCents's /[$,\s]/g with JS's \s.
+func stripMoney(input string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '$' || r == ',' || jsSpace(r) {
+			return -1
+		}
+		return r
+	}, input)
+}
+
+// amountOverflows is a well-formed amount too large for int64 cents. Next's dollarsToCents
+// returns a (huge) number for it, which the function then refuses; Go's refuses it outright,
+// so a caller must not read that refusal as "not a number" where that changes the meaning.
+func amountOverflows(input string) bool {
+	if !moneyAmount.MatchString(stripMoney(input)) {
+		return false
+	}
+	_, ok := dollarsToCents(input)
+	return !ok
 }
 
 // centsToDollars ports centsToDollars: "4980.00". "" for a missing value.

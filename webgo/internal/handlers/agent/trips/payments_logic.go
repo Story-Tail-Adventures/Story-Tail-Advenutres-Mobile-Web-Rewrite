@@ -92,8 +92,13 @@ func milestoneFromForm(f url.Values) milestoneValues {
 // validateMilestone: a label, and an amount that is one and is not zero.
 func validateMilestone(v milestoneValues) map[string]string {
 	errs := map[string]string{}
-	if v.label == "" {
+	switch {
+	case v.label == "":
 		errs["label"] = copyLabelRequired
+	case looksLikeCardNumber(v.label):
+		// Stricter than Next, which takes it: the label is what the client reads, and rule 1
+		// keeps card numbers out of every field. PAYMENTS_COPY's own card sentence.
+		errs["label"] = copyPaidCardLike
 	}
 	switch cents, ok := dollarsToCents(v.amount); {
 	case !ok:
