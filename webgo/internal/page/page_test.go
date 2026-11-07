@@ -396,6 +396,46 @@ func TestOptionRowsAreFilledOnTheRowItself(t *testing.T) {
 }
 
 // A row can hold a repeat of its own: days and the activities inside each day.
+// A Repeat of a name already being filled, from inside its own fill, is a recorded mistake:
+// the page refuses to render, and nothing panics.
+func TestRepeatInsideItsOwnFill(t *testing.T) {
+	const days = `<!DOCTYPE html><html><head><title>t</title></head><body><main>
+<section data-repeat="day"><h2 data-slot="day-name">Day 1</h2>
+<ol data-slot="acts"><li data-repeat="act"><span data-slot="act-title">Sample</span></li></ol></section>
+</main></body></html>`
+	set, err := Load(fstest.MapFS{"days.html": {Data: []byte(days)}}, Spec{File: "days.html", Repeats: map[string][]string{
+		"day": {"day-name", "acts"}, "act": {"act-title"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl, err := set.Template("days.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, fill := range map[string]func(d *Doc){
+		"page": func(d *Doc) {
+			d.Repeat("day", 2, func(int, *Row) { d.Repeat("day", 1, nil) })
+		},
+		"row": func(d *Doc) {
+			d.Repeat("day", 1, func(_ int, day *Row) {
+				day.Text("day-name", "Day 1")
+				day.Keep("acts")
+				day.Repeat("act", 2, func(_ int, act *Row) {
+					act.Text("act-title", "x")
+					day.Repeat("act", 1, nil)
+				})
+			})
+		},
+	} {
+		d := tmpl.New()
+		fill(d)
+		if _, err := d.Bytes(); err == nil || !strings.Contains(err.Error(), "already filled or removed") {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+}
+
 func TestNestedRepeats(t *testing.T) {
 	const days = `<!DOCTYPE html><html><head><title>t</title></head><body><main>
 <section data-repeat="day"><h2 data-slot="day-name">Day 1</h2>

@@ -391,6 +391,9 @@ func (s *scope) Repeat(name string, n int, fill func(i int, r *Row)) {
 		s.fail("repeat %q was already filled or removed", name)
 		return
 	}
+	// Taken before the rows are filled, so a second Repeat of this name (even one made from
+	// inside fill) is refused as a mistake instead of finding the sample already gone.
+	s.repeats[name] = nil
 	for i := range n {
 		row := clone(tmpl)
 		removeAttr(row, attrRepeat)
@@ -406,7 +409,6 @@ func (s *scope) Repeat(name string, n int, fill func(i int, r *Row)) {
 		*s.errs = append(*s.errs, r.unhandled()...)
 	}
 	htmlx.Remove(tmpl)
-	s.repeats[name] = nil
 	s.repeatDone[name] = true
 }
 
