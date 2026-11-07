@@ -377,7 +377,7 @@ func mountList(rt *gate.Router, d handlers.Deps) error {
 			RequestedCount *int `json:"requestedCount"`
 		}
 		if err := json.Unmarshal(res.Data, &counts); err != nil {
-			d.Log.Warn("unexpected function reply", "function", "agent-trip-status", "err", err)
+			d.Log.Warn("unexpected function reply", "function", "agent-trip-status", "err", fmt.Sprintf("%T", err)) // the type only: a json error can quote the value
 		}
 		moved, requested := 0, len(trips)
 		if counts.MovedCount != nil {

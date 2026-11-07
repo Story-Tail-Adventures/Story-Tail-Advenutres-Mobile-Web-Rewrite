@@ -2,6 +2,7 @@ package trips
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -58,6 +59,25 @@ func tripTypeLabel(v string) string {
 		if t.value == v {
 			return t.label
 		}
+	}
+	return v
+}
+
+// tripTypeShort is lib/trips/tripType.ts tripTypeLabel, the shorter table the traveler side
+// and Trip Detail's at-a-glance grid use (and the Kotlin twin pins). The new-trip tiles and
+// template cards use tripTypeLabel above. Unknown values echo.
+func tripTypeShort(v string) string {
+	switch v {
+	case "cruise":
+		return "Cruise"
+	case "all_inclusive":
+		return "All-inclusive"
+	case "multi_destination":
+		return "Multi-destination"
+	case "group":
+		return "Group trip"
+	case "custom":
+		return "Custom"
 	}
 	return v
 }
@@ -353,7 +373,7 @@ func mountNewTrip(rt *gate.Router, d handlers.Deps) error {
 			TripID  *string `json:"tripId"`
 		}
 		if err := json.Unmarshal(res.Data, &created); err != nil {
-			d.Log.Warn("unexpected function reply", "function", "agent-trip", "err", err)
+			d.Log.Warn("unexpected function reply", "function", "agent-trip", "err", fmt.Sprintf("%T", err)) // the type only: a json error can quote the value
 		}
 		// no_client is a FIELD error: the client left the book between load and submit.
 		if created.Outcome != nil && *created.Outcome == "no_client" {
@@ -379,7 +399,7 @@ func mountNewTrip(rt *gate.Router, d handlers.Deps) error {
 					ComponentsAdded *int64 `json:"componentsAdded"`
 				}
 				if err := json.Unmarshal(applied.Data, &a); err != nil {
-					d.Log.Warn("unexpected function reply", "function", "agent-template", "err", err)
+					d.Log.Warn("unexpected function reply", "function", "agent-template", "err", fmt.Sprintf("%T", err)) // the type only: a json error can quote the value
 				}
 				n := int64(0)
 				if a.ComponentsAdded != nil {
