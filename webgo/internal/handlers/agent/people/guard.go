@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
@@ -95,6 +96,22 @@ func (a *app) chrome(w http.ResponseWriter, r *http.Request, doc *page.Doc, v vi
 	shell.FillAgent(doc, r.URL.Path, shell.Chrome{Initials: v.initials, Flash: web.TakeFlash(w, r, a.d.SecureCookies)})
 }
 
+// retryHref is "Try again": this same URL for a read, and for a post the page it came from.
+// Three posts have no GET of their own (a client's notes, archive and account actions), so
+// following their path would be a 405; they retry the client page, on the tab they belong to.
+func retryHref(r *http.Request) string {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return r.URL.RequestURI()
+	}
+	p := r.URL.Path
+	for suffix, tab := range map[string]string{"/notes": "?tab=notes", "/archive": "", "/account": "?tab=account"} {
+		if strings.HasPrefix(p, "/agent/clients/") && strings.HasSuffix(p, suffix) {
+			return strings.TrimSuffix(p, suffix) + tab
+		}
+	}
+	return r.URL.RequestURI()
+}
+
 // renderNoAccess is AdminNoAccess: an administrator has no desk on this side yet.
 func (a *app) renderNoAccess(w http.ResponseWriter, r *http.Request) {
 	doc := a.noAccess.New()
@@ -109,7 +126,7 @@ func (a *app) renderFailed(w http.ResponseWriter, r *http.Request, v visit, retr
 	doc := a.failed.New()
 	a.chrome(w, r, doc, v)
 	if retry {
-		doc.URL("retry", "href", r.URL.RequestURI())
+		doc.URL("retry", "href", retryHref(r))
 		doc.Remove("home")
 	} else {
 		doc.Remove("retry")

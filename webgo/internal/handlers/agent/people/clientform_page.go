@@ -1,6 +1,7 @@
 package people
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -144,19 +145,16 @@ func importantDatesOf(raw json.RawMessage) []importantDate {
 		if json.Unmarshal(item, &obj) != nil || obj == nil {
 			continue
 		}
+		// typeof d.label === "string": a null (or a number) is no value, never the last one read.
 		d := importantDate{Label: "Date"}
-		var s string
-		if json.Unmarshal(obj["label"], &s) == nil {
+		if s, ok := jsonString(obj["label"]); ok {
 			d.Label = s
 		}
-		hasDate := json.Unmarshal(obj["date"], &s) == nil
+		date, hasDate := jsonString(obj["date"])
 		if hasDate {
-			d.Date = s
+			d.Date = date
 		}
-		var b bool
-		if json.Unmarshal(obj["recurring"], &b) == nil {
-			d.Recurring = b
-		}
+		d.Recurring = string(bytes.TrimSpace(obj["recurring"])) == "true"
 		if hasDate || d.Label != "Date" {
 			out = append(out, d)
 		}

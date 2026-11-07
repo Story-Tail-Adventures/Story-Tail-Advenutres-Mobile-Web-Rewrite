@@ -255,7 +255,7 @@ func (a *app) serveClientDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	st := detailStateFrom(r.URL.Query())
-	if rc, ok := takeReceipt(w, r, a.d.SecureCookies); ok && rc.Kind == "account" && st.Tab == "account" {
+	if rc, ok := takeReceipt(w, r, a.d.SecureCookies); ok && rc.Kind == "account" && st.Tab == "account" && rc.ID == r.PathValue("clientId") {
 		st.Account.Status = &accountStatus{OK: true, Outcome: rc.Outcome}
 	}
 	a.renderClientDetail(w, r, v, st, http.StatusOK)

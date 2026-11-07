@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // The client form (§3.3.3 New client, §3.3.4 Edit): ports of web/lib/agent/clientFormState.ts
@@ -147,13 +146,16 @@ func isRealDate(v string) bool {
 func todayISO(now time.Time) string { return now.UTC().Format(time.DateOnly) }
 
 var nanp = regexp.MustCompile(`^[2-9]\d{2}[2-9]\d{6}$`)
-var phoneJunk = regexp.MustCompile(`[\s().-]`)
+
+// phoneJunk is Next's /[\s().-]/g with JavaScript's \s, which (unlike RE2's) includes the
+// no-break space a pasted number often carries.
+var phoneJunk = regexp.MustCompile("[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff().-]")
 var phoneDigits = regexp.MustCompile(`^\+?\d+$`)
 
 // normalizePhone ports normalizePhone: E.164, or ok false. "" is ok with no number. A
 // number with no country code must be a real NANP number (area and exchange 2-9).
 func normalizePhone(raw string) (value string, ok bool) {
-	trimmed := strings.TrimSpace(raw)
+	trimmed := jsTrim(raw)
 	if trimmed == "" {
 		return "", true
 	}
@@ -182,7 +184,7 @@ func normalizePhone(raw string) (value string, ok bool) {
 // last, and no whitespace.
 func emailShaped(v string) bool {
 	return strings.Contains(v, "@") && !strings.HasPrefix(v, "@") && !strings.HasSuffix(v, "@") &&
-		!strings.ContainsFunc(v, unicode.IsSpace)
+		!strings.ContainsFunc(v, isJSSpace)
 }
 
 // fieldErrors maps a ClientField to the message it shows (the first that failed).
@@ -194,10 +196,18 @@ func (e fieldErrors) add(field, msg string) {
 	}
 }
 
-// jsTrim is String.prototype.trim: whitespace and line terminators, as zod's .trim() does.
-func jsTrim(s string) string {
-	return strings.TrimFunc(s, func(r rune) bool { return unicode.IsSpace(r) || r == 0xFEFF })
+// isJSSpace is JavaScript's WhiteSpace and LineTerminator: what trim() strips and \s
+// matches. unicode.IsSpace differs (it counts U+0085, and not U+FEFF).
+func isJSSpace(r rune) bool {
+	switch r {
+	case '\t', '\n', '\v', '\f', '\r', ' ', 0x00A0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF:
+		return true
+	}
+	return r >= 0x2000 && r <= 0x200A
 }
+
+// jsTrim is String.prototype.trim, as zod's .trim() does.
+func jsTrim(s string) string { return strings.TrimFunc(s, isJSSpace) }
 
 // validateClient ports clientSchema. The returned values are trimmed, as zod outputs them.
 func validateClient(in clientValues, now time.Time) (clientValues, fieldErrors) {

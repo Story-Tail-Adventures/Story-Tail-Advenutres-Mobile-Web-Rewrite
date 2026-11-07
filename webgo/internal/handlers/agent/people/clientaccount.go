@@ -492,9 +492,16 @@ func fillAccountTab(doc *page.Doc, dd detailData, st detailState) {
 	keepIf(doc, "acc-account", v.Kind == "account")
 
 	shown := map[string]bool{}
+	// available: the ops whose tile is a live link, so ?confirm= cannot open a refused one.
+	available := map[string]bool{}
 	tile := func(name, blocked, dupID, op string) {
 		slot := "tile-" + name
 		shown[name] = true
+		if blocked == "" && op != "merge" {
+			if o, ok := opBySlotOrName(op); ok {
+				available[o.Slot] = true
+			}
+		}
 		doc.Keep(slot)
 		link := slot + "-link"
 		switch {
@@ -682,7 +689,7 @@ func fillAccountTab(doc *page.Doc, dd detailData, st detailState) {
 		}
 		return
 	}
-	fillAccountDialogs(doc, v, id, as)
+	fillAccountDialogs(doc, v, id, as, available)
 }
 
 func cmpOr(a, b string) string {
@@ -715,7 +722,7 @@ func statusChip(doc *page.Doc, slot, kind, label string) {
 	}
 }
 
-func fillAccountDialogs(doc *page.Doc, v accountView, clientID string, as accountState) {
+func fillAccountDialogs(doc *page.Doc, v accountView, clientID string, as accountState, available map[string]bool) {
 	name, email := v.FirstName, v.Email
 	titles := map[string]string{
 		"invite":  "Invite " + name + "?",
@@ -730,7 +737,8 @@ func fillAccountDialogs(doc *page.Doc, v accountView, clientID string, as accoun
 	for _, o := range accountOps {
 		d := "dlg-" + o.Slot
 		doc.Keep(d)
-		open := as.Confirm == o.Slot || as.Confirm == o.Op
+		// A refused tile has no dialog to open; a post that came back with an error does.
+		open := (as.Confirm == o.Slot || as.Confirm == o.Op) && (available[o.Slot] || as.Error != "")
 		doc.Bool(d, "open", open)
 		doc.Attr(d, "aria-label", titles[o.Slot])
 		doc.URL(d+"-form", "action", action)
@@ -861,7 +869,7 @@ func (a *app) postClientAccount(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if ok2 {
-		setReceipt(w, receipt{Kind: "account", Outcome: outcome}, a.d.SecureCookies)
+		setReceipt(w, receipt{Kind: "account", Outcome: outcome, ID: clientID}, a.d.SecureCookies)
 		web.SeeOther(w, r, accountHref(clientID))
 		return
 	}

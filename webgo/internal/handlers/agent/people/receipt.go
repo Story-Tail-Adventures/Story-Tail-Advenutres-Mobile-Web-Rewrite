@@ -35,6 +35,7 @@ type receipt struct {
 	Requested int64  `json:"r,omitempty"`
 	Added     bool   `json:"a,omitempty"`
 	Outcome   string `json:"o,omitempty"`
+	ID        string `json:"i,omitempty"` // the record it is for, so it shows on no other one
 }
 
 func (rc receipt) valid() bool {

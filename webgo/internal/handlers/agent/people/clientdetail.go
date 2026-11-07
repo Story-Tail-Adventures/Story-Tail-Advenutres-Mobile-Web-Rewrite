@@ -153,12 +153,14 @@ func emergencyOf(raw json.RawMessage) *emergencyContact {
 	if json.Unmarshal(raw, &obj) != nil || obj == nil {
 		return nil
 	}
-	var c emergencyContact
-	if json.Unmarshal(obj["name"], &c.Name) != nil {
+	// typeof name === "string": a null name is no contact at all.
+	name, ok := jsonString(obj["name"])
+	if !ok {
 		return nil
 	}
-	_ = json.Unmarshal(obj["phone"], &c.Phone)
-	_ = json.Unmarshal(obj["relationship"], &c.Relationship)
+	c := emergencyContact{Name: name}
+	c.Phone, _ = jsonString(obj["phone"])
+	c.Relationship, _ = jsonString(obj["relationship"])
 	return &c
 }
 
@@ -362,7 +364,17 @@ func fileSize(raw string) string {
 	case n < 1024*1024:
 		return fmt.Sprintf("%d KB", int64(math.Floor(n/1024+0.5)))
 	}
-	return strconv.FormatFloat(n/(1024*1024), 'f', 1, 64) + " MB"
+	return toFixed1(n/(1024*1024)) + " MB"
+}
+
+// toFixed1 is Number.prototype.toFixed(1): the nearest tenth of the exact value, and on an
+// exact tie (1.25 MB is 1310720 bytes) the larger one, where FormatFloat picks the even one.
+func toFixed1(x float64) string {
+	t := x * 10
+	if f := math.Floor(t); t-f == 0.5 {
+		return strconv.FormatFloat((f+1)/10, 'f', 1, 64)
+	}
+	return strconv.FormatFloat(x, 'f', 1, 64)
 }
 
 func buildDocuments(rows []documentRow) []clientDocument {
@@ -421,13 +433,8 @@ var slugJoints = regexp.MustCompile(`[._]`)
 func describeEvent(eventType string, metadata json.RawMessage) string {
 	var meta map[string]json.RawMessage
 	_ = json.Unmarshal(metadata, &meta)
-	metaString := func(key string) (string, bool) {
-		var s string
-		if json.Unmarshal(meta[key], &s) != nil {
-			return "", false
-		}
-		return s, true
-	}
+	// typeof metadata?.key === "string": a null is no value.
+	metaString := func(key string) (string, bool) { return jsonString(meta[key]) }
 	switch eventType {
 	case "client.updated":
 		return "Client record updated"
