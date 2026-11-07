@@ -58,7 +58,22 @@ type Config struct {
 	SerpAPIKey       string `json:"-"` // SERPAPI_API_KEY, the metered provider credential
 	HotelSearchToken string `json:"-"` // STA_HOTEL_SEARCH_TOKEN, proves a cruise-search call is ours (until it is ported)
 	LeadFormKey      string `json:"-"` // STA_LEAD_FORM_KEY, lets lead-message trust the forwarded address (until it is ported)
+
+	// Backend (Track B, docs/GO-MIGRATION.md §5). Both required in production.
+	//
+	// SupabaseServiceRoleKey bypasses RLS. Only internal/api may hold it (ruling 14); it
+	// must never reach a page, a log or a reply. Without it in development every function
+	// passes through to Supabase, as in Phase 1.
+	SupabaseServiceRoleKey string `json:"-"` // SUPABASE_SERVICE_ROLE_KEY
+	// CronSecret is the bearer pg_cron sends to the cron functions (ruling 13), checked in
+	// constant time. At least 32 characters in production: a short or placeholder value is
+	// how cruise-sync 401'd silently for weeks.
+	CronSecret string `json:"-"` // STA_CRON_SECRET
 }
+
+// minCronSecret is the shortest STA_CRON_SECRET production accepts (openssl rand -hex 32
+// gives 64).
+const minCronSecret = 32
 
 // Load reads the configuration through getenv (os.Getenv in main, a map in tests).
 // Every problem is reported at once, so a bad deploy shows the whole list.
@@ -132,6 +147,17 @@ func Load(getenv func(string) string) (Config, error) {
 	c.HotelSearchToken = strings.TrimSpace(getenv("STA_HOTEL_SEARCH_TOKEN"))
 	c.LeadFormKey = strings.TrimSpace(getenv("STA_LEAD_FORM_KEY"))
 
+	c.SupabaseServiceRoleKey = strings.TrimSpace(getenv("SUPABASE_SERVICE_ROLE_KEY"))
+	c.CronSecret = strings.TrimSpace(getenv("STA_CRON_SECRET"))
+	if prod {
+		if c.SupabaseServiceRoleKey == "" {
+			errs = append(errs, errors.New("SUPABASE_SERVICE_ROLE_KEY is required in production (the ported functions run on it)"))
+		}
+		if len(c.CronSecret) < minCronSecret {
+			errs = append(errs, fmt.Errorf("STA_CRON_SECRET must be at least %d characters in production", minCronSecret))
+		}
+	}
+
 	return c, errors.Join(errs...)
 }
 
@@ -183,6 +209,8 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("serpapi_key_set", c.SerpAPIKey != ""),
 		slog.Bool("hotel_search_token_set", c.HotelSearchToken != ""),
 		slog.Bool("lead_form_key_set", c.LeadFormKey != ""),
+		slog.Bool("service_role_key_set", c.SupabaseServiceRoleKey != ""),
+		slog.Bool("cron_secret_set", c.CronSecret != ""),
 	)
 }
 

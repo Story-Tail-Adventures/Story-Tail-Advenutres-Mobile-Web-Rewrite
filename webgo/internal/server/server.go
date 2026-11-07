@@ -72,10 +72,12 @@ func New(cfg config.Config, pagesFS fs.FS, log *slog.Logger) (http.Handler, erro
 	// The backend door. Public at the gate because it carries its own bearer token (mobile,
 	// pg_cron) and never reads the session cookie.
 	rt.Public("/functions/v1/{name}", api.New(api.Config{
-		SupabaseURL: cfg.SupabaseURL,
-		AnonKey:     cfg.SupabaseAnonKey,
-		LeadFormKey: cfg.LeadFormKey,
-		SearchToken: cfg.HotelSearchToken,
+		SupabaseURL:    cfg.SupabaseURL,
+		AnonKey:        cfg.SupabaseAnonKey,
+		LeadFormKey:    cfg.LeadFormKey,
+		SearchToken:    cfg.HotelSearchToken,
+		ServiceRoleKey: cfg.SupabaseServiceRoleKey,
+		CronSecret:     cfg.CronSecret,
 	}, nil, log))
 
 	if dev {
