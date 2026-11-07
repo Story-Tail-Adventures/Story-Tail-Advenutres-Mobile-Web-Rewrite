@@ -1010,6 +1010,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/account-admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login Support. Sign-in emails, verify, lock, sign out, flag, merge.
+         * @description Screens 3.9.1 to 3.9.7 (Client Detail's Account admin tab, the invite, and the merge
+         *     page, 3.9.7 = 3.3.11). ONE endpoint with ten ops, chosen by `op`, each its own request
+         *     shape. Advisors only.
+         *
+         *     THE MFA GATE. Every op needs an aal2 session. `verify_email` and `merge` also need the
+         *     second factor verified within the last 900 seconds (403 otherwise). `lock` does not:
+         *     locking has to be fast.
+         *
+         *     ANSWERS. Every answer the tab draws is a 200 with an `outcome`: `refused` (with the
+         *     tab's sentence in `reason`), `noop`, `capped`, `failed`, `duplicate`, `stale`, ...
+         *     A 4xx is only a malformed request (400), the MFA gate (403), or a client that is not
+         *     this advisor's, does not exist or was merged away (404, never 403, so an id's existence
+         *     is not confirmed). A 503 means email is not set up, and nothing was sent.
+         *
+         *     `reset`, `magic_link` and `invite` email the client a one-time sign-in link. The link
+         *     and its token are NEVER in the response. At most 3 of these per client per hour,
+         *     together (`capped`). A reset is refused for a Google- or Apple-only sign-in; an invite
+         *     is refused while the client has a sign-in that is verified or was not made by an
+         *     invite, is archived, shares its email with another live record, or has no email.
+         *
+         *     `lock` bans the sign-in in GoTrue, sets `account.locked_at` and ends every session;
+         *     `unlock` lifts both. Each needs a `reason`. `sign_out_everywhere` ends every session
+         *     without locking. `flag` / `unflag` mark one of the client's sign-ins (an
+         *     `authEventId` from the tab's activity list) as suspicious.
+         *
+         *     `verify_email` marks the sign-in's address confirmed, with a note of how the advisor
+         *     checked. Refused while the record's address differs from the sign-in's; `duplicate`
+         *     while another live record has the address (its id only when it is this advisor's).
+         *
+         *     `merge` folds `otherClientId` into `clientId` (the record KEPT). `keepVersion` and
+         *     `otherVersion` are the `version`s the confirm step showed; a mismatch is `stale`, not a
+         *     409. `choices` flips a field's default to `keep` or `retire`; a field the merge does not
+         *     offer is a 400.
+         *
+         *     Every write is audited (`client.signin_email_requested` / `_sent` / `_failed`,
+         *     `client.invited`, `client.email_verified_manually`, `client.account_locked` /
+         *     `_unlocked`, `client.signed_out_everywhere`, `client.signin_flagged` / `_unflagged`,
+         *     `client.merged` / `client.merged_away`).
+         */
+        post: operations["accountAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2706,6 +2763,128 @@ export interface components {
             /** @description "revenue-booked-2026-01-01-to-2026-10-21.csv": the period it covers. Clients and the pipeline are dated by the advisor's own day ("clients-lifetime-value-2026-10-21.csv", "clients-with-contact-details-2026-10-21.csv"). */
             fileName: string;
         };
+        AccountAdminEmailRequest: {
+            /** @enum {string} */
+            op: "reset" | "magic_link" | "invite";
+            /** Format: uuid */
+            clientId: string;
+        };
+        AccountAdminEmailResponse: {
+            /**
+             * @description `failed`: GoTrue could not make the link, or the mail server refused the message. The claim still counts toward the hourly cap.
+             * @enum {string}
+             */
+            outcome: "sent" | "refused" | "capped" | "failed";
+            /**
+             * @description Present with `sent` only.
+             * @enum {string}
+             */
+            kind?: "reset" | "magic_link" | "invite";
+            /** @description Present with `refused` only. The sentence the tab shows. */
+            reason?: string;
+        };
+        AccountAdminVerifyEmailRequest: {
+            /** @enum {string} */
+            op: "verify_email";
+            /** Format: uuid */
+            clientId: string;
+            /** @description How the advisor confirmed the address. Trimmed; UTF-16 lengths. */
+            note: string;
+        };
+        AccountAdminVerifyEmailResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "refused" | "duplicate";
+            /** @description Present with `refused` only. */
+            reason?: string;
+            /**
+             * Format: uuid
+             * @description Present with `duplicate` only: the other record when it is this advisor's, null when it belongs to another advisor (its id is never shown across books).
+             */
+            duplicateClientId?: string | null;
+        };
+        AccountAdminLockRequest: {
+            /** @enum {string} */
+            op: "lock" | "unlock";
+            /** Format: uuid */
+            clientId: string;
+            /** @description Trimmed; UTF-16 lengths. Recorded on the account and the audit row. */
+            reason: string;
+        };
+        AccountAdminLockResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "refused";
+            /** @description Present with `changed` only. Always 0 on `unlock`. */
+            sessionsEnded?: number;
+            /** @description Present with `refused` only. */
+            reason?: string;
+        };
+        AccountAdminSignOutRequest: {
+            /** @enum {string} */
+            op: "sign_out_everywhere";
+            /** Format: uuid */
+            clientId: string;
+        };
+        /** @description A client with no sign-in is a 404. */
+        AccountAdminSignOutResponse: {
+            /** @enum {string} */
+            outcome: "changed";
+            sessionsEnded: number;
+        };
+        AccountAdminFlagRequest: {
+            /** @enum {string} */
+            op: "flag" | "unflag";
+            /** Format: uuid */
+            clientId: string;
+            /**
+             * Format: uuid
+             * @description One of this client's sign-ins. Anyone else's is a 404.
+             */
+            authEventId: string;
+        };
+        AccountAdminFlagResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop";
+        };
+        AccountAdminMergeRequest: {
+            /** @enum {string} */
+            op: "merge";
+            /**
+             * Format: uuid
+             * @description The record KEPT.
+             */
+            clientId: string;
+            /**
+             * Format: uuid
+             * @description The record retired (it becomes `merged_into` and is never deleted).
+             */
+            otherClientId: string;
+            keepVersion: number;
+            otherVersion: number;
+            /** @description Field name to `keep` or `retire`, for the fields the advisor flipped; the rest take their default. Keys are lower-case field names (`^[a-z_]{1,40}$`). The email is pinned to the surviving sign-in's address and cannot be flipped. */
+            choices?: {
+                [key: string]: "keep" | "retire";
+            };
+        };
+        AccountAdminMergeResponse: {
+            /** @enum {string} */
+            outcome: "merged" | "refused" | "stale";
+            /** @description With `refused`: the kept record is archived, the two would have more than 12 companions, or the kept record would have no first or last name. */
+            reason?: string | null;
+            /**
+             * Format: uuid
+             * @description Present with `merged` only.
+             */
+            keptClientId?: string;
+            /** @description Present with `merged` only. What moved from the retired record. */
+            counts?: {
+                notes?: number;
+                trips?: number;
+                documents?: number;
+                companions?: number;
+                conversations?: number;
+                travelDocuments?: number;
+            };
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -3605,6 +3784,43 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    accountAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountAdminEmailRequest"] | components["schemas"]["AccountAdminVerifyEmailRequest"] | components["schemas"]["AccountAdminLockRequest"] | components["schemas"]["AccountAdminSignOutRequest"] | components["schemas"]["AccountAdminFlagRequest"] | components["schemas"]["AccountAdminMergeRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountAdminEmailResponse"] | components["schemas"]["AccountAdminVerifyEmailResponse"] | components["schemas"]["AccountAdminLockResponse"] | components["schemas"]["AccountAdminSignOutResponse"] | components["schemas"]["AccountAdminFlagResponse"] | components["schemas"]["AccountAdminMergeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `reset`, `magic_link`, `invite`: email is not set up, so nothing was sent. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
 }
