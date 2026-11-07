@@ -978,6 +978,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download a report, or an Export Center file, as CSV.
+         * @description §3.11 Reporting's audited download (P1). `export`: one report's own table for the
+         *     period on screen. `center`: the Export Center's four types (§3.11.8) over an inclusive
+         *     From/To range (none for clients). Reads for the SCREEN are not here: they are the
+         *     `agent_report_*` functions, called with the advisor's own token.
+         *
+         *     Every file writes one audit row in the same SQL call that returns its rows:
+         *     `report.exported` (and `commission.exported` for the ledger), so no file leaves
+         *     without its record.
+         *
+         *     The CSV travels inside the JSON reply: RFC 4180, CRLF line ends and a trailing CRLF,
+         *     no byte-order mark, money as exact decimals ("1234.56"), and a text cell starting with
+         *     = + - @ tab or CR prefixed with an apostrophe. The Export Center's 400 details are
+         *     written to be shown to the advisor as they are.
+         */
+        post: operations["agentReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2634,6 +2666,46 @@ export interface components {
             /** @description `needs_decisions`: rows still suggested, unmatched, duplicate or unreadable. */
             blocking: number;
         };
+        AgentReportExportRequest: {
+            /** @enum {string} */
+            op: "export";
+            /** @enum {string} */
+            report: "revenue" | "suppliers" | "destinations" | "clients" | "funnel" | "pipeline";
+            /**
+             * @description Required for every report but clients and pipeline, which take none (one sent is a 400, not ignored).
+             * @enum {string|null}
+             */
+            period?: "ytd" | "12mo" | "qtd" | null;
+            /**
+             * @description Required for revenue; refused for every other report.
+             * @enum {string|null}
+             */
+            basis?: "booked" | "received" | null;
+        };
+        AgentReportCenterRequest: {
+            /** @enum {string} */
+            op: "center";
+            /** @enum {string} */
+            type: "ledger" | "trips" | "milestones" | "clients";
+            /**
+             * Format: date
+             * @description Required (a real date, on or before `to`) for every type but clients, which takes none.
+             */
+            from?: string | null;
+            /** Format: date */
+            to?: string | null;
+            /** @description Adds email, phone and mailing address columns. Clients only; true on any other type is a 400. Only the JSON values true, false and null are accepted. */
+            includeContact?: boolean | null;
+        };
+        AgentReportFile: {
+            /** @enum {string} */
+            outcome: "exported";
+            /** @description The rows SQL returned (for the funnel, the four stages; for the pipeline, stages plus month buckets). */
+            rowCount: number;
+            csv: string;
+            /** @description "revenue-booked-2026-01-01-to-2026-10-21.csv": the period it covers. Clients and the pipeline are dated by the advisor's own day ("clients-lifetime-value-2026-10-21.csv", "clients-with-contact-details-2026-10-21.csv"). */
+            fileName: string;
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -3505,6 +3577,34 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    agentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentReportExportRequest"] | components["schemas"]["AgentReportCenterRequest"];
+            };
+        };
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReportFile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
