@@ -394,3 +394,66 @@ func TestOptionRowsAreFilledOnTheRowItself(t *testing.T) {
 		t.Errorf("an unfilled option rendered: %v", err)
 	}
 }
+
+// A row can hold a repeat of its own: days and the activities inside each day.
+func TestNestedRepeats(t *testing.T) {
+	const days = `<!DOCTYPE html><html><head><title>t</title></head><body><main>
+<section data-repeat="day"><h2 data-slot="day-name">Day 1</h2>
+<p data-slot="day-empty">Nothing yet.</p>
+<ol data-slot="acts"><li data-repeat="act"><a data-slot="act-link" href="#sample"><span data-slot="act-title">Sample</span></a></li></ol></section>
+</main></body></html>`
+	set, err := Load(fstest.MapFS{"days.html": {Data: []byte(days)}}, Spec{File: "days.html", Repeats: map[string][]string{
+		"day": {"day-name", "day-empty", "acts"}, "act": {"act-link", "act-title"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl, err := set.Template("days.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := [][]string{{"Snorkel <reef>", "Dinner"}, {}}
+	d := tmpl.New()
+	d.Repeat("day", len(plan), func(i int, day *Row) {
+		day.Text("day-name", fmt.Sprintf("Day %d", i+1))
+		if len(plan[i]) == 0 {
+			day.Keep("day-empty")
+			day.Remove("acts") // and the sample activity inside it
+			return
+		}
+		day.Remove("day-empty")
+		day.Keep("acts")
+		day.Repeat("act", len(plan[i]), func(j int, act *Row) {
+			act.Text("act-title", plan[i][j])
+			act.URL("act-link", "href", fmt.Sprintf("/a/%d/%d", i, j))
+		})
+	})
+	out := render(t, d)
+	for _, want := range []string{"Day 1", "Day 2", "Snorkel &lt;reef&gt;", `href="/a/0/1"`, "Nothing yet."} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in\n%s", want, out)
+		}
+	}
+	if strings.Count(out, "<li") != 2 || strings.Contains(out, "Sample") || strings.Contains(out, "data-repeat") || strings.Count(out, "Nothing yet.") != 1 {
+		t.Errorf("sample rows or the wrong number of rows shipped:\n%s", out)
+	}
+
+	// The page cannot reach an inner repeat directly.
+	d = tmpl.New()
+	d.Repeat("act", 1, nil)
+	d.Repeat("day", 0, nil)
+	if _, err := d.Bytes(); err == nil || !strings.Contains(err.Error(), `no repeat "act" here`) {
+		t.Errorf("the page reached a nested repeat: %v", err)
+	}
+
+	// An inner repeat left unfilled in a row stops the render.
+	d = tmpl.New()
+	d.Repeat("day", 1, func(_ int, day *Row) {
+		day.Text("day-name", "Day 1")
+		day.Remove("day-empty")
+		day.Keep("acts")
+	})
+	if _, err := d.Bytes(); err == nil || !strings.Contains(err.Error(), `repeat "act" was never filled`) {
+		t.Errorf("an unfilled inner repeat rendered: %v", err)
+	}
+}
