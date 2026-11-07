@@ -260,4 +260,73 @@
 
   /* RosterPagination. */
   .ppl-pager { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* ── Client form (§3.3.3 / §3.3.4) and not-found ─────────────────────────────────────── */
+
+  .ppl-page-form { max-width: 860px; }
+  .ppl-icon-11 { width: 11px; height: 11px; }
+  .ppl-icon-13 { width: 13px; height: 13px; }
+  /* The back link: MuiLink body2, underline on hover, muted. */
+  .ppl-back { display: inline-flex; align-items: center; gap: 4px; font: var(--mui-font-body2); color: var(--mui-palette-text-secondary); }
+  .ppl-form-head { margin: 10px 0 16px; }
+  .ppl-form-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .ppl-form-card { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+  .ppl-form-section { display: flex; flex-direction: column; gap: 12px; }
+  .ppl-form-section > h2, .ppl-form-section > p { margin: 0; }
+  .ppl-form-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) {
+    .ppl-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ppl-span-2 { grid-column: span 2; }
+  }
+  .ppl-underline { text-decoration: underline; }
+  /* MUI draws a multiline field's border as an overlay, so rows="3" is 69px + 17px padding =
+     86px. ui.css's textarea.input adds its 1px border to that; take it back off the padding
+     so the box and the first line both land where Next puts them. */
+  .ppl-form-card textarea.input { padding: 7.5px 13px; }
+
+  /* Tags: chosen ones filled secondary with a close button, suggestions outlined. */
+  .ppl-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .ppl-tag-label { display: inline-flex; align-items: center; }
+  .ppl-tag-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    padding: 2px;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .ppl-tag-x:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-suggest[hidden] { display: none; }
+  .ppl-newtag-row { display: flex; align-items: center; gap: 8px; }
+  .ppl-newtag { max-width: 220px; height: 40px; min-height: 0; }
+
+  /* Dates: label, date, Every year, Remove; stacked below sm. */
+  /* The rows are the section's own flex children in Next (12px apart, no gap when there are
+     none), so the wrapper the script appends to takes no box of its own. */
+  .ppl-date-rows { display: contents; }
+  .ppl-date-row { display: grid; align-items: end; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-date-row { grid-template-columns: minmax(0, 1fr) auto auto auto; } }
+  .ppl-date-tail { margin-bottom: 4px; }
+  .ppl-self-start { align-self: flex-start; }
+
+  .ppl-invite {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background-color: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+    opacity: 0.6;
+  }
+  .ppl-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .ppl-ml-auto { margin-left: auto; }
+  /* MuiButton text with BTN_TEXT: 40px, 12px sides. */
+  .ppl-btn-text { min-height: 40px; padding-left: 12px; padding-right: 12px; gap: 8px; white-space: nowrap; }
+
+  .ppl-notfound { padding: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .ppl-notfound > h1, .ppl-notfound > p { margin: 0; }
 }

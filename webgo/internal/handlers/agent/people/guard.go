@@ -35,12 +35,15 @@ type visit struct {
 
 // app is this sub-area's handlers, with what they share.
 type app struct {
-	d        handlers.Deps
-	noAccess *page.Template
-	failed   *page.Template
-	worklist *page.Template
-	calendar *page.Template
-	clients  *page.Template
+	d          handlers.Deps
+	noAccess   *page.Template
+	failed     *page.Template
+	worklist   *page.Template
+	calendar   *page.Template
+	clients    *page.Template
+	clientNew  *page.Template
+	clientEdit *page.Template
+	notFound   *page.Template
 }
 
 type identityRow struct {
@@ -139,6 +142,11 @@ func read[T any](rs *reads, name string, args any, out *[]T) {
 		}
 		*out = rows
 	})
+}
+
+// agentreadCall is one named read on its own, as the visitor.
+func agentreadCall[T any](ctx context.Context, a *app, v visit, name string, args any) ([]T, error) {
+	return agentread.Call[T](ctx, a.d.Supa, v.st, name, args, a.d.Log)
 }
 
 func (rs *reads) wait() error {

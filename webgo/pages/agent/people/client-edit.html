@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<!--
+  §3.3.3 New client and §3.3.4 Edit client: app/(agent)/agent/clients/new/page.tsx and
+  [clientId]/edit/page.tsx, both drawing ClientForm. client-new.html and client-edit.html are
+  the same form and differ only in <title> (the page file is the only place a title is set):
+  change one, change both.
+
+  Forms first (docs/GO-MIGRATION.md §4.9). Every control that changes the form without saving
+  is a real submit button with formnovalidate: "+ tag" (addTag), a tag's close (removeTag),
+  "Add" (intent=add-tag, the New tag box), "Add a date" (intent=add-date) and a date's
+  "Remove" (removeDate). The server re-renders with the change and saves nothing. With JS on,
+  /assets/js/agent/people/client-form.js does the same in place, as ClientForm's state did,
+  and keeps State/ZIP vs Region/Postal labels in step with the country. The first submit
+  button in the form is a hidden Save, so Enter in any box saves, as it did in Next.
+
+  Filled by internal/handlers/agent/people (clientform_page.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Edit client · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-form">
+    <a class="link link-hover ppl-back" href="/agent/clients" data-slot="back"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg><span data-slot="back-label">All clients</span></a>
+    <header class="ppl-form-head">
+      <h1 class="type-h5" data-slot="title">New client</h1>
+      <p class="type-body2 text-secondary ppl-mt-0_25" data-slot="subtitle">Required: a name and an email. Everything else can be added later.</p>
+    </header>
+
+    <form method="post" action="/agent/clients/new" novalidate data-submit-once data-client-form data-slot="form">
+      <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save</button>
+      <input type="hidden" name="clientId" value="" data-slot="client-id">
+      <input type="hidden" name="expectedVersion" value="0" data-slot="expected-version">
+      <fieldset class="ppl-form-fieldset">
+        <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Nothing's lost — give it another try.</div></div>
+
+        <div class="card">
+          <div class="ppl-form-card">
+        <section class="ppl-form-section">
+          <h2 class="type-subtitle1 fw-600">Who they are</h2>
+        <div class="ppl-form-grid">
+          <div class="field">
+            <label class="field-label" for="firstName">First name</label>
+            <input class="input" id="firstName" name="firstName" autocomplete="given-name" required data-slot="in-firstname">
+            <p class="field-help field-error" id="firstName-error" data-slot="err-firstname">That isn't right.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="lastName">Last name</label>
+            <input class="input" id="lastName" name="lastName" autocomplete="family-name" required data-slot="in-lastname">
+            <p class="field-help field-error" id="lastName-error" data-slot="err-lastname">That isn't right.</p>
+          </div>
+          <div class="field ppl-span-2">
+            <label class="field-label" for="preferredName">Goes by</label>
+            <input class="input" id="preferredName" name="preferredName" data-slot="in-preferredname">
+            <p class="field-help" id="preferredName-hint" data-slot="hint-preferredname">What you'd actually call them. Used everywhere their name appears.</p>
+            <p class="field-help field-error" id="preferredName-error" data-slot="err-preferredname">That isn't right.</p>
+          </div>
+        </div>
+        </section>
+        <section class="ppl-form-section">
+          <h2 class="type-subtitle1 fw-600">How to reach them</h2>
+        <div class="ppl-form-grid">
+          <div class="field ppl-span-2">
+            <label class="field-label" for="email">Email</label>
+            <input class="input" id="email" name="email" type="email" autocomplete="email" required data-slot="in-email">
+            <p class="field-help field-error" id="email-error" data-slot="err-email">That isn't right.</p>
+          </div>
+          <p class="type-body2 ppl-span-2" data-slot="duplicate"><a class="link link-inherit ppl-underline" href="/agent/clients/sample" data-slot="duplicate-link">Open the record you already have</a></p>
+          <div class="field">
+            <label class="field-label" for="phone">Phone</label>
+            <input class="input" id="phone" name="phone" type="tel" autocomplete="tel" data-slot="in-phone">
+            <p class="field-help field-error" id="phone-error" data-slot="err-phone">That isn't right.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="dateOfBirth">Date of birth</label>
+            <input class="input" id="dateOfBirth" name="dateOfBirth" type="date" data-slot="in-dateofbirth">
+            <p class="field-help field-error" id="dateOfBirth-error" data-slot="err-dateofbirth">That isn't right.</p>
+          </div>
+        </div>
+        </section>
+        <section class="ppl-form-section">
+          <h2 class="type-subtitle1 fw-600">Mailing address</h2>
+        <div class="ppl-form-grid">
+          <div class="field ppl-span-2">
+            <label class="field-label" for="addressLine1">Street address</label>
+            <input class="input" id="addressLine1" name="addressLine1" autocomplete="address-line1" data-slot="in-addressline1">
+            <p class="field-help field-error" id="addressLine1-error" data-slot="err-addressline1">That isn't right.</p>
+          </div>
+          <div class="field ppl-span-2">
+            <label class="field-label" for="addressLine2">Apt, suite, etc.</label>
+            <input class="input" id="addressLine2" name="addressLine2" autocomplete="address-line2" data-slot="in-addressline2">
+            <p class="field-help field-error" id="addressLine2-error" data-slot="err-addressline2">That isn't right.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="addressCity">City</label>
+            <input class="input" id="addressCity" name="addressCity" autocomplete="address-level2" data-slot="in-addresscity">
+            <p class="field-help field-error" id="addressCity-error" data-slot="err-addresscity">That isn't right.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="addressRegion" data-slot="label-addressregion">State</label>
+            <input class="input" id="addressRegion" name="addressRegion" autocomplete="address-level1" data-slot="in-addressregion">
+            <p class="field-help field-error" id="addressRegion-error" data-slot="err-addressregion">That isn't right.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="addressPostalCode" data-slot="label-addresspostalcode">ZIP code</label>
+            <input class="input" id="addressPostalCode" name="addressPostalCode" autocomplete="postal-code" data-slot="in-addresspostalcode">
+            <p class="field-help field-error" id="addressPostalCode-error" data-slot="err-addresspostalcode">That isn't right.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="addressCountry">Country</label>
+            <div class="select"><select class="input" id="addressCountry" name="addressCountry" data-slot="in-addresscountry" data-country-select><option value="AF" data-slot="country-af">Afghanistan</option><option value="AX" data-slot="country-ax">Åland Islands</option><option value="AL" data-slot="country-al">Albania</option><option value="DZ" data-slot="country-dz">Algeria</option><option value="AS" data-slot="country-as">American Samoa</option><option value="AD" data-slot="country-ad">Andorra</option><option value="AO" data-slot="country-ao">Angola</option><option value="AI" data-slot="country-ai">Anguilla</option><option value="AQ" data-slot="country-aq">Antarctica</option><option value="AG" data-slot="country-ag">Antigua &amp; Barbuda</option><option value="AR" data-slot="country-ar">Argentina</option><option value="AM" data-slot="country-am">Armenia</option><option value="AW" data-slot="country-aw">Aruba</option><option value="AU" data-slot="country-au">Australia</option><option value="AT" data-slot="country-at">Austria</option><option value="AZ" data-slot="country-az">Azerbaijan</option><option value="BS" data-slot="country-bs">Bahamas</option><option value="BH" data-slot="country-bh">Bahrain</option><option value="BD" data-slot="country-bd">Bangladesh</option><option value="BB" data-slot="country-bb">Barbados</option><option value="BY" data-slot="country-by">Belarus</option><option value="BE" data-slot="country-be">Belgium</option><option value="BZ" data-slot="country-bz">Belize</option><option value="BJ" data-slot="country-bj">Benin</option><option value="BM" data-slot="country-bm">Bermuda</option><option value="BT" data-slot="country-bt">Bhutan</option><option value="BO" data-slot="country-bo">Bolivia</option><option value="BA" data-slot="country-ba">Bosnia &amp; Herzegovina</option><option value="BW" data-slot="country-bw">Botswana</option><option value="BV" data-slot="country-bv">Bouvet Island</option><option value="BR" data-slot="country-br">Brazil</option><option value="IO" data-slot="country-io">British Indian Ocean Territory</option><option value="VG" data-slot="country-vg">British Virgin Islands</option><option value="BN" data-slot="country-bn">Brunei</option><option value="BG" data-slot="country-bg">Bulgaria</option><option value="BF" data-slot="country-bf">Burkina Faso</option><option value="BI" data-slot="country-bi">Burundi</option><option value="KH" data-slot="country-kh">Cambodia</option><option value="CM" data-slot="country-cm">Cameroon</option><option value="CA" data-slot="country-ca">Canada</option><option value="CV" data-slot="country-cv">Cape Verde</option><option value="BQ" data-slot="country-bq">Caribbean Netherlands</option><option value="KY" data-slot="country-ky">Cayman Islands</option><option value="CF" data-slot="country-cf">Central African Republic</option><option value="TD" data-slot="country-td">Chad</option><option value="CL" data-slot="country-cl">Chile</option><option value="CN" data-slot="country-cn">China</option><option value="CX" data-slot="country-cx">Christmas Island</option><option value="CC" data-slot="country-cc">Cocos (Keeling) Islands</option><option value="CO" data-slot="country-co">Colombia</option><option value="KM" data-slot="country-km">Comoros</option><option value="CG" data-slot="country-cg">Congo - Brazzaville</option><option value="CD" data-slot="country-cd">Congo - Kinshasa</option><option value="CK" data-slot="country-ck">Cook Islands</option><option value="CR" data-slot="country-cr">Costa Rica</option><option value="CI" data-slot="country-ci">Côte d’Ivoire</option><option value="HR" data-slot="country-hr">Croatia</option><option value="CU" data-slot="country-cu">Cuba</option><option value="CW" data-slot="country-cw">Curaçao</option><option value="CY" data-slot="country-cy">Cyprus</option><option value="CZ" data-slot="country-cz">Czechia</option><option value="DK" data-slot="country-dk">Denmark</option><option value="DJ" data-slot="country-dj">Djibouti</option><option value="DM" data-slot="country-dm">Dominica</option><option value="DO" data-slot="country-do">Dominican Republic</option><option value="EC" data-slot="country-ec">Ecuador</option><option value="EG" data-slot="country-eg">Egypt</option><option value="SV" data-slot="country-sv">El Salvador</option><option value="GQ" data-slot="country-gq">Equatorial Guinea</option><option value="ER" data-slot="country-er">Eritrea</option><option value="EE" data-slot="country-ee">Estonia</option><option value="SZ" data-slot="country-sz">Eswatini</option><option value="ET" data-slot="country-et">Ethiopia</option><option value="FK" data-slot="country-fk">Falkland Islands</option><option value="FO" data-slot="country-fo">Faroe Islands</option><option value="FJ" data-slot="country-fj">Fiji</option><option value="FI" data-slot="country-fi">Finland</option><option value="FR" data-slot="country-fr">France</option><option value="GF" data-slot="country-gf">French Guiana</option><option value="PF" data-slot="country-pf">French Polynesia</option><option value="TF" data-slot="country-tf">French Southern Territories</option><option value="GA" data-slot="country-ga">Gabon</option><option value="GM" data-slot="country-gm">Gambia</option><option value="GE" data-slot="country-ge">Georgia</option><option value="DE" data-slot="country-de">Germany</option><option value="GH" data-slot="country-gh">Ghana</option><option value="GI" data-slot="country-gi">Gibraltar</option><option value="GR" data-slot="country-gr">Greece</option><option value="GL" data-slot="country-gl">Greenland</option><option value="GD" data-slot="country-gd">Grenada</option><option value="GP" data-slot="country-gp">Guadeloupe</option><option value="GU" data-slot="country-gu">Guam</option><option value="GT" data-slot="country-gt">Guatemala</option><option value="GG" data-slot="country-gg">Guernsey</option><option value="GN" data-slot="country-gn">Guinea</option><option value="GW" data-slot="country-gw">Guinea-Bissau</option><option value="GY" data-slot="country-gy">Guyana</option><option value="HT" data-slot="country-ht">Haiti</option><option value="HM" data-slot="country-hm">Heard &amp; McDonald Islands</option><option value="HN" data-slot="country-hn">Honduras</option><option value="HK" data-slot="country-hk">Hong Kong SAR China</option><option value="HU" data-slot="country-hu">Hungary</option><option value="IS" data-slot="country-is">Iceland</option><option value="IN" data-slot="country-in">India</option><option value="ID" data-slot="country-id">Indonesia</option><option value="IR" data-slot="country-ir">Iran</option><option value="IQ" data-slot="country-iq">Iraq</option><option value="IE" data-slot="country-ie">Ireland</option><option value="IM" data-slot="country-im">Isle of Man</option><option value="IL" data-slot="country-il">Israel</option><option value="IT" data-slot="country-it">Italy</option><option value="JM" data-slot="country-jm">Jamaica</option><option value="JP" data-slot="country-jp">Japan</option><option value="JE" data-slot="country-je">Jersey</option><option value="JO" data-slot="country-jo">Jordan</option><option value="KZ" data-slot="country-kz">Kazakhstan</option><option value="KE" data-slot="country-ke">Kenya</option><option value="KI" data-slot="country-ki">Kiribati</option><option value="KW" data-slot="country-kw">Kuwait</option><option value="KG" data-slot="country-kg">Kyrgyzstan</option><option value="LA" data-slot="country-la">Laos</option><option value="LV" data-slot="country-lv">Latvia</option><option value="LB" data-slot="country-lb">Lebanon</option><option value="LS" data-slot="country-ls">Lesotho</option><option value="LR" data-slot="country-lr">Liberia</option><option value="LY" data-slot="country-ly">Libya</option><option value="LI" data-slot="country-li">Liechtenstein</option><option value="LT" data-slot="country-lt">Lithuania</option><option value="LU" data-slot="country-lu">Luxembourg</option><option value="MO" data-slot="country-mo">Macao SAR China</option><option value="MG" data-slot="country-mg">Madagascar</option><option value="MW" data-slot="country-mw">Malawi</option><option value="MY" data-slot="country-my">Malaysia</option><option value="MV" data-slot="country-mv">Maldives</option><option value="ML" data-slot="country-ml">Mali</option><option value="MT" data-slot="country-mt">Malta</option><option value="MH" data-slot="country-mh">Marshall Islands</option><option value="MQ" data-slot="country-mq">Martinique</option><option value="MR" data-slot="country-mr">Mauritania</option><option value="MU" data-slot="country-mu">Mauritius</option><option value="YT" data-slot="country-yt">Mayotte</option><option value="MX" data-slot="country-mx">Mexico</option><option value="FM" data-slot="country-fm">Micronesia</option><option value="MD" data-slot="country-md">Moldova</option><option value="MC" data-slot="country-mc">Monaco</option><option value="MN" data-slot="country-mn">Mongolia</option><option value="ME" data-slot="country-me">Montenegro</option><option value="MS" data-slot="country-ms">Montserrat</option><option value="MA" data-slot="country-ma">Morocco</option><option value="MZ" data-slot="country-mz">Mozambique</option><option value="MM" data-slot="country-mm">Myanmar (Burma)</option><option value="NA" data-slot="country-na">Namibia</option><option value="NR" data-slot="country-nr">Nauru</option><option value="NP" data-slot="country-np">Nepal</option><option value="NL" data-slot="country-nl">Netherlands</option><option value="NC" data-slot="country-nc">New Caledonia</option><option value="NZ" data-slot="country-nz">New Zealand</option><option value="NI" data-slot="country-ni">Nicaragua</option><option value="NE" data-slot="country-ne">Niger</option><option value="NG" data-slot="country-ng">Nigeria</option><option value="NU" data-slot="country-nu">Niue</option><option value="NF" data-slot="country-nf">Norfolk Island</option><option value="KP" data-slot="country-kp">North Korea</option><option value="MK" data-slot="country-mk">North Macedonia</option><option value="MP" data-slot="country-mp">Northern Mariana Islands</option><option value="NO" data-slot="country-no">Norway</option><option value="OM" data-slot="country-om">Oman</option><option value="PK" data-slot="country-pk">Pakistan</option><option value="PW" data-slot="country-pw">Palau</option><option value="PS" data-slot="country-ps">Palestinian Territories</option><option value="PA" data-slot="country-pa">Panama</option><option value="PG" data-slot="country-pg">Papua New Guinea</option><option value="PY" data-slot="country-py">Paraguay</option><option value="PE" data-slot="country-pe">Peru</option><option value="PH" data-slot="country-ph">Philippines</option><option value="PN" data-slot="country-pn">Pitcairn Islands</option><option value="PL" data-slot="country-pl">Poland</option><option value="PT" data-slot="country-pt">Portugal</option><option value="PR" data-slot="country-pr">Puerto Rico</option><option value="QA" data-slot="country-qa">Qatar</option><option value="RE" data-slot="country-re">Réunion</option><option value="RO" data-slot="country-ro">Romania</option><option value="RU" data-slot="country-ru">Russia</option><option value="RW" data-slot="country-rw">Rwanda</option><option value="WS" data-slot="country-ws">Samoa</option><option value="SM" data-slot="country-sm">San Marino</option><option value="ST" data-slot="country-st">São Tomé &amp; Príncipe</option><option value="SA" data-slot="country-sa">Saudi Arabia</option><option value="SN" data-slot="country-sn">Senegal</option><option value="RS" data-slot="country-rs">Serbia</option><option value="SC" data-slot="country-sc">Seychelles</option><option value="SL" data-slot="country-sl">Sierra Leone</option><option value="SG" data-slot="country-sg">Singapore</option><option value="SX" data-slot="country-sx">Sint Maarten</option><option value="SK" data-slot="country-sk">Slovakia</option><option value="SI" data-slot="country-si">Slovenia</option><option value="SB" data-slot="country-sb">Solomon Islands</option><option value="SO" data-slot="country-so">Somalia</option><option value="ZA" data-slot="country-za">South Africa</option><option value="GS" data-slot="country-gs">South Georgia &amp; South Sandwich Islands</option><option value="KR" data-slot="country-kr">South Korea</option><option value="SS" data-slot="country-ss">South Sudan</option><option value="ES" data-slot="country-es">Spain</option><option value="LK" data-slot="country-lk">Sri Lanka</option><option value="BL" data-slot="country-bl">St. Barthélemy</option><option value="SH" data-slot="country-sh">St. Helena</option><option value="KN" data-slot="country-kn">St. Kitts &amp; Nevis</option><option value="LC" data-slot="country-lc">St. Lucia</option><option value="MF" data-slot="country-mf">St. Martin</option><option value="PM" data-slot="country-pm">St. Pierre &amp; Miquelon</option><option value="VC" data-slot="country-vc">St. Vincent &amp; Grenadines</option><option value="SD" data-slot="country-sd">Sudan</option><option value="SR" data-slot="country-sr">Suriname</option><option value="SJ" data-slot="country-sj">Svalbard &amp; Jan Mayen</option><option value="SE" data-slot="country-se">Sweden</option><option value="CH" data-slot="country-ch">Switzerland</option><option value="SY" data-slot="country-sy">Syria</option><option value="TW" data-slot="country-tw">Taiwan</option><option value="TJ" data-slot="country-tj">Tajikistan</option><option value="TZ" data-slot="country-tz">Tanzania</option><option value="TH" data-slot="country-th">Thailand</option><option value="TL" data-slot="country-tl">Timor-Leste</option><option value="TG" data-slot="country-tg">Togo</option><option value="TK" data-slot="country-tk">Tokelau</option><option value="TO" data-slot="country-to">Tonga</option><option value="TT" data-slot="country-tt">Trinidad &amp; Tobago</option><option value="TN" data-slot="country-tn">Tunisia</option><option value="TR" data-slot="country-tr">Türkiye</option><option value="TM" data-slot="country-tm">Turkmenistan</option><option value="TC" data-slot="country-tc">Turks &amp; Caicos Islands</option><option value="TV" data-slot="country-tv">Tuvalu</option><option value="UM" data-slot="country-um">U.S. Outlying Islands</option><option value="VI" data-slot="country-vi">U.S. Virgin Islands</option><option value="UG" data-slot="country-ug">Uganda</option><option value="UA" data-slot="country-ua">Ukraine</option><option value="AE" data-slot="country-ae">United Arab Emirates</option><option value="GB" data-slot="country-gb">United Kingdom</option><option value="US" data-slot="country-us">United States</option><option value="UY" data-slot="country-uy">Uruguay</option><option value="UZ" data-slot="country-uz">Uzbekistan</option><option value="VU" data-slot="country-vu">Vanuatu</option><option value="VA" data-slot="country-va">Vatican City</option><option value="VE" data-slot="country-ve">Venezuela</option><option value="VN" data-slot="country-vn">Vietnam</option><option value="WF" data-slot="country-wf">Wallis &amp; Futuna</option><option value="EH" data-slot="country-eh">Western Sahara</option><option value="YE" data-slot="country-ye">Yemen</option><option value="ZM" data-slot="country-zm">Zambia</option><option value="ZW" data-slot="country-zw">Zimbabwe</option></select></div>
+            <p class="field-help field-error" id="addressCountry-error" data-slot="err-addresscountry">Pick a country from the list.</p>
+          </div>
+        </div>
+        </section>
+        <section class="ppl-form-section">
+          <h2 class="type-subtitle1 fw-600">Tags</h2>
+          <p class="type-body2 text-secondary">Your own shorthand. Type a new one or pick one you've used before.</p>
+          <div class="ppl-chip-row" data-tag-chips>
+            <span class="chip chip-secondary" data-tag-chip data-repeat="tags"><input type="hidden" name="tag" value="vip" data-slot="tag-value"><span class="chip-label ppl-tag-label"><span data-slot="tag-text">vip</span><button type="submit" name="removeTag" value="vip" formnovalidate class="ppl-tag-x" aria-label="Remove tag vip" data-remove-tag data-slot="tag-remove"><svg class="icon ppl-icon-11" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg></button></span></span>
+            <span class="ppl-contents" data-repeat="suggestions"><button type="submit" name="addTag" value="family" formnovalidate class="chip chip-outlined ppl-suggest" data-add-tag data-slot="suggest"><span class="chip-label" data-slot="suggest-text">+ family</span></button></span>
+          </div>
+          <template data-tag-template><span class="chip chip-secondary" data-tag-chip><input type="hidden" name="tag" value=""><span class="chip-label ppl-tag-label"><span data-tag-text></span><button type="submit" name="removeTag" value="" formnovalidate class="ppl-tag-x" aria-label="Remove tag" data-remove-tag><svg class="icon ppl-icon-11" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg></button></span></span></template>
+          <div class="ppl-newtag-row">
+            <input class="input ppl-newtag" name="newTag" placeholder="New tag" aria-label="New tag" maxlength="40" data-new-tag data-slot="new-tag">
+            <button type="submit" name="intent" value="add-tag" formnovalidate class="btn btn-outlined btn-secondary st-btn btn-small" data-add-new-tag>Add</button>
+          </div>
+          <p class="type-body2 text-error" data-slot="err-tags">That tag is too long.</p>
+        </section>
+        <section class="ppl-form-section">
+          <h2 class="type-subtitle1 fw-600">Dates worth remembering</h2>
+          <p class="type-body2 text-secondary">Birthdays, anniversaries, a passport renewal — anything worth a nudge.</p>
+          <div class="ppl-date-rows" data-date-rows>
+            <div class="ppl-date-row" data-repeat="dates" data-date-row>
+              <label class="field"><span class="field-label">What it is</span><input class="input" name="dateLabel" data-slot="date-label"></label>
+              <label class="field"><span class="field-label">Date</span><input class="input" name="dateValue" type="date" data-slot="date-value"></label>
+              <div class="ppl-date-tail"><label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dateRecurring" value="0" data-slot="date-recurring"><span class="chip-label">Every year</span></label></div>
+              <div class="ppl-date-tail"><button type="submit" name="removeDate" value="0" formnovalidate class="btn btn-text st-btn btn-small" data-remove-date data-slot="date-remove">Remove</button></div>
+            </div>
+          </div>
+          <p class="type-body2 text-error" data-slot="err-importantdates">That entry needs a date.</p>
+          <div class="ppl-self-start"><button type="submit" name="intent" value="add-date" formnovalidate class="btn btn-outlined btn-secondary st-btn btn-small" data-add-date><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> Add a date</button></div>
+          <template data-date-template><div class="ppl-date-row" data-date-row><label class="field"><span class="field-label">What it is</span><input class="input" name="dateLabel"></label><label class="field"><span class="field-label">Date</span><input class="input" name="dateValue" type="date"></label><div class="ppl-date-tail"><label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dateRecurring" value="0"><span class="chip-label">Every year</span></label></div><div class="ppl-date-tail"><button type="submit" name="removeDate" value="0" formnovalidate class="btn btn-text st-btn btn-small" data-remove-date>Remove</button></div></div></template>
+        </section>
+        <section class="ppl-form-section">
+          <h2 class="type-subtitle1 fw-600">A note to yourself</h2>
+          <div class="field">
+            <label class="field-label" for="notes">A note to yourself</label>
+            <textarea class="input" id="notes" name="notes" rows="3" data-slot="in-notes">Loves a quiet villa.</textarea>
+            <p class="field-help" id="notes-hint" data-slot="hint-notes">Only you see this. It shows on their Snapshot card.</p>
+            <p class="field-help field-error" id="notes-error" data-slot="err-notes">That's longer than the notes field holds.</p>
+          </div>
+        </section>
+        <div class="paper ppl-invite" title="Save them first, then send it from their Account admin tab." data-slot="invite">
+          <svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#mail"></use></svg>
+          <span class="type-body2 ppl-flex1">Send a portal invitation</span>
+          <span class="type-body2">Save them first, then send it from their Account admin tab.</span>
+        </div>
+          </div>
+        </div>
+
+        <div class="ppl-form-actions">
+          <a class="btn btn-text ppl-btn-text" href="/agent/clients" data-slot="cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn">Save</button></div>
+          <button type="submit" name="then" value="trip" class="btn btn-outlined btn-secondary st-btn" data-slot="save-trip">Save &amp; create trip</button>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+  <script type="module" src="/assets/js/agent/people/client-form.js"></script>
+</main>
+</body>
+</html>
