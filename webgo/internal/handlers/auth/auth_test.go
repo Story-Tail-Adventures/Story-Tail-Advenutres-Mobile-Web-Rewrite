@@ -3,9 +3,13 @@ package auth_test
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
 )
@@ -165,10 +169,14 @@ func TestRegisterValidation(t *testing.T) {
 	hn := newHarness(t, opts{})
 	f := registerForm("nope")
 	f.Set("confirmPassword", "Different1Pw")
-	f.Del("terms")
 	rec := hn.client().post("/register", f)
 	has(t, rec, esc("That doesn't look like an email address"), esc("Those two don't match yet"),
-		"Check the box to agree to our terms", `id="confirmPassword-error"`, `aria-describedby="confirmPassword-error"`)
+		`id="confirmPassword-error"`, `aria-describedby="confirmPassword-error"`)
+	// zod 4: an unticked box (an aborting issue) hides the mismatch until it is ticked.
+	f.Del("terms")
+	rec = hn.client().post("/register", f)
+	has(t, rec, "Check the box to agree to our terms")
+	hasNot(t, rec, esc("Those two don't match yet"))
 	if len(hn.f.seen("POST /auth/v1/signup")) != 0 {
 		t.Error("GoTrue was called")
 	}
@@ -224,7 +232,7 @@ func TestResetUsesTheSessionNeverTheForm(t *testing.T) {
 func TestResetSendsAHalfAssuredSessionThroughTheChallenge(t *testing.T) {
 	hn := newHarness(t, opts{})
 	tok := token("u1", "aal1")
-	hn.f.user(tok, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "f1", "factor_type": "totp", "status": "verified"}}})
+	hn.f.user(tok, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "0195a2c0-1a00-7000-8000-0000000000f1", "factor_type": "totp", "status": "verified"}}})
 	c := hn.client()
 	c.signIn(t, jordan, jordanPW, tok)
 	where(t, c.get("/reset-password"), 303, "/login/mfa?next=%2Freset-password")
@@ -328,7 +336,7 @@ func TestConfirmNeverSpendsTheLinkOnAGet(t *testing.T) {
 func TestMFAChallenge(t *testing.T) {
 	hn := newHarness(t, opts{})
 	aal1, aal2 := token("u1", "aal1"), token("u1", "aal2")
-	verified := []map[string]any{{"id": "f-unverified", "factor_type": "totp", "status": "unverified"}, {"id": "f1", "factor_type": "totp", "status": "verified"}}
+	verified := []map[string]any{{"id": "0195a2c0-1a00-7000-8000-0000000000f0", "factor_type": "totp", "status": "unverified"}, {"id": "0195a2c0-1a00-7000-8000-0000000000f1", "factor_type": "totp", "status": "verified"}}
 	hn.f.user(aal1, fakeUser{ID: "u1", Email: jordan, Factors: verified})
 	hn.f.user(aal2, fakeUser{ID: "u1", Email: jordan, Factors: verified})
 	c := hn.client()
@@ -336,20 +344,20 @@ func TestMFAChallenge(t *testing.T) {
 	where(t, c.get("/mfa/setup"), 303, "/login/mfa?next=%2Fmfa%2Fsetup")
 	has(t, c.get("/login/mfa?next=/trips/7"), `value="/trips/7"`, "Lost your authenticator?")
 
-	hn.f.on("POST /auth/v1/factors/f1/challenge", 200, map[string]any{"id": "ch1"})
-	hn.f.on("POST /auth/v1/factors/f1/verify", 422, map[string]any{"code": "mfa_verification_failed"})
-	rec := c.post("/login/mfa", url.Values{"code": {"123 456"}, "next": {"/trips/7"}, "factorId": {"f-unverified"}})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000f1/challenge", 200, map[string]any{"id": "ch1"})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000f1/verify", 422, map[string]any{"code": "mfa_verification_failed"})
+	rec := c.post("/login/mfa", url.Values{"code": {"123 456"}, "next": {"/trips/7"}, "factorId": {"0195a2c0-1a00-7000-8000-0000000000f0"}})
 	has(t, rec, esc("That code didn't match."))
 	hasNot(t, rec, "123 456", "123456")
-	if v := hn.f.seen("POST /auth/v1/factors/f1/verify"); len(v) != 1 || v[0].Body["code"] != "123456" || v[0].Body["challenge_id"] != "ch1" {
+	if v := hn.f.seen("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000f1/verify"); len(v) != 1 || v[0].Body["code"] != "123456" || v[0].Body["challenge_id"] != "ch1" {
 		t.Errorf("verify = %v", v)
 	}
 
-	hn.f.on("POST /auth/v1/factors/f1/verify", 429, map[string]any{"code": "over_request_rate_limit"})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000f1/verify", 429, map[string]any{"code": "over_request_rate_limit"})
 	has(t, c.post("/login/mfa", url.Values{"code": {"123456"}}), esc("That's a few too many tries."))
 
 	// THE LOCKOUT: the aal2 tokens replace the cookie, so the gate lets them through.
-	hn.f.on("POST /auth/v1/factors/f1/verify", 200, map[string]any{"access_token": aal2, "refresh_token": "r2", "expires_in": 3600})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000f1/verify", 200, map[string]any{"access_token": aal2, "refresh_token": "r2", "expires_in": 3600})
 	where(t, c.post("/login/mfa", url.Values{"code": {"654321"}, "next": {"/mfa/setup"}}), 303, "/mfa/setup")
 	where(t, c.get("/mfa/setup"), 303, "/dashboard") // a verified factor: nothing to set up
 	where(t, c.get("/login/mfa"), 303, "/dashboard")
@@ -358,7 +366,7 @@ func TestMFAChallenge(t *testing.T) {
 func TestMFASetupEnrollsOnPostAndServesTheQRAsAnImage(t *testing.T) {
 	hn := newHarness(t, opts{})
 	tok := token("u1", "aal1")
-	hn.f.user(tok, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "old", "factor_type": "totp", "status": "unverified"}}})
+	hn.f.user(tok, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "0195a2c0-1a00-7000-8000-0000000000aa", "factor_type": "totp", "status": "unverified"}}})
 	c := hn.client()
 	c.signIn(t, jordan, jordanPW, tok)
 
@@ -368,15 +376,15 @@ func TestMFASetupEnrollsOnPostAndServesTheQRAsAnImage(t *testing.T) {
 		t.Fatal("a GET enrolled a factor")
 	}
 
-	hn.f.on("DELETE /auth/v1/factors/old", 200, map[string]any{})
-	hn.f.on("POST /auth/v1/factors", 200, map[string]any{"id": "new", "type": "totp", "totp": map[string]any{"qr_code": `<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>`, "secret": "JBSWY3DPEHPK3PXP", "uri": "otpauth://x"}})
+	hn.f.on("DELETE /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000aa", 200, map[string]any{})
+	hn.f.on("POST /auth/v1/factors", 200, map[string]any{"id": "0195a2c0-1a00-7000-8000-0000000000bb", "type": "totp", "totp": map[string]any{"qr_code": `<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>`, "secret": "JBSWY3DPEHPK3PXP", "uri": "otpauth://x"}})
 	where(t, c.post("/mfa/setup", url.Values{"next": {"/trips/8"}}), 303, "/mfa/setup?next=%2Ftrips%2F8")
-	if len(hn.f.seen("DELETE /auth/v1/factors/old")) != 1 {
+	if len(hn.f.seen("DELETE /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000aa")) != 1 {
 		t.Error("the abandoned factor was not swept")
 	}
 
 	// GoTrue now lists the new factor, unverified.
-	hn.f.user(tok, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "new", "factor_type": "totp", "status": "unverified"}}})
+	hn.f.user(tok, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "0195a2c0-1a00-7000-8000-0000000000bb", "factor_type": "totp", "status": "unverified"}}})
 	rec = c.get("/mfa/setup?next=/trips/8")
 	has(t, rec, "JBSWY3DPEHPK3PXP", `src="/mfa/setup/qr"`)
 	hasNot(t, rec, "<rect", "data:image")
@@ -394,18 +402,18 @@ func TestMFASetupEnrollsOnPostAndServesTheQRAsAnImage(t *testing.T) {
 		t.Errorf("another user's QR = %d", rec.Code)
 	}
 
-	hn.f.on("POST /auth/v1/factors/new/challenge", 200, map[string]any{"id": "ch"})
-	hn.f.on("POST /auth/v1/factors/new/verify", 422, map[string]any{"code": "mfa_verification_failed"})
-	rec = c.post("/mfa/setup/verify", url.Values{"code": {"111111"}, "next": {"/trips/8"}, "factorId": {"someone-elses"}})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000bb/challenge", 200, map[string]any{"id": "ch"})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000bb/verify", 422, map[string]any{"code": "mfa_verification_failed"})
+	rec = c.post("/mfa/setup/verify", url.Values{"code": {"111111"}, "next": {"/trips/8"}, "factorId": {"0195a2c0-1a00-7000-8000-0000000000cc"}})
 	has(t, rec, esc("That code didn't match."), "JBSWY3DPEHPK3PXP") // the same QR, still there
-	if len(hn.f.seen("POST /auth/v1/factors/someone-elses/challenge")) != 0 {
+	if len(hn.f.seen("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000cc/challenge")) != 0 {
 		t.Error("verified a factor named by the form")
 	}
 
 	aal2 := token("u1", "aal2")
-	hn.f.on("POST /auth/v1/factors/new/verify", 200, map[string]any{"access_token": aal2, "refresh_token": "r9"})
+	hn.f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-0000000000bb/verify", 200, map[string]any{"access_token": aal2, "refresh_token": "r9"})
 	where(t, c.post("/mfa/setup/verify", url.Values{"code": {"222222"}, "next": {"/trips/8"}}), 303, "/trips/8")
-	hn.f.user(aal2, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "new", "factor_type": "totp", "status": "verified"}}})
+	hn.f.user(aal2, fakeUser{ID: "u1", Email: jordan, Factors: []map[string]any{{"id": "0195a2c0-1a00-7000-8000-0000000000bb", "factor_type": "totp", "status": "verified"}}})
 	where(t, c.get("/mfa/setup?next=/trips/8"), 303, "/trips/8")
 	if rec := c.get("/mfa/setup/qr"); rec.Code != 404 {
 		t.Errorf("the QR outlived the enrollment: %d", rec.Code)
@@ -578,6 +586,86 @@ func TestNoSocialButtonBelongsToTheEmailForm(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+// Chrome applies a page's form-action to every redirect of a form submission, so the social
+// buttons need the GoTrue and provider origins, and only the pages that post off-site get them.
+func TestFormActionIsWidenedOnlyWhereAFormLeavesTheSite(t *testing.T) {
+	formAction := func(rec interface{ Header() http.Header }) string {
+		for _, d := range strings.Split(rec.Header().Get("Content-Security-Policy"), ";") {
+			if d = strings.TrimSpace(d); strings.HasPrefix(d, "form-action") {
+				return d
+			}
+		}
+		return ""
+	}
+	off := newHarness(t, opts{})
+	if got := formAction(off.client().get("/login")); got != "form-action 'self'" {
+		t.Errorf("providers off: %q", got)
+	}
+	on := newHarness(t, opts{google: true})
+	want := "form-action 'self' " + on.base + " https://accounts.google.com"
+	for _, path := range []string{"/login", "/register"} {
+		if got := formAction(on.client().get(path)); got != want {
+			t.Errorf("%s: %q, want %q", path, got, want)
+		}
+	}
+	if got := formAction(on.client().get("/forgot-password")); got != "form-action 'self'" {
+		t.Errorf("forgot-password: %q", got)
+	}
+	if got := formAction(off.client().get("/link-account?provider=apple")); got != "form-action 'self' "+off.base+" https://appleid.apple.com" {
+		t.Errorf("link-account: %q", got)
+	}
+}
+
+// A crafted /auth/callback?code=... link (or a scanner) must not burn the verifier a genuine
+// email link in flight still needs.
+func TestAFailedExchangeKeepsTheVerifier(t *testing.T) {
+	hn := newHarness(t, opts{})
+	hn.f.on("POST /auth/v1/recover", 200, map[string]any{})
+	c := hn.client()
+	c.post("/forgot-password", url.Values{"email": {jordan}})
+	verifier := c.cookies["sta-pkce"].Value
+
+	hn.f.on("POST /auth/v1/token", 400, map[string]any{"code": "flow_state_not_found"})
+	where(t, c.get("/auth/callback?code=attacker-chosen"), 303, "/login")
+	if c.cookies["sta-pkce"] == nil || c.cookies["sta-pkce"].Value != verifier {
+		t.Fatal("a failed exchange burned the verifier")
+	}
+	hn.f.on("POST /auth/v1/token", 200, map[string]any{"access_token": token("u1", "aal1"), "refresh_token": "r1"})
+	where(t, c.get("/auth/callback?code=the-real-one&next=/reset-password"), 303, "/reset-password")
+	if c.cookies["sta-pkce"] != nil || c.cookies["sta-session"] == nil {
+		t.Errorf("after the real exchange: %v", c.cookies)
+	}
+}
+
+// Over https every auth cookie is __Host-, so a sibling subdomain cannot plant a session (its
+// own, to pin the victim to the attacker's account, or junk, to keep them signed out).
+func TestAPlantedPlainSessionCookieIsIgnored(t *testing.T) {
+	hn := newHarness(t, opts{secureCookie: true, env: config.Production})
+	attacker, victim := token("attacker", "aal1"), token("victim", "aal1")
+	hn.f.user(attacker, fakeUser{ID: "attacker", Email: "mallory@example.com"})
+	hn.f.user(victim, fakeUser{ID: "victim", Email: jordan})
+	c := hn.client()
+	hn.f.on("POST /auth/v1/token", 200, map[string]any{"access_token": victim, "refresh_token": "rv"})
+	where(t, c.post("/login", url.Values{"email": {jordan}, "password": {jordanPW}}), 303, "/dashboard")
+	real := c.cookies["__Host-sta-session"]
+	if real == nil || !real.Secure || real.Path != "/" || real.Domain != "" || c.cookies["sta-session"] != nil {
+		t.Fatalf("session cookie = %+v (all: %v)", real, c.cookies)
+	}
+	req := httptest.NewRequest("GET", "/verify-email", nil)
+	// A well-formed session for the attacker, in the cookie format internal/session writes.
+	b, _ := json.Marshal(map[string]any{"a": attacker, "r": "ra", "e": time.Now().Add(time.Hour).Unix()})
+	req.Header.Set("Cookie", "sta-session="+base64.RawURLEncoding.EncodeToString(b)+"; "+real.Name+"="+real.Value)
+	rec := httptest.NewRecorder()
+	hn.h.ServeHTTP(rec, req)
+	has(t, rec, ">"+jordan+"<")
+	hasNot(t, rec, "mallory@example.com")
+	for _, ck := range rec.Result().Cookies() {
+		if ck.MaxAge < 0 {
+			t.Errorf("cleared %s because of a planted cookie", ck.Name)
 		}
 	}
 }

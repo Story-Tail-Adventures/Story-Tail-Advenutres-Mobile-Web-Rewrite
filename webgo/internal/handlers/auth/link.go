@@ -44,6 +44,9 @@ func (a *area) mountLink(rt *gate.Router) error {
 		d.Text("submit", "Sign in & link "+providerLabel[provider])
 		fillFormError(d, "form", formError)
 		fillFields(d, errs, field{slot: "email", value: email, echo: true}, field{slot: "password"})
+		// The post signs in, then redirects straight to the provider (whatever is enabled for
+		// sign-in, linking is offered for the provider named in the URL).
+		a.allowFormRedirects(w, provider)
 		a.render(w, r, d, status, noIndexNoFollow)
 	}
 

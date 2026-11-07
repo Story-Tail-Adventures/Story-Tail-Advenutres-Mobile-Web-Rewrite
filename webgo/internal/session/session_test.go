@@ -75,7 +75,7 @@ func manager(f *fakeAuth) *Manager {
 func requestWith(tok *supa.Tokens, flag bool) *http.Request {
 	r := httptest.NewRequest("GET", "/dashboard", nil)
 	if tok != nil {
-		r.AddCookie(&http.Cookie{Name: CookieName, Value: encode(*tok)})
+		r.AddCookie(&http.Cookie{Name: SecureCookieName, Value: encode(*tok)})
 	}
 	if flag {
 		r.AddCookie(&http.Cookie{Name: FlagCookie, Value: FlagValue})
@@ -120,7 +120,7 @@ func TestValidSession(t *testing.T) {
 	if f.refreshCalls != 0 {
 		t.Error("refreshed a token with an hour left")
 	}
-	if cookie(rec, CookieName) != nil {
+	if cookie(rec, SecureCookieName) != nil {
 		t.Error("rewrote an unchanged session cookie")
 	}
 }
@@ -135,7 +135,7 @@ func TestNearExpiryRefreshesAndWritesTheNewCookie(t *testing.T) {
 	if !st.SignedIn {
 		t.Fatalf("state = %+v", st)
 	}
-	c := cookie(rec, CookieName)
+	c := cookie(rec, SecureCookieName)
 	if c == nil {
 		t.Fatal("refreshed session was not written")
 	}
@@ -167,7 +167,7 @@ func TestDeadSessionIsClearedNotRetried(t *testing.T) {
 	if st.SignedIn || st.Unavailable {
 		t.Errorf("state = %+v", st)
 	}
-	if c := cookie(rec, CookieName); c == nil || c.MaxAge >= 0 {
+	if c := cookie(rec, SecureCookieName); c == nil || c.MaxAge >= 0 {
 		t.Errorf("dead session cookie not cleared: %+v", c)
 	}
 	if f.refreshCalls != 1 {
@@ -193,12 +193,12 @@ func TestOutageKeepsTheCookie(t *testing.T) {
 func TestGarbageCookieIsCleared(t *testing.T) {
 	f := newFake()
 	r := httptest.NewRequest("GET", "/dashboard", nil)
-	r.AddCookie(&http.Cookie{Name: CookieName, Value: "not-base64-json!!"})
+	r.AddCookie(&http.Cookie{Name: SecureCookieName, Value: "not-base64-json!!"})
 	rec := httptest.NewRecorder()
 	if st := manager(f).Load(rec, r); st.SignedIn {
 		t.Error("garbage cookie signed someone in")
 	}
-	if c := cookie(rec, CookieName); c == nil || c.MaxAge >= 0 {
+	if c := cookie(rec, SecureCookieName); c == nil || c.MaxAge >= 0 {
 		t.Error("garbage cookie not cleared")
 	}
 	if f.getUserCalls != 0 {
@@ -246,7 +246,7 @@ func TestEndSignsOutAndClearsBoth(t *testing.T) {
 	if len(f.signedOut) != 1 || f.signedOut[0] != "a1" {
 		t.Errorf("GoTrue sign-out calls = %v", f.signedOut)
 	}
-	for _, name := range []string{CookieName, FlagCookie} {
+	for _, name := range []string{SecureCookieName, FlagCookie} {
 		if c := cookie(rec, name); c == nil || c.MaxAge >= 0 {
 			t.Errorf("%s not cleared", name)
 		}
@@ -258,5 +258,37 @@ func TestCookieNeverHoldsAnythingButTokens(t *testing.T) {
 	raw, _ := base64.RawURLEncoding.DecodeString(v)
 	if got := string(raw); got != `{"a":"a","r":"r","e":1}` || strings.Contains(got, "@") {
 		t.Errorf("cookie payload = %s", got)
+	}
+}
+
+// Over https the session lives only in __Host-sta-session, which a sibling subdomain cannot
+// set. A plain sta-session (planted from blog.example.com, say) is never read: it can neither
+// swap in somebody else's session nor make Load clear the real one.
+func TestSecureServerIgnoresAPlantedPlainCookie(t *testing.T) {
+	f := newFake()
+	tok := supa.Tokens{AccessToken: jwt(map[string]any{"sub": "u1"}), RefreshToken: "r", ExpiresAt: time.Now().Add(time.Hour).Unix()}
+	f.users[tok.AccessToken] = supa.User{ID: "u1", Email: "ada@example.com"}
+	planted := supa.Tokens{AccessToken: jwt(map[string]any{"sub": "attacker"}), RefreshToken: "ra", ExpiresAt: tok.ExpiresAt}
+	f.users[planted.AccessToken] = supa.User{ID: "attacker", Email: "mallory@example.com"}
+
+	r := httptest.NewRequest("GET", "/dashboard", nil)
+	r.AddCookie(&http.Cookie{Name: CookieName, Value: encode(planted)})
+	r.AddCookie(&http.Cookie{Name: SecureCookieName, Value: encode(tok)})
+	rec := httptest.NewRecorder()
+	if st := manager(f).Load(rec, r); st.User.ID != "u1" {
+		t.Errorf("the planted cookie won: %+v", st.User)
+	}
+
+	r = httptest.NewRequest("GET", "/dashboard", nil)
+	r.AddCookie(&http.Cookie{Name: CookieName, Value: "junk"})
+	r.AddCookie(&http.Cookie{Name: SecureCookieName, Value: encode(tok)})
+	rec = httptest.NewRecorder()
+	if st := manager(f).Load(rec, r); !st.SignedIn {
+		t.Error("junk in the plain cookie signed the visitor out")
+	}
+	for _, c := range rec.Result().Cookies() {
+		if c.MaxAge < 0 {
+			t.Errorf("cleared %s", c.Name)
+		}
 	}
 }

@@ -35,6 +35,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
@@ -175,6 +176,52 @@ const (
 	noIndex         = "noindex"           // { index: false, follow: true }
 	noIndexNoFollow = "noindex, nofollow" // { index: false, follow: false }
 )
+
+// The OAuth providers' sign-in hosts, the second hop of a social sign-in's redirect chain.
+var providerOrigin = map[string]string{
+	"google": "https://accounts.google.com",
+	"apple":  "https://appleid.apple.com",
+}
+
+// allowFormRedirects widens THIS response's form-action for a page whose form legitimately
+// leaves the site: Continue with Google posts to /auth/oauth, which redirects to GoTrue's
+// /authorize and on to the provider, and Chrome applies the page's form-action to every hop of
+// a form submission's redirects. The server-wide policy stays form-action 'self'; only the
+// named origins are added, on the pages that need them. If the policy no longer says
+// form-action 'self', it is left alone (the feature breaks loudly rather than the CSP
+// loosening silently).
+func (a *area) allowFormRedirects(w http.ResponseWriter, providers ...string) {
+	origins := []string{}
+	if a.Config.SupabaseURL != "" {
+		origins = append(origins, a.Config.SupabaseURL)
+	}
+	for _, p := range providers {
+		if o, ok := providerOrigin[p]; ok {
+			origins = append(origins, o)
+		}
+	}
+	if len(origins) == 0 {
+		return
+	}
+	h := w.Header()
+	csp := h.Get("Content-Security-Policy")
+	const self = "form-action 'self'"
+	if !strings.Contains(csp, self+";") && !strings.HasSuffix(csp, self) {
+		return
+	}
+	h.Set("Content-Security-Policy", strings.Replace(csp, self, self+" "+strings.Join(origins, " "), 1))
+}
+
+// enabledProviders lists the providers whose buttons are live.
+func (a *area) enabledProviders() []string {
+	var out []string
+	for _, p := range []string{"google", "apple"} {
+		if a.providerEnabled(p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 // callbackURL is the absolute /auth/callback address an emailed or OAuth link comes back to,
 // carrying next (already safe) and, for OAuth, the provider.

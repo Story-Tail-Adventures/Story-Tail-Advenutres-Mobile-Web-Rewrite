@@ -44,15 +44,18 @@ func (a *area) keepVerifier(w http.ResponseWriter, p supa.PKCE) {
 	})
 }
 
-// takeVerifier reads this browser's verifier and clears it: a verifier is good for one
-// exchange, whether it works or not (supabase-js removes it either way).
-func (a *area) takeVerifier(w http.ResponseWriter, r *http.Request) string {
+// verifier reads this browser's verifier. It is cleared only after an exchange WORKS: a
+// failed one (a crafted /auth/callback?code=... link, a scanner, a stale code) must not burn
+// the verifier a genuine email link in flight still needs. Reusing a verifier is harmless:
+// each code is tied to its own flow, whose challenge only that flow's verifier answers. A
+// malformed cookie is cleared.
+func (a *area) verifier(w http.ResponseWriter, r *http.Request) string {
 	c, err := r.Cookie(a.pkceName())
 	if err != nil {
 		return ""
 	}
-	a.clearPKCE(w)
 	if !verifierShape.MatchString(c.Value) {
+		a.clearPKCE(w)
 		return ""
 	}
 	return c.Value
@@ -134,7 +137,7 @@ func (a *area) mountCallback(rt *gate.Router) error {
 
 		exchanged := false
 		if code := q.Get("code"); code != "" && !a.off {
-			verifier := a.takeVerifier(w, r)
+			verifier := a.verifier(w, r)
 			if verifier == "" {
 				// Another browser, or the cookie ran out: the link can only be finished where
 				// it was asked for ("only in the browser you opened them in").
@@ -148,6 +151,7 @@ func (a *area) mountCallback(rt *gate.Router) error {
 						return
 					}
 				} else {
+					a.clearPKCE(w) // spent
 					a.Sessions.Start(w, tok)
 					exchanged = true
 				}

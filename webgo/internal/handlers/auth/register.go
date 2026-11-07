@@ -60,6 +60,9 @@ func (a *area) mountRegister(rt *gate.Router) error {
 		d.Attr("next", "value", s.next)
 		d.Attr("oauth-next", "value", s.next)
 		fillSocial(d, a.Config.GoogleAuthEnabled, a.Config.AppleAuthEnabled)
+		if p := a.enabledProviders(); len(p) > 0 {
+			a.allowFormRedirects(w, p...)
+		}
 		fillFormError(d, "form", s.formError)
 		fillFields(d, s.errs,
 			field{slot: "first-name", id: "firstName", key: "firstName", value: s.firstName, echo: true},

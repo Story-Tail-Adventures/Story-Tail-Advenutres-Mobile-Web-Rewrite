@@ -40,6 +40,9 @@ func (a *area) mountLogin(rt *gate.Router) error {
 		d.Attr("next", "value", s.next)
 		d.Attr("oauth-next", "value", s.next)
 		fillSocial(d, a.Config.GoogleAuthEnabled, a.Config.AppleAuthEnabled)
+		if p := a.enabledProviders(); len(p) > 0 {
+			a.allowFormRedirects(w, p...)
+		}
 		fillFormError(d, "form", s.formError)
 		fillFields(d, s.errs,
 			field{slot: "email", value: s.email, echo: true},
@@ -80,6 +83,8 @@ func (a *area) mountLogin(rt *gate.Router) error {
 		tok, err := a.Supa.SignIn(r.Context(), email, form.Get("password"), session.Who(r))
 		if err != nil {
 			// Never "no such account" apart from "wrong password": both are invalid_credentials.
+			// One state does show, as in Next: GoTrue checks a ban before the password, so a
+			// locked account reads "This account is on hold." (§3.9.5's chosen wording).
 			m := mapErr(err)
 			s.formError = &m
 			show(w, r, statusFor(m), s)
