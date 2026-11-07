@@ -98,7 +98,12 @@ func Func(d *edge.Deps, r *http.Request) (*edge.Reply, error) {
 	if r.Method != http.MethodPost {
 		return nil, problem.BadRequest("Use POST.")
 	}
-	ctx := r.Context()
+	// Not cancelled when the caller disconnects (review of #192, proven): a lock is GoTrue's
+	// ban then our row, and the step that undoes the ban if the row fails must run even after
+	// the caller has gone, or the client signs in again while the row says locked. Each call
+	// still has its own client timeout, so nothing waits forever. supabase-js calls were not
+	// tied to the request either.
+	ctx := context.WithoutCancel(r.Context())
 	c, err := edge.RequireUser(d, r)
 	if err != nil {
 		return nil, err
