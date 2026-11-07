@@ -7,7 +7,482 @@
  *
  * No inline styles anywhere (the CSP is style-src 'self'): a page that needs a one-off size
  * or colour gets a class here. internal/static/classes_test.go fails on any class a page uses
- * that no stylesheet defines. */
+ * that no stylesheet defines.
+ *
+ * Every rule below is the sx of a Next component under web/components/public/ or a page under
+ * web/app/(public)/, read off the running app's emotion CSS (the §4.8 procedure) and written
+ * against the same theme variables. Breakpoints are the theme's: sm 640, md 768, lg 1024,
+ * web 1200. Each block names the component it ports. */
 
 @layer components {
+  /* ── Photo (components/public/Photo.tsx): a `fill` photo covers its box ─────────────────── */
+  .photo-fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    color: transparent;
+  }
+
+  .icon-12 { width: 12px; height: 12px; }
+
+  /* ── Section overline (Typography overline, brand, 600) ─────────────────────────────────── */
+  .pub-overline { display: block; color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.3; }
+
+  /* ── HeroBleed (components/public/HeroBleed.tsx) ────────────────────────────────────────── */
+  .hero { position: relative; display: flex; flex-direction: column; overflow: hidden; }
+  .hero-scrim { position: absolute; inset: 0; }
+  .hero-inner {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding-top: 80px;
+    padding-bottom: 20px;
+    color: var(--mui-palette-common-white);
+  }
+  @media (min-width: 768px) {
+    .hero-inner { padding-top: 40px; padding-bottom: 40px; }
+    .hero-inner-center { justify-content: center; }
+  }
+  .hero-copy { display: flex; flex-direction: column; max-width: 760px; }
+  .hero-copy-660 { max-width: 660px; }
+  .hero-overline {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--mui-palette-brandSource-gold);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  @media (min-width: 768px) { .hero-overline { margin-bottom: 10px; } }
+  .hero-title { margin: 0; font-family: var(--font-sans); font-weight: 800; color: var(--mui-palette-common-white); }
+  .hero-script {
+    font-family: var(--font-script);
+    font-weight: 700;
+    font-size: 1.35em;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--mui-palette-brandSource-gold);
+  }
+  /* The legacy hero ramp (HeroBleed TITLE_SX): mobile, tablet (md), web. */
+  .t-hero-l { font-size: 32px; line-height: 1.05; letter-spacing: -0.6px; }
+  .t-hero { font-size: 26px; line-height: 1.08; letter-spacing: -0.4px; }
+  .t-hero-s { font-size: 26px; line-height: 1.1; letter-spacing: -0.4px; }
+  @media (min-width: 768px) {
+    .t-hero-l { font-size: 40px; letter-spacing: -0.8px; }
+    .t-hero { font-size: 36px; line-height: 1.06; letter-spacing: -0.6px; }
+    .t-hero-s { font-size: 32px; font-weight: 700; }
+  }
+  @media (min-width: 1200px) {
+    .t-hero-l { font-size: 45px; letter-spacing: -1px; }
+    .t-hero { font-size: 45px; line-height: 1.04; letter-spacing: -1px; }
+    .t-hero-s { font-size: 36px; letter-spacing: -0.6px; }
+  }
+  .hero-sub {
+    margin: 6px 0 0;
+    max-width: 620px;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--mui-palette-common-white);
+    opacity: 0.9;
+  }
+  @media (min-width: 768px) { .hero-sub { margin-top: 12px; font-size: 16px; line-height: 1.5; } }
+  .hero-footer { margin-top: 16px; }
+  @media (min-width: 768px) { .hero-footer { margin-top: 20px; } }
+
+  /* Buttons on photography (2.0.1 LARGE and GLASS). The whites are the scheme-independent
+     --hero-* values from public.css: white stays white on a beach photo in both schemes. */
+  .btn-hero { min-height: 48px; padding-left: 28px; padding-right: 28px; }
+  .btn-glass {
+    color: var(--hero-fg);
+    border-color: var(--hero-glass-border);
+    background-color: var(--hero-glass-bg);
+    backdrop-filter: blur(6px);
+  }
+  .btn-glass:hover { border-color: var(--hero-glass-border); background-color: var(--hero-glass-bg-hover); }
+  .btn-on-photo { color: var(--mui-palette-common-white); }
+  .chip-glass {
+    color: var(--hero-fg);
+    border-color: var(--hero-chip-border);
+    background-color: var(--hero-chip-bg);
+  }
+  .chip-glass:hover,
+  a.chip-glass:hover { background-color: var(--hero-glass-bg-hover); }
+  /* MuiChip-icon on an outlined medium chip, inheriting the chip's colour. */
+  .chip-icon { width: 12px; height: 12px; flex-shrink: 0; margin-left: 4px; margin-right: -6px; }
+  .chip-glass-icon { color: inherit; }
+
+  /* ── 2.0.1 landing (app/(public)/(hero)/page.tsx) ───────────────────────────────────────── */
+  .landing-ctas { display: flex; flex-wrap: wrap; margin-top: 22px; gap: 10px; }
+  .landing-ctas-m { display: flex; flex-direction: column; margin-top: 24px; width: 100%; gap: 8px; }
+  .btn-tour-m {
+    min-height: 32px;
+    padding: 4px 16px;
+    color: var(--mui-palette-common-white);
+    opacity: 0.85;
+  }
+  .hero-scripture {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 18px;
+    row-gap: 6px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hero-rule);
+    color: var(--hero-fg-faint);
+  }
+  @media (min-width: 768px) { .hero-scripture { margin-top: 24px; padding-top: 16px; } }
+  .hero-scripture-more { display: none; }
+  @media (min-width: 768px) { .hero-scripture-more { display: contents; } }
+  .hero-scripture-dot { opacity: 0.3; }
+  .landing-chips { display: flex; flex-wrap: wrap; margin-top: 18px; gap: 10px; }
+
+  .landing-features { display: block; background-color: var(--mui-palette-background-default); }
+  .landing-features-inner { padding-top: 24px; padding-bottom: 30px; }
+  @media (min-width: 768px) { .landing-features-inner { padding-top: 32px; padding-bottom: 32px; } }
+  .landing-features-grid { display: flex; flex-direction: column; margin-top: 10px; gap: 10px; }
+  @media (min-width: 768px) {
+    .landing-features-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  /* ── ScriptureLine (components/public/ScriptureLine.tsx) ────────────────────────────────── */
+  .scripture-photo { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 6px; }
+  .scripture-photo-quote {
+    quotes: none;
+    font-family: var(--font-script);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.4;
+    color: var(--mui-palette-brandSource-gold);
+  }
+  @media (min-width: 768px) { .scripture-photo-quote { font-size: 18px; } }
+  .scripture-photo-ref,
+  .scripture-ref {
+    font: var(--mui-font-overline);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+  .scripture-photo-ref { color: var(--mui-palette-common-white); opacity: 0.8; }
+
+  /* ── FeatureCard (components/public/FeatureCard.tsx) ────────────────────────────────────── */
+  .feature-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px; }
+  .feature-stack { display: flex; flex-direction: column; padding: 18px; }
+  .feature-text { min-width: 0; }
+  .feature-glyph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
+    border-radius: var(--mui-shape-borderRadius);
+    font-size: 1.25rem;
+    line-height: 1;
+    background-color: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+  }
+  .feature-glyph-secondary { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .feature-glyph-32 { width: 32px; height: 32px; }
+  .feature-glyph-36 { width: 36px; height: 36px; }
+  .feature-glyph-44 { width: 44px; height: 44px; }
+  .feature-body { display: block; margin-top: 2px; color: var(--mui-palette-text-secondary); }
+
+  .feature-overline { margin-top: 12px; }
+  .feature-overline-bare { margin-top: 8px; }
+  .feature-title { margin-top: 4px; margin-bottom: 6px; color: var(--mui-palette-text-primary); }
+  .feature-caption { display: block; color: var(--mui-palette-text-secondary); }
+
+  /* ── Page titles (h4 on a 28 / 32 / 36 ramp, 700) ──────────────────────────────────────── */
+  .page-title { margin: 0; font: var(--mui-font-h4); font-weight: 700; font-size: 28px; }
+  @media (min-width: 768px) { .page-title { font-size: 32px; } }
+  @media (min-width: 1200px) { .page-title { font-size: 36px; } }
+
+  /* ── ScriptureLine, surface tone ───────────────────────────────────────────────────────── */
+  .scripture {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    row-gap: 4px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--mui-palette-divider);
+  }
+  .scripture-quote {
+    quotes: none;
+    font-family: var(--font-script);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.1;
+    color: var(--mui-palette-primary-main);
+  }
+  @media (min-width: 768px) { .scripture-quote { font-size: 22px; line-height: 1; } }
+  .scripture-ref { color: var(--mui-palette-text-secondary); white-space: nowrap; }
+
+  /* ── AdvisorCard (components/public/AdvisorCard.tsx) ───────────────────────────────────── */
+  .advisor-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    line-height: 1;
+    user-select: none;
+    background-color: var(--mui-palette-brandSource-burgundy);
+    color: var(--mui-palette-common-white);
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+  .advisor-avatar-bio { width: 72px; height: 72px; font-size: 26px; }
+  @media (min-width: 768px) { .advisor-avatar-bio { width: 120px; height: 120px; font-size: 36px; } }
+  .advisor-avatar-note { width: 44px; height: 44px; font-size: 16px; }
+  @media (min-width: 768px) { .advisor-avatar-note { width: 56px; height: 56px; font-size: 20px; } }
+  .advisor-bio {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+    padding: 16px;
+    background-color: var(--mui-palette-surface-2);
+  }
+  @media (min-width: 768px) {
+    .advisor-bio { grid-template-columns: 120px minmax(0, 1fr); gap: 22px; padding: 22px; }
+  }
+  .advisor-bio-title { font-size: 1rem; }
+  @media (min-width: 768px) { .advisor-bio-title { font-size: 1.5rem; } }
+  .advisor-bio-body { margin-top: 6px; }
+  .advisor-stats {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 10px 0 0;
+    padding: 0;
+    column-gap: 14px;
+    row-gap: 4px;
+    list-style: none;
+    color: var(--mui-palette-text-secondary);
+  }
+  .advisor-stat { display: inline-flex; align-items: center; gap: 4px; font: var(--mui-font-caption); font-weight: 500; }
+  .advisor-star { display: inline-flex; color: var(--mui-palette-brandSource-sunset); }
+
+  /* ── FaqList (components/public/FaqList.tsx): MUI Accordion as native <details> ─────────── */
+  .faq-list { display: flex; flex-direction: column; }
+  /* Each row wraps one item for the repeat; display: contents keeps them siblings in the flow. */
+  .faq-row { display: contents; }
+  .faq-row + .faq-row > .faq-item { margin-top: 8px; }
+  @media (min-width: 768px) { .faq-row + .faq-row > .faq-item { margin-top: 10px; } }
+  .faq-item {
+    position: relative;
+    background-color: var(--mui-palette-background-paper);
+    background-image: var(--mui-overlays-1);
+    color: var(--mui-palette-text-primary);
+    box-shadow: var(--mui-shadows-1);
+    border-radius: 0;
+  }
+  .faq-row:first-child > .faq-item { border-top-left-radius: var(--mui-shape-borderRadius); border-top-right-radius: var(--mui-shape-borderRadius); }
+  .faq-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -1px;
+    height: 1px;
+    opacity: 1;
+    background-color: var(--mui-palette-divider);
+    transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .faq-row:first-child > .faq-item::before { display: none; }
+  .faq-item[open]::before { opacity: 0; }
+  .faq-summary {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 16px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .faq-summary::-webkit-details-marker { display: none; }
+  .faq-q { display: flex; flex-grow: 1; margin: 12px 0; text-align: start; }
+  .faq-chevron {
+    display: flex;
+    color: var(--mui-palette-action-active);
+    transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .faq-item[open] .faq-chevron { transform: rotate(180deg); }
+  .faq-a { padding: 0 16px 16px; }
+  .faq-answer { display: block; }
+  .faq-answer-m { font: var(--mui-font-body2); }
+
+  /* ── StickyCta + CtaControl (components/public/StickyCta.tsx, CtaControl.tsx) ──────────── */
+  .sticky-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--sticky-cta-gap);
+    padding: var(--sticky-cta-pad) 14px var(--sticky-cta-pad-bottom);
+    border-top: 1px solid var(--mui-palette-divider);
+    --Paper-shadow: none;
+    --Paper-overlay: none;
+  }
+  @media (min-width: 768px) { .sticky-bar { display: none; } }
+  .sticky-bar-wrap { flex-wrap: wrap; }
+  .sticky-bar > .sticky-cta-row2 { flex: 1 0 100%; width: 100%; }
+  .cta-control { min-height: 44px; flex-shrink: 0; gap: 8px; white-space: nowrap; }
+  .cta-grow { flex: 1; }
+
+  /* ── 2.0.2 How it works (app/(public)/(plain)/how-it-works/page.tsx) ───────────────────── */
+  .hiw { padding-top: 20px; padding-bottom: 24px; }
+  @media (min-width: 768px) { .hiw { padding-top: 32px; padding-bottom: 48px; } }
+  .hiw-title { margin-top: 4px; margin-bottom: 6px; }
+  .hiw-lead { max-width: 720px; }
+  .hiw-steps {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+    gap: 10px;
+  }
+  @media (min-width: 768px) {
+    .hiw-steps { display: grid; margin-top: 24px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  }
+  .hiw-step { display: flex; }
+  .hiw-step > * { flex: 1; }
+  .heart-panel {
+    position: relative;
+    overflow: hidden;
+    margin-top: 22px;
+    padding: 18px 18px 20px;
+    background: linear-gradient(135deg, var(--mui-palette-surface-2) 0%, var(--mui-palette-primary-container) 160%);
+  }
+  /* Next's sx put the md gradient under an [UP_MD] key that replaced the md margin and
+     padding, so those stay at their xs values at every width. Matched as Next renders it. */
+  @media (min-width: 768px) {
+    .heart-panel {
+      background: linear-gradient(135deg, var(--mui-palette-surface-2) 0%, var(--mui-palette-primary-container) 140%);
+    }
+  }
+  .heart-glow {
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(var(--mui-palette-brand-mainChannel) / 0.18), transparent 70%);
+  }
+  .heart-inner { position: relative; }
+  .heart-title { margin-top: 4px; margin-bottom: 6px; max-width: 760px; font-size: 18px; }
+  @media (min-width: 768px) { .heart-title { font-size: 24px; } }
+  @media (min-width: 1200px) { .heart-title { font-size: 28px; } }
+  .heart-intro { margin-bottom: 12px; max-width: 720px; }
+  @media (min-width: 768px) { .heart-intro { margin-bottom: 18px; } }
+  .heart-pillars { display: flex; flex-direction: column; gap: 8px; }
+  @media (min-width: 768px) {
+    .heart-pillars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  }
+  .welcome-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background-color: var(--mui-palette-background-paper);
+  }
+  @media (min-width: 768px) { .welcome-line { margin-top: 16px; } }
+  .welcome-icon { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-text-secondary); }
+  .welcome-strong { font-weight: 600; color: var(--mui-palette-text-primary); }
+  .hiw-advisor,
+  .hiw-faq { margin-top: 22px; }
+  @media (min-width: 768px) { .hiw-advisor, .hiw-faq { margin-top: 24px; } }
+  .hiw-faq-list { margin-top: 8px; }
+  @media (min-width: 768px) { .hiw-faq-list { margin-top: 10px; } }
+  .closing-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+    padding: 20px;
+    background-color: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+  }
+  @media (min-width: 768px) { .closing-panel { flex-direction: row; align-items: center; margin-top: 30px; } }
+  .closing-body { margin-top: 4px; opacity: 0.85; }
+  .closing-cta { min-height: 40px; padding-left: 24px; padding-right: 24px; flex-shrink: 0; width: 100%; }
+  @media (min-width: 768px) { .closing-cta { width: auto; } }
+
+  /* ── 2.0.7 Footer pages (app/(public)/(plain)/legal/[slug]) ────────────────────────────── */
+  .legal-layout { flex: 1; display: grid; }
+  @media (min-width: 768px) {
+    .legal-layout { grid-template-columns: 260px minmax(0, 1fr); min-height: calc(100dvh - var(--public-topbar-h)); }
+    .legal-nav { border-right: 1px solid var(--mui-palette-divider); background-color: var(--mui-palette-surface-1); }
+  }
+  .legal-aside { padding: 22px; }
+  .legal-aside-heading { display: block; margin-bottom: 10px; line-height: 1.3; color: var(--mui-palette-text-secondary); }
+  .legal-aside-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; position: relative; }
+  .legal-aside-item { display: flex; align-items: center; position: relative; width: 100%; box-sizing: border-box; text-align: left; }
+  .legal-aside-link {
+    display: flex;
+    flex-grow: 1;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 8px 12px;
+    border-radius: var(--mui-shape-borderRadius);
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .legal-aside-link:hover { background-color: var(--mui-palette-action-hover); }
+  .legal-aside-selected { background-color: rgba(var(--mui-palette-primary-mainChannel) / var(--mui-palette-action-selectedOpacity)); }
+  .legal-aside-selected:hover { background-color: rgba(var(--mui-palette-primary-mainChannel) / calc(var(--mui-palette-action-selectedOpacity) + var(--mui-palette-action-hoverOpacity))); }
+  .legal-aside-text { flex: 1 1 auto; min-width: 0; font: var(--mui-font-body2); font-weight: 500; }
+  .legal-tip { margin-top: 20px; padding: 12px; background-color: var(--mui-palette-surface-2); }
+  .legal-tip-text { font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .legal-chips { padding: 6px 18px 0; }
+  .legal-chip-list { padding-top: 8px; list-style: none; margin-top: 0; margin-bottom: 0; }
+  .legal-chip { height: 28px; }
+  .legal-article { width: 100%; max-width: 720px; padding: 4px 18px 24px; box-sizing: border-box; }
+  @media (min-width: 768px) { .legal-article { padding: 32px 48px; } }
+  .legal-title { margin: 4px 0; font: var(--mui-font-h4); font-weight: 700; font-size: 24px; }
+  @media (min-width: 768px) { .legal-title { font-size: 26px; } }
+  @media (min-width: 1200px) { .legal-title { font-size: 28px; } }
+  .legal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .legal-print { min-height: 32px; padding-left: 16px; padding-right: 16px; }
+  .legal-draft { margin-top: 14px; }
+  .legal-alert { padding: 4px 14px; }
+  .legal-body { margin-top: 18px; color: var(--mui-palette-text-primary); }
+  .legal-block { display: contents; }
+  .legal-h { margin: 14px 0 0; font-weight: 600; font-size: 19px; }
+  @media (min-width: 768px) { .legal-h { margin-top: 18px; font-size: 22px; } }
+  .legal-p { margin: 8px 0 12px; line-height: 1.65; }
+  .legal-ul { padding-left: 20px; list-style: disc; }
+
+  /* ── Not found (app/(public)/not-found.tsx, NotFoundBody) ──────────────────────────────── */
+  .not-found { padding-top: 64px; padding-bottom: 64px; text-align: center; }
+  .not-found-title { margin-top: 4px; }
+  .not-found-body { margin: 12px auto 0; max-width: 480px; }
+  .not-found-ctas { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin-top: 24px; }
+  @media (min-width: 768px) { .not-found-ctas { flex-direction: row; } }
+  .not-found-cta { min-height: 40px; padding-left: 24px; padding-right: 24px; width: 100%; }
+  @media (min-width: 768px) { .not-found-cta { width: auto; } }
 }

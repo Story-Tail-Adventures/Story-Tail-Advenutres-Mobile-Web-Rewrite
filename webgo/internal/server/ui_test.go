@@ -82,8 +82,11 @@ func TestStyleguideIsDevelopmentOnly(t *testing.T) {
 func TestRenderedPagesStayInsideTheCSP(t *testing.T) {
 	h, _ := newHandler(t, config.Development)
 	inline := regexp.MustCompile(`<script(?:\s[^>]*)?>\s*[^<\s]|\sstyle="|\son[a-z]+="|<style`)
-	for _, p := range []string{"/_styleguide", "/_styleguide/layout/public-hero", "/_styleguide/layout/agent", "/_demo"} {
-		body := do(h, http.MethodGet, p, nil).Body.String()
+	// JSON-LD (page.Head) is data, never run, so the CSP does not apply to it. It carries no
+	// "<" (encoding/json escapes it), so this cut is exact.
+	jsonLD := regexp.MustCompile(`<script type="application/ld\+json">[^<]*</script>`)
+	for _, p := range []string{"/_styleguide", "/_styleguide/layout/public-hero", "/_styleguide/layout/agent", "/", "/how-it-works", "/legal/privacy"} {
+		body := jsonLD.ReplaceAllString(do(h, http.MethodGet, p, nil).Body.String(), "")
 		if loc := inline.FindStringIndex(body); loc != nil {
 			t.Errorf("%s has inline script or style near %q", p, body[max(0, loc[0]-40):min(len(body), loc[1]+40)])
 		}

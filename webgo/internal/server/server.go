@@ -3,7 +3,7 @@
 //
 // It serves /healthz, the hashed assets under /assets/, the /functions/v1 registry (every name
 // passed through to Supabase until it is ported), the five page areas, and a plain 404 for
-// everything else. In development it adds /_demo, /_styleguide and, with Supabase
+// everything else. In development it adds /_styleguide and, with Supabase
 // configured, the sign-in harness. Every route goes through gate.Router, so none can exist
 // without choosing a gate.
 package server
@@ -24,7 +24,6 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/auth"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/client"
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/demo"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/devauth"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/onboarding"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public"
@@ -85,7 +84,6 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 		specs = append(specs, a.specs...)
 	}
 	if dev {
-		specs = append(specs, demo.Spec)
 		specs = append(specs, styleguide.Specs...)
 	}
 	if devAuth {
@@ -134,11 +132,6 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 	}
 
 	if dev {
-		h, err := demo.Handler(set, log)
-		if err != nil {
-			return nil, err
-		}
-		rt.Public("GET /_demo", h)
 		if err := styleguide.Mount(rt, set, log); err != nil {
 			return nil, err
 		}

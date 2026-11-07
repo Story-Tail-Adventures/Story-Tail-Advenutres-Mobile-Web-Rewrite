@@ -1,0 +1,110 @@
+package public
+
+import (
+	"net/http"
+
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/content"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/web"
+)
+
+// site is what every public handler shares: the deps, and the per-page head metadata rules
+// the Next root layout set (metadataBase, the title template, Open Graph and Twitter cards).
+type site struct {
+	handlers.Deps
+	cat *content.Catalog
+	// notFoundPage is the public 404, for an unknown slug.
+	notFoundPage *page.Template
+}
+
+// siteName is the root layout's applicationName and the title template's suffix.
+const siteName = "Story-Tail Adventures"
+
+// absoluteURL ports app/seo.ts absoluteUrl as Next's metadataBase resolved it: the root is
+// the bare origin, with no trailing slash ("https://app.story-tail.com"), and every other
+// path is appended to it.
+func absoluteURL(base, path string) string {
+	if path == "/" {
+		return base
+	}
+	return base + path
+}
+
+// meta is one page's `metadata` export.
+type meta struct {
+	// Title is the page's own title, as its metadata wrote it. The <title> carries the
+	// template ("%s · Story-Tail Adventures") unless Absolute is set; og:title and
+	// twitter:title carry Title alone, as Next wrote them.
+	Title    string
+	Absolute bool
+	// Description replaces the root layout's.
+	Description string
+	// Path is the canonical path ("/about"); og:url is the same.
+	Path string
+	// Image is the Open Graph photo, drawn 1200 by 630 from the registry.
+	Image content.ImageKey
+	// NoIndex writes robots "noindex, follow" (the join gate, the results page).
+	NoIndex bool
+	// JSONLD is the page's structured data, if any.
+	JSONLD any
+}
+
+// head writes m into the page's <head> the way Next's metadata API did.
+func (s *site) head(d *page.Doc, m meta) {
+	title := m.Title
+	if !m.Absolute && title != "" {
+		title += " · " + siteName
+	}
+	url := absoluteURL(s.Config.SiteURL, m.Path)
+	h := page.Head{
+		Title:       title,
+		Description: m.Description,
+		Canonical:   url,
+		JSONLD:      m.JSONLD,
+	}
+	if m.NoIndex {
+		h.Robots = "noindex, follow"
+	}
+	h.Properties = append(h.Properties,
+		page.Property{Name: "og:title", Content: m.Title},
+		page.Property{Name: "og:description", Content: m.Description},
+		page.Property{Name: "og:url", Content: url},
+	)
+	var image string
+	if m.Image != "" {
+		image = content.StaImg(m.Image, 1200, 630, 80)
+		h.Properties = append(h.Properties,
+			page.Property{Name: "og:image", Content: image},
+			page.Property{Name: "og:image:width", Content: "1200"},
+			page.Property{Name: "og:image:height", Content: "630"},
+		)
+	}
+	h.Properties = append(h.Properties,
+		page.Property{Name: "twitter:card", Content: "summary_large_image"},
+		page.Property{Name: "twitter:title", Content: m.Title},
+		page.Property{Name: "twitter:description", Content: m.Description},
+	)
+	if image != "" {
+		h.Properties = append(h.Properties,
+			page.Property{Name: "twitter:image", Content: image},
+			page.Property{Name: "twitter:image:width", Content: "1200"},
+			page.Property{Name: "twitter:image:height", Content: "630"},
+		)
+	}
+	d.Head(h)
+}
+
+// chrome fills the public layout for path. The placeholder banner shows while anything in
+// the content registry is still a placeholder (content/public/proof.ts).
+func (s *site) chrome(d *page.Doc, path string) {
+	shell.FillPublic(d, path, shell.PublicChrome{
+		PlaceholderBanner: content.HasPlaceholders(s.cat.PlaceholderReport()),
+	})
+}
+
+// render writes a public page: cached by Cloudflare, no cookie (§4.7).
+func (s *site) render(w http.ResponseWriter, d *page.Doc) {
+	web.Render(w, s.Log, d, http.StatusOK, web.Shared)
+}

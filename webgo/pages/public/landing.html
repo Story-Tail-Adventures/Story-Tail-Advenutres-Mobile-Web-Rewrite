@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.1, the app subdomain's public landing (/). Ports app/(public)/(hero)/page.tsx and
+  its content.ts. Desktop copy (C201) is the source; the mobile artboard (M201) adds the "What you
+  can do here" section and flips the CTA order. Copy is the Next app's, byte for byte.
+
+  Filled by internal/handlers/public (landing.go): the hero photo, the reply-time claim in the
+  third feature card, and the head metadata.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Story-Tail Adventures · Your travel portal</title>
+</head>
+<body>
+<main>
+  <section class="on-photo hero-fill hero">
+    <img class="photo-fill" data-slot="hero-photo" src="https://images.unsplash.com/sample" alt="" sizes="100vw" loading="eager" decoding="async" fetchpriority="high">
+    <div class="scrim-landing hero-scrim" aria-hidden="true"></div>
+    <div class="container hero-inner hero-inner-center">
+      <div class="hero-copy hero-copy-660">
+        <p class="type-overline hero-overline">REST IS A GIFT · CREATION IS A GIFT</p>
+        <h1 class="hero-title t-hero-l">Plan a rest worthy of the <span class="hero-script">world He made.</span></h1>
+        <p class="hero-sub">Your portal for everything Story-Tail — trips in motion, every payment laid out plainly, and a place to dream up what's next. We believe vacation is rest, and rest is sacred.</p>
+
+        <!-- CTAs from md up: desktop order (C201), Sign in leads. -->
+        <div class="landing-ctas from-md">
+          <a class="btn btn-contained btn-brand btn-large btn-hero" href="/login">Sign in</a>
+          <a class="btn btn-outlined btn-large btn-hero btn-glass" href="/join">Create an account</a>
+          <a class="btn btn-text btn-large btn-hero btn-on-photo" href="/how-it-works">Take a quick tour →</a>
+        </div>
+        <!-- CTAs below md: the mobile artboard (M201) leads with Create an account, full width. -->
+        <div class="landing-ctas-m below-md">
+          <a class="btn btn-contained btn-brand btn-large btn-block btn-hero" href="/join">Create an account</a>
+          <a class="btn btn-outlined btn-large btn-block btn-hero btn-glass" href="/login">Sign in</a>
+          <a class="btn btn-text btn-small btn-tour-m" href="/how-it-works">Take a quick tour →</a>
+        </div>
+
+        <!-- Scripture strip: one line on mobile, both from md. -->
+        <div class="hero-scripture">
+          <span class="scripture-photo"><q class="scripture-photo-quote">“On the seventh day God rested.”</q><span class="scripture-photo-ref">GEN 2 : 2</span></span>
+          <span class="hero-scripture-more"><span class="hero-scripture-dot" aria-hidden="true">·</span><span class="scripture-photo"><q class="scripture-photo-quote">“It was very good.”</q><span class="scripture-photo-ref">GEN 1 : 31</span></span></span>
+        </div>
+
+        <!-- Glass chips: desktop artboard only; on mobile the menu and footer carry these links. -->
+        <div class="landing-chips from-md">
+          <a class="chip chip-outlined chip-clickable chip-glass" href="/explore"><span class="chip-label">Browse trip ideas →</span></a>
+          <a class="chip chip-outlined chip-clickable chip-glass" href="https://adventures.story-tail.com" target="_blank" rel="noopener noreferrer"><svg class="icon chip-icon chip-glass-icon" aria-hidden="true"><use href="/assets/icons.svg#external"></use></svg><span class="chip-label">adventures.story-tail.com<span class="visually-hidden">(opens in a new tab)</span></span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- "What you can do here": the mobile artboard's section, kept through tablet as a 3-up grid. -->
+  <section class="landing-features below-web" aria-labelledby="landing-features">
+    <div class="container landing-features-inner">
+      <h2 id="landing-features" class="type-overline pub-overline">WHAT YOU CAN DO HERE</h2>
+      <div class="landing-features-grid">
+        <div class="card feature-row">
+          <div class="feature-glyph feature-glyph-36" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#plane"></use></svg></div>
+          <div class="feature-text">
+            <h3 class="type-subtitle1 text-primary">View your trips</h3>
+            <p class="type-caption feature-body">Itinerary, day-by-day, always in your pocket.</p>
+          </div>
+        </div>
+        <div class="card feature-row">
+          <div class="feature-glyph feature-glyph-36" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg></div>
+          <div class="feature-text">
+            <h3 class="type-subtitle1 text-primary">Pay suppliers directly</h3>
+            <p class="type-caption feature-body">On their own secure site. We never see your card, and we never add a planning fee.</p>
+          </div>
+        </div>
+        <div class="card feature-row">
+          <div class="feature-glyph feature-glyph-36" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></div>
+          <div class="feature-text">
+            <h3 class="type-subtitle1 text-primary">Message Gyasi</h3>
+            <p class="type-caption feature-body" data-slot="reply-time">Threaded by trip. Reply usually &lt; 2h.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

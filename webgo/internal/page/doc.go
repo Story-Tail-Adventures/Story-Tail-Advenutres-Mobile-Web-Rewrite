@@ -104,7 +104,8 @@ func newScope(where string, errs *[]error) scope {
 func (s *scope) track() {
 	for name, n := range s.slots {
 		for _, a := range n.Attr {
-			if a.Namespace == "" && urlTags[a.Key] != nil {
+			// srcset is a list of links too (SrcSet), so a placeholder one is pending as well.
+			if a.Namespace == "" && (urlTags[a.Key] != nil || a.Key == "srcset") {
 				if s.urlPending[name] == nil {
 					s.urlPending[name] = map[string]bool{}
 				}
