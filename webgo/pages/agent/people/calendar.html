@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.2.3, the calendar: app/(agent)/agent/calendar/page.tsx. One month: the agenda (the
+  default below md) and the month grid (the default from md); ?view= pins either, ?month= picks
+  the month (validMonth's window, 2000-01 to 2100-12). Departures, returns and supplier payment
+  dates; a cancelled trip draws none of them.
+
+  The grid is a repeat of WEEKS with seven fixed day cells each (the page builder has no nested
+  repeats), and a day shows at most two events and "+N more", as the Next page does. Every
+  event links to its trip. Filled by internal/handlers/agent/people (calendar.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Calendar · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page">
+    <nav class="ppl-views" aria-label="Worklist views">
+      <a class="chip chip-outlined ppl-view" href="/agent"><span class="chip-label">Worklist</span></a>
+      <a class="chip chip-outlined ppl-view" href="/agent/pipeline"><span class="chip-label">Pipeline</span></a>
+      <a class="chip chip-secondary ppl-view" href="/agent/calendar" aria-current="page"><span class="chip-label">Calendar</span></a>
+    </nav>
+
+    <header class="ppl-cal-head">
+      <h1 class="type-h5 ppl-cal-title" data-slot="month-label">September 2026</h1>
+      <div class="ppl-cal-toggle below-md">
+        <a class="chip chip-outlined ppl-view" href="/agent/calendar?month=2026-09&amp;view=month" data-slot="xs-month"><span class="chip-label">Month</span></a>
+        <a class="chip chip-secondary ppl-view" href="/agent/calendar?month=2026-09&amp;view=agenda" aria-current="page" data-slot="xs-agenda"><span class="chip-label">Agenda</span></a>
+      </div>
+      <div class="ppl-cal-toggle from-md">
+        <a class="chip chip-secondary ppl-view" href="/agent/calendar?month=2026-09&amp;view=month" aria-current="page" data-slot="md-month"><span class="chip-label">Month</span></a>
+        <a class="chip chip-outlined ppl-view" href="/agent/calendar?month=2026-09&amp;view=agenda" data-slot="md-agenda"><span class="chip-label">Agenda</span></a>
+      </div>
+      <div class="row gap-1">
+        <a class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" href="/agent/calendar?month=2026-08" data-slot="prev"><span data-slot="prev-label">← 2026-08</span></a>
+        <a class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" href="/agent/calendar?month=2026-10" data-slot="next"><span data-slot="next-label">2026-10 →</span></a>
+      </div>
+    </header>
+
+    <p class="type-body2 text-secondary ppl-mt-2" data-slot="empty">Nothing on the calendar this month.</p>
+
+    <ol class="ppl-agenda" data-slot="agenda">
+      <li class="card ppl-agenda-item" data-repeat="agenda">
+        <a class="ppl-agenda-row" href="/agent/trips/sample" data-slot="a-link">
+          <span class="ppl-agenda-bar ppl-ev-departure" aria-hidden="true" data-slot="a-bar"></span>
+          <span class="ppl-row-main"><span class="type-subtitle2 ppl-block" data-slot="a-label">Maya &amp; Daniel Carter departs</span><span class="type-body2 text-secondary ppl-block" data-slot="a-detail">Cabo, Four Nights</span></span>
+          <span class="type-body2 text-secondary" data-slot="a-date">09-29</span>
+        </a>
+      </li>
+    </ol>
+
+    <div data-slot="month-grid">
+      <table class="table ppl-cal-table">
+        <caption class="visually-hidden" data-slot="caption">September 2026</caption>
+        <thead>
+          <tr><th scope="col" class="ppl-weekday">Sun</th><th scope="col" class="ppl-weekday">Mon</th><th scope="col" class="ppl-weekday">Tue</th><th scope="col" class="ppl-weekday">Wed</th><th scope="col" class="ppl-weekday">Thu</th><th scope="col" class="ppl-weekday">Fri</th><th scope="col" class="ppl-weekday">Sat</th></tr>
+        </thead>
+        <tbody>
+        <tr data-repeat="weeks">
+          <td class="ppl-day" data-slot="c0">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c0-today">22</span><span class="type-caption text-secondary" data-slot="c0-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c0-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c0-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c0-more">+1 more</p>
+          </td>
+          <td class="ppl-day" data-slot="c1">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c1-today">22</span><span class="type-caption text-secondary" data-slot="c1-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c1-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c1-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c1-more">+1 more</p>
+          </td>
+          <td class="ppl-day" data-slot="c2">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c2-today">22</span><span class="type-caption text-secondary" data-slot="c2-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c2-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c2-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c2-more">+1 more</p>
+          </td>
+          <td class="ppl-day" data-slot="c3">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c3-today">22</span><span class="type-caption text-secondary" data-slot="c3-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c3-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c3-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c3-more">+1 more</p>
+          </td>
+          <td class="ppl-day" data-slot="c4">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c4-today">22</span><span class="type-caption text-secondary" data-slot="c4-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c4-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c4-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c4-more">+1 more</p>
+          </td>
+          <td class="ppl-day" data-slot="c5">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c5-today">22</span><span class="type-caption text-secondary" data-slot="c5-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c5-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c5-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c5-more">+1 more</p>
+          </td>
+          <td class="ppl-day" data-slot="c6">
+            <div class="ppl-day-top"><span class="avatar ppl-today" data-slot="c6-today">22</span><span class="type-caption text-secondary" data-slot="c6-num">1</span></div>
+            <a class="type-caption ppl-ev ppl-ev-departure" href="/agent/trips/sample" title="Maya &amp; Daniel Carter departs · Cabo" data-slot="c6-e1">Maya &amp; Daniel Carter departs</a>
+            <a class="type-caption ppl-ev ppl-ev-payment" href="/agent/trips/sample" title="Final balance · $2,500 · Maya &amp; Daniel Carter" data-slot="c6-e2">Final balance · $2,500</a>
+            <p class="type-caption text-secondary ppl-mt-0_5" data-slot="c6-more">+1 more</p>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="type-body2 text-secondary ppl-deferral">Blocking time arrives with §3.12, which is where the time-off shape gets defined.</p>
+  </div>
+</main>
+</body>
+</html>

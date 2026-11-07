@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.2.1, the agent worklist: app/(agent)/agent/page.tsx. Pattern D: the greeting, the
+  KPI strip (a snap carousel below md, three across on tablets, five from the web breakpoint),
+  then six stacked sections, each with its count, its empty line and its rows.
+
+  The five tiles are fixed (Gyasi chose the prototype's strip on 2026-09-19), so they are
+  written out here, labels and icons included; only their values are slots. Only the
+  commission tile links somewhere (§3.7.1). A tile with nothing to report says why
+  (kpi-cycle-unavailable), never a confident 0.
+
+  Filled by internal/handlers/agent/people (worklist.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Worklist · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page">
+    <nav class="ppl-views" aria-label="Worklist views">
+      <a class="chip chip-secondary ppl-view" href="/agent" aria-current="page"><span class="chip-label">Worklist</span></a>
+      <a class="chip chip-outlined ppl-view" href="/agent/pipeline"><span class="chip-label">Pipeline</span></a>
+      <a class="chip chip-outlined ppl-view" href="/agent/calendar"><span class="chip-label">Calendar</span></a>
+    </nav>
+
+    <header class="ppl-head">
+      <p class="type-overline ppl-overline" data-slot="period">SEP 21</p>
+      <h1 class="type-h5 ppl-greeting"><span data-slot="greeting">Morning, Gyasi.</span><br><span data-slot="needs-you">3 things need you today.</span></h1>
+      <p class="type-body2 text-secondary ppl-mt-0_5" data-slot="zero-sub">The book is quiet. That is allowed.</p>
+    </header>
+
+    <div class="ppl-kpis">
+      <div class="card ppl-kpi ppl-tone-primary">
+        <div class="ppl-kpi-body">
+          <div class="ppl-kpi-top"><span class="type-caption ppl-kpi-label">Pipeline value</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></div>
+          <div class="type-h4 ppl-kpi-value" data-slot="kpi-pipeline-value">$12,500</div>
+          <div class="type-caption ppl-kpi-sub" data-slot="kpi-pipeline-sub">5 open trips</div>
+        </div>
+      </div>
+      <div class="card ppl-kpi ppl-tone-secondary">
+        <div class="ppl-kpi-body">
+          <div class="ppl-kpi-top"><span class="type-caption ppl-kpi-label">Booked · month</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></div>
+          <div class="type-h4 ppl-kpi-value" data-slot="kpi-booked-value">$7,480</div>
+        </div>
+      </div>
+      <div class="card ppl-kpi ppl-tone-tertiary">
+        <a class="ppl-kpi-link" href="/agent/commission">
+          <span class="ppl-kpi-body">
+            <span class="ppl-kpi-top"><span class="type-caption ppl-kpi-label">Commission expected</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#dollar"></use></svg></span>
+            <span class="type-h4 ppl-kpi-value" data-slot="kpi-commission-value">$940</span>
+            <span class="type-caption ppl-kpi-sub" data-slot="kpi-commission-sub">65% confidence</span>
+          </span>
+        </a>
+      </div>
+      <div class="card ppl-kpi ppl-tone-surface">
+        <div class="ppl-kpi-body">
+          <div class="ppl-kpi-top"><span class="type-caption ppl-kpi-label">Inquiry → book</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#clock"></use></svg></div>
+          <p class="type-body2 ppl-kpi-unavailable" data-slot="kpi-cycle-unavailable">Not enough history yet — this fills in as trips move to Booked.</p>
+          <div class="type-h4 ppl-kpi-value" data-slot="kpi-cycle-value">12 d</div>
+          <div class="type-caption ppl-kpi-sub" data-slot="kpi-cycle-sub">over 4 trips</div>
+        </div>
+      </div>
+      <div class="card ppl-kpi ppl-tone-surface">
+        <div class="ppl-kpi-body">
+          <div class="ppl-kpi-top"><span class="type-caption ppl-kpi-label">Active clients</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></div>
+          <div class="type-h4 ppl-kpi-value" data-slot="kpi-clients-value">7</div>
+        </div>
+      </div>
+    </div>
+
+    <section class="card ppl-section">
+      <div class="ppl-section-head"><h2 class="type-subtitle1 ppl-section-title">Proposals awaiting reply</h2><span class="chip chip-small chip-outlined" data-slot="proposals-count"><span class="chip-label" data-slot="proposals-count-n">1</span></span></div>
+      <p class="type-body2 text-secondary ppl-section-empty" data-slot="proposals-empty">Nothing out in client court.</p>
+      <div class="ppl-row-item" data-repeat="proposals">
+        <a class="ppl-row" href="/agent/trips/sample" data-slot="p-link">
+          <span class="avatar ppl-initials" aria-hidden="true" data-slot="p-initials">MD</span>
+          <span class="ppl-row-main"><span class="type-subtitle2 ppl-block" data-slot="p-client">Maya &amp; Daniel Carter</span><span class="type-body2 text-secondary ppl-block" data-slot="p-title">Cabo, Four Nights</span></span>
+          <span class="ppl-row-end"><span class="type-caption ppl-money ppl-block" data-slot="p-value">$5,000</span><span class="ppl-block ppl-mt-0_5" data-slot="p-due"><span class="status-chip status-proposal" data-slot="p-due-label">Awaiting reply</span></span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card ppl-section">
+      <div class="ppl-section-head"><h2 class="type-subtitle1 ppl-section-title">Payments to settle</h2><span class="chip chip-small chip-outlined" data-slot="payments-count"><span class="chip-label" data-slot="payments-count-n">1</span></span></div>
+      <p class="type-body2 text-secondary ppl-section-empty" data-slot="payments-empty">No supplier payments due.</p>
+      <div class="ppl-row-item" data-repeat="payments">
+        <a class="ppl-row" href="/agent/trips/sample" data-slot="pay-link">
+          <span class="ppl-row-main"><span class="type-subtitle2 ppl-block" data-slot="pay-client">Maya &amp; Daniel Carter</span><span class="type-body2 text-secondary ppl-block" data-slot="pay-label">Cabo, Four Nights · Final balance</span></span>
+          <span class="ppl-row-end"><span class="type-caption ppl-money ppl-block" data-slot="pay-amount">$2,500</span><span class="type-body2 text-secondary ppl-block" data-slot="pay-due">4 days</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card ppl-section">
+      <div class="ppl-section-head"><h2 class="type-subtitle1 ppl-section-title">New inquiries</h2><span class="chip chip-small chip-outlined" data-slot="inquiries-count"><span class="chip-label" data-slot="inquiries-count-n">1</span></span></div>
+      <p class="type-body2 text-secondary ppl-section-empty" data-slot="inquiries-empty">No new inquiries.</p>
+      <div class="ppl-row-item" data-repeat="inquiries">
+        <a class="ppl-row" href="/agent/trips/sample" data-slot="inq-link">
+          <span class="avatar ppl-initials" aria-hidden="true" data-slot="inq-initials">MD</span>
+          <span class="ppl-row-main"><span class="type-subtitle2 ppl-block" data-slot="inq-client">Maya &amp; Daniel Carter</span><span class="type-body2 text-secondary ppl-block" data-slot="inq-title">Cabo, Four Nights</span></span>
+          <span class="type-caption text-secondary shrink-0" data-slot="inq-wait">Waiting 2 days</span>
+          <span class="status-chip status-inquiry">Inquiry</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card ppl-section">
+      <div class="ppl-section-head"><h2 class="type-subtitle1 ppl-section-title">New leads</h2><span class="chip chip-small chip-outlined" data-slot="leads-count"><span class="chip-label" data-slot="leads-count-n">1</span></span></div>
+      <p class="type-body2 text-secondary ppl-section-empty" data-slot="leads-empty">No new leads.</p>
+      <div class="ppl-row-item" data-repeat="leads">
+        <a class="ppl-row" href="/agent/leads/sample" data-slot="lead-link">
+          <span class="avatar ppl-initials" aria-hidden="true" data-slot="lead-initials">DR</span>
+          <span class="ppl-row-main"><span class="type-subtitle2 ppl-block" data-slot="lead-name">Dana Reyes</span><span class="type-body2 text-secondary ppl-block truncate" data-slot="lead-preview">Hi! We are thinking about a honeymoon…</span></span>
+          <span class="type-caption text-secondary shrink-0" data-slot="lead-wait">Arrived today</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card ppl-section">
+      <div class="ppl-section-head"><h2 class="type-subtitle1 ppl-section-title">Travelers in next 30 days</h2><span class="chip chip-small chip-outlined" data-slot="departing-count"><span class="chip-label" data-slot="departing-count-n">1</span></span></div>
+      <p class="type-body2 text-secondary ppl-section-empty" data-slot="departing-empty">Nobody travelling in the next month.</p>
+      <div class="ppl-row-item" data-repeat="departing">
+        <a class="ppl-row" href="/agent/trips/sample" data-slot="dep-link">
+          <span class="ppl-row-main"><span class="type-subtitle2 ppl-block" data-slot="dep-client">Maya &amp; Daniel Carter</span><span class="type-body2 text-secondary ppl-block" data-slot="dep-title">Cabo, Four Nights</span></span>
+          <span class="status-chip status-traveling" data-slot="dep-start">8 days</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="card ppl-section">
+      <div class="ppl-section-head"><h2 class="type-subtitle1 ppl-section-title">Recent messages</h2><span class="chip chip-small chip-outlined" data-slot="messages-count"><span class="chip-label" data-slot="messages-count-n">1</span></span></div>
+      <p class="type-body2 text-secondary ppl-section-empty" data-slot="messages-empty">No messages waiting.</p>
+      <div class="ppl-row-item" data-repeat="messages">
+        <a class="ppl-row" href="/agent/messages/sample" data-slot="msg-link">
+          <span class="avatar ppl-initials" aria-hidden="true" data-slot="msg-initials">MD</span>
+          <span class="ppl-row-main"><span class="ppl-msg-top"><span class="type-subtitle2 grow" data-slot="msg-client">Maya &amp; Daniel Carter</span><span class="type-caption text-secondary" data-slot="msg-time">Sep 21</span></span><span class="type-body2 ppl-block ppl-italic" data-slot="msg-preview">Can we add a night?</span></span>
+          <span class="chip chip-small chip-outlined" data-slot="msg-unread"><span class="chip-label" data-slot="msg-unread-n">1</span></span>
+        </a>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>
