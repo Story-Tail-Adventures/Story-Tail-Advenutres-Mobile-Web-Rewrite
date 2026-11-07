@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.7 Footer pages (/legal/{privacy,terms,cookies,accessibility}). Ports
+  app/(public)/(plain)/legal/[slug]/page.tsx with LegalNav, LegalArticle and PrintButton.
+  The documents are content/data/legal.json, filled in Go; the page copy is LEGAL_PAGE, here.
+
+  The article is flat: page.Repeat does not nest, so the document's sections become one run
+  of headings and paragraphs (legal-pre), the one bullet list a document may carry (legal-list),
+  and the run after it (legal-post). Margins collapse the same way through the sections Next
+  drew, so the layout is identical; internal/content's tests hold every document to one list.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Legal · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="legal-layout">
+    <nav class="legal-nav" aria-label="Legal pages">
+      <!-- md and up: aside column -->
+      <div class="legal-aside from-md">
+        <p class="type-overline legal-aside-heading">LEGAL &amp; COMPLIANCE</p>
+        <ul class="legal-aside-list">
+          <li class="legal-aside-item" data-repeat="aside"><a class="legal-aside-link" href="/legal/privacy" data-slot="aside-link"><span class="legal-aside-text" data-slot="aside-title">Privacy</span></a></li>
+        </ul>
+        <div class="paper legal-tip"><span class="type-caption legal-tip-text">Need to print? Use “Print this page” at the top of any page.</span></div>
+      </div>
+      <!-- Below md: the chip strip (M207). -->
+      <div class="legal-chips below-md">
+        <ul class="h-scroll legal-chip-list">
+          <li data-repeat="chip"><a class="chip chip-clickable tap-target legal-chip" href="/legal/privacy" data-slot="chip-link"><span class="chip-label" data-slot="chip-label">Privacy</span></a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <article class="legal-article">
+      <p class="type-overline pub-overline">LEGAL</p>
+      <h1 class="legal-title" data-slot="title">Privacy</h1>
+      <div class="type-caption legal-meta">
+        <span>Last updated <time datetime="2026-09-02" data-slot="updated">September 2, 2026</time></span>
+        <span aria-hidden="true">·</span>
+        <button type="button" class="btn btn-text btn-small tap-target no-print legal-print" data-print>Print this page</button>
+      </div>
+      <div class="legal-draft" data-slot="draft">
+        <div class="alert alert-warning legal-alert" role="note" aria-live="off"><div class="alert-message">Draft — this page has not been reviewed yet. It describes how the portal is meant to work; the final wording may change.</div></div>
+      </div>
+      <div class="legal-prose legal-body">
+        <div class="legal-block" data-repeat="legal-pre"><h2 class="type-h5 legal-h" data-slot="pre-heading">1. Heading</h2><p class="type-body1 legal-p" data-slot="pre-para">Paragraph.</p></div>
+        <ul class="type-body1 legal-p legal-ul" data-slot="legal-list">
+          <li data-repeat="legal-bullet"><span data-slot="bullet">Bullet.</span></li>
+        </ul>
+        <div class="legal-block" data-repeat="legal-post"><h2 class="type-h5 legal-h" data-slot="post-heading">2. Heading</h2><p class="type-body1 legal-p" data-slot="post-para">Paragraph.</p></div>
+      </div>
+    </article>
+  </div>
+</main>
+</body>
+</html>
