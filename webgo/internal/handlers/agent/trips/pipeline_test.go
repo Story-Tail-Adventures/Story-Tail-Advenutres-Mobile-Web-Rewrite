@@ -88,6 +88,14 @@ func TestPipelineMove(t *testing.T) {
 		t.Errorf("%d calls", n)
 	}
 
+	// A version is the plain integer the board sent, or nothing is sent.
+	for _, bad := range []string{"4abc", "4.9", " 4", "1e3", "0x10", "-4", "0", "99999999999999999999", ""} {
+		a.post("/agent/pipeline/stage", url.Values{"tripId": {pipeA}, "status": {"booked"}, "from": {"inquiry"}, "expectedVersion": {bad}})
+	}
+	if n := len(a.fake.calls("agent-trip-status")); n != 1 {
+		t.Errorf("a malformed version was sent (%d calls)", n)
+	}
+
 	// The 409: the board again, "moved since" on THAT card, read from the conflict and never
 	// from the words (the function's sentence here says something else entirely).
 	a.fake.fn("agent-trip-status", reply{409, `{"detail":"Version mismatch."}`})
@@ -125,5 +133,31 @@ func TestPipelineMove(t *testing.T) {
 	b.fake.fn("agent-trip-status", reply{401, `{}`})
 	if rec := b.post("/agent/pipeline/stage", url.Values{"tripId": {pipeA}, "status": {"booked"}, "from": {"inquiry"}, "expectedVersion": {"4"}, "view": {"booked"}}); rec.Header().Get("Location") != "/login?next="+url.QueryEscape("/agent/pipeline?stage=booked") {
 		t.Errorf("401 = %q", rec.Header().Get("Location"))
+	}
+}
+
+// After a 409 the board is read again and the card may have moved: a phone shows the column
+// it now sits in; a card that left the board gets the message above it.
+func TestPipelineStaleMessageFollowsTheCard(t *testing.T) {
+	a := pipelineApp(t)
+	a.fake.fn("agent-trip-status", reply{409, `{"detail":"x"}`})
+	// Another tab moved B from booked to completed; this phone was looking at booked.
+	a.fake.read("agent_trip_board", strings.Replace(boardJSON, `"status":"booked"`, `"status":"completed"`, 1))
+	rec := a.post("/agent/pipeline/stage", url.Values{"tripId": {pipeB}, "status": {"in_progress"}, "from": {"booked"}, "expectedVersion": {"9"}, "view": {"booked"}})
+	body := rec.Body.String()
+	sel := strings.Index(body, `data-selected="true"`)
+	msg := strings.Index(body, "This trip moved since the board was loaded.")
+	if rec.Code != 409 || sel < 0 || msg < sel || !strings.Contains(body[sel:msg], ">Completed<") {
+		t.Errorf("the message is not in the phone's (completed) column: %d", rec.Code)
+	}
+	has(t, rec, `name="view" value="completed"`)
+	lacks(t, rec, `data-slot="board-error"`)
+
+	// Cancelled from another tab: no card to hang it on, so it is said above the board.
+	a.fake.read("agent_trip_board", strings.Replace(boardJSON, `"status":"booked"`, `"status":"cancelled"`, 1))
+	rec = a.post("/agent/pipeline/stage", url.Values{"tripId": {pipeB}, "status": {"in_progress"}, "from": {"booked"}, "expectedVersion": {"9"}, "view": {"booked"}})
+	has(t, rec, `data-slot="board-error"`, "This trip moved since the board was loaded. Reload and try again.")
+	if strings.Count(rec.Body.String(), `role="alert"`) != 1 {
+		t.Error("the message is not said exactly once")
 	}
 }

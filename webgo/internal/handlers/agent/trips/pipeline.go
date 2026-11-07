@@ -19,18 +19,21 @@ import (
 // Five columns from trip_status (cancelled is counted beneath, not columned). One write: a
 // card's stage menu posts to agent-trip-status with the version the board was read at. A
 // write that loses the race gets a 409; that is read from Result.Conflict, never from the
-// sentence, and the board comes back with "moved since" on that card. On a phone one stage
-// shows at a time, chosen by ?stage= (a link, not client state).
+// sentence, and the board comes back with "moved since" on that card, re-read: a phone
+// shows the column the card now sits in, and a card that left the board (cancelled from
+// another tab) gets the message above it. On a phone one stage shows at a time, chosen by
+// ?stage= (a link, not client state). A failed read offers "Try again" (this URL), where
+// Next's ErrorState sent the advisor to /dashboard, the traveler route.
 
 const (
 	copyCancelledOne  = "1 cancelled trip is not on the board. Cancelled is a status, not a stage."
 	copyCancelledMany = " cancelled trips are not on the board. Cancelled is a status, not a stage."
 )
 
-// kpiRow is the one field of AgentKpiRow the board reads: the currency its money is in. No
-// row at all means not an agent, and the board is a failed read.
+// kpiRow is AgentKpiRow as the board uses it: only that it exists. No row at all means not
+// an agent, and the board is a failed read. (The money is USD: trip_currency_usd.)
 type kpiRow struct {
-	Currency *string `json:"currency"`
+	AgentID string `json:"agent_id"`
 }
 
 // boardRow is the part of AgentTripRow the board shows.
@@ -86,6 +89,18 @@ func buildPipeline(trips []boardRow) pipelineBoard {
 	return b
 }
 
+// columnOf is the stage a card sits in on this board.
+func (b pipelineBoard) columnOf(tripID string) (string, bool) {
+	for _, c := range b.columns {
+		for _, card := range c.cards {
+			if card.tripID == tripID {
+				return c.status, true
+			}
+		}
+	}
+	return "", false
+}
+
 // selectedStage is the column a phone shows: ?stage= when it names one, else the first.
 func selectedStage(q string) string {
 	if isPipelineStage(q) {
@@ -103,7 +118,7 @@ func cancelledNote(n int) string {
 
 func pipelineHref(stage string) string { return "/agent/pipeline?stage=" + url.QueryEscape(stage) }
 
-var pipelineSlots = []string{"columns-off"}
+var pipelineSlots = []string{"columns-off", "board-error"}
 
 var pipelineSpecs = []page.Spec{spec("agent/trips/pipeline.html", pipelineSlots, map[string][]string{
 	"pick": {"pick", "pick-label"},
@@ -145,8 +160,16 @@ func (h pipelineRenderer) show(w http.ResponseWriter, r *http.Request, v visit, 
 			board = &b
 		}
 	}
+	boardError := ""
+	if failed != nil && board != nil {
+		if col, ok := board.columnOf(failed.tripID); ok {
+			stage = col // the phone shows the card, wherever the re-read put it
+		} else {
+			boardError, failed = failed.message, nil // off the board now: said above it
+		}
+	}
 	if fillFrame(doc, r, v, st) {
-		fillPipeline(doc, board, stage, failed)
+		fillPipeline(doc, board, stage, failed, boardError)
 	}
 	web.Render(w, h.d.Log, doc, status, web.Private)
 }
@@ -185,7 +208,9 @@ func mountPipeline(rt *gate.Router, d handlers.Deps) error {
 		v.here = pipelineHref(stage)
 		back := func() { web.SeeOther(w, r, pipelineHref(stage)) }
 		tripID, status, from := f.Get("tripId"), f.Get("status"), f.Get("from")
-		version, versionOK := parseIntJS(f.Get("expectedVersion"))
+		// The version came down with the board as a plain integer; anything else is not it.
+		version, err := strconv.Atoi(f.Get("expectedVersion"))
+		versionOK := err == nil && version > 0
 		switch {
 		case v.noAccess:
 			h.show(w, r, v, stage, http.StatusForbidden, nil) // an admin: nothing is sent
@@ -219,9 +244,14 @@ func mountPipeline(rt *gate.Router, d handlers.Deps) error {
 	return nil
 }
 
-func fillPipeline(d *page.Doc, b *pipelineBoard, stage string, failed *moveError) {
+func fillPipeline(d *page.Doc, b *pipelineBoard, stage string, failed *moveError, boardError string) {
 	if b == nil { // fillFrame removed the body
 		return
+	}
+	if boardError != "" {
+		d.Text("board-error", boardError)
+	} else {
+		d.Remove("board-error")
 	}
 	d.Repeat("pick", len(b.columns), func(i int, row *page.Row) {
 		col := b.columns[i]
