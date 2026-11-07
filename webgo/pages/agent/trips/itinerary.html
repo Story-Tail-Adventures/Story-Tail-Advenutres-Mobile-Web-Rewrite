@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.14, Itinerary Editor. Ports app/(agent)/agent/trips/[tripId]/itinerary/page.tsx
+  with ItineraryDayList and ItineraryForms. Filled by internal/handlers/agent/trips
+  (itinerary.go).
+
+  One route, the open form in the URL: ?activity=<id>, ?addTo=<dayId>, ?day=<id>, ?addDay=1.
+  Each day is a card holding its entries: the "act" repeat sits inside the "day" repeat.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Itinerary · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col trp-col-1280" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <div class="trp-notfound" data-slot="not-found">
+        <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span>
+        <h1 class="type-h5">No such trip</h1>
+        <p class="type-body2 text-secondary trp-mt-1">It may have been deleted, or it belongs to another advisor.</p>
+        <a class="btn btn-outlined btn-secondary st-btn trp-mt-2_5" href="/agent">Back to the worklist</a>
+      </div>
+
+      <div data-slot="trip">
+        <header class="card trp-dhead">
+          <div class="card-content trp-dhead-body">
+            <p class="type-caption text-secondary trp-block"><a class="link link-hover link-inherit" href="/agent/trips/sample" data-slot="back-link">Back to the trip</a> · <span data-slot="client-name">Jordan Hayes</span></p>
+            <div class="trp-dhead-title">
+              <h1 class="type-h5 trp-fw-700" data-slot="title">Anniversary Week in Negril</h1>
+              <!-- Published or draft, never blank: is the client already reading this? -->
+              <span class="chip chip-small chip-outlined trp-kbd"><span class="chip-label" data-slot="published">Draft</span></span>
+            </div>
+            <p class="type-caption text-secondary trp-block trp-mt-0_25" data-slot="counts">4 days · 9 entries</p>
+
+            <div class="trp-mt-1_5">
+              <form class="row wrap gap-1" method="post" action="/agent/trips/sample/itinerary/generate" data-submit-once data-slot="gen-form">
+                <button type="submit" class="btn btn-contained btn-brand btn-small st-btn">Fill in from the trip</button>
+                <button type="button" class="btn btn-outlined btn-small st-btn" disabled title="Previewing what the client sees arrives with §3.5.6.">Preview<span class="visually-hidden"> — Previewing what the client sees arrives with §3.5.6.</span></button>
+              </form>
+              <p class="type-caption text-secondary trp-gen-hint"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg>Adds a day for every date and an entry for anything booked that isn't here yet. Never changes what you've already written.</p>
+              <div class="trp-mt-0_75" data-slot="gen-error"><div class="alert alert-error" role="status"><div class="alert-message" data-slot="gen-error-text">Give the trip a start and end date first, then this can lay out the days.</div></div></div>
+              <div class="paper trp-note-paper trp-mt-0_75" role="status" data-slot="gen-note"><span class="type-caption" data-slot="gen-note-text">Filled in what was missing.</span></div>
+            </div>
+          </div>
+        </header>
+
+        <div class="trp-igrid">
+          <section>
+            <div class="trp-ihead">
+              <h2 class="type-subtitle1 trp-fw-600">Itinerary</h2>
+              <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/itinerary?addDay=1" data-slot="add-day">Add a day</a>
+            </div>
+
+            <div class="card trp-canvas-empty" data-slot="days-empty">
+              <div class="card-content trp-canvas-empty-body">
+                <p class="type-subtitle1 trp-fw-600">Nothing written yet</p>
+                <p class="type-body2 text-secondary trp-iempty-text">Fill it in from the trip to get the days laid out, then make it yours.</p>
+              </div>
+            </div>
+
+            <div class="trp-stack-12" data-slot="days">
+              <section class="card" data-repeat="day" data-slot="day">
+                <div class="card-content trp-pad-14">
+                  <div class="trp-iday-head">
+                    <p class="type-script trp-iday-num" data-slot="d-num">Day 1</p>
+                    <p class="type-caption text-secondary" data-slot="d-date">Jan 13</p>
+                    <p class="type-subtitle1 trp-fw-600" data-slot="d-label">Seven Mile Beach</p>
+                    <div class="trp-iday-actions">
+                      <a class="btn btn-text btn-small st-btn" href="/agent/trips/sample/itinerary?day=sample" data-slot="d-edit">Edit<span class="visually-hidden" data-slot="d-edit-sr"> Day 1</span></a>
+                      <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/itinerary?addTo=sample" data-slot="d-add">Add to this day<span class="visually-hidden" data-slot="d-add-sr"> — Day 1</span></a>
+                    </div>
+                  </div>
+                  <p class="type-body2 text-secondary trp-mt-0_75" data-slot="d-summary">Land, check in, and let the island set the pace.</p>
+                  <p class="type-body2 text-secondary trp-mt-1_25" data-slot="d-empty">Nothing on this day yet.</p>
+                  <ol class="trp-ol trp-stack-6 trp-mt-1_25" data-slot="d-acts">
+                    <li class="card paper-outlined trp-iact" data-repeat="act" data-slot="act">
+                      <div class="trp-move">
+                        <form method="post" action="/agent/trips/sample/itinerary/move" data-slot="up-form">
+                          <input type="hidden" name="dayId" value="sample" data-slot="up-day">
+                          <input type="hidden" name="activityId" value="sample" data-slot="up-id">
+                          <input type="hidden" name="direction" value="up">
+                          <button type="submit" class="icon-btn trp-icon-btn-20" title="Move up" data-slot="up-btn"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#chevron_up"></use></svg><span class="visually-hidden" data-slot="up-sr">Move up — Check in</span></button>
+                        </form>
+                        <form method="post" action="/agent/trips/sample/itinerary/move" data-slot="down-form">
+                          <input type="hidden" name="dayId" value="sample" data-slot="down-day">
+                          <input type="hidden" name="activityId" value="sample" data-slot="down-id">
+                          <input type="hidden" name="direction" value="down">
+                          <button type="submit" class="icon-btn trp-icon-btn-20" title="Move down" data-slot="down-btn"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#chevron_down"></use></svg><span class="visually-hidden" data-slot="down-sr">Move down — Check in</span></button>
+                        </form>
+                      </div>
+                      <div class="trp-crow-text">
+                        <p class="type-subtitle2 trp-fw-600" data-slot="a-title">Check in</p>
+                        <p class="type-caption text-secondary trp-block" data-slot="a-meta">15:00 · afternoon · Sandals Negril</p>
+                        <p class="type-body2 trp-mt-0_5" data-slot="a-body">Ocean-view suite, top floor.</p>
+                        <div class="paper trp-itip" data-slot="a-tip">
+                          <p class="type-body2"><span class="type-overline trp-lh-13">Gyasi's Tip</span><span data-slot="a-tip-text"> Ask for the sunset side.</span></p>
+                        </div>
+                      </div>
+                      <div class="trp-iact-end">
+                        <span class="chip chip-small chip-outlined trp-kbd" title="This entry came from something on the trip. Editing it here doesn't change the booking." data-slot="a-from"><span class="chip-label">From a booking</span></span>
+                        <a class="btn btn-text btn-small st-btn" href="/agent/trips/sample/itinerary?activity=sample" data-slot="a-edit">Edit<span class="visually-hidden" data-slot="a-edit-sr"> Check in</span></a>
+                        <form method="post" action="/agent/trips/sample/itinerary/delete" data-slot="rm-form">
+                          <input type="hidden" name="activityId" value="sample" data-slot="rm-id">
+                          <button type="submit" class="icon-btn trp-icon-btn-28" title="Removing an entry takes it off the itinerary. The booking it came from stays."><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#trash"></use></svg><span class="visually-hidden" data-slot="rm-sr">Remove Check in — Removing an entry takes it off the itinerary. The booking it came from stays.</span></button>
+                        </form>
+                      </div>
+                    </li>
+                  </ol>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <!-- The rail exists only while a form is open. -->
+          <form class="card trp-sheet" method="post" action="/agent/trips/sample/itinerary/day" data-submit-once data-slot="day-form">
+            <input type="hidden" name="dayId" value="sample" data-slot="df-id">
+            <h2 class="type-h5 trp-mb-1_5" data-slot="df-heading">Add a day</h2>
+            <div class="alert alert-error trp-mb-1_5" role="alert" aria-live="polite" data-slot="df-error"><div class="alert-message" data-slot="df-error-text">That didn't save. Try again in a moment.</div></div>
+            <div class="trp-sheet-fields">
+              <div class="field">
+                <label class="field-label" for="day-date">Date</label>
+                <input class="input" id="day-date" name="date" type="date" data-slot="df-date">
+                <p class="field-help field-error" id="day-date-error" data-slot="df-date-error">A day needs a date.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="day-label">What to call it</label>
+                <input class="input" id="day-label" name="label" maxlength="120" placeholder="Seven Mile Beach" aria-describedby="day-label-hint" data-slot="df-label">
+                <p class="field-help" id="day-label-hint">A few words the client sees above the day.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="day-summary">Set the scene</label>
+                <textarea class="input trp-textarea" id="day-summary" name="summary" rows="3" maxlength="4000" aria-describedby="day-summary-hint" data-slot="df-summary"></textarea>
+                <p class="field-help" id="day-summary-hint">Optional. A sentence or two about the shape of the day.</p>
+              </div>
+            </div>
+            <div class="row wrap gap-1 trp-mt-2">
+              <button type="submit" class="btn btn-contained btn-brand st-btn">Save</button>
+              <a class="btn btn-outlined btn-secondary st-btn" href="/agent/trips/sample/itinerary" data-slot="df-cancel">Cancel</a>
+            </div>
+          </form>
+
+          <form class="card trp-sheet" method="post" action="/agent/trips/sample/itinerary/activity" data-submit-once data-slot="act-form">
+            <input type="hidden" name="activityId" value="sample" data-slot="af-id">
+            <h2 class="type-h5 trp-mb-1_5" data-slot="af-heading">Add something</h2>
+            <div class="paper trp-note-paper trp-mb-1_5" data-slot="af-from-booking">
+              <svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg>
+              <span class="type-caption">This entry came from something on the trip. Editing it here doesn't change the booking.</span>
+            </div>
+            <div class="alert alert-error trp-mb-1_5" role="alert" aria-live="polite" data-slot="af-error"><div class="alert-message" data-slot="af-error-text">That didn't save. Try again in a moment.</div></div>
+            <div class="trp-sheet-fields">
+              <div class="field">
+                <label class="field-label" for="act-day">Day</label>
+                <div class="select"><select class="input" id="act-day" name="dayId">
+                  <option value="sample" data-repeat="day-opt" data-slot="day-opt">Day 1 · Jan 13</option>
+                </select></div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="act-title">What the client reads</label>
+                <input class="input" id="act-title" name="title" required maxlength="200" placeholder="Catamaran to Booby Cay" data-slot="af-title">
+                <p class="field-help field-error" id="act-title-error" data-slot="af-title-error">Give it a name — it's the line the client reads.</p>
+              </div>
+              <div class="trp-grid-2">
+                <div class="field">
+                  <label class="field-label" for="act-start">Starts</label>
+                  <input class="input" id="act-start" name="startTime" type="time" data-slot="af-start">
+                </div>
+                <div class="field">
+                  <label class="field-label" for="act-end">Ends</label>
+                  <input class="input" id="act-end" name="endTime" type="time" data-slot="af-end">
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="act-block">When in the day</label>
+                <div class="select"><select class="input" id="act-block" name="block">
+                  <option value="" data-repeat="block-opt" data-slot="block-opt">Work it out from the time</option>
+                </select></div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="act-body">Tell them about it</label>
+                <textarea class="input trp-textarea" id="act-body" name="body" rows="4" maxlength="4000" aria-describedby="act-body-hint" data-slot="af-body"></textarea>
+                <p class="field-help" id="act-body-hint">Optional. The part that makes it feel like a trip rather than a booking.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="act-tip">Gyasi's Tip</label>
+                <textarea class="input trp-textarea" id="act-tip" name="gyasisTip" rows="3" maxlength="2000" aria-describedby="act-tip-hint" data-slot="af-tip"></textarea>
+                <p class="field-help" id="act-tip-hint">The bit only someone who's been there would know.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="act-where">Where</label>
+                <input class="input" id="act-where" name="location" maxlength="200" data-slot="af-location">
+              </div>
+              <div class="field">
+                <label class="field-label" for="act-address">Address</label>
+                <input class="input" id="act-address" name="address" maxlength="200" data-slot="af-address">
+              </div>
+              <div class="trp-grid-2">
+                <div class="field">
+                  <label class="field-label" for="act-phone">Phone</label>
+                  <input class="input" id="act-phone" name="phone" maxlength="40" data-slot="af-phone">
+                </div>
+                <div class="field">
+                  <label class="field-label" for="act-conf">Confirmation number</label>
+                  <input class="input trp-mono" id="act-conf" name="confirmationNumber" maxlength="80" data-slot="af-confirmation">
+                </div>
+              </div>
+            </div>
+            <div class="row wrap gap-1 trp-mt-2">
+              <button type="submit" class="btn btn-contained btn-brand st-btn">Save</button>
+              <a class="btn btn-outlined btn-secondary st-btn" href="/agent/trips/sample/itinerary" data-slot="af-cancel">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
