@@ -468,6 +468,18 @@ errors, its ownership checks and its 409 paths. A port is done when both agree o
 Each port also adds its entry to `contracts/openapi.yaml` (19 functions are missing today) and
 regenerates the TypeScript and Kotlin types.
 
+**Retired with no caller (not ported).** A function nobody calls is recorded here instead of
+ported, and goes away with the Deno functions (5.10):
+
+| Function | Why it has no caller | Recorded |
+|---|---|---|
+| `hotel-search` | Web hotel search moved into the web app itself in PR #48 (`web/lib/public/hotels.ts` calls SerpApi directly, one call and one key); mobile never called it. The Go web pages port that web module, not this function. Its `_shared/hotels/*` code and 37 Deno tests retire with it. | 2026-11-06 |
+
+**How the differential test runs** (Track B): `webgo/internal/api/difftest/` (build tag
+`difftest`, never in CI). It needs a local stack whose migrations match the branch exactly
+(check with the `schema_migrations` diff in CLAUDE.md's gotchas; the shared stack is often
+behind) and `supabase functions serve` from that stack's `supabase/` folder. See its README.
+
 ### 5.10 Retiring a function
 
 1. The Go handler is live in production and the registry sends that name to it.
