@@ -796,6 +796,9 @@ data class OnboardingCompanionRequest(
     val dateOfBirth: String? = null,
     @SerialName("passportExpiry")
     val passportExpiry: String? = null,
+    // Two-letter country code, stored upper case. (A passport NUMBER is refused.)
+    @SerialName("passportCountry")
+    val passportCountry: String? = null,
     @SerialName("advance")
     val advance: Boolean? = null,
 )

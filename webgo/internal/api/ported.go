@@ -4,6 +4,11 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentlead"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/cruisesearch"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/leadmessage"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/onboardingcompanions"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/onboardingconnect"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/onboardingpreferences"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/onboardingprofile"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/onboardingstep"
 )
 
 // portTable lists every function that runs in Go, with the gate its Deno original had
@@ -19,5 +24,12 @@ func portTable() map[string]port {
 		// Leads (step 3).
 		"lead-message": {GateOpen, leadmessage.Func},
 		"agent-lead":   {GateUser, agentlead.Func},
+
+		// Onboarding (step 4). All five are mobile-called.
+		"onboarding-step":        {GateUser, onboardingstep.Func},
+		"onboarding-profile":     {GateUser, onboardingprofile.Func},
+		"onboarding-preferences": {GateUser, onboardingpreferences.Func},
+		"onboarding-companions":  {GateUser, onboardingcompanions.Func},
+		"onboarding-connect":     {GateUser, onboardingconnect.Func},
 	}
 }
