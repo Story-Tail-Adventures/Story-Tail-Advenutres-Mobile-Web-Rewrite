@@ -1,7 +1,7 @@
 package people
 
 import (
-	"html"
+	"bytes"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	xhtml "golang.org/x/net/html"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/pages"
 )
@@ -67,6 +69,33 @@ func tsString(t *testing.T, src, key string) string {
 	return v
 }
 
+// visibleText is every text node and attribute value in a page file, one per line, so a
+// string in a comment (which the loader strips anyway) does not count as shipped copy.
+func visibleText(t *testing.T, b []byte) string {
+	t.Helper()
+	doc, err := xhtml.Parse(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	var walk func(*xhtml.Node)
+	walk = func(n *xhtml.Node) {
+		switch n.Type {
+		case xhtml.TextNode:
+			out.WriteString(n.Data + "\n")
+		case xhtml.ElementNode:
+			for _, a := range n.Attr {
+				out.WriteString(a.Val + "\n")
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(doc)
+	return out.String()
+}
+
 func TestCopyMatchesTheNextSources(t *testing.T) {
 	webDir := filepath.Join("..", "..", "..", "..", "..", "web")
 	if _, err := os.Stat(webDir); os.IsNotExist(err) {
@@ -94,7 +123,7 @@ func TestCopyMatchesTheNextSources(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			pageText[c.page] = html.UnescapeString(string(b))
+			pageText[c.page] = visibleText(t, b)
 		}
 		if !strings.Contains(pageText[c.page], want) {
 			t.Errorf("%s does not carry %s %q byte for byte", c.page, c.key, want)

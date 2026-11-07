@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -171,8 +172,8 @@ func localDate(ts, zone string) string {
 	if !ok {
 		return ""
 	}
-	loc, err := time.LoadLocation(zone)
-	if err != nil {
+	loc, ok := loadZone(zone)
+	if !ok {
 		if len(ts) >= 10 {
 			return ts[:10]
 		}
@@ -205,7 +206,7 @@ func waitingLabel(todayISO, since, zone string) string {
 // the server's. An unrecognised zone uses the UTC hour.
 func partOfDayIn(zone string, now time.Time) string {
 	hour := now.UTC().Hour()
-	if loc, err := time.LoadLocation(zone); err == nil {
+	if loc, ok := loadZone(zone); ok {
 		hour = now.In(loc).Hour()
 	}
 	switch {
@@ -215,6 +216,28 @@ func partOfDayIn(zone string, now time.Time) string {
 		return "Afternoon"
 	}
 	return "Evening"
+}
+
+// zones caches time.LoadLocation by name: a page formats a date per row, and loading reads
+// the zone data each time. A *time.Location is immutable, so sharing one is safe.
+var zones sync.Map // string -> *time.Location (nil for a name that does not load)
+
+// loadZone is time.LoadLocation, cached. "Local" is refused: Intl has no such zone, so Next
+// fell back to UTC there, and the server's own zone must never leak into a label.
+func loadZone(name string) (*time.Location, bool) {
+	if name == "" || name == "Local" {
+		return nil, false
+	}
+	if v, ok := zones.Load(name); ok {
+		loc, _ := v.(*time.Location)
+		return loc, loc != nil
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		loc = nil
+	}
+	zones.Store(name, loc)
+	return loc, loc != nil
 }
 
 // jsNumber writes a non-money number the way a JavaScript template literal does: 12 for 12.0,

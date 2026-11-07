@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
@@ -283,18 +284,18 @@ func leadName(first, last string) string {
 // initials ports the worklist's Initials: the first letter of up to two words split on spaces
 // and "&", upper-cased. Never a stock portrait standing in for a named client.
 func initials(name string) string {
-	words := strings.FieldsFunc(name, func(r rune) bool { return r == '&' || r == ' ' || r == '\t' || r == '\n' })
+	words := strings.FieldsFunc(name, func(r rune) bool { return r == '&' || unicode.IsSpace(r) })
 	var b strings.Builder
 	for i, w := range words {
 		if i == 2 {
 			break
 		}
 		for _, r := range w {
-			b.WriteString(strings.ToUpper(string(r)))
+			b.WriteRune(r)
 			break
 		}
 	}
-	return b.String()
+	return strings.ToUpper(b.String())
 }
 
 // ── The page ────────────────────────────────────────────────────────────────────────────
@@ -420,7 +421,7 @@ func fillWorklist(doc *page.Doc, wl *worklist) {
 	count(doc, "proposals", len(wl.Proposals))
 	doc.Repeat("proposals", len(wl.Proposals), func(i int, r *page.Row) {
 		t := wl.Proposals[i]
-		r.URL("p-link", "href", "/agent/trips/"+t.TripID)
+		r.URL("p-link", "href", tripHref(t.TripID))
 		r.Text("p-initials", initials(t.ClientName))
 		r.Text("p-client", t.ClientName)
 		r.Text("p-title", t.Title)
@@ -436,7 +437,7 @@ func fillWorklist(doc *page.Doc, wl *worklist) {
 	count(doc, "payments", len(wl.Payments))
 	doc.Repeat("payments", len(wl.Payments), func(i int, r *page.Row) {
 		p := wl.Payments[i]
-		r.URL("pay-link", "href", "/agent/trips/"+p.TripID)
+		r.URL("pay-link", "href", tripHref(p.TripID))
 		r.Text("pay-client", p.ClientName)
 		r.Text("pay-label", p.Label)
 		r.Text("pay-amount", p.AmountLabel)
@@ -450,7 +451,7 @@ func fillWorklist(doc *page.Doc, wl *worklist) {
 	count(doc, "inquiries", len(wl.Inquiries))
 	doc.Repeat("inquiries", len(wl.Inquiries), func(i int, r *page.Row) {
 		t := wl.Inquiries[i]
-		r.URL("inq-link", "href", "/agent/trips/"+t.TripID)
+		r.URL("inq-link", "href", tripHref(t.TripID))
 		r.Text("inq-initials", initials(t.ClientName))
 		r.Text("inq-client", t.ClientName)
 		r.Text("inq-title", t.Title)
@@ -460,7 +461,7 @@ func fillWorklist(doc *page.Doc, wl *worklist) {
 	count(doc, "leads", len(wl.Leads))
 	doc.Repeat("leads", len(wl.Leads), func(i int, r *page.Row) {
 		l := wl.Leads[i]
-		r.URL("lead-link", "href", "/agent/leads/"+l.LeadID)
+		r.URL("lead-link", "href", "/agent/leads/"+url.PathEscape(l.LeadID))
 		r.Text("lead-initials", initials(l.Name))
 		r.Text("lead-name", l.Name)
 		r.Text("lead-preview", l.Preview)
@@ -470,7 +471,7 @@ func fillWorklist(doc *page.Doc, wl *worklist) {
 	count(doc, "departing", len(wl.Departing))
 	doc.Repeat("departing", len(wl.Departing), func(i int, r *page.Row) {
 		t := wl.Departing[i]
-		r.URL("dep-link", "href", "/agent/trips/"+t.TripID)
+		r.URL("dep-link", "href", tripHref(t.TripID))
 		r.Text("dep-client", t.ClientName)
 		r.Text("dep-title", t.Title)
 		textOrRemove(r, "dep-start", t.StartLabel)
@@ -492,6 +493,9 @@ func fillWorklist(doc *page.Doc, wl *worklist) {
 		}
 	})
 }
+
+// tripHref is a trip's page (the trips sub-area serves it).
+func tripHref(tripID string) string { return "/agent/trips/" + url.PathEscape(tripID) }
 
 // threadHref is the inbox's link to one thread with no filters (messageQuery.ts threadHref).
 func threadHref(conversationID string) string {

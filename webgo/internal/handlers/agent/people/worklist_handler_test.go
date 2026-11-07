@@ -204,8 +204,31 @@ func TestCalendar(t *testing.T) {
 	has(t, wd.get("/agent/calendar?month=2026-13").Body.String(), ">September 2026<")
 	has(t, wd.get("/agent/calendar?month=2027-03").Body.String(), "Nothing on the calendar this month.")
 
+	// The toggle that is not current never says it is (the sample's aria-current is gone).
+	for _, target := range []string{"/agent/calendar?view=month", "/agent/calendar?view=agenda", "/agent/calendar"} {
+		body := wd.get(target).Body.String()
+		for _, chip := range []string{"xs-month", "xs-agenda", "md-month", "md-agenda"} {
+			i := strings.Index(body, `data-slot="`+chip+`"`)
+			if i < 0 {
+				t.Fatalf("%s: no %s", target, chip)
+			}
+			tag := body[strings.LastIndex(body[:i], "<a ") : i+strings.Index(body[i:], ">")]
+			on := strings.Contains(tag, "chip-secondary")
+			if strings.Contains(tag, `aria-current="page"`) != on {
+				t.Errorf("%s: %s current=%v but aria-current disagrees: %s", target, chip, on, tag)
+			}
+		}
+	}
+
 	wd.fake.failing["agent_trip_board"] = true
 	if rec := wd.get("/agent/calendar"); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("failed read = %d", rec.Code)
+	}
+
+	// A null as_of_date is a failed read, never a panic.
+	wd = newWorld(t)
+	wd.fake.rpc["agent_kpis"] = kpiJSON(map[string]any{"as_of_date": nil})
+	if rec := wd.get("/agent/calendar"); rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("null as_of_date = %d", rec.Code)
 	}
 }

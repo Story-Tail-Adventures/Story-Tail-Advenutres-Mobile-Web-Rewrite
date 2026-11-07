@@ -350,8 +350,16 @@ func TestFormatting(t *testing.T) {
 	if monthDay("2026-09-05") != "Sep 05" || monthDay("") != "" {
 		t.Errorf("monthDay = %q", monthDay("2026-09-05"))
 	}
-	if initials("Maya & Daniel Carter") != "MD" || initials("dana") != "D" || initials("") != "" {
-		t.Errorf("initials = %q", initials("Maya & Daniel Carter"))
+	for name, want := range map[string]string{
+		"Maya & Daniel Carter": "MD", "dana": "D", "": "", "Maya\u00a0Carter": "MC", "Ana\u2003Bo": "AB",
+		"&& Lee": "L", // ("ß x" is "SSX" in JS; Go has no special casing, and ß never starts a word)
+	} {
+		if got := initials(name); got != want {
+			t.Errorf("initials(%q) = %q, want %q", name, got, want)
+		}
+	}
+	if _, ok := loadZone("Local"); ok {
+		t.Error("the server's Local zone must not stand in for an advisor's")
 	}
 	for _, c := range []struct {
 		raw  string

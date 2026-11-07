@@ -219,7 +219,7 @@ func calendarEvents(trips []tripRow, due []paymentRow) []calEvent {
 		if t.Status == "cancelled" {
 			continue
 		}
-		href := "/agent/trips/" + t.TripID
+		href := tripHref(t.TripID)
 		if t.StartDate != nil {
 			out = append(out, calEvent{ID: "dep-" + t.TripID, Kind: "departure", Date: *t.StartDate,
 				Label: t.ClientDisplayName + " departs", Detail: t.Title, Href: href})
@@ -236,7 +236,7 @@ func calendarEvents(trips []tripRow, due []paymentRow) []calEvent {
 		}
 		out = append(out, calEvent{ID: "pay-" + p.MilestoneID, Kind: "payment", Date: *p.DueDate,
 			Label: p.Label + " · " + money(p.AmountCents), Detail: p.ClientDisplayName,
-			Href: "/agent/trips/" + p.TripID})
+			Href: tripHref(p.TripID)})
 	}
 	return out
 }
@@ -301,6 +301,13 @@ func (a *app) serveCalendar(w http.ResponseWriter, r *http.Request) {
 	}
 	today, events, ok := a.loadCalendar(r.Context(), v)
 	if !ok {
+		a.renderFailed(w, r, v)
+		return
+	}
+	if !inWindow(monthOf(today)) {
+		// as_of_date is always a date today; if it ever is not, say so rather than index a
+		// month that does not exist.
+		a.d.Log.Warn("calendar: as_of_date outside the window")
 		a.renderFailed(w, r, v)
 		return
 	}
