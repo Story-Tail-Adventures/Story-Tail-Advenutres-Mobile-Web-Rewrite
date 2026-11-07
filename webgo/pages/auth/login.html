@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.1 Login (docs/Screen-Inventory.md §2.1.1, Pattern A). Ports
+  web/app/(auth)/login/page.tsx and LoginForm.tsx; copy word for word.
+  Filled by internal/handlers/auth (login.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sign in · Story-Tail Adventures</title>
+</head>
+<body>
+  <main>
+    <div>
+      <span class="type-overline auth-overline">WELCOME BACK</span>
+      <h1 class="type-h4 fw-700">Sign in</h1>
+      <p class="type-body2 text-secondary auth-sub">New traveler? <a class="link fw-600" href="/register">Create your account</a>.</p>
+    </div>
+
+    <form class="auth-form" method="post" action="/login" data-submit-once>
+      <input type="hidden" name="next" value="/dashboard" data-slot="next">
+
+      <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message"><span data-slot="form-error-text">That email and password don't match.</span><span data-slot="form-error-action"> <a class="link link-inherit auth-error-link" href="/forgot-password" data-slot="form-error-link">Reset your password</a>.</span></div></div>
+
+      <!-- The social pair belongs to the auth-oauth form below (the form attribute), not this
+           one, disabled or not. In Next they were this form's first submit buttons, so Enter in a
+           field "clicked" Continue with Google, or did nothing at all while it was disabled. -->
+      <fieldset class="auth-fieldset">
+        <button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" name="provider" value="google" data-slot="google-on">Continue with Google</button>
+        <span class="btn-tooltip btn-block" title="Social sign-in isn't switched on yet — use your email below." data-slot="google-off"><button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" disabled tabindex="-1" title="Social sign-in isn't switched on yet — use your email below.">Continue with Google</button></span>
+        <button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" name="provider" value="apple" data-slot="apple-on">Continue with Apple</button>
+        <span class="btn-tooltip btn-block" title="Social sign-in isn't switched on yet — use your email below." data-slot="apple-off"><button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" disabled tabindex="-1" title="Social sign-in isn't switched on yet — use your email below.">Continue with Apple</button></span>
+      </fieldset>
+
+      <div class="divider-label" role="none"><span>OR</span></div>
+
+      <fieldset class="auth-fieldset">
+        <div class="field">
+          <label class="field-label" for="email">Email</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" autofocus required data-slot="email">
+          <p class="field-help field-error" id="email-error" data-slot="email-error">Don't forget your email</p>
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label class="field-label" for="password">Password</label>
+            <a class="link type-caption auth-label-link" href="/forgot-password">Forgot?</a>
+          </div>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required data-slot="password">
+          <p class="field-help field-error" id="password-error" data-slot="password-error">Don't forget your password</p>
+        </div>
+      </fieldset>
+
+      <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-pending-label="Signing you in…">Continue to my trips</button>
+    </form>
+    <form class="auth-contents" id="auth-oauth" method="post" action="/auth/oauth" data-submit-once><input type="hidden" name="next" value="/dashboard" data-slot="oauth-next"></form>
+
+    <div class="type-caption text-secondary auth-footer">By signing in you agree to our <a class="link" href="/legal/terms">terms</a> &amp; <a class="link" href="/legal/privacy">privacy policy</a>.</div>
+    <script type="module" src="/assets/js/auth/forms.js"></script>
+  </main>
+</body>
+</html>

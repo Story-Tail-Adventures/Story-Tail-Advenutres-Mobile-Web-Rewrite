@@ -113,18 +113,18 @@ func (b *browser) do(method, target string, form url.Values) *httptest.ResponseR
 	return rec
 }
 
-func TestDevSignInFlowEndToEnd(t *testing.T) {
+func TestSignInFlowEndToEnd(t *testing.T) {
 	h, fake := liveHandler(t, config.Development)
 	b := &browser{t: t, h: h, cookies: map[string]*http.Cookie{}}
 
 	// Signed out: the protected page sends you to sign in, remembering where you were.
-	rec := b.do("GET", "/dashboard", nil)
-	if rec.Code != 303 || rec.Header().Get("Location") != "/login?next=%2Fdashboard" {
-		t.Fatalf("GET /dashboard signed out = %d %q", rec.Code, rec.Header().Get("Location"))
+	rec := b.do("GET", "/mfa/setup", nil)
+	if rec.Code != 303 || rec.Header().Get("Location") != "/login?next=%2Fmfa%2Fsetup" {
+		t.Fatalf("GET /mfa/setup signed out = %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 
 	// A wrong password: 422, the form again, no cookie.
-	rec = b.do("POST", "/login", url.Values{"email": {"jordan.hayes@example.com"}, "password": {"wrong"}, "next": {"/dashboard"}})
+	rec = b.do("POST", "/login", url.Values{"email": {"jordan.hayes@example.com"}, "password": {"wrong"}, "next": {"/mfa/setup"}})
 	if rec.Code != 422 || !strings.Contains(rec.Body.String(), "That email and password don&#39;t match.") {
 		t.Fatalf("wrong password = %d\n%s", rec.Code, rec.Body.String())
 	}
@@ -136,8 +136,8 @@ func TestDevSignInFlowEndToEnd(t *testing.T) {
 	}
 
 	// The right password: a session cookie, the chrome flag, and on to where they were going.
-	rec = b.do("POST", "/login", url.Values{"email": {"jordan.hayes@example.com"}, "password": {"right-password"}, "next": {"/dashboard"}})
-	if rec.Code != 303 || rec.Header().Get("Location") != "/dashboard" {
+	rec = b.do("POST", "/login", url.Values{"email": {"jordan.hayes@example.com"}, "password": {"right-password"}, "next": {"/mfa/setup"}})
+	if rec.Code != 303 || rec.Header().Get("Location") != "/mfa/setup" {
 		t.Fatalf("sign-in = %d %q\n%s", rec.Code, rec.Header().Get("Location"), rec.Body.String())
 	}
 	s, f := b.cookies["sta-session"], b.cookies["sta-authed"]
@@ -148,9 +148,9 @@ func TestDevSignInFlowEndToEnd(t *testing.T) {
 		t.Error("the password came back in the response")
 	}
 
-	rec = b.do("GET", "/dashboard", nil)
-	if rec.Code != 200 || !strings.Contains(rec.Body.String(), ">jordan.hayes@example.com</dd>") || !strings.Contains(rec.Body.String(), ">none</dd>") {
-		t.Fatalf("GET /dashboard signed in = %d\n%s", rec.Code, rec.Body.String())
+	rec = b.do("GET", "/mfa/setup", nil)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "Show my setup code") {
+		t.Fatalf("GET /mfa/setup signed in = %d\n%s", rec.Code, rec.Body.String())
 	}
 
 	// Signed in: the sign-in page bounces you to the dashboard; an off-site next is ignored.
@@ -167,8 +167,8 @@ func TestDevSignInFlowEndToEnd(t *testing.T) {
 	if fake.signOuts != 1 || len(b.cookies) != 0 {
 		t.Errorf("signOuts=%d cookies=%v", fake.signOuts, b.cookies)
 	}
-	if rec := b.do("GET", "/dashboard", nil); rec.Code != 303 {
-		t.Errorf("after sign-out GET /dashboard = %d", rec.Code)
+	if rec := b.do("GET", "/mfa/setup", nil); rec.Code != 303 {
+		t.Errorf("after sign-out GET /mfa/setup = %d", rec.Code)
 	}
 }
 
@@ -181,14 +181,14 @@ func TestSignInRefusesAnOffSiteNext(t *testing.T) {
 	}
 }
 
-// The harness is development only. In production these paths are plain 404s.
-func TestNoDevSignInInProduction(t *testing.T) {
+// The sign-in screens are real pages now, in production too, and never cached.
+func TestSignInPagesServeInProduction(t *testing.T) {
 	h, _ := liveHandler(t, config.Production)
-	for _, path := range []string{"/login", "/dashboard"} {
+	for _, path := range []string{"/login", "/register", "/forgot-password"} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
-		if rec.Code != 404 {
-			t.Errorf("production GET %s = %d, want 404", path, rec.Code)
+		if rec.Code != 200 || rec.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("production GET %s = %d %q", path, rec.Code, rec.Header().Get("Cache-Control"))
 		}
 	}
 }

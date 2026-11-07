@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.8 Social Login / Account Linking (docs/Screen-Inventory.md §2.1.8). Ports
+  web/app/(auth)/link-account; copy from LINK_TEXT. Reached from /auth/callback when an OAuth
+  sign-in collides with an existing account. The order is the security argument: sign in with
+  the existing password first, link the social identity second. The page shows nothing about
+  the account it found: that would answer "does this account exist, and whose is it?" to an
+  unauthenticated visitor.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Link your account · Story-Tail Adventures</title>
+</head>
+<body>
+  <main>
+    <div>
+      <span class="type-overline auth-overline">ACCOUNT FOUND</span>
+      <h1 class="type-h4 fw-700">Looks like you already have an account with this email</h1>
+      <p class="type-body2 text-secondary auth-sub">Sign in to it once and we'll connect the two, so either way in works from now on.</p>
+    </div>
+
+    <form class="auth-form" method="post" action="/link-account" data-submit-once>
+      <input type="hidden" name="provider" value="google" data-slot="provider">
+
+      <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message"><span data-slot="form-error-text">That email and password don't match.</span><span data-slot="form-error-action"> <a class="link link-inherit auth-error-link" href="/forgot-password" data-slot="form-error-link">Reset your password</a>.</span></div></div>
+
+      <fieldset class="auth-fieldset">
+        <div class="field">
+          <label class="field-label" for="email">Email</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" required autofocus data-slot="email">
+          <p class="field-help field-error" id="email-error" data-slot="email-error">Don't forget your email</p>
+        </div>
+        <div class="field">
+          <div class="field-label-row">
+            <label class="field-label" for="password">Password for the existing account</label>
+            <a class="link type-caption auth-label-link" href="/forgot-password">Forgot?</a>
+          </div>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required data-slot="password">
+          <p class="field-help field-error" id="password-error" data-slot="password-error">Don't forget your password</p>
+        </div>
+      </fieldset>
+
+      <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-pending-label="Signing you in…" data-slot="submit">Sign in &amp; link Google</button>
+
+      <a class="link type-subtitle2 tap-target auth-tap-link auth-center-self" href="/login">Use a different email</a>
+    </form>
+    <script type="module" src="/assets/js/auth/forms.js"></script>
+  </main>
+</body>
+</html>
