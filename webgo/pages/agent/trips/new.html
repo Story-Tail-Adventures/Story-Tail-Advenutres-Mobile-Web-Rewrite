@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.3, Create New Trip. Ports app/(agent)/agent/trips/new/page.tsx and
+  components/agent/NewTripForm.tsx. Filled by internal/handlers/agent/trips (newtrip.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>New trip · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col trp-col-narrow" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips/new" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <a class="link link-hover type-body2 trp-back" href="/agent/trips">← Trips</a>
+
+      <header class="trp-head-new">
+        <h1 class="type-h5">New trip</h1>
+        <p class="type-body2 text-secondary trp-sub">Pick a shape and a client. Everything else comes next.</p>
+      </header>
+
+      <form class="trp-form" method="post" action="/agent/trips/new" data-submit-once>
+        <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Try again in a moment.</div></div>
+
+        <fieldset class="trp-fieldset">
+          <legend class="type-subtitle1 trp-legend">What kind of trip?</legend>
+          <div class="trp-types">
+            <div class="paper paper-outlined trp-type"><label class="trp-type-label">
+              <input class="check-input trp-radio" type="radio" name="tripType" value="all_inclusive" checked data-slot="type-all-inclusive">
+              <span class="grow">
+                <span class="type-subtitle1 trp-type-name"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#building"></use></svg> All-inclusive resort</span>
+                <span class="type-body2 text-secondary trp-type-hint">One property, one price. Honeymoons usually live here.</span>
+              </span>
+            </label></div>
+            <div class="paper paper-outlined trp-type"><label class="trp-type-label">
+              <input class="check-input trp-radio" type="radio" name="tripType" value="cruise" data-slot="type-cruise">
+              <span class="grow">
+                <span class="type-subtitle1 trp-type-name"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#ship"></use></svg> Cruise</span>
+                <span class="type-body2 text-secondary trp-type-hint">A sailing, with or without flights around it.</span>
+              </span>
+            </label></div>
+            <div class="paper paper-outlined trp-type"><label class="trp-type-label">
+              <input class="check-input trp-radio" type="radio" name="tripType" value="multi_destination" data-slot="type-multi-destination">
+              <span class="grow">
+                <span class="type-subtitle1 trp-type-name"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#plane"></use></svg> Multi-destination</span>
+                <span class="type-body2 text-secondary trp-type-hint">More than one stop, stitched together.</span>
+              </span>
+            </label></div>
+            <div class="paper paper-outlined trp-type"><label class="trp-type-label">
+              <input class="check-input trp-radio" type="radio" name="tripType" value="group" data-slot="type-group">
+              <span class="grow">
+                <span class="type-subtitle1 trp-type-name"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg> Group trip</span>
+                <span class="type-body2 text-secondary trp-type-hint">Several households travelling as one party.</span>
+              </span>
+            </label></div>
+            <div class="paper paper-outlined trp-type"><label class="trp-type-label">
+              <input class="check-input trp-radio" type="radio" name="tripType" value="custom" data-slot="type-custom">
+              <span class="grow">
+                <span class="type-subtitle1 trp-type-name"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg> Custom</span>
+                <span class="type-body2 text-secondary trp-type-hint">Anything the other four do not describe.</span>
+              </span>
+            </label></div>
+          </div>
+        </fieldset>
+
+        <div>
+          <label class="type-subtitle1 trp-field-heading" for="trip-client">Who is it for?</label>
+          <p class="type-body2 text-secondary trp-field-hint">Search your own clients by name or email.</p>
+          <input class="input trp-input-40" id="trip-client" name="clientName" placeholder="Start typing a name…" autocomplete="off" list="trip-client-options" data-trp-client data-slot="client-input">
+          <datalist id="trip-client-options">
+            <option value="Jordan Hayes" data-client-id="sample" data-repeat="client-opt" data-slot="client-opt">jordan.hayes@example.com</option>
+          </datalist>
+          <!-- What the server reads first: kept in step with the visible field by
+               assets/js/agent/trips/new-trip.js, and resolved from the typed name when empty. -->
+          <input type="hidden" name="clientId" value="" data-trp-client-id data-slot="client-id">
+          <p class="type-body2 text-error trp-field-error" id="trip-client-error" role="alert" data-slot="client-error">Pick a client first.</p>
+        </div>
+
+        <div>
+          <label class="type-subtitle1 trp-field-heading" for="trip-title">What should it be called?</label>
+          <p class="type-body2 text-secondary trp-field-hint">The advisor-facing name. The traveler sees the itinerary title, not this.</p>
+          <input class="input trp-input-40" id="trip-title" name="title" required maxlength="160" placeholder="Sandals honeymoon · Aug 2026" data-slot="title">
+          <p class="type-body2 text-error trp-field-error" id="trip-title-error" role="alert" data-slot="title-error">Give the trip a name.</p>
+        </div>
+
+        <div class="trp-travelers">
+          <label class="type-subtitle1 trp-field-heading" for="trip-travelers">Travelers</label>
+          <p class="type-body2 text-secondary trp-field-hint">A starting guess. The builder corrects it.</p>
+          <input class="input trp-input-40" id="trip-travelers" name="travelerCount" type="number" min="1" max="64" value="2" data-slot="travelers">
+        </div>
+
+        <div class="field" data-slot="template-field">
+          <label class="field-label" for="templateId">Start from a template</label>
+          <div class="select">
+            <select class="input" id="templateId" name="templateId" aria-describedby="templateId-hint">
+              <option value="">Start from scratch</option>
+              <option value="sample" data-repeat="tpl-opt" data-slot="tpl-opt">Sandals Negril · 7n — 6 bookings · 4 days</option>
+            </select>
+          </div>
+          <p class="field-help" id="templateId-hint">Its bookings and day-by-day come across. Dates are worked out from this trip's own.</p>
+        </div>
+
+        <p class="type-body2 text-secondary trp-note"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg> New trips start as an inquiry. Move the stage once it firms up.</p>
+
+        <div class="row wrap gap-1">
+          <button type="submit" class="btn btn-contained btn-brand st-btn">Create trip</button>
+          <a class="btn btn-outlined btn-secondary st-btn" href="/agent/trips">Cancel</a>
+          <a class="btn btn-text st-btn trp-push-end" href="/agent/templates">Templates</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/new-trip.js"></script>
+</main>
+</body>
+</html>
