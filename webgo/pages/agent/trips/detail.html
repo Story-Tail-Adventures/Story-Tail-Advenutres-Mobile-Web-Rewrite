@@ -73,6 +73,7 @@
             <form class="trp-stage" method="post" action="/agent/trips/sample/stage" data-slot="stage-form">
               <input type="hidden" name="expectedVersion" value="1" data-slot="stage-version">
               <input type="hidden" name="tab" value="" data-slot="stage-tab">
+              <input type="hidden" name="from" value="" data-slot="stage-from">
               <label class="visually-hidden" for="trp-stage">Move stage</label>
               <div class="select"><select class="input" id="trp-stage" name="status" data-trp-autosubmit>
                 <option value="inquiry" data-repeat="stage-opt" data-slot="stage-opt">Inquiry</option>
@@ -317,6 +318,7 @@
                 <label class="field-label" for="template-description">What it is for (optional)</label>
                 <input class="input" id="template-description" name="description" placeholder="e.g. Ocean-view suite, transfer, catamaran, insurance" data-slot="save-description">
               </div>
+              <p class="type-caption text-secondary trp-block trp-mt-1" data-trp-name-hint data-slot="save-name-hint">A template needs a name.</p>
               <div class="alert alert-error trp-mt-1" role="alert" aria-live="polite" data-slot="save-error"><div class="alert-message" data-slot="save-error-text">That did not save. Try again in a moment.</div></div>
             </form>
           </div>

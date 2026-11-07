@@ -384,7 +384,7 @@ type documentRow struct {
 var documentKindLabel = map[string]string{
 	"passport": "Passport", "visa": "Visa", "insurance_cert": "Insurance certificate",
 	"supplier_confirmation": "Supplier confirmation", "receipt": "Receipt", "photo": "Photo",
-	"csv_import": "CSV import",
+	"csv_import": "CSV import", "pdf_proposal": "Proposal PDF", "pdf_itinerary": "Itinerary PDF", "other": "Other",
 }
 
 // sizeLabel ports tripDetail.ts sizeLabel: B, KB (toFixed(0)), MB (toFixed(1)).

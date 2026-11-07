@@ -249,7 +249,7 @@ func TestTripCancel(t *testing.T) {
 
 	// Unticked: no lines are named, and the dialog simply closes.
 	a.fake.fn("agent-trip-status", reply{200, `{"status":"cancelled"}`})
-	rec = a.post("/agent/trips/"+tripID+"/cancel", url.Values{"reason": {"R"}, "refundStatus": {"bogus"},
+	rec = a.post("/agent/trips/"+tripID+"/cancel", url.Values{"reason": {"R"},
 		"line": {"0195a2c0-1a00-7000-8000-00000000c001:3"}, "expectedVersion": {"7"}})
 	if rec.Header().Get("Location") != "/agent/trips/"+tripID {
 		t.Errorf("unticked = %q", rec.Header().Get("Location"))
@@ -315,4 +315,56 @@ func TestTripSaveAsTemplate(t *testing.T) {
 	}
 	a.fake.fn("agent-template", reply{400, `{"detail":"You already have a template with that name."}`})
 	has(t, a.post("/agent/trips/"+tripID+"/save-template", url.Values{"name": {"Dup"}}), "You already have a template with that name.", `value="Dup"`)
+}
+
+// Review findings (PR 2), each pinned.
+func TestTripDetailReviewFindings(t *testing.T) {
+	// An admin's write sends nothing, on all four.
+	a := detailApp(t)
+	a.fake.role = "admin"
+	for _, path := range []string{"stage", "notes", "cancel", "save-template"} {
+		rec := a.post("/agent/trips/"+tripID+"/"+path, url.Values{"status": {"completed"}, "expectedVersion": {"7"}, "reason": {"R"}, "name": {"N"}, "notes": {"N"}})
+		if rec.Code != 403 {
+			t.Errorf("admin %s = %d", path, rec.Code)
+		}
+	}
+	if n := len(a.fake.calls("agent-trip-status")) + len(a.fake.calls("agent-trip-notes")) + len(a.fake.calls("agent-template")); n != 0 {
+		t.Errorf("an admin's posts sent %d calls", n)
+	}
+
+	// After a refused post, "Try again" and the sign-in return are the tab's own GET URL.
+	b := detailApp(t)
+	b.fake.reads["agent_trip_components"] = reply{500, `{}`}
+	b.fake.fn("agent-trip-status", reply{409, `{"detail":"x"}`}, reply{401, ``})
+	rec := b.post("/agent/trips/"+tripID+"/stage", url.Values{"status": {"completed"}, "expectedVersion": {"7"}, "tab": {"components"}})
+	has(t, rec, `data-slot="tab-retry" href="/agent/trips/`+tripID+`?tab=components"`)
+	lacks(t, rec, `href="/agent/trips/`+tripID+`/stage"`)
+	rec = b.post("/agent/trips/"+tripID+"/stage", url.Values{"status": {"completed"}, "expectedVersion": {"7"}, "tab": {"components"}})
+	if loc := rec.Header().Get("Location"); loc != "/login?next="+url.QueryEscape("/agent/trips/"+tripID+"?tab=components") {
+		t.Errorf("sign-in return = %q", loc)
+	}
+
+	// Every document kind has its label.
+	c := detailApp(t)
+	c.fake.read("agent_trip_documents", `[{"document_id":"x","kind":"pdf_proposal","filename":"p.pdf","size_bytes":"245760","is_sensitive":false,"created_at":"2026-09-08T00:30:00Z"},{"document_id":"y","kind":"other","filename":"o.pdf","size_bytes":"1","is_sensitive":false,"created_at":"2026-09-08T00:30:00Z"}]`)
+	has(t, c.get("/agent/trips/"+tripID+"?tab=documents"), "Proposal PDF · 240 KB · Sep 07", "Other · 1 B")
+
+	// A textarea's CRLF is sent as the LF Next sent.
+	c.fake.fn("agent-trip-notes", reply{200, `{"version":8}`})
+	c.post("/agent/trips/"+tripID+"/notes", url.Values{"notes": {"Line one\r\nLine two"}, "expectedVersion": {"7"}})
+	jsonEq(t, c.fake.calls("agent-trip-notes")[0].body, "notes", `"Line one\nLine two"`)
+	c.fake.fn("agent-trip-status", reply{200, `{}`}, reply{400, `{"detail":"Unknown refund status."}`})
+	c.post("/agent/trips/"+tripID+"/cancel", url.Values{"reason": {"Two\r\nlines"}, "expectedVersion": {"7"}})
+	jsonEq(t, c.fake.calls("agent-trip-status")[0].body, "cancellationReason", `"Two\nlines"`)
+	// A refund status outside the vocabulary is sent, and the function's refusal shown.
+	has(t, c.post("/agent/trips/"+tripID+"/cancel", url.Values{"reason": {"R"}, "refundStatus": {"maybe"}, "expectedVersion": {"7"}}), "Unknown refund status.")
+
+	// The stage form posts the stage it showed, so the same stage is no change.
+	page := c.get("/agent/trips/" + tripID).Body.String()
+	if !strings.Contains(page, `name="from" value="booked"`) {
+		t.Error("the stage form does not post its current stage")
+	}
+	// The save dialog says a template needs a name only while the name is blank.
+	has(t, c.get("/agent/trips/"+tripID), `data-slot="save-name-hint" hidden=""`)
+	has(t, c.post("/agent/trips/"+tripID+"/save-template", url.Values{"name": {" "}}), "A template needs a name.")
 }

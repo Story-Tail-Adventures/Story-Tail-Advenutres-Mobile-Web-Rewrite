@@ -40,8 +40,13 @@ if (reason instanceof HTMLTextAreaElement && reason.form) {
 
 const name = document.querySelector("[data-trp-required]");
 const save = document.querySelector("[data-trp-submit]");
+const nameHint = document.querySelector("[data-trp-name-hint]");
 if (name instanceof HTMLInputElement && save) {
-  const sync = () => save.toggleAttribute("disabled", name.value.trim() === "");
+  const sync = () => {
+    const empty = name.value.trim() === "";
+    save.toggleAttribute("disabled", empty);
+    if (nameHint) nameHint.hidden = !empty;
+  };
   name.addEventListener("input", sync);
   sync();
 }

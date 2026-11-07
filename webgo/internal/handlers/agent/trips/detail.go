@@ -145,7 +145,7 @@ type saveForm struct {
 
 var detailSlots = []string{
 	"not-found", "trip", "client-name", "title", "status", "build-link", "save-sr", "cancel-open", "cancel-sr",
-	"stage-form", "stage-version", "stage-tab", "stage-error",
+	"stage-form", "stage-version", "stage-tab", "stage-from", "stage-error",
 	"ttab-overview", "ttab-components", "ttab-itinerary", "ttab-payments", "ttab-documents", "ttab-messages", "ttab-notes", "ttab-activity",
 	"tab-error", "tab-retry",
 	"pane-overview", "g-type", "g-destination", "g-travelers", "g-dates", "g-activity",
@@ -158,7 +158,7 @@ var detailSlots = []string{
 	"pane-notes", "notes-version", "notes", "notes-save", "notes-saved", "notes-error",
 	"pane-activity", "activity-empty",
 	"cost-total", "cost-paid", "cost-commission", "ledger-link", "ledger-add", "pay-side-empty",
-	"save-dialog", "save-receipt", "save-form", "save-tab", "save-name", "save-description", "save-error", "save-error-text",
+	"save-dialog", "save-receipt", "save-form", "save-tab", "save-name", "save-description", "save-name-hint", "save-error", "save-error-text",
 	"save-actions", "save-done", "save-done-link",
 	"cancel-dialog", "cancel-eyebrow", "cancel-title", "cancel-done", "cancel-receipt", "cancel-done-link",
 	"cancel-form", "cancel-version", "cancel-tab", "cancel-body", "cancel-impact", "impact-none", "impact-list",
@@ -290,12 +290,18 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 			if done {
 				return
 			}
-			tripID := r.PathValue("tripId")
-			if !uuid.IsUUID(tripID) {
+			tripID, tab := r.PathValue("tripId"), validTab(f.Get("tab"))
+			v.here = tabHref(tripID, tab)
+			switch {
+			case !uuid.IsUUID(tripID):
 				h.show(w, r, v, tripID, "overview", http.StatusNotFound, nil)
-				return
+			case v.noAccess:
+				h.show(w, r, v, tripID, tab, http.StatusForbidden, nil) // an admin: nothing is sent
+			case !v.canRead():
+				h.show(w, r, v, tripID, tab, http.StatusServiceUnavailable, nil)
+			default:
+				fn(w, r, v, tripID, tab, f)
 			}
-			fn(w, r, v, tripID, validTab(f.Get("tab")), f)
 		}))
 	}
 
@@ -318,7 +324,7 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 		out := outcome(res, copyStageFailed)
 		switch {
 		case out.SignIn:
-			web.SeeOther(w, r, web.SignInURL(r))
+			signIn(w, r, v)
 		case out.OK:
 			web.SeeOther(w, r, tabHref(tripID, tab))
 		default:
@@ -332,7 +338,8 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 
 	// TripNotesEditor: updateTripNotes. The text is sent as typed.
 	post("POST /agent/trips/{tripId}/notes", func(w http.ResponseWriter, r *http.Request, v visit, tripID, _ string, f url.Values) {
-		notes := f.Get("notes")
+		v.here = tabHref(tripID, "notes")
+		notes := lf(f.Get("notes"))
 		version, verr := strconv.Atoi(f.Get("expectedVersion"))
 		again := func(status int, msg string, stale bool) {
 			h.show(w, r, v, tripID, "notes", status, func(dv *detailView) {
@@ -349,7 +356,7 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 		out := outcome(res, copyNotesFailed)
 		switch {
 		case out.SignIn:
-			web.SeeOther(w, r, web.SignInURL(r))
+			signIn(w, r, v)
 		case out.OK:
 			web.SeeOther(w, r, withParams(tabHref(tripID, "notes"), url.Values{"noted": {"1"}}))
 		case out.Conflict:
@@ -363,8 +370,8 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 	// cancellation; omitted refund fields mean "leave them alone", never "clear them".
 	post("POST /agent/trips/{tripId}/cancel", func(w http.ResponseWriter, r *http.Request, v visit, tripID, tab string, f url.Values) {
 		cf := &cancelForm{
-			reason: strings.TrimSpace(f.Get("reason")), refundStatus: f.Get("refundStatus"),
-			refundDetail: f.Get("refundDetail"), closeLines: f.Get("closeLines") == "1",
+			reason: strings.TrimSpace(lf(f.Get("reason"))), refundStatus: f.Get("refundStatus"),
+			refundDetail: lf(f.Get("refundDetail")), closeLines: f.Get("closeLines") == "1",
 			editing: f.Get("editing") == "1",
 		}
 		again := func(status int, msg string) {
@@ -395,7 +402,9 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 		body := map[string]any{
 			"tripId": tripID, "status": "cancelled", "expectedVersion": version, "cancellationReason": cf.reason,
 		}
-		if isRefundStatus(cf.refundStatus) {
+		// `refundStatus || undefined`: any value is sent, and the function refuses one outside
+		// the vocabulary in its own words.
+		if cf.refundStatus != "" {
 			body["refundStatus"] = cf.refundStatus
 		}
 		if detail := strings.TrimSpace(cf.refundDetail); detail != "" {
@@ -408,7 +417,7 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 		out := outcome(res, copyCancelFailed)
 		switch {
 		case out.SignIn:
-			web.SeeOther(w, r, web.SignInURL(r))
+			signIn(w, r, v)
 		case out.OK:
 			var counts struct {
 				Closed  json.RawMessage `json:"commissionLinesClosed"`
@@ -436,38 +445,55 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 
 	// SaveAsTemplateDialog: saveAsTemplateAction.
 	post("POST /agent/trips/{tripId}/save-template", func(w http.ResponseWriter, r *http.Request, v visit, tripID, tab string, f url.Values) {
-		sf := &saveForm{name: strings.TrimSpace(f.Get("name")), description: f.Get("description")}
-		again := func(status int, msg string) {
-			sf.err = msg
+		saveTemplate(w, r, d, v, tripID, f, tabHref(tripID, tab), func(status int, sf *saveForm) {
 			h.show(w, r, v, tripID, tab, status, func(dv *detailView) { dv.save = sf })
-		}
-		if sf.name == "" {
-			again(http.StatusUnprocessableEntity, copySaveNameReq)
-			return
-		}
-		body := map[string]any{"op": "save", "tripId": tripID, "name": sf.name}
-		if desc := strings.TrimSpace(sf.description); desc != "" {
-			body["description"] = desc
-		}
-		res := call(r.Context(), d, r, v, "agent-template", body)
-		out := outcome(res, copySaveFailed)
-		switch {
-		case out.SignIn:
-			web.SeeOther(w, r, web.SignInURL(r))
-		case out.OK:
-			var saved struct {
-				Components json.RawMessage `json:"componentsSaved"`
-				Days       json.RawMessage `json:"daysSaved"`
-			}
-			_ = json.Unmarshal(res.Data, &saved)
-			web.SeeOther(w, r, withParams(tabHref(tripID, tab), url.Values{
-				"saved": {"1"}, "bookings": {strconv.Itoa(countOf(saved.Components))}, "days": {strconv.Itoa(countOf(saved.Days))},
-			}))
-		default:
-			again(out.Status, out.Message)
-		}
+		})
 	})
 	return nil
+}
+
+// saveTemplate is saveAsTemplateAction, shared by Trip Detail's header and the builder's
+// rail: back (with the receipt as counts) to `back` on success, or again() with the typed
+// values and the sentence.
+func saveTemplate(w http.ResponseWriter, r *http.Request, d handlers.Deps, v visit, tripID string, f url.Values,
+	back string, again func(status int, sf *saveForm)) {
+	sf := &saveForm{name: strings.TrimSpace(f.Get("name")), description: lf(f.Get("description"))}
+	if sf.name == "" {
+		sf.err = copySaveNameReq
+		again(http.StatusUnprocessableEntity, sf)
+		return
+	}
+	body := map[string]any{"op": "save", "tripId": tripID, "name": sf.name}
+	if desc := strings.TrimSpace(sf.description); desc != "" {
+		body["description"] = desc
+	}
+	res := call(r.Context(), d, r, v, "agent-template", body)
+	out := outcome(res, copySaveFailed)
+	switch {
+	case out.SignIn:
+		signIn(w, r, v)
+	case out.OK:
+		var saved struct {
+			Components json.RawMessage `json:"componentsSaved"`
+			Days       json.RawMessage `json:"daysSaved"`
+		}
+		if err := json.Unmarshal(res.Data, &saved); err != nil {
+			d.Log.Warn("unexpected function reply", "function", "agent-template", "err", fmt.Sprintf("%T", err))
+		}
+		web.SeeOther(w, r, withParams(back, url.Values{
+			"saved": {"1"}, "bookings": {strconv.Itoa(countOf(saved.Components))}, "days": {strconv.Itoa(countOf(saved.Days))},
+		}))
+	default:
+		sf.err = out.Message
+		again(out.Status, sf)
+	}
+}
+
+// nameHint is the save dialog's "A template needs a name." under a blank name (a courtesy:
+// the function and the RPC refuse a blank name themselves).
+func nameHint(d *page.Doc, name string) {
+	d.Keep("save-name-hint")
+	d.Bool("save-name-hint", "hidden", strings.TrimSpace(name) != "")
 }
 
 // countOf reads a count off a function's answer; anything that is not a positive integer is
@@ -533,6 +559,7 @@ func fillDetail(d *page.Doc, r *http.Request, dv *detailView) {
 	d.URL("stage-form", "action", tripPath(id)+"/stage")
 	d.Attr("stage-version", "value", strconv.Itoa(ov.version))
 	d.Attr("stage-tab", "value", dv.tab)
+	d.Attr("stage-from", "value", ov.status)
 	d.Repeat("stage-opt", len(pipelineStages), func(i int, row *page.Row) {
 		s := pipelineStages[i]
 		row.Attr("stage-opt", "value", s.status)
@@ -564,7 +591,7 @@ func fillDetail(d *page.Doc, r *http.Request, dv *detailView) {
 	}
 	if dv.tabFailed {
 		d.Keep("tab-error")
-		d.URL("tab-retry", "href", r.URL.RequestURI())
+		d.URL("tab-retry", "href", here)
 	} else {
 		d.Remove("tab-error")
 		fillPane(d, dv)
@@ -898,6 +925,7 @@ func fillSaveDialog(d *page.Doc, dv *detailView, here string) {
 	}
 	d.Attr("save-name", "value", name)
 	d.Attr("save-description", "value", desc)
+	nameHint(d, name)
 	if sf == nil || sf.err == "" {
 		d.Remove("save-error")
 	} else {
