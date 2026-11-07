@@ -13,6 +13,8 @@
   @media (min-width: 768px) { .ppl-page { padding-left: 32px; padding-right: 32px; } }
 
   .ppl-block { display: block; }
+  /* sx flex: 1 (a 0 basis), which ui.css's .grow (an auto basis) is not. */
+  .ppl-flex1 { flex: 1; min-width: 0; }
   .ppl-italic { font-style: italic; }
   .ppl-mt-0_5 { margin-top: 4px; }
   .ppl-mt-1 { margin-top: 8px; }
@@ -195,4 +197,67 @@
     white-space: nowrap;
   }
   .ppl-deferral { margin-top: 16px; opacity: 0.6; }
+
+  /* ── Client roster (§3.3.1) ──────────────────────────────────────────────────────────── */
+
+  .ppl-page-wide { max-width: 1336px; }
+  .ppl-mt-0_25 { margin-top: 2px; }
+  .ppl-mb-1 { margin-bottom: 8px; }
+  .ppl-icon-12 { width: 12px; height: 12px; }
+  .ppl-truncate { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ppl-contents { display: contents; margin: 0; padding: 0; border: 0; min-width: 0; }
+
+  .ppl-roster-head { margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+
+  /* ClientRosterFilters: a search row over the chip row. */
+  .ppl-filters { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .ppl-filter-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  /* A bare OutlinedInput size="small": 40px, not the 44px Field box. */
+  .ppl-search { flex: 1; min-width: 0; height: 40px; min-height: 0; }
+  .ppl-filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .ppl-facet-rule { margin: 0 4px; height: 16px; align-self: center; }
+
+  /* Below md, each client is a card link. */
+  .ppl-roster-cards { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-roster-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .ppl-roster-card:hover { background-color: var(--mui-palette-surface-2); }
+
+  /* From md, the table. */
+  .ppl-roster-table { overflow-x: auto; }
+  /* TableCell padding="checkbox" at size="small". ui.css's .table cells sit in the mui layer,
+     so these (components layer) win over their padding, weight and colour. */
+  .ppl-roster-table .ppl-cell-check { width: 48px; padding: 0 12px 0 16px; }
+  .ppl-roster-table .ppl-td-muted { font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .ppl-roster-table .ppl-td-strong { font-weight: 500; }
+  /* MUI's size="small" Checkbox here is a 20px icon with no padding (a 15px square), not the
+     42px target ui.css's .check-input draws. */
+  .ppl-roster-table .check-input { width: 15px; height: 15px; margin: 2.5px; vertical-align: middle; background-size: 11px 11px; }
+  .ppl-roster-client { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .ppl-roster-link { display: block; min-width: 0; }
+  .ppl-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ppl-mini-chip { height: 20px; font-size: 10.5px; line-height: 1.5; padding: 0 8px; }
+  .ppl-now { font-weight: 600; color: var(--mui-palette-primary-main); }
+
+  /* The bulk-tag bar: an outlined Paper on surface.2, from md, once something is ticked. */
+  .ppl-bulk-bar {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--mui-palette-surface-2);
+  }
+  .ppl-bulk-bar[hidden] { display: none; }
+  .ppl-bulk-input { flex: 1; min-width: 0; height: 40px; min-height: 0; }
+
+  /* RosterPagination. */
+  .ppl-pager { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 }

@@ -32,11 +32,11 @@ import (
 // The two state pages every handler here can end on (guard.go).
 var (
 	noAccessSpec = page.Spec{File: "agent/people/no-access.html", Layout: shell.Agent}
-	failedSpec   = page.Spec{File: "agent/people/failed.html", Layout: shell.Agent}
+	failedSpec   = page.Spec{File: "agent/people/failed.html", Layout: shell.Agent, Slots: []string{"retry", "home"}}
 )
 
 // Specs declares every page this sub-area fills (files under pages/agent/people/).
-var Specs = []page.Spec{noAccessSpec, failedSpec, worklistSpec, calendarSpec}
+var Specs = []page.Spec{noAccessSpec, failedSpec, worklistSpec, calendarSpec, clientsSpec}
 
 // Mount registers this sub-area's routes. Templates are taken here, so a missing page stops
 // the boot.
@@ -48,6 +48,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	}{
 		{noAccessSpec, &a.noAccess}, {failedSpec, &a.failed},
 		{worklistSpec, &a.worklist}, {calendarSpec, &a.calendar},
+		{clientsSpec, &a.clients},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -58,5 +59,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 
 	rt.Protected("GET /agent", http.HandlerFunc(a.serveWorklist))
 	rt.Protected("GET /agent/calendar", http.HandlerFunc(a.serveCalendar))
+	rt.Protected("GET /agent/clients", http.HandlerFunc(a.serveClients))
+	rt.Protected("POST /agent/clients", http.HandlerFunc(a.postClients))
 	return nil
 }

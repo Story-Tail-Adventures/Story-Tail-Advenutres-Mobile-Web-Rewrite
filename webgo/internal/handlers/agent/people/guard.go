@@ -40,6 +40,7 @@ type app struct {
 	failed   *page.Template
 	worklist *page.Template
 	calendar *page.Template
+	clients  *page.Template
 }
 
 type identityRow struct {
@@ -97,9 +98,18 @@ func (a *app) renderNoAccess(w http.ResponseWriter, r *http.Request) {
 }
 
 // renderFailed is ErrorState inside the shell: a read failed, which is not an empty book.
-func (a *app) renderFailed(w http.ResponseWriter, r *http.Request, v visit) {
+// retry is RetryState's variant, whose way out is "Try again" (this same URL) rather than
+// "Back to your trips".
+func (a *app) renderFailed(w http.ResponseWriter, r *http.Request, v visit, retry bool) {
 	doc := a.failed.New()
 	a.chrome(w, r, doc, v)
+	if retry {
+		doc.URL("retry", "href", r.URL.RequestURI())
+		doc.Remove("home")
+	} else {
+		doc.Remove("retry")
+		doc.Keep("home")
+	}
 	web.Render(w, a.d.Log, doc, http.StatusServiceUnavailable, web.Private)
 }
 
