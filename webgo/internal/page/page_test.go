@@ -349,3 +349,48 @@ func renderTemplate(t *testing.T, tmpl *Template) string {
 	}
 	return b.String()
 }
+
+// An <option> holds no elements, so a <select> or <datalist> row carries its slot on the row
+// element itself: each copy gets its own value, text and selected state.
+func TestOptionRowsAreFilledOnTheRowItself(t *testing.T) {
+	const pick = `<!DOCTYPE html><html><head><title>t</title></head><body><main>
+<select name="tpl"><option value="">Start from scratch</option><option data-repeat="tpl" data-slot="tpl-opt" value="sample">Sample</option></select>
+</main></body></html>`
+	set, err := Load(fstest.MapFS{"pick.html": {Data: []byte(pick)}},
+		Spec{File: "pick.html", Repeats: map[string][]string{"tpl": {"tpl-opt"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl, err := set.Template("pick.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type opt struct{ id, name string }
+	opts := []opt{{"t1", "Negril <7n>"}, {"t2", "Kyoto"}}
+	d := tmpl.New()
+	d.Repeat("tpl", len(opts), func(i int, r *Row) {
+		r.Attr("tpl-opt", "value", opts[i].id)
+		r.Text("tpl-opt", opts[i].name)
+		r.Bool("tpl-opt", "selected", opts[i].id == "t2")
+	})
+	out := render(t, d)
+	for _, want := range []string{
+		`value="t1">Negril &lt;7n&gt;</option>`,
+		`value="t2" selected="">Kyoto</option>`,
+		`<option value="">Start from scratch</option>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "sample") || strings.Contains(out, "data-repeat") {
+		t.Errorf("the sample row or a marker shipped:\n%s", out)
+	}
+
+	// An unfilled row's own slot still stops the render.
+	d = tmpl.New()
+	d.Repeat("tpl", 1, func(int, *Row) {})
+	if _, err := d.Bytes(); err == nil || !strings.Contains(err.Error(), `slot "tpl-opt" was never filled`) {
+		t.Errorf("an unfilled option rendered: %v", err)
+	}
+}
