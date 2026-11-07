@@ -20,15 +20,15 @@ func TestHarnessSmoke(t *testing.T) {
 	}
 	Run(t, deno, goW, []Case{
 		{
-			Name: "no token", Fn: "agent-trip-notes", Token: func(*World) string { return "" },
+			Name: "no token", Fn: "agent-trip-notes", PassThrough: true, Token: func(*World) string { return "" },
 			Body: func(*World) string { return `{}` },
 		},
 		{
-			Name: "not a trip id", Fn: "agent-trip-notes", Expect: http.StatusBadRequest,
+			Name: "not a trip id", Fn: "agent-trip-notes", PassThrough: true, Expect: http.StatusBadRequest,
 			Body: func(*World) string { return `{"tripId":"banana","notes":"x","expectedVersion":1}` },
 		},
 		{
-			Name: "traveler on the agent side", Fn: "agent-trip-notes", Expect: http.StatusForbidden,
+			Name: "traveler on the agent side", Fn: "agent-trip-notes", PassThrough: true, Expect: http.StatusForbidden,
 			Token: func(w *World) string { return w.Traveler.Token },
 			Body:  func(*World) string { return `{}` },
 		},

@@ -232,3 +232,13 @@ func TestObjectKeyOrderIsJavaScripts(t *testing.T) {
 		t.Errorf("stringify = %s", b)
 	}
 }
+
+// "İ".toLowerCase() is "i" plus a combining dot in JavaScript, never a plain "i".
+func TestToLowerDottedCapitalI(t *testing.T) {
+	if got := ToLower("\U00000130STANBUL"); got != "i\U00000307stanbul" {
+		t.Errorf("ToLower = %q", got)
+	}
+	if ToLower("ABC") != "abc" {
+		t.Error("plain ASCII")
+	}
+}

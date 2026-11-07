@@ -71,10 +71,16 @@ func Slice(s string, start, end int) string {
 // SliceFrom is slice(start) with no end.
 func SliceFrom(s string, start int) string { return Slice(s, start, Len(s)) }
 
-// ToLower is toLowerCase. Go's mapping matches JavaScript's for every character this code
-// base lower-cases (emails, codes, enum words); the full-case special cases like U+0130 are
-// the known difference.
-func ToLower(s string) string { return strings.ToLower(s) }
+// ToLower is toLowerCase. Go's simple mapping turns U+0130 (capital I with a dot) into a
+// plain "i"; JavaScript writes "i" plus U+0307, so on an address "İ" can never equal "i".
+// That special case is applied here. The Greek final-sigma rule is the one remaining
+// difference (Go always writes σ), and it never makes two different strings equal.
+func ToLower(s string) string {
+	if !strings.ContainsRune(s, 0x0130) {
+		return strings.ToLower(s)
+	}
+	return strings.ToLower(strings.ReplaceAll(s, "\U00000130", "i\U00000307"))
+}
 
 // ToUpper is toUpperCase, with the same caveat ("ß" stays "ß" in Go, "SS" in JavaScript).
 func ToUpper(s string) string { return strings.ToUpper(s) }
@@ -99,6 +105,10 @@ const spaceClass = `\t\n\v\f\r \x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}
 // meaning differs: JavaScript's \s is Unicode whitespace, Go's is ASCII only. \S becomes the
 // negated class. Pass flags as JavaScript writes them ("i"); only i, m and s are supported.
 // Anything RE2 cannot express (backreferences, lookaround) fails to compile, loudly.
+//
+// With the i flag, Go folds Unicode (so "ſ" matches s and the Kelvin sign matches k);
+// JavaScript without the u flag does not. Where that matters (addresses, hosts), match
+// against a copy with only A-Z lowered instead of using the flag.
 //
 // Other differences worth knowing when porting a pattern: `.` in JavaScript also refuses
 // \r, U+2028 and U+2029; `$` without the m flag is end of input in both.

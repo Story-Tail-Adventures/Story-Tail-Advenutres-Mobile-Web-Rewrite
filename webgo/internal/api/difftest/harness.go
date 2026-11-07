@@ -55,6 +55,13 @@ var GoEnv = map[string]string{
 	"ALLOWED_ORIGIN":            "http://localhost:3000",
 	"HOTEL_SEARCH_CALLER_TOKEN": SearchToken,
 	"LEAD_FORM_KEY":             LeadFormKey,
+	// Mail goes to the stack's Mailpit on both sides. Deno reaches it as inbucket:1025 on
+	// the Docker network; Go reaches the same server through a forwarder on 127.0.0.1:57425.
+	"EMAIL_SMTP_HOST":       "127.0.0.1",
+	"EMAIL_SMTP_PORT":       "57425",
+	"EMAIL_FROM_ADDRESS":    "gyasi.messages@adventures.story-tail.com",
+	"EMAIL_SITE_URL":        "http://localhost:3000",
+	"EMAIL_UNSUBSCRIBE_URL": "http://127.0.0.1:57421/functions/v1/email-unsubscribe",
 }
 
 // Extra are functions under test that have not joined the port table yet. A test file
@@ -270,27 +277,25 @@ func (s *Stack) deleteUser(id string) {
 
 func jsonBody(v any) io.Reader { b, _ := json.Marshal(v); return bytes.NewReader(b) }
 
-// NewAgent makes an advisor: an agent row (inactive, so the seed advisor stays the one
-// active advisor that sign-ups and leads route to; requireAgentId lets inactive through),
-// its platform_user turned into the agent's, and a session at aal2 through a real TOTP
-// factor.
+// NewAgent makes an advisor: an agent row (INACTIVE from the start, so the seed advisor stays
+// the one active advisor that sign-ups and leads route to, even while other tests are running;
+// requireAgentId lets inactive through), its platform_user turned into the agent's, and a
+// session at aal2 through a real TOTP factor.
 func (s *Stack) NewAgent(t *testing.T, tag string) *Actor {
 	t.Helper()
 	ctx := context.Background()
 	agentID := uuid.New()
 	email := "difftest-agent-" + tag + "@example.com"
 	if err := s.DB.From("agent").Insert(ctx, js.O("id", agentID, "display_name", "Diff Agent "+tag,
-		"email", email, "status", "active"), nil); err != nil {
+		"email", email, "status", "inactive"), nil); err != nil {
 		t.Fatalf("agent: %v", err)
 	}
-	a := s.createUser(t, email, "Diff", "Agent", agentID)
+	// The sign-up lands on the seed advisor as a client; it becomes this agent's sign-in next.
+	a := s.createUser(t, email, "Diff", "Agent", "")
 	orphan := a.ClientID
 	if err := s.DB.From("platform_user").Eq("id", a.PlatformUserID).Update(ctx,
 		js.O("role", "agent", "agent_id", agentID, "client_id", nil), nil); err != nil {
 		t.Fatalf("platform_user to agent: %v", err)
-	}
-	if err := s.DB.From("agent").Eq("id", agentID).Update(ctx, js.O("status", "inactive"), nil); err != nil {
-		t.Fatalf("agent inactive: %v", err)
 	}
 	_ = s.DB.From("client").Eq("id", orphan).Delete(ctx, nil)
 	a.ClientID = ""
@@ -303,14 +308,15 @@ func (s *Stack) NewAgent(t *testing.T, tag string) *Actor {
 }
 
 // NewTraveler makes a traveler owned by agent (an *Actor from NewAgent), signed in at aal1.
+// The sign-up routes to the seed advisor (the only active one); the client row is then moved
+// to the fixture advisor, so no advisor is ever made active for a moment.
 func (s *Stack) NewTraveler(t *testing.T, tag string, agent *Actor) *Actor {
 	t.Helper()
-	ctx := context.Background()
-	// The trigger only routes a sign-up to an ACTIVE advisor, so the agent is active for
-	// the moment of the insert.
-	_ = s.DB.From("agent").Eq("id", agent.AgentID).Update(ctx, js.O("status", "active"), nil)
-	a := s.createUser(t, "difftest-traveler-"+tag+"@example.com", "Diff", "Traveler "+tag, agent.AgentID)
-	_ = s.DB.From("agent").Eq("id", agent.AgentID).Update(ctx, js.O("status", "inactive"), nil)
+	a := s.createUser(t, "difftest-traveler-"+tag+"@example.com", "Diff", "Traveler "+tag, "")
+	if err := s.DB.From("client").Eq("id", a.ClientID).Update(context.Background(),
+		js.O("agent_id", agent.AgentID), nil); err != nil {
+		t.Fatalf("client to the fixture advisor: %v", err)
+	}
 	a.Token = s.signIn(t, a.Email)
 	return a
 }
@@ -442,14 +448,51 @@ func Since(at time.Time) string {
 	return fmt.Sprintf("%08x-%04x-7000-8000-000000000000", uint32(ms>>16), uint16(ms))
 }
 
-// Audit is the audit_event rows world w's actors wrote since the mark, oldest first,
-// without the id and created_at (both differ by construction).
+// auditMark is where world w's audit trail stands before a request: the created_at of its
+// actors' newest audit_event row, or "" when they have none. (Database time, so it is one
+// clock for rows written by Deno, by Go and by SQL.)
+func (s *Stack) auditMark(t *testing.T, w *World) string {
+	t.Helper()
+	if len(actors(w)) == 0 {
+		return ""
+	}
+	var rows []struct {
+		CreatedAt string `json:"created_at"`
+	}
+	if err := s.DB.From("audit_event").Select("created_at").In("actor_user_id", actors(w)).
+		Order("created_at", false).Limit(1).Rows(context.Background(), &rows); err != nil {
+		t.Fatalf("audit mark: %v", err)
+	}
+	if len(rows) == 0 {
+		return ""
+	}
+	return rows[0].CreatedAt
+}
+
+func actors(w *World) []string {
+	var ids []string
+	for _, a := range []*Actor{w.Agent, w.Traveler} {
+		if a != nil && a.PlatformUserID != "" {
+			ids = append(ids, a.PlatformUserID)
+		}
+	}
+	return ids
+}
+
+// Audit is the audit_event rows world w's actors wrote after the mark, oldest first, without
+// the id and created_at (both differ by construction).
 func (s *Stack) Audit(t *testing.T, w *World, mark string) string {
 	t.Helper()
-	actors := []string{w.Agent.PlatformUserID, w.Traveler.PlatformUserID}
-	return s.Rows(t, s.DB.From("audit_event").
+	if len(actors(w)) == 0 {
+		return "[]"
+	}
+	q := s.DB.From("audit_event").
 		Select("actor_role,event_type,target_entity,target_id,metadata,user_agent").
-		In("actor_user_id", actors).Gte("id", mark).Order("id", true))
+		In("actor_user_id", actors(w))
+	if mark != "" {
+		q = q.Gt("created_at", mark)
+	}
+	return s.Rows(t, q.Order("created_at", true).Order("event_type", true))
 }
 
 // ---- the comparison ----
@@ -477,6 +520,9 @@ type Case struct {
 	// Expect, when set, also pins the status both sides must give, so a case that was
 	// written to reach a branch proves it reached it.
 	Expect int
+	// PassThrough lets the Go side pass an unported name through to Deno. Only the harness's
+	// own smoke test sets it.
+	PassThrough bool
 }
 
 // Run sends each case to Deno (world A) and Go (world B) and compares everything.
@@ -512,7 +558,7 @@ type outcome struct {
 
 func runOne(t *testing.T, c Case, w *World, deno bool) outcome {
 	t.Helper()
-	if !deno && !S.Reg.Ported(c.Fn) {
+	if !deno && !c.PassThrough && !S.Reg.Ported(c.Fn) {
 		// Without this the Go door would pass the request through to the same Deno function
 		// and every comparison would trivially agree.
 		t.Fatalf("%s is not ported in this run: register it in Extra or portTable", c.Fn)
@@ -545,7 +591,10 @@ func runOne(t *testing.T, c Case, w *World, deno bool) outcome {
 	if c.Body != nil {
 		body = c.Body(w)
 	}
-	mark := Since(time.Now())
+	mark := ""
+	if !c.SkipAudit {
+		mark = S.auditMark(t, w)
+	}
 	var r Resp
 	switch {
 	case deno:
