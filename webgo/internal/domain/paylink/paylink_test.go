@@ -369,3 +369,29 @@ func TestReadPaidOn(t *testing.T) {
 	_, err = ReadPaidOn(str("10/14/2026"), now)
 	wantBadRequest(t, err, "Pick a real date for when this was paid.")
 }
+
+// Review of #187 (hard fail): building the parts a character at a time was quadratic; a
+// 1.6M character link took 68 seconds. It is linear now: a 4 MiB fragment parses in well
+// under a second.
+func TestLongLinksParseInLinearTime(t *testing.T) {
+	for _, tail := range []string{"#", "/x#", "?q="} {
+		in := "https://a.com/" + tail + strings.Repeat("a", 4<<20)
+		start := time.Now()
+		_, _ = ReadPayURL(js.StringValue(in))
+		if d := time.Since(start); d > 2*time.Second {
+			t.Errorf("%q tail: %v for 4 MiB", tail, d)
+		}
+	}
+	in := "javascript:" + strings.Repeat("a", 4<<20)
+	start := time.Now()
+	_, _ = ReadPayURL(js.StringValue(in))
+	if d := time.Since(start); d > 2*time.Second {
+		t.Errorf("opaque path: %v for 4 MiB", d)
+	}
+	in = "https://" + strings.Repeat("a@", 1<<20) + "a.com/"
+	start = time.Now()
+	_, _ = ReadPayURL(js.StringValue(in))
+	if d := time.Since(start); d > 2*time.Second {
+		t.Errorf("userinfo: %v for 2 MiB of @", d)
+	}
+}
