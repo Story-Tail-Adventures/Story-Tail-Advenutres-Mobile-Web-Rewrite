@@ -14,7 +14,9 @@ import (
 // chosen words on the advisor's roster.
 //
 // So, like the flash, it is a short-lived HttpOnly cookie this server sets, __Host- prefixed
-// outside a local http:// server (a sibling subdomain cannot plant one). It carries DATA, never
+// outside a local http:// server (a sibling subdomain cannot plant one). __Host- requires
+// Path=/: a browser drops the cookie whole on any other path, so the receipt would never show.
+// Each page takes only its own kind, and the cookie lives a minute. It carries DATA, never
 // a sentence: the tag, the counts and the direction. The sentence is built here, by
 // bulkTagResult, and the tag goes into the page as text.
 
@@ -59,7 +61,7 @@ func setReceipt(w http.ResponseWriter, rc receipt, secure bool) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: receiptName(secure), Value: base64.RawURLEncoding.EncodeToString(b), Path: "/agent/clients",
+		Name: receiptName(secure), Value: base64.RawURLEncoding.EncodeToString(b), Path: "/",
 		MaxAge: 60, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -72,7 +74,7 @@ func takeReceipt(w http.ResponseWriter, r *http.Request, secure bool) (receipt, 
 		return receipt{}, false
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: receiptName(secure), Value: "", Path: "/agent/clients",
+		Name: receiptName(secure), Value: "", Path: "/",
 		MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	})
 	raw, err := base64.RawURLEncoding.DecodeString(c.Value)
