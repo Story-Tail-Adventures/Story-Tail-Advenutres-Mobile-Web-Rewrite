@@ -49,10 +49,12 @@ func Func(d *edge.Deps, r *http.Request) (*edge.Reply, error) {
 	if err != nil {
 		return nil, err
 	}
-	// The registry rebuilt the trusted headers before this ran: X-Forwarded-For is the
-	// visitor's address, and the form key and X-Sta-Client-Ip beside it came from the server,
-	// never from the caller. So the same rule picks the same address it picked in Deno.
-	ip := lead.ClientAddress(r.Header, d.Env("LEAD_FORM_KEY"))
+	// The registry replaced every address header before this ran: X-Forwarded-For holds the
+	// one validated visitor address (an IP or nothing; edge.VisitorAddress), Cf-Connecting-Ip
+	// is gone, and nothing x-sta-* from the caller survives. So the forwarded-key branch that
+	// let the Next.js server vouch for an address has nothing to add in Go: with no key,
+	// clientAddress takes X-Forwarded-For, the same address Deno was handed.
+	ip := lead.ClientAddress(r.Header, "")
 
 	var row struct {
 		Outcome *string `json:"outcome"`
