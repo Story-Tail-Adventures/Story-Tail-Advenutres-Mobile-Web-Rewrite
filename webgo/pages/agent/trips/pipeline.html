@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.2.2, Pipeline / Funnel View. Ports app/(agent)/agent/pipeline/page.tsx with
+  StageMenu and AgentViews. Filled by internal/handlers/agent/trips (pipeline.go).
+
+  Three layouts, one DOM: a phone shows the ?stage= column only (the picker chips choose it),
+  a tablet scrolls the five 272px columns sideways, the web width fits all five. Each card's
+  stage menu is a form posting to /agent/pipeline/stage; detail.js submits it on change.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pipeline · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col trp-col-1400" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/pipeline" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <!-- AgentViews: the worklist's three pages. -->
+      <nav class="trp-views" aria-label="Worklist views">
+        <a class="chip chip-outlined chip-clickable trp-view-link" href="/agent"><span class="chip-label">Worklist</span></a>
+        <a class="chip chip-secondary chip-clickable trp-view-link" href="/agent/pipeline" aria-current="page"><span class="chip-label">Pipeline</span></a>
+        <a class="chip chip-outlined chip-clickable trp-view-link" href="/agent/calendar"><span class="chip-label">Calendar</span></a>
+      </nav>
+
+      <header class="trp-mt-2_5">
+        <h1 class="type-h5 trp-fw-700">Pipeline</h1>
+        <p class="type-body2 text-secondary trp-mt-0_5">Move a trip with the stage menu. Totals are summed live.</p>
+      </header>
+
+      <!-- §4.4's stage-picker: phone only. -->
+      <nav class="trp-picker" aria-label="Pipeline stages">
+        <a class="chip chip-outlined chip-clickable trp-view-link" href="/agent/pipeline?stage=inquiry" data-repeat="pick" data-slot="pick"><span class="chip-label" data-slot="pick-label">Inquiry · 3</span></a>
+      </nav>
+
+      <div class="trp-board">
+        <section class="paper trp-column" data-repeat="col" data-slot="col">
+          <header class="trp-column-head">
+            <span class="status-chip" data-slot="col-chip">Inquiry</span>
+            <p class="type-subtitle2 trp-mt-1"><span data-slot="col-count">3 trips · </span><span class="type-subtitle2 text-secondary" data-slot="col-total">$12,000</span></p>
+          </header>
+          <p class="type-body2 text-secondary trp-py-1" data-slot="col-empty">Nothing here.</p>
+          <article class="card" data-repeat="card">
+            <div class="card-content trp-pad-12">
+              <a class="link link-none link-inherit trp-block" href="/agent/trips/sample" data-slot="c-link">
+                <p class="type-subtitle2" data-slot="c-client">Jordan Hayes</p>
+                <p class="type-body2 text-secondary" data-slot="c-title">Anniversary Week in Negril</p>
+                <p class="type-caption trp-block trp-mt-1 trp-mono trp-fw-700" data-slot="c-value">$12,845</p>
+              </a>
+              <form class="trp-mt-1" method="post" action="/agent/pipeline/stage" data-submit-once>
+                <input type="hidden" name="tripId" value="sample" data-slot="c-trip">
+                <input type="hidden" name="from" value="inquiry" data-slot="c-from">
+                <input type="hidden" name="expectedVersion" value="1" data-slot="c-version">
+                <input type="hidden" name="view" value="inquiry" data-slot="c-stage">
+                <div class="select"><select class="input" name="status" aria-label="Move stage" data-trp-autosubmit data-slot="c-select">
+                  <option value="inquiry" data-slot="c-opt-inquiry">Inquiry</option>
+                  <option value="proposal" data-slot="c-opt-proposal">Proposal</option>
+                  <option value="booked" data-slot="c-opt-booked">Booked</option>
+                  <option value="in_progress" data-slot="c-opt-in-progress">In progress</option>
+                  <option value="completed" data-slot="c-opt-completed">Completed</option>
+                </select></div>
+                <button type="submit" class="btn btn-outlined btn-small st-btn trp-nojs trp-mt-0_5">Move stage</button>
+                <p class="type-body2 text-error trp-mt-0_5" role="alert" data-slot="c-error">This trip moved since the board was loaded. Reload and try again.</p>
+              </form>
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <p class="type-body2 text-secondary trp-mt-2" data-slot="columns-off">1 cancelled trip is not on the board. Cancelled is a status, not a stage.</p>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/detail.js"></script>
+</main>
+</body>
+</html>
