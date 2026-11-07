@@ -26,8 +26,8 @@ const (
 	maxTagLen           = 40 // CLIENT_LIMITS.tag
 )
 
-// receipt is one success, by kind: "bulk" (a bulk tag: the tag and its counts) or
-// "account" (an account-admin outcome code: sent, noop or changed).
+// receipt is one success, by kind: "bulk" (a bulk tag: the tag and its counts), "account"
+// (an account-admin outcome code: sent, noop or changed) or "lead" (an invite's note).
 type receipt struct {
 	Kind      string `json:"k"`
 	Tag       string `json:"t,omitempty"`
@@ -45,6 +45,9 @@ func (rc receipt) valid() bool {
 			rc.Changed >= 0 && rc.Requested >= 0 && rc.Changed <= rc.Requested
 	case "account":
 		return rc.Outcome == "sent" || rc.Outcome == "noop" || rc.Outcome == "changed"
+	case "lead":
+		// 3.8.3's two invite notes: the email was already a client's, or the invite did not send.
+		return rc.Outcome == "existing" || rc.Outcome == "not-sent"
 	}
 	return false
 }

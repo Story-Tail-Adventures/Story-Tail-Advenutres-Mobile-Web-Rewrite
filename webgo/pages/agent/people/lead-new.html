@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.8.5 Add Lead (revived 2026-10-21, BRD §6.5): app/(agent)/agent/leads/new/page.tsx
+  and components/agent/AddLeadForm.tsx. For somebody who reached Gyasi another way. Copy word
+  for word from LEAD_COPY. Every rule is agent-lead's, including the refusal of a card number.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Add lead · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-narrow">
+    <a class="link link-hover ppl-back" href="/agent/leads"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>All leads</a>
+
+    <header class="ppl-merge-header">
+      <h1 class="type-h5">Add a lead</h1>
+      <p class="type-body2 text-secondary ppl-mt-0_25">For someone who reached you another way: a call, a text, a referral or an email.</p>
+    </header>
+
+    <form class="ppl-lead-form" method="post" action="/agent/leads/new" data-submit-once>
+      <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message"><span data-slot="form-error-text">That didn't save. Try again in a moment.</span> <a class="link link-inherit fw-600" href="/agent/clients/sample" data-slot="form-error-client">Open client</a></div></div>
+
+      <div class="ppl-lead-grid">
+        <div class="field">
+          <label class="field-label" for="firstName">First name</label>
+          <input class="input" id="firstName" name="firstName" required maxlength="80" data-slot="in-firstname">
+        </div>
+        <div class="field">
+          <label class="field-label" for="lastName">Last name (optional)</label>
+          <input class="input" id="lastName" name="lastName" maxlength="80" data-slot="in-lastname">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="email">Email</label>
+        <input class="input" id="email" name="email" type="email" required maxlength="254" data-slot="in-email">
+      </div>
+      <div class="field">
+        <label class="field-label" for="phone">Phone (optional)</label>
+        <input class="input" id="phone" name="phone" type="tel" maxlength="40" data-slot="in-phone">
+      </div>
+      <div class="field">
+        <label class="field-label" for="source">How they reached you</label>
+        <div class="select"><select class="input" id="source" name="source"><option value="email" data-slot="src-email">Email</option><option value="phone" selected data-slot="src-phone">Phone</option><option value="referral" data-slot="src-referral">Referral</option><option value="social" data-slot="src-social">Social</option><option value="other" data-slot="src-other">Other</option></select></div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="note">What they're looking for</label>
+        <textarea class="input" id="note" name="note" required rows="4" maxlength="2000" data-slot="in-note"></textarea>
+      </div>
+
+      <div class="ppl-mt-0_5"><button type="submit" class="btn btn-contained st-btn">Save lead</button></div>
+    </form>
+  </div>
+</main>
+</body>
+</html>

@@ -546,4 +546,43 @@
     color: var(--mui-palette-text-secondary);
   }
   .ppl-merge-note-icon { padding-top: 2px; }
+
+  /* ── Leads (§3.8: leads.html, lead.html, lead-new.html) ──────────────────────────────── */
+  .ppl-page-lead { max-width: 960px; }
+  .ppl-page-narrow { max-width: 640px; }
+  .ppl-mb-1_5 { margin-bottom: 12px; }
+  .ppl-mb-2 { margin-bottom: 16px; }
+  .ppl-noshrink { flex-shrink: 0; }
+  .ppl-nowrap { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ppl-prewrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ppl-leads-header { margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .ppl-lead-filters { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .ppl-lead-list { margin: 0; padding: 0; list-style: none; }
+  .ppl-lead-item + .ppl-lead-item { border-top: 1px solid var(--mui-palette-divider); }
+  /* ListItemButton: the whole row is the link. */
+  .ppl-lead-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .ppl-lead-row:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-lead-row:focus-visible { outline: 0; background-color: var(--mui-palette-action-focus); }
+  .ppl-lead-side { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .ppl-lead-header { margin: 12px 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .ppl-lead-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ppl-lead-card { margin-top: 16px; padding: 16px; }
+  .ppl-lead-dl { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .ppl-lead-dl-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .ppl-lead-dt { min-width: 120px; }
+  .ppl-lead-dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .ppl-lead-notes { display: flex; flex-direction: column; gap: 16px; }
+  .ppl-lead-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .ppl-lead-radios { display: flex; flex-direction: column; }
+  .ppl-lead-check { display: flex; width: fit-content; }
+  .ppl-lead-dialog-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+  .ppl-lead-form { display: flex; flex-direction: column; gap: 10px; }
 }

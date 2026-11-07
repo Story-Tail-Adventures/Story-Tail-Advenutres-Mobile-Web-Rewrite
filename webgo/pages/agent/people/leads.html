@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.8.1 Leads List (revived 2026-10-21, BRD §6.5; Data-Model §11):
+  app/(agent)/agent/leads/page.tsx. Copy word for word from LEAD_COPY (lib/agent/leadsCopy.ts).
+
+  The status filter is a set of links (?status=), so a filtered list is shareable and the
+  back button means what it says. NO SLA COLOUR: a new lead says how long it has waited, in
+  grey. No bulk-archive either.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Leads · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-wide">
+    <header class="ppl-leads-header">
+      <div class="ppl-flex1">
+        <h1 class="type-h5">Leads</h1>
+        <p class="type-body2 text-secondary ppl-mt-0_25">People without an account who wrote to you, and anyone you added by hand.</p>
+      </div>
+      <a class="btn btn-contained btn-brand btn-small ppl-btn-sm ppl-noshrink" href="/agent/leads/new"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> Add lead</a>
+    </header>
+
+    <nav class="ppl-lead-filters" aria-label="Lead status">
+      <span class="ppl-contents" data-repeat="filters"><a class="chip" href="/agent/leads" data-slot="filter"><span class="chip-label" data-slot="filter-label">Open · 3</span></a></span>
+    </nav>
+
+    <div class="card ppl-state" data-slot="empty">
+      <div class="ppl-state-body">
+        <span class="avatar ppl-state-tile ppl-state-tile-neutral" aria-hidden="true"><svg class="icon ppl-icon-26" aria-hidden="true"><use href="/assets/icons.svg#inbox"></use></svg></span>
+        <h2 class="type-h5">Leads</h2>
+        <p class="type-body2 text-secondary ppl-mt-1" data-slot="empty-body">No one is waiting on you here. New notes from the website land in this list.</p>
+      </div>
+    </div>
+
+    <ul class="card ppl-lead-list" data-slot="list">
+      <li class="ppl-lead-item" data-repeat="leads">
+        <a class="ppl-lead-row" href="/agent/leads/sample" data-slot="l-link">
+          <div class="ppl-flex1">
+            <p class="type-subtitle2" data-slot="l-name">Dana Reyes</p>
+            <p class="type-body2 text-secondary ppl-nowrap" data-slot="l-preview">June works.</p>
+            <p class="type-caption text-secondary" data-slot="l-meta">Website form · 2 notes · Oct 21</p>
+          </div>
+          <div class="ppl-lead-side">
+            <span class="status-chip status-lead" data-slot="l-status">New</span>
+            <p class="type-caption text-secondary" data-slot="l-wait">Waiting 2 days</p>
+          </div>
+        </a>
+      </li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>
