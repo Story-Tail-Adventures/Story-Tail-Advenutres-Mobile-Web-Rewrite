@@ -72,6 +72,17 @@ var Bundles = []Bundle{{
 		"css/public.css",
 		"css/client.css",
 	},
+}, {
+	// The agent area is built by three sessions at once (people, trips, money), so its
+	// stylesheet is one file per sub-area, joined here, and the layout still links the one
+	// css/area/agent.css. Each sub-area edits only its own file.
+	Name: "css/area/agent.css",
+	Files: []string{
+		"css/area/agent/shared.css",
+		"css/area/agent/people.css",
+		"css/area/agent/trips.css",
+		"css/area/agent/money.css",
+	},
 }}
 
 // Set is the built asset table. Read-only after Build, so safe for concurrent use.
