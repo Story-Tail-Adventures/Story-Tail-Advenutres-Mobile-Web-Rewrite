@@ -319,6 +319,10 @@ func mountList(rt *gate.Router, d handlers.Deps) error {
 			return
 		}
 		q := returnQuery(form.Get("return"))
+		if v.noAccess {
+			render(w, r, v, q, nil, http.StatusForbidden) // an admin has no desk here; nothing is sent
+			return
+		}
 		failWith := func(msg string, status int) {
 			render(w, r, v, q, &receipt{text: msg, error: true}, status)
 		}
@@ -372,7 +376,9 @@ func mountList(rt *gate.Router, d handlers.Deps) error {
 			MovedCount     *int `json:"movedCount"`
 			RequestedCount *int `json:"requestedCount"`
 		}
-		_ = json.Unmarshal(res.Data, &counts)
+		if err := json.Unmarshal(res.Data, &counts); err != nil {
+			d.Log.Warn("unexpected function reply", "function", "agent-trip-status", "err", err)
+		}
 		moved, requested := 0, len(trips)
 		if counts.MovedCount != nil {
 			moved = *counts.MovedCount
@@ -412,7 +418,8 @@ func receiptFromQuery(q url.Values) *receipt {
 	moved, err1 := strconv.Atoi(q.Get("moved"))
 	asked, err2 := strconv.Atoi(q.Get("asked"))
 	to := q.Get("to")
-	if err1 != nil || err2 != nil || moved < 0 || asked < moved || asked > 1000 || !validStage(to) {
+	// cancelled is never a bulk target (§3.4.16), so a receipt saying so would be a lie.
+	if err1 != nil || err2 != nil || moved < 0 || asked < moved || asked > 1000 || !validStage(to) || to == "cancelled" {
 		return nil
 	}
 	return &receipt{text: bulkStatusResult(stageLabel(to), moved, asked)}
@@ -470,7 +477,6 @@ func fillList(d *page.Doc, q tripQuery, ro *roster, rc *receipt, v visit) {
 		if rc.error {
 			d.Class("receipt", "alert-success", false)
 			d.Class("receipt", "alert-error", true)
-			d.Attr("receipt", "role", "alert")
 		}
 	}
 	// No cancel option: §3.4.16 is a whole screen for cancelling one trip.

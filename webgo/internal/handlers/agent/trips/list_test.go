@@ -180,7 +180,7 @@ func TestBulkStageChange(t *testing.T) {
 	has(t, a.get(loc), "Moved 2 trips to Booked. The other one had already moved on.", "alert-success")
 
 	// The receipt is rebuilt from closed values only: anything else shows nothing.
-	for _, junk := range []string{"moved=1&asked=1&to=evil", "moved=-1&asked=1&to=booked", "moved=3&asked=2&to=booked", "moved=x&asked=1&to=booked"} {
+	for _, junk := range []string{"moved=1&asked=1&to=evil", "moved=9&asked=9&to=cancelled", "moved=-1&asked=1&to=booked", "moved=3&asked=2&to=booked", "moved=x&asked=1&to=booked"} {
 		lacks(t, a.get("/agent/trips?"+junk), "Moved ", "Nothing moved")
 	}
 	has(t, a.get("/agent/trips?moved=0&asked=2&to=in_progress"), "Nothing moved — every trip you picked had already changed stage.")

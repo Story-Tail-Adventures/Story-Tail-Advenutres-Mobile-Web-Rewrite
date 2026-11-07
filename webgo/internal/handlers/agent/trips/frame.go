@@ -2,6 +2,7 @@ package trips
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -108,7 +109,7 @@ func begin(w http.ResponseWriter, r *http.Request, d handlers.Deps) (v visit, do
 
 var (
 	zoneMu    sync.Mutex
-	zoneCache = map[string]*time.Location{}
+	zoneCache = map[string]*time.Location{} // only names that loaded: a bad one is never kept
 )
 
 // zone loads an IANA zone once, falling back to America/Chicago for an empty or unknown
@@ -122,28 +123,18 @@ func zone(name string) *time.Location {
 	if loc, ok := zoneCache[name]; ok {
 		return loc
 	}
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		if name == defaultZone {
-			loc = time.UTC
-		} else {
-			loc = zoneLocked(defaultZone)
-		}
-	}
-	zoneCache[name] = loc
-	return loc
-}
-
-func zoneLocked(name string) *time.Location {
-	if loc, ok := zoneCache[name]; ok {
+	if loc, err := time.LoadLocation(name); err == nil {
+		zoneCache[name] = loc
 		return loc
 	}
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		loc = time.UTC
+	if loc, ok := zoneCache[defaultZone]; ok {
+		return loc
 	}
-	zoneCache[name] = loc
-	return loc
+	if loc, err := time.LoadLocation(defaultZone); err == nil {
+		zoneCache[defaultZone] = loc
+		return loc
+	}
+	return time.UTC
 }
 
 // canRead: there is an advisor to read as. An admin's page reads nothing (it renders
@@ -230,13 +221,11 @@ func parseIntJS(s string) (int, bool) {
 	if i == 0 {
 		return 0, false
 	}
-	digits := s[:i]
-	if len(digits) > 9 {
-		digits = digits[:9] // far past any count or page this app takes
-	}
-	n, err := strconv.Atoi(digits)
+	n, err := strconv.Atoi(s[:i])
 	if err != nil {
-		return 0, false
+		// Past int: JS still has a (huge) number, which the function refuses. Never a
+		// small one that would be accepted in its place.
+		n = math.MaxInt
 	}
 	if neg {
 		n = -n

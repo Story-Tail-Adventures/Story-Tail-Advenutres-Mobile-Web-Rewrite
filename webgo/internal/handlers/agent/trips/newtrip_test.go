@@ -149,3 +149,41 @@ func TestNewTripRefusals(t *testing.T) {
 		t.Errorf("no id status %d", rec.Code)
 	}
 }
+
+// Review finding (PR 1): with JS off, a stale hidden id (from a 422 re-render or ?client=)
+// must not beat the name the advisor retyped.
+func TestNewTripTypedNameBeatsAStaleHiddenID(t *testing.T) {
+	a := newApp(t)
+	a.fake.read("agent_client_roster", `[{"client_id":"c-1","display_name":"Jordan Hayes","email":null},{"client_id":"c-4","display_name":"Alex Kim","email":null}]`)
+	a.fake.read("agent_templates", `[]`)
+	rec := a.post("/agent/trips/new", url.Values{"clientId": {""}, "clientName": {"Jordan Hayes"}, "title": {""}})
+	has(t, rec, `name="clientId" value="c-1"`) // the re-render carries the resolved id
+	a.fake.fn("agent-trip", reply{200, `{"tripId":"t-1"}`}, reply{200, `{"tripId":"t-2"}`})
+	a.post("/agent/trips/new", url.Values{"clientId": {"c-1"}, "clientName": {"Alex Kim"}, "title": {"Kim anniversary"}})
+	jsonEq(t, a.fake.calls("agent-trip")[0].body, "clientId", `"c-4"`)
+
+	// The posted id is kept when the typed name is its own.
+	a.post("/agent/trips/new", url.Values{"clientId": {"c-1"}, "clientName": {"jordan hayes"}, "title": {"T"}})
+	jsonEq(t, a.fake.calls("agent-trip")[1].body, "clientId", `"c-1"`)
+
+	// A name that resolves to no one posts no id, whatever the hidden field held.
+	rec = a.post("/agent/trips/new", url.Values{"clientId": {"c-1"}, "clientName": {"Nobody Here"}, "title": {"T"}})
+	if rec.Code != 422 {
+		t.Errorf("unknown name with a stale id = %d", rec.Code)
+	}
+	has(t, rec, "Pick a client first.")
+}
+
+func TestAnAdminPostSendsNothing(t *testing.T) {
+	a := newTripApp(t)
+	a.fake.role = "admin"
+	rec := a.post("/agent/trips/new", url.Values{"title": {"T"}, "clientId": {"c-1"}})
+	if rec.Code != 403 || len(a.fake.calls("agent-trip")) != 0 {
+		t.Errorf("admin post = %d, calls %d", rec.Code, len(a.fake.calls("agent-trip")))
+	}
+	rec = a.post("/agent/trips", url.Values{"trip": {"t-1:inquiry"}, "toStatus": {"booked"}})
+	if rec.Code != 403 || len(a.fake.calls("agent-trip-status")) != 0 {
+		t.Errorf("admin bulk = %d", rec.Code)
+	}
+	has(t, rec, "You don’t have access to this view")
+}

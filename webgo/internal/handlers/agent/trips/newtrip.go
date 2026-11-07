@@ -140,6 +140,18 @@ func loadBook(r *http.Request, d handlers.Deps, v visit) []pickClient {
 	return out
 }
 
+// resolveClient keeps the posted id when it is a client on the book whose name is the typed
+// one; otherwise the typed name decides (matchClient). The client-side module does the same.
+func resolveClient(book []pickClient, postedID, name string) string {
+	want := strings.ToLower(strings.TrimSpace(name))
+	for _, c := range book {
+		if c.id == postedID && strings.ToLower(c.name) == want {
+			return postedID
+		}
+	}
+	return matchClient(book, name)
+}
+
 // matchClient resolves a typed name to exactly one client, or "".
 func matchClient(book []pickClient, name string) string {
 	want := strings.ToLower(strings.TrimSpace(name))
@@ -280,12 +292,19 @@ func mountNewTrip(rt *gate.Router, d handlers.Deps) error {
 		if done {
 			return
 		}
+		if v.noAccess {
+			render(w, r, v, nil, http.StatusForbidden) // an admin has no desk here; nothing is sent
+			return
+		}
 		values := newTripFromForm(form)
 
-		var f *newTripForm // loaded once, when the page has to be drawn again or a name resolved
+		var (
+			f      *newTripForm // loaded once, when the page has to be drawn again or a name resolved
+			loaded bool
+		)
 		reload := func() *newTripForm {
-			if f == nil {
-				f = load(r, v, values)
+			if !loaded {
+				f, loaded = load(r, v, values), true
 			}
 			return f
 		}
@@ -298,9 +317,13 @@ func mountNewTrip(rt *gate.Router, d handlers.Deps) error {
 			render(w, r, v, nf, status)
 		}
 
-		if values.clientID == "" && values.clientName != "" {
+		// The typed name is what the advisor sees, so it wins over a hidden id it no longer
+		// names: with JS off, a re-rendered form or ?client= keeps the earlier id in the hidden
+		// field while the visible name is retyped. A name that resolves to no one (or to two)
+		// posts no id, and the form says to pick a client.
+		if values.clientName != "" {
 			if nf := reload(); nf != nil {
-				values.clientID = matchClient(nf.book, values.clientName)
+				values.clientID = resolveClient(nf.book, values.clientID, values.clientName)
 			}
 		}
 		if errs := validateNewTrip(values); errs.any() {
@@ -329,7 +352,9 @@ func mountNewTrip(rt *gate.Router, d handlers.Deps) error {
 			Outcome *string `json:"outcome"`
 			TripID  *string `json:"tripId"`
 		}
-		_ = json.Unmarshal(res.Data, &created)
+		if err := json.Unmarshal(res.Data, &created); err != nil {
+			d.Log.Warn("unexpected function reply", "function", "agent-trip", "err", err)
+		}
 		// no_client is a FIELD error: the client left the book between load and submit.
 		if created.Outcome != nil && *created.Outcome == "no_client" {
 			again(func(nf *newTripForm) { nf.errs.client = copyClientMissing }, http.StatusUnprocessableEntity)
@@ -353,7 +378,9 @@ func mountNewTrip(rt *gate.Router, d handlers.Deps) error {
 				var a struct {
 					ComponentsAdded *int64 `json:"componentsAdded"`
 				}
-				_ = json.Unmarshal(applied.Data, &a)
+				if err := json.Unmarshal(applied.Data, &a); err != nil {
+					d.Log.Warn("unexpected function reply", "function", "agent-template", "err", err)
+				}
 				n := int64(0)
 				if a.ComponentsAdded != nil {
 					n = *a.ComponentsAdded
