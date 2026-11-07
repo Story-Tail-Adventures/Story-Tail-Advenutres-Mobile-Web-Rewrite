@@ -1,7 +1,11 @@
 package api
 
 import (
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentitinerary"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentlead"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttrip"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttripnotes"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttripstatus"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/cruisesearch"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/leadmessage"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/onboardingcompanions"
@@ -44,5 +48,12 @@ func portTable() map[string]port {
 		"trip-document-url": {GateUser, tripdocumenturl.Func},
 		"testimonial":       {GateUser, testimonial.Func},
 		"quote-request":     {GateUser, quoterequest.Func},
+
+		// Trips and pay links (step 7). Pay links are https only, advisor only, and audited
+		// in SQL in the same transaction as the write.
+		"agent-trip":        {GateUser, agenttrip.Func},
+		"agent-trip-status": {GateUser, agenttripstatus.Func},
+		"agent-trip-notes":  {GateUser, agenttripnotes.Func},
+		"agent-itinerary":   {GateUser, agentitinerary.Func},
 	}
 }
