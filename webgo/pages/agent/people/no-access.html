@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!--
+  AdminNoAccess (components/agent/AdminNoAccess.tsx): the (agent) layout's "unauthorized"
+  state. An administrator has no desk on either side yet, so the shell shows this card in place
+  of the page and offers sign-out. The copy is the component's, word for word.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card ppl-state">
+    <div class="ppl-state-body">
+      <span class="avatar ppl-state-tile ppl-state-tile-neutral" aria-hidden="true"><svg class="icon ppl-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary ppl-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary ppl-state-btn ppl-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+</main>
+</body>
+</html>

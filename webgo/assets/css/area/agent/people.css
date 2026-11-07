@@ -1,1 +1,198 @@
-/* Agent workspace, people sub-area: page-only styles (see webgo/internal/handlers/agent/people). */
+/* Agent workspace, people sub-area: page-only styles (see webgo/internal/handlers/agent/people).
+ *
+ * The worklist and calendar (§3.2), clients (§3.3), leads (§3.8) and messages (§3.10). Every
+ * rule is the Next page's sx, read off app/(agent)/agent/... and checked against the running app
+ * (docs/GO-MIGRATION.md §4.8). Every class here starts with ppl- so it cannot collide with the
+ * trips or money sub-areas in the joined css/area/agent.css. */
+
+@layer components {
+  /* ── Shared ──────────────────────────────────────────────────────────────────────────── */
+
+  /* The page column: `mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8`. */
+  .ppl-page { margin: 0 auto; width: 100%; max-width: 1100px; padding: 24px 16px; }
+  @media (min-width: 768px) { .ppl-page { padding-left: 32px; padding-right: 32px; } }
+
+  .ppl-block { display: block; }
+  .ppl-italic { font-style: italic; }
+  .ppl-mt-0_5 { margin-top: 4px; }
+  .ppl-mt-1 { margin-top: 8px; }
+  .ppl-mt-2 { margin-top: 16px; }
+  .ppl-icon-26 { width: 26px; height: 26px; }
+  .ppl-money { font-family: var(--font-mono); font-weight: 700; }
+
+  /* AgentViews: each view an MUI Chip as a link, outlined at rest and filled secondary when
+     current, on the legacy .agent-view-link box (34px, 14px sides, 44px on touch). */
+  .ppl-views { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ppl-view { height: auto; min-height: 34px; border-radius: 999px; font-weight: 600; }
+  .ppl-view .chip-label,
+  .ppl-view.chip-outlined .chip-label { padding-left: 14px; padding-right: 14px; }
+  @media (pointer: coarse) { .ppl-view { min-height: 44px; } }
+
+  /* MuiButton size="small" with the BTN_SM box. */
+  .ppl-btn-sm { min-height: 32px; padding-left: 16px; padding-right: 16px; gap: 8px; white-space: nowrap; }
+
+  /* A clickable row: ListItemButton with `px 2 py 1.5 gap 1.5`, a rule between rows. */
+  .ppl-row {
+    position: relative;
+    display: flex;
+    flex-grow: 1;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px 16px;
+    color: inherit;
+    text-align: left;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ppl-row:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-row:focus-visible { outline: none; background-color: var(--mui-palette-action-focus); }
+  .ppl-row-item + .ppl-row-item { border-top: 1px solid var(--mui-palette-divider); }
+  .ppl-row-main { flex: 1; min-width: 0; }
+  .ppl-row-end { text-align: right; }
+
+  /* The 36px initials disc on the primary container pair. */
+  .ppl-initials {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    background-color: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* The §5 state card (ErrorState, AdminNoAccess): 512px, centred, 24px down. */
+  .ppl-state { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .ppl-state-body { padding: 28px; }
+  .ppl-state-tile { display: flex; margin: 0 auto 12px; width: 56px; height: 56px; }
+  .ppl-state-tile-neutral { background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-secondary); }
+  .ppl-state-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .ppl-state-actions { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  @media (min-width: 640px) { .ppl-state-actions { flex-direction: row; justify-content: center; } }
+  .ppl-state-btn { min-height: 40px; padding-left: 24px; padding-right: 24px; gap: 8px; white-space: nowrap; }
+
+  /* ── Worklist (§3.2.1) ───────────────────────────────────────────────────────────────── */
+
+  .ppl-head { margin-top: 20px; }
+  .ppl-overline { display: block; color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.3; }
+  .ppl-greeting { margin-top: 4px; font-weight: 700; }
+
+  /* The KPI rail: a snap carousel below md, three across on tablets, five from web (1200). */
+  .ppl-kpis {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 2px;
+  }
+  @media (min-width: 768px) {
+    .ppl-kpis { display: grid; overflow-x: visible; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1200px) { .ppl-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+  .ppl-kpi { min-width: 152px; flex-shrink: 0; scroll-snap-align: start; }
+  @media (min-width: 768px) { .ppl-kpi { min-width: 0; } }
+  .ppl-tone-primary { background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .ppl-tone-secondary { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .ppl-tone-tertiary { background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .ppl-tone-surface { background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-primary); }
+
+  .ppl-kpi-body { display: block; padding: 14px 16px; }
+  .ppl-kpi-top { display: flex; align-items: center; justify-content: space-between; }
+  .ppl-kpi-label { font-weight: 500; letter-spacing: 0.4px; opacity: 0.85; }
+  .ppl-kpi-value { display: block; margin-top: 4px; font-size: 26px; font-weight: 800; line-height: 1; }
+  .ppl-kpi-sub { display: block; margin-top: 4px; opacity: 0.85; }
+  .ppl-kpi-unavailable { margin-top: 8px; opacity: 0.85; }
+
+  /* CardActionArea: the whole tile is the link; its hover wash is currentColor at the
+     theme's hover opacity, as MUI's focusHighlight span draws it. */
+  .ppl-kpi-link { position: relative; display: block; width: 100%; height: 100%; color: inherit; text-align: inherit; text-decoration: none; }
+  .ppl-kpi-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .ppl-kpi-link:hover::after { opacity: var(--mui-palette-action-hoverOpacity); }
+  .ppl-kpi-link:focus-visible { outline: none; }
+  .ppl-kpi-link:focus-visible::after { opacity: var(--mui-palette-action-focusOpacity); }
+
+  /* A section: a Card with a title row over a divider. */
+  .ppl-section { margin-top: 16px; }
+  .ppl-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+  }
+  .ppl-section-title { flex: 1; font-weight: 600; }
+  .ppl-section-empty { padding: 16px; }
+  .ppl-msg-top { display: flex; }
+
+  /* ── Calendar (§3.2.3) ───────────────────────────────────────────────────────────────── */
+
+  .ppl-cal-head { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .ppl-cal-title { flex: 1; font-weight: 700; }
+  .ppl-cal-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .ppl-agenda { margin: 16px 0 0; padding: 0; list-style: none; }
+  .ppl-agenda-item { margin-top: 8px; }
+  .ppl-agenda-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .ppl-agenda-row:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-agenda-bar { width: 8px; flex-shrink: 0; align-self: stretch; border-radius: 999px; }
+
+  /* KIND_TONE: the colour pair per event kind. */
+  .ppl-ev-departure { background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .ppl-ev-return { background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-primary); }
+  .ppl-ev-payment { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .ppl-ev-availability { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+
+  .ppl-cal-table { margin-top: 16px; table-layout: fixed; }
+  .ppl-cal-table th.ppl-weekday {
+    padding: 0 0 4px;
+    border-bottom: 0;
+    font: var(--mui-font-caption);
+    font-weight: 500;
+    text-align: left;
+    color: var(--mui-palette-text-secondary);
+  }
+  .ppl-cal-table td.ppl-day { vertical-align: top; border: 1px solid var(--mui-palette-divider); padding: 6px; }
+  .ppl-day-out { opacity: 0.4; }
+  .ppl-day-top { display: flex; align-items: center; justify-content: space-between; }
+  .ppl-today {
+    width: 24px;
+    height: 24px;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .ppl-ev {
+    display: block;
+    margin-top: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ppl-deferral { margin-top: 16px; opacity: 0.6; }
+}
