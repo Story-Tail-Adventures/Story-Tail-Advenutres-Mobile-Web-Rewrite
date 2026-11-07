@@ -235,3 +235,17 @@ func TestRPCQuery(t *testing.T) {
 		t.Errorf("query %s", s.query)
 	}
 }
+
+// GoTrue admin calls carry the API version auth-js sends, so errors come back in the shape
+// that does not quote an address in its message.
+func TestAdminCallsSendTheAPIVersion(t *testing.T) {
+	c, s := fake(t, 200, `{"id":"u"}`, nil)
+	_, _ = c.UpdateUserByID(context.Background(), "u", js.O("ban_duration", "none"))
+	if s.header.Get("X-Supabase-Api-Version") != "2024-01-01" {
+		t.Errorf("update: %v", s.header)
+	}
+	_, _ = c.GenerateLink(context.Background(), GenerateLinkParams{Type: "magiclink", Email: "a@b.c"})
+	if s.header.Get("X-Supabase-Api-Version") != "2024-01-01" {
+		t.Errorf("generate_link: %v", s.header)
+	}
+}
