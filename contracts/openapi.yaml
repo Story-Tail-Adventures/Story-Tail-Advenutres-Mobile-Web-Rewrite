@@ -686,6 +686,12 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: An `edit` of a companion who is not on the caller's list ("That companion is not on your list.").
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 
   /onboarding-connect:
     post:
@@ -699,10 +705,13 @@ paths:
         Omitting `code` (or sending null) is a first-class exit: "I don't have a
         code" writes nothing but the cursor and returns `redeemed: false`.
 
-        Every refusal returns 403 with a `detail` naming the reason — expired,
-        already used, revoked, already connected, claimed by another traveler,
-        or rate limited. The reason is deliberately specific: a traveler holding
-        a code that expired needs to know that, not "invalid code".
+        Every refusal carries a `detail` naming the reason. A refused CODE is a 400
+        (unknown, expired, already used, revoked, already connected, claimed by
+        another traveler); the rate limit, and a caller who is not a traveler, are
+        403. The reason is deliberately specific: a traveler holding a code that
+        expired needs to know that, not "invalid code". (Corrected 2026-11-06: this
+        used to say every refusal was a 403; the differential test against the
+        function showed otherwise.)
       requestBody:
         required: true
         content:
@@ -720,8 +729,8 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403':
           description: |
-            The code was refused, or the caller is not a traveler. `detail`
-            names which.
+            Too many attempts, or the caller is not a traveler. `detail` names
+            which. A refused code is a 400.
           content:
             application/problem+json:
               schema:
@@ -1466,13 +1475,17 @@ components:
           maxLength: 80
         relationship:
           type: [string, "null"]
-          maxLength: 60
+          maxLength: 40
         dateOfBirth:
           type: [string, "null"]
           format: date
         passportExpiry:
           type: [string, "null"]
           format: date
+        passportCountry:
+          type: [string, "null"]
+          pattern: '^[A-Za-z]{2}$'
+          description: Two-letter country code, stored upper case. (A passport NUMBER is refused.)
         advance:
           type: boolean
           default: false
