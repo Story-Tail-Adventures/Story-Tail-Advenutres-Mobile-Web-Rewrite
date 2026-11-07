@@ -2,6 +2,8 @@ package trips
 
 import (
 	"encoding/json"
+	"errors"
+	"math"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -100,7 +102,7 @@ func componentFromForm(f url.Values) componentValues {
 	if !isComponentKind(kind) {
 		kind = "custom"
 	}
-	text := func(name string) string { return strings.TrimSpace(lf(f.Get(name))) }
+	text := func(name string) string { return trimJS(lf(f.Get(name))) }
 	v := componentValues{
 		componentID: text("componentId"), kind: kind, displayName: text("displayName"),
 		supplierID: text("supplierId"), cost: text("cost"), commissionPct: text("commissionPct"),
@@ -117,16 +119,74 @@ func componentFromForm(f url.Values) componentValues {
 	return v
 }
 
-var (
-	moneyStrip  = regexp.MustCompile(`[$,\s]`)
-	moneyAmount = regexp.MustCompile(`^(\d+)(?:\.(\d{1,2}))?$`)
-)
+var moneyAmount = regexp.MustCompile(`^(\d+)(?:\.(\d{1,2}))?$`)
+
+// jsSpace is what JS's \s, trim() and Number() count as white space. Go's \s is ASCII only
+// and unicode.IsSpace adds U+0085 and misses U+FEFF, so neither will do.
+func jsSpace(r rune) bool {
+	switch r {
+	case '\t', '\n', '\v', '\f', '\r', ' ', '\u00a0', '\u1680', '\u2028', '\u2029', '\u202f', '\u205f', '\u3000', '\ufeff':
+		return true
+	}
+	return r >= '\u2000' && r <= '\u200a'
+}
+
+// trimJS is String.prototype.trim.
+func trimJS(s string) string { return strings.TrimFunc(s, jsSpace) }
+
+// jsDecimal is the decimal form Number() reads; the other forms are named in numberJS.
+var jsDecimal = regexp.MustCompile(`^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$`)
+
+// numberJS is JS's Number(s) for a string. ok is false where JS gives NaN ("NaN", "1_000",
+// "0x1p4", "1,5"), which strconv.ParseFloat would read.
+func numberJS(s string) (float64, bool) {
+	s = trimJS(s)
+	switch s {
+	case "":
+		return 0, true
+	case "Infinity", "+Infinity":
+		return math.Inf(1), true
+	case "-Infinity":
+		return math.Inf(-1), true
+	}
+	if len(s) > 2 && s[0] == '0' {
+		base := 0
+		switch s[1] {
+		case 'x', 'X':
+			base = 16
+		case 'o', 'O':
+			base = 8
+		case 'b', 'B':
+			base = 2
+		}
+		if base != 0 {
+			n, err := strconv.ParseUint(s[2:], base, 64)
+			switch {
+			case errors.Is(err, strconv.ErrRange):
+				return math.MaxFloat64, true // JS still has a (huge, finite) number
+			case err != nil:
+				return 0, false
+			}
+			return float64(n), true
+		}
+	}
+	if !jsDecimal.MatchString(s) {
+		return 0, false
+	}
+	f, _ := strconv.ParseFloat(s, 64) // out of range is ±Inf, as in JS
+	return f, true
+}
 
 // dollarsToCents ports dollarsToCents: "$4,980.00" is 498000, "" is 0, anything that is not
 // an amount (a third decimal, a minus, words) is refused (ok false). Parsed as digits, never
 // through a float, so it is exact.
 func dollarsToCents(input string) (int64, bool) {
-	cleaned := moneyStrip.ReplaceAllString(input, "")
+	cleaned := strings.Map(func(r rune) rune {
+		if r == '$' || r == ',' || jsSpace(r) {
+			return -1
+		}
+		return r
+	}, input)
 	if cleaned == "" {
 		return 0, true
 	}
@@ -189,8 +249,8 @@ func validateComponent(v componentValues) map[string]string {
 		errs["commission"] = copyCostNotNumber
 	}
 	if v.commissionPct != "" {
-		pct, err := strconv.ParseFloat(v.commissionPct, 64)
-		if err != nil || pct < 0 || pct >= 1000 {
+		pct, ok := numberJS(v.commissionPct)
+		if !ok || math.IsInf(pct, 0) || pct < 0 || pct >= 1000 {
 			errs["commissionPct"] = copyPctRange
 		}
 	}

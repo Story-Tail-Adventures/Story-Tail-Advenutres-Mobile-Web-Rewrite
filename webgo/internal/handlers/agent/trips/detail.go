@@ -220,7 +220,7 @@ func (h detailRenderer) show(w http.ResponseWriter, r *http.Request, v visit, tr
 			dv.ov = res.ov
 		}
 	}
-	if notFound && status == http.StatusOK {
+	if notFound { // also after a refused write whose trip is gone on the re-read
 		status = http.StatusNotFound
 	}
 	if extra != nil && dv.ov != nil {
@@ -281,6 +281,7 @@ func mountDetail(rt *gate.Router, d handlers.Deps) error {
 
 	// post wraps the four writes: the form, the advisor, the trip and the tab it came from.
 	post := func(pattern string, fn func(w http.ResponseWriter, r *http.Request, v visit, tripID, tab string, f url.Values)) {
+		afterSignIn(rt, pattern, tripPath)
 		rt.Protected(pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			f, ok := web.Form(w, r)
 			if !ok {

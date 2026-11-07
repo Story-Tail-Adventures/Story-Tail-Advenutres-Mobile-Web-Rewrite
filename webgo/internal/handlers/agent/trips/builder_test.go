@@ -1,6 +1,7 @@
 package trips_test
 
 import (
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -130,6 +131,12 @@ func TestBuilderSave(t *testing.T) {
 	}
 	has(t, rec, "Give it a name — it&#39;s the line the client reads.", "That doesn&#39;t look like an amount.",
 		"A rate is between 0 and 999.", "That&#39;s before it starts.", `value="Suite"`, `value="lots"`, "Add a hotel or resort")
+	// Each error is the field's description, as Next's Field and DateField wire it.
+	for _, id := range []string{"component-displayName-error", "component-cost-error", "component-commissionPct-error", "component-endDate-error"} {
+		if !strings.Contains(rec.Body.String(), `aria-describedby="`+id+`"`) {
+			t.Errorf("no input is described by %s", id)
+		}
+	}
 
 	// The 409, and the function's own sentence otherwise.
 	a.fake.fn("agent-trip", reply{409, `{"detail":"x"}`})
@@ -140,6 +147,47 @@ func TestBuilderSave(t *testing.T) {
 	has(t, rec, "This trip changed in another tab. Reload and try again.", `value="Bottle"`)
 	a.fake.fn("agent-trip", reply{422, `{"detail":"That supplier is not one of yours."}`})
 	has(t, a.post(builderURL("/component"), url.Values{"kind": {"custom"}, "displayName": {"Bottle"}}), "That supplier is not one of yours.")
+}
+
+// The gate sends a visitor whose session ended mid-post to sign in with next= the POST path.
+// Signing in then GETs that path: it must lead back to the page, not to a 405.
+func TestPostPathsLeadBackAfterSignIn(t *testing.T) {
+	a := builderApp(t)
+	trip := "/agent/trips/" + tripID
+	for path, want := range map[string]string{
+		builderURL("/component"): builderURL(""), builderURL("/remove"): builderURL(""),
+		builderURL("/move"): builderURL(""), builderURL("/save-template"): builderURL(""),
+		trip + "/stage": trip, trip + "/notes": trip, trip + "/cancel": trip, trip + "/save-template": trip,
+		"/agent/trips/not-a-trip/builder/move": "/agent/trips",
+	} {
+		rec := a.get(path)
+		if rec.Code != 303 || rec.Header().Get("Location") != want {
+			t.Errorf("GET %s = %d %q, want 303 %q", path, rec.Code, rec.Header().Get("Location"), want)
+		}
+	}
+	// Signed out, the gate's own redirect names the path, and that path now answers.
+	req := httptest.NewRequest("POST", builderURL("/component"), strings.NewReader("kind=custom"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	rec := httptest.NewRecorder()
+	a.h.ServeHTTP(rec, req)
+	if loc := rec.Header().Get("Location"); rec.Code != 303 || loc != "/login?next="+url.QueryEscape(builderURL("/component")) {
+		t.Errorf("signed-out post = %d %q", rec.Code, loc)
+	}
+	if len(a.fake.calls("agent-trip")) != 0 {
+		t.Error("a signed-out post reached the function")
+	}
+}
+
+// A refused write whose trip is gone on the re-read is "No such trip", answered as a 404.
+func TestRefusedWriteOnAGoneTripIs404(t *testing.T) {
+	a := builderApp(t)
+	a.fake.read("agent_trip_overview", `[]`)
+	rec := a.post(builderURL("/component"), url.Values{"kind": {"custom"}, "displayName": {""}})
+	if rec.Code != 404 {
+		t.Errorf("status %d", rec.Code)
+	}
+	has(t, rec, "No such trip")
 }
 
 func TestBuilderRemoveAndMove(t *testing.T) {

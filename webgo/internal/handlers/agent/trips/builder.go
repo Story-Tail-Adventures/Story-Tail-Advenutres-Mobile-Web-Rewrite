@@ -140,7 +140,7 @@ func (h builderRenderer) show(w http.ResponseWriter, r *http.Request, v visit, t
 			bv.ov = res.ov
 		}
 	}
-	if notFound && status == http.StatusOK {
+	if notFound { // also after a refused write whose trip is gone on the re-read
 		status = http.StatusNotFound
 	}
 	if bv.ov != nil {
@@ -207,6 +207,7 @@ func mountBuilder(rt *gate.Router, d handlers.Deps) error {
 	}))
 
 	post := func(pattern string, fn func(w http.ResponseWriter, r *http.Request, v visit, tripID string, f url.Values)) {
+		afterSignIn(rt, pattern, builderPath)
 		rt.Protected(pattern, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			f, ok := web.Form(w, r)
 			if !ok {
@@ -523,6 +524,7 @@ func fillSheet(d *page.Doc, bv *builderView) {
 		if e := errOf("endDate"); e != "" {
 			d.Text("f-end-date-error", e)
 			d.Attr("f-end-date", "aria-invalid", "true")
+			d.Attr("f-end-date", "aria-describedby", "component-endDate-error")
 		} else {
 			d.Remove("f-end-date-error")
 		}
@@ -559,6 +561,7 @@ func fillSheet(d *page.Doc, bv *builderView) {
 		if e := errOf(field); e != "" {
 			d.Text(errSlot, e)
 			d.Attr(slot, "aria-invalid", "true")
+			d.Attr(slot, "aria-describedby", "component-"+field+"-error")
 		} else {
 			d.Remove(errSlot)
 		}

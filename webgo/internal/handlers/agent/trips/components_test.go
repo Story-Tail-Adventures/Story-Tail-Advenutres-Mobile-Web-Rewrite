@@ -2,6 +2,7 @@ package trips
 
 import (
 	"encoding/json"
+	"math"
 	"net/url"
 	"regexp"
 	"slices"
@@ -58,7 +59,9 @@ func TestNoColumnCanGoMissing(t *testing.T) {
 
 func TestDollarsToCents(t *testing.T) {
 	ok := map[string]int64{"4980": 498000, "4980.00": 498000, "4980.5": 498050, "0": 0, "": 0,
-		"$4,980.00": 498000, "  4 980 ": 498000, "4980.10": 498010, "0.07": 7, "1.15": 115, "2.67": 267}
+		"$4,980.00": 498000, "  4 980 ": 498000, "4980.10": 498010, "0.07": 7, "1.15": 115, "2.67": 267,
+		// JS's \s, not Go's: a no-break space, a narrow one, a vertical tab and a BOM.
+		"4\u00a0980.00": 498000, "4\u202f980": 498000, "\v12": 1200, "\ufeff12": 1200}
 	for in, want := range ok {
 		if got, okk := dollarsToCents(in); !okk || got != want {
 			t.Errorf("dollarsToCents(%q) = %d %v, want %d", in, got, okk, want)
@@ -109,8 +112,41 @@ func TestValidateComponent(t *testing.T) {
 	if e := validateComponent(with(func(v *componentValues) { v.commissionPct = "999.99" })); len(e) != 0 {
 		t.Error("999.99 rate refused")
 	}
+	// Number(), not strconv.ParseFloat: what JS reads as NaN or Infinity is refused, what it
+	// reads as a number is checked as one.
+	for _, pct := range []string{"NaN", "nan", "0x1p4", "Infinity", "inf", "1_0", "1,5", "abc", "0x", "+-1"} {
+		if e := validateComponent(with(func(v *componentValues) { v.commissionPct = pct })); e["commissionPct"] == "" {
+			t.Errorf("rate %q accepted", pct)
+		}
+	}
+	for _, pct := range []string{"0x10", " 12 ", ".5", "5.", "1e2", "+7", "-0", "0b11", "0o7"} {
+		if e := validateComponent(with(func(v *componentValues) { v.commissionPct = pct })); len(e) != 0 {
+			t.Errorf("rate %q refused", pct)
+		}
+	}
 	if e := validateComponent(with(func(v *componentValues) { v.cols["startDate"], v.cols["endDate"] = "2026-08-12", "2026-08-12" })); len(e) != 0 {
 		t.Error("a one-day component")
+	}
+}
+
+func TestNumberJS(t *testing.T) {
+	ok := map[string]float64{"": 0, "  ": 0, "12": 12, " 12 ": 12, "\u00a012\ufeff": 12, ".5": 0.5, "5.": 5,
+		"1e3": 1000, "-1.5E-1": -0.15, "+7": 7, "0x1F": 31, "0X10": 16, "0b101": 5, "0o17": 15, "007": 7}
+	for in, want := range ok {
+		if got, okk := numberJS(in); !okk || got != want {
+			t.Errorf("numberJS(%q) = %v %v, want %v", in, got, okk, want)
+		}
+	}
+	for _, bad := range []string{"NaN", "inf", "infinity", "0x1p4", "1_000", "-0x10", "0x", "1e", "e5", ".", "1.2.3", "１２"} {
+		if _, okk := numberJS(bad); okk {
+			t.Errorf("numberJS(%q) is a number", bad)
+		}
+	}
+	if f, okk := numberJS("-Infinity"); !okk || !math.IsInf(f, -1) {
+		t.Error("-Infinity")
+	}
+	if f, okk := numberJS("1e999"); !okk || !math.IsInf(f, 1) {
+		t.Error("1e999 is Infinity in JS")
 	}
 }
 
