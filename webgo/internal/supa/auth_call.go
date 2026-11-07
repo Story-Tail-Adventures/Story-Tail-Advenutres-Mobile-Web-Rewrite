@@ -58,11 +58,12 @@ func AsAuthError(err error) *AuthError {
 	return &AuthError{Retryable: true}
 }
 
-// gotrueError is GoTrue's error body: `code` with the API version header, `error_code` from
-// older servers, and weak_password's reasons for the oldest.
+// gotrueError is GoTrue's error body: `code` (a string) with the API version header. Older
+// servers send `code` as the HTTP status NUMBER and the string in `error_code`, so `code` is
+// read raw and used only when it is a string.
 type gotrueError struct {
-	Code         *string `json:"code"`
-	ErrorCode    *string `json:"error_code"`
+	Code         json.RawMessage `json:"code"`
+	ErrorCode    *string         `json:"error_code"`
 	WeakPassword *struct {
 		Reasons []string `json:"reasons"`
 	} `json:"weak_password"`
@@ -124,9 +125,10 @@ func (c *Client) call(ctx context.Context, method, path string, query url.Values
 		ae := &AuthError{Status: s}
 		var e gotrueError
 		if json.Unmarshal(raw, &e) == nil {
+			var code string
 			switch {
-			case e.Code != nil:
-				ae.Code = *e.Code
+			case json.Unmarshal(e.Code, &code) == nil && code != "":
+				ae.Code = code
 			case e.ErrorCode != nil:
 				ae.Code = *e.ErrorCode
 			case e.WeakPassword != nil && len(e.WeakPassword.Reasons) > 0:

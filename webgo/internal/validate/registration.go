@@ -81,22 +81,33 @@ func Registration(in RegistrationInput) (RegistrationData, Errors) {
 	return d, errs
 }
 
-// checkConfirm is the "type it twice" rule. The mismatch goes on confirmPassword, never on
-// password, and it is checked even when the password itself failed the policy, so someone who
-// typed a short password and mistyped the repeat sees both on the first submit.
-func checkConfirm(errs Errors, password, confirm string) {
+// confirmRequired is confirmPasswordSchema, a field rule: it runs whatever else failed.
+func confirmRequired(errs Errors, confirm string) {
 	if UTF16Len(confirm) < 1 {
 		errs.Add("confirmPassword", ConfirmRequired)
 	}
+}
+
+// confirmMismatch is checkConfirmMatches, the object-level superRefine. The mismatch goes on
+// confirmPassword, never on password, and it runs even when the password failed the policy (a
+// string check does not stop zod), so a short password and a mistyped repeat show together.
+func confirmMismatch(errs Errors, password, confirm string) {
 	if confirm != "" && confirm != password {
 		errs.Add("confirmPassword", ConfirmMismatch)
 	}
 }
 
 // RegistrationWithConfirm is registrationWithConfirmSchema (Screen 2.1.2).
+//
+// zod 4 skips an object's superRefine when a field failed with an ABORTING issue, and the
+// terms literal is one (a string's min or regex is not). So an unticked box hides the
+// mismatch until the box is ticked, exactly as the TypeScript does.
 func RegistrationWithConfirm(in RegistrationInput) (RegistrationData, Errors) {
 	d, errs := Registration(in)
-	checkConfirm(errs, in.Password, in.ConfirmPassword)
+	confirmRequired(errs, in.ConfirmPassword)
+	if errs.First("terms") == "" {
+		confirmMismatch(errs, in.Password, in.ConfirmPassword)
+	}
 	return d, errs
 }
 
@@ -106,6 +117,7 @@ func PasswordPair(password, confirm string) (string, Errors) {
 	for _, m := range NewPassword(password) {
 		errs.Add("password", m)
 	}
-	checkConfirm(errs, password, confirm)
+	confirmRequired(errs, confirm)
+	confirmMismatch(errs, password, confirm)
 	return password, errs
 }

@@ -3,7 +3,7 @@ package supa
 import (
 	"context"
 	"net/http"
-	"net/url"
+	"regexp"
 )
 
 // The MFA calls behind Screens 2.1.6 (setup) and 2.1.7 (challenge). Every one runs as the
@@ -15,8 +15,9 @@ type Enrollment struct {
 	ID   string `json:"id"`
 	Type string `json:"type"`
 	TOTP struct {
-		// QRCode is raw SVG markup from GoTrue. Never put it in a page as markup; serve it as
-		// an image/svg+xml response, where it cannot run script.
+		// QRCode is raw SVG markup from GoTrue. Never put it in a page as markup. Serve it
+		// only for an <img> and with a sandboxing CSP: an SVG opened directly as a document
+		// CAN run script, whatever its content type.
 		QRCode string `json:"qr_code"`
 		Secret string `json:"secret"`
 		URI    string `json:"uri"`
@@ -43,16 +44,35 @@ type enrollBody struct {
 	FactorType   string `json:"factor_type"`
 }
 
+// factorPath is a factor's path, or "" when the id is not a UUID. url.PathEscape leaves "."
+// and ".." alone, so a non-UUID id could climb out of /factors/ (".." reached GoTrue's /verify
+// through Kong when this was tried).
+func factorPath(factorID string) string {
+	if !uuidShape.MatchString(factorID) {
+		return ""
+	}
+	return "/factors/" + factorID
+}
+
+var uuidShape = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
 // Unenroll removes a factor (mfa.unenroll).
 func (c *Client) Unenroll(ctx context.Context, accessToken, factorID string, who Caller) error {
-	return c.call(ctx, http.MethodDelete, "/factors/"+url.PathEscape(factorID), nil, accessToken, nil, who, nil)
+	path := factorPath(factorID)
+	if path == "" {
+		return &AuthError{Status: http.StatusBadRequest, Code: "validation_failed"}
+	}
+	return c.call(ctx, http.MethodDelete, path, nil, accessToken, nil, who, nil)
 }
 
 // ChallengeAndVerify answers a factor with a code (mfa.challengeAndVerify) and returns the
 // session it raises to aal2. The caller MUST store these tokens: the old ones stay aal1, and a
 // browser left holding them is sent back to the challenge forever.
 func (c *Client) ChallengeAndVerify(ctx context.Context, accessToken, factorID, code string, who Caller) (Tokens, error) {
-	path := "/factors/" + url.PathEscape(factorID)
+	path := factorPath(factorID)
+	if path == "" {
+		return Tokens{}, &AuthError{Status: http.StatusBadRequest, Code: "validation_failed"}
+	}
 	var ch struct {
 		ID string `json:"id"`
 	}

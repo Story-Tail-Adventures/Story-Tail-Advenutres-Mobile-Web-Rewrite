@@ -118,6 +118,9 @@ func TestErrorsCarryCodeAndStatusOnly(t *testing.T) {
 		{429, map[string]any{"code": "over_email_send_rate_limit"}, "over_email_send_rate_limit", false},
 		{500, map[string]any{"msg": "boom"}, "", false},
 		{503, map[string]any{"code": "x"}, "", true}, // supabase-js: AuthRetryableFetchError
+		// Older GoTrue: `code` is the status NUMBER, the string is in error_code.
+		{403, map[string]any{"code": 403, "error_code": "otp_expired", "msg": "Email link is invalid"}, "otp_expired", false},
+		{422, map[string]any{"code": 422, "msg": "weak", "weak_password": map[string]any{"reasons": []string{"length"}}}, "weak_password", false},
 	}
 	for _, tc := range cases {
 		f.on("POST /auth/v1/token", tc.status, tc.reply)
@@ -273,21 +276,21 @@ func TestAuthorizeURL(t *testing.T) {
 
 func TestMFAEnrollChallengeVerify(t *testing.T) {
 	c, f := newFakeAuth(t)
-	f.on("POST /auth/v1/factors", 200, map[string]any{"id": "f1", "type": "totp", "totp": map[string]any{"qr_code": "<svg/>", "secret": "SECRET", "uri": "otpauth://x"}})
-	f.on("POST /auth/v1/factors/f1/challenge", 200, map[string]any{"id": "ch1"})
+	f.on("POST /auth/v1/factors", 200, map[string]any{"id": "0195a2c0-1a00-7000-8000-00000000f001", "type": "totp", "totp": map[string]any{"qr_code": "<svg/>", "secret": "SECRET", "uri": "otpauth://x"}})
+	f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-00000000f001/challenge", 200, map[string]any{"id": "ch1"})
 	aal2 := jwt(map[string]any{"exp": 2000000000, "aal": "aal2"})
-	f.on("POST /auth/v1/factors/f1/verify", 200, map[string]any{"access_token": aal2, "refresh_token": "r", "expires_in": 3600})
-	f.on("DELETE /auth/v1/factors/f1", 200, map[string]any{"id": "f1"})
+	f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-00000000f001/verify", 200, map[string]any{"access_token": aal2, "refresh_token": "r", "expires_in": 3600})
+	f.on("DELETE /auth/v1/factors/0195a2c0-1a00-7000-8000-00000000f001", 200, map[string]any{"id": "0195a2c0-1a00-7000-8000-00000000f001"})
 
 	e, err := c.EnrollTOTP(context.Background(), "tok", "Authenticator · 2026-11-07", who)
-	if err != nil || e.ID != "f1" || e.TOTP.Secret != "SECRET" || e.TOTP.QRCode != "<svg/>" {
+	if err != nil || e.ID != "0195a2c0-1a00-7000-8000-00000000f001" || e.TOTP.Secret != "SECRET" || e.TOTP.QRCode != "<svg/>" {
 		t.Fatalf("enroll = %+v %v", e, err)
 	}
 	if r := f.last(); str(r.body["factor_type"]) != "totp" || r.header.Get("Authorization") != "Bearer tok" {
 		t.Errorf("enroll request = %v", keys(r.body))
 	}
 
-	tok, err := c.ChallengeAndVerify(context.Background(), "tok", "f1", "123456", who)
+	tok, err := c.ChallengeAndVerify(context.Background(), "tok", "0195a2c0-1a00-7000-8000-00000000f001", "123456", who)
 	if err != nil || tok.AccessToken != aal2 || tok.ExpiresAt != 2000000000 {
 		t.Fatalf("verify = %+v %v", tok, err)
 	}
@@ -295,19 +298,27 @@ func TestMFAEnrollChallengeVerify(t *testing.T) {
 		t.Errorf("verify request = %v", keys(r.body))
 	}
 
-	f.on("POST /auth/v1/factors/f1/verify", 422, map[string]any{"code": "mfa_verification_failed"})
-	if _, err := c.ChallengeAndVerify(context.Background(), "tok", "f1", "000000", who); AsAuthError(err).Code != "mfa_verification_failed" {
+	f.on("POST /auth/v1/factors/0195a2c0-1a00-7000-8000-00000000f001/verify", 422, map[string]any{"code": "mfa_verification_failed"})
+	if _, err := c.ChallengeAndVerify(context.Background(), "tok", "0195a2c0-1a00-7000-8000-00000000f001", "000000", who); AsAuthError(err).Code != "mfa_verification_failed" {
 		t.Errorf("wrong code = %v", err)
 	}
 
-	if err := c.Unenroll(context.Background(), "tok", "f1", who); err != nil {
+	if err := c.Unenroll(context.Background(), "tok", "0195a2c0-1a00-7000-8000-00000000f001", who); err != nil {
 		t.Error(err)
 	}
-	// A factor id is a path segment, never a path.
-	f.on("DELETE /auth/v1/factors/..%2Fuser", 200, map[string]any{})
-	_ = c.Unenroll(context.Background(), "tok", "../user", who)
-	if r := f.last(); r.method != "DELETE" || !strings.HasPrefix(r.path, "/auth/v1/factors/") {
-		t.Errorf("escaped id reached %s", r.path)
+	// A factor id is a UUID, never a path: "." and ".." survive url.PathEscape and climbed
+	// out of /factors/ through Kong.
+	before := len(f.seen)
+	for _, id := range []string{"..", ".", "../user", "x/../../verify", ""} {
+		if err := c.Unenroll(context.Background(), "tok", id, who); err == nil {
+			t.Errorf("Unenroll(%q) was sent", id)
+		}
+		if _, err := c.ChallengeAndVerify(context.Background(), "tok", id, "123456", who); err == nil {
+			t.Errorf("ChallengeAndVerify(%q) was sent", id)
+		}
+	}
+	if len(f.seen) != before {
+		t.Errorf("%d requests left for bad factor ids", len(f.seen)-before)
 	}
 }
 

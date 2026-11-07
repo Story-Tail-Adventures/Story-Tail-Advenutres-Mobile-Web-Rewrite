@@ -117,6 +117,18 @@ func TestRegistrationWithConfirmIsTheSameRule(t *testing.T) {
 	if _, errs := RegistrationWithConfirm(in); errs.First("confirmPassword") != ConfirmMismatch {
 		t.Errorf("mismatch = %v", errs)
 	}
+	// An unticked box is an aborting issue in zod 4: the object-level mismatch never runs.
+	// (Checked against zod: {terms: ["Check the box..."]} and nothing for confirmPassword.)
+	in.Terms = ""
+	if _, errs := RegistrationWithConfirm(in); errs.First("terms") != TermsRequired || errs.First("confirmPassword") != "" {
+		t.Errorf("unticked terms + mismatch = %v", errs)
+	}
+	// The field rule still runs.
+	in.ConfirmPassword = ""
+	if _, errs := RegistrationWithConfirm(in); errs.First("confirmPassword") != ConfirmRequired {
+		t.Errorf("unticked terms + empty confirmation = %v", errs)
+	}
+	in.Terms = "on"
 	in.ConfirmPassword = in.Password
 	if _, errs := RegistrationWithConfirm(in); !errs.Empty() {
 		t.Errorf("valid = %v", errs)
