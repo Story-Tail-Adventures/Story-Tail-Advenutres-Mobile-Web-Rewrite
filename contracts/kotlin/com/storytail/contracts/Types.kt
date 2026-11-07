@@ -14,6 +14,70 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class AgentReportFileOutcome {
+    @SerialName("exported")
+    EXPORTED,
+}
+
+@Serializable
+enum class AgentReportCenterRequestType {
+    @SerialName("ledger")
+    LEDGER,
+    @SerialName("trips")
+    TRIPS,
+    @SerialName("milestones")
+    MILESTONES,
+    @SerialName("clients")
+    CLIENTS,
+}
+
+@Serializable
+enum class AgentReportCenterRequestOp {
+    @SerialName("center")
+    CENTER,
+}
+
+@Serializable
+enum class AgentReportExportRequestBasis {
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("received")
+    RECEIVED,
+}
+
+@Serializable
+enum class AgentReportExportRequestPeriod {
+    @SerialName("ytd")
+    YTD,
+    @SerialName("12mo")
+    _12MO,
+    @SerialName("qtd")
+    QTD,
+}
+
+@Serializable
+enum class AgentReportExportRequestReport {
+    @SerialName("revenue")
+    REVENUE,
+    @SerialName("suppliers")
+    SUPPLIERS,
+    @SerialName("destinations")
+    DESTINATIONS,
+    @SerialName("clients")
+    CLIENTS,
+    @SerialName("funnel")
+    FUNNEL,
+    @SerialName("pipeline")
+    PIPELINE,
+}
+
+@Serializable
+enum class AgentReportExportRequestOp {
+    @SerialName("export")
+    EXPORT,
+}
+
+@Serializable
 enum class CommissionImportReconcileResponseOutcome {
     @SerialName("reconciled")
     RECONCILED,
@@ -3032,4 +3096,48 @@ data class CommissionImportReconcileResponse(
     // `needs_decisions`: rows still suggested, unmatched, duplicate or unreadable.
     @SerialName("blocking")
     val blocking: Int,
+)
+
+@Serializable
+data class AgentReportExportRequest(
+    @SerialName("op")
+    val op: AgentReportExportRequestOp,
+    @SerialName("report")
+    val report: AgentReportExportRequestReport,
+    // Required for every report but clients and pipeline, which take none (one sent is a 400, not ignored).
+    @SerialName("period")
+    val period: AgentReportExportRequestPeriod? = null,
+    // Required for revenue; refused for every other report.
+    @SerialName("basis")
+    val basis: AgentReportExportRequestBasis? = null,
+)
+
+@Serializable
+data class AgentReportCenterRequest(
+    @SerialName("op")
+    val op: AgentReportCenterRequestOp,
+    @SerialName("type")
+    val type: AgentReportCenterRequestType,
+    // Required (a real date, on or before `to`) for every type but clients, which takes none.
+    @SerialName("from")
+    val from: String? = null,
+    @SerialName("to")
+    val to: String? = null,
+    // Adds email, phone and mailing address columns. Clients only; true on any other type is a 400. Only the JSON values true, false and null are accepted.
+    @SerialName("includeContact")
+    val includeContact: Boolean? = null,
+)
+
+@Serializable
+data class AgentReportFile(
+    @SerialName("outcome")
+    val outcome: AgentReportFileOutcome,
+    // The rows SQL returned (for the funnel, the four stages; for the pipeline, stages plus month buckets).
+    @SerialName("rowCount")
+    val rowCount: Int,
+    @SerialName("csv")
+    val csv: String,
+    // "revenue-booked-2026-01-01-to-2026-10-21.csv": the period it covers. Clients and the pipeline are dated by the advisor's own day ("clients-lifetime-value-2026-10-21.csv", "clients-with-contact-details-2026-10-21.csv").
+    @SerialName("fileName")
+    val fileName: String,
 )
