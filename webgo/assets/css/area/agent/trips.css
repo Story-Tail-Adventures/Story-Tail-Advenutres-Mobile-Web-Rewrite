@@ -388,4 +388,30 @@
   .trp-hempty,
   .trp-hempty:last-child { padding: 32px 16px; text-align: center; }
   .trp-hdetail { font-family: var(--font-mono); font-size: 12px; color: var(--mui-palette-text-secondary); overflow-wrap: anywhere; }
+
+  /* ── 3.2.2 Pipeline ────────────────────────────────────────────────────────────────────── */
+  .trp-col-1400 { max-width: 1400px; }
+  .trp-py-1 { padding-top: 8px; padding-bottom: 8px; }
+  /* AgentViews and the stage-picker: the legacy .agent-view-link pill on a Chip. */
+  .trp-views { display: flex; gap: 6px; flex-wrap: wrap; }
+  .trp-view-link { height: auto; min-height: 34px; border-radius: 999px; font-weight: 600; }
+  .trp-view-link .chip-label { padding-left: 14px; padding-right: 14px; }
+  @media (pointer: coarse) { .trp-view-link { min-height: 44px; } }
+  .trp-picker { margin-top: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+  @media (min-width: 768px) { .trp-picker { display: none; } }
+
+  /* The board, §4.4's three layouts: a phone shows the chosen stage, a tablet scrolls five
+     272px columns sideways, the web width (1200) fits all five as flexible tracks. */
+  .trp-board { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .trp-column { --Paper-shadow: none; display: none; flex-direction: column; gap: 8px; padding: 10px; background-color: var(--mui-palette-surface-2); }
+  .trp-column[data-selected="true"] { display: flex; }
+  .trp-column-head { padding-bottom: 8px; border-bottom: 1px solid var(--mui-palette-divider); }
+  @media (min-width: 768px) {
+    .trp-board { flex-direction: row; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+    .trp-column { display: flex; flex: 0 0 272px; }
+  }
+  @media (min-width: 1200px) {
+    .trp-board { overflow-x: visible; }
+    .trp-column { flex: 1 1 0; min-width: 0; }
+  }
 }
