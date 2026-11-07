@@ -62,9 +62,6 @@ func check(root *html.Node, file string, declared []string, repeats map[string][
 				if !slotName.MatchString(rep) {
 					fail("repeat name %q must match %s", rep, slotName)
 				}
-				if repeat != "" {
-					fail("repeat %q is nested inside repeat %q; nesting is not supported", rep, repeat)
-				}
 				repeatCount[rep]++
 				if rows[rep] == nil {
 					rows[rep] = map[string]int{}
