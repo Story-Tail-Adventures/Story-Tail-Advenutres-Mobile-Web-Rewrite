@@ -94,7 +94,7 @@ func (a *app) serveClients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var n notice
-	if rc, ok := takeReceipt(w, r, a.d.SecureCookies); ok {
+	if rc, ok := takeReceipt(w, r, a.d.SecureCookies); ok && rc.Kind == "bulk" {
 		n.Text = bulkTagResult(rc.Tag, rc.Changed, rc.Requested, rc.Added)
 	}
 	a.renderClients(w, r, v, rosterQueryFrom(r.URL.Query()), n, http.StatusOK)
@@ -170,7 +170,7 @@ func (a *app) postClients(w http.ResponseWriter, r *http.Request) {
 		RequestedCount *int64 `json:"requestedCount"`
 	}
 	_ = json.Unmarshal(res.Data, &reply)
-	rc := bulkReceipt{Tag: tag, Requested: int64(len(ids)), Added: add}
+	rc := receipt{Kind: "bulk", Tag: tag, Requested: int64(len(ids)), Added: add}
 	if reply.ChangedCount != nil {
 		rc.Changed = *reply.ChangedCount
 	}

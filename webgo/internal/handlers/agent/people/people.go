@@ -38,7 +38,7 @@ var (
 // Specs declares every page this sub-area fills (files under pages/agent/people/).
 var Specs = []page.Spec{
 	noAccessSpec, failedSpec, worklistSpec, calendarSpec,
-	clientsSpec, clientNewSpec, clientEditSpec, notFoundSpec,
+	clientsSpec, clientNewSpec, clientEditSpec, notFoundSpec, clientDetailSpec,
 }
 
 // Mount registers this sub-area's routes. Templates are taken here, so a missing page stops
@@ -52,7 +52,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 		{noAccessSpec, &a.noAccess}, {failedSpec, &a.failed},
 		{worklistSpec, &a.worklist}, {calendarSpec, &a.calendar},
 		{clientsSpec, &a.clients}, {clientNewSpec, &a.clientNew}, {clientEditSpec, &a.clientEdit},
-		{notFoundSpec, &a.notFound},
+		{notFoundSpec, &a.notFound}, {clientDetailSpec, &a.clientDetail},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -69,5 +69,9 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/clients/new", http.HandlerFunc(a.postNewClient))
 	rt.Protected("GET /agent/clients/{clientId}/edit", http.HandlerFunc(a.serveEditClient))
 	rt.Protected("POST /agent/clients/{clientId}/edit", http.HandlerFunc(a.postEditClient))
+	rt.Protected("GET /agent/clients/{clientId}", http.HandlerFunc(a.serveClientDetail))
+	rt.Protected("POST /agent/clients/{clientId}/notes", http.HandlerFunc(a.postClientNote))
+	rt.Protected("POST /agent/clients/{clientId}/archive", http.HandlerFunc(a.postClientArchive))
+	rt.Protected("POST /agent/clients/{clientId}/account", http.HandlerFunc(a.postClientAccount))
 	return nil
 }

@@ -7,8 +7,9 @@ import (
 	"unicode/utf8"
 )
 
-// The bulk-tag receipt ("Added "vip" to 3 clients."), carried across the redirect after a
-// successful bulk tag. It names the advisor's own tag and two counts, so it cannot be one of
+// The receipt: a success that needs more than a fixed sentence, carried across the redirect.
+// A bulk tag ("Added "vip" to 3 clients.") and an account-admin action ("Sent. It's on its
+// way to …"). It names the advisor's own tag and two counts, so it cannot be one of
 // web.Flash's fixed sentences, and it must not ride in the URL, where a crafted link could put
 // chosen words on the advisor's roster.
 //
@@ -23,11 +24,26 @@ const (
 	maxTagLen           = 40 // CLIENT_LIMITS.tag
 )
 
-type bulkReceipt struct {
-	Tag       string `json:"t"`
-	Changed   int64  `json:"c"`
-	Requested int64  `json:"r"`
-	Added     bool   `json:"a"`
+// receipt is one success, by kind: "bulk" (a bulk tag: the tag and its counts) or
+// "account" (an account-admin outcome code: sent, noop or changed).
+type receipt struct {
+	Kind      string `json:"k"`
+	Tag       string `json:"t,omitempty"`
+	Changed   int64  `json:"c,omitempty"`
+	Requested int64  `json:"r,omitempty"`
+	Added     bool   `json:"a,omitempty"`
+	Outcome   string `json:"o,omitempty"`
+}
+
+func (rc receipt) valid() bool {
+	switch rc.Kind {
+	case "bulk":
+		return rc.Tag != "" && utf8.RuneCountInString(rc.Tag) <= maxTagLen &&
+			rc.Changed >= 0 && rc.Requested >= 0 && rc.Changed <= rc.Requested
+	case "account":
+		return rc.Outcome == "sent" || rc.Outcome == "noop" || rc.Outcome == "changed"
+	}
+	return false
 }
 
 func receiptName(secure bool) string {
@@ -37,7 +53,7 @@ func receiptName(secure bool) string {
 	return receiptCookie
 }
 
-func setReceipt(w http.ResponseWriter, rc bulkReceipt, secure bool) {
+func setReceipt(w http.ResponseWriter, rc receipt, secure bool) {
 	b, err := json.Marshal(rc)
 	if err != nil {
 		return
@@ -50,10 +66,10 @@ func setReceipt(w http.ResponseWriter, rc bulkReceipt, secure bool) {
 
 // takeReceipt returns the pending receipt, if a valid one is there, and clears it so it shows
 // once.
-func takeReceipt(w http.ResponseWriter, r *http.Request, secure bool) (bulkReceipt, bool) {
+func takeReceipt(w http.ResponseWriter, r *http.Request, secure bool) (receipt, bool) {
 	c, err := r.Cookie(receiptName(secure))
 	if err != nil {
-		return bulkReceipt{}, false
+		return receipt{}, false
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: receiptName(secure), Value: "", Path: "/agent/clients",
@@ -61,12 +77,11 @@ func takeReceipt(w http.ResponseWriter, r *http.Request, secure bool) (bulkRecei
 	})
 	raw, err := base64.RawURLEncoding.DecodeString(c.Value)
 	if err != nil {
-		return bulkReceipt{}, false
+		return receipt{}, false
 	}
-	var rc bulkReceipt
-	if json.Unmarshal(raw, &rc) != nil || rc.Tag == "" || utf8.RuneCountInString(rc.Tag) > maxTagLen ||
-		rc.Changed < 0 || rc.Requested < 0 || rc.Changed > rc.Requested {
-		return bulkReceipt{}, false
+	var rc receipt
+	if json.Unmarshal(raw, &rc) != nil || !rc.valid() {
+		return receipt{}, false
 	}
 	return rc, true
 }

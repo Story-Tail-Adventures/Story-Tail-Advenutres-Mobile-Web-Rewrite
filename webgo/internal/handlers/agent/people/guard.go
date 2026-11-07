@@ -35,15 +35,16 @@ type visit struct {
 
 // app is this sub-area's handlers, with what they share.
 type app struct {
-	d          handlers.Deps
-	noAccess   *page.Template
-	failed     *page.Template
-	worklist   *page.Template
-	calendar   *page.Template
-	clients    *page.Template
-	clientNew  *page.Template
-	clientEdit *page.Template
-	notFound   *page.Template
+	d            handlers.Deps
+	noAccess     *page.Template
+	failed       *page.Template
+	worklist     *page.Template
+	calendar     *page.Template
+	clients      *page.Template
+	clientNew    *page.Template
+	clientEdit   *page.Template
+	notFound     *page.Template
+	clientDetail *page.Template
 }
 
 type identityRow struct {
