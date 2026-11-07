@@ -109,3 +109,18 @@ func TestRescuePatch(t *testing.T) {
 		t.Errorf("fields %s", got)
 	}
 }
+
+// Concurrent attempts by one account run one at a time; another account is not held up.
+func TestAttemptsAreSerialisedPerAccount(t *testing.T) {
+	unlock := lockAttempts("pu-a")
+	done := make(chan string, 2)
+	go func() { u := lockAttempts("pu-a"); done <- "a"; u() }()
+	go func() { u := lockAttempts("pu-b"); done <- "b"; u() }()
+	if first := <-done; first != "b" {
+		t.Fatalf("pu-a's second attempt ran while the first held the lock")
+	}
+	unlock()
+	if second := <-done; second != "a" {
+		t.Fatalf("pu-a's second attempt never ran")
+	}
+}

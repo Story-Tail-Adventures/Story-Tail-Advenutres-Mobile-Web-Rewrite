@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/edge"
@@ -96,6 +97,11 @@ func Func(d *edge.Deps, r *http.Request) (*edge.Reply, error) {
 		return edge.OK(js.O("ok", true, "redeemed", false))
 	}
 
+	// One account's attempts run one at a time in this process, so the count, the check and
+	// the attempt row cannot interleave: 60 concurrent wrong guesses were all checked against
+	// a limit of 10 before this (review of #185; the Deno version had the same gap).
+	unlock := lockAttempts(c.PlatformUserID)
+	defer unlock()
 	out, err := redeem(ctx, d, c, currentClientID, *code.Value)
 	if err != nil {
 		return nil, err
@@ -151,6 +157,17 @@ func refusal(o outcome) error {
 // recordAttempt writes one audit row per refused attempt, with the outcome and never the code
 // or its hash. The target is the account doing the trying: most failures have no invite to
 // name, and naming the row a guess almost hit would be the leak.
+// attemptLocks holds one mutex per account that has tried a code. It only grows by accounts
+// that have redeemed or guessed, which is bounded by the travelers there are.
+var attemptLocks sync.Map
+
+func lockAttempts(platformUserID string) (unlock func()) {
+	m, _ := attemptLocks.LoadOrStore(platformUserID, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
 func recordAttempt(ctx context.Context, db *service.Client, c *caller.Context, o outcome) error {
 	return audit.Write(ctx, db, c, audit.Spec{
 		EventType:    "client_invite.redeem_attempted",
