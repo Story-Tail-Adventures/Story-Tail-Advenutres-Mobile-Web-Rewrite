@@ -2,6 +2,7 @@ package js
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -240,5 +241,17 @@ func TestToLowerDottedCapitalI(t *testing.T) {
 	}
 	if ToLower("ABC") != "abc" {
 		t.Error("plain ASCII")
+	}
+}
+
+// A body nested past MaxDepth is refused as malformed, never parsed by unbounded recursion.
+func TestParseRefusesDeepNesting(t *testing.T) {
+	deep := strings.Repeat("[", MaxDepth+2) + strings.Repeat("]", MaxDepth+2)
+	if _, err := Parse([]byte(deep)); err == nil {
+		t.Fatal("a body nested past MaxDepth parsed")
+	}
+	ok := strings.Repeat(`{"a":`, 100) + "1" + strings.Repeat("}", 100)
+	if _, err := Parse([]byte(ok)); err != nil {
+		t.Fatalf("100 levels refused: %v", err)
 	}
 }

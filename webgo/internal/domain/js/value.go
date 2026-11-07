@@ -304,7 +304,7 @@ func Parse(data []byte) (Value, error) {
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
-	v, err := parseValue(dec)
+	v, err := parseValue(dec, 0)
 	if err != nil {
 		return Value{}, ErrSyntax
 	}
@@ -326,15 +326,25 @@ func ParseObject(data []byte) (Value, error) {
 	return v, nil
 }
 
-func parseValue(dec *json.Decoder) (Value, error) {
+// MaxDepth bounds how deeply a body may nest. Parsing recurses once per level, so without a
+// bound a 5 MiB body of brackets on an open route could exhaust the stack, which Go cannot
+// recover from (review of #182; encoding/json's own cap is an implementation detail). No body
+// a function accepts nests more than a handful of levels; JSON.parse refused far deeper
+// input with a RangeError, which the functions answered as a malformed body.
+const MaxDepth = 512
+
+func parseValue(dec *json.Decoder, depth int) (Value, error) {
+	if depth > MaxDepth {
+		return Value{}, ErrSyntax
+	}
 	tok, err := dec.Token()
 	if err != nil {
 		return Value{}, err
 	}
-	return fromToken(dec, tok)
+	return fromToken(dec, tok, depth)
 }
 
-func fromToken(dec *json.Decoder, tok json.Token) (Value, error) {
+func fromToken(dec *json.Decoder, tok json.Token, depth int) (Value, error) {
 	switch t := tok.(type) {
 	case nil:
 		return Value{kind: Null}, nil
@@ -354,7 +364,7 @@ func fromToken(dec *json.Decoder, tok json.Token) (Value, error) {
 		case '[':
 			items := []Value{}
 			for dec.More() {
-				item, err := parseValue(dec)
+				item, err := parseValue(dec, depth+1)
 				if err != nil {
 					return Value{}, err
 				}
@@ -375,7 +385,7 @@ func fromToken(dec *json.Decoder, tok json.Token) (Value, error) {
 				if !ok {
 					return Value{}, ErrSyntax
 				}
-				item, err := parseValue(dec)
+				item, err := parseValue(dec, depth+1)
 				if err != nil {
 					return Value{}, err
 				}

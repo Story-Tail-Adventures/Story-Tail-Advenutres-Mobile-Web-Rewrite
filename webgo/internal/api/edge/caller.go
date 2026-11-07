@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/clientaddr"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/domain/caller"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/domain/js"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/domain/problem"
@@ -122,7 +121,7 @@ func RequireUser(d *Deps, r *http.Request) (*caller.Context, error) {
 			c.SecondFactorAt = &at
 		}
 	}
-	if addr, ok := clientaddr.From(r.Header); ok {
+	if addr, ok := VisitorAddress(r.Header); ok {
 		c.IP = &addr
 	}
 	if _, ok := r.Header["User-Agent"]; ok {

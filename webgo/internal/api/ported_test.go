@@ -323,3 +323,37 @@ func TestPortTableGates(t *testing.T) {
 }
 
 func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
+
+// Review of #182 (hard fail, proven): a caller's non-address in Cf-Connecting-Ip reached
+// audit_event.ip_address (inet), so every audit insert failed after the write it covered.
+// Only a real IP address survives now, on the door, through Call, and on the pass-through.
+func TestOnlyARealIPIsAVisitorAddress(t *testing.T) {
+	g := portedRegistry(t, newFake(), &bytes.Buffer{})
+	for _, h := range [][2]string{
+		{"Cf-Connecting-Ip", "nope"},
+		{"Cf-Connecting-Ip", "1.2.3.4; DROP"},
+		{"X-Forwarded-For", "nope, 203.0.113.9"},
+		{"X-Forwarded-For", "fe80::1%eth0"},
+	} {
+		rec := post(g, "agent-trip-notes", agentToken, `{}`, h[0], h[1])
+		if !strings.Contains(rec.Body.String(), `"ip":""`) {
+			t.Errorf("%s: %s reached the caller as an address: %s", h[0], h[1], rec.Body)
+		}
+	}
+	rec := post(g, "agent-trip-notes", agentToken, `{}`, "Cf-Connecting-Ip", "2001:DB8::1")
+	if !strings.Contains(rec.Body.String(), `"ip":"2001:db8::1"`) {
+		t.Errorf("a real address must come through, canonical: %s", rec.Body)
+	}
+	r := g.Call(context.Background(), "agent-trip-notes", agentToken, Input{Method: "POST", Body: map[string]any{}, Visitor: "not-an-ip"})
+	if !strings.Contains(string(r.Data), `"ip":""`) {
+		t.Errorf("Call passed a non-address: %s", r.Data)
+	}
+	// The pass-through forwards no address at all rather than the caller's string.
+	srv, s := upstream(t, 200, `{}`, nil)
+	req := httptest.NewRequest("POST", "/functions/v1/agent-message", strings.NewReader(`{}`))
+	req.Header.Set("Cf-Connecting-Ip", "nope")
+	serve(registry(srv.URL, &bytes.Buffer{}), req)
+	if got := s.header.Get("X-Forwarded-For"); got != "" {
+		t.Errorf("pass-through forwarded %q", got)
+	}
+}

@@ -27,7 +27,6 @@ import (
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/edge"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/service"
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/clientaddr"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/domain/problem"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
 )
@@ -219,7 +218,7 @@ func (g *Registry) Ported(name string) bool { _, ok := g.ports[name]; return ok 
 //   - lead-message rate-limits per visitor and trusts x-sta-client-ip only beside the form
 //     key. Without it every lead would share this server's one bucket.
 //
-// Both rely on clientaddr, which trusts cf-connecting-ip. Before any production traffic the
+// Both rely on clientaddr (through edge.VisitorAddress, which also requires a real IP), which trusts cf-connecting-ip. Before any production traffic the
 // origin must only be reachable through Cloudflare, or a caller who reaches it directly can
 // forge that header and rotate lead buckets (docs/GO-MIGRATION.md §6, the forged-header test).
 func (g *Registry) visitorHeaders(h http.Header, name, visitor string) {
@@ -279,7 +278,7 @@ func (g *Registry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			out.Header[http.CanonicalHeaderKey(k)] = v
 		}
 	}
-	visitor, _ := clientaddr.From(r.Header)
+	visitor, _ := edge.VisitorAddress(r.Header) // an IP address or nothing (see VisitorAddress)
 	g.visitorHeaders(out.Header, name, visitor) // never the search token: see webOnly
 
 	start := time.Now()
@@ -482,8 +481,11 @@ func (g *Registry) serveLocal(w http.ResponseWriter, r *http.Request, name strin
 			r.Header.Del(k)
 		}
 	}
-	visitor, _ := clientaddr.From(r.Header)
+	// The one validated address replaces every address header the caller sent, so whatever
+	// a function reads (clientaddr, lead's clientAddress, the audit IP) is this or nothing.
+	visitor, _ := edge.VisitorAddress(r.Header)
 	r.Header.Del("X-Forwarded-For")
+	r.Header.Del("Cf-Connecting-Ip")
 	g.visitorHeaders(r.Header, name, visitor)
 
 	rec := &statusWriter{ResponseWriter: w}
