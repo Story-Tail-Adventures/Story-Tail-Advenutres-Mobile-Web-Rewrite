@@ -1,7 +1,9 @@
 package api
 
 import (
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentlead"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/cruisesearch"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/leadmessage"
 )
 
 // portTable lists every function that runs in Go, with the gate its Deno original had
@@ -13,5 +15,9 @@ func portTable() map[string]port {
 		// Search (§5.9 step 2). hotel-search is retired, not ported: web hotel search moved
 		// into the web app (PR #48) and nothing calls the function (GO-MIGRATION.md §5.9).
 		"cruise-search": {GateInProcess, cruisesearch.Func},
+
+		// Leads (step 3).
+		"lead-message": {GateOpen, leadmessage.Func},
+		"agent-lead":   {GateUser, agentlead.Func},
 	}
 }
