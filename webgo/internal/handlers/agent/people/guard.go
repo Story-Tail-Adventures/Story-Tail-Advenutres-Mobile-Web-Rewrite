@@ -45,6 +45,7 @@ type app struct {
 	clientEdit   *page.Template
 	notFound     *page.Template
 	clientDetail *page.Template
+	merge        *page.Template
 }
 
 type identityRow struct {

@@ -243,8 +243,10 @@ func TestClientAccountAdmin(t *testing.T) {
 
 	// A stale MFA reads as "verify again", in the dialog.
 	wd.fake.functions["POST account-admin"] = reply{403, `{"detail":"MFA was verified too long ago"}`}
-	if rec := wd.post(detailPath+"/account", url.Values{"op": {"reset"}}); rec.Code != http.StatusSeeOther {
-		t.Errorf("403 = %d (a 403 is a lost session)", rec.Code)
+	// account-admin's 403 is its two-step rule (api drops the detail): say so in the dialog.
+	if rec := wd.post(detailPath+"/account", url.Values{"op": {"reset"}}); rec.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(rec.Body.String(), "Verify your two-step sign-in again, then try once more.") || !dialogOpen(rec.Body.String(), "acc-dlg-reset") {
+		t.Errorf("403 = %d", rec.Code)
 	}
 	wd.fake.functions["POST account-admin"] = reply{422, `{"detail":"Action requires multi-factor authentication within 10 minutes"}`}
 	rec = wd.post(detailPath+"/account", url.Values{"op": {"reset"}})

@@ -311,7 +311,7 @@ func toAccountView(row accountRow, now time.Time) accountView {
 	if row.ClientEmail == nil {
 		clientEmail = str(row.SignInEmail)
 	}
-	v.AddressMismatch = strings.ToLower(str(row.SignInEmail)) != strings.ToLower(clientEmail)
+	v.AddressMismatch = !strings.EqualFold(str(row.SignInEmail), clientEmail)
 	return v
 }
 
@@ -775,6 +775,13 @@ type accountReply struct {
 
 var mfaStale = regexp.MustCompile(`MFA was verified|requires multi-factor|Could not determine when MFA`)
 
+// mfaRefusal: an account-admin answer of 401 or 403 is shown as accMfaStale, never sent to
+// sign in. Its 403 is the 15-minute two-step rule (requireRecentMfa, or "Set up two-step
+// sign-in first"), and the guard has just read with this same token, so the session itself
+// is fine; /login would only bounce straight back, to a GET of a POST-only path. api folds
+// 403 into Unauthenticated and drops the detail; Next's edge.ts does the same, which is why
+// Next's mfaStale regex never fires there and the advisor reads "That didn't go through".
+
 // postClientAccount is accountAdminAction: one account-admin op. A dialog op that fails stays
 // in its dialog with the reason; a success (and any flag result) comes back as the tab's
 // status line, carried across the redirect as an outcome code, never a sentence.
@@ -822,13 +829,11 @@ func (a *app) postClientAccount(w http.ResponseWriter, r *http.Request) {
 
 	res := a.d.API.Call(r.Context(), "account-admin", v.st.AccessToken, api.Input{Method: http.MethodPost, Body: body})
 	out := web.FromResult(res, accFailed)
-	if out.SignIn {
-		web.SeeOther(w, r, web.SignInURL(r))
-		return
-	}
 	var ok2 bool
 	var outcome, msg, dup string
 	switch {
+	case out.SignIn:
+		msg = accMfaStale // see mfaRefusal
 	case !out.OK && res.Kind == api.Rejected && res.Detail != "":
 		msg = res.Detail
 		if mfaStale.MatchString(res.Detail) {

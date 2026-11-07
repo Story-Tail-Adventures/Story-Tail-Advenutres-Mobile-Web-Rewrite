@@ -487,4 +487,63 @@
   .ppl-device { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
   .ppl-ip { font-family: var(--font-mono); font-size: 12px; }
   tr:has(> td.ppl-flagged) { background-color: var(--mui-palette-status-due-bg); }
+
+  /* ── Merge duplicate records (Screens 3.9.7 / 3.3.11, client-merge.html) ─────────────── */
+  .ppl-page-merge { max-width: 1140px; }
+  .ppl-merge-header { margin: 10px 0 16px; }
+  .ppl-merge-sub { max-width: 720px; }
+  .ppl-merge-pick { max-width: 760px; }
+  .ppl-merge-search { margin-top: 14px; display: flex; align-items: flex-end; gap: 8px; }
+  .ppl-merge-search-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .ppl-merge-cands { margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-merge-cand { padding: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .ppl-merge-sides { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .ppl-merge-side { padding: 14px; }
+  .ppl-merge-name { margin: 4px 0 0; line-height: 1.3; overflow-wrap: anywhere; }
+  .ppl-merge-arrow { display: none; margin: 0; align-self: center; text-align: center; }
+  @media (min-width: 768px) {
+    .ppl-merge-sides { grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr); }
+    .ppl-merge-arrow { display: block; }
+  }
+  .ppl-mt-1_75 { margin-top: 14px; }
+  .ppl-merge-fields { margin-top: 20px; }
+  .ppl-merge-fields-sub { margin: 2px 0 12px; }
+  .ppl-merge-label { font-weight: 600; white-space: nowrap; }
+  /* A pinned detail: the chosen side in primary text with its chip, the other one secondary. */
+  .ppl-merge-fixed { overflow-wrap: anywhere; color: var(--mui-palette-text-secondary); }
+  .ppl-merge-fixed.ppl-merge-chosen { color: var(--mui-palette-text-primary); }
+  .ppl-merge-pin { margin-left: 8px; background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  /* A choice: the radio and its value. The checked one reads primary and bold, in CSS, so it
+     follows the radio with no script. */
+  .ppl-merge-cell { padding-top: 4px; padding-bottom: 4px; }
+  .ppl-merge-choice {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    color: var(--mui-palette-text-secondary);
+    font-weight: 400;
+  }
+  .ppl-merge-choice:has(.ppl-merge-radio:checked) { color: var(--mui-palette-text-primary); font-weight: 600; }
+  .ppl-merge-value { font-weight: inherit; }
+  /* MUI's small Radio: a 20px icon in a 38px button. The ring is the icon's 24-unit circle
+     drawn at 20px (16.67px across, a 1.67px stroke), and the dot scales the same way. */
+  .ppl-merge-radio { width: 16.67px; height: 16.67px; margin: 10.67px; border-width: 1.67px; }
+  .ppl-merge-radio:checked { background-image: radial-gradient(circle, var(--mui-palette-primary-main) 0 3.75px, transparent 4.15px); }
+  .ppl-merge-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+  .ppl-icon-14 { width: 14px; height: 14px; }
+  .ppl-dialog-merge { width: min(560px, calc(100vw - 2rem)); }
+  .ppl-merge-dl { margin: 4px 0 0; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; row-gap: 4px; }
+  .ppl-merge-dl dd { margin: 0; }
+  .ppl-merge-note {
+    margin-top: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background-color: var(--mui-palette-surface-2);
+    color: var(--mui-palette-text-secondary);
+  }
+  .ppl-merge-note-icon { padding-top: 2px; }
 }

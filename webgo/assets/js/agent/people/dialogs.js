@@ -1,4 +1,5 @@
-// Client detail dialogs (Screen 3.3.2): the archive dialog and the account-admin confirms.
+// People dialogs: the client detail page's archive dialog and account-admin confirms, and the
+// merge page's confirm step (Screens 3.3.2, 3.9.7).
 //
 // A tile or button that opens one is a link to ?confirm=<name>, which ui.js turns into a
 // modal on click. When the server has to show a dialog itself (the post failed, or the link
@@ -20,6 +21,15 @@ for (const dialog of document.querySelectorAll("dialog.ppl-dialog[open]")) {
   dialog.close();
   dialog.showModal();
   settle(dialog);
+}
+
+// Next's dialogs close on Escape but not on a backdrop click, so a stray click cannot throw
+// away a typed reason. A backdrop click lands on the <dialog> itself; keep it from reaching
+// ui.js, which would close it.
+for (const dialog of document.querySelectorAll("dialog.ppl-dialog")) {
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) event.stopPropagation();
+  });
 }
 
 // ui.js's listener was added first, so this runs after it has opened the dialog.
