@@ -224,3 +224,36 @@ func TestSrcSetRefusesAZeroDensity(t *testing.T) {
 		}
 	}
 }
+
+// An icon that is data (a trip highlight's) chooses a symbol, never a file.
+func TestIconPicksASymbolInTheSameSprite(t *testing.T) {
+	const pic = `<!DOCTYPE html><html><head><title>t</title></head><body><main>
+<svg class="icon"><use data-slot="glyph" href="/assets/icons.a1b2c3.svg#palm"></use></svg>
+<p data-slot="text">x</p>
+</main></body></html>`
+	set, err := Load(fstest.MapFS{"layout.html": {Data: []byte(headLayoutHTML)}, "pic.html": {Data: []byte(pic)}},
+		Spec{File: "pic.html", Layout: &Layout{File: "layout.html"}, Slots: []string{"glyph", "text"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl, _ := set.Template("pic.html")
+
+	d := tmpl.New()
+	d.Text("text", "x")
+	if !d.Icon("glyph", "utensils") {
+		t.Fatal("a good symbol name was refused")
+	}
+	out := render(t, d)
+	if !strings.Contains(out, `href="/assets/icons.a1b2c3.svg#utensils"`) {
+		t.Errorf("the symbol did not change, or the path did:\n%s", out)
+	}
+
+	// A name that could reach another file, or any other scheme, is refused.
+	for _, bad := range []string{"../other.svg#x", "palm\" onload=\"x", "https://evil.example/s.svg#x", "Palm", ""} {
+		d := tmpl.New()
+		d.Text("text", "x")
+		if d.Icon("glyph", bad) {
+			t.Errorf("icon %q was accepted", bad)
+		}
+	}
+}

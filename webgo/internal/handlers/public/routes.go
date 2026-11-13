@@ -19,9 +19,7 @@ func CachedPaths(c *content.Catalog) []string {
 		}
 	}
 	for _, t := range c.Trips {
-		if mounted["/explore/{slug}"] {
-			out = append(out, tripHref(t.Slug))
-		}
+		out = append(out, tripHref(t.Slug))
 	}
 	for _, slug := range c.LegalSlugs() {
 		out = append(out, legalHref(slug))
@@ -31,4 +29,4 @@ func CachedPaths(c *content.Catalog) []string {
 
 // mounted marks which of the sitemap's pages exist in Go yet. Phase 2 builds them one PR at
 // a time; when every one is here this map goes, and CachedPaths lists them all.
-var mounted = map[string]bool{"/": true, "/how-it-works": true, "/caribbean": true, "/cruises": true, "/honeymoons": true}
+var mounted = map[string]bool{"/": true, "/how-it-works": true, "/caribbean": true, "/cruises": true, "/honeymoons": true, "/about": true, "/explore": true}

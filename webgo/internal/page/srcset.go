@@ -63,3 +63,37 @@ func (s *scope) SrcSet(slot string, set []Candidate) bool {
 	setAttr(n, "srcset", strings.Join(parts, ", "))
 	return true
 }
+
+// iconName is a sprite symbol's id, as webgo/assets/icons.svg spells them.
+var iconName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+// Icon points an <svg><use> slot at another symbol in the same sprite, for an icon that is
+// data rather than page copy (a trip highlight's icon, say). It reports whether it did.
+//
+// Only the fragment changes. The path is the one the page file carried, which the loader has
+// already rewritten to the hashed asset and checked exists, so a handler can choose which
+// symbol to draw but never which file to load. A name that is not a plain identifier is
+// refused; a name no symbol defines draws nothing, which the content tests catch.
+func (s *scope) Icon(slot, name string) bool {
+	n := s.node(slot, true)
+	if n == nil {
+		return false
+	}
+	if n.Namespace != "svg" || n.Data != "use" {
+		s.fail("Icon sets the symbol of an <svg><use> only, not <%s> (slot %q)", n.Data, slot)
+		return false
+	}
+	if !iconName.MatchString(name) {
+		s.fail("icon %q is not a sprite symbol name", name)
+		return false
+	}
+	href, ok := attrValue(n, "href")
+	if !ok {
+		s.fail("slot %q has no href to point at a symbol", slot)
+		return false
+	}
+	path, _, _ := strings.Cut(href, "#")
+	s.markURL(slot, "href")
+	setAttr(n, "href", path+"#"+name)
+	return true
+}

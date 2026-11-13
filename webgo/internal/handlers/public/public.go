@@ -24,6 +24,9 @@ var Specs = []page.Spec{
 	caribbeanSpec,
 	cruisesSpec,
 	honeymoonsSpec,
+	aboutSpec,
+	exploreSpec,
+	tripSpec,
 	notFoundSpec,
 }
 
@@ -45,6 +48,9 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	caribbean := tmpl(caribbeanSpec)
 	cruises := tmpl(cruisesSpec)
 	honeymoons := tmpl(honeymoonsSpec)
+	about := tmpl(aboutSpec)
+	explore := tmpl(exploreSpec)
+	trip := tmpl(tripSpec)
 	s.notFoundPage = tmpl(notFoundSpec)
 	if err := errors.Join(errs...); err != nil {
 		return err
@@ -57,6 +63,9 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Public("GET /caribbean", s.caribbean(caribbean))
 	rt.Public("GET /cruises", s.cruises(cruises))
 	rt.Public("GET /honeymoons", s.honeymoons(honeymoons))
+	rt.Public("GET /about", s.about(about))
+	rt.Public("GET /explore", s.explore(explore))
+	rt.Public("GET /explore/{slug}", s.trip(trip))
 	rt.Public("GET /sitemap.xml", s.sitemap())
 	rt.Public("GET /robots.txt", s.robots())
 	return nil
