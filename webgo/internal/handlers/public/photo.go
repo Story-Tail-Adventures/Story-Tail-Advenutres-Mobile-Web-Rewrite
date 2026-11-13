@@ -27,6 +27,8 @@ var viewportWidth = regexp.MustCompile(`(^|\s)(1?\d?\d)vw`)
 // configured width from the smallest vw share of the first device size up ("w" descriptors);
 // with a fixed width, that width and its double, each rounded up to a configured size ("x").
 func photoWidths(width int, sizes string) (widths []int, kind string) {
+	// Cloned, never the package slices themselves: a caller that sorted or appended to what
+	// it got back would be editing the only copy every later request reads.
 	if sizes != "" {
 		smallest := -1
 		for _, m := range viewportWidth.FindAllStringSubmatch(sizes, -1) {
@@ -35,7 +37,7 @@ func photoWidths(width int, sizes string) (widths []int, kind string) {
 			}
 		}
 		if smallest < 0 {
-			return allSizes, "w"
+			return slices.Clone(allSizes), "w"
 		}
 		floor := float64(deviceSizes[0]) * float64(smallest) * 0.01
 		for _, s := range allSizes {
@@ -46,7 +48,7 @@ func photoWidths(width int, sizes string) (widths []int, kind string) {
 		return widths, "w"
 	}
 	if width <= 0 {
-		return deviceSizes, "w"
+		return slices.Clone(deviceSizes), "w"
 	}
 	for _, w := range []int{width, width * 2} {
 		pick := allSizes[len(allSizes)-1]

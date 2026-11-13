@@ -6,6 +6,7 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/content"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/web"
 )
@@ -104,7 +105,31 @@ func (s *site) chrome(d *page.Doc, path string) {
 	})
 }
 
-// render writes a public page: cached by Cloudflare, no cookie (§4.7).
+// render writes a public page: cached by Cloudflare, no cookie (§4.7). Every page that uses
+// it reads nothing about the visitor, so one copy is right for everybody.
 func (s *site) render(w http.ResponseWriter, d *page.Doc) {
 	web.Render(w, s.Log, d, http.StatusOK, web.Shared)
+}
+
+// renderFrontDoor writes the one public page whose answer depends on the visitor: / is
+// mounted with rt.FrontDoor, so a request carrying a session cookie has already been through
+// GoTrue and could have been a redirect to /dashboard instead of this page.
+//
+// A response that depended on a cookie may not be stored by a shared cache, so the cookie
+// variant is no-store and the page says it varies by Cookie. The anonymous variant, which is
+// what a crawler and a first-time visitor get, is still cached for an hour.
+//
+// Vary is correct HTTP, and it is not the whole story at the edge: Cloudflare ignores Vary
+// on anything but Accept-Encoding, so a cached anonymous copy can still be handed to a
+// signed-in visitor, who then sees the landing page instead of being sent to /dashboard.
+// That is the same class of thing as the signed-in chrome on cached public pages (§4.5), and
+// the deployment answer is a cache rule that bypasses the cache when sta-session is present
+// (docs/GO-MIGRATION.md §4.7). Nothing deploys yet (ruling 16).
+func (s *site) renderFrontDoor(w http.ResponseWriter, r *http.Request, d *page.Doc) {
+	w.Header().Set("Vary", "Cookie")
+	cache := web.Shared
+	if _, err := r.Cookie(session.CookieName); err == nil {
+		cache = web.Private
+	}
+	web.Render(w, s.Log, d, http.StatusOK, cache)
 }

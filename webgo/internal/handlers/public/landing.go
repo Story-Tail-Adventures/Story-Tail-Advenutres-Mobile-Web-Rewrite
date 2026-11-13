@@ -53,6 +53,6 @@ func (s *site) landing(tmpl *page.Template) http.HandlerFunc {
 		fillPhoto(d, "hero-photo", "turks", photoOpts{Sizes: "100vw", Alt: decorative})
 		// The reply-time figure comes from the claims registry, never typed in the page.
 		d.Text("reply-time", "Threaded by trip. Reply usually "+s.cat.Claim("avgReplyTime")+".")
-		s.render(w, d)
+		s.renderFrontDoor(w, r, d)
 	}
 }

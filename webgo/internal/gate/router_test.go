@@ -195,3 +195,31 @@ func TestMountsRefuseTheWrongGate(t *testing.T) {
 		}()
 	}
 }
+
+// A redirect the gate decided from the session is that visitor's answer. The front door is a
+// page Cloudflare is asked to cache, so a stored 303 would send the next visitor to somebody
+// else's destination.
+func TestSessionRedirectsAreNeverCached(t *testing.T) {
+	cases := map[string]struct {
+		state session.State
+		mount func(*Router)
+		path  string
+	}{
+		"front door, signed in":   {signedIn, func(rt *Router) { rt.FrontDoor(ok) }, "/"},
+		"protected, signed out":   {session.State{}, func(rt *Router) { rt.Protected("GET /agent", ok) }, "/agent"},
+		"auth only, signed in":    {signedIn, func(rt *Router) { rt.AuthOnly("GET /login", ok) }, "/login"},
+		"half assured to the mfa": {session.State{SignedIn: true, HasFactor: true}, func(rt *Router) { rt.Protected("GET /dashboard", ok) }, "/dashboard"},
+	}
+	for name, c := range cases {
+		rt, mux, _ := newRouter(c.state, false)
+		c.mount(rt)
+		rec := get(mux, c.path)
+		if rec.Code != http.StatusSeeOther {
+			t.Errorf("%s: %s = %d, want 303", name, c.path, rec.Code)
+			continue
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("%s: Cache-Control %q, want no-store", name, got)
+		}
+	}
+}

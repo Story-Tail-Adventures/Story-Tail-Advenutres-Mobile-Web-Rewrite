@@ -3,7 +3,7 @@ package page
 import (
 	"bytes"
 	"encoding/json"
-	"regexp"
+	"net/url"
 	"strings"
 
 	"github.com/mdigger/htmlx"
@@ -24,14 +24,16 @@ type Head struct {
 	Title string
 	// Description replaces the content of the layout's <meta name="description">.
 	Description string
-	// Canonical is the page's absolute URL. A value SafeURL refuses (an http:// origin in
-	// local development, say) is left out rather than written.
+	// Canonical is the page's absolute https:// URL. Anything else (a relative path, an
+	// http:// origin in local development) is left out rather than written: a canonical or a
+	// shared link is read by somebody else's crawler, on another host, where a relative path
+	// means a different page.
 	Canonical string
 	// Robots is the robots meta content ("noindex, follow"). Empty writes none.
 	Robots string
 	// Properties are Open Graph (og:*) and Twitter card (twitter:*) entries, written in
-	// order. og:* uses property=, twitter:* uses name=, as Next wrote them. A name ending in
-	// "url" or "image" is a link and goes through SafeURL; a refused one is left out.
+	// order. og:* uses property=, twitter:* uses name=, as Next wrote them. Only the names in
+	// knownProperties may be set, and the ones that are links must be absolute https://.
 	Properties []Property
 	// JSONLD, when not nil, is marshalled into a <script type="application/ld+json">.
 	// encoding/json escapes <, > and & in strings, so no value can close the element.
@@ -43,20 +45,62 @@ type Property struct {
 	Name, Content string
 }
 
-var propertyName = regexp.MustCompile(`^(og|twitter):[a-z_:]+$`)
-
-// isLinkProperty reports whether a property's content is a URL a crawler will fetch.
-func isLinkProperty(name string) bool {
-	return strings.HasSuffix(name, "url") || strings.HasSuffix(name, "image")
+// knownProperties is every Open Graph and Twitter card entry a page may set, and whether its
+// content is a link. An allowlist, not a pattern: the names whose content is a URL a crawler
+// or a chat app will FETCH do not share a spelling (og:image, og:video, og:audio,
+// twitter:player, twitter:app:url:iphone), so a rule like "ends in url or image" silently
+// lets og:video through unchecked. A name that is not here is refused, so adding one is a
+// deliberate edit with this comment in front of it.
+var knownProperties = map[string]struct{ link bool }{
+	"og:title":             {},
+	"og:description":       {},
+	"og:site_name":         {},
+	"og:type":              {},
+	"og:locale":            {},
+	"og:url":               {link: true},
+	"og:image":             {link: true},
+	"og:image:width":       {},
+	"og:image:height":      {},
+	"og:image:alt":         {},
+	"twitter:card":         {},
+	"twitter:title":        {},
+	"twitter:description":  {},
+	"twitter:site":         {},
+	"twitter:image":        {link: true},
+	"twitter:image:width":  {},
+	"twitter:image:height": {},
+	"twitter:image:alt":    {},
 }
 
-// Head writes h into the page's <head>. Call it at most once per request.
+// absoluteHTTPS allows only an absolute https:// URL with a host. Canonical links and the
+// link properties go through it rather than SafeURL, which also allows relative paths,
+// mailto: and tel: because it is written for links inside our own pages.
+func absoluteHTTPS(raw string) (string, bool) {
+	v, ok := SafeURL(raw)
+	if !ok {
+		return "", false
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Scheme != "https" || u.Host == "" {
+		return "", false
+	}
+	return v, true
+}
+
+// Head writes h into the page's <head>, once per request. A second call is a mistake, not a
+// merge: the elements it appends are not slots, so calling it twice leaves two canonicals and
+// two JSON-LD blocks with nothing to say which one a crawler should believe.
 func (d *Doc) Head(h Head) {
 	head := htmlx.Find(d.root, htmlx.Tag(atom.Head))
 	if head == nil {
 		d.fail("Head: the page has no <head>")
 		return
 	}
+	if d.headDone {
+		d.fail("Head: called twice; one call carries the whole page's metadata")
+		return
+	}
+	d.headDone = true
 	if h.Title != "" {
 		if title := htmlx.Find(head, htmlx.Tag(atom.Title)); title != nil {
 			replaceText(title, h.Title)
@@ -84,20 +128,21 @@ func (d *Doc) Head(h Head) {
 			html.Attribute{Key: "content", Val: h.Robots}))
 	}
 	if h.Canonical != "" {
-		if v, ok := SafeURL(h.Canonical); ok {
+		if v, ok := absoluteHTTPS(h.Canonical); ok {
 			head.AppendChild(element(atom.Link,
 				html.Attribute{Key: "rel", Val: "canonical"},
 				html.Attribute{Key: "href", Val: v}))
 		}
 	}
 	for _, p := range h.Properties {
-		if !propertyName.MatchString(p.Name) {
-			d.fail("Head: %q is not an og: or twitter: property name", p.Name)
+		kind, known := knownProperties[p.Name]
+		if !known {
+			d.fail("Head: %q is not a property a page may set; add it to knownProperties, with whether it is a link", p.Name)
 			continue
 		}
 		content := p.Content
-		if isLinkProperty(p.Name) {
-			v, ok := SafeURL(content)
+		if kind.link {
+			v, ok := absoluteHTTPS(content)
 			if !ok {
 				continue
 			}
@@ -115,6 +160,11 @@ func (d *Doc) Head(h Head) {
 		b, err := json.Marshal(h.JSONLD) // HTML-escapes <, > and & inside strings
 		if err != nil {
 			d.fail("Head: JSON-LD did not marshal: %v", err)
+			return
+		}
+		if string(b) == "null" {
+			// A typed nil pointer is not nil in an interface, so h.JSONLD != nil let one
+			// through and shipped <script ...>null</script>. Nothing to say is nothing to write.
 			return
 		}
 		if bytes.ContainsAny(b, "<>") {

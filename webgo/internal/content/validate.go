@@ -19,8 +19,16 @@ var (
 	knownLegalStatus  = set("draft", "reviewed")
 )
 
-// claimsInCode are the claims the code builds sentences from (TrustLine, AdvisorHeroLine).
-var claimsInCode = []string{"ratingValue", "reviewCount", "bioParent"}
+// claimsInCode are the claims Go reads by name: the ones the sentences here are built from
+// (TrustLine, AdvisorHeroLine) and the ones the public pages put on a screen. Claim panics on
+// a name it does not know, which is right for a programming error but wrong in the middle of
+// a request, so a renamed claim has to fail at startup instead. Add a name here when a
+// handler starts reading it.
+var claimsInCode = []string{
+	"ratingValue", "reviewCount", "bioParent", // TrustLine and AdvisorHeroLine
+	"avgReplyTime",                // 2.0.1, the landing page's third feature card
+	"travelersServed", "credClia", // AdvisorCard's figures
+}
 
 func set[T comparable](values ...T) map[T]bool {
 	m := make(map[T]bool, len(values))

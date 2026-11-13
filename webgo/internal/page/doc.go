@@ -351,8 +351,11 @@ func (s *scope) unhandled() []error {
 // and it is never shared: every request calls Template.New.
 type Doc struct {
 	scope
-	root    *html.Node
-	errList []error
+	root *html.Node
+	// headDone records that Head has run, so a second call is refused rather than appending
+	// a second canonical and a second JSON-LD block (head.go).
+	headDone bool
+	errList  []error
 }
 
 // Row is one copied row of a repeat, with the same setters scoped to that row.

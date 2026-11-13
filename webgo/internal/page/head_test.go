@@ -144,3 +144,83 @@ func TestPlaceholderSrcSetIsPending(t *testing.T) {
 		t.Errorf("the sample srcset would ship: %v", err)
 	}
 }
+
+// The reviewer's findings on this package, each kept as a test so the fix cannot be undone
+// quietly.
+func TestHeadRefusesAPropertyThatIsNotOnTheList(t *testing.T) {
+	// og:video, twitter:player and friends are links a crawler fetches, and none of them
+	// shares a spelling with og:url or og:image, so a suffix rule let them through unchecked.
+	for _, name := range []string{"og:video", "og:audio", "og:see_also", "twitter:player", "twitter:app:url:iphone"} {
+		d := loadPhoto(t).New()
+		fillPhotos(d)
+		d.Head(Head{Properties: []Property{{name, "javascript:alert(1)"}}})
+		b, err := d.Bytes()
+		if err == nil {
+			t.Errorf("%s rendered: %s", name, b)
+		}
+	}
+}
+
+func TestHeadLinksMustBeAbsoluteHTTPS(t *testing.T) {
+	for _, bad := range []string{"/explore/x", "?q=1", "#frag", "mailto:gyasi@example.com", "tel:+15550000", "http://app.story-tail.com/x"} {
+		d := loadPhoto(t).New()
+		fillPhotos(d)
+		d.Head(Head{Canonical: bad, Properties: []Property{{"og:url", bad}, {"og:image", bad}}})
+		out := render(t, d)
+		if strings.Contains(out, "canonical") || strings.Contains(out, "og:url") || strings.Contains(out, "og:image") {
+			t.Errorf("%q was written as a link:\n%s", bad, out)
+		}
+	}
+}
+
+func TestHeadRefusesASecondCall(t *testing.T) {
+	d := loadPhoto(t).New()
+	fillPhotos(d)
+	d.Head(Head{Title: "One", Canonical: "https://app.story-tail.com/"})
+	d.Head(Head{Title: "Two", Canonical: "https://app.story-tail.com/other"})
+	if _, err := d.Bytes(); err == nil || !strings.Contains(err.Error(), "called twice") {
+		t.Errorf("a second Head was accepted: %v", err)
+	}
+}
+
+func TestHeadWritesNothingForATypedNilJSONLD(t *testing.T) {
+	type doc struct{ Name string }
+	var missing *doc
+	d := loadPhoto(t).New()
+	fillPhotos(d)
+	d.Head(Head{JSONLD: missing})
+	if out := render(t, d); strings.Contains(out, "ld+json") {
+		t.Errorf("a typed nil shipped an empty JSON-LD block:\n%s", out)
+	}
+}
+
+func TestSrcSetHandlesTheSlot(t *testing.T) {
+	// A <source> holds no text and may carry no src, so SrcSet has to be enough on its own.
+	const pic = `<!DOCTYPE html><html><head><title>t</title></head><body><main>
+<picture><source data-slot="webp" type="image/webp" srcset="https://images.unsplash.com/a 1x"><img data-slot="fallback" src="https://images.unsplash.com/a" alt=""></picture>
+</main></body></html>`
+	set, err := Load(fstest.MapFS{"layout.html": {Data: []byte(headLayoutHTML)}, "pic.html": {Data: []byte(pic)}},
+		Spec{File: "pic.html", Layout: &Layout{File: "layout.html"}, Slots: []string{"webp", "fallback"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl, _ := set.Template("pic.html")
+	d := tmpl.New()
+	d.SrcSet("webp", []Candidate{{"https://images.unsplash.com/photo-1?w=640", "640w"}})
+	d.URL("fallback", "src", "https://images.unsplash.com/photo-1?w=640")
+	d.SrcSet("fallback", []Candidate{{"https://images.unsplash.com/photo-1?w=640", "640w"}})
+	if _, err := d.Bytes(); err != nil {
+		t.Errorf("a <source> filled only by SrcSet did not count as handled: %v", err)
+	}
+}
+
+func TestSrcSetRefusesAZeroDensity(t *testing.T) {
+	for _, d := range []string{"0x", "0.0x", "00x"} {
+		doc := loadPhoto(t).New()
+		fillPhotos(doc)
+		doc.URL("photo", "src", "https://images.unsplash.com/a")
+		if doc.SrcSet("photo", []Candidate{{"https://images.unsplash.com/a", d}}) {
+			t.Errorf("descriptor %q was accepted", d)
+		}
+	}
+}
