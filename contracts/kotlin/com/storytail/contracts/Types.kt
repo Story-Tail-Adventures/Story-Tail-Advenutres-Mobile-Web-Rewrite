@@ -14,6 +14,108 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class AgentLeadWriteResponseStatus {
+    @SerialName("new")
+    NEW,
+    @SerialName("contacted")
+    CONTACTED,
+    @SerialName("closed")
+    CLOSED,
+    @SerialName("converted")
+    CONVERTED,
+}
+
+@Serializable
+enum class AgentLeadWriteResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("deleted")
+    DELETED,
+}
+
+@Serializable
+enum class AgentLeadCreateResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("added")
+    ADDED,
+    @SerialName("client_exists")
+    CLIENT_EXISTS,
+}
+
+@Serializable
+enum class AgentLeadRequestReason {
+    @SerialName("not_a_fit")
+    NOT_A_FIT,
+    @SerialName("no_reply")
+    NO_REPLY,
+    @SerialName("went_elsewhere")
+    WENT_ELSEWHERE,
+    @SerialName("other")
+    OTHER,
+}
+
+@Serializable
+enum class AgentLeadRequestSource {
+    @SerialName("email")
+    EMAIL,
+    @SerialName("phone")
+    PHONE,
+    @SerialName("referral")
+    REFERRAL,
+    @SerialName("social")
+    SOCIAL,
+    @SerialName("other")
+    OTHER,
+}
+
+@Serializable
+enum class AgentLeadRequestOp {
+    @SerialName("create")
+    CREATE,
+    @SerialName("mark_contacted")
+    MARK_CONTACTED,
+    @SerialName("close")
+    CLOSE,
+    @SerialName("reopen")
+    REOPEN,
+    @SerialName("convert")
+    CONVERT,
+    @SerialName("delete_spam")
+    DELETE_SPAM,
+}
+
+@Serializable
+enum class LeadMessageRequestAboutKind {
+    @SerialName("trip")
+    TRIP,
+    @SerialName("topic")
+    TOPIC,
+}
+
+@Serializable
+enum class LeadMessageRequestPage {
+    @SerialName("landing")
+    LANDING,
+    @SerialName("how-it-works")
+    HOW_IT_WORKS,
+    @SerialName("about")
+    ABOUT,
+    @SerialName("topic")
+    TOPIC,
+    @SerialName("results")
+    RESULTS,
+    @SerialName("detail")
+    DETAIL,
+    @SerialName("join")
+    JOIN,
+    @SerialName("app")
+    APP,
+}
+
+@Serializable
 enum class HotelSearchResponseDegraded {
     @SerialName("budget_exhausted")
     BUDGET_EXHAUSTED,
@@ -959,4 +1061,103 @@ data class CruiseSearchResponse(
     // Soonest departure first. Archived sailings are never included.
     @SerialName("results")
     val results: List<CruiseSailing>,
+)
+
+@Serializable
+data class OkResponse(
+    @SerialName("ok")
+    val ok: Boolean,
+)
+
+@Serializable
+data class LeadMessageRequest(
+    @SerialName("firstName")
+    val firstName: String,
+    @SerialName("lastName")
+    val lastName: String? = null,
+    @SerialName("email")
+    val email: String,
+    @SerialName("phone")
+    val phone: String? = null,
+    // A card number anywhere in it is refused.
+    @SerialName("message")
+    val message: String,
+    // Where the form was. An unknown value is dropped, not refused.
+    @SerialName("page")
+    val page: LeadMessageRequestPage? = null,
+    @SerialName("aboutKind")
+    val aboutKind: LeadMessageRequestAboutKind? = null,
+    @SerialName("aboutSlug")
+    val aboutSlug: String? = null,
+    @SerialName("aboutLabel")
+    val aboutLabel: String? = null,
+    @SerialName("utmSource")
+    val utmSource: String? = null,
+    @SerialName("utmMedium")
+    val utmMedium: String? = null,
+    @SerialName("utmCampaign")
+    val utmCampaign: String? = null,
+    // When the form was drawn, epoch milliseconds. A send under three seconds later is treated as automated.
+    @SerialName("startedAt")
+    val startedAt: Double,
+    // The hidden field. Anything in it marks the send as automated.
+    @SerialName("website")
+    val website: String? = null,
+)
+
+@Serializable
+data class AgentLeadRequest(
+    @SerialName("op")
+    val op: AgentLeadRequestOp,
+    // Every op but `create`.
+    @SerialName("leadId")
+    val leadId: String? = null,
+    // `create` only.
+    @SerialName("firstName")
+    val firstName: String? = null,
+    @SerialName("lastName")
+    val lastName: String? = null,
+    // `create` only.
+    @SerialName("email")
+    val email: String? = null,
+    @SerialName("phone")
+    val phone: String? = null,
+    // `create` only.
+    @SerialName("source")
+    val source: AgentLeadRequestSource? = null,
+    // `create` only. A card number is refused.
+    @SerialName("message")
+    val message: String? = null,
+    // `close` only.
+    @SerialName("reason")
+    val reason: AgentLeadRequestReason? = null,
+    // `close` only. Private to the advisor.
+    @SerialName("note")
+    val note: String? = null,
+    // `convert` only: one of the caller's clients.
+    @SerialName("clientId")
+    val clientId: String? = null,
+)
+
+@Serializable
+data class AgentLeadCreateResponse(
+    @SerialName("outcome")
+    val outcome: AgentLeadCreateResponseOutcome,
+    // On `created` and `added`.
+    @SerialName("leadId")
+    val leadId: String? = null,
+    // On `client_exists`.
+    @SerialName("clientId")
+    val clientId: String? = null,
+)
+
+@Serializable
+data class AgentLeadWriteResponse(
+    @SerialName("leadId")
+    val leadId: String,
+    @SerialName("outcome")
+    val outcome: AgentLeadWriteResponseOutcome,
+    // The lead's status after the op; null once deleted.
+    @SerialName("status")
+    val status: AgentLeadWriteResponseStatus? = null,
 )
