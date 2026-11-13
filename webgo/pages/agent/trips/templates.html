@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.13, Trip Template Library. Ports app/(agent)/agent/templates/page.tsx with
+  TemplateGrid. Filled by internal/handlers/agent/trips (templates.go).
+
+  Rename and Retire are dialogs the URL opens (?rename=<id>, ?retire=<id>), so they work
+  without JavaScript. A template is saved FROM a trip, so there is no "New template" here.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trip templates · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-tpl-col" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/templates" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <header class="trp-tpl-head">
+        <div class="trp-minw0">
+          <h1 class="type-h5 trp-fw-700">Trip templates</h1>
+          <p class="type-body2 text-secondary trp-mt-0_5">Reusable starting points for the trips you build again and again.</p>
+        </div>
+        <a class="btn btn-outlined btn-small st-btn" href="/agent/trips">All trips</a>
+      </header>
+
+      <div class="card trp-state" data-slot="empty">
+        <div class="card-content trp-state-body">
+          <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#palm"></use></svg></span>
+          <h2 class="type-h5">No templates yet</h2>
+          <p class="type-body2 text-secondary trp-mt-1">Open a trip you would build again, then use Save as template. The bookings and the day-by-day come with it.</p>
+        </div>
+      </div>
+
+      <div class="trp-tgrid" data-slot="grid">
+        <article class="card trp-tcard" data-repeat="tpl">
+          <div class="card-content trp-tbody">
+            <div class="trp-thead">
+              <div class="trp-minw0 trp-grow">
+                <h2 class="type-subtitle1 trp-fw-600 trp-break-word" data-slot="t-name">Sandals Negril · 7n</h2>
+                <p class="type-caption text-secondary trp-block trp-mt-0_25" data-slot="t-shape">All-inclusive resort · 6 bookings · 4 days</p>
+              </div>
+              <span class="chip chip-small chip-outlined trp-tchip trp-mono shrink-0" data-slot="t-value"><span class="chip-label" data-slot="t-value-text">$12,845</span></span>
+            </div>
+            <p class="type-body2 text-secondary trp-mt-1" data-slot="t-desc">Ocean-view suite, transfer, catamaran, insurance</p>
+            <div class="trp-tfoot">
+              <span class="chip chip-small chip-outlined trp-tchip" data-slot="t-used"><span class="chip-label" data-slot="t-used-text">14× used</span></span>
+              <div class="trp-tactions">
+                <a class="btn btn-text btn-small st-btn" href="/agent/templates?rename=sample" data-slot="t-rename">Rename<span class="visually-hidden" data-slot="t-rename-sr"> Sandals Negril · 7n</span></a>
+                <a class="btn btn-outlined btn-small st-btn" href="/agent/templates?retire=sample" data-slot="t-retire">Retire<span class="visually-hidden" data-slot="t-retire-sr"> Sandals Negril · 7n</span></a>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <dialog class="dialog trp-dialog-480" open tabindex="-1" aria-labelledby="tpl-rename-label" data-trp-modal data-trp-close-href="/agent/templates" data-slot="rename-dialog">
+        <form method="post" action="/agent/templates/rename" data-submit-once>
+          <div class="trp-dialog-content">
+            <span class="visually-hidden" id="tpl-rename-label" data-slot="rename-sr">Rename Sandals Negril · 7n</span>
+            <input type="hidden" name="templateId" value="sample" data-slot="rename-id">
+            <h2 class="type-h5">Rename</h2>
+            <p class="type-caption text-secondary trp-block trp-mt-0_5">A template is a snapshot of a real trip. To change the shape, save a new one from a trip that has it.</p>
+            <div class="field trp-mt-1_5">
+              <label class="field-label" for="tpl-name">Name</label>
+              <input class="input" id="tpl-name" name="name" data-trp-required data-slot="rename-name">
+            </div>
+            <div class="field trp-mt-1_5">
+              <label class="field-label" for="tpl-desc">What it is for (optional)</label>
+              <input class="input" id="tpl-desc" name="description" data-slot="rename-desc">
+            </div>
+            <div class="trp-mt-1" data-slot="rename-error"><div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="rename-error-text">That did not save. Try again in a moment.</div></div></div>
+          </div>
+          <div class="trp-dialog-actions trp-dialog-actions-split">
+            <a class="btn btn-outlined btn-small st-btn" href="/agent/templates">Cancel</a>
+            <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn" data-trp-submit>Save template</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog class="dialog trp-dialog-480" open tabindex="-1" aria-labelledby="tpl-retire-label" data-trp-modal data-trp-close-href="/agent/templates" data-slot="retire-dialog">
+        <form method="post" action="/agent/templates/retire" data-submit-once>
+          <div class="trp-dialog-content">
+            <span class="visually-hidden" id="tpl-retire-label" data-slot="retire-sr">Retire Sandals Negril · 7n</span>
+            <input type="hidden" name="templateId" value="sample" data-slot="retire-id">
+            <!-- So a refusal can still name the template: archiving it takes the row out of
+                 the library, and the message has to say which one it was about. -->
+            <input type="hidden" name="name" value="Sandals Negril · 7n" data-slot="retire-name-field">
+            <div class="row items-start gap-1_5">
+              <span class="avatar avatar-40 shrink-0 trp-tile-warning" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#inbox"></use></svg></span>
+              <div class="trp-minw0">
+                <span class="type-overline trp-block trp-lh-13 trp-text-warning">RETIRE</span>
+                <h2 class="type-h5 trp-break-word" data-slot="retire-name">Sandals Negril · 7n</h2>
+              </div>
+            </div>
+            <p class="type-body2 text-secondary trp-mt-1">It leaves the library. Trips already built from it are untouched and keep their history.</p>
+            <div class="trp-mt-1" data-slot="retire-error"><div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="retire-error-text">That did not save. Try again in a moment.</div></div></div>
+          </div>
+          <div class="trp-dialog-actions trp-dialog-actions-split">
+            <a class="btn btn-outlined btn-small st-btn" href="/agent/templates">Cancel</a>
+            <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn">Retire</button>
+          </div>
+        </form>
+      </dialog>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/url-dialog.js"></script>
+  <script type="module" src="/assets/js/agent/trips/templates.js"></script>
+</main>
+</body>
+</html>
