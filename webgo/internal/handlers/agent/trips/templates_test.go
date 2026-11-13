@@ -112,3 +112,41 @@ func TestTemplateRenameAndRetire(t *testing.T) {
 		t.Error("an admin's post reached the function")
 	}
 }
+
+// A refusal has to say so even when the row has left the library. Archiving a template takes
+// it out of agent_templates, so retiring twice (two tabs, or Back then Retire again) is the
+// ordinary way here: the dialog used to be looked up in the library and vanished with it,
+// taking the function's sentence — and anything typed — with it.
+func TestTemplateRefusalSurvivesAGoneRow(t *testing.T) {
+	gone := "0195a2c0-1a00-7000-8000-0000000000f9" // not in libraryJSON
+	a := templatesApp(t)
+	a.fake.fn("agent-template", reply{404, `{"detail":"That template is not in your library."}`})
+
+	rec := a.post("/agent/templates/retire", url.Values{"templateId": {gone}, "name": {"Retired already"}})
+	has(t, rec, "That template is not in your library.", `data-slot="retire-dialog"`,
+		"Retire Retired already", `name="templateId" value="`+gone+`"`)
+	if rec.Code == 303 {
+		t.Error("a refusal redirected instead of saying so")
+	}
+
+	rec = a.post("/agent/templates/rename", url.Values{"templateId": {gone}, "name": {"Negril, again"}, "description": {"typed"}})
+	has(t, rec, "That template is not in your library.", `data-slot="rename-dialog"`,
+		`value="Negril, again"`, `value="typed"`)
+
+	// While the row IS there, the library still names it (another tab may have renamed it),
+	// whatever the form posted.
+	rec = a.post("/agent/templates/retire", url.Values{"templateId": {tplB}, "name": {"a stale name"}})
+	has(t, rec, "Retire Lisbon long weekend")
+	lacks(t, rec, "a stale name")
+}
+
+// Next held one dialog in client state, so two could not stack.
+func TestOnlyOneTemplateDialogOpens(t *testing.T) {
+	a := templatesApp(t)
+	rec := a.get("/agent/templates?rename=" + tplA + "&retire=" + tplB)
+	has(t, rec, `data-slot="rename-dialog"`)
+	lacks(t, rec, `data-slot="retire-dialog"`)
+	if n := strings.Count(rec.Body.String(), "<dialog"); n != 1 {
+		t.Errorf("%d dialogs open", n)
+	}
+}

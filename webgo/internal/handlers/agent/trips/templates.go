@@ -47,15 +47,22 @@ func toTemplateCard(r templateRow) templateCard {
 }
 
 type templatesView struct {
-	cards []templateCard
+	cards  []templateCard
+	rename *templateDialog
+	retire *templateDialog
+}
 
-	rename      *templateCard
-	renameName  string
-	renameDesc  string
-	renameError string
-
-	retire      *templateCard
-	retireError string
+// templateDialog is an open Rename or Retire. It is keyed by the id it acts on and carries
+// its own text, NOT a row of the library: a refusal has to say so even when the row has gone,
+// and agent_templates hides an archived one, so retiring twice (two tabs, or Back then Retire
+// again) is the ordinary way to reach that. Next kept the dialog in client state, where this
+// could not happen.
+type templateDialog struct {
+	id          string // the template it acts on
+	label       string // what the library calls it, or what the form posted once it is gone
+	name        string // Rename's Name field, as typed
+	description string // Rename's description field, as typed
+	message     string // a refusal's sentence
 }
 
 func (tv *templatesView) card(id string) *templateCard {
@@ -67,10 +74,20 @@ func (tv *templatesView) card(id string) *templateCard {
 	return nil
 }
 
+// dialogFor opens a dialog on id: named by the library while the row is there (another tab
+// may have renamed it), and by what the form posted once it is not.
+func (tv *templatesView) dialogFor(id, posted string) *templateDialog {
+	dl := &templateDialog{id: id, label: posted}
+	if c := tv.card(id); c != nil {
+		dl.label = c.name
+	}
+	return dl
+}
+
 var templatesSlots = []string{
 	"empty", "grid",
 	"rename-dialog", "rename-sr", "rename-id", "rename-name", "rename-desc", "rename-error", "rename-error-text",
-	"retire-dialog", "retire-sr", "retire-id", "retire-name", "retire-error", "retire-error-text",
+	"retire-dialog", "retire-sr", "retire-id", "retire-name-field", "retire-name", "retire-error", "retire-error-text",
 }
 
 var templatesSpecs = []page.Spec{spec("agent/trips/templates.html", templatesSlots, map[string][]string{
@@ -96,12 +113,13 @@ func (h templatesRenderer) show(w http.ResponseWriter, r *http.Request, v visit,
 			tv.cards = append(tv.cards, toTemplateCard(row))
 		}
 		if r.Method == http.MethodGet {
+			// One at a time, in the page's order: Next held one dialog in client state, so
+			// ?rename=A&retire=B could not stack two of them.
 			q := r.URL.Query()
 			if c := tv.card(q.Get("rename")); q.Get("rename") != "" && c != nil {
-				tv.rename, tv.renameName, tv.renameDesc = c, c.name, c.description
-			}
-			if c := tv.card(q.Get("retire")); q.Get("retire") != "" && c != nil {
-				tv.retire = c
+				tv.rename = &templateDialog{id: c.id, label: c.name, name: c.name, description: c.description}
+			} else if c := tv.card(q.Get("retire")); q.Get("retire") != "" && c != nil {
+				tv.retire = &templateDialog{id: c.id, label: c.name}
 			}
 		}
 		if adjust != nil {
@@ -163,7 +181,9 @@ func mountTemplates(rt *gate.Router, d handlers.Deps) error {
 		name, desc := trimJS(f.Get("name")), f.Get("description")
 		again := func(status int, msg string) {
 			h.show(w, r, v, status, func(tv *templatesView) {
-				tv.rename, tv.renameName, tv.renameDesc, tv.renameError = tv.card(id), f.Get("name"), desc, msg
+				dl := tv.dialogFor(id, name)
+				dl.name, dl.description, dl.message = f.Get("name"), desc, msg
+				tv.rename = dl
 			})
 		}
 		if name == "" { // Next's Save is disabled until there is a name
@@ -186,7 +206,7 @@ func mountTemplates(rt *gate.Router, d handlers.Deps) error {
 	})
 
 	// archiveTemplateAction: op archive. Retire, not delete: trips built from it keep it.
-	post("POST /agent/templates/retire", func(w http.ResponseWriter, r *http.Request, v visit, id string, _ url.Values) {
+	post("POST /agent/templates/retire", func(w http.ResponseWriter, r *http.Request, v visit, id string, f url.Values) {
 		out := outcome(call(r.Context(), d, r, v, "agent-template", map[string]any{"op": "archive", "templateId": id}), copyTemplateArchiveFailed)
 		switch {
 		case out.SignIn:
@@ -194,7 +214,13 @@ func mountTemplates(rt *gate.Router, d handlers.Deps) error {
 		case out.OK:
 			web.SeeOther(w, r, "/agent/templates")
 		default:
-			h.show(w, r, v, out.Status, func(tv *templatesView) { tv.retire, tv.retireError = tv.card(id), out.Message })
+			// The form posts the name too, so a refusal can still name the template after
+			// the row has left the library (archiving it is what takes it out).
+			h.show(w, r, v, out.Status, func(tv *templatesView) {
+				dl := tv.dialogFor(id, trimJS(f.Get("name")))
+				dl.message = out.Message
+				tv.retire = dl
+			})
 		}
 	})
 	return nil
@@ -231,22 +257,23 @@ func fillTemplates(d *page.Doc, tv *templatesView) {
 		})
 	}
 
-	if c := tv.rename; c != nil {
+	if dl := tv.rename; dl != nil {
 		d.Keep("rename-dialog")
-		d.Text("rename-sr", "Rename "+c.name)
-		d.Attr("rename-id", "value", c.id)
-		d.Attr("rename-name", "value", tv.renameName)
-		d.Attr("rename-desc", "value", tv.renameDesc)
-		formError(d, "rename-error", "rename-error-text", tv.renameError)
+		d.Text("rename-sr", "Rename "+dl.label)
+		d.Attr("rename-id", "value", dl.id)
+		d.Attr("rename-name", "value", dl.name)
+		d.Attr("rename-desc", "value", dl.description)
+		formError(d, "rename-error", "rename-error-text", dl.message)
 	} else {
 		d.Remove("rename-dialog")
 	}
-	if c := tv.retire; c != nil {
+	if dl := tv.retire; dl != nil {
 		d.Keep("retire-dialog")
-		d.Text("retire-sr", "Retire "+c.name)
-		d.Attr("retire-id", "value", c.id)
-		d.Text("retire-name", c.name)
-		formError(d, "retire-error", "retire-error-text", tv.retireError)
+		d.Text("retire-sr", "Retire "+dl.label)
+		d.Attr("retire-id", "value", dl.id)
+		d.Attr("retire-name-field", "value", dl.label)
+		d.Text("retire-name", dl.label)
+		formError(d, "retire-error", "retire-error-text", dl.message)
 	} else {
 		d.Remove("retire-dialog")
 	}
