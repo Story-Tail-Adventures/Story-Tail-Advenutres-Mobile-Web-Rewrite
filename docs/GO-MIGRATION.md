@@ -475,6 +475,25 @@ ported, and goes away with the Deno functions (5.10):
 |---|---|---|
 | `hotel-search` | Web hotel search moved into the web app itself in PR #48 (`web/lib/public/hotels.ts` calls SerpApi directly, one call and one key); mobile never called it. The Go web pages port that web module, not this function. Its `_shared/hotels/*` code and 37 Deno tests retire with it. | 2026-11-06 |
 
+**Track B status (2026-11-07).** All 34 names are accounted for: 33 run in Go behind the gate
+their Deno original had (`webgo/internal/api/ported.go`: user, open, cron or in-process), and
+`hotel-search` is retired with no caller (above). Each ported function has Go table tests and a
+differential test against its Deno original (`webgo/internal/api/difftest`), and every security-
+relevant area had an independent review with its proven findings fixed. Delivered as stacked
+draft PRs #182 to #193; the mobile Functions base URL is #181.
+
+- **New libraries.** IMAP uses `github.com/emersion/go-imap/v2` v2.0.0-beta.8
+  (`docs/IMAP-Go-Library-Security-Review.md`); Web Push is the standard library, no new module
+  (`docs/WebPush-Go-Library-Security-Review.md`). Both reviews await Gyasi's decision.
+- **Cron.** Migration `20261106120000` makes each tick's bearer follow its URL: a Supabase
+  Functions URL keeps the service-role key, any other URL is the Go service and gets the vault
+  secret `sta_cron_secret` (32+ characters, equal to Render's `STA_CRON_SECRET`). The switch is
+  vault-only; the migration's header lists the exact statements.
+- **Known gap, needs a decision.** The card-number rule (SQL `text_has_card_digits`, Deno
+  `cardDigits.ts`, the Go port, web and Kotlin) joins digit groups split only by space, dot, dash
+  or no-break spaces, so a card split by `/`, `_`, `,`, `+` or `%20` is stored in a pay link,
+  paid reference or note. It must change in all five copies at once (review of #187).
+
 **How the differential test runs** (Track B): `webgo/internal/api/difftest/` (build tag
 `difftest`, never in CI). It needs a local stack whose migrations match the branch exactly
 (check with the `schema_migrations` diff in CLAUDE.md's gotchas; the shared stack is often

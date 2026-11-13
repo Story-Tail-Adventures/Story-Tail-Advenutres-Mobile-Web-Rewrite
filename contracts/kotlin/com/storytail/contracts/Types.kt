@@ -14,6 +14,36 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class EmailUnsubscribeResponseStatus {
+    @SerialName("on")
+    ON,
+    @SerialName("off")
+    OFF,
+    @SerialName("invalid")
+    INVALID,
+}
+
+@Serializable
+enum class CruiseSyncRunResponseStatus {
+    @SerialName("ok")
+    OK,
+    @SerialName("partial")
+    PARTIAL,
+    @SerialName("skipped")
+    SKIPPED,
+    @SerialName("failed")
+    FAILED,
+}
+
+@Serializable
+enum class CruiseSyncRequestTrigger {
+    @SerialName("cron")
+    CRON,
+    @SerialName("manual")
+    MANUAL,
+}
+
+@Serializable
 enum class AccountAdminMergeResponseOutcome {
     @SerialName("merged")
     MERGED,
@@ -3387,4 +3417,152 @@ data class AccountAdminMergeResponse(
     // Present with `merged` only. What moved from the retired record.
     @SerialName("counts")
     val counts: JsonElement? = null,
+)
+
+/** Every field is optional, and a body that is missing, not JSON, or not an object is */
+/** read as `{"trigger":"cron"}`. */
+@Serializable
+data class CruiseSyncRequest(
+    // "manual" marks a person's run; anything else (or nothing) is "cron".
+    @SerialName("trigger")
+    val trigger: CruiseSyncRequestTrigger? = null,
+    // Narrows a run to the one `cruise_sync_scope` whose `label` this is (trimmed; a
+    // blank or non-string value is ignored). For manual runs: verifying one scope should
+    // not spend the others' requests. pg_cron never sends it.
+    @SerialName("scope")
+    val scope: String? = null,
+    // Refetch this `cruise_sailing` instead of running the schedule. Any UUID shape
+    // (either letter case); anything else, null included, is 400.
+    @SerialName("sailingId")
+    val sailingId: String? = null,
+)
+
+@Serializable
+data class CruiseSyncRunResponse(
+    // The `cruise_sync_run` row, which holds the same counts and the cause.
+    @SerialName("runId")
+    val runId: String,
+    // `partial` when some scope failed, the relay throttled the run, or a scope spent
+    // requests and stored nothing; `failed` when that happened before any scope finished;
+    // `skipped` when the budget is spent or an earlier run is still going.
+    @SerialName("status")
+    val status: CruiseSyncRunResponseStatus,
+    @SerialName("scopesRun")
+    val scopesRun: Int,
+    // Provider HTTP attempts this run made, retries included.
+    @SerialName("requestsSpent")
+    val requestsSpent: Int,
+    @SerialName("rowsUpserted")
+    val rowsUpserted: Int,
+    // Rows soft-archived after a complete pass (cruise lines and ships only).
+    @SerialName("rowsArchived")
+    val rowsArchived: Int,
+    @SerialName("budget")
+    val budget: JsonElement,
+    // Why scopes were skipped, deferred, stopped or failed, in order. Empty on a clean run.
+    @SerialName("notes")
+    val notes: List<String>,
+)
+
+@Serializable
+data class CruiseSyncRefetchResponse(
+    @SerialName("sailingId")
+    val sailingId: String,
+    // The provider's id for the sailing (`cruise_sailing.provider_key`).
+    @SerialName("cruiseId")
+    val cruiseId: String? = null,
+    // The provider's company for the line; null when the line has no provider coverage.
+    @SerialName("company")
+    val company: String? = null,
+    @SerialName("cabinPricesWritten")
+    val cabinPricesWritten: Int,
+    @SerialName("portCallsWritten")
+    val portCallsWritten: Int,
+    // The refreshed lead fare in minor units, only when the provider answered in the
+    // sailing's own market; otherwise null and the stored fare is left alone. Internal
+    // (Data-Model §24.4): never shown on a public page.
+    @SerialName("leadPriceCents")
+    val leadPriceCents: Int? = null,
+    // ISO 4217, beside leadPriceCents.
+    @SerialName("currency")
+    val currency: String? = null,
+    // The budget after this request (before it, when nothing was spent).
+    @SerialName("budget")
+    val budget: JsonElement,
+    // Present when no request was spent (the line has no provider coverage, or the
+    // budget is gone, with the reason), or when the provider answered in another market
+    // (cabin prices were still stored, tagged with that market). Absent otherwise.
+    @SerialName("skipped")
+    val skipped: String? = null,
+)
+
+@Serializable
+data class PushDispatchResponse(
+    // Notification rows finished as sent (a summary counts each row it covered).
+    @SerialName("sent")
+    val sent: Int,
+    // Rows finished as not sent (back to pending, cleared for a newer row of the same thread, or failed on their third try).
+    @SerialName("retried")
+    val retried: Int,
+    // Owed dismisses claimed and sent to the advisor's phones (counted even when they have none).
+    @SerialName("dismissed")
+    val dismissed: Int,
+    // Devices forgotten because their push service said they no longer exist.
+    @SerialName("gone")
+    val gone: Int,
+)
+
+@Serializable
+data class EmailDispatchResponse(
+    // Client emails finished as sent.
+    @SerialName("sent")
+    val sent: Int,
+    // Advisor alert emails finished as sent.
+    @SerialName("alertsSent")
+    val alertsSent: Int,
+    // Emails and alerts finished as not sent and not failed (back to pending, or cleared for a newer row of the same thread).
+    @SerialName("retried")
+    val retried: Int,
+    // Emails and alerts failed for good (a 5xx, nothing honest to send, or the third try).
+    @SerialName("failed")
+    val failed: Int,
+    // Claimed rows put back unsent, with no try counted, because the pass ran out of time.
+    @SerialName("released")
+    val released: Int,
+)
+
+@Serializable
+data class EmailInboxResponse(
+    // Messages handled this run (the sum of `outcomes`).
+    @SerialName("read")
+    val read: Int,
+    // How many messages ended each way, keyed in the order first seen. Only outcomes that
+    // occurred appear. Keys: the `email_inbound_record` outcomes (`accepted`,
+    // `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`,
+    // `too_long`, `auto_reply`), plus `duplicate` (a re-delivered copy of a message already
+    // recorded), `too_large` (over 1,000,000 octets, never read) and `failed` (could not be
+    // read; moved to `Failed`).
+    @SerialName("outcomes")
+    val outcomes: JsonElement,
+    // Messages left in INBOX because the run ran out of time.
+    @SerialName("skipped")
+    val skipped: Int,
+    // Handled messages older than 30 days deleted from Processed, Rejected and Failed.
+    @SerialName("purged")
+    val purged: Int,
+)
+
+@Serializable
+data class EmailUnsubscribeRequest(
+    // The unsubscribe token; null or absent uses ?t=.
+    @SerialName("token")
+    val token: String? = null,
+    @SerialName("on")
+    val on: Boolean,
+)
+
+@Serializable
+data class EmailUnsubscribeResponse(
+    @SerialName("status")
+    val status: EmailUnsubscribeResponseStatus? = null,
 )
