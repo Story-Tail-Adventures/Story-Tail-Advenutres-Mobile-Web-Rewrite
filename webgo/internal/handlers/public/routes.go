@@ -31,4 +31,4 @@ func CachedPaths(c *content.Catalog) []string {
 
 // mounted marks which of the sitemap's pages exist in Go yet. Phase 2 builds them one PR at
 // a time; when every one is here this map goes, and CachedPaths lists them all.
-var mounted = map[string]bool{"/": true, "/how-it-works": true}
+var mounted = map[string]bool{"/": true, "/how-it-works": true, "/caribbean": true, "/cruises": true, "/honeymoons": true}

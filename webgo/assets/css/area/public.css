@@ -26,13 +26,17 @@
   }
 
   .icon-12 { width: 12px; height: 12px; }
+  .icon-13 { width: 13px; height: 13px; }
 
   /* ── Section overline (Typography overline, brand, 600) ─────────────────────────────────── */
   .pub-overline { display: block; color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.3; }
 
   /* ── HeroBleed (components/public/HeroBleed.tsx) ────────────────────────────────────────── */
   .hero { position: relative; display: flex; flex-direction: column; overflow: hidden; }
-  .hero-scrim { position: absolute; inset: 0; }
+  .hero-scrim,
+  /* Every scrim covers its photo: the gradient classes in public.css only paint, so the box
+     that carries one has to be placed over the image. */
+  .scrim-fill { position: absolute; inset: 0; }
   .hero-inner {
     position: relative;
     display: flex;
@@ -426,8 +430,8 @@
   }
   @media (min-width: 768px) { .closing-panel { flex-direction: row; align-items: center; margin-top: 30px; } }
   .closing-body { margin-top: 4px; opacity: 0.85; }
-  .closing-cta { min-height: 40px; padding-left: 24px; padding-right: 24px; flex-shrink: 0; width: 100%; }
-  @media (min-width: 768px) { .closing-cta { width: auto; } }
+  .closing-panel-cta { min-height: 40px; padding-left: 24px; padding-right: 24px; flex-shrink: 0; width: 100%; }
+  @media (min-width: 768px) { .closing-panel-cta { width: auto; } }
 
   /* ── 2.0.7 Footer pages (app/(public)/(plain)/legal/[slug]) ────────────────────────────── */
   .legal-layout { flex: 1; display: grid; }
@@ -485,4 +489,323 @@
   @media (min-width: 768px) { .not-found-ctas { flex-direction: row; } }
   .not-found-cta { min-height: 40px; padding-left: 24px; padding-right: 24px; width: 100%; }
   @media (min-width: 768px) { .not-found-cta { width: auto; } }
+
+  /* ── SectionLabel (components/public/SectionLabel.tsx) ─────────────────────────────────── */
+  .section-label { margin-bottom: 10px; }
+  @media (min-width: 768px) { .section-label { margin-bottom: 16px; } }
+  .section-title {
+    margin: 2px 0 4px;
+    font: var(--mui-font-h4);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+    color: var(--mui-palette-text-primary);
+  }
+  @media (min-width: 768px) { .section-title { font-size: 24px; line-height: 1.15; } }
+  @media (min-width: 1200px) { .section-title { font-size: 28px; letter-spacing: -0.4px; } }
+  .section-sub { max-width: 720px; color: var(--mui-palette-text-secondary); }
+
+  /* ── PhotoTile (components/public/PhotoTile.tsx) ───────────────────────────────────────── */
+  .photo-tile {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    aspect-ratio: 5 / 3;
+    color: var(--mui-palette-common-white);
+    text-decoration: none;
+  }
+  .photo-tile-5-4 { aspect-ratio: 5 / 4; }
+  .photo-tile-4-5 { aspect-ratio: 4 / 5; }
+  .photo-tile-strip { width: 110px; flex-shrink: 0; scroll-snap-align: start; }
+  /* One repeat row per tile; the wrapper is not a box, so the tile itself is the grid or
+     strip item (page.Repeat copies a row, and a slot may not sit on the row element). */
+  .tile-cell { display: contents; }
+  .photo-tile img { transition: transform 300ms ease; }
+  .photo-tile:hover img { transform: scale(1.05); }
+  @media (prefers-reduced-motion: reduce) {
+    .photo-tile img { transition: none; }
+    .photo-tile:hover img { transform: none; }
+  }
+  .photo-tile-copy { position: absolute; left: 10px; right: 10px; bottom: 10px; }
+  @media (min-width: 768px) { .photo-tile-copy { left: 12px; right: 12px; } }
+  .photo-tile-strip .photo-tile-copy { left: 8px; right: 8px; bottom: 8px; }
+  .photo-tile-label { font: var(--mui-font-subtitle1); font-weight: 700; font-size: 12.5px; line-height: 1.2; }
+  @media (min-width: 768px) { .photo-tile-label { font-size: 15px; } }
+  .photo-tile-strip .photo-tile-label,
+  .photo-tile-4-5 .photo-tile-label { font-size: 11px; line-height: 1.15; }
+  @media (min-width: 768px) {
+    .photo-tile-strip .photo-tile-label,
+    .photo-tile-4-5 .photo-tile-label { font-size: 13px; line-height: 1.2; }
+  }
+  .photo-tile-sub { display: block; margin-top: 2px; font-weight: 500; font-size: 11.5px; line-height: 1; opacity: 0.85; }
+
+  /* ── PriceRange (components/public/PriceRange.tsx) ─────────────────────────────────────── */
+  .price-range {
+    display: inline-flex;
+    gap: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background-color: var(--tag-dark-bg);
+    color: var(--mui-palette-common-white);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.5px;
+  }
+  .price-range-sm { padding: 2px 7px; font-size: 9px; }
+  /* The band dims the dollar signs it does not reach, so one class says "$$" without the
+     handler counting spans. */
+  .price-band-1 .price-dot:nth-child(n + 2),
+  .price-band-2 .price-dot:nth-child(n + 3) { opacity: 0.3; }
+
+  /* ── TripTile (components/public/TripTile.tsx): a card from md, a row below it ─────────── */
+  .trip-card { position: relative; display: flex; flex-direction: column; overflow: hidden; }
+  .trip-card-photo { position: relative; aspect-ratio: 5 / 3; }
+  .trip-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    height: 20px;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .trip-card-price { position: absolute; top: 10px; right: 10px; }
+  .trip-card-price .price-range { display: inline-flex; }
+  .trip-card-body { display: flex; flex: 1; flex-direction: column; padding: 14px; }
+  .trip-title { margin-top: 2px; color: var(--mui-palette-text-primary); }
+  .trip-tagline { display: block; color: var(--mui-palette-text-secondary); }
+  .trip-actions { display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 10px; }
+  .trip-quote { min-height: 32px; padding-left: 16px; padding-right: 16px; white-space: nowrap; flex: 1; }
+  .trip-save { width: 32px; height: 32px; padding: 5px; font-size: 1.125rem; }
+  .trip-row { display: flex; overflow: hidden; }
+  .trip-row-photo { position: relative; width: 120px; flex-shrink: 0; }
+  .trip-row .trip-badge { top: 6px; left: 6px; height: 18px; font-size: 8.5px; letter-spacing: 0.4px; }
+  .trip-row .trip-badge .chip-label { padding-left: 6px; padding-right: 6px; }
+  .trip-row-body { display: flex; flex: 1; flex-direction: column; padding: 12px; }
+  .trip-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+  .trip-row-title { margin-top: 2px; color: var(--mui-palette-text-primary); }
+  .trip-row-tagline { font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .trip-row .trip-actions { padding-top: 8px; }
+  .trip-row .trip-quote { flex: none; }
+
+  /* ── MediaCard (components/public/MediaCard.tsx) ───────────────────────────────────────── */
+  .media-card { display: block; overflow: hidden; }
+  .media-card-photo { position: relative; height: 160px; }
+  .media-tag {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    height: 20px;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background-color: var(--hero-pill-bg);
+    color: var(--mui-palette-primary-main);
+  }
+  .media-card-body { padding: 16px; }
+  .media-card-body-sub { display: block; margin-top: 4px; color: var(--mui-palette-text-secondary); }
+  .media-row { display: flex; overflow: hidden; }
+  .media-row-photo { position: relative; width: 100px; flex-shrink: 0; }
+  .media-row .media-tag { top: 6px; left: 6px; height: 18px; font-size: 8.5px; letter-spacing: 0.4px; }
+  .media-row .media-tag .chip-label { padding-left: 6px; padding-right: 6px; }
+  .media-row-body { flex: 1; padding: 12px; }
+  .media-row-body-sub { margin-top: 4px; font-weight: 500; color: var(--mui-palette-text-secondary); }
+
+  /* ── ClosingCta (components/public/ClosingCta.tsx) ─────────────────────────────────────── */
+  .closing-cta {
+    position: relative;
+    margin-top: 12px;
+    min-height: 220px;
+    overflow: hidden;
+    --Paper-shadow: none;
+    --Paper-overlay: none;
+  }
+  .closing-cta-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    color: var(--mui-palette-common-white);
+  }
+  @media (min-width: 768px) {
+    .closing-cta-inner {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 32px 36px;
+    }
+  }
+  .closing-cta-copy { max-width: 540px; }
+  .closing-cta-title {
+    margin: 0;
+    font: var(--mui-font-h4);
+    font-weight: 800;
+    font-size: 24px;
+    line-height: 1.18;
+    letter-spacing: -0.3px;
+    color: var(--mui-palette-common-white);
+  }
+  @media (min-width: 768px) { .closing-cta-title { font-weight: 700; font-size: 26px; line-height: 1.15; } }
+  @media (min-width: 1200px) { .closing-cta-title { font-size: 28px; letter-spacing: -0.4px; } }
+  .closing-cta-body { margin-top: 6px; color: var(--mui-palette-common-white); opacity: 0.9; }
+  .closing-cta-actions { display: flex; flex-direction: column; gap: 10px; }
+  @media (min-width: 768px) { .closing-cta-actions { flex-direction: row; } }
+  .btn-cta-large { min-height: 48px; padding-left: 28px; padding-right: 28px; white-space: nowrap; }
+
+  /* ── InquiryBar (components/public/InquiryBar.tsx): a real GET form, md and up ─────────── */
+  .inquiry-band {
+    display: none;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    background-color: var(--mui-palette-surface-1);
+    border-bottom: 1px solid var(--mui-palette-divider);
+  }
+  @media (min-width: 768px) { .inquiry-band { display: block; } }
+  .inquiry-form {
+    display: flex;
+    align-items: center;
+    color: var(--mui-palette-text-primary);
+    --Paper-shadow: var(--mui-shadows-1);
+    --Paper-overlay: var(--mui-overlays-1);
+  }
+  /* Four cells do not fit one row on a tablet, so a bar with more than three wraps to a
+     two-column grid from md to web, each cell ruled off by its own borders, and goes back to
+     the artboard's single row with dividers from web. */
+  @media (min-width: 768px) and (max-width: 1199.95px) {
+    .inquiry-form-wraps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+    .inquiry-form-wraps .inquiry-divider { display: none; }
+    .inquiry-form-wraps .inquiry-cell-right { border-right: 1px solid var(--mui-palette-divider); }
+    .inquiry-form-wraps .inquiry-cell-above { border-bottom: 1px solid var(--mui-palette-divider); }
+    .inquiry-form-wraps .inquiry-submit-own-row { grid-column: 1 / -1; }
+    .inquiry-form-wraps .inquiry-submit { justify-self: end; align-self: center; }
+  }
+  .inquiry-cell { min-width: 0; flex: 1; padding: 10px 16px; }
+  .inquiry-label { display: block; line-height: 1.2; color: var(--mui-palette-text-secondary); }
+  .inquiry-value { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .inquiry-glyph { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-brand-main); }
+  .inquiry-input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    padding: 2px 0;
+    background: none;
+    color: inherit;
+    font: var(--mui-font-subtitle2);
+    line-height: 1.2;
+  }
+  .inquiry-input:focus { outline: none; }
+  .inquiry-input::placeholder { color: var(--mui-palette-text-secondary); opacity: 1; }
+  .inquiry-dates { display: flex; align-items: center; gap: 4px; margin-top: 0; }
+  /* The dates cell is the two native inputs Next renders before hydration (§4.9), at the
+     height its picker reserves, so the bar is the same height either way. */
+  .inquiry-date {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0;
+    box-sizing: border-box;
+    font: var(--mui-font-subtitle2);
+  }
+  .inquiry-date-sep { font: var(--mui-font-caption); color: var(--mui-palette-text-secondary); }
+  .inquiry-divider { align-self: stretch; width: 0; border-right: 1px solid var(--mui-palette-divider); }
+  .inquiry-submit { margin: 4px; min-height: 44px; flex-shrink: 0; white-space: nowrap; }
+  .btn-icon-start { margin-left: -4px; }
+
+  /* ── Topic pages 2.0.8 to 2.0.10 (app/(public)/(hero)/{caribbean,cruises,honeymoons}) ──── */
+  .topic-main { padding-top: 18px; padding-bottom: 24px; }
+  @media (min-width: 768px) { .topic-main { padding-top: 32px; padding-bottom: 56px; } }
+  .section-gap { margin-bottom: 20px; }
+  @media (min-width: 768px) { .section-gap { margin-bottom: 36px; } }
+  .intro-band { display: grid; gap: 10px; margin-bottom: 18px; }
+  @media (min-width: 768px) {
+    .intro-band { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 36px; }
+  }
+  .intro-point-web { padding: 14px 16px; }
+  .three-up { display: grid; gap: 10px; }
+  /* Cruises spaces its three-up by 18px on a phone, not the 20px the other blocks use. */
+  .three-up-gap { margin-bottom: 18px; }
+  @media (min-width: 768px) { .three-up-gap { margin-bottom: 36px; } }
+  @media (min-width: 768px) { .three-up { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; } }
+  .trip-grid { display: grid; gap: 10px; }
+  @media (min-width: 768px) { .trip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; } }
+  @media (min-width: 1200px) { .trip-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .trip-grid-gap { margin-bottom: 12px; }
+  @media (min-width: 768px) { .trip-grid-gap { margin-bottom: 24px; } }
+  .islands-grid { display: none; margin-bottom: 36px; }
+  @media (min-width: 768px) { .islands-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 1200px) { .islands-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+  /* The snap strip bleeds into the gutters by the same variable Container pads with. */
+  .snap-strip { display: flex; margin-bottom: 18px; }
+  @media (min-width: 768px) { .snap-strip { display: none; } }
+  .see-all { display: flex; justify-content: center; margin-bottom: 24px; }
+  @media (min-width: 768px) { .see-all { margin-bottom: 36px; } }
+  .see-all-btn { min-height: 40px; padding-left: 24px; padding-right: 24px; width: 100%; }
+  @media (min-width: 768px) { .see-all-btn { width: auto; } }
+  .lines-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; padding: 0; list-style: none; }
+  @media (min-width: 768px) { .lines-list { gap: 8px; margin-bottom: 36px; } }
+
+  /* The Christian-couples panel on 2.0.10: a container-role gradient, so it survives the dark
+     tropical scheme, with the photo on the right from md. */
+  /* Its bottom margin stays at the phone value at every width: the sx spreads a responsive
+     mb and then a raw md media-query block, and the raw block replaces the breakpoint one,
+     so the md margin never reaches the page. Matched as Next renders it, the same way the
+     How it works heart panel keeps its phone padding. */
+  .christian-card {
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    gap: 28px;
+    align-items: center;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--mui-palette-primary-container) 0%, var(--mui-palette-secondary-container) 110%);
+    --Paper-shadow: none;
+    --Paper-overlay: none;
+  }
+  @media (min-width: 768px) {
+    .christian-card { padding: 28px 32px; grid-template-columns: minmax(0, 1fr) 280px; }
+  }
+  .christian-overline { display: block; color: var(--mui-palette-primary-onContainer); font-weight: 600; line-height: 1.3; }
+  .christian-title { margin: 4px 0 8px; font: var(--mui-font-h4); font-weight: 700; color: var(--mui-palette-primary-onContainer); }
+  .christian-body { max-width: 540px; color: var(--mui-palette-primary-onContainer); opacity: 0.85; }
+  .christian-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .christian-cta { min-height: 40px; padding-left: 24px; padding-right: 24px; }
+  .christian-cta-text { min-height: 40px; padding-left: 12px; padding-right: 12px; }
+  .christian-photo { position: relative; display: none; }
+  @media (min-width: 768px) { .christian-photo { display: block; aspect-ratio: 5 / 4; border-radius: 4px; overflow: hidden; } }
+
+  /* AdvisorCard variant="note" (a quote from Gyasi above the fold on 2.0.10). */
+  .advisor-note {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    background-color: var(--mui-palette-surface-2);
+  }
+  @media (min-width: 768px) {
+    .advisor-note { grid-template-columns: 56px minmax(0, 1fr); gap: 18px; padding: 24px 28px; }
+  }
+  .advisor-note-body { margin-top: 6px; font: var(--mui-font-body2); text-wrap: pretty; color: var(--mui-palette-text-primary); }
+  @media (min-width: 768px) { .advisor-note-body { font: var(--mui-font-body1); } }
+
+  /* FeatureCard with card={false} (the intro band) and iconTone="bare" (its web variant). */
+  .feature-plain { padding: 0; background: none; box-shadow: none; background-image: none; }
+  .feature-glyph-bare {
+    display: inline-flex;
+    align-self: flex-start;
+    justify-content: flex-start;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background: none;
+    color: var(--mui-palette-brand-main);
+  }
+  .feature-overline-bare { margin-top: 8px; }
 }

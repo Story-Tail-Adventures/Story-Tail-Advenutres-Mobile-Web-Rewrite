@@ -2,9 +2,11 @@ package public
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/content"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public/search"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
@@ -103,6 +105,19 @@ func (s *site) chrome(d *page.Doc, path string) {
 	shell.FillPublic(d, path, shell.PublicChrome{
 		PlaceholderBanner: content.HasPlaceholders(s.cat.PlaceholderReport()),
 	})
+}
+
+// today is the business day the public surface works in (the stay dates, a date floor), in
+// the search time zone rather than the server's.
+func (s *site) today() string {
+	today, err := search.TodayISO(search.SearchTimeZone, time.Now())
+	if err != nil {
+		// The zone database is embedded (internal/handlers/public/search), so this cannot
+		// happen in a built binary; a date floor is not worth a 500 if it ever did.
+		s.Log.Error("the search time zone did not load", "err", err)
+		return ""
+	}
+	return today
 }
 
 // render writes a public page: cached by Cloudflare, no cookie (§4.7). Every page that uses
