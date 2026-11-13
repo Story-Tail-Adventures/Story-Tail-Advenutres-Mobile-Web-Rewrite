@@ -11,8 +11,10 @@
 // shell.FillAgent; render with web.Private. Reads go through agentread.Call; writes through
 // d.API.Call, mapped with web.FromResult.
 //
-// This sub-area owns only: this package, webgo/pages/agent/trips/, and
-// webgo/assets/css/area/agent/trips.css. The agent package wires it in already.
+// This sub-area owns only: this package, webgo/pages/agent/trips/,
+// webgo/assets/css/area/agent/trips.css and webgo/assets/js/agent/trips/. The agent package
+// wires it in already. Assets are served only under content-hashed names, so a module there
+// cannot import another: each page loads every module it needs with its own <script>.
 //
 // How it is laid out: frame.go is the (agent) layout's checks and the four §5 states every
 // page shares; format.go is the money, date and status formatting; one file per screen
