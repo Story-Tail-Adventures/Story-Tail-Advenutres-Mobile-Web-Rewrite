@@ -47,6 +47,10 @@ type app struct {
 	notFound     *page.Template
 	clientDetail *page.Template
 	merge        *page.Template
+	leads        *page.Template
+	lead         *page.Template
+	leadNew      *page.Template
+	leadNotFound *page.Template
 }
 
 type identityRow struct {

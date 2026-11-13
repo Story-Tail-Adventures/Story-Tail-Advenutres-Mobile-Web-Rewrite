@@ -151,6 +151,71 @@ var copyCases = []copyCase{
 	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateVerify", goValue: accGateVerify},
 	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateSetUp", goValue: accGateSetUp},
 	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateTitle", page: "agent/people/client-merge.html"},
+	// §3.8 leads
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "title", page: "agent/people/leads.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "intro", page: "agent/people/leads.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "addLead", page: "agent/people/leads.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "back", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "detailsTitle", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "notesTitle", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "reply", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "replyHint", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "markContacted", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "invite", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "close", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "reopen", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "deleteSpam", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "openClient", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "inviteTitle", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "inviteBody", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "inviteLastNameHint", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "inviteSend", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "closeTitle", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "closeBody", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "closeReasonLabel", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "closeNoteLabel", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "closeConfirm", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "deleteTitle", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "deleteBody", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "deleteConfirm", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "cancel", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "addedToExisting", page: "agent/people/lead.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "notFoundTitle", page: "agent/people/lead-not-found.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "notFoundBody", page: "agent/people/lead-not-found.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "back", page: "agent/people/lead-not-found.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "back", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "addTitle", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "addIntro", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "firstName", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "lastName", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "email", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "phone", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "source", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "note", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "save", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "openClient", page: "agent/people/lead-new.html"},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "filterOpen", goValue: leadFilterOpen},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "filterConverted", goValue: leadFilterConverted},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "filterClosed", goValue: leadFilterClosed},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "filterAll", goValue: leadFilterAll},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "emptyOpen", goValue: leadEmptyOpen},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "emptyOther", goValue: leadEmptyOther},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "alreadyClient", goValue: leadAlreadyClient},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "emailLabel", goValue: leadEmailLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "phoneLabel", goValue: leadPhoneLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "sourceLabel", goValue: leadSourceLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "firstNoteLabel", goValue: leadFirstNoteLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "contactedLabel", goValue: leadContactedLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "convertedLabel", goValue: leadConvertedLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "closedLabel", goValue: leadClosedLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "campaignLabel", goValue: leadCampaignLabel},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "addedByYou", goValue: leadAddedByYou},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "aboutPrefix", goValue: leadAboutPrefix},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "stale", goValue: leadStale},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "failed", goValue: leadFailed},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "inviteExisting", goValue: leadInviteExisting},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "inviteCreatedNotSent", goValue: leadInviteNotSent},
+	{file: "lib/agent/leadsCopy.ts", object: "LEAD_COPY", key: "clientExists", goValue: leadClientExists},
 }
 
 // tsString finds `key: "value"` (the value may start on the next line) and unquotes it.
@@ -235,6 +300,46 @@ func TestCopyMatchesTheNextSources(t *testing.T) {
 		}
 		if !strings.Contains(pageText[c.page], want) {
 			t.Errorf("%s does not carry %s %q byte for byte", c.page, c.key, want)
+		}
+	}
+}
+
+// The label maps Go keeps for §3.8 match leadsCopy.ts entry for entry.
+func TestLeadLabelMapsMatchTheNextSources(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "web", "lib", "agent", "leadsCopy.ts"))
+	if os.IsNotExist(err) {
+		t.Skip("web/ is gone (Phase 6)")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	for object, m := range map[string]map[string]string{
+		"LEAD_STATUS_LABEL":  leadStatusLabel,
+		"LEAD_STATUS_KIND":   leadStatusKind,
+		"LEAD_SOURCE_LABEL":  leadSourceLabels,
+		"CLOSE_REASON_LABEL": closeReasonLabel,
+		"PAGE_LABEL":         leadPageLabels,
+	} {
+		i := strings.Index(src, object+": Record<")
+		if i < 0 {
+			i = strings.Index(src, "const "+object+" ")
+		}
+		if i < 0 {
+			t.Fatalf("no %s in leadsCopy.ts", object)
+		}
+		body := src[i : i+strings.Index(src[i:], "};")]
+		if n := strings.Count(body, ": \""); n != len(m) {
+			t.Errorf("%s: Next has %d entries, Go has %d", object, n, len(m))
+		}
+		for k, v := range m {
+			key := k
+			if strings.ContainsRune(k, '-') {
+				key = strconv.Quote(k)
+			}
+			if !strings.Contains(body, key+": "+strconv.Quote(v)) {
+				t.Errorf("%s[%s] = %q is not Next's", object, k, v)
+			}
 		}
 	}
 }
