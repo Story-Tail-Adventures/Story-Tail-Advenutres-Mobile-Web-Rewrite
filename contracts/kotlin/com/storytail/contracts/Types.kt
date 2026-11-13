@@ -14,6 +14,278 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class AgentSettingsResponseOutcome {
+    @SerialName("updated")
+    UPDATED,
+    @SerialName("unchanged")
+    UNCHANGED,
+    @SerialName("created")
+    CREATED,
+    @SerialName("deleted")
+    DELETED,
+    @SerialName("ended")
+    ENDED,
+}
+
+@Serializable
+enum class AgentSettingsSignatureRequestOp {
+    @SerialName("update_signature")
+    UPDATE_SIGNATURE,
+}
+
+@Serializable
+enum class AgentSettingsNotificationsRequestOp {
+    @SerialName("update_notifications")
+    UPDATE_NOTIFICATIONS,
+}
+
+@Serializable
+enum class AgentSettingsEndTimeOffRequestOp {
+    @SerialName("end_time_off")
+    END_TIME_OFF,
+}
+
+@Serializable
+enum class AgentSettingsSaveTimeOffRequestOp {
+    @SerialName("save_time_off")
+    SAVE_TIME_OFF,
+}
+
+@Serializable
+enum class AgentSettingsAvailabilityRequestTimeZone {
+    @SerialName("America/St_Johns")
+    AMERICA_ST_JOHNS,
+    @SerialName("America/Halifax")
+    AMERICA_HALIFAX,
+    @SerialName("America/Puerto_Rico")
+    AMERICA_PUERTO_RICO,
+    @SerialName("America/New_York")
+    AMERICA_NEW_YORK,
+    @SerialName("America/Toronto")
+    AMERICA_TORONTO,
+    @SerialName("America/Cancun")
+    AMERICA_CANCUN,
+    @SerialName("America/Chicago")
+    AMERICA_CHICAGO,
+    @SerialName("America/Winnipeg")
+    AMERICA_WINNIPEG,
+    @SerialName("America/Mexico_City")
+    AMERICA_MEXICO_CITY,
+    @SerialName("America/Regina")
+    AMERICA_REGINA,
+    @SerialName("America/Denver")
+    AMERICA_DENVER,
+    @SerialName("America/Edmonton")
+    AMERICA_EDMONTON,
+    @SerialName("America/Phoenix")
+    AMERICA_PHOENIX,
+    @SerialName("America/Los_Angeles")
+    AMERICA_LOS_ANGELES,
+    @SerialName("America/Vancouver")
+    AMERICA_VANCOUVER,
+    @SerialName("America/Tijuana")
+    AMERICA_TIJUANA,
+    @SerialName("America/Anchorage")
+    AMERICA_ANCHORAGE,
+    @SerialName("Pacific/Honolulu")
+    PACIFIC_HONOLULU,
+}
+
+@Serializable
+enum class AgentSettingsAvailabilityRequestOp {
+    @SerialName("update_availability")
+    UPDATE_AVAILABILITY,
+}
+
+@Serializable
+enum class AgentSettingsRemoveAvatarRequestOp {
+    @SerialName("remove_avatar")
+    REMOVE_AVATAR,
+}
+
+@Serializable
+enum class AgentSettingsAvatarRequestOp {
+    @SerialName("set_avatar")
+    SET_AVATAR,
+}
+
+@Serializable
+enum class AgentSettingsProfileRequestOp {
+    @SerialName("update_profile")
+    UPDATE_PROFILE,
+}
+
+@Serializable
+enum class AgentMessageTemplateResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("exists")
+    EXISTS,
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AgentMessageTemplateArchiveRequestOp {
+    @SerialName("archive")
+    ARCHIVE,
+}
+
+@Serializable
+enum class AgentMessageTemplateDuplicateRequestOp {
+    @SerialName("duplicate")
+    DUPLICATE,
+}
+
+@Serializable
+enum class AgentMessageTemplateWriteRequestCategory {
+    @SerialName("lead_response")
+    LEAD_RESPONSE,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booking_confirmation")
+    BOOKING_CONFIRMATION,
+    @SerialName("pre_trip")
+    PRE_TRIP,
+    @SerialName("post_trip")
+    POST_TRIP,
+    @SerialName("payment_reminder")
+    PAYMENT_REMINDER,
+    @SerialName("other")
+    OTHER,
+}
+
+@Serializable
+enum class AgentMessageTemplateWriteRequestOp {
+    @SerialName("create")
+    CREATE,
+    @SerialName("update")
+    UPDATE,
+}
+
+@Serializable
+enum class AgentTemplateApplyResponseOutcome {
+    @SerialName("applied")
+    APPLIED,
+    @SerialName("already_applied")
+    ALREADY_APPLIED,
+}
+
+@Serializable
+enum class AgentTemplateOutcomeResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("archived")
+    ARCHIVED,
+}
+
+@Serializable
+enum class AgentTemplateApplyRequestOp {
+    @SerialName("apply")
+    APPLY,
+}
+
+@Serializable
+enum class AgentTemplateArchiveRequestOp {
+    @SerialName("archive")
+    ARCHIVE,
+}
+
+@Serializable
+enum class AgentTemplateUpdateRequestOp {
+    @SerialName("update")
+    UPDATE,
+}
+
+@Serializable
+enum class AgentTemplateSaveRequestOp {
+    @SerialName("save")
+    SAVE,
+}
+
+@Serializable
+enum class AgentClientNoteResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("archived")
+    ARCHIVED,
+}
+
+@Serializable
+enum class AgentClientNoteRequestOp {
+    @SerialName("create")
+    CREATE,
+    @SerialName("update")
+    UPDATE,
+    @SerialName("archive")
+    ARCHIVE,
+}
+
+@Serializable
+enum class AgentClientBulkTagResponseOutcome {
+    @SerialName("tagged")
+    TAGGED,
+}
+
+@Serializable
+enum class AgentClientArchiveResponseOutcome {
+    @SerialName("archived")
+    ARCHIVED,
+    @SerialName("restored")
+    RESTORED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AgentClientUpdateResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("duplicate_email")
+    DUPLICATE_EMAIL,
+}
+
+@Serializable
+enum class AgentClientCreateResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("duplicate_email")
+    DUPLICATE_EMAIL,
+}
+
+@Serializable
+enum class AgentClientBulkTagRequestOp {
+    @SerialName("bulk_tag")
+    BULK_TAG,
+}
+
+@Serializable
+enum class AgentClientArchiveRequestOp {
+    @SerialName("archive")
+    ARCHIVE,
+}
+
+@Serializable
+enum class AgentClientUpdateRequestOp {
+    @SerialName("update")
+    UPDATE,
+}
+
+@Serializable
+enum class AgentClientCreateRequestOp {
+    @SerialName("create")
+    CREATE,
+}
+
+@Serializable
 enum class AgentItineraryReorderResponseOutcome {
     @SerialName("reordered")
     REORDERED,
@@ -1907,4 +2179,415 @@ data class AgentItineraryReorderResponse(
     // Activities whose position changed.
     @SerialName("moved")
     val moved: Int,
+)
+
+@Serializable
+data class AgentClientFields(
+    @SerialName("firstName")
+    val firstName: String,
+    @SerialName("lastName")
+    val lastName: String,
+    @SerialName("preferredName")
+    val preferredName: String? = null,
+    // Loose on purpose: must contain `@`, not first or last.
+    @SerialName("email")
+    val email: String,
+    @SerialName("phone")
+    val phone: String? = null,
+    // `yyyy-mm-dd`.
+    @SerialName("dateOfBirth")
+    val dateOfBirth: String? = null,
+    // Lower-cased, trimmed, blanks and repeats dropped; each at most 40 characters.
+    @SerialName("tags")
+    val tags: List<String>? = null,
+    @SerialName("importantDates")
+    val importantDates: List<JsonElement>? = null,
+    @SerialName("notes")
+    val notes: String? = null,
+    // Mailing address. All of line1, line2, city, region and postal code blank clears it; otherwise line1, city and country are required by the table (a missing one is a 500 today, as in the Deno function).
+    @SerialName("address")
+    val address: JsonElement? = null,
+)
+
+@Serializable
+data class AgentClientCreateRequest(
+    @SerialName("op")
+    val op: AgentClientCreateRequestOp,
+    @SerialName("client")
+    val client: AgentClientFields,
+)
+
+@Serializable
+data class AgentClientUpdateRequest(
+    @SerialName("op")
+    val op: AgentClientUpdateRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+    // `client.version` as the form was rendered from. A mismatch is a 409.
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    // The whole record; every field is overwritten.
+    @SerialName("client")
+    val client: AgentClientFields,
+)
+
+@Serializable
+data class AgentClientArchiveRequest(
+    @SerialName("op")
+    val op: AgentClientArchiveRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+    @SerialName("expectedVersion")
+    val expectedVersion: Int,
+    // True archives; false restores.
+    @SerialName("archived")
+    val archived: Boolean,
+    // Kept in the audit row of an archive only (the client table has no column for it).
+    @SerialName("reason")
+    val reason: String? = null,
+)
+
+@Serializable
+data class AgentClientBulkTagRequest(
+    @SerialName("op")
+    val op: AgentClientBulkTagRequestOp,
+    @SerialName("clientIds")
+    val clientIds: List<String>,
+    // Trimmed and lower-cased.
+    @SerialName("tag")
+    val tag: String,
+    // True adds the tag; false removes it.
+    @SerialName("add")
+    val add: Boolean,
+)
+
+@Serializable
+data class AgentClientCreateResponse(
+    @SerialName("outcome")
+    val outcome: AgentClientCreateResponseOutcome,
+    // `created` only: the new client's id (a v7 minted by the server).
+    @SerialName("clientId")
+    val clientId: String? = null,
+    // `duplicate_email` only: the live client in this book with that email.
+    @SerialName("existingClientId")
+    val existingClientId: String? = null,
+)
+
+@Serializable
+data class AgentClientUpdateResponse(
+    @SerialName("outcome")
+    val outcome: AgentClientUpdateResponseOutcome,
+    // Absent on `duplicate_email`.
+    @SerialName("clientId")
+    val clientId: String? = null,
+    // The version after the write (unchanged on `noop` and `duplicate_email`).
+    @SerialName("version")
+    val version: Int,
+)
+
+@Serializable
+data class AgentClientArchiveResponse(
+    @SerialName("outcome")
+    val outcome: AgentClientArchiveResponseOutcome,
+    @SerialName("clientId")
+    val clientId: String,
+    @SerialName("version")
+    val version: Int,
+)
+
+@Serializable
+data class AgentClientBulkTagResponse(
+    @SerialName("outcome")
+    val outcome: AgentClientBulkTagResponseOutcome,
+    // The tag as stored (trimmed
+    @SerialName("tag")
+    val tag: String,
+    @SerialName("add")
+    val add: Boolean,
+    // Clients that actually changed.
+    @SerialName("changedCount")
+    val changedCount: Int,
+    // Ids sent
+    @SerialName("requestedCount")
+    val requestedCount: Int,
+)
+
+@Serializable
+data class AgentClientNoteRequest(
+    @SerialName("clientId")
+    val clientId: String,
+    @SerialName("op")
+    val op: AgentClientNoteRequestOp,
+    // Required on `update` and `archive`; ignored on `create`.
+    @SerialName("noteId")
+    val noteId: String? = null,
+    // Required on `create` and `update`, with something in it besides whitespace (an empty body is not a delete). Stored trimmed. Ignored on `archive`.
+    @SerialName("body")
+    val body: String? = null,
+)
+
+@Serializable
+data class AgentClientNoteResponse(
+    @SerialName("clientId")
+    val clientId: String,
+    @SerialName("noteId")
+    val noteId: String,
+    @SerialName("changed")
+    val changed: Boolean,
+    // Present only when `changed` is true.
+    @SerialName("outcome")
+    val outcome: AgentClientNoteResponseOutcome? = null,
+)
+
+@Serializable
+data class AgentTemplateSaveRequest(
+    @SerialName("op")
+    val op: AgentTemplateSaveRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    // Trimmed.
+    @SerialName("name")
+    val name: String,
+    // Trimmed; blank or absent stores none.
+    @SerialName("description")
+    val description: String? = null,
+)
+
+@Serializable
+data class AgentTemplateUpdateRequest(
+    @SerialName("op")
+    val op: AgentTemplateUpdateRequestOp,
+    @SerialName("templateId")
+    val templateId: String,
+    @SerialName("name")
+    val name: String,
+    // Blank or absent CLEARS the stored description.
+    @SerialName("description")
+    val description: String? = null,
+)
+
+@Serializable
+data class AgentTemplateArchiveRequest(
+    @SerialName("op")
+    val op: AgentTemplateArchiveRequestOp,
+    @SerialName("templateId")
+    val templateId: String,
+)
+
+@Serializable
+data class AgentTemplateApplyRequest(
+    @SerialName("op")
+    val op: AgentTemplateApplyRequestOp,
+    @SerialName("templateId")
+    val templateId: String,
+    @SerialName("tripId")
+    val tripId: String,
+)
+
+@Serializable
+data class AgentTemplateSaveResponse(
+    @SerialName("templateId")
+    val templateId: String,
+    @SerialName("componentsSaved")
+    val componentsSaved: Int,
+    @SerialName("daysSaved")
+    val daysSaved: Int,
+)
+
+@Serializable
+data class AgentTemplateOutcomeResponse(
+    // `update` answers changed or noop; `archive` answers archived.
+    @SerialName("outcome")
+    val outcome: AgentTemplateOutcomeResponseOutcome,
+)
+
+@Serializable
+data class AgentTemplateApplyResponse(
+    @SerialName("outcome")
+    val outcome: AgentTemplateApplyResponseOutcome,
+    @SerialName("componentsAdded")
+    val componentsAdded: Int,
+    // 0 when the trip has no start date.
+    @SerialName("daysAdded")
+    val daysAdded: Int,
+    @SerialName("activitiesAdded")
+    val activitiesAdded: Int,
+)
+
+@Serializable
+data class AgentMessageTemplateWriteRequest(
+    @SerialName("op")
+    val op: AgentMessageTemplateWriteRequestOp,
+    // `create`: a fresh client-minted v7 (older than an hour is a 400). `update`: the template's id.
+    @SerialName("templateId")
+    val templateId: String,
+    @SerialName("category")
+    val category: AgentMessageTemplateWriteRequestCategory,
+    // Trimmed.
+    @SerialName("name")
+    val name: String,
+    // Kept as written (not trimmed). Every `{{ token }}` must be one of client.firstName, trip.name, trip.destination, trip.dates, agent.firstName, payment.label, payment.amount, payment.dueDate, payment.link.
+    @SerialName("body")
+    val body: String,
+    // Trimmed; blanks and repeats (ignoring case, first spelling kept) dropped; at most 10 of at most 30 characters.
+    @SerialName("tags")
+    val tags: List<String>? = null,
+)
+
+@Serializable
+data class AgentMessageTemplateDuplicateRequest(
+    @SerialName("op")
+    val op: AgentMessageTemplateDuplicateRequestOp,
+    // The template to copy.
+    @SerialName("templateId")
+    val templateId: String,
+    // A fresh client-minted v7 for the copy.
+    @SerialName("newTemplateId")
+    val newTemplateId: String,
+)
+
+@Serializable
+data class AgentMessageTemplateArchiveRequest(
+    @SerialName("op")
+    val op: AgentMessageTemplateArchiveRequestOp,
+    @SerialName("templateId")
+    val templateId: String,
+    // True archives; false restores.
+    @SerialName("archived")
+    val archived: Boolean,
+)
+
+@Serializable
+data class AgentMessageTemplateResponse(
+    // `create`: created or exists. `update`: changed or noop. `duplicate`: created or exists. `archive`: changed or noop.
+    @SerialName("outcome")
+    val outcome: AgentMessageTemplateResponseOutcome,
+    // `create`, `update` and `duplicate` (the copy's id); absent on `archive`.
+    @SerialName("templateId")
+    val templateId: String? = null,
+)
+
+@Serializable
+data class AgentSettingsProfileRequest(
+    @SerialName("op")
+    val op: AgentSettingsProfileRequestOp,
+    // Trimmed.
+    @SerialName("displayName")
+    val displayName: String,
+    @SerialName("pronouns")
+    val pronouns: String? = null,
+    // Digits and `+ - ( ) . x` and spaces, at least 7 digits.
+    @SerialName("phone")
+    val phone: String? = null,
+    @SerialName("bio")
+    val bio: String? = null,
+    // Normalised to https links. Instagram and Facebook take a bare handle or @handle; a link without a scheme gets https://; http:// is refused; the three networks must link to their own site with a path. Empty values are dropped.
+    @SerialName("socialLinks")
+    val socialLinks: JsonElement? = null,
+)
+
+@Serializable
+data class AgentSettingsAvatarRequest(
+    @SerialName("op")
+    val op: AgentSettingsAvatarRequestOp,
+    // The photo's bytes.
+    @SerialName("image")
+    val image: String,
+)
+
+@Serializable
+data class AgentSettingsRemoveAvatarRequest(
+    @SerialName("op")
+    val op: AgentSettingsRemoveAvatarRequestOp,
+)
+
+@Serializable
+data class AgentSettingsAvailabilityRequest(
+    @SerialName("op")
+    val op: AgentSettingsAvailabilityRequestOp,
+    @SerialName("timeZone")
+    val timeZone: AgentSettingsAvailabilityRequestTimeZone,
+    // Every day, either null (off) or From and To on the half hour, ending after it starts ("24:00" may end one).
+    @SerialName("weeklySchedule")
+    val weeklySchedule: JsonElement,
+    // One of 2, 4, 12, 24 or 48 (anything else is a 400). Written as prose, not an enum, because the Kotlin generator emits enums of strings only.
+    @SerialName("responseTimeHours")
+    val responseTimeHours: Int,
+)
+
+@Serializable
+data class AgentSettingsDayHours(
+    @SerialName("start")
+    val start: String,
+    @SerialName("end")
+    val end: String,
+)
+
+@Serializable
+data class AgentSettingsSaveTimeOffRequest(
+    @SerialName("op")
+    val op: AgentSettingsSaveTimeOffRequestOp,
+    // With `isNew`, a fresh client-minted v7 (older than an hour is a 400); otherwise the block to edit.
+    @SerialName("timeOffId")
+    val timeOffId: String,
+    // Only `true` creates.
+    @SerialName("isNew")
+    val isNew: Boolean? = null,
+    // Today or later in the advisor's zone.
+    @SerialName("startsOn")
+    val startsOn: String,
+    // On or after startsOn
+    @SerialName("endsOn")
+    val endsOn: String,
+    @SerialName("label")
+    val label: String? = null,
+    @SerialName("autoReplyEnabled")
+    val autoReplyEnabled: Boolean? = null,
+    // Required when autoReplyEnabled; only `{{return_date}}` may be filled.
+    @SerialName("autoReplyText")
+    val autoReplyText: String? = null,
+)
+
+@Serializable
+data class AgentSettingsEndTimeOffRequest(
+    @SerialName("op")
+    val op: AgentSettingsEndTimeOffRequestOp,
+    @SerialName("timeOffId")
+    val timeOffId: String,
+)
+
+@Serializable
+data class AgentSettingsNotificationsRequest(
+    @SerialName("op")
+    val op: AgentSettingsNotificationsRequestOp,
+    @SerialName("clientMessagesPush")
+    val clientMessagesPush: Boolean,
+    @SerialName("clientMessagesEmail")
+    val clientMessagesEmail: Boolean,
+    @SerialName("quoteRequestsPush")
+    val quoteRequestsPush: Boolean,
+    @SerialName("quoteRequestsEmail")
+    val quoteRequestsEmail: Boolean,
+)
+
+@Serializable
+data class AgentSettingsSignatureRequest(
+    @SerialName("op")
+    val op: AgentSettingsSignatureRequestOp,
+    // Plain text, at most 8 lines; only {{agent.name}}, {{agent.phone}} and {{agent.email}}. Empty, absent or the default's exact text stores none (the default is used).
+    @SerialName("signature")
+    val signature: String? = null,
+)
+
+@Serializable
+data class AgentSettingsResponse(
+    // `save_time_off`: created, updated or unchanged. `end_time_off`: deleted (it had not started) or ended (it was running and now ends yesterday). Every other op: updated or unchanged.
+    @SerialName("outcome")
+    val outcome: AgentSettingsResponseOutcome,
+    // `set_avatar` only: the stored photo's path, to put on a public Storage origin.
+    @SerialName("avatarPath")
+    val avatarPath: String? = null,
+    // `save_time_off` only.
+    @SerialName("timeOffId")
+    val timeOffId: String? = null,
 )
