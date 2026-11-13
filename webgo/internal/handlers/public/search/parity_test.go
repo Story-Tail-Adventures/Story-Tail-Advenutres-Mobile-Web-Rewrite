@@ -388,7 +388,7 @@ func cruiseJSON(t *testing.T, r CruiseSearchResult) string {
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(mirror{r.Status, r.Sailings}); err != nil {
+	if err := enc.Encode(mirror(r)); err != nil {
 		t.Fatal(err)
 	}
 	return strings.TrimSuffix(b.String(), "\n")

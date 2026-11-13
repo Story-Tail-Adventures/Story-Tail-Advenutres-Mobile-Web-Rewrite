@@ -29,9 +29,6 @@ func isJSSpace(r rune) bool {
 // jsTrim is String.prototype.trim.
 func jsTrim(s string) string { return strings.TrimFunc(s, isJSSpace) }
 
-// isCc reports whether r is in the Unicode general category Cc, what /\p{Cc}/u matches.
-func isCc(r rune) bool { return r <= 0x1F || (r >= 0x7F && r <= 0x9F) }
-
 // utf16Len is a JavaScript string's length: UTF-16 code units, which is what zod's min and
 // max count and what String.prototype.slice cuts by.
 func utf16Len(s string) int {

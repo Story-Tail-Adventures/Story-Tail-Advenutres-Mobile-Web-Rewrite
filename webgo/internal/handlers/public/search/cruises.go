@@ -102,7 +102,9 @@ type cruiseRequestBody struct {
 func CruiseRequest(args CruiseSearchArgs) api.Input {
 	return api.Input{
 		Method: http.MethodPost,
-		Body:   cruiseRequestBody{Destination: args.Destination, From: args.From, To: args.To},
+		// A conversion, not a field-by-field copy: the two shapes are the same on purpose, and
+		// if the args ever grow a field the compiler says so here instead of dropping it.
+		Body: cruiseRequestBody(args),
 	}
 }
 
