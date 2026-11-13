@@ -131,6 +131,18 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (f *fakeSupa) callsTo(name string) []fn {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []fn
+	for _, c := range f.calls {
+		if c.Name == name {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // world is the mounted sub-area plus its fake Supabase.
 type world struct {
 	t    *testing.T
@@ -185,6 +197,44 @@ func (wd *world) get(target string) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	wd.h.ServeHTTP(rec, req)
 	return rec
+}
+
+// post submits a form as the signed-in advisor, from this site, with extra cookies.
+func (wd *world) post(target string, form url.Values, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	wd.t.Helper()
+	req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(wd.cookie())
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	wd.h.ServeHTTP(rec, req)
+	return rec
+}
+
+// getWith loads a page with extra cookies (a flash, a receipt).
+func (wd *world) getWith(target string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	wd.t.Helper()
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	req.AddCookie(wd.cookie())
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	wd.h.ServeHTTP(rec, req)
+	return rec
+}
+
+// cookieNamed finds a cookie a response set.
+func cookieNamed(rec *httptest.ResponseRecorder, name string) *http.Cookie {
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == name {
+			return c
+		}
+	}
+	return nil
 }
 
 func mustJSON(v any) string {

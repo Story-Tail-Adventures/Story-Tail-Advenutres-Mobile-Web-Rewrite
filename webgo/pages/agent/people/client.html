@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<!--
+  §3.3.2 Client Detail: app/(agent)/agent/clients/[clientId]/page.tsx with ClientDetailHeader,
+  ClientDetailTabs and the seven tabs (?tab=, overview by default). Only the current tab's block
+  stays in the page, and only its read ran. A tab whose read failed shows RetryState in its
+  place (tab-failed).
+
+  Archive/Restore is a native <dialog>: its trigger is a link to ?confirm=archive, which ui.js
+  opens in place; with JS off the same URL renders the page with the dialog open. Notes are
+  plain forms: Edit and Delete are ?tab=notes&edit= / &confirm= views of the same page.
+
+  Filled by internal/handlers/agent/people (clientdetail_page.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Client · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-wide">
+    <a class="link link-hover ppl-back" href="/agent/clients"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>All clients</a>
+
+    <header class="card ppl-detail-head">
+      <div class="ppl-detail-band">
+        <span class="avatar avatar-brand avatar-64" aria-hidden="true" data-slot="initials">AF</span>
+        <div class="ppl-flex1">
+          <div class="ppl-detail-titlerow">
+            <h1 class="type-h5 ppl-on-primary" data-slot="name">Belle Fitzwilliam-Castellanos</h1>
+            <span class="status-chip status-cancelled" data-slot="archived-chip">Archived</span>
+            <span class="chip chip-small chip-outlined ppl-mini-chip" data-repeat="htags"><span data-slot="htag">vip</span></span>
+          </div>
+          <div class="ppl-detail-contact">
+            <span class="type-body2 fw-500" data-slot="h-email">annabelle.fc@example.com</span>
+            <span class="type-body2 fw-500" data-slot="h-phone">+1-555-0194</span>
+            <span class="type-body2 fw-500" data-slot="h-address">1400 Lakeview Terrace, Chicago, IL 60640</span>
+            <span class="type-body2 fw-500" data-slot="h-since">Since Mar 2024</span>
+          </div>
+        </div>
+        <div class="ppl-detail-actions">
+          <a class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" href="/agent/messages/new?client=sample" data-slot="h-message"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg><span class="visually-hidden" data-slot="h-message-label">Message Belle</span></a>
+          <a class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" href="tel:+15550194" data-slot="h-call"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#phone"></use></svg><span class="visually-hidden" data-slot="h-call-label">Call Belle</span></a>
+          <a class="btn btn-contained btn-small ppl-btn-sm" href="/agent/trips/new?client=sample" data-slot="h-newtrip"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> New trip</a>
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?confirm=archive" data-dialog-open="archive-dialog" data-slot="h-archive"><span data-slot="h-archive-label">Archive</span><span class="visually-hidden" data-slot="h-archive-name"> Belle</span></a>
+          <a class="btn btn-text btn-small ppl-btn-sm" href="/agent/clients/sample/merge" data-slot="h-merge">Merge</a>
+        </div>
+      </div>
+      <p class="type-body2 text-secondary ppl-archived-banner" data-slot="archived-banner">Archived. They keep their trips and their history.</p>
+    </header>
+
+    <p class="type-body2 text-secondary ppl-mt-1" data-slot="origin">First reached out as a lead on <a class="link" href="/agent/leads/sample" data-slot="origin-link"><span data-slot="origin-date">Sep 21</span></a></p>
+
+    <nav class="ppl-tabs" aria-label="Client detail views">
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=overview" data-slot="ctab-overview"><span class="chip-label" data-slot="ctab-overview-label">Overview</span></a>
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=trips" data-slot="ctab-trips"><span class="chip-label" data-slot="ctab-trips-label">Trips</span></a>
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=messages" data-slot="ctab-messages"><span class="chip-label" data-slot="ctab-messages-label">Messages</span></a>
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=documents" data-slot="ctab-documents"><span class="chip-label" data-slot="ctab-documents-label">Documents</span></a>
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=notes" data-slot="ctab-notes"><span class="chip-label" data-slot="ctab-notes-label">Notes</span></a>
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=activity" data-slot="ctab-activity"><span class="chip-label" data-slot="ctab-activity-label">Activity</span></a>
+      <a class="chip chip-outlined tap-target shrink-0" href="/agent/clients/sample?tab=account" data-slot="ctab-account"><span class="chip-label" data-slot="ctab-account-label">Account admin</span></a>
+    </nav>
+
+    <div class="ppl-mt-2">
+      <div class="card ppl-state" data-slot="tab-failed">
+        <div class="ppl-state-body">
+          <span class="avatar ppl-state-tile ppl-state-tile-error" aria-hidden="true"><svg class="icon ppl-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary ppl-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="ppl-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/clients/sample" data-slot="tab-retry">Try again</a>
+            <a class="btn btn-outlined ppl-state-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="ppl-ov" data-slot="pane-overview">
+        <div class="ppl-ov-main">
+          <section class="card">
+            <div class="ppl-pad-2">
+              <div class="row">
+                <h2 class="type-h5">Snapshot</h2>
+                <a class="btn btn-text btn-small ppl-btn-sm ppl-ml-auto" href="/agent/clients/sample/edit" data-slot="ov-edit">Edit<span class="visually-hidden" data-slot="ov-edit-name"> Belle</span></a>
+              </div>
+              <div class="ppl-ov-grid">
+                <div><div class="type-caption ppl-label">Phone</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-phone">+1-555-0194</div></div>
+                <div><div class="type-caption ppl-label">Email</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-email">annabelle.fc@example.com</div></div>
+                <div><div class="type-caption ppl-label">Address</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-address">1400 Lakeview Terrace</div></div>
+                <div><div class="type-caption ppl-label">Date of birth</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-dob">Apr 17, 1988</div></div>
+                <div class="ppl-span-2" data-slot="ov-dates"><div class="type-caption ppl-label">Important dates</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-dates-text">Anniversary · 09-14</div></div>
+                <div data-slot="ov-budget"><div class="type-caption ppl-label">Budget</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-budget-text">premium</div></div>
+              </div>
+              <p class="type-body2 text-secondary ppl-ruled" data-slot="ov-note">Prefers a villa.</p>
+              <div class="ppl-ruled" data-slot="ov-emergency"><div class="type-caption ppl-label">In an emergency</div><div class="type-body2 ppl-mt-0_25" data-slot="ov-emergency-text">Dominic · spouse · +1-555-0100</div></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="ppl-pad-2">
+              <h2 class="type-h5 ppl-mb-1">Preferences</h2>
+              <p class="type-body2 text-secondary" data-slot="prefs-none">Nothing recorded yet.</p>
+              <div data-slot="prefs">
+                <div class="ppl-chip-row"><span class="chip chip-outlined" data-repeat="prefs"><span class="chip-label" data-slot="pref">Caribbean</span></span></div>
+                <div class="ppl-pref-notes" data-slot="pref-notes"><p class="type-body2 text-secondary" data-slot="pref-dietary">Shellfish is a hard no.</p><p class="type-body2 text-secondary" data-slot="pref-access">Step-free rooms.</p></div>
+                <p class="type-body2 text-secondary ppl-ruled-1_25" data-slot="pref-fav">Turks.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="ppl-ov-side">
+          <div class="ppl-stats">
+            <div class="card"><div class="ppl-stat"><div class="type-caption ppl-label">Lifetime</div><div class="type-subtitle1 ppl-stat-value" data-slot="st-lifetime">$24,800</div></div></div>
+            <div class="card"><div class="ppl-stat"><div class="type-caption ppl-label">Trips</div><div class="type-subtitle1 ppl-stat-value" data-slot="st-trips">1 · 1 active</div></div></div>
+            <div class="card"><div class="ppl-stat"><div class="type-caption ppl-label">Commission</div><div class="type-subtitle1 ppl-stat-value" data-slot="st-commission">$2,976</div></div></div>
+            <div class="card"><div class="ppl-stat"><div class="type-caption ppl-label">Last contact</div><div class="type-subtitle1 ppl-stat-value" data-slot="st-contact">Today</div></div></div>
+          </div>
+          <section class="card">
+            <div class="ppl-pad-1_75">
+              <h2 class="type-subtitle1 ppl-household-title">Household</h2>
+              <p class="type-body2 text-secondary ppl-mt-0_75" data-slot="household-none">No one else on file.</p>
+              <ul class="ppl-household" data-slot="household">
+                <li class="ppl-household-row" data-repeat="companions">
+                  <span class="avatar avatar-28" aria-hidden="true" data-slot="cp-initials">DC</span>
+                  <span class="ppl-flex1"><span class="type-body2 ppl-truncate" data-slot="cp-name">Dominic Castellanos · spouse</span><span class="type-body2 ppl-block text-secondary" data-slot="cp-passport">Passport Feb 14, 2027</span></span>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <div data-slot="pane-trips">
+        <div data-slot="trips-empty">
+          <p class="type-body2 text-secondary">No trips yet.</p>
+          <a class="btn btn-contained btn-brand btn-small ppl-btn-sm ppl-mt-1_5" href="/agent/trips/new?client=sample" data-slot="trips-empty-new"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> New trip</a>
+        </div>
+        <div data-slot="trips-list">
+          <div class="ppl-trips-head">
+            <span class="chip chip-outlined"><span class="chip-label" data-slot="trips-active">Active · 1</span></span>
+            <span class="chip chip-outlined"><span class="chip-label" data-slot="trips-past">Past · 0</span></span>
+            <span class="chip chip-outlined"><span class="chip-label" data-slot="trips-cancelled">Cancelled · 0</span></span>
+            <a class="btn btn-contained btn-brand btn-small ppl-btn-sm ppl-ml-auto" href="/agent/trips/new?client=sample" data-slot="trips-new"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> New trip</a>
+          </div>
+          <ul class="ppl-stack-1">
+            <li data-repeat="trips">
+              <a class="card ppl-trip-card" href="/agent/trips/sample" data-slot="tr-link">
+                <span class="ppl-flex1"><span class="type-subtitle1 ppl-truncate ppl-strong" data-slot="tr-title">Maldives, overwater</span><span class="type-caption text-secondary ppl-truncate" data-slot="tr-sub">Apr 24 – May 4, 2027 · Malé</span></span>
+                <span class="shrink-0 text-right"><span class="type-body2 ppl-block ppl-money" data-slot="tr-value">$24,800</span><span class="type-caption ppl-block text-secondary" data-slot="tr-comm">Comm $2,976</span></span>
+                <span class="status-chip status-booked" data-slot="tr-chip">Booked</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div data-slot="pane-messages">
+        <p class="type-body2 text-secondary ppl-tab-empty" data-slot="threads-empty">No conversations yet.</p>
+        <ul class="ppl-stack-1" data-slot="threads">
+          <li class="card" data-repeat="threads">
+            <a class="ppl-kpi-link ppl-thread-row" href="/agent/messages/sample" data-slot="th-link">
+              <span class="ppl-thread-icon"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></span>
+              <span class="ppl-flex1"><span class="type-subtitle1 ppl-truncate ppl-strong" data-slot="th-subject">Maldives, overwater</span><span class="type-caption text-secondary ppl-truncate" data-slot="th-preview">Sounds good.</span></span>
+              <span class="type-caption text-secondary shrink-0" data-slot="th-when">Sep 26, 2026</span>
+              <span class="chip chip-small ppl-brand-chip" data-slot="th-unread"><span class="chip-label"><span data-slot="th-unread-n">2</span><span class="visually-hidden"> unread</span></span></span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div data-slot="pane-documents">
+        <p class="type-body2 text-secondary ppl-tab-empty" data-slot="docs-empty">No documents on file for this client.</p>
+        <ul class="ppl-docs" data-slot="docs">
+          <li class="card" data-repeat="docs">
+            <div class="ppl-doc">
+              <span class="ppl-doc-badge ppl-badge-pdf" aria-hidden="true" data-slot="doc-badge">PDF</span>
+              <span class="ppl-flex1"><span class="type-subtitle1 ppl-truncate ppl-strong" data-slot="doc-name">passport.pdf</span><span class="type-caption text-secondary ppl-truncate" data-slot="doc-sub">1.1 MB</span></span>
+              <span class="chip chip-small chip-outlined ppl-mini-chip ppl-doc-chip" data-slot="doc-sensitive">Sensitive</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="ppl-notes" data-slot="pane-notes">
+        <section class="card">
+          <form class="ppl-pad-2" method="post" action="/agent/clients/sample/notes" data-submit-once data-slot="note-form">
+            <input type="hidden" name="op" value="create">
+            <label class="type-caption ppl-label" for="note-body">NEW NOTE · INTERNAL ONLY</label>
+            <textarea class="input ppl-note-input" id="note-body" name="body" rows="3" required placeholder="Internal note (the client doesn't see this)…" data-slot="note-draft"></textarea>
+            <div class="ppl-note-actions">
+              <button type="submit" class="btn btn-outlined btn-secondary st-btn btn-small ppl-note-save">Save note</button>
+              <span class="type-body2 text-error" role="alert" data-slot="note-error">That didn't save. Try again in a moment.</span>
+            </div>
+          </form>
+        </section>
+        <p class="type-body2 text-secondary ppl-notes-empty" data-slot="notes-empty">No notes yet. This is where you keep what you'd otherwise try to remember.</p>
+        <ul class="ppl-stack-1" data-slot="notes">
+          <li class="paper paper-outlined ppl-note" data-repeat="notes">
+            <div class="ppl-note-head">
+              <span class="type-overline ppl-note-when" data-slot="n-when">SEP 14, 2026</span>
+              <span class="type-caption text-secondary" data-slot="n-meta">· Gyasi Story</span>
+              <span class="ppl-note-tools" data-slot="n-tools"><a class="btn btn-text st-btn btn-small" href="/agent/clients/sample?tab=notes&amp;edit=n1" data-slot="n-edit">Edit</a><a class="btn btn-text st-btn btn-small" href="/agent/clients/sample?tab=notes&amp;confirm=n1" data-slot="n-delete">Delete</a></span>
+            </div>
+            <p class="type-body2 ppl-note-body" data-slot="n-body">Wants a villa.</p>
+            <form method="post" action="/agent/clients/sample/notes" data-submit-once data-slot="n-editform">
+              <input type="hidden" name="op" value="update">
+              <input type="hidden" name="noteId" value="n1" data-slot="n-edit-id">
+              <textarea class="input ppl-note-input" name="body" rows="3" required aria-label="Edit note" data-slot="n-edit-text">Wants a villa.</textarea>
+              <div class="ppl-note-actions"><button type="submit" class="btn btn-outlined btn-secondary st-btn btn-small ppl-note-save">Save note</button><a class="btn btn-text st-btn btn-small" href="/agent/clients/sample?tab=notes" data-slot="n-edit-cancel">Cancel</a></div>
+            </form>
+            <form class="ppl-note-confirm" method="post" action="/agent/clients/sample/notes" data-submit-once data-slot="n-confirm">
+              <input type="hidden" name="op" value="archive">
+              <input type="hidden" name="noteId" value="n1" data-slot="n-confirm-id">
+              <span class="type-body2 text-secondary">Delete this note?</span>
+              <button type="submit" class="btn btn-contained btn-error st-btn btn-small">Delete</button>
+              <a class="btn btn-text st-btn btn-small" href="/agent/clients/sample?tab=notes" data-slot="n-confirm-cancel">Cancel</a>
+            </form>
+          </li>
+        </ul>
+      </div>
+
+      <div data-slot="pane-activity">
+        <p class="type-body2 text-secondary ppl-tab-empty" data-slot="activity-empty">Nothing recorded yet.</p>
+        <div data-slot="activity">
+          <ul class="ppl-stack-0_75">
+            <li class="card" data-repeat="events">
+              <div class="ppl-event">
+                <span class="ppl-event-icon" data-slot="ev-icon-user"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span><span class="ppl-event-icon" data-slot="ev-icon-card"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#card"></use></svg></span><span class="ppl-event-icon" data-slot="ev-icon-message"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></span><span class="ppl-event-icon" data-slot="ev-icon-shield"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span><span class="ppl-event-icon" data-slot="ev-icon-check"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>
+                <span class="type-body2 ppl-flex1 truncate"><span data-slot="ev-desc">Client record updated</span><span class="text-secondary" data-slot="ev-actor"> · Gyasi Story</span></span>
+                <span class="type-caption text-secondary shrink-0" data-slot="ev-when">Sep 23, 2026</span>
+              </div>
+            </li>
+          </ul>
+          <p class="type-body2 text-secondary ppl-mt-1_25">Sign-ins are on the Account admin tab in the web app.</p>
+        </div>
+      </div>
+
+      <div data-slot="pane-account">
+        <section aria-labelledby="account-admin-heading">
+          <h2 id="account-admin-heading" class="type-h5">Account admin</h2>
+          <p class="type-body2 text-secondary ppl-mt-0_5">Help a client get back in. Everything you do here is kept in their history.</p>
+          <div role="status" aria-live="polite" class="ppl-mt-1_5" data-slot="acc-status"><div class="alert alert-success" role="status" aria-live="off" data-slot="acc-status-box"><div class="alert-message"><span data-slot="acc-status-text">Done.</span> <a class="link link-inherit" href="/agent/clients/sample" data-slot="acc-status-link">Open the other record</a></div></div></div>
+          <div class="ppl-mt-2">
+            <div class="paper paper-outlined ppl-acc-card" data-slot="acc-gate">
+              <div class="ppl-acc-pad ppl-gate">
+                <span class="avatar ppl-avatar-36 ppl-tone-secondary" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+                <div class="ppl-minw0">
+                  <h3 class="type-subtitle1 fw-600">Two-step sign-in first</h3>
+                  <p class="type-body2 text-secondary ppl-mt-0_5" data-slot="acc-gate-body">These tools need a fresh two-step check.</p>
+                  <div class="ppl-mt-1_5"><a class="link" href="/login/mfa" data-slot="acc-gate-link">Verify now</a></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="paper paper-outlined ppl-acc-card" data-slot="acc-nosignin">
+              <div class="ppl-acc-pad">
+                <h3 class="type-subtitle1 fw-600">Hasn't signed in yet</h3>
+                <p class="type-body2 text-secondary ppl-mt-0_5" data-slot="acc-nosignin-body">Jordan doesn't have a sign-in yet.</p>
+                <div class="ppl-tiles-stack">
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-invite">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-invite-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#mail"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Send an invite</span><span class="type-caption ppl-block text-secondary" id="tile-invite-reason" data-slot="tile-invite-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-invite-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-invite-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-merge1">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-merge1-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Merge duplicate records</span><span class="type-caption ppl-block text-secondary" id="tile-merge1-reason" data-slot="tile-merge1-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-merge1-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-merge1-dup">Open the other record</a>
+              </div>
+                </div>
+                <span class="type-caption ppl-block text-secondary ppl-mt-1" data-slot="acc-nosignin-sends">2 more sign-in emails this hour.</span>
+              </div>
+            </div>
+
+            <div class="ppl-acc-stack" data-slot="acc-account">
+              <div class="alert alert-warning" role="status" aria-live="off" data-slot="acc-locked"><div class="alert-message" data-slot="acc-locked-text">Locked Today · 1:30 PM.</div></div>
+              <div class="alert alert-info" role="status" aria-live="off" data-slot="acc-pending"><div class="alert-message">Invite sent. They haven't opened it yet.</div></div>
+              <div class="ppl-acc-grid">
+                <div class="paper paper-outlined">
+                  <div class="ppl-acc-pad">
+                    <h3 class="type-subtitle1 fw-600">Quick actions</h3>
+                    <div class="ppl-tiles-grid">
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-invite2">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-invite2-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#mail"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Send the invite again</span><span class="type-caption ppl-block text-secondary" id="tile-invite2-reason" data-slot="tile-invite2-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-invite2-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-invite2-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-reset">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-reset-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Send password reset</span><span class="type-caption ppl-block text-secondary" id="tile-reset-reason" data-slot="tile-reset-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-reset-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-reset-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-magic">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-magic-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#link"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Send a sign-in link</span><span class="type-caption ppl-block text-secondary" id="tile-magic-reason" data-slot="tile-magic-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-magic-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-magic-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-verify">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-verify-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Verify email manually</span><span class="type-caption ppl-block text-secondary" id="tile-verify-reason" data-slot="tile-verify-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-verify-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-verify-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-merge2">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-merge2-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Merge duplicate records</span><span class="type-caption ppl-block text-secondary" id="tile-merge2-reason" data-slot="tile-merge2-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-merge2-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-merge2-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-unlock">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-unlock-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Unlock account</span><span class="type-caption ppl-block text-secondary" id="tile-unlock-reason" data-slot="tile-unlock-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-unlock-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-unlock-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-lock">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-lock-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Lock account</span><span class="type-caption ppl-block text-secondary" id="tile-lock-reason" data-slot="tile-lock-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-lock-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-lock-dup">Open the other record</a>
+              </div>
+              <div class="paper paper-outlined ppl-tile-wrap" data-slot="tile-signout">
+                <a class="ppl-tile" href="/agent/clients/sample?tab=account" data-dialog-open="acc-dlg-x" data-slot="tile-signout-link">
+                  <span class="avatar avatar-32 ppl-tile-icon" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg></span>
+                  <span class="ppl-flex1"><span class="type-subtitle2 ppl-block">Sign out everywhere</span><span class="type-caption ppl-block text-secondary" id="tile-signout-reason" data-slot="tile-signout-reason">Unlock the account first.</span></span>
+                  <span class="ppl-tile-chevron" data-slot="tile-signout-chevron"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+                </a>
+                <a class="link ppl-tile-dup" href="/agent/clients/sample" data-slot="tile-signout-dup">Open the other record</a>
+              </div>
+                    </div>
+                    <span class="type-caption ppl-block text-secondary ppl-mt-1" data-slot="acc-account-sends">2 more sign-in emails this hour.</span>
+                  </div>
+                </div>
+                <aside class="paper paper-outlined ppl-self-start" aria-label="Status">
+                  <div class="ppl-pad-1_75">
+                    <span class="type-overline ppl-block text-secondary ppl-lh-1_3">Status</span>
+                    <dl class="ppl-status-list">
+                      <div class="ppl-status-row"><dt class="type-body2 text-secondary fw-500">Account</dt><dd><span class="status-chip status-booked" data-slot="acc-st-account">Active</span></dd></div>
+                      <div class="ppl-status-row"><dt class="type-body2 text-secondary fw-500">Email</dt><dd><span class="status-chip status-booked" data-slot="acc-st-email">Verified</span></dd></div>
+                      <div class="ppl-status-row"><dt class="type-body2 text-secondary fw-500">Two-step sign-in</dt><dd><span class="status-chip status-booked" data-slot="acc-st-mfa">On</span></dd></div>
+                      <div class="ppl-status-row"><dt class="type-body2 text-secondary fw-500">Last sign-in</dt><dd><span class="type-body2 fw-500 text-right" data-slot="acc-st-last">Not yet</span></dd></div>
+                    </dl>
+                  </div>
+                </aside>
+              </div>
+
+              <div class="paper paper-outlined ppl-acc-wide">
+                <div class="ppl-acc-pad">
+                  <h3 class="type-subtitle1 fw-600">Signed in on</h3>
+                  <p class="type-body2 text-secondary ppl-mt-0_5" data-slot="acc-devices-empty">Not signed in anywhere right now.</p>
+                  <ul class="ppl-devices" data-slot="acc-devices">
+                    <li class="ppl-device" data-repeat="sessions"><span class="type-body2 fw-500" data-slot="se-device">iPhone · Safari</span><span class="type-body2 text-secondary" data-slot="se-active">Active Today · 1:00 PM</span><span class="type-body2 text-secondary ppl-ip" data-slot="se-ip">99.244.18.4</span></li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="paper paper-outlined ppl-acc-wide">
+                <div class="ppl-acc-pad">
+                  <h3 class="type-subtitle1 fw-600">Sign-ins</h3>
+                  <p class="type-body2 text-secondary ppl-mt-0_25">The last 90 days. Flag anything that looks off.</p>
+                  <p class="type-body2 text-secondary ppl-mt-1" data-slot="acc-signins-empty">No sign-ins in the last 90 days.</p>
+                  <div class="table-wrap ppl-mt-1" data-slot="acc-signins">
+                    <table class="table table-small table-hover">
+                      <thead><tr><th>When</th><th>Device</th><th>IP address</th><th><span class="visually-hidden">Flag</span></th></tr></thead>
+                      <tbody>
+                        <tr data-repeat="signins">
+                          <td class="nowrap" data-slot="si-when">Today · 12:00 PM</td>
+                          <td data-slot="si-device">iPhone · Safari</td>
+                          <td class="ppl-ip text-secondary" data-slot="si-ip">99.244.18.4</td>
+                          <td class="text-right nowrap" data-slot="si-row"><span class="ppl-mr-1" data-slot="si-flagged"><span class="status-chip status-due">Flagged</span></span><form class="ppl-inline" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="si-form"><input type="hidden" name="authEventId" value="e1" data-slot="si-id"><input type="hidden" name="op" value="flag" data-slot="si-on"><button type="submit" class="btn btn-text st-btn btn-small" aria-label="Flag" data-slot="si-button">Flag</button></form></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-invite" aria-label="Confirm" data-slot="dlg-invite">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-invite-form">
+        <input type="hidden" name="op" value="invite">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-invite-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">An email goes to <span data-slot="dlg-invite-email">jordan@example.com</span> with a link that opens their trips. It works for 1 hour, and you can send another if it runs out.</p>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-invite-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-invite-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Send invite</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-reset" aria-label="Confirm" data-slot="dlg-reset">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-reset-form">
+        <input type="hidden" name="op" value="reset">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-reset-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">An email goes to <span data-slot="dlg-reset-email">jordan@example.com</span> with a link that works for 1 hour. You won't see their password, and the email says you sent it.</p>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-reset-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-reset-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Send reset link</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-magic" aria-label="Confirm" data-slot="dlg-magic">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-magic-form">
+        <input type="hidden" name="op" value="magic_link">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-magic-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">A one-time link that works for 1 hour, sent only to <span data-slot="dlg-magic-email">jordan@example.com</span>. It signs them straight in. The email says you sent it, and you never see the link.</p>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-magic-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-magic-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Send link</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-verify" aria-label="Confirm" data-slot="dlg-verify">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-verify-form">
+        <input type="hidden" name="op" value="verify_email">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-verify-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">Only do this after you've confirmed it another way, like a phone call. It skips the usual email check.<span data-slot="dlg-verify-email"></span></p>
+        <div class="field ppl-mt-1_5">
+          <label class="field-label" for="acc-note-verify">How you confirmed it</label>
+          <textarea class="input" id="acc-note-verify" name="note" rows="2" placeholder="Called on 10/16 and they read back the address" data-slot="dlg-verify-text"></textarea><p class="field-help" id="acc-note-verify-hint">At least 20 characters. It's kept with the record.</p>
+        </div>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-verify-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-verify-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Mark verified</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-lock" aria-label="Confirm" data-slot="dlg-lock">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-lock-form">
+        <input type="hidden" name="op" value="lock">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-lock-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">Signs them out everywhere and blocks new sign-ins until you unlock it. They won't get an email. If they try to sign in, they'll see their account is on hold.<span data-slot="dlg-lock-email"></span></p>
+        <div class="field ppl-mt-1_5">
+          <label class="field-label" for="acc-reason-lock">Reason</label>
+          <textarea class="input" id="acc-reason-lock" name="reason" rows="2" placeholder="A sign-in from a device they don't own" data-slot="dlg-lock-text"></textarea>
+        </div>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-lock-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-lock-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained btn-error st-btn btn-small">Lock account</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-unlock" aria-label="Confirm" data-slot="dlg-unlock">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-unlock-form">
+        <input type="hidden" name="op" value="unlock">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-unlock-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">They can sign in again right away.<span data-slot="dlg-unlock-email"></span></p>
+        <div class="field ppl-mt-1_5">
+          <label class="field-label" for="acc-reason-unlock">Reason</label>
+          <textarea class="input" id="acc-reason-unlock" name="reason" rows="2" placeholder="Confirmed by phone that it was them" data-slot="dlg-unlock-text"></textarea>
+        </div>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-unlock-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-unlock-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Unlock</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="dialog ppl-dialog ppl-dialog-sm" tabindex="-1" id="acc-dlg-signout" aria-label="Confirm" data-slot="dlg-signout">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/account" data-submit-once data-slot="dlg-signout-form">
+        <input type="hidden" name="op" value="sign_out_everywhere">
+        <h2 class="type-h5 ppl-anywhere" data-slot="dlg-signout-title">Confirm?</h2>
+        <p class="type-body2 text-secondary ppl-mt-0_75">Ends their sessions on every device. Their account stays open, so they can sign right back in. Good for a lost phone.<span data-slot="dlg-signout-email"></span></p>
+        <div class="paper paper-outlined ppl-audit"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span class="type-caption fw-500">This is kept in the client's history.</span></div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="dlg-signout-error">That didn't go through. Try again in a moment.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample?tab=account" data-dialog-close data-slot="dlg-signout-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Sign out everywhere</button></div>
+        </div>
+      </form>
+    </dialog>
+      </div>
+    </div>
+
+    <dialog class="dialog ppl-dialog" tabindex="-1" id="archive-dialog" aria-label="Archive" data-slot="archive-dialog">
+      <form class="ppl-dialog-body" method="post" action="/agent/clients/sample/archive" data-submit-once data-slot="archive-form">
+        <input type="hidden" name="expectedVersion" value="1" data-slot="archive-version">
+        <input type="hidden" name="archived" value="true" data-slot="archive-target">
+        <div class="ppl-dialog-head">
+          <span class="avatar avatar-40 ppl-tone-warning" aria-hidden="true" data-slot="archive-icon"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#inbox"></use></svg></span>
+          <span class="avatar avatar-40 ppl-tone-warning" aria-hidden="true" data-slot="restore-icon"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>
+          <div class="ppl-minw0">
+            <span class="type-overline ppl-eyebrow-warning" data-slot="archive-eyebrow">ARCHIVE CLIENT</span>
+            <h2 class="type-h5 ppl-anywhere" data-slot="archive-title">Archive Belle?</h2>
+          </div>
+        </div>
+        <p class="type-body2 text-secondary ppl-mt-1" data-slot="archive-body">Hides them from the active roster. Past trips and the audit log remain. You can restore anytime.</p>
+        <div class="field ppl-mt-1_5" data-slot="archive-reason">
+          <label class="field-label" for="archive-reason">Reason (optional)</label>
+          <textarea class="input" id="archive-reason" name="reason" rows="2" placeholder="e.g. Cold lead · no reply for six months" data-slot="archive-reason-text"></textarea>
+        </div>
+        <p class="type-body2 text-error ppl-mt-1" role="alert" data-slot="archive-error">This client changed since you opened it. Reload and try again.</p>
+        <div class="ppl-dialog-actions">
+          <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample" data-dialog-close data-slot="archive-cancel">Cancel</a>
+          <div class="ppl-ml-auto"><button type="submit" class="btn btn-outlined btn-secondary st-btn btn-small" data-slot="archive-confirm">Archive</button></div>
+        </div>
+      </form>
+    </dialog>
+  </div>
+  <script type="module" src="/assets/js/agent/people/dialogs.js"></script>
+</main>
+</body>
+</html>

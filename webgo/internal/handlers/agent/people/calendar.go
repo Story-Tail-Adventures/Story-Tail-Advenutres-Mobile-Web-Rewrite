@@ -301,14 +301,14 @@ func (a *app) serveCalendar(w http.ResponseWriter, r *http.Request) {
 	}
 	today, events, ok := a.loadCalendar(r.Context(), v)
 	if !ok {
-		a.renderFailed(w, r, v)
+		a.renderFailed(w, r, v, false)
 		return
 	}
 	if !inWindow(monthOf(today)) {
 		// as_of_date is always a date today; if it ever is not, say so rather than index a
 		// month that does not exist.
 		a.d.Log.Warn("calendar: as_of_date outside the window")
-		a.renderFailed(w, r, v)
+		a.renderFailed(w, r, v, false)
 		return
 	}
 	q := r.URL.Query()

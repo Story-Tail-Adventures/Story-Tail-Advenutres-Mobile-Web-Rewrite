@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
@@ -35,11 +36,17 @@ type visit struct {
 
 // app is this sub-area's handlers, with what they share.
 type app struct {
-	d        handlers.Deps
-	noAccess *page.Template
-	failed   *page.Template
-	worklist *page.Template
-	calendar *page.Template
+	d            handlers.Deps
+	noAccess     *page.Template
+	failed       *page.Template
+	worklist     *page.Template
+	calendar     *page.Template
+	clients      *page.Template
+	clientNew    *page.Template
+	clientEdit   *page.Template
+	notFound     *page.Template
+	clientDetail *page.Template
+	merge        *page.Template
 }
 
 type identityRow struct {
@@ -89,6 +96,22 @@ func (a *app) chrome(w http.ResponseWriter, r *http.Request, doc *page.Doc, v vi
 	shell.FillAgent(doc, r.URL.Path, shell.Chrome{Initials: v.initials, Flash: web.TakeFlash(w, r, a.d.SecureCookies)})
 }
 
+// retryHref is "Try again": this same URL for a read, and for a post the page it came from.
+// Three posts have no GET of their own (a client's notes, archive and account actions), so
+// following their path would be a 405; they retry the client page, on the tab they belong to.
+func retryHref(r *http.Request) string {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return r.URL.RequestURI()
+	}
+	p := r.URL.Path
+	for suffix, tab := range map[string]string{"/notes": "?tab=notes", "/archive": "", "/account": "?tab=account"} {
+		if strings.HasPrefix(p, "/agent/clients/") && strings.HasSuffix(p, suffix) {
+			return strings.TrimSuffix(p, suffix) + tab
+		}
+	}
+	return r.URL.RequestURI()
+}
+
 // renderNoAccess is AdminNoAccess: an administrator has no desk on this side yet.
 func (a *app) renderNoAccess(w http.ResponseWriter, r *http.Request) {
 	doc := a.noAccess.New()
@@ -97,9 +120,18 @@ func (a *app) renderNoAccess(w http.ResponseWriter, r *http.Request) {
 }
 
 // renderFailed is ErrorState inside the shell: a read failed, which is not an empty book.
-func (a *app) renderFailed(w http.ResponseWriter, r *http.Request, v visit) {
+// retry is RetryState's variant, whose way out is "Try again" (this same URL) rather than
+// "Back to your trips".
+func (a *app) renderFailed(w http.ResponseWriter, r *http.Request, v visit, retry bool) {
 	doc := a.failed.New()
 	a.chrome(w, r, doc, v)
+	if retry {
+		doc.URL("retry", "href", retryHref(r))
+		doc.Remove("home")
+	} else {
+		doc.Remove("retry")
+		doc.Keep("home")
+	}
 	web.Render(w, a.d.Log, doc, http.StatusServiceUnavailable, web.Private)
 }
 
@@ -129,6 +161,11 @@ func read[T any](rs *reads, name string, args any, out *[]T) {
 		}
 		*out = rows
 	})
+}
+
+// agentreadCall is one named read on its own, as the visitor.
+func agentreadCall[T any](ctx context.Context, a *app, v visit, name string, args any) ([]T, error) {
+	return agentread.Call[T](ctx, a.d.Supa, v.st, name, args, a.d.Log)
 }
 
 func (rs *reads) wait() error {

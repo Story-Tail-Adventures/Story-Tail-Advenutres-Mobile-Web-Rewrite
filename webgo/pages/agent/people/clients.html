@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.3.1, the client roster: app/(agent)/agent/clients/page.tsx with ClientRosterFilters,
+  ClientBulkTagForm, ClientRosterTable and RosterPagination.
+
+  Filters are a GET form, so the filter lives in the URL. Bulk tag is a POST of the ticked ids
+  back to this same URL (filters in its query string); success redirects here with a one-time
+  receipt, a rejection re-renders with the reason. The bar shows from md; with JS on
+  (/assets/js/agent/people/bulk-tag.js) it waits until something is ticked and select-all
+  appears, as the Next page does after hydration.
+
+  Below md the rows are cards; from md a table. Each table row has twenty fixed tag slots
+  (CLIENT_LIMITS.tags is 20, and the page builder has no nested repeats); unused ones are
+  removed. Filled by internal/handlers/agent/people (roster_page.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Clients · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-wide">
+    <header class="ppl-roster-head">
+      <div class="ppl-flex1">
+        <h1 class="type-h5">Clients</h1>
+        <p class="type-body2 text-secondary ppl-mt-0_25" data-slot="subtitle">27 active · 5 in motion · 1 lead to qualify.</p>
+      </div>
+      <a class="btn btn-contained btn-brand btn-small ppl-btn-sm shrink-0" href="/agent/clients/new"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> New client</a>
+    </header>
+
+    <form class="ppl-filters" method="get" action="/agent/clients">
+      <div class="ppl-filter-search">
+        <label class="visually-hidden" for="roster-q">Search clients</label>
+        <input class="input ppl-search" id="roster-q" type="search" name="q" placeholder="Search by name, email, trip…" data-slot="q">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn btn-small">Search clients</button>
+      </div>
+      <div class="ppl-filter-chips">
+        <fieldset class="ppl-contents">
+          <legend class="visually-hidden">Status</legend>
+          <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="status" value="active" data-slot="status-active"><span class="chip-label">Active</span></label>
+          <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="status" value="archived" data-slot="status-archived"><span class="chip-label">Archived</span></label>
+        </fieldset>
+        <hr class="divider divider-vertical ppl-facet-rule" aria-hidden="true" data-slot="facet-rule">
+        <fieldset class="ppl-contents">
+          <legend class="visually-hidden">Tags</legend>
+          <label class="chip chip-outlined chip-input" data-repeat="facets"><input class="visually-hidden" type="checkbox" name="tag" value="vip" data-slot="facet-input"><span class="chip-label" data-slot="facet-label">vip · 4</span></label>
+        </fieldset>
+      </div>
+    </form>
+
+    <form method="post" action="/agent/clients" data-submit-once data-bulk-tag data-slot="bulk-form">
+      <div class="ppl-mb-1" data-slot="receipt"><div class="alert alert-success" role="status" aria-live="polite" data-slot="receipt-box"><div class="alert-message" data-slot="receipt-text">Added "vip" to 3 clients.</div></div></div>
+
+      <div class="card ppl-state" data-slot="empty">
+        <div class="ppl-state-body">
+          <span class="avatar ppl-state-tile ppl-state-tile-neutral" aria-hidden="true"><svg class="icon ppl-icon-26" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></span>
+          <h2 class="type-h5" data-slot="empty-title">No clients yet</h2>
+          <p class="type-body2 text-secondary ppl-mt-1" data-slot="empty-body">The first one arrives when you add them, or when a quote request comes in.</p>
+        </div>
+      </div>
+
+      <ul class="ppl-roster-cards below-md" data-slot="cards">
+        <li data-repeat="cards">
+          <a class="card ppl-roster-card" href="/agent/clients/sample" data-slot="card-link">
+            <span class="avatar avatar-brand avatar-32" aria-hidden="true" data-slot="card-initials">JH</span>
+            <span class="ppl-row-main">
+              <span class="type-body2 fw-600 ppl-truncate" data-slot="card-name">Jordan Hayes</span>
+              <span class="type-caption text-secondary ppl-truncate" data-slot="card-email">jordan.hayes@example.com</span>
+              <span class="type-caption text-secondary ppl-truncate ppl-mt-0_5" data-slot="card-trip">Anniversary Week in Negril · Aug 26</span>
+            </span>
+            <span class="type-body2 shrink-0 text-right"><span class="ppl-money" data-slot="card-lifetime">$19,765</span></span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="card ppl-roster-table from-md" data-slot="table">
+        <table class="table table-small table-hover">
+          <thead>
+            <tr>
+              <th scope="col" class="ppl-cell-check"><input class="check-input" type="checkbox" id="roster-select-all" aria-label="Select every client on this page" hidden data-select-all></th>
+              <th scope="col">Client</th>
+              <th scope="col">Last trip</th>
+              <th scope="col">Next trip</th>
+              <th scope="col" class="cell-num">Lifetime</th>
+              <th scope="col">Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-repeat="rows">
+              <td class="ppl-cell-check"><input class="check-input" type="checkbox" name="clientId" value="sample" aria-label="Select this client Jordan Hayes" data-slot="row-check"></td>
+              <td><span class="ppl-roster-client"><span class="avatar avatar-brand avatar-32" aria-hidden="true" data-slot="row-initials">JH</span><a class="link link-hover link-inherit ppl-roster-link" href="/agent/clients/sample" data-slot="row-link"><span class="type-body2 fw-600 ppl-truncate" data-slot="row-name">Jordan Hayes</span><span class="type-caption text-secondary ppl-truncate" data-slot="row-email">jordan.hayes@example.com</span></a></span></td>
+              <td class="ppl-td-muted" data-slot="row-last">Beaches Turks &amp; Caicos · Jan 24</td>
+              <td class="ppl-td-strong"><span data-slot="row-next">Anniversary Week in Negril · Aug 26</span></td>
+              <td class="cell-num"><span class="ppl-money" data-slot="row-lifetime">$19,765</span></td>
+              <td><span class="ppl-roster-tags" data-slot="row-tags"><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-1">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-2">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-3">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-4">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-5">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-6">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-7">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-8">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-9">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-10">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-11">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-12">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-13">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-14">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-15">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-16">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-17">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-18">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-19">vip</span><span class="chip chip-small chip-outlined ppl-mini-chip" data-slot="tag-20">vip</span></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="paper paper-outlined ppl-bulk-bar from-md" data-bulk-bar data-slot="bulk-bar">
+        <span class="type-body2 fw-600">Tag the clients you've ticked</span>
+        <label class="visually-hidden" for="bulk-tag">Tag</label>
+        <input class="input ppl-bulk-input" id="bulk-tag" name="tag" required maxlength="40" placeholder="vip, honeymoon, repeat…">
+        <button type="submit" name="direction" value="add" class="btn btn-contained btn-brand st-btn btn-small">Add tag</button>
+        <button type="submit" name="direction" value="remove" class="btn btn-outlined btn-secondary st-btn btn-small">Remove tag</button>
+      </div>
+    </form>
+
+    <nav class="ppl-pager" aria-label="Roster pages" data-slot="pager">
+      <p class="type-body2 text-secondary" data-slot="pager-range">1–25 of 27</p>
+      <span class="row gap-1">
+        <a class="btn btn-outlined btn-small ppl-btn-sm" href="/agent/clients?page=1" data-slot="pager-prev">Previous</a>
+        <span class="btn btn-outlined btn-small ppl-btn-sm" aria-disabled="true" data-slot="pager-prev-off">Previous</span>
+        <a class="btn btn-outlined btn-small ppl-btn-sm" href="/agent/clients?page=2" data-slot="pager-next">Next</a>
+        <span class="btn btn-outlined btn-small ppl-btn-sm" aria-disabled="true" data-slot="pager-next-off">Next</span>
+      </span>
+    </nav>
+  </div>
+  <script type="module" src="/assets/js/agent/people/bulk-tag.js"></script>
+</main>
+</body>
+</html>
