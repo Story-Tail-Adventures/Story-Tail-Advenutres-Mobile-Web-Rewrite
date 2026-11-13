@@ -376,6 +376,10 @@ paths:
       operationId: setAgentTripStatus
       summary: Move a trip between pipeline stages.
       description: |
+        `op: bulk` moves many trips at once, each guarded by the status its row was
+        showing; a trip moved since, not this advisor's, or already there is skipped, and
+        the skipped ones are indistinguishable. Bulk refuses `cancelled` (400).
+
         Screen 3.2.2 (Pipeline / Funnel View). Agent role only — a traveler gets a 403
         naming the other side of the platform, and so does an advisor whose `agent.status`
         is `archived`. Every read on this side already refuses that advisor
@@ -433,7 +437,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgentTripStatusRequest'
+              oneOf:
+                - $ref: '#/components/schemas/AgentTripStatusRequest'
+                - $ref: '#/components/schemas/AgentTripStatusBulkRequest'
       responses:
         '200':
           description: |
@@ -443,7 +449,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentTripStatusResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/AgentTripStatusResponse'
+                  - $ref: '#/components/schemas/AgentTripStatusBulkResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -884,6 +892,142 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problem'
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # §3.4 Trip Builder and itinerary (agent-trip, agent-itinerary)
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /agent-trip:
+    post:
+      operationId: agentTrip
+      summary: The trip builder's writes. Create, components, the payment schedule, pay links.
+      description: |
+        Screens 3.4.3 (create), 3.4.4 to 3.4.12 (components), 3.4.15 (payment schedule) and
+        3.6.1 (pay links). ONE endpoint with eight ops, chosen by `op`, each its own request
+        and response shape. Agent role only, at aal2; an advisor whose `agent.status` is
+        `archived` is refused (403). A traveler gets 403 on every op: only the advisor
+        writes a pay link or marks a milestone paid (BRD §10).
+
+        Every op but `create` names `tripId`. A trip that is not this advisor's, is
+        archived or does not exist is ONE answer, 404 "That trip is not on your board.",
+        and so is a component or milestone that is not on that trip.
+
+        `create` mints the trip id (v7) and answers `{outcome: created, tripId}`, or
+        `{outcome: no_client}` with a 200 when the client is not this advisor's.
+        `travelerCount` is clamped to 1..64, not refused; a non-integer is 1.
+
+        `component_upsert` creates (no `componentId`) or edits. Unknown `detail` keys are
+        refused, never dropped. Cents are a JSON integer or a digit string (at most ten
+        digits). `commissionCents` left blank with a rate set is worked out from the rate;
+        anything typed, 0 included, wins. A save that changes nothing answers `noop`.
+        `component_archive` is soft. `component_reorder` sends EVERY live component in its
+        new order; a list that does not cover the trip is a 409.
+
+        `payment_upsert` creates or edits a milestone's kind, label, amount and due date.
+        `payment_paid` is the only op that moves what the client has paid: `paidCents`
+        absent means the whole amount, 0 means nothing landed; `paidReference` and
+        `paidNote` absent keep what is stored and "" clears them; `paidOn` may not be after
+        the advisor's today. `payment_delete` is a hard delete.
+
+        `payment_link` sets, changes or removes (null, "" or absent) the milestone's pay
+        link. NO CARD NUMBERS, EVER: a link, confirmation number or note holding a
+        Luhn-valid 13 to 19 digit run is a 400. A link must be `https://`, carry no user
+        name or password, and name a real host (not an IP, not `localhost`); it is stored
+        as parsed (`payUrl` in the reply is what was stored: host lower-cased, IDN in
+        punycode). A link the database CHECK still refuses is a 400 too. Every set, change
+        and removal, and every paid mark, writes its `audit_event` inside the same SQL
+        transaction as the write; a no-op writes none.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AgentTripCreateRequest'
+                - $ref: '#/components/schemas/AgentTripComponentRequest'
+                - $ref: '#/components/schemas/AgentTripComponentArchiveRequest'
+                - $ref: '#/components/schemas/AgentTripComponentReorderRequest'
+                - $ref: '#/components/schemas/AgentTripMilestoneRequest'
+                - $ref: '#/components/schemas/AgentTripMilestonePaidRequest'
+                - $ref: '#/components/schemas/AgentTripPayLinkRequest'
+                - $ref: '#/components/schemas/AgentTripMilestoneDeleteRequest'
+      responses:
+        '200':
+          description: The op's outcome.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AgentTripCreateResponse'
+                  - $ref: '#/components/schemas/AgentTripComponentResponse'
+                  - $ref: '#/components/schemas/AgentTripReorderResponse'
+                  - $ref: '#/components/schemas/AgentTripMilestoneResponse'
+                  - $ref: '#/components/schemas/AgentTripMilestonePaidResponse'
+                  - $ref: '#/components/schemas/AgentTripPayLinkResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /agent-itinerary:
+    post:
+      operationId: agentItinerary
+      summary: The Itinerary Editor's writes. Generate, a day, an activity, delete, reorder.
+      description: |
+        Screen 3.4.14. ONE endpoint with five ops, chosen by `op`, each its own request
+        and response shape. Agent role only, at aal2, and an advisor whose `agent.status`
+        is `archived` is refused (403). Every op names `tripId`; a trip that is not this
+        advisor's, is archived, or does not exist is ONE answer, 404 "That trip is not on
+        your board.", and so is a day or activity that is not on that trip's itinerary.
+
+        `generate` adds a day for every date from the trip's start to its end, and an
+        activity for every live component (insurance excepted) that starts on one of those
+        days and is not on the itinerary yet. Additive and idempotent: a second press adds
+        nothing, answers `noop`, and writes no audit row. A trip without both dates
+        answers 200 with `outcome: no_dates`, not a 4xx, so the screen can say "give the
+        trip dates first" next to the dates.
+
+        `day_upsert` creates a day (`date` required) or edits one (`dayId`; a missing
+        `date` keeps the stored one). `activity_upsert` creates an activity on `dayId` or
+        edits `activityId` (moving it when `dayId` names another day). `block` omitted is
+        worked out from `startTime`. Blank text fields are stored as null; `label`,
+        `summary` and every activity field are replaced outright on an edit.
+
+        `activity_delete` is a hard delete; its audit row is the only record left.
+
+        `reorder` sends EVERY activity of one day in its new order. A list that does not
+        cover the day (it gained or lost an activity since the page rendered) is a 409.
+        `moved` counts the activities whose position changed; 0 writes no audit row.
+
+        Audit rows carry the trip id, never the label, summary or activity text.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AgentItineraryGenerateRequest'
+                - $ref: '#/components/schemas/AgentItineraryDayRequest'
+                - $ref: '#/components/schemas/AgentItineraryActivityRequest'
+                - $ref: '#/components/schemas/AgentItineraryActivityDeleteRequest'
+                - $ref: '#/components/schemas/AgentItineraryReorderRequest'
+      responses:
+        '200':
+          description: The op's outcome.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AgentItineraryGenerateResponse'
+                  - $ref: '#/components/schemas/AgentItineraryDayResponse'
+                  - $ref: '#/components/schemas/AgentItineraryActivityResponse'
+                  - $ref: '#/components/schemas/AgentItineraryReorderResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
 components:
   securitySchemes:
     supabaseJwt:
@@ -1092,6 +1236,8 @@ components:
           enum: [inquiry, proposal, booked, in_progress, completed, cancelled]
         expectedVersion:
           type: integer
+          minimum: 1
+          maximum: 2147483647
           description: >-
             `trip.version` as the board was rendered from. A mismatch is a 409.
             Required: the board always has it, and omitting it would make every
@@ -1099,8 +1245,32 @@ components:
         cancellationReason:
           type: string
           description: >-
-            Required when `status` is `cancelled`, ignored otherwise. Reaches
+            Required (non-blank) when `status` is `cancelled`; on any other status it
+            must be text if sent, and is not written. Trimmed. Reaches
             `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler.
+        refundStatus:
+          type: string
+          enum: [none_expected, pending, partial, full]
+          description: Only with `cancelled` (otherwise a 400). Absent keeps the stored value.
+        refundDetail:
+          type: string
+          description: >-
+            Only with `cancelled` (otherwise a 400). Trimmed; blank keeps the stored
+            value.
+        closeCommission:
+          type: [array, "null"]
+          maxItems: 100
+          description: >-
+            Only with `cancelled` (otherwise a 400). The open ledger lines the cancel
+            dialog listed under "Mark these as Lost", each at the version it showed.
+            Lines still Expected or Invoiced at that version are marked Lost, each with
+            its own audit row in the same transaction; the rest are skipped.
+          items:
+            type: object
+            required: [id, version]
+            properties:
+              id: { type: string, format: uuid }
+              version: { type: integer, minimum: 1, maximum: 2147483647 }
 
     AgentTripStatusResponse:
       type: object
@@ -1114,8 +1284,8 @@ components:
           type: string
           enum: [inquiry, proposal, booked, in_progress, completed, cancelled]
           description: >-
-            Absent whenever the stage did not move — a no-op, or a
-            cancellation-reason correction — because nothing was left behind.
+            Absent whenever the stage did not move (a no-op, or a cancellation-detail
+            correction), because nothing was left behind.
         version:
           type: integer
           description: The version after the write. Send this as the next `expectedVersion`.
@@ -1123,19 +1293,64 @@ components:
           type: boolean
           description: >-
             False when the trip was already in this stage: no transition, so no
-            `trip_status_history` row. It does NOT mean nothing was recorded — a
-            corrected cancellation reason writes the column and an `audit_event`
-            under `trip.cancellation_reason_changed`, and still reports false.
+            `trip_status_history` row. It does NOT mean nothing was recorded: a
+            corrected cancellation reason or refund detail writes the columns and an
+            `audit_event` under `trip.cancellation_reason_changed`, and still reports
+            false.
         cancellationReasonUpdated:
           type: boolean
           description: >-
-            Present on every `cancelled` call and only those, because the reason is
-            mandatory on all of them and the caller is owed an answer about where it
-            went. True when this call wrote it to `trip.cancellation_reason` —
-            either on a transition into `cancelled` or on a same-stage correction.
-            False when the stored reason already read that way, so there was nothing
-            to write. Either answer means the traveler now sees the sentence you
-            sent, on Screen 2.2.10.
+            Present on every `cancelled` call and only those. True when this call wrote
+            the reason (a transition into `cancelled`, or a same-stage correction);
+            false when the stored reason already read that way.
+        commissionLinesClosed:
+          type: integer
+          minimum: 0
+          description: Present on every `cancelled` call. Lines this call marked Lost.
+        commissionLinesSkipped:
+          type: integer
+          minimum: 0
+          description: >-
+            Present on every `cancelled` call. Named lines left as they were: moved
+            since the dialog opened (paid, edited, removed) or not on this trip.
+
+    AgentTripStatusBulkRequest:
+      type: object
+      required: [op, status, trips]
+      properties:
+        op:
+          type: string
+          enum: [bulk]
+        status:
+          type: string
+          enum: [inquiry, proposal, booked, in_progress, completed]
+          description: "`cancelled` is refused: cancelling is one trip at a time."
+        trips:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [tripId, fromStatus]
+            properties:
+              tripId: { type: string, format: uuid }
+              fromStatus:
+                type: string
+                enum: [inquiry, proposal, booked, in_progress, completed, cancelled]
+                description: The status the row was showing. A trip no longer in it is skipped.
+
+    AgentTripStatusBulkResponse:
+      type: object
+      required: [outcome, status, movedCount, requestedCount]
+      properties:
+        outcome:
+          type: string
+          enum: [moved]
+        status:
+          type: string
+          enum: [inquiry, proposal, booked, in_progress, completed]
+        movedCount: { type: integer, minimum: 0 }
+        requestedCount: { type: integer, minimum: 1 }
 
     AgentTripNotesRequest:
       type: object
@@ -2077,6 +2292,403 @@ components:
         status:
           type: string
           const: inquiry
+
+    # ── §3.4 Trip Builder and itinerary (agent-trip, agent-itinerary) ──
+
+    # ── §3.4 Trip builder and §3.6 pay links ───────────────────────────────
+
+    AgentTripCents:
+      description: >-
+        Integer minor units, as a JSON integer or a digit string of at most ten digits.
+        Blank (absent, null or "") reads as 0 except where a field says otherwise.
+      oneOf:
+        - type: integer
+          minimum: 0
+          maximum: 9999999999
+        - type: string
+          pattern: '^\s*\d{1,10}\s*$'
+
+    AgentTripCreateRequest:
+      type: object
+      required: [op, clientId, tripType, title]
+      properties:
+        op:
+          type: string
+          enum: [create]
+        clientId: { type: string, format: uuid }
+        tripType:
+          type: string
+          enum: [cruise, all_inclusive, multi_destination, group, custom]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+          description: Trimmed; required.
+        travelerCount:
+          type: integer
+          description: Clamped to 1..64. Absent or not an integer is 1.
+
+    AgentTripCreateResponse:
+      type: object
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [created, no_client]
+        tripId:
+          type: string
+          format: uuid
+          description: Present only on `created`.
+
+    AgentTripComponentRequest:
+      type: object
+      required: [op, tripId, kind, displayName]
+      properties:
+        op:
+          type: string
+          enum: [component_upsert]
+        tripId: { type: string, format: uuid }
+        componentId:
+          type: [string, "null"]
+          format: uuid
+          description: Present edits that component; absent or null creates one ("" is a 400).
+        kind:
+          type: string
+          enum: [flight, hotel, cruise, transfer, excursion, insurance, custom]
+        supplierId:
+          type: [string, "null"]
+          format: uuid
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        startDate: { type: [string, "null"], format: date }
+        endDate: { type: [string, "null"], format: date }
+        startTime:
+          type: [string, "null"]
+          description: HH:MM or HH:MM:SS.
+        endTime:
+          type: [string, "null"]
+          description: HH:MM or HH:MM:SS.
+        location: { type: [string, "null"], maxLength: 200 }
+        confirmationNumber: { type: [string, "null"], maxLength: 80 }
+        costCents: { $ref: '#/components/schemas/AgentTripCents' }
+        commissionPct:
+          type: [number, string, "null"]
+          description: 0 to 999.99, rounded to two places.
+        commissionCents:
+          description: Blank with a rate set is worked out from the rate; anything typed wins.
+          oneOf:
+            - $ref: '#/components/schemas/AgentTripCents'
+            - type: "null"
+        detail:
+          type: [object, "null"]
+          description: >-
+            The kind's own fields (Data-Model §23), snake_case: flight_number, cabin,
+            seat, room_type, board_basis, ship, itinerary_name, dining_seating,
+            gratuities_included (true/false), dropoff, vehicle, duration, plan,
+            coverage, notes, as the kind allows. Unknown keys are a 400.
+          additionalProperties:
+            type: [string, boolean]
+
+    AgentTripComponentArchiveRequest:
+      type: object
+      required: [op, tripId, componentId]
+      properties:
+        op:
+          type: string
+          enum: [component_archive]
+        tripId: { type: string, format: uuid }
+        componentId: { type: string, format: uuid }
+
+    AgentTripComponentResponse:
+      type: object
+      required: [outcome, componentId]
+      properties:
+        outcome:
+          type: string
+          enum: [created, updated, noop, archived]
+        componentId: { type: string, format: uuid }
+
+    AgentTripComponentReorderRequest:
+      type: object
+      required: [op, tripId, componentIds]
+      properties:
+        op:
+          type: string
+          enum: [component_reorder]
+        tripId: { type: string, format: uuid }
+        componentIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          description: Every live component of the trip, in the new order. Fewer or more is a 409.
+          items: { type: string, format: uuid }
+
+    AgentTripReorderResponse:
+      type: object
+      required: [outcome, moved]
+      properties:
+        outcome:
+          type: string
+          enum: [reordered]
+        moved: { type: integer, minimum: 0 }
+
+    AgentTripMilestoneRequest:
+      type: object
+      required: [op, tripId, kind, label]
+      properties:
+        op:
+          type: string
+          enum: [payment_upsert]
+        tripId: { type: string, format: uuid }
+        milestoneId:
+          type: [string, "null"]
+          format: uuid
+          description: Present edits that milestone; absent or null creates one.
+        kind:
+          type: string
+          enum: [deposit, interim, final]
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        amountCents: { $ref: '#/components/schemas/AgentTripCents' }
+        dueDate: { type: [string, "null"], format: date }
+
+    AgentTripMilestoneDeleteRequest:
+      type: object
+      required: [op, tripId, milestoneId]
+      properties:
+        op:
+          type: string
+          enum: [payment_delete]
+        tripId: { type: string, format: uuid }
+        milestoneId: { type: string, format: uuid }
+
+    AgentTripMilestoneResponse:
+      type: object
+      required: [outcome, milestoneId]
+      properties:
+        outcome:
+          type: string
+          enum: [created, updated, noop, deleted]
+        milestoneId: { type: string, format: uuid }
+
+    AgentTripMilestonePaidRequest:
+      type: object
+      required: [op, tripId, milestoneId, status]
+      properties:
+        op:
+          type: string
+          enum: [payment_paid]
+        tripId: { type: string, format: uuid }
+        milestoneId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [scheduled, paid, waived, overdue]
+        paidCents:
+          description: Absent, null or "" means the whole amount; 0 means nothing landed.
+          oneOf:
+            - $ref: '#/components/schemas/AgentTripCents'
+            - type: "null"
+        paidReference:
+          type: [string, "null"]
+          maxLength: 100
+          description: Absent or null keeps the stored one; "" clears it. No card numbers.
+        paidNote:
+          type: [string, "null"]
+          maxLength: 1000
+          description: Absent or null keeps the stored one; "" clears it. No card numbers.
+        paidOn:
+          type: [string, "null"]
+          format: date
+          description: When it was paid. Not after the advisor's today.
+
+    AgentTripMilestonePaidResponse:
+      type: object
+      required: [outcome, milestoneId, paidCents]
+      properties:
+        outcome:
+          type: string
+          enum: [changed, noop]
+        milestoneId: { type: string, format: uuid }
+        paidCents:
+          type: string
+          description: The milestone's paid amount after the write, integer minor units as a string.
+
+    AgentTripPayLinkRequest:
+      type: object
+      required: [op, tripId, milestoneId]
+      properties:
+        op:
+          type: string
+          enum: [payment_link]
+        tripId: { type: string, format: uuid }
+        milestoneId: { type: string, format: uuid }
+        payUrl:
+          type: [string, "null"]
+          maxLength: 2048
+          description: >-
+            The supplier's own https:// payment page (or a Travefy invoice carrying supplier
+            cost only). Null, "" or absent removes the link.
+
+    AgentTripPayLinkResponse:
+      type: object
+      required: [outcome, milestoneId, payUrl]
+      properties:
+        outcome:
+          type: string
+          enum: [set, changed, removed, noop]
+        milestoneId: { type: string, format: uuid }
+        payUrl:
+          type: [string, "null"]
+          description: The link as stored (parsed and normalised), or null when there is none.
+
+    # ── §3.4.14 Itinerary Editor ───────────────────────────────────────────
+
+    AgentItineraryGenerateRequest:
+      type: object
+      required: [op, tripId]
+      properties:
+        op:
+          type: string
+          enum: [generate]
+        tripId: { type: string, format: uuid }
+
+    AgentItineraryGenerateResponse:
+      type: object
+      required: [outcome, daysAdded, activitiesAdded]
+      properties:
+        outcome:
+          type: string
+          enum: [generated, noop, no_dates]
+        daysAdded: { type: integer, minimum: 0 }
+        activitiesAdded: { type: integer, minimum: 0 }
+
+    AgentItineraryDayRequest:
+      type: object
+      required: [op, tripId]
+      properties:
+        op:
+          type: string
+          enum: [day_upsert]
+        tripId: { type: string, format: uuid }
+        dayId:
+          type: [string, "null"]
+          format: uuid
+          description: Present edits that day. Absent, null or "" creates one.
+        date:
+          type: [string, "null"]
+          format: date
+          description: >-
+            yyyy-mm-dd. Required on a create; on an edit, absent or null keeps the
+            stored date. A shape that is a date but not a real one is refused by
+            Postgres (a 500), as before the port.
+        label:
+          type: [string, "null"]
+          maxLength: 120
+          description: Trimmed; blank stores null.
+        summary:
+          type: [string, "null"]
+          maxLength: 4000
+          description: Trimmed; blank stores null.
+
+    AgentItineraryDayResponse:
+      type: object
+      required: [outcome, dayId]
+      properties:
+        outcome:
+          type: string
+          enum: [created, updated, noop]
+        dayId: { type: string, format: uuid }
+
+    AgentItineraryActivityRequest:
+      type: object
+      required: [op, tripId, title]
+      properties:
+        op:
+          type: string
+          enum: [activity_upsert]
+        tripId: { type: string, format: uuid }
+        activityId:
+          type: [string, "null"]
+          format: uuid
+          description: Present edits that activity. Absent, null or "" creates one.
+        dayId:
+          type: [string, "null"]
+          format: uuid
+          description: Required on a create. On an edit, a different day moves the activity.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Trimmed; required.
+        block:
+          type: [string, "null"]
+          enum: [morning, afternoon, evening, all_day, null]
+          description: Omitted, null or "" is worked out from `startTime`.
+        startTime:
+          type: [string, "null"]
+          description: HH:MM or HH:MM:SS, 00:00 to 23:59:59.
+        endTime:
+          type: [string, "null"]
+          description: HH:MM or HH:MM:SS, 00:00 to 23:59:59.
+        body: { type: [string, "null"], maxLength: 4000 }
+        location: { type: [string, "null"], maxLength: 200 }
+        address: { type: [string, "null"], maxLength: 200 }
+        phone: { type: [string, "null"], maxLength: 40 }
+        confirmationNumber: { type: [string, "null"], maxLength: 80 }
+        gyasisTip: { type: [string, "null"], maxLength: 2000 }
+
+    AgentItineraryActivityDeleteRequest:
+      type: object
+      required: [op, tripId, activityId]
+      properties:
+        op:
+          type: string
+          enum: [activity_delete]
+        tripId: { type: string, format: uuid }
+        activityId: { type: string, format: uuid }
+
+    AgentItineraryActivityResponse:
+      type: object
+      required: [outcome, activityId]
+      properties:
+        outcome:
+          type: string
+          enum: [created, updated, noop, deleted]
+        activityId: { type: string, format: uuid }
+
+    AgentItineraryReorderRequest:
+      type: object
+      required: [op, tripId, dayId, activityIds]
+      properties:
+        op:
+          type: string
+          enum: [reorder]
+        tripId: { type: string, format: uuid }
+        dayId: { type: string, format: uuid }
+        activityIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          uniqueItems: true
+          description: Every activity on the day, in the new order. Fewer or more is a 409.
+          items: { type: string, format: uuid }
+
+    AgentItineraryReorderResponse:
+      type: object
+      required: [outcome, moved]
+      properties:
+        outcome:
+          type: string
+          enum: [reordered]
+        moved:
+          type: integer
+          minimum: 0
+          description: Activities whose position changed.
 
   responses:
     BadRequest:

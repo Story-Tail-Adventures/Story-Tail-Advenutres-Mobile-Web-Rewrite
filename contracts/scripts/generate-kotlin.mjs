@@ -39,8 +39,18 @@ const RESERVED = new Set([
 
 const refName = (ref) => ref.replace('#/components/schemas/', '');
 
-/** SCREAMING_SNAKE for an enum constant, from a wire value like "insurance_cert". */
-const constName = (v) => v.replace(/[^A-Za-z0-9]+/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+/**
+ * SCREAMING_SNAKE for an enum constant, from a wire value like "insurance_cert".
+ *
+ * A leading underscore when the value starts with a digit: `12mo` (a report period) would
+ * otherwise emit `12MO`, which is not a Kotlin identifier, and the mobile build failed with
+ * "Expecting ';' after the last enum entry". The @SerialName beside it still carries the
+ * wire value, so only the Kotlin spelling changes.
+ */
+const constName = (v) => {
+  const name = v.replace(/[^A-Za-z0-9]+/g, '_').replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase();
+  return /^[0-9]/.test(name) ? `_${name}` : name;
+};
 
 /**
  * Flatten OpenAPI 3.1's nullable forms into `{schema, nullable}`.
@@ -82,7 +92,24 @@ function isObjectSchema(schema) {
 /** The Kotlin type for a property schema, plus any nested enum it needs declared. */
 function kotlinType(name, propName, rawSchema, enums) {
   const { schema } = denull(rawSchema);
-  if (schema.$ref) return refName(schema.$ref);
+
+  // A $ref names a Kotlin type only when something declares one. Returning the schema name
+  // for every ref emitted `val costCents: AgentTripCents?` with no AgentTripCents anywhere,
+  // because only OBJECT schemas become data classes: the mobile build failed with
+  // "Unresolved reference". A ref to a scalar or a union takes that schema's own Kotlin type
+  // instead, and a ref to a named enum declares one enum class under the schema's name.
+  if (schema.$ref) {
+    const target = refName(schema.$ref);
+    const resolved = schemas[target];
+    if (!resolved) return 'JsonElement';
+    if (isObjectSchema(resolved)) return target;
+    const { schema: inner } = denull(resolved);
+    if (inner.enum) {
+      enums.set(target, inner.enum);
+      return target;
+    }
+    return kotlinType(target, 'value', resolved, enums);
+  }
 
   if (schema.enum) {
     // An inline enum becomes a real Kotlin enum class, named for where it appeared, so an
