@@ -1,0 +1,126 @@
+RFC 8291 (https://www.rfc-editor.org/rfc/rfc8291.txt), Section 5 and Appendix A, copied verbatim.
+
+5.  Push Message Encryption Example
+
+   The following example shows a push message being sent to a push
+   service.
+
+   POST /push/JzLQ3raZJfFBR0aqvOMsLrt54w4rJUsV HTTP/1.1
+   Host: push.example.net
+   TTL: 10
+   Content-Length: 145
+   Content-Encoding: aes128gcm
+
+   DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27ml
+   mlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPT
+   pK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN
+
+   This example shows the ASCII-encoded string, "When I grow up, I want
+   to be a watermelon".  The content body is shown here with line
+   wrapping and URL-safe base64url [RFC4648] encoding to meet
+   presentation constraints.
+
+   The keys used are shown below using the uncompressed form [X9.62]
+   encoded using base64url.
+
+      Authentication Secret: BTBZMqHH6r4Tts7J_aSIgg
+      Receiver:
+         private key: q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94
+         public key: BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcx
+                     aOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4
+      Sender:
+         private key: yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw
+         public key: BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIg
+                     Dll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8
+
+   Intermediate values for this example are included in Appendix A.
+
+Appendix A.  Intermediate Values for Encryption
+
+   The intermediate values calculated for the example in Section 5 are
+   shown here.  The base64url values in these examples include
+   whitespace that can be removed.
+
+   The following are inputs to the calculation:
+
+   Plaintext:  V2hlbiBJIGdyb3cgdXAsIEkgd2FudCB0byBiZSBhIHdhdGVybWVsb24
+
+   Application server public key (as_public):
+      BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIg
+      Dll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8
+
+   Application server private key (as_private):
+      yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw
+
+   User agent public key (ua_public):  BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-
+      JvLexhqUzORcx aOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4
+
+   User agent private key (ua_private):
+      q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94
+
+   Salt:  DGv6ra1nlYgDCS1FRnbzlw
+
+   Authentication secret (auth_secret):  BTBZMqHH6r4Tts7J_aSIgg
+
+   Note that knowledge of just one of the private keys is necessary.
+   The application server randomly generates the salt value, whereas
+   salt is input to the receiver.
+
+   This produces the following intermediate values:
+
+   Shared ECDH secret (ecdh_secret):
+      kyrL1jIIOHEzg3sM2ZWRHDRB62YACZhhSlknJ672kSs
+
+   Pseudorandom key (PRK) for key combining (PRK_key):
+      Snr3JMxaHVDXHWJn5wdC52WjpCtd2EIEGBykDcZW32k
+
+   Info for key combining (key_info):  V2ViUHVzaDogaW5mbwAEJXGyvs3942BVG
+      q8e0PTNNmwR zr5VX4m8t7GGpTM5FzFo7OLr4BhZe9MEebhuPI-OztV3
+      ylkYfpJGmQ22ggCLDgT-M_SrDepxkU21WCP3O1SUj0Ew
+      bZIHMtu5pZpTKGSCIA5Zent7wmC6HCJ5mFgJkuk5cwAv MBKiiujwa7t45ewP
+
+   Input keying material for content encryption key derivation (IKM):
+      S4lYMb_L0FxCeq0WhDx813KgSYqU26kOyzWUdsXYyrg
+
+
+
+
+
+Thomson                      Standards Track                   [Page 12]
+
+RFC 8291                   Web Push Encryption             November 2017
+
+
+   PRK for content encryption (PRK):
+      09_eUZGrsvxChDCGRCdkLiDXrReGOEVeSCdCcPBSJSc
+
+   Info for content encryption key derivation (cek_info):
+      Q29udGVudC1FbmNvZGluZzogYWVzMTI4Z2NtAA
+
+   Content encryption key (CEK):  oIhVW04MRdy2XN9CiKLxTg
+
+   Info for content encryption nonce derivation (nonce_info):
+      Q29udGVudC1FbmNvZGluZzogbm9uY2UA
+
+   Nonce (NONCE):  4h_95klXJ5E_qnoN
+
+   The salt, record size of 4096, and application server public key
+   produce an 86-octet header of:
+
+   DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z 9KsN6nGRTbVYI_c7VJSPQTBtkgcy27ml
+   mlMoZIIgDll6e3vCYLocInmYWAmS6Tlz AC8wEqKK6PBru3jl7A8
+
+   The push message plaintext has the padding delimiter octet (0x02)
+   appended to produce:
+
+   V2hlbiBJIGdyb3cgdXAsIEkgd2FudCB0 byBiZSBhIHdhdGVybWVsb24C
+
+   The plaintext is then encrypted with AES-GCM, which emits ciphertext
+   of:
+
+   8pfeW0KbunFT06SuDKoJH9Ql87S1QUrd irN6GcG7sFz1y1sqLgVi1VhjVkHsUoEs
+   bI_0LpXMuGvnzQ
+
+   The header and ciphertext are concatenated and produce the result
+   shown in Section 5.
+

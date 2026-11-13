@@ -1067,6 +1067,249 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cruise-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh the cruise catalog from track.cruises, or refetch one sailing. pg_cron only.
+         * @description P2. Screens 2.0.9 and 2.3.4 read the catalog this writes: cruise_line, cruise_ship,
+         *     cruise_port, cruise_sailing, cruise_port_call and cruise_sailing_cabin_price. What it
+         *     may fetch is configuration, in `cruise_sync_scope`; it decides only the order (by
+         *     priority) and when to stop (when the budget says so).
+         *
+         *     NO HUMAN CALLER. pg_cron calls it through `public.cruise_sync_tick()` with the body
+         *     `{"trigger":"cron"}`. On the Go service the bearer is `STA_CRON_SECRET`, checked in
+         *     constant time before the function runs (ruling 13); nothing else is accepted, not
+         *     even the service-role key. The Deno function took the service-role key instead and
+         *     refused any other token with 403 "The cruise sync runs as the service role, not as a
+         *     user."; on Go that refusal is the registry's 403 "This function runs on the
+         *     schedule, not for a caller." (401 "Missing bearer token." with no Authorization).
+         *
+         *     THE PROVIDER IS METERED: about 100 requests a month on the free tier, and an
+         *     overspent month cannot be bought back. Every attempt writes a `cruise_api_request`
+         *     ledger row; the budget is the smaller of a monthly ceiling below the plan
+         *     (`CRUISE_SYNC_MONTHLY_CEILING`, default 90) and the relay's own
+         *     `x-ratelimit-requests-remaining`. A run starts at most 8 requests (the relay also
+         *     throttles per minute).
+         *
+         *     ONE BODY, TWO JOBS. Without `sailingId` it is a sync RUN: it always writes one
+         *     `cruise_sync_run` row (opened as `running`, closed on every path) and one
+         *     `cruise.synced` system audit row, and answers `CruiseSyncRunResponse`. A run that does
+         *     nothing because the budget is spent, or because an earlier run is still going, is 200
+         *     with `status: skipped`: the expected outcome late in a month, not a failure. With
+         *     `sailingId` it is the demand-driven REFETCH of that one sailing from the provider's
+         *     detail endpoint (the only source of cabin prices), spent from the reserve the ceiling
+         *     holds back, with a ledger row whose `run_id` is null, one `cruise_sailing.refetched`
+         *     system audit row, and `CruiseSyncRefetchResponse`. A refetch refuses rather than
+         *     overspends: no provider coverage for the line, or no budget, is 200 with `skipped`.
+         *
+         *     Order of checks: the method (anything but POST is 403 "Use POST to run the cruise
+         *     sync."), then the body (`sailingId` that is not a UUID is 400 "sailingId must be a
+         *     UUID."), then the key (403 "TRACK_CRUISES_API_KEY is not set in the function
+         *     environment. See supabase/README.md." when the provider key is unset). A body that is
+         *     missing or not JSON is a cron run, never an error.
+         *
+         *     A provider redirect is never followed, and on the Go service it stops the run (error
+         *     code `provider_redirected`): a retry would spend budget on an answer a retry cannot
+         *     change.
+         */
+        post: operations["runCruiseSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push-dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the notifications that are due, and the dismisses that are owed. pg_cron only.
+         * @description Screen 3.10.7 (§3.10 Stage 3b, Data-Model §12.7). NO HUMAN CALLER. pg_cron runs
+         *     `public.push_dispatch_tick()` every minute; only when something is due, owed or stuck
+         *     does it post here, with the body `{"trigger":"cron"}`. The body is never read. On the
+         *     Go service the bearer is `STA_CRON_SECRET`, checked in constant time before the
+         *     function runs (ruling 13); nothing else is accepted, not even the service-role key. The
+         *     Deno function took the service-role key instead and refused a user token with 403 "The
+         *     notification dispatcher runs as the service role, not as a user."; on Go that refusal is
+         *     the registry's 403 "This function runs on the schedule, not for a caller." (401
+         *     "Missing bearer token." with no Authorization).
+         *
+         *     One pass, in this order: claim up to 50 owed dismissals (`push_claim_dismissals`) and
+         *     send each to the advisor's PHONES only (never a browser); claim up to 50 due
+         *     notifications (`push_claim_due`, SKIP LOCKED); per advisor, each live row is its own
+         *     notification and everything held through rest hours or time away is ONE summary; each
+         *     row is finished (`push_finish`: sent, or back to pending for a retry, failed after three
+         *     tries); devices a push service reported gone are deleted (`push_device_gone`). A row
+         *     counts as sent when any device took it, or when no device was left to try.
+         *
+         *     Browsers get Web Push (RFC 8291 aes128gcm, RFC 8292 VAPID), end-to-end encrypted, with
+         *     the words. Android gets an FCM HTTP v1 data message with ids and a count only (Google
+         *     can read it). iOS is skipped. A push service answering 404 or 410 (Web Push), or FCM's
+         *     `UNREGISTERED`, means the device is gone; a redirect is never followed and counts as an
+         *     error.
+         *
+         *     Secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (web) and
+         *     `FCM_SERVICE_ACCOUNT_JSON` (Android). With NEITHER platform's keys the pass is a 500
+         *     BEFORE anything is claimed, so rows wait as pending instead of spending their tries.
+         *     With one platform's keys, devices of the other platform answer as errors (their rows
+         *     retry, then fail, visibly).
+         *
+         *     Each pass leaves its counts in this reply and in one log line (counts only: never a
+         *     token, an address or a word of a message).
+         */
+        post: operations["runPushDispatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email-dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email clients the advisor replies that are due, then the advisor's own alerts. pg_cron only.
+         * @description §3.10 Stage 4 and §3.12.3 (Data-Model §12.8, §12.9, §12.11). NO HUMAN CALLER. pg_cron
+         *     runs `public.email_dispatch_tick()` every minute; only when an email is due or stuck, or
+         *     an alert is waiting, does it post here, with the body `{"trigger":"cron"}`. The body is
+         *     never read. On the Go service the bearer is `STA_CRON_SECRET`, checked in constant time
+         *     before the function runs (ruling 13); nothing else is accepted. The Deno function took
+         *     the service-role key instead and refused a user token with 403 "The email dispatcher
+         *     runs as the service role, not as a user."; on Go that refusal is the registry's 403
+         *     "This function runs on the schedule, not for a caller." (401 "Missing bearer token."
+         *     with no Authorization). The Deno function checked the method BEFORE the caller; on Go
+         *     the caller is checked first, so a GET without the secret is a 401/403 there.
+         *
+         *     One pass: claim up to 10 due emails (`email_claim_due`, SKIP LOCKED; the SQL first clears
+         *     threads read in the app and skips opted-out, archived or unverified clients). Per email:
+         *     mint a reply token and an unsubscribe token and save their hashes FIRST
+         *     (`email_record_tokens`), read the advisor's signature
+         *     (`agent_signature_for_conversation`; a failed read costs only the signature), build the
+         *     email (card numbers masked to the last four), send it over SMTP, and finish the row
+         *     (`email_finish`: sent and the replies stamped "Emailed"; back to pending on a 4xx or a
+         *     dropped connection; failed at once on a 5xx or when there is nothing honest to send).
+         *     Then, if time is left, claim up to 10 advisor alerts (`agent_alert_email_claim`) and
+         *     send each the same way (`agent_alert_email_finish`). An alert never carries a client's
+         *     or a lead's words.
+         *
+         *     A pass stops starting sends after 90 seconds: rows not reached go back to waiting with
+         *     no try counted (`email_release`, `agent_alert_email_release`) and are counted as
+         *     `released`. One row's failure is its own; it is finished as a retry ("internal error")
+         *     and the pass goes on.
+         *
+         *     Secrets: `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` (465 only, except the local mail catcher),
+         *     `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `EMAIL_SITE_URL`,
+         *     `EMAIL_UNSUBSCRIBE_URL`. Unset or refused settings are a 500 BEFORE anything is claimed,
+         *     so rows wait instead of spending their tries.
+         */
+        post: operations["runEmailDispatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email-inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read client replies out of the app's mailbox over IMAP. pg_cron only.
+         * @description §3.10 Stage 4 (Data-Model §12.10). NO HUMAN CALLER. pg_cron's `public.email_inbox_tick()`
+         *     posts here every two minutes with the body `{"trigger":"cron"}`; the body is never read.
+         *     On the Go service the bearer is `STA_CRON_SECRET`, checked in constant time before the
+         *     function runs (ruling 13). The Deno function took the service-role key instead and
+         *     refused a user token with 403 "The email inbox reader runs as the service role, not as a
+         *     user."; on Go that refusal is the registry's 403 "This function runs on the schedule, not
+         *     for a caller." (401 "Missing bearer token." with no Authorization). The Deno function
+         *     checked the method BEFORE the caller; on Go the caller is checked first.
+         *
+         *     One run logs in to the mailbox (TLS on 993, certificates checked), takes up to 25
+         *     messages from INBOX, and for each: finds the reply token (the `<mailbox>+<token>@`
+         *     address, or our Message-ID in In-Reply-To / References), reads the receiving server's
+         *     Authentication-Results (pinned by `EMAIL_AUTHSERV_ID`), downloads only the text part,
+         *     keeps only the new words (card numbers masked), and records it with
+         *     `email_inbound_record`, which checks the token, the verified sender and the thread and
+         *     writes the message, the thread bump and its audit row. The message is then moved to
+         *     `Processed` (accepted), `Rejected` (anything else, including over 1,000,000 octets), or
+         *     `Failed` (it could not be read). An accepted reply that carried files gets one short
+         *     note, to the verified sender only. Handled mail older than 30 days is deleted from the
+         *     three folders. A run stops starting messages after 60 seconds; the rest wait.
+         *
+         *     Secrets: `EMAIL_FROM_ADDRESS` (the mailbox), `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD`
+         *     (or `EMAIL_IMAP_USER` / `EMAIL_IMAP_PASSWORD`), optional `EMAIL_IMAP_HOST`
+         *     (imap.ionos.com) and `EMAIL_IMAP_PORT` (993), `EMAIL_AUTHSERV_ID` (unset: every sender
+         *     is unverified, so every reply is Rejected), and the SMTP settings of `/email-dispatch`
+         *     for the files note. Unset or refused settings are a 500 before any connection.
+         */
+        post: operations["runEmailInbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email-unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether message emails are on for the person a link belongs to.
+         * @description §3.10 Stage 4 (Data-Model §12.9). NO SIGN-IN: the token in the link is the credential
+         *     (128 random bits, stored only as a hash, good for one person's one switch). Changes
+         *     NOTHING, so a mail scanner that follows links unsubscribes no one. An unknown, expired
+         *     or malformed token is `invalid`, never an error. The reply is `Cache-Control: no-store`.
+         */
+        get: operations["emailUnsubscribeStatus"];
+        put?: never;
+        /**
+         * Turn message emails off (RFC 8058 one-click) or back on (the web page).
+         * @description Two shapes, by Content-Type:
+         *     - `application/x-www-form-urlencoded` with the body `List-Unsubscribe=One-Click` (RFC 8058,
+         *       as Gmail, Yahoo and Apple Mail send it) and `?t=<token>`: turns emails OFF. Any other
+         *       form body is 400 "Use the link in the email.".
+         *     - `application/json` `{ token, on }`: the web page; `on` must be a boolean (400 "Say on:
+         *       true or false." otherwise) and `token` falls back to `?t=` when null or absent. A body
+         *       that is not JSON is 400 "Send JSON."; a JSON `null` body is a bare 500 (it was a
+         *       TypeError in the Deno function, kept for parity).
+         *     Only `channels.messages.email` changes; push and in-app are untouched. Each change is
+         *     audited in SQL (`notification_preference.updated`). An unknown, expired or malformed
+         *     token answers `invalid` with nothing changed.
+         */
+        post: operations["emailUnsubscribeSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2885,6 +3128,149 @@ export interface components {
                 travelDocuments?: number;
             };
         };
+        /**
+         * @description Every field is optional, and a body that is missing, not JSON, or not an object is
+         *     read as `{"trigger":"cron"}`.
+         */
+        CruiseSyncRequest: {
+            /**
+             * @description "manual" marks a person's run; anything else (or nothing) is "cron".
+             * @default cron
+             * @enum {string}
+             */
+            trigger: "cron" | "manual";
+            /**
+             * @description Narrows a run to the one `cruise_sync_scope` whose `label` this is (trimmed; a
+             *     blank or non-string value is ignored). For manual runs: verifying one scope should
+             *     not spend the others' requests. pg_cron never sends it.
+             */
+            scope?: string;
+            /**
+             * Format: uuid
+             * @description Refetch this `cruise_sailing` instead of running the schedule. Any UUID shape
+             *     (either letter case); anything else, null included, is 400.
+             */
+            sailingId?: string;
+        };
+        CruiseSyncRunResponse: {
+            /**
+             * Format: uuid
+             * @description The `cruise_sync_run` row, which holds the same counts and the cause.
+             */
+            runId: string;
+            /**
+             * @description `partial` when some scope failed, the relay throttled the run, or a scope spent
+             *     requests and stored nothing; `failed` when that happened before any scope finished;
+             *     `skipped` when the budget is spent or an earlier run is still going.
+             * @enum {string}
+             */
+            status: "ok" | "partial" | "skipped" | "failed";
+            scopesRun: number;
+            /** @description Provider HTTP attempts this run made, retries included. */
+            requestsSpent: number;
+            rowsUpserted: number;
+            /** @description Rows soft-archived after a complete pass (cruise lines and ships only). */
+            rowsArchived: number;
+            budget: {
+                /** @description Our ledger's count for the calendar month (UTC), this run included. */
+                monthToDateSpend: number;
+                ceiling: number;
+                /** @description Requests a run may still make, the smaller of the ceiling's room and the relay's figure. */
+                allowanceRemaining: number;
+                /** @description The relay's latest `x-ratelimit-requests-remaining` this month, null when none. */
+                providerRemaining: number | null;
+                /**
+                 * @description (limit - remaining) - monthToDateSpend, when the relay reported both. Positive
+                 *     means quota was spent that our ledger never saw.
+                 */
+                drift: number | null;
+            };
+            /** @description Why scopes were skipped, deferred, stopped or failed, in order. Empty on a clean run. */
+            notes: string[];
+        };
+        CruiseSyncRefetchResponse: {
+            /** Format: uuid */
+            sailingId: string;
+            /** @description The provider's id for the sailing (`cruise_sailing.provider_key`). */
+            cruiseId: string | null;
+            /** @description The provider's company for the line; null when the line has no provider coverage. */
+            company: string | null;
+            cabinPricesWritten: number;
+            portCallsWritten: number;
+            /**
+             * @description The refreshed lead fare in minor units, only when the provider answered in the
+             *     sailing's own market; otherwise null and the stored fare is left alone. Internal
+             *     (Data-Model §24.4): never shown on a public page.
+             */
+            leadPriceCents: number | null;
+            /** @description ISO 4217, beside leadPriceCents. */
+            currency: string | null;
+            /** @description The budget after this request (before it, when nothing was spent). */
+            budget: {
+                ledgerSpent: number;
+                ceiling: number;
+                quotaRemaining: number | null;
+                quotaLimit: number | null;
+                allowance: number;
+                drift: number | null;
+            };
+            /**
+             * @description Present when no request was spent (the line has no provider coverage, or the
+             *     budget is gone, with the reason), or when the provider answered in another market
+             *     (cabin prices were still stored, tagged with that market). Absent otherwise.
+             */
+            skipped?: string;
+        };
+        PushDispatchResponse: {
+            /** @description Notification rows finished as sent (a summary counts each row it covered). */
+            sent: number;
+            /** @description Rows finished as not sent (back to pending, cleared for a newer row of the same thread, or failed on their third try). */
+            retried: number;
+            /** @description Owed dismisses claimed and sent to the advisor's phones (counted even when they have none). */
+            dismissed: number;
+            /** @description Devices forgotten because their push service said they no longer exist. */
+            gone: number;
+        };
+        EmailDispatchResponse: {
+            /** @description Client emails finished as sent. */
+            sent: number;
+            /** @description Advisor alert emails finished as sent. */
+            alertsSent: number;
+            /** @description Emails and alerts finished as not sent and not failed (back to pending, or cleared for a newer row of the same thread). */
+            retried: number;
+            /** @description Emails and alerts failed for good (a 5xx, nothing honest to send, or the third try). */
+            failed: number;
+            /** @description Claimed rows put back unsent, with no try counted, because the pass ran out of time. */
+            released: number;
+        };
+        EmailInboxResponse: {
+            /** @description Messages handled this run (the sum of `outcomes`). */
+            read: number;
+            /**
+             * @description How many messages ended each way, keyed in the order first seen. Only outcomes that
+             *     occurred appear. Keys: the `email_inbound_record` outcomes (`accepted`,
+             *     `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`,
+             *     `too_long`, `auto_reply`), plus `duplicate` (a re-delivered copy of a message already
+             *     recorded), `too_large` (over 1,000,000 octets, never read) and `failed` (could not be
+             *     read; moved to `Failed`).
+             */
+            outcomes: {
+                [key: string]: number;
+            };
+            /** @description Messages left in INBOX because the run ran out of time. */
+            skipped: number;
+            /** @description Handled messages older than 30 days deleted from Processed, Rejected and Failed. */
+            purged: number;
+        };
+        EmailUnsubscribeRequest: {
+            /** @description The unsubscribe token; null or absent uses ?t=. */
+            token?: string | null;
+            on: boolean;
+        };
+        EmailUnsubscribeResponse: {
+            /** @enum {string|null} */
+            status: "on" | "off" | "invalid" | null;
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -3821,6 +4207,267 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    runCruiseSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CruiseSyncRequest"];
+            };
+        };
+        responses: {
+            /**
+             * @description A run (`CruiseSyncRunResponse`) or a refetch (`CruiseSyncRefetchResponse`), by
+             *     whether the request carried `sailingId`. A run that failed partway is still 200,
+             *     with `status: partial`; a run that could not proceed at all is a 500.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CruiseSyncRunResponse"] | components["schemas"]["CruiseSyncRefetchResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /**
+             * @description Not POST ("Use POST to run the cruise sync."), the provider key is unset, or the
+             *     bearer is not the cron secret.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A refetch of a sailing that does not exist. `detail` is "No such sailing." */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The run could not go on (the scope read failed, the provider answered a refetch
+             *     with an error, an audit write failed). No `detail`. The run row is closed as
+             *     `failed` with `error_code: run_threw` before this is sent.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runPushDispatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The pass ran. What it did, as counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDispatchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Not POST ("Use POST to run the dispatcher."), or the bearer is not the cron secret. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description No push keys at all (nothing was claimed), or a claim, a device lookup for a
+             *     dismissal, or a device cleanup failed. No `detail`. One advisor's failed device
+             *     lookup is NOT a 500: their rows go back for a retry and the pass goes on.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runEmailDispatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The pass ran. What it did, as counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailDispatchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /**
+             * @description Not POST ("Use POST to run the email dispatcher."), or the bearer is not the cron
+             *     secret.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Email is not set up, or a setting is refused (nothing was claimed); or the email
+             *     claim or the alert claim failed. No `detail`.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runEmailInbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The run finished. What it did, as counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailInboxResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Not POST ("Use POST to read the inbox."), or the bearer is not the cron secret. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The inbox is not set up or a setting is refused; the mailbox could not be reached,
+             *     logged in to, listed, selected, fetched or changed; or recording a reply failed (the
+             *     message stays in INBOX for the next run). No `detail`.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    emailUnsubscribeStatus: {
+        parameters: {
+            query?: {
+                /** @description The unsubscribe token from the email's link (26 base32 characters). */
+                t?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The switch as it stands. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailUnsubscribeResponse"];
+                };
+            };
+        };
+    };
+    emailUnsubscribeSet: {
+        parameters: {
+            query?: {
+                t?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EmailUnsubscribeRequest"];
+                "application/x-www-form-urlencoded": {
+                    /** @enum {string} */
+                    "List-Unsubscribe"?: "One-Click";
+                };
+            };
+        };
+        responses: {
+            /** @description The switch after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailUnsubscribeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
 }

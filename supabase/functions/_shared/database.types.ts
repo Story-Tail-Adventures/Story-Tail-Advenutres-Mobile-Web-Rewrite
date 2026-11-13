@@ -5861,6 +5861,11 @@ export type Database = {
         Args: { p_since: string; p_time_zone: string }
         Returns: string
       }
+      cron_bearer_for: {
+        Args: { p_job: string; p_url: string }
+        Returns: string
+      }
+      cron_url_is_edge_function: { Args: { p_url: string }; Returns: boolean }
       cruise_sailing_search: {
         Args: {
           depart_from?: string
