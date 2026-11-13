@@ -903,6 +903,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-commission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The commission ledger's writes. Add, edit, mark received, remove, export, weights.
+         * @description Screens 3.7.3 (edit, mark received, remove), 3.7.4 (add), §3.7.2's export and 3.7.7's
+         *     stage weights. ONE endpoint with six ops, chosen by `op`.
+         *
+         *     Every write is audited INSIDE its SQL function, in the same transaction as the change
+         *     (`commission.created`, `commission.updated`, `commission.payment_recorded`,
+         *     `commission.removed`, `commission.exported`, `pipeline_weight.updated`).
+         *
+         *     `update`, `payment` and `remove` name one line by `commissionId` at the
+         *     `expectedVersion` the screen rendered; a mismatch is the 409. ONLY that optimistic
+         *     lock is a 409: every outcome a form shows against a field comes back 200 with an
+         *     `outcome` (`duplicate_reference`, `supplier_not_found`, `payment_would_clear`,
+         *     `bad_date`, `not_removable`). A line that is not this advisor's, does not exist or was
+         *     removed is the same 404 ("No such commission line."); a trip that is not theirs is
+         *     404 "No such trip on your book.".
+         *
+         *     Amounts in are whole cents (a number or a digit-string). `gapCents` and the CSV's
+         *     cells come back as exact decimal text, never a float.
+         */
+        post: operations["agentCommission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commission-import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload, map, resolve, reconcile or discard an Inteletravel statement.
+         * @description Screens 3.7.5 (upload, map) and 3.7.6 (resolve each row, mark as reconciled, or
+         *     discard). ONE endpoint with five ops, chosen by `op`.
+         *
+         *     `upload` takes the CSV as base64 (512 KB at most, up to 1,000 rows and 60 columns),
+         *     reads it on the server (UTF-8, or Windows-1252 when it is not valid UTF-8; an Excel
+         *     workbook is refused by name), stores it in the private `commission-statements` bucket
+         *     under a key the server derives, and guesses a column map from the advisor's last
+         *     statement, then from the header names. The same file again (by SHA-256, not
+         *     discarded) is the `duplicate_file` outcome, with the earlier statement's id.
+         *
+         *     Every other op names one statement by `importId` at the `expectedVersion` the screen
+         *     rendered; a mismatch is the 409. ONLY that is a 409: every outcome a screen should
+         *     explain is a 200 with an `outcome`. A statement that is not this advisor's, does not
+         *     exist or was discarded is the same 404.
+         *
+         *     Only `reconcile` writes the ledger, in one SQL transaction with an audit row per line
+         *     (`commission.reconciled`, `commission.created`) and one for the statement
+         *     (`commission.statement_reconciled`). `upload` and `discard` are audited too
+         *     (`commission.statement_uploaded`, `commission.statement_discarded`); `discard` also
+         *     removes the stored file.
+         */
+        post: operations["commissionImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2315,6 +2390,250 @@ export interface components {
              */
             timeOffId?: string;
         };
+        AgentCommissionLineFields: {
+            /** Format: uuid */
+            supplierId: string;
+            /** @description Gross booking value in cents. Required (absent or blank is a 400, never $0). */
+            grossCents: number | string;
+            /** @description 0 to 100; rounded to two decimals. Required. */
+            commissionPct: number | string;
+            /** @enum {string} */
+            paymentTerms: "at_booking" | "after_travel";
+            /** @description Whole days from 0 to 365. */
+            paymentLagDays: number | string;
+            /** @description Trimmed; blank is none. Unique per advisor. */
+            inteletravelReference?: string | null;
+            /** @description Trimmed; blank is none. Never exported. */
+            notes?: string | null;
+        };
+        AgentCommissionCreateRequest: components["schemas"]["AgentCommissionLineFields"] & {
+            /** @enum {string} */
+            op: "create";
+            /** Format: uuid */
+            tripId: string;
+            /**
+             * @default expected
+             * @enum {string|null}
+             */
+            status: "expected" | "invoiced" | null;
+        };
+        AgentCommissionUpdateRequest: components["schemas"]["AgentCommissionLineFields"] & {
+            /** @enum {string} */
+            op: "update";
+            /** Format: uuid */
+            commissionId: string;
+            expectedVersion: number;
+            /**
+             * @description Moving to received or disputed is the payment op's (a 400 here). Moving a paid line back to expected / invoiced / lost clears its payment, and only with `clearPayment: true`; without it the outcome is `payment_would_clear`.
+             * @enum {string}
+             */
+            status: "expected" | "invoiced" | "received" | "disputed" | "lost";
+            /** @description Only the JSON value true counts; anything else is false. */
+            clearPayment?: boolean;
+        };
+        AgentCommissionPaymentRequest: {
+            /** @enum {string} */
+            op: "payment";
+            /** Format: uuid */
+            commissionId: string;
+            expectedVersion: number;
+            /** @enum {string} */
+            status: "received" | "disputed";
+            /** @description Required. `received` with 0 is a 400 (record it as disputed instead). */
+            receivedCents: number | string;
+            /** @description Optional; absent or blank is 0. */
+            feeCents?: number | string | null;
+            /**
+             * Format: date
+             * @description A real calendar date. One after the advisor's today is the `bad_date` outcome.
+             */
+            receivedAt: string;
+        };
+        AgentCommissionRemoveRequest: {
+            /** @enum {string} */
+            op: "remove";
+            /** Format: uuid */
+            commissionId: string;
+            expectedVersion: number;
+        };
+        AgentCommissionExportRequest: {
+            /** @enum {string} */
+            op: "export";
+            /** @description The ledger's filters, as the web's ledgerQueryFromParams writes them. All optional. */
+            filters?: {
+                /** @description Repeats are dropped; an empty list is every status. */
+                statuses?: ("expected" | "invoiced" | "received" | "disputed" | "lost")[] | null;
+                /** @description A uuid; blank is none. */
+                supplierId?: string | null;
+                /** @description A uuid; blank is none. */
+                tripId?: string | null;
+                /** @description A date (trip start on or after); blank is none. */
+                travelFrom?: string | null;
+                /** @description A date (trip start on or before); blank is none. */
+                travelTo?: string | null;
+            } | null;
+        };
+        AgentCommissionStageWeights: {
+            inquiry: number;
+            proposal: number;
+            booked: number;
+            in_progress: number;
+        };
+        AgentCommissionWeightsRequest: {
+            /** @enum {string} */
+            op: "weights";
+            /** @description The weights the screen showed. If the stored ones differ, the save is a 409. */
+            expected: components["schemas"]["AgentCommissionStageWeights"];
+            weights: components["schemas"]["AgentCommissionStageWeights"];
+        };
+        AgentCommissionCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "duplicate_reference" | "supplier_not_found";
+            /**
+             * Format: uuid
+             * @description Only on `created`. Minted by the server (v7).
+             */
+            commissionId?: string;
+            /** @description Only on `created`: always 1. */
+            version?: number;
+        };
+        /** @description `update` and `remove`. `commissionId` is echoed as it was sent. */
+        AgentCommissionLineResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "supplier_not_found" | "duplicate_reference" | "payment_would_clear" | "removed" | "not_removable";
+            /** Format: uuid */
+            commissionId: string;
+            /** @description The line's version now (after the write on changed / removed). */
+            version: number;
+        };
+        AgentCommissionPaymentResponse: {
+            /** @enum {string} */
+            outcome: "recorded" | "noop" | "bad_date";
+            /** Format: uuid */
+            commissionId: string;
+            version: number;
+            /** @description Expected - fee - received, in cents as a digit-string. Null on `bad_date`. */
+            gapCents: string | null;
+        };
+        AgentCommissionExportResponse: {
+            /** @enum {string} */
+            outcome: "exported";
+            rowCount: number;
+            /** @description RFC 4180, CRLF line ends with a trailing CRLF, no byte-order mark. Money as exact decimals ("1234.56"); a text cell starting with = + - @ tab or CR is prefixed with an apostrophe. Notes are not exported. */
+            csv: string;
+        };
+        AgentCommissionWeightsResponse: {
+            /** @enum {string} */
+            outcome: "saved" | "noop";
+        };
+        CommissionImportUploadRequest: {
+            /** @enum {string} */
+            op: "upload";
+            /** @description The name the advisor will recognise. Path parts are dropped; at most 255 characters kept. */
+            filename: string;
+            /** @description The CSV's bytes, base64 (forgiving: white space and padding as atob takes them). */
+            fileBase64: string;
+        };
+        /** @description Statement field to a 0-based column of the file. `received` is required; null is unmapped. */
+        CommissionImportColumnMap: {
+            reference?: number | null;
+            supplier?: number | null;
+            traveler?: number | null;
+            gross?: number | null;
+            received?: number | null;
+            fee?: number | null;
+            paid_on?: number | null;
+        };
+        CommissionImportMapRequest: {
+            /** @enum {string} */
+            op: "map";
+            /** Format: uuid */
+            importId: string;
+            expectedVersion: number;
+            columnMap: components["schemas"]["CommissionImportColumnMap"];
+            /**
+             * Format: date
+             * @description The paid-on date for rows with none. Blank or null is none. Required when no `paid_on` column is mapped.
+             */
+            statementDate?: string | null;
+        };
+        CommissionImportResolveRequest: {
+            /** @enum {string} */
+            op: "resolve";
+            /** Format: uuid */
+            importId: string;
+            expectedVersion: number;
+            /** @enum {string} */
+            action: "confirm" | "match" | "create" | "ignore";
+            /** Format: uuid */
+            rowId: string;
+            /**
+             * Format: uuid
+             * @description `match` only: the unpaid line this row pays.
+             */
+            commissionId?: string;
+            /**
+             * Format: uuid
+             * @description `create` only.
+             */
+            tripId?: string;
+            /**
+             * Format: uuid
+             * @description `create` only.
+             */
+            supplierId?: string;
+            /** @description `create` only; required. */
+            grossCents?: number | string;
+            /** @description `create` only; required, rounded to two decimals. */
+            commissionPct?: number | string;
+        };
+        /** @description `reconcile` and `discard`. */
+        CommissionImportStatementRequest: {
+            /** @enum {string} */
+            op: "reconcile" | "discard";
+            /** Format: uuid */
+            importId: string;
+            expectedVersion: number;
+        };
+        CommissionImportUploadResponse: {
+            /** @enum {string} */
+            outcome: "uploaded" | "duplicate_file";
+            /**
+             * Format: uuid
+             * @description The new statement's id, or (`duplicate_file`) the earlier one's.
+             */
+            importId: string;
+            /** @description `uploaded` only: the data rows read. */
+            rowCount?: number;
+            /**
+             * Format: date-time
+             * @description `duplicate_file` only: when the earlier statement was uploaded.
+             */
+            uploadedAt?: string;
+        };
+        /** @description `map`, `resolve` and `discard`. `importId` is echoed as it was sent. */
+        CommissionImportResponse: {
+            /** @enum {string} */
+            outcome: "mapped" | "resolved" | "discarded" | "not_open" | "not_allowed" | "line_unavailable" | "trip_not_found" | "supplier_not_found";
+            /** Format: uuid */
+            importId: string;
+            /** @description The statement's version now. Send it as the next `expectedVersion`. */
+            version: number;
+        };
+        CommissionImportReconcileResponse: {
+            /** @enum {string} */
+            outcome: "reconciled" | "needs_decisions" | "not_open";
+            /** Format: uuid */
+            importId: string;
+            version: number;
+            /** @description Lines marked received. */
+            paid: number;
+            /** @description Lines created and marked received. */
+            created: number;
+            alreadyRecorded: number;
+            /** @description `needs_decisions`: rows still suggested, unmatched, duplicate or unreadable. */
+            blocking: number;
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -3121,6 +3440,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentSettingsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCommissionCreateRequest"] | components["schemas"]["AgentCommissionUpdateRequest"] | components["schemas"]["AgentCommissionPaymentRequest"] | components["schemas"]["AgentCommissionRemoveRequest"] | components["schemas"]["AgentCommissionExportRequest"] | components["schemas"]["AgentCommissionWeightsRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentCommissionCreateResponse"] | components["schemas"]["AgentCommissionLineResponse"] | components["schemas"]["AgentCommissionPaymentResponse"] | components["schemas"]["AgentCommissionExportResponse"] | components["schemas"]["AgentCommissionWeightsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    commissionImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommissionImportUploadRequest"] | components["schemas"]["CommissionImportMapRequest"] | components["schemas"]["CommissionImportResolveRequest"] | components["schemas"]["CommissionImportStatementRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionImportUploadResponse"] | components["schemas"]["CommissionImportResponse"] | components["schemas"]["CommissionImportReconcileResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
