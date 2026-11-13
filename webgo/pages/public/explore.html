@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.3 Public Search Landing (/explore). Ports app/(public)/(hero)/explore/page.tsx
+  with SearchBar (both variants), SigninBanner, PhotoTile, the trust row and StickyCta.
+  Copy is the Next app's, byte for byte; the photos, the per-tile trip counts, the trust line
+  and every link are filled in explore.go.
+
+  The search form is the same GET form it is in Next: it works with no JavaScript, and the
+  results page derives everything from the URL it produces. Its dates are the two native
+  inputs Next renders before hydration (§4.9).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Explore · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <section class="on-photo hero hero-compact">
+    <img class="photo-fill" data-slot="hero-photo" src="https://images.unsplash.com/sample" alt="" sizes="100vw" loading="eager" decoding="async" fetchpriority="high">
+    <div class="scrim-navy hero-scrim" aria-hidden="true"></div>
+    <div class="container hero-inner hero-inner-center">
+      <div class="hero-copy">
+        <p class="type-overline hero-overline">BROWSE WITHOUT AN ACCOUNT</p>
+        <h1 class="hero-title t-hero-s">Find your next chapter.</h1>
+        <!-- C203: the pill sits inside the copy column, 12px under the h1, from md up. -->
+        <div class="search-pill-wrap">
+          <form class="paper search-pill" action="/explore/results" method="get" role="search" aria-label="Search trips">
+            <div class="inquiry-cell">
+              <label class="type-caption inquiry-label" for="search-pill-dest">Destination</label>
+              <div class="inquiry-value">
+                <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#map"></use></svg></span>
+                <input class="inquiry-input" id="search-pill-dest" name="dest" type="text" placeholder="Caribbean" autocomplete="off" maxlength="60">
+              </div>
+            </div>
+            <div class="inquiry-divider" aria-hidden="true"></div>
+            <div class="inquiry-cell">
+              <label class="type-caption inquiry-label" for="search-pill-dates">Dates</label>
+              <div class="inquiry-value inquiry-dates">
+                <label class="visually-hidden" for="search-pill-dates">Check-in</label>
+                <input class="inquiry-input inquiry-date" id="search-pill-dates" name="in" type="date" data-slot="pill-in">
+                <span class="inquiry-date-sep" aria-hidden="true">–</span>
+                <label class="visually-hidden" for="search-pill-dates-out">Check-out</label>
+                <input class="inquiry-input inquiry-date" id="search-pill-dates-out" name="out" type="date" data-slot="pill-out">
+              </div>
+            </div>
+            <div class="inquiry-divider" aria-hidden="true"></div>
+            <div class="inquiry-cell">
+              <label class="type-caption inquiry-label" for="search-pill-travelers">Travelers</label>
+              <div class="inquiry-value">
+                <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>
+                <input class="inquiry-input" id="search-pill-travelers" name="travelers" type="number" placeholder="2 adults" autocomplete="off" inputmode="numeric" min="1" max="20">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-contained inquiry-submit"><svg class="icon icon-20 btn-icon-start" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg> Search</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- M203: below md the same form is a stacked card in the body, not in the hero. The sticky
+       bar is its Search, so the submit stays in the DOM, hidden, as the form's default button. -->
+  <div class="container search-stacked-wrap">
+    <form class="paper search-stacked" id="explore-search-stacked" action="/explore/results" method="get" role="search" aria-label="Search trips">
+      <div class="search-row search-row-ruled">
+        <span class="inquiry-glyph"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#map"></use></svg></span>
+        <label class="type-caption search-row-label" for="search-stacked-dest">Destination</label>
+        <input class="inquiry-input search-stacked-input" id="search-stacked-dest" name="dest" type="text" placeholder="Caribbean" autocomplete="off" maxlength="60">
+      </div>
+      <div class="search-row search-row-ruled">
+        <label class="type-caption search-row-label search-row-label-dates" for="search-stacked-dates">Dates</label>
+        <div class="inquiry-value inquiry-dates search-stacked-dates">
+          <label class="visually-hidden" for="search-stacked-dates">Check-in</label>
+          <input class="inquiry-input inquiry-date" id="search-stacked-dates" name="in" type="date" data-slot="stacked-in">
+          <span class="inquiry-date-sep" aria-hidden="true">–</span>
+          <label class="visually-hidden" for="search-stacked-dates-out">Check-out</label>
+          <input class="inquiry-input inquiry-date" id="search-stacked-dates-out" name="out" type="date" data-slot="stacked-out">
+        </div>
+      </div>
+      <div class="search-row">
+        <span class="inquiry-glyph"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>
+        <label class="type-caption search-row-label" for="search-stacked-travelers">Travelers</label>
+        <input class="inquiry-input search-stacked-input" id="search-stacked-travelers" name="travelers" type="number" placeholder="2 adults" autocomplete="off" inputmode="numeric" min="1" max="20">
+      </div>
+      <button type="submit" class="btn btn-contained search-stacked-submit">Search</button>
+    </form>
+  </div>
+
+  <!-- Signed-out only, from md, and dismissed for good once closed (public.js). -->
+  <div class="signin-banner pub-signedout-only" data-auth="unknown" data-dismissible="sta-public-banner">
+    <div class="alert alert-warning signin-banner-alert" role="note">
+      <div class="alert-icon"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg></div>
+      <div class="alert-message"><p class="type-body2"><b>Sign in or create an account</b> to save searches, favorite trips, and request a real proposal.</p></div>
+      <div class="alert-action signin-banner-actions">
+        <a class="btn btn-text btn-small btn-inherit signin-banner-btn" data-slot="banner-signin" href="/login">Sign in</a>
+        <a class="btn btn-contained btn-small signin-banner-btn" href="/join">Create account</a>
+        <button type="button" class="icon-btn icon-btn-36 signin-banner-close" data-dismiss aria-label="Dismiss"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <section class="container explore-main">
+    <h2 class="type-h5 text-primary">Inspiration · curated</h2>
+    <p class="type-caption explore-sub">Six trip types we live and breathe. Tap any to start a search.</p>
+    <ul class="inspiration-grid">
+      <li class="inspiration-cell" data-repeat="tiles">
+        <a class="card photo-tile photo-tile-5-4 inspiration-tile" data-slot="tile-link" href="/explore/results">
+          <img class="photo-fill" data-slot="tile-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 400px, (min-width: 768px) 33vw, 50vw" loading="lazy" decoding="async">
+          <div class="scrim-bottom scrim-fill" aria-hidden="true"></div>
+          <div class="photo-tile-copy">
+            <div class="photo-tile-label" data-slot="tile-title">Caribbean escapes</div>
+            <div class="type-caption photo-tile-sub" data-slot="tile-count">12 trips</div>
+          </div>
+        </a>
+      </li>
+    </ul>
+
+    <!-- Trust row: every figure comes from the claims registry. -->
+    <div class="paper trust-row">
+      <span class="trust-glyph"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <div class="trust-copy">
+        <h2 class="type-subtitle1 text-primary">Trusted</h2>
+        <p class="type-caption text-secondary" data-slot="trust-line">Hosted by Inteletravel · CLIA member</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="paper paper-square sticky-cta sticky-bar">
+    <a class="btn btn-text cta-control pub-cta-out" data-slot="sticky-signin" href="/login" data-auth="unknown">Sign in</a>
+    <a class="btn btn-text cta-control pub-cta-in" href="/dashboard" data-auth="unknown">Your trips</a>
+    <button type="submit" form="explore-search-stacked" class="btn btn-contained cta-control cta-grow"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg> Search</button>
+  </div>
+</main>
+</body>
+</html>

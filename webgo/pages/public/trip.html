@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.5 Public Property / Cruise / Tour Detail (/explore/{slug}). Ports
+  app/(public)/(hero)/explore/[slug]/page.tsx with its PriceCard, AmenityPill, NumberedRow,
+  AdvisorCard (planned) and StickyCta. The page's own copy is here byte for byte; everything
+  about the trip comes from the catalog, filled in trip.go.
+
+  An unknown slug is the public not-found page, as Next's dynamicParams = false made it.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trip · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <section class="on-photo hero hero-compact">
+    <img class="photo-fill" data-slot="hero-photo" src="https://images.unsplash.com/sample" alt="" sizes="100vw" loading="eager" decoding="async" fetchpriority="high">
+    <div class="scrim-bottom-detail hero-scrim" aria-hidden="true"></div>
+    <div class="container hero-inner">
+      <div class="detail-hero-copy">
+        <div class="detail-hero-main">
+          <div class="chip chip-small detail-badge"><span class="chip-label" data-slot="badge">ALL-INCLUSIVE · 7 NIGHTS</span></div>
+          <h1 class="detail-title" data-slot="name">Beaches Turks &amp; Caicos</h1>
+          <p class="detail-meta">
+            <span class="detail-meta-item"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#pin"></use></svg><span data-slot="place">Providenciales, Turks &amp; Caicos</span></span>
+            <span class="detail-meta-item" data-slot="review"><span class="detail-star"><svg class="icon icon-13 icon-filled" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span><span data-slot="review-text">4.8</span></span>
+          </p>
+        </div>
+        <!-- Below md the heart lives in the sticky price bar (M205). -->
+        <a class="icon-btn detail-save" data-slot="hero-save" href="/join"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a>
+      </div>
+    </div>
+  </section>
+
+  <div class="container detail-layout">
+    <div class="detail-body">
+      <h2 class="type-h5 text-primary">What it is</h2>
+      <p class="type-body2 detail-lead" data-slot="description">What the week is like.</p>
+
+      <ul class="amenity-grid">
+        <li class="paper amenity" data-repeat="highlights">
+          <span class="amenity-glyph"><svg class="icon icon-16" aria-hidden="true"><use data-slot="highlight-icon" href="/assets/icons.svg#palm"></use></svg></span>
+          <span class="type-caption text-primary" data-slot="highlight-text">Grace Bay beach on your doorstep</span>
+        </li>
+      </ul>
+
+      <h2 class="type-h5 text-primary detail-itinerary-title">Sample itinerary</h2>
+      <ol class="itinerary-list">
+        <li class="card itinerary-row" data-repeat="itinerary">
+          <div class="itinerary-n" aria-hidden="true" data-slot="day-n">1</div>
+          <p class="type-body2 text-primary" data-slot="day-text">Day 1 · Arrive, unpack once</p>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Tablet (768 to 1023): first, full width under the hero. From 1024: the 340px rail. -->
+    <aside class="detail-aside" aria-labelledby="detail-aside-heading">
+      <h2 id="detail-aside-heading" class="visually-hidden">Pricing and next steps</h2>
+      <div class="detail-aside-web">
+        <div class="card">
+          <div class="price-card-body">
+            <span class="type-overline price-from">STARTING AT</span>
+            <p class="price-amount"><span data-slot="price">$2,640</span><span class="price-per"> /person</span></p>
+            <p class="type-caption price-note" data-slot="price-note">Illustrative starting price.</p>
+            <div class="price-actions">
+              <a class="btn btn-contained price-cta" data-slot="price-quote" href="/join">Request a quote</a>
+              <a class="btn btn-outlined btn-secondary price-cta" data-slot="price-save" href="/join"><svg class="icon icon-20 btn-icon-start" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg> Favorite</a>
+            </div>
+            <p class="type-caption price-or">* Requires an account, or...</p>
+            <a class="btn btn-text btn-small price-guest" data-slot="price-guest" href="/message">Message Gyasi without an account →</a>
+          </div>
+        </div>
+      </div>
+      <div class="detail-aside-web">
+        <div class="card advisor-planned">
+          <span class="advisor-avatar" aria-hidden="true" data-slot="advisor-initials">GS</span>
+          <div class="advisor-planned-copy">
+            <p class="type-subtitle1 text-primary" data-slot="advisor-title">Gyasi knows this one well</p>
+            <p class="type-caption advisor-planned-sub">Caribbean specialist</p>
+          </div>
+        </div>
+      </div>
+      <div class="detail-aside-m">
+        <!-- The price card is hidden below md, so its note would be lost, while the sticky
+             bar still shows the price it qualifies. -->
+        <p class="type-caption text-secondary" data-slot="price-note-m">Illustrative starting price.</p>
+        <div class="card advisor-planned">
+          <span class="advisor-avatar" aria-hidden="true" data-slot="advisor-initials-m">GS</span>
+          <div class="advisor-planned-copy">
+            <p class="type-subtitle1 text-primary" data-slot="advisor-title-m">Gyasi knows this one well</p>
+            <p class="type-caption advisor-planned-sub">Caribbean specialist</p>
+          </div>
+          <a class="btn btn-text btn-small advisor-planned-action" data-slot="advisor-message" href="/message">Message →</a>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- §4.4: the price, heart and quote stay row one (four controls will not fit 360px), and
+       the guest path wraps to a full-width second row. -->
+  <div class="paper paper-square sticky-cta sticky-cta-tall sticky-bar sticky-bar-wrap">
+    <div class="sticky-price">
+      <div class="type-caption sticky-price-label">FROM</div>
+      <div class="sticky-price-amount"><span data-slot="sticky-price">$2,640</span><span class="sticky-price-per"> /pp</span></div>
+    </div>
+    <a class="icon-btn sticky-save" data-slot="sticky-save" href="/join" aria-label="Save this trip"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a>
+    <a class="btn btn-contained cta-control cta-grow" data-slot="sticky-quote" href="/join">Request a quote</a>
+    <a class="btn btn-text cta-control sticky-cta-row2" data-slot="sticky-guest" href="/message"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi without an account →</a>
+  </div>
+</main>
+</body>
+</html>

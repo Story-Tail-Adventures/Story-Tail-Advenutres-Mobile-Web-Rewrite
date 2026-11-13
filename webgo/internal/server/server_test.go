@@ -87,7 +87,7 @@ func TestHealthz(t *testing.T) {
 
 func TestUnknownPathsAre404WithNoOutboundCall(t *testing.T) {
 	h, _ := newHandler(t, config.Production)
-	for _, path := range []string{"/", "/wp-login.php", "/.env", "/agent", "/dashboard", "/login", "/_demo"} {
+	for _, path := range []string{"/wp-login.php", "/.env", "/agent", "/dashboard", "/login", "/_demo"} {
 		rec := do(h, http.MethodGet, path, nil)
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, rec.Code)
@@ -99,47 +99,11 @@ func TestUnknownPathsAre404WithNoOutboundCall(t *testing.T) {
 	}
 }
 
-// The demo page exists only in development; production must not serve it.
-func TestDemoIsDevelopmentOnly(t *testing.T) {
-	prod, _ := newHandler(t, config.Production)
-	if rec := do(prod, http.MethodGet, "/_demo", nil); rec.Code != http.StatusNotFound {
-		t.Errorf("production GET /_demo = %d, want 404", rec.Code)
-	}
-
-	dev, _ := newHandler(t, config.Development)
-	rec := do(dev, http.MethodGet, "/_demo", nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("development GET /_demo = %d: %s", rec.Code, rec.Body.String())
-	}
-	checkSecurityHeaders(t, rec, false)
-	body := rec.Body.String()
-
-	for _, want := range []string{
-		"<!DOCTYPE html>",
-		"<title>Page builder demo</title>",
-		">Aruba in April</h1>",
-		"&lt;script&gt;alert(&#34;this must show as text&#34;)&lt;/script&gt;",
-		"&lt;/textarea&gt;&lt;b&gt;this must stay inside the box&lt;/b&gt;</textarea>",
-		`href="https://pay.example.com/milestone/123"`,
-		`href="/trips/aruba/stops/eagle-beach"`,
-		`aria-disabled="true"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("demo page lacks %q\n%s", want, body)
-		}
-	}
-	for _, bad := range []string{"<script>", "javascript:", "Sample", "#sample", "No stops yet."} {
-		if strings.Contains(body, bad) {
-			t.Errorf("demo page carries %q\n%s", bad, body)
-		}
-	}
-}
-
 // http.CrossOriginProtection refuses a state-changing request from another site before any
 // route runs (the job Next's server actions did for us).
 func TestCrossOriginWritesAreRefused(t *testing.T) {
 	h, _ := newHandler(t, config.Development)
-	rec := do(h, http.MethodPost, "/_demo", map[string]string{"Sec-Fetch-Site": "cross-site"})
+	rec := do(h, http.MethodPost, "/how-it-works", map[string]string{"Sec-Fetch-Site": "cross-site"})
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("cross-site POST = %d, want 403", rec.Code)
 	}

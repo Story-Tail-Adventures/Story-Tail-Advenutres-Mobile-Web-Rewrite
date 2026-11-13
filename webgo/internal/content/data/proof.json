@@ -1,0 +1,201 @@
+{
+  "claims": [
+    {
+      "id": "travelersServed",
+      "display": "240+",
+      "detail": "Travelers served",
+      "verified": false
+    },
+    {
+      "id": "ratingValue",
+      "display": "4.9",
+      "detail": "Average rating",
+      "verified": false
+    },
+    {
+      "id": "reviewCount",
+      "display": "138",
+      "detail": "Reviews",
+      "verified": false
+    },
+    {
+      "id": "avgReplyTime",
+      "display": "< 2h",
+      "detail": "Avg reply time",
+      "verified": false
+    },
+    {
+      "id": "yearsSpecialist",
+      "display": "5 yrs",
+      "detail": "Caribbean specialist",
+      "verified": false
+    },
+    {
+      "id": "credInteletravel",
+      "display": "Hosted by Inteletravel",
+      "detail": "IATA-accredited host agency · Full supplier access",
+      "verified": false
+    },
+    {
+      "id": "credClia",
+      "display": "CLIA Member",
+      "detail": "Cruise Lines International Association · Sailings booked yearly",
+      "verified": false
+    },
+    {
+      "id": "credSandals",
+      "display": "Sandals Certified Specialist",
+      "detail": "Trained on all properties in Jamaica, Bahamas, St. Lucia, Turks",
+      "verified": false
+    },
+    {
+      "id": "credRoyal",
+      "display": "Royal Caribbean Master",
+      "detail": "Master-level certification · Symphony, Wonder, Icon class",
+      "verified": false
+    },
+    {
+      "id": "bioParent",
+      "display": "dad of three",
+      "verified": false
+    },
+    {
+      "id": "bioIslands",
+      "display": "I lived in the islands.",
+      "verified": false
+    },
+    {
+      "id": "bioStarted",
+      "display": "2019",
+      "detail": "Started planning trips for friends",
+      "verified": false
+    },
+    {
+      "id": "bioNamed",
+      "display": "2021",
+      "detail": "Story-Tail Adventures got its name",
+      "verified": false
+    },
+    {
+      "id": "plannedRoyalBahamian",
+      "display": "14",
+      "detail": "Sandals Royal Bahamian trips planned",
+      "verified": false
+    },
+    {
+      "id": "catalogUpdatedMonthly",
+      "display": "Updated monthly.",
+      "verified": false
+    },
+    {
+      "id": "sailsEachLineYearly",
+      "display": "I sail with each line at least once a year, so the recommendation isn't a brochure — it's lived.",
+      "verified": false
+    },
+    {
+      "id": "replyWithin48h",
+      "display": "within 48 hours",
+      "verified": false
+    },
+    {
+      "id": "islandsPlannedAll",
+      "display": "Twelve islands. One advisor who's planned every one of them.",
+      "verified": false
+    },
+    {
+      "id": "tripDetails",
+      "display": "Trip descriptions, highlights and sample itineraries",
+      "detail": "Drafted from the design prototype and public supplier information; confirm with suppliers.",
+      "verified": false
+    },
+    {
+      "id": "hotelRateBasis",
+      "display": "Nightly rates are public rates for the dates you picked, before taxes and fees — a starting point, not a quote.",
+      "detail": "Sourced live from Google Hotels. Confirm the wording with InteleTravel compliance (Free-Travel-APIs §9.2).",
+      "verified": false
+    }
+  ],
+  "tripReviews": [
+    {
+      "slug": "sandals-royal-bahamian",
+      "display": "4.9 · 312 reviews",
+      "rating": 4.9,
+      "count": 312,
+      "verified": false
+    },
+    {
+      "slug": "symphony-of-the-seas",
+      "display": "4.7",
+      "rating": 4.7,
+      "count": 0,
+      "verified": false
+    },
+    {
+      "slug": "beaches-turks-and-caicos",
+      "display": "4.8",
+      "rating": 4.8,
+      "count": 0,
+      "verified": false
+    },
+    {
+      "slug": "couples-negril",
+      "display": "4.6",
+      "rating": 4.6,
+      "count": 0,
+      "verified": false
+    }
+  ],
+  "testimonials": [
+    {
+      "quote": "Gyasi planned our first family cruise. Three kids, two grandparents, one mom who needed a break. He didn't miss a detail — even called when our connection got cancelled in Miami.",
+      "who": "The Westbrook Family",
+      "trip": "Symphony · Dec 2024",
+      "initials": "WF",
+      "consented": false
+    },
+    {
+      "quote": "He steered us to a quieter resort than what we picked online — saved us thousands too. Best honeymoon week we could've asked for.",
+      "who": "Reggie & Marc",
+      "trip": "Sandals St. Lucia · May 2024",
+      "initials": "RM",
+      "consented": false
+    },
+    {
+      "quote": "I message him at 9pm with random questions and he replies. That's the whole pitch right there — he actually cares.",
+      "who": "Aisha Patel",
+      "trip": "Atlantis · Mar 2024",
+      "initials": "AP",
+      "consented": false
+    },
+    {
+      "quote": "We did a multi-gen group trip — 12 people, two cabins, three flights from three cities. He made it feel small.",
+      "who": "The Khan Family",
+      "trip": "Beaches T&C · Aug 2024",
+      "initials": "KF",
+      "consented": false
+    },
+    {
+      "quote": "No high-pressure sales, no upselling. Just real options, real prices, and a person who picks up the phone.",
+      "who": "Tasha Whitfield",
+      "trip": "Aruba · Oct 2023",
+      "initials": "TW",
+      "consented": false
+    },
+    {
+      "quote": "I was nervous about paying for a big trip online. He walked me through every step, sent me the right links, never made me feel silly.",
+      "who": "Linda Gomez",
+      "trip": "Riviera Maya · Jan 2024",
+      "initials": "LG",
+      "consented": false
+    }
+  ],
+  "advisor": {
+    "name": "Gyasi Story",
+    "firstName": "Gyasi",
+    "pronouns": "he/him",
+    "initials": "GS",
+    "title": "Travel Advisor",
+    "shortBio": "Caribbean specialist hosted by Inteletravel. Family travel, honeymoons, cruises, and the kind of all-inclusive weeks that turn into stories worth retelling."
+  },
+  "placeholderBanner": "Preview content — some figures, quotes, prices and photos are placeholders pending verification."
+}

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.8 Caribbean (/caribbean). Ports app/(public)/(hero)/caribbean/page.tsx and its
+  content.ts, with HeroBleed, InquiryBar, FeatureCard, SectionLabel, PhotoTile, TripTile,
+  ClosingCta and StickyCta. Copy is the Next app's, byte for byte; the counts, the photos and
+  every link are filled in Go (caribbean.go, topic.go), never typed here.
+
+  The inquiry bar is a plain GET form to /quote, as it is in Next. Its dates are the two
+  native inputs Next renders before hydration (§4.9): the calendar popover is a later module.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Caribbean vacations · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <section class="on-photo hero hero-normal">
+    <img class="photo-fill" data-slot="hero-photo" src="https://images.unsplash.com/sample" alt="" sizes="100vw" loading="eager" decoding="async" fetchpriority="high">
+    <div class="scrim-topic hero-scrim" aria-hidden="true"></div>
+    <div class="container hero-inner">
+      <div class="hero-copy">
+        <p class="type-overline hero-overline">CARIBBEAN VACATIONS</p>
+        <h1 class="hero-title t-hero">A region built for <span class="hero-script">rest.</span></h1>
+        <p class="hero-sub" data-slot="hero-sub">Twelve islands. One advisor who's planned every one of them. The hard part isn't finding a good week — it's choosing which good one.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Submits to /quote, which carries what was typed into the quote request. -->
+  <div class="inquiry-band sticky-under-topbar">
+    <div class="container">
+      <form class="paper inquiry-form inquiry-form-wraps" action="/quote" method="get" aria-label="Ask Gyasi about a Caribbean week">
+        <input type="hidden" name="topic" value="caribbean">
+        <div class="inquiry-cell inquiry-cell-right inquiry-cell-above">
+          <label class="type-caption inquiry-label" for="inquiry-dest">Destination</label>
+          <div class="inquiry-value">
+            <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#map"></use></svg></span>
+            <input class="inquiry-input" id="inquiry-dest" name="dest" type="text" placeholder="Anywhere Caribbean" autocomplete="off" maxlength="60">
+          </div>
+        </div>
+        <div class="inquiry-divider" aria-hidden="true"></div>
+        <div class="inquiry-cell inquiry-cell-above">
+          <label class="type-caption inquiry-label" for="inquiry-dates">When</label>
+          <div class="inquiry-value inquiry-dates">
+            <label class="visually-hidden" for="inquiry-dates">Check-in</label>
+            <input class="inquiry-input inquiry-date" id="inquiry-dates" name="in" type="date" data-slot="inquiry-in">
+            <span class="inquiry-date-sep" aria-hidden="true">–</span>
+            <label class="visually-hidden" for="inquiry-dates-out">Check-out</label>
+            <input class="inquiry-input inquiry-date" id="inquiry-dates-out" name="out" type="date" data-slot="inquiry-out">
+          </div>
+        </div>
+        <div class="inquiry-divider" aria-hidden="true"></div>
+        <div class="inquiry-cell inquiry-cell-right">
+          <label class="type-caption inquiry-label" for="inquiry-travelers">Travelers</label>
+          <div class="inquiry-value">
+            <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>
+            <input class="inquiry-input" id="inquiry-travelers" name="travelers" type="number" placeholder="2 adults" autocomplete="off" inputmode="numeric" min="1" max="20">
+          </div>
+        </div>
+        <div class="inquiry-divider" aria-hidden="true"></div>
+        <div class="inquiry-cell">
+          <label class="type-caption inquiry-label" for="inquiry-vibe">Vibe</label>
+          <div class="inquiry-value">
+            <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#palm"></use></svg></span>
+            <input class="inquiry-input" id="inquiry-vibe" name="vibe" type="text" placeholder="Beach + rest" autocomplete="off" maxlength="60">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-contained inquiry-submit inquiry-submit-own-row"><svg class="icon icon-20 btn-icon-start" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Request a quote</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="container topic-main">
+    <!-- Intro band: icon-square rows on mobile (M208), bare-icon stacks from md (C208). -->
+    <div class="intro-band">
+      <div class="below-md">
+        <div class="feature-row feature-plain">
+          <div class="feature-glyph feature-glyph-32" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#palm"></use></svg></div>
+          <div class="feature-text">
+            <h3 class="type-subtitle1 text-primary">You won't have to think.</h3>
+            <p class="type-caption feature-body">Transfers, dining reservations, the spa slot you didn't know you needed — handled before you leave Miami.</p>
+          </div>
+        </div>
+      </div>
+      <div class="from-md intro-point-web">
+        <div class="feature-stack feature-plain">
+          <span class="feature-glyph feature-glyph-bare" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#palm"></use></svg></span>
+          <h3 class="type-h5 feature-title">You won't have to think.</h3>
+          <p class="type-caption feature-caption">Transfers, dining reservations, the spa slot you didn't know you needed — handled before you leave Miami.</p>
+        </div>
+      </div>
+      <div class="below-md">
+        <div class="feature-row feature-plain">
+          <div class="feature-glyph feature-glyph-32" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></div>
+          <div class="feature-text">
+            <h3 class="type-subtitle1 text-primary">Real prices, honest takes.</h3>
+            <p class="type-caption feature-body">I tell you which resorts are tired and which ones are quietly the best. No commission steers my picks.</p>
+          </div>
+        </div>
+      </div>
+      <div class="from-md intro-point-web">
+        <div class="feature-stack feature-plain">
+          <span class="feature-glyph feature-glyph-bare" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+          <h3 class="type-h5 feature-title">Real prices, honest takes.</h3>
+          <p class="type-caption feature-caption">I tell you which resorts are tired and which ones are quietly the best. No commission steers my picks.</p>
+        </div>
+      </div>
+      <div class="below-md">
+        <div class="feature-row feature-plain">
+          <div class="feature-glyph feature-glyph-32" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></div>
+          <div class="feature-text">
+            <h3 class="type-subtitle1 text-primary">A week worth returning to.</h3>
+            <p class="type-caption feature-body">The point isn't the trip — it's the rest you bring home from it. We plan with that in mind.</p>
+          </div>
+        </div>
+      </div>
+      <div class="from-md intro-point-web">
+        <div class="feature-stack feature-plain">
+          <span class="feature-glyph feature-glyph-bare" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></span>
+          <h3 class="type-h5 feature-title">A week worth returning to.</h3>
+          <p class="type-caption feature-caption">The point isn't the trip — it's the rest you bring home from it. We plan with that in mind.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Islands: one row of six from web, two rows of three on tablet, a snap strip below md. -->
+    <section aria-labelledby="islands">
+      <div class="section-label">
+        <p class="type-overline pub-overline">ISLANDS</p>
+        <h2 id="islands" class="section-title">Where to land</h2>
+        <p class="type-body2 section-sub">Tap an island to start a search, or let Gyasi suggest one based on your week.</p>
+      </div>
+      <div class="islands-grid">
+        <div class="tile-cell" data-repeat="islands"><a class="card photo-tile photo-tile-4-5" data-slot="island-link" href="/explore/results">
+          <img class="photo-fill" data-slot="island-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 220px, 33vw" loading="lazy" decoding="async">
+          <div class="scrim-bottom-island scrim-fill" aria-hidden="true"></div>
+          <div class="photo-tile-copy"><div class="photo-tile-label" data-slot="island-name">Turks &amp; Caicos</div></div>
+        </a></div>
+      </div>
+      <div class="h-scroll snap-strip">
+        <div class="tile-cell" data-repeat="islands-strip"><a class="card photo-tile photo-tile-4-5 photo-tile-strip" data-slot="strip-link" href="/explore/results">
+          <img class="photo-fill" data-slot="strip-photo" src="https://images.unsplash.com/sample" alt="" sizes="110px" loading="lazy" decoding="async">
+          <div class="scrim-bottom-island scrim-fill" aria-hidden="true"></div>
+          <div class="photo-tile-copy"><div class="photo-tile-label" data-slot="strip-name">Turks &amp; Caicos</div></div>
+        </a></div>
+      </div>
+    </section>
+
+    <!-- Hand-picked trips: every trip placed on this topic, in the designer's order. -->
+    <section aria-labelledby="hand-picked-trips">
+      <div class="section-label">
+        <p class="type-overline pub-overline" data-slot="trips-overline">HAND-PICKED · 9 TRIPS</p>
+        <h2 id="hand-picked-trips" class="section-title">Caribbean weeks Gyasi loves right now</h2>
+        <p class="type-body2 section-sub" data-slot="trips-sub">Updated monthly. The $ chip is a rough range — request a quote to see real prices for your dates.</p>
+      </div>
+      <div class="trip-grid trip-grid-gap from-md">
+        <article class="card trip-card" data-repeat="trips-card">
+          <div class="trip-card-photo">
+            <img class="photo-fill" data-slot="card-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 400px, 50vw" loading="lazy" decoding="async">
+            <div class="chip chip-small chip-secondary trip-badge" data-slot="card-badge"><span class="chip-label" data-slot="card-badge-label">Gyasi's pick</span></div>
+            <span class="trip-card-price"><span class="price-range" role="img" data-slot="card-price"><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span></span></span>
+          </div>
+          <div class="trip-card-body">
+            <p class="type-overline pub-overline" data-slot="card-overline">ALL-INCLUSIVE · FAMILY</p>
+            <h3 class="type-subtitle1 trip-title"><a class="link link-inherit" data-slot="card-name" href="/explore/sample">Beaches Turks &amp; Caicos</a></h3>
+            <p class="type-caption trip-tagline" data-slot="card-tagline">Providenciales · Family all-inclusive</p>
+            <div class="trip-actions">
+              <a class="btn btn-contained btn-small trip-quote" data-slot="card-quote" href="/join">Request quote</a>
+              <a class="icon-btn trip-save" data-slot="card-save" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="trip-grid trip-grid-gap below-md">
+        <article class="card trip-row" data-repeat="trips-row">
+          <div class="trip-row-photo">
+            <img class="photo-fill" data-slot="row-photo" src="https://images.unsplash.com/sample" alt="" sizes="120px" loading="lazy" decoding="async">
+            <div class="chip chip-small chip-secondary trip-badge" data-slot="row-badge"><span class="chip-label" data-slot="row-badge-label">Gyasi's pick</span></div>
+          </div>
+          <div class="trip-row-body">
+            <div class="trip-row-head">
+              <p class="type-overline pub-overline" data-slot="row-overline">ALL-INCLUSIVE · FAMILY</p>
+              <span class="price-range price-range-sm" role="img" data-slot="row-price"><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span></span>
+            </div>
+            <h3 class="type-subtitle2 trip-row-title"><a class="link link-inherit" data-slot="row-name" href="/explore/sample">Beaches Turks &amp; Caicos</a></h3>
+            <p class="type-body2 trip-row-tagline" data-slot="row-tagline">Providenciales · Family all-inclusive</p>
+            <div class="trip-actions">
+              <a class="btn btn-contained btn-small trip-quote tap-target" data-slot="row-quote" href="/join">Request quote</a>
+              <a class="icon-btn trip-save tap-target" data-slot="row-save" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="see-all">
+        <a class="btn btn-outlined btn-secondary see-all-btn" data-slot="see-all" href="/explore/results">See all 9 Caribbean trips →</a>
+      </div>
+    </section>
+
+    <section class="paper on-photo closing-cta">
+      <img class="photo-fill" data-slot="closing-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 1280px, 100vw" loading="lazy" decoding="async">
+      <div class="scrim-cta scrim-fill" aria-hidden="true"></div>
+      <div class="closing-cta-inner">
+        <div class="closing-cta-copy">
+          <h2 class="closing-cta-title">Tell me your week. I'll come back with three good options.</h2>
+          <p class="type-body2 closing-cta-body">No account needed to message. No planning fees, ever. Just a real conversation about what you actually need.</p>
+        </div>
+        <div class="closing-cta-actions">
+          <a class="btn btn-contained btn-brand btn-large btn-cta-large" data-slot="closing-primary" href="/join">Request a quote</a>
+          <a class="btn btn-outlined btn-large btn-cta-large btn-glass" data-slot="closing-secondary" href="/message">Message Gyasi first</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="paper paper-square sticky-cta sticky-bar">
+    <a class="btn btn-text cta-control" data-slot="sticky-secondary" href="/explore/results">Browse all</a>
+    <a class="btn btn-contained cta-control cta-grow" data-slot="sticky-primary" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Request a quote</a>
+  </div>
+</main>
+</body>
+</html>

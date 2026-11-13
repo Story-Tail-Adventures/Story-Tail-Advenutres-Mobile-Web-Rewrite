@@ -1,0 +1,14 @@
+/* Story-Tail Adventures — the public area's forms: the guest message form (2.0.12), the
+ * sign-up gate (2.0.6) and the email unsubscribe page.
+ *
+ * A second stylesheet for the same area, not a second area: the public layouts link it after
+ * public.css, so it may use every token, theme variable and ui.css class, and its rules win
+ * over public.css's at equal specificity. It is split out so the form pages and the marketing
+ * pages can be worked on at the same time without editing one file from two places.
+ *
+ * No inline styles anywhere (the CSP is style-src 'self'), and internal/static/classes_test.go
+ * fails on any class a page uses that no stylesheet defines.
+ */
+
+@layer components {
+}

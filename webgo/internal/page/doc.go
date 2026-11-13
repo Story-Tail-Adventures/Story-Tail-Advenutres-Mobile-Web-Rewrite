@@ -104,7 +104,8 @@ func newScope(where string, errs *[]error) scope {
 func (s *scope) track() {
 	for name, n := range s.slots {
 		for _, a := range n.Attr {
-			if a.Namespace == "" && urlTags[a.Key] != nil {
+			// srcset is a list of links too (SrcSet), so a placeholder one is pending as well.
+			if a.Namespace == "" && (urlTags[a.Key] != nil || a.Key == "srcset") {
 				if s.urlPending[name] == nil {
 					s.urlPending[name] = map[string]bool{}
 				}
@@ -350,8 +351,11 @@ func (s *scope) unhandled() []error {
 // and it is never shared: every request calls Template.New.
 type Doc struct {
 	scope
-	root    *html.Node
-	errList []error
+	root *html.Node
+	// headDone records that Head has run, so a second call is refused rather than appending
+	// a second canonical and a second JSON-LD block (head.go).
+	headDone bool
+	errList  []error
 }
 
 // Row is one copied row of a repeat, with the same setters scoped to that row.

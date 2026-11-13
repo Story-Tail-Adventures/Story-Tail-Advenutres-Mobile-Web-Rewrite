@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.11 About Gyasi (/about). Ports app/(public)/(hero)/about/page.tsx with
+  AdvisorHero, StatStrip, SectionLabel, CredentialCard, TestimonialCard, FaqList, ClosingCta
+  and StickyCta. The page's own copy is here byte for byte; every figure, every credential,
+  the testimonials and the FAQ come from the content registry, filled in about.go.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>About Gyasi · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <section class="advisor-hero hero-advisor on-photo">
+    <div class="advisor-hero-grid">
+      <div class="advisor-hero-copy">
+        <p class="type-overline advisor-hero-overline">YOUR ADVISOR</p>
+        <h1 class="advisor-hero-title">Hi, I'm <span class="advisor-hero-script">Gyasi.</span></h1>
+        <p class="advisor-hero-lead" data-slot="hero-lead">Caribbean specialist, dad of three, Sandals-certified, hosted by Inteletravel.</p>
+        <div class="advisor-hero-ctas">
+          <a class="btn btn-contained btn-brand btn-large btn-hero" data-slot="hero-primary" href="/join">Request a quote</a>
+          <a class="btn btn-outlined btn-large btn-hero btn-glass" data-slot="hero-secondary" href="/message"><svg class="icon icon-22 btn-icon-start" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message me first</a>
+        </div>
+      </div>
+      <div class="advisor-hero-portrait">
+        <span class="advisor-avatar advisor-portrait" role="img" aria-label="Gyasi Story" data-slot="portrait-initials">GS</span>
+      </div>
+    </div>
+    <!-- The mobile portrait, bottom-right, as on the M2011 artboard. -->
+    <div class="advisor-hero-portrait-m" aria-hidden="true">
+      <span class="advisor-avatar advisor-portrait" data-slot="portrait-initials-m">GS</span>
+    </div>
+  </section>
+
+  <div class="stat-strip">
+    <div class="container stat-strip-inner">
+      <dl class="stat-list">
+        <div class="stat">
+          <div class="stat-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></div>
+          <div>
+            <dd class="stat-value" data-slot="stat-1-value">240+</dd>
+            <dt class="type-caption stat-label" data-slot="stat-1-label">Travelers served</dt>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></div>
+          <div>
+            <dd class="stat-value" data-slot="stat-2-value">4.9 ★</dd>
+            <dt class="type-caption stat-label" data-slot="stat-2-label">138 reviews</dt>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></div>
+          <div>
+            <dd class="stat-value" data-slot="stat-3-value">&lt; 2h</dd>
+            <dt class="type-caption stat-label" data-slot="stat-3-label">Avg reply time</dt>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#palm"></use></svg></div>
+          <div>
+            <dd class="stat-value" data-slot="stat-4-value">5 yrs</dd>
+            <dt class="type-caption stat-label" data-slot="stat-4-label">Caribbean specialist</dt>
+          </div>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="container about-main">
+    <!-- Bio and credentials -->
+    <div class="about-top about-gap">
+      <section aria-labelledby="story">
+        <div class="section-label">
+          <p class="type-overline pub-overline">THE STORY</p>
+          <h2 id="story" class="section-title">How Story-Tail started.</h2>
+        </div>
+        <div class="type-body1 about-story">
+          <p><span data-slot="story-1a">I started planning trips for friends because they kept asking. By</span><i>Story-Tail Adventures</i><span data-slot="story-1b"> — and a backlog.</span></p>
+          <p>I'm hosted by Inteletravel, which means you get my care plus an IATA-accredited host agency behind every booking. I earn commission from suppliers — never a fee from you.</p>
+          <p>My belief about all this is simple: vacation isn't an escape from your life, it's a gift. The world is good. Rest is good. My job is to remove enough friction that you can actually receive both.</p>
+        </div>
+        <p class="about-signature" data-slot="signature">— Gyasi</p>
+      </section>
+
+      <section aria-labelledby="credentials">
+        <div class="section-label">
+          <p class="type-overline pub-overline">CREDENTIALS</p>
+          <h2 id="credentials" class="section-title">Trained, certified, hosted.</h2>
+        </div>
+        <ul class="credential-list">
+          <li class="card credential" data-repeat="credentials">
+            <div class="credential-glyph" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></div>
+            <span class="credential-glyph-m" aria-hidden="true"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+            <div>
+              <p class="type-subtitle1 text-primary" data-slot="credential-title">Hosted by Inteletravel</p>
+              <p class="type-caption credential-detail" data-slot="credential-detail">IATA-accredited host agency</p>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Testimonials: a snap strip below md, 2-up at tablet, 3-up on web. -->
+    <section class="about-gap" aria-labelledby="testimonials">
+      <div class="section-label">
+        <p class="type-overline pub-overline">WHAT TRAVELERS SAY</p>
+        <h2 id="testimonials" class="section-title">Six unedited notes.</h2>
+      </div>
+      <ul class="testimonial-strip">
+        <li class="testimonial-cell" data-repeat="testimonials">
+          <figure class="card testimonial">
+            <span class="testimonial-mark" aria-hidden="true">“</span>
+            <blockquote class="type-body2 testimonial-quote" data-slot="quote">A note from a traveler.</blockquote>
+            <figcaption class="testimonial-by">
+              <span class="avatar testimonial-avatar" aria-hidden="true" data-slot="initials">WF</span>
+              <div>
+                <div class="type-subtitle2 testimonial-who" data-slot="who">The Westbrook Family</div>
+                <div class="type-caption testimonial-trip" data-slot="trip">Symphony · Dec 2024</div>
+              </div>
+            </figcaption>
+          </figure>
+        </li>
+      </ul>
+    </section>
+
+    <section class="about-gap" aria-labelledby="faq">
+      <div class="section-label">
+        <p class="type-overline pub-overline">QUESTIONS PEOPLE ASK</p>
+        <h2 id="faq" class="section-title">FAQ</h2>
+      </div>
+      <div class="faq-list">
+        <div class="faq-row" data-repeat="faq"><details class="faq-item" name="faq" data-slot="faq-item">
+          <summary class="faq-summary"><span class="faq-q type-subtitle2 text-primary" data-slot="faq-q">Sample question?</span><span class="faq-chevron" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#chevron_down"></use></svg></span></summary>
+          <div class="faq-a"><p class="type-body2 text-secondary faq-answer faq-answer-m" data-slot="faq-a">Sample answer.</p></div>
+        </details></div>
+      </div>
+    </section>
+
+    <section class="paper on-photo closing-cta">
+      <img class="photo-fill" data-slot="closing-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 1280px, 100vw" loading="lazy" decoding="async">
+      <div class="scrim-cta scrim-fill" aria-hidden="true"></div>
+      <div class="closing-cta-inner">
+        <div class="closing-cta-copy">
+          <h2 class="closing-cta-title">Let's start with a conversation.</h2>
+          <p class="type-body2 closing-cta-body">No account, no commitment — just tell me what you're dreaming about and I'll come back with three real options.</p>
+        </div>
+        <div class="closing-cta-actions">
+          <a class="btn btn-contained btn-brand btn-large btn-cta-large" data-slot="closing-primary" href="/join">Request a quote</a>
+          <a class="btn btn-outlined btn-large btn-cta-large btn-glass" data-slot="closing-secondary" href="/message">Message Gyasi</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="paper paper-square sticky-cta sticky-bar">
+    <a class="btn btn-text cta-control" data-slot="sticky-secondary" href="/message">Message me</a>
+    <a class="btn btn-contained cta-control cta-grow" data-slot="sticky-primary" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Request a quote</a>
+  </div>
+</main>
+</body>
+</html>

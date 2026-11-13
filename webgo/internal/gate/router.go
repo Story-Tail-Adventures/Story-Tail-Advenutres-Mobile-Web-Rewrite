@@ -131,6 +131,12 @@ func (rt *Router) wrap(h http.Handler, needsSession bool) http.Handler {
 		}
 
 		target := RedirectFor(r.URL.Path, st.SignedIn, AssuranceOf(st), r.URL.Query().Get("next"))
+		if target != "" {
+			// This answer is this visitor's: it was decided from their session. A shared cache
+			// that stored it would send the next visitor to somebody else's destination, and
+			// the front door (rt.FrontDoor) is a page Cloudflare is asked to cache.
+			w.Header().Set("Cache-Control", "no-store")
+		}
 		switch {
 		case target == "/login" || target == MFAChallenge:
 			// Path only, as the Next.js proxy did, and the ESCAPED path, as nextUrl.pathname

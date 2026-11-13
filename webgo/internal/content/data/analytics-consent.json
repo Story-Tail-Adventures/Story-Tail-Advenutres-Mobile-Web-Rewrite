@@ -1,0 +1,9 @@
+{
+  "bannerLabel": "Google Analytics",
+  "bannerBody": "May we count your visit with Google Analytics? It sets a few cookies and helps us see which pages help people most. Google’s ad features are off, and you can change your mind any time on your privacy page.",
+  "allow": "Allow",
+  "decline": "No thanks",
+  "cookiesLink": "Cookie policy",
+  "switchLabel": "Google Analytics",
+  "switchSub": "Counts visits with a few cookies so we can see what to improve. Off unless you turn it on."
+}
