@@ -252,6 +252,20 @@ SELECT public.agent_local_today(:agent::uuid) AS today \gset
 -- 5. Out-of-office
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- THIS SECTION OWNS THE TABLE FROM HERE, and clears the seed's two holidays first.
+--
+-- They are FIXED dates (Thanksgiving 2026-11-26 to 11-29, Christmas 2026-12-24 to 2027-01-02)
+-- while every block below is relative to the advisor's today, so the two drift into each other
+-- and the section starts failing on the calendar rather than on the code. It first bit on
+-- 2026-11-12, when `today + 14` landed on Thanksgiving's first day and "a block starting the
+-- day after another ends is fine" came back `overlap`; `today + 9 .. + 14` and `+ 30 .. + 31`
+-- all sweep through both holidays over the weeks either side.
+--
+-- Section 4 has already asserted the seeded rows are there, which is what the seed is for
+-- here. A plain DELETE writes no audit_event (only the write paths do), so the
+-- `agent_time_off.deleted` count at the foot of this section still counts what it did before.
+DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_a::uuid, :agent::uuid, true, :today::date + 10, :today::date + 12,
         'Beach week', false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'created'
