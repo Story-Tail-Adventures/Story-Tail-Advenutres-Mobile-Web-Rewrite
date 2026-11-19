@@ -1,1 +1,257 @@
-/* Agent workspace, money sub-area: page-only styles (see webgo/internal/handlers/agent/money). */
+/* Agent workspace, money sub-area: page-only styles (see webgo/internal/handlers/agent/money).
+ *
+ * Commission (§3.7), Reports (§3.11) and Settings (§3.12). Every rule is the Next page's own
+ * sx, read off app/(agent)/agent/{commission,reports,settings} and components/agent/*, on
+ * MUI's 8px scale with its breakpoints (sm 640, md 768, lg 1024, web 1200). Every class here
+ * starts with mny- so it cannot collide with people.css or trips.css in the joined
+ * css/area/agent.css. Nothing is inline: the CSP is style-src 'self'. */
+
+@layer components {
+  /* ── Shared ──────────────────────────────────────────────────────────────────────────── */
+
+  /* The page column (PAGE_SX): mx auto, max 1336, px 2/4, py 3. */
+  .mny-col { margin: 0 auto; width: 100%; max-width: 1336px; padding: 24px 16px; box-sizing: border-box; }
+  @media (min-width: 768px) { .mny-col { padding-left: 32px; padding-right: 32px; } }
+
+  .mny-block { display: block; min-width: 0; }
+  .mny-mt-1 { margin-top: 8px; }
+  .mny-mt-2 { margin-top: 16px; }
+  .mny-icon-12 { width: 12px; height: 12px; }
+  .mny-icon-26 { width: 26px; height: 26px; }
+
+  /* The §5 states (components/client/states.tsx, AdminNoAccess). */
+  .mny-state { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .mny-state-body,
+  .mny-state-body:last-child { padding: 28px; }
+  .mny-state-tile {
+    display: flex;
+    margin: 0 auto 12px;
+    width: 56px;
+    height: 56px;
+    background-color: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+  .mny-state-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .mny-state-actions { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  @media (min-width: 640px) { .mny-state-actions { flex-direction: row; justify-content: center; } }
+
+  /* AgentViews: each view an MUI Chip as a link, outlined at rest and filled secondary when
+     current, on the legacy .agent-view-link box (34px, 14px sides, 44px on touch). */
+  .mny-views { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mny-view { height: auto; min-height: 34px; border-radius: 999px; font-weight: 600; }
+  .mny-view .chip-label { padding-left: 14px; padding-right: 14px; }
+  @media (pointer: coarse) { .mny-view { min-height: 44px; } }
+
+  /* CommissionHeader: title and subtitle on the left, the actions right, wrapping below
+     them on a phone rather than squeezing the title to a sliver. */
+  .mny-head { margin-top: 20px; margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .mny-head-text { min-width: 0; flex: 1 1 260px; }
+  .mny-sub { margin-top: 2px; }
+
+  /* ── 3.7.1 Dashboard ─────────────────────────────────────────────────────────────────── */
+
+  /* The tile rail: a snap carousel below md (Pattern D), two across through the tablet band,
+     the artboard's four across from the web breakpoint. */
+  .mny-kpis {
+    margin-bottom: 14px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 2px;
+  }
+  @media (min-width: 768px) {
+    .mny-kpis { display: grid; overflow-x: visible; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1200px) { .mny-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+  .mny-kpi { min-width: 152px; flex-shrink: 0; scroll-snap-align: start; }
+  @media (min-width: 768px) { .mny-kpi { min-width: 0; } }
+  .mny-tone-primary { background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .mny-tone-secondary { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .mny-tone-tertiary { background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .mny-tone-surface { background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-primary); }
+
+  .mny-kpi-body { display: block; padding: 14px 16px; }
+  .mny-kpi-top { display: flex; align-items: center; justify-content: space-between; }
+  .mny-kpi-label { font-weight: 500; letter-spacing: 0.4px; opacity: 0.85; }
+  /* 26px is pinned: it is the figure the rail's breakpoint arithmetic is computed from. */
+  .mny-kpi-value { display: block; margin-top: 4px; font-size: 26px; font-weight: 800; line-height: 1; }
+  .mny-kpi-sub { display: block; margin-top: 4px; opacity: 0.85; }
+  .mny-kpi-unavailable { margin-top: 8px; opacity: 0.85; }
+
+  /* CardActionArea: the whole tile is the link; its hover wash is currentColor at the
+     theme's hover opacity, as MUI's focusHighlight span draws it. */
+  .mny-kpi-link { position: relative; display: block; width: 100%; height: 100%; color: inherit; text-align: inherit; text-decoration: none; }
+  .mny-kpi-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .mny-kpi-link:hover::after { opacity: var(--mui-palette-action-hoverOpacity); }
+  .mny-kpi-link:focus-visible { outline: none; }
+  .mny-kpi-link:focus-visible::after { opacity: var(--mui-palette-action-focusOpacity); }
+
+  /* CommissionTrendChart: the card, then the artboard's 200px plot of twelve bars. */
+  .mny-trend-body,
+  .mny-trend-body:last-child { padding: 20px; }
+  .mny-trend-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-bottom: 14px; }
+  .mny-trend-head h2 { margin: 0; }
+  .mny-trend-chip { margin-left: auto; }
+  .mny-trend-empty { margin-bottom: 12px; }
+  .mny-bars { height: 200px; display: flex; align-items: flex-end; gap: 4px; }
+  @media (min-width: 640px) { .mny-bars { gap: 10px; } }
+  /* One month: the bar, then its label. min-width 0 lets twelve columns share a phone-width
+     card; the label's caption size still fits "Sep" at 375px. */
+  .mny-bar-col {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  /* The space a bar stands in: whatever the column has left above its label, so the tallest
+     bar plus its label never overflows the 200px plot. */
+  .mny-bar-area { flex: 1; min-height: 0; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  /* 70% of the column, the artboard's 4px top radius, square at the baseline. */
+  .mny-bar { width: 70%; border-radius: 4px 4px 0 0; background-color: var(--mui-palette-primary-main); }
+  .mny-bar-current { background-color: var(--mui-palette-brand-main); }
+
+  /* ── 3.7.2 Ledger ────────────────────────────────────────────────────────────────────── */
+
+  .mny-trip-chip { margin-bottom: 12px; }
+  .mny-filters { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .mny-chips { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .mny-chip-count { margin-left: 4px; opacity: 0.6; }
+  /* The control row: every field and its label sit on one baseline, the buttons with them. */
+  .mny-filter-row { align-items: flex-end; }
+  /* A label stacked over its control, 4px apart, as the other agent filter bars draw it. */
+  .mny-field { display: flex; flex-direction: column; gap: 4px; }
+  .mny-field .field-label { font-weight: 600; color: var(--mui-palette-text-secondary); }
+  .mny-select { width: auto; min-width: 200px; }
+  /* OutlinedInput size="small" with no FormControl: 40px, not the Field's 44. */
+  .mny-input-40 { min-height: 40px; padding-top: 7.5px; padding-bottom: 7.5px; }
+
+  .mny-table-card { overflow-x: auto; }
+  .mny-cell-trip { max-width: 280px; }
+  /* Cell looks: .table td sets the font and colour in the mui layer, so a cell's own type,
+     weight and colour live here, one layer up. */
+  .mny-td-muted { color: var(--mui-palette-text-secondary); }
+  .mny-td-travel { color: var(--mui-palette-text-secondary); white-space: nowrap; }
+  .mny-td-mono { font-family: var(--font-mono); }
+  .mny-td-comm { font-family: var(--font-mono); font-weight: 700; color: var(--mui-palette-primary-main); }
+
+  .mny-pager { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* A bar's height is data, and the CSP allows no inline style, so each whole percent has
+     its own rule. dashboard.go writes data-h; nothing else may. */
+  .mny-bar[data-h="0"] { height: 0%; }
+  .mny-bar[data-h="1"] { height: 1%; }
+  .mny-bar[data-h="2"] { height: 2%; }
+  .mny-bar[data-h="3"] { height: 3%; }
+  .mny-bar[data-h="4"] { height: 4%; }
+  .mny-bar[data-h="5"] { height: 5%; }
+  .mny-bar[data-h="6"] { height: 6%; }
+  .mny-bar[data-h="7"] { height: 7%; }
+  .mny-bar[data-h="8"] { height: 8%; }
+  .mny-bar[data-h="9"] { height: 9%; }
+  .mny-bar[data-h="10"] { height: 10%; }
+  .mny-bar[data-h="11"] { height: 11%; }
+  .mny-bar[data-h="12"] { height: 12%; }
+  .mny-bar[data-h="13"] { height: 13%; }
+  .mny-bar[data-h="14"] { height: 14%; }
+  .mny-bar[data-h="15"] { height: 15%; }
+  .mny-bar[data-h="16"] { height: 16%; }
+  .mny-bar[data-h="17"] { height: 17%; }
+  .mny-bar[data-h="18"] { height: 18%; }
+  .mny-bar[data-h="19"] { height: 19%; }
+  .mny-bar[data-h="20"] { height: 20%; }
+  .mny-bar[data-h="21"] { height: 21%; }
+  .mny-bar[data-h="22"] { height: 22%; }
+  .mny-bar[data-h="23"] { height: 23%; }
+  .mny-bar[data-h="24"] { height: 24%; }
+  .mny-bar[data-h="25"] { height: 25%; }
+  .mny-bar[data-h="26"] { height: 26%; }
+  .mny-bar[data-h="27"] { height: 27%; }
+  .mny-bar[data-h="28"] { height: 28%; }
+  .mny-bar[data-h="29"] { height: 29%; }
+  .mny-bar[data-h="30"] { height: 30%; }
+  .mny-bar[data-h="31"] { height: 31%; }
+  .mny-bar[data-h="32"] { height: 32%; }
+  .mny-bar[data-h="33"] { height: 33%; }
+  .mny-bar[data-h="34"] { height: 34%; }
+  .mny-bar[data-h="35"] { height: 35%; }
+  .mny-bar[data-h="36"] { height: 36%; }
+  .mny-bar[data-h="37"] { height: 37%; }
+  .mny-bar[data-h="38"] { height: 38%; }
+  .mny-bar[data-h="39"] { height: 39%; }
+  .mny-bar[data-h="40"] { height: 40%; }
+  .mny-bar[data-h="41"] { height: 41%; }
+  .mny-bar[data-h="42"] { height: 42%; }
+  .mny-bar[data-h="43"] { height: 43%; }
+  .mny-bar[data-h="44"] { height: 44%; }
+  .mny-bar[data-h="45"] { height: 45%; }
+  .mny-bar[data-h="46"] { height: 46%; }
+  .mny-bar[data-h="47"] { height: 47%; }
+  .mny-bar[data-h="48"] { height: 48%; }
+  .mny-bar[data-h="49"] { height: 49%; }
+  .mny-bar[data-h="50"] { height: 50%; }
+  .mny-bar[data-h="51"] { height: 51%; }
+  .mny-bar[data-h="52"] { height: 52%; }
+  .mny-bar[data-h="53"] { height: 53%; }
+  .mny-bar[data-h="54"] { height: 54%; }
+  .mny-bar[data-h="55"] { height: 55%; }
+  .mny-bar[data-h="56"] { height: 56%; }
+  .mny-bar[data-h="57"] { height: 57%; }
+  .mny-bar[data-h="58"] { height: 58%; }
+  .mny-bar[data-h="59"] { height: 59%; }
+  .mny-bar[data-h="60"] { height: 60%; }
+  .mny-bar[data-h="61"] { height: 61%; }
+  .mny-bar[data-h="62"] { height: 62%; }
+  .mny-bar[data-h="63"] { height: 63%; }
+  .mny-bar[data-h="64"] { height: 64%; }
+  .mny-bar[data-h="65"] { height: 65%; }
+  .mny-bar[data-h="66"] { height: 66%; }
+  .mny-bar[data-h="67"] { height: 67%; }
+  .mny-bar[data-h="68"] { height: 68%; }
+  .mny-bar[data-h="69"] { height: 69%; }
+  .mny-bar[data-h="70"] { height: 70%; }
+  .mny-bar[data-h="71"] { height: 71%; }
+  .mny-bar[data-h="72"] { height: 72%; }
+  .mny-bar[data-h="73"] { height: 73%; }
+  .mny-bar[data-h="74"] { height: 74%; }
+  .mny-bar[data-h="75"] { height: 75%; }
+  .mny-bar[data-h="76"] { height: 76%; }
+  .mny-bar[data-h="77"] { height: 77%; }
+  .mny-bar[data-h="78"] { height: 78%; }
+  .mny-bar[data-h="79"] { height: 79%; }
+  .mny-bar[data-h="80"] { height: 80%; }
+  .mny-bar[data-h="81"] { height: 81%; }
+  .mny-bar[data-h="82"] { height: 82%; }
+  .mny-bar[data-h="83"] { height: 83%; }
+  .mny-bar[data-h="84"] { height: 84%; }
+  .mny-bar[data-h="85"] { height: 85%; }
+  .mny-bar[data-h="86"] { height: 86%; }
+  .mny-bar[data-h="87"] { height: 87%; }
+  .mny-bar[data-h="88"] { height: 88%; }
+  .mny-bar[data-h="89"] { height: 89%; }
+  .mny-bar[data-h="90"] { height: 90%; }
+  .mny-bar[data-h="91"] { height: 91%; }
+  .mny-bar[data-h="92"] { height: 92%; }
+  .mny-bar[data-h="93"] { height: 93%; }
+  .mny-bar[data-h="94"] { height: 94%; }
+  .mny-bar[data-h="95"] { height: 95%; }
+  .mny-bar[data-h="96"] { height: 96%; }
+  .mny-bar[data-h="97"] { height: 97%; }
+  .mny-bar[data-h="98"] { height: 98%; }
+  .mny-bar[data-h="99"] { height: 99%; }
+  .mny-bar[data-h="100"] { height: 100%; }
+}
