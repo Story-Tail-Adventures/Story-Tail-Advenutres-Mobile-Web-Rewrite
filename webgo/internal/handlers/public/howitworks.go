@@ -19,7 +19,7 @@ var howItWorksSpec = page.Spec{
 func (s *site) howItWorks(tmpl *page.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		d := tmpl.New()
-		s.chrome(d, "/how-it-works")
+		s.chrome(d, r, "/how-it-works")
 		s.head(d, meta{
 			Title:       "How it works",
 			Description: "You ask. We plan together. You go and rest. No planning fees, ever — Story-Tail earns commission from suppliers, not from you.",

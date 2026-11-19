@@ -70,7 +70,7 @@ func (s *site) trip(tmpl *page.Template) http.HandlerFunc {
 		}
 
 		d := tmpl.New()
-		s.chrome(d, path)
+		s.chrome(d, r, path)
 		s.head(d, meta{
 			Title:       trip.Name,
 			Description: trip.Description,

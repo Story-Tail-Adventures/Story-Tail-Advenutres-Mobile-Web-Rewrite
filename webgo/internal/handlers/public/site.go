@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/analytics"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/content"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public/search"
@@ -48,8 +49,12 @@ type meta struct {
 	Path string
 	// Image is the Open Graph photo, drawn 1200 by 630 from the registry.
 	Image content.ImageKey
-	// NoIndex writes robots "noindex, follow" (the join gate, the results page).
+	// NoIndex writes a robots meta telling crawlers not to index this page (the join gate,
+	// the results page).
 	NoIndex bool
+	// NoFollow also tells them not to follow its links. Set both on a page reached by a link
+	// that carries somebody's own token, so the token is never walked (the unsubscribe page).
+	NoFollow bool
 	// JSONLD is the page's structured data, if any.
 	JSONLD any
 }
@@ -67,8 +72,13 @@ func (s *site) head(d *page.Doc, m meta) {
 		Canonical:   url,
 		JSONLD:      m.JSONLD,
 	}
-	if m.NoIndex {
+	switch {
+	case m.NoIndex && m.NoFollow:
+		h.Robots = "noindex, nofollow"
+	case m.NoIndex:
 		h.Robots = "noindex, follow"
+	case m.NoFollow:
+		h.Robots = "index, nofollow"
 	}
 	h.Properties = append(h.Properties,
 		page.Property{Name: "og:title", Content: m.Title},
@@ -99,12 +109,34 @@ func (s *site) head(d *page.Doc, m meta) {
 	d.Head(h)
 }
 
-// chrome fills the public layout for path. The placeholder banner shows while anything in
-// the content registry is still a placeholder (content/public/proof.ts).
-func (s *site) chrome(d *page.Doc, path string) {
+// chrome fills the public layout for the request. r may be nil for a page whose query string
+// is never reportable anyway (a form, a link carrying somebody's own token): the analytics
+// page is then the path alone. The placeholder banner shows while
+// anything in the content registry is still a placeholder (content/public/proof.ts), and
+// analytics is set up from the page this visitor may be reported on, never from the raw URL.
+func (s *site) chrome(d *page.Doc, r *http.Request, path string) {
 	shell.FillPublic(d, path, shell.PublicChrome{
 		PlaceholderBanner: content.HasPlaceholders(s.cat.PlaceholderReport()),
+		Analytics:         s.analytics(r, path),
 	})
+}
+
+// analytics is what this page tells the browser module. The URL it reports is built from the
+// site's own origin and this request's path and query, so a forged Host header cannot change
+// what is sent, and it goes through the redaction before it is written anywhere.
+func (s *site) analytics(r *http.Request, path string) shell.Analytics {
+	if s.Config.AnalyticsMeasurementID == "" {
+		return shell.Analytics{}
+	}
+	here := s.Config.SiteURL + path
+	if r != nil && r.URL.RawQuery != "" {
+		here += "?" + r.URL.RawQuery
+	}
+	redacted, ok := analytics.RedactURL(here)
+	if !ok {
+		return shell.Analytics{}
+	}
+	return shell.Analytics{MeasurementID: s.Config.AnalyticsMeasurementID, Page: redacted}
 }
 
 // today is the business day the public surface works in (the stay dates, a date floor), in

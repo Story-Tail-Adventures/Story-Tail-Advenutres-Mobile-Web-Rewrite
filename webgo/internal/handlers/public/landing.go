@@ -35,7 +35,7 @@ type travelAgency struct {
 func (s *site) landing(tmpl *page.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		d := tmpl.New()
-		s.chrome(d, "/")
+		s.chrome(d, r, "/")
 		s.head(d, meta{
 			Title:       landingTitle,
 			Absolute:    true,

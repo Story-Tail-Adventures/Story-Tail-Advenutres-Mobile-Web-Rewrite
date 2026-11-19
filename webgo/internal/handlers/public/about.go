@@ -62,7 +62,7 @@ var aboutCredentials = []string{"credInteletravel", "credClia", "credSandals", "
 func (s *site) about(tmpl *page.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		d := tmpl.New()
-		s.chrome(d, aboutPath)
+		s.chrome(d, r, aboutPath)
 		s.head(d, meta{
 			Title:       "About Gyasi",
 			Description: s.cat.Advisor.ShortBio,

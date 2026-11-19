@@ -31,7 +31,7 @@ var exploreSpec = page.Spec{
 func (s *site) explore(tmpl *page.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		d := tmpl.New()
-		s.chrome(d, explorePath)
+		s.chrome(d, r, explorePath)
 		s.head(d, meta{
 			Title:       "Explore",
 			Description: exploreDescription,

@@ -23,12 +23,14 @@
   <link rel="stylesheet" href="/assets/css/site.css">
   <link rel="stylesheet" href="/assets/css/area/public.css">
   <link rel="stylesheet" href="/assets/css/area/public-forms.css">
+  <link rel="stylesheet" href="/assets/css/area/public-results.css">
   <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48">
   <link rel="icon" href="/assets/img/icon.png" type="image/png" sizes="512x512">
   <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" sizes="180x180">
   <script type="module" src="/assets/js/theme.js"></script>
   <script type="module" src="/assets/js/ui.js"></script>
   <script type="module" src="/assets/js/public/public.js"></script>
+  <script type="module" src="/assets/js/public/analytics.js"></script>
 </head>
 <body>
   <div class="pub-surface">
@@ -106,6 +108,23 @@
         </nav>
       </div>
     </footer>
+    <!--
+      The Google Analytics consent banner (components/AnalyticsConsentBanner.tsx) and the
+      script's configuration. Both are removed outright when no measurement id is set, which
+      is what the Next app renders with no Firebase config: nothing loads and nothing is asked.
+
+      The banner is hidden until the module has read the answer, because the server cannot
+      know it: it is localStorage, not a cookie, so that a public page stays cacheable (§4.7).
+      Next shows it after hydration for the same reason.
+    -->
+    <div class="consent" role="region" aria-label="Google Analytics" data-slot="consent" hidden>
+      <p class="type-body2">May we count your visit with Google Analytics? It sets a few cookies and helps us see which pages help people most. Google’s ad features are off, and you can change your mind any time on your privacy page. <a class="link" href="/legal/cookies">Cookie policy</a></p>
+      <div class="consent-actions">
+        <button type="button" class="btn btn-outlined st-btn btn-small" data-consent="denied">No thanks</button>
+        <button type="button" class="btn btn-outlined st-btn btn-small" data-consent="granted">Allow</button>
+      </div>
+    </div>
+    <div data-slot="analytics" data-analytics hidden></div>
     <div class="snackbar" role="status" data-autohide data-slot="flash"><div class="snackbar-content"><div class="snackbar-message" data-slot="flash-text">Your changes are saved.</div></div></div>
   </div>
 </body>

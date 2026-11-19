@@ -38,7 +38,7 @@ func (s *site) caribbean(tmpl *page.Template) http.HandlerFunc {
 		total := search.CountByTopic(s.cat.Trips, topic)
 
 		d := tmpl.New()
-		s.chrome(d, caribbeanPath)
+		s.chrome(d, r, caribbeanPath)
 		s.head(d, meta{
 			Title:       "Caribbean vacations",
 			Description: heroSub,

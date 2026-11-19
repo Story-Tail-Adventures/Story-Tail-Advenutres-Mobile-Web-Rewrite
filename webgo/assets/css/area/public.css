@@ -1231,4 +1231,25 @@
     color: var(--mui-palette-secondary-onContainer);
   }
   .sticky-save:hover { background-color: var(--mui-palette-secondary-container); }
+
+  /* ── The Google Analytics consent banner (components/AnalyticsConsentBanner.tsx) ───────── */
+  .consent {
+    position: fixed;
+    z-index: 40;
+    left: 16px;
+    right: 16px;
+    /* Clears the traveler bottom nav on phones; the web layout has none. */
+    bottom: 88px;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 560px;
+    padding: 16px;
+    border-radius: 4px;
+    background-color: var(--mui-palette-surface-2);
+    color: var(--mui-palette-text-primary);
+    box-shadow: var(--mui-shadows-3);
+    background-image: var(--mui-overlays-3);
+  }
+  @media (min-width: 768px) { .consent { bottom: 16px; } }
+  .consent-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 }

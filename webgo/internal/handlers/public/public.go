@@ -66,6 +66,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Public("GET /about", s.about(about))
 	rt.Public("GET /explore", s.explore(explore))
 	rt.Public("GET /explore/{slug}", s.trip(trip))
+	rt.Public("GET /quote", s.quote())
 	rt.Public("GET /sitemap.xml", s.sitemap())
 	rt.Public("GET /robots.txt", s.robots())
 	return nil

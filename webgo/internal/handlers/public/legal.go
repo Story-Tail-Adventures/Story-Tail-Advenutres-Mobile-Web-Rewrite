@@ -82,7 +82,7 @@ func (s *site) legal(tmpl *page.Template) http.HandlerFunc {
 		}
 		path := legalHref(slug)
 		d := tmpl.New()
-		s.chrome(d, path)
+		s.chrome(d, r, path)
 		s.head(d, meta{Title: doc.Title, Description: doc.Description, Path: path})
 
 		slugs := s.cat.LegalSlugs()

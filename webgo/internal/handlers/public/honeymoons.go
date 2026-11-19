@@ -36,7 +36,7 @@ func (s *site) honeymoons(tmpl *page.Template) http.HandlerFunc {
 		trips := search.TripsForTopic(s.cat.Trips, topic)
 
 		d := tmpl.New()
-		s.chrome(d, honeymoonsPath)
+		s.chrome(d, r, honeymoonsPath)
 		s.head(d, meta{
 			Title:       "Honeymoons",
 			Description: honeymoonsDescription,

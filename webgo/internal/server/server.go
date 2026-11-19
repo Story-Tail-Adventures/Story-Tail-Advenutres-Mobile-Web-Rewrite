@@ -55,12 +55,19 @@ var areas = []area{
 // pre-paint scripts are files (webgo/assets/js), and the page loader refuses a page with an
 // inline script, a <style>, a style="" or an on* handler at startup. img-src allows https: for
 // the Unsplash photos the public pages use, and data: for the checkbox tick in ui.css.
+// Google Analytics is the one thing we load from anywhere else, and only after the visitor
+// says yes (assets/js/public/analytics.js): gtag.js comes from googletagmanager.com, and the
+// events it sends go to Google's collection hosts. Nothing else off-site is allowed, and
+// img-src already allows https: for the Unsplash photos.
+const gaScript = "https://www.googletagmanager.com"
+const gaCollect = "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"
+
 const CSP = "default-src 'self'; " +
-	"script-src 'self'; " +
+	"script-src 'self' " + gaScript + "; " +
 	"style-src 'self'; " +
 	"img-src 'self' data: https:; " +
 	"font-src 'self'; " +
-	"connect-src 'self'; " +
+	"connect-src 'self' " + gaCollect + "; " +
 	"object-src 'none'; " +
 	"base-uri 'none'; " +
 	"form-action 'self'; " +

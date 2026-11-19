@@ -16,7 +16,7 @@ var notFoundSpec = page.Spec{File: "public/not-found.html", Layout: shell.Public
 // notFound answers 404 with the public not-found page, uncached and noindex, as Next did.
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	d := s.notFoundPage.New()
-	s.chrome(d, r.URL.Path)
+	s.chrome(d, r, r.URL.Path)
 	d.Head(page.Head{Robots: "noindex"})
 	web.Render(w, s.Log, d, http.StatusNotFound, web.Shared)
 }
