@@ -2,8 +2,9 @@ module github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite
 
 go 1.27
 
-// 1.27.3 fixes GO-2026-6809 in crypto/x509, which hits 1.27.2.
-toolchain go1.27.3
+// 1.27.4 fixes GO-2026-6859, an HTTP/1 server crash in net/http that every handler here
+// reaches. 1.27.3 fixed GO-2026-6809 in crypto/x509, which hit 1.27.2.
+toolchain go1.27.4
 
 require (
 	// Master commit 64ce5b8, read-only use behind internal/page only.

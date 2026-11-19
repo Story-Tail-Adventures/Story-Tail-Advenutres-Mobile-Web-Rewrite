@@ -1,0 +1,12 @@
+User-Agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /trips
+Disallow: /account
+Disallow: /agent
+Disallow: /auth/
+Disallow: /api/
+Disallow: /quote
+Disallow: /explore/results
+
+Sitemap: http://localhost:3000/sitemap.xml

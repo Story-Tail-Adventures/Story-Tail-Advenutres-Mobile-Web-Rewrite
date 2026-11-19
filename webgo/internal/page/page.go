@@ -64,7 +64,7 @@ type Options struct {
 // Spec declares one page file and everything a handler will fill in it.
 type Spec struct {
 	// File is the page, a full HTML document that opens on its own in a browser with its
-	// placeholder text, e.g. "demo/index.html".
+	// placeholder text, e.g. "public/landing.html".
 	File string
 	// Layout frames the page. Nil means File is the whole document.
 	Layout *Layout

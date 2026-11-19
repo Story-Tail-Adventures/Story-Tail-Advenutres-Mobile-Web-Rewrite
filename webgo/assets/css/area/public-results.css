@@ -1,0 +1,14 @@
+/* Story-Tail Adventures — Screen 2.0.4, the explore results page and its filter rail, chips,
+ * mode switch, sort control and result cards.
+ *
+ * A third stylesheet for the public area, not a third area: the public layouts link it after
+ * public.css and public-forms.css, so it may use every token, theme variable and ui.css class.
+ * It is split out so the results page and the marketing pages can be worked on at the same
+ * time without editing one file from two places.
+ *
+ * No inline styles anywhere (the CSP is style-src 'self'), and internal/static/classes_test.go
+ * fails on any class a page uses that no stylesheet defines.
+ */
+
+@layer components {
+}
