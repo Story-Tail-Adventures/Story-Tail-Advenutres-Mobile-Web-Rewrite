@@ -252,6 +252,20 @@ SELECT public.agent_local_today(:agent::uuid) AS today \gset
 -- 5. Out-of-office
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- Clear the seed's holidays before the write path runs, so this section owns the advisor's
+-- calendar outright.
+--
+-- The seed plants two FIXED dates (Thanksgiving 2026-11-26..29, Christmas 2026-12-24..
+-- 2027-01-02) and everything below works in offsets from the advisor's own today, so the two
+-- collide on some calendar days and a write that should return 'updated' comes back
+-- 'overlap'. It is a dormant failure that fires on a date, not on a change: it took the
+-- whole stack red on 2026-11-20, when today+9 landed on Thanksgiving's last day, and the
+-- same window returns each 13-24 December. Section 3 has already asserted the seed's two
+-- rows are there, which is the coverage those rows exist for; from here they are only in the
+-- way. A plain DELETE writes no audit_event (the write path's own functions do that), so the
+-- deleted-audit count asserted below still counts only this section's own deletes.
+DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_a::uuid, :agent::uuid, true, :today::date + 10, :today::date + 12,
         'Beach week', false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'created'
