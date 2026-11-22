@@ -165,11 +165,14 @@ func railRepeats(prefix string) map[string][]string {
 // results serves /explore/results. The Searcher is built once, here, because this closure
 // runs at startup; the handler inside it runs per request.
 func (s *site) results(tmpl *page.Template) http.HandlerFunc {
-	finder := hotels.New(hotels.Config{
-		Enabled: s.Config.HotelSearchEnabled,
-		APIKey:  s.Config.SerpAPIKey,
-		Log:     s.Log,
-	})
+	finder := s.hotelFinder
+	if finder == nil {
+		finder = hotels.New(hotels.Config{
+			Enabled: s.Config.HotelSearchEnabled,
+			APIKey:  s.Config.SerpAPIKey,
+			Log:     s.Log,
+		})
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		today := s.today()
 		q := search.ParseSearchParams(search.ParseQuery(r.URL.RawQuery), today)
@@ -293,14 +296,26 @@ func (s *site) fillUpdateBar(d *page.Doc, q search.SearchQuery, mode search.Resu
 		travelers = strconv.Itoa(q.Travelers)
 	}
 	latest, hasLatest := search.AddDays(today, search.MaxBookingDaysAhead)
+	// The check-out input's floor is the night after the check-in, not today, so the browser
+	// refuses a stay that ends before it starts (DateRangePicker.tsx). It matters because the
+	// server is forgiving rather than loud: ParseStay drops a pair under a night, so without
+	// the floor the form submits happily and the visitor loses their whole stay AND falls out
+	// of Hotels back to the curated catalog, with nothing on the page saying why.
+	outFloor := today
+	if next, ok := search.AddDays(q.CheckIn, 1); ok && q.CheckIn != "" {
+		outFloor = next
+	}
 	for _, prefix := range []string{"pill", "stacked"} {
 		d.Attr(prefix+"-dest", "value", q.Dest)
 		d.Attr(prefix+"-travelers", "value", travelers)
-		for _, date := range []field{{prefix + "-in", q.CheckIn}, {prefix + "-out", q.CheckOut}} {
-			d.Attr(date.Name, "value", date.Value)
-			d.Attr(date.Name, "min", today)
+		for _, date := range []struct{ name, value, floor string }{
+			{prefix + "-in", q.CheckIn, today},
+			{prefix + "-out", q.CheckOut, outFloor},
+		} {
+			d.Attr(date.name, "value", date.value)
+			d.Attr(date.name, "min", date.floor)
 			if hasLatest {
-				d.Attr(date.Name, "max", latest)
+				d.Attr(date.name, "max", latest)
 			}
 		}
 	}

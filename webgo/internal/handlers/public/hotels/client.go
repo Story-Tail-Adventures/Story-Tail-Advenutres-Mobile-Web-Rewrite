@@ -59,7 +59,7 @@ func (e *providerError) Error() string { return "hotels: " + e.code }
 
 // newProviderError redacts detail here, at construction, so no reader has to remember to.
 func newProviderError(status int, code, detail string, permanent bool, apiKey string) *providerError {
-	return &providerError{status: status, code: code, detail: redact(detail, apiKey), permanent: permanent}
+	return &providerError{status: status, code: code, detail: clamp(redact(detail, apiKey)), permanent: permanent}
 }
 
 var (
@@ -183,6 +183,24 @@ func toError(status int, body *providerResponse, apiKey string) *providerError {
 		code = "provider_" + strconv.Itoa(status)
 	}
 	return newProviderError(status, code, detail, permanent, apiKey)
+}
+
+// maxDetail bounds what one failure may write to the log. The provider's text is read up to
+// maxBodyBytes and a failure is retried, so an 8 MiB "error" message would otherwise reach
+// the log three times over for a single page render. The provider's real messages are one
+// sentence.
+const maxDetail = 300
+
+// clamp cuts text to maxDetail runes, never mid-rune.
+func clamp(text string) string {
+	if len(text) <= maxDetail {
+		return text
+	}
+	runes := []rune(text)
+	if len(runes) <= maxDetail {
+		return text
+	}
+	return string(runes[:maxDetail]) + "…"
 }
 
 // backoff is client.ts's min(500 * 2^attempt, 8000) milliseconds.

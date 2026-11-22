@@ -25,6 +25,7 @@ package hotels
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -167,7 +168,11 @@ type Result struct {
 	Hotels []PublicHotel
 	// AsOf is when the provider answered.
 	AsOf time.Time
-	// Total is the provider's count of matching properties, or nil when it gave none.
+	// Total is the provider's count of matching properties, or nil when it gave none. No
+	// page reads it, and Next ignores it too: the provider's total counts what Google has,
+	// not what survived our own filtering and compliance checks, so showing it would be a
+	// number the list below it contradicts. It is kept because it is the one cheap signal
+	// of how much a search is dropping, for whoever next asks why a page looks thin.
 	Total *int64
 }
 
@@ -225,8 +230,10 @@ func (s *Searcher) Search(ctx context.Context, args Args) (res Result) {
 	defer func() {
 		// The contract is total, as in the TypeScript: a bug in one of the pure steps must
 		// not take a public page down. The panic value is not logged; it could quote the search.
-		if recover() != nil {
-			s.log.Warn("hotels: search failed", "code", "unexpected", statusAttr(0))
+		if v := recover(); v != nil {
+			// The type only. The value could quote the visitor's search, and a panic from the
+			// http stack could quote the URL, which carries the key.
+			s.log.Warn("hotels: search failed", "code", "unexpected", "panic", fmt.Sprintf("%T", v), statusAttr(0))
 			res = Result{Status: StatusUnavailable}
 		}
 	}()
