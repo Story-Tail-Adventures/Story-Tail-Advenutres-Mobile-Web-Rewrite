@@ -2,9 +2,14 @@ module github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite
 
 go 1.27
 
-// 1.27.4 fixes GO-2026-6859, an HTTP/1 server crash from a MaxBytesReader header race in
-// net/http: govulncheck reaches it from the function door, which wraps every request body in
-// http.MaxBytesReader. 1.27.3 fixed GO-2026-6809 in crypto/x509, which hits 1.27.2.
+// 1.27.4 fixes GO-2026-6859, a MaxBytesReader header race in net/http that crashes the
+// HTTP/1 server. internal/api and internal/web both wrap request bodies in MaxBytesReader,
+// so this is our own code path, not a distant one. (1.27.3 had fixed GO-2026-6809 in
+// crypto/x509, which hit 1.27.2.)
+//
+// This line is the whole Go stack's toolchain: CI reads it through `go-version-file`, so
+// every branch's govulncheck fails until it moves. Bump it HERE, on the lowest branch that
+// has a go.mod, and let the stacks inherit it; never a different value on two branches.
 toolchain go1.27.4
 
 require (

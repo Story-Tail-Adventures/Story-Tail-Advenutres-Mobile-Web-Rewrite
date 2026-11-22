@@ -252,18 +252,20 @@ SELECT public.agent_local_today(:agent::uuid) AS today \gset
 -- 5. Out-of-office
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- THIS SECTION OWNS THE TABLE FROM HERE, and clears the seed's two holidays first.
+-- THE SEED'S TWO HOLIDAYS GO FIRST, and section 2 has already checked they are there.
 --
--- They are FIXED dates (Thanksgiving 2026-11-26 to 11-29, Christmas 2026-12-24 to 2027-01-02)
--- while every block below is relative to the advisor's today, so the two drift into each other
--- and the section starts failing on the calendar rather than on the code. It first bit on
--- 2026-11-12, when `today + 14` landed on Thanksgiving's first day and "a block starting the
--- day after another ends is fine" came back `overlap`; `today + 9 .. + 14` and `+ 30 .. + 31`
--- all sweep through both holidays over the weeks either side.
+-- Everything below is dated from `today`, and seed.sql's Thanksgiving (2026-11-26..29) and
+-- Christmas (2026-12-24..2027-01-02) are fixed calendar dates. So the offsets WALK INTO them
+-- as the real date advances: on 2026-11-19, `today + 10 .. + 12` is Nov 29 - Dec 1, which
+-- shares Nov 29 with Thanksgiving, and `today + 9 .. + 11` is Nov 28 - 30, which shares two.
+-- The exclusion constraint fires, 'created' and 'updated' come back as 'overlap', and the
+-- file fails at whichever line the calendar has reached — which reads as a flake, because the
+-- line number moves and nobody has touched the code (CI runs 43340894684 and 43995621121
+-- failed at lines 271 and 259 on different days).
 --
--- Section 4 has already asserted the seeded rows are there, which is what the seed is for
--- here. A plain DELETE writes no audit_event (only the write paths do), so the
--- `agent_time_off.deleted` count at the foot of this section still counts what it did before.
+-- This section is about the overlap RULE, not about the seed's holidays, so it builds its own
+-- blocks on an empty table. Deleting them here rather than dating around them keeps the test
+-- true on every date, including the ones inside the seeded windows.
 DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
 
 SELECT pg_temp.assert(
