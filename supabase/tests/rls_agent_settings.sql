@@ -252,6 +252,22 @@ SELECT public.agent_local_today(:agent::uuid) AS today \gset
 -- 5. Out-of-office
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- THE SEED'S TWO HOLIDAYS GO FIRST, and section 2 has already checked they are there.
+--
+-- Everything below is dated from `today`, and seed.sql's Thanksgiving (2026-11-26..29) and
+-- Christmas (2026-12-24..2027-01-02) are fixed calendar dates. So the offsets WALK INTO them
+-- as the real date advances: on 2026-11-19, `today + 10 .. + 12` is Nov 29 - Dec 1, which
+-- shares Nov 29 with Thanksgiving, and `today + 9 .. + 11` is Nov 28 - 30, which shares two.
+-- The exclusion constraint fires, 'created' and 'updated' come back as 'overlap', and the
+-- file fails at whichever line the calendar has reached — which reads as a flake, because the
+-- line number moves and nobody has touched the code (CI runs 43340894684 and 43995621121
+-- failed at lines 271 and 259 on different days).
+--
+-- This section is about the overlap RULE, not about the seed's holidays, so it builds its own
+-- blocks on an empty table. Deleting them here rather than dating around them keeps the test
+-- true on every date, including the ones inside the seeded windows.
+DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_a::uuid, :agent::uuid, true, :today::date + 10, :today::date + 12,
         'Beach week', false, null, public.uuid_v7(), :actor::uuid, null, 'test') = 'created'
