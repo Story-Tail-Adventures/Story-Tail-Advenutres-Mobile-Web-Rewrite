@@ -25,6 +25,19 @@ const (
 
 	copyExportFailed = "The export didn't come through. Go back and try again in a moment."
 
+	// ── §3.7.7 Forecast (FORECAST_COPY) ────────────────────────────────────────
+	copyStageInquiry   = "Inquiry"
+	copyStageProposal  = "Proposal"
+	copyStageBooked    = "Booked"
+	copyStageTraveling = "Traveling"
+	copyWeightLabel    = "Weight (%)"
+	copyWeightsInvalid = "Each weight is a whole number from 0 to 100."
+	copyWeightsStale   = "These weights were changed somewhere else, so yours weren't saved. Reload the page and try again."
+	copySaveFailed     = "That didn't save. Try again in a moment."
+	copyOverdue        = "Overdue"
+	copyLater          = "Later"
+	copyUndated        = "No travel dates yet"
+
 	// The five status filters' labels, in COMMISSION_STATUS_FILTERS' order.
 	copyFilterExpected = "Expected"
 	copyFilterInvoiced = "Invoiced"
@@ -90,4 +103,37 @@ func absF(f float64) float64 {
 		return -f
 	}
 	return f
+}
+
+// forecastAcross ports it: "Of $12,000 across 7 open trips · 64% confidence". The confidence
+// is left off, never shown as 0%, when there is nothing to be confident about.
+func forecastAcross(rawTotal string, trips, confidencePct int, hasConfidence bool) string {
+	head := fmt.Sprintf("Of %s across %s open %s", rawTotal, groupThousands(int64(trips)), plural(trips, "trip", "trips"))
+	if !hasConfidence {
+		return head
+	}
+	return fmt.Sprintf("%s · %d%% confidence", head, confidencePct)
+}
+
+// forecastTripCount: "3 trips" under a stage.
+func forecastTripCount(n int) string {
+	return groupThousands(int64(n)) + " " + plural(n, "trip", "trips")
+}
+
+// forecastReceivedNote: "$200 of the forecast is already received, so the calendar leaves it out."
+func forecastReceivedNote(amount string) string {
+	return amount + " of the forecast is already received, so the calendar leaves it out."
+}
+
+// forecastMonthLabel ports forecast.ts monthLabel: "Oct 2026" for the first month and every
+// January, "Nov" otherwise — the year only where it turns.
+func forecastMonthLabel(iso string, first bool) string {
+	d, ok := parseDay(iso)
+	if !ok {
+		return ""
+	}
+	if first || d.Month() == 1 {
+		return fmt.Sprintf("%s %d", shortMonths[d.Month()-1], d.Year())
+	}
+	return shortMonths[d.Month()-1]
 }

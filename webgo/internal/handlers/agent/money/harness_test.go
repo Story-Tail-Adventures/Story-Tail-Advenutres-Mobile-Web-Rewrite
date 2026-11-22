@@ -195,6 +195,17 @@ func (wd *world) do(method, target string, headers ...[2]string) *httptest.Respo
 	return rec
 }
 
+// post sends a form as the signed-in advisor.
+func (wd *world) post(target string, form url.Values) *httptest.ResponseRecorder {
+	wd.t.Helper()
+	req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(wd.cookie())
+	rec := httptest.NewRecorder()
+	wd.h.ServeHTTP(rec, req)
+	return rec
+}
+
 func mustJSON(v any) string {
 	b, err := json.Marshal(v)
 	if err != nil {
