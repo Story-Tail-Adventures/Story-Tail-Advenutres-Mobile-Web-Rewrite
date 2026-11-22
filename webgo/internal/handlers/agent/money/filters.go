@@ -108,7 +108,9 @@ func ledgerQueryFrom(params url.Values) ledgerQuery {
 	if q.TravelFrom != "" && q.TravelTo != "" && q.TravelFrom > q.TravelTo {
 		q.TravelFrom, q.TravelTo = q.TravelTo, q.TravelFrom
 	}
-	if page, err := strconv.Atoi(strings.TrimSpace(params.Get("page"))); err == nil && page > 0 {
+	// Number.parseInt, not Atoi: "3abc" is 3 in a browser and the URL is a shared link, so
+	// a mangled one lands on the page it names rather than silently on page 1.
+	if page, ok := parseIntJS(params.Get("page")); ok && page > 0 {
 		q.Page = min(page, maxLedgerPage)
 	}
 	return q

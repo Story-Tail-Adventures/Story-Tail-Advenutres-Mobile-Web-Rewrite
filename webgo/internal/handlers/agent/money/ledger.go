@@ -249,10 +249,6 @@ func (a *app) serveLedger(w http.ResponseWriter, r *http.Request) {
 	if v.canRead() {
 		l = a.loadLedger(r.Context(), v, q)
 	}
-	if l == nil && !v.noAccess {
-		a.renderState(w, r, a.ledger, v, stateRetry)
-		return
-	}
 	// Past the last page — a bookmark or a stale tab, since the form never posts `page`. An
 	// empty page carries no total_count to read, so it would claim "no commission lines yet"
 	// over a ledger that has them. Start the same view from the top instead.
@@ -260,14 +256,28 @@ func (a *app) serveLedger(w http.ResponseWriter, r *http.Request) {
 		web.SeeOther(w, r, q.withPage(1).href())
 		return
 	}
-	doc := a.ledger.New()
-	if fillFrame(doc, r, v, stateBody) {
-		fillLedger(doc, q, l)
+	st := stateBody
+	switch {
+	case v.noAccess:
+		st = stateNoAccess
+	case l == nil:
+		st = stateRetry
 	}
-	web.Render(w, a.d.Log, doc, http.StatusOK, web.Private)
+	doc := a.ledger.New()
+	showContent := fillFrame(doc, r, v, st)
+	if !v.noAccess {
+		// The header is drawn whether or not the read answered, as the Next page draws it:
+		// its actions are built from the QUERY, which a failed read does not take away.
+		fillLedgerHeader(doc, q)
+		if showContent {
+			fillLedgerContent(doc, q, l)
+		}
+	}
+	web.Render(w, a.d.Log, doc, statusFor(st), web.Private)
 }
 
-func fillLedger(doc *page.Doc, q ledgerQuery, l *commissionLedger) {
+// fillLedgerHeader fills the two actions, which read only the query.
+func fillLedgerHeader(doc *page.Doc, q ledgerQuery) {
 	// §3.7.4 from the ledger: with the one-trip view's trip already chosen, if there is one.
 	addLine := ledgerPath + "/new"
 	if q.TripID != "" {
@@ -278,7 +288,9 @@ func fillLedger(doc *page.Doc, q ledgerQuery, l *commissionLedger) {
 	// The CURRENT filters ride along: the file is what the screen shows, all pages of it.
 	doc.URL("export", "href", q.exportHref())
 	doc.Keep("export")
+}
 
+func fillLedgerContent(doc *page.Doc, q ledgerQuery, l *commissionLedger) {
 	if q.TripID == "" {
 		doc.Remove("trip-chip")
 		doc.Remove("filter-trip")

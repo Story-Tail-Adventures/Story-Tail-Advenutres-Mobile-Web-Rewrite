@@ -208,17 +208,22 @@ func (a *app) serveDashboard(w http.ResponseWriter, r *http.Request) {
 	if v.canRead() {
 		d = a.loadDashboard(r.Context(), v)
 	}
-	if d == nil && !v.noAccess {
-		// Null means the READ failed. A new advisor's dashboard is one row of zeros and
-		// renders as tiles saying so.
-		a.renderState(w, r, a.dashboard, v, stateRetry)
-		return
+	// Null means the READ failed. A new advisor's dashboard is one row of zeros and renders
+	// as tiles saying so, which is why this is not the same thing.
+	// An admin is "no access", not an outage: the state decides the status, so it is settled
+	// here rather than left to fillFrame's own override.
+	st := stateBody
+	switch {
+	case v.noAccess:
+		st = stateNoAccess
+	case d == nil:
+		st = stateRetry
 	}
 	doc := a.dashboard.New()
-	if fillFrame(doc, r, v, stateBody) {
+	if fillFrame(doc, r, v, st) {
 		fillDashboard(doc, d)
 	}
-	web.Render(w, a.d.Log, doc, http.StatusOK, web.Private)
+	web.Render(w, a.d.Log, doc, statusFor(st), web.Private)
 }
 
 func fillDashboard(doc *page.Doc, d *commissionDashboard) {

@@ -83,8 +83,14 @@ func TestDashboardReadFailureIsNotAnEmptyBook(t *testing.T) {
 		t.Fatalf("status %d, want 503", rec.Code)
 	}
 	body := rec.Body.String()
-	has(t, body, "That didn’t load", "Message Gyasi")
-	lacks(t, body, "$0", "YTD received")
+	has(t, body,
+		"That didn’t load", "Message Gyasi",
+		// The header and the view strip survive a failed read, as they do in Next: an
+		// advisor whose read fell over can still go somewhere else.
+		"Commissions", "Expected → invoiced → received. Reconciled against Inteletravel.",
+		`href="/agent/commission/ledger"`, `href="/agent/commission/forecast"`,
+	)
+	lacks(t, body, "$0", "YTD received", "Monthly trend")
 }
 
 func TestDashboardNoRowIsNotAnAgent(t *testing.T) {
@@ -279,6 +285,39 @@ func TestLedgerReadFailureIsARetry(t *testing.T) {
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status %d, want 503", rec.Code)
 	}
-	has(t, rec.Body.String(), "That didn’t load")
-	lacks(t, rec.Body.String(), "Getaway #2")
+	body := rec.Body.String()
+	has(t, body,
+		"That didn’t load",
+		// The ledger's header too, with its actions still carrying the current filters.
+		"Commission ledger", "Add line",
+		`href="/agent/commission/ledger/export"`,
+	)
+	// Only what the reads fill is gone: no rows, no filter chips, no paginator.
+	lacks(t, body, "Getaway #2", "All suppliers", "Ledger pages")
+}
+
+func TestLedgerRetryKeepsTheFiltersOnItsActions(t *testing.T) {
+	wd := newWorld(t)
+	wd.seedLedger(ledgerRowJSON)
+	wd.fake.failing["agent_commission_ledger"] = true
+	body := wd.get("/agent/commission/ledger?status=lost&trip=" + tripUUID).Body.String()
+	has(t, body,
+		`href="/agent/commission/ledger/export?status=lost&amp;trip=`+tripUUID+`"`,
+		`href="/agent/commission/ledger/new?trip=`+tripUUID+`"`,
+	)
+}
+
+func TestLedgerPageNumberIsReadTheWayABrowserReadsIt(t *testing.T) {
+	// Number.parseInt takes the leading digits: a mangled shared link lands on the page it
+	// names, not silently on page 1.
+	wd := newWorld(t)
+	wd.seedLedger(ledgerRowJSON)
+	wd.get("/agent/commission/ledger?page=3abc")
+	var args map[string]any
+	if err := json.Unmarshal([]byte(wd.fake.rpcArgs["agent_commission_ledger"]), &args); err != nil {
+		t.Fatal(err)
+	}
+	if args["p_offset"].(float64) != 50 {
+		t.Fatalf("p_offset is %v, want 50 (page 3)", args["p_offset"])
+	}
 }

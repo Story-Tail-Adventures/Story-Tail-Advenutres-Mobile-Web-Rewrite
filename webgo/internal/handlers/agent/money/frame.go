@@ -25,17 +25,22 @@ import (
 // Every page file carries the same slots at the top of its <main>:
 //
 //	no-access  AdminNoAccess, in place of the page (an admin has no desk here)
-//	page       the page column (PAGE_SX), holding the two below
+//	page       the page column (PAGE_SX), holding the rest
+//	body       the view strip and the page header, which a failed read KEEPS
 //	retry      RetryState: a read failed. "Try again" is a link to this same URL
-//	body       the page itself
+//	content    what the reads fill, and the only part a failure takes away
 //
-// so a page fills exactly one of them and the others leave the tree. The trips and people
-// sub-areas carry the same frame in their own files: each sub-area owns its files
-// (docs/GO-MIGRATION.md Phase 5), so these are deliberate twins rather than one shared
-// helper three sessions would be editing at once.
+// THE HEADER SURVIVES A FAILED READ, because the Next pages render it above RetryState
+// rather than instead of it (commission/page.tsx, ledger/page.tsx): the Dashboard / Ledger /
+// Statements / Forecast strip, the title, and Export and Add line with the current filters
+// still on them. An advisor whose read fell over can still move somewhere else.
+//
+// The trips and people sub-areas carry a frame of their own in their own files: each
+// sub-area owns its files (docs/GO-MIGRATION.md Phase 5), so these are deliberate twins
+// rather than one shared helper three sessions would be editing at once.
 
 // frameSlots are the frame's own, added to every Spec in this package.
-var frameSlots = []string{"no-access", "page", "retry", "retry-again", "body"}
+var frameSlots = []string{"no-access", "page", "body", "retry", "retry-again", "content"}
 
 // defaultZone is agentIdentity's fallback: platform_user.time_zone defaults to it, and an
 // unrecognised IANA name falls back to it rather than failing the page.
@@ -124,33 +129,33 @@ const (
 	stateNoAccess
 )
 
-// fillFrame fills the shell and the frame for st. It returns true when the body should be
-// filled; otherwise the body has already left the tree.
+// fillFrame fills the shell and the frame for st. It returns true when the CONTENT should be
+// filled; otherwise the content has already left the tree. The page's own header slots are
+// filled either way, so a caller fills them before asking.
 func fillFrame(d *page.Doc, r *http.Request, v visit, st state) bool {
 	shell.FillAgent(d, r.URL.Path, v.chrome)
 	if v.noAccess {
 		st = stateNoAccess
 	}
-	switch st {
-	case stateNoAccess:
+	if st == stateNoAccess {
 		d.Keep("no-access")
 		d.Remove("page")
 		return false
-	case stateRetry:
-		d.Remove("no-access")
-		d.Keep("page")
+	}
+	d.Remove("no-access")
+	d.Keep("page")
+	d.Keep("body")
+	if st == stateRetry {
 		d.Keep("retry")
 		// A plain reload of the same page: the reads run again.
 		if !d.URL("retry-again", "href", r.URL.RequestURI()) {
 			d.URL("retry-again", "href", r.URL.Path)
 		}
-		d.Remove("body")
+		d.Remove("content")
 		return false
 	}
-	d.Remove("no-access")
-	d.Keep("page")
 	d.Remove("retry")
-	d.Keep("body")
+	d.Keep("content")
 	return true
 }
 
@@ -159,16 +164,14 @@ func withFrame(slots ...string) []string {
 	return append(append([]string{}, frameSlots...), slots...)
 }
 
-// renderState answers with one of the frame's states and nothing else. A failed read is a
-// 503: it is an outage, and nothing that caches or indexes should keep it as the page.
-func (a *app) renderState(w http.ResponseWriter, r *http.Request, tmpl *page.Template, v visit, st state) {
-	doc := tmpl.New()
-	fillFrame(doc, r, v, st)
-	status := http.StatusOK
+// statusFor is the answer's status. A failed read is a 503: it is an outage, and nothing
+// that caches or indexes should keep it as the page. (Next answers 200 with the same card;
+// the words on the screen are identical either way.)
+func statusFor(st state) int {
 	if st == stateRetry {
-		status = http.StatusServiceUnavailable
+		return http.StatusServiceUnavailable
 	}
-	web.Render(w, a.d.Log, doc, status, web.Private)
+	return http.StatusOK
 }
 
 // reads runs several agent reads at once, as Promise.all did, and reports the first failure.

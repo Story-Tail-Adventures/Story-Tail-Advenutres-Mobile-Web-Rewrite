@@ -35,19 +35,6 @@
   </div>
 
   <div class="mny-col" data-slot="page">
-    <!-- RetryState (ErrorState with a retry): a read failed. That is not an empty ledger. -->
-    <div class="card mny-state" data-slot="retry">
-      <div class="card-content mny-state-body">
-        <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
-        <h2 class="type-h5 text-error">That didn’t load</h2>
-        <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
-        <div class="mny-state-actions">
-          <a class="btn btn-contained st-btn" href="/agent/commission" data-slot="retry-again">Try again</a>
-          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
-        </div>
-      </div>
-    </div>
-
     <div data-slot="body">
       <nav class="mny-views" aria-label="Commission views">
         <a class="chip chip-secondary mny-view" href="/agent/commission" aria-current="page"><span class="chip-label">Dashboard</span></a>
@@ -67,6 +54,20 @@
         </div>
       </header>
 
+      <!-- RetryState (ErrorState with a retry): a read failed. That is not an empty ledger. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
       <div class="mny-kpis">
         <div class="card mny-kpi mny-tone-secondary">
           <div class="mny-kpi-body">
@@ -131,6 +132,7 @@
           </table>
         </div>
       </section>
+      </div>
     </div>
   </div>
 </main>

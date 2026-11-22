@@ -32,19 +32,6 @@
   </div>
 
   <div class="mny-col" data-slot="page">
-    <!-- RetryState: a read failed. An empty ledger is a table with no rows, not this. -->
-    <div class="card mny-state" data-slot="retry">
-      <div class="card-content mny-state-body">
-        <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
-        <h2 class="type-h5 text-error">That didn’t load</h2>
-        <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
-        <div class="mny-state-actions">
-          <a class="btn btn-contained st-btn" href="/agent/commission/ledger" data-slot="retry-again">Try again</a>
-          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
-        </div>
-      </div>
-    </div>
-
     <div data-slot="body">
       <nav class="mny-views" aria-label="Commission views">
         <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
@@ -64,6 +51,20 @@
         </div>
       </header>
 
+      <!-- RetryState: a read failed. An empty ledger is a table with no rows, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/ledger" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
       <!-- The one-trip view's chip, with its own way back to every trip. -->
       <div class="row wrap items-baseline gap-1 mny-trip-chip" data-slot="trip-chip">
         <span class="chip chip-secondary"><span class="chip-label" data-slot="trip-chip-label">One trip: Kyoto in the spring</span></span>
@@ -149,6 +150,7 @@
           <span class="btn btn-outlined btn-small st-btn" aria-disabled="true" data-slot="pager-next-off">Next</span>
         </span>
       </nav>
+      </div>
     </div>
   </div>
 </main>
