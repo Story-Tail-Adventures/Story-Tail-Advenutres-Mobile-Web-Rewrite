@@ -36,12 +36,10 @@ var wizardSteps = []wizardStep{
 	{"complete", "/onboarding/complete", "All set!", "All set"},
 }
 
-// wizardRailHeading sits above the rail's step list.
-const wizardRailHeading = "WELCOME ABOARD"
-
-// wizardBackLabel is on every step's Back affordance. Chrome copy rather than screen copy:
-// six copies of the word "Back" is six chances to disagree.
-const wizardBackLabel = "Back"
+// The rail's heading ("WELCOME ABOARD") and the Back label are WIZARD_RAIL_HEADING and
+// WIZARD_BACK_LABEL in steps.ts. They are static copy, so each step page carries them in its
+// own HTML rather than Go filling a slot with a constant — the same split every other page
+// in webgo makes. The rail LABELS are above, because which one is current changes per page.
 
 // stepIndex is where a cursor slug sits in the wizard. It panics on a slug that is not one,
 // which can only be a typo in this package: the five values are a closed set.

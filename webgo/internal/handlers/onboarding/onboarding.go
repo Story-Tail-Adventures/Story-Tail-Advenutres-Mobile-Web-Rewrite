@@ -147,12 +147,6 @@ func trimmed(v *string) string {
 	return validate.JSTrim(*v)
 }
 
-// selectRows reads the caller's own rows, or none when the read fails.
-func selectRows[T any](ctx context.Context, a *area, st session.State, table string, q supa.Query, what string) ([]T, bool) {
-	rows, err := supa.Select[T](ctx, a.Supa, st.AccessToken, table, q)
-	if err != nil {
-		a.Log.Warn("onboarding: read failed", "what", what, "err", err)
-		return nil, false
-	}
-	return rows, true
-}
+// A list read (2.1.12's companions, 2.1.13's linked trips) belongs beside them when those
+// screens land; supa.Select is the call, and the rule is the one selectOne follows — the
+// error's kind is logged, never the rows.

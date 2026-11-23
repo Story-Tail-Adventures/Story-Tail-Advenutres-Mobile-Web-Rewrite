@@ -57,10 +57,7 @@ func NormalizePhone(raw string) (value *string, message string) {
 // phoneShape is /^\+?\d+$/: an optional leading plus and then digits only. A control
 // character or a letter anywhere fails here rather than being stripped.
 func phoneShape(s string) bool {
-	digits := s
-	if strings.HasPrefix(digits, "+") {
-		digits = digits[1:]
-	}
+	digits := strings.TrimPrefix(s, "+")
 	if digits == "" {
 		return false
 	}
