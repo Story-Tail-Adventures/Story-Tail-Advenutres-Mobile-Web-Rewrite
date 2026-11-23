@@ -1,0 +1,184 @@
+package money
+
+import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/assets"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/pages"
+)
+
+// The one piece of copy that lives in a SCRIPT rather than in a page or a Go constant: the
+// prefill note, which only exists once a supplier has been chosen. Nothing else would catch
+// it drifting from content.ts, because copy_test reads the pages and the constants.
+//
+// The module's arithmetic is checked here too, in the only way Go can: by reading that it
+// still uses the same expressions the TypeScript does. A browser is what actually runs it,
+// and the figures it shows are previews the server recomputes — so this guards the words and
+// the shape, and the save guards the number.
+
+// mustPage reads one page file out of the embedded pages FS.
+func mustPage(t *testing.T, name string) []byte {
+	t.Helper()
+	b, err := fs.ReadFile(pages.FS, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func moduleSource(t *testing.T) string {
+	t.Helper()
+	b, err := fs.ReadFile(assets.FS, "js/agent/money/line-form.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func TestModuleCarriesTheSameCopy(t *testing.T) {
+	src := moduleSource(t)
+	content := readWebFile(t, "lib/agent/content.ts")
+
+	// commissionPrefilledFrom and commissionGapLine, as the TypeScript writes them, with the
+	// template holes taken out so the fixed words have to match.
+	for _, fragment := range []string{
+		"Gross and rate filled in from this trip's ",
+		" bookings. Change them if the final figures differ.",
+		"Matches expected, once the fee is taken out.",
+		" short of expected, after the fee. Record it as Disputed to chase it.",
+		" more than expected, after the fee.",
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Errorf("content.ts no longer says %q; the module is now the odd one out", fragment)
+		}
+		if !strings.Contains(src, fragment) {
+			t.Errorf("line-form.js does not say %q byte for byte", fragment)
+		}
+	}
+
+	// The gap sentences are Go's too, for the server-rendered first paint.
+	if commissionGapLine(0, "$8") != "Matches expected, once the fee is taken out." {
+		t.Error("Go and the module disagree about a settled line")
+	}
+	if !strings.HasPrefix(commissionGapLine(800, "$8"), "$8 short of expected") {
+		t.Errorf("Go says %q", commissionGapLine(800, "$8"))
+	}
+	if !strings.HasPrefix(commissionGapLine(-800, "$8"), "$8 more than expected") {
+		t.Errorf("Go says %q", commissionGapLine(-800, "$8"))
+	}
+}
+
+func TestModuleKeepsTheTypeScriptArithmetic(t *testing.T) {
+	src := moduleSource(t)
+	for _, want := range []string{
+		// payments.ts dollarsToCents, byte for byte.
+		`replace(/[$,\s]/g, "")`,
+		`/^\d+(\.\d{1,2})?$/`,
+		"Math.round(Number(cleaned) * 100)",
+		// commissionForm.ts parseRate.
+		`replace(/[%\s]/g, "")`,
+		`/^\d{1,3}(\.\d{1,2})?$/`,
+		// previewExpectedCents and previewGapCents.
+		"Math.round((cents * pct) / 100)",
+		"expected - f - r",
+		// formatTripMoney shows cents only where there are any.
+		"cents % 100 === 0 ? 0 : 2",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("line-form.js no longer contains %q", want)
+		}
+	}
+	// A preview is never trusted: the module must not post anything itself.
+	for _, forbidden := range []string{"fetch(", "XMLHttpRequest", ".submit()"} {
+		if strings.Contains(src, forbidden) {
+			t.Errorf("line-form.js uses %q; it is a preview, not a writer", forbidden)
+		}
+	}
+}
+
+// readWebFile reads one file out of the Next app, which sits beside webgo in the repo.
+func readWebFile(t *testing.T, rel string) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 8; i++ {
+		p := filepath.Join(dir, "web", rel)
+		if b, err := os.ReadFile(p); err == nil {
+			return string(b)
+		}
+		dir = filepath.Dir(dir)
+	}
+	t.Skipf("web/%s is not here; the Next app has been deleted", rel)
+	return ""
+}
+
+// The module finds its fields by id and by class. An id dropped from a page file breaks the
+// enhancement SILENTLY — getElementById answers null, the listener is never attached, and the
+// page still renders perfectly. That is how the payment form shipped for an afternoon with no
+// Disputed suggestion: the two radios had data-slots and no ids. So every handle the module
+// reaches for is checked against the pages that have to provide it.
+func TestModuleHandlesExistInThePages(t *testing.T) {
+	src := moduleSource(t)
+	line := string(mustPage(t, "agent/money/line.html"))
+	add := string(mustPage(t, "agent/money/add.html"))
+
+	// Every id the module looks up, taken from the module itself rather than from a list
+	// here, so a new lookup is checked the day it is written.
+	ids := map[string]bool{}
+	for _, call := range []string{`$("`, `getElementById("`} {
+		rest := src
+		for {
+			i := strings.Index(rest, call)
+			if i < 0 {
+				break
+			}
+			rest = rest[i+len(call):]
+			if j := strings.Index(rest, `"`); j > 0 {
+				ids[rest[:j]] = true
+			}
+		}
+	}
+	if len(ids) < 7 {
+		t.Fatalf("only found %d ids in the module; the scan is wrong", len(ids))
+	}
+	for id := range ids {
+		attr := `id="` + id + `"`
+		if !strings.Contains(line, attr) && !strings.Contains(add, attr) {
+			t.Errorf("the module looks up %q, which neither page defines", id)
+		}
+	}
+
+	// And the handles each page must carry itself.
+	for _, c := range []struct {
+		page, name, want string
+	}{
+		{line, "line.html", `id="line-gross"`},
+		{line, "line.html", `id="line-rate"`},
+		{line, "line.html", `id="pay-received"`},
+		{line, "line.html", `id="pay-fee"`},
+		{line, "line.html", `id="pay-status-received"`},
+		{line, "line.html", `id="pay-status-disputed"`},
+		{line, "line.html", `class="type-body2 mny-gap"`},
+		{line, "line.html", `data-expected=`},
+		{add, "add.html", `id="line-supplier"`},
+		{add, "add.html", `id="line-terms"`},
+		{add, "add.html", `id="line-lag"`},
+		{add, "add.html", `id="line-prefill-note"`},
+	} {
+		if !strings.Contains(c.page, c.want) {
+			t.Errorf("%s no longer carries %s, which the module reaches for", c.name, c.want)
+		}
+	}
+	// The read-out is found by class on both pages.
+	for name, page := range map[string]string{"line.html": line, "add.html": add} {
+		if !strings.Contains(page, `class="mny-expected"`) {
+			t.Errorf("%s has no .mny-expected for the module to fill", name)
+		}
+	}
+}
