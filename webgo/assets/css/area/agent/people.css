@@ -585,4 +585,117 @@
   .ppl-lead-check { display: flex; width: fit-content; }
   .ppl-lead-dialog-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
   .ppl-lead-form { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ── Messages (§3.10.1, §3.10.2: messages.html) ──────────────────────────────────────── */
+  /* Two panes inside the viewport less the bars; each scrolls on its own, so the reply box
+     sits under the messages rather than over them. Below lg one pane shows at a time. */
+  .ppl-msg-frame {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: calc(100dvh - var(--client-topbar-h) - 68px - max(env(safe-area-inset-bottom), 8px));
+  }
+  @media (min-width: 768px) { .ppl-msg-frame { height: calc(100dvh - var(--client-topbar-h)); } }
+  .ppl-msg-list-pane,
+  .ppl-msg-detail-pane { position: relative; min-width: 0; min-height: 0; overflow-y: auto; }
+  .ppl-msg-detail-pane { display: none; }
+  .ppl-msg-thread-open .ppl-msg-list-pane { display: none; }
+  .ppl-msg-thread-open .ppl-msg-detail-pane { display: block; }
+  @media (min-width: 1024px) {
+    .ppl-msg-frame { grid-template-columns: 340px minmax(0, 1fr); }
+    .ppl-msg-list-pane,
+    .ppl-msg-thread-open .ppl-msg-list-pane { display: block; border-right: 1px solid var(--mui-palette-divider); }
+    .ppl-msg-detail-pane { display: block; }
+  }
+  .ppl-msg-head { padding: 14px 14px 8px; }
+  .ppl-msg-head-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .ppl-msg-chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ppl-msg-search { margin-top: 10px; display: flex; align-items: flex-end; gap: 8px; }
+  .ppl-msg-receipt { padding: 8px 14px 0; }
+  .ppl-msg-bulk { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background-color: var(--mui-palette-surface-2); }
+  .ppl-msg-empty { padding: 16px 14px; }
+  .ppl-msg-list { margin: 0; padding: 0; list-style: none; }
+  .ppl-msg-list > li { display: block; }
+  .ppl-msg-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 14px 8px 4px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    border-left: 3px solid transparent;
+  }
+  .ppl-msg-active { border-left-color: var(--mui-palette-brand-main); background-color: var(--mui-palette-surface-2); }
+  .ppl-msg-check { display: flex; flex: none; }
+  .ppl-msg-row { flex: 1; min-width: 0; padding: 4px 0; color: inherit; text-decoration: none; }
+  .ppl-msg-row-top { display: flex; align-items: baseline; gap: 8px; }
+  .ppl-msg-row-foot { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  .ppl-msg-trip { color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.2; }
+  .ppl-msg-replyby { color: var(--mui-palette-text-secondary); font-weight: 400; }
+  .ppl-msg-unread { height: 20px; font-weight: 700; background-color: var(--mui-palette-brand-main); color: var(--mui-palette-brand-contrastText); }
+  .ppl-msg-unread .chip-label { padding-left: 6px; padding-right: 6px; }
+  .ppl-msg-overdue { color: var(--mui-palette-error-main); font-weight: 600; }
+  .ppl-msg-pager { display: flex; justify-content: space-between; padding: 10px 14px; }
+  .ppl-msg-pick { display: grid; place-items: center; height: 100%; min-height: 320px; padding: 0 24px; }
+  /* The thread: header, the messages (the only part that scrolls), the reply box. */
+  .ppl-msg-thread { display: flex; flex-direction: column; height: 100%; }
+  .ppl-msg-thread-head { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--mui-palette-divider); }
+  @media (min-width: 768px) { .ppl-msg-thread-head { padding-left: 20px; padding-right: 20px; } }
+  .ppl-msg-back { display: inline-flex; margin-bottom: 8px; }
+  @media (min-width: 1024px) { .ppl-msg-back { display: none; } }
+  .ppl-msg-thread-top { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .ppl-msg-thread-who { flex: 1 1 220px; min-width: 0; }
+  .ppl-msg-thread-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .ppl-chip-error { color: var(--mui-palette-error-main); border-color: var(--mui-palette-error-main); }
+  .ppl-msg-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; position: relative; }
+  @media (min-width: 768px) { .ppl-msg-scroll { padding-left: 20px; padding-right: 20px; } }
+  .ppl-msg-truncated { display: block; margin-bottom: 12px; text-align: center; }
+  .ppl-msg-days { display: flex; flex-direction: column; gap: 10px; }
+  .ppl-msg-rowbox { display: flex; flex-direction: column; align-items: flex-start; }
+  .ppl-msg-mine { align-items: flex-end; }
+  .ppl-msg-day { width: 100%; text-align: center; margin: 2px 0; }
+  .ppl-msg-note {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-style: dashed;
+    border-color: var(--mui-palette-outline-main);
+    background-color: var(--mui-palette-surface-2);
+  }
+  @media (min-width: 768px) { .ppl-msg-note { max-width: 70%; } }
+  .ppl-msg-note-tag { display: flex; align-items: center; gap: 4px; line-height: 1.4; }
+  .ppl-msg-note-time { margin-top: 4px; display: block; text-align: right; }
+  .ppl-msg-bubble-wrap { max-width: 82%; }
+  @media (min-width: 768px) { .ppl-msg-bubble-wrap { max-width: 70%; } }
+  .ppl-msg-bubble {
+    padding: 10px 14px;
+    border-radius: 18px 18px 4px 18px;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+  }
+  .ppl-msg-theirs {
+    border: 1px solid var(--mui-palette-divider);
+    border-radius: 18px 18px 18px 4px;
+    background-color: var(--mui-palette-background-paper);
+    color: var(--mui-palette-text-primary);
+  }
+  .ppl-msg-time { margin-top: 2px; display: block; }
+  .ppl-msg-mine .ppl-msg-time { text-align: right; }
+  .ppl-msg-attach-wrap { margin-top: 4px; }
+  .ppl-msg-attach { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; max-width: 100%; }
+  .ppl-preline { white-space: pre-line; }
+  /* The reply box. A note looks like a note before it is sent: tinted, a dashed edge, a lock
+     and a line that says only the advisor sees it. */
+  .ppl-msg-reply { flex: none; padding: 12px 16px; border-top: 1px solid var(--mui-palette-divider); }
+  @media (min-width: 768px) { .ppl-msg-reply { padding-left: 20px; padding-right: 20px; } }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) {
+    border-top: 2px dashed var(--mui-palette-outline-main);
+    background-color: var(--mui-palette-surface-2);
+  }
+  .ppl-msg-text { padding: 7.5px 13px; }
+  .ppl-msg-reply-foot { margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .ppl-msg-note-switch { margin-right: 0; }
+  .ppl-msg-note-hint,
+  .ppl-msg-send-note { display: none; }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-note-hint { margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-send-note { display: inline-flex; }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-send { display: none; }
 }

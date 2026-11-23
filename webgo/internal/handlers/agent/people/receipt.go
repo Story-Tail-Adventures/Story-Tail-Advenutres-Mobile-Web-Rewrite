@@ -45,6 +45,9 @@ func (rc receipt) valid() bool {
 			rc.Changed >= 0 && rc.Requested >= 0 && rc.Changed <= rc.Requested
 	case "account":
 		return rc.Outcome == "sent" || rc.Outcome == "noop" || rc.Outcome == "changed"
+	case "archive":
+		// 3.10.1's bulk archive: how many moved, and which way.
+		return rc.Changed >= 0 && rc.Changed == rc.Requested
 	case "lead":
 		// 3.8.3's two invite notes: the email was already a client's, or the invite did not send.
 		return rc.Outcome == "existing" || rc.Outcome == "not-sent"
