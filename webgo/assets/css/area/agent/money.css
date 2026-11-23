@@ -539,3 +539,14 @@
   .mny-candidate { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--mui-palette-divider); border-radius: 8px; }
   .mny-candidate-text { flex: 1 1 220px; min-width: 0; }
 }
+
+/* A confirmation that needs no script: the disclosure IS the first click, and closing it
+   again is the "keep it" the dialog had as a button. */
+@layer components {
+  .mny-confirm { display: inline-block; }
+  .mny-confirm-summary { cursor: pointer; display: inline-flex; align-items: center; min-height: 32px; padding: 4px 12px; border: 1px solid var(--mui-palette-outline-main); border-radius: 20px; font-size: 0.875rem; font-weight: 500; list-style: none; }
+  .mny-confirm-summary::-webkit-details-marker { display: none; }
+  .mny-confirm-summary:hover { background-color: var(--mui-palette-action-hover); }
+  .mny-confirm-brand { color: var(--mui-palette-primary-main); border-color: var(--mui-palette-primary-main); }
+  .mny-confirm[open] > .mny-confirm-summary { margin-bottom: 4px; }
+}

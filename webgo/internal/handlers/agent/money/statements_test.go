@@ -210,9 +210,12 @@ func TestPaymentNote(t *testing.T) {
 		r := base
 		r.ReceivedCents = cp(129200)
 		r.GrossCents = cp(1) // the statement's own gross, which must not be used
-		note := paymentNote(r, false)
-		if strings.Contains(note, "not 12%") && !strings.Contains(note, "11.3%") {
-			t.Errorf("note is %q", note)
+		// The WHOLE sentence: a contains-check for the rate alone also passes when
+		// paymentNote returns nothing at all, which is the regression worth catching.
+		want := "Expected $1,368.00. Paid $1,292.00. That's $76.00 short, so it will be " +
+			"marked Disputed. Paid at about 11.3% of the booking, not 12%."
+		if got := paymentNote(r, false); got != want {
+			t.Errorf("note is %q,\nwant       %q", got, want)
 		}
 	})
 }

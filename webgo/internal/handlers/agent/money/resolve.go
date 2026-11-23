@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/web"
@@ -26,10 +28,15 @@ import (
 
 // foldName lowercases and strips accents and punctuation, so "Sandals Resorts®" and
 // "sandals resorts" are the same words.
+//
+// NFKD FIRST, which is what the TypeScript does. Dropping combining marks is only half the
+// job: a PRECOMPOSED "é" carries no combining mark, so without normalising it falls through
+// to the not-a-letter branch and "Café Royale" folds to "caf royale" where the TypeScript
+// gives "cafe royale" — a supplier whose name carries an accent would never be guessed.
 func foldName(v string) string {
 	var b strings.Builder
 	lastSpace := false
-	for _, r := range strings.ToLower(v) {
+	for _, r := range norm.NFKD.String(strings.ToLower(v)) {
 		switch {
 		case unicode.Is(unicode.Mn, r):
 			// A combining mark: part of an accent that is being dropped.
@@ -164,6 +171,46 @@ var resolveSpec = page.Spec{
 	},
 }
 
+// resolvePick is the "create a new line" step's own reads: the trip chosen by id, or the
+// search that stands in for it. They happen in renderResolve rather than in the fill,
+// because a FAILED search is an outage — drawing "No trips match that search." over a read
+// that never answered tells the advisor the opposite of what happened.
+type resolvePick struct {
+	chosen *tripOverviewRow
+	trips  []tripPick
+	// tripAsked: a ?trip= was given and did not resolve, so the page says why it is showing
+	// the search instead.
+	tripAsked bool
+	search    string
+}
+
+// loadPick runs those reads. ok is false when one of them failed.
+func (a *app) loadPick(r *http.Request, v visit, load resolveLoad) (resolvePick, bool) {
+	// An unreadable row has no figures to create a line from, so nothing is read for it.
+	if load.raw.State == "unreadable" {
+		return resolvePick{}, true
+	}
+	q := r.URL.Query()
+	out := resolvePick{search: strings.TrimSpace(q.Get("q"))}
+	if tripID := q.Get("trip"); isUUID(tripID) {
+		out.tripAsked = true
+		chosen, ok := a.loadTripPick(r.Context(), v, tripID)
+		if !ok {
+			return out, false
+		}
+		if chosen != nil {
+			out.chosen = chosen
+			return out, true
+		}
+	}
+	trips, ok := a.searchTripsForLine(r.Context(), v, out.search)
+	if !ok {
+		return out, false
+	}
+	out.trips = trips
+	return out, true
+}
+
 type resolveRender struct {
 	version    int
 	hasVersion bool
@@ -200,6 +247,12 @@ func (a *app) renderResolve(w http.ResponseWriter, r *http.Request, v visit, ren
 		web.SeeOther(w, r, statementPath(importID))
 		return
 	}
+	var pick resolvePick
+	if st == stateBody && load.found {
+		if pick, ok = a.loadPick(r, v, load); !ok {
+			st = stateRetry
+		}
+	}
 	switch {
 	case st != stateBody:
 		status = statusFor(st)
@@ -211,12 +264,12 @@ func (a *app) renderResolve(w http.ResponseWriter, r *http.Request, v visit, ren
 
 	doc := a.resolvePage.New()
 	if fillFrame(doc, r, v, st) {
-		a.fillResolve(r, v, doc, importID, rowID, load, rend)
+		fillResolve(doc, importID, rowID, load, pick, rend)
 	}
 	web.Render(w, a.d.Log, doc, status, web.Private)
 }
 
-func (a *app) fillResolve(r *http.Request, v visit, doc *page.Doc, importID, rowID string, load resolveLoad, rend resolveRender) {
+func fillResolve(doc *page.Doc, importID, rowID string, load resolveLoad, pick resolvePick, rend resolveRender) {
 	if !load.found {
 		doc.Keep("not-found")
 		doc.Remove("resolve")
@@ -276,15 +329,8 @@ func (a *app) fillResolve(r *http.Request, v visit, doc *page.Doc, importID, row
 	// An unreadable row has no figures to create a line from, so the money decisions are
 	// not offered at all.
 	canDecideMoney := load.raw.State != "unreadable"
-	q := r.URL.Query()
-	tripID := q.Get("trip")
-	if !isUUID(tripID) {
-		tripID = ""
-	}
-	var chosen *tripOverviewRow
-	if canDecideMoney && tripID != "" {
-		chosen = a.loadTripPick(r.Context(), v, tripID)
-	}
+	chosen := pick.chosen
+
 	switch {
 	case !canDecideMoney:
 		// An unreadable row has no figures to create a line from.
@@ -295,7 +341,10 @@ func (a *app) fillResolve(r *http.Request, v visit, doc *page.Doc, importID, row
 		doc.Keep("create-chosen")
 		doc.Text("create-trip-name", joinDot([]string{chosen.Title, chosen.ClientDisplayName}))
 		doc.Keep("create-form-card")
-		doc.URL("create-form", "action", self)
+		// WITH ?trip=, because the chosen trip is read off the query: posting to the bare
+		// URL sent a refused create back to the trip PICKER, with the trip, the gross and
+		// the rate gone. React kept the page URL across a refused action.
+		doc.URL("create-form", "action", self+"?trip="+url.QueryEscape(chosen.TripID))
 		doc.Attr("create-version", "value", itoa(version))
 		doc.Attr("create-trip-id", "value", chosen.TripID)
 		doc.URL("create-change", "href", self)
@@ -306,13 +355,12 @@ func (a *app) fillResolve(r *http.Request, v visit, doc *page.Doc, importID, row
 		doc.Remove("create-form-card")
 		doc.Keep("create-pick")
 		doc.URL("create-pick-form", "action", self)
-		search := strings.TrimSpace(q.Get("q"))
-		doc.Attr("create-pick-q", "value", search)
+		doc.Attr("create-pick-q", "value", pick.search)
 		// A ?trip= that does not resolve (archived, not this advisor's) falls back to the
 		// search, and says why the form is not open.
-		keepIf(doc, "create-trip-unavailable", tripID != "")
-		trips, ok := a.searchTripsForLine(r.Context(), v, search)
-		if !ok || len(trips) == 0 {
+		keepIf(doc, "create-trip-unavailable", pick.tripAsked)
+		trips := pick.trips
+		if len(trips) == 0 {
 			doc.Keep("create-pick-none")
 			doc.Remove("create-pick-list")
 		} else {
@@ -352,15 +400,20 @@ func fillCreateFields(doc *page.Doc, load resolveLoad) {
 	doc.Attr("create-rate", "value", rate)
 }
 
-// loadTripPick reads the trip a new line would go on, by id: live and this advisor's, or nil.
-func (a *app) loadTripPick(ctx context.Context, v visit, tripID string) *tripOverviewRow {
+// loadTripPick reads the trip a new line would go on, by id. ok is false when the READ
+// failed, which is not the same as the trip not being this advisor's — the first is an
+// outage, the second falls back to the search.
+func (a *app) loadTripPick(ctx context.Context, v visit, tripID string) (*tripOverviewRow, bool) {
 	var trips []tripOverviewRow
 	rs := a.reads(ctx, v)
 	read(rs, "agent_trip_overview", map[string]any{"p_trip_id": tripID}, &trips)
-	if rs.wait() != nil || len(trips) == 0 {
-		return nil
+	if rs.wait() != nil {
+		return nil, false
 	}
-	return &trips[0]
+	if len(trips) == 0 {
+		return nil, true
+	}
+	return &trips[0], true
 }
 
 // resolveRefusals maps the function's outcomes to the sentence each deserves.

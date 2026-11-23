@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
@@ -151,12 +152,20 @@ func (a *app) uploadStatement(w http.ResponseWriter, r *http.Request) {
 	refuse := func(msg, dup string) {
 		a.renderImport(w, r, v, importRender{message: msg, duplicateHref: dup}, http.StatusUnprocessableEntity)
 	}
-	// One byte over the cap is refused by ParseMultipart before anything is read into memory.
+	// One byte over the cap is refused by ParseMultipart before anything is read into
+	// memory. Only a SIZE failure says so: a malformed body or the wrong content type is
+	// not the advisor sending too large a file.
 	form, err := web.ParseMultipart(w, r, maxStatementBytes+multipartSlack)
 	if err != nil {
-		refuse(copyTooBig, "")
+		var formErr *web.FormError
+		if errors.As(err, &formErr) && formErr.Status == http.StatusRequestEntityTooLarge {
+			refuse(copyTooBig, "")
+			return
+		}
+		refuse(copyUploadFailed, "")
 		return
 	}
+	defer func() { _ = form.RemoveAll() }()
 	files := form.File["file"]
 	if len(files) == 0 || files[0].Size == 0 {
 		refuse(copyNoFile, "")
@@ -245,13 +254,16 @@ var statementSpec = page.Spec{
 	Layout: shell.Agent,
 	Slots: withFrame(
 		"not-found",
-		"mapping", "uploaded-line", "map-start-over", "discard-id", "discard-version", "map-back", "map-form",
+		"mapping", "uploaded-line", "map-start-over", "start-over-form", "discard-id", "discard-version",
+		"map-back", "map-form",
 		"map-import-id", "map-version", "map-header-count",
-		"map-error", "map-error-text", "map-date-field", "map-date", "map-date-error",
+		"map-error", "map-error-text", "map-submit",
+		"map-date-field", "map-date", "map-date-error",
 		"remap-warning",
 		"review", "review-title", "review-subtitle",
 		"review-actions", "change-columns",
-		"discard-form", "statement-discard-id", "statement-discard-version",
+		"discard-details", "discard-form", "statement-discard-id", "statement-discard-version",
+		"reconcile-details",
 		"reconcile-form", "reconcile-id", "reconcile-version", "reconcile-button",
 		"reconcile-body", "reconcile-reason",
 		"reconciled-note", "reconciled-note-text",
@@ -259,7 +271,7 @@ var statementSpec = page.Spec{
 		"rows-empty", "rows-table",
 	),
 	Repeats: map[string][]string{
-		"column":    append([]string{"column-name", "column-sample", "column-select"}, columnOptionSlotNames()...),
+		"column":    append([]string{"column-name", "column-sample", "column-chip", "column-select"}, columnOptionSlotNames()...),
 		"statement": {"row-line", "row-match", "row-match-link", "row-match-plain", "row-note", "row-confidence", "row-amount", "row-paid-on", "row-action", "row-resolve", "row-done"},
 	},
 }
@@ -292,23 +304,32 @@ type statementLoad struct {
 	rows  []statementRowItem
 }
 
-func (a *app) loadStatement(ctx context.Context, v visit, importID string, wantRows bool) (statementLoad, bool) {
+func (a *app) loadStatement(ctx context.Context, v visit, importID string) (statementLoad, bool) {
+	// Two groups rather than one, because they fail differently: the statement IS the page,
+	// where the rows are only the reconciliation table. Both start at once (read launches
+	// its goroutine), so this still costs one round trip. The status is not known until the
+	// statement has been read, and asking afterwards would cost a second.
 	var (
 		rows  []statementRow
 		lines []statementLineRow
 	)
-	rs := a.reads(ctx, v)
-	read(rs, "agent_commission_import", map[string]any{"p_import_id": importID}, &rows)
-	if wantRows {
-		read(rs, "agent_commission_import_rows", map[string]any{"p_import_id": importID}, &lines)
-	}
-	if rs.wait() != nil {
+	rsStatement := a.reads(ctx, v)
+	read(rsStatement, "agent_commission_import", map[string]any{"p_import_id": importID}, &rows)
+	rsRows := a.reads(ctx, v)
+	read(rsRows, "agent_commission_import_rows", map[string]any{"p_import_id": importID}, &lines)
+	statementErr, rowsErr := rsStatement.wait(), rsRows.wait()
+
+	if statementErr != nil {
 		return statementLoad{}, false
 	}
 	if len(rows) == 0 {
 		return statementLoad{}, true
 	}
 	out := statementLoad{s: statementView(rows[0]), found: true}
+	// A statement still being mapped draws no table, so a rows failure is not its outage.
+	if rowsErr != nil {
+		return out, out.s.Status == "mapping"
+	}
 	out.rows = statementRowsView(lines, importID, out.s.Status == "reconciled")
 	return out, true
 }
@@ -319,9 +340,7 @@ func (a *app) renderStatement(w http.ResponseWriter, r *http.Request, v visit, i
 		ok   = true
 	)
 	if v.canRead() && isUUID(importID) {
-		// The rows are only read for the screen that draws them. A statement still being
-		// mapped has none worth showing.
-		load, ok = a.loadStatement(r.Context(), v, importID, true)
+		load, ok = a.loadStatement(r.Context(), v, importID)
 	}
 	st := stateBody
 	switch {
@@ -385,17 +404,28 @@ func fillMapping(doc *page.Doc, s statement, version int, remap bool, rend state
 		doc.Keep("remap-warning")
 	} else {
 		doc.Keep("map-start-over")
-		doc.URL("map-start-over", "action", statementPath(s.ImportID))
+		doc.URL("start-over-form", "action", statementPath(s.ImportID))
 		doc.Attr("discard-id", "value", s.ImportID)
 		doc.Attr("discard-version", "value", itoa(version))
 		doc.Remove("map-back")
 		doc.Remove("remap-warning")
 	}
 
-	doc.URL("map-form", "action", statementPath(s.ImportID))
+	// WITH ?step=map WHEN REMAPPING. A form posts to its action, and the mode is read off
+	// the query, so dropping it sent a refused remap to the reconciliation table with the
+	// advisor's choices gone and no sentence — React never had this, because its map form
+	// was a client component and the URL never moved.
+	mapAction := statementPath(s.ImportID)
+	if remap {
+		mapAction += "?step=map"
+	}
+	doc.URL("map-form", "action", mapAction)
 	doc.Attr("map-import-id", "value", s.ImportID)
 	doc.Attr("map-version", "value", itoa(version))
 	doc.Attr("map-header-count", "value", itoa(len(s.Headers)))
+	doc.Text("map-submit", statementImportRows(s.TotalRows))
+	// The advisor's own today, from the accessor: a paid-on date cannot be in the future.
+	doc.Attr("map-date", "max", s.Today)
 	// One sentence, chosen once: calling message twice would Keep a block the first call
 	// had already removed, which renders nothing and answers 500.
 	mapMessage := rend.mapErrs.Map
@@ -415,13 +445,36 @@ func fillMapping(doc *page.Doc, s statement, version int, remap bool, rend state
 		if i < len(s.Samples) {
 			sample = s.Samples[i]
 		}
-		textOrRemove(row, "column-sample", sample)
+		if sample == "" {
+			row.Remove("column-sample")
+		} else {
+			row.Text("column-sample", statementSample(sample))
+		}
 		row.Attr("column-select", "name", "col-"+itoa(i))
 		row.Attr("column-select", "aria-label", s.Headers[i])
 		row.Keep("column-select")
 		chosen := ""
 		if i < len(selections) {
 			chosen = selections[i]
+		}
+		// The marker the intro promises. Auto is the stored guess still in place; Manual is
+		// a column the advisor has moved since, which on the server means the posted
+		// selection differs from the stored one. A remap starts from nothing, so neither.
+		stored := ""
+		if i < len(s.Selections) {
+			stored = s.Selections[i]
+		}
+		switch {
+		case !remap && chosen != "" && chosen == stored:
+			row.Keep("column-chip")
+			row.Text("column-chip", copyAutoChip)
+			row.Class("column-chip", "status-booked", true)
+		case chosen != stored:
+			row.Keep("column-chip")
+			row.Text("column-chip", copyManualChip)
+			row.Class("column-chip", "status-due", true)
+		default:
+			row.Remove("column-chip")
 		}
 		// The options are the same eight on every row and a repeat cannot nest inside
 		// another repeat, so they are written out in the page and one is marked here.
@@ -456,6 +509,8 @@ func fillReview(doc *page.Doc, s statement, version int, rows []statementRowItem
 	if open {
 		doc.Keep("review-actions")
 		doc.URL("change-columns", "href", statementPath(s.ImportID)+"?step=map")
+		doc.Keep("discard-details")
+		doc.Keep("reconcile-details")
 		doc.URL("discard-form", "action", statementPath(s.ImportID))
 		doc.Attr("statement-discard-id", "value", s.ImportID)
 		doc.Attr("statement-discard-version", "value", itoa(version))

@@ -84,12 +84,20 @@
                 <h2 class="type-subtitle1 fw-600 mny-card-title">Step 1 · Upload</h2>
                 <p class="type-caption text-secondary mny-uploaded" data-slot="uploaded-line">Uploaded: april.csv · 38 rows found</p>
                 <!-- Starting over DISCARDS the statement, so the file can be uploaded again. -->
-                <form method="post" action="/agent/commission/import/sample" class="mny-mt-1" data-slot="map-start-over" data-submit-once>
-                  <input type="hidden" name="op" value="discard">
-                  <input type="hidden" name="importId" value="" data-slot="discard-id">
-                  <input type="hidden" name="version" value="1" data-slot="discard-version">
-                  <button type="submit" class="btn btn-text btn-small st-btn" data-pending-label="Working…">Use a different file</button>
-                </form>
+                <!-- A CONFIRMATION, because this throws the uploaded file away. A <details>
+                     rather than a dialog: it has to work with no script, and closing it
+                     again is the "keep it". -->
+                <details class="mny-confirm" data-slot="map-start-over">
+                  <summary class="mny-confirm-summary">Use a different file</summary>
+                  <p class="type-subtitle2 mny-mt-1">Discard this statement?</p>
+                  <p class="type-caption text-secondary mny-block">Nothing in your ledger has changed. You can upload the file again afterward.</p>
+                  <form method="post" action="/agent/commission/import/sample" class="mny-mt-1" data-slot="start-over-form" data-submit-once>
+                    <input type="hidden" name="op" value="discard">
+                    <input type="hidden" name="importId" value="" data-slot="discard-id">
+                    <input type="hidden" name="version" value="1" data-slot="discard-version">
+                    <button type="submit" class="btn btn-contained btn-error btn-small st-btn" data-pending-label="Working…">Discard</button>
+                  </form>
+                </details>
                 <a class="link link-hover type-body2 mny-mt-1 mny-block" href="/agent/commission/import/sample" data-slot="map-back">Back to the statement</a>
               </div>
             </section>
@@ -112,7 +120,8 @@
                     <li class="mny-column" data-repeat="column">
                       <span class="mny-column-text">
                         <span class="type-body2 fw-600 mny-block" data-slot="column-name">Commission</span>
-                        <span class="type-caption text-secondary mny-block" data-slot="column-sample">540.00</span>
+                        <span class="type-caption text-secondary mny-block" data-slot="column-sample">Example: 540.00</span>
+                        <span class="status-chip chip-small" data-slot="column-chip">Auto</span>
                       </span>
                       <span class="select mny-select mny-column-select">
                         <select class="input mny-input-40" name="col-0" data-slot="column-select">
@@ -131,12 +140,15 @@
 
                   <div class="field mny-field mny-mt-1" data-slot="map-date-field">
                     <label class="field-label" for="statement-date">Paid on, for every row</label>
-                    <input class="input mny-input-40" id="statement-date" type="date" name="statementDate" value="" data-slot="map-date">
+                    <!-- NOT required: choosing the paid-on column in the select above makes this field
+                         unnecessary, and the browser would block the submit before the server could
+                         say so. validateMap allows a blank date when a column holds it. -->
+                    <input class="input mny-input-40" id="statement-date" type="date" name="statementDate" value="" max="" data-slot="map-date">
                     <p class="field-help">No column holds the paid-on date, so use the date on the statement.</p>
                     <p class="field-error" id="map-date-error" data-slot="map-date-error">Choose the paid-on column, or enter the date the statement paid.</p>
                   </div>
 
-                  <button type="submit" class="btn btn-contained btn-brand st-btn mny-mt-2" data-pending-label="Saving…">Save columns</button>
+                  <button type="submit" class="btn btn-contained btn-brand st-btn mny-mt-2" data-pending-label="Working…" data-slot="map-submit">Import 38 rows</button>
                 </form>
               </div>
             </section>
@@ -152,18 +164,30 @@
             </div>
             <div class="row wrap items-baseline gap-1 shrink-0" data-slot="review-actions">
               <a class="link link-hover type-body2" href="/agent/commission/import/sample?step=map" data-slot="change-columns">Change columns</a>
-              <form method="post" action="/agent/commission/import/sample" data-slot="discard-form" data-submit-once>
-                <input type="hidden" name="op" value="discard">
-                <input type="hidden" name="importId" value="" data-slot="statement-discard-id">
-                <input type="hidden" name="version" value="1" data-slot="statement-discard-version">
-                <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn" data-pending-label="Working…">Discard statement</button>
-              </form>
-              <form method="post" action="/agent/commission/import/sample" data-slot="reconcile-form" data-submit-once>
-                <input type="hidden" name="op" value="reconcile">
-                <input type="hidden" name="importId" value="" data-slot="reconcile-id">
-                <input type="hidden" name="version" value="1" data-slot="reconcile-version">
-                <button type="submit" class="btn btn-contained btn-brand btn-small st-btn" data-slot="reconcile-button" data-pending-label="Working…">Mark as reconciled</button>
-              </form>
+              <details class="mny-confirm" data-slot="discard-details">
+                <summary class="mny-confirm-summary">Discard statement</summary>
+                <p class="type-subtitle2 mny-mt-1">Discard this statement?</p>
+                <p class="type-caption text-secondary mny-block">Nothing in your ledger has changed. You can upload the file again afterward.</p>
+                <form method="post" action="/agent/commission/import/sample" class="mny-mt-1" data-slot="discard-form" data-submit-once>
+                  <input type="hidden" name="op" value="discard">
+                  <input type="hidden" name="importId" value="" data-slot="statement-discard-id">
+                  <input type="hidden" name="version" value="1" data-slot="statement-discard-version">
+                  <button type="submit" class="btn btn-contained btn-error btn-small st-btn" data-pending-label="Working…">Discard</button>
+                </form>
+              </details>
+              <!-- The ONE control that changes the ledger, so it says what it will do before
+                   it runs and asks a second time. The button inside stays disabled while any
+                   row needs the advisor (§3.2.1). -->
+              <details class="mny-confirm" data-slot="reconcile-details">
+                <summary class="mny-confirm-summary mny-confirm-brand">Mark as reconciled</summary>
+                <p class="type-subtitle2 mny-mt-1">Mark this statement reconciled?</p>
+                <form method="post" action="/agent/commission/import/sample" class="mny-mt-1" data-slot="reconcile-form" data-submit-once>
+                  <input type="hidden" name="op" value="reconcile">
+                  <input type="hidden" name="importId" value="" data-slot="reconcile-id">
+                  <input type="hidden" name="version" value="1" data-slot="reconcile-version">
+                  <button type="submit" class="btn btn-contained btn-brand btn-small st-btn" data-slot="reconcile-button" data-pending-label="Working…">Mark as reconciled</button>
+                </form>
+              </details>
             </div>
           </header>
 

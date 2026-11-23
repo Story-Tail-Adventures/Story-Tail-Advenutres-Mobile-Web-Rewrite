@@ -235,6 +235,8 @@ const (
 	copyFieldReceived    = "Commission paid"
 	copyFieldFee         = "Fee withheld"
 	copyFieldPaidOn      = "Paid on"
+	copyAutoChip         = "Auto"
+	copyManualChip       = "Manual"
 	copyMapNeedsReceived = "Choose the column that holds the commission paid."
 	copyMapNeedsDate     = "Choose the paid-on column, or enter the date the statement paid."
 	copyMapFailed        = "That didn't save. Try again in a moment."
@@ -375,4 +377,12 @@ func statementShortNote(expected, paid, fee, gap string, done bool) string {
 
 func statementRateNote(paidPct, linePct string) string {
 	return "Paid at about " + paidPct + " of the booking, not " + linePct + "."
+}
+
+// statementSample labels a column's first non-blank value on the map screen.
+func statementSample(value string) string { return "Example: " + value }
+
+// statementImportRows is the map form's submit: what saving the columns will bring in.
+func statementImportRows(rows int) string {
+	return "Import " + countLabel(rows, "row", "rows")
 }

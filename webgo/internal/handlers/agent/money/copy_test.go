@@ -263,6 +263,13 @@ var copyCases = []copyCase{
 	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "fieldReceived", goValue: copyFieldReceived},
 	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "fieldFee", goValue: copyFieldFee},
 	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "fieldPaidOn", goValue: copyFieldPaidOn},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "autoChip", goValue: copyAutoChip},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "manualChip", goValue: copyManualChip},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "working", page: "agent/money/statement.html"},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "discardTitle", page: "agent/money/statement.html"},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "discardBody", page: "agent/money/statement.html"},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "discardConfirm", page: "agent/money/statement.html"},
+	{file: "lib/agent/content.ts", obj: "STATEMENT_COPY", key: "reconcileConfirmTitle", page: "agent/money/statement.html"},
 
 	// The §5 states and the pagination both pages carry.
 	{file: "lib/agent/content.ts", obj: "CLIENT_COPY", key: "paginationPrev", page: "agent/money/ledger.html"},

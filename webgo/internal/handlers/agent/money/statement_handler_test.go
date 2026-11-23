@@ -448,3 +448,107 @@ func TestReconcileAndDiscard(t *testing.T) {
 		has(t, rec.Body.String(), "already reconciled or discarded, so it can&#39;t change.")
 	})
 }
+
+// A REFUSED REMAP MUST STAY ON THE MAP. The mode is read off ?step=map, so a form action
+// without it sent the advisor to the reconciliation table with their choices gone and no
+// sentence — the commonest refusal (forgetting the commission column) said nothing at all.
+func TestARefusedRemapStaysOnTheMap(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		set  func(url.Values)
+		want string
+	}{
+		{"no commission column", func(f url.Values) { f.Set("col-2", "") }, copyMapNeedsReceived},
+		{"one field twice", func(f url.Values) { f.Set("col-0", "supplier") }, "chosen for two columns"},
+		{"no paid-on and no date", func(f url.Values) { f.Set("statementDate", "") }, copyMapNeedsDate},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			wd := statementWorld(t, importRow(nil), []map[string]any{importLineRow(nil)})
+			form := url.Values{
+				"op": {"map"}, "importId": {sampleImportID}, "version": {"4"}, "headerCount": {"3"},
+				"col-0": {"reference"}, "col-1": {"supplier"}, "col-2": {"received"},
+				"statementDate": {"2026-04-30"},
+			}
+			c.set(form)
+			rec := wd.post("/agent/commission/import/"+sampleImportID+"?step=map", form)
+			if rec.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status %d, want 422", rec.Code)
+			}
+			body := rec.Body.String()
+			has(t, body, c.want, "Import 38 rows")
+			// Not the reconciliation table, which has nothing to do with the refusal.
+			lacks(t, body, "Mark as reconciled")
+		})
+	}
+
+	t.Run("the map form posts back to ?step=map", func(t *testing.T) {
+		wd := statementWorld(t, importRow(nil), nil)
+		body := wd.get("/agent/commission/import/" + sampleImportID + "?step=map").Body.String()
+		has(t, body, `action="/agent/commission/import/`+sampleImportID+`?step=map"`)
+	})
+
+	t.Run("a statement still being mapped needs no ?step=map", func(t *testing.T) {
+		wd := statementWorld(t, importRow(map[string]any{"status": "mapping"}), nil)
+		body := wd.get("/agent/commission/import/" + sampleImportID).Body.String()
+		lacks(t, body, "?step=map\"")
+	})
+}
+
+// A statement still being mapped draws no table, so a failure reading the rows is not its
+// outage — it used to blank the whole page.
+func TestAFailedRowsReadOnlyBlanksTheTable(t *testing.T) {
+	wd := statementWorld(t, importRow(map[string]any{"status": "mapping"}), nil)
+	wd.fake.failing["agent_commission_import_rows"] = true
+	rec := wd.get("/agent/commission/import/" + sampleImportID)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status %d: a rows failure blanked the map", rec.Code)
+	}
+	has(t, rec.Body.String(), "Import 38 rows")
+
+	// On the screen that DOES draw them, the same failure is an outage.
+	wd2 := statementWorld(t, importRow(nil), nil)
+	wd2.fake.failing["agent_commission_import_rows"] = true
+	if rec := wd2.get("/agent/commission/import/" + sampleImportID); rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status %d, want 503", rec.Code)
+	}
+}
+
+// The ledger-changing action and the one that deletes the uploaded file both ask twice.
+func TestTheDestructiveActionsConfirm(t *testing.T) {
+	wd := statementWorld(t, importRow(nil), []map[string]any{importLineRow(nil)})
+	body := wd.get("/agent/commission/import/" + sampleImportID).Body.String()
+	has(t, body,
+		"Discard this statement?",
+		"Nothing in your ledger has changed. You can upload the file again afterward.",
+		"Mark this statement reconciled?",
+	)
+	// Each one is a disclosure, so the first click only opens it.
+	if n := strings.Count(body, "mny-confirm-summary"); n != 2 {
+		t.Errorf("%d confirmations on the review page, want 2", n)
+	}
+
+	wd2 := statementWorld(t, importRow(map[string]any{"status": "mapping"}), nil)
+	body2 := wd2.get("/agent/commission/import/" + sampleImportID).Body.String()
+	has(t, body2, "Use a different file", "Discard this statement?")
+}
+
+// The marker the intro promises: Auto is the stored guess still in place, Manual is a column
+// the advisor has moved since.
+func TestColumnsAreMarkedAutoOrManual(t *testing.T) {
+	wd := statementWorld(t, importRow(map[string]any{"status": "mapping"}), nil)
+	body := wd.get("/agent/commission/import/" + sampleImportID).Body.String()
+	// reference and received are stored; the middle column is unmapped, so it is neither.
+	if n := strings.Count(body, ">Auto<"); n != 2 {
+		t.Errorf("%d columns marked Auto, want 2", n)
+	}
+	lacks(t, body, ">Manual<")
+
+	// A posted selection that differs from the stored one is the advisor's own.
+	form := url.Values{
+		"op": {"map"}, "importId": {sampleImportID}, "version": {"4"}, "headerCount": {"3"},
+		"col-0": {"reference"}, "col-1": {"traveler"}, "col-2": {""},
+		"statementDate": {"2026-04-30"},
+	}
+	moved := wd.post("/agent/commission/import/"+sampleImportID, form).Body.String()
+	has(t, moved, ">Manual<", ">Auto<")
+}

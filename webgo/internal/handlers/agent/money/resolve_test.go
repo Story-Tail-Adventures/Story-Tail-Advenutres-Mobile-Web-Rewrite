@@ -142,7 +142,8 @@ func TestGuessSupplier(t *testing.T) {
 	if got := guessSupplier(groups, "ROYAL CARIBBEAN INTL"); got != "royal" {
 		t.Errorf("guessed %q", got)
 	}
-	// Accents and punctuation are folded away.
+	// Punctuation is folded away. Accents have their own test, because ® is dropped by any
+	// implementation and says nothing about the normalisation this one needs.
 	if got := guessSupplier(groups, "Sandals Resorts®"); got != "sandals" {
 		t.Errorf("guessed %q", got)
 	}
@@ -256,4 +257,75 @@ func TestResolveRow(t *testing.T) {
 		}
 		has(t, body, `value="4"`)
 	})
+}
+
+// A REFUSED CREATE MUST KEEP THE TRIP. The chosen trip is read off ?trip=, so a form action
+// without it sent the advisor back to the trip picker with the trip, the gross and the rate
+// gone.
+func TestARefusedCreateKeepsTheTrip(t *testing.T) {
+	line := importLineRow(map[string]any{
+		"state": "unmatched", "match_basis": "none", "line_id": nil,
+		"gross_cents": "1140000", "received_cents": "136800", "fee_cents": "0",
+	})
+	t.Run("the create form posts back to ?trip=", func(t *testing.T) {
+		wd := resolveWorld(t, importRow(nil), line, nil)
+		body := wd.get(resolveURL() + "?trip=" + sampleTripID).Body.String()
+		has(t, body, `action="`+resolveURL()+`?trip=`+sampleTripID+`"`)
+	})
+
+	t.Run("a refusal redraws the form, not the picker", func(t *testing.T) {
+		wd := resolveWorld(t, importRow(nil), line, nil)
+		form := url.Values{
+			"action": {"create"}, "version": {"4"}, "tripId": {sampleTripID},
+			"supplierId": {"0195a2c0-1a00-7000-8000-0000000009cc"},
+			"gross":      {"6480.00"}, "rate": {""},
+		}
+		rec := wd.post(resolveURL()+"?trip="+sampleTripID, form)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("status %d, want 422", rec.Code)
+		}
+		body := rec.Body.String()
+		has(t, body, copyCreateNeedsRate, "Create line when reconciled", "Kyoto in the spring")
+		lacks(t, body, "Find a trip")
+	})
+}
+
+// A failed trip search is an outage. Saying "No trips match that search." over a read that
+// never answered tells the advisor the opposite of what happened.
+func TestAFailedTripSearchSaysSo(t *testing.T) {
+	wd := resolveWorld(t, importRow(nil), importLineRow(nil), nil)
+	wd.fake.failing["agent_trip_roster"] = true
+	rec := wd.get(resolveURL())
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status %d, want 503", rec.Code)
+	}
+	lacks(t, rec.Body.String(), "No trips match that search.")
+
+	// And so is a failed read of the trip that was asked for by id.
+	wd2 := resolveWorld(t, importRow(nil), importLineRow(nil), nil)
+	wd2.fake.failing["agent_trip_overview"] = true
+	if rec := wd2.get(resolveURL() + "?trip=" + sampleTripID); rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("status %d, want 503", rec.Code)
+	}
+}
+
+// An accented supplier name must fold the way the TypeScript folds it: NFKD first, so a
+// precomposed é becomes e rather than a space.
+func TestGuessSupplierFoldsAccents(t *testing.T) {
+	groups := groupSuppliers([]supplierCatalogRow{
+		{SupplierID: "cafe", Name: "Café Royale Resorts", Kind: "resort"},
+		{SupplierID: "vina", Name: "Viña del Mar", Kind: "resort"},
+	})
+	for _, c := range []struct{ text, want string }{
+		{"CAFE ROYALE RESORTS", "cafe"},
+		{"Café Royale Resorts", "cafe"},
+		{"VINA DEL MAR", "vina"},
+	} {
+		if got := guessSupplier(groups, c.text); got != c.want {
+			t.Errorf("guessSupplier(%q) = %q, want %q", c.text, got, c.want)
+		}
+	}
+	if got := foldName("Société Générale"); got != "societe generale" {
+		t.Errorf("foldName gave %q", got)
+	}
 }
