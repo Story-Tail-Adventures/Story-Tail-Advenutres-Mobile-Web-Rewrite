@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/uuid"
 )
 
 // §3.10.1 and §3.10.2's handlers against the fake Supabase: the two columns rendered from the
@@ -122,9 +124,9 @@ func TestThreadReply(t *testing.T) {
 	t.Run("sends the draft, then comes back to the thread with its filters", func(t *testing.T) {
 		wd := messagesWorld(t)
 		wd.fake.functions["POST agent-message"] = reply{200, `{"conversationId":"` + convID + `"}`}
-		id := "0195a2c0-1a00-7000-8000-0000000000c1"
+		id := uuid.New()
 		rec := wd.post(threadURL+"?unread=1", url.Values{
-			"op": {"send"}, "messageId": {id}, "body": {"On it."},
+			"op": {"send"}, "messageId": {id}, "draftFor": {draftFingerprint("On it.", false)}, "body": {"On it."},
 			"seenUpTo": {"2026-10-12T18:14:00.123456+00:00"},
 		})
 		if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != threadURL+"?unread=1" {
@@ -150,8 +152,9 @@ func TestThreadReply(t *testing.T) {
 	t.Run("a refusal keeps every word, the note switch and the draft's id", func(t *testing.T) {
 		wd := messagesWorld(t)
 		wd.fake.functions["POST agent-message"] = reply{422, `{"detail":"Start the thread with a message they can read."}`}
-		id := "0195a2c0-1a00-7000-8000-0000000000c1"
-		rec := wd.post(threadURL, url.Values{"op": {"send"}, "messageId": {id}, "body": {"Keep <this>."}, "internalNote": {"true"}})
+		id := uuid.New()
+		rec := wd.post(threadURL, url.Values{"op": {"send"}, "messageId": {id}, "draftFor": {draftFingerprint("Keep <this>.", true)},
+			"body": {"Keep <this>."}, "internalNote": {"true"}})
 		b := rec.Body.String()
 		if rec.Code != http.StatusUnprocessableEntity {
 			t.Fatalf("refused = %d", rec.Code)

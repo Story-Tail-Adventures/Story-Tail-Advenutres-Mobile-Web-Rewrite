@@ -1,6 +1,8 @@
 package people
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -29,16 +31,19 @@ var messagesSpec = page.Spec{
 	File:   "agent/people/messages.html",
 	Layout: shell.Agent,
 	Slots: []string{
-		"frame", "list-title", "view-link", "headline",
+		"frame", "list-title-h1", "list-title-h2", "view-link", "headline",
 		"chip-unread", "chip-overdue", "chip-client", "chip-trip",
 		"search-form", "hid-view", "hid-unread", "hid-overdue", "hid-client", "hid-trip", "in-q", "clear-filter",
 		"bulk-form", "bulk-flag", "receipt", "receipt-text", "bulk-bar", "bulk-submit", "empty", "list",
 		"pager", "pg-newer", "pg-older",
-		"pane-pick", "pane-thread",
-		"th-back", "th-name", "th-trip", "th-archived", "th-overdue", "th-replyby", "th-open",
+		"pane-pick", "pick-text", "pane-thread", "pane-new", "new-banner",
+		"new-title", "new-sub", "new-form", "new-client", "new-trip", "new-id", "new-draftfor", "new-error", "new-text", "new-nologin",
+		"th-back", "th-name", "th-trip", "th-archived", "th-overdue", "th-replyby",
+		"th-open", "th-open-text", "th-open-trip-icon", "th-open-client-icon",
 		"th-archive-form", "th-archive-flag", "th-archive-btn",
 		"th-truncated", "th-empty", "th-messages",
-		"rp-form", "rp-id", "rp-seen", "rp-error", "rp-label", "rp-text", "rp-note-label", "rp-nologin",
+		"rp-form", "rp-id", "rp-seen", "rp-draftfor", "rp-error", "rp-label", "rp-text", "rp-note-label", "rp-note", "rp-nologin",
+		"list-error",
 	},
 	Repeats: map[string][]string{
 		"threads": {"r-item", "r-check", "r-link", "r-name", "r-time", "r-preview", "r-trip", "r-trip-name", "r-replyby", "r-unread"},
@@ -60,7 +65,24 @@ type msgState struct {
 	Note      bool
 	MessageID string
 	Receipt   string
+	// Target and NewQuery are "Message client" before the thread exists.
+	Target   *messageTarget
+	NewQuery newMessageQuery
+	// NotFound: the client named in the URL is not one of theirs, or archived.
+	NotFound bool
 }
+
+// takeArchiveReceipt is what a bulk archive left behind, on whichever messages page loads
+// next: the thread beside the list counts too, so the line is not lost to a stray click.
+func takeArchiveReceipt(w http.ResponseWriter, r *http.Request, secure bool) string {
+	if rc, ok := takeReceipt(w, r, secure); ok && rc.Kind == "archive" {
+		return messagesMoved(rc.Changed, rc.Added)
+	}
+	return ""
+}
+
+// nowOf is this request's clock, so the list and the thread agree on what "Today" is.
+func nowOf(*http.Request) time.Time { return time.Now() }
 
 // ── Reads ────────────────────────────────────────────────────────────────────────────────
 
@@ -160,10 +182,7 @@ func (a *app) serveMessages(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	st := msgState{}
-	if rc, ok := takeReceipt(w, r, a.d.SecureCookies); ok && rc.Kind == "archive" {
-		st.Receipt = messagesMoved(rc.Changed, rc.Added)
-	}
+	st := msgState{Receipt: takeArchiveReceipt(w, r, a.d.SecureCookies)}
 	a.renderMessages(w, r, v, inboxQueryFrom(r.URL.Query()), st, http.StatusOK)
 }
 
@@ -188,11 +207,11 @@ func (a *app) serveThread(w http.ResponseWriter, r *http.Request) {
 			Op: "read", ConversationID: t.Header.ConversationID, SeenUpTo: t.SeenUpTo,
 		}})
 	}
-	a.renderMessages(w, r, v, q, msgState{Thread: &t}, http.StatusOK)
+	a.renderMessages(w, r, v, q, msgState{Thread: &t, Receipt: takeArchiveReceipt(w, r, a.d.SecureCookies)}, http.StatusOK)
 }
 
 func (a *app) renderMessages(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, st msgState, status int) {
-	now := time.Now()
+	now := nowOf(r)
 	in, err := a.loadInbox(r, v, q, now)
 	if err != nil {
 		a.renderFailed(w, r, v, true)
@@ -224,17 +243,26 @@ func fillMessages(doc *page.Doc, in inbox, q inboxQuery, st msgState, now time.T
 	doc.Class("frame", "ppl-msg-thread-open", active != "")
 	doc.Keep("frame")
 
+	// What the poller compares against, so it only speaks when the numbers move.
+	doc.Attr("new-banner", "data-counts", unreadBadge(in))
+	doc.URL("new-banner", "href", q.href())
 	fillInboxColumn(doc, in, q, st, active, now)
 
-	keepIf(doc, "pane-pick", st.Thread == nil)
-	if st.Thread == nil {
-		for _, s := range []string{"pane-thread"} {
-			doc.Remove(s)
-		}
-		return
+	// Exactly one right-hand pane: the thread, "Message client", or the prompt to pick one.
+	keepIf(doc, "pane-thread", st.Thread != nil)
+	keepIf(doc, "pane-new", st.Target != nil)
+	keepIf(doc, "pane-pick", st.Thread == nil && st.Target == nil)
+	switch {
+	case st.Thread != nil:
+		fillThreadPane(doc, *st.Thread, q, st, now)
+	case st.Target != nil:
+		fillNewPane(doc, *st.Target, st.NewQuery, st)
+	case st.NotFound:
+		// The client named in the URL is not one of theirs: one sentence where the thread goes.
+		doc.Text("pick-text", msgNotFound)
+	default:
+		doc.Keep("pick-text")
 	}
-	doc.Keep("pane-thread")
-	fillThreadPane(doc, *st.Thread, q, st, now)
 }
 
 // hrefAt is a filter link: the same list, changed, back on page one, and beside an open
@@ -254,7 +282,16 @@ func fillInboxColumn(doc *page.Doc, in inbox, q inboxQuery, st msgState, active 
 	if q.Archived {
 		title = msgViewArchived
 	}
-	doc.Text("list-title", title)
+	// The list's title is this page's h1 only when the list IS the page. Beside a thread or a
+	// new message their own heading is the h1 and this drops to an h2, as Next's slot does.
+	beside := st.Thread != nil || st.Target != nil
+	keepIf(doc, "list-title-h1", !beside)
+	keepIf(doc, "list-title-h2", beside)
+	if beside {
+		doc.Text("list-title-h2", title)
+	} else {
+		doc.Text("list-title-h1", title)
+	}
 
 	viewText := msgViewArchived
 	if in.ArchivedThreads > 0 {
@@ -331,6 +368,11 @@ func fillInboxColumn(doc *page.Doc, in inbox, q inboxQuery, st msgState, active 
 	doc.Attr("bulk-flag", "value", strconv.FormatBool(!q.Archived))
 	doc.Text("bulk-submit", cmpOr(map[bool]string{true: msgRestoreSelect}[q.Archived], msgArchiveSelect))
 	doc.Keep("bulk-bar")
+	if st.Error != "" && st.Thread == nil && st.Target == nil {
+		doc.Text("list-error", st.Error)
+	} else {
+		doc.Remove("list-error")
+	}
 	if st.Receipt != "" {
 		doc.Keep("receipt")
 		doc.Text("receipt-text", st.Receipt)
@@ -414,7 +456,8 @@ func fillInboxColumn(doc *page.Doc, in inbox, q inboxQuery, st msgState, active 
 
 func fillThreadPane(doc *page.Doc, t threadView, q inboxQuery, st msgState, now time.Time) {
 	h := t.Header
-	self := "/agent/messages/" + url.PathEscape(h.ConversationID)
+	// The filters ride on the form too: posting from a filtered list must come back to it.
+	self := threadLink(h.ConversationID, q)
 	doc.Attr("pane-thread", "aria-label", h.ClientName)
 	doc.URL("th-back", "href", q.href())
 	doc.Text("th-name", h.ClientName)
@@ -426,12 +469,15 @@ func fillThreadPane(doc *page.Doc, t threadView, q inboxQuery, st msgState, now 
 	} else {
 		doc.Remove("th-replyby")
 	}
+	doc.Keep("th-open")
+	keepIf(doc, "th-open-trip-icon", h.TripID != "")
+	keepIf(doc, "th-open-client-icon", h.TripID == "")
 	if h.TripID != "" {
 		doc.URL("th-open", "href", "/agent/trips/"+url.PathEscape(h.TripID))
-		doc.Text("th-open", "Open trip")
+		doc.Text("th-open-text", "Open trip")
 	} else {
 		doc.URL("th-open", "href", "/agent/clients/"+url.PathEscape(h.ClientID))
-		doc.Text("th-open", "Open client")
+		doc.Text("th-open-text", "Open client")
 	}
 	doc.URL("th-archive-form", "action", self)
 	doc.Attr("th-archive-flag", "value", strconv.FormatBool(!h.Archived))
@@ -454,6 +500,11 @@ func fillThreadPane(doc *page.Doc, t threadView, q inboxQuery, st msgState, now 
 		id = uuid.New()
 	}
 	doc.Attr("rp-id", "value", id)
+	doc.Attr("rp-draftfor", "value", draftFingerprint(st.Body, st.Note))
+	// A refused note must not come back as a reply: the whole note treatment, including
+	// which button says "Add note", hangs off this checkbox.
+	doc.Bool("rp-note", "checked", st.Note)
+	doc.Keep("rp-note")
 	if t.SeenUpTo != "" {
 		doc.Attr("rp-seen", "value", t.SeenUpTo)
 	} else {
@@ -475,11 +526,13 @@ func fillThreadPane(doc *page.Doc, t threadView, q inboxQuery, st msgState, now 
 }
 
 // fillThreadMessages flattens the days into one repeat: a row is a day separator, an
-// internal note, a bubble, or one attachment under the bubble above it. The page builder
-// allows no nested repeat, and this shows every attachment rather than a fixed few.
+// internal note, a bubble, one attachment, or the time under them. The page builder allows
+// no nested repeat, and this shows every attachment rather than a fixed few. Next draws the
+// bubble, then the attachments, then the time, so the time is a row of its own: it has to
+// come after however many attachment rows there are.
 func fillThreadMessages(doc *page.Doc, days []threadDay, t threadView, h threadHeader) {
 	type row struct {
-		kind       string // "day", "note", "msg", "attach"
+		kind       string // "day", "note", "msg", "attach", "time"
 		label      string
 		m          threadMessageView
 		attachment string
@@ -488,14 +541,17 @@ func fillThreadMessages(doc *page.Doc, days []threadDay, t threadView, h threadH
 	for _, d := range days {
 		rows = append(rows, row{kind: "day", label: d.Label})
 		for _, m := range d.Messages {
+			// A note carries its own time inside its card, and is the one thing the client
+			// never sees: Next draws no attachment row under it, so neither does this.
 			if m.InternalNote {
 				rows = append(rows, row{kind: "note", m: m})
-			} else {
-				rows = append(rows, row{kind: "msg", m: m})
+				continue
 			}
+			rows = append(rows, row{kind: "msg", m: m})
 			for _, att := range m.Attachments {
 				rows = append(rows, row{kind: "attach", m: m, attachment: att.Filename})
 			}
+			rows = append(rows, row{kind: "time", m: m})
 		}
 	}
 
@@ -503,11 +559,22 @@ func fillThreadMessages(doc *page.Doc, days []threadDay, t threadView, h threadH
 		it := rows[i]
 		mine := it.m.Sender == "agent"
 		r.Class("m-box", "ppl-msg-mine", mine && it.kind != "day")
+		// Every row carries the gap above it that Next gives this kind of row.
+		r.Class("m-box", "ppl-msg-r-day", it.kind == "day")
+		r.Class("m-box", "ppl-msg-r-attach", it.kind == "attach")
+		r.Class("m-box", "ppl-msg-r-time", it.kind == "time")
 		r.Keep("m-box")
 		keepIf2(r, "m-day", it.kind == "day")
 		keepIf2(r, "m-note", it.kind == "note")
-		keepIf2(r, "m-bubble", it.kind == "msg")
-		keepIf2(r, "m-attach", it.kind == "attach")
+		// Taking the wrapper out takes the three inside it too, so only a row that keeps the
+		// wrapper may speak about them.
+		bubble := it.kind == "msg" || it.kind == "attach" || it.kind == "time"
+		keepIf2(r, "m-bubble", bubble)
+		if bubble {
+			keepIf2(r, "m-paper", it.kind == "msg")
+			keepIf2(r, "m-attach", it.kind == "attach")
+			keepIf2(r, "m-time", it.kind == "time")
+		}
 		switch it.kind {
 		case "day":
 			r.Text("m-day-label", it.label)
@@ -516,16 +583,16 @@ func fillThreadMessages(doc *page.Doc, days []threadDay, t threadView, h threadH
 			r.Text("m-note-time", formatMessageTime(it.m.CreatedAt, t.TimeZone))
 		case "msg":
 			r.Class("m-paper", "ppl-msg-theirs", !mine)
-			r.Keep("m-paper")
 			sender := h.ClientFirstName
 			if mine {
 				sender = "You"
 			}
 			r.Text("m-sender", sender+": ")
 			r.Text("m-body", it.m.Body)
-			r.Text("m-time", messageTimeLine(it.m, t.TimeZone, mine))
 		case "attach":
 			r.Text("m-attach-name", it.attachment)
+		case "time":
+			r.Text("m-time", messageTimeLine(it.m, t.TimeZone, mine))
 		}
 	})
 }
@@ -533,12 +600,13 @@ func fillThreadMessages(doc *page.Doc, days []threadDay, t threadView, h threadH
 // messageTimeLine is the bubble's time, with Stage 4's marks after it.
 func messageTimeLine(m threadMessageView, zone string, mine bool) string {
 	line := formatMessageTime(m.CreatedAt, zone)
-	switch {
-	case mine && m.AutoReply:
+	if mine && m.AutoReply {
 		line += " · Automatic reply"
-	case mine && m.Emailed:
+	}
+	if mine && m.Emailed {
 		line += " · Emailed"
-	case !mine && m.ByEmail:
+	}
+	if !mine && m.ByEmail {
 		line += " · By email"
 	}
 	return line
@@ -669,12 +737,8 @@ func (a *app) postThread(w http.ResponseWriter, r *http.Request) {
 func (a *app) sendMessage(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, conversationID string, f url.Values) {
 	body := f.Get("body")
 	note := f.Get("internalNote") == "true"
-	// The id is minted when the box is drawn and posted back, so a double send or a retry of
-	// the same words lands once (the function refuses the second as already sent).
-	id := f.Get("messageId")
-	if !uuid.IsV7(id) {
-		id = uuid.New()
-	}
+
+	id := draftID(f, body, note)
 	again := func(msg string, status int) {
 		a.renderThreadError(w, r, v, q, conversationID, msgState{Error: msg, Body: body, Note: note, MessageID: id}, status)
 	}
@@ -712,6 +776,31 @@ func (a *app) sendMessage(w http.ResponseWriter, r *http.Request, v visit, q inb
 		web.SetFlash(w, flash, a.d.SecureCookies)
 		web.SeeOther(w, r, threadLink(str(rep.ConversationID), q))
 	}
+}
+
+// draftFingerprint names the words a message id was minted for. The id is reused only for a
+// retry of exactly those words, as Next's reply box does.
+func draftFingerprint(body string, note bool) string {
+	sum := sha256.Sum256([]byte(strconv.FormatBool(note) + "\x00" + body))
+	return hex.EncodeToString(sum[:8])
+}
+
+// draftID is the id this send should carry. The box mints one when it is drawn and posts it
+// back, so a double click or a retry of the same words lands once (the function refuses the
+// second as already sent). It is re-minted when the words or the note flag changed since it
+// was minted, and when it has aged out of the function's window for a client-minted v7 —
+// otherwise an edited draft would be refused as already sent, and a box left open would
+// become unsendable.
+func draftID(f url.Values, body string, note bool) string {
+	id := f.Get("messageId")
+	if !uuid.IsV7(id) || f.Get("draftFor") != draftFingerprint(body, note) {
+		return uuid.New()
+	}
+	at, err := uuid.Timestamp(id)
+	if err != nil || time.Since(at) > 30*time.Minute || time.Until(at) > time.Minute {
+		return uuid.New()
+	}
+	return id
 }
 
 // renderThreadError redraws the page with the thread open and a sentence over the reply box.

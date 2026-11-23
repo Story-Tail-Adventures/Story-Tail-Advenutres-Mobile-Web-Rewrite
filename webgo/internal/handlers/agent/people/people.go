@@ -85,7 +85,11 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/leads/{leadId}", http.HandlerFunc(a.postLead))
 	rt.Protected("GET /agent/messages", http.HandlerFunc(a.serveMessages))
 	rt.Protected("POST /agent/messages", http.HandlerFunc(a.postMessages))
+	rt.Protected("GET /agent/messages/new", http.HandlerFunc(a.serveNewMessage))
+	rt.Protected("POST /agent/messages/new", http.HandlerFunc(a.postNewMessage))
 	rt.Protected("GET /agent/messages/{conversationId}", http.HandlerFunc(a.serveThread))
 	rt.Protected("POST /agent/messages/{conversationId}", http.HandlerFunc(a.postThread))
+	rt.SelfGated("POST /api/agent/messages/{conversationId}/read", http.HandlerFunc(a.postThreadRead))
+	rt.SelfGated("GET /api/agent/messages/count", http.HandlerFunc(a.serveMessageCount))
 	return nil
 }

@@ -611,7 +611,16 @@
   .ppl-msg-head-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
   .ppl-msg-chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
   .ppl-msg-search { margin-top: 10px; display: flex; align-items: flex-end; gap: 8px; }
+  /* MUI's small OutlinedInput is 40px; ui.css's .input is the 44px Field box. */
+  /* The search box keeps the house Field's own height. MUI floats its label on the border,
+     so Next's input is 40px with the label inside it; ours sits under a label of its own and
+     is 43px. Forcing 40 here lifts every row 3px off Next's, which is the comparison that
+     matters, so the box stays as the Field draws it. */
+  /* MUI's small Checkbox: a 20px icon in a 38px button. */
+  .ppl-msg-check { width: 38px; height: 38px; align-items: center; justify-content: center; }
+  .ppl-msg-check .check-input { width: 20px; height: 20px; margin: 0; }
   .ppl-msg-receipt { padding: 8px 14px 0; }
+  .ppl-msg-error { padding: 8px 14px 0; }
   .ppl-msg-bulk { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background-color: var(--mui-palette-surface-2); }
   .ppl-msg-empty { padding: 16px 14px; }
   .ppl-msg-list { margin: 0; padding: 0; list-style: none; }
@@ -636,6 +645,7 @@
   .ppl-msg-overdue { color: var(--mui-palette-error-main); font-weight: 600; }
   .ppl-msg-pager { display: flex; justify-content: space-between; padding: 10px 14px; }
   .ppl-msg-pick { display: grid; place-items: center; height: 100%; min-height: 320px; padding: 0 24px; }
+  .ppl-msg-pick > p { margin: 0; }
   /* The thread: header, the messages (the only part that scrolls), the reply box. */
   .ppl-msg-thread { display: flex; flex-direction: column; height: 100%; }
   .ppl-msg-thread-head { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--mui-palette-divider); }
@@ -649,10 +659,17 @@
   .ppl-msg-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; position: relative; }
   @media (min-width: 768px) { .ppl-msg-scroll { padding-left: 20px; padding-right: 20px; } }
   .ppl-msg-truncated { display: block; margin-bottom: 12px; text-align: center; }
-  .ppl-msg-days { display: flex; flex-direction: column; gap: 10px; }
-  .ppl-msg-rowbox { display: flex; flex-direction: column; align-items: flex-start; }
+  /* Next stacks days 12px apart and the rows inside a day 10px apart, with the attachments
+     4px under their bubble and the time 2px under those. One container gap cannot say all
+     four, and the page builder allows no nested repeat, so every row carries its own gap. */
+  .ppl-msg-days { display: flex; flex-direction: column; }
+  .ppl-msg-rowbox { display: flex; flex-direction: column; align-items: flex-start; margin-top: 10px; }
+  .ppl-msg-days > :first-child .ppl-msg-rowbox { margin-top: 0; }
+  .ppl-msg-r-day { margin-top: 12px; }
+  .ppl-msg-r-attach { margin-top: 4px; }
+  .ppl-msg-r-time { margin-top: 2px; }
   .ppl-msg-mine { align-items: flex-end; }
-  .ppl-msg-day { width: 100%; text-align: center; margin: 2px 0; }
+  .ppl-msg-day { width: 100%; text-align: center; }
   .ppl-msg-note {
     max-width: 88%;
     padding: 10px 14px;
@@ -677,9 +694,8 @@
     background-color: var(--mui-palette-background-paper);
     color: var(--mui-palette-text-primary);
   }
-  .ppl-msg-time { margin-top: 2px; display: block; }
+  .ppl-msg-time { display: block; }
   .ppl-msg-mine .ppl-msg-time { text-align: right; }
-  .ppl-msg-attach-wrap { margin-top: 4px; }
   .ppl-msg-attach { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; max-width: 100%; }
   .ppl-preline { white-space: pre-line; }
   /* The reply box. A note looks like a note before it is sent: tinted, a dashed edge, a lock
@@ -695,7 +711,36 @@
   .ppl-msg-note-switch { margin-right: 0; }
   .ppl-msg-note-hint,
   .ppl-msg-send-note { display: none; }
+  /* Next disables Send while the box is empty. The textarea is required, so an empty box is
+     :invalid; draw the button the way ui.css draws a disabled one. The form still refuses to
+     submit without JS, so this is the look, not the gate. */
+  .ppl-msg-reply:has(.ppl-msg-text:invalid) .ppl-msg-send,
+  .ppl-msg-reply:has(.ppl-msg-text:invalid) .ppl-msg-send-note,
+  .ppl-msg-new-box:has(.ppl-msg-text:invalid) .btn-contained {
+    color: var(--mui-palette-action-disabled);
+    background-color: var(--mui-palette-action-disabledBackground);
+    pointer-events: none;
+  }
   .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-note-hint { margin-top: 6px; display: flex; align-items: center; gap: 4px; }
   .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-send-note { display: inline-flex; }
   .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-send { display: none; }
+  /* A note is never emailed, so the line about the client's login does not belong on it. */
+  .ppl-msg-reply:has(.ppl-note-switch:checked) [data-slot="rp-nologin"] { display: none; }
+
+  /* "Message client" before the thread exists, and the poller's banner. */
+  .ppl-msg-new { margin: 0 auto; width: 100%; max-width: 760px; padding: 24px 16px; }
+  @media (min-width: 768px) { .ppl-msg-new { padding-left: 32px; padding-right: 32px; } }
+  .ppl-msg-new-title { margin-top: 12px; }
+  @media (min-width: 1024px) { .ppl-msg-new-title { margin-top: 0; } }
+  .ppl-msg-new-box { border: 1px solid var(--mui-palette-divider); border-radius: 16px; padding: 12px 16px; }
+  .ppl-msg-new-banner {
+    display: block;
+    padding: 8px 14px;
+    background-color: var(--mui-palette-brand-main);
+    color: var(--mui-palette-brand-contrastText);
+    font: var(--mui-font-body2);
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+  }
 }
