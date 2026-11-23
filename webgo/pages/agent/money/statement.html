@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  One uploaded statement: 3.7.5's column map while it has none, 3.7.6's reconciliation once
+  it does. Ports app/(agent)/agent/commission/import/[importId]/page.tsx with
+  StatementMapForm, StatementRowsTable and StatementConfirmButton. Filled by
+  internal/handlers/agent/money (statement.go).
+
+  ONE URL whatever stage the statement is at, so the list and a bookmark always land in the
+  right place. ?step=map reopens the map on a statement in review ("Change columns"), with a
+  warning that it clears the decisions made.
+
+  MARK AS RECONCILED IS DISABLED WITH ITS REASON while any row needs the advisor (§3.2.1's
+  rule): reconciling is the moment every row is accounted for, and the SQL refuses it anyway.
+  It is the ONLY control here that changes the ledger, and it says what it will do first.
+
+  The column select's eight options are written out rather than repeated: the list is fixed,
+  and a repeat cannot nest inside the per-column repeat.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Statement · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/import" aria-current="page"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <!-- RetryState: a read failed. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/import" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card mny-state" data-slot="not-found">
+          <div class="card-content mny-state-body">
+            <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg></span>
+            <h2 class="type-h5">Statement not found</h2>
+            <p class="type-body2 text-secondary mny-mt-1">It may have been discarded. Your other statements are on the import page.</p>
+            <div class="mny-state-actions">
+              <a class="btn btn-contained st-btn" href="/agent/commission/import">Back to statements</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Mapping (or remapping a statement in review) ───────────────── -->
+        <div data-slot="mapping">
+          <header class="mny-head">
+            <div class="mny-head-text">
+              <h1 class="type-h5">Import Inteletravel statement</h1>
+              <p class="type-body2 text-secondary mny-sub">Upload the CSV from Inteletravel. Your ledger stays the same until you mark the statement reconciled.</p>
+            </div>
+          </header>
+
+          <div class="mny-steps">
+            <section class="card">
+              <div class="card-content mny-card-18">
+                <h2 class="type-subtitle1 fw-600 mny-card-title">Step 1 · Upload</h2>
+                <p class="type-caption text-secondary mny-uploaded" data-slot="uploaded-line">Uploaded: april.csv · 38 rows found</p>
+                <!-- Starting over DISCARDS the statement, so the file can be uploaded again. -->
+                <form method="post" action="/agent/commission/import/sample" class="mny-mt-1" data-slot="map-start-over" data-submit-once>
+                  <input type="hidden" name="op" value="discard">
+                  <input type="hidden" name="importId" value="" data-slot="discard-id">
+                  <input type="hidden" name="version" value="1" data-slot="discard-version">
+                  <button type="submit" class="btn btn-text btn-small st-btn" data-pending-label="Working…">Use a different file</button>
+                </form>
+                <a class="link link-hover type-body2 mny-mt-1 mny-block" href="/agent/commission/import/sample" data-slot="map-back">Back to the statement</a>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-content mny-card-18">
+                <h2 class="type-subtitle1 fw-600 mny-card-title">Step 2 · Map columns</h2>
+                <p class="type-body2 text-secondary mny-mt-1">Say what each column holds. Guesses are filled in and marked Auto.</p>
+                <div class="alert alert-warning mny-mt-1" role="alert" data-slot="remap-warning"><div class="alert-message">Changing the columns clears the choices you've made on this statement.</div></div>
+
+                <form method="post" action="/agent/commission/import/sample" data-slot="map-form" data-submit-once>
+                  <input type="hidden" name="op" value="map">
+                  <input type="hidden" name="importId" value="" data-slot="map-import-id">
+                  <input type="hidden" name="version" value="1" data-slot="map-version">
+                  <input type="hidden" name="headerCount" value="0" data-slot="map-header-count">
+
+                  <div class="alert alert-error mny-mt-1" role="alert" data-slot="map-error"><div class="alert-message" data-slot="map-error-text">That didn’t save. Try again in a moment.</div></div>
+
+                  <ul class="mny-columns" aria-label="Statement columns">
+                    <li class="mny-column" data-repeat="column">
+                      <span class="mny-column-text">
+                        <span class="type-body2 fw-600 mny-block" data-slot="column-name">Commission</span>
+                        <span class="type-caption text-secondary mny-block" data-slot="column-sample">540.00</span>
+                      </span>
+                      <span class="select mny-select mny-column-select">
+                        <select class="input mny-input-40" name="col-0" data-slot="column-select">
+                          <option value="" data-slot="opt-ignore">Ignore this column</option>
+                          <option value="reference" data-slot="opt-reference">Booking reference</option>
+                          <option value="supplier" data-slot="opt-supplier">Supplier</option>
+                          <option value="traveler" data-slot="opt-traveler">Traveler name</option>
+                          <option value="gross" data-slot="opt-gross">Gross booking</option>
+                          <option value="received" data-slot="opt-received">Commission paid</option>
+                          <option value="fee" data-slot="opt-fee">Fee withheld</option>
+                          <option value="paid_on" data-slot="opt-paid-on">Paid on</option>
+                        </select>
+                      </span>
+                    </li>
+                  </ul>
+
+                  <div class="field mny-field mny-mt-1" data-slot="map-date-field">
+                    <label class="field-label" for="statement-date">Paid on, for every row</label>
+                    <input class="input mny-input-40" id="statement-date" type="date" name="statementDate" value="" data-slot="map-date">
+                    <p class="field-help">No column holds the paid-on date, so use the date on the statement.</p>
+                    <p class="field-error" id="map-date-error" data-slot="map-date-error">Choose the paid-on column, or enter the date the statement paid.</p>
+                  </div>
+
+                  <button type="submit" class="btn btn-contained btn-brand st-btn mny-mt-2" data-pending-label="Saving…">Save columns</button>
+                </form>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- ── Review / reconciled ────────────────────────────────────────── -->
+        <div data-slot="review">
+          <header class="mny-head">
+            <div class="mny-head-text">
+              <h1 class="type-h5" data-slot="review-title">Reconcile · April 2026 statement</h1>
+              <p class="type-body2 text-secondary mny-sub" data-slot="review-subtitle">38 imported · 35 matched · 3 to resolve</p>
+            </div>
+            <div class="row wrap items-baseline gap-1 shrink-0" data-slot="review-actions">
+              <a class="link link-hover type-body2" href="/agent/commission/import/sample?step=map" data-slot="change-columns">Change columns</a>
+              <form method="post" action="/agent/commission/import/sample" data-slot="discard-form" data-submit-once>
+                <input type="hidden" name="op" value="discard">
+                <input type="hidden" name="importId" value="" data-slot="statement-discard-id">
+                <input type="hidden" name="version" value="1" data-slot="statement-discard-version">
+                <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn" data-pending-label="Working…">Discard statement</button>
+              </form>
+              <form method="post" action="/agent/commission/import/sample" data-slot="reconcile-form" data-submit-once>
+                <input type="hidden" name="op" value="reconcile">
+                <input type="hidden" name="importId" value="" data-slot="reconcile-id">
+                <input type="hidden" name="version" value="1" data-slot="reconcile-version">
+                <button type="submit" class="btn btn-contained btn-brand btn-small st-btn" data-slot="reconcile-button" data-pending-label="Working…">Mark as reconciled</button>
+              </form>
+            </div>
+          </header>
+
+          <p class="type-caption text-secondary mny-block mny-mb-1" data-slot="reconcile-body">This records 30 payments and adds 3 new lines in your ledger. Lines you already marked paid stay as they are.</p>
+          <p class="type-caption text-secondary mny-block mny-mb-1" id="reconcile-reason" data-slot="reconcile-reason">Resolve 3 more rows to reconcile.</p>
+
+          <div class="alert alert-success mny-mb-1" data-slot="reconciled-note"><div class="alert-message" data-slot="reconciled-note-text">Reconciled May 2, 2026: 30 payments recorded, 3 new lines.</div></div>
+          <div class="alert alert-error mny-mb-1" role="alert" data-slot="statement-error"><div class="alert-message" data-slot="statement-error-text">That didn’t save. Nothing in your ledger changed. Try again in a moment.</div></div>
+
+          <p class="type-body2 text-secondary" data-slot="rows-empty">This statement has no rows.</p>
+
+          <div class="card mny-table-card" data-slot="rows-table">
+            <table class="table table-small" aria-label="Statement rows">
+              <thead>
+                <tr>
+                  <th scope="col">Inteletravel row</th>
+                  <th scope="col">Ledger match</th>
+                  <th scope="col">Confidence</th>
+                  <th scope="col" class="cell-num">Amount</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-repeat="statement">
+                  <td>
+                    <span class="type-mono type-caption mny-block" data-slot="row-line">SRB-220119 · Sandals Resorts · M Hayes</span>
+                    <span class="type-caption text-secondary mny-block" data-slot="row-paid-on">Feb 21, 2027</span>
+                  </td>
+                  <td data-slot="row-match">
+                    <a class="link link-hover type-body2" href="/agent/commission/ledger/sample" data-slot="row-match-link">Sandals Resorts · Jordan Hayes · Anniversary Week in Negril</a>
+                    <span class="type-body2" data-slot="row-match-plain">No match found</span>
+                    <span class="type-caption text-secondary mny-block mny-row-note" data-slot="row-note">Expected $1,368.00. Paid $1,292.00. That’s $76.00 short, so it will be marked Disputed.</span>
+                  </td>
+                  <td><span class="status-chip" data-slot="row-confidence">High</span></td>
+                  <td class="cell-num mny-td-mono" data-slot="row-amount">$1,368.00</td>
+                  <td data-slot="row-action">
+                    <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/commission/import/sample/rows/sample" data-slot="row-resolve">Resolve</a>
+                    <span class="type-caption text-secondary" data-slot="row-done">Auto-matched</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
