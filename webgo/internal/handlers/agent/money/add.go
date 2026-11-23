@@ -261,7 +261,7 @@ func fillAdd(doc *page.Doc, tripID, search string, form addLineForm, trips []tri
 		message(doc, "form-error", "form-error-text", rend.msg)
 		keepIf(doc, "no-suppliers", !anySupplier(form.Suppliers))
 		fillSupplierPicker(doc, flattenSuppliers(form.Suppliers), values.SupplierID, &form)
-		fillLineFields(doc, values, rend.errs, 0)
+		fillLineFields(doc, values, rend.errs)
 		fillStatusPicker(doc, createStatusOptions, values.Status)
 		doc.URL("cancel", "href", ledgerPath+"?trip="+url.QueryEscape(form.TripID))
 		return

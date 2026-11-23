@@ -87,6 +87,8 @@ func TestModuleKeepsTheTypeScriptArithmetic(t *testing.T) {
 		"expected - f - r",
 		// formatTripMoney shows cents only where there are any.
 		"cents % 100 === 0 ? 0 : 2",
+		// And an em dash for a null, never $0 — CommissionLineForm's own answer.
+		`cents === null || pct === null ? "\u2014"`,
 	} {
 		if !strings.Contains(src, want) {
 			t.Errorf("line-form.js no longer contains %q", want)

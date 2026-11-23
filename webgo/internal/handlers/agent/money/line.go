@@ -274,7 +274,16 @@ var lineSpec = page.Spec{
 type lineRender struct {
 	load lineLoad
 	// values override the saved ones after a refused save, so nothing typed is lost.
-	values      lineValues
+	values lineValues
+	// version is the version the advisor's PAGE carried, echoed back on a refusal.
+	//
+	// Without it the optimistic lock defeats itself: this handler re-reads the row to redraw
+	// the page, so a refused save would be redrawn with the SERVER's version beside the
+	// advisor's stale text — the retry would then be accepted and would overwrite the very
+	// change the advisor was just warned about. React never had the problem, because its
+	// hidden version came from a server component the failed action did not re-render.
+	version     int
+	hasVersion  bool
 	pay         paymentValues
 	lineErrors  fieldErrors
 	payErrors   fieldErrors
@@ -364,7 +373,12 @@ func fillLine(doc *page.Doc, rend lineRender) {
 	doc.URL("line-form", "action", linePath(line.CommissionID))
 	doc.Attr("line-id", "value", line.CommissionID)
 	doc.Attr("line-trip-id", "value", line.TripID)
-	doc.Attr("line-version", "value", itoa(line.Version))
+	// The version the page was at, not the one the re-read just found. See lineRender.
+	version := line.Version
+	if rend.hasVersion {
+		version = rend.version
+	}
+	doc.Attr("line-version", "value", itoa(version))
 	message(doc, "form-error", "form-error-text", rend.formError)
 
 	// Moving a paid line back to an unpaid status wipes the recorded payment (the SQL does
@@ -375,7 +389,7 @@ func fillLine(doc *page.Doc, rend lineRender) {
 	keepIf(doc, "no-suppliers", !anySupplier(rend.load.Suppliers))
 
 	fillSupplierPicker(doc, flattenSuppliers(rend.load.Suppliers), values.SupplierID, nil)
-	fillLineFields(doc, values, rend.lineErrors, line.ExpectedCents)
+	fillLineFields(doc, values, rend.lineErrors)
 	fillStatusPicker(doc, editStatusOptions(line.Status), values.Status)
 
 	// ── The payment form ────────────────────────────────────────────────────
@@ -383,7 +397,7 @@ func fillLine(doc *page.Doc, rend lineRender) {
 	doc.URL("pay-form", "action", linePath(line.CommissionID))
 	doc.Attr("pay-id", "value", line.CommissionID)
 	doc.Attr("pay-trip-id", "value", line.TripID)
-	doc.Attr("pay-version", "value", itoa(line.Version))
+	doc.Attr("pay-version", "value", itoa(version))
 	message(doc, "pay-error", "pay-error-text", rend.payError)
 
 	doc.Attr("pay-received", "value", pay.Received)
@@ -417,7 +431,7 @@ func fillLine(doc *page.Doc, rend lineRender) {
 		doc.URL("remove-form", "action", linePath(line.CommissionID))
 		doc.Attr("remove-id", "value", line.CommissionID)
 		doc.Attr("remove-trip-id", "value", line.TripID)
-		doc.Attr("remove-version", "value", itoa(line.Version))
+		doc.Attr("remove-version", "value", itoa(version))
 		message(doc, "remove-error", "remove-error-text", rend.removeError)
 	} else {
 		doc.Remove("remove")
@@ -426,7 +440,7 @@ func fillLine(doc *page.Doc, rend lineRender) {
 }
 
 // fillLineFields draws the shared line form's own inputs, which §3.7.4 draws too.
-func fillLineFields(doc *page.Doc, values lineValues, errs fieldErrors, saved Cents) {
+func fillLineFields(doc *page.Doc, values lineValues, errs fieldErrors) {
 	doc.Keep("supplier-select")
 	errorOrHint(doc, "supplier-select", "supplier-error", "", errs["supplierId"])
 
@@ -437,13 +451,15 @@ func fillLineFields(doc *page.Doc, values lineValues, errs fieldErrors, saved Ce
 	doc.Attr("lag-value", "value", values.PaymentLagDays)
 	errorOrHint(doc, "lag-value", "lag-error", "lag-hint", errs["paymentLagDays"])
 
-	// Expected: the preview where both fields parse, else the saved figure. Never blank on a
-	// line that has one.
-	expected, ok := previewExpectedCents(values.Gross, values.Rate)
-	if !ok {
-		expected = saved
+	// Expected: gross × rate where both parse, and an EM DASH where either does not, which
+	// is what CommissionLineForm renders for a null. Not "$0" — that is a figure, and on a
+	// half-filled Add form a wrong one. On a saved line both always parse, so the dash only
+	// shows after a refused save with something unparseable still in the field.
+	if expected, ok := previewExpectedCents(values.Gross, values.Rate); ok {
+		doc.Text("expected-readout", moneyExact(expected))
+	} else {
+		doc.Text("expected-readout", noFigure)
 	}
-	doc.Text("expected-readout", moneyExact(expected))
 
 	doc.Keep("terms-after-travel")
 	doc.Keep("terms-at-booking")
@@ -508,12 +524,15 @@ func (a *app) signedOutTo(w http.ResponseWriter, r *http.Request, path string) {
 func (a *app) updateLine(w http.ResponseWriter, r *http.Request, v visit, commissionID string, f form) {
 	values := lineValuesFromForm(f)
 	version, hasVersion := parseIntJS(f.Get("version"))
+	echo := lineRender{values: values, version: version, hasVersion: hasVersion}
 	if commissionID == "" || !hasVersion {
-		a.renderLine(w, r, v, commissionID, lineRender{values: values, formError: copySaveFailed}, http.StatusUnprocessableEntity)
+		echo.formError = copySaveFailed
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 		return
 	}
 	if errs := validateLine(values); errs != nil {
-		a.renderLine(w, r, v, commissionID, lineRender{values: values, lineErrors: errs}, http.StatusUnprocessableEntity)
+		echo.lineErrors = errs
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -536,16 +555,17 @@ func (a *app) updateLine(w http.ResponseWriter, r *http.Request, v visit, commis
 		if out.Conflict {
 			msg = copyLineStale
 		}
-		a.renderLine(w, r, v, commissionID, lineRender{values: values, formError: msg}, out.Status)
+		echo.formError = msg
+		a.renderLine(w, r, v, commissionID, echo, out.Status)
 		return
 	}
 	switch outcome := decodeOutcome(res.Data).Outcome; outcome {
 	case "duplicate_reference", "supplier_not_found":
-		a.renderLine(w, r, v, commissionID, lineRender{
-			values: values, lineErrors: outcomeFieldError(outcome),
-		}, http.StatusUnprocessableEntity)
+		echo.lineErrors = outcomeFieldError(outcome)
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 	case "payment_would_clear":
-		a.renderLine(w, r, v, commissionID, lineRender{values: values, formError: copyClearsPayment}, http.StatusUnprocessableEntity)
+		echo.formError = copyClearsPayment
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 	default:
 		// Changed or a no-op alike: reload the line, so the form holds the server's version.
 		web.SeeOther(w, r, linePath(commissionID))
@@ -583,12 +603,15 @@ func lineBody(values lineValues) map[string]any {
 func (a *app) recordPayment(w http.ResponseWriter, r *http.Request, v visit, commissionID string, f form) {
 	values := paymentValuesFromForm(f)
 	version, hasVersion := parseIntJS(f.Get("version"))
+	echo := lineRender{pay: values, version: version, hasVersion: hasVersion}
 	if commissionID == "" || !hasVersion {
-		a.renderLine(w, r, v, commissionID, lineRender{pay: values, payError: copySaveFailed}, http.StatusUnprocessableEntity)
+		echo.payError = copySaveFailed
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 		return
 	}
 	if errs := validatePayment(values); errs != nil {
-		a.renderLine(w, r, v, commissionID, lineRender{pay: values, payErrors: errs}, http.StatusUnprocessableEntity)
+		echo.payErrors = errs
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 		return
 	}
 	received, _ := dollarsToCents(values.Received)
@@ -616,13 +639,13 @@ func (a *app) recordPayment(w http.ResponseWriter, r *http.Request, v visit, com
 		if out.Conflict {
 			msg = copyLineStale
 		}
-		a.renderLine(w, r, v, commissionID, lineRender{pay: values, payError: msg}, out.Status)
+		echo.payError = msg
+		a.renderLine(w, r, v, commissionID, echo, out.Status)
 		return
 	}
 	if decodeOutcome(res.Data).Outcome == "bad_date" {
-		a.renderLine(w, r, v, commissionID, lineRender{
-			pay: values, payErrors: fieldErrors{"receivedAt": copyBadDate},
-		}, http.StatusUnprocessableEntity)
+		echo.payErrors = fieldErrors{"receivedAt": copyBadDate}
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 		return
 	}
 	web.SeeOther(w, r, linePath(commissionID))
@@ -632,8 +655,10 @@ func (a *app) recordPayment(w http.ResponseWriter, r *http.Request, v visit, com
 // database, but nothing on screen brings it back, so the form asks first.
 func (a *app) removeLine(w http.ResponseWriter, r *http.Request, v visit, commissionID string, f form) {
 	version, hasVersion := parseIntJS(f.Get("version"))
+	echo := lineRender{version: version, hasVersion: hasVersion}
 	if commissionID == "" || !hasVersion {
-		a.renderLine(w, r, v, commissionID, lineRender{removeError: copySaveFailed}, http.StatusUnprocessableEntity)
+		echo.removeError = copySaveFailed
+		a.renderLine(w, r, v, commissionID, echo, http.StatusUnprocessableEntity)
 		return
 	}
 	res := a.call(r, v, "agent-commission", map[string]any{
@@ -655,7 +680,8 @@ func (a *app) removeLine(w http.ResponseWriter, r *http.Request, v visit, commis
 	if out.OK || out.Conflict {
 		msg, status = copyRemoveRefused, http.StatusUnprocessableEntity
 	}
-	a.renderLine(w, r, v, commissionID, lineRender{removeError: msg}, status)
+	echo.removeError = msg
+	a.renderLine(w, r, v, commissionID, echo, status)
 }
 
 // ── Small fill helpers ──────────────────────────────────────────────────────────────────

@@ -167,6 +167,9 @@ const (
 	copyExpectationNotBooked = "No date yet: the trip has not been booked."
 
 	copyRemoveRefused = "That line couldn't be removed. It may have changed since you opened it."
+
+	// noFigure is the em dash CommissionLineForm shows for an Expected it cannot work out yet.
+	noFigure = "\u2014"
 )
 
 // commissionLineHeading is the detail page's own: "Sandals Resorts · Kyoto in the spring ·

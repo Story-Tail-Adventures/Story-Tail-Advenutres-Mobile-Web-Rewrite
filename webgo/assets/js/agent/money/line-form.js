@@ -52,12 +52,12 @@ function wireExpected() {
   const rate = $("line-rate");
   const out = document.querySelector("output.mny-expected");
   if (!gross || !rate || !out) return null;
-  const saved = out.textContent;
   const show = () => {
     const cents = dollarsToCents(gross.value);
     const pct = parseRate(rate.value);
-    // Never blank: a line that has a figure keeps showing it while a field is half-typed.
-    out.textContent = cents === null || pct === null ? saved : money(Math.round((cents * pct) / 100));
+    // An em dash while either field does not parse, as CommissionLineForm renders a null —
+    // never "$0", which is a figure rather than "nothing worked out yet".
+    out.textContent = cents === null || pct === null ? "\u2014" : money(Math.round((cents * pct) / 100));
   };
   gross.addEventListener("input", show);
   rate.addEventListener("input", show);

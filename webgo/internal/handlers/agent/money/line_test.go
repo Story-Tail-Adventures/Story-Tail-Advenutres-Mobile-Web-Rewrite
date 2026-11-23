@@ -151,8 +151,10 @@ func TestLinePage(t *testing.T) {
 			"Expected around Oct 18, 2026.",
 			"Remove line",
 		)
-		// The picker is grouped by kind, with the headings unpickable.
-		has(t, body, `disabled=""`, "Resorts", "Airlines")
+		// The picker is grouped by kind, and the headings are OPTIONS that cannot be chosen.
+		// Named with their own text: a bare disabled="" is also on the shell's notifications
+		// button and on the deferred Link Inteletravel button, so it proves nothing.
+		has(t, body, `disabled="">Resorts<`, `disabled="">Airlines<`)
 		// A line that may be removed does not also say it may not.
 		lacks(t, body, copyRemoveNotAllowedProbe)
 	})
@@ -202,7 +204,8 @@ func TestLinePage(t *testing.T) {
 		// The catalog no longer lists this line's supplier.
 		wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers[1:])
 		body := wd.get("/agent/commission/ledger/" + sampleLineID).Body.String()
-		has(t, body, copySupplierNoLongerListed, "0195a2c0-1a00-7000-8000-0000000009cc", "selected")
+		// selected="" alone is on the terms and status pickers too, so the option is named.
+		has(t, body, copySupplierNoLongerListed, `selected="">Sandals Resorts<`)
 	})
 
 	t.Run("an admin has no desk here", func(t *testing.T) {
@@ -397,4 +400,56 @@ func TestRemoveLine(t *testing.T) {
 		// The apostrophe renders as &#39;, so the check is on the half without one.
 		has(t, rec.Body.String(), "be removed. It may have changed since you opened it.")
 	})
+}
+
+// A refusal must not hand the retry a FRESH lock. The handler re-reads the row to redraw the
+// page, so without care the advisor would be told the line changed under them and be given,
+// in the same breath, the version that makes their stale save go through.
+func TestARefusalKeepsTheVersionThePageCarried(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		form url.Values
+		stub reply
+	}{
+		{"a stale update", url.Values{
+			"op": {"update"}, "commissionId": {sampleLineID}, "tripId": {sampleTripID}, "version": {"3"},
+			"supplierId": {"0195a2c0-1a00-7000-8000-0000000009cc"},
+			"gross":      {"6480.00"}, "rate": {"12.5"}, "paymentTerms": {"after_travel"},
+			"paymentLagDays": {"60"}, "status": {"invoiced"},
+		}, reply{Status: 409, Body: `{"detail":"version mismatch"}`}},
+		{"a stale payment", url.Values{
+			"op": {"payment"}, "commissionId": {sampleLineID}, "tripId": {sampleTripID}, "version": {"3"},
+			"received": {"790.00"}, "fee": {"0"}, "receivedAt": {"2026-11-20"}, "status": {"received"},
+		}, reply{Status: 409, Body: `{"detail":"version mismatch"}`}},
+		{"a refused remove", url.Values{
+			"op": {"remove"}, "commissionId": {sampleLineID}, "tripId": {sampleTripID}, "version": {"3"},
+		}, reply{Status: 200, Body: `{"outcome":"not_removable"}`}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			wd := newWorld(t)
+			// The row has moved on since the advisor opened it.
+			wd.fake.rpc["agent_commission_line"] = mustJSON([]map[string]any{lineRow(map[string]any{"version": 9})})
+			wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers)
+			wd.fake.functions["POST agent-commission"] = c.stub
+
+			body := wd.post("/agent/commission/ledger/"+sampleLineID, c.form).Body.String()
+			if strings.Contains(body, `value="9"`) {
+				t.Error("the refused page handed back the server's version, so the retry would overwrite")
+			}
+			if n := strings.Count(body, `value="3"`); n != 3 {
+				t.Errorf("%d of the three forms carry the version the page was at, want 3", n)
+			}
+		})
+	}
+}
+
+// A plain GET of course carries whatever the row says.
+func TestAFreshPageCarriesTheRowsVersion(t *testing.T) {
+	wd := newWorld(t)
+	wd.fake.rpc["agent_commission_line"] = mustJSON([]map[string]any{lineRow(map[string]any{"version": 9})})
+	wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers)
+	body := wd.get("/agent/commission/ledger/" + sampleLineID).Body.String()
+	if n := strings.Count(body, `value="9"`); n != 3 {
+		t.Errorf("%d forms carry version 9, want 3", n)
+	}
 }

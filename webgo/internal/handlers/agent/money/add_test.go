@@ -200,6 +200,31 @@ func TestCreateLine(t *testing.T) {
 		}
 	})
 
+	// An amount past what cents can hold is refused HERE rather than wrapped and sent. A JS
+	// number grows and the function rejects it; an int64 wraps, and "184467440737095516.16"
+	// reached the write as 0 — a $0 line, saved, with the advisor told it worked.
+	t.Run("an amount that would not fit in cents never reaches the write", func(t *testing.T) {
+		wd := addWorld(t)
+		form := good()
+		form.Set("gross", "184467440737095516.16")
+		rec := wd.post("/agent/commission/ledger/new?trip="+sampleTripID, form)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("status %d, want 422", rec.Code)
+		}
+		if len(wd.fake.calls) != 0 {
+			t.Fatalf("it called the function with %s", wd.fake.calls[0].Body["grossCents"])
+		}
+		has(t, rec.Body.String(), copyGrossInvalid)
+	})
+
+	t.Run("a fresh form says nothing is worked out yet, rather than $0", func(t *testing.T) {
+		wd := addWorld(t)
+		body := wd.get("/agent/commission/ledger/new?trip=" + sampleTripID).Body.String()
+		// An em dash, as CommissionLineForm renders a null Expected.
+		has(t, body, "\u2014</output>")
+		lacks(t, body, "$0</output>")
+	})
+
 	t.Run("a rejection shows the function's own sentence", func(t *testing.T) {
 		wd := addWorld(t)
 		wd.fake.functions["POST agent-commission"] = reply{Status: 422, Body: `{"detail":"That trip is closed."}`}

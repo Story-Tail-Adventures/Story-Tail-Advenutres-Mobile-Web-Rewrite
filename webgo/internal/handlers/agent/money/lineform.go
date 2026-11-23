@@ -79,6 +79,13 @@ func strip(s string, cut string) string {
 // The digits are read as integers rather than through a float: Math.round(Number(s) * 100)
 // is right for every input this regexp admits, and 0.07 * 100 is 7.000000000000001, which is
 // a cent that only survives because JS rounds it. Cents are the money rule (CLAUDE.md).
+//
+// AND IT REFUSES WHAT WOULD NOT FIT, which the TypeScript does not have to: a JS number keeps
+// growing and the Edge Function then rejects it (readCents checks isSafeInteger and a ten-digit
+// ceiling), where an int64 WRAPS. "184467440737095516.16" came out as 0 and saved a $0 line
+// that read as a deliberate one, and "92233720368547758.08" came out negative. Sixteen whole
+// digits is already past int64, so fifteen is the line; the server's own ceiling is far lower,
+// and this is the parser, not the rule.
 func dollarsToCents(input string) (Cents, bool) {
 	cleaned := strip(input, "$,")
 	if cleaned == "" {
@@ -89,6 +96,16 @@ func dollarsToCents(input string) (Cents, bool) {
 		return 0, false
 	}
 	if hasFrac && (len(frac) < 1 || len(frac) > 2 || !allDigits(frac)) {
+		return 0, false
+	}
+	// Leading zeros are digits the regexp allows and the value does not have: "007.00" is $7.
+	if trimmed := strings.TrimLeft(whole, "0"); len(trimmed) != len(whole) {
+		whole = trimmed
+		if whole == "" {
+			whole = "0"
+		}
+	}
+	if len(whole) > maxWholeDigits {
 		return 0, false
 	}
 	var n Cents
@@ -104,6 +121,10 @@ func dollarsToCents(input string) (Cents, bool) {
 	}
 	return n, true
 }
+
+// maxWholeDigits is where an amount stops fitting in cents as an int64: 10^15 cents is
+// 10^17, and 10^16 cents is past the 9.22×10^18 ceiling.
+const maxWholeDigits = 15
 
 func allDigits(s string) bool {
 	if s == "" {

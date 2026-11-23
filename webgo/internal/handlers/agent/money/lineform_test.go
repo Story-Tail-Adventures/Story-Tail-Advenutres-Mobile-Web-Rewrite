@@ -23,6 +23,14 @@ func TestDollarsToCents(t *testing.T) {
 		{"1189.5", 118950, true},
 		{"1189.50", 118950, true},
 		{"6480.001", 0, false},
+		{"007.00", 700, true}, // leading zeros are digits the value does not have
+		// AN AMOUNT THAT WOULD NOT FIT IS REFUSED, which the TypeScript never has to do: a JS
+		// number keeps growing and the Edge Function rejects it, where an int64 WRAPS. These
+		// two came out as 0 and as a negative, and a $0 line saved as a deliberate one.
+		{"184467440737095516.16", 0, false},
+		{"92233720368547758.08", 0, false},
+		{"9223372036854775807", 0, false},
+		{"999999999999999.99", 99999999999999999, true}, // fifteen whole digits still fits
 		{"-5", 0, false},
 		{"abc", 0, false},
 		{".5", 0, false},
