@@ -814,10 +814,12 @@ func exportWhen(local string) string {
 	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil {
 		return ""
 	}
-	if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 {
+	// A real calendar date, not just a plausible one: "2026-02-31" would otherwise print as
+	// a day that does not exist. 24:00 is a time Postgres can write and a clock cannot show.
+	if _, ok := parseDay(local[0:10]); !ok || hour > 23 || minute > 59 {
 		return ""
 	}
-	_ = year
+	_, _ = year, day
 	suffix := "AM"
 	h := hour
 	if h >= 12 {

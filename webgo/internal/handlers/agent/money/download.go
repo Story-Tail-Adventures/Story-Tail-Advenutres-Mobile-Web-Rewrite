@@ -56,7 +56,10 @@ func (a *app) serveReportDownload(w http.ResponseWriter, r *http.Request) {
 	// §3.11.8 Export Center: `type`, plus From/To, plus the contact switch for Clients. The
 	// dates are passed through as typed; the function refuses a malformed or reversed range
 	// in words, which is shown as it stands.
-	if kind := q.Get("type"); kind != "" {
+	// PRESENT, not non-empty: `?type=&report=revenue` names a type this route does not have,
+	// so it is a broken link rather than a revenue export nobody asked for.
+	if q.Has("type") {
+		kind := q.Get("type")
 		if !slices.Contains(exportTypes, kind) {
 			w.WriteHeader(http.StatusNotFound)
 			return

@@ -3,6 +3,7 @@ package money
 import (
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -434,5 +435,81 @@ func TestHeadDoesNotRunAnAuditedExport(t *testing.T) {
 	}
 	if len(wd.fake.calls) != 0 {
 		t.Errorf("HEAD ran the export: %+v", wd.fake.calls)
+	}
+}
+
+// ── What an independent review proved, and what now stops it coming back ────────────────
+
+// A refusal re-renders from a FRESH read, so without an echo one bad field wipes the other
+// three — and the hidden `expected` would be refreshed with them, which turns a stale save
+// into a successful overwrite the next time Save is pressed.
+func TestARefusedWeightsSaveKeepsWhatWasTyped(t *testing.T) {
+	wd := newWorld(t)
+	seedReports(wd)
+	form := url.Values{}
+	for _, s := range forecastStages {
+		form.Set("weight-"+s, "50")
+		form.Set("expected-"+s, "40")
+	}
+	form.Set("weight-proposal", "60")
+	form.Set("weight-inquiry", "not a number")
+	body := wd.post("/agent/reports/pipeline", form).Body.String()
+
+	has(t, body,
+		`name="weight-proposal" value="60"`,
+		`name="weight-inquiry" value="not a number"`,
+		// The lock's "what I saw" is the SUBMITTED one, not a fresh read.
+		`name="expected-proposal" value="40"`,
+	)
+	// The stored weights must not be redrawn over the draft.
+	lacks(t, body, `name="weight-proposal" value="50"`, `name="expected-proposal" value="50"`)
+}
+
+// Text on a card replaces its padded body with a bare string, so the sentence has its own
+// slot inside it. Every other empty card on these screens is Kept, not Texted.
+func TestTheEmptyClientsCardKeepsItsBody(t *testing.T) {
+	wd := newWorld(t)
+	seedReports(wd)
+	wd.fake.rpc["agent_report_client_lifetime_value"] = `[]`
+	body := wd.get("/agent/reports/clients").Body.String()
+	// The card still holds its padded body and the sentence still wears its own type.
+	kept := regexp.MustCompile(`data-slot="cli-empty">\s*<div class="card-content">\s*<p class="type-body2 text-secondary" data-slot="cli-empty-text">` + regexp.QuoteMeta(copyClientsEmpty))
+	if !kept.MatchString(body) {
+		t.Error("the empty clients card lost its body")
+	}
+}
+
+// A chip's padding lives on its inner .chip-label, so the words go in the span.
+func TestTheYearOverYearChipKeepsItsLabel(t *testing.T) {
+	wd := newWorld(t)
+	seedReports(wd)
+	body := wd.get("/agent/reports/revenue").Body.String()
+	has(t, body, `<span class="chip-label" data-slot="rev-change-label">`)
+}
+
+// The stopped column is flex: 0 0 190px, so a row that drops it has a wider track and draws
+// its bar against a different 100%.
+func TestEveryFunnelRowKeepsItsStoppedColumn(t *testing.T) {
+	wd := newWorld(t)
+	seedReports(wd)
+	body := wd.get("/agent/reports/funnel").Body.String()
+	rows := strings.Count(body, `class="mny-fun-row"`)
+	stopped := strings.Count(body, `data-slot="fun-stopped"`)
+	if rows != 4 || stopped != rows {
+		t.Errorf("%d funnel rows but %d stopped columns", rows, stopped)
+	}
+}
+
+// `?type=` names a type this route does not have: a broken link, not a fallthrough to the
+// per-report branch.
+func TestAnEmptyTypeIsNotAFallthrough(t *testing.T) {
+	wd := newWorld(t)
+	seedReports(wd)
+	rec := wd.get("/agent/reports/download?type=&report=revenue")
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("an empty type answered %d", rec.Code)
+	}
+	if len(wd.fake.calls) != 0 {
+		t.Errorf("an empty type reached the function: %+v", wd.fake.calls)
 	}
 }

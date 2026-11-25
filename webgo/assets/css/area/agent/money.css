@@ -598,9 +598,14 @@
   /* 3.11.2 Revenue: the trend chart's own bars, with last year's beside this year's on one
      scale so the pair compares honestly. */
   .mny-rpt-total { margin: 0; font-family: var(--font-mono); font-weight: 700; }
-  .mny-bar-paired { width: 34%; }
+  /* 60% on its own, 34% each when last year's bar stands beside it, as RevenueChart draws
+     the pair. .mny-bar-paired comes last so it wins over .mny-bar-solo on a compared month. */
+  .mny-bar-solo { width: 60%; }
   .mny-bar-prior { width: 34%; background-color: var(--mui-palette-outline-variant); }
+  .mny-bar-paired { width: 34%; }
   .mny-bar-area { gap: 2px; }
+  /* The revenue plot is 220px, where the dashboard's trend is 200. */
+  .mny-bars-tall { height: 220px; }
 
   .mny-rpt-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; color: var(--mui-palette-text-secondary); }
   .mny-rpt-legend-pad { padding: 10px 16px; margin-bottom: 0; }
@@ -670,6 +675,8 @@
   .mny-pip-table th { border-bottom: 0; padding: 4px 6px; }
   .mny-pip-month { white-space: nowrap; font-weight: 600; }
   .mny-pip-bar-cell { width: 100%; }
+  /* The set-apart rows sit under a rule, as PipelineMonths draws them. */
+  .mny-pip-table tr:has(.mny-pip-extra) > * { border-top: 1px solid var(--mui-palette-divider); }
   .mny-pip-extra { font-style: italic; white-space: normal; color: var(--mui-palette-text-secondary); }
 
   /* 3.11.8 Export center. */

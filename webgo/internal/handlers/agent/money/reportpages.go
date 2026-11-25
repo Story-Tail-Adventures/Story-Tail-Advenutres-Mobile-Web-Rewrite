@@ -21,7 +21,7 @@ var revenueSpec = page.Spec{
 	Slots: withFrame(
 		"rpt-window", "rpt-export",
 		"basis-booked", "basis-received", "compare-link", "compare-text",
-		"rev-total", "rev-total-caption", "rev-change", "rev-empty",
+		"rev-total", "rev-total-caption", "rev-change", "rev-change-label", "rev-empty",
 		"rev-legend", "rev-col-amount", "rev-col-count", "rev-col-prior",
 		"rev-note", "rev-tracking",
 	),
@@ -108,7 +108,14 @@ func fillRevenue(doc *page.Doc, rep *revenueReportView, period, basis string, co
 
 	doc.Text("rev-total", rep.TotalLabel)
 	doc.Text("rev-total-caption", reportTotalFor(periodNames[period]))
-	textOrRemove(doc, "rev-change", rep.Change)
+	// The chip's padding lives on its inner .chip-label, so the text goes in the SPAN: Text
+	// on the chip itself would replace that span and the words would sit on the border.
+	if rep.Change == "" {
+		doc.Remove("rev-change")
+	} else {
+		doc.Keep("rev-change")
+		doc.Text("rev-change-label", rep.Change)
+	}
 
 	if rep.Empty {
 		doc.Keep("rev-empty")
@@ -337,7 +344,7 @@ func (a *app) serveDestinations(w http.ResponseWriter, r *http.Request) {
 var clientsSpec = page.Spec{
 	File:   "agent/money/reports-clients.html",
 	Layout: shell.Agent,
-	Slots:  withFrame("rpt-export", "cli-cohorts", "cli-empty", "cli-table"),
+	Slots:  withFrame("rpt-export", "cli-cohorts", "cli-empty", "cli-empty-text", "cli-table"),
 	Repeats: map[string][]string{
 		"cohort":  {"cohort-link", "cohort-label"},
 		"cli-row": {"cli-rank", "cli-link", "cli-name", "cli-trips", "cli-value", "cli-comm", "cli-cohort"},
@@ -382,11 +389,13 @@ func (a *app) serveClientValue(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		if len(rep.Rows) == 0 {
+			// The sentence goes in its own slot INSIDE the card: Text on the card would
+			// replace its padded body with a bare string.
 			doc.Keep("cli-empty")
 			if rep.Empty {
-				doc.Text("cli-empty", copyClientsEmpty)
+				doc.Text("cli-empty-text", copyClientsEmpty)
 			} else {
-				doc.Text("cli-empty", copyClientsCohortEmpty)
+				doc.Text("cli-empty-text", copyClientsCohortEmpty)
 			}
 			doc.Remove("cli-table")
 		} else {
@@ -486,7 +495,10 @@ func (a *app) serveFunnel(w http.ResponseWriter, r *http.Request) {
 				row.Class("fun-bar", funnelTone(i, last, s.Reached), true)
 				row.Text("fun-trips", funnelTrips(s.Reached))
 				row.Text("fun-pct", s.PctLabel)
-				textOrRemove(row, "fun-stopped", s.StoppedLabel)
+				// KEPT even when empty: the span is flex: 0 0 190px, so removing it would
+				// widen that row's track and draw its bar against a different 100%.
+				row.Keep("fun-stopped")
+				row.Text("fun-stopped", s.StoppedLabel)
 			})
 			doc.Repeat("fun-row", len(rep.Stages), func(i int, row *page.Row) {
 				s := rep.Stages[i]
@@ -518,7 +530,6 @@ var pipelineSpec = page.Spec{
 		"rpt-export",
 		"pip-empty", "pip-gross", "pip-open-sub", "pip-weighted",
 		"adjust", "weights-form", "form-error", "form-error-text", "weights-hint",
-		"pip-months-empty",
 	),
 	Repeats: map[string][]string{
 		"stage": {
@@ -538,7 +549,7 @@ func (a *app) servePipeline(w http.ResponseWriter, r *http.Request) {
 	if v.canRead() {
 		rep = a.loadPipelineReport(r.Context(), v)
 	}
-	a.renderPipeline(w, r, v, rep, r.URL.Query().Get("edit") == "1", "", http.StatusOK)
+	a.renderPipeline(w, r, v, rep, r.URL.Query().Get("edit") == "1", "", http.StatusOK, nil)
 }
 
 // savePipelineWeights is the pipeline's own "Save weights". ONE SET OF WEIGHTS: these are
@@ -558,7 +569,7 @@ func (a *app) savePipelineWeights(w http.ResponseWriter, r *http.Request) {
 		if v.canRead() {
 			rep = a.loadPipelineReport(r.Context(), v)
 		}
-		a.renderPipeline(w, r, v, rep, true, message, http.StatusUnprocessableEntity)
+		a.renderPipeline(w, r, v, rep, true, message, http.StatusUnprocessableEntity, form)
 	}
 
 	weights, expected, ok := weightsFromForm(form)
@@ -585,7 +596,7 @@ func (a *app) savePipelineWeights(w http.ResponseWriter, r *http.Request) {
 	web.SeeOther(w, r, pipelinePath)
 }
 
-func (a *app) renderPipeline(w http.ResponseWriter, r *http.Request, v visit, rep *pipelineReportView, editing bool, message string, status int) {
+func (a *app) renderPipeline(w http.ResponseWriter, r *http.Request, v visit, rep *pipelineReportView, editing bool, message string, status int, typed url.Values) {
 	st := reportState(v, rep != nil)
 	code := statusFor(st)
 	doc := a.pipeline.New()
@@ -593,7 +604,7 @@ func (a *app) renderPipeline(w http.ResponseWriter, r *http.Request, v visit, re
 	if !v.noAccess {
 		fillReportShell(doc, reportShell{ExportHref: reportExportHref("pipeline", "", "")})
 		if show {
-			fillPipeline(doc, rep, editing, message)
+			fillPipeline(doc, rep, editing, message, typed)
 			// A refusal re-renders the page it was posted from, so it answers with the
 			// refusal's status; a plain GET is a 200.
 			code = status
@@ -602,7 +613,7 @@ func (a *app) renderPipeline(w http.ResponseWriter, r *http.Request, v visit, re
 	web.Render(w, a.d.Log, doc, code, web.Private)
 }
 
-func fillPipeline(doc *page.Doc, rep *pipelineReportView, editing bool, message string) {
+func fillPipeline(doc *page.Doc, rep *pipelineReportView, editing bool, message string, typed url.Values) {
 	if rep.Empty {
 		doc.Keep("pip-empty")
 	} else {
@@ -629,14 +640,9 @@ func fillPipeline(doc *page.Doc, rep *pipelineReportView, editing bool, message 
 	}
 
 	doc.Repeat("stage", len(rep.Stages), func(i int, row *page.Row) {
-		fillStageRow(row, rep.Stages[i], editing)
+		fillStageRow(row, rep.Stages[i], editing, typed)
 	})
 
-	if len(rep.Months) == 0 {
-		doc.Keep("pip-months-empty")
-	} else {
-		doc.Remove("pip-months-empty")
-	}
 	doc.Repeat("pip-month", len(rep.Months), func(i int, row *page.Row) {
 		m := rep.Months[i]
 		row.Text("pip-month-label", m.Label)
@@ -657,7 +663,21 @@ func fillPipeline(doc *page.Doc, rep *pipelineReportView, editing bool, message 
 
 // fillStageRow is the weights card's row, shared with §3.7.7's own fill: the same rows, the
 // same names, and the same "what I saw" hidden field.
-func fillStageRow(row *page.Row, s stageView, editing bool) {
+//
+// typed is the REFUSED submission, or nil on a plain GET. A refusal re-renders from a fresh
+// read, so without this one bad field would wipe the other three — and the hidden `expected`
+// would be refreshed too, which quietly turns a stale save into a successful overwrite. Both
+// come back exactly as they were sent.
+func fillStageRow(row *page.Row, s stageView, editing bool, typed url.Values) {
+	value, expected := itoa(s.WeightPct), itoa(s.WeightPct)
+	if typed != nil {
+		if v, ok := typed["weight-"+s.Stage]; ok && len(v) > 0 {
+			value = v[0]
+		}
+		if v, ok := typed["expected-"+s.Stage]; ok && len(v) > 0 {
+			expected = v[0]
+		}
+	}
 	row.Text("stage-label", s.Label)
 	row.Text("stage-trips", s.TripCountLabel)
 	row.Attr("stage-bar", "data-w", meterStep(s.WeightPct))
@@ -674,11 +694,11 @@ func fillStageRow(row *page.Row, s stageView, editing bool) {
 	row.Remove("stage-pct")
 	row.Keep("stage-input")
 	row.Attr("stage-input", "name", "weight-"+s.Stage)
-	row.Attr("stage-input", "value", itoa(s.WeightPct))
+	row.Attr("stage-input", "value", value)
 	row.Attr("stage-input", "aria-label", s.Label+" "+copyWeightLabel)
 	row.Remove("stage-input-label")
 	row.Attr("stage-expected", "name", "expected-"+s.Stage)
-	row.Attr("stage-expected", "value", itoa(s.WeightPct))
+	row.Attr("stage-expected", "value", expected)
 }
 
 // ── 3.11.8 Export Center ────────────────────────────────────────────────────────────────

@@ -672,3 +672,15 @@ func TestExportWhen(t *testing.T) {
 		}
 	}
 }
+
+// A timestamp has to be a date a calendar has, not just a plausible one.
+func TestExportWhenRefusesADateThatDoesNotExist(t *testing.T) {
+	for _, bad := range []string{"2026-02-31T10:00:00", "2026-13-01T10:00:00", "2026-10-21T24:00:00"} {
+		if got := exportWhen(bad); got != "" {
+			t.Errorf("exportWhen(%q) = %q, want nothing", bad, got)
+		}
+	}
+	if got := exportWhen("2026-02-28T10:00:00"); got != "Feb 28, 10:00 AM" {
+		t.Errorf("a real February day reads %q", got)
+	}
+}
