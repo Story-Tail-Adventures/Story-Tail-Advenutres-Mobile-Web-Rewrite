@@ -266,6 +266,18 @@ route cannot exist without a gate.
 - A Go test replaces `check_public_prerender.py`: every public route renders with no cookie,
   makes no outbound call, and carries the cache header.
 - Port `web/app/seo.ts` (sitemap, robots, canonical URLs) and the Unsplash image loader.
+- **The edge needs a rule the application cannot enforce, and it must name
+  `__Host-sta-session`.** `/` is the one cached page whose answer can depend on the visitor: it
+  is mounted with `rt.FrontDoor`, so a signed-in visitor is redirected to `/dashboard` instead.
+  That redirect is `no-store`, and the page sets `Vary: Cookie` — but **Cloudflare ignores
+  `Vary` on everything except `Accept-Encoding`**, so a cached anonymous copy can still be
+  handed to a signed-in visitor, who then sees the landing page instead of their dashboard.
+  The deployment answer is a cache rule that bypasses the cache when the session cookie is
+  present. Write that rule against `__Host-sta-session`, which is what an https server sets
+  (`session.Manager.cookieName`); `sta-session` is the local http:// name only, and a rule
+  written against it matches nothing in production and silently caches the front door for
+  everybody. Nothing deploys yet (ruling 16), so this is owed at Render/Cloudflare setup, not
+  in code. The handler itself no longer depends on either name.
 
 ### 4.8 Styling without MUI
 
