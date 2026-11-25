@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -90,12 +91,14 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(user)
 	case r.URL.Path == "/rest/v1/platform_user":
+		// Through matching, so a read that forgot its filter cannot pass here. The rows
+		// carry account_id, which is the column platform_user is scoped by.
 		sel := r.URL.Query().Get("select")
+		rows := []map[string]any{{"account_id": "u-gyasi", "display_name": f.displayName, "time_zone": f.timeZone}}
 		if strings.Contains(sel, "role") {
-			_ = json.NewEncoder(w).Encode([]map[string]any{{"role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01T00:00:00Z"}})
-			return
+			rows = []map[string]any{{"account_id": "u-gyasi", "role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01T00:00:00Z"}}
 		}
-		_ = json.NewEncoder(w).Encode([]map[string]any{{"display_name": f.displayName, "time_zone": f.timeZone}})
+		_ = json.NewEncoder(w).Encode(matching(rows, r.URL.Query()))
 	case strings.HasPrefix(r.URL.Path, "/rest/v1/rpc/"):
 		name := strings.TrimPrefix(r.URL.Path, "/rest/v1/rpc/")
 		b, _ := io.ReadAll(r.Body)
@@ -204,6 +207,40 @@ func (wd *world) post(target string, form url.Values) *httptest.ResponseRecorder
 	rec := httptest.NewRecorder()
 	wd.h.ServeHTTP(rec, req)
 	return rec
+}
+
+// matching applies the one PostgREST filter these tests depend on: col=eq.value. Without it
+// the double answers every lookup with the whole table, so a handler that FORGOT its filter
+// would pass — and in an agent area a missing filter is a cross-advisor read, not an empty
+// page. Anything it does not understand (select, order, limit) is left alone.
+//
+// "A column the fixture does not carry does not filter" is what makes this safe to add to
+// an area with existing fixtures: it bites only where the column is actually seeded.
+//
+// Found by the traveler session (internal/handlers/client/fake_test.go, 19068a1) and shared
+// across the areas; this is a deliberate twin of that one.
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			want, ok := strings.CutPrefix(values[0], "eq.")
+			if !ok {
+				continue
+			}
+			if got, present := row[key]; present && fmt.Sprint(got) != want {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
+	}
+	return out
 }
 
 func mustJSON(v any) string {
