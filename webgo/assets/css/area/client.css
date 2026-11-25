@@ -7,7 +7,204 @@
  *
  * No inline styles anywhere (the CSP is style-src 'self'): a page that needs a one-off size
  * or colour gets a class here. internal/static/classes_test.go fails on any class a page uses
- * that no stylesheet defines. */
+ * that no stylesheet defines.
+ *
+ * Every value is the sx of the Next component it replaces (web/app/(client)/**,
+ * components/client/*), named beside it, in MUI's 8px spacing: 0.25 = 2px, 0.75 = 6px,
+ * 1.25 = 10px, 1.75 = 14px, 2.5 = 20px, 3.5 = 28px. */
 
 @layer components {
+  /* Two icon sizes ui.css does not carry, because only these screens draw them: the hero's
+     12px arrow and the trip row's 13px chevron, both as <Icon size> set them in Next. */
+  .cl-icon-12 { width: 12px; height: 12px; }
+  .cl-icon-13 { width: 13px; height: 13px; }
+
+  /* ── The page box every traveler screen sits in (PAGE_SX) ─────────────────────────────── */
+  .cl-page {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 1024px;
+    padding: 16px 16px 40px;
+  }
+  .cl-title { margin: 0; }
+  .cl-subtitle { margin: 4px 0 0; max-width: 65ch; }
+
+  /* ── §5's states: the retry card and the empty one ─────────────────────────────────────── */
+  .cl-retry { margin-top: 16px; padding: 20px; text-align: center; }
+  .cl-retry-title { margin: 0; }
+  .cl-retry-body { margin: 6px 0 14px; }
+  .cl-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    border: 1px dashed var(--mui-palette-outline-variant);
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  .cl-empty-hero { margin-top: 16px; }
+  .cl-empty-icon { display: inline-flex; color: var(--mui-palette-text-secondary); }
+  .cl-empty-title { margin: 0; }
+  .cl-empty-body { margin: 0 auto 8px; max-width: 48ch; }
+
+  /* ── 2.2.2 All trips: the filter chips and the rows ───────────────────────────────────── */
+  .cl-tabs { display: flex; gap: 8px; margin-top: 16px; overflow-x: auto; padding-bottom: 4px; }
+  .cl-tab { flex-shrink: 0; height: 28px; }
+  .cl-trip-list { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
+  .cl-trip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    color: inherit;
+    text-decoration: none;
+  }
+  .cl-trip-photo { position: relative; display: block; height: 140px; overflow: hidden; }
+  .cl-trip-photo img { width: 100%; height: 100%; object-fit: cover; }
+  /* The chip rides the photo below md and moves into the body from it. */
+  .cl-trip-chip-photo { position: absolute; top: 10px; left: 10px; }
+  .cl-trip-body { display: block; padding: 16px; }
+  .cl-trip-title { display: block; margin-top: 6px; }
+  .cl-trip-meta { display: block; }
+  .cl-trip-value {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--mui-palette-divider);
+    padding: 16px;
+  }
+  .cl-trip-value-label { display: block; font-weight: 500; line-height: 1.3; }
+  .cl-trip-value-amount { display: block; }
+  .cl-trip-open { pointer-events: none; }
+
+  /* ── 2.2.1 Dashboard ──────────────────────────────────────────────────────────────────── */
+  .cl-overline { display: block; margin: 0; color: var(--mui-palette-secondary-main); font-weight: 600; line-height: 1.3; }
+  .cl-greeting { margin: 6px 0 0; }
+  .cl-sub-traveling { display: block; margin: 4px 0 0; }
+  .cl-sub-none { margin: 8px 0 0; max-width: 65ch; }
+  .cl-hero-grid { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: minmax(0, 1fr); }
+  .cl-hero { position: relative; min-height: 260px; overflow: hidden; color: var(--mui-palette-common-white); }
+  .cl-hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* SCRIM_SX: burgundy 82% into navy 70%, from the theme's own brand-source variables.
+     Scheme-independent on purpose — white copy on a photo stays white in both schemes. */
+  .cl-hero-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--mui-palette-brandSource-burgundy) 82%, transparent),
+      color-mix(in srgb, var(--mui-palette-brandSource-navy) 70%, transparent)
+    );
+  }
+  .cl-hero-body { position: relative; display: flex; min-height: 260px; flex-direction: column; padding: 20px; }
+  .cl-hero-chip { align-self: flex-start; }
+  .cl-hero-title { margin: 10px 0 0; color: var(--mui-palette-common-white); }
+  .cl-hero-meta { margin: 0; font-weight: 500; opacity: 0.9; }
+  .cl-hero-foot { display: flex; align-items: flex-end; gap: 8px; margin-top: auto; padding-top: 16px; }
+  .cl-countdown {
+    display: block;
+    border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, currentColor 15%, transparent);
+    padding: 8px 16px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+  }
+  .cl-countdown-n { display: block; font-weight: 800; line-height: 1; }
+  .cl-countdown-unit {
+    display: block;
+    margin-top: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 1.2px;
+    opacity: 0.85;
+  }
+  .cl-hero-cta,
+  .cl-hero-pending { margin-left: auto; }
+  .cl-hero-pending { font-size: 12px; font-weight: 500; opacity: 0.8; }
+  .cl-hero-side { display: flex; flex-direction: column; gap: 10px; }
+
+  /* The next-payment card and the pay block (§2.2.3, ruled 2026-10-16). */
+  .cl-pay-card { padding: 14px; }
+  .cl-pay-card:last-child { padding-bottom: 14px; }
+  .cl-pay-head { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; line-height: 1.3; }
+  .cl-pay-title { margin: 6px 0 0; font-weight: 600; line-height: 1.3; }
+  .cl-pay-when { display: block; margin: 2px 0 0; }
+  .cl-pay-block { margin-top: 10px; }
+  .cl-pay-link { text-transform: none; font-weight: 600; }
+  .cl-pay-site { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--mui-palette-text-secondary); }
+  .cl-pay-note { display: block; margin: 2px 0 0; }
+  .cl-pay-form { margin-top: 4px; }
+  .cl-pay-paid { padding-left: 4px; padding-right: 4px; min-width: 0; text-transform: none; }
+
+  /* The advisor card. */
+  .cl-advisor { padding: 14px; }
+  .cl-advisor:last-child { padding-bottom: 14px; }
+  .cl-advisor-head { display: block; margin: 0 0 6px; line-height: 1.3; }
+  .cl-advisor-row { display: flex; align-items: center; gap: 10px; }
+  .cl-advisor-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .cl-advisor-text { min-width: 0; flex: 1; }
+  .cl-advisor-name { margin: 0; line-height: 1.3; }
+  .cl-advisor-reply { display: block; margin: 0; }
+  .cl-advisor-quote { display: block; margin: 8px 0 0; }
+  .cl-advisor-cta { margin-top: 10px; }
+
+  /* The two lists under the hero. */
+  .cl-section { margin-top: 28px; }
+  .cl-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    padding-bottom: 8px;
+  }
+  .cl-section-title { margin: 0; flex: 1; }
+  .cl-section-empty { display: block; margin: 12px 0 0; }
+  .cl-section-empty-title { display: block; }
+  .cl-mini-list { display: grid; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
+  .cl-mini { display: block; padding: 12px; color: inherit; text-decoration: none; }
+  .cl-mini-title { display: block; margin-top: 6px; }
+  .cl-mini-meta { display: block; }
+
+  /* ── The shell's no-access state (AdminNoAccess) ──────────────────────────────────────── */
+  .cl-no-access { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .cl-no-access-content { padding: 28px; }
+  .cl-no-access-content:last-child { padding-bottom: 28px; }
+  .cl-no-access-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 12px;
+    background: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .cl-no-access-body { margin: 8px 0 16px; }
+
+  @media (min-width: 768px) {
+    .cl-page { padding: 24px 24px; }
+    .cl-trip { grid-template-columns: 200px minmax(0, 1fr) auto; }
+    .cl-trip-photo { height: 100%; }
+    .cl-trip-value {
+      min-width: 160px;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-start;
+      border-top: 0;
+      border-left: 1px solid var(--mui-palette-divider);
+    }
+    .cl-trip-open { margin-top: auto; }
+    .cl-mini-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (min-width: 1200px) {
+    .cl-hero-grid { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); }
+  }
 }
