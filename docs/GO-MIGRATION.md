@@ -484,7 +484,7 @@ draft PRs #182 to #193; the mobile Functions base URL is #181.
 
 - **New libraries.** IMAP uses `github.com/emersion/go-imap/v2` v2.0.0-beta.8
   (`docs/IMAP-Go-Library-Security-Review.md`); Web Push is the standard library, no new module
-  (`docs/WebPush-Go-Library-Security-Review.md`). Both reviews await Gyasi's decision.
+  (`docs/WebPush-Go-Library-Security-Review.md`). Both reviews were approved by Gyasi on 2026-11-25, as recommended.
 - **Cron.** Migration `20261106120000` makes each tick's bearer follow its URL: a Supabase
   Functions URL keeps the service-role key, any other URL is the Go service and gets the vault
   secret `sta_cron_secret` (32+ characters, equal to Render's `STA_CRON_SECRET`). The switch is

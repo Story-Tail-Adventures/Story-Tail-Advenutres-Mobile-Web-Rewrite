@@ -13,8 +13,10 @@ go 1.27
 toolchain go1.27.4
 
 require (
-	// AWAITS GYASI'S APPROVAL: docs/IMAP-Go-Library-Security-Review.md is "awaiting Gyasi's
-	// decision". Pinned exactly as its §5 binds it; imported by internal/api/fn/emailinbox only.
+	// Approved by Gyasi 2026-11-25 (docs/IMAP-Go-Library-Security-Review.md). Pinned exactly as
+	// its §5 binds it; imported by internal/api/fn/emailinbox only. Read §3 and §6 before any
+	// bump: three open upstream bugs are covered by our own deadline and completeness guards,
+	// and beta tags can change the API.
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	// Master commit 64ce5b8, read-only use behind internal/page only.
 	// See docs/HTMLX-Library-Security-Review.md before changing it.

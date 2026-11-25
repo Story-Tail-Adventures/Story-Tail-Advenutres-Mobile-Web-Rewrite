@@ -6,8 +6,18 @@ library where it is enough. The `push-dispatch` function signs and encrypts web 
 web-push 3.6.7 (`docs/Push-Notifications-Security-Review.md` §2). The port in `webgo/` needs the
 same in Go. This picks how.
 
-Status: **awaiting Gyasi's decision** (written 2026-11-06 for the Go port, Track B).
-Nothing is added to `webgo/` yet; §5 binds the build once approved.
+Status: **approved by Gyasi 2026-11-25: the standard library, no new module.** §5 binds the
+build, and `webgo/internal/domain/webpush` already follows it, with the RFC vectors committed under
+its `testdata/`.
+
+This knowingly reverses the one line of `docs/Push-Notifications-Security-Review.md` that rejected
+writing the encryption ourselves. The reasons are §4: in Go the best library is a thin wrapper over
+the same standard-library crypto we would call, the RFC publishes every intermediate value so our
+output is pinned byte for byte in CI, and webpush-go as tagged carries two bugs that hit us
+directly (a data race on the exact slice-sharing pattern `push.Deliver` uses, and a `mailto:`
+prefix that makes `sub` read `mailto:mailto:...`, which Apple answers with 403 on every send).
+No cryptography is hand-rolled: the curve math, AES-GCM, HKDF and ECDSA are all Go's own.
+§7 still stands: nothing has been delivered to a real Chrome, Firefox or Safari from Go yet (T9).
 
 ## 1. What the library will be trusted with
 

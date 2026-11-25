@@ -6,8 +6,16 @@ reads client replies out of the app's IONOS mailbox with imapflow 2.2.1
 (`docs/IMAP-Library-Security-Review.md`). Go has no IMAP client in its standard library, so the port
 in `webgo/` needs one. This picks it.
 
-Status: **awaiting Gyasi's decision** (written 2026-11-06 for the Go port, Track B).
-Nothing is added to `webgo/go.mod` yet; §5 binds the build once approved.
+Status: **approved by Gyasi 2026-11-25: go-imap v2, pinned to `v2.0.0-beta.8`.** §5 binds the
+build. The pin and its two indirect requirements are already in `webgo/go.mod`; the comment there
+now cites this approval instead of asking for it.
+
+Approved with the beta label understood: the alternatives were a v1 with no release since 2022,
+whose own README sends readers to v2, or writing an IMAP client ourselves against attacker-written
+mail. The three open upstream bugs in §3 are closed in OUR code by §5's hard deadline, the
+completeness check on every literal, and the size gate before any structure fetch. Keep those
+guards even after upstream lands fixes (§6). §7 still stands: this has never run against IONOS,
+which is blocked behind the production mailbox password refused since 2026-10-22.
 
 ## 1. What the library will be trusted with
 
