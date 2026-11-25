@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"html"
 	"io"
 	"log/slog"
@@ -141,10 +142,7 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			send(500, map[string]any{"message": "boom"})
 			return
 		}
-		rows := f.tables[table]
-		if rows == nil {
-			rows = []map[string]any{}
-		}
+		rows := matching(f.tables[table], r.URL.Query())
 		send(200, rows)
 		return
 	case strings.HasPrefix(r.URL.Path, "/functions/v1/"):
@@ -156,6 +154,37 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	send(404, map[string]any{"code": "not_found"})
+}
+
+// matching applies the one PostgREST filter these tests depend on: col=eq.value. Without it
+// the fake answers every single-row lookup with the whole table, so a MaybeOne over two
+// seeded rows fails with "more than one row" — and, worse, a handler that forgot its filter
+// would pass. Anything it does not understand (select, order, limit) is left alone.
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			want, ok := strings.CutPrefix(values[0], "eq.")
+			if !ok {
+				continue
+			}
+			// A column the fixture does not carry is not modelled, so it does not filter.
+			// Where it IS carried the filter bites, which is what stops a single-row lookup
+			// coming back with the whole table.
+			if got, present := row[key]; present && fmt.Sprint(got) != want {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
+	}
+	return out
 }
 
 func (f *fake) seen(route string) []call {
