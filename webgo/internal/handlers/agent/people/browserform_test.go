@@ -27,7 +27,12 @@ type browserForm struct {
 	submits []submitButton
 }
 
-type submitButton struct{ name, value string }
+type submitButton struct {
+	name, value string
+	// disabled: the page drew it off. A browser will not submit it at all; a test that wants
+	// to prove the SERVER refuses a forged click can still pass it to click().
+	disabled bool
+}
 
 // readForm finds the form carrying data-slot=slot and reads it as a browser would.
 func readForm(t *testing.T, body, slot string) browserForm {
@@ -47,11 +52,14 @@ func readForm(t *testing.T, body, slot string) browserForm {
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode {
 			name := attr(n, "name")
+			// A disabled control is not successful: a browser leaves it out of the post
+			// entirely. Leaving it in would let a test send a field no user could send.
+			off := hasAttr(n, "disabled")
 			switch n.Data {
 			case "input":
 				kind := attr(n, "type")
 				switch {
-				case name == "":
+				case name == "", off:
 				case kind == "submit", kind == "button", kind == "image":
 					// Only the clicked one is sent; the caller names it.
 				case kind == "checkbox", kind == "radio":
@@ -62,11 +70,11 @@ func readForm(t *testing.T, body, slot string) browserForm {
 					out.fields.Add(name, attr(n, "value"))
 				}
 			case "textarea":
-				if name != "" {
+				if name != "" && !off {
 					out.fields.Add(name, textOf(n))
 				}
 			case "select":
-				if name != "" {
+				if name != "" && !off {
 					if opt := findNode(n, func(o *html.Node) bool {
 						return o.Data == "option" && hasAttr(o, "selected")
 					}); opt != nil {
@@ -75,7 +83,7 @@ func readForm(t *testing.T, body, slot string) browserForm {
 				}
 			case "button":
 				if name != "" && cmpOr(attr(n, "type"), "submit") == "submit" {
-					out.submits = append(out.submits, submitButton{name, attr(n, "value")})
+					out.submits = append(out.submits, submitButton{name, attr(n, "value"), off})
 				}
 			}
 		}
@@ -101,7 +109,9 @@ func (wd *world) click(f browserForm, button submitButton) *httptest.ResponseRec
 	return wd.post(f.action, values)
 }
 
-// submitNamed clicks the submit button whose value is exactly value.
+// submitNamed finds the submit button whose value is exactly value. It does NOT refuse a
+// disabled one: several tests here click a button the page drew off, to prove the server
+// refuses the post rather than trusting the markup. Read .disabled when that matters.
 func (f browserForm) submitNamed(t *testing.T, value string) submitButton {
 	t.Helper()
 	for _, b := range f.submits {
@@ -189,6 +199,26 @@ func TestPickerAsABrowserDrivesIt(t *testing.T) {
 		lacks(t, b, "Thanks for reaching out!")
 	})
 
+	t.Run("a button the page drew off is reported off, and is not a field", func(t *testing.T) {
+		wd := pickerWorld(t, nil)
+		reply := readForm(t, wd.get(threadURL).Body.String(), "rp-form")
+		// The payment template needs fields this thread has no values for.
+		picked := wd.click(reply, reply.submitNamed(t, "picker")).Body.String()
+		pk := readForm(t, wd.click(readForm(t, picked, "pk-form"), submitButton{name: "op", value: "pick:" + tplID}).Body.String(), "pk-form")
+		if !pk.submitNamed(t, "insert-asis").disabled {
+			t.Error("Insert as-is is not reported disabled, so a test could click it as a user")
+		}
+		if pk.submitNamed(t, "insert").disabled {
+			t.Error("Insert & edit is reported disabled; it is the way to fill the fields in")
+		}
+		// A disabled control is never a field either, whatever kind it is.
+		for k := range pk.fields {
+			if k == "op" {
+				t.Error("a button's op leaked into the fields")
+			}
+		}
+	})
+
 	t.Run("Enter in the search box searches; it does not close the picker", func(t *testing.T) {
 		wd := pickerWorld(t, nil)
 		reply := readForm(t, wd.get(threadURL).Body.String(), "rp-form")
@@ -269,7 +299,7 @@ func TestEditorAsABrowserDrivesIt(t *testing.T) {
 		wd := templateWorld(t)
 		f := readForm(t, wd.get(templatesPath+"/new").Body.String(), "ed-form")
 		f.fields.Set("body", "See you on ")
-		chip := submitButton{"field", "trip.dates"}
+		chip := submitButton{name: "field", value: "trip.dates"}
 		b := wd.click(f, chip).Body.String()
 		has(t, b, "See you on {{trip.dates}}")
 		if n := len(wd.fake.callsTo("agent-message-template")); n != 0 {
