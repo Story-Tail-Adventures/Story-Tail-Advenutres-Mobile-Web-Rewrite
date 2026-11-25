@@ -157,6 +157,20 @@ func (c *client) click(f browserForm, button submitButton) *httptest.ResponseRec
 	return c.post(f.action, values)
 }
 
+// submitNamed finds the submit button whose value is exactly value. It does NOT refuse a
+// disabled one: several tests here click a button the page drew off, to prove the server
+// refuses the post rather than trusting the markup. Read .disabled when that matters.
+func (f browserForm) submitNamed(t *testing.T, value string) submitButton {
+	t.Helper()
+	for _, b := range f.submits {
+		if b.value == value {
+			return b
+		}
+	}
+	t.Fatalf("no submit button with value %q (have %v)", value, f.submits)
+	return submitButton{}
+}
+
 func attr(n *html.Node, key string) string {
 	for _, a := range n.Attr {
 		if a.Key == key {
