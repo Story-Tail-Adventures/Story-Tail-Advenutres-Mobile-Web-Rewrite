@@ -31,7 +31,7 @@ var memoriesSpec = page.Spec{
 		"link-documents", "link-itinerary", "again-cta",
 	},
 	Repeats: map[string][]string{
-		"photos":   {"photo-form", "photo-next", "photo-id", "photo-button", "photo-name"},
+		"photos":   {"photo-form", "photo-next", "photo-button", "photo-name"},
 		"snapshot": {"snap-label", "snap-value"},
 	},
 }
@@ -120,8 +120,6 @@ func (a *area) mountMemories(rt *gate.Router) error {
 				row.URL("photo-form", "action", "/documents/"+images[i].ID+"/open")
 				row.Attr("photo-next", "value", "/trips/"+tripID+"/memories")
 				row.Keep("photo-next")
-				row.Attr("photo-id", "value", images[i].ID)
-				row.Keep("photo-id")
 				row.Keep("photo-button")
 				row.Attr("photo-button", "aria-label", "Open "+images[i].Filename)
 				row.Text("photo-name", images[i].Filename)

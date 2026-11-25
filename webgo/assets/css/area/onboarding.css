@@ -91,7 +91,9 @@
   .ob-card-title { margin: 0; }
   .ob-card-body { display: block; margin-top: 2px; }
   .ob-welcome-actions { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
-  /* column-reverse below sm so the primary sits under the thumb; a row from it. */
+  /* The DOM order is [primary, skip] so Enter cannot end the wizard; these two rules put
+     the primary back where the artboards draw it — at the bottom on a phone, on the right
+     of the row from md. */
   .ob-welcome-buttons { display: flex; flex-direction: column-reverse; gap: 10px; }
   .ob-error-link { font-weight: 600; text-underline-offset: 2px; }
 
@@ -275,7 +277,7 @@
     .ob-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .ob-card-content { display: block; }
     .ob-card-title { margin-top: 8px; }
-    .ob-welcome-buttons { flex-direction: row; justify-content: flex-end; gap: 12px; }
+    .ob-welcome-buttons { flex-direction: row-reverse; justify-content: flex-start; gap: 12px; }
 
     .ob-wizard { display: grid; grid-template-columns: 280px minmax(0, 1fr); }
     .ob-column { padding: 36px 48px; }

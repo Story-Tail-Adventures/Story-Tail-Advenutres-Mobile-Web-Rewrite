@@ -61,8 +61,14 @@
         <h1 class="type-h4 fw-700 text-primary ob-title">A few quick details</h1>
         <p class="ob-sub text-secondary">So I can plan with all the right info on hand. You can edit any of this later.</p>
 
-        <form method="post" action="/onboarding/profile" data-submit-once>
+        <form method="post" action="/onboarding/profile" data-submit-once data-slot="profile-form">
           <fieldset class="ob-fields">
+            <!-- THE FORM'S DEFAULT BUTTON, and the only reason it exists: a browser submits
+                 the FIRST submit button in tree order when Enter is pressed in a text box,
+                 and the first one below is "Update the labels for this country". Saving is what somebody pressing
+                 Enter in a field means, so it goes first and is hidden. Hidden, not
+                 disabled: a disabled button is not the default button at all. -->
+            <button class="visually-hidden" type="submit" name="action" value="save" tabindex="-1" aria-hidden="true" hidden></button>
             <div class="alert alert-error" role="alert" data-slot="form-error"><div class="alert-message">That didn't save — nothing's lost. Give it another try, or skip for now and we'll pick this up later.</div></div>
 
             <p class="type-body2 text-secondary ob-note">Nothing here is required — fill in what you know and skip the rest.</p>

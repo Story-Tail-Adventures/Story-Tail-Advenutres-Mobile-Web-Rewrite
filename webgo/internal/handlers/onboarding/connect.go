@@ -17,9 +17,10 @@ import (
 // Screen 2.1.13 Connect Existing Trips (web/app/(onboarding)/onboarding/connect).
 
 var connectSpec = page.Spec{
-	File:    "onboarding/connect.html",
-	Layout:  shell.Onboarding,
-	Slots:   append(chromeSlots(), "linked", "linked-text", "linked-email", "none", "code", "code-error", "primary"),
+	File:   "onboarding/connect.html",
+	Layout: shell.Onboarding,
+	Slots: append(chromeSlots(), "linked", "linked-text", "linked-email", "none", "code",
+		"code-error", "primary", "connect-form"),
 	Repeats: chromeRepeats,
 }
 
@@ -46,6 +47,7 @@ func (a *area) mountConnect(rt *gate.Router) error {
 	show := func(w http.ResponseWriter, r *http.Request, status int, st session.State, code, message string) {
 		d := tmpl.New()
 		fillChrome(d, connectStep, true)
+		d.Keep("connect-form")
 
 		trips, email := a.linkedTrips(r, st)
 		if len(trips) == 0 {

@@ -54,8 +54,14 @@
         <h1 class="type-h4 fw-700 text-primary ob-title">How do you travel?</h1>
         <p class="ob-sub text-secondary">Tag what's true. Nothing here is required — it just means I start closer to the mark.</p>
 
-        <form method="post" action="/onboarding/preferences" data-submit-once>
+        <form method="post" action="/onboarding/preferences" data-submit-once data-slot="preferences-form">
           <fieldset class="ob-fields">
+            <!-- THE FORM'S DEFAULT BUTTON, and the only reason it exists: a browser submits
+                 the FIRST submit button in tree order when Enter is pressed in a text box,
+                 and the first one below is "Add another" loyalty row. Saving is what somebody pressing
+                 Enter in a field means, so it goes first and is hidden. Hidden, not
+                 disabled: a disabled button is not the default button at all. -->
+            <button class="visually-hidden" type="submit" name="action" value="save" tabindex="-1" aria-hidden="true" hidden></button>
             <div class="alert alert-error" role="alert" data-slot="form-error"><div class="alert-message">That didn't save — nothing's lost, your answers are still here. Try again, or skip for now and we'll pick this up later.</div></div>
 
             <fieldset class="ob-group">

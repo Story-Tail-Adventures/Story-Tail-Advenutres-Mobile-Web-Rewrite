@@ -40,7 +40,7 @@ func companionsSlots() []string {
 		"first-name", "first-name-error", "last-name", "last-name-error",
 		"relationship", "relationship-error", "dob", "dob-error",
 		"expiry", "expiry-error", "country", "country-error", "cancel",
-		"unfinished", "continue",
+		"unfinished", "continue", "companions-actions",
 	)
 	return append(out, countrySlots(companionCountryPrefix)...)
 }
@@ -106,6 +106,7 @@ func (a *area) mountCompanions(rt *gate.Router) error {
 	show := func(w http.ResponseWriter, r *http.Request, status int, v companionsView) {
 		d := tmpl.New()
 		fillChrome(d, companionsStep, true)
+		d.Keep("companions-actions")
 
 		// One alert above the list: whatever just failed, or the read that did not come back.
 		// A read failure is reported rather than swallowed, because an empty list and a lost

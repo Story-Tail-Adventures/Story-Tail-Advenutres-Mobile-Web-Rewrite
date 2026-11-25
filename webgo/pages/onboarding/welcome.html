@@ -81,11 +81,13 @@
 
       <div class="ob-welcome-actions">
         <div class="alert alert-error" role="alert" data-slot="skip-error"><div class="alert-message">We couldn't save that just now — but nothing is lost. Try again, or head straight to your dashboard. <a class="link link-inherit ob-error-link" href="/dashboard">Go to my dashboard</a>.</div></div>
-        <form class="ob-welcome-buttons" method="post" action="/welcome" data-submit-once>
-          <!-- Skip first in the DOM so the primary action sits on the right of the row from sm,
-               and under the thumb on a phone, as the artboards draw it. -->
-          <button class="btn btn-text st-btn ob-skip" type="submit" name="action" value="skip" aria-label="Skip the tour and go to my dashboard" data-pending-label="Taking you to your dashboard…">Skip the tour</button>
+        <!-- "Get started" is FIRST in the DOM because the first submit button is the one
+             Enter presses, and the other one here ends the wizard. The row is reversed in
+             CSS, so it still draws with the primary under the thumb on a phone and on the
+             right of the row from md. -->
+        <form class="ob-welcome-buttons" method="post" action="/welcome" data-submit-once data-slot="welcome-actions">
           <button class="btn btn-contained st-btn btn-large" type="submit" name="action" value="start">Get started<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
+          <button class="btn btn-text st-btn ob-skip" type="submit" name="action" value="skip" aria-label="Skip the tour and go to my dashboard" data-pending-label="Taking you to your dashboard…">Skip the tour</button>
         </form>
       </div>
     </div>
