@@ -37,6 +37,10 @@ type submitButton struct {
 	disabled bool
 	// novalidate: this button skips the form's own checks (formnovalidate).
 	novalidate bool
+	// label: its text, for a button with no name. Such a button sends no name/value pair,
+	// but it is still a click target and still what Enter presses, so it has to be here or
+	// defaultSubmit names the wrong one.
+	label string
 }
 
 // readForm finds the form carrying data-slot=slot and reads it as a browser would.
@@ -90,8 +94,15 @@ func readForm(t *testing.T, body, slot string) browserForm {
 					}
 				}
 			case "button":
-				if name != "" && cmpOr(attr(n, "type"), "submit") == "submit" {
-					out.submits = append(out.submits, submitButton{name, attr(n, "value"), off, hasAttr(n, "formnovalidate")})
+				// A submit with no name is recorded too. It posts no pair of its own, which
+				// is what a form carrying its op in a hidden field relies on, but it is
+				// still the thing Enter clicks.
+				if cmpOr(attr(n, "type"), "submit") == "submit" {
+					out.submits = append(out.submits, submitButton{
+						name: name, value: attr(n, "value"), disabled: off,
+						novalidate: hasAttr(n, "formnovalidate"),
+						label:      strings.Join(strings.Fields(textOf(n)), " "),
+					})
 				}
 			}
 		}
@@ -103,8 +114,22 @@ func readForm(t *testing.T, body, slot string) browserForm {
 	return out
 }
 
+// defaultSubmit is the button Enter presses: the FIRST submit in the form in tree order,
+// named or not, enabled or not. A form with no submit button at all submits itself, which is
+// the empty button — click() then posts the fields alone, as a browser does.
+//
+// Always use this rather than submits[0] directly. They differ exactly when the first button
+// has no name, and then submits[0] is the SECOND button and an Enter test quietly checks the
+// wrong one.
+func (f browserForm) defaultSubmit() submitButton {
+	if len(f.submits) == 0 {
+		return submitButton{}
+	}
+	return f.submits[0]
+}
+
 // click posts the form with one submit button's name and value, as a browser does. Pressing
-// Enter in a text box is click(f, f.submits[0]...) — the form's default button.
+// Enter in a text box is click(f, f.defaultSubmit()).
 //
 // It refuses the click a browser would refuse. A form with an empty required control does
 // not submit at all unless the button says formnovalidate, and a handler test cannot see
@@ -189,6 +214,69 @@ func findNode(n *html.Node, want func(*html.Node) bool) *html.Node {
 	return nil
 }
 
+// The helper's own tests. Every form in THIS area names its buttons, so the cases below are
+// written by hand: the helper is shared with the other Go areas, whose forms carry the op in
+// a hidden field and whose submits often have no name at all.
+
+func TestReadFormHandlesBothFormStyles(t *testing.T) {
+	const page = `<form data-slot="f" action="/go">
+		<input type="hidden" name="op" value="save">
+		<input name="title" value="Hi">
+		<input name="off" value="x" disabled>
+		<textarea name="body">words</textarea>
+		<select name="cat"><option value="a">A</option><option value="b" selected>B</option></select>
+		<input type="checkbox" name="flag" value="true" checked>
+		<input type="checkbox" name="unflag" value="true">
+		<button type="submit">Save</button>
+		<button type="submit" name="op" value="archive">Archive</button>
+	</form>`
+	f := readForm(t, page, "f")
+
+	t.Run("the fields are the successful controls, and only those", func(t *testing.T) {
+		want := url.Values{"op": {"save"}, "title": {"Hi"}, "body": {"words"}, "cat": {"b"}, "flag": {"true"}}
+		if got := f.fields.Encode(); got != want.Encode() {
+			t.Errorf("fields = %s, want %s", got, want.Encode())
+		}
+	})
+
+	t.Run("a submit with no name is still the default button", func(t *testing.T) {
+		// This is the one that matters: with nameless buttons skipped, submits[0] would be
+		// Archive, and an Enter test would quietly check the wrong button — on a settings
+		// form, the destructive one.
+		d := f.defaultSubmit()
+		if d.label != "Save" || d.name != "" {
+			t.Errorf("defaultSubmit = %+v, want the nameless Save", d)
+		}
+		if len(f.submits) != 2 {
+			t.Errorf("submits = %+v, want both buttons", f.submits)
+		}
+	})
+
+	t.Run("a nameless button posts no pair of its own", func(t *testing.T) {
+		wd := templateWorld(t)
+		f2 := f
+		f2.action = templatesPath // somewhere that answers
+		values := url.Values{}
+		for k, v := range f2.fields {
+			values[k] = v
+		}
+		// click adds nothing for a nameless button, so the hidden op is what the server reads.
+		_ = wd.click(f2, f2.defaultSubmit())
+		if f2.fields.Get("op") != "save" {
+			t.Error("the hidden op was lost")
+		}
+	})
+}
+
+func TestReadFormDefaultSubmitOnAScriptOnlyForm(t *testing.T) {
+	// No submit button at all: a browser submits the form itself, so the default button is
+	// the empty one and click() posts the fields alone.
+	f := readForm(t, `<form data-slot="f" action="/go"><input name="q" value="x"></form>`, "f")
+	if d := f.defaultSubmit(); d.name != "" || d.label != "" {
+		t.Errorf("defaultSubmit = %+v, want the empty button", d)
+	}
+}
+
 // ── What a browser does to these two screens ─────────────────────────────────────────────
 
 func TestPickerAsABrowserDrivesIt(t *testing.T) {
@@ -246,7 +334,7 @@ func TestPickerAsABrowserDrivesIt(t *testing.T) {
 		pk := readForm(t, wd.click(reply, reply.submitNamed(t, "picker")).Body.String(), "pk-form")
 		pk.fields.Set("tq", "balance")
 		// Enter clicks the form's FIRST submit button.
-		rec := wd.click(pk, pk.submits[0])
+		rec := wd.click(pk, pk.defaultSubmit())
 		b := rec.Body.String()
 		has(t, b, "Insert a template", "Final balance")
 		lacks(t, b, "Thanks for reaching out!")
@@ -306,7 +394,7 @@ func TestEditorAsABrowserDrivesIt(t *testing.T) {
 		f := readForm(t, wd.get(templatesPath+"/"+tplID).Body.String(), "ed-form")
 		f.fields.Set("name", "Renamed")
 		// Enter clicks the form's first submit button.
-		rec := wd.click(f, f.submits[0])
+		rec := wd.click(f, f.defaultSubmit())
 		if rec.Code != 303 {
 			t.Fatalf("Enter = %d", rec.Code)
 		}
