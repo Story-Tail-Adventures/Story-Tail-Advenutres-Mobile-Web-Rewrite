@@ -607,6 +607,24 @@ Screen Inventory section lists them. Every one is accounted for:
 `contracts/openapi.yaml` already documents all 34 function paths, so the spec needs no catch-up
 work at cleanup; it only loses the ones whose folders go.
 
+#### One job is RE-POINTED, not retired: the Kotlin content codegen
+
+"Public content codegen is current" runs `npm run generate:public-content -w web` and then fails
+on any diff to
+`mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt`.
+That generator lives in the `web` workspace, so deleting `web/` kills the mobile content pipeline
+unless the job moves with it, and nothing would be left to notice.
+
+It can move, and this was verified rather than assumed on 2026-11-25: `webgo/cmd/gen-kotlin`
+writes the same file, and run against the committed one it reproduced it **byte for byte** —
+69,974 bytes, identical SHA-256. So Phase 6 changes that job's command to
+
+    go run ./cmd/gen-kotlin        # from webgo/
+
+and keeps its `git diff --exit-code` guard exactly as it is. Do not fold this job into the list
+of checks that die with the Web job: it is the only thing standing between a content edit and
+mobile silently drifting.
+
 #### The two CI jobs that change, and the one that must not
 
 `ci.yml` has nine named jobs. Only two of them know about Next.js or Deno:
