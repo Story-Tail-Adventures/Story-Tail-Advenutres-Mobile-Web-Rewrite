@@ -69,16 +69,27 @@ func sessionCookie() string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
-// fetch gets path, carrying a session cookie when one is given.
+// fetch gets path, carrying a session cookie under session.CookieName when one is given.
 func fetch(h http.Handler, path, sessionCookie string) *httptest.ResponseRecorder {
+	return fetchNamed(h, path, session.CookieName, sessionCookie)
+}
+
+// fetchNamed is fetch with the cookie's name spelled out. The session cookie is called
+// "sta-session" on a local http:// server and "__Host-sta-session" everywhere else, and the
+// manager chooses; a test that only ever sends one of them is only testing one deployment.
+func fetchNamed(h http.Handler, path, cookieName, cookieValue string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(http.MethodGet, path, nil)
-	if sessionCookie != "" {
-		r.AddCookie(&http.Cookie{Name: session.CookieName, Value: sessionCookie})
+	if cookieValue != "" {
+		r.AddCookie(&http.Cookie{Name: cookieName, Value: cookieValue})
 	}
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	return w
 }
+
+// sessionCookieNames are both spellings. A test that asserts something about "a visitor with
+// a session" should hold for whichever one this build reads.
+var sessionCookieNames = []string{session.CookieName, "__Host-" + session.CookieName}
 
 // The Go replacement for .github/scripts/check_public_prerender.py (docs/GO-MIGRATION.md
 // §4.7). Next proved a page static from its prerender manifest; here every cached public URL
@@ -158,15 +169,27 @@ func TestTheFrontDoorIsOnlyCachedForVisitorsWithNoSession(t *testing.T) {
 		t.Errorf("anonymous /: Vary %q, want Cookie", got)
 	}
 
-	withCookie := fetch(h, "/", sessionCookie())
-	if got := withCookie.Header().Get("Cache-Control"); got != web.NoStore {
-		t.Errorf("/ with a session cookie: Cache-Control %q, want %q", got, web.NoStore)
+	// Whichever name this build's session manager reads, a visitor carrying a session gets
+	// the uncached answer. Both are asserted rather than the one this build happens to use,
+	// because the handler must not be the thing that knows which it is.
+	consulted := 0
+	for _, name := range sessionCookieNames {
+		res := fetchNamed(h, "/", name, sessionCookie())
+		if got := res.Header().Get("Cache-Control"); got != web.NoStore {
+			t.Errorf("/ with %s: Cache-Control %q, want %q", name, got, web.NoStore)
+		}
+		if got := res.Header().Get("Vary"); got != "Cookie" {
+			t.Errorf("/ with %s: Vary %q, want Cookie", name, got)
+		}
+		if len(rec.taken()) > 0 {
+			consulted++
+		}
 	}
-	if got := withCookie.Header().Get("Vary"); got != "Cookie" {
-		t.Errorf("/ with a session cookie: Vary %q, want Cookie", got)
-	}
-	if calls := rec.taken(); len(calls) == 0 {
-		t.Error("/ with a session cookie did not check the session at all")
+	// And the session really is checked at the front door: exactly one of the two names is
+	// this build's, so exactly one should have reached GoTrue. Zero means / stopped being a
+	// gated route; two would mean the manager reads both, which no deployment should.
+	if consulted != 1 {
+		t.Errorf("%d of the two session cookie names reached GoTrue, want exactly 1", consulted)
 	}
 }
 
