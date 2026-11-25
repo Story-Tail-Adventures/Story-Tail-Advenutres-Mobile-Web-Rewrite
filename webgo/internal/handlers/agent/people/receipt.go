@@ -27,7 +27,8 @@ const (
 )
 
 // receipt is one success, by kind: "bulk" (a bulk tag: the tag and its counts), "account"
-// (an account-admin outcome code: sent, noop or changed) or "lead" (an invite's note).
+// (an account-admin outcome code: sent, noop or changed), "lead" (an invite's note) or
+// "template" (which write the library or the editor just made).
 type receipt struct {
 	Kind      string `json:"k"`
 	Tag       string `json:"t,omitempty"`
@@ -51,6 +52,13 @@ func (rc receipt) valid() bool {
 	case "lead":
 		// 3.8.3's two invite notes: the email was already a client's, or the invite did not send.
 		return rc.Outcome == "existing" || rc.Outcome == "not-sent"
+	case "template":
+		// 3.10.4 and 3.10.5: which write happened, so the word is built here and not carried.
+		switch rc.Outcome {
+		case "duplicated", "archived", "restored", "saved", "nothing":
+			return true
+		}
+		return false
 	}
 	return false
 }

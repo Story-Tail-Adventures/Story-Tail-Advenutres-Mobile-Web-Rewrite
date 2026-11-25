@@ -36,22 +36,25 @@ type visit struct {
 
 // app is this sub-area's handlers, with what they share.
 type app struct {
-	d            handlers.Deps
-	noAccess     *page.Template
-	failed       *page.Template
-	worklist     *page.Template
-	calendar     *page.Template
-	clients      *page.Template
-	clientNew    *page.Template
-	clientEdit   *page.Template
-	notFound     *page.Template
-	clientDetail *page.Template
-	merge        *page.Template
-	leads        *page.Template
-	lead         *page.Template
-	leadNew      *page.Template
-	leadNotFound *page.Template
-	messages     *page.Template
+	d                handlers.Deps
+	noAccess         *page.Template
+	failed           *page.Template
+	worklist         *page.Template
+	calendar         *page.Template
+	clients          *page.Template
+	clientNew        *page.Template
+	clientEdit       *page.Template
+	notFound         *page.Template
+	clientDetail     *page.Template
+	merge            *page.Template
+	leads            *page.Template
+	lead             *page.Template
+	leadNew          *page.Template
+	leadNotFound     *page.Template
+	messages         *page.Template
+	templates        *page.Template
+	templateEditor   *page.Template
+	templateNotFound *page.Template
 }
 
 type identityRow struct {

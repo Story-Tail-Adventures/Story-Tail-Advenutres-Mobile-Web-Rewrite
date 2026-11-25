@@ -40,6 +40,7 @@ var Specs = []page.Spec{
 	noAccessSpec, failedSpec, worklistSpec, calendarSpec,
 	clientsSpec, clientNewSpec, clientEditSpec, notFoundSpec, clientDetailSpec, mergeSpec,
 	leadsSpec, leadSpec, leadNewSpec, leadNotFoundSpec, messagesSpec,
+	templatesSpec, templateEditorSpec, templateNotFoundSpec,
 }
 
 // Mount registers this sub-area's routes. Templates are taken here, so a missing page stops
@@ -56,6 +57,8 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 		{notFoundSpec, &a.notFound}, {clientDetailSpec, &a.clientDetail}, {mergeSpec, &a.merge},
 		{leadsSpec, &a.leads}, {leadSpec, &a.lead}, {leadNewSpec, &a.leadNew}, {leadNotFoundSpec, &a.leadNotFound},
 		{messagesSpec, &a.messages},
+		{templatesSpec, &a.templates}, {templateEditorSpec, &a.templateEditor},
+		{templateNotFoundSpec, &a.templateNotFound},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -85,6 +88,14 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/leads/{leadId}", http.HandlerFunc(a.postLead))
 	rt.Protected("GET /agent/messages", http.HandlerFunc(a.serveMessages))
 	rt.Protected("POST /agent/messages", http.HandlerFunc(a.postMessages))
+	// A literal segment beats a wildcard one in ServeMux, so these are reached before
+	// /agent/messages/{conversationId} ever sees them.
+	rt.Protected("GET /agent/messages/templates", http.HandlerFunc(a.serveTemplates))
+	rt.Protected("POST /agent/messages/templates", http.HandlerFunc(a.postTemplates))
+	rt.Protected("GET /agent/messages/templates/new", http.HandlerFunc(a.serveNewTemplate))
+	rt.Protected("POST /agent/messages/templates/new", http.HandlerFunc(a.postNewTemplate))
+	rt.Protected("GET /agent/messages/templates/{templateId}", http.HandlerFunc(a.serveTemplate))
+	rt.Protected("POST /agent/messages/templates/{templateId}", http.HandlerFunc(a.postExistingTemplate))
 	rt.Protected("GET /agent/messages/new", http.HandlerFunc(a.serveNewMessage))
 	rt.Protected("POST /agent/messages/new", http.HandlerFunc(a.postNewMessage))
 	rt.Protected("GET /agent/messages/{conversationId}", http.HandlerFunc(a.serveThread))
