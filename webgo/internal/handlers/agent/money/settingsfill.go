@@ -16,7 +16,9 @@ import (
 
 func fillProfile(doc *page.Doc, s *settingsViewModel, rend settingsRender) {
 	p := s.Profile
-	formError(doc, rend.message)
+	// The banner carries only what belongs to no field. A phone or a link refusal is shown
+	// under the box it is about, and saying it twice reads as two different problems.
+	formError(doc, pick(rend, "form"))
 
 	doc.URL("pf-form", "action", settingsAction("profile", ""))
 	doc.URL("pf-photo-form", "action", settingsAction("profile", ""))
@@ -354,7 +356,14 @@ func fillTimeOff(doc *page.Doc, a availabilityView, rend settingsRender) {
 		doc.Remove("away-reply-preview")
 	}
 	doc.URL("away-cancel", "href", settingsHref("availability", ""))
-	fieldError(doc, "away-error", "away-error-text", "away-start", pick(rend, "away"))
+	// The one message for this form: it can be about either date or the reply's words, so
+	// it marks no single box invalid.
+	if problem := pick(rend, "away"); problem == "" {
+		doc.Remove("away-error")
+	} else {
+		doc.Keep("away-error")
+		doc.Text("away-error-text", problem)
+	}
 }
 
 func title(isNew bool) string {

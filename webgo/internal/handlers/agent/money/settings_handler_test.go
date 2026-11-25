@@ -523,3 +523,26 @@ func TestTheAvatarOnlyDrawsAURLThePageAllows(t *testing.T) {
 		t.Errorf("a production origin builds %q", got)
 	}
 }
+
+// A field's own refusal is shown ONCE, under the box it is about. Saying it in the banner
+// as well reads as two different problems.
+func TestAFieldsRefusalIsNotAlsoInTheBanner(t *testing.T) {
+	wd := newWorld(t)
+	seedSettings(wd)
+	form := url.Values{}
+	form.Set("op", "update_profile")
+	form.Set("displayName", "Gyasi Story")
+	form.Set("phone", "call me")
+	body := wd.post("/agent/settings?tab=profile", form).Body.String()
+	if n := strings.Count(body, "doesn&#39;t look right"); n != 1 {
+		t.Errorf("the phone refusal is on the page %d times, want 1", n)
+	}
+	// A refusal the FUNCTION wrote belongs to no field, so that one does go in the banner.
+	wd2 := newWorld(t)
+	seedSettings(wd2)
+	wd2.fake.functions["POST agent-settings"] = reply{Status: 400, Body: `{"detail":"Nope."}`}
+	ok := url.Values{}
+	ok.Set("op", "update_profile")
+	ok.Set("displayName", "Gyasi Story")
+	has(t, wd2.post("/agent/settings?tab=profile", ok).Body.String(), "Nope.")
+}
