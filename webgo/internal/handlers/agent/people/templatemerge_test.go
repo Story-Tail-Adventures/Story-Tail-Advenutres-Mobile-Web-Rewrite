@@ -25,6 +25,14 @@ func TestTemplateFieldListsMatchTheMigration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)
 		}
+		// An iCloud-evicted file in ~/Documents reads as NOTHING rather than failing, and
+		// every assertion below would then report a drift in the SQL that is not there. Say
+		// which it is. `git show "HEAD:supabase/migrations/<name>"` reads it from the object
+		// store, which is never evicted.
+		if len(b) == 0 {
+			t.Fatalf("%s read as empty. If it is not empty on disk it has been evicted: "+
+				"run `brctl download supabase/migrations` and wait for it to drain, or read it with git show.", name)
+		}
 		return string(b)
 	}
 	sql := read("20261016120000_agent_message_templates.sql")
