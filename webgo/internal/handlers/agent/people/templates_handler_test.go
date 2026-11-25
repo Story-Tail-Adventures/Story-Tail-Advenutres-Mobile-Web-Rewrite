@@ -34,6 +34,7 @@ func templateWorld(t *testing.T) *world {
 	wd.fake.rpc["agent_message_template"] = mustJSON([]map[string]any{
 		templateRow(tplID, "payment_reminder", "Final balance", "Hi {{client.firstName}}, {{payment.amount}} is due {{payment.dueDate}}.", []string{"balance"}),
 	})
+	wd.scope("p_template_id", tplID)
 	return wd
 }
 

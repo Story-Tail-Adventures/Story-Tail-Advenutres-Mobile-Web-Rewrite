@@ -52,6 +52,7 @@ func leadWorld(t *testing.T, status string, over map[string]any) *world {
 		{"id": "m1", "body": "June works.\nTwo of us.", "entered_by_agent": false, "page": "detail", "about_kind": "trip",
 			"about_slug": "lisbon", "about_label": "Seven nights in Lisbon", "created_at": "2026-10-19T15:00:00Z"},
 	})
+	wd.scope("p_lead_id", leadID)
 	return wd
 }
 

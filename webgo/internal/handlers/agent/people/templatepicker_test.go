@@ -31,6 +31,7 @@ func pickerWorld(t *testing.T, mergeRow map[string]any) *world {
 		row[k] = v
 	}
 	wd.fake.rpc["agent_message_merge_context"] = mustJSON([]map[string]any{row})
+	wd.scope("p_conversation_id", convID)
 	return wd
 }
 

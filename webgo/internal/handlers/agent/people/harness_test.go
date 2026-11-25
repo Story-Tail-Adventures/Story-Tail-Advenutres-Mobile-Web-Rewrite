@@ -57,6 +57,14 @@ type fakeSupa struct {
 	failing map[string]bool
 	// rpcArgs records the body each read was called with.
 	rpcArgs map[string]string
+	// scoped is the id each canned reply BELONGS to, by argument name. A read whose body
+	// names one of these with a different value is answered with no rows, as the database
+	// would answer a read for somebody else's record.
+	//
+	// Recording an argument is not scoping by it: before this, a read that lost or mistook
+	// its p_conversation_id was still handed the fixture and still passed. An argument not
+	// listed here is not modelled and does not scope, so a read naming none is left alone.
+	scoped map[string]string
 	// functions maps "METHOD name" to {status, body}; calls records every call.
 	functions map[string]reply
 	calls     []fn
@@ -70,7 +78,8 @@ type reply struct {
 func newFake() *fakeSupa {
 	return &fakeSupa{
 		role: "agent", aal: "aal2", factor: true, displayName: "Gyasi Story", timeZone: "America/Chicago",
-		rpc: map[string]string{}, failing: map[string]bool{}, rpcArgs: map[string]string{}, functions: map[string]reply{},
+		rpc: map[string]string{}, failing: map[string]bool{}, rpcArgs: map[string]string{},
+		scoped: map[string]string{}, functions: map[string]reply{},
 	}
 }
 
@@ -104,6 +113,11 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, "/rest/v1/rpc/")
 		b, _ := io.ReadAll(r.Body)
 		f.rpcArgs[name] = string(b)
+		// The read has to be FOR the record these fixtures are about.
+		if !f.inScope(b) {
+			_, _ = w.Write([]byte("[]"))
+			return
+		}
 		if f.failing[name] {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"code":"XX000","message":"boom"}`))
@@ -213,6 +227,37 @@ func TestFakeAppliesPostgRESTFilters(t *testing.T) {
 			}
 		})
 	}
+}
+
+// inScope reports whether a read's arguments name the record these fixtures are for. A null
+// or absent argument is not a mismatch: plenty of reads here take an optional trip or
+// milestone and legitimately pass none.
+func (f *fakeSupa) inScope(body []byte) bool {
+	if len(f.scoped) == 0 || len(body) == 0 {
+		return true
+	}
+	var args map[string]any
+	if json.Unmarshal(body, &args) != nil {
+		return true
+	}
+	for param, want := range f.scoped {
+		got, present := args[param]
+		if !present || got == nil {
+			continue
+		}
+		if fmt.Sprint(got) != want {
+			return false
+		}
+	}
+	return true
+}
+
+// scope says which record this world's fixtures belong to. Call it for every id argument the
+// handlers under test pass, or the reads naming the others stay unscoped.
+func (wd *world) scope(param, id string) {
+	wd.fake.mu.Lock()
+	defer wd.fake.mu.Unlock()
+	wd.fake.scoped[param] = id
 }
 
 func (f *fakeSupa) callsTo(name string) []fn {

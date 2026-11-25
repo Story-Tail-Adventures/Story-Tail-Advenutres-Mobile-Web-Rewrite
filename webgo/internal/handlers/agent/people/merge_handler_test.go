@@ -24,6 +24,9 @@ func mergeWorld(t *testing.T) *world {
 	wd := newWorld(t)
 	wd.fake.factor = true
 	wd.fake.aal = "aal2"
+	// Merge reads the kept client and the one being merged into it.
+	wd.scope("p_client_id", keepID)
+	wd.scope("p_other_id", otherID)
 	return wd
 }
 

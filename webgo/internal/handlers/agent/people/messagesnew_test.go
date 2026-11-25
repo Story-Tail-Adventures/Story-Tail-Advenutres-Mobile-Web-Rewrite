@@ -31,6 +31,7 @@ func targetWorld(t *testing.T, over map[string]any) *world {
 		row[k] = v
 	}
 	wd.fake.rpc["agent_message_target"] = mustJSON([]map[string]any{row})
+	wd.scope("p_client_id", msgClientID)
 	return wd
 }
 
