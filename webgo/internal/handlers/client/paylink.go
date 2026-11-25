@@ -90,9 +90,26 @@ func payBlockSlots(prefix string) []string {
 	}
 }
 
+// filler is the part of a filled page one pay block needs. Both *page.Doc and *page.Row
+// satisfy it, so the block fills the same way whether it is the dashboard's one card or one
+// row of the trip's payment timeline.
+type filler interface {
+	Text(slot, text string)
+	Attr(slot, name, value string)
+	URL(slot, attr, raw string) bool
+	PayURL(slot, raw string) bool
+	Keep(slot string)
+	Remove(slot string)
+}
+
+var (
+	_ filler = (*page.Doc)(nil)
+	_ filler = (*page.Row)(nil)
+)
+
 // fillPayBlock fills one pay block, or takes it out of the page when the milestone has no
 // link to show or is no longer open. `next` is where the "I've paid" post comes back to.
-func fillPayBlock(d *page.Doc, prefix string, m Milestone, next string) {
+func fillPayBlock(d filler, prefix string, m Milestone, next string) {
 	site := PaySiteName(m.PayURL)
 	if site == "" || !IsOpenMilestone(m.Status) {
 		d.Remove(prefix)

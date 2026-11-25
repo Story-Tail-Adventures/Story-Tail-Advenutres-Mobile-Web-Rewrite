@@ -188,6 +188,159 @@
   }
   .cl-no-access-body { margin: 8px 0 16px; }
 
+  /* ── 2.2.3 Trip detail ────────────────────────────────────────────────────────────────── */
+  .cl-trip-page { padding-bottom: 40px; }
+  .cl-detail-hero { position: relative; height: 220px; overflow: hidden; }
+  /* A cancelled trip's photograph is greyed, so the page reads as past before a word of it. */
+  .cl-detail-hero-cancelled img { filter: grayscale(0.55) brightness(0.6); }
+  .cl-detail-hero-foot {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 1024px;
+    padding: 16px;
+    color: var(--mui-palette-common-white);
+  }
+  .cl-detail-hero-copy { min-width: 0; }
+  /* A scrim behind the label, not just white text: half the photo registry is bright sand. */
+  .cl-back-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mui-palette-brandSource-navy) 55%, transparent);
+    padding: 4px 10px;
+    color: var(--mui-palette-common-white);
+    font: var(--mui-font-caption);
+    text-decoration: none;
+    backdrop-filter: blur(4px);
+  }
+  .cl-back-pill:hover { text-decoration: underline; }
+  .cl-detail-chip { display: inline-flex; margin-top: 6px; }
+  .cl-detail-title { margin: 6px 0 0; color: var(--mui-palette-common-white); font: var(--mui-font-h5); font-weight: 700; }
+  .cl-detail-meta { margin: 0; color: var(--mui-palette-common-white); opacity: 0.9; }
+  .cl-detail-pdf { flex-shrink: 0; }
+  .cl-detail-grid { display: grid; gap: 16px; margin: 0 auto; width: 100%; max-width: 1024px; padding: 16px; }
+  .cl-detail-aside { display: flex; flex-direction: column; gap: 12px; }
+  .cl-not-found { margin-top: 24px; }
+
+  .cl-tiles { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .cl-tile-off { opacity: 0.6; }
+  .cl-tile-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .cl-tile-primary { background: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .cl-tile-error { background: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .cl-tile-secondary { background: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .cl-tile-tertiary { background: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .cl-tile-text { min-width: 0; }
+  .cl-tile-label { display: block; font-weight: 600; line-height: 1.3; }
+  .cl-tile-sub { display: block; }
+
+  .cl-card { margin-top: 12px; }
+  .cl-card-content { padding: 16px; }
+  .cl-card-content:last-child { padding-bottom: 16px; }
+  .cl-card-title { margin: 0; font-weight: 600; line-height: 1.3; }
+  .cl-card-cta { margin-top: 16px; }
+  .cl-glance { display: grid; gap: 14px; margin: 12px 0 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-glance-value { margin: 2px 0 0; }
+  .cl-note-body { margin: 6px 0 0; }
+  .cl-ready-again { background: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .cl-ready-body { display: block; margin: 4px 0 0; opacity: 0.9; }
+  .cl-advisor-avatar-sm { width: 36px; height: 36px; font-size: 13px; font-weight: 600; }
+
+  .cl-pay-head-plain { display: block; margin: 0; line-height: 1.3; }
+  .cl-pay-none { margin: 6px 0 0; }
+  .cl-milestones { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .cl-milestone { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  /* The artboard's C22_MuiDot. */
+  .cl-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--mui-palette-outline-main); }
+  .cl-dot-paid { background: var(--mui-palette-success-main); }
+  .cl-dot-overdue { background: var(--mui-palette-error-main); }
+  .cl-pay-blocks > .cl-pay-block { margin-top: 10px; border-top: 1px solid var(--mui-palette-divider); padding-top: 10px; }
+  .cl-pay-footnote { margin: 10px 0 0; }
+
+  /* ── 2.2.4 and 2.2.5 Itinerary ────────────────────────────────────────────────────────── */
+  .cl-itin-page { padding-bottom: 40px; }
+  .cl-prose { margin: 0 auto; width: 100%; max-width: 768px; }
+  .cl-itin-body { padding: 16px; }
+  .cl-band { border-bottom: 1px solid var(--mui-palette-divider); background: var(--mui-palette-surface-1); padding: 16px; }
+  .cl-back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--mui-palette-text-secondary); font: var(--mui-font-caption); text-decoration: none; }
+  .cl-back-link:hover { text-decoration: underline; }
+  .cl-band-chip { display: inline-flex; margin-top: 6px; }
+  .cl-band-title { margin: 6px 0 0; }
+  .cl-band-meta { display: block; margin: 0; }
+  .cl-day-strip {
+    position: sticky;
+    top: var(--client-topbar-h);
+    z-index: 20;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    background: color-mix(in srgb, var(--mui-palette-background-default) 95%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .cl-day-strip-inner { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px; }
+  .cl-day-chip { flex-shrink: 0; }
+  .cl-intro { max-width: 65ch; margin: 0; }
+  .cl-days { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+  .cl-day-head { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; scroll-margin-top: calc(var(--client-topbar-h) + 56px); }
+  .cl-day-number { color: var(--mui-palette-primary-main); font-size: 32px; }
+  .cl-day-number-lg { color: var(--mui-palette-primary-main); font-size: 36px; }
+  .cl-day-title { font-weight: 600; line-height: 1.3; }
+  .cl-day-open { margin-left: auto; flex-shrink: 0; }
+  .cl-day-headline { display: flex; align-items: baseline; gap: 12px; margin-top: 6px; }
+  .cl-day-summary { max-width: 65ch; margin: 0 0 16px; }
+  .cl-activities { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .cl-activity-content { display: flex; gap: 12px; padding: 12px; }
+  .cl-activity-content:last-child { padding-bottom: 12px; }
+  .cl-activity-when { min-width: 52px; }
+  .cl-activity-time { display: block; font-weight: 700; line-height: 1; }
+  .cl-activity-block { display: block; margin-top: 4px; color: var(--mui-palette-brand-main); line-height: 1.3; }
+  .cl-activity-text { min-width: 0; flex: 1; }
+  .cl-activity-title { display: block; font-weight: 600; line-height: 1.3; }
+  .cl-activity-body { display: block; margin-top: 2px; }
+  .cl-activity-conf,
+  .cl-activity-tip { display: block; margin-top: 8px; }
+  .cl-activity-range { display: inline-block; margin-top: 8px; }
+  .cl-activity-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  /* A ticked activity reads as done without colour alone carrying it: the label says "Done". */
+  .cl-activity.is-done { opacity: 0.65; }
+  .cl-done-button { flex-shrink: 0; }
+  .cl-kbd {
+    display: inline-block;
+    border: 1px solid var(--mui-palette-outline-variant);
+    border-radius: 6px;
+    background: var(--mui-palette-surface-2);
+    padding: 1px 6px;
+    font-size: 12px;
+  }
+  .cl-empty-day { margin-top: 12px; padding: 16px; text-align: center; }
+  .cl-weather { margin-bottom: 16px; }
+  .cl-weather-line { margin: 6px 0 0; }
+  .cl-weather-uv { display: block; margin: 4px 0 0; }
+  .cl-day-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+  .cl-important { margin-top: 24px; }
+
   @media (min-width: 768px) {
     .cl-page { padding: 24px 24px; }
     .cl-trip { grid-template-columns: 200px minmax(0, 1fr) auto; }
@@ -202,9 +355,19 @@
     }
     .cl-trip-open { margin-top: auto; }
     .cl-mini-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cl-detail-hero-foot { padding: 24px; }
+    .cl-detail-grid { padding: 24px; }
+    .cl-detail-title { font: var(--mui-font-h3); font-weight: 700; color: var(--mui-palette-common-white); }
+    .cl-itin-body { padding: 24px; }
+    .cl-band { padding: 24px; }
+    .cl-day-strip-inner { padding: 10px 24px; }
+    .cl-glance-wide > div { grid-column: span 2; }
   }
 
   @media (min-width: 1200px) {
     .cl-hero-grid { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); }
+    .cl-detail-grid { grid-template-columns: minmax(0, 1fr) 300px; }
+    .cl-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cl-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
 }

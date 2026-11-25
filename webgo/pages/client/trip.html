@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.3 Trip Detail (docs/Screen-Inventory.md §2.2.3). Ports
+  web/app/(client)/trips/[tripId]/{page,content}.tsx; copy word for word from TRIP_DETAIL.
+
+  A cancelled trip swaps the quick tiles for the cancellation summary and the payment
+  timeline for "When you're ready" — the same page, two shapes, because a cancelled trip
+  still has a value, a destination and a note, and hiding them would read as deletion.
+
+  A COMPLETED trip never reaches here: the handler sends it to its memories page, as Next's
+  redirect does.
+
+  THE PAYMENT TIMELINE IS READ-ONLY. Each milestone is a line; the ones still open and
+  carrying an https link get a pay block. Nothing on this page writes money (CLAUDE.md
+  rule 4).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Your trip · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-trip-page">
+      <div class="cl-empty cl-not-found" data-slot="not-found">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't find that trip</p>
+        <p class="type-body2 text-secondary cl-empty-body">It may have been archived, or the link may belong to a different account.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/trips">All trips</a>
+      </div>
+
+      <div data-slot="body">
+        <div class="cl-detail-hero" data-slot="hero">
+          <img class="cl-hero-photo" src="https://images.unsplash.com/photo-1738762932370-468a90e0ff68?w=1600&amp;q=80&amp;auto=format&amp;fit=crop" alt="" decoding="async" data-slot="hero-photo">
+          <span class="cl-hero-scrim" aria-hidden="true"></span>
+          <div class="cl-detail-hero-foot">
+            <div class="cl-detail-hero-copy">
+              <!-- A scrim behind the label, not just white text: the hero photograph is
+                   arbitrary and half the registry is bright sand, where white on 85% opacity
+                   disappears. -->
+              <a class="cl-back-pill" href="/trips"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>All trips</a>
+              <span class="status-chip cl-detail-chip" data-slot="hero-chip">Booked</span>
+              <h1 class="cl-detail-title" data-slot="hero-title">Aruba in April</h1>
+              <p class="type-body2 cl-detail-meta" data-slot="hero-meta">Apr 3 – 7, 2027 · Aruba · 12 days to go</p>
+            </div>
+            <a class="btn btn-contained btn-brand st-btn from-md cl-detail-pdf" href="/trips/1/itinerary" data-slot="hero-pdf"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg>PDF</a>
+          </div>
+        </div>
+
+        <div class="cl-detail-grid">
+          <div>
+            <!-- Four fixed tiles, written out rather than repeated: each has its own icon,
+                 and an <svg><use> cannot be pointed at a different symbol from Go (the page
+                 builder sets href on links, not on sprite references). -->
+            <ul class="cl-tiles" data-slot="tiles">
+              <li>
+                <a class="card cl-tile" href="/trips/1/itinerary" data-slot="tile-itinerary">
+                  <span class="cl-tile-icon cl-tile-primary"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#plane"></use></svg></span>
+                  <span class="cl-tile-text">
+                    <span class="type-subtitle1 cl-tile-label">Itinerary</span>
+                    <span class="type-caption text-secondary truncate cl-tile-sub" data-slot="tile-itinerary-sub">7 days, day by day</span>
+                  </span>
+                </a>
+                <span class="card cl-tile cl-tile-off" aria-disabled="true" data-slot="tile-itinerary-off">
+                  <span class="cl-tile-icon cl-tile-primary"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#plane"></use></svg></span>
+                  <span class="cl-tile-text">
+                    <span class="type-subtitle1 cl-tile-label">Itinerary</span>
+                    <span class="type-caption text-secondary truncate cl-tile-sub">Not published yet</span>
+                  </span>
+                </span>
+              </li>
+              <li>
+                <a class="card cl-tile" href="#payments">
+                  <span class="cl-tile-icon cl-tile-error"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#card"></use></svg></span>
+                  <span class="cl-tile-text">
+                    <span class="type-subtitle1 cl-tile-label">Payments</span>
+                    <span class="type-caption text-secondary truncate cl-tile-sub" data-slot="tile-payments-sub">$2,410 due Mar 1</span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a class="card cl-tile" href="/trips/1/documents" data-slot="tile-documents">
+                  <span class="cl-tile-icon cl-tile-secondary"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#passport"></use></svg></span>
+                  <span class="cl-tile-text">
+                    <span class="type-subtitle1 cl-tile-label">Documents</span>
+                    <span class="type-caption text-secondary truncate cl-tile-sub" data-slot="tile-documents-sub">3 files</span>
+                  </span>
+                </a>
+              </li>
+              <li>
+                <a class="card cl-tile" href="/trips/1/messages" data-slot="tile-messages">
+                  <span class="cl-tile-icon cl-tile-tertiary"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></span>
+                  <span class="cl-tile-text">
+                    <span class="type-subtitle1 cl-tile-label">Messages</span>
+                    <span class="type-caption text-secondary truncate cl-tile-sub" data-slot="tile-messages-sub">Open the thread</span>
+                  </span>
+                </a>
+              </li>
+            </ul>
+
+            <div class="card cl-card" data-slot="cancelled">
+              <div class="card-content cl-card-content">
+                <h2 class="type-subtitle1 text-primary cl-card-title">Cancellation summary</h2>
+                <dl class="cl-glance cl-glance-wide">
+                  <div>
+                    <dt class="type-overline text-secondary">Reason</dt>
+                    <dd class="type-body2 cl-glance-value" data-slot="cancel-reason">Not recorded</dd>
+                  </div>
+                  <div data-slot="refund">
+                    <dt class="type-overline text-secondary">Refund</dt>
+                    <dd class="type-body2 cl-glance-value" data-slot="refund-status">Refunded in full</dd>
+                  </div>
+                </dl>
+                <a class="btn btn-outlined btn-secondary st-btn cl-card-cta" href="/trips/1/itinerary" data-slot="cancelled-itinerary"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#passport"></use></svg>View the archived itinerary</a>
+              </div>
+            </div>
+
+            <div class="card cl-card">
+              <div class="card-content cl-card-content">
+                <h2 class="type-subtitle1 text-primary cl-card-title">At a glance</h2>
+                <dl class="cl-glance">
+                  <div data-repeat="glance">
+                    <dt class="type-overline text-secondary" data-slot="glance-label">Trip type</dt>
+                    <dd class="type-body2 cl-glance-value" data-slot="glance-value">All-inclusive</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <div class="card cl-card" data-slot="note">
+              <div class="card-content cl-card-content">
+                <h2 class="type-subtitle1 text-primary cl-card-title">A note from Gyasi</h2>
+                <p class="type-body2 text-secondary cl-note-body" data-slot="note-body">Gyasi hasn't written the introduction yet. It arrives with the itinerary.</p>
+              </div>
+            </div>
+          </div>
+
+          <aside class="cl-detail-aside">
+            <div class="card">
+              <div class="card-content cl-advisor">
+                <p class="type-overline text-secondary cl-advisor-head">YOUR ADVISOR</p>
+                <div class="cl-advisor-row">
+                  <span class="avatar avatar-primary cl-advisor-avatar-sm" aria-hidden="true">GS</span>
+                  <div class="cl-advisor-text">
+                    <p class="type-subtitle1 text-primary cl-advisor-name">Gyasi Story</p>
+                    <p class="type-caption text-secondary cl-advisor-reply">Usually replies the same day</p>
+                  </div>
+                </div>
+                <a class="btn btn-outlined btn-secondary st-btn btn-small btn-block cl-advisor-cta" href="/trips/1/messages" data-slot="advisor-message"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg>Message</a>
+              </div>
+            </div>
+
+            <div class="card cl-ready-again" data-slot="ready-again">
+              <div class="card-content cl-card-content">
+                <h2 class="type-subtitle1 cl-card-title">When you're ready</h2>
+                <p class="type-caption cl-ready-body">There's no hurry. Tell Gyasi when the timing feels right and he'll pick it up from here.</p>
+              </div>
+            </div>
+
+            <div class="card" id="payments" data-slot="payments">
+              <div class="card-content cl-pay-card">
+                <p class="type-overline text-secondary cl-pay-head-plain">PAYMENT TIMELINE</p>
+                <p class="type-body2 text-secondary cl-pay-none" data-slot="pay-none">No payments scheduled yet. Gyasi will add them here once your trip is booked.</p>
+                <ul class="cl-milestones" data-slot="milestones">
+                  <li class="type-caption cl-milestone" data-repeat="milestones">
+                    <span class="cl-dot" data-slot="milestone-dot"></span>
+                    <span data-slot="milestone-text">Deposit · paid $1,200</span>
+                  </li>
+                </ul>
+                <div class="cl-pay-blocks" data-repeat="pay-blocks">
+                  <div class="cl-pay-block" data-slot="pay">
+                    <a class="btn btn-contained st-btn btn-small btn-block cl-pay-link" href="https://example.com/pay" target="_blank" rel="noopener noreferrer" data-slot="pay-link"><span data-slot="pay-label">Pay the deposit</span><svg class="icon cl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#external"></use></svg><span class="visually-hidden"> (opens the supplier's site in a new tab)</span></a>
+                    <p class="cl-pay-site"><svg class="icon cl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg><span class="type-caption fw-600 text-primary" data-slot="pay-site">resort.example.com</span></p>
+                    <p class="type-caption text-secondary cl-pay-note">Paid directly to the supplier on their secure site.</p>
+                    <form class="cl-pay-form" method="post" action="/trips/1/paid" data-submit-once data-slot="pay-form">
+                      <input type="hidden" name="milestoneId" value="" data-slot="pay-milestone">
+                      <input type="hidden" name="next" value="/trips/1" data-slot="pay-next">
+                      <button class="btn btn-text st-btn btn-small cl-pay-paid" type="submit">I've paid<span class="visually-hidden" data-slot="pay-paid-label"> (Deposit)</span></button>
+                    </form>
+                  </div>
+                </div>
+                <p class="type-body2 text-secondary cl-pay-footnote" data-slot="pay-footnote">What each supplier expects, and when. Story-Tail never charges you a fee.</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

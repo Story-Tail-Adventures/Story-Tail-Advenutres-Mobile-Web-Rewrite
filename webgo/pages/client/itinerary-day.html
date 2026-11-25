@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.5 Day Detail (docs/Screen-Inventory.md §2.2.5). Ports
+  web/app/(client)/trips/[tripId]/itinerary/[day]/page.tsx and ItineraryParts' detailed
+  activity card; copy word for word from ITINERARY.
+
+  "Mark as done" is a per-browser convenience, exactly as it was in Next: it lives in this
+  browser's localStorage and is never sent anywhere. The module adds the buttons; with
+  JavaScript off the day still reads, which is the whole of what this screen is for.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Day · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-itin-page">
+      <header class="cl-band">
+        <div class="cl-prose">
+          <a class="cl-back-link" href="/trips/1/itinerary" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Itinerary</a>
+          <div class="cl-day-headline">
+            <span class="type-script cl-day-number-lg" data-slot="day-number">Day 01</span>
+            <div>
+              <h1 class="type-h5 fw-700 text-primary cl-band-title" data-slot="day-title">Arrival</h1>
+              <p class="type-caption text-secondary cl-band-meta" data-slot="day-date">Saturday 3 April</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="cl-prose cl-itin-body">
+        <div class="card cl-weather" data-slot="weather">
+          <div class="card-content cl-card-content">
+            <p class="type-overline text-secondary cl-card-title">WEATHER</p>
+            <p class="type-body2 cl-weather-line" data-slot="weather-line">82° / 74° · Sunny · Wind 11 mph E</p>
+            <p class="type-caption text-warning cl-weather-uv" data-slot="weather-uv">UV index 9 — pack the reef-safe sunscreen.</p>
+          </div>
+        </div>
+
+        <p class="type-body1 text-secondary cl-day-summary" data-slot="summary">A slow start, then the boat.</p>
+
+        <div class="card cl-empty-day" data-slot="day-empty">
+          <p class="type-subtitle1 text-primary cl-empty-title" data-slot="day-empty-title">Day 1 is open</p>
+          <p class="type-body2 text-secondary cl-empty-body">Nothing planned — which is allowed. Tell Gyasi if you'd like a tour, or leave it for the pool.</p>
+        </div>
+
+        <ul class="cl-activities" data-done-list data-slot="activities">
+          <li data-repeat="activities"><div class="card cl-activity" data-activity="" data-slot="activity">
+            <div class="card-content cl-activity-content">
+              <div class="cl-activity-when">
+                <span class="type-subtitle2 cl-activity-time" data-slot="activity-time">14:00</span>
+                <span class="type-overline cl-activity-block" data-slot="activity-block">AFTERNOON</span>
+              </div>
+              <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#sparkle"></use></svg></span>
+              <div class="cl-activity-text">
+                <span class="type-subtitle1 text-primary cl-activity-title" data-activity-title data-slot="activity-title">Check in at the resort</span>
+                <span class="type-caption text-secondary cl-activity-body" data-slot="activity-body">Ask for a room away from the lift.</span>
+                <span class="cl-activity-conf" data-slot="activity-conf"><span class="type-overline text-secondary">CONFIRMATION </span><span class="type-mono cl-kbd" data-slot="activity-conf-value">ABC-123456</span></span>
+                <span class="cl-kbd type-mono cl-activity-range" data-slot="activity-range">14:00 – 16:00</span>
+                <span class="cl-activity-tip" data-slot="activity-tip"><span class="type-overline text-secondary">GYASI'S TIP </span><span class="type-caption" data-slot="activity-tip-text">Ask for the corner table.</span></span>
+                <span class="cl-activity-actions" data-activity-actions>
+                  <a class="btn btn-text st-btn btn-small" href="https://maps.example.com" target="_blank" rel="noopener noreferrer" data-slot="activity-map">Open in Maps</a>
+                  <a class="btn btn-text st-btn btn-small" href="tel:+13055550184" data-slot="activity-call">Call</a>
+                </span>
+              </div>
+            </div>
+          </div></li>
+        </ul>
+
+        <nav class="cl-day-nav">
+          <a class="btn btn-outlined st-btn btn-small" href="/trips/1/itinerary/1" data-slot="prev"><svg class="icon cl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg><span data-slot="prev-label">Day 1</span></a>
+          <a class="btn btn-outlined st-btn btn-small" href="/trips/1/itinerary/3" data-slot="next"><span data-slot="next-label">Day 3</span><svg class="icon cl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></a>
+        </nav>
+
+        <section class="card cl-card cl-important" data-slot="important">
+          <div class="card-content cl-card-content">
+            <h2 class="type-subtitle1 text-primary cl-card-title">Important info</h2>
+            <dl class="cl-glance">
+              <div data-repeat="important">
+                <dt class="type-overline text-secondary" data-slot="info-label">Insurance</dt>
+                <dd class="type-body2 cl-glance-value" data-slot="info-value">ABC-123456</dd>
+              </div>
+            </dl>
+            <p class="type-body2 text-secondary cl-note-body" data-slot="no-info">Nothing filed for this trip yet.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="/assets/js/client/mark-done.js"></script>
+  </main>
+</body>
+</html>

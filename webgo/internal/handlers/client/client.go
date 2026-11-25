@@ -35,7 +35,9 @@ import (
 )
 
 // Specs declares every page this area fills.
-var Specs = []page.Spec{noAccessSpec, dashboardSpec, tripsSpec}
+var Specs = []page.Spec{
+	noAccessSpec, dashboardSpec, tripsSpec, tripSpec, itinerarySpec, itineraryDaySpec,
+}
 
 // noAccessSpec is the shell's state for an admin, who has no traveler pages at all.
 var noAccessSpec = page.Spec{File: "client/no-access.html", Layout: shell.Client}
@@ -57,7 +59,10 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	if a.noAccess, err = d.Pages.Template(noAccessSpec.File); err != nil {
 		return err
 	}
-	for _, mount := range []func(*gate.Router) error{a.mountDashboard, a.mountTrips, a.mountPaid} {
+	for _, mount := range []func(*gate.Router) error{
+		a.mountDashboard, a.mountTrips, a.mountTrip,
+		a.mountItinerary, a.mountItineraryDay, a.mountPaid,
+	} {
 		if err := mount(rt); err != nil {
 			return err
 		}
