@@ -913,4 +913,67 @@
     display: flex;
     width: 100%;
   }
+
+  /* ── Screen 2.5.1, the account hub ─────────────────────────────────────────────────── */
+  .cl-account-page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 672px;
+    padding: 16px;
+  }
+
+  .cl-account-page > * + * { margin-top: 24px; }
+
+  /* The artboard's hero, washed from primary.container into secondary.container. It reads
+     the palette's own variables rather than hexes, so it follows the scheme. */
+  .cl-account-hero {
+    color: var(--mui-palette-primary-onContainer);
+    background: linear-gradient(120deg, var(--mui-palette-primary-container), var(--mui-palette-secondary-container));
+  }
+
+  .cl-account-hero-content {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    padding: 20px;
+  }
+
+  /* INITIALS, never a photograph: every staImg('avatar*') in the artboards is a stock
+     portrait of a stranger. */
+  .cl-account-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .cl-account-who { min-width: 0; }
+
+  .cl-account-name { margin: 0; }
+
+  .cl-account-since { margin: 2px 0 0; }
+
+  .cl-settings-group > * + * { margin-top: 8px; }
+
+  .cl-settings-label { display: block; margin: 0; }
+
+  .cl-tile-surface {
+    background: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-signout { margin-top: 24px; }
+
+  .cl-signout-button { width: 100%; }
+
+  @media (min-width: 768px) {
+    .cl-account-page { max-width: 768px; padding: 24px; }
+  }
 }
