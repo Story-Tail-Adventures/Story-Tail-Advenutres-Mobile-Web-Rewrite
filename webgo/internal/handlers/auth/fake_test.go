@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -78,6 +80,44 @@ func (f *fake) user(tok string, u fakeUser) {
 	f.users[tok] = u
 }
 
+// matching applies the one PostgREST filter these tests depend on: col=eq.value. Without it the
+// fake answers every lookup with the whole table, so a handler that forgot its .Eq() would pass
+// (found across five areas on 2026-11-25; the client area hit it first, as a MaybeOne over two
+// seeded rows failing with "more than one row"). Anything it does not understand (select, order,
+// limit, offset) is left alone.
+//
+// A column the fixture does not carry does not filter, so this is safe for fixtures written
+// against the permissive fake: it bites only where the column is actually seeded.
+//
+// NOTE for this area: neither auth read passes a filter today, and that is correct rather than an
+// oversight. /api/account/chrome reads `client` and shell.LoadStatus reads `platform_user`, both
+// scoped by RLS to the signed-in visitor (client_self_select, platform_user_self_select). The
+// scoping lives in the database, so no Go test can prove it — supabase/tests/ does that. This
+// helper is here so a future auth read that SHOULD filter cannot pass by accident.
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			want, ok := strings.CutPrefix(values[0], "eq.")
+			if !ok {
+				continue
+			}
+			if got, present := row[key]; present && fmt.Sprint(got) != want {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
 func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	raw, _ := io.ReadAll(r.Body)
 	var body map[string]any
@@ -104,18 +144,14 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 		return
 	case r.URL.Path == "/rest/v1/platform_user":
-		if f.role == "" {
-			send(200, []any{})
-			return
+		rows := []map[string]any{}
+		if f.role != "" {
+			rows = append(rows, map[string]any{"role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01"})
 		}
-		send(200, []any{map[string]any{"role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01"}})
+		send(200, matching(rows, r.URL.Query()))
 		return
 	case r.URL.Path == "/rest/v1/client":
-		rows := f.clientRows
-		if rows == nil {
-			rows = []map[string]any{}
-		}
-		send(200, rows)
+		send(200, matching(f.clientRows, r.URL.Query()))
 		return
 	}
 	if rep, ok := f.routes[r.Method+" "+r.URL.Path]; ok {
@@ -255,3 +291,37 @@ func where(t *testing.T, rec *httptest.ResponseRecorder, status int, location st
 
 // esc is how the page writes an apostrophe.
 func esc(s string) string { return strings.ReplaceAll(s, "'", "&#39;") }
+
+// The double must actually discriminate, or a handler that forgot its .Eq() passes. This pins
+// the semantics of matching so a later "simplification" of the fake cannot quietly go permissive
+// again: that is precisely the state five areas were in on 2026-11-25.
+func TestTheFakeAppliesPostgRESTFilters(t *testing.T) {
+	rows := []map[string]any{
+		{"id": "mine", "first_name": "Jordan"},
+		{"id": "theirs", "first_name": "Mallory"},
+	}
+	ids := func(got []map[string]any) []string {
+		out := []string{}
+		for _, r := range got {
+			out = append(out, fmt.Sprint(r["id"]))
+		}
+		return out
+	}
+	cases := []struct {
+		name string
+		q    url.Values
+		want []string
+	}{
+		{"no filter returns the table", url.Values{}, []string{"mine", "theirs"}},
+		{"eq picks one row", url.Values{"id": {"eq.mine"}}, []string{"mine"}},
+		{"eq that matches nothing", url.Values{"id": {"eq.nobody"}}, []string{}},
+		{"select, limit and order do not filter", url.Values{"select": {"id"}, "limit": {"1"}, "order": {"id"}}, []string{"mine", "theirs"}},
+		// The rule that makes this safe to drop into existing fixtures.
+		{"a column the fixture lacks does not filter", url.Values{"agent_id": {"eq.someone"}}, []string{"mine", "theirs"}},
+	}
+	for _, tc := range cases {
+		if got := ids(matching(rows, tc.q)); !slices.Equal(got, tc.want) {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
