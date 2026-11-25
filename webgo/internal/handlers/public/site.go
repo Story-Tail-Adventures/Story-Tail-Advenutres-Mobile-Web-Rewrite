@@ -9,7 +9,6 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public/search"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/web"
 )
@@ -170,12 +169,28 @@ func (s *site) render(w http.ResponseWriter, d *page.Doc) {
 // on anything but Accept-Encoding, so a cached anonymous copy can still be handed to a
 // signed-in visitor, who then sees the landing page instead of being sent to /dashboard.
 // That is the same class of thing as the signed-in chrome on cached public pages (§4.5), and
-// the deployment answer is a cache rule that bypasses the cache when sta-session is present
-// (docs/GO-MIGRATION.md §4.7). Nothing deploys yet (ruling 16).
+// the deployment answer is a cache rule that bypasses the cache when the session cookie is
+// present (docs/GO-MIGRATION.md §4.7). That rule must name "__Host-sta-session", which is what
+// an https server sets; "sta-session" is the local http:// name only, and a rule written
+// against it would match nothing in production and cache the front door for everybody.
+// Nothing deploys yet (ruling 16).
 func (s *site) renderFrontDoor(w http.ResponseWriter, r *http.Request, d *page.Doc) {
 	w.Header().Set("Vary", "Cookie")
 	cache := web.Shared
-	if _, err := r.Cookie(session.CookieName); err == nil {
+	// Any cookie at all, not the session cookie by name. This asked for r.Cookie(
+	// session.CookieName) until the auth area landed, and that was a bug waiting on another
+	// team's constant: the session cookie is "sta-session" on a local http:// server and
+	// "__Host-sta-session" everywhere else, the manager picks between them, and the chooser
+	// is unexported. So the moment the real names arrived, this handler went on looking for
+	// a name that production never sends, and the protection below quietly stopped working
+	// with every test still green.
+	//
+	// Naming no cookie is the point. A visitor carrying anything gets the uncached answer,
+	// which is a superset of the ones whose answer came from their session, and it cannot
+	// drift from a decision another package owns. The cost is that a visitor who accepted
+	// analytics carries _ga and so stops getting the cached front door; crawlers and
+	// first-time visitors, which is who the hour of caching is for, carry nothing.
+	if len(r.Cookies()) > 0 {
 		cache = web.Private
 	}
 	web.Render(w, s.Log, d, http.StatusOK, cache)
