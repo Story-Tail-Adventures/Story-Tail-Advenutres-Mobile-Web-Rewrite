@@ -10,6 +10,11 @@ import (
 //  4. AN ARCHIVED TRIP'S LINE STAYS, but its title is not a link into a page that will not open.
 //  5. `total_count` IS READ OFF A ROW and survives an empty page.
 
+// ledgerRowTripID is the trip ledgerRowJSON belongs to. A test that filters the ledger by
+// trip has to use THIS id: the double now scopes an answer by the ids in the call, so
+// asking for another trip gets the empty state, which is what the database would give.
+const ledgerRowTripID = "0195a2c0-1a00-7000-8000-000000000302"
+
 const ledgerRowJSON = `{
   "commission_id": "01a0b1c2-d300-7000-8000-000000000077",
   "trip_id": "0195a2c0-1a00-7000-8000-000000000302",

@@ -112,6 +112,12 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			body = "[]"
 		}
+		// Scoped by the ids in the CALL, not just the name. Without this a read that lost
+		// or mistook its p_commission_id, p_import_id or p_trip_id is handed the fixture
+		// and passes — the handler is wrong and the harness agrees with it.
+		if scopedOut(body, b) {
+			body = "[]"
+		}
 		_, _ = w.Write([]byte(body))
 	case strings.HasPrefix(r.URL.Path, "/functions/v1/"):
 		name := strings.TrimPrefix(r.URL.Path, "/functions/v1/")
@@ -207,6 +213,55 @@ func (wd *world) post(target string, form url.Values) *httptest.ResponseRecorder
 	rec := httptest.NewRecorder()
 	wd.h.ServeHTTP(rec, req)
 	return rec
+}
+
+// scopedOut reports whether a read's id ARGUMENTS disagree with the fixture it would be
+// answered with, in which case the real database would return nothing.
+//
+// Recording the body in rpcArgs is not scoping: it only helps the tests that remember to
+// assert on it, and this sub-area asserted on an id in exactly one place while its reads
+// carry more id parameters than any other area's.
+//
+// The mapping is `p_<field>` to the fixture row's `<field>`, and the same rule as matching
+// keeps it safe to add to fixtures written before it: A FIELD THE FIXTURE DOES NOT CARRY
+// DOES NOT SCOPE, and neither does a NULL argument, which in these functions means "no
+// filter". So p_limit, p_offset and p_period scope nothing, and an id does only where the
+// answer actually names it.
+func scopedOut(reply string, args []byte) bool {
+	var rows []map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(reply), &rows); err != nil || len(rows) == 0 {
+		return false
+	}
+	var call map[string]json.RawMessage
+	if err := json.Unmarshal(args, &call); err != nil {
+		return false
+	}
+	for key, arg := range call {
+		field, ok := strings.CutPrefix(key, "p_")
+		if !ok {
+			continue
+		}
+		// A NULL argument is an ABSENT filter, not a filter for null: these functions are
+		// written `p_supplier_id IS NULL OR supplier_id = p_supplier_id`. Treating it as a
+		// value is how this guard first reported the whole ledger as out of scope.
+		if string(arg) == "null" {
+			continue
+		}
+		// Only a scalar STRING is an equality on an id. An array is a membership test
+		// (`status = ANY(p_status)`) and a number is a page size; modelling either as
+		// equality is how this guard first reported the whole trip roster as out of scope.
+		if len(arg) == 0 || arg[0] != '"' {
+			continue
+		}
+		want, present := rows[0][field]
+		if !present {
+			continue
+		}
+		if string(arg) != string(want) {
+			return true
+		}
+	}
+	return false
 }
 
 // matching applies the one PostgREST filter these tests depend on: col=eq.value. Without it

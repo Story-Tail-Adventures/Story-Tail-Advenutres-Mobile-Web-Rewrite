@@ -68,3 +68,41 @@ func TestMatchingLeavesWhatItDoesNotUnderstandAlone(t *testing.T) {
 		}
 	}
 }
+
+// The double used to answer an RPC by NAME alone, ignoring the body, so a read that lost or
+// mistook its p_commission_id or p_import_id was handed the fixture and passed. Recording
+// the body in rpcArgs is not scoping: it only helps the tests that remember to assert on it,
+// and this sub-area asserted on an id in exactly one place while carrying more id parameters
+// than any other area.
+//
+// Measured, by pointing a read at a different id: with scoping off, one test caught it; with
+// it on, 19 (p_commission_id) and 26 (p_import_id).
+func TestTheDoubleScopesAnRPCByTheIdsInTheCall(t *testing.T) {
+	const fixture = `[{"commission_id":"line-1","trip_id":"trip-1","status":"received"}]`
+	for _, c := range []struct {
+		name string
+		args string
+		want bool
+	}{
+		{"the id it is for is answered", `{"p_commission_id":"line-1"}`, false},
+		{"another advisor's id is not", `{"p_commission_id":"line-2"}`, true},
+		{"a second id has to agree too", `{"p_commission_id":"line-1","p_trip_id":"trip-2"}`, true},
+		// A null argument is an absent filter, not a filter for null: these functions read
+		// `p_supplier_id IS NULL OR supplier_id = p_supplier_id`.
+		{"a null argument does not scope", `{"p_status":null}`, false},
+		// An array is a membership test and a number is a page size; neither is equality.
+		{"an array argument does not scope", `{"p_status":["booked","received"]}`, false},
+		{"a number does not scope", `{"p_limit":25,"p_offset":0}`, false},
+		// The rule that makes this safe to add to fixtures written before it.
+		{"a field the fixture does not carry does not scope", `{"p_import_id":"anything"}`, false},
+	} {
+		if got := scopedOut(fixture, []byte(c.args)); got != c.want {
+			t.Errorf("%s: scopedOut(%s) = %v, want %v", c.name, c.args, got, c.want)
+		}
+	}
+
+	// And an answer with no rows cannot be scoped out of existence.
+	if scopedOut(`[]`, []byte(`{"p_commission_id":"line-2"}`)) {
+		t.Error("an empty answer was scoped out")
+	}
+}
