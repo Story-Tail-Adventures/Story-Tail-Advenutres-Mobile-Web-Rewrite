@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -40,8 +41,9 @@ type fakeSupabase struct {
 	role      string // platform_user.role
 	aal       string // the access token's aal claim
 	hasFactor bool
-	reads     map[string]reply // rpc name -> reply
-	tripScope string           // the trip the fixtures are for; see the p_trip_id check below
+	reads     map[string]reply            // rpc name -> reply
+	tables    map[string][]map[string]any // table name -> seeded rows, served through matching
+	tripScope string                      // the trip the fixtures are for; see the p_trip_id check below
 	functions map[string][]reply
 	readLog   []recorded
 	callLog   []recorded
@@ -49,7 +51,7 @@ type fakeSupabase struct {
 
 func newFake() *fakeSupabase {
 	return &fakeSupabase{role: "agent", aal: "aal2", hasFactor: true, tripScope: tripID,
-		reads: map[string]reply{}, functions: map[string][]reply{}}
+		reads: map[string]reply{}, tables: map[string][]map[string]any{}, functions: map[string][]reply{}}
 }
 
 func jwt(claims map[string]any) string {
@@ -130,6 +132,21 @@ func (f *fakeSupabase) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(rp.status)
 		_, _ = w.Write([]byte(rp.body))
+	case strings.HasPrefix(r.URL.Path, "/rest/v1/"):
+		// A plain table read. Nothing in this area takes this path today: the one direct
+		// table read is platform_user above, which is deliberately unfiltered and safe
+		// (RLS gives it account_id = auth.uid(), and account_id is UNIQUE, so a caller sees
+		// at most its own row). This branch exists so that the NEXT table read added here is
+		// filtered by construction rather than served the whole fixture, which is the hole
+		// described in fake-ignores-filters.md in the shared notes.
+		name := strings.TrimPrefix(r.URL.Path, "/rest/v1/")
+		rows, ok := f.tables[name]
+		if !ok {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(`{"code":"XX000","message":"no fake for table ` + name + `"}`))
+			return
+		}
+		_ = json.NewEncoder(w).Encode(matching(rows, r.URL.Query()))
 	default:
 		w.WriteHeader(404)
 	}
@@ -272,6 +289,37 @@ func keys(m map[string]json.RawMessage) []string {
 	var out []string
 	for k := range m {
 		out = append(out, k)
+	}
+	return out
+}
+
+// matching applies the one PostgREST filter a table read here would depend on: col=eq.value.
+// Without it the fake answers every lookup with the whole table, so a handler that forgot its
+// filter would pass. Anything it does not understand (select, order, limit) is left alone.
+//
+// A column the fixture does not carry does not filter, so this is safe to drop in beside
+// fixtures written before it existed. Taken from the client area's fake (19068a1).
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			want, ok := strings.CutPrefix(values[0], "eq.")
+			if !ok {
+				continue
+			}
+			// A column the fixture does not carry is not modelled, so it does not filter.
+			if got, present := row[key]; present && fmt.Sprint(got) != want {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
 	}
 	return out
 }
