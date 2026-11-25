@@ -79,7 +79,7 @@ func readForm(t *testing.T, body, slot string) browserForm {
 					// Only the clicked one is sent; the caller names it.
 				case kind == "checkbox", kind == "radio":
 					if hasAttr(n, "checked") {
-						out.fields.Add(name, cmp.Or(attr(n, "value"), "on"))
+						out.fields.Add(name, defaultedValue(n, "on"))
 					}
 				default:
 					out.fields.Add(name, attr(n, "value"))
@@ -93,7 +93,7 @@ func readForm(t *testing.T, body, slot string) browserForm {
 					if opt := findNode(n, func(o *html.Node) bool {
 						return o.Data == "option" && hasAttr(o, "selected")
 					}); opt != nil {
-						out.fields.Add(name, cmp.Or(attr(opt, "value"), textOf(opt)))
+						out.fields.Add(name, defaultedValue(opt, textOf(opt)))
 					}
 				}
 			case "button":
@@ -164,6 +164,20 @@ func (f browserForm) defaultSubmit(t *testing.T) submitButton {
 	return f.submits[0]
 }
 
+// defaultedValue is the value a browser sends for a control: the `value` ATTRIBUTE when it
+// is present, even when it is empty, and the fallback only when the attribute is ABSENT.
+//
+// Falling back on emptiness instead is a harness that lies. Five pages in this sub-area
+// carry `<option value="">` — "Pick a supplier", "All suppliers", "Ignore this column" —
+// and a test that chose one of those would post the option's visible TEXT, then fail as
+// though the screen were broken.
+func defaultedValue(n *html.Node, fallback string) string {
+	if hasAttr(n, "value") {
+		return attr(n, "value")
+	}
+	return fallback
+}
+
 func attr(n *html.Node, key string) string {
 	for _, a := range n.Attr {
 		if a.Key == key {
@@ -207,4 +221,39 @@ func findNode(n *html.Node, want func(*html.Node) bool) *html.Node {
 		}
 	}
 	return nil
+}
+
+// A browser falls back on an ABSENT value attribute, never on an empty one. Five pages in
+// this sub-area carry `<option value="">`, so a harness that confused the two would post the
+// option's visible text and the failure would read as a page bug.
+func TestReadFormSendsAnEmptyValueAsEmpty(t *testing.T) {
+	const page = `<!doctype html><html><body><form data-slot="f" action="/x">
+		<select name="column">
+			<option value="" selected>Ignore this column</option>
+			<option value="gross">Gross</option>
+		</select>
+		<select name="supplier"><option selected>Sandals Resorts</option></select>
+		<input type="checkbox" name="plain" checked>
+		<input type="checkbox" name="valued" value="" checked>
+		<input type="checkbox" name="one" value="1" checked>
+	</form></body></html>`
+	f := readForm(t, page, "f")
+	for _, c := range [][2]string{
+		// The attribute is there and empty: that is what the server receives.
+		{"column", ""},
+		// No attribute at all on the option, so its text is the value.
+		{"supplier", "Sandals Resorts"},
+		// No attribute on a checkbox, so "on" — the browser's own default.
+		{"plain", "on"},
+		{"valued", ""},
+		{"one", "1"},
+	} {
+		if _, ok := f.fields[c[0]]; !ok {
+			t.Errorf("%s was not submitted at all", c[0])
+			continue
+		}
+		if got := f.fields.Get(c[0]); got != c[1] {
+			t.Errorf("%s posts %q, want %q", c[0], got, c[1])
+		}
+	}
 }
