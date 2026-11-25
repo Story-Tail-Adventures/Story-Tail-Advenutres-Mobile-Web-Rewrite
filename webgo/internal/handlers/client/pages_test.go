@@ -269,8 +269,14 @@ func TestIvePaidCannotBeSentSomewhereElse(t *testing.T) {
 func TestNoTravelerPageAsksForACard(t *testing.T) {
 	hn := newHarness(t)
 	seedPayable(hn, "https://resort.example.com/pay")
+	hn.f.rows("conversation", map[string]any{
+		"id": "cv1", "trip_id": "t1", "client_unread_count": 0,
+		"last_message_preview": "Locked.", "last_message_at": "2026-11-24T19:14:00Z",
+	})
 	c := hn.signedIn()
-	for _, path := range []string{"/dashboard", "/trips"} {
+	// The thread is the one screen a traveler types into freely, so it is the one most
+	// worth asserting has no card field and no autofill hint that would summon one.
+	for _, path := range []string{"/dashboard", "/trips", "/trips/t1/messages"} {
 		body := c.get(path).Body.String()
 		for _, never := range []string{"card number", "cardNumber", "cvv", "autocomplete=\"cc-"} {
 			if strings.Contains(strings.ToLower(body), strings.ToLower(never)) {

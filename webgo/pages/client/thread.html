@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.7 Trip Messages / Conversation Thread (docs/Screen-Inventory.md §2.2.7, §4.4
+  "mobile is full-screen"). Ports web/app/(client)/trips/[tripId]/messages/{page,content}.tsx
+  and the three components it shares with §2.6 — Composer, ThreadMessages, ThreadScroll —
+  copy word for word from THREAD and THREAD_MESSAGES.
+
+  THE COMPOSE BAR IS A SIBLING OF THE SCROLL, not an overlay on it. That is the one thing
+  that keeps a long thread from hiding its own last message behind the input.
+
+  THE QUICK REPLIES ARE THEIR OWN FORM, which the React version does not need: there they are
+  type="button" and fill the box from JavaScript. Here they have to work without it, so they
+  are real submits — and a real submit inside the compose form would be the button Enter
+  presses. Two forms keeps Send first in the one with the textarea in it.
+
+  The bubbles, the separators and the attachment chips are ONE flat repeat. A repeat cannot
+  nest inside a repeat, so each row keeps one of the three shapes and removes the others —
+  the same flattening the itinerary uses for its days and activities.
+
+  TWO NAMED PRIMARY ELEMENTS ARE ABSENT: the typing indicator needs Realtime presence that
+  nothing backs, and read receipts would need message.read_by_other_at, which is outside the
+  client column grant on purpose. See internal/handlers/client/thread.go.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Messages · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-thread-page">
+      <div class="cl-empty cl-not-found" data-slot="not-found">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't find that trip</p>
+        <p class="type-body2 text-secondary cl-empty-body">It may have been archived, or the link may belong to a different account.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/trips">All trips</a>
+      </div>
+
+      <div class="cl-empty cl-not-found" data-slot="read-error">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't load this conversation</p>
+        <p class="type-body2 text-secondary cl-empty-body">Nothing is lost — try again in a moment.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/trips" data-slot="error-back">Back to trip</a>
+      </div>
+
+      <div class="cl-thread" data-slot="body">
+        <header class="cl-thread-head">
+          <a class="btn btn-text st-btn cl-thread-back" href="/trips/1" aria-label="Back to trip" data-slot="back"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg></a>
+
+          <!-- The advisor's own photo once they have uploaded one (§3.12.1), else initials.
+               Never a stock portrait: a stranger's face on Gyasi is worse than initials. -->
+          <img class="cl-thread-avatar" src="/assets/img/lockup-light.webp" width="36" height="36" alt="" decoding="async" data-slot="head-photo">
+          <span class="cl-thread-avatar cl-thread-initials" aria-hidden="true" data-slot="head-initials">GS</span>
+
+          <span class="cl-thread-who">
+            <span class="type-subtitle1 text-primary truncate cl-thread-title" data-slot="head-title">Gyasi · Aruba in April</span>
+            <span class="type-body2 text-secondary cl-thread-sub" data-slot="head-sub">Usually replies the same day</span>
+          </span>
+
+          <a class="btn btn-outlined btn-secondary st-btn btn-small cl-thread-open" href="/trips/1" data-slot="open-trip">
+            <span class="from-md" data-slot="open-trip-label">Open trip</span>
+            <svg class="icon icon-14 below-md" aria-hidden="true"><use href="/assets/icons.svg#trip"></use></svg>
+          </a>
+        </header>
+
+        <div class="cl-thread-scroll">
+          <div class="cl-thread-inner">
+            <div class="cl-empty" data-slot="empty">
+              <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#message"></use></svg></span>
+              <p class="type-subtitle1 text-primary cl-empty-title" data-slot="empty-title">No messages yet</p>
+              <p class="type-body2 text-secondary cl-empty-body" data-slot="empty-body">This is where you and Gyasi talk about this trip.</p>
+            </div>
+
+            <div class="cl-bubbles" data-slot="rows">
+              <div data-repeat="rows">
+                <!-- A day separator. -->
+                <div class="cl-day-sep" data-slot="sep"><span class="chip chip-small" data-slot="sep-label">Today</span></div>
+
+                <!-- Or one bubble. `pre-line` on the body: the compose bar takes shift+enter,
+                     and swallowing those on the way back out is a quiet edit of their words. -->
+                <div class="cl-row" data-slot="bubble">
+                  <span class="cl-bubble-avatar" aria-hidden="true" data-slot="bubble-avatar">GS</span>
+                  <span class="cl-bubble-col">
+                    <span class="cl-bubble" data-slot="bubble-body">Quick win — Sandals just opened up the over-water bungalows for your dates.</span>
+                    <span class="type-caption text-secondary cl-bubble-time" data-slot="bubble-time">11:14a</span>
+                  </span>
+                </div>
+
+                <!-- Or one attachment under the bubble above it. NOT a link to the file:
+                     opening one needs a signature, and the place that already does that
+                     properly — audit row and all — is the document library. -->
+                <div class="cl-row" data-slot="attachment">
+                  <span class="cl-bubble-col">
+                    <span class="card cl-attach">
+                      <span class="cl-doc-badge" aria-hidden="true" data-slot="attach-badge">PDF</span>
+                      <a class="link truncate cl-attach-name" href="/trips/1/documents" data-slot="attach-link">resort-confirmation.pdf</a>
+                      <span class="type-caption text-secondary cl-attach-size" data-slot="attach-size">20 KB</span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cl-compose">
+          <div class="alert alert-error cl-compose-alert" role="alert" data-slot="send-error"><div class="alert-message" data-slot="send-error-text">That message did not send. It is still here, so try again in a moment.</div></div>
+
+          <div class="cl-compose-inner">
+            <!-- Fills the box rather than sending, so nothing leaves for Gyasi that the
+                 traveler has not seen sitting in their own compose bar first. -->
+            <form class="cl-quick" method="post" action="/trips/1/messages" data-quick-form data-slot="quick-form">
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Sounds good" data-slot="quick-1">Sounds good</button>
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Add my partner" data-slot="quick-2">Add my partner</button>
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Send a passport" data-slot="quick-3">Send a passport</button>
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Schedule a call" data-slot="quick-4">Schedule a call</button>
+            </form>
+
+            <form class="cl-compose-form" method="post" action="/trips/1/messages" data-submit-once data-slot="send-form">
+              <span class="btn-tooltip cl-attach-button" title="Attaching from the web arrives with the upload screen" data-slot="attach-wrap">
+                <button class="btn btn-text st-btn cl-thread-back" type="button" disabled tabindex="-1" aria-label="Attach a file" data-slot="attach">
+                  <svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#attach"></use></svg>
+                </button>
+              </span>
+              <label class="visually-hidden" for="body" data-slot="compose-label">Reply to Gyasi…</label>
+              <textarea class="input cl-compose-input" id="body" name="body" rows="1" maxlength="4000" placeholder="Reply to Gyasi…" data-slot="compose"></textarea>
+              <button class="btn btn-contained st-btn cl-send" type="submit" data-pending-label="Sending…" data-slot="send">
+                <svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#send"></use></svg>
+                <span class="from-md">Send</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/assets/js/client/thread.js"></script>
+  </main>
+</body>
+</html>
