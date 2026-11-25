@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -90,12 +92,14 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(user)
 	case r.URL.Path == "/rest/v1/platform_user":
 		sel := r.URL.Query().Get("select")
+		var rows []map[string]any
 		switch {
 		case strings.Contains(sel, "role"):
-			_ = json.NewEncoder(w).Encode([]map[string]any{{"role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01T00:00:00Z"}})
+			rows = []map[string]any{{"role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01T00:00:00Z"}}
 		default:
-			_ = json.NewEncoder(w).Encode([]map[string]any{{"display_name": f.displayName, "time_zone": f.timeZone}})
+			rows = []map[string]any{{"display_name": f.displayName, "time_zone": f.timeZone}}
 		}
+		_ = json.NewEncoder(w).Encode(matching(rows, r.URL.Query()))
 	case strings.HasPrefix(r.URL.Path, "/rest/v1/rpc/"):
 		name := strings.TrimPrefix(r.URL.Path, "/rest/v1/rpc/")
 		b, _ := io.ReadAll(r.Body)
@@ -128,6 +132,86 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(rep.Body))
 	default:
 		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// matching applies the one PostgREST filter a table read here could use: col=eq.value.
+// Without it the double answers every lookup with the whole table, so a handler that forgot
+// its filter would pass — the gap the traveler session found and fixed first in
+// internal/handlers/client/fake_test.go.
+//
+// Nothing in this area relies on it TODAY: every agent read is an RPC, where the scoping is
+// current_agent_id() inside the SECURITY DEFINER function, and the one direct table read
+// (platform_user, in loadIdentity) is deliberately unfiltered because the
+// platform_user_self_select policy restricts it to the caller's own row. It is here so the
+// next table read added to this area cannot be written without its filter and still pass.
+//
+// A column the fixture does not carry does not filter, so this cannot invalidate a fixture
+// written against the permissive version. Anything it does not understand is left alone.
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			want, ok := strings.CutPrefix(values[0], "eq.")
+			if !ok {
+				continue
+			}
+			if got, present := row[key]; present && fmt.Sprint(got) != want {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+// The double's own test. Without it `matching` is unexercised in this area — every read here
+// is an RPC — and unexercised code in a test double is how the gap it closes comes back.
+func TestFakeAppliesPostgRESTFilters(t *testing.T) {
+	rows := []map[string]any{
+		{"id": "a", "advisor": "gyasi"},
+		{"id": "b", "advisor": "someone-else"},
+		{"id": "c"}, // the column is not modelled on this row
+	}
+	ids := func(got []map[string]any) []string {
+		out := []string{}
+		for _, r := range got {
+			out = append(out, fmt.Sprint(r["id"]))
+		}
+		return out
+	}
+
+	for _, c := range []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{"no filter keeps everything", "select=*", []string{"a", "b", "c"}},
+		// The point of the whole thing: a filter the handler DID write is applied, so a
+		// handler that omits one cannot pass by getting the table back.
+		{"eq keeps only the match", "advisor=eq.gyasi", []string{"a", "c"}},
+		{"eq that matches nothing empties it", "advisor=eq.nobody", []string{"c"}},
+		// What makes it safe to drop into fixtures written against the permissive version.
+		{"a column the fixture does not carry does not filter", "missing=eq.anything", []string{"a", "b", "c"}},
+		{"select, order and limit are not filters", "select=id&order=id.desc&limit=1", []string{"a", "b", "c"}},
+		{"an operator it does not model is left alone", "advisor=gt.gyasi", []string{"a", "b", "c"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			q, err := url.ParseQuery(c.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := ids(matching(rows, q)); !slices.Equal(got, c.want) {
+				t.Errorf("matching(%s) = %v, want %v", c.query, got, c.want)
+			}
+		})
 	}
 }
 
