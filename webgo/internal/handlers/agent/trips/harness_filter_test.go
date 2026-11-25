@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -64,5 +65,45 @@ func TestFakeTableReadIsFiltered(t *testing.T) {
 	}
 	if len(rows) != 1 || rows[0]["body"] != "ours" {
 		t.Errorf("the fake served %d rows (%v), wanted only this trip's", len(rows), rows)
+	}
+}
+
+// The RPC guard scopes on p_trip_id, but only a scalar string is an equality on an id.
+// Money reported correct handlers as broken by missing these two, so they are pinned here
+// rather than left to the next person to rediscover.
+func TestRPCScopeOnlyTreatsAStringAsAnID(t *testing.T) {
+	ask := func(t *testing.T, arg string) int {
+		t.Helper()
+		f := newFake()
+		f.read("agent_trip_overview", `[{"trip_id":"x"}]`)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/rest/v1/rpc/agent_trip_overview",
+			strings.NewReader(`{"p_trip_id":`+arg+`}`))
+		f.ServeHTTP(rec, req)
+		var rows []map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &rows); err != nil {
+			t.Fatalf("decode %q: %v", rec.Body.String(), err)
+		}
+		return len(rows)
+	}
+
+	// The scoping still works: the right trip is served, a different one is not.
+	if n := ask(t, `"`+tripID+`"`); n != 1 {
+		t.Errorf("the fixture's own trip got %d rows, wanted 1", n)
+	}
+	if n := ask(t, `"0195a2c0-1a00-7000-8000-000000000999"`); n != 0 {
+		t.Errorf("another trip got %d rows, wanted 0", n)
+	}
+
+	// null is an ABSENT filter (`p_x IS NULL OR col = p_x`), not a filter for null.
+	if n := ask(t, `null`); n != 1 {
+		t.Errorf("a null p_trip_id got %d rows, wanted the fixture: null means do not filter", n)
+	}
+	// An array is a membership test and a number is a page size; neither is an equality.
+	if n := ask(t, `["`+tripID+`","other"]`); n != 1 {
+		t.Errorf("an array p_trip_id got %d rows, wanted the fixture: that is a membership test", n)
+	}
+	if n := ask(t, `50`); n != 1 {
+		t.Errorf("a numeric p_trip_id got %d rows, wanted the fixture: that is not an equality", n)
 	}
 }

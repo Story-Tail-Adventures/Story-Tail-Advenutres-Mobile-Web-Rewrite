@@ -108,7 +108,14 @@ func (f *fakeSupabase) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// A read that names no trip is left alone, so this cannot invalidate a fixture
 		// written before it existed. (The same hole on a filtered TABLE read is the
 		// `col=eq.value` one in fake-ignores-filters.md, in the shared notes.)
-		if raw, named := body["p_trip_id"]; named && string(raw) != `"`+f.tripScope+`"` {
+		//
+		// Only a scalar STRING is an equality on the id, and these two exceptions are the
+		// money area's, learned by reporting correct handlers as broken:
+		//   - null is an ABSENT filter, not a filter for null. These functions are written
+		//     `p_x IS NULL OR col = p_x`, so null means "do not filter".
+		//   - anything else (an array is a membership test, a number is a page size) is not
+		//     an equality, and comparing it to one value would fail a correct read.
+		if raw, named := body["p_trip_id"]; named && isJSONString(raw) && string(raw) != `"`+f.tripScope+`"` {
 			w.WriteHeader(rp.status)
 			_, _ = w.Write([]byte(`[]`))
 			return
@@ -322,4 +329,15 @@ func matching(rows []map[string]any, q url.Values) []map[string]any {
 		}
 	}
 	return out
+}
+
+// isJSONString reports whether a raw argument is a scalar JSON string, which is the only
+// shape that is an equality on an id. `null` (an absent filter), arrays and numbers are not.
+//
+// It tests the token, NOT json.Unmarshal into a string: unmarshalling `null` into any Go
+// value succeeds and leaves it untouched, so that check calls null a string and the guard
+// then refuses a read whose filter was simply absent.
+func isJSONString(raw json.RawMessage) bool {
+	t := bytes.TrimSpace(raw)
+	return len(t) > 0 && t[0] == '"'
 }
