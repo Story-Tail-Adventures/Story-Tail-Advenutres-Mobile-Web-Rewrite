@@ -61,6 +61,13 @@ type fakeSupa struct {
 	failing map[string]bool
 	// rpcArgs records the body each read was called with.
 	rpcArgs map[string]string
+	// scoped is the record these fixtures are about: parameter name to the value a read
+	// must name to be answered. It is what scopedOut cannot derive — four of this area's
+	// nine id-bearing reads return rows that do not echo the id they were asked for
+	// (agent_commission_import_rows, agent_commission_import_candidates,
+	// agent_trip_components), so the fixture has nothing to compare against and only the
+	// test can say which record it seeded.
+	scoped map[string]string
 	// functions maps "METHOD name" to its reply; calls records every call.
 	functions map[string]reply
 	calls     []fn
@@ -70,6 +77,7 @@ func newFake() *fakeSupa {
 	return &fakeSupa{
 		role: "agent", aal: "aal2", factor: true, displayName: "Gyasi Story", timeZone: "America/Chicago",
 		rpc: map[string]string{}, failing: map[string]bool{}, rpcArgs: map[string]string{},
+		scoped:    map[string]string{},
 		functions: map[string]reply{},
 	}
 }
@@ -115,7 +123,7 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Scoped by the ids in the CALL, not just the name. Without this a read that lost
 		// or mistook its p_commission_id, p_import_id or p_trip_id is handed the fixture
 		// and passes — the handler is wrong and the harness agrees with it.
-		if scopedOut(body, b) {
+		if scopedOut(body, b) || !f.inScope(b) {
 			body = "[]"
 		}
 		_, _ = w.Write([]byte(body))
@@ -213,6 +221,37 @@ func (wd *world) post(target string, form url.Values) *httptest.ResponseRecorder
 	rec := httptest.NewRecorder()
 	wd.h.ServeHTTP(rec, req)
 	return rec
+}
+
+// inScope reports whether a read names the record these fixtures are for. Where scopedOut
+// derives the answer from the fixture, this is DECLARED by the test — the only way to cover
+// a read whose answer does not carry the id it was asked for.
+//
+// An argument the world did not declare is not modelled and does not scope, the same escape
+// hatch as everywhere else, so it drops in beside fixtures written before it. A null
+// argument is an absent filter, as in scopedOut.
+func (f *fakeSupa) inScope(body []byte) bool {
+	if len(f.scoped) == 0 || len(body) == 0 {
+		return true
+	}
+	var args map[string]json.RawMessage
+	if err := json.Unmarshal(body, &args); err != nil {
+		return true
+	}
+	for param, want := range f.scoped {
+		got, present := args[param]
+		if !present || string(got) == "null" {
+			continue
+		}
+		var value string
+		if json.Unmarshal(got, &value) != nil {
+			continue // not a scalar string: not an id equality
+		}
+		if value != want {
+			return false
+		}
+	}
+	return true
 }
 
 // scopedOut reports whether a read's id ARGUMENTS disagree with the fixture it would be

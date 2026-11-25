@@ -20,6 +20,9 @@ func addWorld(t *testing.T) *world {
 	t.Helper()
 	wd := newWorld(t)
 	wd.fake.rpc["agent_trip_roster"] = mustJSON(sampleTrips)
+	// What these fixtures are FOR. Four of this area's id-bearing reads answer with rows
+	// that do not echo the id they were asked for, so only the test can say.
+	wd.fake.scoped["p_trip_id"] = sampleTripID
 	wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers)
 	wd.fake.rpc["agent_trip_overview"] = mustJSON([]map[string]any{{
 		"trip_id": sampleTripID, "title": "Kyoto in the spring",

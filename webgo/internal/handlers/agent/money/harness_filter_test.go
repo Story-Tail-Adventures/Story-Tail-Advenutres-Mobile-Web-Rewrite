@@ -106,3 +106,58 @@ func TestTheDoubleScopesAnRPCByTheIdsInTheCall(t *testing.T) {
 		t.Error("an empty answer was scoped out")
 	}
 }
+
+// scopedOut can only compare a read's id against an answer that CARRIES that id, and four of
+// this area's nine id-bearing reads answer with rows that do not: agent_commission_import_rows
+// (p_import_id), agent_commission_import_candidates (p_row_id) and agent_trip_components
+// (p_trip_id). Each world declares what its fixtures are for instead.
+//
+// Measured per read, by pointing each one at a made-up id — tests turned red:
+//
+//	                                              derived only   + declared
+//	add.go           agent_trip_overview               8             8
+//	add.go           agent_trip_components             0             2
+//	line.go          agent_commission_line            19            19
+//	resolve.go       agent_commission_import          16            16
+//	resolve.go       agent_commission_import_rows      0            16
+//	resolve.go       agent_commission_import_cands     0             3
+//	resolve.go       agent_trip_overview               5             5
+//	statement.go     agent_commission_import          26            26
+//	statement.go     agent_commission_import_rows      0             3
+func TestTheDeclaredScopeCoversWhatTheFixtureCannot(t *testing.T) {
+	fake := newFake()
+	fake.scoped["p_import_id"] = "import-1"
+
+	// The rows carry no import_id, so only the declaration can scope this.
+	const rowsWithNoImportID = `[{"import_row_id":"r1","reference":"ITV-1"}]`
+	if scopedOut(rowsWithNoImportID, []byte(`{"p_import_id":"import-2"}`)) {
+		t.Error("scopedOut claimed to scope a fixture that does not carry the id")
+	}
+	if fake.inScope([]byte(`{"p_import_id":"import-2"}`)) {
+		t.Error("another statement's rows were answered")
+	}
+	if !fake.inScope([]byte(`{"p_import_id":"import-1"}`)) {
+		t.Error("the statement these fixtures are for was not answered")
+	}
+
+	for _, c := range []struct {
+		name string
+		args string
+		want bool
+	}{
+		{"an undeclared parameter does not scope", `{"p_trip_id":"anything"}`, true},
+		{"a null argument is an absent filter", `{"p_import_id":null}`, true},
+		{"an array is a membership test, not an id", `{"p_import_id":["a","b"]}`, true},
+		{"a number is a page size", `{"p_import_id":25}`, true},
+		{"an unreadable body is not a reason to answer empty", `not json`, true},
+	} {
+		if got := fake.inScope([]byte(c.args)); got != c.want {
+			t.Errorf("%s: inScope(%s) = %v, want %v", c.name, c.args, got, c.want)
+		}
+	}
+
+	// A world that declares nothing behaves exactly as before.
+	if !newFake().inScope([]byte(`{"p_import_id":"anything"}`)) {
+		t.Error("a world with no declared scope refused a read")
+	}
+}
