@@ -31,6 +31,9 @@ import (
 type browserForm struct {
 	action string
 	fields url.Values
+	// required: the names of controls the page marked required. A browser refuses to submit
+	// the form while one of them is empty, unless the button clicked says formnovalidate.
+	required []string
 	// submits maps a submit button's value to its name, in tree order.
 	submits []submitButton
 }
@@ -40,6 +43,8 @@ type submitButton struct {
 	// disabled: the page drew it off. A browser will not submit it at all; a test that wants
 	// to prove the SERVER refuses a forged click can still pass it to click().
 	disabled bool
+	// novalidate: this button skips the form's own checks (formnovalidate).
+	novalidate bool
 }
 
 // readForm finds the form carrying data-slot=slot and reads it as a browser would.
@@ -63,6 +68,9 @@ func readForm(t *testing.T, body, slot string) browserForm {
 			// A disabled control is not successful: a browser leaves it out of the post
 			// entirely. Leaving it in would let a test send a field no user could send.
 			off := hasAttr(n, "disabled")
+			if name != "" && !off && hasAttr(n, "required") {
+				out.required = append(out.required, name)
+			}
 			switch n.Data {
 			case "input":
 				kind := attr(n, "type")
@@ -108,7 +116,8 @@ func readForm(t *testing.T, body, slot string) browserForm {
 				// click() leaves it out — but it still decides what Enter does, and that is
 				// what these tests are reading the form for.
 				if cmp.Or(attr(n, "type"), "submit") == "submit" {
-					out.submits = append(out.submits, submitButton{name, attr(n, "value"), off})
+					out.submits = append(out.submits, submitButton{name, attr(n, "value"), off,
+						hasAttr(n, "formnovalidate")})
 				}
 			}
 		}
@@ -122,11 +131,25 @@ func readForm(t *testing.T, body, slot string) browserForm {
 
 // click posts the form with one submit button's name and value, as a browser does. Pressing
 // Enter in a text box is click(f, f.submits[0]...) — the form's default button.
+//
+// It refuses the click a browser would refuse. A form with an empty required control does
+// not submit at all unless the button says formnovalidate, and a handler test cannot see
+// that: it posts past constraint validation, so the server is right and the page is still
+// unusable. Nothing in the wizard or the traveler area is required today — "nothing here is
+// required" is the copy on two of these screens — so this guards a form that grows one.
 func (c *client) click(f browserForm, button submitButton) *httptest.ResponseRecorder {
 	c.hn.t.Helper()
 	values := url.Values{}
 	for k, vs := range f.fields {
 		values[k] = append([]string(nil), vs...)
+	}
+	if !button.novalidate {
+		for _, name := range f.required {
+			if values.Get(name) == "" {
+				c.hn.t.Fatalf("a browser would not send this click: %q is required and empty, and %q=%q does not say formnovalidate",
+					name, button.name, button.value)
+			}
+		}
 	}
 	if button.name != "" {
 		values.Add(button.name, button.value)

@@ -126,3 +126,31 @@ func TestThePayBlockPostsWhatItDraws(t *testing.T) {
 		t.Errorf("%d writes to the milestone; clicking it must mark nothing paid", len(calls))
 	}
 }
+
+// The click asks for the milestone the PAGE drew, not for "the next one due". A list where
+// the button carries only an id and the server falls back to the first row is how a post
+// comes to act on a record nobody was looking at; here the id from the form and the trip
+// from the path are both in the query, so there is nothing to fall back to.
+func TestThePayBlockAsksForTheMilestoneItWasGiven(t *testing.T) {
+	hn := newHarness(t)
+	seedPayable(hn, "https://resort.example.com/pay")
+	c := hn.signedIn()
+	f := readForm(t, c.get("/dashboard").Body.String(), "pay-form")
+	c.click(f, f.submits[0])
+
+	var read *call
+	for _, got := range hn.f.seen("GET /rest/v1/payment_milestone") {
+		if got.Query.Get("id") != "" {
+			read = &got
+		}
+	}
+	if read == nil {
+		t.Fatal("the milestone was never read back")
+	}
+	if got := read.Query.Get("id"); got != "eq.m1" {
+		t.Errorf("id filter = %q, want the one the form carried", got)
+	}
+	if got := read.Query.Get("trip_id"); got != "eq.t1" {
+		t.Errorf("trip_id filter = %q, want the trip in the path", got)
+	}
+}
