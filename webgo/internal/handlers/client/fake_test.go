@@ -156,7 +156,8 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	send(404, map[string]any{"code": "not_found"})
 }
 
-// matching applies the one PostgREST filter these tests depend on: col=eq.value. Without it
+// matching applies the PostgREST filters these tests depend on: col=eq.value and
+// col=neq.value, repeated params included. Without them
 // the fake answers every single-row lookup with the whole table, so a MaybeOne over two
 // seeded rows fails with "more than one row" — and, worse, a handler that forgot its filter
 // would pass. Anything it does not understand (select, order, limit) is left alone.
@@ -169,15 +170,26 @@ func matching(rows []map[string]any, q url.Values) []map[string]any {
 			case "select", "order", "limit", "offset":
 				continue
 			}
-			want, ok := strings.CutPrefix(values[0], "eq.")
-			if !ok {
+			got, present := row[key]
+			if !present {
+				// A column the fixture does not carry is not modelled, so it does not
+				// filter. Where it IS carried the filter bites, which is what stops a
+				// single-row lookup coming back with the whole table.
 				continue
 			}
-			// A column the fixture does not carry is not modelled, so it does not filter.
-			// Where it IS carried the filter bites, which is what stops a single-row lookup
-			// coming back with the whole table.
-			if got, present := row[key]; present && fmt.Sprint(got) != want {
-				keep = false
+			// EVERY value for the key, not just the first: PostgREST takes repeated params
+			// as an AND, which is how a query excludes both paid and waived milestones.
+			for _, filter := range values {
+				switch {
+				case strings.HasPrefix(filter, "eq."):
+					if fmt.Sprint(got) != strings.TrimPrefix(filter, "eq.") {
+						keep = false
+					}
+				case strings.HasPrefix(filter, "neq."):
+					if fmt.Sprint(got) == strings.TrimPrefix(filter, "neq.") {
+						keep = false
+					}
+				}
 			}
 		}
 		if keep {

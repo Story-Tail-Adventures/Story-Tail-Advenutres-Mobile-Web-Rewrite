@@ -855,4 +855,62 @@
 
     .cl-pane-empty { display: flex; }
   }
+
+  /* ── Screen 2.2.9, the status change a notification lands on ───────────────────────── */
+  .cl-update-page > * + * { margin-top: 16px; }
+
+  .cl-update-hero {
+    background: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+
+  .cl-update-hero-content {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    padding: 22px;
+  }
+
+  .cl-update-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--mui-palette-secondary-onContainer);
+    color: var(--mui-palette-secondary-container);
+  }
+
+  .cl-update-head { min-width: 0; }
+
+  .cl-update-overline { margin: 0; line-height: 1.3; }
+
+  .cl-update-title { margin: 4px 0 2px; }
+
+  .cl-update-body { margin: 0; }
+
+  .cl-update-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-update-steps {
+    margin: 6px 0 0;
+    padding-left: 20px;
+    list-style: decimal;
+    line-height: 1.5;
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-update-cta {
+    display: flex;
+    width: 100%;
+  }
 }
