@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.12.2, Availability. Ports AgentAvailabilityForm and AgentTimeOffCard. Filled by
+  internal/handlers/agent/money (settingsfill.go).
+
+  THE WEEK PICTURE IS READ-ONLY (Q12), as the prototype draws it; each day is edited by the
+  row below it, which works on a phone where painting cells does not. The grid's column
+  count is a data-cols attribute money.css has a rule for, because the CSP allows no inline
+  style, and the whole picture is aria-hidden — the rows say the same thing in words.
+
+  THE HOURS ARE A TEXT BOX WITH A SHARED <datalist>, not a <select> per day: a repeat cannot
+  hold another repeat, so fourteen selects of forty-nine options each cannot be filled from
+  Go. One datalist serves all fourteen, the server checks the value against the same
+  half-hour rule the Edge Function uses, and 24:00 (working until midnight) stays sayable,
+  which <input type="time"> cannot express.
+
+  TIME AWAY IS A URL, not a dialog: ?away=new or ?away=<id> opens the editor below the list,
+  and the form posts back to that same URL so a refusal comes back with the words still in
+  it. Ending a block early and removing one are the same write, behind a <details>
+  confirmation that needs no script.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Settings · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col mny-set-col" data-slot="page">
+    <div data-slot="body">
+      <h1 class="type-h4 mny-set-title">Settings</h1>
+      <nav class="mny-views mny-set-tabs" aria-label="Settings sections">
+        <a class="chip mny-view" href="/agent/settings" data-repeat="tab" data-slot="tab-link"><span class="chip-label" data-slot="tab-label">Profile</span></a>
+      </nav>
+
+      <!-- RetryState: the one read failed. Empty settings are defaults, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">We couldn't load your settings just now. Try again in a moment.</h2>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/settings" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Check your connection and try again.</div></div>
+        <header class="mny-set-head">
+          <div class="mny-head-text">
+            <h2 class="type-h5 fw-700">Availability</h2>
+            <p class="type-body2 text-secondary mny-sub">Your working hours, time zone and time away.</p>
+          </div>
+        </header>
+
+        <div class="mny-set-grid-av">
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h3 class="type-subtitle1">Working hours</h3>
+              <p class="type-caption text-secondary mny-block mny-mt-0_5">Outside these hours you're resting, and notifications stay quiet.</p>
+
+              <form method="post" action="/agent/settings?tab=availability" data-submit-once data-slot="av-form">
+                <input type="hidden" name="op" value="update_availability">
+
+                <div class="field mny-set-narrow mny-mt-2">
+                  <label class="field-label" for="av-zone">Time zone</label>
+                  <select class="input mny-input-40" id="av-zone" name="timeZone" data-slot="av-zone">
+                    <option value="America/Chicago" data-repeat="zone" data-slot="zone-option">Central (Chicago)</option>
+                  </select>
+                </div>
+
+                <!-- The prototype's grid, read-only. Hidden from assistive tech: the rows
+                     below say the same thing in words, and they are the ones you edit. -->
+                <div aria-hidden="true" class="mny-mt-2">
+                  <p class="type-overline text-secondary mny-block mny-mb-1">Your week at a glance</p>
+                  <div class="mny-week" data-cols="24" data-slot="week-grid">
+                    <span class="mny-week-spacer"></span>
+                    <span class="type-caption text-secondary mny-week-hour" data-repeat="week-hour" data-slot="week-hour-label">8a</span>
+                    <span class="mny-week-box" data-repeat="week-cell" data-slot="week-cell-box"></span>
+                  </div>
+                </div>
+
+                <datalist id="half-hours">
+                  <option value="00:00">midnight</option>
+                  <option value="00:30">12:30am</option>
+                  <option value="01:00">1am</option>
+                  <option value="01:30">1:30am</option>
+                  <option value="02:00">2am</option>
+                  <option value="02:30">2:30am</option>
+                  <option value="03:00">3am</option>
+                  <option value="03:30">3:30am</option>
+                  <option value="04:00">4am</option>
+                  <option value="04:30">4:30am</option>
+                  <option value="05:00">5am</option>
+                  <option value="05:30">5:30am</option>
+                  <option value="06:00">6am</option>
+                  <option value="06:30">6:30am</option>
+                  <option value="07:00">7am</option>
+                  <option value="07:30">7:30am</option>
+                  <option value="08:00">8am</option>
+                  <option value="08:30">8:30am</option>
+                  <option value="09:00">9am</option>
+                  <option value="09:30">9:30am</option>
+                  <option value="10:00">10am</option>
+                  <option value="10:30">10:30am</option>
+                  <option value="11:00">11am</option>
+                  <option value="11:30">11:30am</option>
+                  <option value="12:00">noon</option>
+                  <option value="12:30">12:30pm</option>
+                  <option value="13:00">1pm</option>
+                  <option value="13:30">1:30pm</option>
+                  <option value="14:00">2pm</option>
+                  <option value="14:30">2:30pm</option>
+                  <option value="15:00">3pm</option>
+                  <option value="15:30">3:30pm</option>
+                  <option value="16:00">4pm</option>
+                  <option value="16:30">4:30pm</option>
+                  <option value="17:00">5pm</option>
+                  <option value="17:30">5:30pm</option>
+                  <option value="18:00">6pm</option>
+                  <option value="18:30">6:30pm</option>
+                  <option value="19:00">7pm</option>
+                  <option value="19:30">7:30pm</option>
+                  <option value="20:00">8pm</option>
+                  <option value="20:30">8:30pm</option>
+                  <option value="21:00">9pm</option>
+                  <option value="21:30">9:30pm</option>
+                  <option value="22:00">10pm</option>
+                  <option value="22:30">10:30pm</option>
+                  <option value="23:00">11pm</option>
+                  <option value="23:30">11:30pm</option>
+                  <option value="24:00">midnight</option>
+                </datalist>
+
+                <ul class="mny-set-days">
+                  <li class="mny-set-day" data-repeat="day">
+                    <label class="mny-set-dayname">
+                      <input class="mny-set-check" type="checkbox" name="on-mon" value="1" checked data-slot="day-on">
+                      <span class="type-body2" data-slot="day-name">Monday</span>
+                    </label>
+                    <span class="field mny-set-time">
+                      <span class="field-label" aria-hidden="true">From</span>
+                      <input class="input mny-input-40" type="text" inputmode="numeric" autocomplete="off" list="half-hours" name="from-mon" value="07:00" placeholder="07:00" data-slot="day-from">
+                    </span>
+                    <span class="field mny-set-time">
+                      <span class="field-label" aria-hidden="true">To</span>
+                      <input class="input mny-input-40" type="text" inputmode="numeric" autocomplete="off" list="half-hours" name="to-mon" value="21:00" placeholder="21:00" data-slot="day-to">
+                    </span>
+                    <span class="type-body2 text-secondary mny-set-dayoff" data-slot="day-off">Off</span>
+                  </li>
+                </ul>
+
+                <div class="field mny-set-narrow mny-mt-2">
+                  <label class="field-label" for="av-reply">Usually replies within</label>
+                  <select class="input mny-input-40" id="av-reply" name="responseTimeHours" data-slot="av-reply">
+                    <option value="24" data-repeat="reply" data-slot="reply-option">24 hours</option>
+                  </select>
+                  <p class="type-caption text-secondary mny-block">Clients see this next to your name.</p>
+                </div>
+
+                <div class="mny-set-actions">
+                  <button type="submit" class="btn btn-contained btn-small st-btn" data-pending-label="Saving…">Save</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="card" aria-label="Out of office">
+            <div class="card-content mny-card-18">
+              <h3 class="type-subtitle1">Out of office</h3>
+              <p class="type-caption text-secondary mny-block mny-mt-0_5">Time to rest. Clients see when you'll be back.</p>
+
+              <p class="type-body2 text-secondary mny-mt-1" data-slot="away-empty">No time away planned.</p>
+
+              <ul class="mny-away-list" data-slot="away-list">
+                <li class="mny-away" data-repeat="away">
+                  <p class="type-subtitle1" data-slot="away-range">Jul 4 – Jul 7</p>
+                  <p class="type-caption mny-block" data-slot="away-meta">Family trip</p>
+                  <div class="mny-away-actions" data-slot="away-actions">
+                    <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/settings?tab=availability&amp;away=sample" data-slot="away-edit">Edit</a>
+                    <details class="mny-confirm">
+                      <summary class="mny-confirm-summary" data-slot="away-end-summary">Remove</summary>
+                      <form method="post" action="/agent/settings?tab=availability">
+                        <input type="hidden" name="op" value="end_time_off">
+                        <input type="hidden" name="timeOffId" value="sample" data-slot="away-end-id">
+                        <p class="type-caption text-secondary mny-block mny-mb-1" data-slot="away-end-body">Remove this time away?</p>
+                        <button type="submit" class="btn btn-outlined btn-small st-btn" data-slot="away-end-confirm">Remove</button>
+                      </form>
+                    </details>
+                  </div>
+                </li>
+              </ul>
+
+              <div class="mny-mt-1">
+                <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/settings?tab=availability&amp;away=new" data-slot="away-new"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> Schedule time away</a>
+              </div>
+
+              <form class="mny-away-form" method="post" action="/agent/settings?tab=availability&amp;away=new" data-submit-once data-slot="away-form">
+                <input type="hidden" name="op" value="save_time_off">
+                <input type="hidden" name="timeOffId" value="" data-slot="away-id">
+                <input type="hidden" name="isNew" value="1" data-slot="away-isnew">
+                <h4 class="type-subtitle1 mny-mb-1" data-slot="away-title">Schedule time away</h4>
+                <div class="field">
+                  <label class="field-label" for="away-start">First day away</label>
+                  <input class="input mny-input-40" id="away-start" type="date" name="startsOn" value="" data-slot="away-start">
+                  <p class="field-error" data-slot="away-error"><span data-slot="away-error-text">Pick the first day away.</span></p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="away-end">Last day away</label>
+                  <input class="input mny-input-40" id="away-end" type="date" name="endsOn" value="" data-slot="away-end">
+                </div>
+                <div class="field">
+                  <label class="field-label" for="away-label">Label</label>
+                  <input class="input mny-input-40" id="away-label" name="label" maxlength="80" value="" data-slot="away-label">
+                  <p class="type-caption text-secondary mny-block">Optional, just for you. Like "Family trip".</p>
+                </div>
+                <label class="mny-set-dayname mny-mt-1">
+                  <input class="mny-set-check" type="checkbox" name="autoReplyEnabled" value="1" data-slot="away-reply-on">
+                  <span class="type-body2">Send an automatic reply</span>
+                </label>
+                <div class="field mny-mt-1">
+                  <label class="field-label" for="away-reply-text">Automatic reply</label>
+                  <textarea class="input mny-set-area" id="away-reply-text" name="autoReplyText" rows="4" maxlength="600" data-slot="away-reply-text"></textarea>
+                  <p class="type-caption text-secondary mny-block">Answers the first message in each conversation once while you're away. {{return_date}} becomes the day you're back.</p>
+                </div>
+                <p class="type-caption text-secondary mny-block" data-slot="away-reply-preview">Clients will read: "Thanks for writing!"</p>
+                <div class="mny-set-actions">
+                  <a class="btn btn-text btn-small st-btn" href="/agent/settings?tab=availability" data-slot="away-cancel">Cancel</a>
+                  <button type="submit" class="btn btn-contained btn-small st-btn" data-pending-label="Saving…">Save</button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

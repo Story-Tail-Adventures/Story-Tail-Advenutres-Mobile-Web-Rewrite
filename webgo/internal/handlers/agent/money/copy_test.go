@@ -399,6 +399,96 @@ var copyCases = []copyCase{
 	{file: "lib/agent/reportsCopy.ts", obj: "LEAD_SOURCES_COPY", key: "colCampaign", page: "agent/money/reports-leads.html"},
 	{file: "lib/agent/reportsCopy.ts", obj: "LEAD_SOURCES_COPY", key: "note", page: "agent/money/reports-leads.html"},
 
+	// ── §3.12 Agent Profile & Settings (SETTINGS_COPY) ─────────────────────────
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY", key: "pageTitle", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY", key: "tabsLabel", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY", key: "loadFailed", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY", key: "saved", goValue: copySettingsSaved},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY", key: "nothingChanged", goValue: copyNothingChanged},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY", key: "saveFailed", goValue: copySettingsFailed},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "title", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "sub", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "photo", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "photoHint", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "upload", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "remove", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "name", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "pronouns", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "pronounsHint", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "email", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "emailHint", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "phone", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "bio", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "bioHint", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "links", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "linksHint", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "preview", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "save", page: "agent/money/settings-profile.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "nameRequired", goValue: copyNameRequired},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "photoSaved", goValue: copyPhotoSaved},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "photoRemoved", goValue: copyPhotoRemoved},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "previewRole", goValue: copyPreviewRole},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.profile", key: "photoUnreadable", goValue: copyPhotoNeedsBrowser},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "title", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "sub", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "hoursTitle", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "hoursSub", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "timeZone", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "from", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "to", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "replyTime", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "replyTimeHint", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "weekPicture", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "save", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "awayTitle", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "awaySub", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "awayEmpty", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "schedule", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "edit", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "firstDay", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "lastDay", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "label", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "labelHint", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "autoReply", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "autoReplyHint", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "autoReplyText", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "cancel", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "saveAway", page: "agent/money/settings-availability.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "dayOff", goValue: copyDayOff},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "now", goValue: copyAwayNow},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "back", goValue: copyAwayBack},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "delete", goValue: copyAwayRemove},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "dialogNew", goValue: copyDialogNew},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "dialogEdit", goValue: copyDialogEdit},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "confirmDelete", goValue: copyConfirmDelete},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "confirmBack", goValue: copyConfirmBack},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.availability", key: "autoReplyOn", goValue: copyAutoReplyOn},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "title", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "sub", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "trigger", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "email", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "push", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "restTitle", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "restBody", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "restLink", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "emailNote", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "pushNote", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "save", page: "agent/money/settings-notifications.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "clientMessages", goValue: copyClientMessages},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "clientMessagesHint", goValue: copyClientMessagesHint},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "quoteRequests", goValue: copyQuoteRequests},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.notifications", key: "quoteRequestsHint", goValue: copyQuoteRequestsHint},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "title", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "sub", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "edit", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "hint", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "insert", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "preview", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "sampleBody", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "locked", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "reset", page: "agent/money/settings-signature.html"},
+	{file: "lib/agent/settingsCopy.ts", obj: "SETTINGS_COPY.signature", key: "save", page: "agent/money/settings-signature.html"},
+
 	// The §5 states and the pagination both pages carry.
 	{file: "lib/agent/content.ts", obj: "CLIENT_COPY", key: "paginationPrev", page: "agent/money/ledger.html"},
 	{file: "lib/agent/content.ts", obj: "CLIENT_COPY", key: "paginationNext", page: "agent/money/ledger.html"},
@@ -409,6 +499,12 @@ var copyCases = []copyCase{
 // another screen's words.
 func tsObject(t *testing.T, src, obj string) string {
 	t.Helper()
+	// A dotted path names a nested object: SETTINGS_COPY.profile is the `profile: { … }`
+	// inside SETTINGS_COPY, and a bare key search would otherwise read another tab's words
+	// (every one of the four has a `title`).
+	if top, sub, nested := strings.Cut(obj, "."); nested {
+		return tsNested(t, tsObject(t, src, top), sub)
+	}
 	start := regexp.MustCompile(`(?m)^export const ` + regexp.QuoteMeta(obj) + `\s*=\s*\{`).FindStringIndex(src)
 	if start == nil {
 		t.Fatalf("no object %q", obj)
@@ -419,6 +515,29 @@ func tsObject(t *testing.T, src, obj string) string {
 		t.Fatalf("object %q does not end", obj)
 	}
 	return rest[:end[0]]
+}
+
+// tsNested slices `  key: { … }` out of an object, by matching braces.
+func tsNested(t *testing.T, src, key string) string {
+	t.Helper()
+	open := regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(key) + `:\s*\{`).FindStringIndex(src)
+	if open == nil {
+		t.Fatalf("no nested object %q", key)
+	}
+	depth := 1
+	for i := open[1]; i < len(src); i++ {
+		switch src[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return src[open[1]:i]
+			}
+		}
+	}
+	t.Fatalf("nested object %q does not end", key)
+	return ""
 }
 
 // tsString finds `key: "value"` (the value may start on the next line) and unquotes it.

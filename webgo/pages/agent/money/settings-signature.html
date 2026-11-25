@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.12.4, the email signature. Ports AgentSignatureForm. Filled by
+  internal/handlers/agent/money (settingsfill.go).
+
+  Plain text with three merge fields (Q19), and beside it the email as a client will see it.
+  The Story-Tail line under it is not stored and cannot be edited (Q18). Saving an empty
+  signature stores nothing, so a better default later still reaches an advisor who never
+  wrote their own — which is what "Use the default" posts.
+
+  settings.js keeps the preview live and makes the Insert chips work; without it the preview
+  is of the SAVED signature and the chips do nothing, and every save still lands.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Settings · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col mny-set-col" data-slot="page">
+    <div data-slot="body">
+      <h1 class="type-h4 mny-set-title">Settings</h1>
+      <nav class="mny-views mny-set-tabs" aria-label="Settings sections">
+        <a class="chip mny-view" href="/agent/settings" data-repeat="tab" data-slot="tab-link"><span class="chip-label" data-slot="tab-label">Profile</span></a>
+      </nav>
+
+      <!-- RetryState: the one read failed. Empty settings are defaults, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">We couldn't load your settings just now. Try again in a moment.</h2>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/settings" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Check your connection and try again.</div></div>
+        <header class="mny-set-head">
+          <div class="mny-head-text">
+            <h2 class="type-h5 fw-700">Email signature</h2>
+            <p class="type-body2 text-secondary mny-sub">Added under your words in every message email. The Story-Tail line is always included.</p>
+          </div>
+        </header>
+
+        <div class="mny-set-grid-2">
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <form method="post" action="/agent/settings?tab=signature" data-submit-once data-slot="sg-form">
+                <input type="hidden" name="op" value="update_signature">
+                <div class="field">
+                  <label class="field-label" for="sg-text">Your signature</label>
+                  <textarea class="input mny-set-area mny-set-mono" id="sg-text" name="signature" rows="9" maxlength="550" data-signature-text data-slot="sg-text"></textarea>
+                  <p class="type-caption text-secondary mny-block">Plain text, up to 8 lines. Links and email addresses become clickable.</p>
+                  <p class="field-error" data-slot="sg-error"><span data-slot="sg-error-text">A signature can be up to 500 characters.</span></p>
+                </div>
+                <div class="mny-set-insert">
+                  <span class="type-caption text-secondary">Insert</span>
+                  <button type="button" class="chip chip-outlined chip-small mny-set-chip" aria-label="Insert name" data-signature-insert="{{agent.name}}"><span class="chip-label">Name</span></button>
+                  <button type="button" class="chip chip-outlined chip-small mny-set-chip" aria-label="Insert phone" data-signature-insert="{{agent.phone}}"><span class="chip-label">Phone</span></button>
+                  <button type="button" class="chip chip-outlined chip-small mny-set-chip" aria-label="Insert email" data-signature-insert="{{agent.email}}"><span class="chip-label">Email</span></button>
+                  <span class="mny-set-spacer"></span>
+                  <button type="submit" class="btn btn-contained btn-small st-btn" data-pending-label="Saving…">Save</button>
+                </div>
+              </form>
+              <form method="post" action="/agent/settings?tab=signature" data-slot="sg-reset">
+                <input type="hidden" name="op" value="update_signature">
+                <input type="hidden" name="signature" value="">
+                <button type="submit" class="btn btn-text btn-small st-btn">Use the default</button>
+              </form>
+            </div>
+          </section>
+
+          <aside class="card" aria-label="How it looks in an email">
+            <div class="card-content mny-card-18">
+              <p class="type-overline text-secondary mny-block">How it looks in an email</p>
+              <div class="mny-set-email">
+                <p class="type-caption text-secondary" data-slot="sg-from">From: Gyasi at Story-Tail Adventures</p>
+                <hr class="divider mny-rule">
+                <p class="type-body2 mny-mb-1">Hi Maya, here's your proposal. Take your time with it.</p>
+                <div class="mny-set-sig" data-sig-name="Gyasi Story" data-sig-phone="" data-sig-email="gyasi@example.com" data-signature-preview data-slot="sg-preview">
+                  <p class="type-caption mny-sig-line" data-repeat="sg-line" data-slot="sg-line-text">Gyasi Story, Travel Advisor</p>
+                </div>
+              </div>
+              <p class="type-caption text-secondary mny-block mny-mt-1">This line is always included.</p>
+            </div>
+          </aside>
+        </div>
+        <script type="module" src="/assets/js/agent/money/settings.js"></script>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

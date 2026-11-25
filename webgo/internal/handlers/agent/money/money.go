@@ -31,6 +31,7 @@ var Specs = []page.Spec{
 	dashboardSpec, ledgerSpec, forecastSpec, lineSpec, addSpec, importSpec, statementSpec, resolveSpec,
 	reportsHubSpec, revenueSpec, suppliersSpec, destinationsSpec, clientsSpec, funnelSpec, pipelineSpec,
 	exportCenterSpec, leadsSpec,
+	profileSpec, availabilitySpec, notificationsSpec, signatureSpec,
 }
 
 // app is this sub-area's handlers and the templates they fill.
@@ -55,6 +56,11 @@ type app struct {
 	pipeline     *page.Template
 	exportCenter *page.Template
 	leads        *page.Template
+	// §3.12's four tabs, one page file each.
+	settingsProfile       *page.Template
+	settingsAvailability  *page.Template
+	settingsNotifications *page.Template
+	settingsSignature     *page.Template
 }
 
 // Mount registers this sub-area's routes. Take templates from d.Pages here, so a missing
@@ -82,6 +88,10 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 		{pipelineSpec, &a.pipeline},
 		{exportCenterSpec, &a.exportCenter},
 		{leadsSpec, &a.leads},
+		{profileSpec, &a.settingsProfile},
+		{availabilitySpec, &a.settingsAvailability},
+		{notificationsSpec, &a.settingsNotifications},
+		{signatureSpec, &a.settingsSignature},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -125,5 +135,9 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/reports/pipeline", http.HandlerFunc(a.savePipelineWeights))
 	rt.Protected("GET /agent/reports/export", http.HandlerFunc(a.serveExportCenter))
 	rt.Protected("GET /agent/reports/leads", http.HandlerFunc(a.serveLeadSources))
+
+	// §3.12 Agent Profile & Settings: one page, one tab per URL, one POST for every op.
+	rt.Protected("GET /agent/settings", http.HandlerFunc(a.serveSettings))
+	rt.Protected("POST /agent/settings", http.HandlerFunc(a.saveSettings))
 	return nil
 }
