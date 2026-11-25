@@ -8,7 +8,6 @@ import "fmt"
 
 const (
 	copySettingsSaved  = "Saved."
-	copyNothingChanged = "Nothing new to save."
 	copySettingsFailed = "That didn't save. Check your connection and try again."
 
 	// ── 3.12.1 Profile ─────────────────────────────────────────────────────────
@@ -18,7 +17,6 @@ const (
 	copyPreviewRole  = "Travel Advisor"
 
 	// ── 3.12.2 Availability ────────────────────────────────────────────────────
-	copyDayOff        = "Off"
 	copyAwayNow       = "Away now"
 	copyDialogNew     = "Schedule time away"
 	copyDialogEdit    = "Edit time away"

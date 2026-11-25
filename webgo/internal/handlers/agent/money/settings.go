@@ -94,7 +94,7 @@ var availabilitySpec = settingsSpec("agent/money/settings-availability.html",
 		"week-hour": {"week-hour-label"},
 		"week-cell": {"week-cell-box"},
 		"day":       {"day-on", "day-name", "day-off", "day-from", "day-to"},
-		"away":      {"away-range", "away-meta", "away-edit", "away-actions", "away-end-id", "away-end-summary", "away-end-body", "away-end-confirm"},
+		"away":      {"away-range", "away-meta", "away-edit", "away-actions", "away-end-form", "away-end-id", "away-end-summary", "away-end-body", "away-end-confirm"},
 	})
 
 var notificationsSpec = settingsSpec("agent/money/settings-notifications.html",

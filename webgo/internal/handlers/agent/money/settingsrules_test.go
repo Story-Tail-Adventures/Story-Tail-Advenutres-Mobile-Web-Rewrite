@@ -303,3 +303,67 @@ func TestWeekWindow(t *testing.T) {
 		}
 	}
 }
+
+// ── What an independent review proved ───────────────────────────────────────────────────
+
+// Go's `\s` is [\t\n\f\r ] and JavaScript's is the whole Unicode set, so a regex written
+// with Go's disagrees with the Edge Function about every other space. A NON-BREAKING space
+// is what a paste from Word, or Option-Space on a Mac, puts between the braces — and the
+// function ACCEPTS that, so a signature the server stored would have locked this tab for
+// good: the field error is recomputed on every plain GET, and the character is invisible.
+func TestMergeFieldsAcceptEveryKindOfSpaceTheServerDoes(t *testing.T) {
+	for _, space := range []string{" ", " ", "\t", " ", "　", "\ufeff", " "} {
+		sig := "{{" + space + "agent.name" + space + "}}"
+		if got := signatureProblem(sig); got != "" {
+			t.Errorf("a signature spaced with %q was refused: %s", space, got)
+		}
+		lines := signatureLines(sig, "Gyasi Story", "", "")
+		if lines[0] != "Gyasi Story" {
+			t.Errorf("a signature spaced with %q previewed as %q", space, lines[0])
+		}
+		if got := autoReplyProblem(true, "Back {{"+space+"return_date"+space+"}}"); got != "" {
+			t.Errorf("an auto-reply spaced with %q was refused: %s", space, got)
+		}
+		if got := autoReplyPreview("Back {{"+space+"return_date"+space+"}}", "2026-07-07"); got != "Back Wednesday, July 8" {
+			t.Errorf("an auto-reply spaced with %q previewed as %q", space, got)
+		}
+	}
+	// A field that really is unknown is still refused, whatever it is spaced with.
+	if got := signatureProblem("{{ client.firstName }}"); got != "We don't have a {{client.firstName}} field. You can use {{agent.name}}, {{agent.phone}} or {{agent.email}}." {
+		t.Errorf("an unknown field reads %q", got)
+	}
+}
+
+// trimEnd() strips all Unicode whitespace, so a line ending in one is not a line with
+// trailing text on it.
+func TestSignatureTrimsTheSpacesJavaScriptTrims(t *testing.T) {
+	if got := normalizeSignature("trailing  "); got != "trailing" {
+		t.Errorf("normalizeSignature left %q", got)
+	}
+	if got := normalizeSignature("a  \nb　"); got != "a\nb" {
+		t.Errorf("normalizeSignature left %q", got)
+	}
+}
+
+// A link with a space in it is refused whatever kind of space it is, because the server
+// refuses it and the page should not send a round trip to be told so.
+func TestASpacedLinkIsRefused(t *testing.T) {
+	for _, space := range []string{" ", " ", " ", "　"} {
+		if _, problem := normalizeSocialLink("website", "example.com/a"+space+"b"); problem == "" {
+			t.Errorf("a link spaced with %q was accepted", space)
+		}
+	}
+}
+
+// `https://@instagram.com` has an EMPTY userinfo, which a browser's URL reads as none at
+// all: the answer is the one about a missing handle, not the one about a disguised link.
+func TestAnEmptyUserinfoIsNotAUserinfo(t *testing.T) {
+	_, problem := normalizeSocialLink("instagram", "@instagram.com")
+	if problem != "Add your handle or the link to your Instagram page." {
+		t.Errorf("@instagram.com reads %q", problem)
+	}
+	// A real one is still the phishing disguise it always was.
+	if _, problem := normalizeSocialLink("website", "https://user:pw@story-tail.com"); problem == "" {
+		t.Error("a link with a username was accepted")
+	}
+}

@@ -1,7 +1,10 @@
 package money
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strings"
@@ -545,4 +548,88 @@ func TestAFieldsRefusalIsNotAlsoInTheBanner(t *testing.T) {
 	ok.Set("op", "update_profile")
 	ok.Set("displayName", "Gyasi Story")
 	has(t, wd2.post("/agent/settings?tab=profile", ok).Body.String(), "Nope.")
+}
+
+// ── What an independent review proved ───────────────────────────────────────────────────
+
+// postMultipart sends the photo form the way the browser does, so the cap under test is the
+// one the photo actually meets.
+func (wd *world) postMultipart(target string, fields map[string]string) *httptest.ResponseRecorder {
+	wd.t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for k, v := range fields {
+		if err := mw.WriteField(k, v); err != nil {
+			wd.t.Fatal(err)
+		}
+	}
+	if err := mw.Close(); err != nil {
+		wd.t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, target, &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.AddCookie(wd.cookie())
+	rec := httptest.NewRecorder()
+	wd.h.ServeHTTP(rec, req)
+	return rec
+}
+
+// A 400x400 JPEG at q0.88 is tens of kilobytes, and base64 is a third larger again.
+// web.MaxFormBytes is 64 KiB, which a detailed photo passes easily — and the advisor got a
+// bare "Request Entity Too Large" page, not the settings screen and not a sentence, because
+// settings.js submits the form and nothing catches the answer. The photo posts as multipart
+// with a cap of its own.
+func TestANormalSizedPhotoIsNotRefused(t *testing.T) {
+	wd := newWorld(t)
+	seedSettings(wd)
+	// 150 KB of base64 is about 112 KB of JPEG: past anything a 400x400 photo produces, and
+	// far past what the old urlencoded cap allowed.
+	image := strings.Repeat("A", 150_000)
+	rec := wd.postMultipart("/agent/settings?tab=profile",
+		map[string]string{"op": "set_avatar", "image": image})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("a %d-byte image answered %d (%q)", len(image), rec.Code, rec.Body.String())
+	}
+	if got := string(wd.fake.calls[0].Body["image"]); len(got) != len(image)+2 {
+		t.Errorf("the image reached the function as %d bytes, want %d", len(got), len(image))
+	}
+}
+
+// Past the photo's own cap it is still refused, but as a size — nothing unbounded is read.
+func TestAPhotoPastTheCapIsRefused(t *testing.T) {
+	wd := newWorld(t)
+	seedSettings(wd)
+	rec := wd.postMultipart("/agent/settings?tab=profile",
+		map[string]string{"op": "set_avatar", "image": strings.Repeat("A", maxAvatarPost+1)})
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("an oversized image answered %d", rec.Code)
+	}
+	if len(wd.fake.calls) != 0 {
+		t.Errorf("an oversized image reached the function: %+v", wd.fake.calls)
+	}
+}
+
+// The hours form's action is the one a refused save re-renders from. Dropping ?away= closed
+// the time-away editor and took the dates, label and reply words typed into it with it —
+// the hazard settings.go's own comment names.
+func TestTheHoursFormKeepsTheTimeAwayEditorOpen(t *testing.T) {
+	wd := newWorld(t)
+	seedSettings(wd)
+	body := wd.get("/agent/settings?tab=availability&away=new").Body.String()
+	for _, slot := range []string{"av-form", "away-form", "away-end-form"} {
+		f := readForm(t, body, slot)
+		if !strings.Contains(f.action, "away=new") {
+			t.Errorf("%s posts to %q, which closes the editor on a refusal", slot, f.action)
+		}
+	}
+
+	// And it really stays open: a refused schedule comes back with the words still in it.
+	f := readForm(t, body, "av-form")
+	f.fields.Set("from-mon", "09:15")
+	f.fields.Set("startsOn", "")
+	rec := wd.click(f, f.defaultSubmit(t))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("a quarter-hour start answered %d", rec.Code)
+	}
+	has(t, rec.Body.String(), "Working hours go in half-hour steps.", `name="startsOn"`, "Schedule time away")
 }

@@ -67,7 +67,7 @@
                   <p class="type-subtitle1">Profile photo</p>
                   <p class="type-caption text-secondary mny-block">A JPG, PNG or WebP, up to 5 MB.</p>
                   <div class="mny-set-photo-actions">
-                    <form class="mny-set-photo-form" method="post" action="/agent/settings?tab=profile" data-avatar-form data-slot="pf-photo-form">
+                    <form class="mny-set-photo-form" method="post" enctype="multipart/form-data" action="/agent/settings?tab=profile" data-avatar-form data-slot="pf-photo-form">
                       <input type="hidden" name="op" value="set_avatar">
                       <input type="hidden" name="image" value="" data-avatar-image>
                       <input class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload new" data-avatar-file>

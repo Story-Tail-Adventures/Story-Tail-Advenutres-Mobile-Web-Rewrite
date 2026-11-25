@@ -58,13 +58,23 @@ func hostMatches(host string, allowed []string) bool {
 	return false
 }
 
+// jsSpaceClass is JavaScript's \s as an RE2 class. Go's own `\s` is only [\t\n\f\r ],
+// so a regex written with it disagrees with the Edge Function about every other space —
+// and a NON-BREAKING space is what a paste from Word, or Option-Space on a Mac, puts in.
+// `jsSpace` (lineform.go) is the same set as a rune predicate, for the trims.
+const jsSpaceClass = `[\t\n\v\f\r \x{00a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]`
+
+// jsTrim and jsTrimRight are JavaScript's trim() and trimEnd(): the same set again.
+func jsTrim(s string) string      { return strings.TrimFunc(s, jsSpace) }
+func jsTrimRight(s string) string { return strings.TrimRightFunc(s, jsSpace) }
+
 var (
 	handleRE   = regexp.MustCompile(`^@?([A-Za-z0-9._]{1,60})$`)
 	bareSiteRE = regexp.MustCompile(`(?i)^(www\.)?(instagram|facebook|fb)\.com$`)
 	schemeRE   = regexp.MustCompile(`(?i)^[a-z][a-z0-9+.\-]*:`)
 	httpRE     = regexp.MustCompile(`(?i)^http://`)
 	httpsRE    = regexp.MustCompile(`(?i)^https://`)
-	badCharRE  = regexp.MustCompile(`[\s<>"]`)
+	badCharRE  = regexp.MustCompile(jsSpaceClass + `|[<>"]`)
 )
 
 // normalizeSocialLink is the server's normalizeSocialLink, word for word. It returns "" for
@@ -72,7 +82,7 @@ var (
 // sentence is what goes on the screen.
 func normalizeSocialLink(network, value string) (link string, problem string) {
 	label := networkLabel[network]
-	t := strings.TrimSpace(value)
+	t := jsTrim(value)
 	if t == "" {
 		return "", ""
 	}
@@ -104,7 +114,14 @@ func normalizeSocialLink(network, value string) (link string, problem string) {
 	}
 
 	u, err := url.Parse(t)
-	if err != nil || u.Scheme != "https" || u.User != nil || !strings.Contains(u.Hostname(), ".") {
+	// `https://@instagram.com` has an EMPTY userinfo, which the browser's URL reads as none
+	// at all; only a real username or password is the phishing disguise this refuses.
+	user := ""
+	if u.User != nil {
+		pw, _ := u.User.Password()
+		user = u.User.Username() + pw
+	}
+	if err != nil || u.Scheme != "https" || user != "" || !strings.Contains(u.Hostname(), ".") {
 		return "", label + " doesn't look like a link."
 	}
 	if network != "website" && !hostMatches(u.Hostname(), networkHosts[network]) {
@@ -121,7 +138,7 @@ var phoneShapeRE = regexp.MustCompile(`^[0-9+()\-. xX]+$`)
 
 // phoneProblem is a phone number as typed, or the sentence saying why not.
 func phoneProblem(value string) string {
-	t := strings.TrimSpace(value)
+	t := jsTrim(value)
 	if t == "" {
 		return ""
 	}
@@ -410,13 +427,13 @@ const lockedSignatureLine = "Story-Tail Adventures · Hosted by Inteletravel"
 
 var (
 	crlfRE        = regexp.MustCompile(`\r\n?`)
-	mergeFieldRE  = regexp.MustCompile(`\{\{\s*([^}]*?)\s*\}\}`)
-	agentNameRE   = regexp.MustCompile(`\{\{\s*agent\.name\s*\}\}`)
-	agentPhoneRE  = regexp.MustCompile(`\{\{\s*agent\.phone\s*\}\}`)
-	agentEmailRE  = regexp.MustCompile(`\{\{\s*agent\.email\s*\}\}`)
-	dotRunRE      = regexp.MustCompile(`\s*·\s*(?:·\s*)+`)
-	leadingDotRE  = regexp.MustCompile(`^\s*·\s*`)
-	trailingDotRE = regexp.MustCompile(`\s*·\s*$`)
+	mergeFieldRE  = regexp.MustCompile(`\{\{` + jsSpaceClass + `*([^}]*?)` + jsSpaceClass + `*\}\}`)
+	agentNameRE   = regexp.MustCompile(`\{\{` + jsSpaceClass + `*agent\.name` + jsSpaceClass + `*\}\}`)
+	agentPhoneRE  = regexp.MustCompile(`\{\{` + jsSpaceClass + `*agent\.phone` + jsSpaceClass + `*\}\}`)
+	agentEmailRE  = regexp.MustCompile(`\{\{` + jsSpaceClass + `*agent\.email` + jsSpaceClass + `*\}\}`)
+	dotRunRE      = regexp.MustCompile(jsSpaceClass + `*·` + jsSpaceClass + `*(?:·` + jsSpaceClass + `*)+`)
+	leadingDotRE  = regexp.MustCompile(`^` + jsSpaceClass + `*·` + jsSpaceClass + `*`)
+	trailingDotRE = regexp.MustCompile(jsSpaceClass + `*·` + jsSpaceClass + `*$`)
 )
 
 var signatureTokens = []string{"agent.name", "agent.phone", "agent.email"}
@@ -427,7 +444,7 @@ func normalizeSignature(text string) string {
 	t := crlfRE.ReplaceAllString(text, "\n")
 	lines := strings.Split(t, "\n")
 	for i, l := range lines {
-		lines[i] = strings.TrimRight(l, " \t\v\f\r\u0085 ")
+		lines[i] = jsTrimRight(l)
 	}
 	t = strings.Join(lines, "\n")
 	return strings.Trim(t, "\n")
@@ -453,10 +470,10 @@ func signatureProblem(text string) string {
 // signatureLines is renderSignature in _shared/email.ts: the preview's lines, ending with the
 // blank line and the locked one.
 func signatureLines(text string, name, phone, email string) []string {
-	src := strings.TrimSpace(text)
-	filled := agentNameRE.ReplaceAllLiteralString(src, strings.TrimSpace(name))
-	filled = agentPhoneRE.ReplaceAllLiteralString(filled, strings.TrimSpace(phone))
-	filled = agentEmailRE.ReplaceAllLiteralString(filled, strings.TrimSpace(email))
+	src := jsTrim(text)
+	filled := agentNameRE.ReplaceAllLiteralString(src, jsTrim(name))
+	filled = agentPhoneRE.ReplaceAllLiteralString(filled, jsTrim(phone))
+	filled = agentEmailRE.ReplaceAllLiteralString(filled, jsTrim(email))
 
 	sourceLines := strings.Split(src, "\n")
 	var lines []string
@@ -465,10 +482,10 @@ func signatureLines(text string, name, phone, email string) []string {
 		line := dotRunRE.ReplaceAllString(raw, " · ")
 		line = leadingDotRE.ReplaceAllString(line, "")
 		line = trailingDotRE.ReplaceAllString(line, "")
-		line = strings.TrimRight(line, " \t\v\f\r\u0085 ")
+		line = jsTrimRight(line)
 		// A line that was only merge fields, all of them empty, is dropped rather than left
 		// as a gap in the middle of a signature.
-		if strings.TrimSpace(line) == "" && hadField {
+		if jsTrim(line) == "" && hadField {
 			continue
 		}
 		lines = append(lines, line)
@@ -485,11 +502,11 @@ func signatureLines(text string, name, phone, email string) []string {
 // sends.
 const defaultAutoReply = "Thanks for writing! I'm away resting until {{return_date}} and will answer when I'm back. Your plans are in good hands."
 
-var returnDateRE = regexp.MustCompile(`\{\{\s*return_date\s*\}\}`)
+var returnDateRE = regexp.MustCompile(`\{\{` + jsSpaceClass + `*return_date` + jsSpaceClass + `*\}\}`)
 
 // autoReplyProblem mirrors readAutoReply in _shared/agentSettings.ts.
 func autoReplyProblem(enabled bool, text string) string {
-	t := strings.TrimSpace(text)
+	t := jsTrim(text)
 	if len([]rune(t)) > maxAutoReply {
 		return fmt.Sprintf("An automatic reply can be up to %d characters.", maxAutoReply)
 	}
@@ -506,7 +523,7 @@ func autoReplyProblem(enabled bool, text string) string {
 
 // autoReplyPreview fills {{return_date}} the way the reply will when it sends.
 func autoReplyPreview(text, endsOn string) string {
-	return strings.TrimSpace(returnDateRE.ReplaceAllLiteralString(text, returnDateLabel(endsOn)))
+	return jsTrim(returnDateRE.ReplaceAllLiteralString(text, returnDateLabel(endsOn)))
 }
 
 // initialsOf is "Gyasi Story" → "GS"; the fallback when there is no photo.

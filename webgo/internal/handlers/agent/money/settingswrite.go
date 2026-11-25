@@ -1,6 +1,8 @@
 package money
 
 import (
+	"errors"
+	"mime"
 	"net/http"
 	"net/url"
 	"slices"
@@ -33,12 +35,41 @@ var settingsOps = map[string]string{
 	"update_signature":     "signature",
 }
 
+// maxAvatarPost caps the photo's own form. The prepared JPEG is 400x400, which the Edge
+// Function accepts up to 1 MiB DECODED; base64 is a third larger again, and the multipart
+// wrapper adds a little. web.MaxFormBytes is 64 KiB — right for a form of text fields, and
+// about 46 KB of JPEG once base64 and urlencoding have had their share, which a detailed
+// 400x400 photo passes easily. So the photo posts as multipart with a cap of its own.
+const maxAvatarPost = 2 << 20
+
+// settingsForm reads the posted form. Everything on these four tabs is urlencoded text
+// except the photo, which carries a base64 image and needs a cap web.Form cannot give it.
+func settingsForm(w http.ResponseWriter, r *http.Request) (url.Values, bool) {
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || ct != "multipart/form-data" {
+		return web.Form(w, r)
+	}
+	form, err := web.ParseMultipart(w, r, maxAvatarPost)
+	if err != nil {
+		var formErr *web.FormError
+		status := http.StatusBadRequest
+		if errors.As(err, &formErr) {
+			status = formErr.Status
+		}
+		web.Error(w, status)
+		return nil, false
+	}
+	defer func() { _ = form.RemoveAll() }()
+	// Values only: the photo arrives as a field, not a file, because the browser made it.
+	return url.Values(form.Value), true
+}
+
 func (a *app) saveSettings(w http.ResponseWriter, r *http.Request) {
 	v, done := begin(w, r, a.d)
 	if done {
 		return
 	}
-	form, ok := web.Form(w, r)
+	form, ok := settingsForm(w, r)
 	if !ok {
 		return
 	}

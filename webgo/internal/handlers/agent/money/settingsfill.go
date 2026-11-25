@@ -133,7 +133,10 @@ func fillAvatar(doc *page.Doc, block, img, initials, src, name string) {
 func fillAvailability(doc *page.Doc, s *settingsViewModel, rend settingsRender) {
 	a := s.Availability
 	formError(doc, pick(rend, "availability"))
-	doc.URL("av-form", "action", settingsAction("availability", ""))
+	// WITH THE EDITOR'S BLOCK ON IT. A refused hours save re-renders from this action, and
+	// dropping ?away= would close the time-away editor and take the dates, label and reply
+	// words typed into it with it.
+	doc.URL("av-form", "action", settingsAction("availability", rend.away))
 
 	// A zone that is not on the list (set before §3.12) still shows, so saving never moves
 	// it by accident; the Edge Function asks for one from the list.
@@ -290,6 +293,7 @@ func fillTimeOff(doc *page.Doc, a availabilityView, rend settingsRender) {
 			row.Text("away-meta", strings.Join(meta, " · "))
 			row.Class("away-actions", "mny-away-running", running)
 			row.Keep("away-actions")
+			row.URL("away-end-form", "action", settingsAction("availability", rend.away))
 			row.Attr("away-end-id", "value", b.ID)
 			// A running block can only be ENDED early; an upcoming one can be edited or
 			// removed. Both go through the same write, so the words are what differ.
@@ -409,8 +413,7 @@ func fillNotifications(doc *page.Doc, s *settingsViewModel, rend settingsRender)
 			Push:  rend.draftedBool("clientMessagesPush", n.ClientMessagesPush),
 		},
 		{
-			Label:      "New inquiries and messages",
-			Hint:       "A client asks for a quote, or someone without an account writes to you.",
+			Label: copyQuoteRequests, Hint: copyQuoteRequestsHint,
 			EmailField: "quoteRequestsEmail", PushField: "quoteRequestsPush",
 			Email: rend.draftedBool("quoteRequestsEmail", n.QuoteRequestsEmail),
 			Push:  rend.draftedBool("quoteRequestsPush", n.QuoteRequestsPush),
