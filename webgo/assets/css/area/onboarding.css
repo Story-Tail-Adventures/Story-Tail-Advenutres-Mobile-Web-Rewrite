@@ -151,6 +151,39 @@
   .ob-grid-3 { display: grid; gap: 12px; }
   .ob-relabel { margin-top: 4px; align-self: flex-start; }
 
+  /* 2.1.11's narrow and wide boxes: NARROW (max 384 from md) and WIDE (max 640). */
+  .ob-narrow { margin-top: 12px; }
+  .ob-wide,
+  .ob-loyalty { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── 2.1.12 Companions (CompanionsList.tsx) ────────────────────────────────────────────── */
+  .ob-companions { display: flex; flex-direction: column; gap: 16px; }
+  /* EmptyState: an outlined card on surface.2, centred. */
+  .ob-empty { background: var(--mui-palette-surface-2); padding: 24px 20px; text-align: center; }
+  .ob-empty-title { margin: 0; }
+  .ob-empty-body { margin: 6px auto 16px; max-width: 480px; }
+  .ob-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .ob-companion-content { display: flex; align-items: center; gap: 12px; }
+  .ob-companion-content:last-child { padding-bottom: 16px; }
+  .ob-companion-avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    font-size: 15px;
+    background: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .ob-companion-text { min-width: 0; flex: 1; }
+  .ob-companion-name { margin: 0; }
+  .ob-companion-meta { display: block; margin: 0; }
+  .ob-companion-actions { display: flex; flex-shrink: 0; align-items: center; gap: 4px; }
+  /* The add/edit form: the same flat card the empty state uses. */
+  .ob-form { background: var(--mui-palette-surface-2); padding: 16px; }
+  .ob-form-title { margin: 0; }
+  .ob-form-sub { margin: 4px 0 16px; }
+  .ob-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .ob-unfinished { margin: 16px 0 0; }
+
   /* OnboardingActions: below md a sticky bar with its own surface, bleeding into the
      column's 20px gutters so the form scrolls under it. */
   .ob-actions {
@@ -168,6 +201,71 @@
   .ob-back { text-decoration: none; }
   .ob-skip { align-self: center; }
 
+  /* A card that is a list item or a form keeps the card box without the list marker. */
+  .ob-companion { display: block; }
+
+  /* ── 2.1.13 Connect (connect/page.tsx): alert, then the code field ─────────────────────── */
+  .ob-connect { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── 2.1.14 Complete (complete/page.tsx): a centred column, no rail ────────────────────── */
+  .ob-complete {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: 32px 20px;
+  }
+  .ob-complete-inner { width: 100%; max-width: 640px; }
+  /* The success badge, as C2114 draws it: a 96px avatar on the success container. */
+  .ob-badge {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 16px;
+    background: var(--mui-palette-success-container);
+    color: var(--mui-palette-success-main);
+    box-shadow: var(--mui-shadows-2);
+  }
+  .ob-complete-title {
+    margin: 4px 0 6px;
+    color: var(--mui-palette-text-primary);
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+  }
+  .ob-complete-sub { margin: 0; font-size: 14px; }
+  .ob-complete-body { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+  .ob-checklist-heading { margin: 0 0 8px; }
+  .ob-checklist { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .ob-check { display: flex; align-items: center; gap: 10px; }
+  .ob-check-mark {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    background: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+  .ob-check-mark.is-done { background: var(--mui-palette-success-main); color: var(--mui-palette-common-white); }
+  .ob-next-cards { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .ob-next-card {
+    display: block;
+    height: 100%;
+    padding: 14px;
+    color: var(--mui-palette-text-primary);
+    text-decoration: none;
+  }
+  .ob-next-card-primary {
+    background: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+  }
+  .ob-next-icon { display: inline-flex; color: inherit; }
+  .ob-next-icon-plain { color: var(--mui-palette-primary-main); }
+  .ob-next-title { display: block; margin-top: 8px; color: inherit; }
+  .ob-next-sub { display: block; color: inherit; opacity: 0.8; }
+  .ob-complete-actions { display: flex; flex-direction: column; gap: 12px; }
+  .ob-complete-form { display: flex; flex-direction: column; }
+
   @media (min-width: 768px) {
     .ob-hero { height: 200px; }
     .ob-hero-copy { padding: 32px 48px; }
@@ -184,6 +282,13 @@
     .ob-sub { margin-bottom: 20px; font-size: 16px; line-height: 1.5; }
     .ob-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ob-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ob-narrow { max-width: 384px; }
+    .ob-wide { max-width: 640px; }
+    .ob-complete { padding: 32px; }
+    .ob-complete-title { font-size: 36px; line-height: 1.1; letter-spacing: -0.6px; }
+    .ob-complete-sub { font-size: 16px; }
+    .ob-next-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ob-complete-form { align-items: flex-start; }
     .ob-span-row { grid-column: 1 / -1; }
     /* From md it is an ordinary row at the end of the page, primary on the right. */
     .ob-actions {

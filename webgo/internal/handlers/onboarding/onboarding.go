@@ -46,11 +46,9 @@ import (
 )
 
 // Specs declares every page this area fills. The server loads them with the rest at startup.
-//
-// The four screens between the cover page and the summary are built in order, one PR each;
-// 2.1.11, 2.1.12, 2.1.13 and 2.1.14 are not here yet, so their routes are still 404 and the
-// wizard's rail links only as far as what exists.
-var Specs = []page.Spec{welcomeSpec, profileSpec}
+var Specs = []page.Spec{
+	welcomeSpec, profileSpec, preferencesSpec, companionsSpec, connectSpec, completeSpec,
+}
 
 // area is the wizard's shared state.
 type area struct {
@@ -65,7 +63,9 @@ type area struct {
 // missing page stops the boot.
 func Mount(rt *gate.Router, d handlers.Deps) error {
 	a := &area{Deps: d, off: d.Config.AuthChecksDisabledForLocalDev(), now: time.Now}
-	for _, mount := range []func(*gate.Router) error{a.mountWelcome, a.mountProfile} {
+	for _, mount := range []func(*gate.Router) error{a.mountWelcome, a.mountProfile, a.mountPreferences,
+		a.mountCompanions, a.mountConnect, a.mountComplete,
+	} {
 		if err := mount(rt); err != nil {
 			return err
 		}
