@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"html"
 	"io"
 	"log/slog"
@@ -132,10 +133,7 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		send(200, []any{row})
 		return
 	case strings.HasPrefix(r.URL.Path, "/rest/v1/"):
-		rows := f.tables[strings.TrimPrefix(r.URL.Path, "/rest/v1/")]
-		if rows == nil {
-			rows = []map[string]any{}
-		}
+		rows := matching(f.tables[strings.TrimPrefix(r.URL.Path, "/rest/v1/")], r.URL.Query())
 		send(200, rows)
 		return
 	case strings.HasPrefix(r.URL.Path, "/functions/v1/"):
@@ -151,6 +149,49 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // seen returns the recorded calls to "METHOD /path".
+// matching applies the PostgREST filters these tests depend on: col=eq.value and
+// col=neq.value, repeated params included. Without them
+// the fake answers every single-row lookup with the whole table, so a MaybeOne over two
+// seeded rows fails with "more than one row" — and, worse, a handler that forgot its filter
+// would pass. Anything it does not understand (select, order, limit) is left alone.
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			got, present := row[key]
+			if !present {
+				// A column the fixture does not carry is not modelled, so it does not
+				// filter. Where it IS carried the filter bites, which is what stops a
+				// single-row lookup coming back with the whole table.
+				continue
+			}
+			// EVERY value for the key, not just the first: PostgREST takes repeated params
+			// as an AND, which is how a query excludes both paid and waived milestones.
+			for _, filter := range values {
+				switch {
+				case strings.HasPrefix(filter, "eq."):
+					if fmt.Sprint(got) != strings.TrimPrefix(filter, "eq.") {
+						keep = false
+					}
+				case strings.HasPrefix(filter, "neq."):
+					if fmt.Sprint(got) == strings.TrimPrefix(filter, "neq.") {
+						keep = false
+					}
+				}
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
 func (f *fake) seen(route string) []call {
 	f.mu.Lock()
 	defer f.mu.Unlock()
