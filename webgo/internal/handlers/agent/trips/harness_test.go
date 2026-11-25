@@ -41,13 +41,14 @@ type fakeSupabase struct {
 	aal       string // the access token's aal claim
 	hasFactor bool
 	reads     map[string]reply // rpc name -> reply
+	tripScope string           // the trip the fixtures are for; see the p_trip_id check below
 	functions map[string][]reply
 	readLog   []recorded
 	callLog   []recorded
 }
 
 func newFake() *fakeSupabase {
-	return &fakeSupabase{role: "agent", aal: "aal2", hasFactor: true,
+	return &fakeSupabase{role: "agent", aal: "aal2", hasFactor: true, tripScope: tripID,
 		reads: map[string]reply{}, functions: map[string][]reply{}}
 }
 
@@ -97,6 +98,17 @@ func (f *fakeSupabase) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			w.WriteHeader(500)
 			_, _ = w.Write([]byte(`{"code":"XX000","message":"no fake for ` + name + `"}`))
+			return
+		}
+		// Scope the answer the way the SECURITY DEFINER read does, so a handler that asked
+		// for the wrong trip gets nothing instead of the fixture. Without this the fake
+		// answers by RPC name alone, and a read that lost its trip id would still pass.
+		// A read that names no trip is left alone, so this cannot invalidate a fixture
+		// written before it existed. (The same hole on a filtered TABLE read is the
+		// `col=eq.value` one in fake-ignores-filters.md, in the shared notes.)
+		if raw, named := body["p_trip_id"]; named && string(raw) != `"`+f.tripScope+`"` {
+			w.WriteHeader(rp.status)
+			_, _ = w.Write([]byte(`[]`))
 			return
 		}
 		w.WriteHeader(rp.status)
