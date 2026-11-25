@@ -76,7 +76,7 @@ func readForm(t *testing.T, body, slot string) browserForm {
 					// Only the clicked one is sent; the caller names it.
 				case kind == "checkbox", kind == "radio":
 					if hasAttr(n, "checked") {
-						out.fields.Add(name, cmpOr(attr(n, "value"), "on"))
+						out.fields.Add(name, valueOr(n, "on"))
 					}
 				default:
 					out.fields.Add(name, attr(n, "value"))
@@ -90,7 +90,7 @@ func readForm(t *testing.T, body, slot string) browserForm {
 					if opt := findNode(n, func(o *html.Node) bool {
 						return o.Data == "option" && hasAttr(o, "selected")
 					}); opt != nil {
-						out.fields.Add(name, cmpOr(attr(opt, "value"), textOf(opt)))
+						out.fields.Add(name, valueOr(opt, textOf(opt)))
 					}
 				}
 			case "button":
@@ -169,6 +169,20 @@ func (f browserForm) submitNamed(t *testing.T, value string) submitButton {
 	return submitButton{}
 }
 
+// valueOr is the value a control posts: its `value` attribute when it HAS one, even when
+// that is empty, and the fallback only when the attribute is absent entirely.
+//
+// The difference is not pedantic. `<option value="">` is how a "none" choice is written, and
+// a checkbox can legitimately carry `value=""`. Falling back on emptiness posts the option's
+// visible TEXT, or the string "on", neither of which a browser would ever send — and that
+// surfaces as a test failure that reads like a defect in the page.
+func valueOr(n *html.Node, fallback string) string {
+	if hasAttr(n, "value") {
+		return attr(n, "value")
+	}
+	return fallback
+}
+
 func attr(n *html.Node, key string) string {
 	for _, a := range n.Attr {
 		if a.Key == key {
@@ -236,6 +250,29 @@ func TestReadFormHandlesBothFormStyles(t *testing.T) {
 		want := url.Values{"op": {"save"}, "title": {"Hi"}, "body": {"words"}, "cat": {"b"}, "flag": {"true"}}
 		if got := f.fields.Encode(); got != want.Encode() {
 			t.Errorf("fields = %s, want %s", got, want.Encode())
+		}
+	})
+
+	t.Run("an empty value attribute is a value, not an absent one", func(t *testing.T) {
+		// `<option value="">` is how "none" is written, and a browser posts the empty
+		// string. Falling back on emptiness would post the option's visible text.
+		g := readForm(t, `<form data-slot="f" action="/go">
+			<select name="when"><option value="" selected>Any time</option><option value="jan">January</option></select>
+			<input type="checkbox" name="box" value="" checked>
+			<input type="checkbox" name="plain" checked>
+		</form>`, "f")
+		if got := g.fields.Get("when"); got != "" {
+			t.Errorf("select with value=\"\" posted %q, want the empty string", got)
+		}
+		if _, ok := g.fields["when"]; !ok {
+			t.Error("the select posted nothing at all")
+		}
+		if got := g.fields.Get("box"); got != "" {
+			t.Errorf("checkbox with value=\"\" posted %q, want the empty string", got)
+		}
+		// A checkbox with NO value attribute is the one that posts "on".
+		if got := g.fields.Get("plain"); got != "on" {
+			t.Errorf("checkbox with no value posted %q, want \"on\"", got)
 		}
 	})
 
