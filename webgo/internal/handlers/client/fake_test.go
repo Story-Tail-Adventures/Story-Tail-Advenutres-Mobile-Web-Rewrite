@@ -48,10 +48,34 @@ type fake struct {
 	failing map[string]bool
 	// role and the wizard's state, for the shell's gate.
 	role, step, completedAt string
+	// fn answers one function with a status and a body; anything else answers {"ok":true}.
+	fn map[string]struct {
+		status int
+		body   any
+	}
+	// base is the fake's own URL, which is also the Supabase URL the server is configured
+	// with — so a storage redirect can be checked against it.
+	base string
 }
 
 func newFake() *fake {
-	return &fake{tables: map[string][]map[string]any{}, failing: map[string]bool{}, role: "client"}
+	return &fake{
+		tables: map[string][]map[string]any{}, failing: map[string]bool{}, role: "client",
+		fn: map[string]struct {
+			status int
+			body   any
+		}{},
+	}
+}
+
+// fnReply makes one function answer with this status and body.
+func (f *fake) fnReply(name string, status int, body any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.fn[name] = struct {
+		status int
+		body   any
+	}{status, body}
 }
 
 func (f *fake) rows(table string, rows ...map[string]any) {
@@ -124,6 +148,10 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		send(200, rows)
 		return
 	case strings.HasPrefix(r.URL.Path, "/functions/v1/"):
+		if rep, ok := f.fn[strings.TrimPrefix(r.URL.Path, "/functions/v1/")]; ok {
+			send(rep.status, rep.body)
+			return
+		}
 		send(200, map[string]any{"ok": true})
 		return
 	}
@@ -176,6 +204,7 @@ func newHarness(t *testing.T) *harness {
 	f := newFake()
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
+	f.base = srv.URL
 	cfg := config.Config{
 		Env: config.Development, Port: "8080", SiteURL: "http://localhost:8080",
 		SupabaseURL: srv.URL, SupabaseAnonKey: "anon", InquiryEmail: "gyasi@example.com",
