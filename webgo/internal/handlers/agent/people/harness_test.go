@@ -245,11 +245,54 @@ func (f *fakeSupa) inScope(body []byte) bool {
 		if !present || got == nil {
 			continue
 		}
-		if fmt.Sprint(got) != want {
+		// Only a scalar string is an equality on an id. This area also passes list
+		// arguments — p_status and p_tags on the client roster — and fmt.Sprint turns
+		// ["booked","received"] into "[booked received]", which matches no id and would
+		// report a correct read out of scope. The money session hit exactly that.
+		text, isString := got.(string)
+		if !isString {
+			continue
+		}
+		if text != want {
 			return false
 		}
 	}
 	return true
+}
+
+// inScope's own rules, written here because no handler in this area exercises the last two
+// yet and an unexercised rule in a double is how the gap it closes comes back.
+func TestInScopeRules(t *testing.T) {
+	f := newFake()
+	f.scoped = map[string]string{"p_conversation_id": convID}
+	for _, c := range []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"the record these fixtures are for", `{"p_conversation_id":"` + convID + `"}`, true},
+		{"somebody else's record", `{"p_conversation_id":"0195a2c0-1a00-7000-8000-00000000dead"}`, false},
+		// A read that names none of the scoped arguments is not scoped by them.
+		{"an argument that is not there", `{"p_client_id":"c-imani"}`, true},
+		// Optional arguments are legitimately null on most reads here.
+		{"an argument that is null", `{"p_conversation_id":null}`, true},
+		// The one money hit: fmt.Sprint turns a list into "[booked received]", which matches
+		// no id. p_status and p_tags on the client roster are both lists.
+		{"a list argument is not an equality", `{"p_conversation_id":["booked","received"]}`, true},
+		{"a number is not an equality either", `{"p_conversation_id":42}`, true},
+		{"a body that is not an object at all", `"nonsense"`, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := f.inScope([]byte(c.body)); got != c.want {
+				t.Errorf("inScope(%s) = %v, want %v", c.body, got, c.want)
+			}
+		})
+	}
+
+	// With nothing declared, a world scopes nothing.
+	if !newFake().inScope([]byte(`{"p_conversation_id":"anything"}`)) {
+		t.Error("an unscoped world refused a read")
+	}
 }
 
 // scope says which record this world's fixtures belong to. Call it for every id argument the
