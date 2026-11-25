@@ -27,7 +27,11 @@ import (
 )
 
 // Specs declares every page this sub-area fills (files under pages/agent/money/).
-var Specs = []page.Spec{dashboardSpec, ledgerSpec, forecastSpec, lineSpec, addSpec, importSpec, statementSpec, resolveSpec}
+var Specs = []page.Spec{
+	dashboardSpec, ledgerSpec, forecastSpec, lineSpec, addSpec, importSpec, statementSpec, resolveSpec,
+	reportsHubSpec, revenueSpec, suppliersSpec, destinationsSpec, clientsSpec, funnelSpec, pipelineSpec,
+	exportCenterSpec, leadsSpec,
+}
 
 // app is this sub-area's handlers and the templates they fill.
 type app struct {
@@ -41,6 +45,16 @@ type app struct {
 	importPage    *page.Template
 	statementPage *page.Template
 	resolvePage   *page.Template
+	// §3.11's nine: the hub and the eight reports.
+	reportsHub   *page.Template
+	revenue      *page.Template
+	suppliers    *page.Template
+	destinations *page.Template
+	clientValue  *page.Template
+	funnel       *page.Template
+	pipeline     *page.Template
+	exportCenter *page.Template
+	leads        *page.Template
 }
 
 // Mount registers this sub-area's routes. Take templates from d.Pages here, so a missing
@@ -59,6 +73,15 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 		{importSpec, &a.importPage},
 		{statementSpec, &a.statementPage},
 		{resolveSpec, &a.resolvePage},
+		{reportsHubSpec, &a.reportsHub},
+		{revenueSpec, &a.revenue},
+		{suppliersSpec, &a.suppliers},
+		{destinationsSpec, &a.destinations},
+		{clientsSpec, &a.clientValue},
+		{funnelSpec, &a.funnel},
+		{pipelineSpec, &a.pipeline},
+		{exportCenterSpec, &a.exportCenter},
+		{leadsSpec, &a.leads},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -85,5 +108,22 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/commission/import/{importId}", http.HandlerFunc(a.saveStatement))
 	rt.Protected("GET /agent/commission/import/{importId}/rows/{rowId}", http.HandlerFunc(a.serveResolve))
 	rt.Protected("POST /agent/commission/import/{importId}/rows/{rowId}", http.HandlerFunc(a.resolveRow))
+
+	// §3.11 Reporting. `/download` is the audited CSV; `/export` is the Export Center page,
+	// so the two never collide.
+	rt.Protected("GET /agent/reports", http.HandlerFunc(a.serveReportsHub))
+	rt.Protected("GET /agent/reports/download", http.HandlerFunc(a.serveReportDownload))
+	// More specific than the GET pattern, which would otherwise answer a HEAD by running
+	// it: an audited export with the body thrown away.
+	rt.Protected("HEAD /agent/reports/download", http.HandlerFunc(serveExportHead))
+	rt.Protected("GET /agent/reports/revenue", http.HandlerFunc(a.serveRevenue))
+	rt.Protected("GET /agent/reports/suppliers", http.HandlerFunc(a.serveSuppliers))
+	rt.Protected("GET /agent/reports/destinations", http.HandlerFunc(a.serveDestinations))
+	rt.Protected("GET /agent/reports/clients", http.HandlerFunc(a.serveClientValue))
+	rt.Protected("GET /agent/reports/funnel", http.HandlerFunc(a.serveFunnel))
+	rt.Protected("GET /agent/reports/pipeline", http.HandlerFunc(a.servePipeline))
+	rt.Protected("POST /agent/reports/pipeline", http.HandlerFunc(a.savePipelineWeights))
+	rt.Protected("GET /agent/reports/export", http.HandlerFunc(a.serveExportCenter))
+	rt.Protected("GET /agent/reports/leads", http.HandlerFunc(a.serveLeadSources))
 	return nil
 }

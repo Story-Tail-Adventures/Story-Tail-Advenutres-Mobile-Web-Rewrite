@@ -184,3 +184,72 @@ func TestModuleHandlesExistInThePages(t *testing.T) {
 		}
 	}
 }
+
+// §3.11.8's module has the same silent failure mode: it finds the form's parts by id and by
+// data attribute, and a handle dropped from the page file breaks the enhancement with
+// nothing to show for it — querySelector answers null, no listener is attached, and the page
+// still renders. So every selector the module reaches for is read out of the module itself
+// and checked against the page that has to provide it.
+func TestExportCenterModuleHandlesExistInThePage(t *testing.T) {
+	b, err := fs.ReadFile(assets.FS, "js/agent/money/export-center.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	exportPage := string(mustPage(t, "agent/money/reports-export.html"))
+
+	var selectors []string
+	rest := src
+	for {
+		i := strings.Index(rest, `querySelector`)
+		if i < 0 {
+			break
+		}
+		rest = rest[i+len(`querySelector`):]
+		j := strings.Index(rest, `"`)
+		if j < 0 {
+			break
+		}
+		rest = rest[j+1:]
+		k := strings.Index(rest, `"`)
+		if k < 0 {
+			break
+		}
+		selectors = append(selectors, rest[:k])
+	}
+	if len(selectors) < 6 {
+		t.Fatalf("only found %d selectors in the module; the scan is wrong", len(selectors))
+	}
+	for _, sel := range selectors {
+		var want string
+		switch {
+		case strings.HasPrefix(sel, "#"):
+			want = `id="` + sel[1:] + `"`
+		case strings.HasPrefix(sel, "."):
+			want = `class="` + sel[1:]
+		case strings.HasPrefix(sel, "["):
+			want = strings.Trim(sel, "[]")
+		default:
+			continue // a tag selector (input[type=checkbox]) the page is free to shape
+		}
+		if !strings.Contains(exportPage, want) {
+			t.Errorf("export-center.js looks for %q, and reports-export.html has no %s", sel, want)
+		}
+	}
+
+	// It shows and hides; it never exports by itself. The form's own GET is the download.
+	for _, forbidden := range []string{"fetch(", "XMLHttpRequest", ".submit()", "location ="} {
+		if strings.Contains(src, forbidden) {
+			t.Errorf("export-center.js uses %q; it only shows and hides", forbidden)
+		}
+	}
+	// A hidden field must also be DISABLED, or the browser sends it and the download URL
+	// claims an export nobody asked for.
+	if !strings.Contains(src, "field.disabled = !shown") {
+		t.Error("export-center.js hides fields without disabling them")
+	}
+	// The page carries the module, inside <main> so the layout picks it up and hashes it.
+	if !strings.Contains(exportPage, `src="/assets/js/agent/money/export-center.js"`) {
+		t.Error("reports-export.html does not load its module")
+	}
+}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.2, Revenue by Month. Ports app/(agent)/agent/reports/revenue/page.tsx with
+  RevenueChart. Filled by internal/handlers/agent/money (reportpages.go).
+
+  TWO VIEWS, ONE TOGGLE: "Booked value" is gross trip value by the month a trip was first
+  booked; "Commission received" is ledger money by the day it arrived, the tax-prep figure.
+  Both toggles are LINKS, so the state is in the URL and the back button works.
+
+  BOXES, NOT A CHART LIBRARY (§3.11's ruling). Each bar's height is a data-h attribute
+  money.css has a rule for, because the CSP allows no inline style; the bars are
+  aria-hidden and the table under them carries every figure.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Revenue by month · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Revenue by month</h1>
+          <p class="type-body2 text-secondary mny-sub">Booked value or commission received, month by month.</p>
+          <p class="type-caption text-secondary mny-block mny-mt-0_5" data-slot="rpt-window">Jan 1 to Oct 21, 2026</p>
+        </div>
+        <div class="mny-rpt-actions">
+          <nav class="mny-views" aria-label="Period">
+            <a class="chip mny-view" href="/agent/reports/revenue" data-repeat="chip" data-slot="chip-link"><span class="chip-label" data-slot="chip-label">Year to date</span></a>
+          </nav>
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/reports/download?report=revenue" data-slot="rpt-export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/revenue" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="mny-rpt-controls">
+          <nav class="mny-views" aria-label="Show">
+            <a class="chip mny-view" href="/agent/reports/revenue" data-slot="basis-booked"><span class="chip-label">Booked value</span></a>
+            <a class="chip mny-view" href="/agent/reports/revenue?basis=received" data-slot="basis-received"><span class="chip-label">Commission received</span></a>
+          </nav>
+          <a class="link link-hover fw-600 mny-rpt-compare" href="/agent/reports/revenue?compare=1" data-slot="compare-link"><span data-slot="compare-text">Compare with last year</span></a>
+        </div>
+
+        <section class="card">
+          <div class="card-content mny-trend-body">
+            <div class="mny-trend-head">
+              <div class="mny-block">
+                <p class="type-h3 mny-rpt-total" data-slot="rev-total">$48,210</p>
+                <p class="type-body2 text-secondary" data-slot="rev-total-caption">Total · Year to date</p>
+              </div>
+              <span class="chip chip-outlined mny-trend-chip" data-slot="rev-change"><span class="chip-label">+22% vs last year</span></span>
+            </div>
+            <p class="type-body2 text-secondary mny-trend-empty" data-slot="rev-empty">Nothing booked in this period yet.</p>
+            <div class="mny-rpt-legend" aria-hidden="true" data-slot="rev-legend">
+              <span class="mny-swatch"><span class="mny-dot mny-dot-primary"></span><span class="type-caption">This year</span></span>
+              <span class="mny-swatch"><span class="mny-dot mny-dot-prior"></span><span class="type-caption">Last year</span></span>
+            </div>
+            <div class="mny-bars" aria-hidden="true">
+              <div class="mny-bar-col" title="October 2026: $6,120" data-repeat="rev-bar" data-slot="rev-col">
+                <span class="mny-bar-area"><span class="mny-bar mny-bar-prior" data-h="40" data-slot="rev-prior-bar"></span><span class="mny-bar" data-h="60" data-slot="rev-bar"></span></span>
+                <span class="type-caption text-secondary" data-slot="rev-bar-label">Oct</span>
+              </div>
+            </div>
+            <div class="mny-table-card mny-mt-2">
+              <table class="table table-small" aria-label="Revenue by month">
+                <thead>
+                  <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col" class="cell-num" data-slot="rev-col-amount">Booked value</th>
+                    <th scope="col" class="cell-num" data-slot="rev-col-count">Trips</th>
+                    <th scope="col" class="cell-num" data-slot="rev-col-prior">Same month last year</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-repeat="rev-row">
+                    <th scope="row" data-slot="rev-row-month">October 2026</th>
+                    <td class="cell-num mny-td-mono" data-slot="rev-row-amount">$6,120</td>
+                    <td class="cell-num mny-td-mono" data-slot="rev-row-count">4</td>
+                    <td class="cell-num mny-td-mono mny-td-muted" data-slot="rev-row-prior">$5,010</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note" data-slot="rev-note">Each trip counts once, in the month it was first booked. Cancelled trips, and trips that went back to an earlier stage, are left out.</p>
+        <p class="type-caption text-secondary mny-block mny-rpt-note" data-slot="rev-tracking">Tracking began Sep 19, 2026, so bookings before then don't show here.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

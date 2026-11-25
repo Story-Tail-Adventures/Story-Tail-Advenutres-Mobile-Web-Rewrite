@@ -550,3 +550,167 @@
   .mny-confirm-brand { color: var(--mui-palette-primary-main); border-color: var(--mui-palette-primary-main); }
   .mny-confirm[open] > .mny-confirm-summary { margin-bottom: 4px; }
 }
+
+/* ── §3.11 Reporting ─────────────────────────────────────────────────────────────────────
+   Every rule is the Next page's own sx, read off app/(agent)/agent/reports/ and
+   components/agent/reports/. The data-driven sizes reuse .mny-bar[data-h] and
+   .mny-meter-fill[data-w] above: the CSP allows no inline style, so money.css carries one
+   rule per whole percent and a handler only ever writes the attribute. .mny-meter-fill is
+   the width primitive here — a report bar wears it for its width and its own class for
+   everything else. */
+@layer components {
+  /* The shell: back link, header, then the chips and Export on the right. */
+  .mny-back { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; }
+  @media (pointer: coarse) { .mny-back { min-height: 44px; } }
+  .mny-rpt-head { margin-top: 12px; }
+  .mny-rpt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .mny-rpt-controls { margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .mny-rpt-compare { margin-left: auto; }
+  .mny-rpt-note { margin-top: 10px; max-width: 760px; }
+
+  /* 3.11.1 Hub: one column on a phone, two on a tablet, the artboard's four on the web. */
+  .mny-tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .mny-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1200px) { .mny-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .mny-tile { list-style: none; min-width: 0; }
+  .mny-tile-link {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    height: 100%;
+    padding: 16px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .mny-tile-link:hover { background-color: var(--mui-palette-action-hover); }
+  .mny-tile-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background-color: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+  .mny-tile-title { margin: 10px 0 0; line-height: 1.3; }
+
+  /* 3.11.2 Revenue: the trend chart's own bars, with last year's beside this year's on one
+     scale so the pair compares honestly. */
+  .mny-rpt-total { margin: 0; font-family: var(--font-mono); font-weight: 700; }
+  .mny-bar-paired { width: 34%; }
+  .mny-bar-prior { width: 34%; background-color: var(--mui-palette-outline-variant); }
+  .mny-bar-area { gap: 2px; }
+
+  .mny-rpt-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; color: var(--mui-palette-text-secondary); }
+  .mny-rpt-legend-pad { padding: 10px 16px; margin-bottom: 0; }
+  .mny-swatch { display: inline-flex; align-items: center; gap: 6px; }
+  .mny-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+  .mny-dot-primary { background-color: var(--mui-palette-primary-main); }
+  .mny-dot-prior { background-color: var(--mui-palette-outline-variant); }
+  .mny-dot-container { background-color: var(--mui-palette-primary-container); }
+  .mny-dot-clients { background-color: var(--mui-palette-success-main); }
+  .mny-dot-closed { background-color: var(--mui-palette-outline-main); }
+
+  /* 3.11.3 / 3.11.4: ranked tables where the table IS the chart — each row's bar sits under
+     its own name, so the figures and the picture read in order. */
+  .mny-rpt-name { min-width: 200px; }
+  .mny-rpt-track { margin-top: 6px; height: 6px; border-radius: 3px; }
+  .mny-rpt-share { background-color: var(--mui-palette-primary-container); }
+  .mny-rpt-received { background-color: var(--mui-palette-primary-main); }
+  .mny-rpt-dest { background-color: var(--mui-palette-tertiary-main); }
+  .mny-rpt-bar-quiet { background-color: var(--mui-palette-outline-main); }
+  .mny-rpt-unnamed { font-style: italic; color: var(--mui-palette-text-secondary); }
+  .mny-rpt-foot { font-weight: 700; color: var(--mui-palette-text-primary); border-bottom: 0; }
+
+  /* 3.11.5 */
+  .mny-rpt-rank { width: 56px; }
+  .mny-rpt-client { min-width: 180px; }
+
+  /* 3.11.6 Funnel: a labelled bar per stage, never narrower than the words inside it. */
+  .mny-fun-body,
+  .mny-fun-body:last-child { padding: 16px; }
+  @media (min-width: 768px) {
+    .mny-fun-body,
+    .mny-fun-body:last-child { padding: 28px; }
+  }
+  .mny-fun-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+  .mny-fun-name { flex: 0 0 76px; }
+  @media (min-width: 640px) { .mny-fun-name { flex-basis: 110px; } }
+  .mny-fun-track { flex: 1; min-width: 0; }
+  .mny-fun-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    min-width: max-content;
+    max-width: 100%;
+  }
+  .mny-fun-count { white-space: nowrap; color: inherit; }
+  .mny-fun-pct { font-weight: 600; opacity: 0.85; color: inherit; }
+  .mny-fun-first { background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .mny-fun-mid { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .mny-fun-last { background-color: var(--mui-palette-success-container); color: var(--mui-palette-text-primary); }
+  .mny-fun-none { background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-secondary); }
+  .mny-fun-stopped { display: none; flex: 0 0 190px; text-align: right; }
+  @media (min-width: 640px) { .mny-fun-stopped { display: block; } }
+  .mny-fun-days { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--mui-palette-divider); }
+
+  /* 3.11.7 Pipeline: two tiles, then the shared weights card and the months. */
+  .mny-pip-tiles { display: grid; gap: 12px; margin-bottom: 14px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .mny-pip-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .mny-pip-tile,
+  .mny-pip-tile:last-child { padding: 16px; }
+  .mny-pip-value { margin: 0; font-family: var(--font-mono); font-weight: 700; }
+  .mny-pip-accent { color: var(--mui-palette-primary-main); }
+  .mny-pip-table td,
+  .mny-pip-table th { border-bottom: 0; padding: 4px 6px; }
+  .mny-pip-month { white-space: nowrap; font-weight: 600; }
+  .mny-pip-bar-cell { width: 100%; }
+  .mny-pip-extra { font-style: italic; white-space: normal; color: var(--mui-palette-text-secondary); }
+
+  /* 3.11.8 Export center. */
+  .mny-exp-grid { display: grid; gap: 14px; align-items: start; max-width: 1080px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) { .mny-exp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .mny-exp-form { margin-top: 12px; }
+  .mny-exp-dates { margin-top: 10px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .mny-exp-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .mny-exp-hints { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+  .mny-exp-contact { margin-top: 10px; }
+  .mny-exp-check { display: flex; align-items: flex-start; gap: 8px; }
+  .mny-exp-contact-hint { display: block; padding-left: 24px; }
+  .mny-exp-submit { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .mny-exp-list { list-style: none; margin: 8px 0 0; padding: 0; }
+  .mny-exp-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--mui-palette-divider); }
+  .mny-exp-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 34px;
+    border-radius: 4px;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .mny-exp-text { flex: 1; min-width: 0; }
+  .mny-exp-again { flex-shrink: 0; gap: 4px; }
+
+  /* 3.11.9 Lead sources: one bar per source, in three segments. */
+  .mny-lead-bars { display: grid; gap: 8px; }
+  .mny-lead-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
+  .mny-lead-name { min-width: 0; }
+  .mny-lead-track { display: flex; height: 14px; border-radius: 4px; overflow: hidden; background-color: var(--mui-palette-surface-2); }
+  .mny-lead-seg { border-radius: 0; flex: 0 0 auto; }
+  .mny-lead-clients { background-color: var(--mui-palette-success-main); }
+  .mny-lead-open { background-color: var(--mui-palette-primary-main); }
+  .mny-lead-closed { background-color: var(--mui-palette-outline-main); }
+  .mny-lead-count { text-align: right; }
+  .mny-lead-campaign { overflow-wrap: anywhere; }
+}

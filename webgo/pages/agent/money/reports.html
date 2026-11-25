@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.1, the Reports hub. Ports app/(agent)/agent/reports/page.tsx. Filled by
+  internal/handlers/agent/money (reports.go), which has nothing to fill but the frame:
+  all eight reports are built, so BUILT_REPORTS covers every tile and "On its way" never
+  shows.
+
+  NO FAVORITES OR RECENT (§3.11, ruled 2026-10-21): one advisor and eight tiles do not need
+  a table to star them. The artboard's "Time-to-book" tile has no screen of its own —
+  average days to book is on the Funnel.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Reports · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <header class="mny-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Reports</h1>
+          <p class="type-body2 text-secondary mny-sub">Snapshot of the business. All exportable.</p>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <ul class="mny-tiles">
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/revenue">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#chart"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Revenue by month</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">Booked value or commission received</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/suppliers">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#dollar"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Commission by supplier</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">Who's paid, and who still owes</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/destinations">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#pin"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Top destinations</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">Where your travelers are headed</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/clients">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Client lifetime value</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">Clients ranked by what they've booked</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/funnel">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#pulse"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Conversion funnel</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">Inquiry to traveled, and days to book</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/pipeline">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Pipeline value</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">What's open, weighted by stage</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/export">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Export center</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">CSV files for tax prep and the books</span>
+            </a>
+          </li>
+          <li class="mny-tile">
+            <a class="card mny-tile-link" href="/agent/reports/leads">
+              <span class="mny-tile-icon" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#inbox"></use></svg></span>
+              <h2 class="type-subtitle1 mny-tile-title">Lead sources</h2>
+              <span class="type-caption text-secondary mny-block mny-mt-0_5">Where leads come from, and who became a client</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
