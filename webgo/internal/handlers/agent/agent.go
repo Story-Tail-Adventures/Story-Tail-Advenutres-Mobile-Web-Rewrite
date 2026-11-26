@@ -1,24 +1,38 @@
-// Package agent serves the advisor's workspace: Screen Inventory §3 (worklist, pipeline, calendar, clients, trips, leads, messages, templates, commission, reports, settings, the CSV exports). Docs/GO-MIGRATION.md Phase 5.
+// Package agent serves the advisor's workspace: Screen Inventory §3. Docs/GO-MIGRATION.md
+// Phase 5.
 //
-// Mount with rt.Protected. Before rendering, port the (agent) layout's checks: shell.LoadStatus and shell.AgentDecision (a null status or a client goes to /dashboard), then shell.AgentMFARedirect(st.AAL2, st.HasFactor), then the initials from platform_user.display_name (shell.AgentInitials). Layout: shell.Agent, filled with shell.FillAgent. Render with web.Private.
+// It is built by three sessions at once, so it is split into sub-areas, each its own
+// package with its own pages folder and stylesheet, and this file only joins them:
 //
-// This package is the whole of the area's Go: add each page's page.Spec to Specs and its
-// routes to Mount. Pages live in webgo/pages/agent/, page-only styles in
-// webgo/assets/css/area/agent.css. Nothing outside those three places needs an edit.
+//   - people: worklist home, calendar, clients, leads, messages and message templates
+//   - trips:  trips (detail tabs, builder, itinerary, payments), pipeline, trip templates
+//   - money:  commission, reports, settings, and the two CSV routes
+//
+// Every sub-area reads through agentread (the one door over the 67 named reads) and
+// renders with the agent layout (shell.Agent / shell.FillAgent). A sub-area never edits
+// another's files or this one.
 package agent
 
 import (
+	"slices"
+
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent/money"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent/people"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent/trips"
 )
 
-// Specs declares every page this area fills. The server loads them with the rest at startup.
-var Specs = []page.Spec{}
+// Specs declares every page the agent area fills: the three sub-areas' pages together. The
+// server loads them with the rest at startup.
+var Specs = slices.Concat(people.Specs, trips.Specs, money.Specs)
 
-// Mount registers this area's routes. It runs once at startup; take templates from
-// d.Pages here, so a missing page stops the boot.
+// Mount registers every agent route, sub-area by sub-area.
 func Mount(rt *gate.Router, d handlers.Deps) error {
-	_, _ = rt, d
+	for _, m := range []func(*gate.Router, handlers.Deps) error{people.Mount, trips.Mount, money.Mount} {
+		if err := m(rt, d); err != nil {
+			return err
+		}
+	}
 	return nil
 }
