@@ -489,3 +489,64 @@
   .mny-trip-row:hover { background-color: var(--mui-palette-action-hover); }
   .mny-trip-row:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
 }
+
+/* ── §3.7.5 Import and §3.7.6 Reconciliation ─────────────────────────────────────────── */
+@layer components {
+  .mny-icon-32 { width: 32px; height: 32px; }
+
+  /* A375's two cards: 1fr 1fr from md, stacked below. minmax(0, 1fr) tracks so a long
+     filename cannot push one wider than the other. */
+  .mny-steps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 1080px; align-items: start; }
+  @media (min-width: 768px) { .mny-steps { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+  .mny-help { flex-shrink: 0; max-width: 360px; }
+  .mny-help-summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--mui-palette-primary-main); font-size: 0.875rem; font-weight: 500; min-height: 32px; list-style: none; }
+  .mny-help-summary::-webkit-details-marker { display: none; }
+
+  /* The artboard's drop zone IS the label around the file input, so a click anywhere on it
+     opens the picker with no script. */
+  .mny-drop { display: block; margin-top: 10px; padding: 24px; text-align: center; background-color: var(--mui-palette-surface-2); border: 1.5px dashed var(--mui-palette-outline-main); border-radius: 8px; cursor: pointer; box-sizing: border-box; }
+  .mny-drop:focus-within { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  .mny-drop-icon { display: inline-flex; color: var(--mui-palette-text-secondary); }
+  .mny-file { display: block; margin: 12px auto 0; max-width: 100%; font-size: 13px; }
+
+  .mny-past { margin-top: 20px; max-width: 1080px; }
+  .mny-past-list { list-style: none; margin: 0; padding: 0; }
+  .mny-past-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px; border-radius: 8px; color: inherit; text-decoration: none; }
+  .mny-past-row:hover { background-color: var(--mui-palette-action-hover); }
+  .mny-past-row:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  .mny-past-text { flex: 1 1 220px; min-width: 0; }
+
+  .mny-uploaded { display: block; margin-top: 10px; padding: 10px; background-color: var(--mui-palette-surface-2); border: 1px solid var(--mui-palette-divider); border-radius: 8px; overflow-wrap: anywhere; font-weight: 500; }
+
+  .mny-columns { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .mny-column { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  @media (min-width: 640px) { .mny-column { grid-template-columns: minmax(0, 1fr) minmax(0, 14rem); align-items: center; gap: 8px; } }
+  .mny-column-text { min-width: 0; }
+  .mny-column-select { min-width: 0; }
+
+  .mny-row-note { margin-top: 2px; }
+}
+
+/* ── §3.7.6 Resolve one row ──────────────────────────────────────────────────────────── */
+@layer components {
+  /* One column of cards, the width the artboard gives a modal: four decisions read top to
+     bottom, and most rows are settled by the first two. */
+  .mny-resolve-card { max-width: 720px; margin-bottom: 14px; }
+  .mny-break { overflow-wrap: anywhere; font-weight: 500; }
+
+  .mny-candidates { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .mny-candidate { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--mui-palette-divider); border-radius: 8px; }
+  .mny-candidate-text { flex: 1 1 220px; min-width: 0; }
+}
+
+/* A confirmation that needs no script: the disclosure IS the first click, and closing it
+   again is the "keep it" the dialog had as a button. */
+@layer components {
+  .mny-confirm { display: inline-block; }
+  .mny-confirm-summary { cursor: pointer; display: inline-flex; align-items: center; min-height: 32px; padding: 4px 12px; border: 1px solid var(--mui-palette-outline-main); border-radius: 20px; font-size: 0.875rem; font-weight: 500; list-style: none; }
+  .mny-confirm-summary::-webkit-details-marker { display: none; }
+  .mny-confirm-summary:hover { background-color: var(--mui-palette-action-hover); }
+  .mny-confirm-brand { color: var(--mui-palette-primary-main); border-color: var(--mui-palette-primary-main); }
+  .mny-confirm[open] > .mny-confirm-summary { margin-bottom: 4px; }
+}

@@ -27,7 +27,7 @@ import (
 )
 
 // Specs declares every page this sub-area fills (files under pages/agent/money/).
-var Specs = []page.Spec{dashboardSpec, ledgerSpec, forecastSpec, lineSpec, addSpec}
+var Specs = []page.Spec{dashboardSpec, ledgerSpec, forecastSpec, lineSpec, addSpec, importSpec, statementSpec, resolveSpec}
 
 // app is this sub-area's handlers and the templates they fill.
 type app struct {
@@ -37,6 +37,10 @@ type app struct {
 	forecast  *page.Template
 	line      *page.Template
 	add       *page.Template
+	// importPage is the statement list; statementPage is one statement at either stage.
+	importPage    *page.Template
+	statementPage *page.Template
+	resolvePage   *page.Template
 }
 
 // Mount registers this sub-area's routes. Take templates from d.Pages here, so a missing
@@ -52,6 +56,9 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 		{forecastSpec, &a.forecast},
 		{lineSpec, &a.line},
 		{addSpec, &a.add},
+		{importSpec, &a.importPage},
+		{statementSpec, &a.statementPage},
+		{resolveSpec, &a.resolvePage},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -72,5 +79,11 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/commission/ledger/new", http.HandlerFunc(a.postAddLine))
 	rt.Protected("GET /agent/commission/ledger/{commissionId}", http.HandlerFunc(a.serveLine))
 	rt.Protected("POST /agent/commission/ledger/{commissionId}", http.HandlerFunc(a.saveLine))
+	rt.Protected("GET /agent/commission/import", http.HandlerFunc(a.serveImport))
+	rt.Protected("POST /agent/commission/import", http.HandlerFunc(a.uploadStatement))
+	rt.Protected("GET /agent/commission/import/{importId}", http.HandlerFunc(a.serveStatement))
+	rt.Protected("POST /agent/commission/import/{importId}", http.HandlerFunc(a.saveStatement))
+	rt.Protected("GET /agent/commission/import/{importId}/rows/{rowId}", http.HandlerFunc(a.serveResolve))
+	rt.Protected("POST /agent/commission/import/{importId}/rows/{rowId}", http.HandlerFunc(a.resolveRow))
 	return nil
 }

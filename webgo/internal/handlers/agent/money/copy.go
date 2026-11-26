@@ -1,6 +1,9 @@
 package money
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // COMMISSION_COPY's strings that Go CHOOSES BETWEEN (web/lib/agent/content.ts), byte for
 // byte. Copy that never varies is written into the page files instead, where it reads as the
@@ -219,4 +222,167 @@ func commissionGapLine(gapCents Cents, gapLabel string) string {
 	default:
 		return gapLabel + " more than expected, after the fee."
 	}
+}
+
+// ── §3.7.5 / §3.7.6, the statement ──────────────────────────────────────────────────────
+
+const (
+	copyIgnoreColumn     = "Ignore this column"
+	copyFieldReference   = "Booking reference"
+	copyFieldSupplier    = "Supplier"
+	copyFieldTraveler    = "Traveler name"
+	copyFieldGross       = "Gross booking"
+	copyFieldReceived    = "Commission paid"
+	copyFieldFee         = "Fee withheld"
+	copyFieldPaidOn      = "Paid on"
+	copyAutoChip         = "Auto"
+	copyManualChip       = "Manual"
+	copyMapNeedsReceived = "Choose the column that holds the commission paid."
+	copyMapNeedsDate     = "Choose the paid-on column, or enter the date the statement paid."
+	copyMapFailed        = "That didn't save. Try again in a moment."
+
+	copyNoFile       = "Choose a CSV file first."
+	copyTooBig       = "That file is larger than 512 KB. Check it's the statement."
+	copyNotCsv       = "That isn't a CSV file. If it's an Excel file, save it as CSV and upload that."
+	copyDuplicate    = "You've already imported this file."
+	copyUploadFailed = "The upload didn't come through. Try again in a moment."
+
+	copyStatusMapping    = "Needs columns"
+	copyStatusReview     = "Ready to review"
+	copyStatusReconciled = "Reconciled"
+
+	copyConfidenceHigh   = "High"
+	copyConfidenceMedium = "Medium"
+	copyConfidenceLow    = "Low"
+
+	copyAuto            = "Auto-matched"
+	copyMatched         = "Matched"
+	copyNewLine         = "New line"
+	copySetAside        = "Set aside"
+	copyAlreadyRecorded = "Already recorded"
+	copyNoMatch         = "No match found"
+	copyPossibleNew     = "Possible new booking. Create a line?"
+	copyDuplicateRow    = "Same booking as an earlier row. Only one row can pay a booking, so choose what to do with this one."
+	copyCheckSuggestion = "Check this match before it counts."
+
+	copyStatementStale   = "This statement changed since you opened it. Reload the page and try again."
+	copyNotOpen          = "This statement is already reconciled or discarded, so it can't change."
+	copyReconcileFailed  = "That didn't save. Nothing in your ledger changed. Try again in a moment."
+	copyReconcileUnsure  = "That didn't finish. Reload the page to see where the statement stands, then try again."
+	copyRowNeedsYouAgain = "A row needs you again. It's at the top of the table."
+	copyDiscardFailed    = "That didn't go through. Try again in a moment."
+
+	copyLineUnavailable       = "That line can't take this payment anymore. It's been paid, or another row already matches it."
+	copyTripGone              = "That trip isn't available anymore. Pick another."
+	copyStatementSupplierGone = "That supplier isn't available anymore. Pick another."
+	copyNotAllowed            = "That choice isn't available for this row."
+	copyResolveFailed         = "That didn't save. Try again in a moment."
+	copyCreateNeedsTrip       = "Choose a trip first."
+	copyCreateNeedsGross      = "Enter the gross booking, like 6480.00."
+	copyCreateNeedsRate       = "Enter a commission rate from 0 to 100."
+	copyResolveTitle          = "Resolve a statement row"
+	copyTripNotAvailable      = "That trip isn't available. Find another below."
+)
+
+func statementFieldTwice(field string) string {
+	return field + " is chosen for two columns. Pick one."
+}
+
+func statementMonthLabel(month string) string { return month + " statement" }
+
+func statementReconcileTitle(label string) string { return "Reconcile · " + label }
+
+// statementSummary is the statement's own subtitle. The numbers are plain, NOT grouped: the
+// TypeScript interpolates them straight, where the row counts elsewhere go through
+// toLocaleString.
+func statementSummary(total, matched, toResolve, setAside int) string {
+	parts := []string{itoa(total) + " imported", itoa(matched) + " matched"}
+	if setAside > 0 {
+		parts = append(parts, itoa(setAside)+" set aside")
+	}
+	if toResolve == 0 {
+		parts = append(parts, "nothing to resolve")
+	} else {
+		parts = append(parts, itoa(toResolve)+" to resolve")
+	}
+	return strings.Join(parts, " · ")
+}
+
+// statementUploadedLine groups the count, where statementSummary does not.
+func statementUploadedLine(filename string, rows int) string {
+	return "Uploaded: " + filename + " · " + countLabel(rows, "row", "rows") + " found"
+}
+
+func statementStillNeedYou(count int) string {
+	return "Resolve " + itoa(count) + " more " + plural(count, "row", "rows") + " to reconcile."
+}
+
+// statementReconcileBody says what the one ledger-changing action will do, before it runs.
+func statementReconcileBody(paid, created int) string {
+	var what []string
+	if paid > 0 {
+		what = append(what, "records "+itoa(paid)+" "+plural(paid, "payment", "payments"))
+	}
+	if created > 0 {
+		what = append(what, "adds "+itoa(created)+" new "+plural(created, "line", "lines"))
+	}
+	head := "Nothing in your ledger changes."
+	if len(what) > 0 {
+		head = "This " + strings.Join(what, " and ") + " in your ledger."
+	}
+	return head + " Lines you already marked paid stay as they are."
+}
+
+func statementReconciledLine(date string, paid, created int) string {
+	return "Reconciled " + date + ": " + itoa(paid) + " " + plural(paid, "payment", "payments") +
+		" recorded, " + itoa(created) + " new " + plural(created, "line", "lines") + "."
+}
+
+// statementAlreadyNote is the row note for a line the advisor had already marked paid. When
+// the two figures disagree it says both rather than claiming either is right.
+func statementAlreadyNote(status, ledgerAmount, statementAmount string) string {
+	marked := "Received"
+	if status == "disputed" {
+		marked = "Disputed"
+	}
+	if ledgerAmount != "" && statementAmount != "" && statementAmount != ledgerAmount {
+		return "Your ledger says " + ledgerAmount + "; this statement says " + statementAmount +
+			". If the ledger's wrong, fix it on the line."
+	}
+	if ledgerAmount != "" {
+		return "Already marked " + marked + " (" + ledgerAmount + "). This import won't change it."
+	}
+	return "Already marked " + marked + " on your ledger. This import won't change it."
+}
+
+func statementCandidateMeta(supplier, client, expected string) string {
+	return supplier + " · " + client + " · expected " + expected
+}
+
+func statementOverNote(gap string) string { return gap + " more than expected." }
+
+// statementShortNote is the note §3.7.6 exists for: what was expected, what arrived, and
+// what that means for the line.
+func statementShortNote(expected, paid, fee, gap string, done bool) string {
+	paidPart := "Paid " + paid + "."
+	if fee != "" {
+		paidPart = "Paid " + paid + " plus a " + fee + " fee."
+	}
+	willBe := "will be"
+	if done {
+		willBe = "was"
+	}
+	return "Expected " + expected + ". " + paidPart + " That's " + gap + " short, so it " + willBe + " marked Disputed."
+}
+
+func statementRateNote(paidPct, linePct string) string {
+	return "Paid at about " + paidPct + " of the booking, not " + linePct + "."
+}
+
+// statementSample labels a column's first non-blank value on the map screen.
+func statementSample(value string) string { return "Example: " + value }
+
+// statementImportRows is the map form's submit: what saving the columns will bring in.
+func statementImportRows(rows int) string {
+	return "Import " + countLabel(rows, "row", "rows")
 }

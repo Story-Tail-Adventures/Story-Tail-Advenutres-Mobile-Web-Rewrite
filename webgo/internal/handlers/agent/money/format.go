@@ -301,3 +301,26 @@ func plural(n int, one, many string) string {
 	}
 	return many
 }
+
+// countLabel is the TypeScript's `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`:
+// "1 row", "1,234 rows". The grouping matters — a statement can carry thousands of rows, and
+// several of these counts sit beside money that is grouped.
+func countLabel(n int, one, many string) string {
+	return groupThousands(int64(n)) + " " + plural(n, one, many)
+}
+
+// cents2 is the statement screens' own money: ALWAYS two places, where formatMoney drops
+// ".00". In one right-aligned Amount column "$540" over "$1,189.50" does not line up, and a
+// statement is the record of what was paid to the cent.
+func cents2(amount Cents) string {
+	neg := amount < 0
+	n := int64(amount)
+	if neg {
+		n = -n
+	}
+	out := "$" + groupThousands(n/100) + fmt.Sprintf(".%02d", n%100)
+	if neg {
+		out = "-" + out
+	}
+	return out
+}
