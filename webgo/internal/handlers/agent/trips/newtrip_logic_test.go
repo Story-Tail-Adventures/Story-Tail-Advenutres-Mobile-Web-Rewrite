@@ -107,3 +107,11 @@ func TestParseIntJS(t *testing.T) {
 		}
 	}
 }
+
+func TestTripTypeShort(t *testing.T) {
+	for v, want := range map[string]string{"cruise": "Cruise", "all_inclusive": "All-inclusive", "multi_destination": "Multi-destination", "group": "Group trip", "custom": "Custom", "honeymoon": "honeymoon"} {
+		if got := tripTypeShort(v); got != want {
+			t.Errorf("tripTypeShort(%q) = %q, want %q", v, got, want)
+		}
+	}
+}

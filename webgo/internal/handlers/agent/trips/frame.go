@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -49,6 +50,10 @@ type visit struct {
 	noAccess bool
 	loc      *time.Location
 	chrome   shell.Chrome
+	// here is the page's own GET URL when the request is a POST to a path nobody can load
+	// (/agent/trips/{id}/stage): "Try again" and the sign-in return go there, never to the
+	// POST path.
+	here string
 }
 
 type identityRow struct {
@@ -170,7 +175,11 @@ func fillFrame(d *page.Doc, r *http.Request, v visit, st state) bool {
 		d.Keep("page")
 		d.Keep("retry")
 		// A plain reload of the same page: the reads run again.
-		if !d.URL("retry-again", "href", r.URL.RequestURI()) {
+		again := r.URL.RequestURI()
+		if v.here != "" {
+			again = v.here
+		}
+		if !d.URL("retry-again", "href", again) {
 			d.URL("retry-again", "href", r.URL.Path)
 		}
 		d.Remove("body")
@@ -192,6 +201,22 @@ func withFrame(slots ...string) []string {
 func call(ctx context.Context, d handlers.Deps, r *http.Request, v visit, name string, body any) api.Result {
 	visitor, _ := clientaddr.From(r.Header)
 	return d.API.Call(ctx, name, v.st.AccessToken, api.Input{Method: http.MethodPost, Body: body, Visitor: visitor})
+}
+
+// signIn sends a visitor whose session ended mid-write to sign in, back to the page they were
+// on (v.here when the request came to a POST-only path).
+func signIn(w http.ResponseWriter, r *http.Request, v visit) {
+	if v.here == "" {
+		web.SeeOther(w, r, web.SignInURL(r))
+		return
+	}
+	web.SeeOther(w, r, "/login?next="+url.QueryEscape(v.here))
+}
+
+// lf is a posted textarea's value as the Next app sent it: browsers post line breaks as CRLF,
+// a textarea's value (what React read) has LF. A note saved untouched must stay a no-op.
+func lf(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\n"), "\r", "\n")
 }
 
 // outcome maps a function result the way these screens' server actions did:
