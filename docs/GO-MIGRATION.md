@@ -693,8 +693,21 @@ swap). `hotel-search` left the registry's `Functions` list with its folder, and
 `registry_test.go` now asserts `Functions` and `portTable()` hold exactly the same names,
 because there is no Deno deployment left to fall through to.
 
-**Deleting `web/` is NOT done, and it is bigger than this section assumed.** See
-"What `web/` is still load-bearing for" below before attempting it.
+**The copy-parity re-point is DONE too (PR 2).** `check_copy_parity.py` now reads the Go tree
+instead of `web/`: 644 strings across 50 modules plus the 9 auth errors are pinned between Go
+and mobile, and it was verified while all three trees still existed, which was the whole reason
+for doing it before the deletion.
+
+It found **39 strings mobile shows that the Go port never built** — listed as `not_in_go` in
+the script with a reason each, rather than dropped. Mostly empty states, error states and
+opt-in prompts: the whole traveler itinerary viewer's empty states and PDF download (12), the
+help screen (5), the Web Push opt-in card (6), the notifications screen (3), and scattered
+empty states on dashboard, trips, memories and trip detail. That list is the punch list for
+finishing the Go port.
+
+**Deleting `web/` is the remaining step.** See "What `web/` is still load-bearing for" below:
+the eleven Go test files that read it are the last thing holding it in place, and they go with
+it by design.
 
 - **When**: no web route is left in Next.js and no function name passes through to Supabase.
 - Delete the Next app and `supabase/functions/`, `git mv webgo web`, drop the Node web build.
@@ -812,8 +825,11 @@ deliberately used so the checker could read them. The same label already lives i
 (`agent/people/clientdetail.go` and `agent/trips/format.go`). So a `go_messages()` extractor has
 to read consts, maps and page HTML, and each of the 51 entries needs its Go home identified.
 
-`check_auth_config.py` has the same shape and is much smaller: it reads
-`web/lib/validation/auth.ts`.
+`check_auth_config.py` was listed here as having the same shape. **It does not** — it reads
+only `supabase/config.toml`, and the `web/lib/validation/auth.ts` in it is a sentence in an
+error message, not a file it opens. Deleting `web/` does not touch it. The first sweep counted
+that line as a read; the fix is to grep for what a script OPENS (`read_text`, `open(`,
+`ROOT /`), not for every path it mentions.
 
 **3. `gen-types.sh` still writes `web/types/supabase.ts`,** its last consumer. Go decodes rows
 into typed structs rather than generated TypeScript, so when `web/` goes the script and the
