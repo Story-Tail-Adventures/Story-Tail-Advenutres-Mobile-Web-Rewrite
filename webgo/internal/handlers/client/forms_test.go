@@ -34,6 +34,12 @@ func TestNoTravelerFormHidesItsOpInAField(t *testing.T) {
 		{"/messages/cv1", seedInbox},
 		{"/messages/new", func(*harness) {}},
 		{"/trips/t1/update", func(hn *harness) { seedTrip(hn, "proposal") }},
+		{"/account", func(*harness) {}},
+		{"/account/personal", seedPersonal},
+		{"/account/preferences", func(*harness) {}},
+		{"/account/connected", func(*harness) {}},
+		{"/account/privacy", func(*harness) {}},
+		{"/account/close", func(*harness) {}},
 	} {
 		hn := newHarness(t)
 		tc.seed(hn)

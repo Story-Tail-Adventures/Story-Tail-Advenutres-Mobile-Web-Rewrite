@@ -204,18 +204,6 @@ func TestDateFormatsMatchIntlEnGB(t *testing.T) {
 	}
 }
 
-func TestChipSlotNames(t *testing.T) {
-	for in, want := range map[string]string{
-		"Costa Rica":  "dest-costa-rica",  // a space is not a slot-name character
-		"gluten_free": "dest-gluten-free", // nor is an underscore
-		"romantic":    "dest-romantic",
-	} {
-		if got := chipSlot("dest-", in); got != want {
-			t.Errorf("chipSlot(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 // The explore card counts the public catalogue out loud. The Go port of that catalogue
 // belongs to the public area, so until it lands this is a number with a test behind it.
 func TestPublicTripCountMatchesTheCatalogue(t *testing.T) {

@@ -77,7 +77,7 @@ func (a *area) mountAccount(rt *gate.Router) error {
 
 		for _, tile := range []accountTile{
 			{"personal", AccountCopy.Personal, AccountCopy.PersonalSub, true},
-			{"preferences", AccountCopy.Preferences, AccountCopy.PreferencesSub, false},
+			{"preferences", AccountCopy.Preferences, AccountCopy.PreferencesSub, true},
 			{"documents", AccountCopy.Documents, documentsSub, true},
 			{"security", AccountCopy.Security, AccountCopy.SecuritySub, false},
 			{"connected", AccountCopy.Connected, AccountCopy.ConnectedSub, true},
