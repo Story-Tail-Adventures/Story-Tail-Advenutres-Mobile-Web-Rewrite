@@ -23,6 +23,7 @@ import (
 // copyCase: the TS object key in file must appear verbatim in page (or equal goValue).
 type copyCase struct {
 	file    string // under web/
+	object  string // the exported object holding key, when the file has more than one
 	key     string // the key, written `key: "value"` in the TS object
 	page    string // under pages/, "" when Go holds the string
 	goValue string
@@ -51,6 +52,105 @@ var copyCases = []copyCase{
 	{file: "lib/agent/content.ts", key: "calendarMonthLabel", page: "agent/people/calendar.html"},
 	{file: "lib/agent/content.ts", key: "calendarAgendaLabel", page: "agent/people/calendar.html"},
 	{file: "lib/agent/content.ts", key: "availabilityDeferred", page: "agent/people/calendar.html"},
+	// §3.3.1 roster
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "searchPlaceholder", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "colClient", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "colLastTrip", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "colNextTrip", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "colLifetime", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "bulkLegend", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "bulkTagPlaceholder", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "bulkAdd", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "bulkRemove", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "bulkSelectAll", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "paginationPrev", page: "agent/people/clients.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "paginationNext", page: "agent/people/clients.html"},
+	// §3.3.3 / §3.3.4 new and edit
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "newClientTitle", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "newClientSub", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "groupBasics", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "groupContact", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "groupAddress", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "groupDates", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "groupNotes", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "hintPreferredName", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "hintDates", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "hintTags", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "hintNotes", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "saveAndTrip", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "addDate", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "newTagPlaceholder", page: "agent/people/client-new.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "editClientSub", goValue: copyEditClientSub},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "notFoundTitle", page: "agent/people/client-not-found.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "notFoundBody", page: "agent/people/client-not-found.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "notFoundAction", page: "agent/people/client-not-found.html"},
+	// §3.3.2 client detail
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "archivedBanner", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "snapshotTitle", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "preferencesTitle", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "householdTitle", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "emergencyTitle", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "statLifetime", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "statCommission", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "statLastContact", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "noPreferences", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "noHousehold", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "noAddress", goValue: copyNoAddress},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "passportExpiringSoon", goValue: copyPassportSoon},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "tripsEmpty", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "threadsEmpty", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "documentsEmpty", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "noteComposerEyebrow", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "noteComposerPlaceholder", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "notesEmpty", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "activityEmpty", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "activityNote", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "archiveEyebrow", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "archiveReasonLabel", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "archiveReasonPlaceholder", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "restoreEyebrow", goValue: copyRestoreEyebrow},
+	{file: "lib/agent/content.ts", object: "CLIENT_COPY", key: "restoreBody", goValue: copyRestoreBody},
+	// §3.9.7 / §3.3.11 merge
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "title", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "sub", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "pickHeading", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "searchLabel", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "searchPlaceholder", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "searchButton", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "keeping", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "mergingIn", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "swap", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "pickAnother", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "notMergeable", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "pickerHeading", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "pickerSub", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "colField", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "pinned", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "review", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "cancel", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "confirmResult", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "confirm", page: "agent/people/client-merge.html"},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "noCandidates", goValue: mergeNoCandidates},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "noResults", goValue: mergeNoResults},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "reasonEmail", goValue: mergeReasonEmail},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "reasonPhone", goValue: mergeReasonPhone},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "reasonName", goValue: mergeReasonName},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "reasonSearch", goValue: mergeReasonSearch},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "choose", goValue: mergeChoose},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "noSignIn", goValue: mergeNoSignIn},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "blank", goValue: mergeBlank},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "allSame", goValue: mergeAllSame},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "blockedArchived", goValue: mergeBlockedArchived},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "blockedCompanions", goValue: mergeBlockedCompanions},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "stale", goValue: mergeStale},
+	{file: "lib/agent/content.ts", object: "MERGE_COPY", key: "failed", goValue: mergeFailed},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateTitle", page: "agent/people/client.html"},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "mfaStale", goValue: accMfaStale},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateBodyVerify", goValue: accGateBodyVerify},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateBodyNoFactor", goValue: accGateBodyNoFactor},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateVerify", goValue: accGateVerify},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateSetUp", goValue: accGateSetUp},
+	{file: "lib/agent/content.ts", object: "ACCOUNT_ADMIN_COPY", key: "gateTitle", page: "agent/people/client-merge.html"},
 }
 
 // tsString finds `key: "value"` (the value may start on the next line) and unquotes it.
@@ -111,7 +211,15 @@ func TestCopyMatchesTheNextSources(t *testing.T) {
 			}
 			sources[c.file] = string(b)
 		}
-		want := tsString(t, sources[c.file], c.key)
+		src := sources[c.file]
+		if c.object != "" {
+			i := strings.Index(src, "export const "+c.object+" = {")
+			if i < 0 {
+				t.Fatalf("%s: no object %s", c.file, c.object)
+			}
+			src = src[i:]
+		}
+		want := tsString(t, src, c.key)
 		if c.page == "" {
 			if c.goValue != want {
 				t.Errorf("%s %s: Go has %q, Next has %q", c.file, c.key, c.goValue, want)

@@ -2,7 +2,8 @@
 <!--
   ErrorState (components/client/states.tsx) inside the agent shell: a read failed. That is not
   an empty book, so it never shows "nothing here". The copy and both ways out are the
-  component's, word for word.
+  component's, word for word. RetryState's "Try again" (a reload of this same URL) replaces
+  "Back to your trips" on the screens that used RetryState.
 -->
 <html lang="en">
 <head>
@@ -17,7 +18,8 @@
       <h2 class="type-h5 text-error">That didn’t load</h2>
       <p class="type-body2 text-secondary ppl-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
       <div class="ppl-state-actions">
-        <a class="btn btn-contained ppl-state-btn" href="/dashboard">Back to your trips</a>
+        <a class="btn btn-contained st-btn" href="/agent" data-slot="retry">Try again</a>
+        <a class="btn btn-contained ppl-state-btn" href="/dashboard" data-slot="home">Back to your trips</a>
         <a class="btn btn-outlined ppl-state-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
       </div>
     </div>

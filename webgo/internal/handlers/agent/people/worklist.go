@@ -355,7 +355,7 @@ func (a *app) serveWorklist(w http.ResponseWriter, r *http.Request) {
 	}
 	wl := a.loadWorklist(r.Context(), v, time.Now())
 	if wl == nil {
-		a.renderFailed(w, r, v)
+		a.renderFailed(w, r, v, false)
 		return
 	}
 	doc := a.worklist.New()
