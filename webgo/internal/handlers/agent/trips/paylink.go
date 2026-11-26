@@ -24,6 +24,13 @@ const (
 	paidNoteMax      = 1000
 )
 
+// whatwgHost is the host step of the WHATWG URL parser, the one new URL() runs in the browser
+// and in the Edge Function: UTS #46 ToASCII, non-transitional, with hyphens and underscores
+// allowed and no DNS length check. idna.Lookup applies STD3 rules and refused hosts such as
+// pay_portal.supplier.com that Next and the function store.
+var whatwgHost = idna.New(idna.MapForLookup(), idna.Transitional(false), idna.BidiRule(), idna.CheckJoiners(true),
+	idna.CheckHyphens(false), idna.StrictDomainName(false), idna.VerifyDNSLength(false))
+
 // paySiteName is the site a client sees under the pay button, read from the link itself:
 // lower case, a leading www. removed, in its ASCII (punycode) form, so a look-alike host
 // (a Cyrillic "а" in sandals) cannot pass as the real one. "" for anything that is not a
@@ -36,7 +43,7 @@ func paySiteName(raw string) string {
 	if err != nil || !strings.EqualFold(u.Scheme, "https") || u.Hostname() == "" {
 		return ""
 	}
-	host, err := idna.Lookup.ToASCII(u.Hostname())
+	host, err := whatwgHost.ToASCII(u.Hostname())
 	if err != nil {
 		return ""
 	}
@@ -127,7 +134,7 @@ func checkPayURL(raw string) payURLCheck {
 		return payURLCheck{reason: "https"}
 	}
 	host := u.Hostname()
-	ascii, err := idna.Lookup.ToASCII(host)
+	ascii, err := whatwgHost.ToASCII(host)
 	if err != nil || ascii == "" {
 		return payURLCheck{reason: "https"}
 	}
