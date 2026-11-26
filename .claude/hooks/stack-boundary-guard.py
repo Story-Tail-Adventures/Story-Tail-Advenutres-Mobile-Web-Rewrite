@@ -2,9 +2,13 @@
 """
 PreToolUse guard for CLAUDE.md rule 7: stack directories are hard boundaries.
 
-Kotlin lives in mobile/, React lives in web/, Deno backend lives in supabase/, shared API
-types live in contracts/. Cross-contamination is the one project rule that is fully
-mechanical to check, and today it is caught only by post-hoc review.
+Kotlin lives in mobile/, React lives in web/, Deno backend lives in supabase/, Go lives in
+webgo/ (the Go web app and API, docs/GO-MIGRATION.md), shared API types live in contracts/.
+Cross-contamination is the one project rule that is fully mechanical to check, and today it
+is caught only by post-hoc review.
+
+When Next.js is deleted (GO-MIGRATION Phase 6) webgo/ is renamed web/; change the Go rule's
+prefix in the same commit, or every Go write after the rename is denied.
 
 PreToolUse, not PostToolUse: PostToolUse runs after the write has already happened, so it
 can only complain. Exit code 2 here denies the call before the file is touched.
@@ -31,6 +35,12 @@ RULES = [
         (".swift",),
         ("mobile/",),
         "Swift belongs under mobile/iosApp/.",
+    ),
+    (
+        # endswith, so "go.mod" also matches "webgo/go.mod" and a stray root-level "go.mod".
+        (".go", "go.mod", "go.sum", "go.work", "go.work.sum"),
+        ("webgo/",),
+        "Go belongs under webgo/ (the Go web app and API; see docs/GO-MIGRATION.md).",
     ),
 ]
 

@@ -611,6 +611,26 @@ The platform will be built on **Kotlin Multiplatform (KMP)**. This is a delibera
 
 **Mobile UI — Compose Multiplatform:** Shared declarative UI across Android and iOS using Compose Multiplatform. Where iOS needs a more platform-native feel (navigation, system pickers, payment sheets), use SwiftUI interop via the iOS-specific source set. Android UI is pure Jetpack Compose. This gives us a single design system implementation that runs on both mobile platforms.
 
+> **Amended 2026-11-06, Go for the web app and the backend.** Gyasi ruled that one Go service
+> replaces both the Next.js web app and the Supabase Edge Functions (`docs/GO-MIGRATION.md`,
+> rulings 1 to 15). The "Web UI", "Web ↔ KMP integration" and "Backend" paragraphs below are
+> superseded as each area moves, and describe what runs until then:
+>
+> - **Web UI:** server-rendered HTML from Go. Each screen is a plain HTML file filled in on the
+>   server (htmlx, read-only, behind one package); forms post and the server redirects; a few
+>   widgets get small JavaScript files. Pages stay crawlable, which was the SEO reason for
+>   Next.js.
+> - **Backend:** the same Go service answers the API mobile calls, at the same
+>   `/functions/v1/{name}` addresses with the same requests and replies. It is still not a
+>   Kotlin service and still not a separate host: one Go binary on Render serves pages and API.
+>   Audit middleware, pay-link guards and the no-card-data rule move into Go with the same
+>   checks.
+> - **Unchanged:** Supabase Postgres, RLS, Auth, Storage, pg_cron and migrations; the KMP mobile
+>   apps, which change only the address they send function calls to.
+> - **Deploys:** GitHub Actions deploys the Go service to Render by commit. Supabase's GitHub
+>   integration keeps applying migrations (and deploying any Edge Function not yet ported).
+> - **Repo:** the Go service is built in `webgo/` and becomes `web/` when Next.js is deleted.
+
 **Web UI — Next.js + React + TypeScript.** The entire web surface — authenticated client portal, agent workspace, and public marketing-adjacent pages — is built on Next.js with React and TypeScript. Why:
 
 - SEO is critical for the Phase 2 self-guided search lead-generation surface (public landing, public search, property/cruise/tour detail). Next.js ships SSR/SSG natively.
@@ -645,7 +665,8 @@ For the mobile clients, Edge Functions expose a REST API. Mobile consumes that A
 **Build & Deploy:** A monorepo (e.g., Turborepo or Nx) containing four sub-projects:
 
 - `mobile/` — Gradle multi-module KMP setup with `shared`, `androidApp`, `iosApp`
-- `web/` — Next.js + React + TypeScript
+- `web/` — Next.js + React + TypeScript (until Phase 6 of `docs/GO-MIGRATION.md`)
+- `webgo/`: the Go service, web pages and the API (renamed `web/` when Next.js is deleted)
 - `supabase/` — Supabase project with migrations (`supabase/migrations/`) and Edge Functions (`supabase/functions/`)
 - `contracts/` — Shared API contract: OpenAPI spec plus generated TypeScript types and (optionally) Kotlin types for the mobile module
 

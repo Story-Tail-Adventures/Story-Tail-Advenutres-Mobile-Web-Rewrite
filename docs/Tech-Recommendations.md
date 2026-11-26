@@ -72,11 +72,24 @@ For Story-Tail Adventures specifically:
 
 This is the architecture the BRD now commits to in Section 15.1.
 
+> **Amended 2026-11-06, Go for the web app and the backend.** The two web rows above (Next.js)
+> and the backend row (already replaced by Edge Functions in §3.3) are superseded by
+> `docs/GO-MIGRATION.md`: one Go service on Render serves the web pages as server-rendered HTML
+> (plain HTML files filled in with htmlx, read-only) and answers the API the mobile apps call,
+> at the same `/functions/v1/{name}` addresses. The mobile rows do not change. Public pages stay
+> server-rendered and crawlable, so the SEO reason for Next.js is still met. Until each area
+> moves, the Next.js app and its Edge Functions are what runs.
+
 **The cost of this choice:** two UI implementations rather than one. The shared module mitigates most of the duplication risk by holding all the domain rules, validation, status transitions, and API clients on the mobile + backend side. Web duplicates those rules in TypeScript — but the type codegen pipeline keeps them in lockstep with the Kotlin source of truth (a CI step regenerates TS types whenever the API surface changes, and breaks the build if the React app drifts).
 
 **Compose-for-Web — explicitly out of scope.** As of 2026, Compose Multiplatform for Web is in Beta and not at parity with Compose for Android/iOS. Even if it reaches Stable in a future release, migrating away from Next.js + React would not be a meaningful win for this project — the public SEO surface alone justifies Next.js, the React ecosystem covers everything needed, and the hiring market is far larger. We are not waiting for or planning toward a future Compose-for-Web migration.
 
 ### 2.3.1 Styling migration: MUI v9 (done)
+
+> **Amended 2026-11-06.** MUI stays the styling for the Next.js app until each screen moves to
+> Go. The Go web app styles with plain CSS built on the same `tokens.css` contract
+> (Design-System §12.4) and one component stylesheet (`docs/GO-MIGRATION.md` §4.8). MUI, the
+> lockstep check and the CSS layer check leave with Next.js in Phase 6.
 
 `web/` used to style with Tailwind CSS v4 on top of the design token contract described in Design-System.md §12.2 (`tokens.css` custom properties + typed `design-tokens.ts`). Gyasi decided the styling system for the web app is **MUI (Material UI) v9**, replacing Tailwind entirely. Decided 2026-09-29. Step 1 (the design source) shipped 2026-10-01 as PR #83. Step 2 (`web/`) was built 2026-10-01 to 2026-10-03 as seven stacked PRs, the last of which removed Tailwind; see "Step 2 in `web/`" below.
 
@@ -176,6 +189,15 @@ Use Supabase as the BaaS *and* the backend platform — including Supabase Edge 
 | Migrations + type generation | Supabase CLI (`supabase db push`, `supabase gen types typescript`) |
 
 **Why Edge Functions instead of Ktor:** Edge Functions are the right tool for Story-Tail's server-side surface area (Stripe, travel APIs, webhooks, audit middleware). They remove an entire hosting tier (no Fly.io / Cloud Run for a Kotlin service), keep the backend in the same TypeScript ecosystem as the Next.js web app (shared types end-to-end without codegen between Kotlin and TS for the web side), and run free up to 500K invocations/month — comfortably MVP-sized for years. The KMP code-sharing benefit is preserved where it matters: between Android and iOS in the mobile module.
+
+> **Amended 2026-11-06.** The backend half of this choice is reversed: the Edge Functions move
+> into the same Go service as the web pages (`docs/GO-MIGRATION.md`, ruling 8). Everything else
+> in this section stands. Supabase is still the database, auth, storage, pg_cron and migrations
+> platform; it is still not a Kotlin service; it is still one host, since the Go service on
+> Render replaces the Next.js service that would have run there anyway. The reason that changed
+> is the web side: once the web app is Go, keeping the backend in Deno would split the server
+> across two languages and two hosts, where today's rules (`_shared`) and the pages that use
+> them can share one codebase and run in process.
 
 **Don't expose the database directly to mobile/web clients for sensitive operations.** Reads of own data (a client viewing their own trips) can go directly through Supabase JS SDK with RLS for enforcement. Anything touching Stripe tokens, audit events, commission edits, or travel-API keys goes through Edge Functions — they hold the `service_role` key, do the privileged work, and return only what the client should see.
 
@@ -469,6 +491,10 @@ storytail/
 └── package.json               # Workspace root (Turborepo)
 ```
 
+> **Amended 2026-11-06.** The target tree is now `mobile/`, `web/` (a Go module: pages and the
+> API), `supabase/` (migrations, tests, config; no `functions/`) and `contracts/`. During the
+> move the Go module is built in `webgo/` beside the Next.js `web/` (`docs/GO-MIGRATION.md`).
+
 #### Step 2 — Drop in the design system
 
 For the mobile app, copy the four Kotlin files from `Web Rewrite/design/compose-theme/` into `mobile/shared/src/commonMain/kotlin/com/storytail/ui/theme/`:
@@ -490,7 +516,7 @@ In the repo root, create a short CLAUDE.md. Example:
 # Story-Tail Adventures — Web & Mobile CRM Rewrite
 
 A custom CRM replacing Travefy for Story-Tail Adventures (hosted by Inteletravel).
-This is a Kotlin Multiplatform project with a Next.js web app.
+This is a Kotlin Multiplatform mobile app with a Go web app and API.
 
 ## Authoritative project documents
 - BRD: `docs/BRD.md`
@@ -505,26 +531,23 @@ entities, or the design system.
 ## Stack
 - KMP shared module (Kotlin) — mobile only: domain types, validation, API clients
 - Compose Multiplatform — Android + iOS UI
-- Next.js + React + TypeScript — web (authenticated portal + public pages)
-- Supabase Edge Functions (Deno + TypeScript) — server-side logic, Stripe, travel APIs, webhooks
-- Supabase — Postgres + Auth + Storage + Realtime
-- Stripe — payment tokenization (NEVER store PAN in our DB)
+- Go (one service on Render): web pages as server-rendered HTML, and the API mobile calls
+- Supabase: Postgres + Auth + Storage + pg_cron + migrations
+- No payment SDK and no card data anywhere (clients pay suppliers through pay links)
 
 ## Key conventions
-- All money is stored as `bigint` cents with explicit `char(3)` currency code.
+- All money is stored as `bigint` cents with explicit `char(3)` currency code (`int64` in Go).
 - Every UUID is v7 (time-ordered).
-- Every mutating Edge Function writes an AuditEvent via the shared audit-middleware helper.
-- Stripe `PaymentMethod` IDs are server-only — never returned to clients except via the audited PAN reveal flow.
-- Mobile and web share the API contract via OpenAPI + codegen; do not hand-write the contract twice.
+- Every mutating API handler writes an AuditEvent via the shared audit helper.
+- Mobile and the API share the contract via OpenAPI + codegen; do not hand-write the contract twice.
 
 ## Common commands
-- Run web: `npm run dev -w web`
+- Run web and API: `cd web && go run ./cmd/server`
+- Test web and API: `cd web && go test -race ./...`
 - Run Android: open `mobile/` in Android Studio, Run
 - Run iOS: open `mobile/iosApp/iosApp.xcodeproj` in Xcode, Run
 - Build mobile shared: `cd mobile && ./gradlew :shared:build`
-- Apply DB migrations: `supabase db push`
-- Deploy Edge Functions: `supabase functions deploy <name>`
-- Generate TS types from DB: `supabase gen types typescript --local > web/types/supabase.ts`
+- Reset the local DB: `supabase db reset`
 - Generate API types from OpenAPI: `npm run generate -w contracts`
 
 ## What NOT to do
@@ -621,21 +644,21 @@ A few patterns that tend to compound nicely:
 | Layer | Choice | Why |
 |---|---|---|
 | Mobile UI (Android + iOS) | Compose Multiplatform | Stable, shares code via KMP module |
-| Web UI | Next.js + React + TypeScript | SEO, mature ecosystem, hiring market |
+| Web UI | Go, server-rendered HTML (htmlx, read-only) (since 2026-11-06; Next.js until each screen moves) | Crawlable pages, small memory, few moving parts; see `docs/GO-MIGRATION.md` |
 | KMP shared module | Mobile only (Android + iOS) | Domain types, validation, API clients for mobile |
-| Backend / server-side logic | Supabase Edge Functions (Deno + TypeScript) | ~~Stripe~~, travel APIs, audit, webhooks — no separate host needed |
+| Backend / server-side logic | The same Go service (since 2026-11-06; Edge Functions until each is ported) | Travel APIs, audit, email, push, cron targets; one codebase with the pages |
 | Database | Supabase Postgres | Matches Data Model, SOC 2 + HIPAA |
 | Auth | Supabase Auth | Replaces Auth0/Clerk recommendation |
 | File storage | Supabase Storage | Same platform |
 | Real-time | Supabase Realtime | Postgres logical replication → WebSocket |
 | Payments / card vault | ~~Stripe Elements + Stripe Mobile SDKs~~ None (since 2026-10-16) | Clients pay suppliers through pay links; no cardholder data, out of PCI scope |
 | Web hosting | Render (Starter) | Vercel blocked the account 2026-10-26 under its fair use guidelines, which limit Hobby to non-commercial use; see `docs/RENDER-MIGRATION.md` |
-| Backend hosting | (none separate — Supabase hosts Edge Functions) | One fewer vendor |
+| Backend hosting | Render, the same service as the web app | Still one host; no separate backend tier |
 | Email | Postmark or Resend | Transactional only |
 | Observability | Sentry | Free tier covers MVP |
 | ASV scans | ~~Trustwave / SecurityMetrics / Qualys~~ Not needed (since 2026-10-16) | Was a quarterly PCI requirement; no card data now |
 | API contract | OpenAPI spec + generated TS types + generated Kotlin types | One source of truth across mobile + web + backend |
-| Build tool | Turborepo or Nx monorepo · Gradle (mobile) · npm workspaces (web/contracts) · Supabase CLI | Standard for each toolchain |
+| Build tool | Turborepo or Nx monorepo · Gradle (mobile) · npm workspaces (web/contracts) · Supabase CLI · Go toolchain (`webgo/`, since 2026-11-06) | Standard for each toolchain |
 | CI/CD | GitHub Actions | Standard, free for small repos |
 | Workflow | Claude Code with `CLAUDE.md` + Skills | Documented in Section 5 |
 

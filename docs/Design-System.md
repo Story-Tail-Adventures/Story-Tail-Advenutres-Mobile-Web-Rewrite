@@ -492,6 +492,23 @@ Drop these into `mobile/shared/src/commonMain/kotlin/com/storytail/ui/theme/`. A
 
 ### 12.2 Web — Next.js + React + TypeScript
 
+> **Amended 2026-11-06, the web app moves to Go.** Per `docs/GO-MIGRATION.md`, each screen is
+> rebuilt as a plain HTML file filled in on the server, styled with plain CSS:
+>
+> - `tokens.css` stays the contract (§12.4). The Go app embeds the same custom properties, and
+>   dark mode stays the `.scheme-dark` class set before paint. The dark scheme is still a full
+>   rebrand, not an inversion.
+> - One component stylesheet replaces what MUI provided (button, card, chip, field, select,
+>   table, tabs, dialog, menu, snackbar, avatar, app bar, nav drawer), matched to the running
+>   Next.js app's computed styles.
+> - Poppins, Caveat and JetBrains Mono are self-hosted from embedded files.
+> - A test fails on any class a page uses that no CSS file defines.
+> - Before a Next.js route is deleted, it and its Go replacement are screenshotted at phone,
+>   tablet and desktop widths, light and dark, and must match.
+>
+> Screens must still be visually faithful to the prototype in `design/source-prototype/`. The
+> MUI material below describes the Next.js app, which runs until each screen moves.
+
 The Next.js web app consumes the same tokens via CSS custom properties. Two starter files ship at `design/web-tokens/`:
 
 - **`tokens.css`** (copy of `design/source-prototype/styles/tokens.css`) — the canonical CSS variable definitions. Import once in the Next.js root layout so every component can reference `var(--md-primary)`, `var(--md-surface-1)`, etc.
@@ -519,6 +536,10 @@ Typography uses the Poppins stack on MUI's stock variant sizes, plus a custom `s
 **Plain CSS that remains in `web/`.** `web/styles/` keeps `tokens.css` (the `--md-*` variables), `reset.css` (Tailwind's preflight, vendored as plain CSS because every converted screen relies on its margin and list resets), and small `components.css` / `public.css` / `client.css` files for what has to work before hydration or on paper: the scheme gates, the signed-in chrome gates, and the print rules. `web/app/globals.css` orders them `@layer base, mui, components;`. `web/test/class-allowlist.test.ts` fails on any className that no CSS file defines, and on any CSS class nothing uses.
 
 ### 12.3 Backend — No Theme
+
+> **Amended 2026-11-06.** The backend is moving from Edge Functions into the same Go service as
+> the web app. The rule below is unchanged: emails and other generated content hardcode the
+> Section 4 hex values.
 
 Supabase Edge Functions (the backend) don't have a UI, so they don't consume the design system. They do produce content (email templates, PDF itineraries) that should reference the brand palette — those should hardcode the hex values from Section 4 of this document and be reviewed by a designer if they're customer-facing.
 

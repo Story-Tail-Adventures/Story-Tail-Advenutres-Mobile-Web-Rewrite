@@ -44,7 +44,19 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
    `PillShape`. Reusable pieces go in `ui/components/`. Match the prototype in light *and* dark;
    the dark scheme is a full tropical rebrand, not an inversion.
 
-6. **Build the web version (if applicable).** In the matching route group —
+6. **Build the web version (if applicable).**
+
+   **Go first (`docs/GO-MIGRATION.md`, ruling 7).** Once Phase 1 of the Go migration has
+   shipped (`webgo/` has session, gate and the `/functions/v1` registry), a new web screen is
+   built only in Go: a plain HTML file under `webgo/pages/<group>/` with `data-slot` /
+   `data-repeat` markers, a handler under `webgo/internal/handlers/<group>/` mounted under its
+   gate, filled through `internal/page` and nothing else (§4.4 rules: text nodes only, the URL
+   setter for links, the `https://`-only setter for pay links, declared slots). Style with the
+   shared component stylesheet on `tokens.css`; no MUI. Forms post and redirect (§4.9). Review
+   with `go-reviewer`. Until Phase 1 ships, or for a fix to a screen still in Next.js, follow
+   the Next.js steps below.
+
+   **Next.js (until the screen moves).** In the matching route group —
    `web/app/(public|auth|client|agent)/` — create the page. Prefer a Server Component with a
    `"use client"` form/interaction child. **New web UI is MUI v9** (the migration is under way,
    `docs/Tech-Recommendations.md` §2.3.1): the web artboards in `design/source-prototype/screens/`
