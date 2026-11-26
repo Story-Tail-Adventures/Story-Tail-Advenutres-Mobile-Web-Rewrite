@@ -1234,6 +1234,113 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # §3.7 Commission (ledger and statement import)
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /agent-commission:
+    post:
+      operationId: agentCommission
+      summary: The commission ledger's writes. Add, edit, mark received, remove, export, weights.
+      description: |
+        Screens 3.7.3 (edit, mark received, remove), 3.7.4 (add), §3.7.2's export and 3.7.7's
+        stage weights. ONE endpoint with six ops, chosen by `op`.
+
+        Every write is audited INSIDE its SQL function, in the same transaction as the change
+        (`commission.created`, `commission.updated`, `commission.payment_recorded`,
+        `commission.removed`, `commission.exported`, `pipeline_weight.updated`).
+
+        `update`, `payment` and `remove` name one line by `commissionId` at the
+        `expectedVersion` the screen rendered; a mismatch is the 409. ONLY that optimistic
+        lock is a 409: every outcome a form shows against a field comes back 200 with an
+        `outcome` (`duplicate_reference`, `supplier_not_found`, `payment_would_clear`,
+        `bad_date`, `not_removable`). A line that is not this advisor's, does not exist or was
+        removed is the same 404 ("No such commission line."); a trip that is not theirs is
+        404 "No such trip on your book.".
+
+        Amounts in are whole cents (a number or a digit-string). `gapCents` and the CSV's
+        cells come back as exact decimal text, never a float.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AgentCommissionCreateRequest'
+                - $ref: '#/components/schemas/AgentCommissionUpdateRequest'
+                - $ref: '#/components/schemas/AgentCommissionPaymentRequest'
+                - $ref: '#/components/schemas/AgentCommissionRemoveRequest'
+                - $ref: '#/components/schemas/AgentCommissionExportRequest'
+                - $ref: '#/components/schemas/AgentCommissionWeightsRequest'
+      responses:
+        '200':
+          description: The op's outcome.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AgentCommissionCreateResponse'
+                  - $ref: '#/components/schemas/AgentCommissionLineResponse'
+                  - $ref: '#/components/schemas/AgentCommissionPaymentResponse'
+                  - $ref: '#/components/schemas/AgentCommissionExportResponse'
+                  - $ref: '#/components/schemas/AgentCommissionWeightsResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /commission-import:
+    post:
+      operationId: commissionImport
+      summary: Upload, map, resolve, reconcile or discard an Inteletravel statement.
+      description: |
+        Screens 3.7.5 (upload, map) and 3.7.6 (resolve each row, mark as reconciled, or
+        discard). ONE endpoint with five ops, chosen by `op`.
+
+        `upload` takes the CSV as base64 (512 KB at most, up to 1,000 rows and 60 columns),
+        reads it on the server (UTF-8, or Windows-1252 when it is not valid UTF-8; an Excel
+        workbook is refused by name), stores it in the private `commission-statements` bucket
+        under a key the server derives, and guesses a column map from the advisor's last
+        statement, then from the header names. The same file again (by SHA-256, not
+        discarded) is the `duplicate_file` outcome, with the earlier statement's id.
+
+        Every other op names one statement by `importId` at the `expectedVersion` the screen
+        rendered; a mismatch is the 409. ONLY that is a 409: every outcome a screen should
+        explain is a 200 with an `outcome`. A statement that is not this advisor's, does not
+        exist or was discarded is the same 404.
+
+        Only `reconcile` writes the ledger, in one SQL transaction with an audit row per line
+        (`commission.reconciled`, `commission.created`) and one for the statement
+        (`commission.statement_reconciled`). `upload` and `discard` are audited too
+        (`commission.statement_uploaded`, `commission.statement_discarded`); `discard` also
+        removes the stored file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/CommissionImportUploadRequest'
+                - $ref: '#/components/schemas/CommissionImportMapRequest'
+                - $ref: '#/components/schemas/CommissionImportResolveRequest'
+                - $ref: '#/components/schemas/CommissionImportStatementRequest'
+      responses:
+        '200':
+          description: The op's outcome.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CommissionImportUploadResponse'
+                  - $ref: '#/components/schemas/CommissionImportResponse'
+                  - $ref: '#/components/schemas/CommissionImportReconcileResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
 components:
   securitySchemes:
     supabaseJwt:
@@ -3328,6 +3435,316 @@ components:
           type: string
           format: uuid
           description: "`save_time_off` only."
+
+    # ── §3.7 Commission (ledger and statement import) ──
+
+    # The fields the add and edit forms share. Expected is NOT among them: SQL computes it
+    # from gross x rate.
+    AgentCommissionLineFields:
+      type: object
+      required: [supplierId, grossCents, commissionPct, paymentTerms, paymentLagDays]
+      properties:
+        supplierId: { type: string, format: uuid }
+        grossCents:
+          oneOf:
+            - { type: integer, minimum: 0, maximum: 9999999999 }
+            - { type: string, pattern: '^\s*\d+\s*$' }
+          description: Gross booking value in cents. Required (absent or blank is a 400, never $0).
+        commissionPct:
+          oneOf:
+            - { type: number, minimum: 0, maximum: 100 }
+            - { type: string }
+          description: 0 to 100; rounded to two decimals. Required.
+        paymentTerms: { type: string, enum: [at_booking, after_travel] }
+        paymentLagDays:
+          oneOf:
+            - { type: integer, minimum: 0, maximum: 365 }
+            - { type: string }
+          description: Whole days from 0 to 365.
+        inteletravelReference:
+          type: [string, 'null']
+          maxLength: 64
+          description: Trimmed; blank is none. Unique per advisor.
+        notes:
+          type: [string, 'null']
+          maxLength: 4000
+          description: Trimmed; blank is none. Never exported.
+
+    AgentCommissionCreateRequest:
+      allOf:
+        - $ref: '#/components/schemas/AgentCommissionLineFields'
+        - type: object
+          required: [op, tripId]
+          properties:
+            op: { type: string, enum: [create] }
+            tripId: { type: string, format: uuid }
+            status:
+              type: [string, 'null']
+              enum: [expected, invoiced, null]
+              default: expected
+
+    AgentCommissionUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/AgentCommissionLineFields'
+        - type: object
+          required: [op, commissionId, expectedVersion, status]
+          properties:
+            op: { type: string, enum: [update] }
+            commissionId: { type: string, format: uuid }
+            expectedVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+            status:
+              type: string
+              enum: [expected, invoiced, received, disputed, lost]
+              description: >-
+                Moving to received or disputed is the payment op's (a 400 here). Moving a paid
+                line back to expected / invoiced / lost clears its payment, and only with
+                `clearPayment: true`; without it the outcome is `payment_would_clear`.
+            clearPayment:
+              type: boolean
+              description: Only the JSON value true counts; anything else is false.
+
+    AgentCommissionPaymentRequest:
+      type: object
+      required: [op, commissionId, expectedVersion, status, receivedCents, receivedAt]
+      properties:
+        op: { type: string, enum: [payment] }
+        commissionId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+        status: { type: string, enum: [received, disputed] }
+        receivedCents:
+          oneOf:
+            - { type: integer, minimum: 0, maximum: 9999999999 }
+            - { type: string }
+          description: Required. `received` with 0 is a 400 (record it as disputed instead).
+        feeCents:
+          oneOf:
+            - { type: integer, minimum: 0, maximum: 9999999999 }
+            - { type: string }
+            - { type: 'null' }
+          description: Optional; absent or blank is 0.
+        receivedAt:
+          type: string
+          format: date
+          description: A real calendar date. One after the advisor's today is the `bad_date` outcome.
+
+    AgentCommissionRemoveRequest:
+      type: object
+      required: [op, commissionId, expectedVersion]
+      properties:
+        op: { type: string, enum: [remove] }
+        commissionId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+
+    AgentCommissionExportRequest:
+      type: object
+      required: [op]
+      properties:
+        op: { type: string, enum: [export] }
+        filters:
+          type: [object, 'null']
+          description: The ledger's filters, as the web's ledgerQueryFromParams writes them. All optional.
+          properties:
+            statuses:
+              type: [array, 'null']
+              items: { type: string, enum: [expected, invoiced, received, disputed, lost] }
+              description: Repeats are dropped; an empty list is every status.
+            supplierId: { type: [string, 'null'], description: 'A uuid; blank is none.' }
+            tripId: { type: [string, 'null'], description: 'A uuid; blank is none.' }
+            travelFrom: { type: [string, 'null'], description: 'A date (trip start on or after); blank is none.' }
+            travelTo: { type: [string, 'null'], description: 'A date (trip start on or before); blank is none.' }
+
+    AgentCommissionStageWeights:
+      type: object
+      required: [inquiry, proposal, booked, in_progress]
+      additionalProperties: false
+      properties:
+        inquiry: { type: integer, minimum: 0, maximum: 100 }
+        proposal: { type: integer, minimum: 0, maximum: 100 }
+        booked: { type: integer, minimum: 0, maximum: 100 }
+        in_progress: { type: integer, minimum: 0, maximum: 100 }
+
+    AgentCommissionWeightsRequest:
+      type: object
+      required: [op, expected, weights]
+      properties:
+        op: { type: string, enum: [weights] }
+        expected:
+          $ref: '#/components/schemas/AgentCommissionStageWeights'
+          description: The weights the screen showed. If the stored ones differ, the save is a 409.
+        weights:
+          $ref: '#/components/schemas/AgentCommissionStageWeights'
+
+    AgentCommissionCreateResponse:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [created, duplicate_reference, supplier_not_found] }
+        commissionId:
+          type: string
+          format: uuid
+          description: Only on `created`. Minted by the server (v7).
+        version: { type: integer, description: 'Only on `created`: always 1.' }
+
+    AgentCommissionLineResponse:
+      type: object
+      description: "`update` and `remove`. `commissionId` is echoed as it was sent."
+      required: [outcome, commissionId, version]
+      properties:
+        outcome:
+          type: string
+          enum: [changed, noop, supplier_not_found, duplicate_reference, payment_would_clear, removed, not_removable]
+        commissionId: { type: string, format: uuid }
+        version:
+          type: integer
+          description: The line's version now (after the write on changed / removed).
+
+    AgentCommissionPaymentResponse:
+      type: object
+      required: [outcome, commissionId, version, gapCents]
+      properties:
+        outcome: { type: string, enum: [recorded, noop, bad_date] }
+        commissionId: { type: string, format: uuid }
+        version: { type: integer }
+        gapCents:
+          type: [string, 'null']
+          pattern: '^-?\d+$'
+          description: Expected - fee - received, in cents as a digit-string. Null on `bad_date`.
+
+    AgentCommissionExportResponse:
+      type: object
+      required: [outcome, rowCount, csv]
+      properties:
+        outcome: { type: string, enum: [exported] }
+        rowCount: { type: integer }
+        csv:
+          type: string
+          description: >-
+            RFC 4180, CRLF line ends with a trailing CRLF, no byte-order mark. Money as exact
+            decimals ("1234.56"); a text cell starting with = + - @ tab or CR is prefixed with
+            an apostrophe. Notes are not exported.
+
+    AgentCommissionWeightsResponse:
+      type: object
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [saved, noop] }
+
+    CommissionImportUploadRequest:
+      type: object
+      required: [op, filename, fileBase64]
+      properties:
+        op: { type: string, enum: [upload] }
+        filename:
+          type: string
+          description: The name the advisor will recognise. Path parts are dropped; at most 255 characters kept.
+        fileBase64:
+          type: string
+          description: "The CSV's bytes, base64 (forgiving: white space and padding as atob takes them)."
+
+    CommissionImportColumnMap:
+      type: object
+      description: Statement field to a 0-based column of the file. `received` is required; null is unmapped.
+      additionalProperties: false
+      properties:
+        reference: { type: [integer, 'null'], minimum: 0 }
+        supplier: { type: [integer, 'null'], minimum: 0 }
+        traveler: { type: [integer, 'null'], minimum: 0 }
+        gross: { type: [integer, 'null'], minimum: 0 }
+        received: { type: [integer, 'null'], minimum: 0 }
+        fee: { type: [integer, 'null'], minimum: 0 }
+        paid_on: { type: [integer, 'null'], minimum: 0 }
+
+    CommissionImportMapRequest:
+      type: object
+      required: [op, importId, expectedVersion, columnMap]
+      properties:
+        op: { type: string, enum: [map] }
+        importId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+        columnMap: { $ref: '#/components/schemas/CommissionImportColumnMap' }
+        statementDate:
+          type: [string, 'null']
+          format: date
+          description: >-
+            The paid-on date for rows with none. Blank or null is none. Required when no
+            `paid_on` column is mapped.
+
+    CommissionImportResolveRequest:
+      type: object
+      required: [op, importId, expectedVersion, action, rowId]
+      properties:
+        op: { type: string, enum: [resolve] }
+        importId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+        action: { type: string, enum: [confirm, match, create, ignore] }
+        rowId: { type: string, format: uuid }
+        commissionId:
+          type: string
+          format: uuid
+          description: "`match` only: the unpaid line this row pays."
+        tripId: { type: string, format: uuid, description: "`create` only." }
+        supplierId: { type: string, format: uuid, description: "`create` only." }
+        grossCents:
+          oneOf:
+            - { type: integer, minimum: 0, maximum: 9999999999 }
+            - { type: string }
+          description: "`create` only; required."
+        commissionPct:
+          oneOf:
+            - { type: number, minimum: 0, maximum: 100 }
+            - { type: string }
+          description: "`create` only; required, rounded to two decimals."
+
+    CommissionImportStatementRequest:
+      type: object
+      description: "`reconcile` and `discard`."
+      required: [op, importId, expectedVersion]
+      properties:
+        op: { type: string, enum: [reconcile, discard] }
+        importId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 1, maximum: 2147483647 }
+
+    CommissionImportUploadResponse:
+      type: object
+      required: [outcome, importId]
+      properties:
+        outcome: { type: string, enum: [uploaded, duplicate_file] }
+        importId:
+          type: string
+          format: uuid
+          description: The new statement's id, or (`duplicate_file`) the earlier one's.
+        rowCount: { type: integer, description: "`uploaded` only: the data rows read." }
+        uploadedAt:
+          type: string
+          format: date-time
+          description: "`duplicate_file` only: when the earlier statement was uploaded."
+
+    CommissionImportResponse:
+      type: object
+      description: "`map`, `resolve` and `discard`. `importId` is echoed as it was sent."
+      required: [outcome, importId, version]
+      properties:
+        outcome:
+          type: string
+          enum: [mapped, resolved, discarded, not_open, not_allowed, line_unavailable, trip_not_found, supplier_not_found]
+        importId: { type: string, format: uuid }
+        version:
+          type: integer
+          description: The statement's version now. Send it as the next `expectedVersion`.
+
+    CommissionImportReconcileResponse:
+      type: object
+      required: [outcome, importId, version, paid, created, alreadyRecorded, blocking]
+      properties:
+        outcome: { type: string, enum: [reconciled, needs_decisions, not_open] }
+        importId: { type: string, format: uuid }
+        version: { type: integer }
+        paid: { type: integer, description: Lines marked received. }
+        created: { type: integer, description: Lines created and marked received. }
+        alreadyRecorded: { type: integer }
+        blocking:
+          type: integer
+          description: "`needs_decisions`: rows still suggested, unmatched, duplicate or unreadable."
 
   responses:
     BadRequest:
