@@ -38,7 +38,7 @@ supabase = "3.8.0"
 # Crashlytics, and no google-services plugin: the app is configured from local.properties at
 # runtime (androidApp/build.gradle.kts). 34.19.0 rather than 35.0.x, a major line one day old
 # when this was added.
-firebase-bom = "34.19.0"
+firebase-bom = "35.2.0"
 turbine = "1.2.1"
 # Build tooling only, never in the APK. AGP 9.4.1 puts Bouncy Castle 1.80.2 on the plugin
 # classpath (builder, apkzlib: APK signing), and everything below 1.85 is open to Dependabot
