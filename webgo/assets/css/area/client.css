@@ -976,4 +976,36 @@
   @media (min-width: 768px) {
     .cl-account-page { max-width: 768px; padding: 24px; }
   }
+
+  /* ── Screen 2.5.8, and the chrome the §2.5 sub-pages share ──────────────────────────── */
+  .cl-account-head > * + * { margin-top: 4px; }
+
+  .cl-account-title { margin: 8px 0 0; }
+
+  .cl-account-sub { margin: 0; }
+
+  .cl-account-note { margin: 0; }
+
+  .cl-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cl-provider {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+  }
+
+  .cl-provider-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
 }
