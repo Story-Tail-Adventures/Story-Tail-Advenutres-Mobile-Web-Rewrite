@@ -130,23 +130,27 @@ jobs:
 
   # The Go web app and API (docs/GO-MIGRATION.md). Like every job here it gates deploys.
   #
-  # setup-go reads the toolchain line from webgo/go.mod (go1.27.4, which fixes GO-2026-6859
+  # setup-go reads the toolchain line from web/go.mod (go1.27.4, which fixes GO-2026-6859
   # in crypto/x509), so CI and a laptop build with the same compiler. staticcheck and
   # govulncheck are pinned so a new release can't turn CI red on a PR that changed nothing;
   # bump them by hand. govulncheck is the guard the htmlx review relies on: a new
   # x/net/html advisory fails here.
-  webgo:
-    name: Web (Go)
+  web:
+    # Named "Web", not "Web (Go)": it IS the web app now, and dev's branch protection has
+    # required a check called "Web" since the Next.js job carried that name. Renaming the
+    # job without renaming the check leaves a required context nothing ever reports, and
+    # the PR blocks on it with every check green.
+    name: Web
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: webgo
+        working-directory: web
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version-file: webgo/go.mod
-          cache-dependency-path: webgo/go.sum
+          go-version-file: web/go.mod
+          cache-dependency-path: web/go.sum
       - name: gofmt
         run: |
           unformatted="$(gofmt -l .)"
@@ -185,9 +189,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
-          go-version-file: webgo/go.mod
-          cache-dependency-path: webgo/go.sum
-      # webgo/internal/content is the single source of truth for Screen Inventory §2.0's
+          go-version-file: web/go.mod
+          cache-dependency-path: web/go.sum
+      # web/internal/content is the single source of truth for Screen Inventory §2.0's
       # curated catalog and copy; the Kotlin the app reads is generated from it. Without
       # this job a change to a price, a trip name or a legal paragraph would ship to the
       # browser and not to the phone — the drift check_copy_parity.py exists to catch,
@@ -196,11 +200,11 @@ jobs:
       # RE-POINTED from `npm run generate:public-content -w web`, which lived in the npm
       # workspace the Go migration deletes. This job is the only thing standing between a
       # content edit and the phone silently drifting, so it moves with the generator rather
-      # than dying with the Web job. webgo/cmd/gen-kotlin reproduced the committed file byte
+      # than dying with the Web job. web/cmd/gen-kotlin reproduced the committed file byte
       # for byte before the swap (69,974 bytes, identical SHA-256).
       - run: go run ./cmd/gen-kotlin
-        working-directory: webgo
-      - name: Fail if the generated Kotlin drifted from webgo/internal/content
+        working-directory: web
+      - name: Fail if the generated Kotlin drifted from web/internal/content
         run: git diff --exit-code mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt
 
   mobile-android:

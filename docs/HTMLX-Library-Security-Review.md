@@ -53,7 +53,7 @@ Each of these was run against the pinned master commit, not only read.
 | 10 | **Old `x/net`.** v1.0.1 needs a 2021 `x/net`. govulncheck lists **12 advisories** in `x/net/html` that affect it (GO-2023-1988, GO-2024-3333, GO-2025-3595, GO-2026-4440, GO-2026-4441, GO-2026-5025, GO-2026-5027, GO-2026-5028, GO-2026-5029, GO-2026-5030, GO-2026-6860, GO-2026-6866), plus two in its `x/text`. Master needs `x/net` v0.42.0, which is still behind the fixes in v0.45.0, v0.55.0 and v0.62.0. | Several are cross-site scripting or render bugs; others are parser slowdowns a hostile page could trigger. | Handled: our `go.mod` requires `x/net` **v0.62.0** (the newest, 2026-11) and Go takes the higher version. govulncheck on that set finds nothing in htmlx, `x/net` or `x/text`. |
 
 govulncheck did flag one standard-library issue, GO-2026-6809 in `crypto/x509`, in Go 1.27.2 (the
-local toolchain). It is fixed in Go 1.27.3, so `webgo/go.mod` pins `toolchain go1.27.3`.
+local toolchain). It is fixed in Go 1.27.3, so `web/go.mod` pins `toolchain go1.27.3`.
 
 ## 4. The options
 
@@ -79,7 +79,7 @@ Optional, and Gyasi's call because it is public: report findings 1 to 3 upstream
 ## 6. How it must be used (the build follows these)
 
 - **Pin by commit:** `github.com/mdigger/htmlx v1.0.2-0.20250724121124-64ce5b80543b`, with
-  `golang.org/x/net v0.62.0` or newer required directly in `webgo/go.mod`. `go.sum` records the
+  `golang.org/x/net v0.62.0` or newer required directly in `web/go.mod`. `go.sum` records the
   hashes, and the Go checksum database vouches for them.
 - **Only `internal/page` imports htmlx**, and a test fails the build if any other package does.
 - **Allowed htmlx calls:** the find helpers and matchers (`Find`, `FindAll`, `FindNext`,
@@ -109,9 +109,9 @@ Optional, and Gyasi's call because it is public: report findings 1 to 3 upstream
 
 ## 7. Keeping it safe after it ships
 
-- Dependabot watches `/webgo` (`gomod`). An htmlx change is read in full before it is taken. An
+- Dependabot watches `/web` (`gomod`). An htmlx change is read in full before it is taken. An
   `x/net` bump is taken promptly; it is where the real fixes land.
-- `govulncheck` runs in the `webgo` CI job, so a new `x/net/html` advisory fails CI.
+- `govulncheck` runs in the `web` CI job, so a new `x/net/html` advisory fails CI.
 - If htmlx's master changes the reader functions in a way that breaks a test, move to option B
   rather than chase it.
 

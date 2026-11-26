@@ -30,7 +30,7 @@ $60K-$180K a year). This skill keeps that from happening by accident.
 1. **No card tables or SDKs came back.**
    ```bash
    grep -rniE "payment_card|card_authorization|authorization_request|card_use_event|stripe" \
-     supabase/migrations/*.sql webgo/internal webgo/pages web/lib web/app mobile/shared/src package.json web/package.json mobile/gradle/libs.versions.toml \
+     supabase/migrations/*.sql web/internal web/pages web/lib web/app mobile/shared/src package.json web/package.json mobile/gradle/libs.versions.toml \
      | grep -v "^supabase/migrations/2026051\|^supabase/migrations/202609\|^supabase/migrations/2026100"
    ```
    Old migrations may still name the retired tables (they are history). Any NEW reference is a defect.
@@ -64,8 +64,8 @@ $60K-$180K a year). This skill keeps that from happening by accident.
 
 7. **Logging.** No handler logs request bodies on payment or message paths:
    ```bash
-   grep -rn "Log\.\|slog\." webgo/internal/api/fn/agenttrip webgo/internal/api/fn/tripmessage webgo/internal/api/fn/email* \
-     webgo/internal/handlers/agent/trips
+   grep -rn "Log\.\|slog\." web/internal/api/fn/agenttrip web/internal/api/fn/tripmessage web/internal/api/fn/email* \
+     web/internal/handlers/agent/trips
    ```
 
 8. **Report.**

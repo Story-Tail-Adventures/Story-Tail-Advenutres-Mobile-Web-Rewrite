@@ -3,11 +3,11 @@
 Written 2026-11-06. CLAUDE.md requires a security review before any new third-party SDK, and
 `docs/GO-MIGRATION.md` ruling 15 requires one for each new Go library, preferring the standard
 library where it is enough. The `push-dispatch` function signs and encrypts web notifications with
-web-push 3.6.7 (`docs/Push-Notifications-Security-Review.md` §2). The port in `webgo/` needs the
+web-push 3.6.7 (`docs/Push-Notifications-Security-Review.md` §2). The port in `web/` needs the
 same in Go. This picks how.
 
 Status: **approved by Gyasi 2026-11-25: the standard library, no new module.** §5 binds the
-build, and `webgo/internal/domain/webpush` already follows it, with the RFC vectors committed under
+build, and `web/internal/domain/webpush` already follows it, with the RFC vectors committed under
 its `testdata/`.
 
 This knowingly reverses the one line of `docs/Push-Notifications-Security-Review.md` that rejected
@@ -123,7 +123,7 @@ and its own HTTP client replaced by ours. That is more rules than the code it sa
 
 ## 5. How it must be built (the build follows these)
 
-**Where:** the encryption and signing are a pure package, `webgo/internal/domain/webpush` (no
+**Where:** the encryption and signing are a pure package, `web/internal/domain/webpush` (no
 network, no environment; keys are passed in). Only the `push-dispatch` port reads the `VAPID_*`
 secrets and posts the request. The exported encrypt call draws its key pair and salt itself; an
 unexported `encryptWith(asPrivate, salt)` exists only so the RFC test can inject them.
@@ -214,7 +214,7 @@ unexported `encryptWith(asPrivate, salt)` exists only so the RFC test can inject
 ## 6. Keeping it safe after it ships
 
 - **No module to bump.** The code changes only when we change it.
-- **The toolchain is the dependency.** govulncheck in the `webgo` CI job flags standard-library
+- **The toolchain is the dependency.** govulncheck in the `web` CI job flags standard-library
   crypto advisories, as it did GO-2026-6809; take the Go point release promptly (the `toolchain`
   line in `go.mod`).
 - **T1 to T7 run on every CI build,** so a refactor cannot drift from the RFC.

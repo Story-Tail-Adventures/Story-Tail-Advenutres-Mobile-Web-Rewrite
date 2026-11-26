@@ -2,7 +2,7 @@
 """
 Enforce that the user-facing strings duplicated across the Go app and mobile stay identical.
 
-`webgo/` and `mobile/` deliberately hold parallel implementations of the same screens and the
+`web/` and `mobile/` deliberately hold parallel implementations of the same screens and the
 same error taxonomy. CLAUDE.md makes the stack directories a hard boundary, and the KMP shared
 module does not run on a server. That duplication is the right call, but nothing stops the two
 copies drifting apart, and drift means a traveler sees one wording on their phone and another
@@ -16,7 +16,7 @@ Until Phase 6 this compared `web/` against `mobile/`. The Go migration replaces 
 so the pairing that matters is now Go against mobile, and this script was re-pointed BEFORE
 `web/` was deleted — deliberately, because that is the only moment the re-point could be
 verified. While all three trees existed, web<->mobile passed (this job) and Go<->web passed
-(the per-area copy tests under webgo/), so Go<->mobile had to pass transitively. Any string
+(the per-area copy tests under web/), so Go<->mobile had to pass transitively. Any string
 where it did not was real drift that neither of those checks could see on its own. After `web/`
 is gone there is nothing left to validate a new extractor against.
 
@@ -26,7 +26,7 @@ The mobile side is unchanged: `object NAME { const val KEY = "value" }`, read ou
 
 The Go side cannot be read the same way. Web held each screen's copy in one flat object whose
 keys matched the Kotlin names; Go holds it as individual `const` identifiers (`labelProposalReady`)
-and as static text inside `webgo/pages/**/*.html`, because the page IS the template. So instead
+and as static text inside `web/pages/**/*.html`, because the page IS the template. So instead
 of pairing key to key, each table names the Go files that OWN that screen, and every string
 mobile shows must appear verbatim in one of them.
 
@@ -46,9 +46,9 @@ in more than one Go file, because two screens in different areas show the same w
 other copies are NOT pinned by this script. The known case is the trip status labels, which
 live three times:
 
-    webgo/internal/handlers/client/format.go          <- pinned here, by "trip status"
-    webgo/internal/handlers/agent/trips/format.go     <- not pinned
-    webgo/internal/handlers/agent/people/clientdetail.go  <- not pinned
+    web/internal/handlers/client/format.go          <- pinned here, by "trip status"
+    web/internal/handlers/agent/trips/format.go     <- not pinned
+    web/internal/handlers/agent/people/clientdetail.go  <- not pinned
 
 Changing the unpinned copies alone passes this check. That was measured, not assumed: editing
 `labelProposalReady` in the agent copy produced no failure, while the same edit to the client
@@ -73,9 +73,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-# The Go half of the auth sentences. webgo/internal/web/messages.go says of itself that
+# The Go half of the auth sentences. web/internal/web/messages.go says of itself that
 # check_copy_parity.py pins the shared kinds.
-GO_AUTH_ERRORS = ROOT / "webgo/internal/web/messages.go"
+GO_AUTH_ERRORS = ROOT / "web/internal/web/messages.go"
 KMP_ERRORS = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/api/AuthError.kt"
 
 ERROR_KINDS = {
@@ -99,10 +99,10 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/AgentMessages.kt',
         "kmp_object": 'AgentMessagesCopy',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/agent/people/messages.go',
-            ROOT / 'webgo/pages/agent/people/messages.html',
-            ROOT / 'webgo/internal/handlers/agent/people/messages_page.go',
-            ROOT / 'webgo/pages/agent/trips/detail.html',
+            ROOT / 'web/internal/handlers/agent/people/messages.go',
+            ROOT / 'web/pages/agent/people/messages.html',
+            ROOT / 'web/internal/handlers/agent/people/messages_page.go',
+            ROOT / 'web/pages/agent/trips/detail.html',
         ],
         "keys": [
             'ADD_NOTE',
@@ -160,11 +160,11 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/AgentCopy.kt',
         "kmp_object": 'AgentCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/agent/trips/detail.html',
-            ROOT / 'webgo/pages/agent/people/worklist.html',
-            ROOT / 'webgo/internal/handlers/agent/people/worklist.go',
-            ROOT / 'webgo/internal/handlers/agent/trips/detail.go',
-            ROOT / 'webgo/pages/agent/people/calendar.html',
+            ROOT / 'web/pages/agent/trips/detail.html',
+            ROOT / 'web/pages/agent/people/worklist.html',
+            ROOT / 'web/internal/handlers/agent/people/worklist.go',
+            ROOT / 'web/internal/handlers/agent/trips/detail.go',
+            ROOT / 'web/pages/agent/people/calendar.html',
         ],
         "keys": [
             'AVAILABILITY_DEFERRED',
@@ -210,7 +210,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/TripDetailSections.kt',
         "kmp_object": 'TripComponentCopy',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/agent/trips/components.go',
+            ROOT / 'web/internal/handlers/agent/trips/components.go',
         ],
         "keys": [
             'KIND_CRUISE',
@@ -227,7 +227,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/TripDetailSections.kt',
         "kmp_object": 'TripScheduleCopy',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/agent/trips/payments_logic.go',
+            ROOT / 'web/internal/handlers/agent/trips/payments_logic.go',
         ],
         "keys": [
             'STATUS_OVERDUE',
@@ -241,8 +241,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/TripDetailSections.kt',
         "kmp_object": 'TripItineraryCopy',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/agent/trips/itinerary.go',
-            ROOT / 'webgo/pages/agent/trips/itinerary.html',
+            ROOT / 'web/internal/handlers/agent/trips/itinerary.go',
+            ROOT / 'web/pages/agent/trips/itinerary.html',
         ],
         "keys": [
             'BLOCK_AFTERNOON',
@@ -258,7 +258,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripType.kt',
         "kmp_object": 'TripTypeMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/tripdetail.go',
+            ROOT / 'web/internal/handlers/client/tripdetail.go',
         ],
         "keys": [
             'ALL_INCLUSIVE',
@@ -273,12 +273,12 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/ClientCopy.kt',
         "kmp_object": 'ClientCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/agent/people/client.html',
-            ROOT / 'webgo/internal/handlers/agent/people/roster_page.go',
-            ROOT / 'webgo/internal/handlers/agent/people/clientdetail_page.go',
-            ROOT / 'webgo/pages/agent/people/clients.html',
-            ROOT / 'webgo/pages/agent/people/client-not-found.html',
-            ROOT / 'webgo/internal/handlers/agent/people/roster.go',
+            ROOT / 'web/pages/agent/people/client.html',
+            ROOT / 'web/internal/handlers/agent/people/roster_page.go',
+            ROOT / 'web/internal/handlers/agent/people/clientdetail_page.go',
+            ROOT / 'web/pages/agent/people/clients.html',
+            ROOT / 'web/pages/agent/people/client-not-found.html',
+            ROOT / 'web/internal/handlers/agent/people/roster.go',
         ],
         "keys": [
             'ACTIVITY_EMPTY',
@@ -333,8 +333,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/dashboard/DashboardUiState.kt',
         "kmp_object": 'DashboardMessages',
         "go_owners": [
-            ROOT / 'webgo/pages/client/dashboard.html',
-            ROOT / 'webgo/internal/handlers/client/dashboard.go',
+            ROOT / 'web/pages/client/dashboard.html',
+            ROOT / 'web/internal/handlers/client/dashboard.go',
         ],
         "keys": [
             'ADVISOR_LABEL',
@@ -366,7 +366,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripStatus.kt',
         "kmp_object": 'TripStatusMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/format.go',
+            ROOT / 'web/internal/handlers/client/format.go',
         ],
         "keys": [
             'BOOKED',
@@ -383,8 +383,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripDocuments.kt',
         "kmp_object": 'DocumentMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/documents.go',
-            ROOT / 'webgo/pages/client/documents.html',
+            ROOT / 'web/internal/handlers/client/documents.go',
+            ROOT / 'web/pages/client/documents.html',
         ],
         "keys": [
             'ADDED_BY_AGENT',
@@ -406,7 +406,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripThread.kt',
         "kmp_object": 'ThreadMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/thread.go',
+            ROOT / 'web/internal/handlers/client/thread.go',
         ],
         "keys": [
             'ATTACH_LABEL',
@@ -431,8 +431,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripMemories.kt',
         "kmp_object": 'MemoriesMessages',
         "go_owners": [
-            ROOT / 'webgo/pages/client/memories.html',
-            ROOT / 'webgo/internal/handlers/client/memories.go',
+            ROOT / 'web/pages/client/memories.html',
+            ROOT / 'web/internal/handlers/client/memories.go',
         ],
         "keys": [
             'ADD_PHOTOS',
@@ -468,7 +468,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripStatusChange.kt',
         "kmp_object": 'StatusChangeMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/statuschange.go',
+            ROOT / 'web/internal/handlers/client/statuschange.go',
         ],
         "keys": [
             'CHANGED_UNKNOWN',
@@ -497,7 +497,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/ClientDestinations.kt',
         "kmp_object": 'ClientNavMessages',
         "go_owners": [
-            ROOT / 'webgo/pages/layout/client.html',
+            ROOT / 'web/pages/layout/client.html',
         ],
         "keys": [
             'NOT_YET_ARIA',
@@ -509,8 +509,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip/AllTripsScreen.kt',
         "kmp_object": 'AllTripsMessages',
         "go_owners": [
-            ROOT / 'webgo/pages/client/trips.html',
-            ROOT / 'webgo/internal/handlers/client/tripslist.go',
+            ROOT / 'web/pages/client/trips.html',
+            ROOT / 'web/internal/handlers/client/tripslist.go',
         ],
         "keys": [
             'EMPTY_ALL_BODY',
@@ -536,8 +536,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/PayLinks.kt',
         "kmp_object": 'PayLinkMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/paylink.go',
-            ROOT / 'webgo/pages/client/trip.html',
+            ROOT / 'web/internal/handlers/client/paylink.go',
+            ROOT / 'web/pages/client/trip.html',
         ],
         "keys": [
             'EMPTY_SCHEDULE',
@@ -552,8 +552,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip/TripDetailScreen.kt',
         "kmp_object": 'TripDetailMessages',
         "go_owners": [
-            ROOT / 'webgo/pages/client/trip.html',
-            ROOT / 'webgo/internal/handlers/client/trippage.go',
+            ROOT / 'web/pages/client/trip.html',
+            ROOT / 'web/internal/handlers/client/trippage.go',
         ],
         "keys": [
             'ADVISOR_LABEL',
@@ -599,9 +599,9 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip/ItineraryScreen.kt',
         "kmp_object": 'ItineraryMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/itinerary.go',
-            ROOT / 'webgo/pages/client/itinerary-day.html',
-            ROOT / 'webgo/pages/client/itinerary.html',
+            ROOT / 'web/internal/handlers/client/itinerary.go',
+            ROOT / 'web/pages/client/itinerary-day.html',
+            ROOT / 'web/pages/client/itinerary.html',
         ],
         "keys": [
             'BACK',
@@ -645,7 +645,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/AuthValidation.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/auth.go',
+            ROOT / 'web/internal/validate/auth.go',
         ],
         "keys": [
             'EMAIL_INVALID',
@@ -662,7 +662,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/RegistrationValidation.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/registration.go',
+            ROOT / 'web/internal/validate/registration.go',
         ],
         "keys": [
             'CONFIRM_MISMATCH',
@@ -678,7 +678,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/MfaValidation.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/mfa.go',
+            ROOT / 'web/internal/validate/mfa.go',
         ],
         "keys": [
             'CODE_REQUIRED',
@@ -690,7 +690,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/PasswordStrength.kt',
         "kmp_object": 'Labels',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/password_strength.go',
+            ROOT / 'web/internal/validate/password_strength.go',
         ],
         "keys": [
             'DIGIT',
@@ -704,7 +704,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/PasswordStrength.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/password_strength.go',
+            ROOT / 'web/internal/validate/password_strength.go',
         ],
         "keys": [
             'STILL_NEEDS_PREFIX',
@@ -716,7 +716,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/RegisterScreen.kt',
         "kmp_object": 'RegisterCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/auth/register.html',
+            ROOT / 'web/pages/auth/register.html',
         ],
         "keys": [
             'APPLE',
@@ -741,7 +741,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/ForgotPasswordScreen.kt',
         "kmp_object": 'ForgotPasswordCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/auth/forgot-password.html',
+            ROOT / 'web/pages/auth/forgot-password.html',
         ],
         "keys": [
             'EMAIL',
@@ -757,7 +757,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/ResetPasswordScreen.kt',
         "kmp_object": 'ResetPasswordCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/auth/reset-password.html',
+            ROOT / 'web/pages/auth/reset-password.html',
         ],
         "keys": [
             'CONFIRM',
@@ -774,7 +774,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/VerifyEmailScreen.kt',
         "kmp_object": 'VerifyEmailCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/auth/verify-email.html',
+            ROOT / 'web/pages/auth/verify-email.html',
         ],
         "keys": [
             'RESEND',
@@ -789,7 +789,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/ProfileValidation.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/profile.go',
+            ROOT / 'web/internal/validate/profile.go',
         ],
         "keys": [
             'ADDRESS_INCOMPLETE',
@@ -811,7 +811,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/PreferencesValidation.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/preferences.go',
+            ROOT / 'web/internal/validate/preferences.go',
         ],
         "keys": [
             'ACCESSIBILITY_NONE_ALONE',
@@ -829,7 +829,7 @@ TABLES = [
             'UNKNOWN_OPTION',
         ],
         # NOT IN GO. Two cross-field messages (a ticked "none" plus a written note)
-        # that webgo/internal/validate/preferences.go does not implement.
+        # that web/internal/validate/preferences.go does not implement.
         "not_in_go": [
             'ACCESSIBILITY_NONE_WITH_NOTE',
             'DIETARY_NONE_WITH_NOTE',
@@ -840,7 +840,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/CompanionValidation.kt',
         "kmp_object": 'Messages',
         "go_owners": [
-            ROOT / 'webgo/internal/validate/companion.go',
+            ROOT / 'web/internal/validate/companion.go',
         ],
         "keys": [
             'COUNTRY_INVALID',
@@ -859,7 +859,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/WelcomeScreen.kt',
         "kmp_object": 'WelcomeCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/welcome.html',
+            ROOT / 'web/pages/onboarding/welcome.html',
         ],
         "keys": [
             'OVERLINE',
@@ -874,9 +874,9 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/ProfileFields.kt',
         "kmp_object": 'ProfileCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/profile.html',
-            ROOT / 'webgo/internal/profileform/profileform.go',
-            ROOT / 'webgo/internal/handlers/onboarding/onboarding.go',
+            ROOT / 'web/pages/onboarding/profile.html',
+            ROOT / 'web/internal/profileform/profileform.go',
+            ROOT / 'web/internal/handlers/onboarding/onboarding.go',
         ],
         "keys": [
             'ADDRESS',
@@ -916,8 +916,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/PreferencesFields.kt',
         "kmp_object": 'PreferencesCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/preferences.html',
-            ROOT / 'webgo/internal/handlers/onboarding/onboarding.go',
+            ROOT / 'web/pages/onboarding/preferences.html',
+            ROOT / 'web/internal/handlers/onboarding/onboarding.go',
         ],
         "keys": [
             'ACCESS',
@@ -952,9 +952,9 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/CompanionsScreen.kt',
         "kmp_object": 'CompanionsCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/companions.html',
-            ROOT / 'webgo/internal/handlers/onboarding/companions.go',
-            ROOT / 'webgo/internal/handlers/onboarding/onboarding.go',
+            ROOT / 'web/pages/onboarding/companions.html',
+            ROOT / 'web/internal/handlers/onboarding/companions.go',
+            ROOT / 'web/internal/handlers/onboarding/onboarding.go',
         ],
         "keys": [
             'ADD',
@@ -988,8 +988,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/ConnectScreen.kt',
         "kmp_object": 'ConnectCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/connect.html',
-            ROOT / 'webgo/internal/handlers/onboarding/connect.go',
+            ROOT / 'web/pages/onboarding/connect.html',
+            ROOT / 'web/internal/handlers/onboarding/connect.go',
         ],
         "keys": [
             'FIELD',
@@ -1007,7 +1007,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding/ConnectBanner.kt',
         "kmp_object": 'ConnectBannerCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/connect.html',
+            ROOT / 'web/pages/onboarding/connect.html',
         ],
         "keys": [
             'NO_MATCH',
@@ -1018,7 +1018,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/CompleteScreen.kt',
         "kmp_object": 'CompleteCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/onboarding/complete.html',
+            ROOT / 'web/pages/onboarding/complete.html',
         ],
         "keys": [
             'CHECKLIST',
@@ -1032,7 +1032,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding/Completion.kt',
         "kmp_object": 'CompletionCopy',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/onboarding/complete.go',
+            ROOT / 'web/internal/handlers/onboarding/complete.go',
         ],
         "keys": [
             'COMPANIONS_DONE',
@@ -1055,7 +1055,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'AccountMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/account.go',
+            ROOT / 'web/internal/handlers/client/account.go',
         ],
         "keys": [
             'COMING_SOON',
@@ -1087,7 +1087,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'PersonalMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/personal.go',
+            ROOT / 'web/internal/handlers/client/personal.go',
         ],
         "keys": [
             'CANCEL',
@@ -1106,7 +1106,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'AccountPreferencesMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/preferences.go',
+            ROOT / 'web/internal/handlers/client/preferences.go',
         ],
         "keys": [
             'CANCEL',
@@ -1120,8 +1120,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'DocumentLibraryMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/documents.go',
-            ROOT / 'webgo/pages/client/documents.html',
+            ROOT / 'web/internal/handlers/client/documents.go',
+            ROOT / 'web/pages/client/documents.html',
         ],
         "keys": [
             'EMPTY_BODY',
@@ -1139,14 +1139,14 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'NotificationsMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/accountpage.go',
+            ROOT / 'web/internal/handlers/client/accountpage.go',
         ],
         "keys": [
             'TITLE',
         ],
         # NOT IN GO. The screen is not built, and it is backend work rather than a page:
         # notification_preference has RLS with zero policies and no traveler-facing RPC exists.
-        # webgo/internal/handlers/client/accountpage.go says the same thing at the call site.
+        # web/internal/handlers/client/accountpage.go says the same thing at the call site.
         "not_in_go": [
             'EMPTY_BODY',
             'EMPTY_TITLE',
@@ -1158,7 +1158,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'SecurityMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/security.go',
+            ROOT / 'web/internal/handlers/client/security.go',
         ],
         "keys": [
             'MFA_BODY',
@@ -1186,7 +1186,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'ConnectedMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/connected.go',
+            ROOT / 'web/internal/handlers/client/connected.go',
         ],
         "keys": [
             'EMAIL_ACCOUNT_NOTE',
@@ -1207,7 +1207,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'PrivacyMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/privacy.go',
+            ROOT / 'web/internal/handlers/client/privacy.go',
         ],
         "keys": [
             'CLOSE_BODY',
@@ -1229,7 +1229,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'CloseMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/privacy.go',
+            ROOT / 'web/internal/handlers/client/privacy.go',
         ],
         "keys": [
             'BACK',
@@ -1253,8 +1253,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
         "kmp_object": 'HelpMessages',
         "go_owners": [
-            ROOT / 'webgo/pages/client/dashboard.html',
-            ROOT / 'webgo/internal/handlers/client/account.go',
+            ROOT / 'web/pages/client/dashboard.html',
+            ROOT / 'web/internal/handlers/client/account.go',
         ],
         "keys": [
             'ADVISOR_INITIALS',
@@ -1277,8 +1277,8 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessageGyasi.kt',
         "kmp_object": 'MessageGyasiCopy',
         "go_owners": [
-            ROOT / 'webgo/pages/public/message.html',
-            ROOT / 'webgo/internal/handlers/public/message.go',
+            ROOT / 'web/pages/public/message.html',
+            ROOT / 'web/internal/handlers/public/message.go',
         ],
         "keys": [
             'ABOUT_PREFIX',
@@ -1310,7 +1310,7 @@ TABLES = [
         "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessagesCopy.kt',
         "kmp_object": 'MessagesMessages',
         "go_owners": [
-            ROOT / 'webgo/internal/handlers/client/inbox.go',
+            ROOT / 'web/internal/handlers/client/inbox.go',
         ],
         "keys": [
             'ADVISOR_INITIALS',

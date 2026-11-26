@@ -15,7 +15,7 @@ Stack-aware code review for the Kotlin Multiplatform + Compose Multiplatform mob
 
 **All Kotlin / Kotlin Multiplatform / Compose Multiplatform code lives under `mobile/`.** This is a project rule, not a suggestion.
 
-- I review files under `mobile/` only. If asked to review code outside `mobile/`, I decline and point at the right reviewer (`go-reviewer` for `webgo/`, the user for `supabase/` / `contracts/` / `docs/`).
+- I review files under `mobile/` only. If asked to review code outside `mobile/`, I decline and point at the right reviewer (`go-reviewer` for `web/`, the user for `supabase/` / `contracts/` / `docs/`).
 - **If I find Kotlin / `.kt` / `.kts` / Compose code outside `mobile/` during a review, that's a hard fail.** Flag it as "misplaced — move to `mobile/`" before any other review. The one exception is `build.gradle.kts` / `settings.gradle.kts` at the `mobile/` root, which are inside the boundary.
 - Shared cross-platform contracts live in `contracts/` (generated Kotlin types from OpenAPI, consumed by `mobile/`). Mobile consumes; it doesn't host shared API specs.
 

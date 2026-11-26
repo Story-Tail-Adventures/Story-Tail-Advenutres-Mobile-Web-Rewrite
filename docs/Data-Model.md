@@ -3735,7 +3735,7 @@ triggers remain available as a defense-in-depth backstop on the most sensitive t
 
 > **Amended 2026-11-06.** The backend is moving from Edge Functions into one Go service
 > (`docs/GO-MIGRATION.md`, ruling 8). `withAudit()` and its siblings port to
-> `webgo/internal/audit` with the same columns and metadata. Until a function is ported, its
+> `web/internal/audit` with the same columns and metadata. Until a function is ported, its
 > Deno wrapper is still the writer. SQL functions that take `p_audit_id` do not change.
 
 ### 20.4 Versioning for Optimistic Concurrency
@@ -3753,7 +3753,7 @@ Reads return the current `version`. Writes include the `version` and increment i
 ## 21. Implementation Notes — KMP (Mobile) + TypeScript (Backend + Web)
 
 > **Amended 2026-11-06.** The web app and the backend are moving to one Go service
-> (`docs/GO-MIGRATION.md`). It is built in `webgo/`, holds both the pages and the API mobile
+> (`docs/GO-MIGRATION.md`). It is built in `web/`, holds both the pages and the API mobile
 > calls, and becomes `web/` once Next.js and `supabase/functions/` are deleted. Until then the
 > layout below is still what runs. The rules in this section (column grants, server-only types,
 > UUID v7) apply to the Go code unchanged.
@@ -3840,7 +3840,7 @@ The payment domain went from 2026-05-14 to 2026-09-17 with RLS enabled, zero pol
 Edge Functions run with the `service_role` key (server-side only, never exposed), which bypasses both RLS and grants, and read these columns when they need to.
 
 > **Amended 2026-11-06.** As functions move into the Go service, the key moves with them: it
-> lives in Render's env and only `webgo/internal/api/...` can reach it. A test fails the build
+> lives in Render's env and only `web/internal/api/...` can reach it. A test fails the build
 > if any page handler imports the service client, so pages keep reading with the visitor's own
 > token and stay under RLS and these grants.
 

@@ -3,24 +3,12 @@
   "configurations": [
     {
       "name": "web",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev",
-        "-w",
-        "web"
-      ],
-      "port": 3000,
-      "autoPort": true
-    },
-    {
-      "name": "webgo",
       "runtimeExecutable": "env",
       "runtimeArgs": [
         "STA_ENV=development",
         "go",
         "-C",
-        "webgo",
+        "web",
         "run",
         "./cmd/server"
       ],

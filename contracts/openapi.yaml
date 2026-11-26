@@ -1,7 +1,7 @@
 # Story-Tail Adventures — API contract
 #
 # Source of truth for every endpoint served at /functions/v1/{name}. All of them are answered
-# by the Go service in `webgo/` — the Supabase Edge Functions that used to serve them were
+# by the Go service in `web/` — the Supabase Edge Functions that used to serve them were
 # deleted in Phase 6 (docs/GO-MIGRATION.md), and the ports kept every request, reply and
 # problem+json error byte for byte, so the entries here did not change with the move. Both
 # clients consume generated types from this file:
