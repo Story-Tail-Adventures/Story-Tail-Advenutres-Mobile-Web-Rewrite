@@ -15,7 +15,13 @@ export interface paths {
         put?: never;
         /**
          * Live hotel search for the public Explore surface.
-         * @description Screen 2.0.4 in Hotels mode, and 2.3.3 later. Calls SerpApi's Google Hotels engine
+         * @deprecated
+         * @description RETIRED, NOT PORTED (2026-11-06). Nothing calls this function any more: the web app
+         *     does live hotel search itself since PR #48 (`web/lib/public/hotels.ts`), and mobile
+         *     never called it. It is not ported to Go and goes away with the Deno functions
+         *     (docs/GO-MIGRATION.md §5.10). The description below is kept as the record.
+         *
+         *     Screen 2.0.4 in Hotels mode, and 2.3.3 later. Calls SerpApi's Google Hotels engine
          *     for the dates given and returns normalised hotel content plus ONE indicative
          *     nightly rate per property.
          *
@@ -74,6 +80,11 @@ export interface paths {
          *     `X-STA-Search-Token` — the same credential `hotel-search` uses, from the same
          *     `HOTEL_SEARCH_CALLER_TOKEN` secret. The anon key ships in the browser bundle, so it
          *     authenticates nobody; the header is what does.
+         *
+         *     PORTED TO GO (2026-11-06). The Go service runs it IN PROCESS for its own web pages
+         *     and answers 404 on its HTTP door, so no caller token is needed or accepted there; the
+         *     request and reply below are unchanged. The `X-STA-Search-Token` header applies only to
+         *     the Deno function, until it is retired (GO-MIGRATION.md §5.10).
          *
          *     THE RESPONSE CARRIES NO FARE. `cruise_sailing.lead_price_cents` exists and is
          *     classified Internal (Data-Model §24.4); Free-Travel-APIs §4.7 says to launch the
