@@ -324,9 +324,11 @@ internal fun Throwable.toAuthError(): AuthError = when (this) {
  * `<supabaseUrl>/functions/v1`.
  *
  * Null when the two are equal, which is the default (`supabase.functionsUrl` unset), so every
- * function call goes exactly where it went before this setting existed. In supabase-kt 3.8.0,
+ * function call goes exactly where it went before this setting existed. In supabase-kt
  * `MainPlugin.resolveUrl` adds `functions/v1` only when `customUrl` is null; a set `customUrl`
- * replaces the whole base, so it has to carry `/functions/v1` itself. The Go service serves
+ * replaces the whole base, so it has to carry `/functions/v1` itself. Checked against 3.8.0 when
+ * this was written and again on 3.9.0 (2026-11-26) — FunctionsUrlTest resolves through the
+ * library's own resolveUrl rather than a copy of its rules, so a change there fails the test. The Go service serves
  * the same `/functions/v1/{name}` paths (docs/GO-MIGRATION.md §5.2, §5.8).
  */
 internal fun functionsCustomUrl(supabaseUrl: String, functionsUrl: String): String? =
