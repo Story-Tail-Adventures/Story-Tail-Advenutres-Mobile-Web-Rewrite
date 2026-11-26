@@ -8,6 +8,7 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentlead"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentmessage"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentmessagetemplate"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentreport"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentsettings"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttemplate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttrip"
@@ -76,5 +77,8 @@ func portTable() map[string]port {
 		// Commission (step 8). Ledger writes are audited inside their SQL transaction.
 		"agent-commission":  {GateUser, agentcommission.Func},
 		"commission-import": {GateUser, commissionimport.Func},
+
+		// Reports (step 9).
+		"agent-report": {GateUser, agentreport.Func},
 	}
 }

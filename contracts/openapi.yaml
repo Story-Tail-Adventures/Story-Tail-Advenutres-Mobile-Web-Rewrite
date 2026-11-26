@@ -1341,6 +1341,48 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # §3.11 Reports and the Export Center
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /agent-report:
+    post:
+      operationId: agentReport
+      summary: Download a report, or an Export Center file, as CSV.
+      description: |
+        §3.11 Reporting's audited download (P1). `export`: one report's own table for the
+        period on screen. `center`: the Export Center's four types (§3.11.8) over an inclusive
+        From/To range (none for clients). Reads for the SCREEN are not here: they are the
+        `agent_report_*` functions, called with the advisor's own token.
+
+        Every file writes one audit row in the same SQL call that returns its rows:
+        `report.exported` (and `commission.exported` for the ledger), so no file leaves
+        without its record.
+
+        The CSV travels inside the JSON reply: RFC 4180, CRLF line ends and a trailing CRLF,
+        no byte-order mark, money as exact decimals ("1234.56"), and a text cell starting with
+        = + - @ tab or CR prefixed with an apostrophe. The Export Center's 400 details are
+        written to be shown to the advisor as they are.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AgentReportExportRequest'
+                - $ref: '#/components/schemas/AgentReportCenterRequest'
+      responses:
+        '200':
+          description: The file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentReportFile'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     supabaseJwt:
@@ -3745,6 +3787,60 @@ components:
         blocking:
           type: integer
           description: "`needs_decisions`: rows still suggested, unmatched, duplicate or unreadable."
+
+    # ── §3.11 Reports and the Export Center ──
+
+    AgentReportExportRequest:
+      type: object
+      required: [op, report]
+      properties:
+        op: { type: string, enum: [export] }
+        report: { type: string, enum: [revenue, suppliers, destinations, clients, funnel, pipeline] }
+        period:
+          type: [string, 'null']
+          enum: [ytd, 12mo, qtd, null]
+          description: >-
+            Required for every report but clients and pipeline, which take none (one sent is a
+            400, not ignored).
+        basis:
+          type: [string, 'null']
+          enum: [booked, received, null]
+          description: Required for revenue; refused for every other report.
+
+    AgentReportCenterRequest:
+      type: object
+      required: [op, type]
+      properties:
+        op: { type: string, enum: [center] }
+        type: { type: string, enum: [ledger, trips, milestones, clients] }
+        from:
+          type: [string, 'null']
+          format: date
+          description: Required (a real date, on or before `to`) for every type but clients, which takes none.
+        to:
+          type: [string, 'null']
+          format: date
+        includeContact:
+          type: [boolean, 'null']
+          description: >-
+            Adds email, phone and mailing address columns. Clients only; true on any other
+            type is a 400. Only the JSON values true, false and null are accepted.
+
+    AgentReportFile:
+      type: object
+      required: [outcome, rowCount, csv, fileName]
+      properties:
+        outcome: { type: string, enum: [exported] }
+        rowCount:
+          type: integer
+          description: The rows SQL returned (for the funnel, the four stages; for the pipeline, stages plus month buckets).
+        csv: { type: string }
+        fileName:
+          type: string
+          description: >-
+            "revenue-booked-2026-01-01-to-2026-10-21.csv": the period it covers. Clients and
+            the pipeline are dated by the advisor's own day ("clients-lifetime-value-2026-10-21.csv",
+            "clients-with-contact-details-2026-10-21.csv").
 
   responses:
     BadRequest:
