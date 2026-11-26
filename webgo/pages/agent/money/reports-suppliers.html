@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.3, Commission by Supplier. Ports app/(agent)/agent/reports/suppliers/page.tsx
+  with RankedTables' SupplierTable. Filled by internal/handlers/agent/money (reportpages.go).
+
+  THE STORED LEDGER, NEVER THE FORECAST. The period filters on travel dates, exactly as the
+  ledger screen does, so a supplier's name opens the ledger filtered to the very lines its
+  row summed. Disputed and lost lines are in neither column; the footnote counts them.
+
+  THE TABLE IS THE CHART: each row carries its own bar under the name, so the figures and
+  the picture are one thing a screen reader reads in order. The bar is aria-hidden — the
+  cells beside it already say the number.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Commission by supplier · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Commission by supplier</h1>
+          <p class="type-body2 text-secondary mny-sub">Where the money's coming from.</p>
+          <p class="type-caption text-secondary mny-block mny-mt-0_5" data-slot="rpt-window">Jan 1 to Oct 21, 2026</p>
+        </div>
+        <div class="mny-rpt-actions">
+          <nav class="mny-views" aria-label="Period">
+            <a class="chip mny-view" href="/agent/reports/suppliers" data-repeat="chip" data-slot="chip-link"><span class="chip-label" data-slot="chip-label">Year to date</span></a>
+          </nav>
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/reports/download?report=suppliers" data-slot="rpt-export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/suppliers" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card" data-slot="sup-empty">
+          <div class="card-content">
+            <p class="type-body2 text-secondary">No commission lines for trips in this period yet.</p>
+          </div>
+        </div>
+
+        <div class="card mny-table-card" data-slot="sup-table">
+          <table class="table table-small" aria-label="Commission by supplier">
+            <thead>
+              <tr>
+                <th scope="col">Supplier</th>
+                <th scope="col" class="cell-num">Received</th>
+                <th scope="col" class="cell-num">Still owed</th>
+                <th scope="col" class="cell-num">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-repeat="sup-row">
+                <th scope="row" class="mny-rpt-name">
+                  <a class="link link-hover fw-600" href="/agent/commission/ledger" data-slot="sup-link"><span data-slot="sup-name">Sandals Resorts</span></a>
+                  <span class="mny-meter mny-rpt-track" aria-hidden="true"><span class="mny-meter-fill mny-rpt-share" data-w="40" data-slot="sup-bar"><span class="mny-meter-fill mny-rpt-received" data-w="60" data-slot="sup-received-bar"></span></span></span>
+                </th>
+                <td class="cell-num mny-td-mono" data-slot="sup-received">$2,700</td>
+                <td class="cell-num mny-td-mono" data-slot="sup-owed">$600</td>
+                <td class="cell-num mny-td-mono mny-td-muted" data-slot="sup-share">40%</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row" class="mny-rpt-foot">Total</th>
+                <td class="cell-num mny-td-mono mny-rpt-foot" data-slot="sup-total-received">$2,700</td>
+                <td class="cell-num mny-td-mono mny-rpt-foot" data-slot="sup-total-owed">$600</td>
+                <td class="mny-rpt-foot"></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div class="mny-rpt-legend mny-rpt-legend-pad" aria-hidden="true">
+            <span class="mny-swatch"><span class="mny-dot mny-dot-primary"></span><span class="type-caption">Received</span></span>
+            <span class="mny-swatch"><span class="mny-dot mny-dot-container"></span><span class="type-caption">Still owed</span></span>
+          </div>
+        </div>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note">By travel dates in this period, the same as the ledger.</p>
+        <p class="type-caption text-secondary mny-block mny-rpt-note" data-slot="sup-setaside">2 disputed or lost lines are set aside and not counted here.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

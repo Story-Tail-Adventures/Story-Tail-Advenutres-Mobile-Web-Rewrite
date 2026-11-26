@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.4, Top Destinations. Ports app/(agent)/agent/reports/destinations/page.tsx
+  with RankedTables' DestinationTable. Filled by internal/handlers/agent/money.
+
+  NO MAP. The artboard's pins sit on a stock photograph at made-up spots; a real map needs a
+  tile provider, a new third-party service and a security review. A ranked table with a bar
+  per row says the same thing truthfully.
+
+  The NULL destination row is "trips with no stop yet": drawn quieter, never dropped.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Top destinations · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Top destinations</h1>
+          <p class="type-body2 text-secondary mny-sub">By trip count and value.</p>
+          <p class="type-caption text-secondary mny-block mny-mt-0_5" data-slot="rpt-window">Jan 1 to Oct 21, 2026</p>
+        </div>
+        <div class="mny-rpt-actions">
+          <nav class="mny-views" aria-label="Period">
+            <a class="chip mny-view" href="/agent/reports/destinations" data-repeat="chip" data-slot="chip-link"><span class="chip-label" data-slot="chip-label">Year to date</span></a>
+          </nav>
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/reports/download?report=destinations" data-slot="rpt-export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/destinations" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card" data-slot="dest-empty">
+          <div class="card-content">
+            <p class="type-body2 text-secondary">No booked trips start in this period yet.</p>
+          </div>
+        </div>
+
+        <div class="card mny-table-card" data-slot="dest-table">
+          <table class="table table-small" aria-label="Top destinations">
+            <thead>
+              <tr>
+                <th scope="col">Destination</th>
+                <th scope="col" class="cell-num">Trips</th>
+                <th scope="col" class="cell-num">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-repeat="dest-row">
+                <th scope="row" class="mny-rpt-name">
+                  <span class="fw-600 mny-block" data-slot="dest-name">Turks and Caicos</span>
+                  <span class="mny-meter mny-rpt-track" aria-hidden="true"><span class="mny-meter-fill mny-rpt-dest" data-w="80" data-slot="dest-bar"></span></span>
+                </th>
+                <td class="cell-num mny-td-mono" data-slot="dest-trips">4</td>
+                <td class="cell-num mny-td-mono" data-slot="dest-value">$18,400</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row" class="mny-rpt-foot">Total</th>
+                <td class="mny-rpt-foot"></td>
+                <td class="cell-num mny-td-mono mny-rpt-foot" data-slot="dest-total">$18,400</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note">Booked, traveling and completed trips, by travel start date. A trip with more than one stop counts once in each place, with its value split evenly between them.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

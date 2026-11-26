@@ -2,7 +2,6 @@ package money
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -282,7 +281,7 @@ func (a *app) serveForecast(w http.ResponseWriter, r *http.Request) {
 	// so the weights are a form the advisor opens, fills and saves.
 	editing := r.URL.Query().Get("edit") == "1"
 	if fillFrame(doc, r, v, st) {
-		fillForecast(doc, f, editing, false, "")
+		fillForecast(doc, f, editing, false, "", nil)
 	}
 	web.Render(w, a.d.Log, doc, statusFor(st), web.Private)
 }
@@ -312,7 +311,7 @@ func (a *app) saveWeights(w http.ResponseWriter, r *http.Request) {
 		}
 		doc := a.forecast.New()
 		if fillFrame(doc, r, v, st) {
-			fillForecast(doc, f, true, true, message)
+			fillForecast(doc, f, true, true, message, form)
 		}
 		web.Render(w, a.d.Log, doc, http.StatusUnprocessableEntity, web.Private)
 	}
@@ -341,7 +340,7 @@ func (a *app) saveWeights(w http.ResponseWriter, r *http.Request) {
 	web.SeeOther(w, r, forecastPath)
 }
 
-func fillForecast(doc *page.Doc, f *commissionForecast, editing, showError bool, message string) {
+func fillForecast(doc *page.Doc, f *commissionForecast, editing, showError bool, message string, typed url.Values) {
 	if f.AnyCommission {
 		doc.Remove("nothing-yet")
 	} else {
@@ -367,31 +366,10 @@ func fillForecast(doc *page.Doc, f *commissionForecast, editing, showError bool,
 		doc.Remove("form-error")
 	}
 
+	// The same rows §3.11.7's pipeline card draws, filled by the same code: one weights
+	// card, two screens.
 	doc.Repeat("stage", len(f.Stages), func(i int, row *page.Row) {
-		s := f.Stages[i]
-		row.Text("stage-label", s.Label)
-		row.Text("stage-trips", s.TripCountLabel)
-		row.Attr("stage-bar", "data-w", meterStep(s.WeightPct))
-		row.Keep("stage-bar")
-		row.Text("stage-amount", s.WeightedLabel)
-		if editing {
-			row.Remove("stage-pct")
-			row.Keep("stage-input")
-			row.Attr("stage-input", "name", "weight-"+s.Stage)
-			row.Attr("stage-input", "value", itoa(s.WeightPct))
-			row.Attr("stage-input", "aria-label", s.Label+" "+copyWeightLabel)
-			row.Remove("stage-input-label")
-			// What the screen showed, so the save can be refused rather than overwrite a
-			// change made somewhere else since.
-			row.Attr("stage-expected", "name", "expected-"+s.Stage)
-			row.Attr("stage-expected", "value", itoa(s.WeightPct))
-		} else {
-			row.Keep("stage-pct")
-			row.Text("stage-pct-text", fmt.Sprintf("%d%%", s.WeightPct))
-			row.Remove("stage-input")
-			row.Remove("stage-input-label")
-			row.Remove("stage-expected")
-		}
+		fillStageRow(row, f.Stages[i], editing, typed)
 	})
 
 	if len(f.Calendar) == 0 {

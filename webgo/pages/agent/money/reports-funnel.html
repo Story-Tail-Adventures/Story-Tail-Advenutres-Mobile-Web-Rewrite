@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.6, Conversion Funnel. Ports app/(agent)/agent/reports/funnel/page.tsx with
+  ClientsAndFunnel' FunnelChart. Filled by internal/handlers/agent/money.
+
+  Inquiry to Proposal to Booked to Traveled, over the trips that CAME IN during the period.
+  No Lead or Qualified stage: a quote request is a trip (decided 2026-09-09). Each stage's
+  drop is split into still open (not a loss yet) and cancelled.
+
+  THE SUBTITLE IS THE SUMMARY, as the artboard draws it, so it is filled from Go. The bars
+  are aria-hidden and each one's width is a data-w attribute money.css has a rule for; the
+  table under them carries every figure.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Conversion funnel · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Conversion funnel</h1>
+          <p class="type-body2 text-secondary mny-sub" data-slot="rpt-subtitle">142 inquiries → 32 traveled · 22.5% made it all the way</p>
+          <p class="type-caption text-secondary mny-block mny-mt-0_5" data-slot="rpt-window">Jan 1 to Oct 21, 2026</p>
+        </div>
+        <div class="mny-rpt-actions">
+          <nav class="mny-views" aria-label="Period">
+            <a class="chip mny-view" href="/agent/reports/funnel" data-repeat="chip" data-slot="chip-link"><span class="chip-label" data-slot="chip-label">Year to date</span></a>
+          </nav>
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/reports/download?report=funnel" data-slot="rpt-export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/funnel" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card" data-slot="fun-empty">
+          <div class="card-content">
+            <p class="type-body2 text-secondary">No new trips came in during this period.</p>
+          </div>
+        </div>
+
+        <section class="card" data-slot="fun-card">
+          <div class="card-content mny-fun-body">
+            <div aria-hidden="true">
+              <div class="mny-fun-row" data-repeat="fun-stage">
+                <span class="type-subtitle1 mny-fun-name" data-slot="fun-label">Inquiry</span>
+                <span class="mny-fun-track">
+                  <span class="mny-meter-fill mny-fun-bar" data-w="100" data-slot="fun-bar">
+                    <span class="type-subtitle1 mny-fun-count" data-slot="fun-trips">142 trips</span>
+                    <span class="type-caption mny-fun-pct" data-slot="fun-pct">100%</span>
+                  </span>
+                </span>
+                <span class="type-caption text-secondary mny-fun-stopped" data-slot="fun-stopped">−22 · 15 still open, 7 cancelled</span>
+              </div>
+            </div>
+
+            <div class="mny-fun-days">
+              <p class="type-body2 fw-600" data-slot="fun-bookdays">18.4 days on average from inquiry to booked, across 38 trips.</p>
+            </div>
+
+            <div class="mny-table-card mny-mt-2" role="region" aria-label="Conversion funnel" tabindex="0">
+              <table class="table table-small" aria-label="Conversion funnel">
+                <thead>
+                  <tr>
+                    <th scope="col">Stage</th>
+                    <th scope="col" class="cell-num">Reached</th>
+                    <th scope="col" class="cell-num">% of inquiries</th>
+                    <th scope="col" class="cell-num">Still open here</th>
+                    <th scope="col" class="cell-num">Cancelled here</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-repeat="fun-row">
+                    <th scope="row" data-slot="fun-row-stage">Inquiry</th>
+                    <td class="cell-num mny-td-mono" data-slot="fun-row-reached">142</td>
+                    <td class="cell-num mny-td-mono mny-td-muted" data-slot="fun-row-pct">100%</td>
+                    <td class="cell-num mny-td-mono" data-slot="fun-row-open">15</td>
+                    <td class="cell-num mny-td-mono" data-slot="fun-row-cancelled">7</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note">Trips that came in during this period, and how far each has gone. A trip entered as booked counts as an inquiry and a proposal too.</p>
+        <p class="type-caption text-secondary mny-block mny-rpt-note">Days to book counts only bookings made since Sep 19, 2026, when tracking began.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
