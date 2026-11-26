@@ -12,11 +12,13 @@ import (
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/clientaddr"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/uuid"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/web"
 )
 
@@ -211,6 +213,21 @@ func signIn(w http.ResponseWriter, r *http.Request, v visit) {
 		return
 	}
 	web.SeeOther(w, r, "/login?next="+url.QueryEscape(v.here))
+}
+
+// afterSignIn mounts a GET on a POST-only path that sends the visitor on to page(tripId).
+// The gate sends a visitor whose session ended mid-post to sign in with next= the path they
+// posted to, before any handler here runs; signing in then GETs that path, which would
+// otherwise answer 405 instead of the page they were on.
+func afterSignIn(rt *gate.Router, postPattern string, page func(tripID string) string) {
+	rt.Protected("GET "+strings.TrimPrefix(postPattern, "POST "), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("tripId")
+		if !uuid.IsUUID(id) {
+			web.SeeOther(w, r, "/agent/trips")
+			return
+		}
+		web.SeeOther(w, r, page(id))
+	}))
 }
 
 // lf is a posted textarea's value as the Next app sent it: browsers post line breaks as CRLF,
