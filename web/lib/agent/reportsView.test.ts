@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -207,15 +204,6 @@ describe("3.11.4 Top Destinations", () => {
     const r = destinationReport([{ destination: "Credit", trip_count: 1, value_cents: "-5000" }]);
     expect(r.rows[0].valueLabel).toBe("−$50");
     expect(r.rows[0].sharePct).toBe(0);
-  });
-});
-
-describe("the CSV and the screen say the same words", () => {
-  // CI runs the Deno tests without --allow-read, so the cross-file check lives here.
-  const deno = readFileSync(resolve(__dirname, "../../..", "supabase/functions/_shared/report.ts"), "utf8");
-
-  it("labels the stopless row the same way in the file as on the screen", () => {
-    expect(deno).toContain(`export const NO_DESTINATION = "${REPORTS_COPY.noDestination}";`);
   });
 });
 

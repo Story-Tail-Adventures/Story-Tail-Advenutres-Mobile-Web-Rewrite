@@ -6,32 +6,33 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 )
 
-// The list must match supabase/functions/, so a new function can't be forgotten here and a
-// deleted one can't linger.
-func TestFunctionsMatchTheRepo(t *testing.T) {
-	entries, err := os.ReadDir(filepath.Join("..", "..", "..", "supabase", "functions"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var onDisk []string
-	for _, e := range entries {
-		if e.IsDir() && !strings.HasPrefix(e.Name(), "_") {
-			onDisk = append(onDisk, e.Name())
-		}
-	}
+// Until Phase 6 this read supabase/functions/ and asserted Functions matched the folders on
+// disk. Those folders are gone, so that check lost its referent — but the invariant it was
+// really protecting got STRONGER rather than disappearing.
+//
+// Before: a name could be in Functions and not in the port table, and it passed through to
+// the Deno deployment. Now there is no Deno deployment, so a name in Functions that no Go
+// handler serves is a request proxied to a host that answers 404 — a silent hole, and the
+// shape the pass-through can no longer be a safety net for.
+//
+// So the assertion becomes an equality between the two lists this package owns, which needs
+// nothing on disk and cannot go stale.
+func TestEveryServedNameRunsInGo(t *testing.T) {
 	listed := slices.Sorted(slices.Values(Functions))
-	if !slices.Equal(listed, onDisk) {
-		t.Errorf("Functions drifted from supabase/functions/:\n listed %v\n on disk %v", listed, onDisk)
+	ported := slices.Sorted(maps.Keys(portTable()))
+	if !slices.Equal(listed, ported) {
+		t.Errorf("Functions and the port table disagree:\n  served  %v\n  ported  %v\n"+
+			"a served name with no Go handler would be proxied to a deployment that no longer exists",
+			listed, ported)
 	}
 }
 

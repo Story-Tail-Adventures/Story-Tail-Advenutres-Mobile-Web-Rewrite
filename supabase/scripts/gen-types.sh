@@ -71,7 +71,6 @@ else
 fi
 
 WEB_TYPES="web/types/supabase.ts"
-FN_TYPES="supabase/functions/_shared/database.types.ts"
 
 # The version prefix of every migration file in THIS worktree.
 expected_migrations() {
@@ -117,13 +116,12 @@ assert_stack_is_ours "before generating"
 mkdir -p web/types
 gen > "$WEB_TYPES"
 
-# Re-read the migration set before the second write rather than after both, so a reset that
-# lands between the two files cannot leave the two copies describing different databases.
+# Re-read the migration set after writing, because a concurrent reset that landed mid-generation
+# would otherwise be committed with no trace. There used to be a second copy here
+# (supabase/functions/_shared/database.types.ts); the Edge Functions are gone and Go decodes
+# rows into typed structs rather than generated TypeScript, so this is the only consumer left.
 assert_stack_is_ours "during generation"
-
-cp "$WEB_TYPES" "$FN_TYPES"
 
 echo "Types written from $(expected_migrations | wc -l | tr -d ' ') migrations" \
      "using supabase@${SUPABASE_CLI_VERSION}:"
 echo "  $WEB_TYPES"
-echo "  $FN_TYPES"

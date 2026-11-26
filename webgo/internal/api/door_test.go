@@ -15,7 +15,9 @@ import (
 func TestSearchFunctionsAreNotOnTheHTTPDoor(t *testing.T) {
 	srv, s := upstream(t, 200, `{}`, nil)
 	g := registry(srv.URL, &bytes.Buffer{})
-	for _, name := range []string{"hotel-search", "cruise-search"} {
+	// hotel-search was here too until it left Functions with supabase/functions/; an
+	// unknown name is already a 404, so listing it would assert nothing about webOnly.
+	for _, name := range []string{"cruise-search"} {
 		for _, method := range []string{"GET", "POST"} {
 			if rec := serve(g, httptest.NewRequest(method, "/functions/v1/"+name, strings.NewReader(`{}`))); rec.Code != 404 {
 				t.Errorf("%s %s = %d, want 404", method, name, rec.Code)

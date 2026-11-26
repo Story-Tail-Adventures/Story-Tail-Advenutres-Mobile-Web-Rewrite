@@ -1,10 +1,10 @@
 # Story-Tail Adventures — API contract
 #
-# Source of truth for every endpoint served at /functions/v1/{name}: today by the Supabase
-# Edge Functions in `supabase/functions/`, and, as each one is ported (docs/GO-MIGRATION.md
-# §5), by the Go service in `webgo/`, which answers byte for byte the same requests, replies
-# and problem+json errors. A ported path keeps its entry unchanged. Both clients consume
-# generated types from this file:
+# Source of truth for every endpoint served at /functions/v1/{name}. All of them are answered
+# by the Go service in `webgo/` — the Supabase Edge Functions that used to serve them were
+# deleted in Phase 6 (docs/GO-MIGRATION.md), and the ports kept every request, reply and
+# problem+json error byte for byte, so the entries here did not change with the move. Both
+# clients consume generated types from this file:
 #   - TypeScript  → contracts/ts/types.ts   (npm run generate -w contracts)
 #   - Kotlin      → contracts/kotlin/       (npm run generate -w contracts)
 #

@@ -107,19 +107,6 @@ def main() -> int:
             )
             return 2
 
-    # Edge Functions run on Deno, not Node or the browser.
-    if rel.startswith("supabase/functions/") and rel.endswith((".ts", ".tsx")):
-        content = (payload.get("tool_input") or {}).get("content") or ""
-        content += (payload.get("tool_input") or {}).get("new_string") or ""
-        for bad in ('from "react"', "from 'react'", 'from "next/', "from 'next/"):
-            if bad in content:
-                print(
-                    f"Stack boundary violation (CLAUDE.md rule 7): {rel}\n"
-                    "Edge Functions run on Deno — they cannot import React or Next.js.",
-                    file=sys.stderr,
-                )
-                return 2
-
     return 0
 
 

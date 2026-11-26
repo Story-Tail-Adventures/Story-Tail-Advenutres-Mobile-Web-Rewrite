@@ -6,8 +6,9 @@
 # directories are declared. Until it was filled in, `package-ecosystem: ""` made the config
 # invalid, so neither web nor mobile was getting anything.
 #
-# Deno is deliberately absent: supabase/functions/deno.json pins its imports by URL and
-# Dependabot has no Deno ecosystem, so the Edge Functions' dependencies are a manual review.
+# Deno used to be deliberately absent here (it has no Dependabot ecosystem, and the Edge
+# Functions pinned imports by URL). The Edge Functions are deleted and there is no Deno left
+# in the repo, so that note is history; `gomod` for /webgo covers the backend now.
 version: 2
 
 updates:
