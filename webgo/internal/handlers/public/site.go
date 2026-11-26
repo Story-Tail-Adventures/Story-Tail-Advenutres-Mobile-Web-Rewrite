@@ -61,6 +61,10 @@ type meta struct {
 	// NoFollow also tells them not to follow its links. Set both on a page reached by a link
 	// that carries somebody's own token, so the token is never walked (the unsubscribe page).
 	NoFollow bool
+	// NoCanonical leaves the canonical link out. Only the unsubscribe page sets it: its URL
+	// carries somebody's own token, and Next's metadata there declares no canonical at all,
+	// so writing one would be a link this page does not claim.
+	NoCanonical bool
 	// JSONLD is the page's structured data, if any.
 	JSONLD any
 }
@@ -72,10 +76,14 @@ func (s *site) head(d *page.Doc, m meta) {
 		title += " · " + siteName
 	}
 	url := absoluteURL(s.Config.SiteURL, m.Path)
+	canonical := url
+	if m.NoCanonical {
+		canonical = ""
+	}
 	h := page.Head{
 		Title:       title,
 		Description: m.Description,
-		Canonical:   url,
+		Canonical:   canonical,
 		JSONLD:      m.JSONLD,
 	}
 	switch {

@@ -27,6 +27,9 @@ var Specs = []page.Spec{
 	aboutSpec,
 	exploreSpec,
 	resultsSpec,
+	messageSpec,
+	joinSpec,
+	unsubscribeSpec,
 	tripSpec,
 	notFoundSpec,
 }
@@ -52,6 +55,9 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	about := tmpl(aboutSpec)
 	explore := tmpl(exploreSpec)
 	results := tmpl(resultsSpec)
+	message := tmpl(messageSpec)
+	join := tmpl(joinSpec)
+	unsubscribe := tmpl(unsubscribeSpec)
 	trip := tmpl(tripSpec)
 	s.notFoundPage = tmpl(notFoundSpec)
 	if err := errors.Join(errs...); err != nil {
@@ -71,6 +77,17 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Public("GET /explore/results", s.results(results))
 	rt.Public("GET /explore/{slug}", s.trip(trip))
 	rt.Public("GET /quote", s.quote())
+
+	// The three forms. None is cacheable: /message posts and calls a function, /join reads
+	// the session, and /email/unsubscribe is one person's link.
+	rt.Public("GET /message", s.message(message))
+	rt.Public("POST /message", s.messagePost(message))
+	// The sign-up gate is auth-only: a signed-in visitor is bounced away from it, which is
+	// why rt.Public would panic on this path (gate.AuthOnlyPrefixes).
+	rt.AuthOnly("GET /join", s.join(join))
+	rt.AuthOnly("POST /join", s.joinPost(join))
+	rt.Public("GET /email/unsubscribe", s.unsubscribe(unsubscribe))
+	rt.Public("POST /email/unsubscribe", s.unsubscribePost())
 	rt.Public("GET /sitemap.xml", s.sitemap())
 	rt.Public("GET /robots.txt", s.robots())
 	return nil
