@@ -49,6 +49,19 @@ BEGIN
 END;
 $$;
 
+-- The seed gives this agent two FIXED holidays (Thanksgiving 2026-11-26..29,
+-- Christmas 2026-12-24..2027-01-02) while the blocks further down are RELATIVE to today,
+-- so when they overlap the insert dies on agent_time_off_no_overlap and the card
+-- assertions never run. awayUntil also reads the EARLIEST block, so a seeded holiday
+-- would answer in place of the planted one. See rls_agent_settings.sql for the full note.
+--
+-- THIS HAS TO RUN BEFORE THE FIRST ASSERTION, not just before the relative insert.
+-- #228 put it immediately above that insert, which left the very first assertion below
+-- still exposed: it requires awayUntil to be null, and a seeded holiday covering today
+-- makes it a date. That is exactly what happened on 2026-11-26, the first day of the
+-- seeded Thanksgiving block, and the same run had passed the day before.
+DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 UPDATE public.agent
    SET social_links = '{"instagram":"https://instagram.com/story.tail"}', avatar_url = NULL
  WHERE id = :agent::uuid;
@@ -72,14 +85,6 @@ RESET role;
 -- A running block: the first day back. Its label stays private.
 SELECT public.agent_local_today(:agent::uuid) AS today \gset
 \set today '''':today''''
-
--- The seed gives this agent two FIXED holidays (Thanksgiving 2026-11-26..29,
--- Christmas 2026-12-24..2027-01-02) while the blocks below are RELATIVE to today,
--- so when they overlap the insert dies on agent_time_off_no_overlap and the card
--- assertions never run. awayUntil also reads the EARLIEST block, so a seeded
--- holiday would answer in place of the planted one. Clear them first.
--- See rls_agent_settings.sql for the full note.
-DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
 
 INSERT INTO public.agent_time_off (id, agent_id, starts_on, ends_on, label)
 VALUES (:off_now::uuid, :agent::uuid, :today::date - 1, :today::date + 3, 'Private reason');
