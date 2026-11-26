@@ -527,10 +527,13 @@ export interface paths {
          *     Omitting `code` (or sending null) is a first-class exit: "I don't have a
          *     code" writes nothing but the cursor and returns `redeemed: false`.
          *
-         *     Every refusal returns 403 with a `detail` naming the reason — expired,
-         *     already used, revoked, already connected, claimed by another traveler,
-         *     or rate limited. The reason is deliberately specific: a traveler holding
-         *     a code that expired needs to know that, not "invalid code".
+         *     Every refusal carries a `detail` naming the reason. A refused CODE is a 400
+         *     (unknown, expired, already used, revoked, already connected, claimed by
+         *     another traveler); the rate limit, and a caller who is not a traveler, are
+         *     403. The reason is deliberately specific: a traveler holding a code that
+         *     expired needs to know that, not "invalid code". (Corrected 2026-11-06: this
+         *     used to say every refusal was a 403; the differential test against the
+         *     function showed otherwise.)
          */
         post: operations["redeemConnectCode"];
         delete?: never;
@@ -979,6 +982,8 @@ export interface components {
             dateOfBirth?: string | null;
             /** Format: date */
             passportExpiry?: string | null;
+            /** @description Two-letter country code, stored upper case. (A passport NUMBER is refused.) */
+            passportCountry?: string | null;
             /** @default false */
             advance: boolean;
         };
@@ -1737,6 +1742,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description An `edit` of a companion who is not on the caller's list ("That companion is not on your list."). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     redeemConnectCode: {
@@ -1764,8 +1778,8 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /**
-             * @description The code was refused, or the caller is not a traveler. `detail`
-             *     names which.
+             * @description Too many attempts, or the caller is not a traveler. `detail` names
+             *     which. A refused code is a 400.
              */
             403: {
                 headers: {
