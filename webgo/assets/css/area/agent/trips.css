@@ -279,9 +279,10 @@
   .trp-crow { --Paper-shadow: none; display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 6px; padding: 10px 12px; }
   .trp-crow-editing { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-primary-container); }
   .trp-move { display: flex; flex-direction: column; }
-  .trp-icon-btn-20 { width: 20px; height: 20px; padding: 0; }
+  /* IconButton size="small": 1.125rem, which the visually hidden name inherits. */
+  .trp-icon-btn-20 { width: 20px; height: 20px; padding: 0; font-size: 18px; }
   .trp-icon-btn-20:disabled { opacity: 0.25; cursor: default; }
-  .trp-icon-btn-28 { width: 28px; height: 28px; padding: 0; }
+  .trp-icon-btn-28 { width: 28px; height: 28px; padding: 0; font-size: 18px; }
   .trp-crow-text { min-width: 0; flex: 1 1 100%; }
   @media (min-width: 640px) { .trp-crow-text { flex-basis: auto; } }
   .trp-crow-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -294,4 +295,32 @@
   .trp-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .trp-pull-up { margin-top: -4px; }
   .trp-note-paper { --Paper-shadow: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-secondary); }
+
+  /* ── 3.4.14 Itinerary editor ───────────────────────────────────────────────────────────── */
+  /* The page's own Box: maxWidth 1280, not PAGE_SX's 1336. */
+  .trp-col-1280 { max-width: 1280px; }
+  .trp-mt-1_25 { margin-top: 10px; }
+  .trp-stack-12 { display: flex; flex-direction: column; gap: 12px; }
+  /* KBD_CHIP: the legacy .kbd tag (11px mono on surface-3, 4px corners) on an outlined Chip. */
+  .trp-kbd { height: 20px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-secondary); }
+  .trp-kbd .chip-label { padding-left: 6px; padding-right: 6px; }
+  .trp-gen-hint { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+
+  /* One column, the open form beside the days from xl (1280). */
+  .trp-igrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1280px) { .trp-igrid { grid-template-columns: minmax(0, 1fr) 380px; } }
+  .trp-ihead { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .trp-iempty-text { margin: 4px auto 0; max-width: 46ch; }
+
+  /* A day card. The open one is marked by an inset outline, so its box never changes. */
+  .trp-it-editing { background-color: var(--mui-palette-primary-container); outline: 1px solid var(--mui-palette-primary-main); outline-offset: -1px; }
+  .trp-iday-head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
+  .trp-iday-num { font-size: 26px; line-height: 1; color: var(--mui-palette-primary-main); }
+  .trp-iday-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+
+  /* An entry: the artboard's outlined row card. */
+  .trp-iact { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: 10px; row-gap: 6px; padding: 8px 12px; }
+  .trp-it-act-editing { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-surface-2); }
+  .trp-iact-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .trp-itip { margin-top: 6px; padding: 6px 10px; background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
 }
