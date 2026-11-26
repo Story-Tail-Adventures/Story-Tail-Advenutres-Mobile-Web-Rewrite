@@ -612,6 +612,81 @@ once Go is live in production.
   skill.
 - Update every doc to the final state.
 
+#### What is actually there (counted 2026-11-25, on `claude/go-track-b-background`)
+
+The "when" above is a condition, not a date, so here is what has to reach zero. Counts are from
+the tree, not from memory.
+
+| To delete | Size |
+|---|---|
+| `web/app` page screens | **97** `page.tsx`: 46 `(agent)`, 23 `(client)`, 13 `(public)`, 9 `(auth)`, 6 `(onboarding)` |
+| `web/app` route handlers | **6** `route.ts` (listed below) |
+| `supabase/functions` | **34** function folders plus `_shared` |
+
+The six route handlers are the ones that hide between areas, because they are not screens and no
+Screen Inventory section lists them. Every one is accounted for:
+
+| Next.js route handler | Go owner |
+|---|---|
+| `(agent)/agent/commission/ledger/export/route.ts` | money, `GET /agent/commission/ledger/export` |
+| `(agent)/agent/reports/download/route.ts` | money, §3.11, the one still to build |
+| `api/account/chrome/route.ts` | auth, `GET /api/account/chrome` |
+| `api/agent/messages/[conversationId]/read/route.ts` | people, `POST /api/agent/messages/{conversationId}/read` |
+| `auth/callback/route.ts` | auth, `GET /auth/callback` |
+| `quote/route.ts` | public, `GET /quote` |
+
+`contracts/openapi.yaml` already documents all 34 function paths, so the spec needs no catch-up
+work at cleanup; it only loses the ones whose folders go.
+
+#### One job is RE-POINTED, not retired: the Kotlin content codegen
+
+"Public content codegen is current" runs `npm run generate:public-content -w web` and then fails
+on any diff to
+`mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt`.
+That generator lives in the `web` workspace, so deleting `web/` kills the mobile content pipeline
+unless the job moves with it, and nothing would be left to notice.
+
+It can move, and this was verified rather than assumed on 2026-11-25: `webgo/cmd/gen-kotlin`
+writes the same file, and run against the committed one it reproduced it **byte for byte** —
+69,974 bytes, identical SHA-256. So Phase 6 changes that job's command to
+
+    go run ./cmd/gen-kotlin        # from webgo/
+
+and keeps its `git diff --exit-code` guard exactly as it is. Do not fold this job into the list
+of checks that die with the Web job: it is the only thing standing between a content edit and
+mobile silently drifting.
+
+#### The two CI jobs that change, and the one that must not
+
+`ci.yml` has nine named jobs. Only two of them know about Next.js or Deno:
+
+- **Web** goes away entirely. It carries `npm ci`, `typecheck`, `lint`, `test` and `build` for the
+  `web` workspace, plus `check_mui_lockstep.py`, `check_public_prerender.py` and
+  `check_css_layer_order.py`. All three python checks live in this job and die with it.
+- **Supabase** keeps `supabase db start`, `db lint` and the RLS tests, and loses exactly three
+  steps: "Typecheck and lint Edge Functions", "Test Edge Function helpers" and "Every Edge
+  Function is declared for deployment".
+- **Web (Go)** is the one that must still be green through all of this. It is the job the rename
+  is most likely to break.
+
+`deploy.yml` names `web/` and `supabase/functions` too and changes in the same PR.
+
+#### The rename is the risky part, not the deletion
+
+`git mv webgo web` renames the directory that the stack-boundary hook, `.claude/settings.json`'s
+Go allow rules, `.claude/launch.json`, the `Web (Go)` job's `working-directory`, Dependabot's
+`gomod` entry and `go.mod`'s own module path all name separately. If the rename lands without
+them, **the stack-boundary guard denies the very writes it exists to permit** (it has done this
+before), and every `go` command in CI runs in a directory that no longer exists. Move them in one
+commit, and run the boundary hook against a sample payload before pushing.
+
+Do the deletion and the rename as **two PRs, in that order**. Deleting first leaves a tree where
+`webgo/` is the only web code, so a broken rename is a one-line revert rather than an archaeology
+problem.
+
+Also drop `web` from the root `package.json` workspaces (it is `["web", "contracts"]`; `contracts`
+stays) and from Dependabot's npm config.
+
 ---
 
 ## 9. Risks and traps worth naming up front
