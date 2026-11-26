@@ -55,6 +55,10 @@ type Config struct {
 	HotelSearchEnabled bool
 
 	// Secrets. Never logged, never sent to a browser, never marshalled to JSON.
+	// AnalyticsMeasurementID is the GA4 stream (G-XXXXXXX). Not a secret: it ships to every
+	// browser that is told yes. Empty switches analytics off entirely.
+	AnalyticsMeasurementID string
+
 	SerpAPIKey       string `json:"-"` // SERPAPI_API_KEY, the metered provider credential
 	HotelSearchToken string `json:"-"` // STA_HOTEL_SEARCH_TOKEN, proves a cruise-search call is ours (until it is ported)
 	LeadFormKey      string `json:"-"` // STA_LEAD_FORM_KEY, lets lead-message trust the forwarded address (until it is ported)
@@ -143,6 +147,13 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, fmt.Errorf(`HOTEL_SEARCH_ENABLED must be "true" or "false", got %q`, v))
 	}
 
+	// The GA4 measurement id. Empty means no analytics at all: no banner, no script, and
+	// nothing asked of the visitor, which is what the Next app does with no Firebase config.
+	c.AnalyticsMeasurementID = strings.TrimSpace(getenv("ANALYTICS_MEASUREMENT_ID"))
+	if c.AnalyticsMeasurementID == "" {
+		c.AnalyticsMeasurementID = strings.TrimSpace(getenv("NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID"))
+	}
+
 	c.SerpAPIKey = strings.TrimSpace(getenv("SERPAPI_API_KEY"))
 	c.HotelSearchToken = strings.TrimSpace(getenv("STA_HOTEL_SEARCH_TOKEN"))
 	c.LeadFormKey = strings.TrimSpace(getenv("STA_LEAD_FORM_KEY"))
@@ -206,6 +217,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("google_auth", c.GoogleAuthEnabled),
 		slog.Bool("apple_auth", c.AppleAuthEnabled),
 		slog.Bool("hotel_search_enabled", c.HotelSearchEnabled),
+		slog.Bool("analytics_configured", c.AnalyticsMeasurementID != ""),
 		slog.Bool("serpapi_key_set", c.SerpAPIKey != ""),
 		slog.Bool("hotel_search_token_set", c.HotelSearchToken != ""),
 		slog.Bool("lead_form_key_set", c.LeadFormKey != ""),

@@ -1,0 +1,44 @@
+{
+  "marketingSiteUrl": "https://adventures.story-tail.com",
+  "marketingSiteLabel": "adventures.story-tail.com",
+  "footerLegalLinks": [
+    {
+      "href": "/legal/privacy",
+      "label": "Privacy"
+    },
+    {
+      "href": "/legal/terms",
+      "label": "Terms"
+    },
+    {
+      "href": "/legal/cookies",
+      "label": "Cookies"
+    },
+    {
+      "href": "/legal/accessibility",
+      "label": "Accessibility"
+    }
+  ],
+  "publicNavLinks": [
+    {
+      "href": "/explore",
+      "label": "Explore"
+    },
+    {
+      "href": "/caribbean",
+      "label": "Caribbean"
+    },
+    {
+      "href": "/cruises",
+      "label": "Cruises"
+    },
+    {
+      "href": "/honeymoons",
+      "label": "Honeymoons"
+    },
+    {
+      "href": "/about",
+      "label": "About Gyasi"
+    }
+  ]
+}

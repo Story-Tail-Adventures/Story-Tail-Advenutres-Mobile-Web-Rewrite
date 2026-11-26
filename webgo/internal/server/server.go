@@ -3,8 +3,8 @@
 //
 // It serves /healthz, the hashed assets under /assets/, the /functions/v1 registry (every name
 // passed through to Supabase until it is ported), the five page areas, and a plain 404 for
-// everything else. In development it adds /_demo and /_styleguide. Every route goes through gate.Router, so none can exist
-// without choosing a gate.
+// everything else. In development it adds /_styleguide. Every route goes through gate.Router,
+// so none can exist without choosing a gate.
 package server
 
 import (
@@ -23,7 +23,6 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/auth"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/client"
-	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/demo"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/onboarding"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/styleguide"
@@ -54,12 +53,19 @@ var areas = []area{
 // pre-paint scripts are files (webgo/assets/js), and the page loader refuses a page with an
 // inline script, a <style>, a style="" or an on* handler at startup. img-src allows https: for
 // the Unsplash photos the public pages use, and data: for the checkbox tick in ui.css.
+// Google Analytics is the one thing we load from anywhere else, and only after the visitor
+// says yes (assets/js/public/analytics.js): gtag.js comes from googletagmanager.com, and the
+// events it sends go to Google's collection hosts. Nothing else off-site is allowed, and
+// img-src already allows https: for the Unsplash photos.
+const gaScript = "https://www.googletagmanager.com"
+const gaCollect = "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"
+
 const CSP = "default-src 'self'; " +
-	"script-src 'self'; " +
+	"script-src 'self' " + gaScript + "; " +
 	"style-src 'self'; " +
 	"img-src 'self' data: https:; " +
 	"font-src 'self'; " +
-	"connect-src 'self'; " +
+	"connect-src 'self' " + gaCollect + "; " +
 	"object-src 'none'; " +
 	"base-uri 'none'; " +
 	"form-action 'self'; " +
@@ -82,7 +88,6 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 		specs = append(specs, a.specs...)
 	}
 	if dev {
-		specs = append(specs, demo.Spec)
 		specs = append(specs, styleguide.Specs...)
 	}
 	set, err := page.LoadWith(pagesFS, page.Options{Assets: assetSet.Lookup}, specs...)
@@ -130,11 +135,6 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 	}
 
 	if dev {
-		h, err := demo.Handler(set, log)
-		if err != nil {
-			return nil, err
-		}
-		rt.Public("GET /_demo", h)
 		if err := styleguide.Mount(rt, set, log); err != nil {
 			return nil, err
 		}

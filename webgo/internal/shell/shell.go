@@ -94,7 +94,7 @@ var (
 var AgentWorklistViews = []string{"/agent", "/agent/pipeline", "/agent/calendar"}
 
 func publicSlots() []string {
-	out := []string{"placeholder-banner", "footer-year"}
+	out := []string{"placeholder-banner", "footer-year", "consent", "analytics"}
 	for _, n := range PublicNav {
 		out = append(out, "nav-"+n.id, "drawer-"+n.id)
 	}
@@ -174,6 +174,21 @@ func markNav(d Filler, prefix string, items []navItem, active string) {
 	}
 }
 
+// fillAnalytics sets up, or removes entirely, the consent banner and the script's
+// configuration. Nothing is asked and nothing is loaded without a measurement id and a page
+// this visitor may be reported on, so /agent and a server with no id ship neither.
+func fillAnalytics(d Filler, a Analytics) {
+	if a.MeasurementID == "" || a.Page == "" {
+		d.Remove("consent")
+		d.Remove("analytics")
+		return
+	}
+	d.Keep("consent")
+	d.Keep("analytics")
+	d.Attr("analytics", "data-measurement-id", a.MeasurementID)
+	d.Attr("analytics", "data-page", a.Page)
+}
+
 func fillFlash(d Filler, flash string) {
 	if flash == "" {
 		d.Remove("flash")
@@ -190,6 +205,19 @@ type PublicChrome struct {
 	PlaceholderBanner bool
 	// Now is the clock for the footer year; zero means time.Now.
 	Now time.Time
+	// Analytics configures Google Analytics for this page. The zero value is off: no
+	// consent banner, no script, and nothing asked of the visitor.
+	Analytics Analytics
+}
+
+// Analytics is what the page tells the browser module about Google Analytics. Both fields
+// are needed for anything to happen.
+type Analytics struct {
+	// MeasurementID is the GA4 stream. Not a secret; it ships to anyone who says yes.
+	MeasurementID string
+	// Page is this page's URL with everything private taken out (internal/analytics
+	// RedactURL). Empty means this page is never reported at all.
+	Page string
 }
 
 // FillPublic fills either public layout. No flash: these pages are cached.
@@ -207,6 +235,7 @@ func FillPublic(d Filler, path string, c PublicChrome) {
 		now = time.Now()
 	}
 	d.Text("footer-year", strconv.Itoa(now.Year()))
+	fillAnalytics(d, c.Analytics)
 	fillFlash(d, "")
 }
 

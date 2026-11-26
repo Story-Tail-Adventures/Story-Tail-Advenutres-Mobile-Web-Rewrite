@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.9 Cruises (/cruises). Ports app/(public)/(hero)/cruises/page.tsx and its
+  content.ts, with HeroBleed, InquiryBar (three cells, so it never wraps), MediaCard,
+  SectionLabel, TripTile, ClosingCta and StickyCta. Copy is the Next app's, byte for byte;
+  the counts, the photos and every link are filled in Go (cruises.go, topic.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cruises · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <section class="on-photo hero hero-normal">
+    <img class="photo-fill" data-slot="hero-photo" src="https://images.unsplash.com/sample" alt="" sizes="100vw" loading="eager" decoding="async" fetchpriority="high">
+    <div class="scrim-topic hero-scrim" aria-hidden="true"></div>
+    <div class="container hero-inner">
+      <div class="hero-copy">
+        <p class="type-overline hero-overline">CRUISING</p>
+        <h1 class="hero-title t-hero">A floating Sabbath, <span class="hero-script">every morning new.</span></h1>
+        <p class="hero-sub">Unpack once. See three islands. The ship handles dinner, the towel art, the kids' club — you handle being on a balcony at sunrise.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="inquiry-band sticky-under-topbar">
+    <div class="container">
+      <form class="paper inquiry-form" action="/quote" method="get" aria-label="Find a sailing">
+        <input type="hidden" name="topic" value="cruises">
+        <div class="inquiry-cell">
+          <label class="type-caption inquiry-label" for="inquiry-dest">Destination</label>
+          <div class="inquiry-value">
+            <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#map"></use></svg></span>
+            <input class="inquiry-input" id="inquiry-dest" name="dest" type="text" placeholder="Caribbean" autocomplete="off" maxlength="60">
+          </div>
+        </div>
+        <div class="inquiry-divider" aria-hidden="true"></div>
+        <div class="inquiry-cell">
+          <label class="type-caption inquiry-label" for="inquiry-dates">When</label>
+          <div class="inquiry-value inquiry-dates">
+            <label class="visually-hidden" for="inquiry-dates">Check-in</label>
+            <input class="inquiry-input inquiry-date" id="inquiry-dates" name="in" type="date" data-slot="inquiry-in">
+            <span class="inquiry-date-sep" aria-hidden="true">–</span>
+            <label class="visually-hidden" for="inquiry-dates-out">Check-out</label>
+            <input class="inquiry-input inquiry-date" id="inquiry-dates-out" name="out" type="date" data-slot="inquiry-out">
+          </div>
+        </div>
+        <div class="inquiry-divider" aria-hidden="true"></div>
+        <div class="inquiry-cell">
+          <label class="type-caption inquiry-label" for="inquiry-travelers">Travelers</label>
+          <div class="inquiry-value">
+            <span class="inquiry-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>
+            <input class="inquiry-input" id="inquiry-travelers" name="travelers" type="number" placeholder="2 adults" autocomplete="off" inputmode="numeric" min="1" max="20">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-contained inquiry-submit"><svg class="icon icon-20 btn-icon-start" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> See what's sailing</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="container topic-main">
+    <section aria-labelledby="who-its-for">
+      <div class="section-label">
+        <p class="type-overline pub-overline">WHO IT'S FOR</p>
+        <h2 id="who-its-for" class="section-title">Three kinds of cruise, one advisor.</h2>
+        <p class="type-body2 section-sub" data-slot="types-sub">I sail with each line at least once a year, so the recommendation isn't a brochure — it's lived.</p>
+      </div>
+      <div class="three-up three-up-gap">
+        <article class="card media-card from-md">
+          <div class="media-card-photo">
+            <img class="photo-fill" data-slot="type-1-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 400px, 50vw" loading="lazy" decoding="async">
+            <div class="chip chip-small media-tag"><span class="chip-label">FAMILY</span></div>
+          </div>
+          <div class="media-card-body">
+            <h3 class="type-h5 text-primary">Family cruises</h3>
+            <p class="type-caption media-card-body-sub">Multi-gen sailings with waterparks, character meet-ups, and rooms that connect.</p>
+          </div>
+        </article>
+        <article class="card media-row below-md">
+          <div class="media-row-photo">
+            <img class="photo-fill" data-slot="type-1-row-photo" src="https://images.unsplash.com/sample" alt="" sizes="100px" loading="lazy" decoding="async">
+            <div class="chip chip-small media-tag"><span class="chip-label">FAMILY</span></div>
+          </div>
+          <div class="media-row-body">
+            <h3 class="type-subtitle1 text-primary">Family cruises</h3>
+            <p class="type-body2 media-row-body-sub">Multi-gen sailings with waterparks, character meet-ups, and rooms that connect.</p>
+          </div>
+        </article>
+        <article class="card media-card from-md">
+          <div class="media-card-photo">
+            <img class="photo-fill" data-slot="type-2-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 400px, 50vw" loading="lazy" decoding="async">
+            <div class="chip chip-small media-tag"><span class="chip-label">ADULTS</span></div>
+          </div>
+          <div class="media-card-body">
+            <h3 class="type-h5 text-primary">Adults-only</h3>
+            <p class="type-caption media-card-body-sub">Virgin, Viking, premium Celebrity — quieter ships, real dining, no kids underfoot.</p>
+          </div>
+        </article>
+        <article class="card media-row below-md">
+          <div class="media-row-photo">
+            <img class="photo-fill" data-slot="type-2-row-photo" src="https://images.unsplash.com/sample" alt="" sizes="100px" loading="lazy" decoding="async">
+            <div class="chip chip-small media-tag"><span class="chip-label">ADULTS</span></div>
+          </div>
+          <div class="media-row-body">
+            <h3 class="type-subtitle1 text-primary">Adults-only</h3>
+            <p class="type-body2 media-row-body-sub">Virgin, Viking, premium Celebrity — quieter ships, real dining, no kids underfoot.</p>
+          </div>
+        </article>
+        <article class="card media-card from-md">
+          <div class="media-card-photo">
+            <img class="photo-fill" data-slot="type-3-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 400px, 50vw" loading="lazy" decoding="async">
+            <div class="chip chip-small media-tag"><span class="chip-label">GROUP</span></div>
+          </div>
+          <div class="media-card-body">
+            <h3 class="type-h5 text-primary">Group cruises</h3>
+            <p class="type-caption media-card-body-sub">8+ travelers — birthday, anniversary, ministry, friends week. Group rates + a coordinator.</p>
+          </div>
+        </article>
+        <article class="card media-row below-md">
+          <div class="media-row-photo">
+            <img class="photo-fill" data-slot="type-3-row-photo" src="https://images.unsplash.com/sample" alt="" sizes="100px" loading="lazy" decoding="async">
+            <div class="chip chip-small media-tag"><span class="chip-label">GROUP</span></div>
+          </div>
+          <div class="media-row-body">
+            <h3 class="type-subtitle1 text-primary">Group cruises</h3>
+            <p class="type-body2 media-row-body-sub">8+ travelers — birthday, anniversary, ministry, friends week. Group rates + a coordinator.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="lines-we-book">
+      <div class="section-label">
+        <p class="type-overline pub-overline">LINES WE BOOK</p>
+        <h2 id="lines-we-book" class="section-title">Eight lines, picked for the trip — not the loyalty points.</h2>
+      </div>
+      <ul class="lines-list" aria-labelledby="lines-we-book">
+        <li class="chip chip-outlined" data-repeat="lines"><span class="chip-label" data-slot="line-name">Royal Caribbean</span></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="hand-picked-sailings">
+      <div class="section-label">
+        <p class="type-overline pub-overline" data-slot="trips-overline">HAND-PICKED · 9 SAILINGS</p>
+        <h2 id="hand-picked-sailings" class="section-title">Sailings worth booking this season</h2>
+      </div>
+      <div class="trip-grid trip-grid-gap from-md">
+        <article class="card trip-card" data-repeat="trips-card">
+          <div class="trip-card-photo">
+            <img class="photo-fill" data-slot="card-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 400px, 50vw" loading="lazy" decoding="async">
+            <div class="chip chip-small chip-secondary trip-badge" data-slot="card-badge"><span class="chip-label" data-slot="card-badge-label">Gyasi's pick</span></div>
+            <span class="trip-card-price"><span class="price-range" role="img" data-slot="card-price"><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span></span></span>
+          </div>
+          <div class="trip-card-body">
+            <p class="type-overline pub-overline" data-slot="card-overline">CRUISE · FAMILY</p>
+            <h3 class="type-subtitle1 trip-title"><a class="link link-inherit" data-slot="card-name" href="/explore/sample">Symphony of the Seas</a></h3>
+            <p class="type-caption trip-tagline" data-slot="card-tagline">Eastern Caribbean · 7 nights</p>
+            <div class="trip-actions">
+              <a class="btn btn-contained btn-small trip-quote" data-slot="card-quote" href="/join">Request quote</a>
+              <a class="icon-btn trip-save" data-slot="card-save" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="trip-grid trip-grid-gap below-md">
+        <article class="card trip-row" data-repeat="trips-row">
+          <div class="trip-row-photo">
+            <img class="photo-fill" data-slot="row-photo" src="https://images.unsplash.com/sample" alt="" sizes="120px" loading="lazy" decoding="async">
+            <div class="chip chip-small chip-secondary trip-badge" data-slot="row-badge"><span class="chip-label" data-slot="row-badge-label">Gyasi's pick</span></div>
+          </div>
+          <div class="trip-row-body">
+            <div class="trip-row-head">
+              <p class="type-overline pub-overline" data-slot="row-overline">CRUISE · FAMILY</p>
+              <span class="price-range price-range-sm" role="img" data-slot="row-price"><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span><span class="price-dot" aria-hidden="true">$</span></span>
+            </div>
+            <h3 class="type-subtitle2 trip-row-title"><a class="link link-inherit" data-slot="row-name" href="/explore/sample">Symphony of the Seas</a></h3>
+            <p class="type-body2 trip-row-tagline" data-slot="row-tagline">Eastern Caribbean · 7 nights</p>
+            <div class="trip-actions">
+              <a class="btn btn-contained btn-small trip-quote tap-target" data-slot="row-quote" href="/join">Request quote</a>
+              <a class="icon-btn trip-save tap-target" data-slot="row-save" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="see-all">
+        <a class="btn btn-outlined btn-secondary see-all-btn" data-slot="see-all" href="/explore/results">See all 9 sailings →</a>
+      </div>
+    </section>
+
+    <section class="paper on-photo closing-cta">
+      <img class="photo-fill" data-slot="closing-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 1200px) 1280px, 100vw" loading="lazy" decoding="async">
+      <div class="scrim-cta scrim-fill" aria-hidden="true"></div>
+      <div class="closing-cta-inner">
+        <div class="closing-cta-copy">
+          <h2 class="closing-cta-title">Tell me how many people, when, and roughly your budget.</h2>
+          <p class="type-body2 closing-cta-body">I'll come back with three sailings, on three lines, with honest notes on what each ship is actually good at.</p>
+        </div>
+        <div class="closing-cta-actions">
+          <a class="btn btn-contained btn-brand btn-large btn-cta-large" data-slot="closing-primary" href="/join">Request a quote</a>
+          <a class="btn btn-outlined btn-large btn-cta-large btn-glass" data-slot="closing-secondary" href="/message">Message Gyasi first</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="paper paper-square sticky-cta sticky-bar">
+    <a class="btn btn-text cta-control" data-slot="sticky-secondary" href="/explore/results">All sailings</a>
+    <a class="btn btn-contained cta-control cta-grow" data-slot="sticky-primary" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Request a quote</a>
+  </div>
+</main>
+</body>
+</html>
