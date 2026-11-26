@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!--
+  ErrorState (components/client/states.tsx) inside the agent shell: a read failed. That is not
+  an empty book, so it never shows "nothing here". The copy and both ways out are the
+  component's, word for word.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card ppl-state">
+    <div class="ppl-state-body">
+      <span class="avatar ppl-state-tile ppl-state-tile-error" aria-hidden="true"><svg class="icon ppl-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+      <h2 class="type-h5 text-error">That didn’t load</h2>
+      <p class="type-body2 text-secondary ppl-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+      <div class="ppl-state-actions">
+        <a class="btn btn-contained ppl-state-btn" href="/dashboard">Back to your trips</a>
+        <a class="btn btn-outlined ppl-state-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

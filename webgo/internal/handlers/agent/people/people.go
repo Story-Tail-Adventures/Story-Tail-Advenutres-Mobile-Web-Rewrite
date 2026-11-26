@@ -20,17 +20,43 @@
 package people
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
+)
+
+// The two state pages every handler here can end on (guard.go).
+var (
+	noAccessSpec = page.Spec{File: "agent/people/no-access.html", Layout: shell.Agent}
+	failedSpec   = page.Spec{File: "agent/people/failed.html", Layout: shell.Agent}
 )
 
 // Specs declares every page this sub-area fills (files under pages/agent/people/).
-var Specs = []page.Spec{}
+var Specs = []page.Spec{noAccessSpec, failedSpec, worklistSpec, calendarSpec}
 
-// Mount registers this sub-area's routes. Take templates from d.Pages here, so a missing
-// page stops the boot.
+// Mount registers this sub-area's routes. Templates are taken here, so a missing page stops
+// the boot.
 func Mount(rt *gate.Router, d handlers.Deps) error {
-	_, _ = rt, d
+	a := &app{d: d}
+	for _, t := range []struct {
+		spec page.Spec
+		into **page.Template
+	}{
+		{noAccessSpec, &a.noAccess}, {failedSpec, &a.failed},
+		{worklistSpec, &a.worklist}, {calendarSpec, &a.calendar},
+	} {
+		tmpl, err := d.Pages.Template(t.spec.File)
+		if err != nil {
+			return fmt.Errorf("people: %w", err)
+		}
+		*t.into = tmpl
+	}
+
+	rt.Protected("GET /agent", http.HandlerFunc(a.serveWorklist))
+	rt.Protected("GET /agent/calendar", http.HandlerFunc(a.serveCalendar))
 	return nil
 }

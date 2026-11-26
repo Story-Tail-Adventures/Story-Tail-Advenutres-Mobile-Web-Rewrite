@@ -90,7 +90,11 @@ func TestUnknownPathsAre404WithNoOutboundCall(t *testing.T) {
 	// /dashboard has left this list: the traveler area serves it now, so signed out it is a
 	// redirect to sign-in rather than a path nobody has claimed. The rest are still nobody's
 	// — /agent and / join it as those areas land.
-	for _, path := range []string{"/", "/wp-login.php", "/.env", "/agent", "/_demo"} {
+	// Paths no merged area serves. This list SHRINKS as areas land, so it conflicts on every
+	// area merge: /login went to auth, /dashboard to traveler, and /agent now REDIRECTS to
+	// sign-in since the agent areas landed, so the probe beneath it is used instead. "/" and
+	// /_demo go when the public area lands and deletes the demo page.
+	for _, path := range []string{"/", "/wp-login.php", "/.env", "/agent/no-such-page", "/_demo"} {
 		rec := do(h, http.MethodGet, path, nil)
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, rec.Code)
