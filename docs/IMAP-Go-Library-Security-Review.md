@@ -6,9 +6,19 @@ reads client replies out of the app's IONOS mailbox with imapflow 2.2.1
 (`docs/IMAP-Library-Security-Review.md`). Go has no IMAP client in its standard library, so the port
 in `web/` needs one. This picks it.
 
-Status: **approved by Gyasi 2026-11-25: go-imap v2, pinned to `v2.0.0-beta.8`.** §5 binds the
+Status: **approved by Gyasi 2026-11-26: go-imap v2, pinned to `v2.0.0-beta.9`.** §5 binds the
 build. The pin and its two indirect requirements are already in `web/go.mod`; the comment there
 now cites this approval instead of asking for it.
+
+Originally approved at `v2.0.0-beta.8` on 2026-11-25 and re-approved one day later for beta.9,
+which **closes a risk this document had left open**: §7 said that if IONOS answers a MOVE with a
+non-compliant `*` in COPYUID then beta.8 drops the connection, and that we would bump to the fix.
+That fix (`f68ef41`) is in beta.9. The rest of the 18 commits is mostly `imapserver`, which we
+never import; the client-side remainder is `%v` to `%w` error wrapping in `fetch.go`, additive
+RFC 9979 constants, a `SelectData.ReadOnly` field we do not read, stricter decoder errors, NOTIFY
+support §5 forbids us to use, and one `SearchCriteria.And` fix for a case we never construct.
+Checked rather than assumed: builds clean, `internal/api/fn/emailinbox` and the import-boundary
+test pass, govulncheck finds nothing.
 
 Approved with the beta label understood: the alternatives were a v1 with no release since 2022,
 whose own README sends readers to v2, or writing an IMAP client ourselves against attacker-written
@@ -52,7 +62,7 @@ no other flags.
 
 | | **go-imap v2** | **go-imap v1** | **Write our own** |
 |---|---|---|---|
-| Version looked at | v2.0.0-beta.8 | v1.2.1 | n/a |
+| Version looked at | v2.0.0-beta.9 | v1.2.1 | n/a |
 | Release date | tagged 2025-12-16 (release notes posted 2026-02-07); newest tag | 2022-05-01; newest v1 tag | n/a |
 | Stability | **beta.** README: "still in development" | stable, but its README points to v2 | n/a |
 | Use | 165 importing modules (pkg.go.dev, `imapclient`); repo has 2,360 stars | 557 importing modules (`client`) | us only |
@@ -103,7 +113,7 @@ Also considered: fetch the whole raw message (it is 1 MB at most) and parse MIME
 library, so our client needs no BODYSTRUCTURE. Rejected: it downloads attachments, which the
 approved review forbids, and it moves MIME parsing of hostile mail into our code.
 
-## 4. Recommendation: go-imap v2, pinned to v2.0.0-beta.8
+## 4. Recommendation: go-imap v2, pinned to v2.0.0-beta.9
 
 1. **It is the maintained Go IMAP client.** v1's own README sends readers to v2, and v1 has had no
    release since 2022. v2 gets fixes every few weeks.
@@ -117,9 +127,10 @@ approved review forbids, and it moves MIME parsing of hostile mail into our code
    worked. The wire log showed the same commands imapflow sends today. A QP part with
    `charset=iso-8859-1; format=flowed` and a PDF attachment came back in BODYSTRUCTURE with the
    right type, parameters, encoding and disposition. Not yet against IONOS (§7).
-4. **beta.8 is the newest tag and well over two weeks old.** The 15 commits since are mostly server
-   code and features we do not use. The one client fix (`f68ef41`, a non-compliant `*` in COPYUID
-   no longer drops the connection) only matters for servers that break RFC 4315.
+4. **beta.9 is the newest tag.** It superseded beta.8 on 2026-11-26 with 18 commits, mostly
+   server code and features we do not use. It carries the one client fix this document had been
+   waiting on: `f68ef41`, where a non-compliant `*` in COPYUID no longer drops the connection.
+   That matters only for servers that break RFC 4315, and §7 could not rule IONOS out.
 
 **The beta label** means the API may change between betas. Pinned, it changes only when we bump.
 The real risks are the hang and the silent truncation in §3; §5 closes both in our code.
@@ -132,11 +143,12 @@ Why not the others:
 
 ## 5. How it must be used (the build follows these)
 
-- **Pin exactly:** `github.com/emersion/go-imap/v2 v2.0.0-beta.8` in `web/go.mod`, with
+- **Pin exactly:** `github.com/emersion/go-imap/v2 v2.0.0-beta.9` in `web/go.mod`, with
   `github.com/emersion/go-message v0.18.2` and
   `github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6` as its indirect requirements.
-  `go.sum` records `h1:5IXZK1E33DyeP526320J3RS7eFlCYGFgtbrfapqDPug=` for go-imap, and the Go
-  checksum database vouches for it.
+  `go.sum` records `h1:ttFRU4F9A2cpHlhBMpEt5rtSArYxBVU8+lqP0QeUmuc=` for go-imap, and the Go
+  checksum database vouches for it. (beta.8's was
+  `h1:5IXZK1E33DyeP526320J3RS7eFlCYGFgtbrfapqDPug=`; the `/go.mod` hash did not change.)
 - **One importer.** Only the `email-inbox` port (`web/internal/api/fn/emailinbox`, beside
   `fn/cruisesearch`) imports `imap` and `imapclient`. A test like `internal/api/boundary_test.go`
   fails the build if any other package does. Nothing imports `imapserver`.
@@ -198,7 +210,7 @@ Why not the others:
 - **govulncheck** runs in the `web` CI job, so a new advisory in any of the three fails CI.
 - **Watch #762, #772 and #780.** When they land upstream, keep our deadline wrapper and completeness
   check anyway; they cost nothing.
-- **When v2.0.0 is tagged,** move to it after reading the changes since beta.8.
+- **When v2.0.0 is tagged,** move to it after reading the changes since beta.9.
 - **If upstream goes quiet or is archived:** the calls we use sit behind one package. Vendor a fork
   of the client half rather than write a new client.
 - **If IONOS changes how it signs in** (for example OAuth only), stop and review again.
@@ -213,8 +225,9 @@ Why not the others:
   `UTF8=ACCEPT`, imapflow turns it on today and the Go port would not; mail with raw UTF-8 headers
   could then arrive in a different form. The first live run records the list, and Gyasi decides
   whether the port sends ENABLE.
-- **That IONOS's COPYUID after MOVE follows RFC 4315.** If it sends `*`, beta.8 drops the connection
-  (fixed after beta.8 in `f68ef41`), and we would bump to that commit.
+- ~~**That IONOS's COPYUID after MOVE follows RFC 4315.**~~ **CLOSED 2026-11-26 by the beta.9
+  bump.** On beta.8 a non-compliant `*` dropped the connection; `f68ef41` fixes it and is in
+  beta.9, so IONOS answering that way is no longer a risk worth verifying first.
 - **That BODYSTRUCTURE agrees with the part's MIME header** (charset, encoding, disposition) for real
   replies from Gmail, Apple Mail and Outlook. imapflow reads the header; the port reads the
   structure. The differential test settles it.
@@ -229,7 +242,8 @@ Why not the others:
 - go-imap issues: https://github.com/emersion/go-imap/issues/650, https://github.com/emersion/go-imap/issues/705,
   https://github.com/emersion/go-imap/issues/762, https://github.com/emersion/go-imap/issues/772,
   https://github.com/emersion/go-imap/pull/780; commit https://github.com/emersion/go-imap/commit/f68ef419e622
-- go-imap v2 source at v2.0.0-beta.8 (`imapclient/client.go`, `imapclient/move.go`,
+- go-imap v2 source at v2.0.0-beta.9, and the beta.8 to beta.9 diff (`imapclient/client.go`,
+  `imapclient/fetch.go`, `imapclient/move.go`,
   `internal/imapwire/decoder.go`), fetched through https://proxy.golang.org
 - Versions and dates: https://proxy.golang.org (`go list -m -versions` and `-json`)
 - Importers: https://pkg.go.dev/github.com/emersion/go-imap/v2/imapclient?tab=importedby and
