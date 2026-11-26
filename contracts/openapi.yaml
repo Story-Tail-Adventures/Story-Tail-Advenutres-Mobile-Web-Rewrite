@@ -250,6 +250,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /trip-document:
     post:
@@ -284,6 +286,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /trip-document-url:
     get:
@@ -356,6 +360,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   # ── §3.2 Agent worklist ────────────────────────────────────────────────
   #
@@ -827,6 +833,56 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # §2.3 Quote requests (P2)
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /quote-request:
+    post:
+      operationId: requestQuote
+      summary: Turn a search result into a trip in `inquiry` status.
+      description: |
+        Screens 2.3.8 and 2.0.4 (P2). A quote request is a TRIP, not a lead (BRD §6.5,
+        decided 2026-09-09): the trip is created with its default status `inquiry`, and one
+        `trip_component` describes what the traveler was looking at. A signed-in CLIENT only
+        (`trip.client_id` and the client's names are NOT NULL, so there is no anonymous
+        path); an advisor or admin is 403 "Requires role: client.".
+
+        `tripId` is minted by the client (a recent UUID v7), which makes a retry land once:
+        a second send of the same id is 400 "That request has already been sent.". The
+        advisor is read from the caller's client record, never from the request.
+
+        MONEY STAYS ZERO. A provider's nightly rate is not a quote: the component's
+        `cost_cents` and `commission_cents` keep their zero defaults, and the figure rides in
+        `trip_component.payload` as `snapshot.indicativeRateCents`.
+
+        The component is best effort: if its insert fails the trip still stands (201), and
+        the `trip.inquiry_created` audit row records `componentWritten: false`. The advisor is
+        then alerted (push and/or email, by their settings); a failed alert never fails the
+        request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequestRequest'
+      responses:
+        '201':
+          description: The trip exists, in `inquiry`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteRequestResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: The caller has no client record. `detail` is "No client record for this account."
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 
 components:
   securitySchemes:
@@ -1932,6 +1988,95 @@ components:
           type: [string, 'null']
           enum: [new, contacted, closed, converted, null]
           description: The lead's status after the op; null once deleted.
+
+    # ── §2.3 Quote requests (P2) ──
+
+    QuoteRequestRequest:
+      type: object
+      required: [tripId, kind, name]
+      description: |
+        Text fields are cleaned before use: control characters become spaces, runs of white
+        space one space, then trimmed and cut to the stated length in UTF-16 units. A field
+        that is not a string, or is empty after cleaning, counts as absent.
+      properties:
+        tripId:
+          type: string
+          format: uuid
+          description: Client-generated UUID v7, validated as recent (within an hour either way).
+        kind:
+          type: string
+          enum: [hotel, cruise, excursion, custom]
+          description: The component kind. Only what a public search surface can produce.
+        tripType:
+          type: string
+          enum: [cruise, all_inclusive, multi_destination, group, custom]
+          description: Optional. Missing or unknown falls back to `cruise` for a cruise and `custom` otherwise; never refused.
+        name:
+          type: string
+          maxLength: 120
+          description: What the traveler is asking about. Becomes the component's display name and the trip title.
+        location:
+          type: string
+          maxLength: 120
+          description: Optional. When present the title is "<name> · <location>" (cut to 120) and the trip's destinations are [location].
+        checkIn:
+          type: [string, 'null']
+          format: date
+          description: YYYY-MM-DD, a real calendar date. Send both dates or neither; null or "" is "not sent". A sent date that does not parse is a 400, never dropped.
+        checkOut:
+          type: [string, 'null']
+          format: date
+          description: YYYY-MM-DD, after checkIn.
+        travelers:
+          type: number
+          description: Rounded, then held to 1..20. Anything not a finite number means 2.
+          default: 2
+        note:
+          type: string
+          maxLength: 2000
+          description: Optional. Becomes `trip.notes`.
+        snapshot:
+          type: object
+          description: |
+            What the traveler saw, kept on the component's payload. Treated as hostile: only
+            these keys survive, and `capturedAt` (the server's time) is added. A non-object
+            is read as {}.
+          properties:
+            propertyType: { type: string, maxLength: 300 }
+            photoUrl: { type: string, maxLength: 300 }
+            propertyToken: { type: string, maxLength: 300 }
+            indicativeRateCents:
+              type: number
+              minimum: 0
+              description: The provider's nightly rate, kept as sent. Never a cost or a quote.
+            hotelClass: { type: number, minimum: 0 }
+            rating: { type: number, minimum: 0 }
+            reviewCount: { type: number, minimum: 0 }
+            amenities:
+              type: array
+              description: The first 12 strings, each cut to 60. Non-strings are dropped.
+              items: { type: string, maxLength: 60 }
+          additionalProperties: true
+        source:
+          type: string
+          enum: [curated, serpapi_google_hotels, track_cruises]
+          description: Where the result came from (`trip_component.api_source`). Missing or unknown is `curated`.
+        apiReference:
+          type: string
+          maxLength: 220
+          description: The provider's id for the result (`trip_component.api_reference`).
+
+    QuoteRequestResponse:
+      type: object
+      required: [tripId, status]
+      properties:
+        tripId:
+          type: string
+          format: uuid
+          description: The id the caller sent, as sent.
+        status:
+          type: string
+          const: inquiry
 
   responses:
     BadRequest:

@@ -14,6 +14,42 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class QuoteRequestRequestSource {
+    @SerialName("curated")
+    CURATED,
+    @SerialName("serpapi_google_hotels")
+    SERPAPI_GOOGLE_HOTELS,
+    @SerialName("track_cruises")
+    TRACK_CRUISES,
+}
+
+@Serializable
+enum class QuoteRequestRequestTripType {
+    @SerialName("cruise")
+    CRUISE,
+    @SerialName("all_inclusive")
+    ALL_INCLUSIVE,
+    @SerialName("multi_destination")
+    MULTI_DESTINATION,
+    @SerialName("group")
+    GROUP,
+    @SerialName("custom")
+    CUSTOM,
+}
+
+@Serializable
+enum class QuoteRequestRequestKind {
+    @SerialName("hotel")
+    HOTEL,
+    @SerialName("cruise")
+    CRUISE,
+    @SerialName("excursion")
+    EXCURSION,
+    @SerialName("custom")
+    CUSTOM,
+}
+
+@Serializable
 enum class AgentLeadWriteResponseStatus {
     @SerialName("new")
     NEW,
@@ -1163,4 +1199,58 @@ data class AgentLeadWriteResponse(
     // The lead's status after the op; null once deleted.
     @SerialName("status")
     val status: AgentLeadWriteResponseStatus? = null,
+)
+
+/** Text fields are cleaned before use: control characters become spaces, runs of white */
+/** space one space, then trimmed and cut to the stated length in UTF-16 units. A field */
+/** that is not a string, or is empty after cleaning, counts as absent. */
+@Serializable
+data class QuoteRequestRequest(
+    // Client-generated UUID v7, validated as recent (within an hour either way).
+    @SerialName("tripId")
+    val tripId: String,
+    // The component kind. Only what a public search surface can produce.
+    @SerialName("kind")
+    val kind: QuoteRequestRequestKind,
+    // Optional. Missing or unknown falls back to `cruise` for a cruise and `custom` otherwise; never refused.
+    @SerialName("tripType")
+    val tripType: QuoteRequestRequestTripType? = null,
+    // What the traveler is asking about. Becomes the component's display name and the trip title.
+    @SerialName("name")
+    val name: String,
+    // Optional. When present the title is "<name> · <location>" (cut to 120) and the trip's destinations are [location].
+    @SerialName("location")
+    val location: String? = null,
+    // YYYY-MM-DD, a real calendar date. Send both dates or neither; null or "" is "not sent". A sent date that does not parse is a 400, never dropped.
+    @SerialName("checkIn")
+    val checkIn: String? = null,
+    // YYYY-MM-DD, after checkIn.
+    @SerialName("checkOut")
+    val checkOut: String? = null,
+    // Rounded, then held to 1..20. Anything not a finite number means 2.
+    @SerialName("travelers")
+    val travelers: Double? = null,
+    // Optional. Becomes `trip.notes`.
+    @SerialName("note")
+    val note: String? = null,
+    // What the traveler saw, kept on the component's payload. Treated as hostile: only
+    // these keys survive, and `capturedAt` (the server's time) is added. A non-object
+    // is read as {}.
+    @SerialName("snapshot")
+    val snapshot: JsonElement? = null,
+    // Where the result came from (`trip_component.api_source`). Missing or unknown is `curated`.
+    @SerialName("source")
+    val source: QuoteRequestRequestSource? = null,
+    // The provider's id for the result (`trip_component.api_reference`).
+    @SerialName("apiReference")
+    val apiReference: String? = null,
+)
+
+@Serializable
+data class QuoteRequestResponse(
+    // The id the caller sent, as sent.
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("status")
+    val status: String,
 )

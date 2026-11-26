@@ -609,6 +609,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/quote-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn a search result into a trip in `inquiry` status.
+         * @description Screens 2.3.8 and 2.0.4 (P2). A quote request is a TRIP, not a lead (BRD §6.5,
+         *     decided 2026-09-09): the trip is created with its default status `inquiry`, and one
+         *     `trip_component` describes what the traveler was looking at. A signed-in CLIENT only
+         *     (`trip.client_id` and the client's names are NOT NULL, so there is no anonymous
+         *     path); an advisor or admin is 403 "Requires role: client.".
+         *
+         *     `tripId` is minted by the client (a recent UUID v7), which makes a retry land once:
+         *     a second send of the same id is 400 "That request has already been sent.". The
+         *     advisor is read from the caller's client record, never from the request.
+         *
+         *     MONEY STAYS ZERO. A provider's nightly rate is not a quote: the component's
+         *     `cost_cents` and `commission_cents` keep their zero defaults, and the figure rides in
+         *     `trip_component.payload` as `snapshot.indicativeRateCents`.
+         *
+         *     The component is best effort: if its insert fails the trip still stands (201), and
+         *     the `trip.inquiry_created` audit row records `componentWritten: false`. The advisor is
+         *     then alerted (push and/or email, by their settings); a failed alert never fails the
+         *     request.
+         */
+        post: operations["requestQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1287,6 +1324,84 @@ export interface components {
              */
             status: "new" | "contacted" | "closed" | "converted" | null;
         };
+        /**
+         * @description Text fields are cleaned before use: control characters become spaces, runs of white
+         *     space one space, then trimmed and cut to the stated length in UTF-16 units. A field
+         *     that is not a string, or is empty after cleaning, counts as absent.
+         */
+        QuoteRequestRequest: {
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7, validated as recent (within an hour either way).
+             */
+            tripId: string;
+            /**
+             * @description The component kind. Only what a public search surface can produce.
+             * @enum {string}
+             */
+            kind: "hotel" | "cruise" | "excursion" | "custom";
+            /**
+             * @description Optional. Missing or unknown falls back to `cruise` for a cruise and `custom` otherwise; never refused.
+             * @enum {string}
+             */
+            tripType?: "cruise" | "all_inclusive" | "multi_destination" | "group" | "custom";
+            /** @description What the traveler is asking about. Becomes the component's display name and the trip title. */
+            name: string;
+            /** @description Optional. When present the title is "<name> · <location>" (cut to 120) and the trip's destinations are [location]. */
+            location?: string;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD, a real calendar date. Send both dates or neither; null or "" is "not sent". A sent date that does not parse is a 400, never dropped.
+             */
+            checkIn?: string | null;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD, after checkIn.
+             */
+            checkOut?: string | null;
+            /**
+             * @description Rounded, then held to 1..20. Anything not a finite number means 2.
+             * @default 2
+             */
+            travelers: number;
+            /** @description Optional. Becomes `trip.notes`. */
+            note?: string;
+            /**
+             * @description What the traveler saw, kept on the component's payload. Treated as hostile: only
+             *     these keys survive, and `capturedAt` (the server's time) is added. A non-object
+             *     is read as {}.
+             */
+            snapshot?: {
+                propertyType?: string;
+                photoUrl?: string;
+                propertyToken?: string;
+                /** @description The provider's nightly rate, kept as sent. Never a cost or a quote. */
+                indicativeRateCents?: number;
+                hotelClass?: number;
+                rating?: number;
+                reviewCount?: number;
+                /** @description The first 12 strings, each cut to 60. Non-strings are dropped. */
+                amenities?: string[];
+            } & {
+                [key: string]: unknown;
+            };
+            /**
+             * @description Where the result came from (`trip_component.api_source`). Missing or unknown is `curated`.
+             * @enum {string}
+             */
+            source?: "curated" | "serpapi_google_hotels" | "track_cruises";
+            /** @description The provider's id for the result (`trip_component.api_reference`). */
+            apiReference?: string;
+        };
+        QuoteRequestResponse: {
+            /**
+             * Format: uuid
+             * @description The id the caller sent, as sent.
+             */
+            tripId: string;
+            /** @constant */
+            status: "inquiry";
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -1427,6 +1542,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     requestTripDocumentUpload: {
@@ -1454,6 +1570,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTripDocumentUrl: {
@@ -1508,6 +1625,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     setAgentTripStatus: {
@@ -1861,6 +1979,42 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    requestQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description The trip exists, in `inquiry`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The caller has no client record. `detail` is "No client record for this account." */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
 }
