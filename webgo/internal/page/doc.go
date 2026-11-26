@@ -85,8 +85,8 @@ type scope struct {
 	slots      map[string]*html.Node      // nil value: removed
 	filled     map[string]bool            // handled as content
 	urlPending map[string]map[string]bool // slot -> URL attributes still holding placeholders (present = pending)
-	repeats    map[string]*html.Node      // Doc only; nil value: filled or removed
-	repeatDone map[string]bool            // Doc only
+	repeats    map[string]*html.Node      // the repeats directly in this scope; nil value: filled or removed
+	repeatDone map[string]bool
 	errs       *[]error
 }
 
@@ -332,6 +332,11 @@ func (s *scope) Keep(slot string) {
 
 func (s *scope) unhandled() []error {
 	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(s.repeats)) {
+		if !s.repeatDone[name] {
+			errs = append(errs, fmt.Errorf("%s: repeat %q was never filled; its sample row would ship (Repeat with 0 removes it)", s.where, name))
+		}
+	}
 	for _, name := range slices.Sorted(maps.Keys(s.slots)) {
 		if s.slots[name] == nil {
 			continue
@@ -372,41 +377,44 @@ func (t *Template) New() *Doc {
 
 // Repeat copies the repeat's sample row n times, calls fill for each copy in order, then
 // removes the sample. n == 0 just removes the sample (pair it with an empty state).
-func (d *Doc) Repeat(name string, n int, fill func(i int, r *Row)) {
-	tmpl, ok := d.repeats[name]
+//
+// A row can hold a repeat of its own (a day's activities inside a day): call Repeat on the
+// Row. Each scope reaches only the repeats directly inside it, and an inner repeat left
+// unfilled in any row stops the render like any other.
+func (s *scope) Repeat(name string, n int, fill func(i int, r *Row)) {
+	tmpl, ok := s.repeats[name]
 	if !ok {
-		d.fail("no repeat %q here (not declared for this page)", name)
+		s.fail("no repeat %q here (not declared for this page or row, or nested in another repeat)", name)
 		return
 	}
 	if tmpl == nil {
-		d.fail("repeat %q was already filled or removed", name)
+		s.fail("repeat %q was already filled or removed", name)
 		return
 	}
+	// Taken before the rows are filled, so a second Repeat of this name (even one made from
+	// inside fill) is refused as a mistake instead of finding the sample already gone.
+	s.repeats[name] = nil
 	for i := range n {
 		row := clone(tmpl)
 		removeAttr(row, attrRepeat)
-		r := &Row{scope: newScope(fmt.Sprintf("%s: repeat %q row %d", d.where, name, i), d.errs)}
-		index(row, r.slots, nil)
+		r := &Row{scope: newScope(fmt.Sprintf("%s: repeat %q row %d", s.where, name, i), s.errs)}
+		r.repeats = map[string]*html.Node{}
+		r.repeatDone = map[string]bool{}
+		index(row, r.slots, r.repeats)
 		r.track()
 		tmpl.Parent.InsertBefore(row, tmpl)
 		if fill != nil {
 			fill(i, r)
 		}
-		*d.errs = append(*d.errs, r.unhandled()...)
+		*s.errs = append(*s.errs, r.unhandled()...)
 	}
 	htmlx.Remove(tmpl)
-	d.repeats[name] = nil
-	d.repeatDone[name] = true
+	s.repeatDone[name] = true
 }
 
 func (d *Doc) problems() error {
 	errs := slices.Clone(d.errList)
 	errs = append(errs, d.unhandled()...)
-	for _, name := range slices.Sorted(maps.Keys(d.repeats)) {
-		if !d.repeatDone[name] {
-			errs = append(errs, fmt.Errorf("%s: repeat %q was never filled; its sample row would ship (Repeat with 0 removes it)", d.where, name))
-		}
-	}
 	return errors.Join(errs...)
 }
 

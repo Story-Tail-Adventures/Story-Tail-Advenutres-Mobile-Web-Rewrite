@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!--
+  §3.9 Login Support: where an advisor's emailed link lands (reset, sign-in link, invite). Ports
+  web/app/(auth)/auth/confirm; copy from CONFIRM_TEXT.
+
+  A PAGE AND A BUTTON, NEVER A GET THAT SIGNS SOMEBODY IN. Mail scanners (Outlook Safe Links,
+  Mimecast, Gmail's preview) open every link in a message; a GET that spent the token would
+  burn the one-time link before the client ever clicked it, and "my link doesn't work" is the
+  exact problem these tools exist for. A scanner loads this page; only a person presses the
+  button, which posts the token hash back to be spent.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sign in · Story-Tail Adventures</title>
+</head>
+<body>
+  <main>
+    <div class="auth-contents" data-slot="confirm">
+      <div>
+        <span class="type-overline auth-overline">STORY-TAIL ADVENTURES</span>
+        <h1 class="type-h4 fw-700" data-slot="title">Sign in</h1>
+        <p class="type-body2 text-secondary auth-sub" data-slot="sub">One tap and you're in. No password needed.</p>
+      </div>
+      <form method="post" action="/auth/confirm" data-submit-once>
+        <input type="hidden" name="token_hash" value="0123456789abcdef0123456789abcdef" data-slot="token-hash">
+        <input type="hidden" name="type" value="magiclink" data-slot="type">
+        <input type="hidden" name="next" value="" data-slot="next">
+        <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-slot="button">Sign me in</button>
+      </form>
+    </div>
+
+    <div class="auth-contents" data-slot="problem">
+      <div>
+        <h1 class="type-h4 fw-700" data-slot="problem-title">This link isn't complete</h1>
+      </div>
+      <p class="type-body2 text-secondary" data-slot="problem-body">Try opening it again from the email. If that doesn't work, ask your advisor for a new one.</p>
+      <div class="auth-mt-16-block"><a class="link fw-600" href="/login">Go to sign in</a></div>
+    </div>
+    <script type="module" src="/assets/js/auth/forms.js"></script>
+  </main>
+</body>
+</html>

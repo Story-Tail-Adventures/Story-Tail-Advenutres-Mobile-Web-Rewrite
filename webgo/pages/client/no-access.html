@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!--
+  The traveler shell's no-access state. Ports components/agent/AdminNoAccess, which the
+  (client) layout renders in place of the page when the signed-in account is an admin.
+
+  It is a page here rather than a block inside every screen: the decision belongs to the
+  shell, and one page is one place to keep the sentence right.
+
+  Sign out is a FORM, not a link: the session is cleared server-side and then redirected,
+  which is the only sequence that ends with the cookie actually gone.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>No access · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="card cl-no-access">
+      <div class="card-content cl-no-access-content">
+        <span class="avatar cl-no-access-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#shield"></use></svg></span>
+        <h2 class="type-h5 text-primary">You don't have access to this view</h2>
+        <p class="type-body2 text-secondary cl-no-access-body">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler's side and the advisor's worklist are both somebody else's desk.</p>
+        <form method="post" action="/account/sign-out" data-submit-once>
+          <button class="btn btn-outlined btn-secondary st-btn" type="submit">Sign out</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
