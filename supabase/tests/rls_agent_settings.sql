@@ -158,6 +158,19 @@ SELECT pg_temp.assert(
     AND (SELECT time_off_blocks FROM public.agent_availability WHERE agent_id = :agent::uuid) = '[]'::jsonb,
     'the seed''s two holidays live in agent_time_off and the old blob is empty');
 
+-- The seed's holidays are FIXED calendar dates (Thanksgiving 2026-11-26..29,
+-- Christmas 2026-12-24..2027-01-02) while every write in section 5 picks dates
+-- RELATIVE to today. Whenever the two overlap, section 5 dies on the
+-- agent_time_off_no_overlap exclusion constraint for reasons that have nothing to
+-- do with the policy under test: 48 days between 2026-11-12 and 2027-01-04 break
+-- this file, and it recurs every year the seed dates sit near today. It bit CI on
+-- 2026-11-17 at "an upcoming block is created and audited" (today+10..+12 landed
+-- inside Thanksgiving) and again on 2026-11-25 at the planted running block
+-- (today-2..+2). The assertion above is the only thing that needs these rows, so
+-- drop them before any relative-date write runs. Deleting directly writes no
+-- audit_event, so the 'agent_time_off.deleted' counts below are unaffected.
+DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3. The read
 -- ─────────────────────────────────────────────────────────────────────────────
