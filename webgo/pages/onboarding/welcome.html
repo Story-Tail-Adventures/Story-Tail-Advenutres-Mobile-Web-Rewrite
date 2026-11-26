@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.9 Welcome / First Login (docs/Screen-Inventory.md §2.1.9, Pattern G). Ports
+  web/app/(onboarding)/welcome/{page,state,WelcomeActions}.tsx; copy word for word from
+  WELCOME_TEXT and WELCOME_CARDS.
+
+  The cover page of the wizard and the first authenticated screen a new traveler sees. It
+  collects nothing; its only write is "Skip the tour", which ends the wizard.
+
+  Five cards from md, four below it: the mobile artboard drops "Explore on your time", and
+  that is also the least true of the five today — self-guided search is Phase 2.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Welcome · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="ob-hero">
+      <img class="ob-hero-photo" src="https://images.unsplash.com/photo-1738762932370-468a90e0ff68?w=1600&amp;q=80&amp;auto=format&amp;fit=crop" alt="" decoding="async">
+      <div class="ob-hero-scrim" aria-hidden="true"></div>
+      <div class="ob-hero-copy">
+        <p class="type-overline ob-hero-overline">WELCOME · REST WELL</p>
+        <h1 class="ob-hero-title" data-slot="greeting">So glad you're here.</h1>
+        <p class="ob-hero-sub">Here's to a year of trips worth telling — and rest worth taking. — Gyasi</p>
+      </div>
+    </div>
+
+    <div class="ob-welcome-body">
+      <h2 class="type-h5 text-primary">Here's what your portal will do for you:</h2>
+
+      <ul class="ob-cards">
+        <li>
+          <div class="card ob-card"><div class="card-content ob-card-content">
+            <span class="ob-card-icon" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#plane"></use></svg></span>
+            <div class="ob-card-text">
+              <h3 class="type-subtitle1 text-primary ob-card-title">Your trips, always here</h3>
+              <p class="type-caption text-secondary ob-card-body">Your itinerary stays current as things firm up, and you can download it as a PDF to carry with you.</p>
+            </div>
+          </div></div>
+        </li>
+        <li>
+          <div class="card ob-card"><div class="card-content ob-card-content">
+            <span class="ob-card-icon" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#lock"></use></svg></span>
+            <div class="ob-card-text">
+              <h3 class="type-subtitle1 text-primary ob-card-title">Pay suppliers directly</h3>
+              <p class="type-caption text-secondary ob-card-body">Each payment goes straight to the resort, cruise line or tour company, on its own secure site. We never see your card, and there's never a planning fee from us.</p>
+            </div>
+          </div></div>
+        </li>
+        <li>
+          <div class="card ob-card"><div class="card-content ob-card-content">
+            <span class="ob-card-icon" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#message"></use></svg></span>
+            <div class="ob-card-text">
+              <h3 class="type-subtitle1 text-primary ob-card-title">Talk to me anytime</h3>
+              <p class="type-caption text-secondary ob-card-body">Messages threaded by trip, so nothing gets lost in your inbox. We'll email you when something changes.</p>
+            </div>
+          </div></div>
+        </li>
+        <li class="from-md">
+          <div class="card ob-card"><div class="card-content ob-card-content">
+            <span class="ob-card-icon" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#search"></use></svg></span>
+            <div class="ob-card-text">
+              <h3 class="type-subtitle1 text-primary ob-card-title">Explore on your time</h3>
+              <p class="type-caption text-secondary ob-card-body">Browse trip ideas at your own pace, and send me the ones you want to hear about.</p>
+            </div>
+          </div></div>
+        </li>
+        <li>
+          <div class="card ob-card"><div class="card-content ob-card-content">
+            <span class="ob-card-icon" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#shield"></use></svg></span>
+            <div class="ob-card-text">
+              <h3 class="type-subtitle1 text-primary ob-card-title">Documents in one place</h3>
+              <p class="type-caption text-secondary ob-card-body">Passports, visas and insurance, kept alongside the trip they belong to.</p>
+            </div>
+          </div></div>
+        </li>
+      </ul>
+
+      <div class="ob-welcome-actions">
+        <div class="alert alert-error" role="alert" data-slot="skip-error"><div class="alert-message">We couldn't save that just now — but nothing is lost. Try again, or head straight to your dashboard. <a class="link link-inherit ob-error-link" href="/dashboard">Go to my dashboard</a>.</div></div>
+        <form class="ob-welcome-buttons" method="post" action="/welcome" data-submit-once>
+          <!-- Skip first in the DOM so the primary action sits on the right of the row from sm,
+               and under the thumb on a phone, as the artboards draw it. -->
+          <button class="btn btn-text st-btn ob-skip" type="submit" name="action" value="skip" aria-label="Skip the tour and go to my dashboard" data-pending-label="Taking you to your dashboard…">Skip the tour</button>
+          <button class="btn btn-contained st-btn btn-large" type="submit" name="action" value="start">Get started<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
