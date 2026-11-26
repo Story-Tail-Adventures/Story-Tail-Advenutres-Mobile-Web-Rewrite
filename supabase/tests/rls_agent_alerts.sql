@@ -266,6 +266,13 @@ SELECT pg_temp.assert(public.alert_quote_request(:trip_q::uuid) = 'none',
 SELECT public.agent_local_today(:agent::uuid) AS today \gset
 \set today '''':today''''
 
+-- The seed gives this agent two FIXED holidays (Thanksgiving 2026-11-26..29,
+-- Christmas 2026-12-24..2027-01-02); everything below picks dates RELATIVE to
+-- today, so when the two overlap the writes die on agent_time_off_no_overlap for
+-- reasons unrelated to the auto-reply under test. Nothing here asserts on the
+-- seeded rows, so clear them first. See rls_agent_settings.sql for the full note.
+DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 SELECT pg_temp.assert(
     public.agent_settings_save_time_off(:off_new::uuid, :agent::uuid, true, :today::date + 5, :today::date + 6,
         null, true, '   ', public.uuid_v7(), :actor::uuid, null, 'test') = 'reply_needs_text',
