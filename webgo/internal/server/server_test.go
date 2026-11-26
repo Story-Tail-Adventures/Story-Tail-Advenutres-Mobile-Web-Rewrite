@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/assets"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/pages"
 )
@@ -31,7 +32,7 @@ func newHandler(t *testing.T, env config.Env) (http.Handler, *bytes.Buffer) {
 
 	cfg := config.Config{Env: env, Port: "8080", SiteURL: "http://localhost:8080"}
 	var logs bytes.Buffer
-	h, err := New(cfg, pages.FS, slog.New(slog.NewJSONHandler(&logs, nil)))
+	h, err := New(cfg, pages.FS, assets.FS, slog.New(slog.NewJSONHandler(&logs, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

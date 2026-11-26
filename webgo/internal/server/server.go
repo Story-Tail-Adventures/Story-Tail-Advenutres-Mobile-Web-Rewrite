@@ -1,10 +1,11 @@
 // Package server wires the HTTP handler: routes, security headers, the cross-origin check,
 // request logging and panic recovery.
 //
-// Phase 1 (docs/GO-MIGRATION.md §8) serves /healthz, the /functions/v1 registry (every name
-// passed through to Supabase), and a plain 404 for everything else. In development it adds
-// the /_demo page and, with Supabase configured, the sign-in harness. Every route goes
-// through gate.Router, so none can exist without choosing a gate.
+// It serves /healthz, the hashed assets under /assets/, the /functions/v1 registry (every name
+// passed through to Supabase until it is ported), the five page areas, and a plain 404 for
+// everything else. In development it adds /_demo, /_styleguide and, with Supabase
+// configured, the sign-in harness. Every route goes through gate.Router, so none can exist
+// without choosing a gate.
 package server
 
 import (
@@ -19,17 +20,42 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/auth"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/client"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/demo"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/devauth"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/onboarding"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/styleguide"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/static"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
 )
 
+// area is one page area: its page files and its routes. Each lives in its own package under
+// internal/handlers, built by its own session; this list is the one place they are wired.
+type area struct {
+	name  string
+	specs []page.Spec
+	mount func(*gate.Router, handlers.Deps) error
+}
+
+var areas = []area{
+	{"public", public.Specs, public.Mount},
+	{"auth", auth.Specs, auth.Mount},
+	{"onboarding", onboarding.Specs, onboarding.Mount},
+	{"client", client.Specs, client.Mount},
+	{"agent", agent.Specs, agent.Mount},
+}
+
 // CSP is the Content Security Policy every response carries, set strictly from day one
-// because retrofitting one later is much harder. No inline script or style at all yet; the
-// theme pre-paint script joins script-src by its hash in Phase 2. img-src allows https: for
-// the Unsplash photos the public pages use.
+// because retrofitting one later is much harder. No inline script or style at all: the
+// pre-paint scripts are files (webgo/assets/js), and the page loader refuses a page with an
+// inline script, a <style>, a style="" or an on* handler at startup. img-src allows https: for
+// the Unsplash photos the public pages use, and data: for the checkbox tick in ui.css.
 const CSP = "default-src 'self'; " +
 	"script-src 'self'; " +
 	"style-src 'self'; " +
@@ -43,40 +69,69 @@ const CSP = "default-src 'self'; " +
 
 // New builds the whole handler. It loads and checks every page first, so a broken page file
 // stops the server from starting.
-func New(cfg config.Config, pagesFS fs.FS, log *slog.Logger) (http.Handler, error) {
+func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Handler, error) {
 	dev := cfg.Env == config.Development
 	devAuth := dev && cfg.SupabaseConfigured()
 
+	// Assets first: every page's <link>, <script>, <img> and <use> is pointed at a hashed
+	// asset as it loads, and an unknown one stops the boot.
+	assetSet, err := static.Build(assetsFS, static.Bundles)
+	if err != nil {
+		return nil, fmt.Errorf("building assets: %w", err)
+	}
+
 	var specs []page.Spec
+	for _, a := range areas {
+		specs = append(specs, a.specs...)
+	}
 	if dev {
 		specs = append(specs, demo.Spec)
+		specs = append(specs, styleguide.Specs...)
 	}
 	if devAuth {
 		specs = append(specs, devauth.Specs...)
 	}
-	set, err := page.Load(pagesFS, specs...)
+	set, err := page.LoadWith(pagesFS, page.Options{Assets: assetSet.Lookup}, specs...)
 	if err != nil {
 		return nil, fmt.Errorf("loading pages: %w", err)
 	}
 
-	auth := supa.New(cfg.SupabaseURL, cfg.SupabaseAnonKey, nil)
+	sc := supa.New(cfg.SupabaseURL, cfg.SupabaseAnonKey, nil)
 	// Secure everywhere but a local http:// server, where browsers would drop the cookie.
 	secure := cfg.Env == config.Production || strings.HasPrefix(cfg.SiteURL, "https://")
-	sessions := session.NewManager(auth, secure, log)
+	sessions := session.NewManager(sc, secure, log)
 
 	mux := http.NewServeMux()
 	rt := gate.NewRouter(mux, sessions, cfg.AuthChecksDisabledForLocalDev(), log)
 
 	rt.Public("GET /healthz", http.HandlerFunc(healthz))
+	// Hashed names only; reads no cookie and calls nothing.
+	rt.Public("GET "+static.Prefix+"{path...}", assetSet)
 
 	// The backend door. Public at the gate because it carries its own bearer token (mobile,
 	// pg_cron) and never reads the session cookie.
-	rt.Public("/functions/v1/{name}", api.New(api.Config{
+	registry := api.New(api.Config{
 		SupabaseURL: cfg.SupabaseURL,
 		AnonKey:     cfg.SupabaseAnonKey,
 		LeadFormKey: cfg.LeadFormKey,
 		SearchToken: cfg.HotelSearchToken,
-	}, nil, log))
+	}, nil, log)
+	rt.Public("/functions/v1/{name}", registry)
+
+	deps := handlers.Deps{
+		Pages:         set,
+		Supa:          sc,
+		Sessions:      sessions,
+		API:           registry,
+		Config:        cfg,
+		Log:           log,
+		SecureCookies: secure,
+	}
+	for _, a := range areas {
+		if err := a.mount(rt, deps); err != nil {
+			return nil, fmt.Errorf("mounting the %s pages: %w", a.name, err)
+		}
+	}
 
 	if dev {
 		h, err := demo.Handler(set, log)
@@ -84,9 +139,13 @@ func New(cfg config.Config, pagesFS fs.FS, log *slog.Logger) (http.Handler, erro
 			return nil, err
 		}
 		rt.Public("GET /_demo", h)
+		if err := styleguide.Mount(rt, set, log); err != nil {
+			return nil, err
+		}
 	}
+	// After the areas, so the harness steps aside from any route a real page has taken.
 	if devAuth {
-		if err := devauth.Mount(rt, set, auth, sessions, log); err != nil {
+		if err := devauth.Mount(rt, set, sc, sessions, log); err != nil {
 			return nil, err
 		}
 	}

@@ -48,6 +48,17 @@ import (
 type Layout struct {
 	File  string   // path inside the pages file system, e.g. "layout/base.html"
 	Slots []string // slots the layout itself carries, filled by every page that uses it
+	// Repeats the layout itself carries (a nav list), with the slots in each row. Every page
+	// that uses the layout fills them, usually through one shared helper.
+	Repeats map[string][]string
+}
+
+// Options change how LoadWith builds pages.
+type Options struct {
+	// Assets resolves one of our own /assets/... references to the URL it is served at
+	// (internal/static's hashed name). When set, every page is also checked against the
+	// Content Security Policy at startup; see rewriteAssets.
+	Assets func(ref string) (string, bool)
 }
 
 // Spec declares one page file and everything a handler will fill in it.
@@ -78,6 +89,12 @@ type Template struct {
 // Load parses and checks every spec. It reports every problem at once, so a broken page
 // stops the server from starting with the full list.
 func Load(fsys fs.FS, specs ...Spec) (*Set, error) {
+	return LoadWith(fsys, Options{}, specs...)
+}
+
+// LoadWith is Load with options. The server always passes Assets, so every real page is
+// rewritten to hashed asset URLs and checked against the CSP before it can be served.
+func LoadWith(fsys fs.FS, opts Options, specs ...Spec) (*Set, error) {
 	s := &Set{templates: make(map[string]*Template, len(specs))}
 	layouts := map[string]*html.Node{}
 	seen := map[string]bool{} // by name, whether or not the first one built
@@ -88,7 +105,7 @@ func Load(fsys fs.FS, specs ...Spec) (*Set, error) {
 			continue
 		}
 		seen[spec.File] = true
-		t, err := build(fsys, spec, layouts)
+		t, err := build(fsys, spec, layouts, opts)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -113,13 +130,24 @@ func (s *Set) Template(file string) (*Template, error) {
 // Files lists the loaded page files, sorted.
 func (s *Set) Files() []string { return slices.Sorted(maps.Keys(s.templates)) }
 
-func build(fsys fs.FS, spec Spec, layouts map[string]*html.Node) (*Template, error) {
+func build(fsys fs.FS, spec Spec, layouts map[string]*html.Node, opts Options) (*Template, error) {
 	root, err := parseFile(fsys, spec.File)
 	if err != nil {
 		return nil, err
 	}
 	declared := slices.Clone(spec.Slots)
+	repeats := spec.Repeats
 	if spec.Layout != nil {
+		if len(spec.Layout.Repeats) > 0 {
+			repeats = make(map[string][]string, len(spec.Repeats)+len(spec.Layout.Repeats))
+			maps.Copy(repeats, spec.Layout.Repeats)
+			for name, slots := range spec.Repeats {
+				if _, dup := repeats[name]; dup {
+					return nil, fmt.Errorf("%s: repeat %q is declared by both the page and %s", spec.File, name, spec.Layout.File)
+				}
+				repeats[name] = slots
+			}
+		}
 		lay, ok := layouts[spec.Layout.File]
 		if !ok {
 			if lay, err = parseFile(fsys, spec.Layout.File); err != nil {
@@ -132,7 +160,13 @@ func build(fsys fs.FS, spec Spec, layouts map[string]*html.Node) (*Template, err
 		}
 		declared = append(slices.Clone(spec.Layout.Slots), declared...)
 	}
-	if err := check(root, spec.File, declared, spec.Repeats); err != nil {
+	stripComments(root)
+	if opts.Assets != nil {
+		if err := rewriteAssets(root, spec.File, opts.Assets); err != nil {
+			return nil, err
+		}
+	}
+	if err := check(root, spec.File, declared, repeats); err != nil {
 		return nil, err
 	}
 	return &Template{file: spec.File, root: root}, nil

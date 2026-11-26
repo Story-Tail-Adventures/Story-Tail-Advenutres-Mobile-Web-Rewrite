@@ -1,0 +1,16 @@
+/* Cascade layer order. Nothing else belongs in this file, and it is first in the site.css
+ * bundle (internal/static.Bundles) so this statement is the first thing the browser sees.
+ *
+ * The same three layers as the Next app (web/styles/layers.css), so the stylesheets copied
+ * from there (reset.css, components.css, public.css, client.css) cascade exactly as they did:
+ *
+ *   base        the element reset (reset.css) and the html/body rules (base.css).
+ *   mui         what MUI provided: the theme variables (theme.css) and the component classes
+ *               that replace MUI's components (ui.css).
+ *   components  the section and shell rules (components.css, shell.css, public.css,
+ *               client.css, css/area/*.css), and the scheme and auth gates, which must beat
+ *               a component's own display.
+ *
+ * A layer's position is fixed by the first time the browser sees its name; see
+ * web/styles/layers.css for the Turbopack bug (PR #120) this order once lost to. */
+@layer base, mui, components;

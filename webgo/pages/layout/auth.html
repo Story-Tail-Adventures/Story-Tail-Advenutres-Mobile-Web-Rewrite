@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--
+  The auth shell, Pattern A: Screens 2.1.x (sign in, register, reset, MFA, verify).
+  Ports app/(auth)/layout.tsx: the tropical brand panel beside a 440px form column from lg,
+  one full-width column below it (the wordmark comes into the column there).
+  Filled by internal/shell.Auth: the flash only. A page's <main> children join the column.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBF6EE">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050D1A">
+  <title>Story-Tail Adventures</title>
+  <meta name="description" content="Trips planned by someone who has done this a hundred times — so you can rest when you get there.">
+  <script src="/assets/js/prepaint-theme.js"></script>
+  <script src="/assets/js/prepaint-auth.js"></script>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/area/auth.css">
+  <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/assets/img/icon.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" sizes="180x180">
+  <script type="module" src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/ui.js"></script>
+</head>
+<body>
+  <div class="auth-shell">
+    <aside class="auth-brand-panel tropical-gradient">
+      <span class="sta-art brand-96"><img class="sta-art-fixed" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="Story-Tail Adventures" loading="eager" decoding="async" fetchpriority="high"></span>
+      <div class="auth-stamp" aria-hidden="true"><svg class="icon icon-36" aria-hidden="true"><use href="/assets/icons.svg#passport"></use></svg></div>
+      <div class="auth-panel-copy">
+        <span class="auth-panel-overline">STORY-TAIL · MEMBER PORTAL</span>
+        <h2 class="auth-panel-title">Your next chapter is
+already in the works.</h2>
+        <p class="auth-panel-body">Every detail in one place — so the only thing left to do is rest.</p>
+      </div>
+    </aside>
+    <main class="auth-main" id="main">
+      <div class="auth-column">
+        <div class="auth-mobile-brand"><span class="sta-art brand-80"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="Story-Tail Adventures" loading="lazy" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="Story-Tail Adventures" loading="lazy" decoding="async"></span></div>
+        <div class="layout-slot" data-layout-main>
+          <p>Page content goes here.</p>
+        </div>
+      </div>
+    </main>
+    <div class="snackbar" role="status" data-autohide data-slot="flash"><div class="snackbar-content"><div class="snackbar-message" data-slot="flash-text">Your changes are saved.</div></div></div>
+  </div>
+</body>
+</html>

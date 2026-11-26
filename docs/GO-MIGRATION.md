@@ -123,8 +123,10 @@ All settled by Gyasi on 2026-11-06.
 webgo/
   cmd/server/          main.go: config, pages, mux, http.Server
   cmd/gen-kotlin/      writes GeneratedPublicContent.kt (replaces export-public-content.mts)
+  assets/              css, js modules, fonts, icons, brand art (go:embed, hashed names, 4.8)
+    css/area/          one stylesheet per page area, owned by that area
   pages/               plain HTML, one file per screen (go:embed)
-    layout/            head, nav, footer, shared pieces
+    layout/            the five shells: public (hero, plain), auth, onboarding, client, agent
     public/ auth/ client/ onboarding/ agent/
   internal/
     page/              the ONLY package that imports htmlx (4.4)
@@ -139,8 +141,11 @@ webgo/
     api/               the function registry, ported handlers, the service client (section 5)
     audit/             port of _shared/audit.ts
     domain/            ports of the _shared pure logic (agent, trip, commission, report, ...)
-    handlers/          one package per page route group
-    assets/            css, js modules, fonts, icons, push-sw.js (go:embed, hashed names)
+    handlers/          one package per page area (public, auth, client, onboarding, agent),
+                       each with Specs and Mount, sharing handlers.Deps
+    shell/             the layouts and their fill helpers; the role and onboarding decisions
+    static/            serves webgo/assets under content-hashed names
+    web/               render with cache headers, flash, forms, function results to copy
   go.mod
 ```
 
@@ -276,6 +281,49 @@ route cannot exist without a gate.
 - **Visual parity gate**: before a Next route is deleted, screenshot it and its Go replacement at
   phone, tablet and desktop, light and dark. The dark scheme is a full rebrand, not an inversion.
 
+**What exists** (the UI foundation PR, stacked on #178):
+
+| File | What it is |
+|---|---|
+| `assets/css/tokens.css` | Byte for byte `web/styles/tokens.css`; `internal/static` tests it against `design/web-tokens/tokens.css` |
+| `assets/css/theme.css` | The `--mui-*` variables MUI emits for `theme.ts`, captured from the running app: palette (both schemes), shadows, overlays, type. Every component rule reads these |
+| `assets/css/ui.css` | The MUI replacements: `.btn` (+ `.st-btn` for `components/ui/Button`), `.icon-btn`, `.card`, `.chip`, `.status-chip.status-<kind>`, `.field`/`.input`/`.select`/`.check`, `.table`, `.tabs`/`.tab`, `dialog.dialog`, `.menu`, `.alert`, `.snackbar`, `.avatar`, `.divider`, `.spinner`, `.skeleton`, `.type-*`, a few layout helpers. The header maps every Next button variant to classes |
+| `assets/css/shell.css` | The layout chrome: public bar, drawer and footer; auth split pane; rails, top bars and bottom bars |
+| `assets/css/{reset,components,public,client}.css` | Copied from `web/styles/` unchanged, in the same layers (`base`, `mui`, `components`) |
+| `assets/css/area/<area>.css` | Each area's own rules. The area's layout links it; nobody else edits it |
+| `assets/js/prepaint-theme.js`, `prepaint-auth.js` | ThemeScript and AuthChromeScript as files, loaded blocking in `<head>` |
+| `assets/js/theme.js`, `ui.js` | The theme toggle; dialogs, submit-once forms, the snackbar |
+| `assets/icons.svg` | The icon set as a sprite: `<svg class="icon icon-20"><use href="/assets/icons.svg#search"></use></svg>` |
+
+Pages reference assets by their plain path (`/assets/css/site.css`); the loader rewrites each one
+to its hashed name at startup and refuses an unknown one, an inline script or style, a `style=""`
+attribute or an `on*` handler, so a page that would break the CSP never boots. `/_styleguide`
+(development only) shows every `ui.css` class in both schemes, and `/_styleguide/layout/<name>`
+shows each layout filled.
+
+**The parity procedure.** For one Go route and the Next route it replaces:
+
+1. Start both from `.claude/launch.json` with the browser pane's `preview_start`: `web` (Next,
+   port 3000 or the next free one) and `webgo` (Go, 8080 or the next free one). The Go server
+   embeds its assets, so restart `webgo` after any CSS, JS or HTML change.
+2. Open each route in its own tab. Without a local Supabase stack the Next client and agent pages
+   crash on hydration; read their server HTML instead, with the scripts stripped, in the Next tab:
+   `const h = await (await fetch(path)).text(); document.open(); document.write(h.replace(/<script[\s\S]*?<\/script>/g, "")); document.close();`
+3. For each width, 375 (phone), 768 (tablet) and 1280 (desktop), set both tabs with
+   `resize_window`, then in each scheme (light: remove `scheme-dark` from `<html>`; dark: add it)
+   measure the same elements in both tabs with one script: `getBoundingClientRect()` and the
+   computed `padding`, `gap`, `font`, `color`, `background-color`, `border` and `box-shadow`.
+   Compare numbers, not screenshots: a pixel shift or a wrong token shows up as a different value.
+   Wait 300ms after flipping the scheme, or the 250ms MUI transitions report midway colours.
+4. Then compare a screenshot of each at each width and scheme for anything the numbers missed
+   (an icon, an image, wrapping text). A page's scrollbar makes Next 15px narrower when the Go
+   page is shorter; that is not a difference.
+5. Check the Go tab's console: no CSP violation and no 404 for an asset.
+
+The shells were checked this way at 375, 768 and 1280 against `/how-it-works`, `/caribbean`,
+`/login`, `/account` and `/agent/settings`; their bars, rails, drawers and footers match to the
+pixel, with the differences that remain listed in the foundation PR.
+
 ### 4.9 Interactivity: links and forms first, small JavaScript second
 
 | React pattern today | Go version |
@@ -295,8 +343,9 @@ route cannot exist without a gate.
 | Web push | `push-sw.js` stays a static file; `pushClient` becomes a JS module |
 | Analytics consent + GA | Same consent gate; GA loads only after consent |
 
-Strict Content Security Policy from day one: `script-src 'self'`, no inline handlers, the theme
-pre-paint script allowed by its hash, `frame-ancestors 'none'`.
+Strict Content Security Policy from day one: `script-src 'self'`, `style-src 'self'`, no inline
+script, style or handler at all (the theme and auth-flag pre-paint scripts are files loaded
+blocking in `<head>`, so no hash is needed), `frame-ancestors 'none'`.
 
 ### 4.10 Validation, money, ids and time
 

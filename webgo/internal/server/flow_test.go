@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/assets"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/config"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/pages"
 )
@@ -72,7 +73,7 @@ func liveHandler(t *testing.T, env config.Env) (http.Handler, *fakeSupabase) {
 	t.Cleanup(srv.Close)
 	cfg := config.Config{Env: env, Port: "8080", SiteURL: "http://localhost:8080",
 		SupabaseURL: srv.URL, SupabaseAnonKey: "anon"}
-	h, err := New(cfg, pages.FS, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)))
+	h, err := New(cfg, pages.FS, assets.FS, slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
