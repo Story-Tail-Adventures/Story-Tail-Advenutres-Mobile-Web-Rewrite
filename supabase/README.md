@@ -1,6 +1,11 @@
-# `supabase/` — Database + Edge Functions
+# `supabase/` — Database, RLS, Auth, Storage and cron
 
-The Supabase project that hosts the application's database, auth, storage, real-time, and backend logic (via Edge Functions). This is the entire backend — there is no separate Ktor service. See `../docs/Tech-Recommendations.md` §3.3.
+**The Edge Functions are gone (Phase 6, 2026-11-26).** All 34 folders were deleted; **33** run
+in Go under `webgo/internal/api/fn/`, at the same `/functions/v1/{name}` paths. The 34th,
+`hotel-search`, was retired rather than ported (PR #48 moved web hotel search into the app). This directory keeps
+Postgres, migrations, RLS, Auth, Storage and pg_cron. See `../docs/GO-MIGRATION.md`.
+
+The Supabase project that hosts the application's database, auth, storage and real-time. The application's own backend logic lives in the Go service (`webgo/`); there is no separate Ktor service and no second backend. See `../docs/GO-MIGRATION.md`.
 
 ## Status
 
@@ -47,16 +52,6 @@ After `supabase init` the layout will be:
 supabase/
 ├── config.toml              # Supabase project config
 ├── migrations/              # SQL migrations, applied via `supabase db reset`
-├── functions/               # Edge Functions (Deno + TypeScript)
-│   ├── _shared/             # Shared utilities across functions
-│   │   ├── audit.ts         # Audit event helper
-│   │   ├── auth.ts          # JWT verification, MFA step-up
-│   │   └── payLink.ts       # Pay-link checks (https only, no card numbers)
-│   ├── commission-import/
-│   ├── travel-api-proxy-amadeus/
-│   ├── travel-api-proxy-hotelbeds/
-│   ├── travel-api-proxy-viator/
-│   └── travel-api-proxy-widgety/
 ├── seed.sql                 # Optional seed data for local dev
 └── tests/                   # Optional pgTAP database tests
 ```
@@ -83,29 +78,26 @@ supabase db reset
 
 # Production is NOT applied from here and NOT from GitHub Actions. Supabase's GitHub
 # integration applies new migrations itself on merge to the `production` branch
-# (Project Settings > Integrations > GitHub, "Deploy to production"). Same for the Edge
-# Functions declared in config.toml. Nothing in .github/workflows/ runs `db push`.
+# (Project Settings > Integrations > GitHub, "Deploy to production"). It no longer deploys
+# any Edge Functions: there are none, and config.toml declares none.
+# Nothing in .github/workflows/ runs `db push`.
 
 # Generate TypeScript types from the local schema (for web/)
 supabase gen types typescript --local > ../web/types/supabase.ts
 ```
 
-## Edge Functions
+## The API is in Go, not here
 
-Edge Functions are Deno + TypeScript. They run inside Supabase's edge network. See `../docs/Tech-Recommendations.md` §3.3 for the function list and what each one does.
+There are no Edge Functions in this repo any more. A new endpoint is a Go package under
+`webgo/internal/api/fn/<name>/`, registered in `webgo/internal/api/registry.go` and
+`ported.go`. Run it with `go run ./cmd/server` from `webgo/`.
 
-Workflow:
-
-```bash
-# Scaffold a new function
-supabase functions new <name>
-
-# Serve a function locally
-supabase functions serve <name>
-
-# Deploy to production
-supabase functions deploy <name>
-```
+**Still owed (Gyasi):** the four pg_cron jobs below still post to
+`<project-ref>.supabase.co/functions/v1/<name>` with a service-role bearer. They have to be
+re-pointed at the Go service and moved to `STA_CRON_SECRET` (ruling 13) when it is deployed;
+until then the URLs in the sections below describe what is currently stored in the vault, not
+what will be correct after the Render setup. A cron job that 401s fails SILENTLY — that is how
+cruise-sync sat broken for weeks — so check the job's own result, not just that it ran.
 
 ## Production auth settings — set by hand, guarded by nothing
 

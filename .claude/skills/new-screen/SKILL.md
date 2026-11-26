@@ -75,7 +75,7 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
    client (`web/lib/supabase/server.ts`, or the repository layer in
    `com.storytail.adventures.api`) — no Edge Function needed, but the table needs policies, so
    check `rls-policy`. Anything with server-side logic, a secret, or a sensitive mutation gets an
-   Edge Function: use the `new-edge-function` skill, which also handles the
+   API endpoint: use the `new-go-endpoint` skill, which also handles the
    `contracts/openapi.yaml` entry and `npm run generate -w contracts`.
 
 8. **Apply the brand voice.** For copy-heavy screens (especially 2.0.2 About, 2.1.9 Welcome, dashboards, emails), check `docs/Design-System.md` §2 (Brand Voice & Worldview) and the §2.6 tone calibration checks. The rest-and-creation theme should be present in the right places, never preachy.

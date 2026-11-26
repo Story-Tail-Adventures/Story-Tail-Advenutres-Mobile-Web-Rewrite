@@ -685,6 +685,17 @@ Go to be live in production.
 
 ### Phase 6: Clean up (S to M)
 
+**Status: the backend half is DONE (2026-11-26).** `supabase/functions/` is deleted, the three
+Deno CI steps and the `config.toml` function check are gone, the 34 `[functions.*]` blocks have
+left `config.toml`, `gen-types.sh` lost its second consumer, and the Kotlin content codegen job
+is re-pointed at `go run ./cmd/gen-kotlin` (verified byte for byte again at the time of the
+swap). `hotel-search` left the registry's `Functions` list with its folder, and
+`registry_test.go` now asserts `Functions` and `portTable()` hold exactly the same names,
+because there is no Deno deployment left to fall through to.
+
+**Deleting `web/` is NOT done, and it is bigger than this section assumed.** See
+"What `web/` is still load-bearing for" below before attempting it.
+
 - **When**: no web route is left in Next.js and no function name passes through to Supabase.
 - Delete the Next app and `supabase/functions/`, `git mv webgo web`, drop the Node web build.
 - Retire `check_mui_lockstep.py`, `check_css_layer_order.py`, `check_public_prerender.py`, the
@@ -752,6 +763,63 @@ mobile silently drifting.
   is most likely to break.
 
 `deploy.yml` names `web/` and `supabase/functions` too and changes in the same PR.
+
+#### What `web/` is still load-bearing for (found 2026-11-26, deleting it is blocked on this)
+
+This section used to treat deleting `web/` as the easy half. It is not. Counting pages and
+route handlers answers "what lives there"; the question that matters is **what RUNS from
+there**, and three separate things do:
+
+**1. Eleven Go test files read `web/` from disk.** They are the migration's own proof that copy
+moved byte for byte, and they fail loudly (not silently) when the files go, which breaks the one
+job that must stay green:
+
+```
+webgo/internal/validate/copy_test.go                     web/lib/validation/*.ts, web/lib/countries.ts
+webgo/internal/web/web_test.go                           web/lib/auth-errors.ts
+webgo/internal/handlers/agent/agentread/agentread_test.go  web/lib/agent/api.ts
+webgo/internal/handlers/agent/money/module_test.go       web/…
+webgo/internal/handlers/agent/money/copy_test.go         web/…
+webgo/internal/handlers/agent/people/countries_test.go   web/lib/countries.ts
+webgo/internal/handlers/agent/people/copy_test.go        web/…, web/lib/agent/leadsCopy.ts
+webgo/internal/handlers/client/format_test.go            web/lib/trips/imagery.ts
+webgo/internal/handlers/client/thread_test.go            web/lib/trips/thread.ts
+webgo/internal/handlers/onboarding/logic_test.go         web/content/public/trips.ts, web/app/(onboarding)/…
+```
+
+Their purpose — "Go says what Next said" — expires with Next, so they go WITH `web/` rather than
+being re-pointed. That is a deliberate decision to bank a guarantee, not an oversight: once the
+two are equal and Next is gone, there is nothing left for them to compare.
+
+**2. `check_copy_parity.py` is the "Web/mobile copy parity" CI job, and it reads 38 files under
+`web/`.** This is the one that cannot simply be deleted. 1,544 lines, 51 check entries, pairing
+web copy tables against their Kotlin twins so a traveler never sees one wording on the phone and
+another in the browser — CLAUDE.md risk 15. Deleting `web/` kills it with nothing left to notice,
+exactly the failure the Kotlin codegen job was saved from.
+
+It has to be **re-pointed from web↔mobile to Go↔mobile**, and the ordering is the whole point:
+
+> **Re-point it BEFORE deleting `web/`, because that is the only moment the re-point can be
+> verified.** While all three exist, web↔mobile passes (today's job) and Go↔web passes (the
+> eleven test files above), so Go↔mobile must pass transitively — and if it does not, that gap is
+> a real drift neither existing check could see. After `web/` is gone there is nothing to
+> validate a new extractor against, and you would be writing a check with no way to know it is
+> equivalent to the one it replaces.
+
+The work is real: Go holds this copy as individual `const` identifiers (`labelProposalReady`,
+`tripMsgFinalPaymentDue`) and in `pages/*.html`, not as the flat string tables the web side
+deliberately used so the checker could read them. The same label already lives in two Go places
+(`agent/people/clientdetail.go` and `agent/trips/format.go`). So a `go_messages()` extractor has
+to read consts, maps and page HTML, and each of the 51 entries needs its Go home identified.
+
+`check_auth_config.py` has the same shape and is much smaller: it reads
+`web/lib/validation/auth.ts`.
+
+**3. `gen-types.sh` still writes `web/types/supabase.ts`,** its last consumer. Go decodes rows
+into typed structs rather than generated TypeScript, so when `web/` goes the script and the
+"Fail if generated DB types drifted" step go with it.
+
+So Phase 6 is **three** PRs, not two: re-point the copy checks at Go, then delete, then rename.
 
 #### The rename is the risky part, not the deletion
 

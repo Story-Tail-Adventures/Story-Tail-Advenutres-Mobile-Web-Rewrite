@@ -222,18 +222,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-go@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      # web/content/public/*.ts is the single source of truth for Screen Inventory §2.0's
+          go-version-file: webgo/go.mod
+          cache-dependency-path: webgo/go.sum
+      # webgo/internal/content is the single source of truth for Screen Inventory §2.0's
       # curated catalog and copy; the Kotlin the app reads is generated from it. Without
       # this job a change to a price, a trip name or a legal paragraph would ship to the
       # browser and not to the phone — the drift check_copy_parity.py exists to catch,
       # for the content it does not cover.
-      - run: npm run generate:public-content -w web
-      - name: Fail if the generated Kotlin drifted from web/content/public
+      #
+      # RE-POINTED from `npm run generate:public-content -w web`, which lived in the npm
+      # workspace the Go migration deletes. This job is the only thing standing between a
+      # content edit and the phone silently drifting, so it moves with the generator rather
+      # than dying with the Web job. webgo/cmd/gen-kotlin reproduced the committed file byte
+      # for byte before the swap (69,974 bytes, identical SHA-256).
+      - run: go run ./cmd/gen-kotlin
+        working-directory: webgo
+      - name: Fail if the generated Kotlin drifted from webgo/internal/content
         run: git diff --exit-code mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt
 
   mobile-android:
@@ -329,9 +335,6 @@ jobs:
           # reproduce, and the failure named the generic helpers rather than anything anyone
           # had touched. Move both together.
           version: 2.116.0
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -357,56 +360,6 @@ jobs:
           for f in supabase/tests/*.sql; do
             echo "── $f"
             psql "$db_url" -v ON_ERROR_STOP=1 -f "$f"
-          done
-
-      # Checks the _shared/ helpers too, not just function entry points — they are where
-      # the audit and auth rules actually live.
-      - name: Typecheck and lint Edge Functions
-        run: |
-          shopt -s nullglob
-          files=(supabase/functions/*/index.ts supabase/functions/_shared/*.ts)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "Nothing to check yet."
-            exit 0
-          fi
-          # --config explicitly: without it Deno resolves the config by walking up from
-          # the CWD, finds no deno.json at the repo root, and the bare
-          # "@supabase/supabase-js" specifier fails to resolve.
-          deno check --config supabase/functions/deno.json "${files[@]}"
-          deno lint --config supabase/functions/deno.json supabase/functions/
-
-      # The _shared/ rules that are PARALLEL IMPLEMENTATIONS of a web/ rule — today the
-      # E.164 phone normalisation in _shared/onboarding.ts, whose twin is
-      # web/lib/validation/profile.ts. Deno cannot import from web/, so the only thing
-      # keeping the two honest is the same vectors asserted on both sides.
-      # --allow-env: _shared/cors.ts reads the allowed origin at module load.
-      - name: Test Edge Function helpers
-        run: |
-          shopt -s nullglob globstar
-          tests=(supabase/functions/**/*_test.ts)
-          if [ ${#tests[@]} -eq 0 ]; then
-            echo "No Deno tests yet."
-            exit 0
-          fi
-          deno test --allow-env --config supabase/functions/deno.json supabase/functions/
-
-      # Deploying the functions is Supabase's job, driven by config.toml — and the docs say it
-      # deploys the ones "declared in config.toml". A function directory with no
-      # [functions.<slug>] block may therefore never reach production, and nothing else would
-      # notice: GitHub is green because it never touched Supabase, Supabase is green because
-      # it deployed what it was told to, and the absence shows up as a 404 in a traveler's
-      # browser. The next function added is the one this catches.
-      - name: Every Edge Function is declared for deployment
-        run: |
-          shopt -s nullglob
-          for d in supabase/functions/*/; do
-            slug="$(basename "$d")"
-            # _shared/ and friends are libraries, not deployable functions.
-            case "$slug" in _*) continue;; esac
-            grep -q "^\[functions\.${slug}\]" supabase/config.toml || {
-              echo "::error::supabase/functions/${slug}/ has no [functions.${slug}] block in supabase/config.toml."
-              exit 1
-            }
           done
 
       - name: Fail if generated DB types drifted from the migrations
@@ -438,7 +391,8 @@ jobs:
             echo "::warning::Image registry rate limit; retrying in $((attempt * 45))s (attempt $attempt of 4)."
             sleep $((attempt * 45))
           done
-          # Both copies: the script writes web/types/ AND functions/_shared/, so diffing
-          # only the first would let a hand-edit to the Edge Function types through.
-          git diff --exit-code web/types/supabase.ts \
-                               supabase/functions/_shared/database.types.ts
+          # One copy now: the Edge Functions are gone, so gen-types.sh writes web/types/
+          # alone. Go does not consume generated TypeScript at all — it decodes rows into
+          # typed structs with int64 for every *_cents field (CLAUDE.md), which is why no
+          # Go-side equivalent replaces the second copy.
+          git diff --exit-code web/types/supabase.ts

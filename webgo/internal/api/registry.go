@@ -31,9 +31,14 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
 )
 
-// Functions lists every Edge Function by name. A name outside it is a 404, so the registry
-// can never be used to reach any other path on the Supabase host. functions_test.go checks
-// it against supabase/functions/, so a new function cannot be forgotten here.
+// Functions lists every function name the registry serves. A name outside it is a 404, so
+// the registry can never be used to reach any other path on the Supabase host.
+//
+// Every name here now runs in Go. supabase/functions/ is deleted, so a name that fell
+// through to the pass-through would reach a deployment that no longer exists;
+// registry_test.go asserts this list and the port table hold exactly the same names.
+// Hotel search was the one name that never ran in Go and goes with the folder — it moved
+// into the web app in PR #48 and nothing calls the function.
 var Functions = []string{
 	"account-admin",
 	"agent-client", "agent-client-notes", "agent-commission", "agent-itinerary", "agent-lead",
@@ -42,7 +47,6 @@ var Functions = []string{
 	"commission-import",
 	"cruise-search", "cruise-sync",
 	"email-dispatch", "email-inbox", "email-unsubscribe",
-	"hotel-search",
 	"lead-message",
 	"onboarding-companions", "onboarding-connect", "onboarding-preferences", "onboarding-profile", "onboarding-step",
 	"push-device", "push-dispatch",
@@ -147,8 +151,10 @@ type portEntry struct {
 
 // webOnly are functions the HTTP door refuses (404). Only the web server calls them, in
 // process, with a token it holds; mobile never does. Passing them through would hand that
-// token to anyone on the internet: hotel-search spends a metered SerpApi budget.
-var webOnly = map[string]bool{"hotel-search": true, "cruise-search": true}
+// token to anyone on the internet: cruise-search spends a metered track.cruises budget.
+// Hotel search was the other one and has left Functions entirely, so the door 404s it as an
+// unknown name rather than as a web-only one.
+var webOnly = map[string]bool{"cruise-search": true}
 
 // noRedirects stops the client following a redirect, which would copy our headers (the
 // bearer token, a trusted x-sta-* value) to whatever host the Location names.

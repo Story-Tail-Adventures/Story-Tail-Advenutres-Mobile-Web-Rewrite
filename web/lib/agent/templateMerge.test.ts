@@ -17,28 +17,24 @@ import {
 
 const ROOT = resolve(__dirname, "../../..");
 const quoted = (s: string | undefined) => [...(s ?? "").matchAll(/'([^']+)'/g)].map((m) => m[1]);
-const doubleQuoted = (s: string | undefined) => [...(s ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 
-describe("the three copies of the field list agree", () => {
-  // The Deno tests run without file access, so this side checks all three.
+describe("the two copies of the field list agree", () => {
+  // Was three copies — the migration, the Edge Function and this side. The Edge Functions
+  // are deleted (Phase 6), and Go's copy is pinned by its own test in
+  // webgo/internal/domain/messagetemplate, so this now checks the migration against web.
   const sql = readFileSync(resolve(ROOT, "supabase/migrations/20261016120000_agent_message_templates.sql"), "utf8");
   // 20261021120000 (§3.6, 2026-10-16) redefines the field list with `payment.link` and the
   // starters with a pay-link line. The LATEST definition is the live one.
   const latest = readFileSync(resolve(ROOT, "supabase/migrations/20261021120000_supplier_pay_links.sql"), "utf8");
-  const deno = readFileSync(resolve(ROOT, "supabase/functions/_shared/messageTemplate.ts"), "utf8");
 
-  it("merge fields: migration, Edge Functions and web", () => {
+  it("merge fields: migration and web", () => {
     const fromSql = quoted(latest.match(/message_template_fields\(\)[\s\S]*?ARRAY\[([\s\S]*?)\]::text\[\]/)?.[1]);
-    const fromDeno = doubleQuoted(deno.match(/MERGE_FIELDS = \[([\s\S]*?)\] as const/)?.[1]);
     expect(fromSql).toEqual([...MERGE_FIELDS]);
-    expect(fromDeno).toEqual([...MERGE_FIELDS]);
   });
 
-  it("categories: migration, Edge Functions and web", () => {
+  it("categories: migration and web", () => {
     const fromSql = quoted(sql.match(/message_template_category CHECK \(category IN \(([\s\S]*?)\)\)/)?.[1]);
-    const fromDeno = doubleQuoted(deno.match(/TEMPLATE_CATEGORIES = \[([\s\S]*?)\] as const/)?.[1]);
     expect(fromSql).toEqual([...TEMPLATE_CATEGORIES]);
-    expect(fromDeno).toEqual([...TEMPLATE_CATEGORIES]);
   });
 
   it("every starter uses only known fields", () => {

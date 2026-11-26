@@ -25,7 +25,7 @@ overrides.
 └── skills/
     ├── new-screen/             ← implement a Screen Inventory screen
     ├── new-entity/             ← add a Data Model entity end-to-end
-    ├── new-edge-function/      ← scaffold an Edge Function with audit + auth pre-wired
+    ├── new-go-endpoint/        ← scaffold a Go API handler with audit + auth pre-wired
     ├── db-migrate/             ← create, apply, verify a migration; regenerate types
     ├── rls-policy/             ← author and TEST Row-Level Security policies
     ├── audit-pci/              ← check whether a change touches PCI scope

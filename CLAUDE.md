@@ -1,6 +1,6 @@
 # Story-Tail Adventures — Claude Code Project Instructions
 
-A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advisory business hosted by Inteletravel). This is a monorepo with mobile (Kotlin Multiplatform), web (Next.js + React + TypeScript), and backend (Supabase Edge Functions in TypeScript).
+A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advisory business hosted by Inteletravel). This is a monorepo with mobile (Kotlin Multiplatform), web (Next.js + React + TypeScript, being replaced), and backend (one Go service in `webgo/`).
 
 ## Read these documents before answering anything substantive
 
@@ -17,9 +17,9 @@ When the user asks about features, screens, entities, payment workflows, design 
 ## Stack
 
 - **Mobile** — Kotlin Multiplatform + Compose Multiplatform (Android + iOS)
-- **Web** — Next.js + React + TypeScript (consumes the Ktor-equivalent Edge Functions over REST). Styled with **MUI v9 (9.4.0)**; the theme is `web/lib/mui/theme.ts`. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1, `docs/Design-System.md` §12.2). Follow the MUI rules in `web/AGENTS.md`. The official MUI MCP server (`mui-mcp` in `.mcp.json`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) checks MUI usage against the real docs instead of guessing.
-- **Backend** — Supabase Edge Functions (Deno + TypeScript) today. NO Ktor service.
-- **Moving to Go (adopted 2026-11-06).** One Go service replaces both the Next.js web app and the Edge Functions: server-rendered HTML pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at the same `/functions/v1/{name}` addresses, one binary on Render. It is built in `webgo/` and becomes `web/` when Next.js is deleted. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. **Read `docs/GO-MIGRATION.md` before touching `webgo/`, and before building any new web screen: new screens go only in Go once Phase 1 ships.** Until an area moves, the Next.js and Edge Function lines above describe what runs.
+- **Web** — Next.js + React + TypeScript (calls the Go API over REST at `/functions/v1/{name}`). Styled with **MUI v9 (9.4.0)**; the theme is `web/lib/mui/theme.ts`. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1, `docs/Design-System.md` §12.2). Follow the MUI rules in `web/AGENTS.md`. The official MUI MCP server (`mui-mcp` in `.mcp.json`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) checks MUI usage against the real docs instead of guessing.
+- **Backend** — the Go service in `webgo/`. The Supabase Edge Functions are GONE: all 34 folders were deleted in Phase 6 (2026-11-26). **33** of them run in Go under `webgo/internal/api/fn/`, served at the same `/functions/v1/{name}` addresses; the 34th, `hotel-search`, was retired rather than ported, because web hotel search moved into the app in PR #48 and nothing calls the function. There is no Deno in this repo. NO Ktor service.
+- **Moving to Go (adopted 2026-11-06).** One Go service replaces both the Next.js web app and the Edge Functions: server-rendered HTML pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at the same `/functions/v1/{name}` addresses, one binary on Render. It is built in `webgo/` and becomes `web/` when Next.js is deleted. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. **Read `docs/GO-MIGRATION.md` before touching `webgo/`, and before building any new web screen: new screens go only in Go once Phase 1 ships.** Next.js still serves `web/` until it is deleted and `webgo/` is renamed over it; the backend half of this move is already finished.
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments**: none. The app holds no cardholder data and has no payment vendor; Stripe left the stack 2026-10-16 (it cannot reveal a stored card number anyway). Clients pay suppliers through a pay link on each payment milestone, and only the advisor marks a milestone paid. See `docs/BRD.md` §10.
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
@@ -33,7 +33,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 
 2. **No client-facing billing.** Story-Tail Adventures is contractually prohibited from charging clients planning, consultation, or service fees (per Inteletravel host agency policy). The platform has no Invoice entity, no "charge client" actions, no merchant-of-record flows. A Travefy invoice used as a pay link may carry supplier cost only, never an advisor fee. See `docs/BRD.md` §10.5.
 
-3. **Every mutation goes through audit middleware.** Edge Functions, and the Go API handlers that replace them (`webgo/internal/audit`), writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
+3. **Every mutation goes through audit middleware.** The Go API handlers (`webgo/internal/audit`) writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
 
 4. **Pay links are guarded.** A milestone's pay link must be `https://`. Only the advisor can add, change or remove it (clients read it, never write it), and every add, change or removal writes an `audit_event` row, since a swapped link could send a client's money to the wrong place. The client's "I've paid" only posts a trip message; it never marks anything paid. See `docs/BRD.md` §10.
 
@@ -87,8 +87,6 @@ supabase start                                                  # start local Su
 supabase db reset                                               # apply migrations + seed from scratch
 supabase db push                                                # apply to a LINKED REMOTE — not the local loop
 supabase migration new <name>                                   # create new migration
-supabase functions new <name>                                   # scaffold an Edge Function
-supabase functions deploy <name>                                # deploy a function
 supabase gen types typescript --local > web/types/supabase.ts   # regen DB types
 
 # Contracts (codegen TS + Kotlin types from openapi.yaml)
@@ -129,7 +127,7 @@ Things that cost real time to rediscover:
 - **`client.functions.invoke` THROWS on a non-2xx; it does not return the response.**
   supabase-kt validates every response, so `if (response.status.value in 400..499)` written
   *after* the call is unreachable code — the rejection already left through the `catch`. Three
-  repositories shipped that shape, and every Edge Function rejection reached the traveler as
+  repositories shipped that shape, and every rejection from the API reached the traveler as
   the generic "try again in a moment" instead of the sentence the function wrote. Catch
   `io.github.jan.supabase.exceptions.RestException` and read the body off **`rest.error`** —
   `Functions.parseErrorResponse` puts the raw body there, leaves `description` null, and
@@ -234,7 +232,7 @@ Three rules, in order of how much they save you:
    git worktree add .claude/worktrees/<name> -b <branch> <base>
    ```
    Each worktree has its own index and HEAD over the same object store, so the hazard is
-   gone rather than managed. `.claude/worktrees/` is gitignored. The Supabase CLI, `deno`,
+   gone rather than managed. `.claude/worktrees/` is gitignored. The Supabase CLI, `go`,
    and the local Docker stack all work from a worktree unchanged; only `npm -w` scripts need
    an `npm install` there, and `npm run supabase:types` does not (it shells out to the
    Supabase CLI).
@@ -261,7 +259,7 @@ unfamiliar is staged, another session put it there — leave it alone and commit
 - Don't add fields to the Data Model without first updating `docs/Data-Model.md` and regenerating the docx.
 - Don't introduce new third-party SDKs without a security review (especially anything payment-adjacent).
 - Don't refactor screen-level structure that deviates from the Design System without checking the Screen Inventory's Pattern Mapping (§4.4) first.
-- Don't introduce a separate Kotlin backend service, or any second backend service. The backend is Supabase Edge Functions today, moving into the one Go service in `webgo/` (`docs/GO-MIGRATION.md`). If you find yourself wanting a Ktor service or another host, push back and discuss before adding it.
+- Don't introduce a separate Kotlin backend service, or any second backend service. The backend is the one Go service in `webgo/` (`docs/GO-MIGRATION.md`). If you find yourself wanting a Ktor service, a new Edge Function or another host, push back and discuss before adding it.
 - Don't let the service-role key reach a page handler in Go. Only `webgo/internal/api/...` may import the service client; pages read with the visitor's own token.
 - Don't paste files into chat — use `@-mentions` (e.g., `@docs/BRD.md`) for cleaner tokenization and a better audit trail.
 - Don't load Google Fonts at runtime in production — bundle Poppins / Caveat / JetBrains Mono in `mobile/shared/src/commonMain/composeResources/font/` for mobile and via `next/font` for web.
