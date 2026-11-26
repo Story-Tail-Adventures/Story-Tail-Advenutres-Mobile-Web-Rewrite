@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.4 Public Search Results (/explore/results). Ports
+  app/(public)/(plain)/explore/results/ with SearchUpdateBar, ModeSwitch, the quick-filter
+  strip, FilterSheet, FilterRail, SortControl/SortMenu, ResultCard, HotelCard, HotelStates,
+  CruiseCard and EmptyResults. The page's own copy is here byte for byte; everything that
+  depends on the URL, the catalog or a provider is filled in results.go.
+
+  The URL is the only state (§4.9): the two update forms and both filter rails are plain GET
+  forms, and every chip, mode and sort option is a link back to this route, so the page works
+  with no JavaScript. The sheet is a native <dialog> opened by ui.js; the sort menu is a
+  popover, which needs no script at all.
+
+  Three modes share one file: results.go removes the lists and states that do not apply, so
+  nothing a mode does not show ever reaches the browser.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trip ideas · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- Header band: the editable search pill (md+) / summary accordion, the mode switch, and
+       the quick-filter chips with the filter sheet's trigger (below web). -->
+  <div class="res-band">
+    <div class="res-column">
+      <div class="res-update" id="update-search">
+        <!-- md+ — the C204 pill, editable in place. Everything not in the form rides as a
+             hidden input, so applying a change never drops a filter. -->
+        <form class="paper paper-outlined res-pill" action="/explore/results" method="get" role="search" aria-label="Update your search">
+          <span data-repeat="pill-carry"><input type="hidden" data-slot="pill-carry-input" name="mode" value="picks"></span>
+          <div class="res-pill-cell">
+            <span class="inquiry-glyph"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#map"></use></svg></span>
+            <input class="inquiry-input res-pill-input" id="update-dest-compact" data-slot="pill-dest" name="dest" type="text" placeholder="Anywhere" autocomplete="off" maxlength="60" aria-label="Destination">
+          </div>
+          <div class="res-pill-cell res-pill-cell-dates">
+            <span class="inquiry-glyph"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#calendar"></use></svg></span>
+            <div class="inquiry-value inquiry-dates res-pill-dates">
+              <label class="visually-hidden" for="update-compact-in">Check-in</label>
+              <input class="inquiry-input inquiry-date res-pill-date" id="update-compact-in" data-slot="pill-in" name="in" type="date">
+              <span class="inquiry-date-sep" aria-hidden="true">–</span>
+              <label class="visually-hidden" for="update-compact-out">Check-out</label>
+              <input class="inquiry-input inquiry-date res-pill-date" id="update-compact-out" data-slot="pill-out" name="out" type="date">
+            </div>
+          </div>
+          <div class="res-pill-cell res-pill-cell-last">
+            <span class="inquiry-glyph"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>
+            <input class="inquiry-input res-pill-input" id="update-travelers-compact" data-slot="pill-travelers" name="travelers" type="number" placeholder="2" autocomplete="off" inputmode="numeric" min="1" max="20" aria-label="Travelers">
+          </div>
+          <button type="submit" class="btn btn-contained btn-small res-pill-submit">Update</button>
+        </form>
+
+        <!-- Below md — the summary opens the same form in place rather than sending anyone to
+             another page. A native <details>, so it needs no script and starts closed on every
+             new result set. -->
+        <details class="paper res-accordion">
+          <summary class="res-summary tap-target" id="update-search-summary">
+            <span class="res-summary-glyph"><svg class="icon icon-13" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg></span>
+            <span class="type-body2 res-summary-text truncate" data-slot="update-summary">Caribbean · Aug 12 – 19 · 2 travelers</span>
+            <span class="chip chip-small chip-outlined res-summary-chip"><span class="chip-label">Edit</span></span>
+          </summary>
+          <div class="res-accordion-panel">
+            <form class="res-stacked" action="/explore/results" method="get" role="search" aria-label="Update your search">
+              <span data-repeat="stacked-carry"><input type="hidden" data-slot="stacked-carry-input" name="mode" value="picks"></span>
+              <div class="res-stacked-row">
+                <span class="inquiry-glyph"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#map"></use></svg></span>
+                <label class="type-caption res-stacked-label" for="update-dest">Destination</label>
+                <input class="inquiry-input res-stacked-input" id="update-dest" data-slot="stacked-dest" name="dest" type="text" placeholder="Anywhere" autocomplete="off" maxlength="60">
+              </div>
+              <div class="res-stacked-row">
+                <span class="inquiry-glyph"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#calendar"></use></svg></span>
+                <span class="type-caption res-stacked-label">Dates</span>
+                <div class="inquiry-value inquiry-dates res-stacked-dates">
+                  <label class="visually-hidden" for="update-stacked-in">Check-in</label>
+                  <input class="inquiry-input inquiry-date" id="update-stacked-in" data-slot="stacked-in" name="in" type="date">
+                  <span class="inquiry-date-sep" aria-hidden="true">–</span>
+                  <label class="visually-hidden" for="update-stacked-out">Check-out</label>
+                  <input class="inquiry-input inquiry-date" id="update-stacked-out" data-slot="stacked-out" name="out" type="date">
+                </div>
+              </div>
+              <div class="res-stacked-row res-stacked-row-last">
+                <span class="inquiry-glyph"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#user"></use></svg></span>
+                <label class="type-caption res-stacked-label" for="update-travelers">Travelers</label>
+                <input class="inquiry-input res-stacked-input" id="update-travelers" data-slot="stacked-travelers" name="travelers" type="number" placeholder="2" autocomplete="off" inputmode="numeric" min="1" max="20">
+              </div>
+              <button type="submit" class="btn btn-contained res-stacked-submit"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg> Update</button>
+            </form>
+          </div>
+        </details>
+      </div>
+
+      <div class="res-modes-wrap">
+        <nav class="res-modes" aria-label="Results">
+          <span data-repeat="modes"><a class="btn btn-small res-mode" data-slot="mode-link" href="/explore/results"><span data-slot="mode-label">Gyasi's picks</span></a></span>
+        </nav>
+      </div>
+
+      <nav class="res-chips" aria-label="Quick filters">
+        <span data-repeat="chips"><a class="chip chip-clickable tap-target res-chip" data-slot="chip-link" href="/explore/results"><span class="chip-label" data-slot="chip-label">All-inclusive</span></a></span>
+        <!-- The sticky bar's "Filter" is a plain #filters anchor: with ui.js it opens the
+             sheet in place, and with scripting off it scrolls to this chip. -->
+        <span class="res-sheet-anchor" id="filters">
+          <button type="button" class="chip chip-outlined chip-clickable tap-target res-chip res-filter-chip" data-dialog-open="filter-sheet" aria-haspopup="dialog" aria-controls="filter-sheet">
+            <span class="res-chip-icon"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#filter"></use></svg></span>
+            <span class="chip-label" data-slot="filters-label">Filters</span>
+          </button>
+          <dialog class="dialog res-sheet" id="filter-sheet" aria-labelledby="filter-sheet-title">
+            <div class="res-sheet-head">
+              <h2 class="type-subtitle1" id="filter-sheet-title">Filters</h2>
+              <button type="button" class="icon-btn res-sheet-close tap-target" data-dialog-close aria-label="Close filters"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg></button>
+            </div>
+            <div class="res-sheet-body">
+              <div class="res-rail" aria-label="Filters" role="group">
+                <form class="res-rail-form" action="/explore/results" method="get">
+                  <input type="hidden" data-slot="sheet-dest" name="dest" value="">
+                  <input type="hidden" data-slot="sheet-in" name="in" value="">
+                  <input type="hidden" data-slot="sheet-out" name="out" value="">
+                  <input type="hidden" data-slot="sheet-when" name="when" value="">
+                  <input type="hidden" data-slot="sheet-travelers" name="travelers" value="">
+                  <input type="hidden" data-slot="sheet-topic" name="topic" value="">
+                  <input type="hidden" data-slot="sheet-mode" name="mode" value="">
+                  <span data-repeat="sheet-echo"><input type="hidden" data-slot="sheet-echo-input" name="type" value=""></span>
+                  <fieldset class="res-group" data-slot="sheet-g1">
+                    <legend class="type-subtitle1 res-legend" data-slot="sheet-g1-legend">Trip type</legend>
+                    <div class="res-options">
+                      <label class="res-option" data-repeat="sheet-g1-opt"><input class="check-input res-check" type="checkbox" data-slot="sheet-g1-input" name="type" value="all-inclusive"><span class="type-body2 res-option-label" data-slot="sheet-g1-label">All-inclusive</span></label>
+                    </div>
+                  </fieldset>
+                  <fieldset class="res-group" data-slot="sheet-g2">
+                    <legend class="type-subtitle1 res-legend" data-slot="sheet-g2-legend">Vibe</legend>
+                    <div class="res-options">
+                      <label class="res-option" data-repeat="sheet-g2-opt"><input class="check-input res-check" type="checkbox" data-slot="sheet-g2-input" name="vibe" value="family"><span class="type-body2 res-option-label" data-slot="sheet-g2-label">Family</span></label>
+                    </div>
+                  </fieldset>
+                  <fieldset class="res-group" data-slot="sheet-g3">
+                    <legend class="type-subtitle1 res-legend" data-slot="sheet-g3-legend">Budget</legend>
+                    <div class="res-options">
+                      <label class="res-option" data-repeat="sheet-g3-opt"><input class="check-input res-check" type="checkbox" data-slot="sheet-g3-input" name="budget" value="under-2k"><span class="type-body2 res-option-label" data-slot="sheet-g3-label">Under $2k pp</span></label>
+                    </div>
+                  </fieldset>
+                  <div class="field res-sort-field" data-slot="sheet-sort">
+                    <label class="field-label res-sort-label" for="sheet-sort-select">Sort</label>
+                    <div class="select">
+                      <select class="input res-sort-select" id="sheet-sort-select" name="sort">
+                        <option data-slot="sheet-sort-o1" value="best-fit">Best fit</option>
+                        <option data-slot="sheet-sort-o2" value="price-asc">Price · low to high</option>
+                        <option data-slot="sheet-sort-o3" value="price-desc">Price · high to low</option>
+                        <option data-slot="sheet-sort-o4" value="rating">Rating</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="res-rail-actions">
+                    <button type="submit" class="btn btn-outlined btn-secondary btn-small res-rail-action">Apply filters</button>
+                    <a class="btn btn-text btn-small res-rail-action" data-slot="sheet-clear" href="/explore/results">Clear all</a>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </dialog>
+        </span>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Body: the filter rail (web) beside the results. -->
+  <div class="res-column res-body">
+    <div class="res-rail-frame">
+      <aside class="res-rail" aria-label="Filters">
+        <form class="res-rail-form" action="/explore/results" method="get">
+          <input type="hidden" data-slot="rail-dest" name="dest" value="">
+          <input type="hidden" data-slot="rail-in" name="in" value="">
+          <input type="hidden" data-slot="rail-out" name="out" value="">
+          <input type="hidden" data-slot="rail-when" name="when" value="">
+          <input type="hidden" data-slot="rail-travelers" name="travelers" value="">
+          <input type="hidden" data-slot="rail-topic" name="topic" value="">
+          <input type="hidden" data-slot="rail-mode" name="mode" value="">
+          <span data-repeat="rail-echo"><input type="hidden" data-slot="rail-echo-input" name="type" value=""></span>
+          <span class="type-overline res-rail-overline">FILTERS</span>
+          <fieldset class="res-group" data-slot="rail-g1">
+            <legend class="type-subtitle1 res-legend" data-slot="rail-g1-legend">Trip type</legend>
+            <div class="res-options">
+              <label class="res-option" data-repeat="rail-g1-opt"><input class="check-input res-check" type="checkbox" data-slot="rail-g1-input" name="type" value="all-inclusive"><span class="type-body2 res-option-label" data-slot="rail-g1-label">All-inclusive</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="res-group" data-slot="rail-g2">
+            <legend class="type-subtitle1 res-legend" data-slot="rail-g2-legend">Vibe</legend>
+            <div class="res-options">
+              <label class="res-option" data-repeat="rail-g2-opt"><input class="check-input res-check" type="checkbox" data-slot="rail-g2-input" name="vibe" value="family"><span class="type-body2 res-option-label" data-slot="rail-g2-label">Family</span></label>
+            </div>
+          </fieldset>
+          <fieldset class="res-group" data-slot="rail-g3">
+            <legend class="type-subtitle1 res-legend" data-slot="rail-g3-legend">Budget</legend>
+            <div class="res-options">
+              <label class="res-option" data-repeat="rail-g3-opt"><input class="check-input res-check" type="checkbox" data-slot="rail-g3-input" name="budget" value="under-2k"><span class="type-body2 res-option-label" data-slot="rail-g3-label">Under $2k pp</span></label>
+            </div>
+          </fieldset>
+          <div class="field res-sort-field" data-slot="rail-sort">
+            <label class="field-label res-sort-label" for="rail-sort-select">Sort</label>
+            <div class="select">
+              <select class="input res-sort-select" id="rail-sort-select" name="sort">
+                <option data-slot="rail-sort-o1" value="best-fit">Best fit</option>
+                <option data-slot="rail-sort-o2" value="price-asc">Price · low to high</option>
+                <option data-slot="rail-sort-o3" value="price-desc">Price · high to low</option>
+                <option data-slot="rail-sort-o4" value="rating">Rating</option>
+              </select>
+            </div>
+          </div>
+          <div class="res-rail-actions">
+            <button type="submit" class="btn btn-outlined btn-secondary btn-small res-rail-action">Apply filters</button>
+            <a class="btn btn-text btn-small res-rail-action" data-slot="rail-clear" href="/explore/results">Clear all</a>
+          </div>
+        </form>
+      </aside>
+    </div>
+
+    <section class="res-main" aria-labelledby="results-heading">
+      <div class="res-head">
+        <h1 class="res-heading" id="results-heading" data-slot="heading">12 trips · Caribbean</h1>
+        <span class="res-sort" data-slot="sort-menu">
+          <button type="button" class="chip chip-outlined chip-clickable tap-target res-sort-chip" popovertarget="res-sort-list" aria-haspopup="menu" aria-controls="res-sort-list">
+            <span class="chip-label res-sort-chip-label"><span data-slot="sort-chip-label">Sort · Best fit</span><span class="res-sort-caret"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#chevron_down"></use></svg></span></span>
+          </button>
+          <ul class="menu menu-dense res-sort-list" id="res-sort-list" popover>
+            <li data-repeat="sort-items"><a class="menu-item" data-slot="sort-item" href="/explore/results"><span data-slot="sort-item-label">Best fit</span></a></li>
+          </ul>
+        </span>
+      </div>
+
+      <!-- Gyasi's picks: the C204 row at web, the M204 stacked card below it. Next renders
+           both from one component and hides one by width; here they are two repeats. -->
+      <ul class="res-list res-list-rows" data-slot="picks-rows">
+        <li data-repeat="picks-row">
+          <article class="card res-row">
+            <div class="res-row-photo"><img class="photo-fill" data-slot="pr-photo" src="https://images.unsplash.com/sample" alt="" sizes="180px" loading="lazy" decoding="async"></div>
+            <div class="res-row-body">
+              <span class="chip chip-small res-tag"><span class="chip-label" data-slot="pr-overline">ALL-INCLUSIVE</span></span>
+              <h2 class="type-h5 res-row-title"><a class="link-inherit link-hover" data-slot="pr-link" href="/explore/sample"><span data-slot="pr-name">Beaches Turks &amp; Caicos</span></a></h2>
+              <p class="type-caption res-sub"><span data-slot="pr-tagline">Grace Bay, unpacked once.</span><span data-slot="pr-rating"><span class="res-sep" aria-hidden="true"> · </span><span class="res-rating"><span class="res-star"><svg class="icon icon-11 icon-filled" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span><span data-slot="pr-rating-text">4.8</span></span></span></p>
+            </div>
+            <div class="res-price">
+              <p class="type-overline res-price-from">FROM</p>
+              <p class="type-h5 res-price-amount"><span data-slot="pr-price">$2,640</span><span class="type-caption res-price-per"> /pp</span></p>
+              <a class="btn btn-contained btn-small res-cta res-cta-top" data-slot="pr-quote" href="/join">Request quote*</a>
+              <a class="btn btn-text btn-small res-row-save" data-slot="pr-save" href="/join"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg>Save*</a>
+            </div>
+          </article>
+        </li>
+      </ul>
+      <ul class="res-list res-list-cards" data-slot="picks-cards">
+        <li data-repeat="picks-card">
+          <article class="card res-card">
+            <div class="res-card-photo">
+              <img class="photo-fill" data-slot="pc-photo" src="https://images.unsplash.com/sample" alt="" sizes="(min-width: 768px) 50vw, 100vw" loading="lazy" decoding="async">
+              <span class="chip chip-small res-tag res-tag-float"><span class="chip-label" data-slot="pc-overline">ALL-INCLUSIVE</span></span>
+              <span class="res-card-save-wrap"><a class="icon-btn res-card-save tap-target" data-slot="pc-save" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></a></span>
+            </div>
+            <div class="res-card-body">
+              <h2 class="type-subtitle1 res-card-title"><a class="link-inherit link-hover" data-slot="pc-link" href="/explore/sample"><span data-slot="pc-name">Beaches Turks &amp; Caicos</span></a></h2>
+              <p class="type-caption res-sub"><span data-slot="pc-tagline">Grace Bay, unpacked once.</span><span data-slot="pc-rating"><span class="res-sep" aria-hidden="true"> · </span><span class="res-rating"><span class="res-star"><svg class="icon icon-11 icon-filled" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span><span data-slot="pc-rating-text">4.8</span></span></span></p>
+              <div class="res-card-foot">
+                <div>
+                  <span class="type-overline res-price-from">FROM</span>
+                  <div class="type-h6 res-card-price"><span data-slot="pc-price">$2,640</span><span class="type-caption res-price-per"> /pp</span></div>
+                </div>
+                <a class="btn btn-contained btn-small res-cta" data-slot="pc-quote" href="/join">Request quote*</a>
+              </div>
+            </div>
+          </article>
+        </li>
+      </ul>
+
+      <!-- Hotels: the same two shapes. The whole card is the link (there is no public hotel
+           detail page), so the pill beside the rate is decoration. -->
+      <ul class="res-list res-list-rows" data-slot="hotel-rows">
+        <li data-repeat="hotel-row">
+          <article class="card res-row res-row-link">
+            <div class="res-row-photo res-row-photo-remote"><img class="photo-fill" data-slot="hr-photo" src="https://lh3.googleusercontent.com/sample" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async"></div>
+            <div class="res-row-body">
+              <span class="chip chip-small res-tag" data-slot="hr-tag"><span class="chip-label" data-slot="hr-overline">4-STAR · Resort</span></span>
+              <h2 class="type-h5 res-row-title"><a class="link-inherit link-hover link-stretch" data-slot="hr-link" href="/join"><span data-slot="hr-name">Ocean Club Resort</span></a></h2>
+              <p class="type-caption res-sub"><span data-slot="hr-rating"><span class="res-rating"><span class="res-star"><svg class="icon icon-11 icon-filled" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span><span data-slot="hr-rating-text">4.6</span></span></span><span data-slot="hr-sep"><span class="res-sep" aria-hidden="true"> · </span></span><span data-slot="hr-reviews">1,204 reviews</span></p>
+              <ul class="res-amenities" data-slot="hr-amenities">
+                <li class="chip chip-small chip-outlined res-amenity" data-slot="hr-a1"><span class="chip-label" data-slot="hr-a1-text">Pool</span></li>
+                <li class="chip chip-small chip-outlined res-amenity" data-slot="hr-a2"><span class="chip-label" data-slot="hr-a2-text">Spa</span></li>
+                <li class="chip chip-small chip-outlined res-amenity" data-slot="hr-a3"><span class="chip-label" data-slot="hr-a3-text">Beach access</span></li>
+                <li class="chip chip-small chip-outlined res-amenity" data-slot="hr-a4"><span class="chip-label" data-slot="hr-a4-text">All-inclusive</span></li>
+              </ul>
+            </div>
+            <div class="res-price">
+              <p class="type-overline res-price-from">INDICATIVE</p>
+              <p class="type-h5 res-price-amount" data-slot="hr-rate"><span data-slot="hr-rate-text">$240</span><span class="type-caption res-price-per"> /night</span></p>
+              <p class="type-caption res-no-rate" data-slot="hr-norate">Rate on request</p>
+              <span class="btn btn-contained btn-small res-cta res-cta-top" aria-hidden="true" tabindex="-1">Request quote*</span>
+            </div>
+          </article>
+        </li>
+      </ul>
+      <ul class="res-list res-list-cards" data-slot="hotel-cards">
+        <li data-repeat="hotel-card">
+          <article class="card res-card res-card-link">
+            <div class="res-card-photo res-card-photo-remote">
+              <img class="photo-fill" data-slot="hc-photo" src="https://lh3.googleusercontent.com/sample" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async">
+              <span class="chip chip-small res-tag res-tag-float" data-slot="hc-tag"><span class="chip-label" data-slot="hc-overline">4-STAR · Resort</span></span>
+            </div>
+            <div class="res-card-body">
+              <h2 class="type-subtitle1 res-card-title"><a class="link-inherit link-hover link-stretch" data-slot="hc-link" href="/join"><span data-slot="hc-name">Ocean Club Resort</span></a></h2>
+              <p class="type-caption res-sub"><span data-slot="hc-rating"><span class="res-rating"><span class="res-star"><svg class="icon icon-11 icon-filled" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span><span data-slot="hc-rating-text">4.6</span></span></span><span data-slot="hc-sep"><span class="res-sep" aria-hidden="true"> · </span></span><span data-slot="hc-reviews">1,204 reviews</span></p>
+              <div class="res-card-foot">
+                <div>
+                  <span class="type-overline res-price-from">INDICATIVE</span>
+                  <div class="type-h6 res-card-price" data-slot="hc-rate"><span data-slot="hc-rate-text">$240</span><span class="type-caption res-price-per"> /night</span></div>
+                  <p class="type-caption res-no-rate" data-slot="hc-norate">Rate on request</p>
+                </div>
+                <span class="btn btn-contained btn-small res-cta" aria-hidden="true" tabindex="-1">Request quote*</span>
+              </div>
+            </div>
+          </article>
+        </li>
+      </ul>
+
+      <!-- Cruises: one shape at every width, the photo a 180px column at web. NO FARE
+           ANYWHERE on this card, by construction (Free-Travel-APIs §4.7). -->
+      <ul class="res-list" data-slot="sailing-list">
+        <li data-repeat="sailing">
+          <article class="card res-sail" data-slot="sl-article">
+            <div class="res-sail-photo" data-slot="sl-photo-box"><img class="photo-fill" data-slot="sl-photo" src="https://upload.wikimedia.org/sample" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async"></div>
+            <div class="res-sail-body">
+              <span class="chip chip-small res-tag" data-slot="sl-tag"><span class="chip-label" data-slot="sl-overline">Royal Caribbean · 7 nights</span></span>
+              <h2 class="type-h5 res-row-title"><a class="link-inherit link-hover link-stretch" data-slot="sl-link" href="/join"><span data-slot="sl-title">Eastern Caribbean from Miami</span></a></h2>
+              <p class="type-caption res-sail-meta">
+                <span class="res-sail-glyph"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#ship"></use></svg></span>
+                <span data-slot="sl-ship">Symphony of the Seas</span>
+                <span aria-hidden="true">·</span>
+                <span data-slot="sl-sails">Sails Wednesday, August 12, 2026</span>
+              </p>
+              <div class="res-ports" data-slot="sl-ports">
+                <p class="type-caption res-ports-label">Ports of call</p>
+                <ul class="res-port-list">
+                  <li class="chip chip-small chip-outlined res-amenity" data-slot="sl-p1"><span class="chip-label" data-slot="sl-p1-text">Miami</span></li>
+                  <li class="chip chip-small chip-outlined res-amenity" data-slot="sl-p2"><span class="chip-label" data-slot="sl-p2-text">Nassau</span></li>
+                  <li class="chip chip-small chip-outlined res-amenity" data-slot="sl-p3"><span class="chip-label" data-slot="sl-p3-text">St. Thomas</span></li>
+                  <li class="chip chip-small chip-outlined res-amenity" data-slot="sl-p4"><span class="chip-label" data-slot="sl-p4-text">Philipsburg</span></li>
+                  <li class="chip chip-small chip-outlined res-amenity" data-slot="sl-more"><span class="chip-label" data-slot="sl-more-text">+2 more</span></li>
+                </ul>
+              </div>
+              <!-- A licence condition, not a caption: every ship photo is CC BY or CC BY-SA. -->
+              <p class="type-caption res-credit" data-slot="sl-credit">Photo: <a class="link-inherit res-credit-link" data-slot="sl-credit-link" href="https://upload.wikimedia.org/sample" target="_blank" rel="noopener noreferrer"><span data-slot="sl-credit-text">Kiran891 / Wikimedia Commons, CC BY-SA 4.0</span></a><span data-slot="sl-credit-plain">Kiran891 / Wikimedia Commons, CC BY-SA 4.0</span></p>
+              <div class="res-sail-foot">
+                <span class="btn btn-contained btn-small res-cta" aria-hidden="true" tabindex="-1">Request quote*</span>
+              </div>
+            </div>
+          </article>
+        </li>
+      </ul>
+
+      <!-- The one state card every empty, prompt and failure case uses. Never a dead end:
+           each offers the curated catalog and a way to reach Gyasi. -->
+      <div class="card res-state" data-slot="state">
+        <h2 class="type-h5" data-slot="state-title">No trips match that week yet.</h2>
+        <p class="type-body2 res-state-body" data-slot="state-body">Loosen a filter, or tell Gyasi what you're after — that's usually faster.</p>
+        <div class="res-state-actions">
+          <a class="btn btn-outlined btn-secondary res-state-tonal" data-slot="state-edit" href="#update-search">Change your search</a>
+          <a class="btn btn-outlined btn-secondary res-state-tonal" data-slot="state-alt" href="/explore/results"><span data-slot="state-alt-label">Clear filters</span></a>
+          <a class="btn btn-text res-state-text" data-slot="state-message" href="/message">Message Gyasi</a>
+        </div>
+      </div>
+
+      <p class="type-caption res-note" data-slot="note-1">* Requires creating an account — takes 60 seconds.</p>
+      <p class="type-caption res-note" data-slot="note-2">* Requires creating an account — takes 60 seconds.</p>
+      <p class="type-caption res-note" data-slot="note-link-wrap"><a class="link-inherit res-note-link" data-slot="note-link" href="/explore/results">See Gyasi's picks</a></p>
+    </section>
+  </div>
+
+  <div class="paper paper-square sticky-cta sticky-bar">
+    <a class="btn btn-text cta-control" href="#filters" data-dialog-open="filter-sheet">Filter</a>
+    <a class="btn btn-contained cta-control cta-grow" data-slot="sticky-save" href="/join"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg> Create account to save</a>
+  </div>
+</main>
+</body>
+</html>

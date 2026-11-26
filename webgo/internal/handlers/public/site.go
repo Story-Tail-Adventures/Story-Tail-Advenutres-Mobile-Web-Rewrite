@@ -7,6 +7,7 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/analytics"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/content"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public/hotels"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/public/search"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
@@ -20,6 +21,12 @@ type site struct {
 	cat *content.Catalog
 	// notFoundPage is the public 404, for an unknown slug.
 	notFoundPage *page.Template
+	// hotelFinder, when set, is the Searcher the results page uses instead of building one
+	// from the environment. Only a test sets it, and it exists because the alternative is
+	// worse: with no seam, every page test runs with the searcher switched off, so the
+	// assertion that SERPAPI_API_KEY never reaches the HTML passes over a provider call that
+	// never happened. A vacuous test of that rule is the one thing this area cannot have.
+	hotelFinder *hotels.Searcher
 }
 
 // siteName is the root layout's applicationName and the title template's suffix.

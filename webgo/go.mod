@@ -23,7 +23,9 @@ require (
 	github.com/mdigger/htmlx v1.0.2-0.20250724121124-64ce5b80543b
 	// v0.62.0 fixes GO-2026-6860 and GO-2026-6866 in x/net/html. Never go below it.
 	golang.org/x/net v0.62.0
-	// Charsets for email-inbox's text parts (ianaindex, htmlindex); already compiled in through x/net.
+	// Two callers, so do not drop it if one goes: charsets for email-inbox's text parts
+	// (ianaindex, htmlindex), and collation plus NFC folding for the public search port
+	// and the hotel query normaliser. Already compiled in through x/net either way.
 	golang.org/x/text v0.43.0
 )
 

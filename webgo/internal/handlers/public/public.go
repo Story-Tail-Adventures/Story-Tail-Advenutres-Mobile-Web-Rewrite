@@ -26,6 +26,7 @@ var Specs = []page.Spec{
 	honeymoonsSpec,
 	aboutSpec,
 	exploreSpec,
+	resultsSpec,
 	tripSpec,
 	notFoundSpec,
 }
@@ -50,6 +51,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	honeymoons := tmpl(honeymoonsSpec)
 	about := tmpl(aboutSpec)
 	explore := tmpl(exploreSpec)
+	results := tmpl(resultsSpec)
 	trip := tmpl(tripSpec)
 	s.notFoundPage = tmpl(notFoundSpec)
 	if err := errors.Join(errs...); err != nil {
@@ -65,6 +67,8 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Public("GET /honeymoons", s.honeymoons(honeymoons))
 	rt.Public("GET /about", s.about(about))
 	rt.Public("GET /explore", s.explore(explore))
+	// Before the slug route on purpose, though ServeMux prefers the literal either way.
+	rt.Public("GET /explore/results", s.results(results))
 	rt.Public("GET /explore/{slug}", s.trip(trip))
 	rt.Public("GET /quote", s.quote())
 	rt.Public("GET /sitemap.xml", s.sitemap())
