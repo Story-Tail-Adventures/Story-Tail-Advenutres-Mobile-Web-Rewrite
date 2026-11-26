@@ -705,9 +705,43 @@ help screen (5), the Web Push opt-in card (6), the notifications screen (3), and
 empty states on dashboard, trips, memories and trip detail. That list is the punch list for
 finishing the Go port.
 
-**Deleting `web/` is the remaining step.** See "What `web/` is still load-bearing for" below:
-the eleven Go test files that read it are the last thing holding it in place, and they go with
-it by design.
+**`web/` is DELETED too (PR 3).** 803 files. The npm `web` workspace, the Web CI job, the three
+python checks that lived in it (`check_mui_lockstep`, `check_public_prerender`,
+`check_css_layer_order`), `gen-types.sh` and the generated DB types all went with it. React,
+MUI and Tailwind are no longer in this repo at all; the only `.tsx` left is
+`design/source-prototype/`, which is reference, not shipped code.
+
+**Correction to what this section said before.** It claimed the Go tests that read `web/` "fail
+loudly (not silently)". That was half wrong, and measuring it is what showed the shape of the
+job:
+
+| | tests |
+|---|---|
+| failed when `web/` went (a `t.Fatalf` on the missing file) | 11 |
+| **skipped silently** (the file's own "web/ is gone (Phase 6)" guard) | 8 |
+
+A skip is the dangerous half. `go test` prints nothing about skips without `-v`, so the suite
+reads 86/86 green either way, and `TestSettingsModule` would have taken its whole body of
+`settings.js` assertions with it — assertions that have nothing to do with `web/`. **Two more
+tests were missed entirely by the first sweep** (`TestSpriteMatchesTheWebIconSet`,
+`TestTokensAreByteForByteTheWebCopy`): they reach the tree through a `repoFile(t, "web/...")`
+helper, which the grep for `filepath.Join(..., "web", ...)` never matched.
+
+So the work was not "delete eleven files". It was: delete the five files where every test was a
+web comparison, remove the individual web-comparison tests from the eight mixed files, and
+keep every assertion in those files that stands on its own.
+
+**Two measurement traps, both of which gave a confident wrong answer:**
+
+- **`go test` caches.** Deleting `web/` does not change a package's own sources, so the first
+  before/after run replayed cached PASSes and reported that deleting `web/` changed nothing.
+  Use `-count=1` whenever the thing you changed is OUTSIDE the package under test.
+- **zsh does not word-split an unquoted `$var`.** `PKGS="./a ./b"; go test $PKGS` passes one
+  argument and fails as "directory not found", which read as "no tests ran". Use an array.
+
+**The bar for the deletion was not "CI is green".** It was: run the whole suite with `-count=1
+-v` before and after moving `web/` aside, and diff the list of test NAMES that passed. Identical
+lists, 1683 each, zero skips. Only then delete.
 
 - **When**: no web route is left in Next.js and no function name passes through to Supabase.
 - Delete the Next app and `supabase/functions/`, `git mv webgo web`, drop the Node web build.
@@ -908,7 +942,7 @@ stays) and from Dependabot's npm config.
   ports X.
 - `.github/workflows/ci.yml` (Phase 1), `render.yaml` and `deploy.yml` (Phase 1),
   `.github/dependabot.yml` (`gomod`, Phase 1).
-- `web/AGENTS.md`, `web/CLAUDE.md`, `.claude/agents/web-reviewer.md` until Next.js is deleted.
+- `web/AGENTS.md`, `web/CLAUDE.md` and `.claude/agents/web-reviewer.md` all went with the Next app.
 
 ---
 

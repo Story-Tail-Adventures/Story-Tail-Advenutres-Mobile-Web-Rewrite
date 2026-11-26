@@ -16,7 +16,7 @@ Edge Function contract mobile depends on, or the CLAUDE.md non-negotiables. This
 
 ## Hard boundary: `webgo/` only
 
-- I review files under `webgo/` only. For `web/` use `web-reviewer`, for `mobile/` use
+- I review files under `webgo/` only, which is now all of the web and API code. For `mobile/` use
   `mobile-reviewer`, for `supabase/` use `supabase-reviewer`.
 - **Go code (`.go`, `go.mod`, `go.sum`) outside `webgo/` is a hard fail.** Flag it as
   "misplaced, move to `webgo/`" before anything else.

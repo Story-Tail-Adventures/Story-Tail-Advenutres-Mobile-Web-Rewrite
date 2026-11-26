@@ -1,11 +1,15 @@
-# Story-Tail Adventures — production frontend deploy + release record
+# Story-Tail Adventures — production deploy + release record
 #
-# This workflow owns HALF a deployment. The other half — migrations and Edge Functions — is
-# applied server-side by Supabase's GitHub integration when `production` moves, over its own
+# This workflow owns HALF a deployment. The other half, the migrations, is applied
+# server-side by Supabase's GitHub integration when `production` moves, over its own
 # OAuth connection. That split is why there is no `supabase link`, no `supabase db push` and
 # no SUPABASE_* credential below: a database password that never enters GitHub cannot leak
 # from GitHub. ci.yml's header says "Secrets enter only with the deploy workflow" — there is
 # exactly one here, and it is Render's.
+#
+# The service it deploys is the Go binary in `webgo/`: the web pages AND the API at
+# /functions/v1/{name}, which the Edge Functions used to serve. So this half got bigger when
+# the Next.js app was deleted, even though the file got smaller.
 #
 # Because the two halves run on separate machines with separate logs, the release cut at the
 # end is the only place the whole of a deploy is written down together. That is what it is
@@ -40,9 +44,10 @@ on:
   # failure should not hold a web hotfix hostage).
   #
   # dry_run proves everything except the deploy itself: the credential, the service, the
-  # production variables, and a real `next build` of this commit on the runner. Render builds
+  # production variables, and a real `go build` of this commit on the runner. Render builds
   # on its own machines as part of a deploy, so there is no remote build to stop halfway —
-  # building here is the closest equivalent, and it exercises the same monorepo path.
+  # building here is the closest equivalent, and it runs the same command from the same
+  # directory render.yaml gives the service.
   workflow_dispatch:
     inputs:
       dry_run:
@@ -67,24 +72,25 @@ concurrency:
 permissions:
   contents: write
 
+# No NODE_VERSION: there is no Node in this deploy. The Go toolchain comes from
+# webgo/go.mod, which setup-go reads below the same way ci.yml's webgo job does.
 env:
-  NODE_VERSION: "22"
-
   # The one origin the whole deploy is measured against — the single place to change it.
   #
   # The Render-assigned URL, decided 2026-10-27. Whatever origin this names is crawlable —
-  # web/app/seo.ts serves `allow: "/"` — and web/content/public/proof.ts still reports
-  # unverified claims, placeholder prices and unlicensed photos. Those do not belong on the
-  # brand domain, least of all one that already has traffic. So adventures.story-tail.com
-  # waits for the content registry to be clean; moving there later costs a rebuild, because
-  # NEXT_PUBLIC_SITE_URL is inlined, not a migration.
+  # webgo/internal/handlers/public/seo.go writes `Allow: /` — and webgo/internal/content's
+  # claims registry still reports unverified claims, placeholder prices and unlicensed
+  # photos. Those do not belong on the brand domain, least of all one that already has
+  # traffic. So adventures.story-tail.com waits for the content registry to be clean. Moving
+  # there later costs a restart and nothing else: Go reads SITE_URL at startup, so unlike
+  # NEXT_PUBLIC_SITE_URL it is not baked into anything.
   #
   # DERIVED, NOT OBSERVED. Render serves a web service at <service name>.onrender.com, and
   # render.yaml names this one `storytail-web`. Render appends a suffix when that name is
   # already taken globally, so the real URL may differ — confirm it against the service's own
   # address the first time. A mismatch does not reach production: the required-variables step
-  # below compares this against NEXT_PUBLIC_SITE_URL on the service and fails BEFORE the
-  # deploy, and the smoke test reads the value back out of the built bundle afterwards.
+  # below compares this against SITE_URL on the service and fails BEFORE the deploy, and the
+  # smoke test reads the value back out of the running process afterwards.
   SITE_ORIGIN: "https://storytail-web.onrender.com"
 
   # Identify the service by its id, which is visible in the dashboard URL
@@ -122,11 +128,11 @@ jobs:
       # head_sha is the commit CI actually tested, and it is also what gets deployed: the
       # trigger below passes it as `commitId`.
       # fetch-depth: 0 because the release step diffs against the previous tag.
-      # persist-credentials: false because the dry-run build executes this project's own
-      # install and build — third-party code from node_modules with the workspace as cwd. The
-      # default leaves a contents:write GITHUB_TOKEN in .git/config's extraheader for that
-      # code to read. Nothing here needs authenticated git: the release step talks to the REST
-      # API with GH_TOKEN, and the rest is local rev-parse / describe / diff.
+      # persist-credentials: false because the dry-run build downloads and compiles this
+      # project's dependencies inside the checkout. The default leaves a contents:write
+      # GITHUB_TOKEN in .git/config's extraheader for whatever runs there to read. Nothing
+      # here needs authenticated git: the release step talks to the REST API with GH_TOKEN,
+      # and the rest is local rev-parse / describe / diff.
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
@@ -210,20 +216,24 @@ jobs:
             exit 1
           fi
 
-      # The trap this step exists for: NO prerendered route reads NEXT_PUBLIC_SUPABASE_URL or
-      # NEXT_PUBLIC_SUPABASE_ANON_KEY, so a build missing them is GREEN. Then web/lib/env.ts
-      # throws inside the proxy (web/lib/supabase/middleware.ts) on the first real request and
-      # every page 500s. Fail here, where the message names the variable.
+      # The trap this step exists for, in its Go form: `go build` compiles fine with no
+      # environment at all, so a green build says nothing about the variables. The binary
+      # then reads them at startup and REFUSES TO BOOT without them
+      # (webgo/internal/config/config.go fails closed, on purpose, so a deploy that forgot
+      # its variables never serves pages with auth skipped). Render would report that as a
+      # service that will not come up. Fail here instead, where the message names the
+      # variable.
       #
-      # It matters more on Render than it did on Vercel, because every NEXT_PUBLIC_* value is
-      # inlined at BUILD time: a variable added after the build is still missing from the
-      # bundle until the next one, and nothing about the service looks wrong.
+      # These are the five config.Load requires in production. The Go names, not the
+      # NEXT_PUBLIC_* ones: nothing reads those any more. Note that the last two carry the
+      # API half of the service — the Edge Functions run in this binary now — so a deploy
+      # missing them is not a web-only problem.
       #
-      # PUBLIC_CLAIMS_MODE is deliberately absent, here and in Render. Setting it to "strict"
-      # makes web/content/public/proof.ts throw at import while any claim, price, photo or
-      # legal page is still a placeholder — it would fail every build today. PlaceholderBanner
-      # keeps those honest meanwhile. Set it on the service, not here, the day the registry is
-      # clean, so the gate lives with the content decision.
+      # PUBLIC_CLAIMS_MODE is still deliberately absent, here and on the service. Its gate is
+      # ported (Catalog.AssertProductionReady in webgo/internal/content/proof.go) but nothing
+      # passes it an environment value yet, so setting it on the service does nothing today.
+      # The placeholder banner keeps the public pages honest meanwhile. Wire it the day the
+      # registry is clean, so the gate lives with the content decision.
       - name: Required production variables are present
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -241,7 +251,8 @@ jobs:
           # Names only, never values. The list is [{ envVar: { key, value } }, …].
           jq -r '.[].envVar.key' "$RUNNER_TEMP/envvars.json" | sort > "$RUNNER_TEMP/names.txt"
           missing=()
-          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_SITE_URL; do
+          for v in SITE_URL SUPABASE_URL SUPABASE_ANON_KEY \
+                   SUPABASE_SERVICE_ROLE_KEY STA_CRON_SECRET; do
             grep -qx "$v" "$RUNNER_TEMP/names.txt" || missing+=("$v")
           done
           if [ ${#missing[@]} -ne 0 ]; then
@@ -251,34 +262,37 @@ jobs:
             sed 's/^/  /' "$RUNNER_TEMP/names.txt" || echo "  (none)"
             exit 1
           fi
-          # Read this one's VALUE back, not just its presence. A wrong NEXT_PUBLIC_SITE_URL is
-          # not a 500 — it is correct-looking pages whose canonical URLs, sitemap entries and
-          # email confirmation links all point somewhere the traveler cannot reach.
-          site="$(jq -r '.[].envVar | select(.key=="NEXT_PUBLIC_SITE_URL") | .value' \
+          # Read this one's VALUE back, not just its presence. A wrong SITE_URL is not a 500 —
+          # it is correct-looking pages whose canonical URLs, sitemap entries and email
+          # confirmation links all point somewhere the traveler cannot reach.
+          site="$(jq -r '.[].envVar | select(.key=="SITE_URL") | .value' \
                     "$RUNNER_TEMP/envvars.json")"
           if [ "$site" != "$SITE_ORIGIN" ]; then
-            echo "::error::NEXT_PUBLIC_SITE_URL on the service is '$site', expected '$SITE_ORIGIN'."
+            echo "::error::SITE_URL on the service is '$site', expected '$SITE_ORIGIN'."
             exit 1
           fi
 
       # Only on a dry run. A real deploy does not build here: Render builds the commit itself,
       # and building twice would prove nothing about the machine that matters while doubling
       # the chance of a false green from a runner-only difference.
-      - uses: actions/setup-node@v7
+      #
+      # go-version-file rather than a number, exactly as ci.yml's `webgo` job does it, so the
+      # toolchain line in webgo/go.mod is the one place the version lives.
+      - uses: actions/setup-go@v7
         if: ${{ inputs.dry_run }}
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          go-version-file: webgo/go.mod
+          cache-dependency-path: webgo/go.sum
 
+      # The same command render.yaml gives the service, from the same directory its rootDir
+      # names. No environment is set: the build does not read any, and the step above already
+      # checked what the running service will need.
       - name: Dry run — build this commit without deploying
         if: ${{ inputs.dry_run }}
-        env:
-          # The build inlines this, so it has to match what the service would use.
-          NEXT_PUBLIC_SITE_URL: ${{ env.SITE_ORIGIN }}
+        working-directory: webgo
         run: |
           set -euo pipefail
-          npm ci
-          npm run build -w web
+          go build -o app ./cmd/server
 
       # Deploy the commit CI tested, by sha. Without `commitId` Render takes the branch tip,
       # which is not necessarily what the workflow_run that triggered this was about.
@@ -347,9 +361,11 @@ jobs:
           exit 1
 
       # The step above proves the deploy finished; this proves the running app can use its
-      # configuration. A proxy that throws returns 5xx on every path, and that is invisible
-      # from a successful build. Anything under 500 passes — a redirect to /login is a working
-      # app.
+      # configuration. Anything under 500 passes — a redirect to /login is a working app.
+      #
+      # Render's own health check hits /healthz, which answers without touching Supabase, so
+      # a service can be "live" with its database configuration wrong. This asks `/` for that
+      # reason: a real page, rendered by the real config.
       - name: Smoke-test the deployment
         if: ${{ !inputs.dry_run }}
         run: |
@@ -358,20 +374,21 @@ jobs:
                     --retry-all-errors "$SITE_ORIGIN/")"
           echo "GET / -> $code"
           if [ "$code" -ge 500 ]; then
-            echo "::error::Deployment answered $code. A 5xx here is almost always a missing"
-            echo "::error::NEXT_PUBLIC_SUPABASE_* var — see web/lib/env.ts."
+            echo "::error::Deployment answered $code. Read the service logs: the server logs"
+            echo "::error::its whole configuration at startup, secrets as set/unset only"
+            echo "::error::(webgo/internal/config)."
             exit 1
           fi
-          # The sharper assertion: web/app/robots.ts renders from env.siteUrl, so this reads
-          # back the NEXT_PUBLIC_SITE_URL actually COMPILED INTO the bundle — not the one the
-          # dashboard claims. The step above only proved what the dashboard says, and on
-          # Render that gap is wider, because the value is inlined at build time and a
-          # variable corrected after the last build is still wrong in what is serving.
+          # The sharper assertion: webgo/internal/handlers/public/seo.go writes robots.txt
+          # from the SiteURL the process read at BOOT, so this reads back what is actually
+          # serving rather than what the dashboard holds. The step above only proved the
+          # dashboard value, and the two differ whenever SITE_URL was corrected without a
+          # restart.
           curl -sS --retry 3 --retry-all-errors "$SITE_ORIGIN/robots.txt" \
             | grep -q "$SITE_ORIGIN/sitemap.xml" || {
-              echo "::error::robots.txt does not carry $SITE_ORIGIN — the bundle was built"
-              echo "::error::with a different NEXT_PUBLIC_SITE_URL. Correct it on the service"
-              echo "::error::and deploy again; a restart will not pick it up."
+              echo "::error::robots.txt does not carry $SITE_ORIGIN — the running process"
+              echo "::error::booted with a different SITE_URL. Correct it on the service and"
+              echo "::error::restart or deploy again."
               exit 1
             }
 
@@ -463,5 +480,5 @@ jobs:
         if: ${{ inputs.dry_run }}
         run: |
           echo "Dry run complete. Proved: the Render API key, the service id and its"
-          echo "Auto-Deploy setting, the three production env vars, and a successful"
-          echo "monorepo build of this commit. Production was not modified."
+          echo "Auto-Deploy setting, the five required production env vars, and a successful"
+          echo "Go build of this commit. Production was not modified."

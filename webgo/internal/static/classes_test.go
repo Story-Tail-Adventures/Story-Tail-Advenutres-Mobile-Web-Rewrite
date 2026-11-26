@@ -169,7 +169,6 @@ func TestAllowlistCatchesAnUndefinedClass(t *testing.T) {
 var (
 	spriteID = regexp.MustCompile(`<symbol id="([a-z_]+)" viewBox="0 0 24 24"><path d="([^"]+)"/></symbol>`)
 	iconUse  = regexp.MustCompile(`href="/assets/icons\.svg#([a-z_]+)"`)
-	tsPath   = regexp.MustCompile(`(?m)^\s*([a-z_]+):\s*"([^"]+)",?\s*$`)
 )
 
 func sprite(t *testing.T) map[string]string {
@@ -208,30 +207,5 @@ func TestEveryIconExists(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-// The sprite is web/components/ui/icon-paths.ts, path for path, while web/ exists. To add a
-// glyph, copy its path from design/source-prototype/shared/icons.jsx into both.
-func TestSpriteMatchesTheWebIconSet(t *testing.T) {
-	ts, ok := repoFile(t, "web/components/ui/icon-paths.ts")
-	if !ok {
-		t.Skip("web/ is gone (Phase 6)")
-	}
-	body := ts[strings.Index(ts, "ICON_PATHS = {"):strings.Index(ts, "} as const")]
-	want := map[string]string{}
-	for _, m := range tsPath.FindAllStringSubmatch(body, -1) {
-		want[m[1]] = m[2]
-	}
-	got := sprite(t)
-	for name, d := range want {
-		if got[name] != d {
-			t.Errorf("icon %q differs from icon-paths.ts", name)
-		}
-	}
-	for name := range got {
-		if _, ok := want[name]; !ok {
-			t.Errorf("icon %q is not in icon-paths.ts", name)
-		}
 	}
 }

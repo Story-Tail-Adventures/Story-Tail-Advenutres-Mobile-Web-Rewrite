@@ -128,48 +128,9 @@ jobs:
       - name: Auth config matches what the app assumes
         run: python3 .github/scripts/check_auth_config.py
 
-  web:
-    name: Web
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      # web/ and the design prototype (design/mui-vendor/) install MUI separately, and
-      # Dependabot only watches web/. Cheap, needs no npm, so it runs first.
-      - name: MUI versions match the design prototype
-        run: python3 .github/scripts/check_mui_lockstep.py
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck -w web
-      - run: npm run lint -w web
-      - run: npm run test -w web
-      # next/font/google fetches the typefaces at build time, so this step needs
-      # network egress. That is the tradeoff for not loading them at runtime.
-      #
-      # `next build` runs as NODE_ENV=production, and env.siteUrl fails closed there so a
-      # real deploy can never ship wrong canonical URLs, sitemap entries or email-confirm
-      # redirects. CI has no .env.local, so it has to pass the origin in. Not a secret, and
-      # nothing here is deployed — the deployment sets its own value.
-      - run: npm run build -w web
-        env:
-          NEXT_PUBLIC_SITE_URL: https://storytailadventures.vercel.app
-
-      # The build above proves the app COMPILES without Supabase config. This proves the
-      # marketing pages are still files on a CDN: one cookies() in the (public) server tree
-      # makes them per-request, and the build says nothing about it.
-      - run: python3 .github/scripts/check_public_prerender.py
-
-      # The cascade layer order has to reach the browser first. The source can be right and
-      # the bundle wrong (it was: the bundler put @import'ed files ahead of globals.css's
-      # order line, MUI outranked the CSS gates, and both theme icons showed). This reads
-      # the built CSS, which is the only place that shows.
-      - run: python3 .github/scripts/check_css_layer_order.py
-
   # The Go web app and API (docs/GO-MIGRATION.md). Like every job here it gates deploys.
   #
-  # setup-go reads the toolchain line from webgo/go.mod (go1.27.3, which fixes GO-2026-6809
+  # setup-go reads the toolchain line from webgo/go.mod (go1.27.4, which fixes GO-2026-6859
   # in crypto/x509), so CI and a laptop build with the same compiler. staticcheck and
   # govulncheck are pinned so a new release can't turn CI red on a PR that changed nothing;
   # bump them by hand. govulncheck is the guard the htmlx review relies on: a new
@@ -361,38 +322,3 @@ jobs:
             echo "── $f"
             psql "$db_url" -v ON_ERROR_STOP=1 -f "$f"
           done
-
-      - name: Fail if generated DB types drifted from the migrations
-        # `supabase gen types` runs postgres-meta in a container, pulled by default from
-        # public.ecr.aws. Its anonymous quota ("toomanyrequests: Data limit exceeded") failed
-        # this step on #152 and on the 0.0.7-alpha release, and once spent it stays spent: four
-        # retries over five minutes all hit it. Supabase publishes the same images to GitHub's
-        # registry, which Actions runners pull from without that quota. Same image, same tag
-        # (the pinned CLI picks it): generated locally from ghcr.io, the types were byte-for-byte
-        # identical.
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
-        run: |
-          npm ci
-          # A backstop for a passing rate limit on any registry. Retries ONLY toomanyrequests:
-          # any other failure, including real drift below, still fails the first time.
-          for attempt in 1 2 3 4; do
-            # The script's own exit status, whatever tee returns and whether or not the
-            # shell runs with pipefail.
-            set +e
-            npm run supabase:types 2>&1 | tee /tmp/gen-types.log
-            status=${PIPESTATUS[0]}
-            set -e
-            if [ "$status" -eq 0 ]; then break; fi
-            if ! grep -q "toomanyrequests" /tmp/gen-types.log || [ "$attempt" -eq 4 ]; then
-              echo "::error::supabase:types failed (attempt $attempt)."
-              exit 1
-            fi
-            echo "::warning::Image registry rate limit; retrying in $((attempt * 45))s (attempt $attempt of 4)."
-            sleep $((attempt * 45))
-          done
-          # One copy now: the Edge Functions are gone, so gen-types.sh writes web/types/
-          # alone. Go does not consume generated TypeScript at all — it decodes rows into
-          # typed structs with int64 for every *_cents field (CLAUDE.md), which is why no
-          # Go-side equivalent replaces the second copy.
-          git diff --exit-code web/types/supabase.ts

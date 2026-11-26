@@ -1,6 +1,6 @@
 # Story-Tail Adventures — Claude Code Project Instructions
 
-A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advisory business hosted by Inteletravel). This is a monorepo with mobile (Kotlin Multiplatform), web (Next.js + React + TypeScript, being replaced), and backend (one Go service in `webgo/`).
+A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advisory business hosted by Inteletravel). This is a monorepo with mobile (Kotlin Multiplatform) and one Go service in `webgo/` that serves both the web pages and the API.
 
 ## Read these documents before answering anything substantive
 
@@ -17,15 +17,15 @@ When the user asks about features, screens, entities, payment workflows, design 
 ## Stack
 
 - **Mobile** — Kotlin Multiplatform + Compose Multiplatform (Android + iOS)
-- **Web** — Next.js + React + TypeScript (calls the Go API over REST at `/functions/v1/{name}`). Styled with **MUI v9 (9.4.0)**; the theme is `web/lib/mui/theme.ts`. Tailwind was removed at the end of the migration (`docs/Tech-Recommendations.md` §2.3.1, `docs/Design-System.md` §12.2). Follow the MUI rules in `web/AGENTS.md`. The official MUI MCP server (`mui-mcp` in `.mcp.json`, [mui.com/material-ui/getting-started/mcp](https://mui.com/material-ui/getting-started/mcp/)) checks MUI usage against the real docs instead of guessing.
+- **Web** — the Go service in `webgo/`: server-rendered HTML pages built with htmlx behind `internal/page`, styled by hand-written CSS in `webgo/assets/css/` whose tokens are pinned to `design/web-tokens/`. The Next.js app, React, MUI and the npm `web` workspace are all GONE (Phase 6, 2026-11-26). `webgo/` becomes `web/` in the rename that follows.
 - **Backend** — the Go service in `webgo/`. The Supabase Edge Functions are GONE: all 34 folders were deleted in Phase 6 (2026-11-26). **33** of them run in Go under `webgo/internal/api/fn/`, served at the same `/functions/v1/{name}` addresses; the 34th, `hotel-search`, was retired rather than ported, because web hotel search moved into the app in PR #48 and nothing calls the function. There is no Deno in this repo. NO Ktor service.
-- **Moving to Go (adopted 2026-11-06).** One Go service replaces both the Next.js web app and the Edge Functions: server-rendered HTML pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at the same `/functions/v1/{name}` addresses, one binary on Render. It is built in `webgo/` and becomes `web/` when Next.js is deleted. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. **Read `docs/GO-MIGRATION.md` before touching `webgo/`, and before building any new web screen: new screens go only in Go once Phase 1 ships.** Next.js still serves `web/` until it is deleted and `webgo/` is renamed over it; the backend half of this move is already finished.
+- **The Go move is done except the rename (adopted 2026-11-06, Phase 6 cleanup 2026-11-26).** One Go service serves the web pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at `/functions/v1/{name}`, as one binary. The Next.js app and the 34 Edge Functions are both deleted. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. The one step left is `git mv webgo web`. **Read `docs/GO-MIGRATION.md` before touching `webgo/`.**
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments**: none. The app holds no cardholder data and has no payment vendor; Stripe left the stack 2026-10-16 (it cannot reveal a stored card number anyway). Clients pay suppliers through a pay link on each payment milestone, and only the advisor marks a milestone paid. See `docs/BRD.md` §10.
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
-- **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `web-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
+- **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `go-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
-**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web/React code (Next.js / TSX / MUI) lives under `web/`. Backend code lives under `supabase/`. All Go code (`.go`, `go.mod`, `go.sum`) lives under `webgo/`. Shared API types live under `contracts/`. Cross-contamination — React in `mobile/`, Kotlin UI code in `web/`, etc. — is a defect. The `web-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree.
+**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web and API code is Go under `webgo/` (`.go`, `go.mod`, `go.sum`, page templates, CSS and JS assets). `supabase/` holds migrations, RLS and seeds only. Shared API types live under `contracts/`. Cross-contamination, such as Kotlin UI code under `webgo/`, is a defect. The `go-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree. There is no React in this repo: the only `.tsx` left is `design/source-prototype/`, which is reference, not shipped code.
 
 ## Critical rules — these are non-negotiable
 
@@ -64,15 +64,6 @@ Use these consistently in code comments, commit messages, and PR descriptions:
 ## Common commands
 
 ```bash
-# Web (Next.js)
-npm run dev -w web
-npm run build -w web
-npm run typecheck -w web
-npm run lint -w web
-
-# Web tests
-npm run test -w web
-
 # Mobile (from mobile/)
 # NOTE: :shared:build and :shared:check include the iOS targets and need Xcode.
 # Until Xcode is installed, use the Android-scoped tasks below.
@@ -137,11 +128,9 @@ Things that cost real time to rediscover:
   `127.0.0.1` — that is the emulator's own loopback. Set it in `mobile/local.properties`.
 - **`supabase db reset` is the local loop; `supabase db push` targets a linked remote.**
   Don't reach for `push` locally.
-- **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`, and MUI must
-  not own it. The theme uses `colorSchemeSelector: ".scheme-%s"` and `MuiRegistry` turns off
-  MUI's storage and `<html>` handling; never add `InitColorSchemeScript` or `useColorScheme`
-  (eslint bans both). Read colours as `theme.vars.palette.*`: `theme.palette.*` bakes in the
-  light value and dark mode silently stops working.
+- **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`. The Go pages
+  set it on `<html>` and the CSS in `webgo/assets/css/` keys off it. (This rule used to be
+  about keeping MUI from owning the switch; MUI went with the Next app in Phase 6.)
 - **`~/.orbstack/bin` is not on the default non-interactive PATH.** Export it before
   `docker` or `supabase` commands, or they fail with "command not found".
 - **Hand-seeding `auth.users` breaks GoTrue** unless `confirmation_token`,
@@ -264,7 +253,7 @@ unfamiliar is staged, another session put it there — leave it alone and commit
 - Don't paste files into chat — use `@-mentions` (e.g., `@docs/BRD.md`) for cleaner tokenization and a better audit trail.
 - Don't load Google Fonts at runtime in production — bundle Poppins / Caveat / JetBrains Mono in `mobile/shared/src/commonMain/composeResources/font/` for mobile and via `next/font` for web.
 - Don't make a copy decision without checking `docs/Design-System.md` §2 first. The brand voice is load-bearing.
-- Don't bring Tailwind (or another CSS framework) back into `web/`. Styling is MUI `sx`; plain CSS in `web/styles/` is only for what must work before hydration or in print, and `web/test/class-allowlist.test.ts` fails on any class no CSS file defines.
+- Don't bring a CSS framework into `webgo/`. Styling is hand-written CSS in `webgo/assets/css/`, with the design tokens pinned to `design/web-tokens/` by a test in `internal/static`.
 
 ## How to bootstrap from here
 

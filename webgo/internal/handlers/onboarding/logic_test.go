@@ -1,10 +1,6 @@
 package onboarding
 
 import (
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -201,80 +197,5 @@ func TestDateFormatsMatchIntlEnGB(t *testing.T) {
 	// A value that is not a date comes back as it was rather than as an empty gap.
 	if got := longDate("soon"); got != "soon" {
 		t.Errorf("longDate(soon) = %q", got)
-	}
-}
-
-// The explore card counts the public catalogue out loud. The Go port of that catalogue
-// belongs to the public area, so until it lands this is a number with a test behind it.
-func TestPublicTripCountMatchesTheCatalogue(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "web", "content", "public", "trips.ts")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading %s: %v", path, err)
-	}
-	n := len(regexp.MustCompile(`(?m)^\s+slug: "`).FindAllString(string(raw), -1))
-	if n != publicTripCount {
-		t.Errorf("trips.ts has %d trips, the card says %s", n, strconv.Itoa(publicTripCount))
-	}
-}
-
-// The sentences this package holds (the rest of the copy is in the page files) are the Next
-// app's, word for word.
-func TestScreenCopyMatchesTheNextApp(t *testing.T) {
-	read := func(screen string) string {
-		path := filepath.Join("..", "..", "..", "..", "web", "app", "(onboarding)", "onboarding", screen, "state.ts")
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("reading %s: %v", path, err)
-		}
-		src := regexp.MustCompile(`['"]\s*\+\s*\n?\s*['"]`).ReplaceAllString(string(raw), "")
-		return strings.NewReplacer(`\'`, "'", `\"`, `"`, "${firstName}", "", "${tripTitle}", "",
-			"${savedList}", "", "`", "").Replace(src)
-	}
-
-	profile := read("profile")
-	for name, want := range map[string]string{"formError": profileFormError} {
-		if !strings.Contains(profile, want) {
-			t.Errorf("profile %s is not in state.ts word for word:\n  %q", name, want)
-		}
-	}
-	preferences := read("preferences")
-	if !strings.Contains(preferences, preferencesFormError) {
-		t.Errorf("preferences formError is not in state.ts word for word:\n  %q", preferencesFormError)
-	}
-	companions := read("companions")
-	for name, want := range map[string]string{
-		"errorSave":    companionsErrorSave,
-		"errorRemove":  companionsErrorRemove,
-		"errorLoad":    companionsErrorLoad,
-		"formAddTitle": companionsFormAddTitle,
-		"passportNone": companionsPassportNone,
-	} {
-		if !strings.Contains(companions, want) {
-			t.Errorf("companions %s is not in state.ts word for word:\n  %q", name, want)
-		}
-	}
-	connect := read("connect")
-	if !strings.Contains(connect, connectFormError) {
-		t.Errorf("connect formError is not in state.ts word for word:\n  %q", connectFormError)
-	}
-	for _, want := range []string{connectPrimary, connectPrimaryEmpty} {
-		if !strings.Contains(connect, want) {
-			t.Errorf("connect %q is not in state.ts", want)
-		}
-	}
-	complete := read("complete")
-	for name, want := range map[string]string{
-		"titleNoName":        completeTitleNoName,
-		"subNoTrip":          completeSubNoTrip,
-		"subNothing":         completeSubNothing,
-		"error":              completeError,
-		"cardTripTitle":      completeCardTripTitle,
-		"cardTripEmptyTitle": completeCardTripEmptyTitle,
-		"cardTripEmptySub":   completeCardTripEmptySub,
-	} {
-		if !strings.Contains(complete, want) {
-			t.Errorf("complete %s is not in state.ts word for word:\n  %q", name, want)
-		}
 	}
 }

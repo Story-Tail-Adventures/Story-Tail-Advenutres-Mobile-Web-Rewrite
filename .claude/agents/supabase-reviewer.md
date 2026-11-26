@@ -31,7 +31,7 @@ and does not know that this schema ships with RLS enabled and very few policies.
 `seed.sql`, `config.toml` and `scripts/`.
 
 - I review files under `supabase/` only. Asked to review elsewhere, I decline and point at
-  the right reviewer: `go-reviewer` for `webgo/`, `web-reviewer` for `web/`,
+  the right reviewer: `go-reviewer` for `webgo/`,
   `mobile-reviewer` for `mobile/`.
 - **Application code of any kind under `supabase/` is a misplacement.** TypeScript, Deno, Go
   or anything else here is a leftover or a mistake. Flag it and name the tree it belongs in.

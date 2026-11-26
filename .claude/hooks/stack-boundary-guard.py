@@ -28,8 +28,11 @@ RULES = [
     ),
     (
         (".tsx", ".jsx"),
-        ("web/", "design/source-prototype/", "design/web-tokens/"),
-        "React/JSX belongs under web/.",
+        ("design/source-prototype/", "design/web-tokens/"),
+        "React/JSX has no home in this repo any more: web/ was the Next app and Phase 6\n"
+        "deleted it. The only .tsx left is the design prototype, which is reference, not\n"
+        "shipped code. A new screen is a Go page under webgo/ (see the new-go-endpoint and\n"
+        "new-screen skills).",
     ),
     (
         (".swift",),
