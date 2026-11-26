@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.1 Client Dashboard / Home (docs/Screen-Inventory.md §2.2.1). Ports
+  web/app/(client)/dashboard/{page,content}.tsx; copy word for word from DASHBOARD.
+
+  The hero's greeting is chosen in Go: a rest framing only for trip types where it is safe
+  (a cruise or an all-inclusive is a holiday by construction; `group`, `multi_destination`
+  and `custom` are the shapes a wedding or a funeral takes), which is a copy decision made
+  from data that was not put there for it. See dashboard/content.ts.
+
+  THE PAY BLOCK IS READ-ONLY. It shows the advisor's own https link and names the site it
+  leads to; "I've paid" posts a message for Gyasi to check and marks nothing (CLAUDE.md
+  rule 4). There is no card field here and no key for one.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Your trips · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-page">
+      <div class="card cl-retry" role="status" data-slot="error">
+        <p class="type-subtitle1 text-primary cl-retry-title">We couldn't load your trips</p>
+        <p class="type-body2 text-secondary cl-retry-body">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <a class="btn btn-outlined btn-secondary st-btn btn-small" href="/dashboard">Try again</a>
+      </div>
+
+      <header data-slot="header">
+        <p class="type-overline cl-overline" data-slot="overline">WELCOME BACK</p>
+        <h1 class="type-h5 fw-700 text-primary cl-greeting" data-slot="greeting">Hello.</h1>
+        <p class="type-caption text-secondary cl-sub-traveling" data-slot="sub-traveling">Everything you need is on the itinerary. Rest deeply this week.</p>
+        <p class="type-body2 text-secondary cl-sub-none" data-slot="sub-none">Nothing on the calendar yet — which is its own kind of open. Tell Gyasi roughly when and where, and he'll take it from there.</p>
+      </header>
+
+      <div class="cl-hero-grid" data-slot="hero-grid">
+        <div class="card card-elevated cl-hero" data-slot="hero">
+          <img class="cl-hero-photo" src="https://images.unsplash.com/photo-1738762932370-468a90e0ff68?w=1280&amp;q=80&amp;auto=format&amp;fit=crop" alt="" decoding="async" data-slot="hero-photo">
+          <span class="cl-hero-scrim" aria-hidden="true"></span>
+          <div class="cl-hero-body">
+            <span class="status-chip cl-hero-chip" data-slot="hero-chip">Booked</span>
+            <h2 class="type-h5 cl-hero-title" data-slot="hero-title">Aruba in April</h2>
+            <p class="type-body2 cl-hero-meta" data-slot="hero-meta">Apr 3 – 7, 2027 · Aruba · 2 travelers</p>
+            <div class="cl-hero-foot">
+              <span class="cl-countdown" data-slot="countdown">
+                <span class="type-h5 cl-countdown-n" data-slot="countdown-days">12</span>
+                <span class="type-overline cl-countdown-unit">DAYS</span>
+              </span>
+              <a class="btn btn-contained btn-brand st-btn btn-small cl-hero-cta" href="/trips/1/itinerary" data-slot="hero-itinerary">View itinerary<svg class="icon cl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></a>
+              <span class="type-caption cl-hero-pending" data-slot="hero-itinerary-pending">Gyasi is still writing this one</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cl-hero-side">
+          <div class="card" data-slot="payment">
+            <div class="card-content cl-pay-card">
+              <p class="type-overline text-secondary cl-pay-head"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#card"></use></svg><span data-slot="payment-head">NEXT PAYMENT · DUE APR 3</span></p>
+              <p class="type-subtitle1 text-primary cl-pay-title" data-slot="payment-title">Final payment · $2,410</p>
+              <p class="type-caption text-secondary cl-pay-when" data-slot="payment-when">Whenever it suits you before then.</p>
+
+              <div class="cl-pay-block" data-slot="pay">
+                <a class="btn btn-contained st-btn btn-small btn-block cl-pay-link" href="https://example.com/pay" target="_blank" rel="noopener noreferrer" data-slot="pay-link"><span data-slot="pay-label">Pay the final payment</span><svg class="icon cl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#external"></use></svg><span class="visually-hidden"> (opens the supplier's site in a new tab)</span></a>
+                <p class="cl-pay-site"><svg class="icon cl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg><span class="type-caption fw-600 text-primary" data-slot="pay-site">resort.example.com</span></p>
+                <p class="type-caption text-secondary cl-pay-note">Paid directly to the supplier on their secure site.</p>
+                <!-- "I've paid" posts a MESSAGE. It marks nothing paid: only the advisor does
+                     that, and only on their own screens. -->
+                <form class="cl-pay-form" method="post" action="/trips/1/paid" data-submit-once data-slot="pay-form">
+                  <input type="hidden" name="milestoneId" value="" data-slot="pay-milestone">
+                  <input type="hidden" name="next" value="/dashboard" data-slot="pay-next">
+                  <button class="btn btn-text st-btn btn-small cl-pay-paid" type="submit">I've paid<span class="visually-hidden" data-slot="pay-paid-label"> (Final payment)</span></button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-content cl-advisor">
+              <p class="type-overline text-secondary cl-advisor-head">YOUR ADVISOR</p>
+              <div class="cl-advisor-row">
+                <span class="avatar cl-advisor-avatar" aria-hidden="true" data-slot="advisor-initials">GS</span>
+                <div class="cl-advisor-text">
+                  <p class="type-subtitle2 fw-600 text-primary cl-advisor-name">Gyasi · Your advisor</p>
+                  <p class="type-caption text-secondary cl-advisor-reply">Usually replies the same day</p>
+                </div>
+              </div>
+              <p class="type-caption text-secondary cl-advisor-quote" data-slot="advisor-quote">“Your rooms are held — I'll send the final itinerary tomorrow.”</p>
+              <a class="btn btn-outlined btn-secondary st-btn btn-small btn-block cl-advisor-cta" href="/trips/1/messages" data-slot="advisor-message"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg>Message Gyasi</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cl-empty cl-empty-hero" data-slot="no-trip">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#palm"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">No trip booked yet</p>
+        <p class="type-body2 text-secondary cl-empty-body">When there is one, it lives right here with a countdown on it.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/messages/new">Ask Gyasi about something new</a>
+      </div>
+
+      <section class="cl-section">
+        <div class="cl-section-head">
+          <h2 class="type-subtitle1 fw-600 text-primary cl-section-title" data-slot="planning-heading">In planning · 0</h2>
+          <a class="btn btn-text st-btn btn-small" href="/trips" data-slot="planning-see-all">See all trips</a>
+        </div>
+        <p class="type-caption text-secondary cl-section-empty" data-slot="planning-empty"><span class="type-subtitle1 fw-600 text-primary cl-section-empty-title">Nothing in planning</span>When Gyasi starts putting something together for you, it shows up here first.</p>
+        <ul class="cl-mini-list" data-slot="planning-list">
+          <li data-repeat="planning">
+            <a class="card cl-mini" href="/trips/1" data-slot="planning-link">
+              <span class="status-chip" data-slot="planning-chip">Proposal ready</span>
+              <span class="type-subtitle1 cl-mini-title" data-slot="planning-title">Negril in June</span>
+              <span class="type-caption text-secondary cl-mini-meta" data-slot="planning-meta">Jun 2 – 9, 2027 · Jamaica</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="cl-section">
+        <div class="cl-section-head">
+          <h2 class="type-subtitle1 fw-600 text-primary cl-section-title" data-slot="past-heading">Past trips · 0</h2>
+          <a class="btn btn-text st-btn btn-small" href="/trips" data-slot="past-see-all">See all trips</a>
+        </div>
+        <p class="type-caption text-secondary cl-section-empty" data-slot="past-empty"><span class="type-subtitle1 fw-600 text-primary cl-section-empty-title">No past trips yet</span>Once you've travelled with Story-Tail, every trip stays here for you.</p>
+        <ul class="cl-mini-list" data-slot="past-list">
+          <li data-repeat="past">
+            <a class="card cl-mini" href="/trips/1" data-slot="past-link">
+              <span class="status-chip" data-slot="past-chip">Past trip</span>
+              <span class="type-subtitle1 cl-mini-title" data-slot="past-title">Turks, last winter</span>
+              <span class="type-caption text-secondary cl-mini-meta" data-slot="past-meta">Jan 8 – 15, 2026 · Turks and Caicos</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
