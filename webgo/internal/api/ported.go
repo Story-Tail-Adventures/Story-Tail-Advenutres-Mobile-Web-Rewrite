@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/accountadmin"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentclient"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentclientnotes"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentcommission"
@@ -80,5 +81,8 @@ func portTable() map[string]port {
 
 		// Reports (step 9).
 		"agent-report": {GateUser, agentreport.Func},
+
+		// Account admin (step 10): GoTrue admin calls behind a recent second factor.
+		"account-admin": {GateUser, accountadmin.Func},
 	}
 }

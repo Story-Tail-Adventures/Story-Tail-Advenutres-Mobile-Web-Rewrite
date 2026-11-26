@@ -14,6 +14,118 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class AccountAdminMergeResponseOutcome {
+    @SerialName("merged")
+    MERGED,
+    @SerialName("refused")
+    REFUSED,
+    @SerialName("stale")
+    STALE,
+}
+
+@Serializable
+enum class AccountAdminMergeRequestOp {
+    @SerialName("merge")
+    MERGE,
+}
+
+@Serializable
+enum class AccountAdminFlagResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AccountAdminFlagRequestOp {
+    @SerialName("flag")
+    FLAG,
+    @SerialName("unflag")
+    UNFLAG,
+}
+
+@Serializable
+enum class AccountAdminSignOutResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+}
+
+@Serializable
+enum class AccountAdminSignOutRequestOp {
+    @SerialName("sign_out_everywhere")
+    SIGN_OUT_EVERYWHERE,
+}
+
+@Serializable
+enum class AccountAdminLockResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("refused")
+    REFUSED,
+}
+
+@Serializable
+enum class AccountAdminLockRequestOp {
+    @SerialName("lock")
+    LOCK,
+    @SerialName("unlock")
+    UNLOCK,
+}
+
+@Serializable
+enum class AccountAdminVerifyEmailResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("refused")
+    REFUSED,
+    @SerialName("duplicate")
+    DUPLICATE,
+}
+
+@Serializable
+enum class AccountAdminVerifyEmailRequestOp {
+    @SerialName("verify_email")
+    VERIFY_EMAIL,
+}
+
+@Serializable
+enum class AccountAdminEmailResponseKind {
+    @SerialName("reset")
+    RESET,
+    @SerialName("magic_link")
+    MAGIC_LINK,
+    @SerialName("invite")
+    INVITE,
+}
+
+@Serializable
+enum class AccountAdminEmailResponseOutcome {
+    @SerialName("sent")
+    SENT,
+    @SerialName("refused")
+    REFUSED,
+    @SerialName("capped")
+    CAPPED,
+    @SerialName("failed")
+    FAILED,
+}
+
+@Serializable
+enum class AccountAdminEmailRequestOp {
+    @SerialName("reset")
+    RESET,
+    @SerialName("magic_link")
+    MAGIC_LINK,
+    @SerialName("invite")
+    INVITE,
+}
+
+@Serializable
 enum class AgentReportFileOutcome {
     @SerialName("exported")
     EXPORTED,
@@ -3140,4 +3252,139 @@ data class AgentReportFile(
     // "revenue-booked-2026-01-01-to-2026-10-21.csv": the period it covers. Clients and the pipeline are dated by the advisor's own day ("clients-lifetime-value-2026-10-21.csv", "clients-with-contact-details-2026-10-21.csv").
     @SerialName("fileName")
     val fileName: String,
+)
+
+@Serializable
+data class AccountAdminEmailRequest(
+    @SerialName("op")
+    val op: AccountAdminEmailRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+)
+
+@Serializable
+data class AccountAdminEmailResponse(
+    // `failed`: GoTrue could not make the link, or the mail server refused the message. The claim still counts toward the hourly cap.
+    @SerialName("outcome")
+    val outcome: AccountAdminEmailResponseOutcome,
+    // Present with `sent` only.
+    @SerialName("kind")
+    val kind: AccountAdminEmailResponseKind? = null,
+    // Present with `refused` only. The sentence the tab shows.
+    @SerialName("reason")
+    val reason: String? = null,
+)
+
+@Serializable
+data class AccountAdminVerifyEmailRequest(
+    @SerialName("op")
+    val op: AccountAdminVerifyEmailRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+    // How the advisor confirmed the address. Trimmed; UTF-16 lengths.
+    @SerialName("note")
+    val note: String,
+)
+
+@Serializable
+data class AccountAdminVerifyEmailResponse(
+    @SerialName("outcome")
+    val outcome: AccountAdminVerifyEmailResponseOutcome,
+    // Present with `refused` only.
+    @SerialName("reason")
+    val reason: String? = null,
+    // Present with `duplicate` only: the other record when it is this advisor's, null when it belongs to another advisor (its id is never shown across books).
+    @SerialName("duplicateClientId")
+    val duplicateClientId: String? = null,
+)
+
+@Serializable
+data class AccountAdminLockRequest(
+    @SerialName("op")
+    val op: AccountAdminLockRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+    // Trimmed; UTF-16 lengths. Recorded on the account and the audit row.
+    @SerialName("reason")
+    val reason: String,
+)
+
+@Serializable
+data class AccountAdminLockResponse(
+    @SerialName("outcome")
+    val outcome: AccountAdminLockResponseOutcome,
+    // Present with `changed` only. Always 0 on `unlock`.
+    @SerialName("sessionsEnded")
+    val sessionsEnded: Int? = null,
+    // Present with `refused` only.
+    @SerialName("reason")
+    val reason: String? = null,
+)
+
+@Serializable
+data class AccountAdminSignOutRequest(
+    @SerialName("op")
+    val op: AccountAdminSignOutRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+)
+
+/** A client with no sign-in is a 404. */
+@Serializable
+data class AccountAdminSignOutResponse(
+    @SerialName("outcome")
+    val outcome: AccountAdminSignOutResponseOutcome,
+    @SerialName("sessionsEnded")
+    val sessionsEnded: Int,
+)
+
+@Serializable
+data class AccountAdminFlagRequest(
+    @SerialName("op")
+    val op: AccountAdminFlagRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+    // One of this client's sign-ins. Anyone else's is a 404.
+    @SerialName("authEventId")
+    val authEventId: String,
+)
+
+@Serializable
+data class AccountAdminFlagResponse(
+    @SerialName("outcome")
+    val outcome: AccountAdminFlagResponseOutcome,
+)
+
+@Serializable
+data class AccountAdminMergeRequest(
+    @SerialName("op")
+    val op: AccountAdminMergeRequestOp,
+    // The record KEPT.
+    @SerialName("clientId")
+    val clientId: String,
+    // The record retired (it becomes `merged_into` and is never deleted).
+    @SerialName("otherClientId")
+    val otherClientId: String,
+    @SerialName("keepVersion")
+    val keepVersion: Int,
+    @SerialName("otherVersion")
+    val otherVersion: Int,
+    // Field name to `keep` or `retire`, for the fields the advisor flipped; the rest take their default. Keys are lower-case field names (`^[a-z_]{1,40}$`). The email is pinned to the surviving sign-in's address and cannot be flipped.
+    @SerialName("choices")
+    val choices: JsonElement? = null,
+)
+
+@Serializable
+data class AccountAdminMergeResponse(
+    @SerialName("outcome")
+    val outcome: AccountAdminMergeResponseOutcome,
+    // With `refused`: the kept record is archived, the two would have more than 12 companions, or the kept record would have no first or last name.
+    @SerialName("reason")
+    val reason: String? = null,
+    // Present with `merged` only.
+    @SerialName("keptClientId")
+    val keptClientId: String? = null,
+    // Present with `merged` only. What moved from the retired record.
+    @SerialName("counts")
+    val counts: JsonElement? = null,
 )

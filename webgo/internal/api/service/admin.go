@@ -22,6 +22,15 @@ type AdminUser struct {
 	CreatedAt        string  `json:"created_at"`
 }
 
+// adminHeader is what auth-js sends on every GoTrue call. The API version matters beyond
+// parity: without it GoTrue answers errors in its older shape, whose message for a database
+// error quotes the user's email address ("Cannot provision client <email>: ...").
+func adminHeader() http.Header {
+	h := jsonHeader()
+	h.Set("X-Supabase-Api-Version", "2024-01-01")
+	return h
+}
+
 // UpdateUserByID is `auth.admin.updateUserById(id, attributes)`: PUT /auth/v1/admin/users/{id}.
 // attributes is a js.O or a struct ({ ban_duration }, { email_confirm }).
 func (c *Client) UpdateUserByID(ctx context.Context, id string, attributes any) (AdminUser, error) {
@@ -29,7 +38,7 @@ func (c *Client) UpdateUserByID(ctx context.Context, id string, attributes any) 
 	if err != nil {
 		return AdminUser{}, err
 	}
-	_, _, raw, err := c.do(ctx, http.MethodPut, c.base+"/auth/v1/admin/users/"+url.PathEscape(id), bytes.NewReader(b), jsonHeader())
+	_, _, raw, err := c.do(ctx, http.MethodPut, c.base+"/auth/v1/admin/users/"+url.PathEscape(id), bytes.NewReader(b), adminHeader())
 	if err != nil {
 		return AdminUser{}, err
 	}
@@ -39,7 +48,7 @@ func (c *Client) UpdateUserByID(ctx context.Context, id string, attributes any) 
 
 // GetUserByID is `auth.admin.getUserById(id)`.
 func (c *Client) GetUserByID(ctx context.Context, id string) (AdminUser, error) {
-	_, _, raw, err := c.do(ctx, http.MethodGet, c.base+"/auth/v1/admin/users/"+url.PathEscape(id), nil, jsonHeader())
+	_, _, raw, err := c.do(ctx, http.MethodGet, c.base+"/auth/v1/admin/users/"+url.PathEscape(id), nil, adminHeader())
 	if err != nil {
 		return AdminUser{}, err
 	}
@@ -85,7 +94,7 @@ func (c *Client) GenerateLink(ctx context.Context, p GenerateLinkParams) (Genera
 	if err != nil {
 		return GeneratedLink{}, err
 	}
-	_, _, raw, err := c.do(ctx, http.MethodPost, c.base+"/auth/v1/admin/generate_link", bytes.NewReader(b), jsonHeader())
+	_, _, raw, err := c.do(ctx, http.MethodPost, c.base+"/auth/v1/admin/generate_link", bytes.NewReader(b), adminHeader())
 	if err != nil {
 		return GeneratedLink{}, err
 	}
