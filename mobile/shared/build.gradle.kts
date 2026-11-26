@@ -95,7 +95,7 @@ dependencies {
 // they are read from mobile/local.properties (already gitignored) and written into a
 // generated source file. See mobile/local.properties.example.
 //
-// This is BuildKonfig's job, but a 20-line task avoids adding a plugin for two strings.
+// This is BuildKonfig's job, but a 20-line task avoids adding a plugin for three strings.
 //
 // Note for emulator work: the Android emulator reaches the host loopback at
 // 10.0.2.2, NOT 127.0.0.1 — so the dev URL is http://10.0.2.2:54321.
@@ -112,9 +112,14 @@ val generateSupabaseConfig by tasks.registering {
     }
     val url = props.getProperty("supabase.url", "")
     val anonKey = props.getProperty("supabase.anonKey", "")
+    // Where the Functions plugin sends /functions/v1/{name}. Optional: unset or blank means
+    // the Supabase URL, which is today's behaviour. It moves to the Go service once Go is
+    // live in production (docs/GO-MIGRATION.md §5.8), and only this property changes.
+    val functionsUrl = props.getProperty("supabase.functionsUrl", "").ifBlank { url }
 
     inputs.property("supabaseUrl", url)
     inputs.property("supabaseAnonKey", anonKey)
+    inputs.property("supabaseFunctionsUrl", functionsUrl)
     outputs.dir(outputDir)
 
     doLast {
@@ -133,6 +138,10 @@ val generateSupabaseConfig by tasks.registering {
             |    // A plain `val` is read from the object at runtime, so regenerating is enough.
             |    val URL: String = "$url"
             |    val ANON_KEY: String = "$anonKey"
+            |
+            |    // Base URL for Edge Function calls (the Functions plugin adds /functions/v1).
+            |    // Equals URL unless local.properties sets supabase.functionsUrl.
+            |    val FUNCTIONS_URL: String = "$functionsUrl"
             |
             |    /** False until local.properties carries both values. */
             |    val isConfigured: Boolean get() = URL.isNotBlank() && ANON_KEY.isNotBlank()

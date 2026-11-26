@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!--
+  §3.10 Stage 4, "Stop emailing me about messages" (/email/unsubscribe). Ports
+  app/(public)/(plain)/email/unsubscribe/page.tsx; the copy is copy.ts
+  (UNSUBSCRIBE_COPY), word for word.
+
+  The link in every message email lands here, and the token in its URL is the credential.
+  OPENING THE PAGE CHANGES NOTHING, so a mail scanner that follows links unsubscribes
+  nobody: only the button posts. unsubscribe.go keeps whichever of the two actions applies
+  and removes the rest.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Message emails · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="unsub-wrap">
+    <div class="paper paper-outlined unsub-card">
+      <div class="unsub-alert" data-slot="failed">
+        <div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message">That didn't go through. Please try again in a moment.</div></div>
+      </div>
+      <h1 class="type-h5" data-slot="title">Stop emailing you about messages?</h1>
+      <p class="type-body1 text-secondary unsub-body" data-slot="body">Every message from your advisor will still be waiting in the app, and you'll still get notifications there. This only stops the emails.</p>
+      <form class="unsub-actions" method="post" action="/email/unsubscribe" data-slot="form">
+        <input type="hidden" name="t" value="" data-slot="field-token">
+        <input type="hidden" name="on" value="false" data-slot="field-on">
+        <button class="btn btn-contained st-btn" type="submit" data-slot="submit">Stop these emails</button>
+      </form>
+      <div class="unsub-actions" data-slot="sign-in">
+        <a class="btn btn-contained" href="/login">Sign in</a>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

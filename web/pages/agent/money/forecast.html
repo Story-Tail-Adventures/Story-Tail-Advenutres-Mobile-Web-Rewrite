@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.7.7, Commission Forecast. Ports app/(agent)/agent/commission/forecast/page.tsx with
+  ForecastStagesCard and CashInCalendar. Filled by internal/handlers/agent/money (forecast.go).
+
+  "WEIGHTS BELOW ADJUSTABLE" (the artboard's caption) is an EDIT MODE, and here it is a URL:
+  Adjust weights is a link to ?edit=1, which draws the same rows with number inputs and a
+  Save. The weights are saved and they set the worklist's confidence too, so the change is a
+  deliberate submit either way. What the Next card does with JavaScript and this page does
+  not: preview the new total as you type. The rows and the total are right again on save.
+
+  Each bar is a data-w attribute money.css has a rule for, because the CSP allows no inline
+  style, and each is aria-hidden: the figure beside it is the same number in words.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Commission forecast · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/import"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/forecast" aria-current="page"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <header class="mny-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Commission forecast</h1>
+          <p class="type-body2 text-secondary mny-sub">Expected commission by stage, each counted at a percent you can adjust.</p>
+        </div>
+        <span class="chip chip-outlined shrink-0"><span class="chip-label">All open trips</span></span>
+      </header>
+
+      <!-- RetryState: a read failed. An empty forecast is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/forecast" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <p class="type-body2 text-secondary mny-nothing-yet" data-slot="nothing-yet">No open trips have commission yet. It shows up here once you add a booking that earns commission.</p>
+
+        <div class="mny-forecast">
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Weighted forecast</h2>
+              <p class="type-h3 mny-total" data-slot="total">$10,411</p>
+              <p class="type-caption text-secondary mny-block" data-slot="across">Of $16,200 across 7 open trips · 64% confidence</p>
+
+              <hr class="divider mny-rule">
+
+              <form method="post" action="/agent/commission/forecast" data-submit-once>
+                <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">Each weight is a whole number from 0 to 100.</div></div>
+
+                <ul class="mny-stages">
+                  <li class="mny-stage" data-repeat="stage">
+                    <span class="mny-stage-name">
+                      <span class="type-subtitle2 mny-block" data-slot="stage-label">Booked</span>
+                      <span class="type-caption text-secondary mny-block" data-slot="stage-trips">3 trips</span>
+                    </span>
+                    <span class="mny-meter" aria-hidden="true"><span class="mny-meter-fill" data-w="90" data-slot="stage-bar"></span></span>
+                    <span class="type-caption text-secondary mny-stage-pct" data-slot="stage-pct"><span data-slot="stage-pct-text">90%</span></span>
+                    <span class="mny-stage-field">
+                      <label class="visually-hidden" data-slot="stage-input-label">Weight (%)</label>
+                      <input class="input mny-weight" type="text" inputmode="numeric" autocomplete="off" name="weight-booked" value="90" data-slot="stage-input">
+                      <input type="hidden" name="expected-booked" value="90" data-slot="stage-expected">
+                    </span>
+                    <span class="type-caption mny-stage-amount" data-slot="stage-amount">$4,860</span>
+                  </li>
+                </ul>
+
+                <div data-slot="weights-form">
+                  <p class="type-caption text-secondary mny-block mny-mb-1" data-slot="weights-hint">Saving also changes the confidence on your worklist's Commission expected.</p>
+                  <div class="row gap-1 justify-end">
+                    <a class="btn btn-outlined btn-small st-btn" href="/agent/commission/forecast">Cancel</a>
+                    <button type="submit" class="btn btn-contained btn-small st-btn" data-pending-label="Saving…">Save weights</button>
+                  </div>
+                </div>
+              </form>
+
+              <a class="btn btn-outlined btn-small st-btn mny-adjust" href="/agent/commission/forecast?edit=1" data-slot="adjust">Adjust weights</a>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Cash-in calendar</h2>
+              <ul class="mny-cash" aria-label="Expected commission by month">
+                <li class="mny-cash-row" data-repeat="cash">
+                  <span class="type-subtitle2" data-slot="cash-label">Dec 2026</span>
+                  <span class="mny-meter" aria-hidden="true"><span class="mny-meter-fill" data-w="60" data-slot="cash-bar"></span></span>
+                  <span class="type-body2 mny-cash-amount" data-slot="cash-amount">$1,240</span>
+                </li>
+              </ul>
+              <p class="type-caption text-secondary mny-block mny-mt-1" data-slot="calendar-rows-empty">Nothing is expected in the next twelve months.</p>
+              <p class="type-caption text-secondary mny-block mny-mt-1" data-slot="calendar-received">$200 of the forecast is already received, so the calendar leaves it out.</p>
+              <p class="type-caption text-secondary mny-block mny-mt-0_5">Bookings with no payment terms on file are expected 60 days after the trip ends.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

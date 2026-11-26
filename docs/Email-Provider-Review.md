@@ -186,7 +186,7 @@ CNAMEs) and IONOS MX; DMARC comes from `_dmarc.story-tail.com` (`p=none`), which
 subdomain. So §4.4's sending records are done. Still missing: the MX for `reply.story-tail.com`
 (Resend). The links in each email point at production's web origin
 (`storytailadventures.vercel.app` until the brand domain `adventures.story-tail.com` moves there;
-`app.story-tail.com` is not being created, see `.github/workflows/deploy.yml`).
+see `.github/workflows/deploy.yml`).
 
 **Fourth, same day: replies are read from `info@` over IMAP, NOT Resend (Gyasi, 2026-10-16).**
 Asked why the mailbox's own POP/IMAP could not do it. It can, and the reason to avoid it was gone:

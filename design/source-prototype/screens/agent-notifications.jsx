@@ -210,7 +210,7 @@ function A3107_WebNotifications() {
           <Paper elevation={8} sx={{ position: 'absolute', right: 24, top: 56, width: 360, p: 1.75, borderRadius: 2 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <NtfAppMark size={20}/>
-              <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>Story-Tail · app.story-tail.com</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>Story-Tail · storytailadventures.vercel.app</Typography>
               <Typography variant="caption" color="text.secondary">now</Typography>
             </Stack>
             <Typography variant="subtitle2" sx={{ mt: 1, fontWeight: 600 }}>Jordan Hayes · Anniversary Week in Negril</Typography>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.12.3, Notifications. Ports AgentNotificationsForm. Filled by
+  internal/handlers/agent/money (settingsfill.go).
+
+  TWO COLUMNS, Email and Push. No SMS: there is no provider. Only rows that really fire
+  (Q5). Rest hours are not a second setting here — they are the working hours on
+  Availability (Q6), and the line links there.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Settings · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col mny-set-col" data-slot="page">
+    <div data-slot="body">
+      <h1 class="type-h4 mny-set-title">Settings</h1>
+      <nav class="mny-views mny-set-tabs" aria-label="Settings sections">
+        <a class="chip mny-view" href="/agent/settings" data-repeat="tab" data-slot="tab-link"><span class="chip-label" data-slot="tab-label">Profile</span></a>
+      </nav>
+
+      <!-- RetryState: the one read failed. Empty settings are defaults, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">We couldn't load your settings just now. Try again in a moment.</h2>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/settings" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Check your connection and try again.</div></div>
+        <header class="mny-set-head">
+          <div class="mny-head-text">
+            <h2 class="type-h5 fw-700">Notifications</h2>
+            <p class="type-body2 text-secondary mny-sub">When and how you hear from us.</p>
+          </div>
+        </header>
+
+        <form method="post" action="/agent/settings?tab=notifications" data-submit-once data-slot="nt-form">
+          <input type="hidden" name="op" value="update_notifications">
+          <div class="card mny-table-card mny-set-matrix">
+            <table class="table table-small" aria-label="Notifications">
+              <thead>
+                <tr>
+                  <th scope="col">Alert</th>
+                  <th scope="col" class="mny-set-cell">Email</th>
+                  <th scope="col" class="mny-set-cell">Push</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-repeat="nt-row">
+                  <th scope="row">
+                    <span class="type-body2 fw-500 mny-block" data-slot="nt-label">Client message</span>
+                    <span class="type-caption text-secondary" data-slot="nt-hint">A client writes to you.</span>
+                  </th>
+                  <td class="mny-set-cell"><input class="mny-set-switch" type="checkbox" name="clientMessagesEmail" value="1" data-slot="nt-email"></td>
+                  <td class="mny-set-cell"><input class="mny-set-switch" type="checkbox" name="clientMessagesPush" value="1" data-slot="nt-push"></td>
+                </tr>
+                <tr>
+                  <td colspan="3">
+                    <span class="type-body2 fw-500 mny-block">Rest hours</span>
+                    <span class="type-caption text-secondary mny-block">Push stays quiet outside your working hours and while you're away, then one summary when you're back.</span>
+                    <a class="link link-hover type-caption" href="/agent/settings?tab=availability">Set your working hours</a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mny-set-notes">
+            <p class="type-caption text-secondary">Alert emails go to your sign-in email right away. They name the client and the trip, never what they wrote.</p>
+            <p class="type-caption text-secondary">Push goes to the browsers and phones where you turned notifications on.</p>
+          </div>
+          <div class="mny-set-actions">
+            <button type="submit" class="btn btn-contained btn-small st-btn" data-pending-label="Saving…">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,45 @@
+RFC 8188 (https://www.rfc-editor.org/rfc/rfc8188.txt), Section 3.1, copied verbatim.
+
+3.1.  Encryption of a Response
+
+   Here, a successful HTTP GET response has been encrypted.  This uses a
+   record size of 4096 octets and no padding (just the single-octet
+   padding delimiter), so only a partial record is present.  The input-
+   keying material is identified by an empty string (that is, the
+   "keyid" field in the header is zero octets in length).
+
+   The encrypted data in this example is the UTF-8-encoded string "I am
+   the walrus".  The input-keying material is the value "yqdlZ-
+   tYemfogSmv7Ws5PQ" (in base64url).  The 54-octet content body contains
+   a single record and is shown here using 71 base64url characters for
+   presentation reasons.
+
+   HTTP/1.1 200 OK
+   Content-Type: application/octet-stream
+   Content-Length: 54
+   Content-Encoding: aes128gcm
+
+   I1BsxtFttlv3u_Oo94xnmwAAEAAA-NAVub2qFgBEuQKRapoZu-IxkIva3MEB1PD-
+   ly8Thjg
+
+
+
+
+Thomson                      Standards Track                    [Page 7]
+
+RFC 8188                 HTTP Encryption Coding                June 2017
+
+
+   Note that the media type has been changed to "application/octet-
+   stream" to avoid exposing information about the content.
+   Alternatively (and equivalently), the Content-Type header field can
+   be omitted.
+
+   Intermediate values for this example (all shown using base64url):
+
+   salt (from header) = I1BsxtFttlv3u_Oo94xnmw
+   PRK = zyeH5phsIsgUyd4oiSEIy35x-gIi4aM7y0hCF8mwn9g
+   CEK = _wniytB-ofscZDh4tbSjHw
+   NONCE = Bcs8gkIRKLI8GeI8
+   unencrypted data = SSBhbSB0aGUgd2FscnVzAg
+

@@ -457,160 +457,10 @@ EMAIL_AUTHSERV_ID = "env(EMAIL_AUTHSERV_ID)"
 # STA_LEAD_FORM_KEY. Unset, the forwarded address is ignored (the limit still applies).
 LEAD_FORM_KEY = "env(LEAD_FORM_KEY)"
 
-# Declared explicitly, one block per function, because Supabase's GitHub integration deploys
-# the Edge Functions "declared in config.toml" — an undeclared directory may simply never
-# ship, and a function that silently never deployed is indistinguishable from a working one
-# until the first 404. Adding a directory under functions/ without adding a block here is a
-# deploy that quietly does nothing, so ci.yml asserts the pairing.
-#
-# verify_jwt stays on: the platform check is defence in depth in FRONT of requireUser() in
-# _shared/auth.ts, not a replacement for it. It has one cost — the gateway rejects a CORS
-# preflight before _shared/cors.ts handlePreflight() ever runs. That is invisible today
-# because neither caller is a browser: web/lib/onboarding/api.ts fetches server-to-server
-# from a Next.js server action, and mobile's OnboardingRepository.kt invokes all five from a
-# native client, which issues no preflight at all. The day a browser calls one directly this
-# is the setting to flip. The in-function check already carries the weight.
-[functions.onboarding-step]
-verify_jwt = true
-
-[functions.onboarding-profile]
-verify_jwt = true
-
-[functions.onboarding-preferences]
-verify_jwt = true
-
-[functions.onboarding-companions]
-verify_jwt = true
-
-[functions.onboarding-connect]
-verify_jwt = true
-
 # ── §2.2 write surface ────────────────────────────────────────────────────────
 # All three verify the JWT: every one of them resolves the caller to a client and
 # checks trip ownership by hand, because they run on the service role where RLS is
 # checking nothing for them.
-
-[functions.trip-message]
-verify_jwt = true
-
-[functions.trip-document]
-verify_jwt = true
-
-[functions.trip-document-url]
-verify_jwt = true
-
-# ── §3.2 agent worklist ───────────────────────────────────────────────────────
-# The first write on the agent side. verify_jwt is not the gate that matters here —
-# requireAgentId is — but without this block the function is simply never deployed, which
-# CI's "Every Edge Function is declared for deployment" step exists to catch.
-[functions.agent-trip-status]
-verify_jwt = true
-
-# ── §3.4.2 trip detail ────────────────────────────────────────────────────────
-# The Notes tab's write, and the only door onto `agent_set_trip_notes` — that function is
-# service_role only precisely so a browser cannot reach it and skip the audit_event. Same
-# note as above about this block: verify_jwt is not the gate that matters, requireAgentId
-# is, but a function with no block here is never deployed at all.
-[functions.agent-trip-notes]
-verify_jwt = true
-
-# ── §3.3.7 client notes ───────────────────────────────────────────────────────
-# The Notes tab's add/edit/delete, and the only door onto `agent_write_client_note` —
-# service_role only for the same reason. Same note again about verify_jwt: requireAgentId
-# is the gate, but a function with no block here is never deployed at all, which is what
-# CI's "Every Edge Function is declared for deployment" step exists to catch.
-[functions.agent-client-notes]
-verify_jwt = true
-
-# ── §3.4's trip writes ────────────────────────────────────────────────────────
-# Seven ops now: create (§3.4.3), the three component verbs (§3.4.4 – §3.4.12), and
-# the three payment-schedule verbs (§3.4.15). Every one of the RPCs behind them is
-# service_role only because each takes p_agent_id as trusted input.
-#
-# Separate from agent-trip-status: that one is about a trip's STAGE and takes a
-# version to refuse a stale write, neither of which any of these has. The payment
-# ops are two functions rather than one on purpose — agent_set_milestone_paid is the
-# only thing that may move trip.total_paid_cents, which sizes the balance a traveler
-# is shown when they authorize a card.
-[functions.agent-trip]
-verify_jwt = true
-
-# ── §3.4.14 itinerary writes ──────────────────────────────────────────────────
-# The day scaffold, the entries, and the auto-generate button. Its own door rather
-# than five more ops on agent-trip, which already carries seven over 500 lines — the
-# itinerary is a different entity graph (itinerary -> day -> activity) reached from a
-# different screen, the same reasoning that split agent-trip-status out.
-#
-# verify_jwt with requireAgentId behind it, as everywhere on this surface. And the
-# note above bears repeating, because this block was missed on the first push and CI
-# caught it: a function with no block here is never deployed at all. The local stack
-# serves every directory under supabase/functions/ regardless, so nothing local can
-# tell you it is missing.
-[functions.agent-itinerary]
-verify_jwt = true
-
-# ── §3.4.13's template library ────────────────────────────────────────────────
-# Save a trip as a pattern, rename it, retire it, and apply one to a trip.
-#
-# `apply` writes components, itinerary days and activities in a single statement, which is
-# why this is its own door rather than a fifth family of ops on agent-trip.
-#
-# AND THIS BLOCK IS THE POINT OF THE NOTE ABOVE. agent-itinerary shipped without one, CI
-# caught it, and nothing local could have: the local stack serves every directory under
-# supabase/functions/ whether or not it is declared here, so the function answers 401 and
-# the browser walkthrough passes. A function with no block is never deployed.
-[functions.agent-template]
-verify_jwt = true
-
-# ── §3.3's client writes ──────────────────────────────────────────────────────
-# Create, edit, archive and bulk-tag (§3.3.9, §3.3.10, §3.3.12, and §3.3.1's
-# checkbox column). The only door onto agent_create_client, agent_update_client,
-# agent_set_client_archived and agent_bulk_tag_clients, every one of which is
-# service_role only because each takes p_agent_id as trusted input. `client` is a
-# CLAUDE.md rule-3 table, so every one of those writes owes an audit_event that a
-# PostgREST call could not produce — a bulk tag owes one per client it moves.
-[functions.agent-client]
-verify_jwt = true
-
-# §3.9 Login Support: the Account admin tab's actions. aal2 and ownership are checked in the
-# function; the GoTrue Admin API calls run on the service role.
-[functions.account-admin]
-verify_jwt = true
-
-# §3.7.3 / §3.7.4 commission writes, §3.7.2's export and §3.7.7's stage weights. Each SQL
-# write audits itself in the same transaction; this function supplies the audit id and the
-# caller's ip and user agent.
-[functions.agent-commission]
-verify_jwt = true
-
-# §3.10 Stage 1: the advisor's messaging. Send (a reply or an internal note, into a thread or a
-# new one for a client), mark a thread read, archive from the inbox. Writes go through SQL
-# functions callable only by service_role (20261015120000_agent_messaging.sql).
-[functions.agent-message]
-verify_jwt = true
-
-# §3.10 Stage 2: the advisor's message templates. Create, edit, duplicate, archive and restore,
-# through SQL functions callable only by service_role. No audit rows: a template holds no client
-# data (Gyasi, 2026-10-14).
-[functions.agent-message-template]
-verify_jwt = true
-
-# §3.12 Agent Settings: the advisor's own profile, photo, working hours and time away. Every
-# write audited in its own SQL transaction (migration 20261025120000).
-[functions.agent-settings]
-verify_jwt = true
-
-# §3.11 Reporting: each report's audited CSV export. agent_report_export writes the audit row in
-# the same SQL call that returns the rows (migration 20261028120000). Screen reads do not come
-# through here; they are definer functions called with the advisor's own token.
-[functions.agent-report]
-verify_jwt = true
-
-# §3.7.5 / §3.7.6: import an Inteletravel statement and reconcile it. Upload, map, resolve,
-# reconcile and discard; the ledger changes only on reconcile, inside one SQL transaction
-# that writes an audit row per line it touches.
-[functions.commission-import]
-verify_jwt = true
 
 # ── §2.0 cruise catalog ───────────────────────────────────────────────────────
 # The one function here with no human caller: pg_cron invokes it through
@@ -620,9 +470,6 @@ verify_jwt = true
 # use to it, since a sync job has no platform_user row, and a valid client token must not be
 # able to spend a 100-request monthly budget.
 
-[functions.cruise-sync]
-verify_jwt = true
-
 # ── §2.0 hotel search ─────────────────────────────────────────────────────────
 # The first function with an anonymous visitor behind it. verify_jwt stays TRUE for the
 # reason the header above gives, and it costs nothing here: the caller is the Next.js
@@ -630,30 +477,16 @@ verify_jwt = true
 # public — it ships in the browser bundle — so the actual credential is the server-only
 # X-STA-Search-Token the function checks itself. See functions/hotel-search/index.ts.
 
-[functions.hotel-search]
-verify_jwt = true
-
 # ── Quote requests ────────────────────────────────────────────────────────────
 # JWT verified, and the function additionally requires the `client` role: per BRD §6.5
 # (2026-09-09) a quote request creates a Trip, trip.client_id is NOT NULL, and the trip it
 # writes belongs to whoever the token resolves to. There is deliberately no anonymous path —
 # see the function header.
 
-[functions.quote-request]
-verify_jwt = true
-
 # Reads the synced cruise catalog for the public Cruises mode. Same caller posture as
 # hotel-search — our own server, anon key plus the server-only X-STA-Search-Token — and it
 # exists so the cruise tables can keep zero anon grants, which rls_cruise_catalog.sql
 # asserts. It spends no provider budget: the catalog is already in Postgres.
-
-[functions.cruise-search]
-verify_jwt = true
-
-[functions.testimonial]
-# JWT verified: a reflection is attributed to whoever wrote it, and the function resolves
-# the client from the token rather than trusting a body field.
-verify_jwt = true
 
 [analytics]
 # Off: nothing consumes it yet and it costs ~500MB of RAM on a laptop.
@@ -684,42 +517,3 @@ enabled = true
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
-# ── §3.10 Stage 3b: notifications ────────────────────────────────────────────
-[functions.push-device]
-# An advisor turning notifications on or off for this browser. Resolves the caller from the
-# token; device addresses are never returned.
-verify_jwt = true
-
-[functions.push-dispatch]
-# No human caller: pg_cron's push_dispatch_tick() posts here with the service-role key, and the
-# function refuses any other role (requireServiceRole), as cruise-sync does.
-verify_jwt = true
-
-# ── §3.10 Stage 4: client email ──────────────────────────────────────────────
-[functions.email-dispatch]
-# No human caller: pg_cron's email_dispatch_tick() posts here with the service-role key, and the
-# function refuses any other role (requireServiceRole), as push-dispatch does.
-verify_jwt = true
-
-[functions.email-inbox]
-# No human caller: pg_cron's email_inbox_tick() posts here every two minutes with the service-role
-# key, and the function refuses any other role (requireServiceRole). It reads the app's own IONOS
-# mailbox over IMAP; replies by email are no longer received through Resend (2026-10-16).
-verify_jwt = true
-
-[functions.email-unsubscribe]
-# Opened from an email by someone who may not be signed in, and POSTed by mail apps for RFC 8058
-# one-click with no Authorization header, so OFF. The 128-bit token in the link is the
-# credential, and it changes one switch for one person.
-verify_jwt = false
-
-# ── §3.8 Leads (2026-10-21) ───────────────────────────────────────────────────
-# The public "Message Gyasi" form (Screen Inventory 2.0.12): a visitor without an account, so
-# OFF. The function's own checks are the gate: a hidden field, a too-fast check, and five sends
-# an hour per address in lead_submit.
-[functions.lead-message]
-verify_jwt = false
-
-# The advisor's lead actions. requireAgentId (aal2, not archived) is the gate.
-[functions.agent-lead]
-verify_jwt = true

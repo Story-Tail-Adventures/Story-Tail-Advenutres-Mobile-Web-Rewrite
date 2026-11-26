@@ -76,7 +76,7 @@ These counts include states, modals, and confirmation screens that meaningfully 
 
 **Phase:** Most of this section is **Phase 2** per BRD Section 13.2 (self-guided search and lead generation). The two MVP-bound screens are 2.0.1 (App Subdomain Public Landing) and 2.0.7 (Footer Pages) — those exist from MVP because the app subdomain needs *some* unauthenticated front door and legal pages. Screens 2.0.2 through 2.0.6 (About / How It Works, Public Search Landing, Public Search Results, Public Property/Cruise/Tour Detail, Sign-up Gate) ship with the Phase 2 self-guided search release.
 
-The screens an unauthenticated visitor encounters before signing in or creating an account. These live at the app subdomain (app.story-tail.com) and complement — but do not replace — the marketing site at adventures.story-tail.com.
+The screens an unauthenticated visitor encounters before signing in or creating an account. These live in the app (https://storytailadventures.vercel.app) and complement — but do not replace — the marketing site at adventures.story-tail.com.
 
 **Note on scope:** The BRD explicitly puts replacing the marketing site at adventures.story-tail.com *out* of Phase 1. The public screens described here are the pre-auth entry surface for the app subdomain only. They should drive registration or visit-back to the marketing site, not duplicate it.
 
@@ -87,7 +87,7 @@ The screens an unauthenticated visitor encounters before signing in or creating 
 > **Amended September 2026, built as amended — the toggle.** It sits last in the bar, after the auth cluster, and that position is forced rather than chosen: exactly one `margin-left: auto` is ever active in this header (the hamburger carries one below `lg`, the auth cluster carries one from `lg`), and flexbox splits free space equally among multiple auto margins — so a toggle with its own would land in the middle of the bar. Below `md` the bar floats transparent over the hero photo on five routes, so the toggle takes a glass chip there and drops it when the bar goes solid at 768px. See Design-System §10.1 for why the control is here and not on a settings screen.
 
 #### 2.0.1 App Subdomain Public Landing
-**Purpose:** Greet anonymous visitors at app.story-tail.com and direct them into the right next action.
+**Purpose:** Greet anonymous visitors at the app's address (storytailadventures.vercel.app) and direct them into the right next action.
 **Primary elements:** Brand hero (rotating destination imagery); single-sentence value prop ("Your Story-Tail Adventures portal — view trips, authorize payments, and explore your next adventure"; *amended 2026-10-16: "authorize payments" goes with §2.4, for example "view trips, stay close to your advisor, and explore your next adventure"*); "Sign in" CTA; "Create an account" CTA; "Take a quick tour" link; "Browse trip ideas" link (to Public Search Landing); footer with link to the marketing site and legal pages.
 **Key actions:** Sign in; register; browse anonymously; navigate to marketing site; tour.
 **Entry points:** Direct URL; marketing-site CTAs; email-footer links from Gyasi's outbound emails.

@@ -1,26 +1,26 @@
 [versions]
-agp = "9.4.1"
+agp = "9.5.3"
 android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "36"
 androidx-activity = "1.13.0"
-androidx-appcompat = "1.7.1"
+androidx-appcompat = "1.8.0"
 androidx-core = "1.18.0"
 androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.11.0"
 androidx-testExt = "1.3.0"
-composeMultiplatform = "1.12.1"
+composeMultiplatform = "1.12.2"
 junit = "4.13.2"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 # JetBrains material3 versions track Compose Multiplatform: 1.12.0-alpha03 needs Compose
 # 1.12.0-beta01, which the 1.12.1 plugin satisfies. 1.13.0-alpha01 drags foundation and ui up
 # to 1.13.0-alpha01, and the Compose plugin then warns that the runtime does not match it.
 material3 = "1.12.0-alpha03"
 # Networking / async / serialization
 kotlinx-coroutines = "1.11.0"
-kotlinx-serialization = "1.11.0"
+kotlinx-serialization = "1.13.0"
 kotlinx-datetime = "0.8.0-0.6.x-compat"
-ktor = "3.6.0"
+ktor = "3.6.1"
 # supabase-kt — Auth (GoTrue) + PostgREST for KMP. Approved as a third-party SDK
 # per CLAUDE.md; not payment-adjacent.
 #
@@ -32,13 +32,13 @@ ktor = "3.6.0"
 # so this only fails on the iOS targets — which is exactly why they stay declared. Bump this in
 # lockstep with `kotlin`, never on its own, and run :shared:compileKotlinIosSimulatorArm64.
 # 3.8.0 with Kotlin 2.4.20 passed that gate with no KLIB warnings on 2026-10-05.
-supabase = "3.8.0"
+supabase = "3.9.0"
 # §3.10 Stage 3b: Android notifications. firebase-messaging ONLY, through the BoM
 # (docs/Push-Notifications-Security-Review.md §3, approved 2026-10-15). No Analytics, no
 # Crashlytics, and no google-services plugin: the app is configured from local.properties at
 # runtime (androidApp/build.gradle.kts). 34.19.0 rather than 35.0.x, a major line one day old
 # when this was added.
-firebase-bom = "34.19.0"
+firebase-bom = "35.2.0"
 turbine = "1.2.1"
 # Build tooling only, never in the APK. AGP 9.4.1 puts Bouncy Castle 1.80.2 on the plugin
 # classpath (builder, apkzlib: APK signing), and everything below 1.85 is open to Dependabot
@@ -48,7 +48,7 @@ turbine = "1.2.1"
 # it. All three artifacts move together: bcpkix and bcutil are built against the bcprov of
 # the same release. Drop this once an AGP release ships 1.85 or newer on its own; check with
 # `./gradlew buildEnvironment | grep bouncycastle`.
-bouncycastle = "1.86"
+bouncycastle = "1.87"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

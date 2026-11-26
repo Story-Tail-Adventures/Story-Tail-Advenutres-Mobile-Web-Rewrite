@@ -10,7 +10,7 @@ description: Refresh `design/source-prototype/` from the canonical Claude Design
 The Story-Tail Adventures designs live in **two synchronized places**:
 
 - **Canonical source:** the Claude Design handoff URL (recorded in `CLAUDE.md`). Anthropic-hosted tarball, regenerated when the designer iterates.
-- **Local mirror:** `design/source-prototype/` in this repo. Read by the `new-screen` skill, `web-reviewer`, and `mobile-reviewer` as the visual ground truth.
+- **Local mirror:** `design/source-prototype/` in this repo. Read by the `new-screen` skill, `go-reviewer`, and `mobile-reviewer` as the visual ground truth.
 
 When the designer iterates in Claude Design, the URL refreshes and the local mirror goes stale. This skill pulls the latest, shows what changed, and applies updates the user approves. No silent overwrites.
 
@@ -21,7 +21,7 @@ Trigger phrases:
 - "Did the designs change?" / "Is our prototype up to date?"
 - "Update `design/source-prototype/` from the handoff URL"
 
-Use proactively at the start of any screen-build task (`new-screen` skill, `web-reviewer` parity check, `mobile-reviewer` parity check) **if** the local mirror hasn't been refreshed recently or the user mentions design changes. If unsure, ask once: "Want me to pull the latest handoff before we start?"
+Use proactively at the start of any screen-build task (`new-screen` skill, `go-reviewer` parity check, `mobile-reviewer` parity check) **if** the local mirror hasn't been refreshed recently or the user mentions design changes. If unsure, ask once: "Want me to pull the latest handoff before we start?"
 
 ## The canonical source
 
@@ -124,7 +124,7 @@ If `tokens.css` changed, do **not** auto-regenerate `design/compose-theme/StoryT
 
 > Token changes detected. The mobile theme files at `design/compose-theme/StoryTail*.kt` use these same values and need a hand-update to stay in sync. Specifically check: `StoryTailColors.kt` against the `--md-*` vars, `StoryTailTypography.kt` against `--font-*`, `StoryTailShape.kt` against `--r-*`. Run me with "sync compose theme" to do that pass.
 >
-> The web app needs the same values twice: `web/styles/tokens.css` (the CSS variables) and `web/lib/mui/tokens.ts` (what the MUI theme reads). `npm run test -w web` fails in `lib/mui/tokens.test.ts` until both match `design/web-tokens/tokens.css`.
+> The Go web app holds exactly one copy of these values: `web/assets/css/tokens.css`. Copy the changed tokens there too. `go test ./internal/static/` (from `web/`) fails in `TestTokensMatchTheCanonicalSource`, in `web/internal/static/tokens_test.go`, on any token the Go copy is missing, any extra one it has, and any value that disagrees, in `:root` and `.scheme-dark` both, until it matches `design/web-tokens/tokens.css`. The three `--font-*` stacks are the one exception the test skips: they live in `web/assets/css/base.css`, built on the self-hosted families in `fonts.css` rather than the source file's literal family names.
 
 (If/when "sync compose theme" becomes its own skill, link to it here.)
 
@@ -145,7 +145,7 @@ Final message to the user:
 - Skipped K local-only files (still present)
 - Mobile theme files: <unchanged | needs hand-update — see above>
 
-Re-run `web-reviewer` / `mobile-reviewer` on any in-progress screens; the prototype is their parity reference.
+Re-run `go-reviewer` / `mobile-reviewer` on any in-progress screens; the prototype is their parity reference.
 ```
 
 ## Edge cases

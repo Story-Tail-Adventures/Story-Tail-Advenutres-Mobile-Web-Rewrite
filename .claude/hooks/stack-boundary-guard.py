@@ -2,9 +2,13 @@
 """
 PreToolUse guard for CLAUDE.md rule 7: stack directories are hard boundaries.
 
-Kotlin lives in mobile/, React lives in web/, Deno backend lives in supabase/, shared API
-types live in contracts/. Cross-contamination is the one project rule that is fully
-mechanical to check, and today it is caught only by post-hoc review.
+Kotlin lives in mobile/, React lives in web/, Deno backend lives in supabase/, Go lives in
+web/ (the Go web app and API, docs/GO-MIGRATION.md), shared API types live in contracts/.
+Cross-contamination is the one project rule that is fully mechanical to check, and today it
+is caught only by post-hoc review.
+
+GO-MIGRATION Phase 6 deleted Next.js and renamed web/ to web/, so web/ is the GO rule's
+prefix in the same commit, or every Go write after the rename is denied.
 
 PreToolUse, not PostToolUse: PostToolUse runs after the write has already happened, so it
 can only complain. Exit code 2 here denies the call before the file is touched.
@@ -24,13 +28,22 @@ RULES = [
     ),
     (
         (".tsx", ".jsx"),
-        ("web/", "design/source-prototype/", "design/web-tokens/"),
-        "React/JSX belongs under web/.",
+        ("design/source-prototype/", "design/web-tokens/"),
+        "React/JSX has no home in this repo any more: web/ was the Next app and Phase 6\n"
+        "deleted it. The only .tsx left is the design prototype, which is reference, not\n"
+        "shipped code. A new screen is a Go page under web/ (see the new-go-endpoint and\n"
+        "new-screen skills).",
     ),
     (
         (".swift",),
         ("mobile/",),
         "Swift belongs under mobile/iosApp/.",
+    ),
+    (
+        # endswith, so "go.mod" also matches "web/go.mod" and a stray root-level "go.mod".
+        (".go", "go.mod", "go.sum", "go.work", "go.work.sum"),
+        ("web/",),
+        "Go belongs under web/ (the Go web app and API; see docs/GO-MIGRATION.md).",
     ),
 ]
 
@@ -96,19 +109,6 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-
-    # Edge Functions run on Deno, not Node or the browser.
-    if rel.startswith("supabase/functions/") and rel.endswith((".ts", ".tsx")):
-        content = (payload.get("tool_input") or {}).get("content") or ""
-        content += (payload.get("tool_input") or {}).get("new_string") or ""
-        for bad in ('from "react"', "from 'react'", 'from "next/', "from 'next/"):
-            if bad in content:
-                print(
-                    f"Stack boundary violation (CLAUDE.md rule 7): {rel}\n"
-                    "Edge Functions run on Deno — they cannot import React or Next.js.",
-                    file=sys.stderr,
-                )
-                return 2
 
     return 0
 

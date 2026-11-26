@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.6.6, Payment History: every paid mark and every pay link change, read-only. Ports
+  app/(agent)/agent/trips/[tripId]/payments/history/page.tsx with lib/agent/paymentHistory.ts.
+  Filled by internal/handlers/agent/trips (payments.go). ?m=<milestone id> narrows it to one
+  payment. paid_note never reaches audit metadata, so nothing here can show it.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Payment history · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col trp-col-1100" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <div class="trp-notfound" data-slot="not-found">
+        <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span>
+        <h1 class="type-h5">No such trip</h1>
+        <p class="type-body2 text-secondary trp-mt-1">It may have been deleted, or it belongs to another advisor.</p>
+        <a class="btn btn-outlined btn-secondary st-btn trp-mt-2_5" href="/agent">Back to the worklist</a>
+      </div>
+
+      <div data-slot="trip">
+        <div class="trp-hhead">
+          <div class="trp-hhead-text">
+            <h1 class="type-h5 trp-fw-700" data-slot="h-title">Payment history · Anniversary Week in Negril</h1>
+            <p class="type-body2 text-secondary trp-mt-0_25">Every paid mark and every pay link change, with who and when. Nothing here can be edited.</p>
+          </div>
+          <a class="btn btn-outlined btn-small st-btn" href="/agent/trips/sample/payments" data-slot="h-back"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Back to payments</a>
+        </div>
+
+        <nav class="trp-hchips" aria-label="Payment" data-slot="h-chips">
+          <a class="chip chip-outlined chip-clickable" href="/agent/trips/sample/payments/history" data-slot="h-all"><span class="chip-label">All payments</span></a>
+          <a class="chip chip-outlined chip-clickable" href="/agent/trips/sample/payments/history?m=sample" data-repeat="h-chip" data-slot="h-chip"><span class="chip-label" data-slot="h-chip-label">Deposit</span></a>
+        </nav>
+
+        <div class="card trp-scroll-x trp-mt-1_25">
+          <div class="card-content trp-hempty" data-slot="h-empty">
+            <p class="type-body2 text-secondary">Nothing recorded yet. Paid marks and pay link changes show up here.</p>
+          </div>
+          <table class="table table-small table-hover" data-slot="h-table">
+            <thead>
+              <tr>
+                <th scope="col">When</th>
+                <th scope="col">What</th>
+                <th scope="col">Payment</th>
+                <th scope="col">Details</th>
+                <th scope="col">By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-repeat="h-row" data-slot="h-row">
+                <td class="trp-fw-500 trp-nowrap" data-slot="h-when">May 2 · 4:05 PM</td>
+                <td><span class="status-chip" data-slot="h-kind">Link added</span></td>
+                <td data-slot="h-payment">Final balance</td>
+                <td class="trp-hdetail" data-slot="h-detail">sandals.com/pay/SRB-220119</td>
+                <td data-slot="h-who">Gyasi Story</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="type-caption text-secondary trp-block trp-mt-1_25">A client's "I've paid" note lives in the message thread, not here. Only a paid mark changes the record.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

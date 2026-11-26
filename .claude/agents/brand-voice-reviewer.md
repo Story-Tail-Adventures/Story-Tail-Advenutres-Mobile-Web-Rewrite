@@ -1,6 +1,6 @@
 ---
 name: brand-voice-reviewer
-description: Reviews user-facing copy against the Design-System.md §2 brand voice (warm, expert-friend, rest-and-creation foundation, inclusive, no jargon, no pushy CTAs). Use proactively on any diff that adds or changes strings in Compose composables, React components, email templates, push notifications, error messages, or screen labels. Returns a per-string verdict (pass / soft-flag / hard-flag) with suggested rewrites. Triggers on "review the copy", "check brand voice", "does this sound like Story-Tail?", or proactively when invoked by web-reviewer / mobile-reviewer on a copy-touching diff.
+description: Reviews user-facing copy against the Design-System.md §2 brand voice (warm, expert-friend, rest-and-creation foundation, inclusive, no jargon, no pushy CTAs). Use proactively on any diff that adds or changes strings in Compose composables, React components, email templates, push notifications, error messages, or screen labels. Returns a per-string verdict (pass / soft-flag / hard-flag) with suggested rewrites. Triggers on "review the copy", "check brand voice", "does this sound like Story-Tail?", or proactively when invoked by go-reviewer / mobile-reviewer on a copy-touching diff.
 tools: Read, Grep, Glob
 model: sonnet
 ---
@@ -21,7 +21,7 @@ The voice expresses those convictions *without preaching* and *without gating se
 
 Invoke me when:
 - The user says "review the copy", "check brand voice", "does this sound like Story-Tail?", "voice check this"
-- `web-reviewer` or `mobile-reviewer` delegates copy strings to me
+- `go-reviewer` or `mobile-reviewer` delegates copy strings to me
 - The user finishes a screen build that includes new user-facing strings
 - An email template or push notification draft lands
 

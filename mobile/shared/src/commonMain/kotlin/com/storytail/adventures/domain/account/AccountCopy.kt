@@ -137,7 +137,7 @@ object PrivacyMessages {
     const val EXPORT_CTA = "Request an export"
     const val EXPORT_DEFERRED = "Coming with the next release"
     const val TRACKING_HEADING = "TRACKING"
-    const val TRACKING_BODY = "We don’t run advertising trackers. The website counts page views anonymously, without cookies. If you allow it on the website, Google Analytics counts visits too and sets a few cookies of its own. The only other cookies are the ones that keep you signed in, and you can clear any of them in your browser."
+    const val TRACKING_BODY = "We don’t run advertising trackers. Nothing counts your visit unless you allow it: if you do, Google Analytics counts visits on the website and sets a few cookies of its own. The only other cookies are the ones that keep you signed in, and you can clear any of them in your browser."
     const val COOKIES_LINK = "Read the cookie policy"
     const val CLOSE_TITLE = "Close your account"
     const val CLOSE_BODY = "Your trips are archived and your personal details are anonymized. Some records have to be kept for tax reasons — we will show you exactly which before you confirm."

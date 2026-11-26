@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.6 Sign-up Gate / Quote Request Prompt (/join). Ports
+  app/(public)/(plain)/join/page.tsx with JoinForm.tsx; the copy is state.ts (JOIN_TEXT),
+  word for word, and the field rules are lib/validation/registration.ts, ported in join.go.
+
+  Two states, one file: the form, and the check-your-inbox panel. React swapped them in
+  place; a Go post answers 303 and the next GET shows the panel (§4.9), so join.go removes
+  whichever one does not apply.
+
+  A field's hint and its error swap: components/ui/Field renders the hint only when there is
+  no error, and points aria-describedby at whichever is there. join.go removes the other.
+
+  The prototype's Google button carries a Facebook glyph and its Apple button a generic user
+  icon (fidelity spec §6.5); both were dropped, and the buttons are text-only like 2.1.1.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Create your account · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="gate-backdrop">
+    <div class="paper gate-card">
+      <header>
+        <p class="type-overline pub-overline">ALMOST THERE</p>
+        <h1 class="type-h4 gate-title" data-slot="title">Create an account to start planning with Gyasi.</h1>
+        <p class="type-body2 text-secondary gate-lead">Takes about 60 seconds. You'll get a real proposal back — not a generic search dump.</p>
+      </header>
+
+      <ul class="gate-bullets">
+        <li class="type-body2 gate-bullet"><span class="gate-bullet-glyph"><svg class="icon icon-14 gate-check" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>Save searches &amp; favorites</li>
+        <li class="type-body2 gate-bullet"><span class="gate-bullet-glyph"><svg class="icon icon-14 gate-check" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>View Gyasi's curated proposals</li>
+        <li class="type-body2 gate-bullet"><span class="gate-bullet-glyph"><svg class="icon icon-14 gate-check" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>Pay suppliers directly · nothing goes through us</li>
+      </ul>
+
+      <form class="gate-form" method="post" action="/join" data-slot="form">
+        <input type="hidden" name="intent" value="" data-slot="field-intent">
+        <input type="hidden" name="trip" value="" data-slot="field-trip">
+        <input type="hidden" name="next" value="/dashboard" data-slot="field-next">
+
+        <div class="gate-alert" data-slot="alert">
+          <div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message"><span data-slot="alert-text">Something went sideways on our end. Try again in a moment.</span><span data-slot="alert-action"> <a class="link link-inherit gate-alert-link" href="/forgot-password" data-slot="alert-action-link">Reset your password</a>.</span></div></div>
+        </div>
+
+        <div class="stack gap-1 gate-social">
+          <button class="btn btn-outlined st-btn btn-large btn-block" type="button" disabled title="Social sign-in isn't switched on yet — use your email below." data-slot="google">Continue with Google</button>
+          <button class="btn btn-outlined st-btn btn-large btn-block" type="button" disabled title="Social sign-in isn't switched on yet — use your email below." data-slot="apple">Continue with Apple</button>
+        </div>
+
+        <div class="gate-divider">
+          <div class="divider-label" role="none"><span>OR EMAIL</span></div>
+        </div>
+
+        <fieldset class="gate-fields">
+          <div class="gate-pair">
+            <div class="field">
+              <label class="field-label" for="firstName">First name</label>
+              <input class="input" id="firstName" name="firstName" type="text" autocomplete="given-name" required value="" data-slot="field-first-name">
+              <p class="field-help field-error" id="firstName-error" data-slot="error-first-name">Tell us your name</p>
+            </div>
+            <div class="field">
+              <label class="field-label" for="lastName">Last name</label>
+              <input class="input" id="lastName" name="lastName" type="text" autocomplete="family-name" required value="" data-slot="field-last-name">
+              <p class="field-help field-error" id="lastName-error" data-slot="error-last-name">Tell us your name</p>
+            </div>
+          </div>
+
+          <div class="gate-row">
+            <div class="field">
+              <label class="field-label" for="email">Email</label>
+              <input class="input" id="email" name="email" type="email" autocomplete="email" required value="" data-slot="field-email">
+              <p class="field-help field-error" id="email-error" data-slot="error-email">That doesn't look like an email address</p>
+            </div>
+          </div>
+
+          <div class="gate-row">
+            <div class="field">
+              <label class="field-label" for="password">Password</label>
+              <input class="input" id="password" name="password" type="password" autocomplete="new-password" required aria-describedby="password-hint" data-slot="field-password">
+              <p class="field-help" id="password-hint" data-slot="password-hint">12+ characters with a number, a capital and a lowercase letter</p>
+              <p class="field-help field-error" id="password-error" data-slot="error-password">Use at least 12 characters</p>
+            </div>
+          </div>
+
+          <div class="gate-terms">
+            <label class="check gate-terms-row"><input class="check-input" id="terms" name="terms" type="checkbox" required data-slot="field-terms"><span class="type-body2 text-secondary">I agree to the <a class="link" href="/legal/terms">Terms</a> &amp; <a class="link" href="/legal/privacy">Privacy policy</a></span></label>
+            <p class="field-help field-error gate-terms-error" id="terms-error" data-slot="error-terms">Check the box to agree to our terms</p>
+          </div>
+        </fieldset>
+
+        <div class="gate-submit">
+          <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-slot="submit">Create account</button>
+        </div>
+
+        <div class="gate-foot gate-foot-row">
+          <a class="link link-hover gate-foot-link tap-target" href="/login" data-slot="sign-in-link">Already have an account? Sign in</a>
+          <a class="link link-hover text-secondary gate-foot-link gate-foot-link-right tap-target" href="/message?from=join" data-slot="email-link">Message Gyasi instead →</a>
+        </div>
+      </form>
+
+      <div class="gate-sent" role="status" data-slot="confirm">
+        <h2 class="type-h5">Check your inbox</h2>
+        <p class="type-body2 text-secondary gate-sent-body">We sent a link to <b class="gate-sent-email" data-slot="confirm-email">you@example.com</b>. Open it to finish creating your account.</p>
+        <a class="link link-hover gate-sent-link tap-target" href="/login" data-slot="confirm-sign-in">Already have an account? Sign in</a>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -154,7 +154,7 @@ These were checked and are consistent across all three documents:
 - **Trip status enum: Inquiry → Proposal → Booked → In Progress → Completed → Cancelled** — BRD 12, Data Model 8.2, Screen Inventory 3.2.2 (Pipeline columns).
 - **Multi-agent platform support as Phase 3** — BRD 13.3, Screen Inventory 3.1 preamble, Data Model `AgentInvitation` P3.
 - **Card reveal audit + MFA step-up** — BRD 10.3 + 10.4, Screen Inventory 3.6.4, Data Model 18.4.
-- **App subdomain at app.story-tail.com vs marketing site at adventures.story-tail.com** — BRD 4.2, Screen Inventory 2.0 preamble.
+- **App at storytailadventures.vercel.app vs marketing site at adventures.story-tail.com** — BRD 4.2, Screen Inventory 2.0 preamble.
 - **Travel API recommendations (Amadeus, Hotelbeds, Viator, Widgety)** — BRD Section 9, Screen Inventory components, Data Model `TripComponent.api_source` enum.
 - **Brand palette (Sunset Gold #F5A623, Ocean Blue #1565C0, Deep Navy #0D2137)** — BRD 11, Screen Inventory color references in Section 4.
 

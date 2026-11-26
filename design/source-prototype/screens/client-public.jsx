@@ -1,6 +1,6 @@
 /* global React, MUI, Icon, MuiIcon, StoryTailMark, staImg, MuiScreenFrame */
 // Client · 2.0 Public / Pre-Auth Surface — 7 screens. MUI v9.
-// All screens here live at app.story-tail.com and complement (not replace)
+// All screens here live in the app (storytailadventures.vercel.app) and complement (not replace)
 // the marketing site at adventures.story-tail.com.
 //
 // Rendered inside <StaMuiScheme>. Fixed white / gold / rgba values appear only

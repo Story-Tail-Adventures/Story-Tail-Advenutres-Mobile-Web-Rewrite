@@ -3,14 +3,16 @@
   "configurations": [
     {
       "name": "web",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "env",
       "runtimeArgs": [
+        "STA_ENV=development",
+        "go",
+        "-C",
+        "web",
         "run",
-        "dev",
-        "-w",
-        "web"
+        "./cmd/server"
       ],
-      "port": 3000,
+      "port": 8080,
       "autoPort": true
     },
     {

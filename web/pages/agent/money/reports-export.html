@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.8, the Export Center. Ports app/(agent)/agent/reports/export/page.tsx with
+  ExportCenterForm. Filled by internal/handlers/agent/money.
+
+  CSV ONLY, ON DEMAND, NOTHING STORED. A download is built when asked for and handed
+  straight to the browser, so no client data sits in a bucket and nothing expires. The
+  artboard's "expired · Re-generate" becomes "Run again" on every line.
+
+  RECENT EXPORTS ARE THE AUDIT ROWS every export already writes: this page's, each report's
+  own Export, and the ledger's. No history table to keep in step with them.
+
+  THE FORM IS A PLAIN GET to /agent/reports/download, so it needs no JavaScript: the route
+  answers with an attachment and the browser stays here. export-center.js only shows and
+  hides what each type uses — with it off, every field and all four hints are on screen, and
+  the route still sends no dates for Clients and no contact switch for anything else.
+
+  Run again is a plain link, never a prefetched one: the route writes an audit row.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Export center · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Export center</h1>
+          <p class="type-body2 text-secondary mny-sub">CSV files for tax prep and the books.</p>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/export" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="mny-exp-grid">
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Download a CSV</h2>
+
+              <form class="mny-exp-form" method="get" action="/agent/reports/download">
+                <div class="field">
+                  <label class="field-label" for="export-type">What to export</label>
+                  <select class="input mny-input-40" id="export-type" name="type" aria-describedby="export-hints">
+                    <option value="ledger" data-repeat="exp-type" data-slot="exp-type-option">Commission ledger</option>
+                  </select>
+                </div>
+
+                <div class="mny-exp-dates" data-export-dates>
+                  <div class="field">
+                    <label class="field-label" for="export-from">From</label>
+                    <input class="input mny-input-40" id="export-from" type="date" name="from" required value="2026-01-01" max="2026-10-21" data-slot="exp-from">
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="export-to">To</label>
+                    <input class="input mny-input-40" id="export-to" type="date" name="to" required value="2026-10-21" min="2026-01-01" data-slot="exp-to">
+                  </div>
+                </div>
+
+                <ul class="mny-exp-hints" id="export-hints">
+                  <li class="type-caption text-secondary" data-export-hint="ledger">Commission lines for trips that start between these dates, the same as the ledger.</li>
+                  <li class="type-caption text-secondary" data-export-hint="trips">Trips that start between these dates, at every stage, cancelled ones too.</li>
+                  <li class="type-caption text-secondary" data-export-hint="milestones">Supplier payments due between these dates. For safety, pay links show only the site name.</li>
+                  <li class="type-caption text-secondary" data-export-hint="clients">Every client on your book. No dates needed.</li>
+                </ul>
+
+                <div class="mny-exp-contact" data-export-contact>
+                  <label class="mny-exp-check">
+                    <input type="checkbox" name="contact" value="1" aria-describedby="export-contact-hint">
+                    <span class="type-body2 fw-500">Include contact details (email, phone, mailing address)</span>
+                  </label>
+                  <p class="type-caption text-secondary mny-exp-contact-hint" id="export-contact-hint">Leave this off unless you need it. We keep a record of every export.</p>
+                </div>
+
+                <div class="mny-exp-submit">
+                  <button type="submit" class="btn btn-contained btn-small st-btn"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Download CSV</button>
+                  <span class="type-caption text-secondary">Opens in Excel, Numbers and Google Sheets.</span>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Recent exports</h2>
+              <p class="type-body2 text-secondary mny-mt-1" data-slot="exp-empty">Nothing exported yet. Your downloads show up here.</p>
+              <ul class="mny-exp-list" data-slot="exp-list">
+                <li class="mny-exp-row" data-repeat="exp-row">
+                  <span class="mny-exp-badge" aria-hidden="true">CSV</span>
+                  <span class="mny-exp-text">
+                    <span class="type-subtitle2 mny-block" data-slot="exp-title">Commission ledger</span>
+                    <span class="type-caption text-secondary mny-block" data-slot="exp-detail">Jan 1 to Oct 21, 2026 · 12 rows · Oct 21, 3:04 PM</span>
+                  </span>
+                  <a class="btn btn-outlined btn-secondary btn-small st-btn mny-exp-again" href="/agent/reports/download?type=ledger" data-slot="exp-again"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg><span data-slot="exp-again-label">Run again</span></a>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </div>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note">A new download shows here the next time you open this page.</p>
+        <script type="module" src="/assets/js/agent/money/export-center.js"></script>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
