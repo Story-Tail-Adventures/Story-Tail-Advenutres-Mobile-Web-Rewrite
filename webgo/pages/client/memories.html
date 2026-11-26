@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.7 Past Trip / Memories (docs/Screen-Inventory.md §2.2.7). Ports
+  web/app/(client)/trips/[tripId]/memories/{page,content,ReflectionForm}.tsx; copy word for
+  word from MEMORIES and MEMORIES_MESSAGES.
+
+  Where a completed trip lands: 2.2.3 redirects here rather than showing a countdown to
+  something that already happened.
+
+  The reflection is the traveler's own words. "Save for later" keeps it as a draft; "Send it
+  to Gyasi" submits it. Nothing is published by either — the copy says so, and the function
+  is what enforces it.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Memories · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-mem-page">
+      <div class="cl-empty cl-not-found" data-slot="not-found">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't find that trip</p>
+        <p class="type-body2 text-secondary cl-empty-body">It may have been archived, or the link may belong to a different account.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/trips">All trips</a>
+      </div>
+
+      <div data-slot="body">
+        <div class="cl-detail-hero cl-mem-hero" data-slot="hero">
+          <img class="cl-hero-photo" src="https://images.unsplash.com/photo-1738762932370-468a90e0ff68?w=1600&amp;q=80&amp;auto=format&amp;fit=crop" alt="" decoding="async" data-slot="hero-photo">
+          <span class="cl-hero-scrim" aria-hidden="true"></span>
+          <div class="cl-detail-hero-foot">
+            <div class="cl-detail-hero-copy">
+              <a class="cl-back-pill" href="/trips"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back to my trips</a>
+              <h1 class="cl-detail-title" data-slot="hero-title">Turks, last winter</h1>
+              <p class="type-body2 cl-detail-meta" data-slot="hero-meta">Jan 8 – 15, 2026 · Turks and Caicos</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="cl-prose cl-mem-body">
+          <section class="card cl-card cl-mem-note">
+            <div class="card-content cl-card-content">
+              <p class="type-overline text-secondary cl-card-title">A note from Gyasi</p>
+              <p class="type-script cl-mem-script" data-slot="note">You took the rest. That matters.</p>
+            </div>
+          </section>
+
+          <section class="cl-mem-section">
+            <h2 class="type-subtitle1 text-primary cl-section-title" data-slot="photos-heading">Your photos · 0</h2>
+            <div class="cl-empty" data-slot="photos-empty">
+              <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#heart"></use></svg></span>
+              <p class="type-subtitle1 text-primary cl-empty-title">No photos here yet</p>
+              <p class="type-body2 text-secondary cl-empty-body">When you are ready, the pictures from this one can live here alongside everything else.</p>
+              <span class="btn-tooltip" title="Adding photos arrives with the upload screen"><button class="btn btn-contained btn-brand st-btn btn-small" type="button" disabled tabindex="-1">Add your photos</button></span>
+            </div>
+            <ul class="cl-photo-grid" data-slot="photos">
+              <li data-repeat="photos">
+                <form class="cl-photo" method="post" action="/documents/1/open" data-submit-once data-slot="photo-form">
+                  <input type="hidden" name="next" value="/trips/1/memories" data-slot="photo-next">
+                  <input type="hidden" name="documentId" value="" data-slot="photo-id">
+                  <button class="cl-photo-button" type="submit" data-slot="photo-button">
+                    <span class="cl-doc-badge" aria-hidden="true">IMG</span>
+                    <span class="type-caption text-secondary truncate cl-photo-name" data-slot="photo-name">beach.jpg</span>
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </section>
+
+          <section class="card cl-card">
+            <div class="card-content cl-card-content">
+              <h2 class="type-subtitle1 text-primary cl-card-title">Trip snapshot</h2>
+              <dl class="cl-glance">
+                <div data-repeat="snapshot">
+                  <dt class="type-overline text-secondary" data-slot="snap-label">Nights</dt>
+                  <dd class="type-body2 cl-glance-value" data-slot="snap-value">7 nights</dd>
+                </div>
+              </dl>
+              <div class="cl-mem-links">
+                <a class="btn btn-text st-btn btn-small" href="/trips/1/documents" data-slot="link-documents">The paperwork from this trip</a>
+                <a class="btn btn-text st-btn btn-small" href="/trips/1/itinerary" data-slot="link-itinerary">The itinerary, as it was</a>
+              </div>
+            </div>
+          </section>
+
+          <section class="card cl-card">
+            <div class="card-content cl-card-content">
+              <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="reflection-heading">What did you carry home from this trip?</h2>
+              <p class="type-body2 text-secondary cl-note-body" data-slot="reflection-body">Whatever you write comes to Gyasi first. Nothing is published unless you say so.</p>
+
+              <div class="alert alert-error" role="alert" data-slot="reflection-error"><div class="alert-message" data-slot="reflection-error-text">That did not save. Your words are still here, so try again in a moment.</div></div>
+
+              <form method="post" action="/trips/1/memories" data-submit-once data-slot="reflection-form">
+                <input type="hidden" name="testimonialId" value="" data-slot="reflection-id">
+                <div class="field">
+                  <label class="field-label" for="reflection">What did you carry home from this trip?</label>
+                  <textarea class="input cl-reflection" id="reflection" name="body" rows="5" placeholder="There is no wrong way to answer this…" maxlength="4000" data-slot="reflection-text"></textarea>
+                </div>
+                <div class="cl-mem-actions">
+                  <button class="btn btn-outlined btn-secondary st-btn btn-small" type="submit" name="intent" value="save">Save for later</button>
+                  <button class="btn btn-contained st-btn btn-small" type="submit" name="intent" value="submit">Send it to Gyasi</button>
+                </div>
+              </form>
+
+              <div class="cl-mem-sent" role="status" data-slot="reflection-sent">
+                <p class="type-subtitle1 text-primary cl-card-title">Thank you — this is with Gyasi</p>
+                <p class="type-body2 text-secondary cl-note-body">He will read it himself. If you want to change anything, send him a message and he will sort it out.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="card cl-ready-again">
+            <div class="card-content cl-card-content">
+              <h2 class="type-subtitle1 cl-card-title">Somewhere like this again?</h2>
+              <p class="type-caption cl-ready-body">Gyasi still has your notes from this one. Tell him roughly when, and he will start looking.</p>
+              <a class="btn btn-outlined btn-secondary st-btn btn-small cl-card-cta" href="/trips/1/messages" data-slot="again-cta">Message Gyasi</a>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
