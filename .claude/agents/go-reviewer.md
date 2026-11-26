@@ -40,8 +40,10 @@ Don't invoke me for:
 2. `docs/GO-MIGRATION.md`: §4.4 (page building and its safety rules), §4.3 (EdgeCallResult),
    §5 (the backend: registry, caller checks, data path, audit, cron), §9 (risks)
 3. `docs/HTMLX-Library-Security-Review.md` §6: what htmlx may and may not be used for
-4. For a function port: the Deno original under `supabase/functions/<name>/index.ts` and the
-   `_shared` modules it imports. The Go handler must match its contract byte for byte.
+4. For an API endpoint: its entry in `contracts/openapi.yaml`, which is now the only
+   description of what it must answer. The Deno originals under `supabase/functions/` were the
+   reference until Phase 6 deleted them; mobile still calls these paths, so a changed field,
+   status or `detail` sentence breaks the phone quietly.
 5. For a screen: the matching prototype JSX in `design/source-prototype/screens/`, and
    `docs/Design-System.md` §12.2 and §12.4
 
@@ -99,8 +101,10 @@ Don't invoke me for:
       it is a hard fail.
 - [ ] **Audit**: every write to `payment_milestone`, `commission` or `client` writes an
       `audit_event` (through `internal/audit`, or inside an RPC that takes `p_audit_id`).
-- [ ] **A ported function has a differential test** against the Deno version (status, body,
-      rows, audit rows) and an entry in `contracts/openapi.yaml`.
+- [ ] **A function has a package test** and an entry in `contracts/openapi.yaml`. This used to
+      ask for a differential test against the Deno original; those originals and the
+      `internal/api/difftest/` harness were deleted in Phase 6, so there is nothing left to
+      differ from. The ports that landed were each proven that way at the time.
 
 ### Pages and forms
 - [ ] Routes are **mounted under their gate**, never matched by string. `/message` (public) and
