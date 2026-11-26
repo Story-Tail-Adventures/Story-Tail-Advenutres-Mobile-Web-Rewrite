@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.12 Travel Companions (docs/Screen-Inventory.md §2.1.12, Pattern G). Ports
+  web/app/(onboarding)/onboarding/companions/{page,state,CompanionsList}.tsx; copy word for
+  word from COMPANIONS_TEXT.
+
+  Step 4 of 6. A list of the people a traveler books with, and one form that adds or edits
+  one of them. In Next the form opened in place; here it is a URL — ?add or ?edit=<id> —
+  so the back button works, the state survives a reload, and no JavaScript is needed.
+
+  Removing is a POST, never a link: a mail scanner or a prefetch must not be able to delete
+  somebody's travel companion by following a URL.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Who often travels with you? · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="ob-wizard">
+      <aside class="ob-rail from-md">
+        <span class="sta-art brand-80 ob-rail-brand" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" decoding="async"></span>
+        <p class="type-overline ob-rail-heading">WELCOME ABOARD</p>
+        <ol class="ob-steps">
+          <li class="ob-step" data-repeat="rail">
+            <span class="ob-step-mark" data-slot="mark" aria-hidden="true"><svg class="icon icon-11"><use href="/assets/icons.svg#check"></use></svg></span>
+            <a class="ob-step-label link link-none" href="/welcome" data-slot="done"><span data-slot="done-label">Welcome</span><span class="visually-hidden"> — completed, go back to this step</span></a>
+            <span class="ob-step-label" data-slot="todo">Welcome</span>
+          </li>
+        </ol>
+      </aside>
+
+      <div class="ob-column">
+        <span class="sta-art brand-80 ob-brand-mobile below-md" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" decoding="async"></span>
+
+        <div class="ob-pill below-md">
+          <p class="type-overline ob-overline" data-slot="pill-overline">STEP 04 OF 06 · COMPANIONS</p>
+          <div class="ob-bars" aria-hidden="true">
+            <span class="ob-bar" data-slot="bar-1"></span>
+            <span class="ob-bar" data-slot="bar-2"></span>
+            <span class="ob-bar" data-slot="bar-3"></span>
+            <span class="ob-bar" data-slot="bar-4"></span>
+            <span class="ob-bar" data-slot="bar-5"></span>
+            <span class="ob-bar" data-slot="bar-6"></span>
+          </div>
+          <p class="visually-hidden" data-slot="step-count">Step 4 of 6</p>
+        </div>
+
+        <p class="type-overline ob-overline from-md" data-slot="overline">STEP 04 OF 06</p>
+        <h1 class="type-h4 fw-700 text-primary ob-title">Who often travels with you?</h1>
+        <p class="ob-sub text-secondary">So I can pre-fill their info next time you book together. Add now, or skip — totally up to you.</p>
+
+        <div class="ob-companions">
+          <div class="alert alert-error" role="alert" data-slot="list-error"><div class="alert-message" data-slot="list-error-text">We couldn't load your travelers just now — anyone you've already added is still there. Reload in a moment, or carry on and come back to this.</div></div>
+
+          <div class="card ob-empty" data-slot="empty">
+            <p class="type-subtitle1 text-primary ob-empty-title">No one added yet</p>
+            <p class="type-body2 text-secondary ob-empty-body">Add the people you usually travel with and I'll have their details ready when you book together. There's no rush — you can come back to this any time.</p>
+            <a class="btn btn-contained st-btn" href="/onboarding/companions?add=1"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg>Add your first traveler</a>
+          </div>
+
+          <ul class="ob-list" aria-label="Your travel companions" data-slot="list">
+            <li class="card ob-companion" data-repeat="companions">
+              <div class="card-content ob-companion-content">
+                <span class="avatar ob-companion-avatar" aria-hidden="true" data-slot="companion-initial">S</span>
+                <div class="ob-companion-text">
+                  <p class="type-subtitle1 text-primary ob-companion-name" data-slot="companion-name">Sam Hayes</p>
+                  <p class="type-caption ob-companion-meta" data-slot="companion-meta">Spouse · Born 3 September 1989 · Passport expires Sept 2031</p>
+                </div>
+                <div class="ob-companion-actions">
+                  <a class="btn btn-text st-btn btn-small" href="/onboarding/companions?edit=1" data-slot="companion-edit">Edit</a>
+                  <form method="post" action="/onboarding/companions" data-submit-once>
+                    <input type="hidden" name="action" value="remove">
+                    <input type="hidden" name="id" value="" data-slot="companion-remove-id">
+                    <button class="btn btn-text st-btn btn-small" type="submit" data-slot="companion-remove" data-pending-label="Removing…">Remove</button>
+                  </form>
+                </div>
+              </div>
+            </li>
+          </ul>
+
+          <div class="alert alert-info" role="status" data-slot="full-note"><div class="alert-message">That's twelve travelers — plenty for one household. Need more? I can add them when we're planning together.</div></div>
+
+          <div data-slot="add">
+            <a class="btn btn-outlined btn-secondary st-btn" href="/onboarding/companions?add=1"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg>Add a traveler</a>
+          </div>
+
+          <form class="card ob-form" method="post" action="/onboarding/companions" data-submit-once data-slot="form">
+            <input type="hidden" name="action" value="save">
+            <input type="hidden" name="id" value="" data-slot="form-id">
+            <p class="type-subtitle1 text-primary ob-form-title" data-slot="form-title">Add a traveler</p>
+            <p class="type-body2 text-secondary ob-form-sub">Just the basics. Passport details are optional — add them whenever you have the book in hand.</p>
+            <div class="alert alert-error" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Give it another go — nothing was lost.</div></div>
+            <div class="ob-grid-2">
+              <div class="field">
+                <label class="field-label" for="firstName">First name</label>
+                <input class="input" id="firstName" name="firstName" autocomplete="off" maxlength="80" autofocus data-slot="first-name">
+                <p class="field-help field-error" id="firstName-error" data-slot="first-name-error">Tell us their first name</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="lastName">Last name</label>
+                <input class="input" id="lastName" name="lastName" autocomplete="off" maxlength="80" data-slot="last-name">
+                <p class="field-help field-error" id="lastName-error" data-slot="last-name-error">And their last name — suppliers need both for ticketing</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="relationship">Relationship</label>
+                <input class="input" id="relationship" name="relationship" autocomplete="off" list="companion-relationships" maxlength="40" data-slot="relationship">
+                <datalist id="companion-relationships"><option value="Spouse"></option><option value="Partner"></option><option value="Child"></option><option value="Parent"></option><option value="Sibling"></option><option value="Friend"></option></datalist>
+                <p class="field-help field-error" id="relationship-error" data-slot="relationship-error">Keep it to 40 characters or fewer</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="companionDateOfBirth">Date of birth</label>
+                <input class="input" id="companionDateOfBirth" name="dateOfBirth" type="date" data-slot="dob">
+                <p class="field-help field-error" id="companionDateOfBirth-error" data-slot="dob-error">Check that date — it should be in the past</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="companionPassportExpiry">Expires</label>
+                <input class="input" id="companionPassportExpiry" name="passportExpiry" type="date" data-slot="expiry">
+                <p class="field-help field-error" id="companionPassportExpiry-error" data-slot="expiry-error">Add the expiry date too — that's the part I use to remind you</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="companionPassportCountry">Country of issue</label>
+                <div class="select"><select class="input" id="companionPassportCountry" name="passportCountry" data-slot="country"><option value="">Pick a country</option><option value="AF" data-slot="ccountry-af">Afghanistan</option><option value="AX" data-slot="ccountry-ax">Åland Islands</option><option value="AL" data-slot="ccountry-al">Albania</option><option value="DZ" data-slot="ccountry-dz">Algeria</option><option value="AS" data-slot="ccountry-as">American Samoa</option><option value="AD" data-slot="ccountry-ad">Andorra</option><option value="AO" data-slot="ccountry-ao">Angola</option><option value="AI" data-slot="ccountry-ai">Anguilla</option><option value="AQ" data-slot="ccountry-aq">Antarctica</option><option value="AG" data-slot="ccountry-ag">Antigua &amp; Barbuda</option><option value="AR" data-slot="ccountry-ar">Argentina</option><option value="AM" data-slot="ccountry-am">Armenia</option><option value="AW" data-slot="ccountry-aw">Aruba</option><option value="AU" data-slot="ccountry-au">Australia</option><option value="AT" data-slot="ccountry-at">Austria</option><option value="AZ" data-slot="ccountry-az">Azerbaijan</option><option value="BS" data-slot="ccountry-bs">Bahamas</option><option value="BH" data-slot="ccountry-bh">Bahrain</option><option value="BD" data-slot="ccountry-bd">Bangladesh</option><option value="BB" data-slot="ccountry-bb">Barbados</option><option value="BY" data-slot="ccountry-by">Belarus</option><option value="BE" data-slot="ccountry-be">Belgium</option><option value="BZ" data-slot="ccountry-bz">Belize</option><option value="BJ" data-slot="ccountry-bj">Benin</option><option value="BM" data-slot="ccountry-bm">Bermuda</option><option value="BT" data-slot="ccountry-bt">Bhutan</option><option value="BO" data-slot="ccountry-bo">Bolivia</option><option value="BA" data-slot="ccountry-ba">Bosnia &amp; Herzegovina</option><option value="BW" data-slot="ccountry-bw">Botswana</option><option value="BV" data-slot="ccountry-bv">Bouvet Island</option><option value="BR" data-slot="ccountry-br">Brazil</option><option value="IO" data-slot="ccountry-io">British Indian Ocean Territory</option><option value="VG" data-slot="ccountry-vg">British Virgin Islands</option><option value="BN" data-slot="ccountry-bn">Brunei</option><option value="BG" data-slot="ccountry-bg">Bulgaria</option><option value="BF" data-slot="ccountry-bf">Burkina Faso</option><option value="BI" data-slot="ccountry-bi">Burundi</option><option value="KH" data-slot="ccountry-kh">Cambodia</option><option value="CM" data-slot="ccountry-cm">Cameroon</option><option value="CA" data-slot="ccountry-ca">Canada</option><option value="CV" data-slot="ccountry-cv">Cape Verde</option><option value="BQ" data-slot="ccountry-bq">Caribbean Netherlands</option><option value="KY" data-slot="ccountry-ky">Cayman Islands</option><option value="CF" data-slot="ccountry-cf">Central African Republic</option><option value="TD" data-slot="ccountry-td">Chad</option><option value="CL" data-slot="ccountry-cl">Chile</option><option value="CN" data-slot="ccountry-cn">China</option><option value="CX" data-slot="ccountry-cx">Christmas Island</option><option value="CC" data-slot="ccountry-cc">Cocos (Keeling) Islands</option><option value="CO" data-slot="ccountry-co">Colombia</option><option value="KM" data-slot="ccountry-km">Comoros</option><option value="CG" data-slot="ccountry-cg">Congo - Brazzaville</option><option value="CD" data-slot="ccountry-cd">Congo - Kinshasa</option><option value="CK" data-slot="ccountry-ck">Cook Islands</option><option value="CR" data-slot="ccountry-cr">Costa Rica</option><option value="CI" data-slot="ccountry-ci">Côte d’Ivoire</option><option value="HR" data-slot="ccountry-hr">Croatia</option><option value="CU" data-slot="ccountry-cu">Cuba</option><option value="CW" data-slot="ccountry-cw">Curaçao</option><option value="CY" data-slot="ccountry-cy">Cyprus</option><option value="CZ" data-slot="ccountry-cz">Czechia</option><option value="DK" data-slot="ccountry-dk">Denmark</option><option value="DJ" data-slot="ccountry-dj">Djibouti</option><option value="DM" data-slot="ccountry-dm">Dominica</option><option value="DO" data-slot="ccountry-do">Dominican Republic</option><option value="EC" data-slot="ccountry-ec">Ecuador</option><option value="EG" data-slot="ccountry-eg">Egypt</option><option value="SV" data-slot="ccountry-sv">El Salvador</option><option value="GQ" data-slot="ccountry-gq">Equatorial Guinea</option><option value="ER" data-slot="ccountry-er">Eritrea</option><option value="EE" data-slot="ccountry-ee">Estonia</option><option value="SZ" data-slot="ccountry-sz">Eswatini</option><option value="ET" data-slot="ccountry-et">Ethiopia</option><option value="FK" data-slot="ccountry-fk">Falkland Islands</option><option value="FO" data-slot="ccountry-fo">Faroe Islands</option><option value="FJ" data-slot="ccountry-fj">Fiji</option><option value="FI" data-slot="ccountry-fi">Finland</option><option value="FR" data-slot="ccountry-fr">France</option><option value="GF" data-slot="ccountry-gf">French Guiana</option><option value="PF" data-slot="ccountry-pf">French Polynesia</option><option value="TF" data-slot="ccountry-tf">French Southern Territories</option><option value="GA" data-slot="ccountry-ga">Gabon</option><option value="GM" data-slot="ccountry-gm">Gambia</option><option value="GE" data-slot="ccountry-ge">Georgia</option><option value="DE" data-slot="ccountry-de">Germany</option><option value="GH" data-slot="ccountry-gh">Ghana</option><option value="GI" data-slot="ccountry-gi">Gibraltar</option><option value="GR" data-slot="ccountry-gr">Greece</option><option value="GL" data-slot="ccountry-gl">Greenland</option><option value="GD" data-slot="ccountry-gd">Grenada</option><option value="GP" data-slot="ccountry-gp">Guadeloupe</option><option value="GU" data-slot="ccountry-gu">Guam</option><option value="GT" data-slot="ccountry-gt">Guatemala</option><option value="GG" data-slot="ccountry-gg">Guernsey</option><option value="GN" data-slot="ccountry-gn">Guinea</option><option value="GW" data-slot="ccountry-gw">Guinea-Bissau</option><option value="GY" data-slot="ccountry-gy">Guyana</option><option value="HT" data-slot="ccountry-ht">Haiti</option><option value="HM" data-slot="ccountry-hm">Heard &amp; McDonald Islands</option><option value="HN" data-slot="ccountry-hn">Honduras</option><option value="HK" data-slot="ccountry-hk">Hong Kong SAR China</option><option value="HU" data-slot="ccountry-hu">Hungary</option><option value="IS" data-slot="ccountry-is">Iceland</option><option value="IN" data-slot="ccountry-in">India</option><option value="ID" data-slot="ccountry-id">Indonesia</option><option value="IR" data-slot="ccountry-ir">Iran</option><option value="IQ" data-slot="ccountry-iq">Iraq</option><option value="IE" data-slot="ccountry-ie">Ireland</option><option value="IM" data-slot="ccountry-im">Isle of Man</option><option value="IL" data-slot="ccountry-il">Israel</option><option value="IT" data-slot="ccountry-it">Italy</option><option value="JM" data-slot="ccountry-jm">Jamaica</option><option value="JP" data-slot="ccountry-jp">Japan</option><option value="JE" data-slot="ccountry-je">Jersey</option><option value="JO" data-slot="ccountry-jo">Jordan</option><option value="KZ" data-slot="ccountry-kz">Kazakhstan</option><option value="KE" data-slot="ccountry-ke">Kenya</option><option value="KI" data-slot="ccountry-ki">Kiribati</option><option value="KW" data-slot="ccountry-kw">Kuwait</option><option value="KG" data-slot="ccountry-kg">Kyrgyzstan</option><option value="LA" data-slot="ccountry-la">Laos</option><option value="LV" data-slot="ccountry-lv">Latvia</option><option value="LB" data-slot="ccountry-lb">Lebanon</option><option value="LS" data-slot="ccountry-ls">Lesotho</option><option value="LR" data-slot="ccountry-lr">Liberia</option><option value="LY" data-slot="ccountry-ly">Libya</option><option value="LI" data-slot="ccountry-li">Liechtenstein</option><option value="LT" data-slot="ccountry-lt">Lithuania</option><option value="LU" data-slot="ccountry-lu">Luxembourg</option><option value="MO" data-slot="ccountry-mo">Macao SAR China</option><option value="MG" data-slot="ccountry-mg">Madagascar</option><option value="MW" data-slot="ccountry-mw">Malawi</option><option value="MY" data-slot="ccountry-my">Malaysia</option><option value="MV" data-slot="ccountry-mv">Maldives</option><option value="ML" data-slot="ccountry-ml">Mali</option><option value="MT" data-slot="ccountry-mt">Malta</option><option value="MH" data-slot="ccountry-mh">Marshall Islands</option><option value="MQ" data-slot="ccountry-mq">Martinique</option><option value="MR" data-slot="ccountry-mr">Mauritania</option><option value="MU" data-slot="ccountry-mu">Mauritius</option><option value="YT" data-slot="ccountry-yt">Mayotte</option><option value="MX" data-slot="ccountry-mx">Mexico</option><option value="FM" data-slot="ccountry-fm">Micronesia</option><option value="MD" data-slot="ccountry-md">Moldova</option><option value="MC" data-slot="ccountry-mc">Monaco</option><option value="MN" data-slot="ccountry-mn">Mongolia</option><option value="ME" data-slot="ccountry-me">Montenegro</option><option value="MS" data-slot="ccountry-ms">Montserrat</option><option value="MA" data-slot="ccountry-ma">Morocco</option><option value="MZ" data-slot="ccountry-mz">Mozambique</option><option value="MM" data-slot="ccountry-mm">Myanmar (Burma)</option><option value="NA" data-slot="ccountry-na">Namibia</option><option value="NR" data-slot="ccountry-nr">Nauru</option><option value="NP" data-slot="ccountry-np">Nepal</option><option value="NL" data-slot="ccountry-nl">Netherlands</option><option value="NC" data-slot="ccountry-nc">New Caledonia</option><option value="NZ" data-slot="ccountry-nz">New Zealand</option><option value="NI" data-slot="ccountry-ni">Nicaragua</option><option value="NE" data-slot="ccountry-ne">Niger</option><option value="NG" data-slot="ccountry-ng">Nigeria</option><option value="NU" data-slot="ccountry-nu">Niue</option><option value="NF" data-slot="ccountry-nf">Norfolk Island</option><option value="KP" data-slot="ccountry-kp">North Korea</option><option value="MK" data-slot="ccountry-mk">North Macedonia</option><option value="MP" data-slot="ccountry-mp">Northern Mariana Islands</option><option value="NO" data-slot="ccountry-no">Norway</option><option value="OM" data-slot="ccountry-om">Oman</option><option value="PK" data-slot="ccountry-pk">Pakistan</option><option value="PW" data-slot="ccountry-pw">Palau</option><option value="PS" data-slot="ccountry-ps">Palestinian Territories</option><option value="PA" data-slot="ccountry-pa">Panama</option><option value="PG" data-slot="ccountry-pg">Papua New Guinea</option><option value="PY" data-slot="ccountry-py">Paraguay</option><option value="PE" data-slot="ccountry-pe">Peru</option><option value="PH" data-slot="ccountry-ph">Philippines</option><option value="PN" data-slot="ccountry-pn">Pitcairn Islands</option><option value="PL" data-slot="ccountry-pl">Poland</option><option value="PT" data-slot="ccountry-pt">Portugal</option><option value="PR" data-slot="ccountry-pr">Puerto Rico</option><option value="QA" data-slot="ccountry-qa">Qatar</option><option value="RE" data-slot="ccountry-re">Réunion</option><option value="RO" data-slot="ccountry-ro">Romania</option><option value="RU" data-slot="ccountry-ru">Russia</option><option value="RW" data-slot="ccountry-rw">Rwanda</option><option value="WS" data-slot="ccountry-ws">Samoa</option><option value="SM" data-slot="ccountry-sm">San Marino</option><option value="ST" data-slot="ccountry-st">São Tomé &amp; Príncipe</option><option value="SA" data-slot="ccountry-sa">Saudi Arabia</option><option value="SN" data-slot="ccountry-sn">Senegal</option><option value="RS" data-slot="ccountry-rs">Serbia</option><option value="SC" data-slot="ccountry-sc">Seychelles</option><option value="SL" data-slot="ccountry-sl">Sierra Leone</option><option value="SG" data-slot="ccountry-sg">Singapore</option><option value="SX" data-slot="ccountry-sx">Sint Maarten</option><option value="SK" data-slot="ccountry-sk">Slovakia</option><option value="SI" data-slot="ccountry-si">Slovenia</option><option value="SB" data-slot="ccountry-sb">Solomon Islands</option><option value="SO" data-slot="ccountry-so">Somalia</option><option value="ZA" data-slot="ccountry-za">South Africa</option><option value="GS" data-slot="ccountry-gs">South Georgia &amp; South Sandwich Islands</option><option value="KR" data-slot="ccountry-kr">South Korea</option><option value="SS" data-slot="ccountry-ss">South Sudan</option><option value="ES" data-slot="ccountry-es">Spain</option><option value="LK" data-slot="ccountry-lk">Sri Lanka</option><option value="BL" data-slot="ccountry-bl">St. Barthélemy</option><option value="SH" data-slot="ccountry-sh">St. Helena</option><option value="KN" data-slot="ccountry-kn">St. Kitts &amp; Nevis</option><option value="LC" data-slot="ccountry-lc">St. Lucia</option><option value="MF" data-slot="ccountry-mf">St. Martin</option><option value="PM" data-slot="ccountry-pm">St. Pierre &amp; Miquelon</option><option value="VC" data-slot="ccountry-vc">St. Vincent &amp; Grenadines</option><option value="SD" data-slot="ccountry-sd">Sudan</option><option value="SR" data-slot="ccountry-sr">Suriname</option><option value="SJ" data-slot="ccountry-sj">Svalbard &amp; Jan Mayen</option><option value="SE" data-slot="ccountry-se">Sweden</option><option value="CH" data-slot="ccountry-ch">Switzerland</option><option value="SY" data-slot="ccountry-sy">Syria</option><option value="TW" data-slot="ccountry-tw">Taiwan</option><option value="TJ" data-slot="ccountry-tj">Tajikistan</option><option value="TZ" data-slot="ccountry-tz">Tanzania</option><option value="TH" data-slot="ccountry-th">Thailand</option><option value="TL" data-slot="ccountry-tl">Timor-Leste</option><option value="TG" data-slot="ccountry-tg">Togo</option><option value="TK" data-slot="ccountry-tk">Tokelau</option><option value="TO" data-slot="ccountry-to">Tonga</option><option value="TT" data-slot="ccountry-tt">Trinidad &amp; Tobago</option><option value="TN" data-slot="ccountry-tn">Tunisia</option><option value="TR" data-slot="ccountry-tr">Türkiye</option><option value="TM" data-slot="ccountry-tm">Turkmenistan</option><option value="TC" data-slot="ccountry-tc">Turks &amp; Caicos Islands</option><option value="TV" data-slot="ccountry-tv">Tuvalu</option><option value="UM" data-slot="ccountry-um">U.S. Outlying Islands</option><option value="VI" data-slot="ccountry-vi">U.S. Virgin Islands</option><option value="UG" data-slot="ccountry-ug">Uganda</option><option value="UA" data-slot="ccountry-ua">Ukraine</option><option value="AE" data-slot="ccountry-ae">United Arab Emirates</option><option value="GB" data-slot="ccountry-gb">United Kingdom</option><option value="US" data-slot="ccountry-us">United States</option><option value="UY" data-slot="ccountry-uy">Uruguay</option><option value="UZ" data-slot="ccountry-uz">Uzbekistan</option><option value="VU" data-slot="ccountry-vu">Vanuatu</option><option value="VA" data-slot="ccountry-va">Vatican City</option><option value="VE" data-slot="ccountry-ve">Venezuela</option><option value="VN" data-slot="ccountry-vn">Vietnam</option><option value="WF" data-slot="ccountry-wf">Wallis &amp; Futuna</option><option value="EH" data-slot="ccountry-eh">Western Sahara</option><option value="YE" data-slot="ccountry-ye">Yemen</option><option value="ZM" data-slot="ccountry-zm">Zambia</option><option value="ZW" data-slot="ccountry-zw">Zimbabwe</option></select></div>
+                <p class="field-help field-error" id="companionPassportCountry-error" data-slot="country-error">Pick a country from the list</p>
+              </div>
+            </div>
+            <div class="ob-form-actions">
+              <button class="btn btn-contained st-btn" type="submit" data-pending-label="Saving…">Save traveler</button>
+              <a class="btn btn-text st-btn" href="/onboarding/companions" data-slot="cancel">Cancel</a>
+            </div>
+          </form>
+
+          <p class="type-body2 text-secondary ob-unfinished" data-slot="unfinished">Save or cancel the traveler you're adding, and we'll move on.</p>
+        </div>
+
+        <form method="post" action="/onboarding/companions" data-submit-once>
+          <div class="ob-actions">
+            <button class="btn btn-contained st-btn btn-large" type="submit" name="action" value="continue" data-slot="continue" data-pending-label="Saving…">Save &amp; continue<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
+            <div class="ob-actions-secondary">
+              <a class="btn btn-text st-btn ob-back" href="/onboarding/preferences" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back</a>
+              <button class="btn btn-text st-btn" type="submit" name="action" value="skip" aria-label="Skip for now — you can add travelers later" data-slot="skip" data-pending-label="Taking you to the next step…">Skip for now</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

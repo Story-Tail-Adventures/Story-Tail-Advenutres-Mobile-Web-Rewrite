@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.11 Travel Preferences (docs/Screen-Inventory.md §2.1.11, Pattern G). Ports
+  web/app/(onboarding)/onboarding/preferences/{page,state,PreferencesForm}.tsx; copy word for
+  word from PREFERENCES_TEXT.
+
+  Step 3 of 6. Four chip groups over closed vocabularies, a repeater for loyalty programs,
+  and three free-text boxes. THE LABELS ARE NOT THE VALUES: "Honeymoon" is what a person
+  calls their trip and `romantic` is what the column, the Screen Inventory and the CHECK
+  constraint call it, so every chip's value is the slug.
+
+  Two of Next's live behaviours are form posts here, because there is no JavaScript (§4.9):
+  "Add another" loyalty row re-renders with one more row, and ticking "No restrictions"
+  beside a note is caught when the form is sent rather than by disabling the note box.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>How do you travel? · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="ob-wizard">
+      <aside class="ob-rail from-md">
+        <span class="sta-art brand-80 ob-rail-brand" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" decoding="async"></span>
+        <p class="type-overline ob-rail-heading">WELCOME ABOARD</p>
+        <ol class="ob-steps">
+          <li class="ob-step" data-repeat="rail">
+            <span class="ob-step-mark" data-slot="mark" aria-hidden="true"><svg class="icon icon-11"><use href="/assets/icons.svg#check"></use></svg></span>
+            <a class="ob-step-label link link-none" href="/welcome" data-slot="done"><span data-slot="done-label">Welcome</span><span class="visually-hidden"> — completed, go back to this step</span></a>
+            <span class="ob-step-label" data-slot="todo">Welcome</span>
+          </li>
+        </ol>
+      </aside>
+
+      <div class="ob-column">
+        <span class="sta-art brand-80 ob-brand-mobile below-md" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" decoding="async"></span>
+
+        <div class="ob-pill below-md">
+          <p class="type-overline ob-overline" data-slot="pill-overline">STEP 03 OF 06 · PREFERENCES</p>
+          <div class="ob-bars" aria-hidden="true">
+            <span class="ob-bar" data-slot="bar-1"></span>
+            <span class="ob-bar" data-slot="bar-2"></span>
+            <span class="ob-bar" data-slot="bar-3"></span>
+            <span class="ob-bar" data-slot="bar-4"></span>
+            <span class="ob-bar" data-slot="bar-5"></span>
+            <span class="ob-bar" data-slot="bar-6"></span>
+          </div>
+          <p class="visually-hidden" data-slot="step-count">Step 3 of 6</p>
+        </div>
+
+        <p class="type-overline ob-overline from-md" data-slot="overline">STEP 03 OF 06</p>
+        <h1 class="type-h4 fw-700 text-primary ob-title">How do you travel?</h1>
+        <p class="ob-sub text-secondary">Tag what's true. Nothing here is required — it just means I start closer to the mark.</p>
+
+        <form method="post" action="/onboarding/preferences" data-submit-once>
+          <fieldset class="ob-fields">
+            <div class="alert alert-error" role="alert" data-slot="form-error"><div class="alert-message">That didn't save — nothing's lost, your answers are still here. Try again, or skip for now and we'll pick this up later.</div></div>
+
+            <fieldset class="ob-group">
+              <legend class="type-subtitle1 text-primary ob-legend">Destinations</legend>
+              <p class="type-body2 text-secondary ob-group-hint">Places you keep coming back to, or keep meaning to see.</p>
+              <p class="type-body2 ob-group-error" role="alert" id="destinations-error" data-slot="destinations-error">That's more than Gyasi can hold in his head — pick up to 12</p>
+              <div class="chip-group" role="group" aria-label="Destinations">
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Caribbean" data-slot="dest-caribbean"><span class="chip-label">Caribbean</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Bahamas" data-slot="dest-bahamas"><span class="chip-label">Bahamas</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Greece" data-slot="dest-greece"><span class="chip-label">Greece</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Mexico" data-slot="dest-mexico"><span class="chip-label">Mexico</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Costa Rica" data-slot="dest-costa-rica"><span class="chip-label">Costa Rica</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Italy" data-slot="dest-italy"><span class="chip-label">Italy</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Iceland" data-slot="dest-iceland"><span class="chip-label">Iceland</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="destinations" value="Japan" data-slot="dest-japan"><span class="chip-label">Japan</span></label>
+                <!-- Anywhere a traveler added themselves, so it comes back ticked rather than
+                     disappearing into the "somewhere else" box. -->
+                <label class="chip chip-outlined chip-input" data-repeat="extra-destinations"><input class="visually-hidden" type="checkbox" name="destinations" value="Kenya" data-slot="extra-input"><span class="chip-label" data-slot="extra-label">Kenya</span></label>
+              </div>
+              <div class="field ob-narrow">
+                <label class="field-label" for="destinationOther">Somewhere else?</label>
+                <input class="input" id="destinationOther" name="destinationOther" placeholder="Add a place — or a few, separated by commas" autocomplete="off" maxlength="180" aria-describedby="destinations-error" data-slot="destination-other">
+              </div>
+            </fieldset>
+
+            <fieldset class="ob-group">
+              <legend class="type-subtitle1 text-primary ob-legend">Travel style</legend>
+              <p class="type-body2 text-secondary ob-group-hint">Pick everything that sounds like a trip you'd take.</p>
+              <p class="type-body2 ob-group-error" role="alert" id="travelStyles-error" data-slot="travel-styles-error">That isn't one of the options</p>
+              <div class="chip-group" role="group" aria-label="Travel style">
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="travelStyles" value="resort" data-slot="style-resort"><span class="chip-label">Resort</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="travelStyles" value="cruise" data-slot="style-cruise"><span class="chip-label">Cruise</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="travelStyles" value="adventure" data-slot="style-adventure"><span class="chip-label">Adventure</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="travelStyles" value="family" data-slot="style-family"><span class="chip-label">Family</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="travelStyles" value="romantic" data-slot="style-romantic"><span class="chip-label">Honeymoon</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="travelStyles" value="group" data-slot="style-group"><span class="chip-label">Group</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="ob-group">
+              <legend class="type-subtitle1 text-primary ob-legend">Dietary needs</legend>
+              <p class="type-body2 ob-group-error" role="alert" id="dietary-error" data-slot="dietary-error">"No restrictions" doesn't go with the others — pick one or the other</p>
+              <div class="chip-group" role="group" aria-label="Dietary needs">
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dietary" value="none" data-slot="diet-none"><span class="chip-label">No restrictions</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dietary" value="vegetarian" data-slot="diet-vegetarian"><span class="chip-label">Vegetarian</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dietary" value="pescatarian" data-slot="diet-pescatarian"><span class="chip-label">Pescatarian</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dietary" value="gluten_free" data-slot="diet-gluten-free"><span class="chip-label">Gluten-free</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="dietary" value="halal" data-slot="diet-halal"><span class="chip-label">Halal</span></label>
+              </div>
+              <div class="field ob-narrow">
+                <label class="field-label" for="dietaryNotes">Anything else about food?</label>
+                <input class="input" id="dietaryNotes" name="dietaryNotes" placeholder="Allergies, or anything a kitchen should know" autocomplete="off" maxlength="500" data-slot="dietary-notes">
+                <p class="field-help field-error" id="dietaryNotes-error" data-slot="dietary-notes-error">Keep this to 500 characters or fewer</p>
+              </div>
+            </fieldset>
+
+            <fieldset class="ob-group">
+              <legend class="type-subtitle1 text-primary ob-legend">Access needs</legend>
+              <p class="type-body2 ob-group-error" role="alert" id="accessibility-error" data-slot="accessibility-error">"None" doesn't go with the others — pick one or the other</p>
+              <div class="chip-group" role="group" aria-label="Access needs">
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="accessibility" value="none" data-slot="access-none"><span class="chip-label">None</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="accessibility" value="mobility" data-slot="access-mobility"><span class="chip-label">Mobility-friendly</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="accessibility" value="quiet_room" data-slot="access-quiet-room"><span class="chip-label">Quiet rooms</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" name="accessibility" value="service_animal" data-slot="access-service-animal"><span class="chip-label">Service animal</span></label>
+              </div>
+              <div class="field ob-narrow">
+                <label class="field-label" for="accessibilityNotes">Anything else we should arrange?</label>
+                <input class="input" id="accessibilityNotes" name="accessibilityNotes" placeholder="A room by the lift, an outlet by the bed — whatever helps" autocomplete="off" maxlength="500" data-slot="accessibility-notes">
+                <p class="field-help field-error" id="accessibilityNotes-error" data-slot="accessibility-notes-error">Keep this to 500 characters or fewer</p>
+              </div>
+            </fieldset>
+
+            <fieldset class="ob-group">
+              <legend class="type-subtitle1 text-primary ob-legend">Loyalty programs</legend>
+              <p class="type-body2 text-secondary ob-group-hint">So your miles and points actually get credited.</p>
+              <p class="type-body2 ob-group-error" role="alert" id="loyalty-error" data-slot="loyalty-error">Which program is that number for?</p>
+              <div class="ob-loyalty">
+                <!-- The two labels WRAP their input instead of naming it with `for`: every
+                     row is a copy of this one, so an id written here would be repeated down
+                     the column and each label would name the first row's box. -->
+                <div class="ob-grid-2" data-repeat="loyalty-rows">
+                  <label class="field">
+                    <span class="field-label">Program</span>
+                    <input class="input" name="loyaltyProgram" placeholder="e.g. AAdvantage" autocomplete="off" maxlength="60" aria-describedby="loyalty-error" data-slot="loyalty-program">
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Member number</span>
+                    <input class="input" name="loyaltyNumber" autocomplete="off" maxlength="40" aria-describedby="loyalty-error" data-slot="loyalty-number">
+                  </label>
+                </div>
+                <div><button class="btn btn-text st-btn btn-small" type="submit" name="action" value="add-row" data-slot="add-row">Add another</button></div>
+              </div>
+            </fieldset>
+
+            <fieldset class="ob-group">
+              <legend class="type-subtitle1 text-primary ob-legend">Budget comfort range</legend>
+              <p class="type-body2 text-secondary ob-group-hint">Roughly, per person. It just tells me where to start looking — nothing here is a commitment.</p>
+              <p class="type-body2 ob-group-error" role="alert" id="budgetBand-error" data-slot="budget-error">Pick one of the ranges, or say you're not sure yet</p>
+              <div class="chip-group" role="group" aria-label="Budget comfort range">
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="budgetBand" value="budget" data-slot="budget-budget"><span class="chip-label">Up to $2,500</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="budgetBand" value="mid" data-slot="budget-mid"><span class="chip-label">$2,500 – $5,000</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="budgetBand" value="premium" data-slot="budget-premium"><span class="chip-label">$5,000 – $10,000</span></label>
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="budgetBand" value="luxury" data-slot="budget-luxury"><span class="chip-label">$10,000+</span></label>
+                <!-- Not decoration: a radio group cannot return to unselected, so without an
+                     explicit way to say nothing the first tap would be irreversible. -->
+                <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="radio" name="budgetBand" value="" data-slot="budget-unsure"><span class="chip-label">Not sure yet</span></label>
+              </div>
+            </fieldset>
+
+            <div class="field ob-wide">
+              <label class="field-label" for="favoritePastTrips">A trip you still talk about</label>
+              <textarea class="input" id="favoritePastTrips" name="favoritePastTrips" rows="3" placeholder="Where were you, and what made it stick?" maxlength="1000" data-slot="favorites"></textarea>
+              <p class="field-help field-error" id="favoritePastTrips-error" data-slot="favorites-error">Keep this to 1000 characters or fewer</p>
+            </div>
+          </fieldset>
+
+          <div class="ob-actions">
+            <button class="btn btn-contained st-btn btn-large" type="submit" name="action" value="save" data-pending-label="Saving your preferences…">Save &amp; continue<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
+            <div class="ob-actions-secondary">
+              <a class="btn btn-text st-btn ob-back" href="/onboarding/profile" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back</a>
+              <button class="btn btn-text st-btn" type="submit" name="action" value="skip" aria-label="Skip for now — you can add this later" data-slot="skip" data-pending-label="Taking you to the next step…">Skip for now</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
