@@ -51,6 +51,12 @@ func seedReports(wd *world) {
 	wd.fake.rpc["agent_report_lead_sources"] = `[
 		{"source":"website","lead_count":18,"converted_count":7,"open_count":6,"closed_count":5}]`
 	wd.fake.rpc["agent_report_lead_campaigns"] = `[{"utm_source":"spring-cruise-2027","lead_count":4,"converted_count":2}]`
+	// What these fixtures are FOR. p_period and p_basis are not ids, but they choose which
+	// figures the screen shows: year to date under "This quarter", or commission received
+	// under "Booked value", is exactly the silent wrongness a tax-prep screen must not have.
+	// Nothing caught a wrong one before this.
+	wd.fake.scoped["p_period"] = "ytd"
+	wd.fake.scoped["p_basis"] = "booked"
 }
 
 // reportPaths are the nine screens and the one read each needs to go wrong for the retry
@@ -58,16 +64,20 @@ func seedReports(wd *world) {
 var reportPaths = []struct {
 	path string
 	read string
+	// figure is something only the FIXTURE's own rows can put on the page. Asserting 200
+	// is not enough: an empty answer is a valid report, so a read that came back with
+	// nothing renders the empty state and a status check passes over it.
+	figure string
 }{
-	{"/agent/reports", ""},
-	{"/agent/reports/revenue", "agent_report_revenue_by_month"},
-	{"/agent/reports/suppliers", "agent_report_commission_by_supplier"},
-	{"/agent/reports/destinations", "agent_report_top_destinations"},
-	{"/agent/reports/clients", "agent_report_client_lifetime_value"},
-	{"/agent/reports/funnel", "agent_report_conversion_funnel"},
-	{"/agent/reports/pipeline", "agent_report_pipeline_stages"},
-	{"/agent/reports/export", "agent_export_history"},
-	{"/agent/reports/leads", "agent_report_lead_sources"},
+	{"/agent/reports", "", "Revenue by month"},
+	{"/agent/reports/revenue", "agent_report_revenue_by_month", "$20,325"},
+	{"/agent/reports/suppliers", "agent_report_commission_by_supplier", "Sandals Resorts"},
+	{"/agent/reports/destinations", "agent_report_top_destinations", "Nassau"},
+	{"/agent/reports/clients", "agent_report_client_lifetime_value", "Bo Diddley"},
+	{"/agent/reports/funnel", "agent_report_conversion_funnel", "142 trips"},
+	{"/agent/reports/pipeline", "agent_report_pipeline_stages", "$12,966"},
+	{"/agent/reports/export", "agent_export_history", "Oct 21, 3:04 PM"},
+	{"/agent/reports/leads", "agent_report_lead_sources", "Website form"},
 }
 
 func TestEveryReportRenders(t *testing.T) {
@@ -83,6 +93,8 @@ func TestEveryReportRenders(t *testing.T) {
 			// A sample row left in the output is the failure page.Doc exists to stop; an
 			// unfilled slot is a 500, and these pages all answered 200 above.
 			lacks(t, body, "Sandals Resorts (17)")
+			// The fixture's OWN figures, so an empty answer cannot pass as a drawn report.
+			has(t, body, c.figure)
 			if c.path != "/agent/reports" {
 				has(t, body, "Reports hub")
 			}
@@ -127,6 +139,9 @@ func TestAnAdminHasNoReports(t *testing.T) {
 func TestRevenueCarriesItsStateOnEveryLink(t *testing.T) {
 	wd := newWorld(t)
 	seedReports(wd)
+	// This screen is the other period and the other basis, so the fixtures are for those.
+	wd.fake.scoped["p_period"] = "12mo"
+	wd.fake.scoped["p_basis"] = "received"
 	rec := wd.get("/agent/reports/revenue?period=12mo&basis=received&compare=1")
 	body := rec.Body.String()
 
