@@ -414,4 +414,25 @@
     .trp-board { overflow-x: visible; }
     .trp-column { flex: 1 1 0; min-width: 0; }
   }
+
+  /* ── 3.4.13 Trip templates ─────────────────────────────────────────────────────────────── */
+  /* The page's own Box: max 1024, 16px sides at every width, 64px below, nothing above. */
+  .trp-tpl-col { margin: 0 auto; width: 100%; max-width: 1024px; padding: 0 16px 64px; box-sizing: border-box; }
+  .trp-tpl-head { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .trp-grow { flex: 1; }
+  /* One column, two from sm, three from xl. */
+  .trp-tgrid { margin-top: 16px; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .trp-tgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1280px) { .trp-tgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .trp-tcard { display: flex; flex-direction: column; }
+  .trp-tbody,
+  .trp-tbody:last-child { padding: 16px; display: flex; flex-direction: column; flex: 1; }
+  .trp-thead { display: flex; align-items: flex-start; gap: 8px; }
+  .trp-tchip { height: 22px; font-size: 11px; }
+  .trp-tfoot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; gap: 8px; }
+  .trp-tactions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  /* Rename and Retire: Paper m 2 at 480, DialogContent p 2.5, actions split. */
+  .trp-dialog-480 { width: min(480px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-tile-warning { background-color: var(--mui-palette-warning-container); color: var(--mui-palette-text-primary); }
+  .trp-text-warning { color: var(--mui-palette-warning-main); }
 }
