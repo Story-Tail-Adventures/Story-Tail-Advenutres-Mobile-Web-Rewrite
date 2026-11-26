@@ -426,3 +426,66 @@
   .mny-meter-fill[data-w="99"] { width: 99%; }
   .mny-meter-fill[data-w="100"] { width: 100%; }
 }
+
+/* ── §3.7.3 Commission Detail / Edit and §3.7.4 Add ──────────────────────────────────────
+ *
+ * A second @layer components block rather than one long one: the layer is the same, and the
+ * two screens' rules stay together where the next reader looks for them. */
+@layer components {
+  .mny-back { display: inline-flex; align-items: center; gap: 4px; margin: 16px 0 4px; }
+
+  .mny-line-head { margin-bottom: 16px; }
+  .mny-line-title { margin: 0; min-width: 0; }
+
+  /* The artboard's 1fr 300px, widened to 320px for the payment form's fields; stacked below md. */
+  .mny-line-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; max-width: 1080px; }
+  @media (min-width: 768px) { .mny-line-grid { grid-template-columns: minmax(0, 1fr) 320px; } }
+  .mny-line-aside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  .mny-card-16 { padding: 16px; }
+  .mny-card-16:last-child { padding-bottom: 16px; }
+
+  /* Two columns from sm, one on a phone. Tracks are minmax(0, 1fr) so a long value shrinks. */
+  .mny-form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  @media (min-width: 640px) { .mny-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 640px) { .mny-span-2 { grid-column: span 2; } }
+  /* Its own full-width row: beside another field the terms select was squeezed to nothing
+     once the detail page's 320px aside took its share. */
+  .mny-terms-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 8rem); gap: 8px; }
+
+  /* A $ or % beside the input, as MUI's startAdornment / endAdornment draws it. The symbol
+     sits over the field's own padding, so the text never runs under it. */
+  .mny-adorned { position: relative; display: block; width: 100%; }
+  .mny-adorn { position: absolute; top: 50%; transform: translateY(-50%); color: var(--mui-palette-text-secondary); font-size: 0.875rem; pointer-events: none; }
+  .mny-adorned > .mny-adorn { left: 12px; }
+  .mny-adorned > .mny-adorned-input { padding-left: 28px; }
+  .mny-adorned-end > .mny-adorn { left: auto; right: 12px; }
+  .mny-adorned-end > .mny-adorned-input { padding-left: 12px; padding-right: 28px; }
+
+  /* Expected is a read-out, in the mono face the figures elsewhere use. */
+  .mny-expected { display: flex; align-items: center; min-height: 44px; font-family: var(--font-mono); font-weight: 700; color: var(--mui-palette-primary-main); }
+
+  .mny-textarea { min-height: 0; padding: 8px 12px; line-height: 1.5; }
+
+  .mny-radios { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 0; margin: 8px 0 0; padding: 0; }
+  .mny-radios > legend { padding: 0; }
+
+  /* The gap keeps its line whether or not there is a figure, so the card does not jump. */
+  .mny-gap { margin: 4px 0 0; min-height: 1.5em; }
+
+  .mny-prefill { margin-top: 4px; }
+
+  .mny-expectation { padding: 14px; background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+
+  /* Remove is a <details>, not a dialog: the confirmation has to work with no script at all. */
+  .mny-remove { padding: 4px 0; }
+  .mny-remove-summary { cursor: pointer; padding: 8px; border-radius: 8px; color: var(--mui-palette-error-main); font-size: 0.875rem; font-weight: 500; text-align: center; }
+  .mny-remove-summary:hover { background-color: var(--mui-palette-action-hover); }
+
+  /* §3.7.4's own card: the artboard's 540px modal, widened to the form's two columns. */
+  .mny-add-card { max-width: 720px; }
+  .mny-trip-list { list-style: none; margin: 0; padding: 0; }
+  .mny-trip-row { display: block; padding: 8px; border-radius: 8px; color: inherit; text-decoration: none; }
+  .mny-trip-row:hover { background-color: var(--mui-palette-action-hover); }
+  .mny-trip-row:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+}

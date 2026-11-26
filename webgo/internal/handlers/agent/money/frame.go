@@ -273,3 +273,7 @@ func str(v *string) string {
 
 // clock is time.Now, indirected so a test can pin the dates these pages read off it.
 var clock = time.Now
+
+// itoa64 prints a cents figure for a data attribute. bigint stays an integer all the way to
+// the markup: a float64 on the way would round a figure the whole area is exact about.
+func itoa64(n int64) string { return strconv.FormatInt(n, 10) }
