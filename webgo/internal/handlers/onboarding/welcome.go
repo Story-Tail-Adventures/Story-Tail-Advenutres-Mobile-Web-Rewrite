@@ -16,7 +16,7 @@ import (
 var welcomeSpec = page.Spec{
 	File:   "onboarding/welcome.html",
 	Layout: shell.Onboarding,
-	Slots:  []string{"greeting", "skip-error"},
+	Slots:  []string{"greeting", "skip-error", "welcome-actions"},
 }
 
 // The two exits, as the two submit buttons post them.
@@ -40,6 +40,7 @@ func (a *area) mountWelcome(rt *gate.Router) error {
 		} else {
 			d.Text("greeting", "So glad you're here, "+name+".")
 		}
+		d.Keep("welcome-actions")
 		if skipFailed {
 			// Reported rather than swallowed: if this silently failed they would be greeted
 			// by this screen again on every single sign-in, with no idea why.

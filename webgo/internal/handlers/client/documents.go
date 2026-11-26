@@ -233,7 +233,7 @@ var tripDocumentsSpec = page.Spec{
 	Repeats: map[string][]string{
 		"groups": {
 			"group-label", "group-rows", "doc-badge", "doc-name", "doc-meta",
-			"doc-id", "doc-next", "doc-open",
+			"doc-next", "doc-open",
 		},
 	},
 }
@@ -318,9 +318,8 @@ func (a *area) mountDocuments(rt *gate.Router) error {
 				meta = doc.TripTitle + " · " + meta
 			}
 			rw.Text("doc-meta", meta)
+			// The document is named by the form's ACTION, so a post cannot name another.
 			rw.URL("group-rows", "action", "/documents/"+doc.ID+"/open")
-			rw.Attr("doc-id", "value", doc.ID)
-			rw.Keep("doc-id")
 			rw.Attr("doc-next", "value", r.URL.Path)
 			rw.Keep("doc-next")
 			rw.Keep("doc-open")

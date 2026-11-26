@@ -27,7 +27,7 @@ var preferencesSpec = page.Spec{
 
 func preferencesSlots() []string {
 	out := append(chromeSlots(),
-		"form-error",
+		"form-error", "preferences-form",
 		"destinations-error", "destination-other",
 		"travel-styles-error",
 		"dietary-error", "dietary-notes", "dietary-notes-error",
@@ -86,6 +86,7 @@ func (a *area) mountPreferences(rt *gate.Router) error {
 	show := func(w http.ResponseWriter, r *http.Request, status int, f validate.PreferencesForm, errs validate.Errors, formError string) {
 		d := tmpl.New()
 		fillChrome(d, preferencesStep, true)
+		d.Keep("preferences-form")
 		if formError == "" {
 			d.Remove("form-error")
 		} else {

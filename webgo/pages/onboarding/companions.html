@@ -72,9 +72,11 @@
                 <div class="ob-companion-actions">
                   <a class="btn btn-text st-btn btn-small" href="/onboarding/companions?edit=1" data-slot="companion-edit">Edit</a>
                   <form method="post" action="/onboarding/companions" data-submit-once>
-                    <input type="hidden" name="action" value="remove">
                     <input type="hidden" name="id" value="" data-slot="companion-remove-id">
-                    <button class="btn btn-text st-btn btn-small" type="submit" data-slot="companion-remove" data-pending-label="Removing…">Remove</button>
+                    <!-- The op is on the BUTTON. In a hidden field it would be serialised
+                         first and win over whichever button was actually pressed, the day
+                         this form grows a second one. -->
+                    <button class="btn btn-text st-btn btn-small" type="submit" name="action" value="remove" data-slot="companion-remove" data-pending-label="Removing…">Remove</button>
                   </form>
                 </div>
               </div>
@@ -88,7 +90,6 @@
           </div>
 
           <form class="card ob-form" method="post" action="/onboarding/companions" data-submit-once data-slot="form">
-            <input type="hidden" name="action" value="save">
             <input type="hidden" name="id" value="" data-slot="form-id">
             <p class="type-subtitle1 text-primary ob-form-title" data-slot="form-title">Add a traveler</p>
             <p class="type-body2 text-secondary ob-form-sub">Just the basics. Passport details are optional — add them whenever you have the book in hand.</p>
@@ -127,7 +128,7 @@
               </div>
             </div>
             <div class="ob-form-actions">
-              <button class="btn btn-contained st-btn" type="submit" data-pending-label="Saving…">Save traveler</button>
+              <button class="btn btn-contained st-btn" type="submit" name="action" value="save" data-pending-label="Saving…">Save traveler</button>
               <a class="btn btn-text st-btn" href="/onboarding/companions" data-slot="cancel">Cancel</a>
             </div>
           </form>
@@ -135,7 +136,7 @@
           <p class="type-body2 text-secondary ob-unfinished" data-slot="unfinished">Save or cancel the traveler you're adding, and we'll move on.</p>
         </div>
 
-        <form method="post" action="/onboarding/companions" data-submit-once>
+        <form method="post" action="/onboarding/companions" data-submit-once data-slot="companions-actions">
           <div class="ob-actions">
             <button class="btn btn-contained st-btn btn-large" type="submit" name="action" value="continue" data-slot="continue" data-pending-label="Saving…">Save &amp; continue<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
             <div class="ob-actions-secondary">

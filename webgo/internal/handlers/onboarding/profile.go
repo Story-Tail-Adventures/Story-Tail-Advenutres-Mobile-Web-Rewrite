@@ -27,7 +27,7 @@ var profileSpec = page.Spec{
 // from another var's init() would be copied into Specs before that init() ran.
 func profileSlots() []string {
 	out := append(chromeSlots(),
-		"form-error",
+		"form-error", "profile-form",
 		"phone", "phone-error", "date-of-birth", "date-of-birth-error",
 		"address-error", "address-line1", "address-line1-error",
 		"address-line2", "address-line2-error", "address-city", "address-city-error",
@@ -79,6 +79,7 @@ func (a *area) mountProfile(rt *gate.Router) error {
 	show := func(w http.ResponseWriter, r *http.Request, status int, f validate.ProfileForm, errs validate.Errors, formError string) {
 		d := tmpl.New()
 		fillChrome(d, profileStep, true)
+		d.Keep("profile-form")
 
 		if formError == "" {
 			d.Remove("form-error")
