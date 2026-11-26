@@ -25,6 +25,9 @@ been updated yet, this doc and the rulings in section 3 win. Section 10 lists wh
 - **Skip Next.js on Render.** Production has been dark since Vercel paused it on 2026-10-26, and
   the Render service was never created. Rather than bring Next.js back and then replace it, the
   site comes back on Go: public pages first, then sign-in, the traveler side and the agent side.
+- **Local first, Render later.** Gyasi is not ready for Render (2026-11-06, ruling 16). Every
+  phase is built and verified locally against the local Supabase stack, and nothing waits on a
+  deploy. Production comes back when Gyasi chooses to do the Render setup in section 6.
 - **The backend moves by function, behind one door.** Go answers `/functions/v1/{name}` exactly
   the way Supabase does. A function not yet ported is passed through to Supabase, so mobile
   switches its address once and never notices each port after that.
@@ -62,8 +65,8 @@ been updated yet, this doc and the rulings in section 3 win. Section 10 lists wh
 - **The tests do not carry over as they are.** Logic tests port to Go table tests. React
   component tests become handler tests. No Edge Function handler has a test today, so the
   differential tests (section 5.9) are new work.
-- **A long dark period.** Production stays offline until Phase 2 ships and Gyasi's Render setup
-  is done.
+- **A long dark period.** Production stays offline until Gyasi does the Render setup, which is
+  deliberately decoupled from the build (ruling 16).
 - **It reverses a standing rule.** CLAUDE.md, BRD §15.1 and Tech-Rec §2.3 said "no separate
   backend service". Section 10 updates them first.
 - **New Go libraries need reviews**: htmlx (done, `docs/HTMLX-Library-Security-Review.md`), an
@@ -112,6 +115,7 @@ All settled by Gyasi on 2026-11-06.
 | 13 | Cron | pg_cron stays the clock. The 4 jobs that call functions point at Go and send a dedicated `STA_CRON_SECRET`, checked in constant time, instead of the service-role key |
 | 14 | One binary | Pages and API in one service. Web handlers call ported functions in process through the same registry mobile reaches over HTTP. Only `internal/api/...` can reach the service key |
 | 15 | New Go libraries | Each gets a review doc before use. SMTP, the FCM token and CSV use the standard library |
+| 16 | When to deploy | Not yet (2026-11-06). Build and verify every phase locally against the local Supabase stack; deploy to Render when Gyasi is ready. No phase waits on it |
 
 ---
 
@@ -215,24 +219,36 @@ This replaces React components, so it is built and tested before any screen.
 
 **Safety rules**
 
-- **htmlx is a reader only.** Allowed: `Parse`, `String` (tests), `Find`, `FindAll`, `FindNext`,
-  `FindPrev`, `Tag`, `TagName`, `HasAttrVal`, `ID`, `Class`, `Remove`, `RemoveChilds`,
-  `OuterHTML`, `Attr`. Banned: `SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`, `AddClass`,
-  `Rename`, `Get`, `Load`, `Text`, `Stats`. Its setters have real bugs (`SetAttr` silently keeps
-  an existing value; `AddClass` never works when a class is already set). A test fails the build
-  on any banned name.
+- **htmlx only finds and removes** (approved by Gyasi 2026-11-06). Allowed: the find helpers
+  and matchers, `AttrVal`, `Remove`, `RemoveChilds`. Banned: every writer, the fetchers, the
+  double-unescaping readers, and every way to make an `htmlx.Node` (`Node`, `New`, `Parse`,
+  `String`), so none of its methods can be reached; pages parse with `x/net/html` directly. Its
+  setters have real bugs (`SetAttr` silently keeps an existing value; `AddClass` never works when
+  a class is already set). A test fails the build on any banned name. Full list in the review,
+  section 6.
 - **Only `internal/page` imports htmlx.** A test fails the build if another package does.
 - **Text goes in as a fresh text node**, never parsed as markup. The setter refuses an element
   inside `script`, `style`, `noscript`, `iframe`, `xmp`, `noembed`, `noframes` or `plaintext`,
   because `x/net/html` writes text there without escaping. (`textarea` and `title` are escaped
   on render, checked 2026-11-06, so a form can be re-filled with what the visitor typed.)
-- **Links are checked.** One setter for `href`, `src`, `action` and `formaction` allows only
-  relative paths, `https:`, `mailto:` and `tel:`, after trimming and lower-casing. **Pay links**
-  get a stricter setter: absolute `https://` only (CLAUDE.md rule 4), and on client pages they are
-  shown, never editable.
-- **Every slot a handler uses must exist.** Each page declares its slots in Go, and a startup
-  check confirms each is in the HTML (exactly once for single slots). A renamed slot fails at boot
-  and in CI.
+- **Links are checked.** One setter for `href`, `src`, `action` and `formaction`, each only on
+  the elements that take it, allows only relative paths, `https:`, `mailto:` and `tel:`, after
+  trimming and lower-casing. **Pay links** get a stricter setter: absolute `https://` only, on
+  `<a>` only (CLAUDE.md rule 4), and on client pages they are shown, never editable. Client pages
+  also show the link's host (lower-case, no `www.`, punycode), so a look-alike domain cannot pass
+  as the real one (owed in Phase 4).
+- **Every slot a handler uses must exist, both ways.** Each page declares its slots in Go, and a
+  startup check confirms each is in the HTML exactly once and that the HTML has no undeclared
+  slot. A renamed slot fails at boot and in CI. Slots on `base`, `link`, `meta`, `object` or
+  `embed`, and slots with namespaced attributes, are refused at load.
+- **No placeholder ships.** A page renders only when every slot was filled, removed or explicitly
+  kept, and every link attribute a slot carries in the HTML went through the link setters. Class,
+  boolean and (on non-void elements) plain attribute changes only adjust a slot; they do not fill
+  it. Text the HTML gives a slot is copy unless the handler sets it, so text that varies goes in
+  its own slot.
+- **A page file holds only `<title>` and `<main>`.** Load refuses head content beyond `<title>`
+  and `<meta>`, attributes on `<main>`, and anything in `<body>` outside `<main>`, rather than
+  dropping it silently. Shared CSS and scripts go in the layout.
 - **Never write raw HTML from the database.** Message text, notes and template bodies go in as
   text.
 - **Tests check rendered output**, never htmlx's `Text()`, which un-escapes a second time.
@@ -544,7 +560,8 @@ not delete what is already deployed, so step 4 is needed.
   the left-most `x-forwarded-for`). Run the forged-header test from `docs/RENDER-MIGRATION.md`
   §5.1 before any traffic. Once lead-message runs in Go, the address is read directly, and the
   forwarded-address trust between web and function goes away.
-- **Gyasi's setup before the first launch (Phase 2)**: create the Render service from
+- **Gyasi's setup, whenever production should come back** (no phase waits on it, ruling 16):
+  create the Render service from
   `render.yaml`, set the env vars, fill in `RENDER_SERVICE_ID`, add the `RENDER_API_KEY` repo
   secret, put Cloudflare in front, add the Render origin to Supabase's auth redirect allowlist,
   run the forged-header test.
@@ -587,14 +604,17 @@ Each phase is its own PR or PR series to `dev`. Sizes: S, M, L, XL.
 1. `webgo/` module: config, `internal/page` with every rule in 4.4 and its tests, clientaddr,
    uuid, security headers, `/healthz`, 404 for everything else, the `webgo` CI job.
 2. Session, `supa` clients (anon and user), gate (mounted), the `/functions/v1` registry passing
-   every name through, the cron secret check.
-3. `render.yaml` and `deploy.yml` re-aimed at Go.
+   every name through. Verified against the local Supabase stack. (The cron secret check arrives
+   with the first ported cron function in Track B; nothing calls it before then.)
 
-### Phase 2: Public pages and the first launch (M)
+`render.yaml` and `deploy.yml` are re-aimed at Go only when Gyasi is ready to deploy (ruling 16).
+
+### Phase 2: Public pages (M)
 
 13 public pages, `/quote`, email unsubscribe, explore results, the lead form, the join form,
-consent + GA. Content moves to JSON with the byte-identical Kotlin check. **Production comes back
-when this ships and Gyasi's Render setup (section 6) is done.**
+consent + GA. Content moves to JSON with the byte-identical Kotlin check. Built and verified
+locally. **Production comes back whenever Gyasi does the Render setup (section 6); from this phase
+on there is something worth deploying.**
 
 ### Phase 3: Auth (M, highest risk per line)
 
@@ -616,8 +636,9 @@ templates; commission; reports; settings.
 
 ### Track B: the backend (XL, alongside Phases 3 to 5)
 
-Starts when the Phase 1 registry is live. Order and proof in 5.9. The mobile switch (5.8) ships
-once Go is live in production.
+Starts when the Phase 1 registry is live. Order and proof in 5.9; the differential tests run on
+the local stack, so ports need no deploy. The mobile switch (5.8) is the one step that waits for
+Go to be live in production.
 
 ### Phase 6: Clean up (S to M)
 
@@ -730,7 +751,9 @@ stays) and from Dependabot's npm config.
 14. **Missing zone data** in a slim build (4.10).
 15. **Copy drift** between web and mobile, or away from the brand voice. Strings move byte for
     byte; new copy goes through Design-System §2.
-16. **A long dark period** if Phase 2 stalls. It is the one phase that brings production back.
+16. **A long dark period.** Production stays offline until the Render setup, by choice (ruling
+    16). The local build keeps moving; the risk is code that has never met a real host. Run the
+    forged-header test and a full deploy rehearsal before the first real traffic.
 17. **MFA lockout** during Phase 3.
 18. **SMTP still broken in production** (535 since 2026-10-22), which blocks proving the email
     port there.
@@ -764,7 +787,8 @@ stays) and from Dependabot's npm config.
 
 ## 11. Next steps
 
-1. Merge Phase 0 (this doc, the docs and the tooling).
-2. Gyasi: approve or reject the htmlx review.
-3. Phase 1 in order: skeleton and page builder, then session/supa/gate/registry, then Render.
-4. Gyasi: the Render setup in section 6, in time for Phase 2.
+1. Merge Phase 0 (this doc, the docs and the tooling). The htmlx review is approved.
+2. Phase 1 part 1 (skeleton and page builder, PR #177), then part 2 (session, supa, gate,
+   registry), all verified locally.
+3. Phase 2 onward, locally.
+4. Gyasi, when ready: the Render setup in section 6, then re-aim `render.yaml` and `deploy.yml`.
