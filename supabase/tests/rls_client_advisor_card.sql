@@ -73,15 +73,14 @@ RESET role;
 SELECT public.agent_local_today(:agent::uuid) AS today \gset
 \set today '''':today''''
 
--- The seed's two holidays go first. They are fixed calendar dates (Thanksgiving 2026-11-26..29,
--- Christmas 2026-12-24..2027-01-02) and the block below is dated from `today`, so the two walk
--- into each other as the real date advances: on 2026-11-25, `today - 1 .. today + 3` is Nov 24
--- - 28 and the INSERT dies on `agent_time_off_no_overlap`. Even where it did not collide, a
--- seeded holiday nearer than this block would make `awayUntil` the seed's first day back, not
--- this block's, and the assert below would fail for a reason that has nothing to do with the
--- card. This test owns the advisor's calendar from here; the same DELETE guards
--- rls_agent_settings.sql and rls_agent_alerts.sql.
+-- The seed gives this agent two FIXED holidays (Thanksgiving 2026-11-26..29,
+-- Christmas 2026-12-24..2027-01-02) while the blocks below are RELATIVE to today,
+-- so when they overlap the insert dies on agent_time_off_no_overlap and the card
+-- assertions never run. awayUntil also reads the EARLIEST block, so a seeded
+-- holiday would answer in place of the planted one. Clear them first.
+-- See rls_agent_settings.sql for the full note.
 DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
+
 INSERT INTO public.agent_time_off (id, agent_id, starts_on, ends_on, label)
 VALUES (:off_now::uuid, :agent::uuid, :today::date - 1, :today::date + 3, 'Private reason');
 
