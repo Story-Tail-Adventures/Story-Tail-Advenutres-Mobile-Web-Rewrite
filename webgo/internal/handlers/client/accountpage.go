@@ -76,7 +76,7 @@ func (a *area) mountAccount(rt *gate.Router) error {
 		d.Keep("notifications")
 
 		for _, tile := range []accountTile{
-			{"personal", AccountCopy.Personal, AccountCopy.PersonalSub, false},
+			{"personal", AccountCopy.Personal, AccountCopy.PersonalSub, true},
 			{"preferences", AccountCopy.Preferences, AccountCopy.PreferencesSub, false},
 			{"documents", AccountCopy.Documents, documentsSub, true},
 			{"security", AccountCopy.Security, AccountCopy.SecuritySub, false},

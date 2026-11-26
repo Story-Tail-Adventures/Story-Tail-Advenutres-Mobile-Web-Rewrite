@@ -1008,4 +1008,49 @@
     flex-direction: column;
     min-width: 0;
   }
+
+  /* ── The profile field groups, for Screen 2.5.2 ─────────────────────────────────────
+     These are the onboarding area's rules, with the onboarding area's class names, because
+     2.5.2's markup IS 2.1.10's fields — internal/profileform fills both, and a second set
+     of names here would let the two pages' markup drift apart silently.
+
+     They are duplicated rather than shared because the client layout does not link
+     onboarding.css; the two files are never loaded together, so nothing cascades. The right
+     fix is to move them into ui.css, which belongs in a shared PR rather than this one.
+     NOTE: internal/static/classes_test.go would NOT have caught the omission — it asks
+     whether SOME stylesheet defines a class, and onboarding.css does. */
+  .ob-fields,
+  .ob-group { margin: 0; padding: 0; border: 0; min-width: 0; }
+
+  .ob-fields { display: flex; flex-direction: column; gap: 20px; }
+
+  .ob-note { margin: 0; }
+
+  .ob-legend { margin-bottom: 4px; padding: 0; }
+
+  .ob-group-hint,
+  .ob-group-note { margin: 0 0 12px; }
+
+  .ob-group-error { margin: 0 0 12px; color: var(--mui-palette-error-main); }
+
+  .ob-expired { margin-bottom: 12px; }
+
+  .ob-grid-2,
+  .ob-grid-3 { display: grid; gap: 12px; }
+
+  .ob-relabel { margin-top: 4px; align-self: flex-start; }
+
+  .cl-identity {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+
+  .cl-identity-value { margin: 2px 0 0; }
+
+  @media (min-width: 768px) {
+    .ob-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ob-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cl-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 }

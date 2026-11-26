@@ -8,6 +8,7 @@ import (
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/profileform"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
@@ -42,7 +43,7 @@ func companionsSlots() []string {
 		"expiry", "expiry-error", "country", "country-error", "cancel",
 		"unfinished", "continue", "companions-actions",
 	)
-	return append(out, countrySlots(companionCountryPrefix)...)
+	return append(out, profileform.CountrySlots(companionCountryPrefix)...)
 }
 
 // The copy this screen builds in Go (COMPANIONS_TEXT); the rest is in the page file.
@@ -316,13 +317,13 @@ func (a *area) fillCompanionForm(d *page.Doc, v companionsView) {
 		d.Keep("form-error")
 		d.Text("form-error-text", v.formErr)
 	}
-	fillInput(d, "first-name", v.form.FirstName, v.errs.First("firstName"), false)
-	fillInput(d, "last-name", v.form.LastName, v.errs.First("lastName"), false)
-	fillInput(d, "relationship", v.form.Relationship, v.errs.First("relationship"), false)
-	fillInput(d, "dob", v.form.DateOfBirth, v.errs.First("dateOfBirth"), false)
+	profileform.FillInput(d, "first-name", v.form.FirstName, v.errs.First("firstName"), false)
+	profileform.FillInput(d, "last-name", v.form.LastName, v.errs.First("lastName"), false)
+	profileform.FillInput(d, "relationship", v.form.Relationship, v.errs.First("relationship"), false)
+	profileform.FillInput(d, "dob", v.form.DateOfBirth, v.errs.First("dateOfBirth"), false)
 	d.Attr("dob", "max", validate.TodayISO(a.now()))
-	fillInput(d, "expiry", v.form.PassportExpiry, v.errs.First("passportExpiry"), false)
-	fillSelect(d, "country", companionCountryPrefix, v.form.PassportCountry, v.errs.First("passportCountry"))
+	profileform.FillInput(d, "expiry", v.form.PassportExpiry, v.errs.First("passportExpiry"), false)
+	profileform.FillSelect(d, "country", companionCountryPrefix, v.form.PassportCountry, v.errs.First("passportCountry"))
 	d.Keep("cancel")
 	// Leaving the step with a form open would discard what is in it, so Continue is held
 	// back rather than silently throwing the draft away — and told why.

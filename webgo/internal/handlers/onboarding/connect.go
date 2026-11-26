@@ -7,6 +7,7 @@ import (
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/profileform"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
@@ -64,7 +65,7 @@ func (a *area) mountConnect(rt *gate.Router) error {
 			}
 		}
 
-		fillInput(d, "code", code, message, true)
+		profileform.FillInput(d, "code", code, message, true)
 		label := connectPrimaryEmpty
 		if strings.TrimSpace(code) != "" {
 			label = connectPrimary

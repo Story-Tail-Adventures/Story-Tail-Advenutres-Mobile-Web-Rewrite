@@ -6,6 +6,7 @@ import (
 
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/gate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/profileform"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/session"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/shell"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
@@ -96,7 +97,7 @@ func (a *area) mountPreferences(rt *gate.Router) error {
 		// Destinations: the eight suggestions, then anything the traveler added themselves,
 		// matched case-insensitively so "caribbean" typed into the box does not come back as
 		// a second chip beside the one they ticked.
-		fillGroupError(d, "destinations-error", errs.First("destinations"))
+		profileform.FillGroupError(d, "destinations-error", errs.First("destinations"))
 		for _, name := range validate.DestinationSuggestions {
 			chip(d, chipSlot("dest-", name), containsFold(f.Destinations, name))
 		}
@@ -109,24 +110,24 @@ func (a *area) mountPreferences(rt *gate.Router) error {
 		})
 		d.Attr("destination-other", "value", f.DestinationOther)
 
-		fillGroupError(d, "travel-styles-error", errs.First("travelStyles"))
+		profileform.FillGroupError(d, "travel-styles-error", errs.First("travelStyles"))
 		for _, o := range validate.TravelStyleOptions {
 			chip(d, chipSlot("style-", o.Value), contains(f.TravelStyles, o.Value))
 		}
 
-		fillGroupError(d, "dietary-error", errs.First("dietary"))
+		profileform.FillGroupError(d, "dietary-error", errs.First("dietary"))
 		for _, o := range validate.DietaryOptions {
 			chip(d, chipSlot("diet-", o.Value), contains(f.Dietary, o.Value))
 		}
-		fillInput(d, "dietary-notes", f.DietaryNotes, errs.First("dietaryNotes"), false)
+		profileform.FillInput(d, "dietary-notes", f.DietaryNotes, errs.First("dietaryNotes"), false)
 
-		fillGroupError(d, "accessibility-error", errs.First("accessibility"))
+		profileform.FillGroupError(d, "accessibility-error", errs.First("accessibility"))
 		for _, o := range validate.AccessibilityOptions {
 			chip(d, chipSlot("access-", o.Value), contains(f.Accessibility, o.Value))
 		}
-		fillInput(d, "accessibility-notes", f.AccessibilityNotes, errs.First("accessibilityNotes"), false)
+		profileform.FillInput(d, "accessibility-notes", f.AccessibilityNotes, errs.First("accessibilityNotes"), false)
 
-		fillGroupError(d, "loyalty-error", errs.First("loyalty"))
+		profileform.FillGroupError(d, "loyalty-error", errs.First("loyalty"))
 		d.Repeat("loyalty-rows", len(f.Loyalty), func(i int, row *page.Row) {
 			row.Attr("loyalty-program", "value", f.Loyalty[i].Program)
 			row.Attr("loyalty-number", "value", f.Loyalty[i].Number)
@@ -137,7 +138,7 @@ func (a *area) mountPreferences(rt *gate.Router) error {
 			d.Remove("add-row")
 		}
 
-		fillGroupError(d, "budget-error", errs.First("budgetBand"))
+		profileform.FillGroupError(d, "budget-error", errs.First("budgetBand"))
 		for _, o := range validate.BudgetOptions {
 			chip(d, chipSlot("budget-", o.Value), f.BudgetBand == o.Value)
 		}
