@@ -82,7 +82,7 @@ func (a *area) mountAccount(rt *gate.Router) error {
 			{"security", AccountCopy.Security, AccountCopy.SecuritySub, false},
 			{"connected", AccountCopy.Connected, AccountCopy.ConnectedSub, true},
 			{"help", AccountCopy.Help, AccountCopy.HelpSub, false},
-			{"privacy", AccountCopy.Privacy, AccountCopy.PrivacySub, false},
+			{"privacy", AccountCopy.Privacy, AccountCopy.PrivacySub, true},
 		} {
 			// An anchor cannot have its href taken away, so each tile is drawn twice and
 			// one of the two is removed: the link, or the plainly-unavailable twin. A hub
