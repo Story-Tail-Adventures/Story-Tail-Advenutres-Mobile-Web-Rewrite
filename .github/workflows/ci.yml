@@ -130,7 +130,7 @@ jobs:
 
   # The Go web app and API (docs/GO-MIGRATION.md). Like every job here it gates deploys.
   #
-  # setup-go reads the toolchain line from webgo/go.mod (go1.27.3, which fixes GO-2026-6809
+  # setup-go reads the toolchain line from webgo/go.mod (go1.27.4, which fixes GO-2026-6859
   # in crypto/x509), so CI and a laptop build with the same compiler. staticcheck and
   # govulncheck are pinned so a new release can't turn CI red on a PR that changed nothing;
   # bump them by hand. govulncheck is the guard the htmlx review relies on: a new

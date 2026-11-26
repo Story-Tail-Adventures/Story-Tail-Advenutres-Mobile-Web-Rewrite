@@ -10,10 +10,11 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/assets"
 )
 
-// tokens.css is the design tokens' contract (docs/Design-System.md §12.4). The Go copy is
-// byte for byte web/styles/tokens.css, and both mirror design/web-tokens/tokens.css, the
-// canonical one. Like web/lib/mui/tokens.test.ts, this parses the canonical file and fails
-// on any token missing from either side or any value that disagrees, in both schemes.
+// tokens.css is the design tokens' contract (docs/Design-System.md §12.4). There used to be
+// two web copies, this one and web/styles/tokens.css, both mirroring the canonical
+// design/web-tokens/tokens.css; Phase 6 deleted the Next app, so webgo/assets/css/tokens.css
+// is now the only one. This parses the canonical file and fails on any token missing from
+// either side or any value that disagrees, in both schemes.
 
 func repoFile(t *testing.T, rel string) (string, bool) {
 	t.Helper()

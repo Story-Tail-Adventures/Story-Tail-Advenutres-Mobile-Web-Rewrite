@@ -7,12 +7,15 @@
  *
  * Three deliberate deltas from the source file:
  *   1. The `@import url("https://fonts.googleapis.com/...")` is removed. Runtime
- *      Google Fonts are forbidden in production (CLAUDE.md); web/app/fonts.ts
- *      bundles Poppins, Caveat and JetBrains Mono via next/font at build time.
- *   2. The three --font-* declarations are removed. They live in web/app/globals.css,
- *      built on the next/font variables rather than the source's literal family names.
- *   3. The .t-* type ramp is removed. The web app sets type through MUI Typography
- *      variants (lib/mui/theme.ts); nothing in web/ uses the classes.
+ *      Google Fonts are forbidden in production (CLAUDE.md); the three families are
+ *      self-hosted and declared in fonts.css beside this file.
+ *   2. The three --font-* declarations are removed. They live in base.css, which is
+ *      also why tokens_test.go skips them.
+ *   3. The .t-* type ramp is removed. Type is set by the element styles in base.css.
+ *
+ * Deltas 1 to 3 were originally phrased against the Next app (web/app/fonts.ts,
+ * web/app/globals.css, MUI Typography). That app is deleted; the deltas themselves did
+ * not change, only where the replacement lives.
  *
  * Dark mode is the `.scheme-dark` class, NOT prefers-color-scheme, and it is a full
  * tropical-dark rebrand rather than an inversion: primary goes burgundy -> ocean blue,
