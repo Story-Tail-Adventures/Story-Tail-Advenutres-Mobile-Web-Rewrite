@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -159,5 +160,55 @@ func TestTheDeclaredScopeCoversWhatTheFixtureCannot(t *testing.T) {
 	// A world that declares nothing behaves exactly as before.
 	if !newFake().inScope([]byte(`{"p_import_id":"anything"}`)) {
 		t.Error("a world with no declared scope refused a read")
+	}
+}
+
+// A search term is not an id, and the id guards above cannot cover it: a term that arrives
+// WRONG is caught by a declared scope, but a term DROPPED arrives as null, which these
+// functions read as "no filter" and the guards correctly let through. searched is what makes
+// the rows depend on the term, so both mistakes change the page.
+func TestTheFakeNarrowsAReplyByItsSearchTerm(t *testing.T) {
+	roster := `[{"title":"Kyoto in the spring","client_display_name":"The Rodriguez family"},` +
+		`{"title":"Rome, later","client_display_name":"The Chens"}]`
+
+	for _, c := range []struct {
+		name  string
+		args  string
+		reply string
+		want  []string
+		gone  []string
+	}{
+		{"a term keeps only what it matches", `{"p_search":"kyoto"}`, roster,
+			[]string{"Kyoto in the spring"}, []string{"Rome, later"}},
+		{"it matches the client's name too", `{"p_search":"Chens"}`, roster,
+			[]string{"Rome, later"}, []string{"Kyoto in the spring"}},
+		{"case does not matter, as ILIKE does not", `{"p_search":"ROME"}`, roster,
+			[]string{"Rome, later"}, []string{"Kyoto in the spring"}},
+		{"no term is no filter", `{"p_search":null}`, roster,
+			[]string{"Kyoto in the spring", "Rome, later"}, nil},
+		{"a blank term is no filter, as btrim makes it", `{"p_search":"  "}`, roster,
+			[]string{"Kyoto in the spring", "Rome, later"}, nil},
+		{"an absent parameter is no filter", `{"p_limit":25}`, roster,
+			[]string{"Kyoto in the spring", "Rome, later"}, nil},
+		{"rows with none of the searched columns are left alone", `{"p_search":"kyoto"}`,
+			`[{"commission_id":"c-1","amount_cents":"1000"}]`, []string{"c-1"}, nil},
+		{"a term matching nothing empties the answer", `{"p_search":"zzz"}`, roster,
+			nil, []string{"Kyoto in the spring", "Rome, later"}},
+		{"an unreadable body narrows nothing", `not json`, roster,
+			[]string{"Kyoto in the spring", "Rome, later"}, nil},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := searched(c.reply, []byte(c.args))
+			for _, want := range c.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("%q was narrowed away: %s", want, got)
+				}
+			}
+			for _, gone := range c.gone {
+				if strings.Contains(got, gone) {
+					t.Errorf("%q survived the search: %s", gone, got)
+				}
+			}
+		})
 	}
 }

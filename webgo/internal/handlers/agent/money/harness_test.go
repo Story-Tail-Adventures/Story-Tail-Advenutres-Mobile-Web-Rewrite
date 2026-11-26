@@ -126,6 +126,7 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if scopedOut(body, b) || !f.inScope(b) {
 			body = "[]"
 		}
+		body = searched(body, b)
 		_, _ = w.Write([]byte(body))
 	case strings.HasPrefix(r.URL.Path, "/functions/v1/"):
 		name := strings.TrimPrefix(r.URL.Path, "/functions/v1/")
@@ -252,6 +253,63 @@ func (f *fakeSupa) inScope(body []byte) bool {
 		}
 	}
 	return true
+}
+
+// searched narrows a reply the way p_search narrows the real answer: a case-insensitive
+// contains over the columns agent_trip_roster actually searches (title, the client's
+// display name, the destinations), per supabase/migrations/20260927100000_agent_trip_roster.sql.
+//
+// It exists because a SEARCH TERM cannot be covered the way an id is. A declared scope only
+// catches a term that arrives WRONG; a term DROPPED on the way to the database arrives as
+// null, which in these functions means "no filter" and is correctly let through — so the
+// full roster comes back and the page reads right. Narrowing here is what makes the rows
+// the page shows depend on the term, so both mistakes fail on page content rather than on
+// an assertion someone remembered to write about the recorded body.
+//
+// Same rule as matching and scopedOut: a row carrying NONE of the searched columns is not
+// narrowed, so this drops in beside fixtures that know nothing about it.
+func searched(reply string, args []byte) string {
+	var call map[string]json.RawMessage
+	if err := json.Unmarshal(args, &call); err != nil {
+		return reply
+	}
+	raw, ok := call["p_search"]
+	if !ok || string(raw) == "null" {
+		return reply
+	}
+	var term string
+	if json.Unmarshal(raw, &term) != nil {
+		return reply
+	}
+	if term = strings.TrimSpace(term); term == "" {
+		return reply // btrim(p_search) = '' is no filter either.
+	}
+	var rows []map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(reply), &rows); err != nil || len(rows) == 0 {
+		return reply
+	}
+	kept := make([]map[string]json.RawMessage, 0, len(rows))
+	for _, row := range rows {
+		searchable, match := false, false
+		for _, col := range []string{"title", "client_display_name", "destinations"} {
+			v, present := row[col]
+			if !present {
+				continue
+			}
+			searchable = true
+			if strings.Contains(strings.ToLower(string(v)), strings.ToLower(term)) {
+				match = true
+			}
+		}
+		if !searchable || match {
+			kept = append(kept, row)
+		}
+	}
+	out, err := json.Marshal(kept)
+	if err != nil {
+		return reply
+	}
+	return string(out)
 }
 
 // scopedOut reports whether a read's id ARGUMENTS disagree with the fixture it would be
