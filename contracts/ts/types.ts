@@ -539,6 +539,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lead-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The public "Message Gyasi" form, for a visitor with no account.
+         * @description Screen Inventory 2.0.12. NO SIGN-IN: a visitor who only messages Gyasi is a lead
+         *     (BRD §6.5, 2026-10-21); whoever asks for a quote is a client and uses `/quote-request`.
+         *
+         *     THE ANSWER NEVER SAYS WHAT HAPPENED. A new lead, a message joining an open lead, and
+         *     an address that already belongs to a client all answer `{ "ok": true }`, so the form
+         *     cannot be used to learn whether an address is a client's. A send that looks automated
+         *     (the hidden `website` field filled, or sent under three seconds after `startedAt`) is
+         *     dropped and answered the same way.
+         *
+         *     A card number anywhere in the message is REFUSED (400), never stored or masked
+         *     (CLAUDE.md rule 1). Five sends an hour per network address, then 429. 503 when there
+         *     is not exactly one active advisor to route to (ours to fix, not the visitor's).
+         *
+         *     In the Go service the web form calls this in process; the visitor's address comes
+         *     from the server, never from a header the caller sent.
+         */
+        post: operations["sendLeadMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-lead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's lead actions (3.8.4 and 3.8.5).
+         * @description One function, six `op`s. `create` adds a lead by hand (3.8.5); the rest act on an
+         *     existing lead of the caller's: `mark_contacted`, `close` (with a `reason` from the list
+         *     and an optional private `note`), `reopen`, `convert` (to one of the caller's clients),
+         *     and `delete_spam`. Every write is audited (`lead.created`, `lead.note_added`,
+         *     `lead.contacted`, `lead.closed`, `lead.reopened`, `lead.converted`,
+         *     `lead.deleted_as_spam`); a `noop` is not.
+         *
+         *     Advisor only (agent role, a second factor this session, not archived). A lead that is
+         *     not the caller's, or a `convert` to a client that is not theirs, is 404 "No such lead.".
+         *     409 when the lead moved since the page loaded, or (`reopen`) when the address already
+         *     has another open lead.
+         *
+         *     `create` answers `client_exists` with the client's id when the address is already a
+         *     client of theirs; nothing is written then.
+         */
+        post: operations["agentLead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1124,6 +1191,97 @@ export interface components {
             /** @description Soonest departure first. Archived sailings are never included. */
             results: components["schemas"]["CruiseSailing"][];
         };
+        OkResponse: {
+            /** @constant */
+            ok: true;
+        };
+        LeadMessageRequest: {
+            firstName: string;
+            lastName?: string | null;
+            /** Format: email */
+            email: string;
+            phone?: string | null;
+            /** @description A card number anywhere in it is refused. */
+            message: string;
+            /**
+             * @description Where the form was. An unknown value is dropped, not refused.
+             * @enum {string|null}
+             */
+            page?: "landing" | "how-it-works" | "about" | "topic" | "results" | "detail" | "join" | "app" | null;
+            /** @enum {string|null} */
+            aboutKind?: "trip" | "topic" | null;
+            aboutSlug?: string | null;
+            aboutLabel?: string | null;
+            utmSource?: string | null;
+            utmMedium?: string | null;
+            utmCampaign?: string | null;
+            /** @description When the form was drawn, epoch milliseconds. A send under three seconds later is treated as automated. */
+            startedAt: number;
+            /** @description The hidden field. Anything in it marks the send as automated. */
+            website?: string;
+        };
+        AgentLeadRequest: {
+            /** @enum {string} */
+            op: "create" | "mark_contacted" | "close" | "reopen" | "convert" | "delete_spam";
+            /**
+             * Format: uuid
+             * @description Every op but `create`.
+             */
+            leadId?: string;
+            /** @description `create` only. */
+            firstName?: string;
+            lastName?: string | null;
+            /**
+             * Format: email
+             * @description `create` only.
+             */
+            email?: string;
+            phone?: string | null;
+            /**
+             * @description `create` only.
+             * @enum {string}
+             */
+            source?: "email" | "phone" | "referral" | "social" | "other";
+            /** @description `create` only. A card number is refused. */
+            message?: string;
+            /**
+             * @description `close` only.
+             * @enum {string}
+             */
+            reason?: "not_a_fit" | "no_reply" | "went_elsewhere" | "other";
+            /** @description `close` only. Private to the advisor. */
+            note?: string | null;
+            /**
+             * Format: uuid
+             * @description `convert` only: one of the caller's clients.
+             */
+            clientId?: string;
+        };
+        AgentLeadCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "added" | "client_exists";
+            /**
+             * Format: uuid
+             * @description On `created` and `added`.
+             */
+            leadId?: string;
+            /**
+             * Format: uuid
+             * @description On `client_exists`.
+             */
+            clientId?: string;
+        };
+        AgentLeadWriteResponse: {
+            /** Format: uuid */
+            leadId: string;
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "deleted";
+            /**
+             * @description The lead's status after the op; null once deleted.
+             * @enum {string|null}
+             */
+            status: "new" | "contacted" | "closed" | "converted" | null;
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -1617,6 +1775,78 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    sendLeadMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Received (whatever happened to it). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Five sends an hour from this address. `detail` is "Please try again a little later." */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No single active advisor to route to. `detail` is "Messages can't be sent just now. Please try again later." */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    agentLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description The outcome. `create` answers its own shape; the other ops answer `AgentLeadWriteResponse`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLeadCreateResponse"] | components["schemas"]["AgentLeadWriteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
 }
