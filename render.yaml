@@ -18,7 +18,10 @@
 
 services:
   - type: web
-    name: storytail-web
+    # The service was created from the dashboard before this file was applied and took the
+    # REPOSITORY's name. Matching it here matters: a Blueprint apply under a different name
+    # would create a SECOND service beside the live one rather than adopting it.
+    name: story-tail-advenutres-mobile-web-rewrite
     runtime: go
 
     # The Go module is not at the repo root, so the commands below run from here and their
