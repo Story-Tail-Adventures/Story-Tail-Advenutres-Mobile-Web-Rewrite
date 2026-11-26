@@ -749,6 +749,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-client": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create, edit, archive or restore a client, or tag many at once.
+         * @description Screens 3.3.9 (create), 3.3.10 (edit), 3.3.12 (archive / restore) and 3.3.1's bulk tag.
+         *     ONE endpoint with four ops, chosen by `op`, each its own request shape.
+         *
+         *     ONLY A STALE `expectedVersion` IS A 409 (`update`, `archive`). Every other answer is a
+         *     200 with an `outcome`: `duplicate_email` is a 200 so the form can link to the record the
+         *     advisor already has (`create` returns its id as `existingClientId`).
+         *
+         *     A client that is not this advisor's, does not exist, or was merged away is a 404 on
+         *     `update` and `archive`. `bulk_tag` reports only how many changed: a client that is not
+         *     this advisor's, already carried the tag, or is at the 20-tag cap is skipped, and the
+         *     three are indistinguishable.
+         *
+         *     Audited per client: `client.created` / `client.updated` (the NAMES of the fields that
+         *     moved, never their values) / `client.archived` (with the reason) / `client.restored` /
+         *     `client.tag_added` / `client.tag_removed` (one row per changed client).
+         *
+         *     Text fields are trimmed; an empty string is null. Lengths are in UTF-16 units.
+         */
+        post: operations["agentClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-client-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add, edit or delete one of a client's internal notes.
+         * @description Screen 3.3.7 (Client Detail, Notes tab). `create` mints the note's id (v7) itself;
+         *     `update` and `archive` name an existing note by `noteId`. Delete is an ARCHIVE
+         *     (`client_note.archived_at`). No `expectedVersion`: `client_note` has no version column.
+         *
+         *     A client that is not this advisor's, does not exist or was merged away, and a note
+         *     that is not this client's, not this author's or already archived, are all the same
+         *     404. A re-save of identical text is `changed: false`. The audit row
+         *     (`client.note_created` / `client.note_changed` / `client.note_archived`) carries the
+         *     note id, never the note.
+         */
+        post: operations["agentClientNotes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trip templates. Save a trip as one, rename it, retire it, or apply it to a trip.
+         * @description §3.4.13 Trip Template Library. ONE endpoint with four ops, chosen by `op`.
+         *
+         *     `save` snapshots a trip of the advisor's (its components and day-by-day, every date
+         *     as an offset from the trip's start; never confirmation numbers or the payment
+         *     schedule). `update` changes the name and description only. `archive` is a soft delete.
+         *     `apply` seeds a trip from a template: components are appended, days the trip already
+         *     has are left alone, and days need the trip to have a start date. A trip seeded once
+         *     answers `already_applied` and nothing is written.
+         *
+         *     A trip or template that is not this advisor's, does not exist or is archived is a 404.
+         *     Audited only when something changed: `trip_template.created` / `.updated` / `.archived`
+         *     and `trip.seeded_from_template`.
+         */
+        post: operations["agentTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-message-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's message templates. Create, edit, duplicate, archive or restore.
+         * @description §3.10 Stage 2 (Screens 3.10.4 Library and 3.10.5 Editor). ONE endpoint with four ops.
+         *
+         *     `create` and `duplicate` take an id the browser minted (a UUID v7 from the last hour),
+         *     so a double click or a retry answers `exists` and writes once. An id that belongs to
+         *     another advisor's template, and a template that is not the caller's or is archived
+         *     (for `update` and `duplicate`'s source), are the same 404. `duplicate` names its copy
+         *     "Copy of ..." cut to 80 characters. Only known `{{merge.fields}}` may appear in a body.
+         *     No audit rows: a template holds no client data.
+         */
+        post: operations["agentMessageTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's own settings. Profile, photo, availability, time away, alerts, signature.
+         * @description §3.12 (Screens 3.12.1 to 3.12.4). ONE endpoint with eight ops, chosen by `op`.
+         *
+         *     Every write is one SQL transaction that also writes its audit row, with {from, to} for
+         *     each changed field. A save that changes nothing writes nothing and answers `unchanged`.
+         *
+         *     `set_avatar` takes a photo the browser already squared (base64, at most 1 MiB decoded,
+         *     JPEG, PNG or WebP by its own first bytes). The server picks the Storage key and stores
+         *     a PATH (`/storage/v1/object/public/agent-avatars/<agent>/<file>`), which each surface
+         *     puts on its own public origin. The replaced photo is deleted after the profile moves.
+         *
+         *     Time away is checked against today in the advisor's own time zone. 409s here are
+         *     `overlap` (another block), `started` (edit a running block) and `past` (end one that
+         *     is over), as the phone and web key them; a missing or other advisor's block is a 404.
+         */
+        post: operations["agentSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1812,6 +1966,355 @@ export interface components {
             /** @description Activities whose position changed. */
             moved: number;
         };
+        AgentClientFields: {
+            firstName: string;
+            lastName: string;
+            preferredName?: string | null;
+            /** @description Loose on purpose: must contain `@`, not first or last. */
+            email: string;
+            phone?: string | null;
+            /**
+             * Format: date
+             * @description `yyyy-mm-dd`.
+             */
+            dateOfBirth?: string | null;
+            /** @description Lower-cased, trimmed, blanks and repeats dropped; each at most 40 characters. */
+            tags?: string[] | null;
+            importantDates?: {
+                label: string;
+                /** Format: date */
+                date: string;
+                /** @description Only `true` counts; anything else is false. */
+                recurring?: boolean;
+            }[] | null;
+            notes?: string | null;
+            /** @description Mailing address. All of line1, line2, city, region and postal code blank clears it; otherwise line1, city and country are required by the table (a missing one is a 500 today, as in the Deno function). */
+            address?: {
+                line1?: string | null;
+                line2?: string | null;
+                city?: string | null;
+                region?: string | null;
+                postalCode?: string | null;
+                /** @description ISO 3166-1 alpha-2; upper-cased. */
+                country?: string | null;
+            } | null;
+        };
+        AgentClientCreateRequest: {
+            /** @enum {string} */
+            op: "create";
+            client: components["schemas"]["AgentClientFields"];
+        };
+        AgentClientUpdateRequest: {
+            /** @enum {string} */
+            op: "update";
+            /** Format: uuid */
+            clientId: string;
+            /** @description `client.version` as the form was rendered from. A mismatch is a 409. */
+            expectedVersion: number;
+            /** @description The whole record; every field is overwritten. */
+            client: components["schemas"]["AgentClientFields"];
+        };
+        AgentClientArchiveRequest: {
+            /** @enum {string} */
+            op: "archive";
+            /** Format: uuid */
+            clientId: string;
+            expectedVersion: number;
+            /** @description True archives; false restores. */
+            archived: boolean;
+            /** @description Kept in the audit row of an archive only (the client table has no column for it). */
+            reason?: string | null;
+        };
+        AgentClientBulkTagRequest: {
+            /** @enum {string} */
+            op: "bulk_tag";
+            clientIds: string[];
+            /** @description Trimmed and lower-cased. */
+            tag: string;
+            /** @description True adds the tag; false removes it. */
+            add: boolean;
+        };
+        AgentClientCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "duplicate_email";
+            /**
+             * Format: uuid
+             * @description `created` only: the new client's id (a v7 minted by the server).
+             */
+            clientId?: string;
+            /**
+             * Format: uuid
+             * @description `duplicate_email` only: the live client in this book with that email.
+             */
+            existingClientId?: string;
+        };
+        AgentClientUpdateResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "duplicate_email";
+            /**
+             * Format: uuid
+             * @description Absent on `duplicate_email`.
+             */
+            clientId?: string;
+            /** @description The version after the write (unchanged on `noop` and `duplicate_email`). */
+            version: number;
+        };
+        AgentClientArchiveResponse: {
+            /** @enum {string} */
+            outcome: "archived" | "restored" | "noop";
+            /** Format: uuid */
+            clientId: string;
+            version: number;
+        };
+        AgentClientBulkTagResponse: {
+            /** @enum {string} */
+            outcome: "tagged";
+            /** @description The tag as stored (trimmed */
+            tag: string;
+            add: boolean;
+            /** @description Clients that actually changed. */
+            changedCount: number;
+            /** @description Ids sent */
+            requestedCount: number;
+        };
+        AgentClientNoteRequest: {
+            /** Format: uuid */
+            clientId: string;
+            /** @enum {string} */
+            op: "create" | "update" | "archive";
+            /**
+             * Format: uuid
+             * @description Required on `update` and `archive`; ignored on `create`.
+             */
+            noteId?: string;
+            /** @description Required on `create` and `update`, with something in it besides whitespace (an empty body is not a delete). Stored trimmed. Ignored on `archive`. */
+            body?: string;
+        };
+        AgentClientNoteResponse: {
+            /** Format: uuid */
+            clientId: string;
+            /** Format: uuid */
+            noteId: string;
+            changed: boolean;
+            /**
+             * @description Present only when `changed` is true.
+             * @enum {string}
+             */
+            outcome?: "created" | "changed" | "archived";
+        };
+        AgentTemplateSaveRequest: {
+            /** @enum {string} */
+            op: "save";
+            /** Format: uuid */
+            tripId: string;
+            /** @description Trimmed. */
+            name: string;
+            /** @description Trimmed; blank or absent stores none. */
+            description?: string | null;
+        };
+        AgentTemplateUpdateRequest: {
+            /** @enum {string} */
+            op: "update";
+            /** Format: uuid */
+            templateId: string;
+            name: string;
+            /** @description Blank or absent CLEARS the stored description. */
+            description?: string | null;
+        };
+        AgentTemplateArchiveRequest: {
+            /** @enum {string} */
+            op: "archive";
+            /** Format: uuid */
+            templateId: string;
+        };
+        AgentTemplateApplyRequest: {
+            /** @enum {string} */
+            op: "apply";
+            /** Format: uuid */
+            templateId: string;
+            /** Format: uuid */
+            tripId: string;
+        };
+        AgentTemplateSaveResponse: {
+            /** Format: uuid */
+            templateId: string;
+            componentsSaved: number;
+            daysSaved: number;
+        };
+        AgentTemplateOutcomeResponse: {
+            /**
+             * @description `update` answers changed or noop; `archive` answers archived.
+             * @enum {string}
+             */
+            outcome: "changed" | "noop" | "archived";
+        };
+        AgentTemplateApplyResponse: {
+            /** @enum {string} */
+            outcome: "applied" | "already_applied";
+            componentsAdded: number;
+            /** @description 0 when the trip has no start date. */
+            daysAdded: number;
+            activitiesAdded: number;
+        };
+        AgentMessageTemplateWriteRequest: {
+            /** @enum {string} */
+            op: "create" | "update";
+            /**
+             * Format: uuid
+             * @description `create`: a fresh client-minted v7 (older than an hour is a 400). `update`: the template's id.
+             */
+            templateId: string;
+            /** @enum {string} */
+            category: "lead_response" | "proposal" | "booking_confirmation" | "pre_trip" | "post_trip" | "payment_reminder" | "other";
+            /** @description Trimmed. */
+            name: string;
+            /** @description Kept as written (not trimmed). Every `{{ token }}` must be one of client.firstName, trip.name, trip.destination, trip.dates, agent.firstName, payment.label, payment.amount, payment.dueDate, payment.link. */
+            body: string;
+            /** @description Trimmed; blanks and repeats (ignoring case, first spelling kept) dropped; at most 10 of at most 30 characters. */
+            tags?: string[] | null;
+        };
+        AgentMessageTemplateDuplicateRequest: {
+            /** @enum {string} */
+            op: "duplicate";
+            /**
+             * Format: uuid
+             * @description The template to copy.
+             */
+            templateId: string;
+            /**
+             * Format: uuid
+             * @description A fresh client-minted v7 for the copy.
+             */
+            newTemplateId: string;
+        };
+        AgentMessageTemplateArchiveRequest: {
+            /** @enum {string} */
+            op: "archive";
+            /** Format: uuid */
+            templateId: string;
+            /** @description True archives; false restores. */
+            archived: boolean;
+        };
+        AgentMessageTemplateResponse: {
+            /**
+             * @description `create`: created or exists. `update`: changed or noop. `duplicate`: created or exists. `archive`: changed or noop.
+             * @enum {string}
+             */
+            outcome: "created" | "exists" | "changed" | "noop";
+            /**
+             * Format: uuid
+             * @description `create`, `update` and `duplicate` (the copy's id); absent on `archive`.
+             */
+            templateId?: string;
+        };
+        AgentSettingsProfileRequest: {
+            /** @enum {string} */
+            op: "update_profile";
+            /** @description Trimmed. */
+            displayName: string;
+            pronouns?: string | null;
+            /** @description Digits and `+ - ( ) . x` and spaces, at least 7 digits. */
+            phone?: string | null;
+            bio?: string | null;
+            /** @description Normalised to https links. Instagram and Facebook take a bare handle or @handle; a link without a scheme gets https://; http:// is refused; the three networks must link to their own site with a path. Empty values are dropped. */
+            socialLinks?: {
+                instagram?: string | null;
+                facebook?: string | null;
+                linkedin?: string | null;
+                website?: string | null;
+            } | null;
+        };
+        AgentSettingsAvatarRequest: {
+            /** @enum {string} */
+            op: "set_avatar";
+            /** @description The photo's bytes. */
+            image: string;
+        };
+        AgentSettingsRemoveAvatarRequest: {
+            /** @enum {string} */
+            op: "remove_avatar";
+        };
+        AgentSettingsAvailabilityRequest: {
+            /** @enum {string} */
+            op: "update_availability";
+            /** @enum {string} */
+            timeZone: "America/St_Johns" | "America/Halifax" | "America/Puerto_Rico" | "America/New_York" | "America/Toronto" | "America/Cancun" | "America/Chicago" | "America/Winnipeg" | "America/Mexico_City" | "America/Regina" | "America/Denver" | "America/Edmonton" | "America/Phoenix" | "America/Los_Angeles" | "America/Vancouver" | "America/Tijuana" | "America/Anchorage" | "Pacific/Honolulu";
+            /** @description Every day, either null (off) or From and To on the half hour, ending after it starts ("24:00" may end one). */
+            weeklySchedule: {
+                mon: components["schemas"]["AgentSettingsDayHours"];
+                tue: components["schemas"]["AgentSettingsDayHours"];
+                wed: components["schemas"]["AgentSettingsDayHours"];
+                thu: components["schemas"]["AgentSettingsDayHours"];
+                fri: components["schemas"]["AgentSettingsDayHours"];
+                sat: components["schemas"]["AgentSettingsDayHours"];
+                sun: components["schemas"]["AgentSettingsDayHours"];
+            };
+            /** @description One of 2, 4, 12, 24 or 48 (anything else is a 400). Written as prose, not an enum, because the Kotlin generator emits enums of strings only. */
+            responseTimeHours: number;
+        };
+        AgentSettingsDayHours: {
+            start: string;
+            end: string;
+        } | null;
+        AgentSettingsSaveTimeOffRequest: {
+            /** @enum {string} */
+            op: "save_time_off";
+            /**
+             * Format: uuid
+             * @description With `isNew`, a fresh client-minted v7 (older than an hour is a 400); otherwise the block to edit.
+             */
+            timeOffId: string;
+            /** @description Only `true` creates. */
+            isNew?: boolean;
+            /**
+             * Format: date
+             * @description Today or later in the advisor's zone.
+             */
+            startsOn: string;
+            /**
+             * Format: date
+             * @description On or after startsOn
+             */
+            endsOn: string;
+            label?: string | null;
+            autoReplyEnabled?: boolean | null;
+            /** @description Required when autoReplyEnabled; only `{{return_date}}` may be filled. */
+            autoReplyText?: string | null;
+        };
+        AgentSettingsEndTimeOffRequest: {
+            /** @enum {string} */
+            op: "end_time_off";
+            /** Format: uuid */
+            timeOffId: string;
+        };
+        AgentSettingsNotificationsRequest: {
+            /** @enum {string} */
+            op: "update_notifications";
+            clientMessagesPush: boolean;
+            clientMessagesEmail: boolean;
+            quoteRequestsPush: boolean;
+            quoteRequestsEmail: boolean;
+        };
+        AgentSettingsSignatureRequest: {
+            /** @enum {string} */
+            op: "update_signature";
+            /** @description Plain text, at most 8 lines; only {{agent.name}}, {{agent.phone}} and {{agent.email}}. Empty, absent or the default's exact text stores none (the default is used). */
+            signature?: string | null;
+        };
+        AgentSettingsResponse: {
+            /**
+             * @description `save_time_off`: created, updated or unchanged. `end_time_off`: deleted (it had not started) or ended (it was running and now ends yesterday). Every other op: updated or unchanged.
+             * @enum {string}
+             */
+            outcome: "updated" | "unchanged" | "created" | "deleted" | "ended";
+            /** @description `set_avatar` only: the stored photo's path, to put on a public Storage origin. */
+            avatarPath?: string;
+            /**
+             * Format: uuid
+             * @description `save_time_off` only.
+             */
+            timeOffId?: string;
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -2476,6 +2979,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentItineraryGenerateResponse"] | components["schemas"]["AgentItineraryDayResponse"] | components["schemas"]["AgentItineraryActivityResponse"] | components["schemas"]["AgentItineraryReorderResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentClientCreateRequest"] | components["schemas"]["AgentClientUpdateRequest"] | components["schemas"]["AgentClientArchiveRequest"] | components["schemas"]["AgentClientBulkTagRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentClientCreateResponse"] | components["schemas"]["AgentClientUpdateResponse"] | components["schemas"]["AgentClientArchiveResponse"] | components["schemas"]["AgentClientBulkTagResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentClientNotes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentClientNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description The note was written, or (`changed: false`) already read that way. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentClientNoteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTemplateSaveRequest"] | components["schemas"]["AgentTemplateUpdateRequest"] | components["schemas"]["AgentTemplateArchiveRequest"] | components["schemas"]["AgentTemplateApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateSaveResponse"] | components["schemas"]["AgentTemplateOutcomeResponse"] | components["schemas"]["AgentTemplateApplyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentMessageTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentMessageTemplateWriteRequest"] | components["schemas"]["AgentMessageTemplateDuplicateRequest"] | components["schemas"]["AgentMessageTemplateArchiveRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMessageTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSettingsProfileRequest"] | components["schemas"]["AgentSettingsAvatarRequest"] | components["schemas"]["AgentSettingsRemoveAvatarRequest"] | components["schemas"]["AgentSettingsAvailabilityRequest"] | components["schemas"]["AgentSettingsSaveTimeOffRequest"] | components["schemas"]["AgentSettingsEndTimeOffRequest"] | components["schemas"]["AgentSettingsNotificationsRequest"] | components["schemas"]["AgentSettingsSignatureRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSettingsResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -1,8 +1,14 @@
 package api
 
 import (
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentclient"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentclientnotes"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentitinerary"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentlead"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentmessage"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentmessagetemplate"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agentsettings"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttemplate"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttrip"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttripnotes"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api/fn/agenttripstatus"
@@ -55,5 +61,14 @@ func portTable() map[string]port {
 		"agent-trip-status": {GateUser, agenttripstatus.Func},
 		"agent-trip-notes":  {GateUser, agenttripnotes.Func},
 		"agent-itinerary":   {GateUser, agentitinerary.Func},
+
+		// Advisor clients, notes, templates, settings and messages (step 6). agent-message
+		// and agent-settings are mobile-called.
+		"agent-client":           {GateUser, agentclient.Func},
+		"agent-client-notes":     {GateUser, agentclientnotes.Func},
+		"agent-template":         {GateUser, agenttemplate.Func},
+		"agent-message-template": {GateUser, agentmessagetemplate.Func},
+		"agent-settings":         {GateUser, agentsettings.Func},
+		"agent-message":          {GateUser, agentmessage.Func},
 	}
 }
