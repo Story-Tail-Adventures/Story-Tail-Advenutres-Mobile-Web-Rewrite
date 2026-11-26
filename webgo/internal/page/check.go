@@ -58,9 +58,6 @@ func check(root *html.Node, file string, declared []string, repeats map[string][
 					}
 				}
 			}
-			if isSlot && isRepeat {
-				fail("<%s> has both %s=%q and %s=%q; put the slot inside the row", n.Data, attrSlot, slot, attrRepeat, rep)
-			}
 			if isRepeat {
 				if !slotName.MatchString(rep) {
 					fail("repeat name %q must match %s", rep, slotName)
@@ -73,7 +70,10 @@ func check(root *html.Node, file string, declared []string, repeats map[string][
 					rows[rep] = map[string]int{}
 				}
 				repeat = rep
-			} else if isSlot {
+			}
+			// A slot on the repeat's own element belongs to each row: an <option> holds no
+			// elements, so a <select> or <datalist> row is filled on the row itself.
+			if isSlot {
 				if !slotName.MatchString(slot) {
 					fail("slot name %q must match %s", slot, slotName)
 				}

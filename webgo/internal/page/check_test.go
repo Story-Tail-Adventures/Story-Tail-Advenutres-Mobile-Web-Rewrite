@@ -51,8 +51,8 @@ func TestLoadRefusesBrokenPages(t *testing.T) {
 			Spec{Repeats: map[string][]string{"a": nil, "b": nil}}, "nesting is not supported",
 		},
 		{
-			"slot and repeat on one element", doc(`<ul><li data-repeat="a" data-slot="b">x</li></ul>`),
-			Spec{Repeats: map[string][]string{"a": nil}}, "both data-slot",
+			"a row's own slot undeclared", doc(`<ul><li data-repeat="a" data-slot="b">x</li></ul>`),
+			Spec{Repeats: map[string][]string{"a": nil}}, `slot "b" is in repeat "a" but not declared`,
 		},
 		{
 			"row slot undeclared", doc(`<ul><li data-repeat="a"><span data-slot="name">x</span></li></ul>`),

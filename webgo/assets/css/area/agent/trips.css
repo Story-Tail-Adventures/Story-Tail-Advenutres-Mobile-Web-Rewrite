@@ -1,1 +1,108 @@
-/* Agent workspace, trips sub-area: page-only styles (see webgo/internal/handlers/agent/trips). */
+/* Agent workspace, trips sub-area: page-only styles (see webgo/internal/handlers/agent/trips).
+ *
+ * Every class here starts with trp- so it cannot collide with people.css or money.css in the
+ * joined css/area/agent.css bundle. Sizes are the Next pages' own sx values, read off
+ * app/(agent)/agent/trips/** and components/agent/*: MUI's 8px scale, breakpoints md 768,
+ * sm 640, lg 1024. Nothing here is inline (the CSP is style-src 'self'). */
+
+@layer components {
+  /* ── The page column (PAGE_SX): mx auto, max 1336, px 2/4, py 3 ───────────────────────── */
+  .trp-col { margin: 0 auto; width: 100%; max-width: 1336px; padding: 24px 16px; box-sizing: border-box; }
+  .trp-col-narrow { max-width: 760px; }
+  @media (min-width: 768px) { .trp-col { padding-left: 32px; padding-right: 32px; } }
+
+  .trp-block { display: block; min-width: 0; }
+  .trp-mt-1 { margin-top: 8px; }
+  .trp-mt-2 { margin-top: 16px; }
+  .trp-icon-12 { width: 12px; height: 12px; }
+  .trp-icon-13 { width: 13px; height: 13px; }
+  .trp-icon-26 { width: 26px; height: 26px; }
+
+  /* ── The §5 states (components/client/states.tsx, AdminNoAccess) ──────────────────────── */
+  .trp-state { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .trp-state-body,
+  .trp-state-body:last-child { padding: 28px; }
+  .trp-state-tile {
+    display: flex;
+    margin: 0 auto 12px;
+    width: 56px;
+    height: 56px;
+    background-color: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+  .trp-state-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .trp-state-actions { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  @media (min-width: 640px) { .trp-state-actions { flex-direction: row; justify-content: center; } }
+
+  /* ── Page header (the list's and the new-trip form's) ──────────────────────────────────── */
+  .trp-head { margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .trp-head-text { min-width: 0; flex: 1; }
+  .trp-sub { margin-top: 2px; }
+
+  /* ── 3.4.1 filters ─────────────────────────────────────────────────────────────────────── */
+  .trp-filters { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+  /* OutlinedInput size="small" with no FormControl: 40px, not the Field's 44. */
+  .trp-search,
+  .trp-input-40 { min-height: 40px; padding-top: 7.5px; padding-bottom: 7.5px; }
+  .trp-search { flex: 1; width: auto; min-width: 0; }
+  .trp-chips { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .trp-chip-count { margin-left: 4px; opacity: 0.6; }
+
+  /* ── 3.4.1 rows ────────────────────────────────────────────────────────────────────────── */
+  .trp-table-card { overflow-x: auto; }
+  /* TableCell padding="checkbox" at size="small" (width 24, padding 0 12px 0 16px) holding the
+     theme's small Checkbox: no padding, a 20px icon whose drawn square is 15px. */
+  .trp-cell-check { width: 24px; padding: 0 12px 0 16px; }
+  .trp-check { display: block; width: 15px; height: 15px; margin: 2.5px; border-radius: 2px; background-size: 12px 12px; }
+  .trp-receipt { margin-bottom: 8px; }
+  /* Cell looks: .table td sets the font and colour in the mui layer, so a cell's own type,
+     weight and colour live here, one layer up. */
+  .trp-td-muted { color: var(--mui-palette-text-secondary); }
+  .trp-td-travel { color: var(--mui-palette-text-secondary); font-weight: 500; }
+  .trp-td-value { font-family: var(--font-mono); font-weight: 700; }
+  .trp-td-comm { font-family: var(--font-mono); color: var(--mui-palette-primary-main); }
+
+  /* The bulk bar: there only while something is ticked, and only from md (as the CSS rule
+     it replaced in Next was). :has() needs no script. */
+  .trp-bulk-bar {
+    display: none;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--mui-palette-surface-2);
+    padding: 8px 12px;
+  }
+  @media (min-width: 768px) {
+    .trp-bulk:has(input[name="trip"]:checked) .trp-bulk-bar { display: flex; }
+  }
+  .trp-select-auto { width: auto; min-width: 0; }
+
+  .trp-pager { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* ── 3.4.3 New trip ────────────────────────────────────────────────────────────────────── */
+  .trp-back { display: inline-block; margin-bottom: 12px; color: var(--mui-palette-text-secondary); }
+  .trp-head-new { margin-bottom: 20px; }
+  .trp-form { display: flex; flex-direction: column; gap: 20px; }
+  .trp-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .trp-legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+  .trp-types { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .trp-types { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1024px) { .trp-types { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  /* The tile reads as chosen from its radio, so it needs no script. */
+  .trp-type { border: 1px solid var(--mui-palette-divider); background-color: var(--mui-palette-background-paper); }
+  .trp-type:has(input:checked) { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-primary-container); }
+  .trp-type-label { display: flex; cursor: pointer; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+  /* Radio size="small" with p 0 and mt 0.25: a 20px icon box whose drawn ring is ~17px
+     (radius 10 of a 24 viewBox) and whose dot is ~8px, 2px down. */
+  .trp-radio { margin: 3.5px 1.5px 1.5px; width: 17px; height: 17px; flex: none; }
+  .trp-radio:checked { background-image: radial-gradient(circle, var(--mui-palette-primary-main) 0 3.8px, transparent 4.2px); }
+  .trp-type-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .trp-type-hint { margin-top: 2px; display: block; }
+  .trp-field-heading { display: block; margin-bottom: 4px; font-weight: 600; }
+  .trp-field-hint { margin-bottom: 6px; }
+  .trp-field-error { margin-top: 4px; }
+  .trp-travelers { max-width: 220px; }
+  .trp-note { display: flex; align-items: center; gap: 6px; border-radius: 4px; background-color: var(--mui-palette-surface-2); padding: 8px 12px; }
+  .trp-push-end { margin-left: auto; }
+}
