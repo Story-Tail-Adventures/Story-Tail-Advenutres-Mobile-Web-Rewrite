@@ -100,6 +100,16 @@ func begin(w http.ResponseWriter, r *http.Request, d handlers.Deps) (v visit, do
 			web.SeeOther(w, r, to)
 			return v, true
 		}
+		// NO FILTER, AND THAT IS DELIBERATE. platform_user carries a unique index on
+		// account_id (initial.sql) and its only SELECT policy is
+		// `account_id = auth.uid()` (auth_bridge.sql), so a signed-in visitor can see
+		// exactly their own row and MaybeOne can never find a second. Adding an .Eq()
+		// here would need the account id, which this request does not carry.
+		//
+		// This is the sub-area's ONLY PostgREST table read; everything else goes through
+		// agentread, where the Postgres function scopes itself by current_agent_id(). The
+		// test double applies eq. filters (harness_test.go's matching), so a read added
+		// here later that forgets its filter will be caught.
 		row, found, err := supa.MaybeOne[identityRow](r.Context(), d.Supa, st.AccessToken, "platform_user",
 			supa.Q().Select("display_name,time_zone"))
 		if err != nil {

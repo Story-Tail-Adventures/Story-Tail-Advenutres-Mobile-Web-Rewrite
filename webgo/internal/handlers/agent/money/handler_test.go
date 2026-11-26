@@ -268,13 +268,26 @@ func TestLedgerPaginates(t *testing.T) {
 func TestLedgerTripChipNamesTheTrip(t *testing.T) {
 	wd := newWorld(t)
 	wd.seedLedger(ledgerRowJSON)
-	body := wd.get("/agent/commission/ledger?trip=" + tripUUID).Body.String()
+	// The row's OWN trip. This read asked for a different one until the double started
+	// scoping by the ids in the call: the page named a trip whose lines it was not
+	// showing, which the database could never produce.
+	body := wd.get("/agent/commission/ledger?trip=" + ledgerRowTripID).Body.String()
 	has(t, body,
 		"One trip: Getaway #2",
 		`href="/agent/commission/ledger"`, // show every trip
-		`name="trip" value="`+tripUUID+`"`,
-		`href="/agent/commission/ledger/new?trip=`+tripUUID+`"`,
+		`name="trip" value="`+ledgerRowTripID+`"`,
+		`href="/agent/commission/ledger/new?trip=`+ledgerRowTripID+`"`,
 	)
+}
+
+// And filtering to a trip the ledger has no lines for is the empty state, not another
+// trip's name in the chip.
+func TestLedgerFilteredToAnotherTripIsEmpty(t *testing.T) {
+	wd := newWorld(t)
+	wd.seedLedger(ledgerRowJSON)
+	body := wd.get("/agent/commission/ledger?trip=" + tripUUID).Body.String()
+	has(t, body, copyEmptyTripTitle)
+	lacks(t, body, "One trip: Getaway #2", "Noah Castillo")
 }
 
 func TestLedgerReadFailureIsARetry(t *testing.T) {

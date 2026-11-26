@@ -721,3 +721,112 @@
   .mny-lead-count { text-align: right; }
   .mny-lead-campaign { overflow-wrap: anywhere; }
 }
+
+
+/* ── §3.12 Agent Profile & Settings ──────────────────────────────────────────────────────
+   Every rule is the Next form's own sx, read off components/agent/Agent*Form.tsx and
+   AgentTimeOffCard.tsx. The week picture's column count is DATA, so it gets the same
+   treatment as a bar's height: one rule per count money.css carries, and the handler only
+   writes the attribute. */
+@layer components {
+  .mny-set-col { max-width: 1120px; padding-bottom: 64px; }
+  .mny-set-title { margin: 20px 0 0; font-weight: 700; }
+  .mny-set-tabs { margin-top: 16px; }
+  .mny-set-head { margin: 20px 0 14px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+
+  .mny-set-grid { display: grid; gap: 18px; max-width: 1080px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 768px) { .mny-set-grid { grid-template-columns: minmax(0, 1fr) 320px; } }
+  .mny-set-grid-2 { display: grid; gap: 14px; max-width: 1080px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 768px) { .mny-set-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .mny-set-grid-av { display: grid; gap: 14px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1200px) { .mny-set-grid-av { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); } }
+  .mny-set-side { align-self: start; }
+  .mny-set-narrow { max-width: 360px; }
+  .mny-set-wide { grid-column: 1 / -1; }
+  .mny-set-actions { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+  .mny-set-notes { margin-top: 12px; display: grid; gap: 4px; max-width: 720px; }
+
+  /* 3.12.1 Profile */
+  .mny-set-photo { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .mny-set-photo-text { min-width: 0; }
+  .mny-set-photo-actions { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .mny-set-photo-form { display: inline-flex; }
+  .mny-set-avatar {
+    width: 84px;
+    height: 84px;
+    flex-shrink: 0;
+    font-size: 28px;
+    font-weight: 600;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+  }
+  .mny-set-avatar-sm {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 600;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+  }
+  .mny-set-avatar-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  .mny-set-fields { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .mny-set-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .mny-set-area { min-height: 84px; resize: vertical; line-height: 1.5; padding: 8px 12px; }
+  .mny-set-mono { font-family: var(--font-mono); font-size: 13px; min-height: 200px; }
+  .mny-set-preview { margin-top: 8px; padding: 12px; border: 1px solid var(--mui-palette-divider); border-radius: 8px; background-color: var(--mui-palette-surface-2); }
+  .mny-set-preview-top { display: flex; align-items: center; gap: 10px; }
+  .mny-set-prev-name { overflow-wrap: anywhere; }
+  .mny-set-prev-bio { margin-top: 10px; white-space: pre-line; overflow-wrap: anywhere; }
+  .mny-set-prev-links { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* 3.12.2 Availability */
+  .mny-week { display: grid; gap: 2px; }
+  .mny-week[data-cols="24"] { grid-template-columns: 36px repeat(24, minmax(0, 1fr)); }
+  .mny-week[data-cols="26"] { grid-template-columns: 36px repeat(26, minmax(0, 1fr)); }
+  .mny-week[data-cols="28"] { grid-template-columns: 36px repeat(28, minmax(0, 1fr)); }
+  .mny-week[data-cols="30"] { grid-template-columns: 36px repeat(30, minmax(0, 1fr)); }
+  .mny-week[data-cols="32"] { grid-template-columns: 36px repeat(32, minmax(0, 1fr)); }
+  .mny-week[data-cols="34"] { grid-template-columns: 36px repeat(34, minmax(0, 1fr)); }
+  .mny-week[data-cols="36"] { grid-template-columns: 36px repeat(36, minmax(0, 1fr)); }
+  .mny-week[data-cols="38"] { grid-template-columns: 36px repeat(38, minmax(0, 1fr)); }
+  .mny-week[data-cols="40"] { grid-template-columns: 36px repeat(40, minmax(0, 1fr)); }
+  .mny-week[data-cols="42"] { grid-template-columns: 36px repeat(42, minmax(0, 1fr)); }
+  .mny-week[data-cols="44"] { grid-template-columns: 36px repeat(44, minmax(0, 1fr)); }
+  .mny-week[data-cols="46"] { grid-template-columns: 36px repeat(46, minmax(0, 1fr)); }
+  .mny-week[data-cols="48"] { grid-template-columns: 36px repeat(48, minmax(0, 1fr)); }
+  .mny-week-spacer { display: block; }
+  .mny-week-hour { grid-column: span 2; font-size: 10px; overflow: hidden; }
+  .mny-week-day { display: flex; align-items: center; font-size: 12px; font-weight: 600; }
+  .mny-week-box { height: 18px; border-radius: 4px; background-color: var(--mui-palette-surface-3); }
+  .mny-week-on { background-color: var(--mui-palette-primary-main); }
+
+  .mny-set-days { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+  .mny-set-day { display: grid; gap: 8px; align-items: center; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .mny-set-day { grid-template-columns: 160px minmax(0, 1fr) minmax(0, 1fr) 40px; } }
+  .mny-set-dayname { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+  .mny-set-check { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--mui-palette-primary-main); }
+  .mny-set-time { min-width: 0; }
+  .mny-set-dayoff { align-self: center; }
+
+  .mny-away-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+  .mny-away { padding: 12px; border-radius: 8px; background-color: var(--mui-palette-surface-2); }
+  .mny-away-actions { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .mny-away-running { margin-top: 8px; }
+  .mny-away-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--mui-palette-divider); display: grid; gap: 10px; }
+
+  /* 3.12.3 Notifications */
+  .mny-set-matrix { max-width: 720px; }
+  .mny-set-switch { width: 20px; height: 20px; accent-color: var(--mui-palette-primary-main); }
+  .mny-set-cell { text-align: center; }
+
+  /* 3.12.4 Signature */
+  .mny-set-insert { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; row-gap: 6px; }
+  .mny-set-spacer { flex: 1; }
+  .mny-set-chip { cursor: pointer; }
+  .mny-set-email { margin-top: 8px; padding: 14px; border: 1px solid var(--mui-palette-divider); border-radius: 8px; }
+  .mny-set-sig { padding-top: 10px; border-top: 1px solid var(--mui-palette-divider); }
+  .mny-sig-line { display: block; min-height: 1em; color: var(--mui-palette-text-secondary); overflow-wrap: anywhere; }
+  .mny-sig-first { font-weight: 600; color: var(--mui-palette-text-primary); }
+  .mny-sig-locked { margin-top: 4px; font-weight: 700; color: var(--mui-palette-brand-main); }
+}

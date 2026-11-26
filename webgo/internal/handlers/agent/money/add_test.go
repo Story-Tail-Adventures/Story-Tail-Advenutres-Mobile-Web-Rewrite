@@ -20,6 +20,9 @@ func addWorld(t *testing.T) *world {
 	t.Helper()
 	wd := newWorld(t)
 	wd.fake.rpc["agent_trip_roster"] = mustJSON(sampleTrips)
+	// What these fixtures are FOR. Four of this area's id-bearing reads answer with rows
+	// that do not echo the id they were asked for, so only the test can say.
+	wd.fake.scoped["p_trip_id"] = sampleTripID
 	wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers)
 	wd.fake.rpc["agent_trip_overview"] = mustJSON([]map[string]any{{
 		"trip_id": sampleTripID, "title": "Kyoto in the spring",
@@ -60,7 +63,10 @@ func TestAddStepOne(t *testing.T) {
 	t.Run("the search is a GET, so the result is a URL", func(t *testing.T) {
 		wd := addWorld(t)
 		body := wd.get("/agent/commission/ledger/new?q=kyoto").Body.String()
-		has(t, body, `value="kyoto"`)
+		// The term is echoed into the box, it reaches the database, and the page shows
+		// what it matched — not the whole roster, which is what a dropped term returns.
+		has(t, body, `value="kyoto"`, "Kyoto in the spring")
+		lacks(t, body, "Rome, later", "No trips match that.")
 		if !strings.Contains(wd.fake.rpcArgs["agent_trip_roster"], `"p_search":"kyoto"`) {
 			t.Errorf("the search was not passed on: %s", wd.fake.rpcArgs["agent_trip_roster"])
 		}

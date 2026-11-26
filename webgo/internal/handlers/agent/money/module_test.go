@@ -253,3 +253,123 @@ func TestExportCenterModuleHandlesExistInThePage(t *testing.T) {
 		t.Error("reports-export.html does not load its module")
 	}
 }
+
+// §3.12's module does two jobs the server cannot: it makes the square JPEG in the browser
+// (the function stores what the browser hands it) and it keeps the signature preview live.
+// Both are held to the TypeScript they are ported from, and every handle is checked against
+// the page that has to provide it — the silent failure that shipped the payment radios
+// without ids.
+func TestSettingsModule(t *testing.T) {
+	b, err := fs.ReadFile(assets.FS, "js/agent/money/settings.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	profile := string(mustPage(t, "agent/money/settings-profile.html"))
+	signature := string(mustPage(t, "agent/money/settings-signature.html"))
+
+	// avatarImage.ts, byte for byte: the size, the crop, the white under a transparent PNG,
+	// and the quality. A different number here is a different photo from the Next app's.
+	avatar := readWebFile(t, "lib/agent/avatarImage.ts")
+	for _, want := range []string{
+		"const AVATAR_SIZE = 400",
+		"5 * 1024 * 1024",
+		`"image/jpeg", "image/png", "image/webp"`,
+		"const side = Math.min(w, h);",
+		"Math.floor((w - side) / 2), Math.floor((h - side) / 2), side",
+		`ctx.fillStyle = "#FFFFFF";`,
+		`canvas.toBlob(resolve, "image/jpeg", 0.88)`,
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("settings.js no longer contains %q", want)
+		}
+		if avatar != "" && !strings.Contains(avatar, strings.TrimPrefix(want, "const ")) &&
+			!strings.Contains(avatar, want) {
+			t.Errorf("avatarImage.ts no longer contains %q; the module is now the odd one out", want)
+		}
+	}
+
+	// renderSignature's own tidying, so the live preview and the server agree line for line.
+	rules := readWebFile(t, "lib/agent/settingsRules.ts")
+	for _, want := range []string{
+		`.replace(/\s*·\s*(?:·\s*)+/g, " · ")`,
+		`.replace(/^\s*·\s*/, "")`,
+		`.replace(/\s*·\s*$/, "")`,
+		`if (line.trim() === "" && hadField) continue;`,
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("settings.js no longer contains %q", want)
+		}
+		if rules != "" && !strings.Contains(rules, want) {
+			t.Errorf("settingsRules.ts no longer contains %q", want)
+		}
+	}
+	// Go renders the same lines on every load, so the two must agree about the locked line.
+	if !strings.Contains(src, lockedSignatureLine) {
+		t.Errorf("settings.js no longer carries %q", lockedSignatureLine)
+	}
+
+	// The photo's three refusals are the module's to say: no round trip makes them.
+	for _, want := range []string{
+		"That photo is over 5 MB. Try a smaller one.",
+		"Use a JPG, PNG or WebP photo.",
+		"We couldn't read that photo. Try another one.",
+	} {
+		if !strings.Contains(src, want) {
+			t.Errorf("settings.js no longer says %q", want)
+		}
+	}
+
+	// Every handle it reaches for, against the page that provides it.
+	for _, c := range []struct{ page, name, want string }{
+		{profile, "settings-profile.html", "data-avatar-form"},
+		{profile, "settings-profile.html", "data-avatar-file"},
+		{profile, "settings-profile.html", "data-avatar-image"},
+		{profile, "settings-profile.html", "data-avatar-pick"},
+		{profile, "settings-profile.html", "data-photo-error"},
+		{profile, "settings-profile.html", "data-photo-error-text"},
+		{signature, "settings-signature.html", "data-signature-text"},
+		{signature, "settings-signature.html", "data-signature-preview"},
+		{signature, "settings-signature.html", "data-signature-insert"},
+	} {
+		if !strings.Contains(src, c.want) {
+			t.Errorf("settings.js no longer uses %s", c.want)
+		}
+		if !strings.Contains(c.page, c.want) {
+			t.Errorf("%s has no %s for the module to find", c.name, c.want)
+		}
+	}
+	// The preview's three values ride on data attributes the handler fills; the module reads
+	// them through `dataset`, which is the same attribute under its camel name.
+	for attr, prop := range map[string]string{
+		"data-sig-name": "dataset.sigName", "data-sig-phone": "dataset.sigPhone", "data-sig-email": "dataset.sigEmail",
+	} {
+		if !strings.Contains(src, prop) {
+			t.Errorf("settings.js no longer reads %s", prop)
+		}
+		if !strings.Contains(signature, attr) {
+			t.Errorf("settings-signature.html has no %s for the module to read", attr)
+		}
+	}
+
+	// The three Insert chips carry the TypeScript's own tokens.
+	for _, token := range []string{"{{agent.name}}", "{{agent.phone}}", "{{agent.email}}"} {
+		if !strings.Contains(signature, `data-signature-insert="`+token+`"`) {
+			t.Errorf("settings-signature.html has no Insert chip for %s", token)
+		}
+		if rules != "" && !strings.Contains(rules, `token: "`+token+`"`) {
+			t.Errorf("settingsRules.ts no longer lists %s", token)
+		}
+	}
+
+	// The preview writes the advisor's own words, so it uses textContent, never innerHTML.
+	if strings.Contains(src, "innerHTML") {
+		t.Error("settings.js writes innerHTML; a signature is plain text")
+	}
+	// Both pages load it, inside <main> so the layout hashes its URL.
+	for name, page := range map[string]string{"settings-profile.html": profile, "settings-signature.html": signature} {
+		if !strings.Contains(page, `src="/assets/js/agent/money/settings.js"`) {
+			t.Errorf("%s does not load its module", name)
+		}
+	}
+}

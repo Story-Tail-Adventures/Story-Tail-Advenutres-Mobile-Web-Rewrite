@@ -17,6 +17,10 @@ func resolveWorld(t *testing.T, st map[string]any, line map[string]any, cands []
 	wd.fake.rpc["agent_commission_import"] = mustJSON([]map[string]any{st})
 	wd.fake.rpc["agent_commission_import_rows"] = mustJSON([]map[string]any{line})
 	wd.fake.rpc["agent_commission_import_candidates"] = mustJSON(cands)
+	// What these fixtures are FOR. Four of this area's id-bearing reads answer with rows
+	// that do not echo the id they were asked for, so only the test can say.
+	wd.fake.scoped["p_import_id"] = sampleImportID
+	wd.fake.scoped["p_row_id"] = sampleRowID
 	wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers)
 	wd.fake.rpc["agent_trip_roster"] = mustJSON(sampleTrips)
 	wd.fake.rpc["agent_trip_overview"] = mustJSON([]map[string]any{{

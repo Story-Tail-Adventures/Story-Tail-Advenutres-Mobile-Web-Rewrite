@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -60,6 +61,13 @@ type fakeSupa struct {
 	failing map[string]bool
 	// rpcArgs records the body each read was called with.
 	rpcArgs map[string]string
+	// scoped is the record these fixtures are about: parameter name to the value a read
+	// must name to be answered. It is what scopedOut cannot derive — four of this area's
+	// nine id-bearing reads return rows that do not echo the id they were asked for
+	// (agent_commission_import_rows, agent_commission_import_candidates,
+	// agent_trip_components), so the fixture has nothing to compare against and only the
+	// test can say which record it seeded.
+	scoped map[string]string
 	// functions maps "METHOD name" to its reply; calls records every call.
 	functions map[string]reply
 	calls     []fn
@@ -69,6 +77,7 @@ func newFake() *fakeSupa {
 	return &fakeSupa{
 		role: "agent", aal: "aal2", factor: true, displayName: "Gyasi Story", timeZone: "America/Chicago",
 		rpc: map[string]string{}, failing: map[string]bool{}, rpcArgs: map[string]string{},
+		scoped:    map[string]string{},
 		functions: map[string]reply{},
 	}
 }
@@ -90,12 +99,14 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(user)
 	case r.URL.Path == "/rest/v1/platform_user":
+		// Through matching, so a read that forgot its filter cannot pass here. The rows
+		// carry account_id, which is the column platform_user is scoped by.
 		sel := r.URL.Query().Get("select")
+		rows := []map[string]any{{"account_id": "u-gyasi", "display_name": f.displayName, "time_zone": f.timeZone}}
 		if strings.Contains(sel, "role") {
-			_ = json.NewEncoder(w).Encode([]map[string]any{{"role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01T00:00:00Z"}})
-			return
+			rows = []map[string]any{{"account_id": "u-gyasi", "role": f.role, "onboarding_step": nil, "onboarding_completed_at": "2026-01-01T00:00:00Z"}}
 		}
-		_ = json.NewEncoder(w).Encode([]map[string]any{{"display_name": f.displayName, "time_zone": f.timeZone}})
+		_ = json.NewEncoder(w).Encode(matching(rows, r.URL.Query()))
 	case strings.HasPrefix(r.URL.Path, "/rest/v1/rpc/"):
 		name := strings.TrimPrefix(r.URL.Path, "/rest/v1/rpc/")
 		b, _ := io.ReadAll(r.Body)
@@ -109,6 +120,13 @@ func (f *fakeSupa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			body = "[]"
 		}
+		// Scoped by the ids in the CALL, not just the name. Without this a read that lost
+		// or mistook its p_commission_id, p_import_id or p_trip_id is handed the fixture
+		// and passes — the handler is wrong and the harness agrees with it.
+		if scopedOut(body, b) || !f.inScope(b) {
+			body = "[]"
+		}
+		body = searched(body, b)
 		_, _ = w.Write([]byte(body))
 	case strings.HasPrefix(r.URL.Path, "/functions/v1/"):
 		name := strings.TrimPrefix(r.URL.Path, "/functions/v1/")
@@ -204,6 +222,177 @@ func (wd *world) post(target string, form url.Values) *httptest.ResponseRecorder
 	rec := httptest.NewRecorder()
 	wd.h.ServeHTTP(rec, req)
 	return rec
+}
+
+// inScope reports whether a read names the record these fixtures are for. Where scopedOut
+// derives the answer from the fixture, this is DECLARED by the test — the only way to cover
+// a read whose answer does not carry the id it was asked for.
+//
+// An argument the world did not declare is not modelled and does not scope, the same escape
+// hatch as everywhere else, so it drops in beside fixtures written before it. A null
+// argument is an absent filter, as in scopedOut.
+func (f *fakeSupa) inScope(body []byte) bool {
+	if len(f.scoped) == 0 || len(body) == 0 {
+		return true
+	}
+	var args map[string]json.RawMessage
+	if err := json.Unmarshal(body, &args); err != nil {
+		return true
+	}
+	for param, want := range f.scoped {
+		got, present := args[param]
+		if !present || string(got) == "null" {
+			continue
+		}
+		var value string
+		if json.Unmarshal(got, &value) != nil {
+			continue // not a scalar string: not an id equality
+		}
+		if value != want {
+			return false
+		}
+	}
+	return true
+}
+
+// searched narrows a reply the way p_search narrows the real answer: a case-insensitive
+// contains over the columns agent_trip_roster actually searches (title, the client's
+// display name, the destinations), per supabase/migrations/20260927100000_agent_trip_roster.sql.
+//
+// It exists because a SEARCH TERM cannot be covered the way an id is. A declared scope only
+// catches a term that arrives WRONG; a term DROPPED on the way to the database arrives as
+// null, which in these functions means "no filter" and is correctly let through — so the
+// full roster comes back and the page reads right. Narrowing here is what makes the rows
+// the page shows depend on the term, so both mistakes fail on page content rather than on
+// an assertion someone remembered to write about the recorded body.
+//
+// Same rule as matching and scopedOut: a row carrying NONE of the searched columns is not
+// narrowed, so this drops in beside fixtures that know nothing about it.
+func searched(reply string, args []byte) string {
+	var call map[string]json.RawMessage
+	if err := json.Unmarshal(args, &call); err != nil {
+		return reply
+	}
+	raw, ok := call["p_search"]
+	if !ok || string(raw) == "null" {
+		return reply
+	}
+	var term string
+	if json.Unmarshal(raw, &term) != nil {
+		return reply
+	}
+	if term = strings.TrimSpace(term); term == "" {
+		return reply // btrim(p_search) = '' is no filter either.
+	}
+	var rows []map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(reply), &rows); err != nil || len(rows) == 0 {
+		return reply
+	}
+	kept := make([]map[string]json.RawMessage, 0, len(rows))
+	for _, row := range rows {
+		searchable, match := false, false
+		for _, col := range []string{"title", "client_display_name", "destinations"} {
+			v, present := row[col]
+			if !present {
+				continue
+			}
+			searchable = true
+			if strings.Contains(strings.ToLower(string(v)), strings.ToLower(term)) {
+				match = true
+			}
+		}
+		if !searchable || match {
+			kept = append(kept, row)
+		}
+	}
+	out, err := json.Marshal(kept)
+	if err != nil {
+		return reply
+	}
+	return string(out)
+}
+
+// scopedOut reports whether a read's id ARGUMENTS disagree with the fixture it would be
+// answered with, in which case the real database would return nothing.
+//
+// Recording the body in rpcArgs is not scoping: it only helps the tests that remember to
+// assert on it, and this sub-area asserted on an id in exactly one place while its reads
+// carry more id parameters than any other area's.
+//
+// The mapping is `p_<field>` to the fixture row's `<field>`, and the same rule as matching
+// keeps it safe to add to fixtures written before it: A FIELD THE FIXTURE DOES NOT CARRY
+// DOES NOT SCOPE, and neither does a NULL argument, which in these functions means "no
+// filter". So p_limit, p_offset and p_period scope nothing, and an id does only where the
+// answer actually names it.
+func scopedOut(reply string, args []byte) bool {
+	var rows []map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(reply), &rows); err != nil || len(rows) == 0 {
+		return false
+	}
+	var call map[string]json.RawMessage
+	if err := json.Unmarshal(args, &call); err != nil {
+		return false
+	}
+	for key, arg := range call {
+		field, ok := strings.CutPrefix(key, "p_")
+		if !ok {
+			continue
+		}
+		// A NULL argument is an ABSENT filter, not a filter for null: these functions are
+		// written `p_supplier_id IS NULL OR supplier_id = p_supplier_id`. Treating it as a
+		// value is how this guard first reported the whole ledger as out of scope.
+		if string(arg) == "null" {
+			continue
+		}
+		// Only a scalar STRING is an equality on an id. An array is a membership test
+		// (`status = ANY(p_status)`) and a number is a page size; modelling either as
+		// equality is how this guard first reported the whole trip roster as out of scope.
+		if len(arg) == 0 || arg[0] != '"' {
+			continue
+		}
+		want, present := rows[0][field]
+		if !present {
+			continue
+		}
+		if string(arg) != string(want) {
+			return true
+		}
+	}
+	return false
+}
+
+// matching applies the one PostgREST filter these tests depend on: col=eq.value. Without it
+// the double answers every lookup with the whole table, so a handler that FORGOT its filter
+// would pass — and in an agent area a missing filter is a cross-advisor read, not an empty
+// page. Anything it does not understand (select, order, limit) is left alone.
+//
+// "A column the fixture does not carry does not filter" is what makes this safe to add to
+// an area with existing fixtures: it bites only where the column is actually seeded.
+//
+// Found by the traveler session (internal/handlers/client/fake_test.go, 19068a1) and shared
+// across the areas; this is a deliberate twin of that one.
+func matching(rows []map[string]any, q url.Values) []map[string]any {
+	out := []map[string]any{}
+	for _, row := range rows {
+		keep := true
+		for key, values := range q {
+			switch key {
+			case "select", "order", "limit", "offset":
+				continue
+			}
+			want, ok := strings.CutPrefix(values[0], "eq.")
+			if !ok {
+				continue
+			}
+			if got, present := row[key]; present && fmt.Sprint(got) != want {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, row)
+		}
+	}
+	return out
 }
 
 func mustJSON(v any) string {

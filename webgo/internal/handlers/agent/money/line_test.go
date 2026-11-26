@@ -45,6 +45,10 @@ func lineWorld(t *testing.T, row map[string]any) *world {
 	wd := newWorld(t)
 	wd.fake.rpc["agent_commission_line"] = mustJSON([]map[string]any{row})
 	wd.fake.rpc["agent_suppliers"] = mustJSON(sampleSuppliers)
+	// What this fixture is FOR, taken from the row itself so the two cannot drift.
+	if id, ok := row["commission_id"].(string); ok {
+		wd.fake.scoped["p_commission_id"] = id
+	}
 	return wd
 }
 
