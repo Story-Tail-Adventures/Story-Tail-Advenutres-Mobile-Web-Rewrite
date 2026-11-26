@@ -32,6 +32,10 @@ func pickerWorld(t *testing.T, mergeRow map[string]any) *world {
 	}
 	wd.fake.rpc["agent_message_merge_context"] = mustJSON([]map[string]any{row})
 	wd.scope("p_conversation_id", convID)
+	// The merge read is for the THREAD's client. Without this it named no scoped
+	// argument, so the fake answered it whatever id it was asked for, and the only
+	// thing standing between a wrong id and green was one hand-written args assertion.
+	wd.scope("p_client_id", "k1")
 	return wd
 }
 
