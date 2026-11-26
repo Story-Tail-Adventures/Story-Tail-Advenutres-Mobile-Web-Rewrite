@@ -210,28 +210,3 @@ func TestEveryIconExists(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
-// The sprite is web/components/ui/icon-paths.ts, path for path, while web/ exists. To add a
-// glyph, copy its path from design/source-prototype/shared/icons.jsx into both.
-func TestSpriteMatchesTheWebIconSet(t *testing.T) {
-	ts, ok := repoFile(t, "web/components/ui/icon-paths.ts")
-	if !ok {
-		t.Skip("web/ is gone (Phase 6)")
-	}
-	body := ts[strings.Index(ts, "ICON_PATHS = {"):strings.Index(ts, "} as const")]
-	want := map[string]string{}
-	for _, m := range tsPath.FindAllStringSubmatch(body, -1) {
-		want[m[1]] = m[2]
-	}
-	got := sprite(t)
-	for name, d := range want {
-		if got[name] != d {
-			t.Errorf("icon %q differs from icon-paths.ts", name)
-		}
-	}
-	for name := range got {
-		if _, ok := want[name]; !ok {
-			t.Errorf("icon %q is not in icon-paths.ts", name)
-		}
-	}
-}

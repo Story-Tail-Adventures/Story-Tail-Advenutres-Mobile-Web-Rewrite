@@ -1,9 +1,6 @@
 package client
 
 import (
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -146,71 +143,13 @@ func TestChipClassesAndPhotoKeysAreComplete(t *testing.T) {
 			t.Errorf("ChipClass(%q) = %q", kind, ChipClass(kind))
 		}
 	}
-	src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "web", "lib", "trips", "imagery.ts"))
-	if err != nil {
-		t.Fatalf("reading imagery.ts: %v", err)
-	}
+	// The second half of this used to read web/lib/trips/imagery.ts and assert the registry
+	// and the Next module named the same keys. web/ is deleted (Phase 6), so the registry is
+	// the only source of these keys now and only its own completeness can be checked.
 	for _, key := range []string{"jamaica", "turks", "bahamas", "aruba", "stlucia", "bvi",
 		"cruiseShip", "resortPool", "palmTree", "sunset", "snorkel", "overwater", "family"} {
 		if photos[key].Src == "" {
 			t.Errorf("the photo registry has no %q", key)
-		}
-		if !strings.Contains(string(src), `"`+key+`"`) {
-			t.Errorf("imagery.ts never returns %q, so the registry carries a key nothing uses", key)
-		}
-	}
-}
-
-// The copy this package holds is the Next app's, word for word.
-func TestTripCopyMatchesTheNextApp(t *testing.T) {
-	read := func(parts ...string) string {
-		raw, err := os.ReadFile(filepath.Join(append([]string{"..", "..", "..", ".."}, parts...)...))
-		if err != nil {
-			t.Fatalf("reading %v: %v", parts, err)
-		}
-		src := regexp.MustCompile(`['"]\s*\+\s*\n?\s*['"]`).ReplaceAllString(string(raw), "")
-		return strings.NewReplacer(`\'`, "'", `\"`, `"`).Replace(src)
-	}
-
-	status := read("web", "lib", "trips", "status.ts")
-	m := TripStatusMessages
-	for name, want := range map[string]string{
-		"inquiry": m.Inquiry, "proposalReady": m.ProposalReady, "booked": m.Booked,
-		"finalPaymentDue": m.FinalPaymentDue, "travelingNow": m.TravelingNow,
-		"pastTrip": m.PastTrip, "cancelled": m.Cancelled,
-	} {
-		if !strings.Contains(status, `"`+want+`"`) {
-			t.Errorf("status.ts has no %s = %q", name, want)
-		}
-	}
-
-	trips := read("web", "app", "(client)", "trips", "content.ts")
-	for name, want := range map[string]string{
-		"emptyAllTitle": tripsEmptyAllTitle, "emptyAllBody": tripsEmptyAllBody,
-		"emptyFilteredTitle": tripsEmptyFilteredTitle, "emptyFilteredBody": tripsEmptyFilteredBody,
-	} {
-		if !strings.Contains(trips, want) {
-			t.Errorf("trips/content.ts has no %s word for word:\n  %q", name, want)
-		}
-	}
-
-	dash := read("web", "app", "(client)", "dashboard", "content.ts")
-	for name, want := range map[string]string{
-		"overlineRest": dashOverlineRest, "overlineNeutral": dashOverlineNeutral,
-		"nextPaymentLabel": dashNextPayment,
-	} {
-		if !strings.Contains(dash, want) {
-			t.Errorf("dashboard/content.ts has no %s word for word:\n  %q", name, want)
-		}
-	}
-
-	pay := read("web", "app", "(client)", "trips", "[tripId]", "content.ts")
-	for name, want := range map[string]string{
-		"payDirect": payDirect, "payOpensNewTab": payOpensNewTab, "iPaid": iPaid,
-		"iPaidThanks": iPaidThanks, "iPaidAlreadyDone": iPaidAlreadyDone,
-	} {
-		if !strings.Contains(pay, want) {
-			t.Errorf("trips/[tripId]/content.ts has no %s word for word:\n  %q", name, want)
 		}
 	}
 }

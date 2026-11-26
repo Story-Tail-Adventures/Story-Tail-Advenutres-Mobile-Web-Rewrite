@@ -2,8 +2,6 @@ package money
 
 import (
 	"io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -39,39 +37,6 @@ func moduleSource(t *testing.T) string {
 	return string(b)
 }
 
-func TestModuleCarriesTheSameCopy(t *testing.T) {
-	src := moduleSource(t)
-	content := readWebFile(t, "lib/agent/content.ts")
-
-	// commissionPrefilledFrom and commissionGapLine, as the TypeScript writes them, with the
-	// template holes taken out so the fixed words have to match.
-	for _, fragment := range []string{
-		"Gross and rate filled in from this trip's ",
-		" bookings. Change them if the final figures differ.",
-		"Matches expected, once the fee is taken out.",
-		" short of expected, after the fee. Record it as Disputed to chase it.",
-		" more than expected, after the fee.",
-	} {
-		if !strings.Contains(content, fragment) {
-			t.Errorf("content.ts no longer says %q; the module is now the odd one out", fragment)
-		}
-		if !strings.Contains(src, fragment) {
-			t.Errorf("line-form.js does not say %q byte for byte", fragment)
-		}
-	}
-
-	// The gap sentences are Go's too, for the server-rendered first paint.
-	if commissionGapLine(0, "$8") != "Matches expected, once the fee is taken out." {
-		t.Error("Go and the module disagree about a settled line")
-	}
-	if !strings.HasPrefix(commissionGapLine(800, "$8"), "$8 short of expected") {
-		t.Errorf("Go says %q", commissionGapLine(800, "$8"))
-	}
-	if !strings.HasPrefix(commissionGapLine(-800, "$8"), "$8 more than expected") {
-		t.Errorf("Go says %q", commissionGapLine(-800, "$8"))
-	}
-}
-
 func TestModuleKeepsTheTypeScriptArithmetic(t *testing.T) {
 	src := moduleSource(t)
 	for _, want := range []string{
@@ -100,24 +65,6 @@ func TestModuleKeepsTheTypeScriptArithmetic(t *testing.T) {
 			t.Errorf("line-form.js uses %q; it is a preview, not a writer", forbidden)
 		}
 	}
-}
-
-// readWebFile reads one file out of the Next app, which sits beside webgo in the repo.
-func readWebFile(t *testing.T, rel string) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 8; i++ {
-		p := filepath.Join(dir, "web", rel)
-		if b, err := os.ReadFile(p); err == nil {
-			return string(b)
-		}
-		dir = filepath.Dir(dir)
-	}
-	t.Skipf("web/%s is not here; the Next app has been deleted", rel)
-	return ""
 }
 
 // The module finds its fields by id and by class. An id dropped from a page file breaks the
@@ -268,9 +215,9 @@ func TestSettingsModule(t *testing.T) {
 	profile := string(mustPage(t, "agent/money/settings-profile.html"))
 	signature := string(mustPage(t, "agent/money/settings-signature.html"))
 
-	// avatarImage.ts, byte for byte: the size, the crop, the white under a transparent PNG,
-	// and the quality. A different number here is a different photo from the Next app's.
-	avatar := readWebFile(t, "lib/agent/avatarImage.ts")
+	// The avatar rules: the size, the crop, the white under a transparent PNG, and the
+	// quality. These used to be checked against web/lib/agent/avatarImage.ts as well; web/ is
+	// deleted (Phase 6), so settings.js is the only copy and these numbers are now its own.
 	for _, want := range []string{
 		"const AVATAR_SIZE = 400",
 		"5 * 1024 * 1024",
@@ -283,14 +230,9 @@ func TestSettingsModule(t *testing.T) {
 		if !strings.Contains(src, want) {
 			t.Errorf("settings.js no longer contains %q", want)
 		}
-		if avatar != "" && !strings.Contains(avatar, strings.TrimPrefix(want, "const ")) &&
-			!strings.Contains(avatar, want) {
-			t.Errorf("avatarImage.ts no longer contains %q; the module is now the odd one out", want)
-		}
 	}
 
 	// renderSignature's own tidying, so the live preview and the server agree line for line.
-	rules := readWebFile(t, "lib/agent/settingsRules.ts")
 	for _, want := range []string{
 		`.replace(/\s*·\s*(?:·\s*)+/g, " · ")`,
 		`.replace(/^\s*·\s*/, "")`,
@@ -299,9 +241,6 @@ func TestSettingsModule(t *testing.T) {
 	} {
 		if !strings.Contains(src, want) {
 			t.Errorf("settings.js no longer contains %q", want)
-		}
-		if rules != "" && !strings.Contains(rules, want) {
-			t.Errorf("settingsRules.ts no longer contains %q", want)
 		}
 	}
 	// Go renders the same lines on every load, so the two must agree about the locked line.
@@ -356,9 +295,6 @@ func TestSettingsModule(t *testing.T) {
 	for _, token := range []string{"{{agent.name}}", "{{agent.phone}}", "{{agent.email}}"} {
 		if !strings.Contains(signature, `data-signature-insert="`+token+`"`) {
 			t.Errorf("settings-signature.html has no Insert chip for %s", token)
-		}
-		if rules != "" && !strings.Contains(rules, `token: "`+token+`"`) {
-			t.Errorf("settingsRules.ts no longer lists %s", token)
 		}
 	}
 

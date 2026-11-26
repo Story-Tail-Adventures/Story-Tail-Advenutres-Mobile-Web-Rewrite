@@ -7,10 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"regexp"
-	"slices"
 	"strings"
 	"testing"
 
@@ -18,43 +14,12 @@ import (
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/supa"
 )
 
-// Names must match the AgentRead union in web/lib/agent/api.ts while that file exists
-// (until GO-MIGRATION Phase 6 deletes web/).
-func TestNamesMatchTheNextApp(t *testing.T) {
-	src, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "web", "lib", "agent", "api.ts"))
-	if os.IsNotExist(err) {
-		t.Skip("web/ is gone (Phase 6); Names is the source of truth now")
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(src)
-	i := strings.Index(s, "export type AgentRead")
-	if i < 0 {
-		t.Fatal("AgentRead union not found")
-	}
-	block := s[i:]
-	if j := strings.Index(block[10:], "\nexport "); j >= 0 {
-		block = block[:j+10]
-	}
-	var want []string
-	for _, m := range regexp.MustCompile(`(?m)^\s*\|\s*"([a-z_0-9]+)"`).FindAllStringSubmatch(block, -1) {
-		want = append(want, m[1])
-	}
-	got := slices.Clone(Names)
-	slices.Sort(got)
-	slices.Sort(want)
-	if !slices.Equal(got, want) {
-		t.Errorf("Names drifted from AgentRead:\n go   %v\n next %v", got, want)
-	}
-}
+func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)) }
 
 type row struct {
 	ID         string `json:"id"`
 	TotalCents int64  `json:"total_cents"`
 }
-
-func quiet() *slog.Logger { return slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)) }
 
 func TestCallRunsTheNamedReadAsTheVisitor(t *testing.T) {
 	var path, auth string

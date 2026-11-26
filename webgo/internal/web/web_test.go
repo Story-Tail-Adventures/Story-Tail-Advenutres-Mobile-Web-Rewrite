@@ -5,9 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -239,40 +236,5 @@ func TestMapAuthError(t *testing.T) {
 	}
 	if m, ok := AuthErrorFromParam("rate_limited"); !ok || m.Kind != RateLimited {
 		t.Error("a known ?error= value did not map")
-	}
-}
-
-// Every sentence and action is web/lib/auth-errors.ts's, word for word, while web/ exists.
-func TestAuthCopyMatchesTheWebApp(t *testing.T) {
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", "web", "lib", "auth-errors.ts"))
-	if os.IsNotExist(err) {
-		t.Skip("web/ is gone (Phase 6)")
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	ts := string(b)
-	for kind, m := range authMessages {
-		// Each kind's block in BY_KIND: from `kind: {` to the next `},` at the same depth.
-		start := strings.Index(ts, "\n  "+string(kind)+": {")
-		if start < 0 {
-			t.Errorf("kind %s is not in auth-errors.ts", kind)
-			continue
-		}
-		block := ts[start : start+strings.Index(ts[start:], "\n  },")]
-		msg := regexp.MustCompile(`message:\s*"([^"]*)"`).FindStringSubmatch(block)
-		if msg == nil || msg[1] != m.Message {
-			t.Errorf("%s message = %q, auth-errors.ts has %v", kind, m.Message, msg)
-		}
-		act := regexp.MustCompile(`action:\s*\{\s*label:\s*"([^"]*)",\s*href:\s*"([^"]*)"`).FindStringSubmatch(block)
-		switch {
-		case act == nil && m.Action != nil:
-			t.Errorf("%s has an action auth-errors.ts does not", kind)
-		case act != nil && (m.Action == nil || m.Action.Label != act[1] || m.Action.Href != act[2]):
-			t.Errorf("%s action = %+v, auth-errors.ts has %q %q", kind, m.Action, act[1], act[2])
-		}
-	}
-	if n := strings.Count(ts[strings.Index(ts, "const BY_KIND"):strings.Index(ts, "export function mapAuthError")], "kind: \""); n != len(authMessages) {
-		t.Errorf("auth-errors.ts has %d kinds, Go has %d", n, len(authMessages))
 	}
 }

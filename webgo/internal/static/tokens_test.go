@@ -80,19 +80,3 @@ func TestTokensMatchTheCanonicalSource(t *testing.T) {
 		}
 	}
 }
-
-// While Next.js exists, the two web copies are one file. Phase 6 deletes web/; this test
-// then has nothing to compare and passes.
-func TestTokensAreByteForByteTheWebCopy(t *testing.T) {
-	web, ok := repoFile(t, "web/styles/tokens.css")
-	if !ok {
-		t.Skip("web/ is gone (Phase 6)")
-	}
-	ours, err := assets.FS.ReadFile("css/tokens.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(ours) != web {
-		t.Error("webgo/assets/css/tokens.css differs from web/styles/tokens.css; copy it again")
-	}
-}

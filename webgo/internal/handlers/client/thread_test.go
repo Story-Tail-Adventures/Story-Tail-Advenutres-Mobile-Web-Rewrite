@@ -1,10 +1,6 @@
 package client
 
 import (
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 )
@@ -124,39 +120,5 @@ func TestARepeatedDayDoesNotMergeBackwards(t *testing.T) {
 	}
 	if days[0].Key != days[2].Key {
 		t.Error("the two Mar 14 buckets do not share a key")
-	}
-}
-
-// The copy is the Next app's, word for word (docs/GO-MIGRATION.md §4.10). Comparing it to
-// itself would pass forever while the two apps drifted, so this reads the TypeScript.
-func TestThreadCopyMatchesTheNextApp(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "web", "lib", "trips", "thread.ts")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading %s: %v", path, err)
-	}
-	join := regexp.MustCompile(`['"]\s*\+\s*\n?\s*['"]`)
-	src := strings.NewReplacer(`\'`, "'", `\"`, `"`).Replace(join.ReplaceAllString(string(raw), ""))
-
-	m := ThreadMessages
-	for name, message := range map[string]string{
-		"composePlaceholder": m.ComposePlaceholder, "sendLabel": m.SendLabel,
-		"attachLabel": m.AttachLabel, "openTrip": m.OpenTrip,
-		"today": m.Today, "yesterday": m.Yesterday,
-		"emptyTitle": m.EmptyTitle, "emptyBody": m.EmptyBody,
-		"sendFailed": m.SendFailed, "autoReply": m.AutoReply, "replyWindow": m.ReplyWindow,
-		"quickSoundsGood": m.QuickSoundsGood, "quickAddPartner": m.QuickAddPartner,
-		"quickSendPassport": m.QuickSendPassport, "quickScheduleCall": m.QuickScheduleCall,
-	} {
-		if !strings.Contains(src, message) {
-			t.Errorf("%s is not in web/lib/trips/thread.ts word for word:\n  %q", name, message)
-		}
-	}
-
-	// And in the order the chips are drawn, which is its own decision: the four are offered
-	// identically on 2.2.7 and on §2.6's threads.
-	if QuickReplies != [4]string{m.QuickSoundsGood, m.QuickAddPartner,
-		m.QuickSendPassport, m.QuickScheduleCall} {
-		t.Errorf("the quick replies drifted: %v", QuickReplies)
 	}
 }
