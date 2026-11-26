@@ -14,6 +14,246 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
+enum class AgentItineraryReorderResponseOutcome {
+    @SerialName("reordered")
+    REORDERED,
+}
+
+@Serializable
+enum class AgentItineraryReorderRequestOp {
+    @SerialName("reorder")
+    REORDER,
+}
+
+@Serializable
+enum class AgentItineraryActivityResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("updated")
+    UPDATED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("deleted")
+    DELETED,
+}
+
+@Serializable
+enum class AgentItineraryActivityDeleteRequestOp {
+    @SerialName("activity_delete")
+    ACTIVITY_DELETE,
+}
+
+@Serializable
+enum class AgentItineraryActivityRequestBlock {
+    @SerialName("morning")
+    MORNING,
+    @SerialName("afternoon")
+    AFTERNOON,
+    @SerialName("evening")
+    EVENING,
+    @SerialName("all_day")
+    ALL_DAY,
+}
+
+@Serializable
+enum class AgentItineraryActivityRequestOp {
+    @SerialName("activity_upsert")
+    ACTIVITY_UPSERT,
+}
+
+@Serializable
+enum class AgentItineraryDayResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("updated")
+    UPDATED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AgentItineraryDayRequestOp {
+    @SerialName("day_upsert")
+    DAY_UPSERT,
+}
+
+@Serializable
+enum class AgentItineraryGenerateResponseOutcome {
+    @SerialName("generated")
+    GENERATED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("no_dates")
+    NO_DATES,
+}
+
+@Serializable
+enum class AgentItineraryGenerateRequestOp {
+    @SerialName("generate")
+    GENERATE,
+}
+
+@Serializable
+enum class AgentTripPayLinkResponseOutcome {
+    @SerialName("set")
+    SET,
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("removed")
+    REMOVED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AgentTripPayLinkRequestOp {
+    @SerialName("payment_link")
+    PAYMENT_LINK,
+}
+
+@Serializable
+enum class AgentTripMilestonePaidResponseOutcome {
+    @SerialName("changed")
+    CHANGED,
+    @SerialName("noop")
+    NOOP,
+}
+
+@Serializable
+enum class AgentTripMilestonePaidRequestStatus {
+    @SerialName("scheduled")
+    SCHEDULED,
+    @SerialName("paid")
+    PAID,
+    @SerialName("waived")
+    WAIVED,
+    @SerialName("overdue")
+    OVERDUE,
+}
+
+@Serializable
+enum class AgentTripMilestonePaidRequestOp {
+    @SerialName("payment_paid")
+    PAYMENT_PAID,
+}
+
+@Serializable
+enum class AgentTripMilestoneResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("updated")
+    UPDATED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("deleted")
+    DELETED,
+}
+
+@Serializable
+enum class AgentTripMilestoneDeleteRequestOp {
+    @SerialName("payment_delete")
+    PAYMENT_DELETE,
+}
+
+@Serializable
+enum class AgentTripMilestoneRequestKind {
+    @SerialName("deposit")
+    DEPOSIT,
+    @SerialName("interim")
+    INTERIM,
+    @SerialName("final")
+    FINAL,
+}
+
+@Serializable
+enum class AgentTripMilestoneRequestOp {
+    @SerialName("payment_upsert")
+    PAYMENT_UPSERT,
+}
+
+@Serializable
+enum class AgentTripReorderResponseOutcome {
+    @SerialName("reordered")
+    REORDERED,
+}
+
+@Serializable
+enum class AgentTripComponentReorderRequestOp {
+    @SerialName("component_reorder")
+    COMPONENT_REORDER,
+}
+
+@Serializable
+enum class AgentTripComponentResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("updated")
+    UPDATED,
+    @SerialName("noop")
+    NOOP,
+    @SerialName("archived")
+    ARCHIVED,
+}
+
+@Serializable
+enum class AgentTripComponentArchiveRequestOp {
+    @SerialName("component_archive")
+    COMPONENT_ARCHIVE,
+}
+
+@Serializable
+enum class AgentTripComponentRequestKind {
+    @SerialName("flight")
+    FLIGHT,
+    @SerialName("hotel")
+    HOTEL,
+    @SerialName("cruise")
+    CRUISE,
+    @SerialName("transfer")
+    TRANSFER,
+    @SerialName("excursion")
+    EXCURSION,
+    @SerialName("insurance")
+    INSURANCE,
+    @SerialName("custom")
+    CUSTOM,
+}
+
+@Serializable
+enum class AgentTripComponentRequestOp {
+    @SerialName("component_upsert")
+    COMPONENT_UPSERT,
+}
+
+@Serializable
+enum class AgentTripCreateResponseOutcome {
+    @SerialName("created")
+    CREATED,
+    @SerialName("no_client")
+    NO_CLIENT,
+}
+
+@Serializable
+enum class AgentTripCreateRequestTripType {
+    @SerialName("cruise")
+    CRUISE,
+    @SerialName("all_inclusive")
+    ALL_INCLUSIVE,
+    @SerialName("multi_destination")
+    MULTI_DESTINATION,
+    @SerialName("group")
+    GROUP,
+    @SerialName("custom")
+    CUSTOM,
+}
+
+@Serializable
+enum class AgentTripCreateRequestOp {
+    @SerialName("create")
+    CREATE,
+}
+
+@Serializable
 enum class QuoteRequestRequestSource {
     @SerialName("curated")
     CURATED,
@@ -318,6 +558,46 @@ enum class AgentSendMessageRequestOp {
 }
 
 @Serializable
+enum class AgentTripStatusBulkResponseStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+}
+
+@Serializable
+enum class AgentTripStatusBulkResponseOutcome {
+    @SerialName("moved")
+    MOVED,
+}
+
+@Serializable
+enum class AgentTripStatusBulkRequestStatus {
+    @SerialName("inquiry")
+    INQUIRY,
+    @SerialName("proposal")
+    PROPOSAL,
+    @SerialName("booked")
+    BOOKED,
+    @SerialName("in_progress")
+    IN_PROGRESS,
+    @SerialName("completed")
+    COMPLETED,
+}
+
+@Serializable
+enum class AgentTripStatusBulkRequestOp {
+    @SerialName("bulk")
+    BULK,
+}
+
+@Serializable
 enum class AgentTripStatusResponsePreviousStatus {
     @SerialName("inquiry")
     INQUIRY,
@@ -347,6 +627,18 @@ enum class AgentTripStatusResponseStatus {
     COMPLETED,
     @SerialName("cancelled")
     CANCELLED,
+}
+
+@Serializable
+enum class AgentTripStatusRequestRefundStatus {
+    @SerialName("none_expected")
+    NONE_EXPECTED,
+    @SerialName("pending")
+    PENDING,
+    @SerialName("partial")
+    PARTIAL,
+    @SerialName("full")
+    FULL,
 }
 
 @Serializable
@@ -516,9 +808,18 @@ data class AgentTripStatusRequest(
     // `trip.version` as the board was rendered from. A mismatch is a 409. Required: the board always has it, and omitting it would make every drop last-write-wins.
     @SerialName("expectedVersion")
     val expectedVersion: Int,
-    // Required when `status` is `cancelled`, ignored otherwise. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler.
+    // Required (non-blank) when `status` is `cancelled`; on any other status it must be text if sent, and is not written. Trimmed. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler.
     @SerialName("cancellationReason")
     val cancellationReason: String? = null,
+    // Only with `cancelled` (otherwise a 400). Absent keeps the stored value.
+    @SerialName("refundStatus")
+    val refundStatus: AgentTripStatusRequestRefundStatus? = null,
+    // Only with `cancelled` (otherwise a 400). Trimmed; blank keeps the stored value.
+    @SerialName("refundDetail")
+    val refundDetail: String? = null,
+    // Only with `cancelled` (otherwise a 400). The open ledger lines the cancel dialog listed under "Mark these as Lost", each at the version it showed. Lines still Expected or Invoiced at that version are marked Lost, each with its own audit row in the same transaction; the rest are skipped.
+    @SerialName("closeCommission")
+    val closeCommission: List<JsonElement>? = null,
 )
 
 @Serializable
@@ -527,18 +828,47 @@ data class AgentTripStatusResponse(
     val tripId: String,
     @SerialName("status")
     val status: AgentTripStatusResponseStatus,
-    // Absent whenever the stage did not move — a no-op, or a cancellation-reason correction — because nothing was left behind.
+    // Absent whenever the stage did not move (a no-op, or a cancellation-detail correction), because nothing was left behind.
     @SerialName("previousStatus")
     val previousStatus: AgentTripStatusResponsePreviousStatus? = null,
     // The version after the write. Send this as the next `expectedVersion`.
     @SerialName("version")
     val version: Int,
-    // False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded — a corrected cancellation reason writes the column and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false.
+    // False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded: a corrected cancellation reason or refund detail writes the columns and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false.
     @SerialName("changed")
     val changed: Boolean,
-    // Present on every `cancelled` call and only those, because the reason is mandatory on all of them and the caller is owed an answer about where it went. True when this call wrote it to `trip.cancellation_reason` — either on a transition into `cancelled` or on a same-stage correction. False when the stored reason already read that way, so there was nothing to write. Either answer means the traveler now sees the sentence you sent, on Screen 2.2.10.
+    // Present on every `cancelled` call and only those. True when this call wrote the reason (a transition into `cancelled`, or a same-stage correction); false when the stored reason already read that way.
     @SerialName("cancellationReasonUpdated")
     val cancellationReasonUpdated: Boolean? = null,
+    // Present on every `cancelled` call. Lines this call marked Lost.
+    @SerialName("commissionLinesClosed")
+    val commissionLinesClosed: Int? = null,
+    // Present on every `cancelled` call. Named lines left as they were: moved since the dialog opened (paid, edited, removed) or not on this trip.
+    @SerialName("commissionLinesSkipped")
+    val commissionLinesSkipped: Int? = null,
+)
+
+@Serializable
+data class AgentTripStatusBulkRequest(
+    @SerialName("op")
+    val op: AgentTripStatusBulkRequestOp,
+    // `cancelled` is refused: cancelling is one trip at a time.
+    @SerialName("status")
+    val status: AgentTripStatusBulkRequestStatus,
+    @SerialName("trips")
+    val trips: List<JsonElement>,
+)
+
+@Serializable
+data class AgentTripStatusBulkResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripStatusBulkResponseOutcome,
+    @SerialName("status")
+    val status: AgentTripStatusBulkResponseStatus,
+    @SerialName("movedCount")
+    val movedCount: Int,
+    @SerialName("requestedCount")
+    val requestedCount: Int,
 )
 
 @Serializable
@@ -1253,4 +1583,328 @@ data class QuoteRequestResponse(
     val tripId: String,
     @SerialName("status")
     val status: String,
+)
+
+@Serializable
+data class AgentTripCreateRequest(
+    @SerialName("op")
+    val op: AgentTripCreateRequestOp,
+    @SerialName("clientId")
+    val clientId: String,
+    @SerialName("tripType")
+    val tripType: AgentTripCreateRequestTripType,
+    // Trimmed; required.
+    @SerialName("title")
+    val title: String,
+    // Clamped to 1..64. Absent or not an integer is 1.
+    @SerialName("travelerCount")
+    val travelerCount: Int? = null,
+)
+
+@Serializable
+data class AgentTripCreateResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripCreateResponseOutcome,
+    // Present only on `created`.
+    @SerialName("tripId")
+    val tripId: String? = null,
+)
+
+@Serializable
+data class AgentTripComponentRequest(
+    @SerialName("op")
+    val op: AgentTripComponentRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    // Present edits that component; absent or null creates one ("" is a 400).
+    @SerialName("componentId")
+    val componentId: String? = null,
+    @SerialName("kind")
+    val kind: AgentTripComponentRequestKind,
+    @SerialName("supplierId")
+    val supplierId: String? = null,
+    @SerialName("displayName")
+    val displayName: String,
+    @SerialName("startDate")
+    val startDate: String? = null,
+    @SerialName("endDate")
+    val endDate: String? = null,
+    // HH:MM or HH:MM:SS.
+    @SerialName("startTime")
+    val startTime: String? = null,
+    // HH:MM or HH:MM:SS.
+    @SerialName("endTime")
+    val endTime: String? = null,
+    @SerialName("location")
+    val location: String? = null,
+    @SerialName("confirmationNumber")
+    val confirmationNumber: String? = null,
+    @SerialName("costCents")
+    val costCents: JsonElement? = null,
+    // 0 to 999.99, rounded to two places.
+    @SerialName("commissionPct")
+    val commissionPct: JsonElement? = null,
+    // Blank with a rate set is worked out from the rate; anything typed wins.
+    @SerialName("commissionCents")
+    val commissionCents: JsonElement? = null,
+    // The kind's own fields (Data-Model §23), snake_case: flight_number, cabin, seat, room_type, board_basis, ship, itinerary_name, dining_seating, gratuities_included (true/false), dropoff, vehicle, duration, plan, coverage, notes, as the kind allows. Unknown keys are a 400.
+    @SerialName("detail")
+    val detail: JsonElement? = null,
+)
+
+@Serializable
+data class AgentTripComponentArchiveRequest(
+    @SerialName("op")
+    val op: AgentTripComponentArchiveRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("componentId")
+    val componentId: String,
+)
+
+@Serializable
+data class AgentTripComponentResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripComponentResponseOutcome,
+    @SerialName("componentId")
+    val componentId: String,
+)
+
+@Serializable
+data class AgentTripComponentReorderRequest(
+    @SerialName("op")
+    val op: AgentTripComponentReorderRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    // Every live component of the trip, in the new order. Fewer or more is a 409.
+    @SerialName("componentIds")
+    val componentIds: List<String>,
+)
+
+@Serializable
+data class AgentTripReorderResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripReorderResponseOutcome,
+    @SerialName("moved")
+    val moved: Int,
+)
+
+@Serializable
+data class AgentTripMilestoneRequest(
+    @SerialName("op")
+    val op: AgentTripMilestoneRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    // Present edits that milestone; absent or null creates one.
+    @SerialName("milestoneId")
+    val milestoneId: String? = null,
+    @SerialName("kind")
+    val kind: AgentTripMilestoneRequestKind,
+    @SerialName("label")
+    val label: String,
+    @SerialName("amountCents")
+    val amountCents: JsonElement? = null,
+    @SerialName("dueDate")
+    val dueDate: String? = null,
+)
+
+@Serializable
+data class AgentTripMilestoneDeleteRequest(
+    @SerialName("op")
+    val op: AgentTripMilestoneDeleteRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("milestoneId")
+    val milestoneId: String,
+)
+
+@Serializable
+data class AgentTripMilestoneResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripMilestoneResponseOutcome,
+    @SerialName("milestoneId")
+    val milestoneId: String,
+)
+
+@Serializable
+data class AgentTripMilestonePaidRequest(
+    @SerialName("op")
+    val op: AgentTripMilestonePaidRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("milestoneId")
+    val milestoneId: String,
+    @SerialName("status")
+    val status: AgentTripMilestonePaidRequestStatus,
+    // Absent, null or "" means the whole amount; 0 means nothing landed.
+    @SerialName("paidCents")
+    val paidCents: JsonElement? = null,
+    // Absent or null keeps the stored one; "" clears it. No card numbers.
+    @SerialName("paidReference")
+    val paidReference: String? = null,
+    // Absent or null keeps the stored one; "" clears it. No card numbers.
+    @SerialName("paidNote")
+    val paidNote: String? = null,
+    // When it was paid. Not after the advisor's today.
+    @SerialName("paidOn")
+    val paidOn: String? = null,
+)
+
+@Serializable
+data class AgentTripMilestonePaidResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripMilestonePaidResponseOutcome,
+    @SerialName("milestoneId")
+    val milestoneId: String,
+    // The milestone's paid amount after the write, integer minor units as a string.
+    @SerialName("paidCents")
+    val paidCents: String,
+)
+
+@Serializable
+data class AgentTripPayLinkRequest(
+    @SerialName("op")
+    val op: AgentTripPayLinkRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("milestoneId")
+    val milestoneId: String,
+    // The supplier's own https:// payment page (or a Travefy invoice carrying supplier cost only). Null, "" or absent removes the link.
+    @SerialName("payUrl")
+    val payUrl: String? = null,
+)
+
+@Serializable
+data class AgentTripPayLinkResponse(
+    @SerialName("outcome")
+    val outcome: AgentTripPayLinkResponseOutcome,
+    @SerialName("milestoneId")
+    val milestoneId: String,
+    // The link as stored (parsed and normalised), or null when there is none.
+    @SerialName("payUrl")
+    val payUrl: String? = null,
+)
+
+@Serializable
+data class AgentItineraryGenerateRequest(
+    @SerialName("op")
+    val op: AgentItineraryGenerateRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+)
+
+@Serializable
+data class AgentItineraryGenerateResponse(
+    @SerialName("outcome")
+    val outcome: AgentItineraryGenerateResponseOutcome,
+    @SerialName("daysAdded")
+    val daysAdded: Int,
+    @SerialName("activitiesAdded")
+    val activitiesAdded: Int,
+)
+
+@Serializable
+data class AgentItineraryDayRequest(
+    @SerialName("op")
+    val op: AgentItineraryDayRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    // Present edits that day. Absent, null or "" creates one.
+    @SerialName("dayId")
+    val dayId: String? = null,
+    // yyyy-mm-dd. Required on a create; on an edit, absent or null keeps the stored date. A shape that is a date but not a real one is refused by Postgres (a 500), as before the port.
+    @SerialName("date")
+    val date: String? = null,
+    // Trimmed; blank stores null.
+    @SerialName("label")
+    val label: String? = null,
+    // Trimmed; blank stores null.
+    @SerialName("summary")
+    val summary: String? = null,
+)
+
+@Serializable
+data class AgentItineraryDayResponse(
+    @SerialName("outcome")
+    val outcome: AgentItineraryDayResponseOutcome,
+    @SerialName("dayId")
+    val dayId: String,
+)
+
+@Serializable
+data class AgentItineraryActivityRequest(
+    @SerialName("op")
+    val op: AgentItineraryActivityRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    // Present edits that activity. Absent, null or "" creates one.
+    @SerialName("activityId")
+    val activityId: String? = null,
+    // Required on a create. On an edit, a different day moves the activity.
+    @SerialName("dayId")
+    val dayId: String? = null,
+    // Trimmed; required.
+    @SerialName("title")
+    val title: String,
+    // Omitted, null or "" is worked out from `startTime`.
+    @SerialName("block")
+    val block: AgentItineraryActivityRequestBlock? = null,
+    // HH:MM or HH:MM:SS, 00:00 to 23:59:59.
+    @SerialName("startTime")
+    val startTime: String? = null,
+    // HH:MM or HH:MM:SS, 00:00 to 23:59:59.
+    @SerialName("endTime")
+    val endTime: String? = null,
+    @SerialName("body")
+    val body: String? = null,
+    @SerialName("location")
+    val location: String? = null,
+    @SerialName("address")
+    val address: String? = null,
+    @SerialName("phone")
+    val phone: String? = null,
+    @SerialName("confirmationNumber")
+    val confirmationNumber: String? = null,
+    @SerialName("gyasisTip")
+    val gyasisTip: String? = null,
+)
+
+@Serializable
+data class AgentItineraryActivityDeleteRequest(
+    @SerialName("op")
+    val op: AgentItineraryActivityDeleteRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("activityId")
+    val activityId: String,
+)
+
+@Serializable
+data class AgentItineraryActivityResponse(
+    @SerialName("outcome")
+    val outcome: AgentItineraryActivityResponseOutcome,
+    @SerialName("activityId")
+    val activityId: String,
+)
+
+@Serializable
+data class AgentItineraryReorderRequest(
+    @SerialName("op")
+    val op: AgentItineraryReorderRequestOp,
+    @SerialName("tripId")
+    val tripId: String,
+    @SerialName("dayId")
+    val dayId: String,
+    // Every activity on the day, in the new order. Fewer or more is a 409.
+    @SerialName("activityIds")
+    val activityIds: List<String>,
+)
+
+@Serializable
+data class AgentItineraryReorderResponse(
+    @SerialName("outcome")
+    val outcome: AgentItineraryReorderResponseOutcome,
+    // Activities whose position changed.
+    @SerialName("moved")
+    val moved: Int,
 )

@@ -30,6 +30,23 @@ type parsedURL struct {
 	opaque   *string  // the opaque path, for a URL like javascript:alert(1)
 	query    *string
 	fragment *string
+
+	// The parts that grow a character at a time are built here and set once at the end:
+	// `s += x` per character is quadratic in Go (JavaScript's strings are ropes), and a 1.6M
+	// character link took 68 seconds (review of #187).
+	ub, pb, ob, fb strings.Builder
+}
+
+// flush sets the built parts.
+func (u *parsedURL) flush() {
+	u.username += u.ub.String()
+	u.password += u.pb.String()
+	if u.opaque != nil {
+		*u.opaque += u.ob.String()
+	}
+	if u.fragment != nil {
+		*u.fragment += u.fb.String()
+	}
 }
 
 func (u *parsedURL) special() bool { return isSpecialScheme(u.scheme) }
@@ -131,6 +148,14 @@ const eof rune = -1
 
 // parseURL is `new URL(input)`: the parsed URL, or false where new URL() throws.
 func parseURL(input string) (*parsedURL, bool) {
+	u, ok := parseParts(input)
+	if ok {
+		u.flush()
+	}
+	return u, ok
+}
+
+func parseParts(input string) (*parsedURL, bool) {
 	// Strip leading and trailing C0 control or space, then remove every ASCII tab or newline.
 	trimmed := strings.TrimFunc(input, func(r rune) bool { return r <= 0x20 })
 	in := make([]rune, 0, len(trimmed))
@@ -235,9 +260,9 @@ func parseURL(input string) (*parsedURL, bool) {
 						continue
 					}
 					if passwordTokenSeen {
-						u.password += percentEncode(cp, inUserinfoSet)
+						u.pb.WriteString(percentEncode(cp, inUserinfoSet))
 					} else {
-						u.username += percentEncode(cp, inUserinfoSet)
+						u.ub.WriteString(percentEncode(cp, inUserinfoSet))
 					}
 				}
 				buf = buf[:0]
@@ -256,7 +281,7 @@ func parseURL(input string) (*parsedURL, bool) {
 						}
 						return nil, false
 					}
-					if u.special() || u.username != "" || u.password != "" {
+					if u.special() || u.ub.Len() > 0 || u.pb.Len() > 0 {
 						return nil, false
 					}
 					empty := ""
@@ -448,7 +473,7 @@ func parseURL(input string) (*parsedURL, bool) {
 				u.fragment = &empty
 				state = stFragment
 			case c != eof:
-				*u.opaque += percentEncode(c, inC0ControlSet)
+				u.ob.WriteString(percentEncode(c, inC0ControlSet))
 			}
 
 		case stQuery:
@@ -474,7 +499,7 @@ func parseURL(input string) (*parsedURL, bool) {
 
 		case stFragment:
 			if c != eof {
-				*u.fragment += percentEncode(c, inFragmentSet)
+				u.fb.WriteString(percentEncode(c, inFragmentSet))
 			}
 		}
 
