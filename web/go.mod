@@ -13,11 +13,11 @@ go 1.27
 toolchain go1.27.4
 
 require (
-	// Approved by Gyasi 2026-11-25 (docs/IMAP-Go-Library-Security-Review.md). Pinned exactly as
+	// Approved by Gyasi 2026-11-26 (docs/IMAP-Go-Library-Security-Review.md). Pinned exactly as
 	// its §5 binds it; imported by internal/api/fn/emailinbox only. Read §3 and §6 before any
 	// bump: three open upstream bugs are covered by our own deadline and completeness guards,
 	// and beta tags can change the API.
-	github.com/emersion/go-imap/v2 v2.0.0-beta.8
+	github.com/emersion/go-imap/v2 v2.0.0-beta.9
 	// Master commit 64ce5b8, read-only use behind internal/page only.
 	// See docs/HTMLX-Library-Security-Review.md before changing it.
 	github.com/mdigger/htmlx v1.0.2-0.20250724121124-64ce5b80543b
