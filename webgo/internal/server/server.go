@@ -111,10 +111,12 @@ func New(cfg config.Config, pagesFS, assetsFS fs.FS, log *slog.Logger) (http.Han
 	// The backend door. Public at the gate because it carries its own bearer token (mobile,
 	// pg_cron) and never reads the session cookie.
 	registry := api.New(api.Config{
-		SupabaseURL: cfg.SupabaseURL,
-		AnonKey:     cfg.SupabaseAnonKey,
-		LeadFormKey: cfg.LeadFormKey,
-		SearchToken: cfg.HotelSearchToken,
+		SupabaseURL:    cfg.SupabaseURL,
+		AnonKey:        cfg.SupabaseAnonKey,
+		LeadFormKey:    cfg.LeadFormKey,
+		SearchToken:    cfg.HotelSearchToken,
+		ServiceRoleKey: cfg.SupabaseServiceRoleKey,
+		CronSecret:     cfg.CronSecret,
 	}, nil, log)
 	rt.Public("/functions/v1/{name}", registry)
 
