@@ -31,7 +31,7 @@ func TestEndRefreshesAnExpiredCookieTokenFirst(t *testing.T) {
 	if f.refreshCalls != 1 || len(f.signedOut) != 1 || f.signedOut[0] == "stale" {
 		t.Errorf("refreshes=%d signedOut=%v, want one refresh then a live token", f.refreshCalls, f.signedOut)
 	}
-	for _, name := range []string{CookieName, FlagCookie} {
+	for _, name := range []string{SecureCookieName, FlagCookie} {
 		if c := cookie(rec, name); c == nil || c.MaxAge >= 0 {
 			t.Errorf("%s not cleared", name)
 		}
@@ -44,7 +44,7 @@ func TestEndClearsCookiesEvenWhenGoTrueIsDown(t *testing.T) {
 	tok := supa.Tokens{AccessToken: "a", RefreshToken: "r", ExpiresAt: time.Now().Add(time.Hour).Unix()}
 	rec := httptest.NewRecorder()
 	manager(f).End(rec, requestWith(&tok, true))
-	for _, name := range []string{CookieName, FlagCookie} {
+	for _, name := range []string{SecureCookieName, FlagCookie} {
 		if c := cookie(rec, name); c == nil || c.MaxAge >= 0 {
 			t.Errorf("%s survived an outage at sign-out", name)
 		}
