@@ -266,20 +266,11 @@ SELECT pg_temp.assert(public.alert_quote_request(:trip_q::uuid) = 'none',
 SELECT public.agent_local_today(:agent::uuid) AS today \gset
 \set today '''':today''''
 
--- THE SEED'S TWO HOLIDAYS GO FIRST.
---
--- Everything below is dated from `today`, and seed.sql's Thanksgiving (2026-11-26..29) and
--- Christmas (2026-12-24..2027-01-02) are fixed calendar dates. So the offsets WALK INTO them
--- as the real date advances: on 2026-11-25, `today - 1 .. today + 2` is Nov 24 - 27, which
--- shares two days with Thanksgiving, and the INSERT below dies on the exclusion constraint
--- `agent_time_off_no_overlap` instead of arming the auto-reply. It is a dormant failure that
--- fires on a DATE, not on a change, so it reads as a flake: nobody touched this file and the
--- line it kills moves with the calendar. It took PR #218's Supabase job red on 2026-11-25.
---
--- This section is about the auto-reply, not about the seed's holidays, so it builds its own
--- block on an empty table. Deleting them here rather than dating around them keeps the test
--- true on every date, including the ones inside the seeded windows. The same DELETE guards
--- section 5 of rls_agent_settings.sql and the advisor card test, for the same reason.
+-- The seed gives this agent two FIXED holidays (Thanksgiving 2026-11-26..29,
+-- Christmas 2026-12-24..2027-01-02); everything below picks dates RELATIVE to
+-- today, so when the two overlap the writes die on agent_time_off_no_overlap for
+-- reasons unrelated to the auto-reply under test. Nothing here asserts on the
+-- seeded rows, so clear them first. See rls_agent_settings.sql for the full note.
 DELETE FROM public.agent_time_off WHERE agent_id = :agent::uuid;
 
 SELECT pg_temp.assert(
