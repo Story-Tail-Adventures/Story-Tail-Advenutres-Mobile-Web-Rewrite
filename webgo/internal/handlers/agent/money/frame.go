@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/api"
+	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/clientaddr"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/handlers/agent/agentread"
 	"github.com/Story-Tail-Adventures/Story-Tail-Advenutres-Mobile-Web-Rewrite/webgo/internal/page"
@@ -208,6 +210,14 @@ func read[T any](rs *reads, name string, args any, out *[]T) {
 func (rs *reads) wait() error {
 	rs.wg.Wait()
 	return rs.err
+}
+
+// call runs a function as the advisor, for a write: the visitor's own token, and their
+// address for the functions that record it.
+func (a *app) call(r *http.Request, v visit, name string, body any) api.Result {
+	visitor, _ := clientaddr.From(r.Header)
+	return a.d.API.Call(r.Context(), name, v.st.AccessToken,
+		api.Input{Method: http.MethodPost, Body: body, Visitor: visitor})
 }
 
 // parseIntJS is Number.parseInt(s, 10): leading whitespace, an optional sign, then as many

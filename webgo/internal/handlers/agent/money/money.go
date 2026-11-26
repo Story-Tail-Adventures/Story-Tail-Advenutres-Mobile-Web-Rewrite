@@ -27,13 +27,14 @@ import (
 )
 
 // Specs declares every page this sub-area fills (files under pages/agent/money/).
-var Specs = []page.Spec{dashboardSpec, ledgerSpec}
+var Specs = []page.Spec{dashboardSpec, ledgerSpec, forecastSpec}
 
 // app is this sub-area's handlers and the templates they fill.
 type app struct {
 	d         handlers.Deps
 	dashboard *page.Template
 	ledger    *page.Template
+	forecast  *page.Template
 }
 
 // Mount registers this sub-area's routes. Take templates from d.Pages here, so a missing
@@ -46,6 +47,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	}{
 		{dashboardSpec, &a.dashboard},
 		{ledgerSpec, &a.ledger},
+		{forecastSpec, &a.forecast},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -59,5 +61,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("GET /agent/commission/ledger/export", http.HandlerFunc(a.serveLedgerExport))
 	// More specific than the GET pattern, which would otherwise answer a HEAD by running it.
 	rt.Protected("HEAD /agent/commission/ledger/export", http.HandlerFunc(serveExportHead))
+	rt.Protected("GET /agent/commission/forecast", http.HandlerFunc(a.serveForecast))
+	rt.Protected("POST /agent/commission/forecast", http.HandlerFunc(a.saveWeights))
 	return nil
 }
