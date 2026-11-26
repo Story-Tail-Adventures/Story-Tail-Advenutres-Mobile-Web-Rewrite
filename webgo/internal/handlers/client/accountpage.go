@@ -79,7 +79,7 @@ func (a *area) mountAccount(rt *gate.Router) error {
 			{"personal", AccountCopy.Personal, AccountCopy.PersonalSub, true},
 			{"preferences", AccountCopy.Preferences, AccountCopy.PreferencesSub, true},
 			{"documents", AccountCopy.Documents, documentsSub, true},
-			{"security", AccountCopy.Security, AccountCopy.SecuritySub, false},
+			{"security", AccountCopy.Security, AccountCopy.SecuritySub, true},
 			{"connected", AccountCopy.Connected, AccountCopy.ConnectedSub, true},
 			{"help", AccountCopy.Help, AccountCopy.HelpSub, false},
 			{"privacy", AccountCopy.Privacy, AccountCopy.PrivacySub, true},

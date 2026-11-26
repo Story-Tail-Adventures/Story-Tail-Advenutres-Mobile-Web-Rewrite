@@ -30,8 +30,11 @@ const (
 	jordanPW = "GreenPastures1"
 )
 
-func token(sub string) string {
-	b, _ := json.Marshal(map[string]any{"sub": sub, "aal": "aal1", "exp": time.Now().Add(time.Hour).Unix()})
+// tokenAt mints a token at a given assurance level. A traveler who has verified a second factor
+// this session is at aal2, and the gate sends anyone else with a factor to the challenge —
+// so a 2.5.7 test that wants the "On" state has to sign in at aal2 to reach the page.
+func tokenAt(sub, aal string) string {
+	b, _ := json.Marshal(map[string]any{"sub": sub, "aal": aal, "exp": time.Now().Add(time.Hour).Unix()})
 	return "h." + base64.RawURLEncoding.EncodeToString(b) + ".s"
 }
 
@@ -49,6 +52,9 @@ type fake struct {
 	failing map[string]bool
 	// role and the wizard's state, for the shell's gate.
 	role, step, completedAt string
+	// factor is the status of the one enrolled MFA factor, or "" for none; aal is the
+	// assurance the sign-in token claims.
+	factor, aal string
 	// fn answers one function with a status and a body; anything else answers {"ok":true}.
 	fn map[string]struct {
 		status int
@@ -62,6 +68,7 @@ type fake struct {
 func newFake() *fake {
 	return &fake{
 		tables: map[string][]map[string]any{}, failing: map[string]bool{}, role: "client",
+		aal: "aal1",
 		fn: map[string]struct {
 			status int
 			body   any
@@ -111,14 +118,21 @@ func (f *fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			send(401, map[string]any{"code": "bad_jwt"})
 			return
 		}
-		send(200, map[string]any{"id": "u-jordan", "email": jordan})
+		user := map[string]any{"id": "u-jordan", "email": jordan}
+		if f.factor != "" {
+			// GoTrue lists factors on the USER, which is where session.State.HasFactor
+			// comes from. An "unverified" one is an enrolment somebody abandoned.
+			user["factors"] = []any{map[string]any{
+				"id": "fa-1", "factor_type": "totp", "status": f.factor}}
+		}
+		send(200, user)
 		return
 	case r.URL.Path == "/auth/v1/token":
 		if body["password"] != jordanPW {
 			send(400, map[string]any{"code": "invalid_credentials"})
 			return
 		}
-		send(200, map[string]any{"access_token": token("u-jordan"), "refresh_token": "rt1",
+		send(200, map[string]any{"access_token": tokenAt("u-jordan", f.aal), "refresh_token": "rt1",
 			"expires_at": time.Now().Add(time.Hour).Unix()})
 		return
 	case r.URL.Path == "/auth/v1/logout":
