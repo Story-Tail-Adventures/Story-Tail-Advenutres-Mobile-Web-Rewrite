@@ -525,3 +525,20 @@ func TestNoWizardPageIsCached(t *testing.T) {
 		}
 	}
 }
+
+// 2.1.10 fills the passport fields from travel_document WHERE kind = 'passport'. A traveler
+// can hold more than one document, so the filter is what stops a visa's expiry being shown
+// as their passport's — and until the fake applied filters, a test could not tell the two
+// apart. See fake_test.go's matching, and fake-ignores-rest-filters.md.
+func TestTheProfileReadsThePassportAndNotWhateverCameFirst(t *testing.T) {
+	hn := newHarness(t)
+	hn.f.rows("travel_document",
+		map[string]any{"kind": "visa", "expires_on": "2027-01-31", "issuing_country": "JM",
+			"companion_id": nil, "archived_at": nil},
+		map[string]any{"kind": "passport", "expires_on": "2031-02-14", "issuing_country": "US",
+			"companion_id": nil, "archived_at": nil},
+	)
+	rec := hn.signedIn().get("/onboarding/profile")
+	has(t, rec, `value="2031-02-14"`)
+	hasNot(t, rec, `value="2027-01-31"`)
+}

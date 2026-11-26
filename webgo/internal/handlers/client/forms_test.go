@@ -27,6 +27,20 @@ func TestNoTravelerFormHidesItsOpInAField(t *testing.T) {
 		{"/trips/t1/documents", seedDocuments},
 		{"/documents", seedDocuments},
 		{"/trips/t1/memories", func(hn *harness) { seedTrip(hn, "completed") }},
+		{"/trips/t1/messages", func(hn *harness) {
+			seedThread(hn, message("m1", "agent", "Hello", "2026-11-24T16:14:00Z"))
+		}},
+		{"/messages", seedInbox},
+		{"/messages/cv1", seedInbox},
+		{"/messages/new", func(*harness) {}},
+		{"/trips/t1/update", func(hn *harness) { seedTrip(hn, "proposal") }},
+		{"/account", func(*harness) {}},
+		{"/account/personal", seedPersonal},
+		{"/account/preferences", func(*harness) {}},
+		{"/account/connected", func(*harness) {}},
+		{"/account/privacy", func(*harness) {}},
+		{"/account/close", func(*harness) {}},
+		{"/account/security", func(*harness) {}},
 	} {
 		hn := newHarness(t)
 		tc.seed(hn)
@@ -152,5 +166,77 @@ func TestThePayBlockAsksForTheMilestoneItWasGiven(t *testing.T) {
 	}
 	if got := read.Query.Get("trip_id"); got != "eq.t1" {
 		t.Errorf("trip_id filter = %q, want the trip in the path", got)
+	}
+}
+
+// --- The thread's two forms, clicked ------------------------------------------------------
+
+// The quick replies are their own form, which the React version does not need: there they
+// are type="button" and fill the box from JavaScript. Here they have to work without it, so
+// they are real submits — and a real submit inside the compose form would be the button
+// Enter presses, which is the defect PR #225 fixed on three wizard screens.
+func TestEnterInTheComposeBoxSendsRatherThanPickingAChip(t *testing.T) {
+	hn := newHarness(t)
+	seedThread(hn)
+	c := hn.signedIn()
+	body := c.get("/trips/t1/messages").Body.String()
+
+	compose := readForm(t, body, "send-form")
+	if len(compose.submits) != 1 {
+		t.Fatalf("the compose form has %d submits: %+v", len(compose.submits), compose.submits)
+	}
+	if _, ok := compose.fields["quick"]; ok {
+		t.Error("a quick reply is serialized by the compose form; Enter would pick one")
+	}
+	// Attach is drawn off and is type="button", so a browser sends nothing for it and it is
+	// not a submit at all.
+	if _, ok := compose.fields["attach"]; ok {
+		t.Error("the disabled attach button is in the post")
+	}
+
+	compose.fields.Set("body", "Yes please.")
+	rec := c.click(compose, compose.submits[0])
+	where(t, rec, http.StatusSeeOther, "/trips/t1/messages")
+	if got := hn.f.one(t, "POST /functions/v1/trip-message").Body["body"]; got != "Yes please." {
+		t.Errorf("sent %v", got)
+	}
+
+	// And the chips post to the same route, where they fill the box instead of sending.
+	chips := readForm(t, body, "quick-form")
+	if chips.action != compose.action {
+		t.Errorf("the chips post to %q, the compose bar to %q", chips.action, compose.action)
+	}
+	if len(chips.submits) != 4 {
+		t.Fatalf("%d chips", len(chips.submits))
+	}
+	picked := c.click(chips, chips.submits[1])
+	if picked.Code != http.StatusOK {
+		t.Fatalf("picking a chip = %d", picked.Code)
+	}
+	if calls := hn.f.seen("POST /functions/v1/trip-message"); len(calls) != 1 {
+		t.Errorf("%d sends after picking a chip; it must only fill the box", len(calls))
+	}
+}
+
+// A refused send hands the draft back INTO the box, so clicking Send again sends the same
+// words rather than an empty message.
+func TestARefusedSendCanBeRetriedFromTheFormItDrew(t *testing.T) {
+	hn := newHarness(t)
+	seedThread(hn)
+	hn.f.fnReply("trip-message", 503, map[string]any{"error": "upstream"})
+	c := hn.signedIn()
+
+	first := readForm(t, c.get("/trips/t1/messages").Body.String(), "send-form")
+	first.fields.Set("body", "Yes please, lock it in.")
+	refused := c.click(first, first.submits[0])
+
+	again := readForm(t, refused.Body.String(), "send-form")
+	if got := again.fields.Get("body"); got != "Yes please, lock it in." {
+		t.Fatalf("the box came back holding %q", got)
+	}
+	hn.f.fnReply("trip-message", 200, map[string]any{"ok": true})
+	where(t, c.click(again, again.submits[0]), http.StatusSeeOther, "/trips/t1/messages")
+	if calls := hn.f.seen("POST /functions/v1/trip-message"); len(calls) != 2 {
+		t.Errorf("%d sends", len(calls))
 	}
 }

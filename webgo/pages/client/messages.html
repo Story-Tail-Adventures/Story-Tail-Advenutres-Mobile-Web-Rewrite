@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<!--
+  Screens 2.6.1 Messages Inbox and 2.6.2 Conversation Thread (docs/Screen-Inventory.md §2.6.1
+  and §2.6.2, §4.4 Pattern B: master-detail on the widest layout, list-only on mobile with
+  the thread as a push). Ports web/app/(client)/messages/{page,content}.tsx,
+  messages/[conversationId]/page.tsx and components/client/messages/InboxList.tsx; copy word
+  for word from MESSAGES and MESSAGES_WEB.
+
+  ONE PAGE FOR BOTH SCREENS, because that is what they are. 2.6.2 is 2.6.1 with the thread in
+  the right pane instead of the "pick one" state, and the React version renders the same list
+  component beside each. Two page files would be two places to change the list.
+
+  THE RIGHT PANE IS THE REAL THREAD, NOT A PREVIEW. The desktop frame draws a reduced one —
+  three bubbles, no day separators, a fake reply bar that cannot send — and building that
+  would mean a second, lesser thread renderer beside the real one. Selecting a row navigates
+  to /messages/<id>, which renders this same list beside the actual 2.6.2.
+
+  THE ARCHIVE ACTION IS ABSENT, and that is a departure from the SPEC rather than the frame:
+  conversation_self_select carries archived_at IS NULL, so a client cannot read an archived
+  thread at all — archiving one from here would make it vanish with no way back.
+
+  THE SEARCH IS A GET FORM whose action is the CURRENT path, so searching from an open thread
+  filters the list beside it and leaves the thread open. In React the filter was local state;
+  here the URL carries it, which is also what makes it survive a reload.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Messages · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-msg-page">
+      <div class="cl-inbox" data-slot="inbox">
+        <div class="cl-inbox-head">
+          <h1 class="type-h5 text-primary cl-inbox-title">Messages</h1>
+          <p class="type-body2 text-secondary cl-inbox-sub">You and Gyasi, in one place.</p>
+          <a class="btn btn-contained st-btn cl-inbox-new" href="/messages/new" data-slot="new-cta"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg>New message</a>
+
+          <!-- Search earns its place only once there is something to search. One thread and
+               a search box is furniture. -->
+          <form class="cl-inbox-search" method="get" action="/messages" role="search" data-slot="search-form">
+            <label class="visually-hidden" for="q" data-slot="search-label">Search your messages</label>
+            <input class="input cl-search-input" id="q" name="q" type="search" value="" placeholder="Search your messages" data-slot="search-input">
+          </form>
+        </div>
+
+        <div class="cl-inbox-scroll">
+          <div class="cl-empty" data-slot="inbox-empty">
+            <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#message"></use></svg></span>
+            <p class="type-subtitle1 text-primary cl-empty-title">No messages yet</p>
+            <p class="type-body2 text-secondary cl-empty-body">When you or Gyasi start a conversation — about a trip or about anything else — it shows up here.</p>
+            <a class="btn btn-contained st-btn btn-small" href="/messages/new">Send Gyasi a message</a>
+          </div>
+
+          <p class="type-body2 text-secondary cl-search-empty" data-slot="search-empty">Nothing matched that.</p>
+
+          <ul class="cl-threads" data-slot="threads">
+            <li data-repeat="threads">
+              <a class="cl-thread-row" href="/messages/1" data-slot="row">
+                <span class="cl-bubble-avatar" aria-hidden="true">GS</span>
+                <span class="cl-thread-text">
+                  <span class="cl-thread-line">
+                    <span class="type-subtitle1 truncate cl-thread-name" data-slot="row-title">Aruba in April</span>
+                    <span class="type-body2 cl-thread-when" data-slot="row-time">2:14p</span>
+                  </span>
+                  <span class="type-caption cl-thread-trip" data-slot="row-trip">Aruba in April</span>
+                  <span class="type-body2 truncate cl-thread-preview" data-slot="row-preview">Locked. Your final balance link is on your trip page now.</span>
+                </span>
+                <span class="chip chip-primary chip-small cl-thread-unread" data-slot="row-unread">2</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- The right pane before a thread is picked. Only on the widest layout: below that the
+           list is the whole screen and this never renders. -->
+      <div class="cl-pane cl-pane-empty" data-slot="pick">
+        <div class="cl-empty">
+          <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#message"></use></svg></span>
+          <p class="type-subtitle1 text-primary cl-empty-title">Pick a conversation</p>
+          <p class="type-body2 text-secondary cl-empty-body">Choose a thread on the left, or start a new one.</p>
+        </div>
+      </div>
+
+      <div class="cl-pane cl-thread" data-slot="body">
+        <header class="cl-thread-head">
+          <!-- Back to the INBOX, not to a trip. On the widest layout the list is already
+               beside this, so the control is hidden there rather than made to lie. -->
+          <a class="btn btn-text st-btn cl-thread-back below-web" href="/messages" aria-label="Messages" data-slot="back"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg></a>
+
+          <img class="cl-thread-avatar" src="/assets/img/lockup-light.webp" width="36" height="36" alt="" decoding="async" data-slot="head-photo">
+          <span class="cl-thread-avatar cl-thread-initials" aria-hidden="true" data-slot="head-initials">GS</span>
+
+          <span class="cl-thread-who">
+            <span class="type-subtitle1 text-primary truncate cl-thread-title" data-slot="head-title">Aruba in April</span>
+            <span class="type-body2 text-secondary cl-thread-sub" data-slot="head-sub">Usually replies the same day</span>
+          </span>
+
+          <!-- Only when there is a trip to open. The general thread has none, and a disabled
+               button explaining that would be furniture. -->
+          <a class="btn btn-outlined btn-secondary st-btn btn-small cl-thread-open" href="/trips/1" data-slot="open-trip">
+            <span class="from-md" data-slot="open-trip-label">Open trip</span>
+            <svg class="icon icon-14 below-md" aria-hidden="true"><use href="/assets/icons.svg#trip"></use></svg>
+          </a>
+        </header>
+
+        <div class="cl-thread-scroll">
+          <div class="cl-thread-inner">
+            <div class="cl-empty" data-slot="empty">
+              <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#message"></use></svg></span>
+              <p class="type-subtitle1 text-primary cl-empty-title" data-slot="empty-title">No messages yet</p>
+              <p class="type-body2 text-secondary cl-empty-body" data-slot="empty-body">This is where you and Gyasi talk.</p>
+            </div>
+
+            <div class="cl-bubbles" data-slot="rows">
+              <div data-repeat="rows">
+                <div class="cl-day-sep" data-slot="sep"><span class="chip chip-small" data-slot="sep-label">Today</span></div>
+
+                <div class="cl-row" data-slot="bubble">
+                  <span class="cl-bubble-avatar" aria-hidden="true" data-slot="bubble-avatar">GS</span>
+                  <span class="cl-bubble-col">
+                    <span class="cl-bubble" data-slot="bubble-body">Quick win — I held one tentatively.</span>
+                    <span class="type-caption text-secondary cl-bubble-time" data-slot="bubble-time">11:14a</span>
+                  </span>
+                </div>
+
+                <div class="cl-row" data-slot="attachment">
+                  <span class="cl-bubble-col">
+                    <span class="card cl-attach">
+                      <span class="cl-doc-badge" aria-hidden="true" data-slot="attach-badge">PDF</span>
+                      <a class="link truncate cl-attach-name" href="/documents" data-slot="attach-link">resort-confirmation.pdf</a>
+                      <span class="type-caption text-secondary cl-attach-size" data-slot="attach-size">20 KB</span>
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cl-compose">
+          <div class="alert alert-error cl-compose-alert" role="alert" data-slot="send-error"><div class="alert-message" data-slot="send-error-text">That message did not send. It is still here, so try again in a moment.</div></div>
+
+          <div class="cl-compose-inner">
+            <form class="cl-quick" method="post" action="/messages/1" data-quick-form data-slot="quick-form">
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Sounds good" data-slot="quick-1">Sounds good</button>
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Add my partner" data-slot="quick-2">Add my partner</button>
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Send a passport" data-slot="quick-3">Send a passport</button>
+              <button class="chip chip-outlined cl-quick-chip" type="submit" name="quick" value="Schedule a call" data-slot="quick-4">Schedule a call</button>
+            </form>
+
+            <form class="cl-compose-form" method="post" action="/messages/1" data-submit-once data-slot="send-form">
+              <span class="btn-tooltip cl-attach-button" title="Attaching files arrives with the document upload screen" data-slot="attach-wrap">
+                <button class="btn btn-text st-btn cl-thread-back" type="button" disabled tabindex="-1" aria-label="Attach a file" data-slot="attach">
+                  <svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#attach"></use></svg>
+                </button>
+              </span>
+              <label class="visually-hidden" for="body" data-slot="compose-label">Reply to Gyasi…</label>
+              <textarea class="input cl-compose-input" id="body" name="body" rows="1" maxlength="4000" placeholder="Reply to Gyasi…" data-slot="compose"></textarea>
+              <button class="btn btn-contained st-btn cl-send" type="submit" data-pending-label="Sending…" data-slot="send">
+                <svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#send"></use></svg>
+                <span class="from-md">Send</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="cl-empty cl-not-found" data-slot="not-found">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't find that conversation</p>
+        <p class="type-body2 text-secondary cl-empty-body">It may belong to a different account, or it may have been filed away.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/messages">All messages</a>
+      </div>
+
+      <div class="cl-empty cl-not-found" data-slot="read-error">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't load your messages</p>
+        <p class="type-body2 text-secondary cl-empty-body">Nothing is lost — try again in a moment.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/dashboard">Back to your dashboard</a>
+      </div>
+    </div>
+    <script type="module" src="/assets/js/client/thread.js"></script>
+  </main>
+</body>
+</html>
